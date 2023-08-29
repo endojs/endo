@@ -1,13 +1,8 @@
+/// <reference types="ses"/>
 /* global globalThis */
 
 import test from 'ava';
-import '../index.js';
-import { repairIntrinsics } from '../src/lockdown-shim.js';
-import { getAnonymousIntrinsics } from '../src/get-anonymous-intrinsics.js';
-import {
-  makeCompartmentConstructor,
-  CompartmentPrototype,
-} from '../src/compartment-shim.js';
+import { repairIntrinsics } from '../src/lockdown.js';
 
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
@@ -26,11 +21,7 @@ test('permitted prototypes - on', t => {
   Object.prototype.hasOwnProperty.foo = 1;
 
   console.time('Benchmark repairIntrinsics()');
-  const hardenIntrinsics = repairIntrinsics(
-    makeCompartmentConstructor,
-    CompartmentPrototype,
-    getAnonymousIntrinsics,
-  );
+  const hardenIntrinsics = repairIntrinsics();
   console.timeEnd('Benchmark repairIntrinsics()');
 
   console.time('Benchmark hardenIntrinsics()');

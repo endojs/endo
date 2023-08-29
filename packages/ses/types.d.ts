@@ -19,7 +19,7 @@
 // version of harden.
 export type Harden = <T>(value: T) => T; // not Hardened<T>;
 
-export interface LockdownOptions {
+export interface RepairOptions {
   regExpTaming?: 'safe' | 'unsafe';
   localeTaming?: 'safe' | 'unsafe';
   consoleTaming?: 'safe' | 'unsafe';
@@ -36,6 +36,11 @@ export interface LockdownOptions {
   __hardenTaming__?: 'safe' | 'unsafe';
 }
 
+// Deprecated in favor of the more specific RepairOptions
+export type LockdownOptions = RepairOptions;
+
+export type RepairIntrinsics = (options?: LockdownOptions) => void;
+export type HardenIntrinsics = () => void;
 export type Lockdown = (options?: LockdownOptions) => void;
 
 export type __LiveExportMap__ = Record<string, [string, boolean]>;
@@ -172,19 +177,13 @@ export type Raise = (reason: Error) => void;
 // eslint-disable-next-line no-use-before-define
 export type MakeAssert = (raise?: Raise, unredacted?: boolean) => Assert;
 
-export interface Assert {
+export interface AssertionFunctions {
   (
     value: any,
     details?: Details,
     errorConstructor?: ErrorConstructor,
   ): asserts value;
   typeof: AssertTypeof;
-  error(
-    details?: Details,
-    errorConstructor?: ErrorConstructor,
-    options?: AssertMakeErrorOptions,
-  ): Error;
-  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
   equal(
     left: any,
     right: any,
@@ -192,6 +191,15 @@ export interface Assert {
     errorConstructor?: ErrorConstructor,
   ): void;
   string(specimen: any, details?: Details): asserts specimen is string;
+  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
+}
+
+export interface AssertionUtilities {
+  error(
+    details?: Details,
+    errorConstructor?: ErrorConstructor,
+    options?: AssertMakeErrorOptions,
+  ): Error;
   note(error: Error, details: Details): void;
   details(
     template: TemplateStringsArray | string[],
@@ -200,8 +208,15 @@ export interface Assert {
   Fail(template: TemplateStringsArray | string[], ...args: any): never;
   quote(payload: any, spaces?: string | number): ToStringable;
   bare(payload: any, spaces?: string | number): ToStringable;
+}
+
+export interface DeprecatedAssertionUtilities {
   makeAssert: MakeAssert;
 }
+
+export type Assert = AssertionFunctions &
+  AssertionUtilities &
+  DeprecatedAssertionUtilities;
 
 interface CompartmentEvaluateOptions {
   sloppyGlobalsMode?: boolean;
@@ -214,6 +229,8 @@ interface CompartmentEvaluateOptions {
 declare global {
   var harden: Harden;
 
+  var repairIntrinsics: RepairIntrinsics;
+  var hardenIntrinsics: HardenIntrinsics;
   var lockdown: Lockdown;
 
   var assert: Assert;

@@ -7,6 +7,7 @@ The input validation check `assertCopyArray(arr)` asserts that `passStyleOf(arr)
    * frozen, and therefore
       * all its own properties are non-configurable, and if data properties, non-writable.
       * it will never have more or fewer own properties than it has now.
+      * it will never inherit from anything different than what it inherits from now (`Array.prototype`).
    * has a `length` property which is a *non-enumerable* own data property whose value is a number representing a non-negative integer. This invariant probably follows from `Array.isArray(arr)` anyway.
    * aside from `length`, has only own-properties which are
       * number-named (rather than symbol named) for the non-negative integers between `0` and `length - 1`. It has all of these, i.e., it has no holes. It has no own properties besides these and `length`.

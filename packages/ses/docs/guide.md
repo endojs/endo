@@ -28,7 +28,7 @@ Hardened JavaScript:
 - Removes non-determinism by modifying a few built-in objects.
 - Adds functionality to freeze and make immutable both built-in JavaScript
   objects and program created objects and make them immutable.
-- Is (as SES) is a proposed extension to the JavaScript standard.
+- Is (tentatively named SES) a proposed extension to the JavaScript standard.
 
 Hardened JavaScript consists of three parts:
 - Lockdown is a function that irreversibly repairs and hardens an existing
@@ -38,6 +38,12 @@ Hardened JavaScript consists of three parts:
 - Compartment is a class that constructs isolated environments, with separate
   globals and modules, but shared hardened primordials and limited access to
   other powerful objects in global scope.
+
+Lockdown consists of separable Repair Intrinsics and Harden Intrinsics phases,
+so that shims (other programs that alter JavaScript) may run between them.
+These shims are obliged to maintain the object capability safety invariants
+provided by Lockdown and must be carefully reviewed.
+We call these "vetted shims".
 
 ## What is SES?
 
@@ -143,6 +149,53 @@ To use SES as a script on the web, use the UMD build.
 <script src="node_modules/ses/dist/ses.umd.min.js">
 ```
 
+## Using Hardened JavaScript with vetted shims
+
+Some modules depend on language features that may not be present in the
+underlying platform.
+Some of these shims will compose poorly with `lockdown()`.
+Lockdown will remove any property it finds on a shared intrinsic (like
+`Array.prototype`) that it does not recognize and then freeze all the shared
+intrinsics and all the objects transitively reachable through own properties
+and prototypes.
+
+So, if a shim adds `Array.prototype.collate`, running that shim before calling
+`lockdown()` will have no net effect and running this shim after calling
+`lockdown()` will throw an exception when attempting to assign or define that
+property.
+
+Lockdown consists of two phases: Repair Intrinsics and Harden Intrinsics.
+A shim can run between these phases and its effects will persist.
+The following programs are equivalent:
+
+```js
+lockdown(options);
+```
+
+And,
+
+```js
+repairIntrinsics(options);
+hardenIntrinsics();
+```
+
+And, an application that choses to call these also has the option of running
+shims between the two phases.
+
+```js
+import './non-ses-code-before-lockdown.js';
+import './ses-repair-intrinsics.js'; // calls repairIntrinsics.
+import './vetted-shim.js';
+import './ses-harden-intrinsics.js'; // calls hardenIntrinsics.
+import './ses-code-after-lockdown.js';
+```
+
+However, any such shim must preserve the qualities of Lockdown:
+all reachable objects in an empty compartment must be hardened and must not
+provide a way for isolated parties to communicate.
+So, application authors are responsible for ensuring these shims maintain their
+application’s integrity invariants.
+
 ## What Lockdown does to JavaScript
 
 Hardened JavaScript does not include any I/O objects providing "unsafe" [*ambient authority*](https://en.wikipedia.org/wiki/Ambient_authority).
@@ -160,11 +213,16 @@ defines a subset of the globals defined by the baseline JavaScript language spec
 - `BigInt`
 - `Intl`
 - `Math` all features except
-  - `Math.random()` is disabled (calling it throws an error) as an obvious source of
-     non-determinism.
+  - `Math.random()` throws a `TypeError` rather than provide a random number, which would be a source of non-determinism.
 - `Date` all features except
-  - `Date.now()` returns `NaN`
-  - `new Date(nonNumber)` or `Date(anything)` return a `Date` that stringifies to `"Invalid Date"`
+  - `Date.now()` throws a `TypeError` rather than returning the millisecods
+    representing the current time.
+  - `new Date()`, calling it as a constructor (with `new`) with no arguments,
+    throws a `TypeError` rather than returning a date instance
+    representing the current time.
+  - `Date(...)`, calling it as a function (without `new`) no matter what
+    the arguments, throws a `TypeError` rather than a string presenting
+    the current time.
 
 Much of the `Intl` package, and some other objects' locale-specific aspects (e.g. `Number.prototype.toLocaleString`)
 have results that depend upon which locale is configured. This varies from one process to another.
@@ -199,7 +257,7 @@ Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs
 * `WebAssembly`
 * `TextEncoder` and `TextDecoder`
 * `global`
-  * Use `globalThis` instead (and remember it is frozen).
+  * Use `globalThis` instead.
 * `process`
   * No `process.env` to access the process's environment variables.
   * No `process.argv` for the argument array.
@@ -239,15 +297,31 @@ makes those global objects available.
   and defer the construction of error objects and computed messages until an
   assertion fails.
 
-- `lockdown()` and `harden()` both freeze an object’s API surface (enumerable data properties).
-  A hardened object’s properties cannot be changed, only read, so the only way to interact with a
-  hardened object is through its methods. `harden()` is similar to `Object.freeze()` but more
-  thorough. See the individual [`lockdown()`](#lockdown) and [`harden()`](#harden) sections
-  below.
+- `repairIntrinsics` adds, removes, and replaces various properties of the
+  global environment and shared intrinsics.
+  Introduces `hardenIntrinsics`.
 
-- [`Compartment`](https://github.com/endojs/endo/tree/SES-v0.8.0/packages/ses#compartment) is
-  a global. Code runs inside a `Compartment` and can create sub-compartments to host other
-  code (with different globals or transforms). Note that these child compartments get `harden()` and `Compartment`.
+- `hardenIntrinsics` freezes the transitive own properties and prototypes of
+  the shared intrinsics.
+  Introduces `harden`.
+
+- [`harden()`](#harden) provides a shorthand for reliably freezing the
+  transitive properties and prototypes of other objects, such that the API
+  surface of these objects are tamper-proof when shared between otherwise
+  isolated programs.
+
+- [`lockdown()`](#lockdown) is a shorthand for `repairIntrinsics` and `hardenIntrinsics`.
+
+- [`Compartment`](https://github.com/endojs/endo/tree/SES-v0.8.0/packages/ses#compartment)
+  Code runs inside a `Compartment` and can create sub-compartments to host
+  other code (with different globals or code transforms).
+  The globals in a child compartment include the shared intrinsics including
+  `harden` and a batch of evaluators that run programs that will also be
+  confined to the compartment including `eval`, `Function`, and `Compartment`
+  itself.
+  Compartments can be created with support for loading modules.
+  Comaprtments constructed after `repairIntrinsics()` and `hardenIntrinsics()`
+  also confine the evaluation of modules.
 
 ## Realms
 
@@ -327,8 +401,10 @@ c1.globalThis === c2.globalThis; // false
 c1.globalThis.JSON === c2.globalThis.JSON; // true
 ```
 Every compartment's global scope includes a shallow, specialized copy of the JavaScript
-intrinsics. These omit `Date.now()` and `Math.random()`
-since they can be covert inter-program communication channels.
+intrinsics. These disable `Math.random()`, `Date.now()`, and the behaviors of
+the `Date` constructor which would provide the current time,
+since all these sources of non-determinism can enable covert inter-program
+communication channels.
 
 However, a compartment may be expressly given access to these objects through
 the compartment constructor's first argument or by assigning them to the
@@ -409,6 +485,21 @@ some covert communication channels).
 
 For a full explanation of `lockdown()` and its options, please click
 [here](./lockdown.md).
+
+## `repairIntrinsics()`
+
+Performs the first part of Lockdown: adding, removing, and replacing certain
+JavaScript intrinsics so that some intrinsics can be safely shared between
+confined programs.
+Running `repairIntrinsics()` introduces `hardenIntrinsics()`.
+
+## `hardenIntrinsics()`
+
+Performs the last part of Lockdown: hardening the shared intrinsics so they can
+be safely shared between confined programs.
+Running `hardenIntrinsics()` reveals the `harden()` function.
+(Harden is not useful until after `hardenIntrinsics()` and could interfere with
+the execution of repairs or shims if it were revealed earlier.)
 
 ## `harden()`
 

@@ -194,7 +194,8 @@ c1.globalThis.JSON === c2.globalThis.JSON; // true
 ```
 
 The global scope of every compartment includes a shallow, specialized copy of
-the JavaScript intrinsics, omitting `Date.now` and `Math.random`.
+the JavaScript intrinsics, disabling `Math.random`, `Date.now` and the
+behaviors of the `Date` constructor which would reveal the current time.
 Comaprtments leave these out since they can be used as covert communication
 channels between programs.
 However, a compartment may be expressly given access to these objects
@@ -722,7 +723,7 @@ have found the object capability model that `ses` provides to be sound.
 Hardened JavaScript is also within the scope of the [Agoric bug bounty
 program](https://hackerone.com/agoric), which rewards researchers for surfacing valid
 bugs in our code. We welcome the opportunity to cooperate with researchers,
-whose efforts will undoubtedly yield stronger, more resilient code. 
+whose efforts will undoubtedly yield stronger, more resilient code.
 
 ## Bug Disclosure
 
@@ -768,7 +769,7 @@ provide some place to include text like
 > option.
 > Specifically, [link to source in the project] does not work correctly in such
 > an environment.
-> 
+>
 > Please consider increasing support by replacing assignments to object
 > properties inherited from intrinsics with use of `Object.defineProperties`
 > (thereby working around the JavaScript "override mistake"), and if applicable
@@ -791,4 +792,3 @@ intrinsics, including `ses`.
 [SES proposal]: https://github.com/tc39/proposal-ses
 [SES Strategy Group]: https://groups.google.com/g/ses-strategy
 [SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
-

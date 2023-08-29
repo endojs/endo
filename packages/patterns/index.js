@@ -2,11 +2,17 @@ export {
   isKey,
   assertKey,
   assertScalarKey,
+  isCopySet,
+  assertCopySet,
   makeCopySet,
   getCopySetKeys,
+  isCopyBag,
+  assertCopyBag,
   makeCopyBag,
   makeCopyBagFromElements,
   getCopyBagEntries,
+  isCopyMap,
+  assertCopyMap,
   makeCopyMap,
   getCopyMapEntries,
 } from './src/keys/checkKey.js';
@@ -52,6 +58,10 @@ export {
   assertPattern,
   matches,
   mustMatch,
+  isAwaitArgGuard,
+  assertAwaitArgGuard,
+  assertMethodGuard,
+  assertInterfaceGuard,
 } from './src/patterns/patternMatchers.js';
 
 // ////////////////// Temporary, until these find their proper home ////////////

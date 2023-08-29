@@ -17,7 +17,7 @@ const globalAssert = globalThis.assert;
 
 if (globalAssert === undefined) {
   throw Error(
-    `Cannot initialize @endo/assert, missing globalThis.assert, import 'ses' before '@endo/assert'`,
+    `Cannot initialize @endo/errors, missing globalThis.assert, import 'ses' before '@endo/errors'`,
   );
 }
 
@@ -36,38 +36,39 @@ const missing = /** @type {const} */ ([
 ]).filter(name => globalAssert[name] === undefined);
 if (missing.length > 0) {
   throw Error(
-    `Cannot initialize @endo/assert, missing globalThis.assert methods ${missing.join(
+    `Cannot initialize @endo/errors, missing globalThis.assert methods ${missing.join(
       ', ',
     )}`,
   );
 }
 
+// The global assert mixed assertions and utility functions.
+// This module splits them apart
+// and also updates the names of the utility functions.
 const {
   bare,
-  details,
-  equal,
-  error,
-  Fail,
+  details: redacted,
+  error: makeError,
+  Fail: throwRedacted,
+  makeAssert: _omittedMakeAssert,
   note,
   quote,
-  makeAssert,
-  string: assertString,
-  typeof: assertTypeof,
+  ...assertions
 } = globalAssert;
+/** @type {import("ses").AssertionFunctions } */
+// @ts-expect-error missing properties assigned next
+const assert = (value, optDetails, optErrorContructor) =>
+  globalAssert(value, optDetails, optErrorContructor);
+Object.assign(assert, assertions);
 
 export {
-  // the global
-  globalAssert as assert,
-  // properties
+  // assertions
+  assert,
+  // related utilities that aren't assertions
   bare,
-  details,
-  equal,
-  error,
-  Fail,
-  makeAssert,
+  makeError,
   note,
   quote,
-  // properties with syntax collision
-  assertString,
-  assertTypeof,
+  redacted,
+  throwRedacted,
 };

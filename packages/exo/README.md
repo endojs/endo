@@ -10,13 +10,21 @@ When an exo is defined with an InterfaceGuard, the exo is augmented by default w
 
 ```js
 // `GET_INTERFACE_GUARD` holds the name of the meta-method
-import { GET_INTERFACE_GUARD } from `@endo/exo`;
+import { GET_INTERFACE_GUARD } from '@endo/exo';
+import { getCopyMapEntries } from '@endo/patterns';
 
 ...
    const interfaceGuard = await E(exo)[GET_INTERFACE_GUARD]();
    // `methodNames` omits names of automatically added meta-methods like
    // the value of `GET_INTERFACE_GUARD`.
    // Others may also be omitted if `interfaceGuard.partial`
-   const methodNames = Reflect.ownKeys(interfaceGuard.methodGuards);
+   const methodNames = [
+     ...Reflect.ownKeys(interfaceGuard.methodGuards),
+     ...(interfaceGuard.symbolMethodGuards
+       ? [...getCopyMapEntries(interfaceGuard.symbolMethodGuards)].map(
+           entry => entry[0],
+         )
+       : []),
+   ];
 ...
 ```

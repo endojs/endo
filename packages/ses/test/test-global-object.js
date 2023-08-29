@@ -9,7 +9,7 @@ import {
   setGlobalObjectEvaluators,
 } from '../src/global-object.js';
 import { sharedGlobalPropertyNames } from '../src/permits.js';
-import { makeCompartmentConstructor } from '../src/compartment-shim.js';
+import { makeCompartmentConstructor } from '../src/compartment.js';
 
 test('globalObject', t => {
   const intrinsics = {
