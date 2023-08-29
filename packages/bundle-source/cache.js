@@ -15,8 +15,9 @@ const { Fail, quote: q } = assert;
  * @typedef {object} BundleMeta
  * @property {string} bundleFileName
  * @property {string} bundleTime ISO format
+ * @property {number} bundleSize
  * @property {{ relative: string, absolute: string }} moduleSource
- * @property {Array<{ relativePath: string, mtime: string }>} contents
+ * @property {Array<{ relativePath: string, mtime: string, size: number }>} contents
  */
 
 export const jsOpts = {
@@ -105,6 +106,13 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     return meta;
   };
 
+  /**
+   * @param {BundleMeta} meta
+   * @param {string} targetName
+   * @param {*} rootOpt
+   * @param {Logger} [log]
+   * @returns {Promise<BundleMeta>}
+   */
   const validate = async (meta, targetName, rootOpt, log = defaultLog) => {
     const {
       bundleFileName,
