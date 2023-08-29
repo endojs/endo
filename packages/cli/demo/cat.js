@@ -30,21 +30,32 @@ const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   timeStyle: 'long',
 });
 
-const followMessagesComponent = async (parentElement, powers) => {
+const followMessagesComponent = async ($parent, $end, powers) => {
   for await (const message of makeRefIterator(E(powers).followMessages())) {
+    const { number, who, when, dismissed } = message;
+
+    const $error = document.createElement('span');
+    $error.style.color = 'red';
+    $error.innerText = '';
+    // To be inserted later, but declared here for reference.
+
+    const $message = document.createElement('div');
+    $parent.insertBefore($message, $end);
+
+    dismissed.then(() => {
+      $message.remove();
+    });
+
+    const $number = document.createElement('span');
+    $number.innerText = `${number}. `;
+    $message.appendChild($number);
+
+    const $who = document.createElement('b');
+    $who.innerText = `${who}:`;
+    $message.appendChild($who);
+
     if (message.type === 'request') {
-      const { number, what, when, who, settled } = message;
-
-      const $message = document.createElement('div');
-      parentElement.appendChild($message);
-
-      const $number = document.createElement('span');
-      $number.innerText = `${number}. `;
-      $message.appendChild($number);
-
-      const $who = document.createElement('b');
-      $who.innerText = `${who}:`;
-      $message.appendChild($who);
+      const { what, settled } = message;
 
       const $what = document.createElement('span');
       $what.innerText = ` ${what} `;
@@ -71,10 +82,6 @@ const followMessagesComponent = async (parentElement, powers) => {
       };
       $input.appendChild($reject);
 
-      const $error = document.createElement('span');
-      $error.style.color = 'red';
-      $input.appendChild($error);
-
       $resolve.onclick = () => {
         E(powers)
           .resolve(number, $pet.value)
@@ -86,12 +93,109 @@ const followMessagesComponent = async (parentElement, powers) => {
       settled.then(status => {
         $input.innerText = ` ${status} `;
       });
+    } else if (message.type === 'package') {
+      const { strings, names } = message;
+      assert(Array.isArray(strings));
+      assert(Array.isArray(names));
+
+      $message.appendChild(document.createTextNode(' "'));
+
+      let index = 0;
+      for (
+        index = 0;
+        index < Math.min(strings.length, names.length);
+        index += 1
+      ) {
+        assert.typeof(strings[index], 'string');
+        const outer = JSON.stringify(strings[index]);
+        const inner = outer.slice(1, outer.length - 1);
+        $message.appendChild(document.createTextNode(inner));
+        assert.typeof(names[index], 'string');
+        const name = `@${names[index]}`;
+        const $name = document.createElement('b');
+        $name.innerText = name;
+        $message.appendChild($name);
+      }
+      if (strings.length > names.length) {
+        const outer = JSON.stringify(strings[index]);
+        const inner = outer.slice(1, outer.length - 1);
+        $message.appendChild(document.createTextNode(inner));
+      }
+
+      $message.appendChild(document.createTextNode('" '));
+
+      const $when = document.createElement('i');
+      $when.innerText = dateFormatter.format(Date.parse(when));
+      $message.appendChild($when);
+
+      $message.appendChild(document.createTextNode(' '));
+
+      if (names.length > 0) {
+        const $names = document.createElement('select');
+        $message.appendChild($names);
+        for (const name of names) {
+          const $name = document.createElement('option');
+          $name.innerText = name;
+          $names.appendChild($name);
+        }
+
+        $message.appendChild(document.createTextNode(' '));
+
+        const $as = document.createElement('input');
+        $as.type = 'text';
+        $message.appendChild($as);
+
+        $message.appendChild(document.createTextNode(' '));
+
+        const $adopt = document.createElement('button');
+        $adopt.innerText = 'Adopt';
+        $message.appendChild($adopt);
+        $adopt.onclick = () => {
+          console.log($as.value, $as);
+          E(powers)
+            .adopt(number, $names.value, $as.value || $names.value)
+            .then(
+              () => {
+                $as.value = '';
+              },
+              error => {
+                $error.innerText = ` ${error.message}`;
+              },
+            );
+        };
+      }
     }
+
+    $message.appendChild(document.createTextNode(' '));
+
+    const $dismiss = document.createElement('button');
+    $dismiss.innerText = 'Dismiss';
+    $message.appendChild($dismiss);
+    $dismiss.onclick = () => {
+      E(powers)
+        .dismiss(number)
+        .catch(error => {
+          $error.innerText = ` ${error.message}`;
+        });
+    };
+
+    $message.appendChild($error);
   }
 };
 
+const bodyComponent = ($parent, powers) => {
+  const $title = document.createElement('h1');
+  $title.innerText = '🐈‍⬛';
+  $parent.appendChild($title);
+
+  const $endOfMessages = document.createTextNode('');
+  $parent.appendChild($endOfMessages);
+  followMessagesComponent($parent, $endOfMessages, powers).catch(
+    window.reportError,
+  );
+};
+
 export const make = async powers => {
-  document.body.innerHTML =
-    '<h1>🐈‍⬛ Familiar Chat</h1><h2>Or: <i>Le Chat Familier</i></h2>';
-  followMessagesComponent(document.body, powers).catch(window.reportError);
+  document.body.innerHTML = '';
+  bodyComponent(document.body, powers);
 };
