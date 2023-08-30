@@ -13,8 +13,7 @@ const { quote: q, Fail } = assert;
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 
 // Based on merge-set-operators.js, but altered for the bag representation.
-// TODO share more code with merge-set-operators.js, rather than
-// duplicating with changes.
+// TODO share more code with that file and keycollection-operators.js.
 
 /**
  * Asserts that `bagEntries` is already rank sorted by `rankCompare`, where
@@ -221,40 +220,6 @@ const bagIterIsDisjoint = xyi => {
   return true;
 };
 
-// We should be able to use this for iterCompare as well.
-// The generalization is free.
-/**
- * @template T
- * @param {Iterable<[T,bigint,bigint]>} xyi
- * @returns {KeyComparison}
- */
-const bagIterCompare = xyi => {
-  let loneY = false;
-  let loneX = false;
-  for (const [_m, xc, yc] of xyi) {
-    if (xc < yc) {
-      // something in y is not in x, so x is not a superbag of y
-      loneY = true;
-    }
-    if (xc > yc) {
-      // something in x is not in y, so y is not a superbag of x
-      loneX = true;
-    }
-    if (loneX && loneY) {
-      return NaN;
-    }
-  }
-  if (loneX) {
-    return 1;
-  } else if (loneY) {
-    return -1;
-  } else {
-    (!loneX && !loneY) ||
-      Fail`Internal: Unexpected lone pair ${q([loneX, loneY])}`;
-    return 0;
-  }
-};
-
 /**
  * @template T
  * @param {[T,bigint,bigint][]} xyi
@@ -308,7 +273,6 @@ const mergeify = bagIterOp => (xbagEntries, ybagEntries) =>
 
 const bagEntriesIsSuperbag = mergeify(bagIterIsSuperbag);
 const bagEntriesIsDisjoint = mergeify(bagIterIsDisjoint);
-const bagEntriesCompare = mergeify(bagIterCompare);
 const bagEntriesUnion = mergeify(bagIterUnion);
 const bagEntriesIntersection = mergeify(bagIterIntersection);
 const bagEntriesDisjointSubtract = mergeify(bagIterDisjointSubtract);
@@ -321,7 +285,6 @@ const bagify = bagEntriesOp => (xbag, ybag) =>
 
 export const bagIsSuperbag = rawBagify(bagEntriesIsSuperbag);
 export const bagIsDisjoint = rawBagify(bagEntriesIsDisjoint);
-export const bagCompare = rawBagify(bagEntriesCompare);
 export const bagUnion = bagify(bagEntriesUnion);
 export const bagIntersection = bagify(bagEntriesIntersection);
 export const bagDisjointSubtract = bagify(bagEntriesDisjointSubtract);

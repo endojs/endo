@@ -30,8 +30,10 @@ import {
   checkCopyMap,
   copyMapKeySet,
   checkCopyBag,
+  getCopyMapEntryArray,
   makeCopyMap,
 } from '../keys/checkKey.js';
+import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
 import './internal-types.js';
 
@@ -518,23 +520,28 @@ const makePatternKit = () => {
             )}`,
           );
         }
-        const { payload: pattPayload } = patt;
-        const { payload: specimenPayload } = specimen;
+        // Compare keys as copySets
         const pattKeySet = copyMapKeySet(patt);
         const specimenKeySet = copyMapKeySet(specimen);
-        // Compare keys as copySets
         if (!checkMatches(specimenKeySet, pattKeySet, check)) {
           return false;
         }
-        const pattValues = pattPayload.values;
-        const specimenValues = specimenPayload.values;
-        // compare values as copyArrays
-        // TODO BUG: this assumes that the keys appear in the
-        // same order, so we can compare values in that order.
-        // However, we're only guaranteed that they appear in
-        // the same rankOrder. Thus we must search one of these
-        // in the other's rankOrder.
-        return checkMatches(specimenValues, pattValues, check);
+        // Compare values as copyArrays after applying a shared total order.
+        // This is necessary because the antiRankOrder sorting of each map's
+        // entries is a preorder that admits ties.
+        const pattValues = [];
+        const specimenValues = [];
+        const entryPairs = generateCollectionPairEntries(
+          patt,
+          specimen,
+          getCopyMapEntryArray,
+          undefined,
+        );
+        for (const [_key, pattValue, specimenValue] of entryPairs) {
+          pattValues.push(pattValue);
+          specimenValues.push(specimenValue);
+        }
+        return checkMatches(harden(specimenValues), harden(pattValues), check);
       }
       default: {
         const matchHelper = maybeMatchHelper(patternKind);

@@ -12,6 +12,8 @@ const { quote: q, Fail } = assert;
 /** @typedef {import('../types').FullCompare} FullCompare */
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 
+// TODO share more code with keycollection-operators.js.
+
 /**
  * Asserts that `elements` is already rank sorted by `rankCompare`, where there
  * may be contiguous regions of elements tied for the same rank.
@@ -317,7 +319,6 @@ const setify = elementsOp => (xset, yset) =>
 
 export const setIsSuperset = rawSetify(elementsIsSuperset);
 export const setIsDisjoint = rawSetify(elementsIsDisjoint);
-export const setCompare = rawSetify(elementsCompare);
 export const setUnion = setify(elementsUnion);
 export const setDisjointUnion = setify(elementsDisjointUnion);
 export const setIntersection = setify(elementsIntersection);

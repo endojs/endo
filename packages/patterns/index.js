@@ -19,6 +19,8 @@ export {
 export { coerceToElements } from './src/keys/copySet.js';
 export { coerceToBagEntries } from './src/keys/copyBag.js';
 export {
+  bagCompare,
+  setCompare,
   compareKeys,
   keyLT,
   keyLTE,
@@ -36,7 +38,6 @@ export {
   elementsDisjointSubtract,
   setIsSuperset,
   setIsDisjoint,
-  setCompare,
   setUnion,
   setDisjointUnion,
   setIntersection,
@@ -45,7 +46,6 @@ export {
 
 export {
   bagIsSuperbag,
-  bagCompare,
   bagUnion,
   bagIntersection,
   bagDisjointSubtract,
