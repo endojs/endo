@@ -9,9 +9,12 @@
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
+/** @typedef {import('../types.js').AwaitArgGuardPayload} AwaitArgGuardPayload */
 /** @typedef {import('../types.js').AwaitArgGuard} AwaitArgGuard */
 /** @typedef {import('../types.js').ArgGuard} ArgGuard */
+/** @typedef {import('../types.js').MethodGuardPayload} MethodGuardPayload */
 /** @typedef {import('../types.js').MethodGuard} MethodGuard */
+/** @typedef {import('../types.js').InterfaceGuardPayload} InterfaceGuardPayload */
 /** @typedef {import('../types.js').InterfaceGuard} InterfaceGuard */
 /** @typedef {import('../types.js').MethodGuardMaker0} MethodGuardMaker0 */
 

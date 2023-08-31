@@ -32,6 +32,7 @@ import {
   checkCopyBag,
   getCopyMapEntryArray,
   makeCopyMap,
+  getCopyMapKeys,
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
@@ -1714,14 +1715,37 @@ const AwaitArgGuardShape = harden({
   argGuard: M.pattern(),
 });
 
+/**
+ * @param {any} specimen
+ * @returns {specimen is AwaitArgGuard}
+ */
 export const isAwaitArgGuard = specimen =>
   matches(specimen, AwaitArgGuardShape);
 harden(isAwaitArgGuard);
 
+/**
+ * @param {any} specimen
+ * @returns {asserts specimen is AwaitArgGuard}
+ */
 export const assertAwaitArgGuard = specimen => {
   mustMatch(specimen, AwaitArgGuardShape, 'awaitArgGuard');
 };
 harden(assertAwaitArgGuard);
+
+/**
+ * By using this abstraction rather than accessing the properties directly,
+ * we smooth the transition to https://github.com/endojs/endo/pull/1712
+ *
+ * @param {AwaitArgGuard} awaitArgGuard
+ * @returns {AwaitArgGuardPayload}
+ */
+export const getAwaitArgGuardPayload = awaitArgGuard => {
+  assertAwaitArgGuard(awaitArgGuard);
+  const { klass: _, ...payload } = awaitArgGuard;
+  /** @type {AwaitArgGuardPayload} */
+  return payload;
+};
+harden(getAwaitArgGuardPayload);
 
 /**
  * @param {Pattern} argPattern
@@ -1762,10 +1786,29 @@ const AsyncMethodGuardShape = harden({
 
 const MethodGuardShape = M.or(SyncMethodGuardShape, AsyncMethodGuardShape);
 
+/**
+ * @param {any} specimen
+ * @returns {asserts specimen is MethodGuard}
+ */
 export const assertMethodGuard = specimen => {
   mustMatch(specimen, MethodGuardShape, 'methodGuard');
 };
 harden(assertMethodGuard);
+
+/**
+ * By using this abstraction rather than accessing the properties directly,
+ * we smooth the transition to https://github.com/endojs/endo/pull/1712
+ *
+ * @param {MethodGuard} methodGuard
+ * @returns {MethodGuardPayload}
+ */
+export const getMethodGuardPayload = methodGuard => {
+  assertMethodGuard(methodGuard);
+  const { klass: _, ...payload } = methodGuard;
+  /** @type {MethodGuardPayload} */
+  return payload;
+};
+harden(getMethodGuardPayload);
 
 /**
  * @param {'sync'|'async'} callKind
@@ -1824,10 +1867,47 @@ const InterfaceGuardShape = M.splitRecord(
   },
 );
 
+/**
+ * @param {any} specimen
+ * @returns {asserts specimen is InterfaceGuard}
+ */
 export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
 };
 harden(assertInterfaceGuard);
+
+/**
+ * By using this abstraction rather than accessing the properties directly,
+ * we smooth the transition to https://github.com/endojs/endo/pull/1712
+ *
+ * @param {InterfaceGuard} interfaceGuard
+ * @returns {InterfaceGuardPayload}
+ */
+export const getInterfaceGuardPayload = interfaceGuard => {
+  assertInterfaceGuard(interfaceGuard);
+  const { klass: _, ...payload } = interfaceGuard;
+  /** @type {InterfaceGuardPayload} */
+  return payload;
+};
+harden(getInterfaceGuardPayload);
+
+const emptyCopyMap = makeCopyMap([]);
+
+/**
+ * @param {InterfaceGuard} interfaceGuard
+ * @returns {(string | symbol)[]}
+ */
+export const getInterfaceMethodKeys = interfaceGuard => {
+  const { methodGuards, symbolMethodGuards = emptyCopyMap } =
+    getInterfaceGuardPayload(interfaceGuard);
+  /** @type {(string | symbol)[]} */
+  // @ts-expect-error inference is too weak to see this is ok
+  return harden([
+    ...Reflect.ownKeys(methodGuards),
+    ...getCopyMapKeys(symbolMethodGuards),
+  ]);
+};
+harden(getInterfaceMethodKeys);
 
 /**
  * @param {string} interfaceName
