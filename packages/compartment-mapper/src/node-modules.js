@@ -631,7 +631,7 @@ const translateGraph = (
               name,
               path,
             },
-            packagePolicy,
+            /** @type {import('./types.js').PackagePolicy} */ (packagePolicy),
           )
         ) {
           moduleDescriptors[localPath] = {

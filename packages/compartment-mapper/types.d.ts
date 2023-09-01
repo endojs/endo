@@ -14,3 +14,6 @@ export {
 export { search } from './src/search.js';
 export { compartmentMapForNodeModules } from './src/node-modules.js';
 export { makeBundle, writeBundle } from './src/bundle.js';
+
+// eslint-disable-next-line import/export -- ESLint doesn't understand this
+export type * from './src/types.js';
