@@ -1292,7 +1292,7 @@ const makePatternKit = () => {
   const matchSplitArrayHelper = Far('match:splitArray helper', {
     checkMatches: (
       specimen,
-      [requiredPatt, optionalPatt = [], restPatt = MM.any()],
+      [requiredPatt, optionalPatt = harden([]), restPatt = harden([])],
       check,
     ) => {
       if (!checkKind(specimen, 'copyArray', check)) {
@@ -1412,7 +1412,7 @@ const makePatternKit = () => {
   const matchSplitRecordHelper = Far('match:splitRecord helper', {
     checkMatches: (
       specimen,
-      [requiredPatt, optionalPatt = {}, restPatt = MM.any()],
+      [requiredPatt, optionalPatt = harden({}), restPatt = harden({})],
       check,
     ) => {
       if (!checkKind(specimen, 'copyRecord', check)) {

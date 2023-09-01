@@ -188,7 +188,7 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.lte([3, 4, 1]));
 
     successCase(specimen, M.split([3], [4]));
-    successCase(specimen, M.split([3]));
+    successCase(specimen, M.split([3], M.any()));
     successCase(specimen, M.split([3], M.array()));
     successCase(specimen, M.split([3, 4], []));
     successCase(specimen, M.split([], [3, 4]));
@@ -211,6 +211,7 @@ const runTests = (t, successCase, failCase) => {
     failCase(specimen, M.lte([3]), '[3,4] - Must be <= [3]');
     failCase(specimen, M.gte([3, 4, 1]), '[3,4] - Must be >= [3,4,1]');
 
+    failCase(specimen, M.split([3]), '...rest: [4] - Must be: []');
     failCase(
       specimen,
       M.split([3, 4, 5, 6]),
@@ -253,7 +254,10 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.split(
         { foo: M.number() },
-        M.and(M.partial({ bar: M.number() }), M.partial({ baz: M.number() })),
+        M.and(
+          M.partial({ bar: M.number() }),
+          M.partial({ baz: M.number() }, M.any()),
+        ),
       ),
     );
     successCase(
@@ -266,12 +270,12 @@ const runTests = (t, successCase, failCase) => {
 
     successCase(specimen, M.split({ foo: 3 }, { bar: 4 }));
     successCase(specimen, M.split({ bar: 4 }, { foo: 3 }));
-    successCase(specimen, M.split({ foo: 3 }));
+    successCase(specimen, M.split({ foo: 3 }, M.any()));
     successCase(specimen, M.split({ foo: 3 }, M.record()));
     successCase(specimen, M.split({}, { foo: 3, bar: 4 }));
     successCase(specimen, M.split({ foo: 3, bar: 4 }, {}));
 
-    successCase(specimen, M.partial({ zip: 5, zap: 6 }));
+    successCase(specimen, M.partial({ zip: 5, zap: 6 }, M.any()));
     successCase(specimen, M.partial({ zip: 5, zap: 6 }, { foo: 3, bar: 4 }));
     successCase(specimen, M.partial({ foo: 3, zip: 5 }, { bar: 4 }));
 
@@ -340,6 +344,15 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.split(
         { foo: M.number() },
+        M.and(M.partial({ bar: M.number() }), M.partial({ baz: M.number() })),
+      ),
+      '...rest: ...rest: {"bar":4} - Must be: {}',
+    );
+    failCase(specimen, M.split({ foo: 3 }), '...rest: {"bar":4} - Must be: {}');
+    failCase(
+      specimen,
+      M.split(
+        { foo: M.number() },
         M.and(M.partial({ bar: M.string() }), M.partial({ baz: M.number() })),
       ),
       '...rest: bar?: number 4 - Must be a string',
@@ -364,6 +377,11 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.split({ foo: 3 }, { foo: M.any(), bar: 4 }),
       '...rest: {"bar":4} - Must have missing properties ["foo"]',
+    );
+    failCase(
+      specimen,
+      M.partial({ zip: 5, zap: 6 }),
+      '...rest: {"bar":4,"foo":3} - Must be: {}',
     );
     failCase(
       specimen,
