@@ -38,7 +38,7 @@ export {};
  * @typedef {<T extends ModuleFormat = 'endoZipBase64'>(
  *  startFilename: string,
  *  format: T,
- *  powers?: { read?: ReadFn; canonical?: CanonicalFn },
+ *  powers?: { read?: ReadFn; canonical?: CanonicalFn, externals?: string[] },
  * ) => Promise<BundleSourceResult<T>>} BundleSourceWithFormat
  */
 
@@ -46,7 +46,7 @@ export {};
  * @typedef {<T extends ModuleFormat = 'endoZipBase64'>(
  *  startFilename: string,
  *  bundleOptions: BundleOptions<T>,
- *  powers?: { read?: ReadFn; canonical?: CanonicalFn },
+ *  powers?: { read?: ReadFn; canonical?: CanonicalFn, externals?: string[] },
  * ) => Promise<BundleSourceResult<T>>} BundleSourceWithOptions
  */
 
@@ -54,7 +54,7 @@ export {};
  * @typedef {<T extends ModuleFormat = 'endoZipBase64'>(
  *   startFilename: string,
  *   formatOrOptions?: T | BundleOptions<T>,
- *   powers?: { read?: ReadFn; canonical?: CanonicalFn },
+ *   powers?: { read?: ReadFn; canonical?: CanonicalFn, externals?: string[] },
  * ) => Promise<BundleSourceResult<T>>} BundleSourceFallback
  */
 

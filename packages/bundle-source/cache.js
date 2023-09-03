@@ -45,6 +45,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const statsByPath = new Map();
 
     const loggedRead = async loc => {
+      await null;
       if (!loc.match(/\bpackage.json$/)) {
         try {
           const itemRd = cwd.neighbor(new URL(loc).pathname);
@@ -107,13 +108,38 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   };
 
   /**
-   * @param {BundleMeta} meta
+   * @param {string} targetName
+   * @param {Logger} _log
+   * @returns {Promise<string>}
+   */
+  const loadMetaText = (targetName, _log = defaultLog) =>
+    wr
+      .readOnly()
+      .neighbor(toBundleMeta(targetName))
+      .maybeReadText()
+      .catch(
+        ioError =>
+          Fail`${targetName}: cannot read bundle metadata: ${q(ioError)}`,
+      );
+
+  /**
    * @param {string} targetName
    * @param {*} rootOpt
    * @param {Logger} [log]
+   * @param {BundleMeta} [meta]
    * @returns {Promise<BundleMeta>}
    */
-  const validate = async (meta, targetName, rootOpt, log = defaultLog) => {
+  const validate = async (
+    targetName,
+    rootOpt,
+    log = defaultLog,
+    meta = undefined,
+  ) => {
+    meta = await (meta ||
+      loadMetaText(targetName, log).then(metaText => JSON.parse(metaText)));
+    if (!meta) {
+      throw Fail`no metadata found for ${q(targetName)}`;
+    }
     const {
       bundleFileName,
       bundleTime,
@@ -168,21 +194,14 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @returns {Promise<BundleMeta>}
    */
   const validateOrAdd = async (rootPath, targetName, log = defaultLog) => {
-    const metaText = await wr
-      .readOnly()
-      .neighbor(toBundleMeta(targetName))
-      .maybeReadText()
-      .catch(
-        ioError =>
-          Fail`${targetName}: cannot read bundle metadata: ${q(ioError)}`,
-      );
+    const metaText = await loadMetaText(targetName, log);
 
     /** @type {BundleMeta | undefined} */
     let meta = metaText ? JSON.parse(metaText) : undefined;
 
     if (meta !== undefined) {
       try {
-        meta = await validate(meta, targetName, rootPath, log);
+        meta = await validate(targetName, rootPath, log, meta);
         const { bundleTime, bundleSize, contents } = meta;
         log(
           `${wr}`,
@@ -256,7 +275,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
 /**
  * @param {string} dest
- * @param {{ format?: string, dev?: boolean }} options
+ * @param {{ format?: string, dev?: boolean, log?: Logger }} options
  * @param {(id: string) => Promise<any>} loadModule
  * @param {number} [pid]
  */
