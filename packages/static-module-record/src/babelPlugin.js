@@ -72,7 +72,7 @@ function makeModulePlugins(options) {
    * All of these declarations are discovered in the analysis pass by visiting
    * every export declaration.
    *
-   * @type {Record<string, Array<string>}
+   * @type {Record<string, Array<string>>}
    */
   const topLevelExported = Object.create(null);
 
