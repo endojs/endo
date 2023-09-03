@@ -10,7 +10,7 @@ export const parsePreMjs = async (
   _specifier,
   location,
   _packageLocation,
-  { sourceMapUrl },
+  { sourceMapUrl } = {},
 ) => {
   const text = textDecoder.decode(bytes);
   const record = parseLocatedJson(text, location);

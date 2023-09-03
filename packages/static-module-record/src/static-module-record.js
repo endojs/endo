@@ -34,10 +34,17 @@ const freeze = /** @type {<T>(v: T) => T} */ (Object.freeze);
 const analyzeModule = makeModuleAnalyzer();
 
 /**
+ * @typedef {object} SourceMapHookDetails
+ * @property {string} compartment
+ * @property {string} module
+ * @property {string} location
+ * @property {string} sha512
+ */
+
+/**
  * @callback SourceMapHook
  * @param {string} sourceMap
- * @param {string} sourceUrl
- * @param {string} source
+ * @param {SourceMapHookDetails} details
  */
 
 /**

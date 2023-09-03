@@ -69,7 +69,7 @@ export const getModulePaths = (readPowers, location) => {
  * @param {Compartment} in.compartment
  * @param {Record<string, string>} in.resolvedImports
  * @param {string} in.location
- * @param {ReadFn|ReadPowers} in.readPowers
+ * @param {ReadFn | ReadPowers | undefined} in.readPowers
  * @returns {{
  *   module: { exports: any },
  *   moduleExports: any,
