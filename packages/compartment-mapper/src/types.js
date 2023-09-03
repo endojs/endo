@@ -8,6 +8,7 @@ export {};
 /** @typedef {import('ses').ImportHook} ImportHook */
 /** @typedef {import('ses').StaticModuleType} StaticModuleType */
 /** @typedef {import('ses').Transform} Transform */
+/** @typedef {import('@endo/static-module-record/src/static-module-record.js').SourceMapHook} SourceMapHook */
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -215,20 +216,6 @@ export {};
  */
 
 /**
- * @typedef {object} SourceMapHookDetails
- * @property {string} compartment
- * @property {string} module
- * @property {string} location
- * @property {string} sha512
- */
-
-/**
- * @callback SourceMapHook
- * @param {string} sourceMap
- * @param {SourceMapHookDetails} details
- */
-
-/**
  * @typedef {object} ComputeSourceMapLocationDetails
  * @property {string} compartment
  * @property {string} module
@@ -250,6 +237,7 @@ export {};
  * @param {string} packageLocation
  * @param {object} [options]
  * @param {string} [options.sourceMap]
+ * @param {SourceMapHook} [options.sourceMapHook]
  * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
  * @returns {Promise<{
