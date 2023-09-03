@@ -8,9 +8,9 @@
     "preinstall": "echo DO NOT CALL INSTALL SCRIPTS; exit -1"
   },
   "dependencies": {
-    "@endo/compartment-mapper-demo-lavamoat-style-attenuator": "file:att2",
-    "@endo/compartment-mapper-demo-policy-attenuator1": "file:att1",
-    "@endo/compartment-mapper-demo-polyfill1": "file:polyfill",
+    "@endo/compartment-mapper-demo-lavamoat-style-attenuator": "workspace:*",
+    "@endo/compartment-mapper-demo-policy-attenuator1": "workspace:*",
+    "@endo/compartment-mapper-demo-polyfill1": "workspace:*",
     "dotenv": "16.0.1",
     "entropoetry": "2.0.0-alpha4"
   }

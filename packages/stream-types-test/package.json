@@ -18,14 +18,14 @@
   "exports": {},
   "scripts": {
     "build": "exit 0",
-    "lint": "yarn lint:types && yarn lint:ts",
+    "lint": "pnpm lint:types && pnpm lint:ts",
     "lint-fix": "eslint --fix . --ext .ts",
     "lint:ts": "eslint . --ext .ts",
     "lint:types": "tsc -p tsconfig.json",
-    "test": "yarn lint:types"
+    "test": "pnpm lint:types"
   },
   "dependencies": {
-    "@endo/stream": "^0.3.28",
+    "@endo/stream": "workspace:*",
     "ses": "^0.18.7"
   },
   "devDependencies": {

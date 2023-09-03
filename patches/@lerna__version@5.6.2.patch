@@ -1,0 +1,33 @@
+diff --git a/lib/git-add.js b/lib/git-add.js
+index d24f8ca3b3d299b853f1c90f4375f5d4cf6cba35..93f392f6e277980a051521916699ea9a5c137bb4 100644
+--- a/lib/git-add.js
++++ b/lib/git-add.js
+@@ -24,12 +24,12 @@ function resolvePrettier() {
+   return resolvedPrettier;
+ }
+ 
+-function maybeFormatFile(filePath) {
++async function maybeFormatFile(filePath) {
+   const prettier = resolvePrettier();
+   if (!prettier) {
+     return;
+   }
+-  const config = resolvedPrettier.resolveConfig.sync(filePath);
++  const config = await resolvedPrettier.resolveConfig.sync(filePath);
+   try {
+     const input = fs.readFileSync(filePath, "utf8");
+     fs.writeFileSync(filePath, resolvedPrettier.format(input, { ...config, filepath: filePath }), "utf8");
+@@ -44,11 +44,11 @@ function maybeFormatFile(filePath) {
+  * @param {{ granularPathspec: boolean; }} gitOpts
+  * @param {import("@lerna/child-process").ExecOpts} execOpts
+  */
+-function gitAdd(changedFiles, gitOpts, execOpts) {
++async function gitAdd(changedFiles, gitOpts, execOpts) {
+   let files = [];
+   for (const file of changedFiles) {
+     const filePath = slash(path.relative(execOpts.cwd, path.resolve(execOpts.cwd, file)));
+-    maybeFormatFile(filePath);
++    await maybeFormatFile(filePath);
+     if (gitOpts.granularPathspec) {
+       files.push(filePath);
+     }

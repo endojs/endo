@@ -3,17 +3,17 @@
 ```
 git clone git@github.com:endojs/endo.git
 cd endo
-yarn
+pnpm install
 ```
 
-Endo is a yarn workspaces repository. Running yarn in the root will install and hoist most dependencies up to the root `node_modules`.
+Endo is a pnpm workspaces repository. Running pnpm in the root will install and hoist most dependencies up to the root `node_modules`.
 
-Note: running yarn `--ignore-scripts` will not complete the setup of SES.
+Note: running pnpm `--ignore-scripts` will not complete the setup of SES.
 Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
 
 ## Rebuilding `ses`
 
-Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
+Changes to `ses` require a `pnpm build` to be reflected in any dependency where `import 'ses';` appears. Use `pnpm build` under `packages/ses` to refresh the build.
 Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
 
 # Making a Release
@@ -33,7 +33,7 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
 * Create the release CHANGELOGs.
 
   ```sh
-  yarn lerna version --no-push --conventional-graduate --no-git-tag-version
+  pnpm lerna version --no-push --conventional-graduate --no-git-tag-version
   ```
 
   Use `--conventional-prerelease` instead of `--conventional-graduate` if you
@@ -92,7 +92,7 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
   versions. This is the effect of removing the `--no-git-tag-version` flag.
 
   ```sh
-  yarn lerna version --no-push --conventional-graduate
+  pnpm lerna version --no-push --conventional-graduate
   ```
 
 * Force push these changes back to the pull request branch.
@@ -104,8 +104,8 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
 * Ensure your dependency solution is fresh and rebuild all generated assets.
 
   ```sh
-  yarn install
-  yarn build
+  pnpm install
+  pnpm build
   ```
 
 * Publish the versions to npm.
@@ -118,7 +118,7 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
   # if it does not show you logged in, then do
   npm login
   # two factor authentication stuff
-  yarn lerna publish from-package
+  pnpm lerna publish from-package
   # repeat this command until all packages are successfully published
   ```
 
@@ -157,6 +157,6 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
 To get help for the command-line options that will affect these commands, use:
 
 ```sh
-yarn lerna version --help
-yarn lerna publish --help
+pnpm lerna version --help
+pnpm lerna publish --help
 ```

@@ -8,7 +8,7 @@
     "build": "exit 0",
     "test": "exit 0",
     "test:xs": "exit 0",
-    "lint-check": "yarn lint",
+    "lint-check": "pnpm lint",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'"
   },

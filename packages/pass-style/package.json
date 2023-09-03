@@ -25,19 +25,21 @@
     "build": "exit 0",
     "prepack": "tsc --build jsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
-    "lint": "yarn lint:types && yarn lint:js",
+    "lint": "pnpm lint:types && pnpm lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
     "test": "ava"
   },
   "dependencies": {
-    "@endo/promise-kit": "^0.2.59",
-    "@fast-check/ava": "^1.1.5"
+    "@endo/eventual-send": "workspace:^",
+    "@endo/promise-kit": "workspace:*",
+    "@fast-check/ava": "^1.1.5",
+    "ses": "workspace:^"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.59",
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",

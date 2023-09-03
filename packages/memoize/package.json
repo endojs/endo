@@ -26,7 +26,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "lint": "yarn lint:types && yarn lint:js",
+    "lint": "pnpm lint:types && pnpm lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
@@ -38,8 +38,8 @@
     "ses": "^0.18.7"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.59",
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",

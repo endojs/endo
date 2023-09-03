@@ -28,16 +28,16 @@
     "build": "exit 0",
     "clean": "git clean -f '*.d.ts*'",
     "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "yarn clean",
-    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint-check": "yarn lint",
-    "lint": "yarn lint:types && yarn lint:eslint",
+    "postpack": "pnpm clean",
+    "lint-fix": "pnpm lint:eslint --fix && pnpm lint:types",
+    "lint-check": "pnpm lint",
+    "lint": "pnpm lint:types && pnpm lint:eslint",
     "lint:types": "tsc",
     "lint:eslint": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "@endo/lockdown": "^0.1.31",
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/lockdown": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^5.3.0",
     "c8": "^7.14.0",
     "tsd": "^0.28.1"

@@ -28,8 +28,8 @@
     "prepack": "tsc --build jsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
-    "lint": "yarn lint:types && yarn lint:js",
-    "lint-check": "yarn lint",
+    "lint": "pnpm lint:types && pnpm lint:js",
+    "lint-check": "pnpm lint",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
@@ -40,7 +40,7 @@
     "ses": "^0.18.7"
   },
   "devDependencies": {
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/ses-ava": "workspace:*",
     "@types/node": "^16.6.0",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",

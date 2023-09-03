@@ -1,14 +1,12 @@
 {
   "name": "ses",
   "private": true,
-  "useWorkspaces": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "engines": {
     "node": ">=16"
   },
+  "packageManager": "pnpm@8.6.12",
   "devDependencies": {
+    "@endo/eslint-plugin": "workspace:*",
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
     "@typescript-eslint/eslint-plugin": "^6.2.1",
@@ -29,11 +27,12 @@
     "cover": "lerna run cover",
     "depcheck": "node scripts/check-mismatched-dependencies.js",
     "update": "lernaupdate --dedupe",
-    "format": "yarn prettier --write .github packages",
-    "lint": "yarn prettier --check .github packages && lerna run lint",
+    "format": "pnpm prettier --write .github packages",
+    "lint": "pnpm prettier --check .github packages && lerna run lint",
     "lint-fix": "lerna run --no-bail lint-fix",
     "test": "lerna run test",
     "test262": "lerna run test262",
+    "preinstall": "npx only-allow pnpm",
     "postinstall": "patch-package",
     "patch-package": "patch-package",
     "build": "lerna run build"
@@ -45,5 +44,10 @@
   "prettier": {
     "arrowParens": "avoid",
     "singleQuote": true
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "@lerna/version@5.6.2": "patches/@lerna__version@5.6.2.patch"
+    }
   }
 }

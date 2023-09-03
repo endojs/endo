@@ -35,23 +35,26 @@
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
-    "lint-check": "yarn lint",
-    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint": "yarn lint:eslint && yarn lint:types",
+    "lint-check": "pnpm lint",
+    "lint-fix": "pnpm lint:eslint --fix && pnpm lint:types",
+    "lint": "pnpm lint:eslint && pnpm lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.59",
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^5.3.0",
     "c8": "^7.14.0"
   },
   "dependencies": {
-    "@endo/eventual-send": "^0.17.5",
-    "@endo/marshal": "^0.8.8",
-    "@endo/nat": "^4.1.30",
-    "@endo/promise-kit": "^0.2.59"
+    "@endo/eventual-send": "workspace:*",
+    "@endo/marshal": "workspace:*",
+    "@endo/nat": "workspace:*",
+    "@endo/promise-kit": "workspace:*"
+  },
+  "peerDependencies": {
+    "ses": "workspace:*"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

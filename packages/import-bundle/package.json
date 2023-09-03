@@ -22,20 +22,20 @@
     "prepack": "tsc --build jsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint": "pnpm lint:types && pnpm lint:eslint",
     "lint:eslint": "eslint .",
     "lint:types": "tsc -p jsconfig.json"
   },
   "dependencies": {
-    "@endo/base64": "^0.2.34",
-    "@endo/compartment-mapper": "^0.9.1",
-    "@endo/where": "^0.3.4",
+    "@endo/base64": "workspace:*",
+    "@endo/compartment-mapper": "workspace:*",
+    "@endo/where": "workspace:*",
     "ses": "^0.18.7"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^2.7.0",
-    "@endo/init": "^0.5.59",
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/bundle-source": "workspace:*",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^5.3.0",
     "c8": "^7.14.0"
   },

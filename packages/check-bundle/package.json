@@ -31,7 +31,7 @@
     "build": "exit 0",
     "prepack": "tsc --build jsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
-    "lint": "yarn lint:types && yarn lint:js",
+    "lint": "pnpm lint:types && pnpm lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
@@ -39,13 +39,13 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js"
   },
   "dependencies": {
-    "@endo/base64": "^0.2.34",
-    "@endo/compartment-mapper": "^0.9.1"
+    "@endo/base64": "workspace:*",
+    "@endo/compartment-mapper": "workspace:*"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^2.7.0",
-    "@endo/init": "^0.5.59",
-    "@endo/zip": "^0.2.34",
+    "@endo/bundle-source": "workspace:*",
+    "@endo/init": "workspace:*",
+    "@endo/zip": "workspace:*",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",
