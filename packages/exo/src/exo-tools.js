@@ -15,7 +15,7 @@ import {
 /** @typedef {import('@endo/patterns').Method} Method */
 /** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
 /**
- * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard
  */
 /** @typedef {import('@endo/patterns').InterfaceGuardKit} InterfaceGuardKit */
@@ -137,7 +137,7 @@ const defendMethod = (method, methodGuard, label) => {
  */
 
 /**
- * @typedef {Record<string | symbol, CallableFunction>} Methods
+ * @typedef {Record<PropertyKey, CallableFunction>} Methods
  */
 
 /**
@@ -234,7 +234,7 @@ export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
 
 /**
  *
- * @template {Record<string | symbol, CallableFunction>} T
+ * @template {Record<PropertyKey, CallableFunction>} T
  * @param {T} behaviorMethods
  * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }>} interfaceGuard
  * @returns {T}
@@ -248,7 +248,7 @@ const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
   });
 
 /**
- * @template {Record<string | symbol, CallableFunction>} T
+ * @template {Record<PropertyKey, CallableFunction>} T
  * @param {string} tag
  * @param {ContextProvider} contextProvider
  * @param {T} behaviorMethods
@@ -271,7 +271,7 @@ export const defendPrototype = (
     // @ts-expect-error TS misses that hasOwn check makes this safe
     behaviorMethods = harden(methods);
   }
-  /** @type {Record<string | symbol, MethodGuard> | undefined} */
+  /** @type {Record<PropertyKey, MethodGuard> | undefined} */
   let methodGuards;
   if (interfaceGuard) {
     const {
@@ -279,7 +279,6 @@ export const defendPrototype = (
       methodGuards: mg,
       symbolMethodGuards,
       sloppy = false,
-      // @ts-expect-error "missing" type parameter
     } = getInterfaceGuardPayload(interfaceGuard);
     methodGuards = harden({
       ...mg,
@@ -322,7 +321,7 @@ harden(defendPrototype);
 /**
  * @param {string} tag
  * @param {Record<FacetName, KitContextProvider>} contextProviderKit
- * @param {Record<FacetName, Record<string | symbol, CallableFunction>>} behaviorMethodsKit
+ * @param {Record<FacetName, Record<PropertyKey, CallableFunction>>} behaviorMethodsKit
  * @param {boolean} [thisfulMethods]
  * @param {InterfaceGuardKit} [interfaceGuardKit]
  */
