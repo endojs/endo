@@ -205,7 +205,9 @@ const makePassStyleOf = passStyleHelpers => {
  * @type {PassStyleOf}
  */
 export const passStyleOf =
-  globalThis?.VatData?.passStyleOf ||
+  // UNTIL https://github.com/endojs/endo/issues/1514
+  // Prefer: globalThis?.VatData?.passStyleOf ||
+  (globalThis && globalThis.VatData && globalThis.VatData.passStyleOf) ||
   makePassStyleOf([
     CopyArrayHelper,
     CopyRecordHelper,

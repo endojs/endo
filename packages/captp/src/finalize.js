@@ -99,7 +99,15 @@ export const makeFinalizingMap = (finalizer, opts) => {
     },
     // Does deref, and thus does guarantee stability of the value until the
     // end of the turn.
-    get: key => keyToRef.get(key)?.deref(),
+    // UNTIL https://github.com/endojs/endo/issues/1514
+    // Prefer: get: key => keyToRef.get(key)?.deref(),
+    get: key => {
+      const wr = keyToRef.get(key);
+      if (!wr) {
+        return wr;
+      }
+      return wr.deref();
+    },
     has: key => finalizingMap.get(key) !== undefined,
     // Does deref, and thus does guarantee stability of both old and new values
     // until the end of the turn.
