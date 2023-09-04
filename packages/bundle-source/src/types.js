@@ -12,7 +12,7 @@ export {};
  *  BundleSourceSimple &
  *  BundleSourceWithFormat &
  *  BundleSourceWithOptions &
- *  BundleSourceFallback} BundleSource
+ *  BundleSourceGeneral} BundleSource
  */
 
 /**
@@ -55,7 +55,7 @@ export {};
  *   startFilename: string,
  *   formatOrOptions?: T | BundleOptions<T>,
  *   powers?: { read?: ReadFn; canonical?: CanonicalFn, externals?: string[] },
- * ) => Promise<BundleSourceResult<T>>} BundleSourceFallback
+ * ) => Promise<BundleSourceResult<T>>} BundleSourceGeneral
  */
 
 /**

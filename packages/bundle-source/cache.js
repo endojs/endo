@@ -67,11 +67,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const bundleWr = wr.neighbor(bundleFileName);
     const metaWr = wr.neighbor(toBundleMeta(targetName));
 
-    // Prevent other processes from doing too much work just to see that we're
-    // already on it.
-    await metaWr.rm({ force: true });
-    await bundleWr.rm({ force: true });
-
     const bundle = await bundleSource(rootPath, bundleOptions, {
       ...readPowers,
       read: loggedRead,
@@ -110,7 +105,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   /**
    * @param {string} targetName
    * @param {Logger} _log
-   * @returns {Promise<string>}
+   * @returns {Promise<string | undefined>}
    */
   const loadMetaText = (targetName, _log = defaultLog) =>
     wr
@@ -135,8 +130,20 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     log = defaultLog,
     meta = undefined,
   ) => {
-    meta = await (meta ||
-      loadMetaText(targetName, log).then(metaText => JSON.parse(metaText)));
+    await null;
+    if (!meta) {
+      const metaJson = await loadMetaText(targetName, log);
+      if (metaJson) {
+        try {
+          meta = JSON.parse(metaJson);
+        } catch (error) {
+          if (error instanceof SyntaxError) {
+            throw SyntaxError(`Cannot parse JSON from ${targetName}, ${error}`);
+          }
+          throw error;
+        }
+      }
+    }
     if (!meta) {
       throw Fail`no metadata found for ${q(targetName)}`;
     }
