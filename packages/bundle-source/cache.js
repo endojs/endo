@@ -258,7 +258,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
  * @param {string} dest
  * @param {{ format?: string, dev?: boolean }} options
  * @param {(id: string) => Promise<any>} loadModule
- * @param {number} pid
+ * @param {number} [pid]
  */
 export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
   const [fs, path, url, crypto, timers] = await Promise.all([
@@ -268,6 +268,10 @@ export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
     await loadModule('crypto'),
     await loadModule('timers'),
   ]);
+
+  if (pid === undefined) {
+    pid = crypto.randomInt(0xffff_ffff);
+  }
 
   const readPowers = {
     ...makeReadPowers({ fs, url, crypto }),
