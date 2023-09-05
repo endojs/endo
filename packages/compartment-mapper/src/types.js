@@ -250,6 +250,7 @@ export {};
  * @param {string} packageLocation
  * @param {object} [options]
  * @param {string} [options.sourceMap]
+ * @param {SourceMapHook} [options.sourceMapHook]
  * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
  * @returns {Promise<{
