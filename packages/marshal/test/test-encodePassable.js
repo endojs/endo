@@ -70,7 +70,7 @@ const encodePassableInternal2 = makeEncodePassable({
   encodeRemotable: r => encodeThing('r', r),
   encodePromise: p => encodeThing('?', p),
   encodeError: er => encodeThing('!', er),
-  xxx: true,
+  format: 'compactOrdered',
 });
 
 const encodePassable = passable => {
@@ -92,6 +92,24 @@ const decodePassable = encoded => {
   resetCursors();
   return decodePassableInternal(encoded);
 };
+
+test('makeEncodePassable argument validation', t => {
+  t.notThrows(() => makeEncodePassable(), 'must accept zero arguments');
+  t.notThrows(() => makeEncodePassable({}), 'must accept empty options');
+  t.notThrows(
+    () => makeEncodePassable({ format: 'legacyOrdered' }),
+    'must accept format: "legacyOrdered"',
+  );
+  t.notThrows(
+    () => makeEncodePassable({ format: 'compactOrdered' }),
+    'must accept format: "compactOrdered"',
+  );
+  t.throws(
+    () => makeEncodePassable({ format: 'newHotness' }),
+    { message: /^Unrecognized format\b/ },
+    'must reject unknown format',
+  );
+});
 
 const { comparator: compareFull } = makeComparatorKit(compareRemotables);
 

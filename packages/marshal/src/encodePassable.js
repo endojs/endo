@@ -257,9 +257,20 @@ const stringEscapes = Array(0x22)
 stringEscapes['^'.charCodeAt(0)] = '_@';
 stringEscapes['_'.charCodeAt(0)] = '__';
 
-const encodeStringWithEscapes = str =>
+/**
+ * Encodes a string with escape sequences for use in the "compactOrdered" format.
+ *
+ * @type {(str: string) => string}
+ */
+const encodeCompactString = str =>
   `s${str.replace(/[\0-!^_]/g, ch => stringEscapes[ch.charCodeAt(0)])}`;
-const decodeStringWithEscapes = encoded => {
+
+/**
+ * Decodes a string from the "compactOrdered" format.
+ *
+ * @type {(encoded: string) => string}
+ */
+const decodeCompactString = encoded => {
   return encoded.slice(1).replace(/([!_])(.|\n)?/g, (esc, prefix, suffix) => {
     switch (esc) {
       case '!_':
@@ -282,18 +293,30 @@ const decodeStringWithEscapes = encoded => {
   });
 };
 
-const encodeStringWithoutEscapes = str => `s${str}`;
-const decodeStringWithoutEscapes = encoded => encoded.slice(1);
+/**
+ * Encodes a string by simple prefixing for use in the "legacyOrdered" format.
+ *
+ * @type {(str: string) => string}
+ */
+const encodeLegacyString = str => `s${str}`;
 
 /**
- * Encodes an array into a sequence of encoded elements, each terminated by a
- * space (which is part of the escaped range in encoded strings).
+ * Decodes a string from the "legacyOrdered" format.
+ *
+ * @type {(encoded: string) => string}
+ */
+const decodeLegacyString = encoded => encoded.slice(1);
+
+/**
+ * Encodes an array into a sequence of encoded elements for use in the "compactOrdered"
+ * format, each terminated by a space (which is part of the escaped range in
+ * "compactOrdered" encoded strings).
  *
  * @param {unknown[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
-const encodeArrayWithoutEscapes = (array, encodePassable) => {
+const encodeCompactArray = (array, encodePassable) => {
   const chars = ['^'];
   for (const element of array) {
     const enc = encodePassable(element);
@@ -308,7 +331,7 @@ const encodeArrayWithoutEscapes = (array, encodePassable) => {
  * @param {number} [skip]
  * @returns {Array}
  */
-const decodeArrayWithoutEscapes = (encoded, decodePassable, skip = 0) => {
+const decodeCompactArray = (encoded, decodePassable, skip = 0) => {
   const elements = [];
   let depth = 0;
   // Scan encoded rather than its tail to avoid slow `substring` in XS.
@@ -355,9 +378,9 @@ const decodeArrayWithoutEscapes = (encoded, decodePassable, skip = 0) => {
 };
 
 /**
- * Performs the original array encoding, which escapes all array elements rather
- * than just strings (`\u0000` as the element terminator and `\u0001` as the
- * escape prefix for `\u0000` or `\u0001`).
+ * Performs the original array encoding, which escapes all encoded array
+ * elements rather than just strings (`\u0000` as the element terminator and
+ * `\u0001` as the escape prefix for `\u0000` or `\u0001`).
  * This necessitated an undesirable amount of iteration and expansion; see
  * https://github.com/endojs/endo/pull/1260#discussion_r960369826
  *
@@ -365,7 +388,7 @@ const decodeArrayWithoutEscapes = (encoded, decodePassable, skip = 0) => {
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
-const encodeArrayWithEscapes = (array, encodePassable) => {
+const encodeLegacyArray = (array, encodePassable) => {
   const chars = ['['];
   for (const element of array) {
     const enc = encodePassable(element);
@@ -386,7 +409,7 @@ const encodeArrayWithEscapes = (array, encodePassable) => {
  * @param {number} [skip]
  * @returns {Array}
  */
-const decodeArrayWithEscapes = (encoded, decodePassable, skip = 0) => {
+const decodeLegacyArray = (encoded, decodePassable, skip = 0) => {
   const elements = [];
   const elemChars = [];
   // Use a string iterator to avoid slow indexed access in XS.
@@ -493,7 +516,7 @@ const assertEncodedError = encoding => {
  *   error: Error,
  *   encodeRecur: (p: Passable) => string,
  * ) => string} [encodeError]
- * @property {boolean} [xxx]
+ * @property {'legacyOrdered' | 'compactOrdered'} [format]
  */
 
 /**
@@ -505,13 +528,23 @@ export const makeEncodePassable = (encodeOptions = {}) => {
     encodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
     encodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
     encodeError = (err, _) => Fail`error unexpected: ${err}`,
-    xxx = false,
+    format = 'legacyOrdered',
   } = encodeOptions;
 
-  const encodeString = xxx
-    ? encodeStringWithEscapes
-    : encodeStringWithoutEscapes;
-  const encodeArray = xxx ? encodeArrayWithoutEscapes : encodeArrayWithEscapes;
+  let formatPrefix;
+  let encodeString;
+  let encodeArray;
+  if (format === 'legacyOrdered') {
+    formatPrefix = '';
+    encodeString = encodeLegacyString;
+    encodeArray = encodeLegacyArray;
+  } else if (format === 'compactOrdered') {
+    formatPrefix = '~';
+    encodeString = encodeCompactString;
+    encodeArray = encodeCompactArray;
+  } else {
+    Fail`Unrecognized format: ${q(format)}`;
+  }
 
   const innerEncode = passable => {
     if (isErrorLike(passable)) {
@@ -584,10 +617,7 @@ export const makeEncodePassable = (encodeOptions = {}) => {
       }
     }
   };
-  const encodePassable = xxx
-    ? // A leading "~" indicates the v2 encoding (with escaping in strings rather than arrays).
-      passable => `~${innerEncode(passable)}`
-    : innerEncode;
+  const encodePassable = passable => `${formatPrefix}${innerEncode(passable)}`;
   return harden(encodePassable);
 };
 harden(makeEncodePassable);
@@ -681,15 +711,12 @@ export const makeDecodePassable = (decodeOptions = {}) => {
     // A leading "~" indicates the v2 encoding (with escaping in strings rather than arrays).
     if (encoded.startsWith('~')) {
       const innerDecode = makeInnerDecode(
-        decodeStringWithEscapes,
-        decodeArrayWithoutEscapes,
+        decodeCompactString,
+        decodeCompactArray,
       );
       return innerDecode(encoded.slice(1));
     }
-    const innerDecode = makeInnerDecode(
-      decodeStringWithoutEscapes,
-      decodeArrayWithEscapes,
-    );
+    const innerDecode = makeInnerDecode(decodeLegacyString, decodeLegacyArray);
     return innerDecode(encoded);
   };
   return harden(decodePassable);
