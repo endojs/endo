@@ -91,10 +91,20 @@ function transformAst(ast, unmapLoc) {
   });
 }
 
+/**
+ * @param {string} code
+ * @param {object} param1
+ * @param {string} [param1.sourceMap]
+ * @param {string} [param1.sourceMapUrl]
+ * @param {boolean} [param1.useLocationUnmap]
+ * @param {string} [param1.sourceType]
+ */
 export async function transformSource(
   code,
   { sourceMap, sourceMapUrl, useLocationUnmap, sourceType } = {},
 ) {
+  await null;
+
   // Parse the rolled-up chunk with Babel.
   // We are prepared for different module systems.
   const ast = parseBabel(code, {

@@ -491,15 +491,20 @@ export {};
  */
 
 /**
- * @typedef {{
- * <M extends Record<any, MethodGuard>>(interfaceName: string,
- *             methodGuards: M,
- *             options?: {sloppy?: false}): InterfaceGuard<M>;
- * (interfaceName: string,
- *             methodGuards: any,
- *             options?: {sloppy?: true}): InterfaceGuard<any>;
- * }} MakeInterfaceGuard
+ * @typedef {(
+ *   interfaceName: string,
+ *   methodGuards: any,
+ *   options: {sloppy: true}) => InterfaceGuard<Record<PropertyKey, MethodGuard>>
+ * } MakeInterfaceGuardSloppy
  */
+/**
+ * @typedef {<M extends Record<PropertyKey, MethodGuard>>(
+ *   interfaceName: string,
+ *   methodGuards: M,
+ *   options?: {sloppy?: boolean}) => InterfaceGuard<M>
+ * } MakeInterfaceGuardGeneral
+ */
+/** @typedef {MakeInterfaceGuardSloppy & MakeInterfaceGuardGeneral} MakeInterfaceGuard */
 
 /**
  * @typedef {object} GuardMakers
@@ -524,17 +529,19 @@ export {};
 /** @typedef {(...args: any[]) => any} Method */
 
 /**
- * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {{
  *   interfaceName: string,
- *   methodGuards: { [K in keyof T]: K extends symbol ? never : T[K] },
- *   symbolMethodGuards?: CopyMap<(keyof T) & symbol, MethodGuard>,
+ *   methodGuards:
+ *     Omit<T, symbol> & Partial<{ [K in Extract<keyof T, symbol>]: never }>,
+ *   symbolMethodGuards?:
+ *     CopyMap<Extract<keyof T, symbol>, T[Extract<keyof T, symbol>]>,
  *   sloppy?: boolean,
  * }} InterfaceGuardPayload
  */
 
 /**
- * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {{ klass: 'Interface' } & InterfaceGuardPayload<T> } InterfaceGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine

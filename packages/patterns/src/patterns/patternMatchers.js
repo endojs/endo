@@ -1910,10 +1910,11 @@ export const getInterfaceMethodKeys = interfaceGuard => {
 harden(getInterfaceMethodKeys);
 
 /**
+ * @template {Record<PropertyKey, MethodGuard>} [M = Record<PropertyKey, MethodGuard>]
  * @param {string} interfaceName
- * @param {Record<string, MethodGuard>} methodGuards
- * @param {{sloppy?: boolean}} [options]
- * @returns {InterfaceGuard}
+ * @param {M} methodGuards
+ * @param {{ sloppy?: boolean }} [options]
+ * @returns {InterfaceGuard<M>}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
   const { sloppy = false } = options;
@@ -1932,7 +1933,6 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
       stringMethodGuards[key] = value;
     }
   }
-  /** @type {InterfaceGuard} */
   const result = harden({
     klass: 'Interface',
     interfaceName,
@@ -1943,5 +1943,5 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
     sloppy,
   });
   assertInterfaceGuard(result);
-  return result;
+  return /** @type {InterfaceGuard<M>} */ (result);
 };

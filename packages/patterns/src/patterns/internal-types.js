@@ -15,7 +15,10 @@
 /** @typedef {import('../types.js').MethodGuardPayload} MethodGuardPayload */
 /** @typedef {import('../types.js').MethodGuard} MethodGuard */
 /** @typedef {import('../types.js').InterfaceGuardPayload} InterfaceGuardPayload */
-/** @typedef {import('../types.js').InterfaceGuard} InterfaceGuard */
+/**
+ * @template {Record<PropertyKey, MethodGuard>} [T = Record<PropertyKey, MethodGuard>]
+ * @typedef {import('../types.js').InterfaceGuard<T>} InterfaceGuard
+ */
 /** @typedef {import('../types.js').MethodGuardMaker0} MethodGuardMaker0 */
 
 /** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
