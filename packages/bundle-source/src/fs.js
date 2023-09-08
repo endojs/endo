@@ -121,19 +121,23 @@ export const makeFileWriter = (
  *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
  * }} io
  * @param {number} pid
+ * @param {number} nonce
  * @param {(there: string) => ReturnType<makeAtomicFileWriter>} make
  */
 export const makeAtomicFileWriter = (
   fileName,
   { fs, path },
-  pid,
-  make = there => makeAtomicFileWriter(there, { fs, path }, pid, make),
+  pid = undefined,
+  nonce = undefined,
+  make = there => makeAtomicFileWriter(there, { fs, path }, pid, nonce, make),
 ) => {
   const writer = makeFileWriter(fileName, { fs, path }, make);
   return harden({
     ...writer,
     atomicWriteText: async (txt, opts) => {
-      const scratchName = `${fileName}.${pid}.scratch`;
+      const scratchName = `${fileName}.${nonce || 'no-nonce'}.${
+        pid || 'no-pid'
+      }.scratch`;
       const scratchWriter = writer.neighbor(scratchName);
       await scratchWriter.writeText(txt, opts);
       const stats = await scratchWriter.readOnly().stat();

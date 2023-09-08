@@ -285,8 +285,15 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
  * @param {{ format?: string, dev?: boolean, log?: Logger }} options
  * @param {(id: string) => Promise<any>} loadModule
  * @param {number} [pid]
+ * @param {number} [nonce]
  */
-export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
+export const makeNodeBundleCache = async (
+  dest,
+  options,
+  loadModule,
+  pid,
+  nonce,
+) => {
   const [fs, path, url, crypto, timers] = await Promise.all([
     await loadModule('fs'),
     await loadModule('path'),
@@ -295,8 +302,8 @@ export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
     await loadModule('timers'),
   ]);
 
-  if (pid === undefined) {
-    pid = crypto.randomInt(0xffff_ffff);
+  if (nonce === undefined) {
+    nonce = crypto.randomInt(0xffff_ffff);
   }
 
   const readPowers = {
@@ -307,6 +314,6 @@ export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
 
   const cwd = makeFileReader('', { fs, path });
   await fs.promises.mkdir(dest, { recursive: true });
-  const destWr = makeAtomicFileWriter(dest, { fs, path }, pid);
+  const destWr = makeAtomicFileWriter(dest, { fs, path }, pid, nonce);
   return makeBundleCache(destWr, cwd, readPowers, options);
 };
