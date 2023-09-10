@@ -66,21 +66,3 @@ For a Tagged Passable `p` to be recognized, it must carry both a known tag strin
 | Matchers     | `"match:..."`    | `"tagged"`       | Non-literal Patterns           |
 | Guards (TBD) | `"guard:..."`    | `"tagged"`       | Non-Pattern Guards             |
 | Just Tagged  | `undefined`      | `"tagged"`       | Not understood to have a kind  |
-
-
-## Data, Keys, and Patterns
-
-At the `passStyleOf` level, the containers are CopyArray, CopyRecord, and Tagged. Any Passable value is a possibly-empty tree of containers in which each node may be extended with an arbitrary number of non-container Passable leaves (an isolated non-container Passable is a sole leaf of an empty tree).
-If no leaf is a Capability (i.e., a Remotable or Promise), then the Passable value is Data --- it carries only immutable information, without any connection to external references or unforgeable identity.
-
-Guards do not yet exist as distinct kinds, so we ignore them for now. TODO: Expand this if kinds expand to include guards.
-
-At the `kindOf` level, the containers are CopyArray, CopyRecord, CopySet, CopyBag, and CopyMap (at this level, Matchers, possibly Guards, and unrecognized Taggeds are _not_ considered containers). The elements of CopySets and CopyBags and the keys of CopyMaps must all be comparable for equality. This subset of Passable values are the Keys. Because the containers are pass-by-copy, this equality must be pass-invariant: If passing `xa` from vatA to vatB arrives as `xb`, and likewise `ya` and `yb`, then `keyEQ(xa,ya)` iff `keyEQ(xb,yb)`. And because we do not wish to give Promises, Errors, or unrecognized Taggeds any useful pass-invariant equality, a Key may not include any of those.
-
-These conditions all apply to Patterns as well. The differences are:
-   * A Pattern can contain Matchers, but a Key cannot. All Keys are Patterns, but Patterns that include Matchers are not Keys.
-   * A non-Key value (including a non-Key Pattern), cannot be an element of a CopySet or CopyBag, or a key of a CopyMap.
-
-A Pattern is a pass-invariant Passable decidable synchronous predicate over Passables. A Key used as a Pattern matches only exactly itself, according to the pass-invariant `keyEQ` distributed equality semantics. Because Patterns must be pass-invariant, passable between mutually suspicious parties, and usable for synchronous testing of Passables, they cannot be user-extensible by code predicates. In several ways including this one, Patterns feel much like conventional types.
-
-Since CopySets and CopyBags can only contain Keys, they also necessarily are Keys. Maps can contain non-Key values. But a Map that contains only Key values is also a Key. Sets, bags, and maps able to be keys or sets, bags, or maps. But this containment tree must remain a finite tree, without cycles.

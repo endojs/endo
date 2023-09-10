@@ -1,10 +1,14 @@
 # `@endo/patterns`
 
-Defines new `Passable` data types and their encoding into the `Tagged` objects defined by the `@endo/pass-style` package. The `@endo/pass-style` package defines the lower level of abstraction on which we need broad agreement for interoperability. The higher level data types defined by this package include
-   - `CopyMap`, `CopySet`, `CopyBag` -- new container types, in addition to the `CopyArray` and `CopyRecord` already defined by `@endo/pass-style`.
-   - a variety of Matchers, for expression patterns that can match over Passables
-   - `Key` -- Passables that can be keys in CopyMaps, CopySets, CopyBags, as well as MapStores and SetStores.
-   - `Pattern` -- values that *match* some subset of Passables. Includes Matchers along with literal pass-by-copy structures that match theirselves.
+Builds on `@endo/pass-style` to define higher level data types as individual refinements of Passable CopyTagged records (PassStyle "tagged"):
+   - CopySet -- a collection of unique distinguishable Keys
+   - CopyBag -- a collection of entries associating a unique distinguishable Key with a positive integer count (see [Multiset](https://en.wikipedia.org/wiki/Multiset)).
+   - CopyMap -- a collection of entries associating a unique distinguishable Key with a Passable
+   - Matcher -- a predicate characterizing a subset of Passables, such as "strings" or "8-bit unsigned integer numbers" or "CopyArrays of Remotables"
+
+In support of the above, there is also `keyEQ` exposing pass-invariant Key equality, and two concepts with corresponding TypeScript types:
+   - Key -- a Passable arbitrarily deep acyclic data structure in which each non-leaf node is a CopyArray, CopyRecord, CopySet, CopyBag, or CopyMap that is the child of at most one other internal node (forming a possibly-empty tree of containers), and each leaf is either an empty such container or a Passable primitive value or a Remotable (but the same Remotable `r` may be a child of multiple parents, e.g. `{ foo: r, bar: [r] }`). A Key is stable and stably comparable with other Keys via `keyEQ`. Key is the most general data type covering valid contents for CopySets and CopyBags and keys for CopyMaps (the last of which explains the "Key" name).
+   - Pattern -- a Passable value that can be used to *match* some subset of Passables. Each Pattern is either a Key that matches itself (and any copy of itself --- `keyEQ` considers identity only for Remotables, where it is shared across all local Presences of the same Remotable), or a Key-like structure in which one or more leaves is a Matcher rather than a primitive or Remotable.
 
 The main export from the package is an `M` namespace object, for making a variety of Matchers (hence "M").
 
@@ -31,3 +35,18 @@ await stringP; // => "42"
 ```
 
 See [types.js](./src/types.js) for the definitions of these new types and (at typedefs `PatternMatchers` and `GuardMakers`) the methods of the exported `M` namespace object.
+
+## Invariants
+
+Any Passable value is a possibly-empty tree of `passStyleOf`-level containers (CopyArray, CopyRecord, CopyTagged) in which each node may be extended with an arbitrary number of non-container Passable leaves (an isolated non-container Passable is a sole leaf of an empty tree).
+If no leaf is a Capability (i.e., a Remotable or Promise), then the Passable value is Data --- it carries only immutable information, without any connection to external references or unforgeable identity.
+
+Guards do not yet exist as distinct kinds, so we ignore them for now. TODO: Expand this if kinds expand to include guards.
+
+As mentioned above, `keyEQ` is pass-invariant: if passing `xa` from vatA to vatB arrives as `xb`, and likewise `ya` and `yb`, then `keyEQ(xa,ya)` iff `keyEQ(xb,yb)`. And because we do not wish to give Promises, Errors, or unrecognized CopyTagged values any useful pass-invariant equality, a Key may not include any of those.
+
+These conditions all apply to Patterns as well. The differences are:
+   * A Pattern can contain Matchers, but a Key cannot. All Keys are Patterns, but Patterns that include Matchers are not Keys.
+   * A non-Key value (including a non-Key Pattern), cannot be an element of a CopySet or CopyBag, or a key of a CopyMap.
+
+Patterns are pass-invariant Passable decidable synchronous predicates over Passables that may be used by mutually suspicious parties, and therefore cannot be user-extensible by code predicates. In several ways including this one, Patterns feel much like conventional types.
