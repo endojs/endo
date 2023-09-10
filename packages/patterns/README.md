@@ -6,7 +6,7 @@ Builds on `@endo/pass-style` to define higher level data types as individual ref
    - CopyMap -- a collection of entries associating a unique distinguishable Key with a Passable
    - Matcher -- a predicate characterizing a subset of Passables, such as "strings" or "8-bit unsigned integer numbers" or "CopyArrays of Remotables"
 
-In support of the above, there is also `keyEQ` exposing pass-invariant Key equality, and two concepts with corresponding TypeScript types:
+In support of the above, there is also `compareKeys` and `keyEQ` exposing pass-invariant Key comparison, and two concepts with corresponding TypeScript types:
    - Key -- a Passable arbitrarily deep acyclic data structure in which each non-leaf node is a CopyArray, CopyRecord, CopySet, CopyBag, or CopyMap that is the child of at most one other internal node (forming a possibly-empty tree of containers), and each leaf is either an empty such container or a Passable primitive value or a Remotable (but the same Remotable `r` may be a child of multiple parents, e.g. `{ foo: r, bar: [r] }`). A Key is stable and stably comparable with other Keys via `keyEQ`. Key is the most general data type covering valid contents for CopySets and CopyBags and keys for CopyMaps (the last of which explains the "Key" name).
    - Pattern -- a Passable value that can be used to *match* some subset of Passables. Each Pattern is either a Key that matches itself (and any copy of itself --- `keyEQ` considers identity only for Remotables, where it is shared across all local Presences of the same Remotable), or a Key-like structure in which one or more leaves is a Matcher rather than a primitive or Remotable.
 
@@ -50,3 +50,32 @@ These conditions all apply to Patterns as well. The differences are:
    * A non-Key value (including a non-Key Pattern), cannot be an element of a CopySet or CopyBag, or a key of a CopyMap.
 
 Patterns are pass-invariant Passable decidable synchronous predicates over Passables that may be used by mutually suspicious parties, and therefore cannot be user-extensible by code predicates. In several ways including this one, Patterns feel much like conventional types.
+
+### Rank order and key order
+
+The "key order" of `compareKeys` implements a partial order over Keys --- it defines relative position between two Keys but leaves some pairs incomparable (for example, subsets over sets is a partial order in which {} precedes {x} and {y}, which are mutually incomparable but both precede {x, y}).
+It is co-designed with the "rank order" (a total preorder) of `compareRank` from [`@endo/marshal`](https://www.npmjs.com/package/@endo/marshal) to support efficient range search for Key-based queries (for example, finding all entries in a map for which the key is a CopyRecord with particular fields can be implemented by selecting from rank-ordered keys those that are CopyRecords whose lexicographically greatest field is at least as big as the lexicographically greatest required field, and then filtering out matched keys that don't have the necessary shape).
+Both functions use -1, 0, and 1 to respectively mean "less than", "equivalent to", and "greater than".
+NaN means "incomparable" --- the first key is not less, equivalent, or greater than the second.
+To keep the orders distinct when speaking informally, we use "earlier" and "later" for rank order, and "smaller" and "bigger" for key order.
+
+The key ordering of `compareKeys` refines the rank ordering of `compareRank` but leaves gaps for which a more complete "full order" relies upon rank ordering:
+1. `compareKeys(X,Y) === 0` implies that `compareRank(X,Y) === 0` --- if X
+   is equivalent to Y in key order, then X is equivalent to Y in rank order.
+   But the converse does not hold; for example, Remotables `Far('X')` and
+   `Far('Y')` are equivalent in rank order but incomparable in key order.
+2. `compareKeys(X,Y) < 0` implies that `compareRank(X,Y) < 0` --- if X is
+   smaller than Y in key order, then X is earlier than Y in rank order.
+   But the converse does not hold; for example, the record `{b: 3, a: 5}`
+   is earlier than the record `{b: 5, a: 3}` in rank order but they are
+   incomparable in key order.
+3. `compareRank(X,Y) === 0` implies that `compareKeys(X,Y)` is either
+   0 or NaN --- Keys within the same rank are either equivalent to or
+   incomparable to each other in key order. But the converse does not hold;
+   for example, `Far('X')` and `{}` are incomparable in key order but not
+   equivalent in rank order.
+4. `compareRank(X,Y) === 0` and `compareRank(X,Z) === 0` imply that
+   `compareKeys(X,Y)` and `compareKeys(X,Z)` are the same --- all Keys within
+   the same rank are either mutually equivalent or mutually incomparable, and
+   in fact only in the mutually incomparable case can the rank be said to
+   contain more than one key.

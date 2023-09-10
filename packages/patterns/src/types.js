@@ -202,41 +202,8 @@ export {};
  * equivalent to `right` in the partial ordering.
  *
  * Key order (a partial order) and rank order (a total preorder) are
- * co-designed to support efficient range search for Key-based queries (for
- * example, finding all entries in a map for which the key is a CopyRecord with
- * particular fields). To keep them distinct when speaking informally, we use
- * "earlier" and "later" for rank order, and "smaller" and "bigger" for
- * key order.
- *
- * There are some invariants that capture the sense in which rank order is
- * coarser than key order but fills in its gaps:
- * 1. `compareKeys(X,Y) === 0` implies that `compareRank(X,Y) === 0` --- if X
- *    is equivalent to Y in key order, then X is equivalent to Y in rank order.
- *    But the converse does not hold; for example, `Far('X')` and `Far('Y')` are
- *    equivalent in rank order but incomparable in key order.
- * 2. `compareKeys(X,Y) < 0` implies that `compareRank(X,Y) < 0` --- if X is
- *    smaller than Y in key order, then X is earlier than Y in rank order.
- *    But the converse does not hold; for example, the record `{b: 3, a: 5}`
- *    is earlier than the record `{b: 5, a: 3}` in rank order but they are
- *    incomparable in key order.
- * 3. `compareRank(X,Y) === 0` implies that `compareKeys(X,Y)` is either
- *    0 or NaN --- Keys within the same rank are either equivalent to or
- *    incomparable to each other in key order. But the converse does not hold;
- *    for example, `Far('X')` and `{}` are incomparable in key order but not
- *    equivalent in rank order.
- * 4. `compareRank(X,Y) === 0` and `compareRank(X,Z) === 0` imply that
- *    `compareKeys(X,Y)` and `compareKeys(X,Z)` are the same --- all Keys within
- *    the same rank are either mutually equivalent or mutually incomparable, and
- *    in fact only in the mutually incomparable case can the rank be said to
- *    contain more than one key.
- *
- * This lets us translate a range search over the
- * partial key order into a range search over rank order followed by filtering
- * out those that don't match. To get this effect, we store the elements of
- * a set in an array sorted in reverse rank order, from later to earlier.
- * Combined with our lexicographic comparison of arrays, if set X is a subset
- * of set Y then the array representing set X will be an earlier rank that the
- * array representing set Y.
+ * co-designed to support efficient range search for Key-based queries
+ * (@see {@link ../README.md#rank-order-and-key-order}).
  *
  * @param {Key} left
  * @param {Key} right
