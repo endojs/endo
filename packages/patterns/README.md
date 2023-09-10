@@ -1,6 +1,6 @@
 # `@endo/patterns`
 
-Builds on `@endo/pass-style` to define higher level data types as individual refinements of Passable CopyTagged records (PassStyle "tagged"):
+Builds on [`@endo/pass-style`](https://www.npmjs.com/package/@endo/pass-style) as described in [`kindOf` and `passStyleOf` levels of abstraction](./docs/marshal-vs-patterns-level.md) to define higher level data types as individual refinements of Passable CopyTagged records (PassStyle "tagged"):
    - CopySet -- a collection of unique distinguishable Keys
    - CopyBag -- a collection of entries associating a unique distinguishable Key with a positive integer count (see [Multiset](https://en.wikipedia.org/wiki/Multiset)).
    - CopyMap -- a collection of entries associating a unique distinguishable Key with a Passable
@@ -12,7 +12,7 @@ In support of the above, there is also `compareKeys` and `keyEQ` exposing pass-i
 
 The main export from the package is an `M` namespace object, for making a variety of Matchers (hence "M").
 
-`M` can also make _Guards_ that use Patterns to characterize dynamic behavior such as method argument/response signatures and promise awaiting. The `@endo/exo` package uses InterfaceGuards (each of which maps a collection of method names to their respective method guards) as the first level of defense for Exo objects against malformed input. For example:
+`M` can also make _Guards_ that use Patterns to characterize dynamic behavior such as method argument/response signatures and promise awaiting. The [`@endo/exo`](https://www.npmjs.com/package/@endo/exo) package uses InterfaceGuards (each of which maps a collection of method names to their respective method guards) as the first level of defense for Exo objects against malformed input. For example:
 ```js
 const AsyncSerializerI = M.interface('AsyncSerializer', {
   // This interface has a single method, which is async as indicated by M.callWhen().

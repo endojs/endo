@@ -1,4 +1,4 @@
-# Passables: `kindOf`  *vs* `passStyleOf` levels of abstraction
+# Passables: `kindOf` and `passStyleOf` levels of abstraction
 
 We have three very distinct abstraction levels in our system in which to describe the passable data types and the operations on them. On the left is the higher ***`kindOf`*** level, containing the passable data types and operations of concern to the normal application programmer. A document intended for those application programmers would explain the `kindOf` level in a self contained manner. This is not that document.
 
