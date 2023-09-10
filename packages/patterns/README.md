@@ -55,8 +55,8 @@ Patterns are pass-invariant Passable decidable synchronous predicates over Passa
 
 The "key order" of `compareKeys` implements a partial order over Keys --- it defines relative position between two Keys but leaves some pairs incomparable (for example, subsets over sets is a partial order in which {} precedes {x} and {y}, which are mutually incomparable but both precede {x, y}).
 It is co-designed with the "rank order" (a total preorder) of `compareRank` from [`@endo/marshal`](https://www.npmjs.com/package/@endo/marshal) to support efficient range search for Key-based queries (for example, finding all entries in a map for which the key is a CopyRecord with particular fields can be implemented by selecting from rank-ordered keys those that are CopyRecords whose lexicographically greatest field is at least as big as the lexicographically greatest required field, and then filtering out matched keys that don't have the necessary shape).
-Both functions use -1, 0, and 1 to respectively mean "less than", "equivalent to", and "greater than".
-NaN means "incomparable" --- the first key is not less, equivalent, or greater than the second.
+Both functions use `-1`, `0`, and `1` to respectively mean "less than", "equivalent to", and "greater than".
+`NaN` means "incomparable" --- the first key is not less than, equivalent to, or greater than the second.
 To keep the orders distinct when speaking informally, we use "earlier" and "later" for rank order, and "smaller" and "bigger" for key order.
 
 The key ordering of `compareKeys` refines the rank ordering of `compareRank` but leaves gaps for which a more complete "full order" relies upon rank ordering:
