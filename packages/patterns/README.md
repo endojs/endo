@@ -79,3 +79,25 @@ The key ordering of `compareKeys` refines the rank ordering of `compareRank` but
    the same rank are either mutually equivalent or mutually incomparable, and
    in fact only in the mutually incomparable case can the rank be said to
    contain more than one key.
+
+## Relationships between types
+
+The set of all primitive values is a strict subset of Data, which is a strict subset of Keys.
+
+The set of all primitive values is also a strict subset of the set of Scalars (which is the union of Primitives and Capabilities [i.e., Remotables and Promises]). The union of primitive values and Remotables is a strict subset of Keys.
+
+Keys is a strict subset of Patterns, which is a strict subset of Passables.
+
+TODO: Include a diagram visually demonstrating the following.
+
+More precisely (using "∪" for union and "∖" for set difference):
+* Passables = Containable\<Keys, Patterns ∪ Promises ∪ Errors ∪ UnrecognizedTaggeds>
+* Patterns = Containable\<Keys, Keys ∪ Matchers>
+* Keys = Containable\<Primitives ∪ Remotables> = Containable\<Scalars ∖ Promises>
+* Data = Containable\<Primitives>
+* Scalars = Primitives ∪ Capabilities
+* Capabilities = Remotables ∪ Promises
+* Containable\<_K_> = Containable\<_K_, _K_>
+* Containable\<_K_, _V_> = Containable∞\<_K_, _V_>
+* Containable₀\<_K_, _V_> = _K_ ∪ _V_
+* Containableₙ₊₁\<_K_, _V_> = Containableₙ\<_K_, _V_> ∪ (**C**\<Containableₙ\<_K_, _V_>> where **C** is CopyArray or CopyRecord) ∪ (**C**\<Containableₙ\<_K_, _K_>> where **C** is CopySet or CopyBag) ∪ CopyMap\<Containableₙ\<_K_, _K_>, Containableₙ\<_K_, _V_>>
