@@ -1,6 +1,6 @@
 User-visible changes in `@endo/exo`:
 
-# Next
+# v0.2.6 (2023-09-11)
 
 - Adds support for symbol-keyed methods in interface guards, e.g.
   ```
