@@ -35,5 +35,7 @@ export {
   isCopyArray,
 } from './src/typeGuards.js';
 
+export { FarBaseClass } from './src/far-class-instances.js';
+
 // eslint-disable-next-line import/export
 export * from './src/types.js';
