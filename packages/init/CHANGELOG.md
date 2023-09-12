@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.60](https://github.com/endojs/endo/compare/@endo/init@0.5.59...@endo/init@0.5.60) (2023-09-12)
+
+**Note:** Version bump only for package @endo/init
+
+
+
+
+
 ### [0.5.59](https://github.com/endojs/endo/compare/@endo/init@0.5.57...@endo/init@0.5.59) (2023-08-07)
 
 **Note:** Version bump only for package @endo/init

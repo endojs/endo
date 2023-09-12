@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.35](https://github.com/endojs/endo/compare/@endo/syrup@0.1.34...@endo/syrup@0.1.35) (2023-09-12)
+
+**Note:** Version bump only for package @endo/syrup
+
+
+
+
+
 ### [0.1.34](https://github.com/endojs/endo/compare/@endo/syrup@0.1.32...@endo/syrup@0.1.34) (2023-08-07)
 
 **Note:** Version bump only for package @endo/syrup

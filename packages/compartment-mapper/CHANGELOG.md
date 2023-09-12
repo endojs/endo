@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.9.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.9.1...@endo/compartment-mapper@0.9.2) (2023-09-12)
+
+
+### Bug Fixes
+
+* **compartment-mapper/policy:** do not allow "resources" to be an array ([42a8817](https://github.com/endojs/endo/commit/42a88179a52e1a084c2b032896945f110e4836e8))
+* **compartment-mapper:** Update stack trace sensitive snapshots ([7addc5c](https://github.com/endojs/endo/commit/7addc5c69c723d0d274cc6bc6842f507459543f3))
+* **types:** SourceMapHook ([cf5f226](https://github.com/endojs/endo/commit/cf5f2262db684a972a59e2423595b91cc03d2d30))
+
+
+
 ### [0.9.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.5...@endo/compartment-mapper@0.9.1) (2023-08-07)
 
 

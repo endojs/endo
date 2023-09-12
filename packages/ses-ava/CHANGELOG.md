@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.44](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.43...@endo/ses-ava@0.2.44) (2023-09-12)
+
+**Note:** Version bump only for package @endo/ses-ava
+
+
+
+
+
 ### [0.2.43](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.41...@endo/ses-ava@0.2.43) (2023-08-07)
 
 **Note:** Version bump only for package @endo/ses-ava
