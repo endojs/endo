@@ -14,7 +14,7 @@ test('bundle-source library is concurrency safe', async t => {
   );
   const bundleName = 'dir1';
   const log = () => {};
-  const concurrentJobs = Array.from({ length: 10 }).map(async () => {
+  const concurrentJobs = Array.from({ length: 5 }).map(async () => {
     const { validateOrAdd } = await makeNodeBundleCache(
       dest,
       { log },

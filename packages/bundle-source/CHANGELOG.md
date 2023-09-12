@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.8.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.7.0...@endo/bundle-source@2.8.0) (2023-09-12)
+
+
+### Features
+
+* **bundle-source:** Cache sensitive to size ([40aaa36](https://github.com/endojs/endo/commit/40aaa36cc9d2120ec97a5427810e04ad2018f3a6))
+* **bundle-source:** DEBUG=bundle-source ([7c81772](https://github.com/endojs/endo/commit/7c8177293b2914cc02d7663054c9eb274f6a526a))
+* **bundle-source:** Synchronize fs ([16a27ed](https://github.com/endojs/endo/commit/16a27ed1b16211ab48d87c28b410f1351aab555d))
+
+
+### Bug Fixes
+
+* **bundle-source:** Add a nonce to cache scratch file names ([d7ee2a8](https://github.com/endojs/endo/commit/d7ee2a80e6dbe82daf98a4f04018d57fad76ef91))
+* **bundle-source:** Backward-compatibility for cache pid argument ([08fb499](https://github.com/endojs/endo/commit/08fb4990de9db0ba9e05d31247e735115f279085))
+* **bundle-source:** more typing and export refinements ([7499cfe](https://github.com/endojs/endo/commit/7499cfef7914cc87ec1f0b906c1355f80868e2c0))
+* **bundle-source:** prevent `BundleMeta` typing from failing ([8998897](https://github.com/endojs/endo/commit/8998897ab496c3b6e1a5f385a2ea8df440c4796f))
+* **bundle-source:** prevent cache read race ([2d4fbab](https://github.com/endojs/endo/commit/2d4fbab1880e23c2b88751db1acca02a7370ea44))
+* **bundle-source:** Reduce test concurrency for CI ([62998df](https://github.com/endojs/endo/commit/62998df29f070f4e8b72aaeec9fb05cc4436a0cb))
+* **bundle-source:** restore API compatibility ([4fe20b7](https://github.com/endojs/endo/commit/4fe20b75537a1064a67a960ba6b82be2b4578fe1))
+* **bundle-source:** Sensitivity to any mtime change ([636b569](https://github.com/endojs/endo/commit/636b569d216eecc1679367afae118c99fefe55fb))
+
+
+
 ## [2.7.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.5.2...@endo/bundle-source@2.7.0) (2023-08-07)
 
 

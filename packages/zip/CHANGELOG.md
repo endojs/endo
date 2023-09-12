@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.35](https://github.com/endojs/endo/compare/@endo/zip@0.2.34...@endo/zip@0.2.35) (2023-09-12)
+
+
+### Bug Fixes
+
+* **ses:** review suggestions ([e4be709](https://github.com/endojs/endo/commit/e4be709fa76adbf7662383956460a7d9b2ef0375))
+
+
+
 ### [0.2.34](https://github.com/endojs/endo/compare/@endo/zip@0.2.32...@endo/zip@0.2.34) (2023-08-07)
 
 **Note:** Version bump only for package @endo/zip

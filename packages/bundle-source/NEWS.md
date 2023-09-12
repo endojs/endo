@@ -1,5 +1,5 @@
 
-# Next
+# v2.8.0 (2023-09-11)
 
 - The `@endo/bundle-source/cache.js` maker now accepts additional optional
   arguments: `pid` and `nonce`, with reasonable defaults.

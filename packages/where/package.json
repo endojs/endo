@@ -1,6 +1,6 @@
 {
   "name": "@endo/where",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Locator for Endo user state, caches, and ephemeral files",
   "keywords": [],
   "author": "Endo contributors",

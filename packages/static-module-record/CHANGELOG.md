@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.8.1...@endo/static-module-record@0.8.2) (2023-09-12)
+
+
+### Bug Fixes
+
+* **types:** babelPlugin ([1240844](https://github.com/endojs/endo/commit/1240844caa76771b732e4bb418b5981d51a741ac))
+* **types:** SourceMapHook ([cf5f226](https://github.com/endojs/endo/commit/cf5f2262db684a972a59e2423595b91cc03d2d30))
+
+
+
 ### [0.8.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.20...@endo/static-module-record@0.8.1) (2023-08-07)
 
 
