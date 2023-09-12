@@ -5,6 +5,7 @@ import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
 import { fc } from '@fast-check/ava';
+import { Remotable } from '@endo/pass-style';
 import { arbPassable } from '@endo/pass-style/tools.js';
 import { Fail, q } from '@endo/errors';
 
@@ -162,6 +163,72 @@ test('golden round trips', t => {
   // Not round trips
   t.is(encodePassable(-0), 'f8000000000000000');
   t.is(decodePassable('f0000000000000000'), NaN);
+});
+
+test('capability encoding', t => {
+  const allAscii = Array(128)
+    .fill()
+    .map((_, i) => String.fromCharCode(i))
+    .join('');
+  const encoders = {
+    encodeRemotable: _r => `r${allAscii}`,
+    encodePromise: _p => `?${allAscii}`,
+    encodeError: _err => `!${allAscii}`,
+  };
+
+  const data = harden([Remotable(), new Promise(() => {}), Error('Foo')]);
+  const decoders = Object.fromEntries(
+    Object.entries(encoders).map(([encoderName, encoder], i) => {
+      const decoderName = encoderName.replace('encode', 'decode');
+      const decoder = encoded => {
+        t.is(
+          encoded,
+          encoder(undefined),
+          `encoding-level escaping must be invisible in ${decoderName}`,
+        );
+        return data[i];
+      };
+      return [decoderName, decoder];
+    }),
+  );
+  const decodeAsciiPassable = makeDecodePassable(decoders);
+
+  const encodePassableLegacy = makeEncodePassable(encoders);
+  const dataLegacy = encodePassableLegacy(data);
+  t.is(
+    dataLegacy,
+    `[${['r', '?', '!']
+      .map(
+        prefix =>
+          // eslint-disable-next-line no-control-regex
+          `${prefix}${allAscii.replace(/[\x00\x01]/g, '\u0001$&')}\u0000`,
+      )
+      .join('')}`,
+    'legacyOrdered format must escape U+0000 and U+0001 in deep remotable/promise/error encodings',
+  );
+  t.is(encodePassableLegacy(decodeAsciiPassable(dataLegacy)), dataLegacy);
+
+  const encodePassableCompact = makeEncodePassable({
+    format: 'compactOrdered',
+    ...encoders,
+  });
+  const dataCompact = encodePassableCompact(data);
+  // eslint-disable-next-line no-control-regex
+  const allAsciiCompact = allAscii.replace(/[\0-\x1F !^_]/g, ch => {
+    if (ch === ' ') return '!_';
+    if (ch === '!') return '!|';
+    if (ch === '^') return '_@';
+    if (ch === '_') return '__';
+    return `!${String.fromCharCode(ch.charCodeAt(0) + 0x21)}`;
+  });
+  t.is(
+    dataCompact,
+    `~^${['r', '?', '!']
+      .map(prefix => `${prefix}${allAsciiCompact} `)
+      .join('')}`,
+    'compactOrdered format must escape U+0000 through U+001F, space, exclamation, caret, and underscore in remotable/promise/error encodings',
+  );
+  t.is(encodePassableCompact(decodeAsciiPassable(dataCompact)), dataCompact);
 });
 
 const orderInvariants = (x, y) => {

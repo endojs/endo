@@ -262,16 +262,16 @@ stringEscapes['_'.charCodeAt(0)] = '__';
  *
  * @type {(str: string) => string}
  */
-const encodeCompactString = str =>
-  `s${str.replace(/[\0-!^_]/g, ch => stringEscapes[ch.charCodeAt(0)])}`;
+const encodeCompactStringSuffix = str =>
+  str.replace(/[\0-!^_]/g, ch => stringEscapes[ch.charCodeAt(0)]);
 
 /**
  * Decodes a string from the "compactOrdered" format.
  *
  * @type {(encoded: string) => string}
  */
-const decodeCompactString = encoded => {
-  return encoded.slice(1).replace(/([!_])(.|\n)?/g, (esc, prefix, suffix) => {
+const decodeCompactStringSuffix = encoded => {
+  return encoded.replace(/([!_])(.|\n)?/g, (esc, prefix, suffix) => {
     switch (esc) {
       case '!_':
         return ' ';
@@ -294,18 +294,18 @@ const decodeCompactString = encoded => {
 };
 
 /**
- * Encodes a string by simple prefixing for use in the "legacyOrdered" format.
+ * Trivially identity-encodes a string for use in the "legacyOrdered" format.
  *
  * @type {(str: string) => string}
  */
-const encodeLegacyString = str => `s${str}`;
+const encodeLegacyStringSuffix = str => str;
 
 /**
- * Decodes a string from the "legacyOrdered" format.
+ * Trivially identity-decodes a string from the "legacyOrdered" format.
  *
  * @type {(encoded: string) => string}
  */
-const decodeLegacyString = encoded => encoded.slice(1);
+const decodeLegacyStringSuffix = encoded => encoded;
 
 /**
  * Encodes an array into a sequence of encoded elements for use in the "compactOrdered"
@@ -487,19 +487,34 @@ const decodeTagged = (encoded, decodeArray, decodePassable) => {
   return makeTagged(tag, payload);
 };
 
-const assertEncodedRemotable = encoding => {
-  encoding.charAt(0) === 'r' ||
-    Fail`internal: Remotable encoding must start with "r": ${encoding}`;
+const makeEncodeRemotable = (unsafeEncodeRemotable, encodeStringSuffix) => {
+  const encodeRemotable = (r, innerEncode) => {
+    const encoding = unsafeEncodeRemotable(r, innerEncode);
+    (typeof encoding === 'string' && encoding.charAt(0) === 'r') ||
+      Fail`internal: Remotable encoding must start with "r": ${encoding}`;
+    return `r${encodeStringSuffix(encoding.slice(1))}`;
+  };
+  return encodeRemotable;
 };
 
-const assertEncodedPromise = encoding => {
-  encoding.charAt(0) === '?' ||
-    Fail`internal: Promise encoding must start with "?": ${encoding}`;
+const makeEncodePromise = (unsafeEncodePromise, encodeStringSuffix) => {
+  const encodePromise = (p, innerEncode) => {
+    const encoding = unsafeEncodePromise(p, innerEncode);
+    (typeof encoding === 'string' && encoding.charAt(0) === '?') ||
+      Fail`internal: Promise encoding must start with "?": ${encoding}`;
+    return `?${encodeStringSuffix(encoding.slice(1))}`;
+  };
+  return encodePromise;
 };
 
-const assertEncodedError = encoding => {
-  encoding.charAt(0) === '!' ||
-    Fail`internal: Error encoding must start with "!": ${encoding}`;
+const makeEncodeError = (unsafeEncodeError, encodeStringSuffix) => {
+  const encodeError = (err, innerEncode) => {
+    const encoding = unsafeEncodeError(err, innerEncode);
+    (typeof encoding === 'string' && encoding.charAt(0) === '!') ||
+      Fail`internal: Error encoding must start with "!": ${encoding}`;
+    return `!${encodeStringSuffix(encoding.slice(1))}`;
+  };
+  return encodeError;
 };
 
 /**
@@ -525,26 +540,37 @@ const assertEncodedError = encoding => {
  */
 export const makeEncodePassable = (encodeOptions = {}) => {
   const {
-    encodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
-    encodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
-    encodeError = (err, _) => Fail`error unexpected: ${err}`,
+    encodeRemotable: unsafeEncodeRemotable = (r, _) =>
+      Fail`remotable unexpected: ${r}`,
+    encodePromise: unsafeEncodePromise = (p, _) =>
+      Fail`promise unexpected: ${p}`,
+    encodeError: unsafeEncodeError = (err, _) => Fail`error unexpected: ${err}`,
     format = 'legacyOrdered',
   } = encodeOptions;
 
   let formatPrefix;
-  let encodeString;
+  let encodeStringSuffix;
   let encodeArray;
   if (format === 'legacyOrdered') {
     formatPrefix = '';
-    encodeString = encodeLegacyString;
+    encodeStringSuffix = encodeLegacyStringSuffix;
     encodeArray = encodeLegacyArray;
   } else if (format === 'compactOrdered') {
     formatPrefix = '~';
-    encodeString = encodeCompactString;
+    encodeStringSuffix = encodeCompactStringSuffix;
     encodeArray = encodeCompactArray;
   } else {
     Fail`Unrecognized format: ${q(format)}`;
   }
+  const encodeRemotable = makeEncodeRemotable(
+    unsafeEncodeRemotable,
+    encodeStringSuffix,
+  );
+  const encodePromise = makeEncodePromise(
+    unsafeEncodePromise,
+    encodeStringSuffix,
+  );
+  const encodeError = makeEncodeError(unsafeEncodeError, encodeStringSuffix);
 
   const innerEncode = passable => {
     if (isErrorLike(passable)) {
@@ -558,9 +584,7 @@ export const makeEncodePassable = (encodeOptions = {}) => {
       // more interested in reporting whatever diagnostic information they
       // carry than we are about reporting problems encountered in reporting
       // this information.
-      const result = encodeError(passable, innerEncode);
-      assertEncodedError(result);
-      return result;
+      return encodeError(passable, innerEncode);
     }
     const passStyle = passStyleOf(passable);
     switch (passStyle) {
@@ -574,7 +598,7 @@ export const makeEncodePassable = (encodeOptions = {}) => {
         return encodeBinary64(passable);
       }
       case 'string': {
-        return encodeString(passable);
+        return `s${encodeStringSuffix(passable)}`;
       }
       case 'boolean': {
         return `b${passable}`;
@@ -583,25 +607,18 @@ export const makeEncodePassable = (encodeOptions = {}) => {
         return encodeBigInt(passable);
       }
       case 'remotable': {
-        const result = encodeRemotable(passable, innerEncode);
-        assertEncodedRemotable(result);
-        return result;
+        return encodeRemotable(passable, innerEncode);
       }
       case 'error': {
-        const result = encodeError(passable, innerEncode);
-        assertEncodedError(result);
-        return result;
+        return encodeError(passable, innerEncode);
       }
       case 'promise': {
-        const result = encodePromise(passable, innerEncode);
-        assertEncodedPromise(result);
-        return result;
+        return encodePromise(passable, innerEncode);
       }
       case 'symbol': {
         // Strings and symbols share encoding logic.
-        // Encode the name as a string, then replace the `s` prefix.
-        const encName = encodeString(nameForPassableSymbol(passable));
-        return `y${encName.slice(1)}`;
+        const name = nameForPassableSymbol(passable);
+        return `y${encodeStringSuffix(name)}`;
       }
       case 'copyArray': {
         return encodeArray(passable, innerEncode);
@@ -649,7 +666,7 @@ export const makeDecodePassable = (decodeOptions = {}) => {
     decodeError = (err, _) => Fail`error unexpected: ${err}`,
   } = decodeOptions;
 
-  const makeInnerDecode = (decodeString, decodeArray) => {
+  const makeInnerDecode = (decodeStringSuffix, decodeArray) => {
     const innerDecode = encoded => {
       switch (encoded.charAt(0)) {
         case 'v': {
@@ -662,7 +679,7 @@ export const makeDecodePassable = (decodeOptions = {}) => {
           return decodeBinary64(encoded);
         }
         case 's': {
-          return decodeString(encoded);
+          return decodeStringSuffix(encoded.slice(1));
         }
         case 'b': {
           if (encoded === 'btrue') {
@@ -677,17 +694,20 @@ export const makeDecodePassable = (decodeOptions = {}) => {
           return decodeBigInt(encoded);
         }
         case 'r': {
-          return decodeRemotable(encoded, innerDecode);
+          const normalized = `r${decodeStringSuffix(encoded.slice(1))}`;
+          return decodeRemotable(normalized, innerDecode);
         }
         case '?': {
-          return decodePromise(encoded, innerDecode);
+          const normalized = `?${decodeStringSuffix(encoded.slice(1))}`;
+          return decodePromise(normalized, innerDecode);
         }
         case '!': {
-          return decodeError(encoded, innerDecode);
+          const normalized = `!${decodeStringSuffix(encoded.slice(1))}`;
+          return decodeError(normalized, innerDecode);
         }
         case 'y': {
           // Strings and symbols share decoding logic.
-          const name = decodeString(encoded);
+          const name = decodeStringSuffix(encoded.slice(1));
           return passableSymbolForName(name);
         }
         case '[':
@@ -711,12 +731,15 @@ export const makeDecodePassable = (decodeOptions = {}) => {
     // A leading "~" indicates the v2 encoding (with escaping in strings rather than arrays).
     if (encoded.startsWith('~')) {
       const innerDecode = makeInnerDecode(
-        decodeCompactString,
+        decodeCompactStringSuffix,
         decodeCompactArray,
       );
       return innerDecode(encoded.slice(1));
     }
-    const innerDecode = makeInnerDecode(decodeLegacyString, decodeLegacyArray);
+    const innerDecode = makeInnerDecode(
+      decodeLegacyStringSuffix,
+      decodeLegacyArray,
+    );
     return innerDecode(encoded);
   };
   return harden(decodePassable);
