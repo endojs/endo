@@ -32,6 +32,13 @@ const { defineProperties, fromEntries } = Object;
  */
 const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
 
+/**
+ * @param {Passable[]} args
+ * @param {MethodGuardPayload} methodGuardPayload
+ * @param {string | undefined} label
+ * @returns {Passable[]} Returns the args that should be passed to the
+ * raw method
+ */
 const defendSyncArgs = (args, methodGuardPayload, label) => {
   const { argGuards, optionalArgGuards, restArgGuard } = methodGuardPayload;
   const paramsPattern = M.splitArray(
@@ -40,6 +47,15 @@ const defendSyncArgs = (args, methodGuardPayload, label) => {
     restArgGuard,
   );
   mustMatch(harden(args), paramsPattern, label);
+  if (restArgGuard !== undefined) {
+    return args;
+  }
+  const declaredLen =
+    argGuards.length + (optionalArgGuards ? optionalArgGuards.length : 0);
+  if (args.length <= declaredLen) {
+    return args;
+  }
+  return args.slice(0, declaredLen);
 };
 
 /**
@@ -53,8 +69,8 @@ const defendSyncMethod = (method, methodGuardPayload, label) => {
   const { syncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     syncMethod(...args) {
-      defendSyncArgs(harden(args), methodGuardPayload, label);
-      const result = apply(method, this, args);
+      const realArgs = defendSyncArgs(harden(args), methodGuardPayload, label);
+      const result = apply(method, this, realArgs);
       mustMatch(harden(result), returnGuard, `${label}: result`);
       return result;
     },
@@ -83,9 +99,9 @@ const desync = methodGuardPayload => {
   return {
     awaitIndexes,
     rawMethodGuardPayload: {
+      ...methodGuardPayload,
       argGuards: rawArgGuards.slice(0, argGuards.length),
       optionalArgGuards: rawArgGuards.slice(argGuards.length),
-      restArgGuard,
     },
   };
 };
@@ -103,8 +119,8 @@ const defendAsyncMethod = (method, methodGuardPayload, label) => {
         for (let j = 0; j < awaitIndexes.length; j += 1) {
           rawArgs[awaitIndexes[j]] = awaitedArgs[j];
         }
-        defendSyncArgs(rawArgs, rawMethodGuardPayload, label);
-        return apply(method, this, rawArgs);
+        const realArgs = defendSyncArgs(rawArgs, rawMethodGuardPayload, label);
+        return apply(method, this, realArgs);
       });
       return E.when(resultP, result => {
         mustMatch(harden(result), returnGuard, `${label}: result`);
