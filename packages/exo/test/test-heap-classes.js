@@ -20,7 +20,7 @@ test('what happens with extra arguments', t => {
       t.is(x, undefined);
     },
   });
-  exo.foo(8);
+  exo.foo('an extra arg');
 });
 
 const UpCounterI = M.interface('UpCounter', {

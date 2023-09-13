@@ -33,29 +33,30 @@ const { defineProperties, fromEntries } = Object;
 const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
 
 /**
- * @param {Passable[]} args
+ * @param {Passable[]} syncArgs
  * @param {MethodGuardPayload} methodGuardPayload
- * @param {string | undefined} label
+ * @param {string} [label]
  * @returns {Passable[]} Returns the args that should be passed to the
  * raw method
  */
-const defendSyncArgs = (args, methodGuardPayload, label) => {
+const defendSyncArgs = (syncArgs, methodGuardPayload, label = undefined) => {
   const { argGuards, optionalArgGuards, restArgGuard } = methodGuardPayload;
   const paramsPattern = M.splitArray(
     argGuards,
     optionalArgGuards,
     restArgGuard,
   );
-  mustMatch(harden(args), paramsPattern, label);
+  mustMatch(harden(syncArgs), paramsPattern, label);
   if (restArgGuard !== undefined) {
-    return args;
+    return syncArgs;
   }
   const declaredLen =
     argGuards.length + (optionalArgGuards ? optionalArgGuards.length : 0);
-  if (args.length <= declaredLen) {
-    return args;
+  if (syncArgs.length <= declaredLen) {
+    return syncArgs;
   }
-  return args.slice(0, declaredLen);
+  // Ignore extraneous arguments, as a JS function call would do.
+  return syncArgs.slice(0, declaredLen);
 };
 
 /**
@@ -68,8 +69,12 @@ const defendSyncMethod = (method, methodGuardPayload, label) => {
   const { returnGuard } = methodGuardPayload;
   const { syncMethod } = {
     // Note purposeful use of `this` and concise method syntax
-    syncMethod(...args) {
-      const realArgs = defendSyncArgs(harden(args), methodGuardPayload, label);
+    syncMethod(...syncArgs) {
+      const realArgs = defendSyncArgs(
+        harden(syncArgs),
+        methodGuardPayload,
+        label,
+      );
       const result = apply(method, this, realArgs);
       mustMatch(harden(result), returnGuard, `${label}: result`);
       return result;
@@ -114,12 +119,12 @@ const defendAsyncMethod = (method, methodGuardPayload, label) => {
     asyncMethod(...args) {
       const awaitList = awaitIndexes.map(i => args[i]);
       const p = Promise.all(awaitList);
-      const rawArgs = [...args];
+      const syncArgs = [...args];
       const resultP = E.when(p, awaitedArgs => {
         for (let j = 0; j < awaitIndexes.length; j += 1) {
-          rawArgs[awaitIndexes[j]] = awaitedArgs[j];
+          syncArgs[awaitIndexes[j]] = awaitedArgs[j];
         }
-        const realArgs = defendSyncArgs(rawArgs, rawMethodGuardPayload, label);
+        const realArgs = defendSyncArgs(syncArgs, rawMethodGuardPayload, label);
         return apply(method, this, realArgs);
       });
       return E.when(resultP, result => {
