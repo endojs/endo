@@ -330,10 +330,17 @@ const runTests = (t, successCase, failCase) => {
       '{"bar":4,"foo":3} - Must be >= {"baz":3}',
     );
 
+    successCase(specimen, M.splitRecord({}, undefined, undefined));
+    successCase(specimen, M.splitRecord({}, { unused: M.string() }));
     failCase(
       specimen,
       M.splitRecord({ foo: M.number() }, { bar: M.string(), baz: M.number() }),
       'bar?: number 4 - Must be a string',
+    );
+    failCase(
+      specimen,
+      M.splitRecord({}, { unused: M.string() }, M.string()),
+      '...rest: copyRecord {"bar":4,"foo":3} - Must be a string',
     );
 
     failCase(
