@@ -1880,8 +1880,9 @@ harden(assertInterfaceGuard);
  * By using this abstraction rather than accessing the properties directly,
  * we smooth the transition to https://github.com/endojs/endo/pull/1712
  *
- * @param {InterfaceGuard} interfaceGuard
- * @returns {InterfaceGuardPayload}
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
+ * @param {InterfaceGuard<T>} interfaceGuard
+ * @returns {InterfaceGuardPayload<T>}
  */
 export const getInterfaceGuardPayload = interfaceGuard => {
   assertInterfaceGuard(interfaceGuard);

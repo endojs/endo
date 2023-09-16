@@ -14,7 +14,10 @@
 /** @typedef {import('../types.js').ArgGuard} ArgGuard */
 /** @typedef {import('../types.js').MethodGuardPayload} MethodGuardPayload */
 /** @typedef {import('../types.js').MethodGuard} MethodGuard */
-/** @typedef {import('../types.js').InterfaceGuardPayload} InterfaceGuardPayload */
+/**
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
+ * @typedef {import('../types.js').InterfaceGuardPayload<T>} InterfaceGuardPayload
+ */
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T = Record<PropertyKey, MethodGuard>]
  * @typedef {import('../types.js').InterfaceGuard<T>} InterfaceGuard
