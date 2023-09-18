@@ -22,7 +22,8 @@ import {
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
-const { defineProperties, fromEntries } = Object;
+const { defineProperties, fromEntries, getOwnPropertyDescriptors, create } =
+  Object;
 
 /**
  * A method guard, for inclusion in an interface guard, that enforces only that
@@ -255,17 +256,22 @@ export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
 
 /**
  *
- * @template {Record<PropertyKey, CallableFunction>} T
- * @param {T} behaviorMethods
+ * @template {Record<PropertyKey, TypedPropertyDescriptor<CallableFunction>>} T
+ * @param {T} methodDescs
  * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }>} interfaceGuard
  * @returns {T}
  */
-const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
+const withGetInterfaceGuardMethodDesc = (methodDescs, interfaceGuard) =>
   harden({
-    [GET_INTERFACE_GUARD]() {
-      return interfaceGuard;
+    [GET_INTERFACE_GUARD]: {
+      value() {
+        return interfaceGuard;
+      },
+      writable: false,
+      enumerable: false,
+      configurable: false,
     },
-    ...behaviorMethods,
+    ...methodDescs,
   });
 
 /**
@@ -285,12 +291,22 @@ export const defendPrototype = (
   interfaceGuard = undefined,
 ) => {
   const prototype = {};
-  if (hasOwnPropertyOf(behaviorMethods, 'constructor')) {
-    // By ignoring any method named "constructor", we can use a
-    // class.prototype as a behaviorMethods.
-    const { constructor: _, ...methods } = behaviorMethods;
-    // @ts-expect-error TS misses that hasOwn check makes this safe
-    behaviorMethods = harden(methods);
+  let methodDescs = getOwnPropertyDescriptors(behaviorMethods);
+  if (
+    hasOwnPropertyOf(behaviorMethods, 'constructor') &&
+    typeof behaviorMethods.constructor === 'function' &&
+    hasOwnPropertyOf(behaviorMethods.constructor, 'prototype') &&
+    behaviorMethods.constructor.prototype === behaviorMethods
+  ) {
+    // By ignoring any method named "constructor" that might be a
+    // class, we can use a class.prototype as a behaviorMethods.
+    // TODO: Because this looks only at own properties, it is
+    // currently useful only on base classes. Better would be
+    // for it to deal with subclasses as well.
+    const { constructor: _, ...otherDescs } =
+      getOwnPropertyDescriptors(behaviorMethods);
+    // @ts-expect-error typing ignoring `constructor`
+    methodDescs = otherDescs;
   }
   /** @type {Record<PropertyKey, MethodGuard> | undefined} */
   let methodGuards;
@@ -307,7 +323,7 @@ export const defendPrototype = (
         fromEntries(getCopyMapEntries(symbolMethodGuards))),
     });
     {
-      const methodNames = ownKeys(behaviorMethods);
+      const methodNames = ownKeys(methodDescs);
       const methodGuardNames = ownKeys(methodGuards);
       const unimplemented = listDifference(methodGuardNames, methodNames);
       unimplemented.length === 0 ||
@@ -318,17 +334,16 @@ export const defendPrototype = (
           Fail`methods ${q(unguarded)} not guarded by ${q(interfaceName)}`;
       }
     }
-    behaviorMethods = withGetInterfaceGuardMethod(
-      behaviorMethods,
-      interfaceGuard,
-    );
+    methodDescs = withGetInterfaceGuardMethodDesc(methodDescs, interfaceGuard);
   }
 
-  for (const prop of ownKeys(behaviorMethods)) {
+  const methods = create(Object.prototype, methodDescs);
+
+  for (const prop of ownKeys(methods)) {
     prototype[prop] = bindMethod(
       `In ${q(prop)} method of (${tag})`,
       contextProvider,
-      behaviorMethods[prop],
+      methods[prop],
       thisfulMethods,
       // TODO some tool does not yet understand the `?.[` syntax
       methodGuards && methodGuards[prop],
