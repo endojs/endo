@@ -1,5 +1,5 @@
 {
-  "name": "ses-integration-test",
+  "name": "@endo/ses-integration-test",
   "version": "3.0.34",
   "private": true,
   "description": "",
