@@ -12,7 +12,10 @@ import {
 /** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
-/** @template T @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord */
+/**
+ * @template {Passable} [T=Passable]
+ * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
+ */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
 const { quote: q, Fail } = assert;

@@ -204,7 +204,7 @@ test('matching', t => {
 test('types', t => {
   const bag = makeCopyBag([['a', 1n]]);
 
-  // TODO: restore at-ts-expect-error should not be 'any'
+  // @ts-expect-error No 'foo' in [string, bigint][]
   bag.payload.foo;
   const [str, count] = bag.payload[0];
   str.concat; // string

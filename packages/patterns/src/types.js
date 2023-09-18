@@ -2,12 +2,22 @@
 
 export {};
 
-/** @typedef {import('@endo/marshal').Passable} Passable */
-/** @typedef {import('@endo/marshal').PassStyle} PassStyle */
-/** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
-/** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
-/** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
-/** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/**
+ * @template {string} [Tag=string]
+ * @template {Passable} [Payload=Passable]
+ * @typedef {import('@endo/pass-style').CopyTagged<Tag,Payload>} CopyTagged
+ */
+/**
+ * @template {Passable} [T=Passable]
+ * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
+ */
+/**
+ * @template {Passable} [T=Passable]
+ * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
+ */
+/** @typedef {import('@endo/pass-style').Checker} Checker */
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
@@ -101,10 +111,7 @@ export {};
 
 /**
  * @template {Key} [K=Key]
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: 'copySet',
- *   payload: Array<K>,
- * }} CopySet
+ * @typedef {CopyTagged<'copySet', K[]>} CopySet
  *
  * A Passable collection of Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`.
@@ -112,10 +119,7 @@ export {};
 
 /**
  * @template {Key} [K=Key]
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: 'copyBag',
- *   payload: Array<[K, bigint]>,
- * }} CopyBag
+ * @typedef {CopyTagged<'copyBag', [K, bigint][]>} CopyBag
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`,
@@ -125,10 +129,7 @@ export {};
 /**
  * @template {Key} [K=Key]
  * @template {Passable} [V=Passable]
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: 'copyMap',
- *   payload: { keys: Array<K>, values: Array<V> },
- * }} CopyMap
+ * @typedef {CopyTagged<'copyMap', { keys: K[], values: V[] }>} CopyMap
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`,
@@ -144,9 +145,7 @@ export {};
 
 // TODO: enumerate Matcher tag values?
 /**
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: `match:${string}`,
- * }} Matcher
+ * @typedef {CopyTagged<`match:${string}`, Passable>} Matcher
  *
  * A Pattern representing the predicate characterizing a category of Passables,
  * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.
@@ -509,10 +508,7 @@ export {};
 
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
- * @typedef {{ klass: 'Interface' } & InterfaceGuardPayload<T> } InterfaceGuard
- *
- * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
- * guard that is distinct from a copyRecord
+ * @typedef {CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>}InterfaceGuard
  */
 
 /**
@@ -581,14 +577,7 @@ export {};
  */
 
 /**
- * @typedef {{ klass: 'methodGuard' } & MethodGuardPayload} MethodGuard
- *
- * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
- * guard that is distinct from a copyRecord.
- * Once we're ready for such a compat break, we might also take the
- * opportunity to rename `restArgGuard` and `returnGuard`
- * to reflect that their value must be a Pattern rather that a
- * non-pattern guard.
+ * @typedef {CopyTagged<'guard:methodGuard', MethodGuardPayload>} MethodGuard
  */
 
 /**
@@ -598,16 +587,7 @@ export {};
  */
 
 /**
- * @typedef {{ klass: 'awaitArg' } & AwaitArgGuardPayload} AwaitArgGuard
- *
- * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
- * guard that is distinct from a copyRecord.
- * Unlike InterfaceGuard or MethodGuard, for AwaitArgGuard it is a correctness
- * issue, so that the guard not be mistaken for the copyRecord as key/pattern.
- * Once we're ready for such a compat break, we might also take the
- * opportunity to rename `argGuard`
- * to reflect that its value must be a Pattern rather that a
- * non-pattern guard.
+ * @typedef {CopyTagged<'guard:awaitArgGuard', AwaitArgGuardPayload>} AwaitArgGuard
  */
 
 /** @typedef {AwaitArgGuard | Pattern} ArgGuard */
