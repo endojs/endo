@@ -10,6 +10,19 @@ import {
 } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/exo-tools.js';
 
+const NoExtraI = M.interface('NoExtra', {
+  foo: M.call().returns(),
+});
+
+test('what happens with extra arguments', t => {
+  const exo = makeExo('WithExtra', NoExtraI, {
+    foo(x) {
+      t.is(x, undefined);
+    },
+  });
+  exo.foo('an extra arg');
+});
+
 const UpCounterI = M.interface('UpCounter', {
   incr: M.call()
     // TODO M.number() should not be needed to get a better error message
