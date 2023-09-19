@@ -411,3 +411,25 @@ test('importHook returning a ModuleInstance with a precompiled functor', async t
 
   await compartment.import('./main.js');
 });
+
+test('this in module scope must be undefined', async t => {
+  t.plan(1);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/index.js': `
+      t.is(this, undefined, 'this must be undefined in module scope');
+    `,
+  });
+  const importHook = makeImportHook('https://example.com');
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook,
+    },
+  );
+
+  await compartment.import('./index.js');
+});

@@ -1,5 +1,10 @@
 User-visible changes in Static Module Record, née Transform Module:
 
+# Next
+
+- Ensures that `this` is bound to `undefined` in module scope and that the
+  vestigial and undeniable `arguments` object in module scope is empty.
+
 # 0.8.0 (2023-08-07)
 
 - Introduces `sourceMapHook` as an option for the `StaticModuleRecord` constructor,

@@ -211,11 +211,10 @@ test('export default arguments (not technically valid but must be handled)', t =
   const { record, namespace } = initialize(t, `export default arguments`);
   assertDefaultExport(t, record);
   t.is(typeof namespace.default, 'object');
-  t.is(namespace.default[0], record.__syncModuleProgram__);
-  t.is(namespace.default.length, 1);
+  t.is(namespace.default.length, 0);
 });
 
-test.failing('export default this', t => {
+test('export default this', t => {
   const { record, namespace } = initialize(t, `export default this`);
   assertDefaultExport(t, record);
   t.is(namespace.default, undefined);
