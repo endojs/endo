@@ -8,7 +8,7 @@
 //
 // Thereafter,
 //
-// > endo open fami ar-chat
+// > endo open familiar-chat
 //
 // To interact with the permission manager, you can mock requests from a fake
 // guest.
@@ -203,6 +203,21 @@ const followNamesComponent = async ($parent, $end, powers) => {
       const $name = document.createTextNode(`${name} `);
       $li.appendChild($name);
       $name.innerText = change.add;
+
+      const $value = document.createElement('pre');
+      $li.appendChild($value);
+      E(powers).lookup(name).then(
+        value => {
+          let output = ''
+          output += Object.prototype.toString.call(value);
+          output += ' '
+          output += JSON.stringify(value, undefined, 2);
+          $value.innerText = output
+        },
+        error => {
+          $value.innerText = ` ${error.message}`;
+        },
+      );
 
       const $remove = document.createElement('button');
       $li.appendChild($remove);
