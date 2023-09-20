@@ -1,14 +1,31 @@
 /* eslint-disable no-continue */
 import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
-import { makeTagged } from '@endo/marshal';
-import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';
+import { makeTagged, Far } from '@endo/marshal';
+import {
+  makeCopyBag,
+  makeCopyMap,
+  makeCopySet,
+  getCopyMapKeys,
+} from '../src/keys/checkKey.js';
 import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 import '../src/types.js';
 
+/** @typedef {import('ava').ExecutionContext} TestContext */
+
 const { Fail } = assert;
 
-const runTests = (successCase, failCase) => {
+// TODO The desired semantics for CopyMap comparison have not yet been decided.
+// See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
+const copyMapComparison = (() => {
+  try {
+    return matches(makeCopyMap([]), makeCopyMap([]));
+  } catch (err) {
+    return false;
+  }
+})();
+
+const runTests = (t, successCase, failCase) => {
   /**
    * @callback MakeErrorMessage
    * @param {string} repr
@@ -313,10 +330,17 @@ const runTests = (successCase, failCase) => {
       '{"bar":4,"foo":3} - Must be >= {"baz":3}',
     );
 
+    successCase(specimen, M.splitRecord({}, undefined, undefined));
+    successCase(specimen, M.splitRecord({}, { unused: M.string() }));
     failCase(
       specimen,
       M.splitRecord({ foo: M.number() }, { bar: M.string(), baz: M.number() }),
       'bar?: number 4 - Must be a string',
+    );
+    failCase(
+      specimen,
+      M.splitRecord({}, { unused: M.string() }, M.string()),
+      '...rest: copyRecord {"bar":4,"foo":3} - Must be a string',
     );
 
     failCase(
@@ -504,7 +528,15 @@ const runTests = (successCase, failCase) => {
         makeMessage('"[copyMap]"', 'copyMap', 'tagged'),
       );
     }
-    // M.gt(makeCopyMap([])), Map comparison not yet implemented
+    // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
+    t.throws(
+      () => {
+        copyMapComparison || Fail`No CopyMap comparison support`;
+        successCase(specimen, M.gt(makeCopyMap([])));
+      },
+      { message: 'No CopyMap comparison support' },
+      'CopyMap comparison support (time to unwrap assertions?)',
+    );
     successCase(specimen, M.mapOf(M.record(), M.string()));
 
     failCase(
@@ -642,24 +674,55 @@ const runTests = (successCase, failCase) => {
   }
 };
 
+/**
+ * @param {TestContext} t
+ * @param {any} specimen
+ * @param {any} pattern
+ * @param {string} [label]
+ * @returns {void}
+ */
+const assertMatch = (t, specimen, pattern, label) => {
+  t.notThrows(() => mustMatch(specimen, pattern), label);
+  t.true(matches(specimen, pattern), label);
+};
+
+/**
+ * @param {TestContext} t
+ * @param {any} specimen
+ * @param {any} pattern
+ * @param {string} message
+ * @param {boolean} [isUnmatchable]
+ * @param {string} [label]
+ * @returns {void}
+ */
+const assertNoMatch = (t, specimen, pattern, message, isUnmatchable, label) => {
+  t.throws(() => mustMatch(specimen, pattern), { message }, label);
+  if (isUnmatchable) {
+    t.throws(() => matches(specimen, pattern), { message }, label);
+  } else {
+    t.false(matches(specimen, pattern), label);
+  }
+};
+
 test('test simple matches', t => {
   const successCase = (specimen, yesPattern) => {
     harden(specimen);
     harden(yesPattern);
-    t.notThrows(() => mustMatch(specimen, yesPattern), `${yesPattern}`);
-    t.assert(matches(specimen, yesPattern), `${yesPattern}`);
+    assertMatch(t, specimen, yesPattern, `${yesPattern}`);
   };
   const failCase = (specimen, noPattern, message, isUnmatchable) => {
     harden(specimen);
     harden(noPattern);
-    t.throws(() => mustMatch(specimen, noPattern), { message }, `${noPattern}`);
-    if (isUnmatchable) {
-      t.throws(() => matches(specimen, noPattern), { message }, `${noPattern}`);
-    } else {
-      t.false(matches(specimen, noPattern), `${noPattern}`);
-    }
+    assertNoMatch(
+      t,
+      specimen,
+      noPattern,
+      message,
+      isUnmatchable,
+      `${noPattern}`,
+    );
   };
-  runTests(successCase, failCase);
+  runTests(t, successCase, failCase);
 });
 
 test('masking match failure', t => {
@@ -669,15 +732,102 @@ test('masking match failure', t => {
     'copyMap',
     harden({ keys: [M.string()], values: ['x'] }),
   );
-  t.throws(() => mustMatch(nonSet, M.set()), {
-    message: 'A passable tagged "match:string" is not a key: "[match:string]"',
+  assertNoMatch(
+    t,
+    nonSet,
+    M.set(),
+    'A passable tagged "match:string" is not a key: "[match:string]"',
+  );
+  assertNoMatch(
+    t,
+    nonBag,
+    M.bag(),
+    'A passable tagged "match:string" is not a key: "[match:string]"',
+  );
+  assertNoMatch(
+    t,
+    nonMap,
+    M.map(),
+    'A passable tagged "match:string" is not a key: "[match:string]"',
+  );
+});
+
+test('collection contents rankOrder tie insensitivity', t => {
+  const assertMutualMatch = values => {
+    const [[label1, value1], [label2, value2]] = Object.entries(values);
+    t.notDeepEqual(
+      value1,
+      value2,
+      `${label1} and ${label2} must be distinguishable`,
+    );
+    assertMatch(
+      t,
+      value1,
+      value2,
+      `${label1} specimen must be matched by ${label2} pattern`,
+    );
+    assertMatch(
+      t,
+      value2,
+      value1,
+      `${label2} specimen must be matched by ${label1} pattern`,
+    );
+  };
+
+  const r1 = Far('r1');
+  const r2 = Far('r2');
+  assertMutualMatch({
+    set1: makeCopySet([r1, r2]),
+    set2: makeCopySet([r2, r1]),
   });
-  t.throws(() => mustMatch(nonBag, M.bag()), {
-    message: 'A passable tagged "match:string" is not a key: "[match:string]"',
+  assertMutualMatch({
+    bag1: makeCopyBag([
+      [r1, 2n],
+      [r2, 2n],
+    ]),
+    bag2: makeCopyBag([
+      [r2, 2n],
+      [r1, 2n],
+    ]),
   });
-  t.throws(() => mustMatch(nonMap, M.map()), {
-    message: 'A passable tagged "match:string" is not a key: "[match:string]"',
-  });
+  // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
+  t.throws(
+    () => {
+      copyMapComparison || Fail`No CopyMap comparison support`;
+      assertMutualMatch({
+        map1: makeCopyMap([
+          [r1, 'value'],
+          [r2, 'value'],
+        ]),
+        map2: makeCopyMap([
+          [r2, 'value'],
+          [r1, 'value'],
+        ]),
+      });
+    },
+    { message: 'No CopyMap comparison support' },
+    'CopyMap comparison support (time to unwrap assertions?)',
+  );
+
+  const map1 = makeCopyMap([
+    [r1, 1],
+    [r2, 2],
+  ]);
+  const map2 = makeCopyMap([
+    [r2, M.gte(2)],
+    [r1, M.lte(1)],
+  ]);
+  t.notDeepEqual(
+    getCopyMapKeys(map1),
+    getCopyMapKeys(map2),
+    'Must have CopyMaps with distinct key permutations',
+  );
+  assertMatch(
+    t,
+    map1,
+    map2,
+    'CopyMap must be matched by non-Key Pattern with different key order',
+  );
 });
 
 test('well formed patterns', t => {

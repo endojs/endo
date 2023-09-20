@@ -133,9 +133,8 @@ export const makeLRUCacheMap = keysBudget => {
   /**
    * @param {K} key
    */
-  // TODO Change to the following line, once our tools don't choke on `?.`.
-  // See https://github.com/endojs/endo/issues/1514
-  // const get = key => touchCell(key)?.data?.get(key);
+  // UNTIL https://github.com/endojs/endo/issues/1514
+  // Prefer: const get = key => touchCell(key)?.data?.get(key);
   const get = key => {
     const cell = touchCell(key);
     return cell && cell.data && cell.data.get(key);

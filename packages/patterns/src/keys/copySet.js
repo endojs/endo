@@ -45,7 +45,7 @@ const checkNoDuplicates = (elements, fullCompare, check) => {
     const k0 = elements[i - 1];
     const k1 = elements[i];
     if (fullCompare(k0, k1) === 0) {
-      return check(false, X`value has duplicates: ${k0}`);
+      return check(false, X`value has duplicate keys: ${k0}`);
     }
   }
   return true;

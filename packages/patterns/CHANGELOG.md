@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.6](https://github.com/endojs/endo/compare/@endo/patterns@0.2.5...@endo/patterns@0.2.6) (2023-09-12)
+
+
+### Features
+
+* **patterns:** Implement CopyMap comparison ([13028b2](https://github.com/endojs/endo/commit/13028b2b7e18b82cb313f58b66dfb7f35e2efde2))
+* **patterns:** Support CopyMap Patterns ([aacac44](https://github.com/endojs/endo/commit/aacac4483c827c06a9962a17841bb93aa3f85019)), closes [#1727](https://github.com/endojs/endo/issues/1727)
+
+
+### Bug Fixes
+
+* **exo:** Extend InterfaceGuard to support symbol-keyed methods ([d6ea36b](https://github.com/endojs/endo/commit/d6ea36b120f6118a59f32c7c63c339d354bbd4e7)), closes [#1728](https://github.com/endojs/endo/issues/1728)
+* **patterns,exo:** abstract guard getters ([dcf1071](https://github.com/endojs/endo/commit/dcf1071d7c8cc531c21cf1778fc54fdbdc6d6d18))
+* **patterns:** type guards ([c2cd034](https://github.com/endojs/endo/commit/c2cd0343bf42b212d4a144f570f493286ec280ba))
+
+
+
 ### [0.2.5](https://github.com/endojs/endo/compare/@endo/patterns@0.2.3...@endo/patterns@0.2.5) (2023-08-07)
 
 

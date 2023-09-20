@@ -15,8 +15,9 @@ const { Fail, quote: q } = assert;
  * @typedef {object} BundleMeta
  * @property {string} bundleFileName
  * @property {string} bundleTime ISO format
+ * @property {number} bundleSize
  * @property {{ relative: string, absolute: string }} moduleSource
- * @property {Array<{ relativePath: string, mtime: string }>} contents
+ * @property {Array<{ relativePath: string, mtime: string, size: number }>} contents
  */
 
 export const jsOpts = {
@@ -44,6 +45,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const statsByPath = new Map();
 
     const loggedRead = async loc => {
+      await null;
       if (!loc.match(/\bpackage.json$/)) {
         try {
           const itemRd = cwd.neighbor(new URL(loc).pathname);
@@ -64,11 +66,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const bundleFileName = toBundleName(targetName);
     const bundleWr = wr.neighbor(bundleFileName);
     const metaWr = wr.neighbor(toBundleMeta(targetName));
-
-    // Prevent other processes from doing too much work just to see that we're
-    // already on it.
-    await metaWr.rm({ force: true });
-    await bundleWr.rm({ force: true });
 
     const bundle = await bundleSource(rootPath, bundleOptions, {
       ...readPowers,
@@ -105,7 +102,51 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     return meta;
   };
 
-  const validate = async (meta, targetName, rootOpt, log = defaultLog) => {
+  /**
+   * @param {string} targetName
+   * @param {Logger} _log
+   * @returns {Promise<string | undefined>}
+   */
+  const loadMetaText = (targetName, _log = defaultLog) =>
+    wr
+      .readOnly()
+      .neighbor(toBundleMeta(targetName))
+      .maybeReadText()
+      .catch(
+        ioError =>
+          Fail`${targetName}: cannot read bundle metadata: ${q(ioError)}`,
+      );
+
+  /**
+   * @param {string} targetName
+   * @param {*} rootOpt
+   * @param {Logger} [log]
+   * @param {BundleMeta} [meta]
+   * @returns {Promise<BundleMeta>}
+   */
+  const validate = async (
+    targetName,
+    rootOpt,
+    log = defaultLog,
+    meta = undefined,
+  ) => {
+    await null;
+    if (!meta) {
+      const metaJson = await loadMetaText(targetName, log);
+      if (metaJson) {
+        try {
+          meta = JSON.parse(metaJson);
+        } catch (error) {
+          if (error instanceof SyntaxError) {
+            throw SyntaxError(`Cannot parse JSON from ${targetName}, ${error}`);
+          }
+          throw error;
+        }
+      }
+    }
+    if (!meta) {
+      throw Fail`no metadata found for ${q(targetName)}`;
+    }
     const {
       bundleFileName,
       bundleTime,
@@ -160,21 +201,14 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @returns {Promise<BundleMeta>}
    */
   const validateOrAdd = async (rootPath, targetName, log = defaultLog) => {
-    const metaText = await wr
-      .readOnly()
-      .neighbor(toBundleMeta(targetName))
-      .maybeReadText()
-      .catch(
-        ioError =>
-          Fail`${targetName}: cannot read bundle metadata: ${q(ioError)}`,
-      );
+    const metaText = await loadMetaText(targetName, log);
 
     /** @type {BundleMeta | undefined} */
     let meta = metaText ? JSON.parse(metaText) : undefined;
 
     if (meta !== undefined) {
       try {
-        meta = await validate(meta, targetName, rootPath, log);
+        meta = await validate(targetName, rootPath, log, meta);
         const { bundleTime, bundleSize, contents } = meta;
         log(
           `${wr}`,
@@ -248,11 +282,18 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
 /**
  * @param {string} dest
- * @param {{ format?: string, dev?: boolean }} options
+ * @param {{ format?: string, dev?: boolean, log?: Logger }} options
  * @param {(id: string) => Promise<any>} loadModule
- * @param {number} pid
+ * @param {number} [pid]
+ * @param {number} [nonce]
  */
-export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
+export const makeNodeBundleCache = async (
+  dest,
+  options,
+  loadModule,
+  pid,
+  nonce,
+) => {
   const [fs, path, url, crypto, timers] = await Promise.all([
     await loadModule('fs'),
     await loadModule('path'),
@@ -260,6 +301,10 @@ export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
     await loadModule('crypto'),
     await loadModule('timers'),
   ]);
+
+  if (nonce === undefined) {
+    nonce = crypto.randomInt(0xffff_ffff);
+  }
 
   const readPowers = {
     ...makeReadPowers({ fs, url, crypto }),
@@ -269,6 +314,6 @@ export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
 
   const cwd = makeFileReader('', { fs, path });
   await fs.promises.mkdir(dest, { recursive: true });
-  const destWr = makeAtomicFileWriter(dest, { fs, path }, pid);
+  const destWr = makeAtomicFileWriter(dest, { fs, path }, pid, nonce);
   return makeBundleCache(destWr, cwd, readPowers, options);
 };

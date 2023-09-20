@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v0.18.8 (2023-09-11)
 
 - Extracts `repairIntrinsics(options)` and `hardenIntrinsics()` from the
   behavior of `lockdown(options)` so vetted shims can run between these

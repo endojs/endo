@@ -119,7 +119,9 @@ jobs:
           - '16.5' # last version before unconditional promise fast-path
           - '16.6' # first version after unconditional promise fast-path
           - '18' # Active LTS
-          - '20' # Future LTS
+          # UNTIL https://github.com/nodejs/node/issues/49497 is released (probably 20.6.1)
+          # - '20' # Future LTS
+          - '20.5' # last good version before breakage in 20.6.0
         platform:
           - ubuntu-latest
 
@@ -351,3 +353,50 @@ jobs:
 
       - name: Run yarn test:platform-compatibility
         run: cd packages/ses && yarn test:platform-compatibility
+
+  viable-release:
+    name: viable-release
+
+    # begin macro
+
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [16.x]
+        platform: [ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Echo node version
+        run: node --version
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache npm modules
+        uses: actions/cache@v3
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
+
+      # end macro
+
+      - name: build
+        run: yarn run build
+
+      - name: pack
+        # Concurrency is 1 to avoid bizarre cross-package contamination.
+        run: yarn run lerna exec --concurrency=1 yarn pack

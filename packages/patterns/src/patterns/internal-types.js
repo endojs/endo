@@ -1,18 +1,37 @@
 /// <reference types="ses"/>
 
-/** @typedef {import('@endo/marshal').Passable} Passable */
-/** @typedef {import('@endo/marshal').PassStyle} PassStyle */
-/** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
-/** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
-/** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
-/** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/**
+ * @template {string} [Tag=string]
+ * @template {Passable} [Payload=Passable]
+ * @typedef {import('@endo/pass-style').CopyTagged<Tag,Payload>} CopyTagged
+ */
+/**
+ * @template {Passable} [T=Passable]
+ * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
+ */
+/**
+ * @template {Passable} [T=Passable]
+ * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
+ */
+/** @typedef {import('@endo/pass-style').Checker} Checker */
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
+/** @typedef {import('../types.js').AwaitArgGuardPayload} AwaitArgGuardPayload */
 /** @typedef {import('../types.js').AwaitArgGuard} AwaitArgGuard */
 /** @typedef {import('../types.js').ArgGuard} ArgGuard */
+/** @typedef {import('../types.js').MethodGuardPayload} MethodGuardPayload */
 /** @typedef {import('../types.js').MethodGuard} MethodGuard */
-/** @typedef {import('../types.js').InterfaceGuard} InterfaceGuard */
+/**
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
+ * @typedef {import('../types.js').InterfaceGuardPayload<T>} InterfaceGuardPayload
+ */
+/**
+ * @template {Record<PropertyKey, MethodGuard>} [T = Record<PropertyKey, MethodGuard>]
+ * @typedef {import('../types.js').InterfaceGuard<T>} InterfaceGuard
+ */
 /** @typedef {import('../types.js').MethodGuardMaker0} MethodGuardMaker0 */
 
 /** @typedef {import('../types').MatcherNamespace} MatcherNamespace */

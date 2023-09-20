@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.18.8](https://github.com/endojs/endo/compare/ses@0.18.7...ses@0.18.8) (2023-09-12)
+
+
+### Features
+
+* **ses:** Support vetted shims ([40b59cc](https://github.com/endojs/endo/commit/40b59cce6aa75de0635bcaddba8d6b8dd598a8c2))
+
+
+### Bug Fixes
+
+* **assert:** mistyped assert.fail ([e1ebe75](https://github.com/endojs/endo/commit/e1ebe75845e21470b2b732a6417d35c4106df6b8))
+* only assertions on 'assert' export ([e6a7815](https://github.com/endojs/endo/commit/e6a7815081e5b257181d0039d981ec6f878e93be))
+* **ses:** align with XS property censorship agreement ([0193d99](https://github.com/endojs/endo/commit/0193d99035bf00e047efc4d96a7bdf06518613e8))
+* **ses:** prepare for Array Grouping proposal ([8e0e6bb](https://github.com/endojs/endo/commit/8e0e6bb765c3536303c9b0858f5446f007e39176))
+* **ses:** review suggestions ([e4be709](https://github.com/endojs/endo/commit/e4be709fa76adbf7662383956460a7d9b2ef0375))
+
+
+
 ### [0.18.7](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.7) (2023-08-07)
 
 

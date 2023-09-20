@@ -2,7 +2,7 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
-import { getCopyMapEntries, M } from '@endo/patterns';
+import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
   defineExoClass,
   defineExoClassKit,
@@ -10,7 +10,18 @@ import {
 } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/exo-tools.js';
 
-const { ownKeys } = Reflect;
+const NoExtraI = M.interface('NoExtra', {
+  foo: M.call().returns(),
+});
+
+test('what happens with extra arguments', t => {
+  const exo = makeExo('WithExtra', NoExtraI, {
+    foo(x) {
+      t.is(x, undefined);
+    },
+  });
+  exo.foo('an extra arg');
+});
 
 const UpCounterI = M.interface('UpCounter', {
   incr: M.call()
@@ -52,19 +63,14 @@ test('test defineExoClass', t => {
       'In "incr" method of (UpCounter): arg 0?: string "foo" - Must be a number',
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
-  t.deepEqual(ownKeys(UpCounterI.methodGuards), ['incr']);
-  t.is(UpCounterI.symbolMethodGuards, undefined);
+  t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
 
   const symbolic = Symbol.for('symbolic');
   const FooI = M.interface('Foo', {
     m: M.call().returns(),
     [symbolic]: M.call(M.boolean()).returns(),
   });
-  t.deepEqual(ownKeys(FooI.methodGuards), ['m']);
-  t.deepEqual(
-    [...getCopyMapEntries(FooI.symbolMethodGuards)].map(entry => entry[0]),
-    [Symbol.for('symbolic')],
-  );
+  t.deepEqual(getInterfaceMethodKeys(FooI), ['m', Symbol.for('symbolic')]);
   const makeFoo = defineExoClass('Foo', FooI, () => ({}), {
     m() {},
     [symbolic]() {},
