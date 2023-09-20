@@ -22,6 +22,12 @@ const checkPromiseOwnKeys = (pr, check) => {
     return true;
   }
 
+  // Loophole: Even without async_hooks, this will allow the promise instance to
+  // override `Promise.prototype[Symbol.toStringTag]`.
+  // See test-safe-promise-loophole.js
+  // TODO Decide whether to use this loophole for now to solve Chip's problem.
+  // TODO Decide whether to close this loophole, which would preclude
+  // using it to solve Chip's problem.
   const unknownKeys = keys.filter(
     key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
   );
@@ -38,7 +44,7 @@ const checkPromiseOwnKeys = (pr, check) => {
    *
    * ```js
    * function destroyTracking(promise, parent) {
-   * trackPromise(promise, parent);
+   *   trackPromise(promise, parent);
    *   const asyncId = promise[async_id_symbol];
    *   const destroyed = { destroyed: false };
    *   promise[destroyedSymbol] = destroyed;
