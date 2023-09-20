@@ -6,8 +6,9 @@ import { assertChecker, hasOwnPropertyOf } from './passStyle-helpers.js';
 /** @typedef {import('./types.js').Checker} Checker */
 
 const { details: X, quote: q } = assert;
-const { isFrozen, getPrototypeOf } = Object;
+const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor } = Object;
 const { ownKeys } = Reflect;
+const { toStringTag } = Symbol;
 
 /**
  * @param {Promise} pr The value to examine
@@ -22,6 +23,15 @@ const checkPromiseOwnKeys = (pr, check) => {
     return true;
   }
 
+  /**
+   * This excludes those symbol-named own properties that are also found on
+   * `Promise.prototype`, so that overrides of these properties can be
+   * explicitly tolerated if they pass the `checkSafeOwnKey` check below.
+   * In particular, we wish to tolerate
+   *   * An overriding `toStringTag` non-enumerable data property
+   *     with a string value.
+   *   * Those own properties that might be added by Node's async_hooks.
+   */
   const unknownKeys = keys.filter(
     key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
   );
@@ -33,12 +43,17 @@ const checkPromiseOwnKeys = (pr, check) => {
   }
 
   /**
+   * Explicitly tolerate a `toStringTag` symbol-named non-enumerable
+   * data property whose value is a string. Otherwise, tolerate those
+   * symbol-named properties that might be added by NodeJS's async_hooks,
+   * if they obey the expected safety properties.
+   *
    * At the time of this writing, Node's async_hooks contains the
-   * following code, which we can also safely tolerate
+   * following code, which we can safely tolerate
    *
    * ```js
    * function destroyTracking(promise, parent) {
-   * trackPromise(promise, parent);
+   *   trackPromise(promise, parent);
    *   const asyncId = promise[async_id_symbol];
    *   const destroyed = { destroyed: false };
    *   promise[destroyedSymbol] = destroyed;
@@ -48,7 +63,27 @@ const checkPromiseOwnKeys = (pr, check) => {
    *
    * @param {string|symbol} key
    */
-  const checkSafeAsyncHooksKey = key => {
+  const checkSafeOwnKey = key => {
+    if (key === toStringTag) {
+      // TODO should we also enforce anything on the contents of the string,
+      // such as that it must start with `'Promise'`?
+      const tagDesc = getOwnPropertyDescriptor(pr, toStringTag);
+      assert(tagDesc !== undefined);
+      return (
+        (hasOwnPropertyOf(tagDesc, 'value') ||
+          reject(
+            X`Own @@toStringTag must be a data property, not an accessor: ${q(
+              tagDesc,
+            )}`,
+          )) &&
+        (typeof tagDesc.value === 'string' ||
+          reject(
+            X`Own @@toStringTag value must be a string: ${q(tagDesc.value)}`,
+          )) &&
+        (!tagDesc.enumerable ||
+          reject(X`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`))
+      );
+    }
     const val = pr[key];
     if (val === undefined || typeof val === 'number') {
       return true;
@@ -79,7 +114,7 @@ const checkPromiseOwnKeys = (pr, check) => {
     );
   };
 
-  return keys.every(checkSafeAsyncHooksKey);
+  return keys.every(checkSafeOwnKey);
 };
 
 /**
