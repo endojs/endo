@@ -193,7 +193,7 @@ export const severeEnablements = {
    * With the `'*'` setting here, all the properties inherited from
    * `Object.prototype` are accessors, creating an unusable display as seen
    * at As explained at
-   * https://github.com/endojs/endo/blob/master/packages/ses/lockdown-options.md#overridetaming-options
+   * https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#overridetaming-options
    * Open the triangles at the bottom of that section.
    */
   '%ObjectPrototype%': '*',

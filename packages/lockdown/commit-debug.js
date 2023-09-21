@@ -6,7 +6,7 @@
 // genuinely malicious code.
 
 // See
-// https://github.com/endojs/endo/blob/master/packages/ses/lockdown-options.md
+// https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md
 // for more explanation of these lockdown options.
 
 export * from './pre.js';

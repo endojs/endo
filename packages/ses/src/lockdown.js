@@ -151,7 +151,7 @@ export const repairIntrinsics = (options = {}) => {
   // such as those from the infrastructure. However, the bug you're trying to
   // track down might be in the infrastrure, in which case the `'verbose'` setting
   // is useful. See
-  // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
+  // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/docs/lockdown.md#stackfiltering-options)
   // for an explanation.
 
   const { getEnvironmentOption: getenv } = makeEnvironmentCaptor(globalThis);
