@@ -7,42 +7,15 @@ import '@endo/eventual-send/shim.js';
 import '@endo/lockdown/commit.js';
 
 import fs from 'fs';
-import path from 'path';
 import url from 'url';
-import os from 'os';
 
 import { Command } from 'commander';
-import { start, stop, restart, clean, reset } from '@endo/daemon';
-import {
-  whereEndoState,
-  whereEndoEphemeralState,
-  whereEndoSock,
-  whereEndoCache,
-} from '@endo/where';
 
 const collect = (value, values) => values.concat([value]);
 
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
-
-const { username, homedir } = os.userInfo();
-const temp = os.tmpdir();
-const info = {
-  user: username,
-  home: homedir,
-  temp,
-};
-
-const statePath = whereEndoState(process.platform, process.env, info);
-const ephemeralStatePath = whereEndoEphemeralState(
-  process.platform,
-  process.env,
-  info,
-);
-const sockPath = whereEndoSock(process.platform, process.env, info);
-const cachePath = whereEndoCache(process.platform, process.env, info);
-const logPath = path.join(statePath, 'endo.log');
 
 export const main = async rawArgs => {
   const program = new Command();
@@ -516,6 +489,7 @@ export const main = async rawArgs => {
     .command('state')
     .description('prints the state directory path')
     .action(async _cmd => {
+      const { statePath } = await import('./locator.js');
       process.stdout.write(`${statePath}\n`);
     });
 
@@ -523,6 +497,7 @@ export const main = async rawArgs => {
     .command('run')
     .description('prints the daemon PID file path')
     .action(async _cmd => {
+      const { ephemeralStatePath } = await import('./locator.js');
       process.stdout.write(`${ephemeralStatePath}\n`);
     });
 
@@ -530,6 +505,7 @@ export const main = async rawArgs => {
     .command('sock')
     .description('prints the UNIX domain socket or Windows named pipe path')
     .action(async _cmd => {
+      const { sockPath } = await import('./locator.js');
       process.stdout.write(`${sockPath}\n`);
     });
 
@@ -537,6 +513,7 @@ export const main = async rawArgs => {
     .command('log')
     .description('prints the log file path')
     .action(async _cmd => {
+      const { logPath } = await import('./locator.js');
       process.stdout.write(`${logPath}\n`);
     });
 
@@ -544,6 +521,7 @@ export const main = async rawArgs => {
     .command('cache')
     .description('prints the cache directory path')
     .action(async _cmd => {
+      const { cachePath } = await import('./locator.js');
       process.stdout.write(`${cachePath}\n`);
     });
 
@@ -551,6 +529,7 @@ export const main = async rawArgs => {
     .command('start')
     .description('start the endo daemon')
     .action(async _cmd => {
+      const { start } = await import('@endo/daemon');
       await start();
     });
 
@@ -558,6 +537,7 @@ export const main = async rawArgs => {
     .command('stop')
     .description('stop the endo daemon')
     .action(async _cmd => {
+      const { stop } = await import('@endo/daemon');
       await stop();
     });
 
@@ -565,6 +545,7 @@ export const main = async rawArgs => {
     .command('restart')
     .description('stop and start the daemon')
     .action(async _cmd => {
+      const { restart } = await import('@endo/daemon');
       await restart();
     });
 
@@ -572,6 +553,7 @@ export const main = async rawArgs => {
     .command('clean')
     .description('erases ephemeral state')
     .action(async _cmd => {
+      const { clean } = await import('@endo/daemon');
       await clean();
     });
 
@@ -579,6 +561,7 @@ export const main = async rawArgs => {
     .command('reset')
     .description('erases persistent state and restarts if running')
     .action(async _cmd => {
+      const { reset } = await import('@endo/daemon');
       await reset();
     });
 
