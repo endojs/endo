@@ -119,9 +119,9 @@ jobs:
           - '16.5' # last version before unconditional promise fast-path
           - '16.6' # first version after unconditional promise fast-path
           - '18' # Active LTS
-          # UNTIL https://github.com/nodejs/node/issues/49497 is released (probably 20.6.1)
-          # - '20' # Future LTS
-          - '20.5' # last good version before breakage in 20.6.0
+          # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
+          # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
+          - '20.7' # Future LTS
         platform:
           - ubuntu-latest
 
