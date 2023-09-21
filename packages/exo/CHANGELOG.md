@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.6](https://github.com/endojs/endo/compare/@endo/exo@0.2.5...@endo/exo@0.2.6) (2023-09-12)
+
+
+### Features
+
+* **exo:** revocables ([c9bcb8c](https://github.com/endojs/endo/commit/c9bcb8c754bcb8e364cf39fe530eecbf82b9767f))
+
+
+### Bug Fixes
+
+* **exo:** Extend InterfaceGuard to support symbol-keyed methods ([d6ea36b](https://github.com/endojs/endo/commit/d6ea36b120f6118a59f32c7c63c339d354bbd4e7)), closes [#1728](https://github.com/endojs/endo/issues/1728)
+* **patterns,exo:** abstract guard getters ([dcf1071](https://github.com/endojs/endo/commit/dcf1071d7c8cc531c21cf1778fc54fdbdc6d6d18))
+* **patterns:** type guards ([c2cd034](https://github.com/endojs/endo/commit/c2cd0343bf42b212d4a144f570f493286ec280ba))
+
+
+
 ### [0.2.5](https://github.com/endojs/endo/compare/@endo/exo@0.2.3...@endo/exo@0.2.5) (2023-08-07)
 
 **Note:** Version bump only for package @endo/exo

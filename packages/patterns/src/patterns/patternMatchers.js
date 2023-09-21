@@ -30,8 +30,11 @@ import {
   checkCopyMap,
   copyMapKeySet,
   checkCopyBag,
+  getCopyMapEntryArray,
   makeCopyMap,
+  getCopyMapKeys,
 } from '../keys/checkKey.js';
+import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
 import './internal-types.js';
 
@@ -160,6 +163,18 @@ const makePatternKit = () => {
     HelpersByMatchTag[tag];
 
   /**
+   * Note that this function indicates absence by returning `undefined`,
+   * even though `undefined` is a valid pattern. To evade this confusion,
+   * to register a payload shape with that meaning, use `MM.undefined()`.
+   *
+   * @param {string} tag
+   * @returns {Pattern | undefined}
+   */
+  const maybePayloadShape = tag =>
+    // eslint-disable-next-line no-use-before-define
+    GuardPayloadShapes[tag];
+
+  /**
    * @typedef {Exclude<PassStyle, 'tagged'> |
    *   'copySet' | 'copyBag' | 'copyMap' | keyof HelpersByMatchTag
    * } Kind
@@ -198,6 +213,12 @@ const makePatternKit = () => {
       // Buried here is the important case, where we process
       // the various patternNodes
       return matchHelper.checkIsWellFormed(tagged.payload, check);
+    } else {
+      const payloadShape = maybePayloadShape(tag);
+      if (payloadShape !== undefined) {
+        // eslint-disable-next-line no-use-before-define
+        return checkMatches(tagged.payload, payloadShape, check, tag);
+      }
     }
     switch (tag) {
       case 'copySet': {
@@ -518,23 +539,28 @@ const makePatternKit = () => {
             )}`,
           );
         }
-        const { payload: pattPayload } = patt;
-        const { payload: specimenPayload } = specimen;
+        // Compare keys as copySets
         const pattKeySet = copyMapKeySet(patt);
         const specimenKeySet = copyMapKeySet(specimen);
-        // Compare keys as copySets
         if (!checkMatches(specimenKeySet, pattKeySet, check)) {
           return false;
         }
-        const pattValues = pattPayload.values;
-        const specimenValues = specimenPayload.values;
-        // compare values as copyArrays
-        // TODO BUG: this assumes that the keys appear in the
-        // same order, so we can compare values in that order.
-        // However, we're only guaranteed that they appear in
-        // the same rankOrder. Thus we must search one of these
-        // in the other's rankOrder.
-        return checkMatches(specimenValues, pattValues, check);
+        // Compare values as copyArrays after applying a shared total order.
+        // This is necessary because the antiRankOrder sorting of each map's
+        // entries is a preorder that admits ties.
+        const pattValues = [];
+        const specimenValues = [];
+        const entryPairs = generateCollectionPairEntries(
+          patt,
+          specimen,
+          getCopyMapEntryArray,
+          undefined,
+        );
+        for (const [_key, pattValue, specimenValue] of entryPairs) {
+          pattValues.push(pattValue);
+          specimenValues.push(specimenValue);
+        }
+        return checkMatches(harden(specimenValues), harden(pattValues), check);
       }
       default: {
         const matchHelper = maybeMatchHelper(patternKind);
@@ -1702,19 +1728,41 @@ MM = M;
 
 // //////////////////////////// Guards ///////////////////////////////////////
 
-const AwaitArgGuardShape = harden({
-  klass: 'awaitArg',
+const AwaitArgGuardPayloadShape = harden({
   argGuard: M.pattern(),
 });
 
+const AwaitArgGuardShape = M.kind('guard:awaitArgGuard');
+
+/**
+ * @param {any} specimen
+ * @returns {specimen is AwaitArgGuard}
+ */
 export const isAwaitArgGuard = specimen =>
   matches(specimen, AwaitArgGuardShape);
 harden(isAwaitArgGuard);
 
+/**
+ * @param {any} specimen
+ * @returns {asserts specimen is AwaitArgGuard}
+ */
 export const assertAwaitArgGuard = specimen => {
   mustMatch(specimen, AwaitArgGuardShape, 'awaitArgGuard');
 };
 harden(assertAwaitArgGuard);
+
+/**
+ * By using this abstraction rather than accessing the properties directly,
+ * we smooth the transition to https://github.com/endojs/endo/pull/1712
+ *
+ * @param {AwaitArgGuard} awaitArgGuard
+ * @returns {AwaitArgGuardPayload}
+ */
+export const getAwaitArgGuardPayload = awaitArgGuard => {
+  assertAwaitArgGuard(awaitArgGuard);
+  return awaitArgGuard.payload;
+};
+harden(getAwaitArgGuardPayload);
 
 /**
  * @param {Pattern} argPattern
@@ -1722,8 +1770,7 @@ harden(assertAwaitArgGuard);
  */
 const makeAwaitArgGuard = argPattern => {
   /** @type {AwaitArgGuard} */
-  const result = harden({
-    klass: 'awaitArg',
+  const result = makeTagged('guard:awaitArgGuard', {
     argGuard: argPattern,
   });
   assertAwaitArgGuard(result);
@@ -1735,8 +1782,7 @@ const PatternListShape = M.arrayOf(M.pattern());
 const ArgGuardShape = M.or(M.pattern(), AwaitArgGuardShape);
 const ArgGuardListShape = M.arrayOf(ArgGuardShape);
 
-const SyncMethodGuardShape = harden({
-  klass: 'methodGuard',
+const SyncMethodGuardPayloadShape = harden({
   callKind: 'sync',
   argGuards: PatternListShape,
   optionalArgGuards: M.opt(PatternListShape),
@@ -1744,8 +1790,7 @@ const SyncMethodGuardShape = harden({
   returnGuard: M.pattern(),
 });
 
-const AsyncMethodGuardShape = harden({
-  klass: 'methodGuard',
+const AsyncMethodGuardPayloadShape = harden({
   callKind: 'async',
   argGuards: ArgGuardListShape,
   optionalArgGuards: M.opt(ArgGuardListShape),
@@ -1753,12 +1798,34 @@ const AsyncMethodGuardShape = harden({
   returnGuard: M.pattern(),
 });
 
-const MethodGuardShape = M.or(SyncMethodGuardShape, AsyncMethodGuardShape);
+const MethodGuardPayloadShape = M.or(
+  SyncMethodGuardPayloadShape,
+  AsyncMethodGuardPayloadShape,
+);
 
+const MethodGuardShape = M.kind('guard:methodGuard');
+
+/**
+ * @param {any} specimen
+ * @returns {asserts specimen is MethodGuard}
+ */
 export const assertMethodGuard = specimen => {
   mustMatch(specimen, MethodGuardShape, 'methodGuard');
 };
 harden(assertMethodGuard);
+
+/**
+ * By using this abstraction rather than accessing the properties directly,
+ * we smooth the transition to https://github.com/endojs/endo/pull/1712
+ *
+ * @param {MethodGuard} methodGuard
+ * @returns {MethodGuardPayload}
+ */
+export const getMethodGuardPayload = methodGuard => {
+  assertMethodGuard(methodGuard);
+  return methodGuard.payload;
+};
+harden(getMethodGuardPayload);
 
 /**
  * @param {'sync'|'async'} callKind
@@ -1792,8 +1859,7 @@ const makeMethodGuardMaker = (
     },
     returns: (returnGuard = M.undefined()) => {
       /** @type {MethodGuard} */
-      const result = harden({
-        klass: 'methodGuard',
+      const result = makeTagged('guard:methodGuard', {
         callKind,
         argGuards,
         optionalArgGuards,
@@ -1805,9 +1871,8 @@ const makeMethodGuardMaker = (
     },
   });
 
-const InterfaceGuardShape = M.splitRecord(
+const InterfaceGuardPayloadShape = M.splitRecord(
   {
-    klass: 'Interface',
     interfaceName: M.string(),
     methodGuards: M.recordOf(M.string(), MethodGuardShape),
     sloppy: M.boolean(),
@@ -1817,16 +1882,55 @@ const InterfaceGuardShape = M.splitRecord(
   },
 );
 
+const InterfaceGuardShape = M.kind('guard:interfaceGuard');
+
+/**
+ * @param {any} specimen
+ * @returns {asserts specimen is InterfaceGuard}
+ */
 export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
 };
 harden(assertInterfaceGuard);
 
 /**
+ * By using this abstraction rather than accessing the properties directly,
+ * we smooth the transition to https://github.com/endojs/endo/pull/1712
+ *
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
+ * @param {InterfaceGuard<T>} interfaceGuard
+ * @returns {InterfaceGuardPayload<T>}
+ */
+export const getInterfaceGuardPayload = interfaceGuard => {
+  assertInterfaceGuard(interfaceGuard);
+  return interfaceGuard.payload;
+};
+harden(getInterfaceGuardPayload);
+
+const emptyCopyMap = makeCopyMap([]);
+
+/**
+ * @param {InterfaceGuard} interfaceGuard
+ * @returns {(string | symbol)[]}
+ */
+export const getInterfaceMethodKeys = interfaceGuard => {
+  const { methodGuards, symbolMethodGuards = emptyCopyMap } =
+    getInterfaceGuardPayload(interfaceGuard);
+  /** @type {(string | symbol)[]} */
+  // @ts-expect-error inference is too weak to see this is ok
+  return harden([
+    ...Reflect.ownKeys(methodGuards),
+    ...getCopyMapKeys(symbolMethodGuards),
+  ]);
+};
+harden(getInterfaceMethodKeys);
+
+/**
+ * @template {Record<PropertyKey, MethodGuard>} [M = Record<PropertyKey, MethodGuard>]
  * @param {string} interfaceName
- * @param {Record<string, MethodGuard>} methodGuards
- * @param {{sloppy?: boolean}} [options]
- * @returns {InterfaceGuard}
+ * @param {M} methodGuards
+ * @param {{ sloppy?: boolean }} [options]
+ * @returns {InterfaceGuard<M>}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
   const { sloppy = false } = options;
@@ -1846,8 +1950,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
     }
   }
   /** @type {InterfaceGuard} */
-  const result = harden({
-    klass: 'Interface',
+  const result = makeTagged('guard:interfaceGuard', {
     interfaceName,
     methodGuards: stringMethodGuards,
     ...(symbolMethodGuardsEntries.length
@@ -1856,5 +1959,11 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
     sloppy,
   });
   assertInterfaceGuard(result);
-  return result;
+  return /** @type {InterfaceGuard<M>} */ (result);
 };
+
+const GuardPayloadShapes = harden({
+  'guard:awaitArgGuard': AwaitArgGuardPayloadShape,
+  'guard:methodGuard': MethodGuardPayloadShape,
+  'guard:interfaceGuard': InterfaceGuardPayloadShape,
+});

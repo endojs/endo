@@ -245,7 +245,12 @@ export const makeBundle = async (read, moduleLocation, options) => {
   for (const module of modules) {
     module.indexedImports = Object.fromEntries(
       Object.entries(module.resolvedImports).map(([importSpecifier, key]) => {
-        key = aliases.get(key) ?? key;
+        // UNTIL https://github.com/endojs/endo/issues/1514
+        // Prefer: key = aliases.get(key) ?? key;
+        const alias = aliases.get(key);
+        if (alias != null) {
+          key = alias;
+        }
         const module = modulesByKey[key];
         if (module === undefined) {
           throw new Error(

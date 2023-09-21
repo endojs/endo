@@ -86,7 +86,9 @@ export const initEmpty = () => emptyRecord;
  * @template {(...args: any[]) => any} I init function
  * @template {Methods} M methods
  * @param {string} tag
- * @param {any} interfaceGuard
+ * @param {import('@endo/patterns').InterfaceGuard<{
+ *   [K in keyof M]: import("@endo/patterns").MethodGuard
+ * }> | undefined} interfaceGuard
  * @param {I} init
  * @param {M & ThisType<{ self: M, state: ReturnType<I> }>} methods
  * @param {FarClassOptions<ClassContext<ReturnType<I>, M>>} [options]
@@ -147,7 +149,9 @@ harden(defineExoClass);
  * @template {(...args: any[]) => any} I init function
  * @template {Record<FacetName, Methods>} F facet methods
  * @param {string} tag
- * @param {any} interfaceGuardKit
+ * @param {{ [K in keyof F]: import("@endo/patterns").InterfaceGuard<{
+ *   [M in keyof F[K]]: import("@endo/patterns").MethodGuard;
+ * }> } | undefined} interfaceGuardKit
  * @param {I} init
  * @param {F & ThisType<{ facets: F, state: ReturnType<I> }> } methodsKit
  * @param {FarClassOptions<KitContext<ReturnType<I>,F>>} [options]
@@ -213,7 +217,9 @@ harden(defineExoClassKit);
 /**
  * @template {Methods} T
  * @param {string} tag
- * @param {import('@endo/patterns').InterfaceGuard<{ [M in keyof T]: import('@endo/patterns').MethodGuard }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
+ * @param {import('@endo/patterns').InterfaceGuard<{
+ *   [M in keyof T]: import('@endo/patterns').MethodGuard
+ * }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
  * @param {FarClassOptions<ClassContext<{},T>>} [options]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}

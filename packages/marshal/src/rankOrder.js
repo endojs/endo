@@ -46,7 +46,7 @@ const { entries, fromEntries, setPrototypeOf, is } = Object;
  */
 const sameValueZero = (x, y) => x === y || is(x, y);
 
-const trivialComparator = (left, right) =>
+export const trivialComparator = (left, right) =>
   // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
   left < right ? -1 : left === right ? 0 : 1;
 

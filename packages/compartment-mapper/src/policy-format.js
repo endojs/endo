@@ -193,12 +193,12 @@ export const assertPolicy = allegedPolicy => {
   );
 
   assert(
-    typeof resources === 'object' && resources !== null,
+    typeof resources === 'object' && resources !== null && !isArray(resources),
     `policy.resources must be an object, got ${q(resources)}`,
   );
   assert(
     !defaultAttenuator || typeof defaultAttenuator === 'string',
-    `policy.defaultAttenuator must be a string, got ${q(resources)}`,
+    `policy.defaultAttenuator must be a string, got ${q(defaultAttenuator)}`,
   );
 
   assertPackagePolicy(entry, `policy.entry`);

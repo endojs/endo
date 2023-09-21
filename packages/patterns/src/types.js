@@ -2,12 +2,22 @@
 
 export {};
 
-/** @typedef {import('@endo/marshal').Passable} Passable */
-/** @typedef {import('@endo/marshal').PassStyle} PassStyle */
-/** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
-/** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
-/** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
-/** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/**
+ * @template {string} [Tag=string]
+ * @template {Passable} [Payload=Passable]
+ * @typedef {import('@endo/pass-style').CopyTagged<Tag,Payload>} CopyTagged
+ */
+/**
+ * @template {Passable} [T=Passable]
+ * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
+ */
+/**
+ * @template {Passable} [T=Passable]
+ * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
+ */
+/** @typedef {import('@endo/pass-style').Checker} Checker */
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
@@ -101,10 +111,7 @@ export {};
 
 /**
  * @template {Key} [K=Key]
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: 'copySet',
- *   payload: Array<K>,
- * }} CopySet
+ * @typedef {CopyTagged<'copySet', K[]>} CopySet
  *
  * A Passable collection of Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`.
@@ -112,10 +119,7 @@ export {};
 
 /**
  * @template {Key} [K=Key]
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: 'copyBag',
- *   payload: Array<[K, bigint]>,
- * }} CopyBag
+ * @typedef {CopyTagged<'copyBag', [K, bigint][]>} CopyBag
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`,
@@ -125,21 +129,23 @@ export {};
 /**
  * @template {Key} [K=Key]
  * @template {Passable} [V=Passable]
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: 'copyMap',
- *   payload: { keys: Array<K>, values: Array<V> },
- * }} CopyMap
+ * @typedef {CopyTagged<'copyMap', { keys: K[], values: V[] }>} CopyMap
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`,
  * each with a corresponding Passable value.
  */
 
+/**
+ * @typedef {CopySet | CopyBag | CopyMap} KeyCollection
+ *
+ * CopySet, CopyBag, and CopyMap all store Keys in reverse rankOrder,
+ * which supports generalized utilities.
+ */
+
 // TODO: enumerate Matcher tag values?
 /**
- * @typedef {CopyTagged & {
- *   [Symbol.toStringTag]: `match:${string}`,
- * }} Matcher
+ * @typedef {CopyTagged<`match:${string}`, Passable>} Matcher
  *
  * A Pattern representing the predicate characterizing a category of Passables,
  * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.
@@ -195,41 +201,8 @@ export {};
  * equivalent to `right` in the partial ordering.
  *
  * Key order (a partial order) and rank order (a total preorder) are
- * co-designed to support efficient range search for Key-based queries (for
- * example, finding all entries in a map for which the key is a CopyRecord with
- * particular fields). To keep them distinct when speaking informally, we use
- * "earlier" and "later" for rank order, and "smaller" and "bigger" for
- * key order.
- *
- * There are some invariants that capture the sense in which rank order is
- * coarser than key order but fills in its gaps:
- * 1. `compareKeys(X,Y) === 0` implies that `compareRank(X,Y) === 0` --- if X
- *    is equivalent to Y in key order, then X is equivalent to Y in rank order.
- *    But the converse does not hold; for example, `Far('X')` and `Far('Y')` are
- *    equivalent in rank order but incomparable in key order.
- * 2. `compareKeys(X,Y) < 0` implies that `compareRank(X,Y) < 0` --- if X is
- *    smaller than Y in key order, then X is earlier than Y in rank order.
- *    But the converse does not hold; for example, the record `{b: 3, a: 5}`
- *    is earlier than the record `{b: 5, a: 3}` in rank order but they are
- *    incomparable in key order.
- * 3. `compareRank(X,Y) === 0` implies that `compareKeys(X,Y)` is either
- *    0 or NaN --- Keys within the same rank are either equivalent to or
- *    incomparable to each other in key order. But the converse does not hold;
- *    for example, `Far('X')` and `{}` are incomparable in key order but not
- *    equivalent in rank order.
- * 4. `compareRank(X,Y) === 0` and `compareRank(X,Z) === 0` imply that
- *    `compareKeys(X,Y)` and `compareKeys(X,Z)` are the same --- all Keys within
- *    the same rank are either mutually equivalent or mutually incomparable, and
- *    in fact only in the mutually incomparable case can the rank be said to
- *    contain more than one key.
- *
- * This lets us translate a range search over the
- * partial key order into a range search over rank order followed by filtering
- * out those that don't match. To get this effect, we store the elements of
- * a set in an array sorted in reverse rank order, from later to earlier.
- * Combined with our lexicographic comparison of arrays, if set X is a subset
- * of set Y then the array representing set X will be an earlier rank that the
- * array representing set Y.
+ * co-designed to support efficient range search for Key-based queries
+ * (@see {@link ../README.md#rank-order-and-key-order}).
  *
  * @param {Key} left
  * @param {Key} right
@@ -484,15 +457,20 @@ export {};
  */
 
 /**
- * @typedef {{
- * <M extends Record<any, MethodGuard>>(interfaceName: string,
- *             methodGuards: M,
- *             options?: {sloppy?: false}): InterfaceGuard<M>;
- * (interfaceName: string,
- *             methodGuards: any,
- *             options?: {sloppy?: true}): InterfaceGuard<any>;
- * }} MakeInterfaceGuard
+ * @typedef {(
+ *   interfaceName: string,
+ *   methodGuards: any,
+ *   options: {sloppy: true}) => InterfaceGuard<Record<PropertyKey, MethodGuard>>
+ * } MakeInterfaceGuardSloppy
  */
+/**
+ * @typedef {<M extends Record<PropertyKey, MethodGuard>>(
+ *   interfaceName: string,
+ *   methodGuards: M,
+ *   options?: {sloppy?: boolean}) => InterfaceGuard<M>
+ * } MakeInterfaceGuardGeneral
+ */
+/** @typedef {MakeInterfaceGuardSloppy & MakeInterfaceGuardGeneral} MakeInterfaceGuard */
 
 /**
  * @typedef {object} GuardMakers
@@ -517,17 +495,24 @@ export {};
 /** @typedef {(...args: any[]) => any} Method */
 
 /**
- * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {{
- *   klass: 'Interface',
  *   interfaceName: string,
- *   methodGuards: { [K in keyof T]: K extends symbol ? never : T[K] },
- *   symbolMethodGuards?: CopyMap<(keyof T) & symbol, MethodGuard>,
+ *   methodGuards:
+ *     Omit<T, symbol> & Partial<{ [K in Extract<keyof T, symbol>]: never }>,
+ *   symbolMethodGuards?:
+ *     CopyMap<Extract<keyof T, symbol>, T[Extract<keyof T, symbol>]>,
  *   sloppy?: boolean,
- * }} InterfaceGuard
- *
- * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
- * guard that is distinct from a copyRecord
+ * }} InterfaceGuardPayload
+ */
+
+/**
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
+ * @typedef {CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>}InterfaceGuard
+ */
+
+/**
+ * @typedef {Record<string, InterfaceGuard>} InterfaceGuardKit
  */
 
 /**
@@ -583,36 +568,26 @@ export {};
 
 /**
  * @typedef {{
- *   klass: 'methodGuard',
  *   callKind: 'sync' | 'async',
  *   argGuards: ArgGuard[]
  *   optionalArgGuards?: ArgGuard[]
  *   restArgGuard?: Pattern
  *   returnGuard: Pattern
- * }} MethodGuard
- *
- * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
- * guard that is distinct from a copyRecord.
- * Once we're ready for such a compat break, we might also take the
- * opportunity to rename `restArgGuard` and `returnGuard`
- * to reflect that their value must be a Pattern rather that a
- * non-pattern guard.
+ * }} MethodGuardPayload
+ */
+
+/**
+ * @typedef {CopyTagged<'guard:methodGuard', MethodGuardPayload>} MethodGuard
  */
 
 /**
  * @typedef {{
- *   klass: 'awaitArg',
  *   argGuard: Pattern
- * }} AwaitArgGuard
- *
- * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
- * guard that is distinct from a copyRecord.
- * Unlike InterfaceGuard or MethodGuard, for AwaitArgGuard it is a correctness
- * issue, so that the guard not be mistaken for the copyRecord as key/pattern.
- * Once we're ready for such a compat break, we might also take the
- * opportunity to rename `argGuard`
- * to reflect that its value must be a Pattern rather that a
- * non-pattern guard.
+ * }} AwaitArgGuardPayload
+ */
+
+/**
+ * @typedef {CopyTagged<'guard:awaitArgGuard', AwaitArgGuardPayload>} AwaitArgGuard
  */
 
 /** @typedef {AwaitArgGuard | Pattern} ArgGuard */

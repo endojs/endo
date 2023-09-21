@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.9](https://github.com/endojs/endo/compare/@endo/marshal@0.8.8...@endo/marshal@0.8.9) (2023-09-12)
+
+
+### Features
+
+* **patterns:** Implement CopyMap comparison ([13028b2](https://github.com/endojs/endo/commit/13028b2b7e18b82cb313f58b66dfb7f35e2efde2))
+
+
+
 ### [0.8.8](https://github.com/endojs/endo/compare/@endo/marshal@0.8.6...@endo/marshal@0.8.8) (2023-08-07)
 
 

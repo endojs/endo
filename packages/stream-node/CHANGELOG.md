@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.30](https://github.com/endojs/endo/compare/@endo/stream-node@0.2.29...@endo/stream-node@0.2.30) (2023-09-12)
+
+**Note:** Version bump only for package @endo/stream-node
+
+
+
+
+
 ### [0.2.29](https://github.com/endojs/endo/compare/@endo/stream-node@0.2.27...@endo/stream-node@0.2.29) (2023-08-07)
 
 **Note:** Version bump only for package @endo/stream-node

@@ -1,6 +1,6 @@
 {
   "name": "@endo/init",
-  "version": "0.5.59",
+  "version": "0.5.60",
   "description": "Prepare Endo environment on import",
   "type": "module",
   "main": "index.js",
@@ -29,15 +29,15 @@
     "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^0.9.1",
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/compartment-mapper": "^0.9.2",
+    "@endo/ses-ava": "^0.2.44",
     "ava": "^5.1.1"
   },
   "dependencies": {
-    "@endo/base64": "^0.2.34",
-    "@endo/eventual-send": "^0.17.5",
-    "@endo/lockdown": "^0.1.31",
-    "@endo/promise-kit": "^0.2.59"
+    "@endo/base64": "^0.2.35",
+    "@endo/eventual-send": "^0.17.6",
+    "@endo/lockdown": "^0.1.32",
+    "@endo/promise-kit": "^0.2.60"
   },
   "files": [
     "LICENSE*",

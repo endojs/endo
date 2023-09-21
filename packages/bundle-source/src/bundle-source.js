@@ -7,6 +7,7 @@ const bundleSource = async (
   options = {},
   powers = undefined,
 ) => {
+  await null;
   if (typeof options === 'string') {
     options = { format: options };
   }

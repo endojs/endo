@@ -20,23 +20,26 @@ export {};
 /**
  * @typedef {*} Passable
  *
- * A Passable is acyclic data that can be marshalled. It must be hardened to remain
+ * A Passable is acyclic data that can be marshalled. It must be hardened to
+ * remain
  * stable (even if some components are proxies; see PureData restriction below),
  * and is classified by PassStyle:
  *   * Atomic primitive values have a PrimitiveStyle (PassStyle
- *     'undefined' | 'null' | 'boolean' | 'number' | 'bigint' | 'string' | 'symbol').
+ *     'undefined' | 'null' | 'boolean' | 'number' | 'bigint'
+ *     | 'string' | 'symbol').
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
  *     * higher-order types as CopyTaggeds (PassStyle 'tagged').
- *   * PassableCaps (PassStyle 'remotable' | 'promise') expose local values to remote
- *     interaction.
- *   * As a special case to support system observability, error objects are Passable
- *     (PassStyle 'error').
+ *   * PassableCaps (PassStyle 'remotable' | 'promise') expose local values to
+ *     remote interaction.
+ *   * As a special case to support system observability, error objects are
+ *     Passable (PassStyle 'error').
  *
- * A Passable is essentially a pass-by-copy superstructure with a pass-by-reference
- * exit point at the site of each PassableCap (which marshalling represents using
- * 'slots').
+ * A Passable is essentially a pass-by-copy superstructure with a
+ * pass-by-reference
+ * exit point at the site of each PassableCap (which marshalling represents
+ * using 'slots').
  */
 
 /**
@@ -50,14 +53,16 @@ export {};
  *
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
- * PureData is an arbitrary composition of primitive values into CopyArray and/or
+ * PureData is an arbitrary composition of primitive values into CopyArray
+ * and/or
  * CopyRecord and/or CopyTagged containers (or a single primitive value with no
  * container), and is fully pass-by-copy.
  *
  * This restriction assures absence of side effects and interleaving risks *given*
  * that none of the containers can be a Proxy instance.
  * TODO SECURITY BUG we plan to enforce this, giving PureData the same security
- * properties as the proposed [Records and Tuples](https://github.com/tc39/proposal-record-tuple).
+ * properties as the proposed
+ * [Records and Tuples](https://github.com/tc39/proposal-record-tuple).
  *
  * Given this (currently counter-factual) assumption, a PureData value cannot
  * be used as a communications channel,
@@ -82,34 +87,40 @@ export {};
  */
 
 /**
- * @template {Passable} T
+ * @template {Passable} [T=Passable]
  * @typedef {T[]} CopyArray
  *
  * A Passable sequence of Passable values.
  */
 
 /**
- * @template {Passable} T
+ * @template {Passable} [T=Passable]
  * @typedef {Record<string, T>} CopyRecord
  *
  * A Passable dictionary in which each key is a string and each value is Passable.
  */
 
 /**
+ * @template {string} [Tag=string]
+ * @template {Passable} [Payload=Passable]
  * @typedef {{
- *   [Symbol.toStringTag]: string,
- *   payload: Passable,
+ *   [Symbol.toStringTag]: Tag,
+ *   payload: Payload,
  *   [passStyle: symbol]: 'tagged' | string,
  * }} CopyTagged
  *
  * A Passable "tagged record" with semantics specific to the tag identified in
- * the `[Symbol.toStringTag]` property (such as 'copySet', 'copyBag', or 'copyMap').
- * It must have a property with key equal to the `PASS_STYLE` export and value 'tagged'
- * and no other properties except `[Symbol.toStringTag]` and `payload`,
- * but TypeScript complains about a declaration like `[PASS_STYLE]: 'tagged'`
- * because importing packages do not know what `PASS_STYLE` is
+ * the `[Symbol.toStringTag]` property (such as 'copySet', 'copyBag',
+ * or 'copyMap').
+ * It must have a property with key equal to the `PASS_STYLE` export and
+ * value 'tagged'
+ * and no other properties except `[Symbol.toStringTag]` and `payload`.
+ *
+ * TODO
+ * But TypeScript complains about a declaration like `[PASS_STYLE]: 'tagged'`
+ * because importing packages do not know what `PASS_STYLE` is,
  * so we appease it with a looser but less accurate definition
- * using symbol index properties.
+ * using symbol index properties and `| string`.
  */
 
 /**
