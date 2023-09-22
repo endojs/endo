@@ -183,6 +183,73 @@ const followMessagesComponent = async ($parent, $end, powers) => {
   }
 };
 
+const displayPetComponent = async ($parent, name, powers) => {
+  const $name = document.createTextNode(`${name} `);
+  $parent.appendChild($name);
+  $name.innerText = name;
+
+  const $petValue = document.createElement('pre');
+  $parent.appendChild($petValue);
+  E(powers).lookup(name).then(
+    async value => {
+      let output = ''
+      output += Object.prototype.toString.call(value);
+      // output += ' '
+      // output += JSON.stringify(value, undefined, 2);
+      $petValue.innerText = output
+
+      let typeDescriptor
+      try {
+        typeDescriptor = await E(value)._getInterface()
+      } catch (error) {
+        // no type descriptor for obj
+        typeDescriptor = []
+      }
+
+      const getDisplay = async () => {
+        let display
+        try {
+          display = await E(value)._getDisplay()
+        } catch (error) {
+          // no display for obj
+          display = ''
+        }
+        return display
+      }
+      const updateDisplay = async () => {
+        $petValue.innerText = output + '\n' + await getDisplay()
+      }
+      await updateDisplay()
+
+      console.log(name, typeDescriptor)
+      for (const [methodName, _argumentPattern] of typeDescriptor) {
+        if (methodName.startsWith('_')) {
+          continue
+        }
+        const $button = document.createElement('button');
+        $button.innerText = methodName;
+        $parent.appendChild($button);
+        $button.onclick = async () => {
+          try {
+            await E(value)[methodName]()
+            await updateDisplay()
+          } catch (error) {
+            window.reportError(error)
+          }
+        };
+      }
+    },
+    error => {
+      $petValue.innerText = ` ${error.message}`;
+    },
+  );
+
+  const $remove = document.createElement('button');
+  $parent.appendChild($remove);
+  $remove.innerText = 'Remove';
+  $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
+}
+
 const followNamesComponent = async ($parent, $end, powers) => {
   const $title = document.createElement('h2');
   $title.innerText = 'Inventory';
@@ -193,36 +260,12 @@ const followNamesComponent = async ($parent, $end, powers) => {
 
   const $names = new Map();
   for await (const change of makeRefIterator(E(powers).followNames())) {
-    console.log(change);
     if ('add' in change) {
       const name = change.add;
 
       const $li = document.createElement('li');
       $ul.appendChild($li);
-
-      const $name = document.createTextNode(`${name} `);
-      $li.appendChild($name);
-      $name.innerText = change.add;
-
-      const $value = document.createElement('pre');
-      $li.appendChild($value);
-      E(powers).lookup(name).then(
-        value => {
-          let output = ''
-          output += Object.prototype.toString.call(value);
-          output += ' '
-          output += JSON.stringify(value, undefined, 2);
-          $value.innerText = output
-        },
-        error => {
-          $value.innerText = ` ${error.message}`;
-        },
-      );
-
-      const $remove = document.createElement('button');
-      $li.appendChild($remove);
-      $remove.innerText = 'Remove';
-      $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
+      displayPetComponent($li, name, powers)
 
       $names.set(name, $li);
     } else if ('remove' in change) {
