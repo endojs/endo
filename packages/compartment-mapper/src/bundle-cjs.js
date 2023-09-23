@@ -5,7 +5,7 @@ const exportsCellRecord = exportsList =>
   ''.concat(
     ...exportsList.map(
       exportName => `\
-      ${exportName}: cell(${q(exportName)}),
+      ${exportName}: cell(${q(exportName)}${exportName !== 'default' ? '' : `, {}`}),
 `,
     ),
   );
