@@ -187,6 +187,47 @@ const chunkedWrite = async (t, opts) => {
 test('chunked write', chunkedWrite);
 test('chunked write (chunked)', chunkedWrite, { chunked: true });
 
+test('concurrent chunked writes', async t => {
+  const { array, writer } = makeArrayWriter({ chunked: true });
+  const concurrentChunkedMessages = [
+    [],
+    [''],
+    ['A'],
+    ['hello', ' ', 'world'],
+    ['Hello', ', ', 'World', '!\n'],
+  ];
+  await Promise.all(
+    concurrentChunkedMessages.flatMap(strChunks => [
+      writer.next(strChunks.map(strChunk => encoder.encode(strChunk))),
+      writer.return(),
+    ]),
+  );
+
+  t.deepEqual(
+    concurrentChunkedMessages.map(strChunks =>
+      encoder.encode(strChunks.join('')),
+    ),
+    await read(makeNetstringReader(array)),
+  );
+});
+
+test('writer closes anywhere within chunk', async t => {
+  for (let count = 0; count < 4; count += 1) {
+    const pipe = makePipe();
+    const writer = makeNetstringWriter(pipe[1], { chunked: true });
+    for (let i = 0; i < count; i += 1) {
+      pipe[0].next();
+    }
+    // close the writer:
+    pipe[0].return();
+    // eslint-disable-next-line no-await-in-loop
+    const { done } = await writer.next(
+      ['Hello, ', 'World!\n'].map(str => encoder.encode(str)),
+    );
+    t.assert(done);
+  }
+});
+
 const varyingMessages = async (t, opts) => {
   const array = ['', 'A', 'hello'];
 
