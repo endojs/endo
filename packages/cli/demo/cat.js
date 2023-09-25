@@ -193,7 +193,6 @@ const followNamesComponent = async ($parent, $end, powers) => {
 
   const $names = new Map();
   for await (const change of makeRefIterator(E(powers).followNames())) {
-    console.log(change);
     if ('add' in change) {
       const name = change.add;
 

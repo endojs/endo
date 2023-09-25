@@ -70,6 +70,7 @@ export type DaemonicPowers = {
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   readFileText: (path: string) => Promise<string>;
+  maybeReadFileText: (path: string) => Promise<string | undefined>;
   readDirectory: (path: string) => Promise<Array<string>>;
   writeFileText: (path: string, text: string) => Promise<void>;
   makePath: (path: string) => Promise<void>;

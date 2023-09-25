@@ -424,10 +424,10 @@ const makeEndoBootstrap = (
     formulaNumber,
     formulaPath,
   ) => {
-    const formulaText = await powers.readFileText(formulaPath).catch(() => {
-      // TODO handle EMFILE gracefully
+    const formulaText = await powers.maybeReadFileText(formulaPath);
+    if (formulaText === undefined) {
       throw new ReferenceError(`No reference exists at path ${formulaPath}`);
-    });
+    }
     const formula = (() => {
       try {
         return JSON.parse(formulaText);

@@ -5,12 +5,16 @@ One day, this will be as simple as:
 
 > npm install -g @endo/cli
 
-Until that day, clone the Endo repository, `yarn install`, and arrange to use
-`packages/cli/bin/endo` to be `endo` in your shell.
-For example,
+Until that day, you will need to clone the Endo repository, check out the Endo
+branch, install dependencies using Yarn, and arrange for the Endo command to
+be available as `endo` in whatever shell you favor.
 
+```
+> git clone https://github.com/endojs/endo.git
+> git checkout endo
 > yarn
 > alias endo=$PWD/packages/cli/bin/endo
+```
 
 # A counter example
 
