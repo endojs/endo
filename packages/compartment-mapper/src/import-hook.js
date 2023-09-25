@@ -251,10 +251,8 @@ export const makeImportHookMaker = (
       // Collate candidate locations for the moduleSpecifier,
       // to support Node.js conventions and similar.
       const candidates = [moduleSpecifier];
-      if (moduleSpecifier !== '.') {
-        for (const candidateSuffix of searchSuffixes) {
-          candidates.push(`${moduleSpecifier}${candidateSuffix}`);
-        }
+      for (const candidateSuffix of searchSuffixes) {
+        candidates.push(`${moduleSpecifier}${candidateSuffix}`);
       }
 
       const { maybeRead } = unpackReadPowers(readPowers);
