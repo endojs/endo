@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { makePromiseKit } from '@endo/promise-kit';
+
 const COMMA_BUFFER = new Uint8Array([','.charCodeAt(0)]);
 
 /** @param {number} length */
@@ -39,14 +41,32 @@ export const makeNetstringWriter = (output, { chunked = false } = {}) => {
       const prefix = getLengthPrefixCharCodes(messageLength);
 
       if (chunked) {
-        return Promise.all([
+        const ack = makePromiseKit();
+
+        const partsWritten = [
           output.next(new Uint8Array(prefix)),
-          ...messageChunks.map(async chunk => output.next(chunk)),
+          ...messageChunks.map(chunk => output.next(chunk)),
           output.next(COMMA_BUFFER),
-        ]).then(([r1, r2, r3]) => ({
-          done: !!(r1.done || r2.done || r3.done),
-          value: undefined,
-        }));
+        ];
+
+        // Resolve early if the output writer closes early.
+        for (const promise of partsWritten) {
+          promise.then(partWritten => {
+            if (partWritten.done) {
+              ack.resolve(partWritten);
+            }
+          });
+        }
+
+        Promise.all(partsWritten).then(results => {
+          // Redundant resolution is safe and clean.
+          ack.resolve({
+            done: results.some(({ done }) => done),
+            value: undefined,
+          });
+        }, ack.reject);
+
+        return ack.promise;
       } else {
         const buffer = new Uint8Array(prefix.length + messageLength + 1);
         buffer.set(prefix, 0);
