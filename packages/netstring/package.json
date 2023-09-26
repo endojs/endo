@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@endo/init": "^0.5.60",
+    "@endo/promise-kit": "^0.2.60",
     "@endo/stream": "^0.3.29",
     "ses": "^0.18.8"
   },
