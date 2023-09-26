@@ -31,6 +31,7 @@ export const makeMessageCapTP = (
 
   const drained = (async () => {
     for await (const message of reader) {
+      console.log('captp reader', message)
       dispatch(message);
     }
   })();

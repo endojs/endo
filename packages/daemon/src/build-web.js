@@ -12,33 +12,49 @@ import { makeWritePowers, makeReadPowers } from '@endo/compartment-mapper/node-p
 const { write } = makeWritePowers({ fs });
 const { read } = makeReadPowers({ fs });
 
-const bundleLocation = new URL(
-  'web/dist-daemon-web-bundle.js',
-  import.meta.url,
-).toString();
-const moduleLocation = new URL(
+
+const daemonModuleLocation = new URL(
   'web/daemon-web.js',
   import.meta.url,
 ).toString();
+const daemonBundleLocation = new URL(
+  'web/dist-daemon-web-bundle.js',
+  import.meta.url,
+).toString();
+const workerModuleLocation = new URL(
+  'web/worker-web.js',
+  import.meta.url,
+).toString();
+const workerBundleLocation = new URL(
+  'web/dist-worker-web-bundle.js',
+  import.meta.url,
+).toString();
 
-console.log({bundleLocation, moduleLocation});
+const bundleOptions = {
+  // node builtin shims for browser
+  commonDependencies: {
+    'util': 'util',
+    'path': 'path-browserify',
+    'events': 'events',
+    // noop
+    'fs': 'util',
+  },
+}
 
 async function main() {
   await writeBundle(
     write,
     read,
-    bundleLocation,
-    moduleLocation,
-    {
-      // node builtin shims for browser
-      commonDependencies: {
-        'util': 'util',
-        'path': 'path-browserify',
-        'events': 'events',
-        // noop
-        'fs': 'util',
-      },
-    },
+    daemonBundleLocation,
+    daemonModuleLocation,
+    bundleOptions,
+  )
+  await writeBundle(
+    write,
+    read,
+    workerBundleLocation,
+    workerModuleLocation,
+    bundleOptions,
   )
 }
 

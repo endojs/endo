@@ -10321,540 +10321,6 @@ lockdown();
 })()
 ,
 // === functors[58] ===
-(function (require, exports, module, __filename, __dirname) { // 'path' module extracted from Node.js v8.11.1 (only the posix part)
-// transplited with Babel
-
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-'use strict';
-
-function assertPath(path) {
-  if (typeof path !== 'string') {
-    throw new TypeError('Path must be a string. Received ' + JSON.stringify(path));
-  }
-}
-
-// Resolves . and .. elements in a path with directory names
-function normalizeStringPosix(path, allowAboveRoot) {
-  var res = '';
-  var lastSegmentLength = 0;
-  var lastSlash = -1;
-  var dots = 0;
-  var code;
-  for (var i = 0; i <= path.length; ++i) {
-    if (i < path.length)
-      code = path.charCodeAt(i);
-    else if (code === 47 /*/*/)
-      break;
-    else
-      code = 47 /*/*/;
-    if (code === 47 /*/*/) {
-      if (lastSlash === i - 1 || dots === 1) {
-        // NOOP
-      } else if (lastSlash !== i - 1 && dots === 2) {
-        if (res.length < 2 || lastSegmentLength !== 2 || res.charCodeAt(res.length - 1) !== 46 /*.*/ || res.charCodeAt(res.length - 2) !== 46 /*.*/) {
-          if (res.length > 2) {
-            var lastSlashIndex = res.lastIndexOf('/');
-            if (lastSlashIndex !== res.length - 1) {
-              if (lastSlashIndex === -1) {
-                res = '';
-                lastSegmentLength = 0;
-              } else {
-                res = res.slice(0, lastSlashIndex);
-                lastSegmentLength = res.length - 1 - res.lastIndexOf('/');
-              }
-              lastSlash = i;
-              dots = 0;
-              continue;
-            }
-          } else if (res.length === 2 || res.length === 1) {
-            res = '';
-            lastSegmentLength = 0;
-            lastSlash = i;
-            dots = 0;
-            continue;
-          }
-        }
-        if (allowAboveRoot) {
-          if (res.length > 0)
-            res += '/..';
-          else
-            res = '..';
-          lastSegmentLength = 2;
-        }
-      } else {
-        if (res.length > 0)
-          res += '/' + path.slice(lastSlash + 1, i);
-        else
-          res = path.slice(lastSlash + 1, i);
-        lastSegmentLength = i - lastSlash - 1;
-      }
-      lastSlash = i;
-      dots = 0;
-    } else if (code === 46 /*.*/ && dots !== -1) {
-      ++dots;
-    } else {
-      dots = -1;
-    }
-  }
-  return res;
-}
-
-function _format(sep, pathObject) {
-  var dir = pathObject.dir || pathObject.root;
-  var base = pathObject.base || (pathObject.name || '') + (pathObject.ext || '');
-  if (!dir) {
-    return base;
-  }
-  if (dir === pathObject.root) {
-    return dir + base;
-  }
-  return dir + sep + base;
-}
-
-var posix = {
-  // path.resolve([from ...], to)
-  resolve: function resolve() {
-    var resolvedPath = '';
-    var resolvedAbsolute = false;
-    var cwd;
-
-    for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
-      var path;
-      if (i >= 0)
-        path = arguments[i];
-      else {
-        if (cwd === undefined)
-          cwd = process.cwd();
-        path = cwd;
-      }
-
-      assertPath(path);
-
-      // Skip empty entries
-      if (path.length === 0) {
-        continue;
-      }
-
-      resolvedPath = path + '/' + resolvedPath;
-      resolvedAbsolute = path.charCodeAt(0) === 47 /*/*/;
-    }
-
-    // At this point the path should be resolved to a full absolute path, but
-    // handle relative paths to be safe (might happen when process.cwd() fails)
-
-    // Normalize the path
-    resolvedPath = normalizeStringPosix(resolvedPath, !resolvedAbsolute);
-
-    if (resolvedAbsolute) {
-      if (resolvedPath.length > 0)
-        return '/' + resolvedPath;
-      else
-        return '/';
-    } else if (resolvedPath.length > 0) {
-      return resolvedPath;
-    } else {
-      return '.';
-    }
-  },
-
-  normalize: function normalize(path) {
-    assertPath(path);
-
-    if (path.length === 0) return '.';
-
-    var isAbsolute = path.charCodeAt(0) === 47 /*/*/;
-    var trailingSeparator = path.charCodeAt(path.length - 1) === 47 /*/*/;
-
-    // Normalize the path
-    path = normalizeStringPosix(path, !isAbsolute);
-
-    if (path.length === 0 && !isAbsolute) path = '.';
-    if (path.length > 0 && trailingSeparator) path += '/';
-
-    if (isAbsolute) return '/' + path;
-    return path;
-  },
-
-  isAbsolute: function isAbsolute(path) {
-    assertPath(path);
-    return path.length > 0 && path.charCodeAt(0) === 47 /*/*/;
-  },
-
-  join: function join() {
-    if (arguments.length === 0)
-      return '.';
-    var joined;
-    for (var i = 0; i < arguments.length; ++i) {
-      var arg = arguments[i];
-      assertPath(arg);
-      if (arg.length > 0) {
-        if (joined === undefined)
-          joined = arg;
-        else
-          joined += '/' + arg;
-      }
-    }
-    if (joined === undefined)
-      return '.';
-    return posix.normalize(joined);
-  },
-
-  relative: function relative(from, to) {
-    assertPath(from);
-    assertPath(to);
-
-    if (from === to) return '';
-
-    from = posix.resolve(from);
-    to = posix.resolve(to);
-
-    if (from === to) return '';
-
-    // Trim any leading backslashes
-    var fromStart = 1;
-    for (; fromStart < from.length; ++fromStart) {
-      if (from.charCodeAt(fromStart) !== 47 /*/*/)
-        break;
-    }
-    var fromEnd = from.length;
-    var fromLen = fromEnd - fromStart;
-
-    // Trim any leading backslashes
-    var toStart = 1;
-    for (; toStart < to.length; ++toStart) {
-      if (to.charCodeAt(toStart) !== 47 /*/*/)
-        break;
-    }
-    var toEnd = to.length;
-    var toLen = toEnd - toStart;
-
-    // Compare paths to find the longest common path from root
-    var length = fromLen < toLen ? fromLen : toLen;
-    var lastCommonSep = -1;
-    var i = 0;
-    for (; i <= length; ++i) {
-      if (i === length) {
-        if (toLen > length) {
-          if (to.charCodeAt(toStart + i) === 47 /*/*/) {
-            // We get here if `from` is the exact base path for `to`.
-            // For example: from='/foo/bar'; to='/foo/bar/baz'
-            return to.slice(toStart + i + 1);
-          } else if (i === 0) {
-            // We get here if `from` is the root
-            // For example: from='/'; to='/foo'
-            return to.slice(toStart + i);
-          }
-        } else if (fromLen > length) {
-          if (from.charCodeAt(fromStart + i) === 47 /*/*/) {
-            // We get here if `to` is the exact base path for `from`.
-            // For example: from='/foo/bar/baz'; to='/foo/bar'
-            lastCommonSep = i;
-          } else if (i === 0) {
-            // We get here if `to` is the root.
-            // For example: from='/foo'; to='/'
-            lastCommonSep = 0;
-          }
-        }
-        break;
-      }
-      var fromCode = from.charCodeAt(fromStart + i);
-      var toCode = to.charCodeAt(toStart + i);
-      if (fromCode !== toCode)
-        break;
-      else if (fromCode === 47 /*/*/)
-        lastCommonSep = i;
-    }
-
-    var out = '';
-    // Generate the relative path based on the path difference between `to`
-    // and `from`
-    for (i = fromStart + lastCommonSep + 1; i <= fromEnd; ++i) {
-      if (i === fromEnd || from.charCodeAt(i) === 47 /*/*/) {
-        if (out.length === 0)
-          out += '..';
-        else
-          out += '/..';
-      }
-    }
-
-    // Lastly, append the rest of the destination (`to`) path that comes after
-    // the common path parts
-    if (out.length > 0)
-      return out + to.slice(toStart + lastCommonSep);
-    else {
-      toStart += lastCommonSep;
-      if (to.charCodeAt(toStart) === 47 /*/*/)
-        ++toStart;
-      return to.slice(toStart);
-    }
-  },
-
-  _makeLong: function _makeLong(path) {
-    return path;
-  },
-
-  dirname: function dirname(path) {
-    assertPath(path);
-    if (path.length === 0) return '.';
-    var code = path.charCodeAt(0);
-    var hasRoot = code === 47 /*/*/;
-    var end = -1;
-    var matchedSlash = true;
-    for (var i = path.length - 1; i >= 1; --i) {
-      code = path.charCodeAt(i);
-      if (code === 47 /*/*/) {
-          if (!matchedSlash) {
-            end = i;
-            break;
-          }
-        } else {
-        // We saw the first non-path separator
-        matchedSlash = false;
-      }
-    }
-
-    if (end === -1) return hasRoot ? '/' : '.';
-    if (hasRoot && end === 1) return '//';
-    return path.slice(0, end);
-  },
-
-  basename: function basename(path, ext) {
-    if (ext !== undefined && typeof ext !== 'string') throw new TypeError('"ext" argument must be a string');
-    assertPath(path);
-
-    var start = 0;
-    var end = -1;
-    var matchedSlash = true;
-    var i;
-
-    if (ext !== undefined && ext.length > 0 && ext.length <= path.length) {
-      if (ext.length === path.length && ext === path) return '';
-      var extIdx = ext.length - 1;
-      var firstNonSlashEnd = -1;
-      for (i = path.length - 1; i >= 0; --i) {
-        var code = path.charCodeAt(i);
-        if (code === 47 /*/*/) {
-            // If we reached a path separator that was not part of a set of path
-            // separators at the end of the string, stop now
-            if (!matchedSlash) {
-              start = i + 1;
-              break;
-            }
-          } else {
-          if (firstNonSlashEnd === -1) {
-            // We saw the first non-path separator, remember this index in case
-            // we need it if the extension ends up not matching
-            matchedSlash = false;
-            firstNonSlashEnd = i + 1;
-          }
-          if (extIdx >= 0) {
-            // Try to match the explicit extension
-            if (code === ext.charCodeAt(extIdx)) {
-              if (--extIdx === -1) {
-                // We matched the extension, so mark this as the end of our path
-                // component
-                end = i;
-              }
-            } else {
-              // Extension does not match, so our result is the entire path
-              // component
-              extIdx = -1;
-              end = firstNonSlashEnd;
-            }
-          }
-        }
-      }
-
-      if (start === end) end = firstNonSlashEnd;else if (end === -1) end = path.length;
-      return path.slice(start, end);
-    } else {
-      for (i = path.length - 1; i >= 0; --i) {
-        if (path.charCodeAt(i) === 47 /*/*/) {
-            // If we reached a path separator that was not part of a set of path
-            // separators at the end of the string, stop now
-            if (!matchedSlash) {
-              start = i + 1;
-              break;
-            }
-          } else if (end === -1) {
-          // We saw the first non-path separator, mark this as the end of our
-          // path component
-          matchedSlash = false;
-          end = i + 1;
-        }
-      }
-
-      if (end === -1) return '';
-      return path.slice(start, end);
-    }
-  },
-
-  extname: function extname(path) {
-    assertPath(path);
-    var startDot = -1;
-    var startPart = 0;
-    var end = -1;
-    var matchedSlash = true;
-    // Track the state of characters (if any) we see before our first dot and
-    // after any path separator we find
-    var preDotState = 0;
-    for (var i = path.length - 1; i >= 0; --i) {
-      var code = path.charCodeAt(i);
-      if (code === 47 /*/*/) {
-          // If we reached a path separator that was not part of a set of path
-          // separators at the end of the string, stop now
-          if (!matchedSlash) {
-            startPart = i + 1;
-            break;
-          }
-          continue;
-        }
-      if (end === -1) {
-        // We saw the first non-path separator, mark this as the end of our
-        // extension
-        matchedSlash = false;
-        end = i + 1;
-      }
-      if (code === 46 /*.*/) {
-          // If this is our first dot, mark it as the start of our extension
-          if (startDot === -1)
-            startDot = i;
-          else if (preDotState !== 1)
-            preDotState = 1;
-      } else if (startDot !== -1) {
-        // We saw a non-dot and non-path separator before our dot, so we should
-        // have a good chance at having a non-empty extension
-        preDotState = -1;
-      }
-    }
-
-    if (startDot === -1 || end === -1 ||
-        // We saw a non-dot character immediately before the dot
-        preDotState === 0 ||
-        // The (right-most) trimmed path component is exactly '..'
-        preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
-      return '';
-    }
-    return path.slice(startDot, end);
-  },
-
-  format: function format(pathObject) {
-    if (pathObject === null || typeof pathObject !== 'object') {
-      throw new TypeError('The "pathObject" argument must be of type Object. Received type ' + typeof pathObject);
-    }
-    return _format('/', pathObject);
-  },
-
-  parse: function parse(path) {
-    assertPath(path);
-
-    var ret = { root: '', dir: '', base: '', ext: '', name: '' };
-    if (path.length === 0) return ret;
-    var code = path.charCodeAt(0);
-    var isAbsolute = code === 47 /*/*/;
-    var start;
-    if (isAbsolute) {
-      ret.root = '/';
-      start = 1;
-    } else {
-      start = 0;
-    }
-    var startDot = -1;
-    var startPart = 0;
-    var end = -1;
-    var matchedSlash = true;
-    var i = path.length - 1;
-
-    // Track the state of characters (if any) we see before our first dot and
-    // after any path separator we find
-    var preDotState = 0;
-
-    // Get non-dir info
-    for (; i >= start; --i) {
-      code = path.charCodeAt(i);
-      if (code === 47 /*/*/) {
-          // If we reached a path separator that was not part of a set of path
-          // separators at the end of the string, stop now
-          if (!matchedSlash) {
-            startPart = i + 1;
-            break;
-          }
-          continue;
-        }
-      if (end === -1) {
-        // We saw the first non-path separator, mark this as the end of our
-        // extension
-        matchedSlash = false;
-        end = i + 1;
-      }
-      if (code === 46 /*.*/) {
-          // If this is our first dot, mark it as the start of our extension
-          if (startDot === -1) startDot = i;else if (preDotState !== 1) preDotState = 1;
-        } else if (startDot !== -1) {
-        // We saw a non-dot and non-path separator before our dot, so we should
-        // have a good chance at having a non-empty extension
-        preDotState = -1;
-      }
-    }
-
-    if (startDot === -1 || end === -1 ||
-    // We saw a non-dot character immediately before the dot
-    preDotState === 0 ||
-    // The (right-most) trimmed path component is exactly '..'
-    preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
-      if (end !== -1) {
-        if (startPart === 0 && isAbsolute) ret.base = ret.name = path.slice(1, end);else ret.base = ret.name = path.slice(startPart, end);
-      }
-    } else {
-      if (startPart === 0 && isAbsolute) {
-        ret.name = path.slice(1, startDot);
-        ret.base = path.slice(1, end);
-      } else {
-        ret.name = path.slice(startPart, startDot);
-        ret.base = path.slice(startPart, end);
-      }
-      ret.ext = path.slice(startDot, end);
-    }
-
-    if (startPart > 0) ret.dir = path.slice(0, startPart - 1);else if (isAbsolute) ret.dir = '/';
-
-    return ret;
-  },
-
-  sep: '/',
-  delimiter: ':',
-  win32: null,
-  posix: null
-};
-
-posix.posix = posix;
-
-module.exports = posix;
- //*/
-})
-//# sourceURL=file:///home/xyz/Development/endo/node_modules/path-browserify/index.js
-,
-// === functors[59] ===
 (function (require, exports, module, __filename, __dirname) { /*! https://mths.be/punycode v1.4.1 by @mathias */
 ;(function(root) {
 
@@ -11392,7 +10858,7 @@ module.exports = posix;
 })
 //# sourceURL=file:///home/xyz/Development/endo/packages/daemon/node_modules/punycode/punycode.js
 ,
-// === functors[60] ===
+// === functors[59] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 /* eslint complexity: [2, 18], max-statements: [2, 33] */
@@ -11439,7 +10905,7 @@ module.exports = function hasSymbols() {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/has-symbols/shams.js
 ,
-// === functors[61] ===
+// === functors[60] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var origSymbol = typeof Symbol !== 'undefined' && Symbol;
@@ -11457,7 +10923,7 @@ module.exports = function hasNativeSymbols() {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/has-symbols/index.js
 ,
-// === functors[62] ===
+// === functors[61] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 /* eslint no-invalid-this: 1 */
@@ -11514,7 +10980,7 @@ module.exports = function bind(that) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/function-bind/implementation.js
 ,
-// === functors[63] ===
+// === functors[62] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var implementation = require('./implementation');
@@ -11524,7 +10990,7 @@ module.exports = Function.prototype.bind || implementation;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/function-bind/index.js
 ,
-// === functors[64] ===
+// === functors[63] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var bind = require('function-bind');
@@ -11534,7 +11000,7 @@ module.exports = bind.call(Function.call, Object.prototype.hasOwnProperty);
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/has/src/index.js
 ,
-// === functors[65] ===
+// === functors[64] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var undefined;
@@ -11883,7 +11349,7 @@ module.exports = function GetIntrinsic(name, allowMissing) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/get-intrinsic/index.js
 ,
-// === functors[66] ===
+// === functors[65] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var bind = require('function-bind');
@@ -11935,7 +11401,7 @@ if ($defineProperty) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/call-bind/index.js
 ,
-// === functors[67] ===
+// === functors[66] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var GetIntrinsic = require('get-intrinsic');
@@ -11955,7 +11421,7 @@ module.exports = function callBoundIntrinsic(name, allowMissing) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/call-bind/callBound.js
 ,
-// === functors[68] ===
+// === functors[67] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var hasSymbols = require('has-symbols/shams');
@@ -11967,7 +11433,7 @@ module.exports = function hasToStringTagShams() {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/has-tostringtag/shams.js
 ,
-// === functors[69] ===
+// === functors[68] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var hasToStringTag = require('has-tostringtag/shams')();
@@ -12005,7 +11471,7 @@ module.exports = supportsStandardArguments ? isStandardArguments : isLegacyArgum
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/is-arguments/index.js
 ,
-// === functors[70] ===
+// === functors[69] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var toStr = Object.prototype.toString;
@@ -12048,7 +11514,7 @@ module.exports = function isGeneratorFunction(fn) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/is-generator-function/index.js
 ,
-// === functors[71] ===
+// === functors[70] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var fnToStr = Function.prototype.toString;
@@ -12154,7 +11620,7 @@ module.exports = reflectApply
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/is-callable/index.js
 ,
-// === functors[72] ===
+// === functors[71] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var isCallable = require('is-callable');
@@ -12221,7 +11687,7 @@ module.exports = forEach;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/for-each/index.js
 ,
-// === functors[73] ===
+// === functors[72] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var possibleNames = [
@@ -12253,7 +11719,7 @@ module.exports = function availableTypedArrays() {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/available-typed-arrays/index.js
 ,
-// === functors[74] ===
+// === functors[73] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var GetIntrinsic = require('get-intrinsic');
@@ -12274,7 +11740,7 @@ module.exports = $gOPD;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/gopd/index.js
 ,
-// === functors[75] ===
+// === functors[74] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var forEach = require('for-each');
@@ -12339,7 +11805,7 @@ module.exports = function isTypedArray(value) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/is-typed-array/index.js
 ,
-// === functors[76] ===
+// === functors[75] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var forEach = require('for-each');
@@ -12399,7 +11865,7 @@ module.exports = function whichTypedArray(value) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/which-typed-array/index.js
 ,
-// === functors[77] ===
+// === functors[76] ===
 (function (require, exports, module, __filename, __dirname) { // Currently in sync with Node.js lib/internal/util/types.js
 // https://github.com/nodejs/node/commit/112cc7c27551254aa2b17098fb774867f05ed0d9
 
@@ -12738,7 +12204,7 @@ exports.isAnyArrayBuffer = isAnyArrayBuffer;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/util/support/types.js
 ,
-// === functors[78] ===
+// === functors[77] ===
 (function (require, exports, module, __filename, __dirname) { module.exports = function isBuffer(arg) {
   return arg instanceof Buffer;
 }
@@ -12746,7 +12212,7 @@ exports.isAnyArrayBuffer = isAnyArrayBuffer;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/util/support/isBuffer.js
 ,
-// === functors[79] ===
+// === functors[78] ===
 (function (require, exports, module, __filename, __dirname) { if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -12778,7 +12244,7 @@ exports.isAnyArrayBuffer = isAnyArrayBuffer;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/inherits/inherits_browser.js
 ,
-// === functors[80] ===
+// === functors[79] ===
 (function (require, exports, module, __filename, __dirname) { try {
   var util = require('util');
   /* istanbul ignore next */
@@ -12792,7 +12258,7 @@ exports.isAnyArrayBuffer = isAnyArrayBuffer;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/inherits/inherits.js
 ,
-// === functors[81] ===
+// === functors[80] ===
 (function (require, exports, module, __filename, __dirname) { // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -13512,13 +12978,13 @@ exports.callbackify = callbackify;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/util/util.js
 ,
-// === functors[82] ===
+// === functors[81] ===
 (function (require, exports, module, __filename, __dirname) { module.exports = require('util').inspect;
  //*/
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/object-inspect/util.inspect.js
 ,
-// === functors[83] ===
+// === functors[82] ===
 (function (require, exports, module, __filename, __dirname) { var hasMap = typeof Map === 'function' && Map.prototype;
 var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, 'size') : null;
 var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === 'function' ? mapSizeDescriptor.get : null;
@@ -14039,7 +13505,7 @@ function arrObjKeys(obj, inspect) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/object-inspect/index.js
 ,
-// === functors[84] ===
+// === functors[83] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var GetIntrinsic = require('get-intrinsic');
@@ -14168,7 +13634,7 @@ module.exports = function getSideChannel() {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/side-channel/index.js
 ,
-// === functors[85] ===
+// === functors[84] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var replace = String.prototype.replace;
@@ -14196,7 +13662,7 @@ module.exports = {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/qs/lib/formats.js
 ,
-// === functors[86] ===
+// === functors[85] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var formats = require('./formats');
@@ -14453,7 +13919,7 @@ module.exports = {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/qs/lib/utils.js
 ,
-// === functors[87] ===
+// === functors[86] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var getSideChannel = require('side-channel');
@@ -14778,7 +14244,7 @@ module.exports = function (object, opts) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/qs/lib/stringify.js
 ,
-// === functors[88] ===
+// === functors[87] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var utils = require('./utils');
@@ -15047,7 +14513,7 @@ module.exports = function (str, opts) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/qs/lib/parse.js
 ,
-// === functors[89] ===
+// === functors[88] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict';
 
 var stringify = require('./stringify');
@@ -15063,7 +14529,7 @@ module.exports = {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/qs/lib/index.js
 ,
-// === functors[90] ===
+// === functors[89] ===
 (function (require, exports, module, __filename, __dirname) { /*
  * Copyright Joyent, Inc. and other Node contributors.
  *
@@ -15844,7 +15310,7 @@ exports.Url = Url;
 })
 //# sourceURL=file:///home/xyz/Development/endo/packages/daemon/node_modules/url/url.js
 ,
-// === functors[91] ===
+// === functors[90] ===
 (function (require, exports, module, __filename, __dirname) { 'use strict'
 
 exports.byteLength = byteLength
@@ -15999,7 +15465,7 @@ function fromByteArray (uint8) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/base64-js/index.js
 ,
-// === functors[92] ===
+// === functors[91] ===
 (function (require, exports, module, __filename, __dirname) { /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -16089,7 +15555,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/ieee754/index.js
 ,
-// === functors[93] ===
+// === functors[92] ===
 (function (require, exports, module, __filename, __dirname) { /*!
  * The buffer module from node.js, for the browser.
  *
@@ -18200,7 +17666,7 @@ function BufferBigIntNotDefined () {
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/buffer/index.js
 ,
-// === functors[94] ===
+// === functors[93] ===
 (function (require, exports, module, __filename, __dirname) { (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -42916,6 +42382,540 @@ module.exports = GZheader;
 })
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/browserfs/dist/browserfs.js
 ,
+// === functors[94] ===
+(function (require, exports, module, __filename, __dirname) { // 'path' module extracted from Node.js v8.11.1 (only the posix part)
+// transplited with Babel
+
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+'use strict';
+
+function assertPath(path) {
+  if (typeof path !== 'string') {
+    throw new TypeError('Path must be a string. Received ' + JSON.stringify(path));
+  }
+}
+
+// Resolves . and .. elements in a path with directory names
+function normalizeStringPosix(path, allowAboveRoot) {
+  var res = '';
+  var lastSegmentLength = 0;
+  var lastSlash = -1;
+  var dots = 0;
+  var code;
+  for (var i = 0; i <= path.length; ++i) {
+    if (i < path.length)
+      code = path.charCodeAt(i);
+    else if (code === 47 /*/*/)
+      break;
+    else
+      code = 47 /*/*/;
+    if (code === 47 /*/*/) {
+      if (lastSlash === i - 1 || dots === 1) {
+        // NOOP
+      } else if (lastSlash !== i - 1 && dots === 2) {
+        if (res.length < 2 || lastSegmentLength !== 2 || res.charCodeAt(res.length - 1) !== 46 /*.*/ || res.charCodeAt(res.length - 2) !== 46 /*.*/) {
+          if (res.length > 2) {
+            var lastSlashIndex = res.lastIndexOf('/');
+            if (lastSlashIndex !== res.length - 1) {
+              if (lastSlashIndex === -1) {
+                res = '';
+                lastSegmentLength = 0;
+              } else {
+                res = res.slice(0, lastSlashIndex);
+                lastSegmentLength = res.length - 1 - res.lastIndexOf('/');
+              }
+              lastSlash = i;
+              dots = 0;
+              continue;
+            }
+          } else if (res.length === 2 || res.length === 1) {
+            res = '';
+            lastSegmentLength = 0;
+            lastSlash = i;
+            dots = 0;
+            continue;
+          }
+        }
+        if (allowAboveRoot) {
+          if (res.length > 0)
+            res += '/..';
+          else
+            res = '..';
+          lastSegmentLength = 2;
+        }
+      } else {
+        if (res.length > 0)
+          res += '/' + path.slice(lastSlash + 1, i);
+        else
+          res = path.slice(lastSlash + 1, i);
+        lastSegmentLength = i - lastSlash - 1;
+      }
+      lastSlash = i;
+      dots = 0;
+    } else if (code === 46 /*.*/ && dots !== -1) {
+      ++dots;
+    } else {
+      dots = -1;
+    }
+  }
+  return res;
+}
+
+function _format(sep, pathObject) {
+  var dir = pathObject.dir || pathObject.root;
+  var base = pathObject.base || (pathObject.name || '') + (pathObject.ext || '');
+  if (!dir) {
+    return base;
+  }
+  if (dir === pathObject.root) {
+    return dir + base;
+  }
+  return dir + sep + base;
+}
+
+var posix = {
+  // path.resolve([from ...], to)
+  resolve: function resolve() {
+    var resolvedPath = '';
+    var resolvedAbsolute = false;
+    var cwd;
+
+    for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+      var path;
+      if (i >= 0)
+        path = arguments[i];
+      else {
+        if (cwd === undefined)
+          cwd = process.cwd();
+        path = cwd;
+      }
+
+      assertPath(path);
+
+      // Skip empty entries
+      if (path.length === 0) {
+        continue;
+      }
+
+      resolvedPath = path + '/' + resolvedPath;
+      resolvedAbsolute = path.charCodeAt(0) === 47 /*/*/;
+    }
+
+    // At this point the path should be resolved to a full absolute path, but
+    // handle relative paths to be safe (might happen when process.cwd() fails)
+
+    // Normalize the path
+    resolvedPath = normalizeStringPosix(resolvedPath, !resolvedAbsolute);
+
+    if (resolvedAbsolute) {
+      if (resolvedPath.length > 0)
+        return '/' + resolvedPath;
+      else
+        return '/';
+    } else if (resolvedPath.length > 0) {
+      return resolvedPath;
+    } else {
+      return '.';
+    }
+  },
+
+  normalize: function normalize(path) {
+    assertPath(path);
+
+    if (path.length === 0) return '.';
+
+    var isAbsolute = path.charCodeAt(0) === 47 /*/*/;
+    var trailingSeparator = path.charCodeAt(path.length - 1) === 47 /*/*/;
+
+    // Normalize the path
+    path = normalizeStringPosix(path, !isAbsolute);
+
+    if (path.length === 0 && !isAbsolute) path = '.';
+    if (path.length > 0 && trailingSeparator) path += '/';
+
+    if (isAbsolute) return '/' + path;
+    return path;
+  },
+
+  isAbsolute: function isAbsolute(path) {
+    assertPath(path);
+    return path.length > 0 && path.charCodeAt(0) === 47 /*/*/;
+  },
+
+  join: function join() {
+    if (arguments.length === 0)
+      return '.';
+    var joined;
+    for (var i = 0; i < arguments.length; ++i) {
+      var arg = arguments[i];
+      assertPath(arg);
+      if (arg.length > 0) {
+        if (joined === undefined)
+          joined = arg;
+        else
+          joined += '/' + arg;
+      }
+    }
+    if (joined === undefined)
+      return '.';
+    return posix.normalize(joined);
+  },
+
+  relative: function relative(from, to) {
+    assertPath(from);
+    assertPath(to);
+
+    if (from === to) return '';
+
+    from = posix.resolve(from);
+    to = posix.resolve(to);
+
+    if (from === to) return '';
+
+    // Trim any leading backslashes
+    var fromStart = 1;
+    for (; fromStart < from.length; ++fromStart) {
+      if (from.charCodeAt(fromStart) !== 47 /*/*/)
+        break;
+    }
+    var fromEnd = from.length;
+    var fromLen = fromEnd - fromStart;
+
+    // Trim any leading backslashes
+    var toStart = 1;
+    for (; toStart < to.length; ++toStart) {
+      if (to.charCodeAt(toStart) !== 47 /*/*/)
+        break;
+    }
+    var toEnd = to.length;
+    var toLen = toEnd - toStart;
+
+    // Compare paths to find the longest common path from root
+    var length = fromLen < toLen ? fromLen : toLen;
+    var lastCommonSep = -1;
+    var i = 0;
+    for (; i <= length; ++i) {
+      if (i === length) {
+        if (toLen > length) {
+          if (to.charCodeAt(toStart + i) === 47 /*/*/) {
+            // We get here if `from` is the exact base path for `to`.
+            // For example: from='/foo/bar'; to='/foo/bar/baz'
+            return to.slice(toStart + i + 1);
+          } else if (i === 0) {
+            // We get here if `from` is the root
+            // For example: from='/'; to='/foo'
+            return to.slice(toStart + i);
+          }
+        } else if (fromLen > length) {
+          if (from.charCodeAt(fromStart + i) === 47 /*/*/) {
+            // We get here if `to` is the exact base path for `from`.
+            // For example: from='/foo/bar/baz'; to='/foo/bar'
+            lastCommonSep = i;
+          } else if (i === 0) {
+            // We get here if `to` is the root.
+            // For example: from='/foo'; to='/'
+            lastCommonSep = 0;
+          }
+        }
+        break;
+      }
+      var fromCode = from.charCodeAt(fromStart + i);
+      var toCode = to.charCodeAt(toStart + i);
+      if (fromCode !== toCode)
+        break;
+      else if (fromCode === 47 /*/*/)
+        lastCommonSep = i;
+    }
+
+    var out = '';
+    // Generate the relative path based on the path difference between `to`
+    // and `from`
+    for (i = fromStart + lastCommonSep + 1; i <= fromEnd; ++i) {
+      if (i === fromEnd || from.charCodeAt(i) === 47 /*/*/) {
+        if (out.length === 0)
+          out += '..';
+        else
+          out += '/..';
+      }
+    }
+
+    // Lastly, append the rest of the destination (`to`) path that comes after
+    // the common path parts
+    if (out.length > 0)
+      return out + to.slice(toStart + lastCommonSep);
+    else {
+      toStart += lastCommonSep;
+      if (to.charCodeAt(toStart) === 47 /*/*/)
+        ++toStart;
+      return to.slice(toStart);
+    }
+  },
+
+  _makeLong: function _makeLong(path) {
+    return path;
+  },
+
+  dirname: function dirname(path) {
+    assertPath(path);
+    if (path.length === 0) return '.';
+    var code = path.charCodeAt(0);
+    var hasRoot = code === 47 /*/*/;
+    var end = -1;
+    var matchedSlash = true;
+    for (var i = path.length - 1; i >= 1; --i) {
+      code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          if (!matchedSlash) {
+            end = i;
+            break;
+          }
+        } else {
+        // We saw the first non-path separator
+        matchedSlash = false;
+      }
+    }
+
+    if (end === -1) return hasRoot ? '/' : '.';
+    if (hasRoot && end === 1) return '//';
+    return path.slice(0, end);
+  },
+
+  basename: function basename(path, ext) {
+    if (ext !== undefined && typeof ext !== 'string') throw new TypeError('"ext" argument must be a string');
+    assertPath(path);
+
+    var start = 0;
+    var end = -1;
+    var matchedSlash = true;
+    var i;
+
+    if (ext !== undefined && ext.length > 0 && ext.length <= path.length) {
+      if (ext.length === path.length && ext === path) return '';
+      var extIdx = ext.length - 1;
+      var firstNonSlashEnd = -1;
+      for (i = path.length - 1; i >= 0; --i) {
+        var code = path.charCodeAt(i);
+        if (code === 47 /*/*/) {
+            // If we reached a path separator that was not part of a set of path
+            // separators at the end of the string, stop now
+            if (!matchedSlash) {
+              start = i + 1;
+              break;
+            }
+          } else {
+          if (firstNonSlashEnd === -1) {
+            // We saw the first non-path separator, remember this index in case
+            // we need it if the extension ends up not matching
+            matchedSlash = false;
+            firstNonSlashEnd = i + 1;
+          }
+          if (extIdx >= 0) {
+            // Try to match the explicit extension
+            if (code === ext.charCodeAt(extIdx)) {
+              if (--extIdx === -1) {
+                // We matched the extension, so mark this as the end of our path
+                // component
+                end = i;
+              }
+            } else {
+              // Extension does not match, so our result is the entire path
+              // component
+              extIdx = -1;
+              end = firstNonSlashEnd;
+            }
+          }
+        }
+      }
+
+      if (start === end) end = firstNonSlashEnd;else if (end === -1) end = path.length;
+      return path.slice(start, end);
+    } else {
+      for (i = path.length - 1; i >= 0; --i) {
+        if (path.charCodeAt(i) === 47 /*/*/) {
+            // If we reached a path separator that was not part of a set of path
+            // separators at the end of the string, stop now
+            if (!matchedSlash) {
+              start = i + 1;
+              break;
+            }
+          } else if (end === -1) {
+          // We saw the first non-path separator, mark this as the end of our
+          // path component
+          matchedSlash = false;
+          end = i + 1;
+        }
+      }
+
+      if (end === -1) return '';
+      return path.slice(start, end);
+    }
+  },
+
+  extname: function extname(path) {
+    assertPath(path);
+    var startDot = -1;
+    var startPart = 0;
+    var end = -1;
+    var matchedSlash = true;
+    // Track the state of characters (if any) we see before our first dot and
+    // after any path separator we find
+    var preDotState = 0;
+    for (var i = path.length - 1; i >= 0; --i) {
+      var code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          // If we reached a path separator that was not part of a set of path
+          // separators at the end of the string, stop now
+          if (!matchedSlash) {
+            startPart = i + 1;
+            break;
+          }
+          continue;
+        }
+      if (end === -1) {
+        // We saw the first non-path separator, mark this as the end of our
+        // extension
+        matchedSlash = false;
+        end = i + 1;
+      }
+      if (code === 46 /*.*/) {
+          // If this is our first dot, mark it as the start of our extension
+          if (startDot === -1)
+            startDot = i;
+          else if (preDotState !== 1)
+            preDotState = 1;
+      } else if (startDot !== -1) {
+        // We saw a non-dot and non-path separator before our dot, so we should
+        // have a good chance at having a non-empty extension
+        preDotState = -1;
+      }
+    }
+
+    if (startDot === -1 || end === -1 ||
+        // We saw a non-dot character immediately before the dot
+        preDotState === 0 ||
+        // The (right-most) trimmed path component is exactly '..'
+        preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+      return '';
+    }
+    return path.slice(startDot, end);
+  },
+
+  format: function format(pathObject) {
+    if (pathObject === null || typeof pathObject !== 'object') {
+      throw new TypeError('The "pathObject" argument must be of type Object. Received type ' + typeof pathObject);
+    }
+    return _format('/', pathObject);
+  },
+
+  parse: function parse(path) {
+    assertPath(path);
+
+    var ret = { root: '', dir: '', base: '', ext: '', name: '' };
+    if (path.length === 0) return ret;
+    var code = path.charCodeAt(0);
+    var isAbsolute = code === 47 /*/*/;
+    var start;
+    if (isAbsolute) {
+      ret.root = '/';
+      start = 1;
+    } else {
+      start = 0;
+    }
+    var startDot = -1;
+    var startPart = 0;
+    var end = -1;
+    var matchedSlash = true;
+    var i = path.length - 1;
+
+    // Track the state of characters (if any) we see before our first dot and
+    // after any path separator we find
+    var preDotState = 0;
+
+    // Get non-dir info
+    for (; i >= start; --i) {
+      code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          // If we reached a path separator that was not part of a set of path
+          // separators at the end of the string, stop now
+          if (!matchedSlash) {
+            startPart = i + 1;
+            break;
+          }
+          continue;
+        }
+      if (end === -1) {
+        // We saw the first non-path separator, mark this as the end of our
+        // extension
+        matchedSlash = false;
+        end = i + 1;
+      }
+      if (code === 46 /*.*/) {
+          // If this is our first dot, mark it as the start of our extension
+          if (startDot === -1) startDot = i;else if (preDotState !== 1) preDotState = 1;
+        } else if (startDot !== -1) {
+        // We saw a non-dot and non-path separator before our dot, so we should
+        // have a good chance at having a non-empty extension
+        preDotState = -1;
+      }
+    }
+
+    if (startDot === -1 || end === -1 ||
+    // We saw a non-dot character immediately before the dot
+    preDotState === 0 ||
+    // The (right-most) trimmed path component is exactly '..'
+    preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+      if (end !== -1) {
+        if (startPart === 0 && isAbsolute) ret.base = ret.name = path.slice(1, end);else ret.base = ret.name = path.slice(startPart, end);
+      }
+    } else {
+      if (startPart === 0 && isAbsolute) {
+        ret.name = path.slice(1, startDot);
+        ret.base = path.slice(1, end);
+      } else {
+        ret.name = path.slice(startPart, startDot);
+        ret.base = path.slice(startPart, end);
+      }
+      ret.ext = path.slice(startDot, end);
+    }
+
+    if (startPart > 0) ret.dir = path.slice(0, startPart - 1);else if (isAbsolute) ret.dir = '/';
+
+    return ret;
+  },
+
+  sep: '/',
+  delimiter: ':',
+  win32: null,
+  posix: null
+};
+
+posix.posix = posix;
+
+module.exports = posix;
+ //*/
+})
+//# sourceURL=file:///home/xyz/Development/endo/node_modules/path-browserify/index.js
+,
 // === functors[95] ===
 (function (require, exports, module, __filename, __dirname) { const debug = (
   typeof process === 'object' &&
@@ -51780,6 +51780,7 @@ const        makeMessageCapTP=  (
 
   const drained=  (async()=>   {
     for await( const message of reader) {
+      console.log('captp reader', message);
       dispatch(message);
      }
    })();
@@ -53284,13 +53285,17 @@ const        makeHostMaker=  ({
       powersName,
       resultName)=>
          {
+      console.log('> importUnsafeAndEndow provideWorkerFormulaIdentifier', { workerName, importPath, powersName, resultName});
       const workerFormulaIdentifier=  await provideWorkerFormulaIdentifier(
         workerName);
 
+      console.log('< importUnsafeAndEndow provideWorkerFormulaIdentifier', { workerName, importPath, powersName, resultName});
 
+      console.log('> importUnsafeAndEndow providePowersFormulaIdentifier', { workerName, importPath, powersName, resultName});
       const powersFormulaIdentifier=  await providePowersFormulaIdentifier(
         powersName);
 
+      console.log('< importUnsafeAndEndow providePowersFormulaIdentifier', { workerName, importPath, powersName, resultName});
 
       const formula=  {
         /** @type {'import-unsafe'} */
@@ -53300,14 +53305,18 @@ const        makeHostMaker=  ({
         importPath};
 
 
+      console.log('> importUnsafeAndEndow provideValueForFormula', { workerName, importPath, powersName, resultName});
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const { formulaIdentifier, value}=   await provideValueForFormula(
         formula,
         'import-unsafe-id512');
 
+      console.log('< importUnsafeAndEndow provideValueForFormula', { workerName, importPath, powersName, resultName});
       if( resultName!==  undefined) {
+        console.log('> importUnsafeAndEndow petStore.write', { workerName, importPath, powersName, resultName});
         await petStore.write(resultName, formulaIdentifier);
+        console.log('< importUnsafeAndEndow petStore.write', { workerName, importPath, powersName, resultName});
        }
       return value;
      };
@@ -55122,7 +55131,109 @@ function eventTargetAgnosticAddListener(emitter, name, listener, flags) {
 //# sourceURL=file:///home/xyz/Development/endo/node_modules/events/events.js
 ,
 // === functors[178] ===
-({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,   importMeta: $h‍____meta, }) => (function () {   let makePromiseKit,makePipe,makeNodeReader,makeNodeWriter,EventEmitter;$h‍_imports([["@endo/promise-kit", [["makePromiseKit", [$h‍_a => (makePromiseKit = $h‍_a)]]]],["@endo/stream", [["makePipe", [$h‍_a => (makePipe = $h‍_a)]]]],["@endo/stream-node", [["makeNodeReader", [$h‍_a => (makeNodeReader = $h‍_a)]],["makeNodeWriter", [$h‍_a => (makeNodeWriter = $h‍_a)]]]],["events", [["default", [$h‍_a => (EventEmitter = $h‍_a)]]]]]);   
+({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,   importMeta: $h‍____meta, }) => (function () {   let makeQueue;$h‍_imports([["@endo/stream", [["makeQueue", [$h‍_a => (makeQueue = $h‍_a)]]]]]);   
+
+const asyncIterFromQueue=  async function*( queue) {
+  while( true) {
+    yield await queue.get();
+   }
+ };
+
+const        makeWebWorkerWriter=  (workerContext)=>{
+  let index=  0;
+  /** @type {import('@endo/stream').Writer<Uint8Array>} */
+  const webWorkerWriter=  harden({
+    /** @param {Uint8Array} value */
+          async next(value){
+      // console.log('worker writer "next"', value, { isInWorker: typeof window === 'undefined' })
+      index++;
+      workerContext.postMessage({ index, type: 'next', value});
+     },
+          async return(value){
+      // console.log('worker writer "return"', value, { isInWorker: typeof window === 'undefined' })
+      index++;
+      workerContext.postMessage({ index, type: 'return'});
+     },
+    /**
+     * @param {Error} error
+     */
+          async throw(value){
+      // console.log('worker writer "throw"', value, { isInWorker: typeof window === 'undefined' })
+      index++;
+      workerContext.postMessage({ index, type: 'throw', value});
+     },
+    [Symbol.asyncIterator]() {
+      return webWorkerWriter;
+     }});
+
+  return webWorkerWriter;
+ };$h‍_once.makeWebWorkerWriter(makeWebWorkerWriter);
+
+const        makeWebWorkerReader=  (workerContext)=>{
+
+  const queue=  makeQueue();
+  // workerContext.addEventListener('message', event => {
+  //   queue.put(event.data);
+  // })
+  // const iterator = asyncIterFromQueue(queue);
+
+  const nextQueue=  makeQueue();
+  const returnQueue=  makeQueue();
+  const throwQueue=  makeQueue();
+  workerContext.addEventListener('message', (event)=>{
+    switch( event.data.type){
+      case 'next':
+        // console.log('worker reader "next"', event.data, { isInWorker: typeof window === 'undefined' })
+        queue.put({ value: event.data.value, done: false});
+        break;
+      case 'return':
+        // console.log('worker reader "return"', event.data, { isInWorker: typeof window === 'undefined' })
+        queue.put({ value: undefined, done: true});
+        break;
+      case 'throw':
+        // console.log('worker reader "throw"', event.data, { isInWorker: typeof window === 'undefined' })
+        queue.put(Promise.reject(event.data.value));
+        break;}
+
+   });
+
+  // Adapt the AsyncIterator to the more strict interface of a Stream: must
+  // have return and throw methods.
+  /** @type {import('@endo/stream').Reader<Buffer>} */
+  const reader=  {
+          async next(){
+      // console.log('> webworker reader next requested', { isInWorker: typeof window === 'undefined' })
+      const result=  await queue.get();
+      // console.log('< webworker reader next requested', result, { isInWorker: typeof window === 'undefined' })
+      return result;
+     },
+          async return(){
+      // console.log('> webworker reader return requested', { isInWorker: typeof window === 'undefined' })
+      debugger;
+      // const result = await returnQueue.get();
+      // console.log('< webworker reader return requested', { isInWorker: typeof window === 'undefined' })
+      // return result
+     },
+          async throw(error){
+      // console.log('> webworker reader throw requested', error, { isInWorker: typeof window === 'undefined' })
+      // send error over to worker?
+      // const result = await throwQueue.get();
+      debugger;
+      // console.log('< webworker reader throw requested', error, { isInWorker: typeof window === 'undefined' })
+      // return result
+     },
+    [Symbol.asyncIterator]() {
+      return reader;
+     }};
+
+
+  return reader;
+ };$h‍_once.makeWebWorkerReader(makeWebWorkerReader);
+})()
+,
+// === functors[179] ===
+({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,   importMeta: $h‍____meta, }) => (function () {   let makePromiseKit,makePipe,makeNodeReader,makeNodeWriter,EventEmitter,makeWebWorkerReader,makeWebWorkerWriter;$h‍_imports([["@endo/promise-kit", [["makePromiseKit", [$h‍_a => (makePromiseKit = $h‍_a)]]]],["@endo/stream", [["makePipe", [$h‍_a => (makePipe = $h‍_a)]]]],["@endo/stream-node", [["makeNodeReader", [$h‍_a => (makeNodeReader = $h‍_a)]],["makeNodeWriter", [$h‍_a => (makeNodeWriter = $h‍_a)]]]],["events", [["default", [$h‍_a => (EventEmitter = $h‍_a)]]]],["./web-worker-util.js", [["makeWebWorkerReader", [$h‍_a => (makeWebWorkerReader = $h‍_a)]],["makeWebWorkerWriter", [$h‍_a => (makeWebWorkerWriter = $h‍_a)]]]]]);   
+
 
 
 
@@ -55149,8 +55260,8 @@ const        makeHttpPowers=  ({ http, ws})=>   {
    * @param {object} args
    * @param {number} args.port
    * @param {string} args.host
-   * @param {import('./types.js').HttpRespond} [args.respond]
-   * @param {import('./types.js').HttpConnect} [args.connect]
+   * @param {import('../types.js').HttpRespond} [args.respond]
+   * @param {import('../types.js').HttpConnect} [args.connect]
    * @param {Promise<never>} args.cancelled
    */
   const servePortHttp=  async( {
@@ -55299,7 +55410,7 @@ const        makeHttpPowers=  ({ http, ws})=>   {
  * @param {typeof import('http')} modules.http
  * @param {Record<string, string | undefined>} modules.env
  * @param {(pid: number) => void} modules.kill
- * @returns {import('./types.js').DaemonicPowers}
+ * @returns {import('../types.js').DaemonicPowers}
  */$h‍_once.makeHttpPowers(makeHttpPowers);
 const        makePowers=  ({
   crypto,
@@ -55555,6 +55666,30 @@ const        makePowers=  ({
     cancelled)=>
        {
     console.info('makeWorker', id, path, logPath, pidPath, sockPath, statePath, ephemeralStatePath, cachePath, cancelled);
+    const myWorker=  new Worker('dist-worker-web-bundle.js');
+    const workerReadyP=  new Promise((resolve)=>myWorker.addEventListener('message', resolve, { once: true}));
+
+    const reader=  makeWebWorkerReader(myWorker);
+    const writer=  makeWebWorkerWriter(myWorker);
+
+    const workerClosed=  new Promise((resolve)=>{ });
+
+    await workerReadyP;
+    myWorker.postMessage({
+      id,
+      sockPath,
+      statePath,
+      ephemeralStatePath,
+      cachePath});
+
+
+    return {
+      reader,
+      writer,
+      closed: workerClosed,
+      pid: 123};
+
+
     // const log = fs.openSync(logPath, 'a');
     // const child = popen.fork(
     //   path,
@@ -55623,13 +55758,14 @@ const        makePowers=  ({
     // ...makeHttpPowers({ http, ws }),
     servePortHttp: async( opts)=>  {
       console.info('servePortHttp (for weblet)', opts);
+      return 1;
      }});
 
  };$h‍_once.makePowers(makePowers);
 })()
 ,
-// === functors[179] ===
-({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,   importMeta: $h‍____meta, }) => (function () {   let path,url,Buffer,configure,BFSRequire,makeDirectory,makePromiseKit,daemonMain,makePowers,makeNetstringCapTP,E,Far;$h‍_imports([["./environment.js", []],["ses", []],["@endo/promise-kit/shim.js", []],["@endo/lockdown/commit.js", []],["path-browserify", [["default", [$h‍_a => (path = $h‍_a)]]]],["url", [["default", [$h‍_a => (url = $h‍_a)]]]],["buffer", [["Buffer", [$h‍_a => (Buffer = $h‍_a)]]]],["browserfs", [["configure", [$h‍_a => (configure = $h‍_a)]],["BFSRequire", [$h‍_a => (BFSRequire = $h‍_a)]]]],["make-dir", [["default", [$h‍_a => (makeDirectory = $h‍_a)]]]],["@endo/promise-kit", [["makePromiseKit", [$h‍_a => (makePromiseKit = $h‍_a)]]]],["../daemon.js", [["main", [$h‍_a => (daemonMain = $h‍_a)]]]],["./daemon-web-powers.js", [["makePowers", [$h‍_a => (makePowers = $h‍_a)]]]],["../connection.js", [["makeNetstringCapTP", [$h‍_a => (makeNetstringCapTP = $h‍_a)]]]],["@endo/far", [["E", [$h‍_a => (E = $h‍_a)]],["Far", [$h‍_a => (Far = $h‍_a)]]]]]);   
+// === functors[180] ===
+({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,   importMeta: $h‍____meta, }) => (function () {   let url,Buffer,configure,BFSRequire,makeDirectory,makePromiseKit,daemonMain,makePowers,makeNetstringCapTP,E,Far;$h‍_imports([["./environment.js", []],["ses", []],["@endo/promise-kit/shim.js", []],["@endo/lockdown/commit.js", []],["url", [["default", [$h‍_a => (url = $h‍_a)]]]],["buffer", [["Buffer", [$h‍_a => (Buffer = $h‍_a)]]]],["browserfs", [["configure", [$h‍_a => (configure = $h‍_a)]],["BFSRequire", [$h‍_a => (BFSRequire = $h‍_a)]]]],["make-dir", [["default", [$h‍_a => (makeDirectory = $h‍_a)]]]],["@endo/promise-kit", [["makePromiseKit", [$h‍_a => (makePromiseKit = $h‍_a)]]]],["../daemon.js", [["main", [$h‍_a => (daemonMain = $h‍_a)]]]],["./daemon-web-powers.js", [["makePowers", [$h‍_a => (makePowers = $h‍_a)]]]],["../connection.js", [["makeNetstringCapTP", [$h‍_a => (makeNetstringCapTP = $h‍_a)]]]],["@endo/far", [["E", [$h‍_a => (E = $h‍_a)]],["Far", [$h‍_a => (Far = $h‍_a)]]]]]);   
 
 
 
@@ -55664,10 +55800,10 @@ const        makePowers=  ({
 //   );
 // }
 
-const sockPath=  'STATE/sock';
-const statePath=  'STATE/state';
-const ephemeralStatePath=  'STATE/ephemeralState';
-const cachePath=  'STATE/cache';
+const sockPath=  'DAEMON/sock';
+const statePath=  'DAEMON/state';
+const ephemeralStatePath=  'DAEMON/ephemeralState';
+const cachePath=  'DAEMON/cache';
 // const [sockPath, statePath, ephemeralStatePath, cachePath] = []
   // process.argv.slice(2);
 
@@ -55708,6 +55844,7 @@ async function main()  {
   // shim fs
   await new Promise((cb)=>configure({ fs: 'LocalStorage'},  cb));
   const fs=  BFSRequire('fs');
+  const path=  BFSRequire('path');
   fs.promises=  {
     readFile: cb2promise(fs, 'readFile'),
     writeFile: cb2promise(fs, 'writeFile'),
@@ -55818,18 +55955,44 @@ async function main()  {
     // const namespace = await import(importUrl);
     // const result = await namespace.main(powersP, ...args);
 
-    const main=  async( powers, ...args)=>  {
-      const patient=  E(powers).request(
-        'HOST',
-        'a pet for analysis',
-        'patient');
+    // const main = async (powers, ...args) => {
+    //   const patient = E(powers).request(
+    //     'HOST',
+    //     'a pet for analysis',
+    //     'patient',
+    //   );
+    // };
 
-     };
+    // await main(powersP, ...[]);
 
-    await main(powersP, ...[]);
+    // const inbox = await E(host).listMessages()
+    // console.log({inbox})
+    const counterSource=   `
+import { Far } from '@endo/far';
 
-    const inbox=  await E(host).listMessages();
-    console.log({inbox});
+export const make = () => {
+  let counter = 0;
+  return Far('Counter', {
+    incr() {
+      counter += 1;
+      return counter;
+    },
+  });
+};
+`;
+    console.log('writing counter.js');
+    await fs.writeFile('counter.js', counterSource);
+    // endo make counter.js --name counter
+    console.log('> endo make counter.js --name counter');
+    const result=  await E(host).importUnsafeAndEndow(
+      'NEW', // default
+      path.resolve('counter.js'),
+      'NONE', // default
+      'counter');
+
+    console.log('< endo make counter.js --name counter');
+
+    console.log(result);
 
    },200);
 
@@ -56230,9 +56393,6 @@ main();
     },
     {
       default: cell("default", {}),
-    },
-    {
-      default: cell("default", {}),
       apply: cell("apply"),
     },
     {
@@ -56474,6 +56634,9 @@ main();
       binstring2buf: cell("binstring2buf"),
       buf2string: cell("buf2string"),
       utf8border: cell("utf8border"),
+    },
+    {
+      default: cell("default", {}),
     },
     {
       default: cell("default", {}),
@@ -56877,6 +57040,10 @@ main();
     {
       default: cell("default", {}),
       once: cell("once"),
+    },
+    {
+      makeWebWorkerWriter: cell("makeWebWorkerWriter"),
+      makeWebWorkerReader: cell("makeWebWorkerReader"),
     },
     {
       makeHttpPowers: cell("makeHttpPowers"),
@@ -57884,40 +58051,40 @@ function wrapCjsFunctor(num) {
   });
   wrapCjsFunctor(58)({imports: {}});
   wrapCjsFunctor(59)({imports: {}});
-  wrapCjsFunctor(60)({imports: {}});
-  wrapCjsFunctor(61)({imports: {"./shams":60}});
-  wrapCjsFunctor(62)({imports: {}});
-  wrapCjsFunctor(63)({imports: {"./implementation":62}});
-  wrapCjsFunctor(64)({imports: {"function-bind":63}});
-  wrapCjsFunctor(65)({imports: {"has-symbols":61,"function-bind":63,"has":64}});
-  wrapCjsFunctor(66)({imports: {"function-bind":63,"get-intrinsic":65}});
-  wrapCjsFunctor(67)({imports: {"get-intrinsic":65,"./":66}});
-  wrapCjsFunctor(68)({imports: {"has-symbols/shams":60}});
-  wrapCjsFunctor(69)({imports: {"has-tostringtag/shams":68,"call-bind/callBound":67}});
-  wrapCjsFunctor(70)({imports: {"has-tostringtag/shams":68}});
-  wrapCjsFunctor(71)({imports: {}});
-  wrapCjsFunctor(72)({imports: {"is-callable":71}});
-  wrapCjsFunctor(73)({imports: {}});
-  wrapCjsFunctor(74)({imports: {"get-intrinsic":65}});
-  wrapCjsFunctor(75)({imports: {"for-each":72,"available-typed-arrays":73,"call-bind/callBound":67,"has-tostringtag/shams":68,"gopd":74}});
-  wrapCjsFunctor(76)({imports: {"for-each":72,"available-typed-arrays":73,"call-bind/callBound":67,"gopd":74,"has-tostringtag/shams":68,"is-typed-array":75}});
-  wrapCjsFunctor(77)({imports: {"is-arguments":69,"is-generator-function":70,"which-typed-array":76,"is-typed-array":75}});
+  wrapCjsFunctor(60)({imports: {"./shams":59}});
+  wrapCjsFunctor(61)({imports: {}});
+  wrapCjsFunctor(62)({imports: {"./implementation":61}});
+  wrapCjsFunctor(63)({imports: {"function-bind":62}});
+  wrapCjsFunctor(64)({imports: {"has-symbols":60,"function-bind":62,"has":63}});
+  wrapCjsFunctor(65)({imports: {"function-bind":62,"get-intrinsic":64}});
+  wrapCjsFunctor(66)({imports: {"get-intrinsic":64,"./":65}});
+  wrapCjsFunctor(67)({imports: {"has-symbols/shams":59}});
+  wrapCjsFunctor(68)({imports: {"has-tostringtag/shams":67,"call-bind/callBound":66}});
+  wrapCjsFunctor(69)({imports: {"has-tostringtag/shams":67}});
+  wrapCjsFunctor(70)({imports: {}});
+  wrapCjsFunctor(71)({imports: {"is-callable":70}});
+  wrapCjsFunctor(72)({imports: {}});
+  wrapCjsFunctor(73)({imports: {"get-intrinsic":64}});
+  wrapCjsFunctor(74)({imports: {"for-each":71,"available-typed-arrays":72,"call-bind/callBound":66,"has-tostringtag/shams":67,"gopd":73}});
+  wrapCjsFunctor(75)({imports: {"for-each":71,"available-typed-arrays":72,"call-bind/callBound":66,"gopd":73,"has-tostringtag/shams":67,"is-typed-array":74}});
+  wrapCjsFunctor(76)({imports: {"is-arguments":68,"is-generator-function":69,"which-typed-array":75,"is-typed-array":74}});
+  wrapCjsFunctor(77)({imports: {}});
   wrapCjsFunctor(78)({imports: {}});
-  wrapCjsFunctor(79)({imports: {}});
-  wrapCjsFunctor(80)({imports: {"util":81,"./inherits_browser.js":79}});
-  wrapCjsFunctor(81)({imports: {"./support/types":77,"./support/isBuffer":78,"inherits":80}});
-  wrapCjsFunctor(82)({imports: {"util":81}});
-  wrapCjsFunctor(83)({imports: {"./util.inspect":82}});
-  wrapCjsFunctor(84)({imports: {"get-intrinsic":65,"call-bind/callBound":67,"object-inspect":83}});
-  wrapCjsFunctor(85)({imports: {}});
-  wrapCjsFunctor(86)({imports: {"./formats":85}});
-  wrapCjsFunctor(87)({imports: {"side-channel":84,"./utils":86,"./formats":85}});
-  wrapCjsFunctor(88)({imports: {"./utils":86}});
-  wrapCjsFunctor(89)({imports: {"./stringify":87,"./parse":88,"./formats":85}});
-  wrapCjsFunctor(90)({imports: {"punycode":59,"qs":89}});
+  wrapCjsFunctor(79)({imports: {"util":80,"./inherits_browser.js":78}});
+  wrapCjsFunctor(80)({imports: {"./support/types":76,"./support/isBuffer":77,"inherits":79}});
+  wrapCjsFunctor(81)({imports: {"util":80}});
+  wrapCjsFunctor(82)({imports: {"./util.inspect":81}});
+  wrapCjsFunctor(83)({imports: {"get-intrinsic":64,"call-bind/callBound":66,"object-inspect":82}});
+  wrapCjsFunctor(84)({imports: {}});
+  wrapCjsFunctor(85)({imports: {"./formats":84}});
+  wrapCjsFunctor(86)({imports: {"side-channel":83,"./utils":85,"./formats":84}});
+  wrapCjsFunctor(87)({imports: {"./utils":85}});
+  wrapCjsFunctor(88)({imports: {"./stringify":86,"./parse":87,"./formats":84}});
+  wrapCjsFunctor(89)({imports: {"punycode":58,"qs":88}});
+  wrapCjsFunctor(90)({imports: {}});
   wrapCjsFunctor(91)({imports: {}});
-  wrapCjsFunctor(92)({imports: {}});
-  wrapCjsFunctor(93)({imports: {"base64-js":91,"ieee754":92}});
+  wrapCjsFunctor(92)({imports: {"base64-js":90,"ieee754":91}});
+  wrapCjsFunctor(93)({imports: {}});
   wrapCjsFunctor(94)({imports: {}});
   wrapCjsFunctor(95)({imports: {}});
   wrapCjsFunctor(96)({imports: {}});
@@ -57927,7 +58094,7 @@ function wrapCjsFunctor(num) {
   wrapCjsFunctor(100)({imports: {"../internal/debug":95,"../internal/constants":96,"../internal/re":97,"../internal/parse-options":98,"../internal/identifiers":99}});
   wrapCjsFunctor(101)({imports: {"../classes/semver":100}});
   wrapCjsFunctor(102)({imports: {"./compare":101}});
-  wrapCjsFunctor(103)({imports: {"fs":81,"path":58,"util":81,"semver/functions/gte":102}});
+  wrapCjsFunctor(103)({imports: {"fs":80,"path":94,"util":80,"semver/functions/gte":102}});
   functors[104]({
     imports(entries) {
       const map = new Map(entries);
@@ -58951,34 +59118,47 @@ function wrapCjsFunctor(num) {
   functors[178]({
     imports(entries) {
       const map = new Map(entries);
-      observeImports(map, "@endo/promise-kit", 107);
       observeImports(map, "@endo/stream", 150);
-      observeImports(map, "@endo/stream-node", 176);
-      observeImports(map, "events", 177);
     },
     liveVar: {
     },
     onceVar: {
-      makeHttpPowers: cells[178].makeHttpPowers.set,
-      makePowers: cells[178].makePowers.set,
+      makeWebWorkerWriter: cells[178].makeWebWorkerWriter.set,
+      makeWebWorkerReader: cells[178].makeWebWorkerReader.set,
     },
     importMeta: {},
   });
   functors[179]({
     imports(entries) {
       const map = new Map(entries);
+      observeImports(map, "@endo/promise-kit", 107);
+      observeImports(map, "@endo/stream", 150);
+      observeImports(map, "@endo/stream-node", 176);
+      observeImports(map, "events", 177);
+      observeImports(map, "./web-worker-util.js", 178);
+    },
+    liveVar: {
+    },
+    onceVar: {
+      makeHttpPowers: cells[179].makeHttpPowers.set,
+      makePowers: cells[179].makePowers.set,
+    },
+    importMeta: {},
+  });
+  functors[180]({
+    imports(entries) {
+      const map = new Map(entries);
       observeImports(map, "./environment.js", 0);
       observeImports(map, "ses", 52);
       observeImports(map, "@endo/promise-kit/shim.js", 54);
       observeImports(map, "@endo/lockdown/commit.js", 57);
-      observeImports(map, "path-browserify", 58);
-      observeImports(map, "url", 90);
-      observeImports(map, "buffer", 93);
-      observeImports(map, "browserfs", 94);
+      observeImports(map, "url", 89);
+      observeImports(map, "buffer", 92);
+      observeImports(map, "browserfs", 93);
       observeImports(map, "make-dir", 103);
       observeImports(map, "@endo/promise-kit", 107);
       observeImports(map, "../daemon.js", 173);
-      observeImports(map, "./daemon-web-powers.js", 178);
+      observeImports(map, "./daemon-web-powers.js", 179);
       observeImports(map, "../connection.js", 154);
       observeImports(map, "@endo/far", 131);
     },

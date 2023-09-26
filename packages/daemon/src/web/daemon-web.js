@@ -9,7 +9,7 @@ import '@endo/lockdown/commit.js';
 // import crypto from 'crypto-browserify';
 // import net from 'net';
 // import fs from 'fs';
-import path from 'path-browserify';
+// import path from 'path-browserify';
 // import popen from 'child_process';
 import url from 'url';
 // import http from 'http';
@@ -33,10 +33,10 @@ import { E, Far } from '@endo/far';
 //   );
 // }
 
-const sockPath = 'STATE/sock'
-const statePath = 'STATE/state'
-const ephemeralStatePath = 'STATE/ephemeralState'
-const cachePath = 'STATE/cache'
+const sockPath = 'DAEMON/sock'
+const statePath = 'DAEMON/state'
+const ephemeralStatePath = 'DAEMON/ephemeralState'
+const cachePath = 'DAEMON/cache'
 // const [sockPath, statePath, ephemeralStatePath, cachePath] = []
   // process.argv.slice(2);
 
@@ -77,6 +77,7 @@ async function main () {
   // shim fs
   await new Promise(cb => configure({ fs: 'LocalStorage' }, cb));
   const fs = BFSRequire('fs');
+  const path = BFSRequire('path');
   fs.promises = {
     readFile: cb2promise(fs, 'readFile'),
     writeFile: cb2promise(fs, 'writeFile'),
@@ -187,18 +188,44 @@ async function main () {
     // const namespace = await import(importUrl);
     // const result = await namespace.main(powersP, ...args);
 
-    const main = async (powers, ...args) => {
-      const patient = E(powers).request(
-        'HOST',
-        'a pet for analysis',
-        'patient',
-      );
-    };
+    // const main = async (powers, ...args) => {
+    //   const patient = E(powers).request(
+    //     'HOST',
+    //     'a pet for analysis',
+    //     'patient',
+    //   );
+    // };
 
-    await main(powersP, ...[]);
+    // await main(powersP, ...[]);
 
-    const inbox = await E(host).listMessages()
-    console.log({inbox})
+    // const inbox = await E(host).listMessages()
+    // console.log({inbox})
+    const counterSource = `
+import { Far } from '@endo/far';
+
+export const make = () => {
+  let counter = 0;
+  return Far('Counter', {
+    incr() {
+      counter += 1;
+      return counter;
+    },
+  });
+};
+`
+    console.log('writing counter.js');
+    await fs.writeFile('counter.js', counterSource)
+    // endo make counter.js --name counter
+    console.log('> endo make counter.js --name counter');
+    const result = await E(host).importUnsafeAndEndow(
+      'NEW', // default
+      path.resolve('counter.js'),
+      'NONE', // default
+      'counter',
+    )
+    console.log('< endo make counter.js --name counter');
+
+    console.log(result);
 
   }, 200)
 

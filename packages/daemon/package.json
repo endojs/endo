@@ -27,7 +27,10 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "exit 0",
+    "build": "node ./src/build-web.js",
+    "dev": "(trap 'kill 0' SIGINT; yarn dev:serve & yarn dev:build)",
+    "dev:serve": "serve -s ./src/web",
+    "dev:build": "nodemon --ignore 'src/web/dist-*.js' --exec yarn build",
     "prepack": "tsc --build jsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
@@ -73,7 +76,9 @@
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.27.5",
+    "nodemon": "^3.0.1",
     "prettier": "^3.0.0",
+    "serve": "^14.2.1",
     "typescript": "~5.2.2"
   },
   "files": [

@@ -6,6 +6,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import EventEmitter from 'events';
+import { makeWebWorkerReader, makeWebWorkerWriter } from './web-worker-util.js';
 
 const textEncoder = new TextEncoder();
 const medialIterationResult = harden({ done: false });
@@ -25,8 +26,8 @@ export const makeHttpPowers = ({ http, ws }) => {
    * @param {object} args
    * @param {number} args.port
    * @param {string} args.host
-   * @param {import('./types.js').HttpRespond} [args.respond]
-   * @param {import('./types.js').HttpConnect} [args.connect]
+   * @param {import('../types.js').HttpRespond} [args.respond]
+   * @param {import('../types.js').HttpConnect} [args.connect]
    * @param {Promise<never>} args.cancelled
    */
   const servePortHttp = async ({
@@ -175,7 +176,7 @@ export const makeHttpPowers = ({ http, ws }) => {
  * @param {typeof import('http')} modules.http
  * @param {Record<string, string | undefined>} modules.env
  * @param {(pid: number) => void} modules.kill
- * @returns {import('./types.js').DaemonicPowers}
+ * @returns {import('../types.js').DaemonicPowers}
  */
 export const makePowers = ({
   crypto,
@@ -431,6 +432,30 @@ export const makePowers = ({
     cancelled,
   ) => {
     console.info('makeWorker', id, path, logPath, pidPath, sockPath, statePath, ephemeralStatePath, cachePath, cancelled)
+    const myWorker = new Worker('dist-worker-web-bundle.js');
+    const workerReadyP = new Promise(resolve => myWorker.addEventListener('message', resolve, { once: true }))
+
+    const reader = makeWebWorkerReader(myWorker);
+    const writer = makeWebWorkerWriter(myWorker);
+    
+    const workerClosed = new Promise(resolve => {})
+
+    await workerReadyP
+    myWorker.postMessage({
+      id,
+      sockPath,
+      statePath,
+      ephemeralStatePath,
+      cachePath,
+    })
+
+    return {
+      reader,
+      writer,
+      closed: workerClosed,
+      pid: 123,
+    }
+    
     // const log = fs.openSync(logPath, 'a');
     // const child = popen.fork(
     //   path,
@@ -499,6 +524,7 @@ export const makePowers = ({
     // ...makeHttpPowers({ http, ws }),
     servePortHttp: async (opts) => {
       console.info('servePortHttp (for weblet)', opts)
+      return 1
     }
   });
 };

@@ -252,13 +252,17 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
+      console.log('> importUnsafeAndEndow provideWorkerFormulaIdentifier', { workerName, importPath, powersName, resultName })
       const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
         workerName,
       );
+      console.log('< importUnsafeAndEndow provideWorkerFormulaIdentifier', { workerName, importPath, powersName, resultName })
 
+      console.log('> importUnsafeAndEndow providePowersFormulaIdentifier', { workerName, importPath, powersName, resultName })
       const powersFormulaIdentifier = await providePowersFormulaIdentifier(
         powersName,
       );
+      console.log('< importUnsafeAndEndow providePowersFormulaIdentifier', { workerName, importPath, powersName, resultName })
 
       const formula = {
         /** @type {'import-unsafe'} */
@@ -268,14 +272,18 @@ export const makeHostMaker = ({
         importPath,
       };
 
+      console.log('> importUnsafeAndEndow provideValueForFormula', { workerName, importPath, powersName, resultName })
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const { formulaIdentifier, value } = await provideValueForFormula(
         formula,
         'import-unsafe-id512',
       );
+      console.log('< importUnsafeAndEndow provideValueForFormula', { workerName, importPath, powersName, resultName })
       if (resultName !== undefined) {
+        console.log('> importUnsafeAndEndow petStore.write', { workerName, importPath, powersName, resultName })
         await petStore.write(resultName, formulaIdentifier);
+        console.log('< importUnsafeAndEndow petStore.write', { workerName, importPath, powersName, resultName })
       }
       return value;
     };
