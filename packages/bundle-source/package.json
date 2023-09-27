@@ -29,9 +29,9 @@
     "lint:types": "tsc -p jsconfig.json"
   },
   "dependencies": {
-    "@agoric/babel-generator": "^7.17.4",
-    "@babel/parser": "^7.17.3",
-    "@babel/traverse": "^7.17.3",
+    "@babel/generator": "^8.0.0-alpha.3",
+    "@babel/parser": "^8.0.0-alpha.3",
+    "@babel/traverse": "^8.0.0-alpha.3",
     "@endo/base64": "^0.2.35",
     "@endo/compartment-mapper": "^0.9.2",
     "@endo/init": "^0.5.60",

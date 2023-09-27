@@ -36,10 +36,10 @@
     "test": "ava"
   },
   "dependencies": {
-    "@agoric/babel-generator": "^7.17.6",
-    "@babel/parser": "^7.17.3",
-    "@babel/traverse": "^7.17.3",
-    "@babel/types": "^7.17.0",
+    "@babel/generator": "^8.0.0-alpha.3",
+    "@babel/parser": "^8.0.0-alpha.3",
+    "@babel/traverse": "^8.0.0-alpha.3",
+    "@babel/types": "^8.0.0-alpha.3",
     "ses": "^0.18.8"
   },
   "devDependencies": {
