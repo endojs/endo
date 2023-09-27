@@ -56011,6 +56011,9 @@ async function main()  {
 
     console.log(result);
 
+    globalThis.E=  E;
+    globalThis.host=  host;
+
    },200);
 
   await daemonMain(powers, locator, process.pid, cancel, cancelled);
