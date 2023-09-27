@@ -55967,30 +55967,47 @@ async function main()  {
 
     // const inbox = await E(host).listMessages()
     // console.log({inbox})
-    const counterSource=   `
-import { Far } from '@endo/far';
 
-export const make = () => {
-  let counter = 0;
-  return Far('Counter', {
-    incr() {
-      counter += 1;
-      return counter;
-    },
-  });
-};
-`;
-    console.log('writing counter.js');
-    await fs.writeFile('counter.js', counterSource);
-    // endo make counter.js --name counter
-    console.log('> endo make counter.js --name counter');
-    const result=  await E(host).importUnsafeAndEndow(
-      'NEW', // default
-      path.resolve('counter.js'),
-      'NONE', // default
-      'counter');
+//     const counterSource = `
+// import { Far } from '@endo/far';
 
-    console.log('< endo make counter.js --name counter');
+// export const make = () => {
+//   let counter = 0;
+//   return Far('Counter', {
+//     incr() {
+//       counter += 1;
+//       return counter;
+//     },
+//   });
+// };
+// `
+//     console.log('writing counter.js');
+//     await fs.writeFile('counter.js', counterSource)
+//     // endo make counter.js --name counter
+//     console.log('> endo make counter.js --name counter');
+//     const result = await E(host).importUnsafeAndEndow(
+//       'NEW', // default
+//       path.resolve('counter.js'),
+//       'NONE', // default
+//       'counter',
+//     )
+//     console.log('< endo make counter.js --name counter');
+
+//     console.log(result);
+
+    /**
+     * @param {string | 'MAIN' | 'NEW'} workerName
+     * @param {string} source
+     * @param {Array<string>} codeNames
+     * @param {Array<string>} petNames
+     * @param {string} resultName
+     */
+    const result=  await E(host).evaluate(
+      'NEW',
+       `(15 + 6) * 2`,
+      [],
+      [],
+      'result');
 
     console.log(result);
 
