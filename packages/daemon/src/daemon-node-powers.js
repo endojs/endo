@@ -339,6 +339,7 @@ export const makeDiskPowers = ({
 /**
  * @param {object} opts
  * @param {import('./types.js').Locator} opts.locator
+ * @param {number} opts.pid
  * @param {typeof import('crypto')} opts.crypto
  * @param {typeof import('net')} opts.net
  * @param {typeof import('fs')} opts.fs
@@ -353,6 +354,7 @@ export const makeDiskPowers = ({
  */
 export const makePowers = ({
   locator,
+  pid,
   crypto,
   net,
   fs,
@@ -555,7 +557,7 @@ export const makePowers = ({
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   }
 
-  const finalizeInitialization = async (pid) => {
+  const finalizeInitialization = async () => {
     const { ephemeralStatePath } = locator;
     const pidPath = diskPowers.joinPath(ephemeralStatePath, 'endo.pid');
 

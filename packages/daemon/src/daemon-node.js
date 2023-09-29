@@ -16,7 +16,7 @@ import http from 'http';
 import * as ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
-import { main } from './daemon.js';
+import { makeDaemon } from './daemon.js';
 import { makePowers } from './daemon-node-powers.js';
 
 if (process.argv.length < 5) {
@@ -38,10 +38,11 @@ const locator = {
   cachePath,
 };
 
-const { env, kill } = process;
+const { pid, env, kill } = process;
 
 const powers = makePowers({
   locator,
+  pid,
   crypto,
   net,
   fs,
@@ -59,10 +60,20 @@ const { promise: cancelled, reject: cancel } =
     makePromiseKit()
   );
 
+const main = async () => {
+  const daemonLabel = `daemon on PID ${pid}`
+  console.log(`Endo daemon starting on PID ${pid}`);
+  cancelled.catch(() => {
+    console.log(`Endo daemon stopping on PID ${pid}`);
+  });
+  
+  await makeDaemon(powers, daemonLabel, cancel, cancelled);
+}
+
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
 process.exitCode = 1;
-main(powers, process.pid, cancel, cancelled).then(
+main().then(
   () => {
     process.exitCode = 0;
   },

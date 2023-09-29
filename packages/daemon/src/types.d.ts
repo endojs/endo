@@ -267,7 +267,7 @@ export type DaemonicPowers = {
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void
   ) => Promise<{ servicesStopped: Promise<void> }>;
-  finalizeInitialization: (pid: number | undefined) => Promise<void>;
+  finalizeInitialization: () => Promise<void>;
 
   delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
   sinkError: (error) => void;

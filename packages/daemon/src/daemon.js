@@ -490,15 +490,11 @@ const makeEndoBootstrap = (
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {number | undefined} pid
+ * @param {string} daemonLabel
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
  */
-export const main = async (powers, pid, cancel, cancelled) => {
-  console.log(`Endo daemon starting on PID ${pid}`);
-  cancelled.catch(() => {
-    console.log(`Endo daemon stopping on PID ${pid}`);
-  });
+export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
 
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
@@ -512,7 +508,7 @@ export const main = async (powers, pid, cancel, cancelled) => {
   const gracePeriodElapsed = cancelled.catch(async error => {
     await powers.delay(gracePeriodMs, gracePeriodCancelled);
     console.log(
-      `Endo daemon grace period ${gracePeriodMs}ms elapsed on PID ${pid}`,
+      `Endo daemon grace period ${gracePeriodMs}ms elapsed for ${daemonLabel}`,
     );
     throw error;
   });
@@ -543,7 +539,7 @@ export const main = async (powers, pid, cancel, cancelled) => {
 
   const { servicesStopped } = await powers.announceBootstrapReady(endoBootstrap, assignWebletPort, cancelled, exitWithError)
 
-  await powers.finalizeInitialization(pid);
+  await powers.finalizeInitialization();
 
   await servicesStopped;
 
