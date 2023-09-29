@@ -31,7 +31,7 @@
     "lint:js": "eslint .",
     "lint:types": "tsc",
     "postpack": "git clean -f '*.d.ts*'",
-    "prepack": "tsc --build jsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "test": "ava"
   },
   "devDependencies": {
