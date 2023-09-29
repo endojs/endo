@@ -76,5 +76,8 @@
   },
   "engines": {
     "node": ">=11.0"
+  },
+  "typeCoverage": {
+    "atLeast": 0
   }
 }
