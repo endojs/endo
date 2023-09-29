@@ -10,7 +10,7 @@ const validFormulaPattern =
   /^(?:host|pet-store|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe-id512|import-bundle-id512|host-id512|guest-id512):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
 
 /**
- * @param {import('./types.js').DaemonicPowers} powers
+ * @param {import('./types.js').DiskPowers} powers
  * @param {string} petNameDirectoryPath
  */
 const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
@@ -207,7 +207,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
 };
 
 /**
- * @param {import('./types.js').DaemonicPowers} powers
+ * @param {import('./types.js').DiskPowers} powers
  * @param {import('./types.js').Locator} locator
  * @param {string} id
  */
@@ -227,7 +227,7 @@ export const makeIdentifiedPetStore = (powers, locator, id) => {
 };
 
 /**
- * @param {import('./types.js').DaemonicPowers} powers
+ * @param {import('./types.js').DiskPowers} powers
  * @param {import('./types.js').Locator} locator
  * @param {string} name
  */

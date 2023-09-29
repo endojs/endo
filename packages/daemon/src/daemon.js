@@ -11,7 +11,6 @@ import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
-import { makeReaderRef } from './reader-ref.js';
 import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
@@ -65,21 +64,7 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeSha512ReadableBlob = sha512 => {
-    const storageDirectoryPath = powers.joinPath(
-      locator.statePath,
-      'store-sha512',
-    );
-    const storagePath = powers.joinPath(storageDirectoryPath, sha512);
-    const stream = async () => {
-      const reader = powers.makeFileReader(storagePath);
-      return makeReaderRef(reader);
-    };
-    const text = async () => {
-      return powers.readFileText(storagePath);
-    };
-    const json = async () => {
-      return JSON.parse(await text());
-    };
+    const { text, json, stream } = powers.makeHashedContentReadeableBlob(locator.statePath, sha512)
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
@@ -93,33 +78,12 @@ const makeEndoBootstrap = (
    * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
    */
   const storeReaderRef = async readerRef => {
-    const storageDirectoryPath = powers.joinPath(
-      locator.statePath,
-      'store-sha512',
-    );
-    await powers.makePath(storageDirectoryPath);
-
-    // Pump the reader into a temporary file and hash.
-    // We use a temporary file to avoid leaving a partially writen object,
-    // but also because we won't know the name we will use until we've
-    // completed the hash.
-    const digester = powers.makeSha512();
-    const storageId512 = await powers.randomHex512();
-    const temporaryStoragePath = powers.joinPath(
-      storageDirectoryPath,
-      storageId512,
-    );
-    const writer = powers.makeFileWriter(temporaryStoragePath);
+    const { writer, getSha512Hex } = await powers.makeHashedContentWriter(locator.statePath);
     for await (const chunk of makeRefReader(readerRef)) {
       await writer.next(chunk);
-      digester.update(chunk);
     }
     await writer.return(undefined);
-    const sha512 = digester.digestHex();
-
-    // Finish with an atomic rename.
-    const storagePath = powers.joinPath(storageDirectoryPath, sha512);
-    await powers.renamePath(temporaryStoragePath, storagePath);
+    const sha512 = await getSha512Hex();
 
     return `readable-blob-sha512:${sha512}`;
   };
@@ -139,26 +103,6 @@ const makeEndoBootstrap = (
   const makeIdentifiedWorker = async workerId512 => {
     // TODO validate workerId512
     const workerFormulaIdentifier = `worker-id512:${workerId512}`;
-    const workerCachePath = powers.joinPath(
-      locator.cachePath,
-      'worker-id512',
-      workerId512,
-    );
-    const workerStatePath = powers.joinPath(
-      locator.statePath,
-      'worker-id512',
-      workerId512,
-    );
-    const workerEphemeralStatePath = powers.joinPath(
-      locator.ephemeralStatePath,
-      'worker-id512',
-      workerId512,
-    );
-
-    await Promise.all([
-      powers.makePath(workerStatePath),
-      powers.makePath(workerEphemeralStatePath),
-    ]);
 
     const { reject: cancelWorker, promise: workerCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
@@ -166,11 +110,6 @@ const makeEndoBootstrap = (
       );
     cancelled.catch(async error => cancelWorker(error));
 
-    const logPath = powers.joinPath(workerStatePath, 'worker.log');
-    const workerPidPath = powers.joinPath(
-      workerEphemeralStatePath,
-      'worker.pid',
-    );
     const {
       reader,
       writer,
@@ -178,13 +117,7 @@ const makeEndoBootstrap = (
       pid: workerPid,
     } = await powers.makeWorker(
       workerId512,
-      powers.endoWorkerPath,
-      logPath,
-      workerPidPath,
-      locator.sockPath,
-      workerStatePath,
-      workerEphemeralStatePath,
-      workerCachePath,
+      locator,
       workerCancelled,
     );
 
@@ -383,72 +316,13 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} formulaType
-   * @param {string} formulaId512
-   */
-  const makeFormulaPath = (formulaType, formulaId512) => {
-    if (formulaId512.length < 3) {
-      throw new TypeError(
-        `Invalid formula identifier ${q(formulaId512)} for formula of type ${q(
-          formulaType,
-        )}`,
-      );
-    }
-    const head = formulaId512.slice(0, 2);
-    const tail = formulaId512.slice(3);
-    const directory = powers.joinPath(
-      locator.statePath,
-      'formulas',
-      formulaType,
-      head,
-    );
-    const file = powers.joinPath(directory, `${tail}.json`);
-    return { directory, file };
-  };
-
-  // Persist instructions for revival (this can be collected)
-  const writeFormula = async (formula, formulaType, formulaId512) => {
-    const { directory, file } = makeFormulaPath(formulaType, formulaId512);
-    // TODO Take care to write atomically with a rename here.
-    await powers.makePath(directory);
-    await powers.writeFileText(file, `${q(formula)}\n`);
-  };
-
-  /**
-   * @param {string} formulaIdentifier
-   * @param {string} formulaNumber
-   * @param {string} formulaPath
-   */
-  const makeValueForFormulaAtPath = async (
-    formulaIdentifier,
-    formulaNumber,
-    formulaPath,
-  ) => {
-    const formulaText = await powers.maybeReadFileText(formulaPath);
-    if (formulaText === undefined) {
-      throw new ReferenceError(`No reference exists at path ${formulaPath}`);
-    }
-    const formula = (() => {
-      try {
-        return JSON.parse(formulaText);
-      } catch (error) {
-        throw new TypeError(
-          `Corrupt description for reference in file ${formulaPath}: ${error.message}`,
-        );
-      }
-    })();
-    // TODO validate
-    return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
-  };
-
-  /**
    * @param {string} formulaIdentifier
    */
   const makeValueForFormulaIdentifier = async formulaIdentifier => {
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        return makeOwnPetStore(powers, locator, 'pet-store');
+        return makeOwnPetStore(powers.diskPowers, locator, 'pet-store');
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -484,7 +358,7 @@ const makeEndoBootstrap = (
     } else if (prefix === 'worker-id512') {
       return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
-      return makeIdentifiedPetStore(powers, locator, formulaNumber);
+      return makeIdentifiedPetStore(powers.diskPowers, locator, formulaNumber);
     } else if (prefix === 'host-id512') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -502,8 +376,9 @@ const makeEndoBootstrap = (
         'web-bundle',
       ].includes(prefix)
     ) {
-      const { file: path } = makeFormulaPath(prefix, formulaNumber);
-      return makeValueForFormulaAtPath(formulaIdentifier, formulaNumber, path);
+      const formula = await powers.readFormula(locator.statePath, prefix, formulaNumber);
+      // TODO validate
+      return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
     } else {
       throw new TypeError(
         `Invalid formula identifier, unrecognized type ${q(formulaIdentifier)}`,
@@ -523,7 +398,7 @@ const makeEndoBootstrap = (
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
 
-    await writeFormula(formula, formulaType, formulaNumber);
+    await powers.writeFormula(locator.statePath, formula, formulaType, formulaNumber);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const promiseForValue = makeValueForFormula(
@@ -628,7 +503,7 @@ const makeEndoBootstrap = (
   return endoBootstrap;
 };
 
-/*
+/**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').Locator} locator
  * @param {number | undefined} pid
@@ -664,10 +539,7 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     cancelGracePeriod(error);
   };
 
-  const statePathP = powers.makePath(locator.statePath);
-  const ephemeralStatePathP = powers.makePath(locator.ephemeralStatePath);
-  const cachePathP = powers.makePath(locator.cachePath);
-  await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
+  await powers.initializePersistence(locator);
 
   const requestedWebletPortText = powers.env.ENDO_HTTP_PORT;
   const requestedWebletPort = requestedWebletPortText
@@ -733,17 +605,7 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     },
   );
 
-  const pidPath = powers.joinPath(locator.ephemeralStatePath, 'endo.pid');
-
-  await powers
-    .readFileText(pidPath)
-    .then(pidText => {
-      const oldPid = Number(pidText);
-      powers.kill(oldPid);
-    })
-    .catch(() => {});
-
-  await powers.writeFileText(pidPath, `${pid}\n`);
+  await powers.updateDaemonPid(locator, pid);
 
   await Promise.all(services.map(({ stopped }) => stopped));
 

@@ -5,6 +5,9 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
+import { makeReaderRef } from './reader-ref.js';
+
+const { quote: q } = assert;
 
 const textEncoder = new TextEncoder();
 const medialIterationResult = harden({ done: false });
@@ -133,6 +136,7 @@ export const makeHttpPowers = ({ http, ws }) => {
             writer,
             closed: closed.then(() => {}),
           }),
+          // @ts-ignore
           harden({
             method: req.method,
             url: req.url,
@@ -162,6 +166,96 @@ export const makeHttpPowers = ({ http, ws }) => {
   return harden({ servePortHttp });
 };
 
+export const makeDiskPowers = ({
+  fs,
+  path: fspath,
+}) => {
+
+  /**
+   * @param {string} path
+   */
+  const makeFileReader = path => {
+    const nodeReadStream = fs.createReadStream(path);
+    return makeNodeReader(nodeReadStream);
+  };
+
+  /**
+   * @param {string} path
+   */
+  const makeFileWriter = path => {
+    const nodeWriteStream = fs.createWriteStream(path);
+    return makeNodeWriter(nodeWriteStream);
+  };
+
+  /**
+   * @param {string} path
+   * @param {string} text
+   */
+  const writeFileText = async (path, text) => {
+    await fs.promises.writeFile(path, text);
+  };
+
+  /**
+   * @param {string} path
+   */
+  const readFileText = async path => {
+    return fs.promises.readFile(path, 'utf-8');
+  };
+
+  /**
+   * @param {string} path
+   */
+  const maybeReadFileText = async path =>
+    readFileText(path).catch(error => {
+      if (
+        error.message.startsWith('ENOENT: ') ||
+        error.message.startsWith('EISDIR: ')
+      ) {
+        return undefined;
+      }
+      throw error;
+    });
+
+  /**
+   * @param {string} path
+   */
+  const readDirectory = async path => {
+    return fs.promises.readdir(path);
+  };
+
+  /**
+   * @param {string} path
+   */
+  const makePath = async path => {
+    await fs.promises.mkdir(path, { recursive: true });
+  };
+
+  /**
+   * @param {string} path
+   */
+  const removePath = async path => {
+    return fs.promises.rm(path);
+  };
+
+  const renamePath = async (source, target) =>
+    fs.promises.rename(source, target);
+
+  const joinPath = (...components) => fspath.join(...components);
+
+  return harden({
+    makeFileReader,
+    makeFileWriter,
+    writeFileText,
+    readFileText,
+    maybeReadFileText,
+    readDirectory,
+    makePath,
+    joinPath,
+    removePath,
+    renamePath,
+  });
+}
+
 /**
  * @param {object} modules
  * @param {typeof import('crypto')} modules.crypto
@@ -188,6 +282,8 @@ export const makePowers = ({
   kill,
   env,
 }) => {
+  const diskPowers = makeDiskPowers({ fs, path: fspath });
+
   /** @param {Error} error */
   const sinkError = error => {
     console.error(error);
@@ -279,76 +375,77 @@ export const makePowers = ({
     }
   };
 
-  /**
-   * @param {string} path
-   */
-  const makeFileReader = path => {
-    const nodeReadStream = fs.createReadStream(path);
-    return makeNodeReader(nodeReadStream);
+  const makeHashedContentReadeableBlob = (statePath, sha512) => {
+    const storageDirectoryPath = diskPowers.joinPath(
+      statePath,
+      'store-sha512',
+    );
+    const storagePath = diskPowers.joinPath(storageDirectoryPath, sha512);
+    const stream = async () => {
+      const reader = diskPowers.makeFileReader(storagePath);
+      return makeReaderRef(reader);
+    };
+    const text = async () => {
+      return diskPowers.readFileText(storagePath);
+    };
+    const json = async () => {
+      return JSON.parse(await text());
+    };
+    return { stream, text, json }
   };
 
-  /**
-   * @param {string} path
-   */
-  const makeFileWriter = path => {
-    const nodeWriteStream = fs.createWriteStream(path);
-    return makeNodeWriter(nodeWriteStream);
+  const makeHashedContentWriter = async (statePath) => {
+    const storageDirectoryPath = diskPowers.joinPath(
+      statePath,
+      'store-sha512',
+    );
+    await diskPowers.makePath(storageDirectoryPath);
+
+    // Pump the reader into a temporary file and hash.
+    // We use a temporary file to avoid leaving a partially writen object,
+    // but also because we won't know the name we will use until we've
+    // completed the hash.
+    const digester = makeSha512();
+    const storageId512 = await randomHex512();
+    const temporaryStoragePath = diskPowers.joinPath(
+      storageDirectoryPath,
+      storageId512,
+    );
+    const fileWriter = diskPowers.makeFileWriter(temporaryStoragePath);
+    const sha512Kit = makePromiseKit();
+
+    /** @type {import('@endo/stream').Writer<Uint8Array>} */
+    const hashedFileWriter = {
+      async next(chunk) {
+        digester.update(chunk);
+        return fileWriter.next(chunk);
+      },
+      async return() {
+        // Finish writing the file.
+        const result = await fileWriter.return(undefined);
+        // Calculate hash.
+        const sha512 = digester.digestHex();
+        // Finish with an atomic rename.
+        const storagePath = diskPowers.joinPath(storageDirectoryPath, sha512);
+        await diskPowers.renamePath(temporaryStoragePath, storagePath);
+        // Notify the caller of the hash.
+        sha512Kit.resolve(sha512);
+        return result;
+      },
+      async throw(error) {
+        return fileWriter.throw(error);
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    };
+
+    const getSha512Hex = () => {
+      return sha512Kit.promise;
+    }
+
+    return { writer: hashedFileWriter, getSha512Hex };
   };
-
-  /**
-   * @param {string} path
-   * @param {string} text
-   */
-  const writeFileText = async (path, text) => {
-    await fs.promises.writeFile(path, text);
-  };
-
-  /**
-   * @param {string} path
-   */
-  const readFileText = async path => {
-    return fs.promises.readFile(path, 'utf-8');
-  };
-
-  /**
-   * @param {string} path
-   */
-  const maybeReadFileText = async path =>
-    readFileText(path).catch(error => {
-      if (
-        error.message.startsWith('ENOENT: ') ||
-        error.message.startsWith('EISDIR: ')
-      ) {
-        return undefined;
-      }
-      throw error;
-    });
-
-  /**
-   * @param {string} path
-   */
-  const readDirectory = async path => {
-    return fs.promises.readdir(path);
-  };
-
-  /**
-   * @param {string} path
-   */
-  const makePath = async path => {
-    await fs.promises.mkdir(path, { recursive: true });
-  };
-
-  /**
-   * @param {string} path
-   */
-  const removePath = async path => {
-    return fs.promises.rm(path);
-  };
-
-  const renamePath = async (source, target) =>
-    fs.promises.rename(source, target);
-
-  const joinPath = (...components) => fspath.join(...components);
 
   const delay = async (ms, cancelled) => {
     // Do not attempt to set up a timer if already cancelled.
@@ -363,27 +460,123 @@ export const makePowers = ({
   };
 
   /**
-   * @param {string} id
-   * @param {string} path
-   * @param {string} logPath
-   * @param {string} pidPath
-   * @param {string} sockPath
    * @param {string} statePath
-   * @param {string} ephemeralStatePath
-   * @param {string} cachePath
+   * @param {string} formulaType
+   * @param {string} formulaId512
+   */
+  const makeFormulaPath = (statePath, formulaType, formulaId512) => {
+    if (formulaId512.length < 3) {
+      throw new TypeError(
+        `Invalid formula identifier ${q(formulaId512)} for formula of type ${q(
+          formulaType,
+        )}`,
+      );
+    }
+    const head = formulaId512.slice(0, 2);
+    const tail = formulaId512.slice(3);
+    const directory = diskPowers.joinPath(
+      statePath,
+      'formulas',
+      formulaType,
+      head,
+    );
+    const file = diskPowers.joinPath(directory, `${tail}.json`);
+    return { directory, file };
+  };
+
+  const readFormula = async (statePath, prefix, formulaNumber) => {
+    const { file: formulaPath } = makeFormulaPath(statePath, prefix, formulaNumber);
+    const formulaText = await diskPowers.maybeReadFileText(formulaPath);
+    if (formulaText === undefined) {
+      throw new ReferenceError(`No reference exists at path ${formulaPath}`);
+    }
+    const formula = (() => {
+      try {
+        return JSON.parse(formulaText);
+      } catch (error) {
+        throw new TypeError(
+          `Corrupt description for reference in file ${formulaPath}: ${error.message}`,
+        );
+      }
+    })();
+    return formula;
+  };
+
+  // Persist instructions for revival (this can be collected)
+  const writeFormula = async (statePath, formula, formulaType, formulaId512) => {
+    const { directory, file } = makeFormulaPath(statePath, formulaType, formulaId512);
+    // TODO Take care to write atomically with a rename here.
+    await diskPowers.makePath(directory);
+    await diskPowers.writeFileText(file, `${q(formula)}\n`);
+  };
+
+  const initializePersistence = async locator => {
+    const statePathP = diskPowers.makePath(locator.statePath);
+    const ephemeralStatePathP = diskPowers.makePath(locator.ephemeralStatePath);
+    const cachePathP = diskPowers.makePath(locator.cachePath);
+    await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
+  }
+
+  const updateDaemonPid = async (locator, pid) => {
+    const pidPath = diskPowers.joinPath(locator.ephemeralStatePath, 'endo.pid');
+
+    await diskPowers
+      .readFileText(pidPath)
+      .then(pidText => {
+        const oldPid = Number(pidText);
+        kill(oldPid);
+      })
+      .catch(() => {});
+
+    await diskPowers.writeFileText(pidPath, `${pid}\n`);
+  }
+
+  const { fileURLToPath } = url;
+
+  const endoWorkerPath = fileURLToPath(
+    new URL('worker-node.js', import.meta.url),
+  );
+
+  /**
+   * @param {string} id
+   * @param {import('./types.js').Locator} locator
    * @param {Promise<never>} cancelled
    */
   const makeWorker = async (
     id,
-    path,
-    logPath,
-    pidPath,
-    sockPath,
-    statePath,
-    ephemeralStatePath,
-    cachePath,
+    locator,
     cancelled,
   ) => {
+    const { sockPath } = locator;
+    const path = endoWorkerPath;
+
+    const cachePath = diskPowers.joinPath(
+      locator.cachePath,
+      'worker-id512',
+      id,
+    );
+    const statePath = diskPowers.joinPath(
+      locator.statePath,
+      'worker-id512',
+      id,
+    );
+    const ephemeralStatePath = diskPowers.joinPath(
+      locator.ephemeralStatePath,
+      'worker-id512',
+      id,
+    );
+
+    await Promise.all([
+      diskPowers.makePath(statePath),
+      diskPowers.makePath(ephemeralStatePath),
+    ]);
+
+    const logPath = diskPowers.joinPath(statePath, 'worker.log');
+    const pidPath = diskPowers.joinPath(
+      ephemeralStatePath,
+      'worker.pid',
+    );
+
     const log = fs.openSync(logPath, 'a');
     const child = popen.fork(
       path,
@@ -409,7 +602,7 @@ export const makePowers = ({
       child.on('exit', () => resolve(undefined));
     });
 
-    await writeFileText(pidPath, `${child.pid}\n`);
+    await diskPowers.writeFileText(pidPath, `${child.pid}\n`);
 
     cancelled.catch(async () => {
       child.kill();
@@ -417,12 +610,6 @@ export const makePowers = ({
 
     return { reader, writer, closed, pid: child.pid };
   };
-
-  const { fileURLToPath } = url;
-
-  const endoWorkerPath = fileURLToPath(
-    new URL('worker-node.js', import.meta.url),
-  );
 
   return harden({
     kill: pid => kill(pid),
@@ -434,21 +621,16 @@ export const makePowers = ({
     servePath,
     informParentWhenReady,
     reportErrorToParent,
-    makeFileReader,
-    makeFileWriter,
-    writeFileText,
-    readFileText,
-    maybeReadFileText,
-    readDirectory,
-    makePath,
-    joinPath,
-    removePath,
-    renamePath,
     delay,
     makeWorker,
-    endoWorkerPath,
     fileURLToPath,
-
+    diskPowers,
+    makeHashedContentWriter,
+    makeHashedContentReadeableBlob,
+    readFormula,
+    writeFormula,
+    initializePersistence,
+    updateDaemonPid,
     ...makeHttpPowers({ http, ws }),
   });
 };

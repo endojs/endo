@@ -1,4 +1,5 @@
 import type { ERef } from '@endo/eventual-send';
+import { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
 export type Locator = {
@@ -42,56 +43,6 @@ export type HttpConnect = (
   connection: Connection,
   request: HttpRequest,
 ) => void;
-
-export type DaemonicPowers = {
-  env: Record<string, string | undefined>;
-  sinkError: (error) => void;
-  makeSha512: () => Sha512;
-  randomHex512: () => Promise<string>;
-  servePath: (args: {
-    path: string;
-    host?: string;
-    cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
-  servePort: (args: {
-    port: number;
-    host?: string;
-    cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
-  servePortHttp: (args: {
-    port: number;
-    host?: string;
-    respond?: HttpRespond;
-    connect?: HttpConnect;
-    cancelled: Promise<never>;
-  }) => Promise<number>;
-  informParentWhenReady: () => void;
-  reportErrorToParent: (message: string) => void;
-  makeFileReader: (path: string) => Reader<Uint8Array>;
-  makeFileWriter: (path: string) => Writer<Uint8Array>;
-  readFileText: (path: string) => Promise<string>;
-  maybeReadFileText: (path: string) => Promise<string | undefined>;
-  readDirectory: (path: string) => Promise<Array<string>>;
-  writeFileText: (path: string, text: string) => Promise<void>;
-  makePath: (path: string) => Promise<void>;
-  renamePath: (source: string, target: string) => Promise<void>;
-  removePath: (path: string) => Promise<void>;
-  joinPath: (...components: Array<string>) => string;
-  delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
-  makeWorker: (
-    id: string,
-    path: string,
-    logPath: string,
-    pidPath: string,
-    sockPath: string,
-    statePath: string,
-    ephemeralStatePath: string,
-    cachePath: string,
-    cancelled: Promise<never>,
-  ) => Promise<Worker>;
-  endoWorkerPath: string;
-  fileURLToPath: (url: string) => string;
-};
 
 export type MignonicPowers = {
   pathToFileURL: (path: string) => string;
@@ -266,4 +217,64 @@ export type EndoWebBundle = {
   url: string;
   bundle: ERef<EndoReadable>;
   powers: ERef<unknown>;
+};
+
+export type DiskPowers = {
+  makeFileReader: (path: string) => Reader<Uint8Array>;
+  makeFileWriter: (path: string) => Writer<Uint8Array>;
+  writeFileText: (path: string, text: string) => Promise<void>;
+  readFileText: (path: string) => Promise<string>;
+  maybeReadFileText: (path: string) => Promise<string | undefined>;
+  readDirectory: (path: string) => Promise<Array<string>>;
+  makePath: (path: string) => Promise<void>;
+  joinPath: (...components: Array<string>) => string;
+  removePath: (path: string) => Promise<void>;
+  renamePath: (source: string, target: string) => Promise<void>;
+};
+
+export type DaemonicPowers = {
+  env: Record<string, string | undefined>;
+  sinkError: (error) => void;
+  makeSha512: () => Sha512;
+  randomHex512: () => Promise<string>;
+  servePath: (args: {
+    path: string;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePort: (args: {
+    port: number;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePortHttp: (args: {
+    port: number;
+    host?: string;
+    respond?: HttpRespond;
+    connect?: HttpConnect;
+    cancelled: Promise<never>;
+  }) => Promise<number>;
+  informParentWhenReady: () => void;
+  reportErrorToParent: (message: string) => void;
+  delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
+  makeWorker: (
+    id: string,
+    locator: Locator,
+    cancelled: Promise<never>,
+  ) => Promise<Worker>;
+  fileURLToPath: (url: string) => string;
+  makeHashedContentWriter: (statePath: string) => Promise<{
+    writer: Writer<Uint8Array>;
+    getSha512Hex: () => Promise<string>;
+  }>;
+  makeHashedContentReadeableBlob: (statePath: string, sha512: string) => {
+    stream: () => Promise<FarRef<Reader<Uint8Array>>>;
+    text: () => Promise<string>;
+    json: () => Promise<unknown>;
+  };
+  readFormula: (statePath: string, prefix: string, formulaNumber: string) => Promise<Formula>;
+  writeFormula: (statePath: string, formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
+  diskPowers: DiskPowers;
+  initializePersistence: (locator: Locator) => Promise<void>;
+  updateDaemonPid: (locator: Locator, pid: number | undefined) => Promise<void>;
 };
