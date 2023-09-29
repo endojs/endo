@@ -589,12 +589,23 @@ const makePatternKit = () => {
    * @param {string|number} [label]
    */
   const mustMatch = (specimen, patt, label = undefined) => {
-    if (checkMatches(specimen, patt, identChecker, label)) {
-      return;
+    let innerError;
+    try {
+      if (checkMatches(specimen, patt, identChecker, undefined)) {
+        return;
+      }
+    } catch (er) {
+      innerError = er;
     }
     // should only throw
     checkMatches(specimen, patt, assertChecker, label);
-    Fail`internal: ${label}: inconsistent pattern match: ${q(patt)}`;
+    const outerError = assert.error(
+      X`internal: ${label}: inconsistent pattern match: ${q(patt)}`,
+    );
+    if (innerError !== undefined) {
+      assert.note(outerError, X`caused by ${innerError}`);
+    }
+    throw outerError;
   };
 
   // /////////////////////// getRankCover //////////////////////////////////////
