@@ -517,7 +517,7 @@ export const makePowers = ({
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   }
 
-  const updateDaemonPid = async (locator, pid) => {
+  const finalizeInitialization = async (locator, pid) => {
     const pidPath = diskPowers.joinPath(locator.ephemeralStatePath, 'endo.pid');
 
     await diskPowers
@@ -612,25 +612,30 @@ export const makePowers = ({
   };
 
   return harden({
-    kill: pid => kill(pid),
-    env: { ...env },
+    // consumed powers (to be removed)
+    fileURLToPath,
+    diskPowers,
+    endoHttpPort: env.ENDO_HTTP_PORT,
+    // start stop platform hooks (to be removed)
+    initializePersistence,
+    finalizeInitialization,
+    // util
+    delay,
     sinkError,
     makeSha512,
     randomHex512,
-    servePort,
-    servePath,
+    // daemonic control powers
     informParentWhenReady,
     reportErrorToParent,
-    delay,
     makeWorker,
-    fileURLToPath,
-    diskPowers,
+    // daemonic storage powers
     makeHashedContentWriter,
     makeHashedContentReadeableBlob,
     readFormula,
     writeFormula,
-    initializePersistence,
-    updateDaemonPid,
+    // networking
+    servePort,
+    servePath,
     ...makeHttpPowers({ http, ws }),
   });
 };

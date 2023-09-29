@@ -233,10 +233,38 @@ export type DiskPowers = {
 };
 
 export type DaemonicPowers = {
-  env: Record<string, string | undefined>;
+  fileURLToPath: (url: string) => string;
+  diskPowers: DiskPowers;
+  endoHttpPort: string | undefined;
+
+  initializePersistence: (locator: Locator) => Promise<void>;
+  finalizeInitialization: (locator: Locator, pid: number | undefined) => Promise<void>;
+
+  delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
   sinkError: (error) => void;
   makeSha512: () => Sha512;
   randomHex512: () => Promise<string>;
+
+  informParentWhenReady: () => void;
+  reportErrorToParent: (message: string) => void;
+  makeWorker: (
+    id: string,
+    locator: Locator,
+    cancelled: Promise<never>,
+  ) => Promise<Worker>;
+
+  makeHashedContentWriter: (statePath: string) => Promise<{
+    writer: Writer<Uint8Array>;
+    getSha512Hex: () => Promise<string>;
+  }>;
+  makeHashedContentReadeableBlob: (statePath: string, sha512: string) => {
+    stream: () => Promise<FarRef<Reader<Uint8Array>>>;
+    text: () => Promise<string>;
+    json: () => Promise<unknown>;
+  };
+  readFormula: (statePath: string, prefix: string, formulaNumber: string) => Promise<Formula>;
+  writeFormula: (statePath: string, formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
+
   servePath: (args: {
     path: string;
     host?: string;
@@ -254,27 +282,5 @@ export type DaemonicPowers = {
     connect?: HttpConnect;
     cancelled: Promise<never>;
   }) => Promise<number>;
-  informParentWhenReady: () => void;
-  reportErrorToParent: (message: string) => void;
-  delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
-  makeWorker: (
-    id: string,
-    locator: Locator,
-    cancelled: Promise<never>,
-  ) => Promise<Worker>;
-  fileURLToPath: (url: string) => string;
-  makeHashedContentWriter: (statePath: string) => Promise<{
-    writer: Writer<Uint8Array>;
-    getSha512Hex: () => Promise<string>;
-  }>;
-  makeHashedContentReadeableBlob: (statePath: string, sha512: string) => {
-    stream: () => Promise<FarRef<Reader<Uint8Array>>>;
-    text: () => Promise<string>;
-    json: () => Promise<unknown>;
-  };
-  readFormula: (statePath: string, prefix: string, formulaNumber: string) => Promise<Formula>;
-  writeFormula: (statePath: string, formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
-  diskPowers: DiskPowers;
-  initializePersistence: (locator: Locator) => Promise<void>;
-  updateDaemonPid: (locator: Locator, pid: number | undefined) => Promise<void>;
+
 };

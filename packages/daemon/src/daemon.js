@@ -541,7 +541,7 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
 
   await powers.initializePersistence(locator);
 
-  const requestedWebletPortText = powers.env.ENDO_HTTP_PORT;
+  const requestedWebletPortText = powers.endoHttpPort;
   const requestedWebletPort = requestedWebletPortText
     ? Number(requestedWebletPortText)
     : defaultHttpPort;
@@ -605,7 +605,7 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     },
   );
 
-  await powers.updateDaemonPid(locator, pid);
+  await powers.finalizeInitialization(locator, pid);
 
   await Promise.all(services.map(({ stopped }) => stopped));
 
