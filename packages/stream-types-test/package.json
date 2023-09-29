@@ -48,6 +48,6 @@
     ]
   },
   "typeCoverage": {
-    "atLeast": 0
+    "atLeast": 100
   }
 }
