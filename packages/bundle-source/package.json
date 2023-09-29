@@ -26,7 +26,7 @@
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:eslint": "eslint '**/*.js'",
-    "lint:types": "tsc -p jsconfig.json"
+    "lint:types": "tsc"
   },
   "dependencies": {
     "@agoric/babel-generator": "^7.17.4",

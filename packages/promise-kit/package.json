@@ -32,7 +32,7 @@
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "test": "ava",
     "test:xs": "exit 0"
   },

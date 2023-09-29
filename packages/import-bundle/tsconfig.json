@@ -1,0 +1,10 @@
+{
+  "extends": "../../jsconfig.eslint-base.json",
+  "compilerOptions": {},
+  "include": [
+    "*.js",
+    "*.ts",
+    "src/**/*.js",
+    "src/**/*.ts"
+  ]
+}

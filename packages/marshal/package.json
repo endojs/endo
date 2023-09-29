@@ -19,7 +19,7 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint-check": "yarn lint",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "lint:eslint": "eslint '**/*.js'"
   },
   "repository": {

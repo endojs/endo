@@ -29,7 +29,7 @@
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "postpack": "git clean -f '*.d.ts*'",
     "prepack": "tsc --build jsconfig.build.json",
     "test": "ava"

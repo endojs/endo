@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "allowJs": true,
     "target": "esnext",
     "module": "esnext",
     "checkJs": true,
@@ -9,5 +10,7 @@
     "moduleResolution": "node"
   },
   "include": [],
-  "exclude": ["packages/test262-runner/test262"]
+  "exclude": [
+    "packages/test262-runner/test262"
+  ]
 }
