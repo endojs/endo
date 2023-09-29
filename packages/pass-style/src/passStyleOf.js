@@ -190,10 +190,13 @@ const makePassStyleOf = passStyleHelpers => {
   return harden(passStyleOf);
 };
 
+export const PassStyleOfEndowmentSymbol = Symbol.for('@endo passStyleOf');
+
 /**
- * If there is already a `VataData` global containing a `passStyleOf`,
- * then presumably it was endowed for us by liveslots, so we should use
- * and export that one instead. Other software may have left it for us here,
+ * If there is already a PassStyleOfEndowmentSymbol property on the global,
+ * then presumably it was endowed for us by liveslots with a `passStyleOf`
+ * function, so we should use and export that one instead.
+ * Other software may have left it for us here,
  * but it would require write access to our global, or the ability to
  * provide endowments to our global, both of which seems adequate as a test of
  * whether it is authorized to serve the same role as liveslots.
@@ -205,9 +208,7 @@ const makePassStyleOf = passStyleHelpers => {
  * @type {PassStyleOf}
  */
 export const passStyleOf =
-  // UNTIL https://github.com/endojs/endo/issues/1514
-  // Prefer: globalThis?.VatData?.passStyleOf ||
-  (globalThis && globalThis.VatData && globalThis.VatData.passStyleOf) ||
+  (globalThis && globalThis[PassStyleOfEndowmentSymbol]) ||
   makePassStyleOf([
     CopyArrayHelper,
     CopyRecordHelper,

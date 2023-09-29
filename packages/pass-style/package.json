@@ -19,6 +19,7 @@
   "exports": {
     ".": "./index.js",
     "./tools.js": "./tools.js",
+    "./endow.js": "./endow.js",
     "./package.json": "./package.json"
   },
   "scripts": {
