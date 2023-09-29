@@ -337,15 +337,8 @@ const makeEndoBootstrap = (
         return endoBootstrap;
       } else if (formulaIdentifier === 'least-authority') {
         return leastAuthority;
-      } else if (formulaIdentifier === 'web-page-js') {
-        return makeValueForFormula('web-page-js', zero512, {
-          type: /** @type {'import-unsafe'} */ ('import-unsafe'),
-          worker: `worker-id512:${zero512}`,
-          powers: 'host',
-          importPath: powers.fileURLToPath(
-            new URL('web-page-bundler.js', import.meta.url).href,
-          ),
-        });
+      } else if (powers.webPageFormula && formulaIdentifier === 'web-page-js') {
+        return makeValueForFormula('web-page-js', zero512, powers.webPageFormula);
       }
       throw new TypeError(
         `Formula identifier must have a colon: ${q(formulaIdentifier)}`,

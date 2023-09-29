@@ -233,7 +233,6 @@ export type DiskPowers = {
 };
 
 export type DaemonicPowers = {
-  fileURLToPath: (url: string) => string;
   diskPowers: DiskPowers;
   endoHttpPort: string | undefined;
 
@@ -264,6 +263,7 @@ export type DaemonicPowers = {
   };
   readFormula: (statePath: string, prefix: string, formulaNumber: string) => Promise<Formula>;
   writeFormula: (statePath: string, formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
+  webPageFormula?: Formula;
 
   servePath: (args: {
     path: string;

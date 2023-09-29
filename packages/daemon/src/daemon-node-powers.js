@@ -611,9 +611,20 @@ export const makePowers = ({
     return { reader, writer, closed, pid: child.pid };
   };
 
+  const zero512 =
+  '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+
+  const webPageFormula = {
+    type: /** @type {'import-unsafe'} */ ('import-unsafe'),
+    worker: `worker-id512:${zero512}`,
+    powers: 'host',
+    importPath: fileURLToPath(
+      new URL('web-page-bundler.js', import.meta.url).href,
+    ),
+  }
+
   return harden({
     // consumed powers (to be removed)
-    fileURLToPath,
     diskPowers,
     endoHttpPort: env.ENDO_HTTP_PORT,
     // start stop platform hooks (to be removed)
@@ -624,6 +635,7 @@ export const makePowers = ({
     sinkError,
     makeSha512,
     randomHex512,
+    webPageFormula,
     // daemonic control powers
     informParentWhenReady,
     reportErrorToParent,
