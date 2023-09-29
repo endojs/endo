@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.eslint-base.json",
   "compilerOptions": {
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "*.js",
