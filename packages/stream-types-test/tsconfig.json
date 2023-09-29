@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.eslint-base.json",
   "compilerOptions": {
+    "allowJs": true,
     "strict": true,
     "noImplicitAny": true
   },
