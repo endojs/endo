@@ -30,7 +30,7 @@
     "postpack": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "lint:js": "eslint .",
     "lint-fix": "eslint --fix .",
     "test": "ava"
