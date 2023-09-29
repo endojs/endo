@@ -13,8 +13,9 @@ const validFormulaPattern =
 
 /**
  * @param {import('./types.js').DiskPowers} diskPowers
+ * @param {import('./types.js').Locator} locator
  */
-export const makePetStoreMaker = (diskPowers) => {
+export const makePetStoreMaker = (diskPowers, locator) => {
 
   /**
    * @param {string} petNameDirectoryPath
@@ -217,10 +218,9 @@ export const makePetStoreMaker = (diskPowers) => {
   };
 
   /**
-   * @param {import('./types.js').Locator} locator
    * @param {string} id
    */
-  const makeIdentifiedPetStore = (locator, id) => {
+  const makeIdentifiedPetStore = (id) => {
     if (!validIdPattern.test(id)) {
       throw new Error(`Invalid identifier for pet store ${q(id)}`);
     }
@@ -236,10 +236,9 @@ export const makePetStoreMaker = (diskPowers) => {
   };
 
   /**
-   * @param {import('./types.js').Locator} locator
    * @param {string} name
    */
-  const makeOwnPetStore = (locator, name) => {
+  const makeOwnPetStore = (name) => {
     const petNameDirectoryPath = diskPowers.joinPath(locator.statePath, name);
     return makePetStoreAtPath(petNameDirectoryPath);
   };

@@ -235,8 +235,8 @@ export type DiskPowers = {
 };
 
 export type PetStorePowers = {
-  makeIdentifiedPetStore: (locator: Locator, id: string) => Promise<FarRef<PetStore>>;
-  makeOwnPetStore: (locator: Locator, name: string) => Promise<FarRef<PetStore>>;
+  makeIdentifiedPetStore: (id: string) => Promise<FarRef<PetStore>>;
+  makeOwnPetStore: (name: string) => Promise<FarRef<PetStore>>;
 };
 
 export type NetworkPowers = {
@@ -260,15 +260,14 @@ export type NetworkPowers = {
 }
 
 export type DaemonicPowers = {
-  initializePersistence: (locator: Locator) => Promise<void>;
+  initializePersistence: () => Promise<void>;
   announceBootstrapReady: (
-    locatior: Locator,
     endoBootstrap: FarRef<unknown>,
     assignWebletPort: (port: Promise<number>) => void,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void
   ) => Promise<{ servicesStopped: Promise<void> }>;
-  finalizeInitialization: (locator: Locator, pid: number | undefined) => Promise<void>;
+  finalizeInitialization: (pid: number | undefined) => Promise<void>;
 
   delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
   sinkError: (error) => void;
@@ -277,21 +276,20 @@ export type DaemonicPowers = {
 
   makeWorker: (
     id: string,
-    locator: Locator,
     cancelled: Promise<never>,
   ) => Promise<Worker>;
 
-  makeHashedContentWriter: (statePath: string) => Promise<{
+  makeHashedContentWriter: () => Promise<{
     writer: Writer<Uint8Array>;
     getSha512Hex: () => Promise<string>;
   }>;
-  makeHashedContentReadeableBlob: (statePath: string, sha512: string) => {
+  makeHashedContentReadeableBlob: (sha512: string) => {
     stream: () => Promise<FarRef<Stream<string>>>;
     text: () => Promise<string>;
     json: () => Promise<unknown>;
   };
-  readFormula: (statePath: string, prefix: string, formulaNumber: string) => Promise<Formula>;
-  writeFormula: (statePath: string, formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
+  readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
+  writeFormula: (formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
   webPageFormula?: Formula;
 
   petStorePowers: PetStorePowers;

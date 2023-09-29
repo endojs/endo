@@ -29,7 +29,6 @@ const leastAuthority = Far('EndoGuest', {
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {import('./types.js').Locator} locator
  * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {Promise<never>} args.cancelled
@@ -39,7 +38,6 @@ const leastAuthority = Far('EndoGuest', {
  */
 const makeEndoBootstrap = (
   powers,
-  locator,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
@@ -59,7 +57,7 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeSha512ReadableBlob = sha512 => {
-    const { text, json, stream } = powers.makeHashedContentReadeableBlob(locator.statePath, sha512)
+    const { text, json, stream } = powers.makeHashedContentReadeableBlob(sha512)
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
@@ -73,7 +71,7 @@ const makeEndoBootstrap = (
    * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
    */
   const storeReaderRef = async readerRef => {
-    const { writer, getSha512Hex } = await powers.makeHashedContentWriter(locator.statePath);
+    const { writer, getSha512Hex } = await powers.makeHashedContentWriter();
     for await (const chunk of makeRefReader(readerRef)) {
       await writer.next(chunk);
     }
@@ -112,7 +110,6 @@ const makeEndoBootstrap = (
       pid: workerPid,
     } = await powers.makeWorker(
       workerId512,
-      locator,
       workerCancelled,
     );
 
@@ -317,7 +314,7 @@ const makeEndoBootstrap = (
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        return petStorePowers.makeOwnPetStore(locator, 'pet-store');
+        return petStorePowers.makeOwnPetStore('pet-store');
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -346,7 +343,7 @@ const makeEndoBootstrap = (
     } else if (prefix === 'worker-id512') {
       return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
-      return petStorePowers.makeIdentifiedPetStore(locator, formulaNumber);
+      return petStorePowers.makeIdentifiedPetStore(formulaNumber);
     } else if (prefix === 'host-id512') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -364,7 +361,7 @@ const makeEndoBootstrap = (
         'web-bundle',
       ].includes(prefix)
     ) {
-      const formula = await powers.readFormula(locator.statePath, prefix, formulaNumber);
+      const formula = await powers.readFormula(prefix, formulaNumber);
       // TODO validate
       return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
     } else {
@@ -386,7 +383,7 @@ const makeEndoBootstrap = (
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
 
-    await powers.writeFormula(locator.statePath, formula, formulaType, formulaNumber);
+    await powers.writeFormula(formula, formulaType, formulaNumber);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const promiseForValue = makeValueForFormula(
@@ -493,12 +490,11 @@ const makeEndoBootstrap = (
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {import('./types.js').Locator} locator
  * @param {number | undefined} pid
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
  */
-export const main = async (powers, locator, pid, cancel, cancelled) => {
+export const main = async (powers, pid, cancel, cancelled) => {
   console.log(`Endo daemon starting on PID ${pid}`);
   cancelled.catch(() => {
     console.log(`Endo daemon stopping on PID ${pid}`);
@@ -527,7 +523,7 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     cancelGracePeriod(error);
   };
 
-  await powers.initializePersistence(locator);
+  await powers.initializePersistence();
 
   const { promise: assignedWebletPortP, resolve: assignWebletPort } =
     /** @type {import('@endo/promise-kit').PromiseKit<number>} */ (
@@ -536,7 +532,6 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
 
   const endoBootstrap = makeEndoBootstrap(
     powers,
-    locator,
     assignedWebletPortP,
     {
       cancelled,
@@ -546,9 +541,9 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     },
   );
 
-  const { servicesStopped } = await powers.announceBootstrapReady(locator, endoBootstrap, assignWebletPort, cancelled, exitWithError)
+  const { servicesStopped } = await powers.announceBootstrapReady(endoBootstrap, assignWebletPort, cancelled, exitWithError)
 
-  await powers.finalizeInitialization(locator, pid);
+  await powers.finalizeInitialization(pid);
 
   await servicesStopped;
 

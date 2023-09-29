@@ -337,20 +337,22 @@ export const makeDiskPowers = ({
 }
 
 /**
- * @param {object} modules
- * @param {typeof import('crypto')} modules.crypto
- * @param {typeof import('net')} modules.net
- * @param {typeof import('fs')} modules.fs
- * @param {typeof import('path')} modules.path
- * @param {typeof import('child_process')} modules.popen
- * @param {typeof import('url')} modules.url
- * @param {typeof import('ws')} modules.ws
- * @param {typeof import('http')} modules.http
- * @param {Record<string, string | undefined>} modules.env
- * @param {(pid: number) => void} modules.kill
+ * @param {object} opts
+ * @param {import('./types.js').Locator} opts.locator
+ * @param {typeof import('crypto')} opts.crypto
+ * @param {typeof import('net')} opts.net
+ * @param {typeof import('fs')} opts.fs
+ * @param {typeof import('path')} opts.path
+ * @param {typeof import('child_process')} opts.popen
+ * @param {typeof import('url')} opts.url
+ * @param {typeof import('ws')} opts.ws
+ * @param {typeof import('http')} opts.http
+ * @param {Record<string, string | undefined>} opts.env
+ * @param {(pid: number) => void} opts.kill
  * @returns {import('./types.js').DaemonicPowers}
  */
 export const makePowers = ({
+  locator,
   crypto,
   net,
   fs,
@@ -363,7 +365,7 @@ export const makePowers = ({
   env,
 }) => {
   const diskPowers = makeDiskPowers({ fs, path: fspath });
-  const petStorePowers = makePetStoreMaker(diskPowers);
+  const petStorePowers = makePetStoreMaker(diskPowers, locator);
   const networkPowers = makeNetworkPowers({ http, ws, net });
 
   /** @param {Error} error */
@@ -403,7 +405,8 @@ export const makePowers = ({
     }
   };
 
-  const makeHashedContentReadeableBlob = (statePath, sha512) => {
+  const makeHashedContentReadeableBlob = (sha512) => {
+    const { statePath } = locator;
     const storageDirectoryPath = diskPowers.joinPath(
       statePath,
       'store-sha512',
@@ -422,7 +425,8 @@ export const makePowers = ({
     return { stream, text, json }
   };
 
-  const makeHashedContentWriter = async (statePath) => {
+  const makeHashedContentWriter = async () => {
+    const { statePath } = locator;
     const storageDirectoryPath = diskPowers.joinPath(
       statePath,
       'store-sha512',
@@ -488,11 +492,11 @@ export const makePowers = ({
   };
 
   /**
-   * @param {string} statePath
    * @param {string} formulaType
    * @param {string} formulaId512
    */
-  const makeFormulaPath = (statePath, formulaType, formulaId512) => {
+  const makeFormulaPath = (formulaType, formulaId512) => {
+    const { statePath } = locator;
     if (formulaId512.length < 3) {
       throw new TypeError(
         `Invalid formula identifier ${q(formulaId512)} for formula of type ${q(
@@ -512,8 +516,13 @@ export const makePowers = ({
     return { directory, file };
   };
 
-  const readFormula = async (statePath, prefix, formulaNumber) => {
-    const { file: formulaPath } = makeFormulaPath(statePath, prefix, formulaNumber);
+  /**
+   * @param {string} prefix
+   * @param {string} formulaNumber
+   * @returns {Promise<import('./types.js').Formula>}
+   */
+  const readFormula = async (prefix, formulaNumber) => {
+    const { file: formulaPath } = makeFormulaPath(prefix, formulaNumber);
     const formulaText = await diskPowers.maybeReadFileText(formulaPath);
     if (formulaText === undefined) {
       throw new ReferenceError(`No reference exists at path ${formulaPath}`);
@@ -531,22 +540,24 @@ export const makePowers = ({
   };
 
   // Persist instructions for revival (this can be collected)
-  const writeFormula = async (statePath, formula, formulaType, formulaId512) => {
-    const { directory, file } = makeFormulaPath(statePath, formulaType, formulaId512);
+  const writeFormula = async (formula, formulaType, formulaId512) => {
+    const { directory, file } = makeFormulaPath(formulaType, formulaId512);
     // TODO Take care to write atomically with a rename here.
     await diskPowers.makePath(directory);
     await diskPowers.writeFileText(file, `${q(formula)}\n`);
   };
 
-  const initializePersistence = async locator => {
-    const statePathP = diskPowers.makePath(locator.statePath);
-    const ephemeralStatePathP = diskPowers.makePath(locator.ephemeralStatePath);
-    const cachePathP = diskPowers.makePath(locator.cachePath);
+  const initializePersistence = async () => {
+    const { statePath, ephemeralStatePath, cachePath } = locator;
+    const statePathP = diskPowers.makePath(statePath);
+    const ephemeralStatePathP = diskPowers.makePath(ephemeralStatePath);
+    const cachePathP = diskPowers.makePath(cachePath);
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   }
 
-  const finalizeInitialization = async (locator, pid) => {
-    const pidPath = diskPowers.joinPath(locator.ephemeralStatePath, 'endo.pid');
+  const finalizeInitialization = async (pid) => {
+    const { ephemeralStatePath } = locator;
+    const pidPath = diskPowers.joinPath(ephemeralStatePath, 'endo.pid');
 
     await diskPowers
       .readFileText(pidPath)
@@ -567,48 +578,45 @@ export const makePowers = ({
 
   /**
    * @param {string} id
-   * @param {import('./types.js').Locator} locator
    * @param {Promise<never>} cancelled
    */
   const makeWorker = async (
     id,
-    locator,
     cancelled,
   ) => {
-    const { sockPath } = locator;
-    const path = endoWorkerPath;
+    const { cachePath, statePath, ephemeralStatePath, sockPath } = locator;
 
-    const cachePath = diskPowers.joinPath(
-      locator.cachePath,
+    const workerCachePath = diskPowers.joinPath(
+      cachePath,
       'worker-id512',
       id,
     );
-    const statePath = diskPowers.joinPath(
-      locator.statePath,
+    const workerStatePath = diskPowers.joinPath(
+      statePath,
       'worker-id512',
       id,
     );
-    const ephemeralStatePath = diskPowers.joinPath(
-      locator.ephemeralStatePath,
+    const workerEphemeralStatePath = diskPowers.joinPath(
+      ephemeralStatePath,
       'worker-id512',
       id,
     );
 
     await Promise.all([
-      diskPowers.makePath(statePath),
-      diskPowers.makePath(ephemeralStatePath),
+      diskPowers.makePath(workerStatePath),
+      diskPowers.makePath(workerEphemeralStatePath),
     ]);
 
-    const logPath = diskPowers.joinPath(statePath, 'worker.log');
+    const logPath = diskPowers.joinPath(workerStatePath, 'worker.log');
     const pidPath = diskPowers.joinPath(
-      ephemeralStatePath,
+      workerEphemeralStatePath,
       'worker.pid',
     );
 
     const log = fs.openSync(logPath, 'a');
     const child = popen.fork(
-      path,
-      [id, sockPath, statePath, ephemeralStatePath, cachePath],
+      endoWorkerPath,
+      [id, sockPath, workerStatePath, workerEphemeralStatePath, workerCachePath],
       {
         stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
         // @ts-ignore Stale Node.js type definition.
@@ -653,14 +661,14 @@ export const makePowers = ({
 
   /**
    *
-   * @param {import('./types.js').Locator} locator
    * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
    * @param {(port: Promise<number>) => void} assignWebletPort
    * @param {Promise<never>} cancelled
    * @param {(error: Error) => void} exitWithError
    * @returns {Promise<{ servicesStopped: Promise<void> }>}
    */
-  const announceBootstrapReady = async (locator, endoBootstrap, assignWebletPort, cancelled, exitWithError) => {
+  const announceBootstrapReady = async (endoBootstrap, assignWebletPort, cancelled, exitWithError) => {
+    const { sockPath } = locator;
 
     const connectionNumbers = (function* generateNumbers() {
       let n = 0;
@@ -670,7 +678,7 @@ export const makePowers = ({
       }
     })();
 
-    const privatePathService = servePrivatePath(locator.sockPath, endoBootstrap, {
+    const privatePathService = servePrivatePath(sockPath, endoBootstrap, {
       servePath: networkPowers.servePath,
       connectionNumbers,
       cancelled,

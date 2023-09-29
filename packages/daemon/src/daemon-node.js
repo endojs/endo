@@ -41,6 +41,7 @@ const locator = {
 const { env, kill } = process;
 
 const powers = makePowers({
+  locator,
   crypto,
   net,
   fs,
@@ -61,7 +62,7 @@ const { promise: cancelled, reject: cancel } =
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
 process.exitCode = 1;
-main(powers, locator, process.pid, cancel, cancelled).then(
+main(powers, process.pid, cancel, cancelled).then(
   () => {
     process.exitCode = 0;
   },
