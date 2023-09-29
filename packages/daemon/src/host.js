@@ -1,3 +1,5 @@
+// @ts-check
+
 import { Far } from '@endo/far';
 import { assertPetName } from './pet-name.js';
 
@@ -65,13 +67,10 @@ export const makeHostMaker = ({
         formulaIdentifier = lookupFormulaIdentifierForName(petName);
       }
       if (formulaIdentifier === undefined) {
-        const id512 = await randomHex512();
-        const guestStoreFormulaIdentifier = `pet-store-id512:${id512}`;
         /** @type {import('./types.js').GuestFormula} */
         const formula = {
           type: /* @type {'guest'} */ 'guest',
           host: hostFormulaIdentifier,
-          store: guestStoreFormulaIdentifier,
         };
         const { value, formulaIdentifier: guestFormulaIdentifier } =
           // Behold, recursion:

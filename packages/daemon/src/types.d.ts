@@ -2,6 +2,8 @@ import type { ERef } from '@endo/eventual-send';
 import { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
+export type SomehowAsyncIterable<T> = AsyncIterable<T> | Iterable<T> | { next: () => IteratorResult<T> };
+
 export type Locator = {
   statePath: string;
   httpPort?: number;
@@ -136,12 +138,13 @@ export interface Topic<
 }
 
 export interface PetStore {
-  get(petName: string): string | undefined;
-  write(petName: string, formulaIdentifier: string): Promise<void>;
+  lookup(petName: string): string | undefined;
+  reverseLookup(formulaIdentifier: string): Array<string>;
   list(): Array<string>;
+  follow(): Promise<FarRef<Stream<unknown>>>;
+  write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
-  reverseLookup(formulaIdentifier: string): Array<string>;
 }
 
 export type RequestFn = (
@@ -178,7 +181,6 @@ export interface EndoGuest {
 export interface EndoHost {
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
-  provide(petName: string): Promise<unknown>;
   resolve(requestNumber: number, petName: string);
   reject(requestNumber: number, message: string);
   lookup(ref: object): Promise<Array<string>>;
@@ -233,8 +235,8 @@ export type DiskPowers = {
 };
 
 export type PetStorePowers = {
-  makeIdentifiedPetStore: (locator: Locator, id: string) => Promise<PetStore>;
-  makeOwnPetStore: (locator: Locator, name: string) => Promise<PetStore>;
+  makeIdentifiedPetStore: (locator: Locator, id: string) => Promise<FarRef<PetStore>>;
+  makeOwnPetStore: (locator: Locator, name: string) => Promise<FarRef<PetStore>>;
 };
 
 export type DaemonicPowers = {
@@ -261,7 +263,7 @@ export type DaemonicPowers = {
     getSha512Hex: () => Promise<string>;
   }>;
   makeHashedContentReadeableBlob: (statePath: string, sha512: string) => {
-    stream: () => Promise<FarRef<Reader<Uint8Array>>>;
+    stream: () => Promise<FarRef<Stream<string>>>;
     text: () => Promise<string>;
     json: () => Promise<unknown>;
   };

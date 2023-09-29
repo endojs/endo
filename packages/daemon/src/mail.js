@@ -1,3 +1,5 @@
+// @ts-check
+
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
@@ -100,6 +102,7 @@ export const makeMailboxMaker = ({
         }
         return undefined;
       }
+      // @ts-ignore
       throw new Error(`panic: Unknown message type ${message.type}`);
     };
 

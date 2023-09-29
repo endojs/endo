@@ -1,3 +1,5 @@
+// @ts-check
+
 import { Far } from '@endo/far';
 import { assertPetName } from './pet-name.js';
 import { makeChangeTopic } from './pubsub.js';
@@ -16,6 +18,7 @@ export const makePetStoreMaker = (diskPowers) => {
 
   /**
    * @param {string} petNameDirectoryPath
+   * @returns {Promise<import('@endo/far').FarRef<import('./types.js').PetStore>>}
    */
   const makePetStoreAtPath = async (petNameDirectoryPath) => {
     /** @type {Map<string, string>} */
@@ -199,7 +202,8 @@ export const makePetStoreMaker = (diskPowers) => {
       return harden([...formulaPetNames]);
     };
 
-    return Far('PetStore', {
+    /** @type {import('./types.js').PetStore} */
+    const petStore = {
       lookup,
       reverseLookup,
       list,
@@ -207,7 +211,9 @@ export const makePetStoreMaker = (diskPowers) => {
       write,
       remove,
       rename,
-    });
+    };
+
+    return Far('PetStore', petStore);
   };
 
   /**
