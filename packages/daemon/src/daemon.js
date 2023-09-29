@@ -14,15 +14,11 @@ import { makeRefReader } from './ref-reader.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
-import { servePrivatePortHttp } from './serve-private-port-http.js';
-import { servePrivatePath } from './serve-private-path.js';
 
 const { quote: q } = assert;
 
 const zero512 =
   '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
-
-const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
 
 /** @type {import('./types.js').EndoGuest} */
 const leastAuthority = Far('EndoGuest', {
@@ -533,11 +529,6 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
 
   await powers.initializePersistence(locator);
 
-  const requestedWebletPortText = powers.endoHttpPort;
-  const requestedWebletPort = requestedWebletPortText
-    ? Number(requestedWebletPortText)
-    : defaultHttpPort;
-
   const { promise: assignedWebletPortP, resolve: assignWebletPort } =
     /** @type {import('@endo/promise-kit').PromiseKit<number>} */ (
       makePromiseKit()
@@ -555,51 +546,11 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     },
   );
 
-  const connectionNumbers = (function* generateNumbers() {
-    let n = 0;
-    for (;;) {
-      yield n;
-      n += 1;
-    }
-  })();
-
-  const { servePath, servePortHttp } = powers;
-
-  const privatePathService = servePrivatePath(locator.sockPath, endoBootstrap, {
-    servePath,
-    connectionNumbers,
-    cancelled,
-    exitWithError,
-  });
-
-  const privateHttpService = servePrivatePortHttp(
-    requestedWebletPort,
-    endoBootstrap,
-    {
-      servePortHttp,
-      connectionNumbers,
-      cancelled,
-      exitWithError,
-    },
-  );
-
-  assignWebletPort(privateHttpService.started);
-
-  const services = [privatePathService, privateHttpService];
-
-  await Promise.all(services.map(({ started }) => started)).then(
-    () => {
-      powers.informParentWhenReady();
-    },
-    error => {
-      powers.reportErrorToParent(error.message);
-      throw error;
-    },
-  );
+  const { servicesStopped } = await powers.announceBootstrapReady(locator, endoBootstrap, assignWebletPort, cancelled, exitWithError)
 
   await powers.finalizeInitialization(locator, pid);
 
-  await Promise.all(services.map(({ stopped }) => stopped));
+  await servicesStopped;
 
   cancel(new Error('Terminated normally'));
   cancelGracePeriod(new Error('Terminated normally'));

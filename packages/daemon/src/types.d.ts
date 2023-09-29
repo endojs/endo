@@ -239,10 +239,35 @@ export type PetStorePowers = {
   makeOwnPetStore: (locator: Locator, name: string) => Promise<FarRef<PetStore>>;
 };
 
-export type DaemonicPowers = {
-  endoHttpPort: string | undefined;
+export type NetworkPowers = {
+  servePath: (args: {
+    path: string;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePort: (args: {
+    port: number;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePortHttp: (args: {
+    port: number;
+    host?: string;
+    respond?: HttpRespond;
+    connect?: HttpConnect;
+    cancelled: Promise<never>;
+  }) => Promise<number>;
+}
 
+export type DaemonicPowers = {
   initializePersistence: (locator: Locator) => Promise<void>;
+  announceBootstrapReady: (
+    locatior: Locator,
+    endoBootstrap: FarRef<unknown>,
+    assignWebletPort: (port: Promise<number>) => void,
+    cancelled: Promise<never>,
+    exitWithError: (error: Error) => void
+  ) => Promise<{ servicesStopped: Promise<void> }>;
   finalizeInitialization: (locator: Locator, pid: number | undefined) => Promise<void>;
 
   delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
@@ -250,8 +275,6 @@ export type DaemonicPowers = {
   makeSha512: () => Sha512;
   randomHex512: () => Promise<string>;
 
-  informParentWhenReady: () => void;
-  reportErrorToParent: (message: string) => void;
   makeWorker: (
     id: string,
     locator: Locator,
@@ -272,23 +295,4 @@ export type DaemonicPowers = {
   webPageFormula?: Formula;
 
   petStorePowers: PetStorePowers;
-
-  servePath: (args: {
-    path: string;
-    host?: string;
-    cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
-  servePort: (args: {
-    port: number;
-    host?: string;
-    cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
-  servePortHttp: (args: {
-    port: number;
-    host?: string;
-    respond?: HttpRespond;
-    connect?: HttpConnect;
-    cancelled: Promise<never>;
-  }) => Promise<number>;
-
 };

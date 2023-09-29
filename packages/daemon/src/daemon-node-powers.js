@@ -7,12 +7,16 @@ import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
+import { servePrivatePortHttp } from './serve-private-port-http.js';
+import { servePrivatePath } from './serve-private-path.js';
 
 const { quote: q } = assert;
 
 const textEncoder = new TextEncoder();
 const medialIterationResult = harden({ done: false });
 const finalIterationResult = harden({ done: false });
+
+const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
 
 /**
  * @param {object} modules
@@ -167,6 +171,81 @@ export const makeHttpPowers = ({ http, ws }) => {
   return harden({ servePortHttp });
 };
 
+/**
+ * @param {object} modules
+ * @param {typeof import('net')} modules.net
+ * @param {typeof import('http')} modules.http
+ * @param {typeof import('ws')} modules.ws
+ * @returns {import('./types.js').NetworkPowers}
+ */
+export const makeNetworkPowers = ({
+  http,
+  ws,
+  net,
+}) => {
+  const { servePortHttp } = makeHttpPowers({ http, ws });
+
+  const serveListener = async (listen, cancelled) => {
+    const [
+      /** @type {Reader<import('./types.js').Connection>} */ readFrom,
+      /** @type {Writer<import('./types.js').Connection} */ writeTo,
+    ] = makePipe();
+
+    const server = net.createServer();
+    const { promise: erred, reject: err } = makePromiseKit();
+    server.on('error', error => {
+      err(error);
+      void writeTo.throw(error);
+    });
+    server.on('close', () => {
+      void writeTo.return(undefined);
+    });
+
+    cancelled.catch(error => {
+      server.close();
+      void writeTo.throw(error);
+    });
+
+    const listening = listen(server);
+
+    await Promise.race([erred, cancelled, listening]);
+
+    server.on('connection', conn => {
+      const reader = makeNodeReader(conn);
+      const writer = makeNodeWriter(conn);
+      const closed = new Promise(resolve => conn.on('close', resolve));
+      // TODO Respect back-pressure signal and avoid accepting new connections.
+      void writeTo.next({ reader, writer, closed });
+    });
+
+    return readFrom;
+  };
+
+  const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
+    serveListener(
+      server =>
+        new Promise(resolve =>
+          server.listen(port, host, () => resolve(undefined)),
+        ),
+      cancelled,
+    );
+
+  const servePath = async ({ path, cancelled }) =>
+    serveListener(
+      server =>
+        new Promise(resolve =>
+          server.listen({ path }, () => resolve(undefined)),
+        ),
+      cancelled,
+    );
+
+  return harden({
+    servePortHttp,
+    servePort,
+    servePath,
+  });
+}
+
 export const makeDiskPowers = ({
   fs,
   path: fspath,
@@ -285,6 +364,7 @@ export const makePowers = ({
 }) => {
   const diskPowers = makeDiskPowers({ fs, path: fspath });
   const petStorePowers = makePetStoreMaker(diskPowers);
+  const networkPowers = makeNetworkPowers({ http, ws, net });
 
   /** @param {Error} error */
   const sinkError = error => {
@@ -309,60 +389,6 @@ export const makePowers = ({
           resolve(bytes.toString('hex'));
         }
       }),
-    );
-
-  const serveListener = async (listen, cancelled) => {
-    const [
-      /** @type {Reader<import('./types.js').Connection>} */ readFrom,
-      /** @type {Writer<import('./types.js').Connection} */ writeTo,
-    ] = makePipe();
-
-    const server = net.createServer();
-    const { promise: erred, reject: err } = makePromiseKit();
-    server.on('error', error => {
-      err(error);
-      void writeTo.throw(error);
-    });
-    server.on('close', () => {
-      void writeTo.return(undefined);
-    });
-
-    cancelled.catch(error => {
-      server.close();
-      void writeTo.throw(error);
-    });
-
-    const listening = listen(server);
-
-    await Promise.race([erred, cancelled, listening]);
-
-    server.on('connection', conn => {
-      const reader = makeNodeReader(conn);
-      const writer = makeNodeWriter(conn);
-      const closed = new Promise(resolve => conn.on('close', resolve));
-      // TODO Respect back-pressure signal and avoid accepting new connections.
-      void writeTo.next({ reader, writer, closed });
-    });
-
-    return readFrom;
-  };
-
-  const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
-    serveListener(
-      server =>
-        new Promise(resolve =>
-          server.listen(port, host, () => resolve(undefined)),
-        ),
-      cancelled,
-    );
-
-  const servePath = async ({ path, cancelled }) =>
-    serveListener(
-      server =>
-        new Promise(resolve =>
-          server.listen({ path }, () => resolve(undefined)),
-        ),
-      cancelled,
     );
 
   const informParentWhenReady = () => {
@@ -625,11 +651,68 @@ export const makePowers = ({
     ),
   }
 
+  /**
+   *
+   * @param {import('./types.js').Locator} locator
+   * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
+   * @param {(port: Promise<number>) => void} assignWebletPort
+   * @param {Promise<never>} cancelled
+   * @param {(error: Error) => void} exitWithError
+   * @returns {Promise<{ servicesStopped: Promise<void> }>}
+   */
+  const announceBootstrapReady = async (locator, endoBootstrap, assignWebletPort, cancelled, exitWithError) => {
+
+    const connectionNumbers = (function* generateNumbers() {
+      let n = 0;
+      for (;;) {
+        yield n;
+        n += 1;
+      }
+    })();
+
+    const privatePathService = servePrivatePath(locator.sockPath, endoBootstrap, {
+      servePath: networkPowers.servePath,
+      connectionNumbers,
+      cancelled,
+      exitWithError,
+    });
+
+    const requestedWebletPortText = env.ENDO_HTTP_PORT;
+    const requestedWebletPort = requestedWebletPortText
+      ? Number(requestedWebletPortText)
+      : defaultHttpPort;
+    const privateHttpService = servePrivatePortHttp(
+      requestedWebletPort,
+      endoBootstrap,
+      {
+        servePortHttp: networkPowers.servePortHttp,
+        connectionNumbers,
+        cancelled,
+        exitWithError,
+      },
+    );
+
+    assignWebletPort(privateHttpService.started);
+
+    const services = [privatePathService, privateHttpService];
+
+    await Promise.all(services.map(({ started }) => started)).then(() => {
+      informParentWhenReady();
+    },
+    error => {
+      reportErrorToParent(error.message);
+      throw error;
+    })
+
+    const servicesStopped = Promise.all(services.map(({ stopped }) => stopped)).then(() => {});
+
+    return { servicesStopped };
+  }
+
   return harden({
-    // consumed powers (to be removed)
-    endoHttpPort: env.ENDO_HTTP_PORT,
     // start stop platform hooks (to be removed)
     initializePersistence,
+    announceBootstrapReady,
     finalizeInitialization,
     // util
     delay,
@@ -637,8 +720,6 @@ export const makePowers = ({
     makeSha512,
     randomHex512,
     // daemonic control powers
-    informParentWhenReady,
-    reportErrorToParent,
     makeWorker,
     // daemonic storage powers
     makeHashedContentWriter,
@@ -648,9 +729,5 @@ export const makePowers = ({
     webPageFormula,
     // petstore
     petStorePowers,
-    // networking
-    servePort,
-    servePath,
-    ...makeHttpPowers({ http, ws }),
   });
 };
