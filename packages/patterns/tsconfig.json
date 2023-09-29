@@ -1,5 +1,5 @@
 {
-  "extends": "../../jsconfig.eslint-base.json",
+  "extends": "../../tsconfig.eslint-base.json",
   "include": [
     "*.js",
     "*.ts",
