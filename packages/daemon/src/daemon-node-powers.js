@@ -6,6 +6,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { makeReaderRef } from './reader-ref.js';
+import { makePetStoreMaker } from './pet-store.js';
 
 const { quote: q } = assert;
 
@@ -283,6 +284,7 @@ export const makePowers = ({
   env,
 }) => {
   const diskPowers = makeDiskPowers({ fs, path: fspath });
+  const petStorePowers = makePetStoreMaker(diskPowers);
 
   /** @param {Error} error */
   const sinkError = error => {
@@ -625,7 +627,6 @@ export const makePowers = ({
 
   return harden({
     // consumed powers (to be removed)
-    diskPowers,
     endoHttpPort: env.ENDO_HTTP_PORT,
     // start stop platform hooks (to be removed)
     initializePersistence,
@@ -635,7 +636,6 @@ export const makePowers = ({
     sinkError,
     makeSha512,
     randomHex512,
-    webPageFormula,
     // daemonic control powers
     informParentWhenReady,
     reportErrorToParent,
@@ -645,6 +645,9 @@ export const makePowers = ({
     makeHashedContentReadeableBlob,
     readFormula,
     writeFormula,
+    webPageFormula,
+    // petstore
+    petStorePowers,
     // networking
     servePort,
     servePath,

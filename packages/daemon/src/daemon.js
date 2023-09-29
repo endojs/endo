@@ -11,7 +11,6 @@ import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
-import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
@@ -48,7 +47,7 @@ const makeEndoBootstrap = (
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
-  const { randomHex512, makeSha512 } = powers;
+  const { randomHex512, makeSha512, petStorePowers } = powers;
 
   /** @type {Map<string, unknown>} */
   const valuePromiseForFormulaIdentifier = new Map();
@@ -322,7 +321,7 @@ const makeEndoBootstrap = (
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        return makeOwnPetStore(powers.diskPowers, locator, 'pet-store');
+        return petStorePowers.makeOwnPetStore(locator, 'pet-store');
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -351,7 +350,7 @@ const makeEndoBootstrap = (
     } else if (prefix === 'worker-id512') {
       return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
-      return makeIdentifiedPetStore(powers.diskPowers, locator, formulaNumber);
+      return petStorePowers.makeIdentifiedPetStore(locator, formulaNumber);
     } else if (prefix === 'host-id512') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define

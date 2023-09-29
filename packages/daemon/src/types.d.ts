@@ -232,8 +232,12 @@ export type DiskPowers = {
   renamePath: (source: string, target: string) => Promise<void>;
 };
 
+export type PetStorePowers = {
+  makeIdentifiedPetStore: (locator: Locator, id: string) => Promise<PetStore>;
+  makeOwnPetStore: (locator: Locator, name: string) => Promise<PetStore>;
+};
+
 export type DaemonicPowers = {
-  diskPowers: DiskPowers;
   endoHttpPort: string | undefined;
 
   initializePersistence: (locator: Locator) => Promise<void>;
@@ -264,6 +268,8 @@ export type DaemonicPowers = {
   readFormula: (statePath: string, prefix: string, formulaNumber: string) => Promise<Formula>;
   writeFormula: (statePath: string, formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
   webPageFormula?: Formula;
+
+  petStorePowers: PetStorePowers;
 
   servePath: (args: {
     path: string;
