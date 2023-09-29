@@ -69,5 +69,8 @@
     "extends": [
       "plugin:@endo/internal"
     ]
+  },
+  "typeCoverage": {
+    "atLeast": 0
   }
 }

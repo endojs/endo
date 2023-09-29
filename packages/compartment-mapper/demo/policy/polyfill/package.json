@@ -5,5 +5,8 @@
   "type": "module",
   "scripts": {
     "preinstall": "echo DO NOT CALL INSTALL SCRIPTS; exit -1"
+  },
+  "typeCoverage": {
+    "atLeast": 0
   }
 }
