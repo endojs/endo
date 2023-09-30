@@ -8,10 +8,12 @@ import {
   arraySlice,
   create,
   defineProperties,
+  errorToString,
   fromEntries,
   reflectSet,
   regexpExec,
   regexpTest,
+  stringReplace,
   weakmapGet,
   weakmapSet,
   weaksetAdd,
@@ -260,7 +262,7 @@ export const tameV8ErrorConstructor = (
       if (errorTaming === 'unsafe') {
         const stackString = stackStringFromSST(error, sst);
         weakmapSet(stackInfos, error, { stackString });
-        return `${error}${stackString}`;
+        return `${errorToString(error)}${stackString}`;
       } else {
         weakmapSet(stackInfos, error, { callSites: sst });
         return '';
@@ -300,9 +302,10 @@ export const tameV8ErrorConstructor = (
     const systemMethods = {
       prepareStackTrace(error, sst) {
         const stackInfo = {};
+        const safeCallSites = safeV8SST(sst);
+        let preparedStack;
         try {
-          const safeCallSites = safeV8SST(sst);
-          const preparedStack = inputPrepareFn(error, safeCallSites);
+          preparedStack = inputPrepareFn(error, safeCallSites);
           if (preparedStack === safeCallSites) {
             // Handle depd and similar prepareStackTrace which return the structured stack trace
             stackInfo.callSites = sst;
@@ -311,7 +314,7 @@ export const tameV8ErrorConstructor = (
             typeof preparedStack === 'string' &&
             preparedStack !== ''
           ) {
-            stackInfo.stackString = preparedStack;
+            stackInfo.stackString = stringReplace(preparedStack, /^[\n]+/, '');
           } else {
             // We just need to get to the `catch` clause
             // eslint-disable-next-line no-throw-literal
@@ -320,6 +323,7 @@ export const tameV8ErrorConstructor = (
         } catch (_err) {
           if (errorTaming === 'unsafe') {
             stackInfo.stackString = stackStringFromSST(error, sst);
+            preparedStack = `${errorToString(error)}${stackInfo.stackString}`;
           } else {
             stackInfo.callSites = sst;
           }
@@ -327,7 +331,7 @@ export const tameV8ErrorConstructor = (
           weakmapSet(stackInfos, error, stackInfo);
         }
 
-        return errorTaming === 'unsafe' ? stackInfo.stackString : '';
+        return errorTaming === 'unsafe' ? preparedStack : '';
       },
     };
     weaksetAdd(systemPrepareFnSet, systemMethods.prepareStackTrace);
