@@ -221,6 +221,11 @@ export type EndoWebBundle = {
   powers: ERef<unknown>;
 };
 
+export type CryptoPowers = {
+  makeSha512: () => Sha512;
+  randomHex512: () => Promise<string>;
+};
+
 export type DiskPowers = {
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
@@ -257,28 +262,23 @@ export type NetworkPowers = {
     connect?: HttpConnect;
     cancelled: Promise<never>;
   }) => Promise<number>;
-}
-
-export type DaemonicPowers = {
-  initializePersistence: () => Promise<void>;
-  announceBootstrapReady: (
+  makePrivatePathService: (
     endoBootstrap: FarRef<unknown>,
-    assignWebletPort: (port: Promise<number>) => void,
+    sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void
-  ) => Promise<{ servicesStopped: Promise<void> }>;
-  finalizeInitialization: () => Promise<void>;
-
-  delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
-  sinkError: (error) => void;
-  makeSha512: () => Sha512;
-  randomHex512: () => Promise<string>;
-
-  makeWorker: (
-    id: string,
+  ) => { started: () => Promise<void>; stopped: Promise<void> };
+  makePrivateHttpService: (
+    endoBootstrap: FarRef<unknown>,
+    port: number,
+    assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,
-  ) => Promise<Worker>;
+    exitWithError: (error: Error) => void
+  ) => { started: () => Promise<void>; stopped: Promise<void> };
+}
 
+export type DaemonicPersistencePowers = {
+  initializePersistence: () => Promise<void>;
   makeHashedContentWriter: () => Promise<{
     writer: Writer<Uint8Array>;
     getSha512Hex: () => Promise<string>;
@@ -291,6 +291,18 @@ export type DaemonicPowers = {
   readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
   writeFormula: (formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
   webPageFormula?: Formula;
+};
 
-  petStorePowers: PetStorePowers;
+export type DaemonicControlPowers = {
+  makeWorker: (
+    id: string,
+    cancelled: Promise<never>,
+  ) => Promise<Worker>;
+}
+
+export type DaemonicPowers = {
+  crypto: CryptoPowers;
+  petStore: PetStorePowers;
+  persistence: DaemonicPersistencePowers;
+  control: DaemonicControlPowers;
 };

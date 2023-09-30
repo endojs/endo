@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+/* global setTimeout, clearTimeout */
+
 // Establish a perimeter:
 import 'ses';
 import '@endo/eventual-send/shim.js';
@@ -27,6 +29,18 @@ const leastAuthority = Far('EndoGuest', {
   },
 });
 
+const delay = async (ms, cancelled) => {
+  // Do not attempt to set up a timer if already cancelled.
+  await Promise.race([cancelled, undefined]);
+  return new Promise((resolve, reject) => {
+    const handle = setTimeout(resolve, ms);
+    cancelled.catch(error => {
+      reject(error);
+      clearTimeout(handle);
+    });
+  });
+};
+
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
@@ -41,7 +55,13 @@ const makeEndoBootstrap = (
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
-  const { randomHex512, makeSha512, petStorePowers } = powers;
+  const {
+    crypto: cryptoPowers,
+    petStore: petStorePowers,
+    persistence: persistencePowers,
+    control: controlPowers,
+  } = powers;
+  const { randomHex512, makeSha512 } = cryptoPowers;
 
   /** @type {Map<string, unknown>} */
   const valuePromiseForFormulaIdentifier = new Map();
@@ -57,7 +77,7 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeSha512ReadableBlob = sha512 => {
-    const { text, json, stream } = powers.makeHashedContentReadeableBlob(sha512)
+    const { text, json, stream } = persistencePowers.makeHashedContentReadeableBlob(sha512)
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
@@ -71,7 +91,7 @@ const makeEndoBootstrap = (
    * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
    */
   const storeReaderRef = async readerRef => {
-    const { writer, getSha512Hex } = await powers.makeHashedContentWriter();
+    const { writer, getSha512Hex } = await persistencePowers.makeHashedContentWriter();
     for await (const chunk of makeRefReader(readerRef)) {
       await writer.next(chunk);
     }
@@ -108,7 +128,7 @@ const makeEndoBootstrap = (
       writer,
       closed: workerClosed,
       pid: workerPid,
-    } = await powers.makeWorker(
+    } = await controlPowers.makeWorker(
       workerId512,
       workerCancelled,
     );
@@ -143,8 +163,7 @@ const makeEndoBootstrap = (
         gracePeriodElapsed,
         closed,
       ]).then(cancelWorkerGracePeriod, cancelWorkerGracePeriod);
-      await powers
-        .delay(gracePeriodMs, workerGracePeriodCancelled)
+      await delay(gracePeriodMs, workerGracePeriodCancelled)
         .then(() => {
           throw new Error(
             `Worker termination grace period ${gracePeriodMs}ms elapsed`,
@@ -329,8 +348,8 @@ const makeEndoBootstrap = (
         return endoBootstrap;
       } else if (formulaIdentifier === 'least-authority') {
         return leastAuthority;
-      } else if (powers.webPageFormula && formulaIdentifier === 'web-page-js') {
-        return makeValueForFormula('web-page-js', zero512, powers.webPageFormula);
+      } else if (persistencePowers.webPageFormula && formulaIdentifier === 'web-page-js') {
+        return makeValueForFormula('web-page-js', zero512, persistencePowers.webPageFormula);
       }
       throw new TypeError(
         `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
@@ -361,7 +380,7 @@ const makeEndoBootstrap = (
         'web-bundle',
       ].includes(prefix)
     ) {
-      const formula = await powers.readFormula(prefix, formulaNumber);
+      const formula = await persistencePowers.readFormula(prefix, formulaNumber);
       // TODO validate
       return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
     } else {
@@ -383,7 +402,7 @@ const makeEndoBootstrap = (
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
 
-    await powers.writeFormula(formula, formulaType, formulaNumber);
+    await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const promiseForValue = makeValueForFormula(
@@ -409,7 +428,7 @@ const makeEndoBootstrap = (
    * @param {string} formulaType
    */
   const provideValueForFormula = async (formula, formulaType) => {
-    const formulaNumber = await powers.randomHex512();
+    const formulaNumber = await randomHex512();
     return provideValueForNumberedFormula(formulaType, formulaNumber, formula);
   };
 
@@ -506,20 +525,12 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
 
   /** @type {Promise<never>} */
   const gracePeriodElapsed = cancelled.catch(async error => {
-    await powers.delay(gracePeriodMs, gracePeriodCancelled);
+    await delay(gracePeriodMs, gracePeriodCancelled);
     console.log(
       `Endo daemon grace period ${gracePeriodMs}ms elapsed for ${daemonLabel}`,
     );
     throw error;
   });
-
-  /** @param {Error} error */
-  const exitWithError = error => {
-    cancel(error);
-    cancelGracePeriod(error);
-  };
-
-  await powers.initializePersistence();
 
   const { promise: assignedWebletPortP, resolve: assignWebletPort } =
     /** @type {import('@endo/promise-kit').PromiseKit<number>} */ (
@@ -537,12 +548,5 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
     },
   );
 
-  const { servicesStopped } = await powers.announceBootstrapReady(endoBootstrap, assignWebletPort, cancelled, exitWithError)
-
-  await powers.finalizeInitialization();
-
-  await servicesStopped;
-
-  cancel(new Error('Terminated normally'));
-  cancelGracePeriod(new Error('Terminated normally'));
+  return { endoBootstrap, cancelGracePeriod, assignWebletPort };
 };

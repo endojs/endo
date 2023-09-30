@@ -1,5 +1,4 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout */
 /* eslint-disable no-void */
 
 import { makePromiseKit } from '@endo/promise-kit';
@@ -16,7 +15,8 @@ const textEncoder = new TextEncoder();
 const medialIterationResult = harden({ done: false });
 const finalIterationResult = harden({ done: false });
 
-const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
+const zero512 =
+  '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
 /**
  * @param {object} modules
@@ -239,10 +239,62 @@ export const makeNetworkPowers = ({
       cancelled,
     );
 
+  const connectionNumbers = (function* generateNumbers() {
+    let n = 0;
+    for (;;) {
+      yield n;
+      n += 1;
+    }
+  })();
+
+  /**
+   * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
+   * @param {string} sockPath
+   * @param {Promise<never>} cancelled
+   * @param {(error: Error) => void} exitWithError
+   * @returns {{ started: () => Promise<void>, stopped: Promise<void> }}
+   */
+  const makePrivatePathService = (endoBootstrap, sockPath, cancelled, exitWithError) => {
+    const privatePathService = servePrivatePath(sockPath, endoBootstrap, {
+      servePath,
+      connectionNumbers,
+      cancelled,
+      exitWithError,
+    });
+    return privatePathService;
+  }
+
+  /**
+   * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
+   * @param {number} port
+   * @param {(port: Promise<number>) => void} assignWebletPort
+   * @param {Promise<never>} cancelled
+   * @param {(error: Error) => void} exitWithError
+   * @returns {{ started: () => Promise<void>, stopped: Promise<void> }}
+   */
+  const makePrivateHttpService = (endoBootstrap, port, assignWebletPort, cancelled, exitWithError) => {
+    const privateHttpService = servePrivatePortHttp(
+      port,
+      endoBootstrap,
+      {
+        servePortHttp,
+        connectionNumbers,
+        cancelled,
+        exitWithError,
+      },
+    );
+
+    assignWebletPort(privateHttpService.started);
+
+    return privateHttpService;
+  }
+
   return harden({
     servePortHttp,
     servePort,
     servePath,
+    makePrivatePathService,
+    makePrivateHttpService,
   });
 }
 
@@ -337,44 +389,10 @@ export const makeDiskPowers = ({
 }
 
 /**
- * @param {object} opts
- * @param {import('./types.js').Locator} opts.locator
- * @param {number} opts.pid
- * @param {typeof import('crypto')} opts.crypto
- * @param {typeof import('net')} opts.net
- * @param {typeof import('fs')} opts.fs
- * @param {typeof import('path')} opts.path
- * @param {typeof import('child_process')} opts.popen
- * @param {typeof import('url')} opts.url
- * @param {typeof import('ws')} opts.ws
- * @param {typeof import('http')} opts.http
- * @param {Record<string, string | undefined>} opts.env
- * @param {(pid: number) => void} opts.kill
- * @returns {import('./types.js').DaemonicPowers}
+ * @param {typeof import('crypto')} crypto
+ * @returns {import('./types.js').CryptoPowers}
  */
-export const makePowers = ({
-  locator,
-  pid,
-  crypto,
-  net,
-  fs,
-  path: fspath,
-  popen,
-  url,
-  http,
-  ws,
-  kill,
-  env,
-}) => {
-  const diskPowers = makeDiskPowers({ fs, path: fspath });
-  const petStorePowers = makePetStoreMaker(diskPowers, locator);
-  const networkPowers = makeNetworkPowers({ http, ws, net });
-
-  /** @param {Error} error */
-  const sinkError = error => {
-    console.error(error);
-  };
-
+export const makeCryptoPowers = (crypto) => {
   const makeSha512 = () => {
     const digester = crypto.createHash('sha512');
     return harden({
@@ -395,17 +413,21 @@ export const makePowers = ({
       }),
     );
 
-  const informParentWhenReady = () => {
-    if (process.send) {
-      process.send({ type: 'ready' });
-    }
-  };
+  return harden({
+    makeSha512,
+    randomHex512,
+  });
+}
 
-  const reportErrorToParent = message => {
-    if (process.send) {
-      process.send({ type: 'error', message });
-    }
-  };
+const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoPowers, locator) => {
+
+  const initializePersistence = async () => {
+    const { statePath, ephemeralStatePath, cachePath } = locator;
+    const statePathP = diskPowers.makePath(statePath);
+    const ephemeralStatePathP = diskPowers.makePath(ephemeralStatePath);
+    const cachePathP = diskPowers.makePath(cachePath);
+    await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
+  }
 
   const makeHashedContentReadeableBlob = (sha512) => {
     const { statePath } = locator;
@@ -439,8 +461,8 @@ export const makePowers = ({
     // We use a temporary file to avoid leaving a partially writen object,
     // but also because we won't know the name we will use until we've
     // completed the hash.
-    const digester = makeSha512();
-    const storageId512 = await randomHex512();
+    const digester = cryptoPowers.makeSha512();
+    const storageId512 = await cryptoPowers.randomHex512();
     const temporaryStoragePath = diskPowers.joinPath(
       storageDirectoryPath,
       storageId512,
@@ -481,17 +503,6 @@ export const makePowers = ({
     return { writer: hashedFileWriter, getSha512Hex };
   };
 
-  const delay = async (ms, cancelled) => {
-    // Do not attempt to set up a timer if already cancelled.
-    await Promise.race([cancelled, undefined]);
-    return new Promise((resolve, reject) => {
-      const handle = setTimeout(resolve, ms);
-      cancelled.catch(error => {
-        reject(error);
-        clearTimeout(handle);
-      });
-    });
-  };
 
   /**
    * @param {string} formulaType
@@ -549,30 +560,26 @@ export const makePowers = ({
     await diskPowers.writeFileText(file, `${q(formula)}\n`);
   };
 
-  const initializePersistence = async () => {
-    const { statePath, ephemeralStatePath, cachePath } = locator;
-    const statePathP = diskPowers.makePath(statePath);
-    const ephemeralStatePathP = diskPowers.makePath(ephemeralStatePath);
-    const cachePathP = diskPowers.makePath(cachePath);
-    await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
+  const webPageFormula = {
+    type: /** @type {'import-unsafe'} */ ('import-unsafe'),
+    worker: `worker-id512:${zero512}`,
+    powers: 'host',
+    importPath: fileURLToPath(
+      new URL('web-page-bundler.js', import.meta.url).href,
+    ),
   }
 
-  const finalizeInitialization = async () => {
-    const { ephemeralStatePath } = locator;
-    const pidPath = diskPowers.joinPath(ephemeralStatePath, 'endo.pid');
+  return harden({
+    initializePersistence,
+    makeHashedContentReadeableBlob,
+    makeHashedContentWriter,
+    readFormula,
+    writeFormula,
+    webPageFormula,
+  })
+}
 
-    await diskPowers
-      .readFileText(pidPath)
-      .then(pidText => {
-        const oldPid = Number(pidText);
-        kill(oldPid);
-      })
-      .catch(() => {});
-
-    await diskPowers.writeFileText(pidPath, `${pid}\n`);
-  }
-
-  const { fileURLToPath } = url;
+export const makeDaemonicControlPowers = (locator, fileURLToPath, diskPowers, fs, popen) => {
 
   const endoWorkerPath = fileURLToPath(
     new URL('worker-node.js', import.meta.url),
@@ -649,95 +656,41 @@ export const makePowers = ({
     return { reader, writer, closed, pid: child.pid };
   };
 
-  const zero512 =
-  '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+  return harden({
+    makeWorker,
+  });
+}
 
-  const webPageFormula = {
-    type: /** @type {'import-unsafe'} */ ('import-unsafe'),
-    worker: `worker-id512:${zero512}`,
-    powers: 'host',
-    importPath: fileURLToPath(
-      new URL('web-page-bundler.js', import.meta.url).href,
-    ),
-  }
+/**
+ * @param {object} opts
+ * @param {import('./types.js').Locator} opts.locator
+ * @param {typeof import('crypto')} opts.crypto
+ * @param {typeof import('fs')} opts.fs
+ * @param {typeof import('path')} opts.path
+ * @param {typeof import('child_process')} opts.popen
+ * @param {typeof import('url')} opts.url
+ * @returns {import('./types.js').DaemonicPowers}
+ */
+export const makeDaemonicPowers = ({
+  locator,
+  crypto,
+  fs,
+  path: fspath,
+  popen,
+  url,
+}) => {
+  const { fileURLToPath } = url;
 
-  /**
-   *
-   * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
-   * @param {(port: Promise<number>) => void} assignWebletPort
-   * @param {Promise<never>} cancelled
-   * @param {(error: Error) => void} exitWithError
-   * @returns {Promise<{ servicesStopped: Promise<void> }>}
-   */
-  const announceBootstrapReady = async (endoBootstrap, assignWebletPort, cancelled, exitWithError) => {
-    const { sockPath } = locator;
-
-    const connectionNumbers = (function* generateNumbers() {
-      let n = 0;
-      for (;;) {
-        yield n;
-        n += 1;
-      }
-    })();
-
-    const privatePathService = servePrivatePath(sockPath, endoBootstrap, {
-      servePath: networkPowers.servePath,
-      connectionNumbers,
-      cancelled,
-      exitWithError,
-    });
-
-    const requestedWebletPortText = env.ENDO_HTTP_PORT;
-    const requestedWebletPort = requestedWebletPortText
-      ? Number(requestedWebletPortText)
-      : defaultHttpPort;
-    const privateHttpService = servePrivatePortHttp(
-      requestedWebletPort,
-      endoBootstrap,
-      {
-        servePortHttp: networkPowers.servePortHttp,
-        connectionNumbers,
-        cancelled,
-        exitWithError,
-      },
-    );
-
-    assignWebletPort(privateHttpService.started);
-
-    const services = [privatePathService, privateHttpService];
-
-    await Promise.all(services.map(({ started }) => started)).then(() => {
-      informParentWhenReady();
-    },
-    error => {
-      reportErrorToParent(error.message);
-      throw error;
-    })
-
-    const servicesStopped = Promise.all(services.map(({ stopped }) => stopped)).then(() => {});
-
-    return { servicesStopped };
-  }
+  const cryptoPowers = makeCryptoPowers(crypto);
+  const diskPowers = makeDiskPowers({ fs, path: fspath });
+  const petStorePowers = makePetStoreMaker(diskPowers, locator);
+  const daemonicPersistencePowers = makeDaemonicPersistencePowers(fileURLToPath, diskPowers, cryptoPowers, locator);
+  const daemonicControlPowers = makeDaemonicControlPowers(locator, fileURLToPath, diskPowers, fs, popen);
 
   return harden({
-    // start stop platform hooks (to be removed)
-    initializePersistence,
-    announceBootstrapReady,
-    finalizeInitialization,
-    // util
-    delay,
-    sinkError,
-    makeSha512,
-    randomHex512,
-    // daemonic control powers
-    makeWorker,
-    // daemonic storage powers
-    makeHashedContentWriter,
-    makeHashedContentReadeableBlob,
-    readFormula,
-    writeFormula,
-    webPageFormula,
-    // petstore
-    petStorePowers,
+    crypto: cryptoPowers,
+    petStore: petStorePowers,
+    persistence: daemonicPersistencePowers,
+    control: daemonicControlPowers,
   });
 };
