@@ -23,8 +23,8 @@ lockdown();
 test('Symbol cleaned by permits', t => {
   t.true('dummy' in Symbol);
   t.false(gopd(Symbol, 'iterator').configurable);
-  t.true(isExtensible(Symbol));
-  t.false(isFrozen(Symbol));
+  t.false(isExtensible(Symbol));
+  t.true(isFrozen(Symbol));
   t.not(Symbol.constructor, Symbol);
 
   const c = new Compartment();
