@@ -1,6 +1,6 @@
 # Initial setup
 
-```
+```sh
 git clone git@github.com:endojs/endo.git
 cd endo
 yarn
