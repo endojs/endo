@@ -35,11 +35,13 @@
   "types": "./types.d.ts",
   "exports": {
     ".": {
+      "types": "./types.d.ts",
       "import": "./index.js",
       "require": "./dist/ses.cjs",
       "types": "./types.d.ts"
     },
     "./lockdown": {
+      "types": "./types.d.ts",
       "import": "./index.js",
       "require": "./dist/ses.cjs",
       "types": "./types.d.ts"

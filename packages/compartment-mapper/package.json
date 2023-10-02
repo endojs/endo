@@ -22,7 +22,10 @@
   "main": "./index.js",
   "types": "./types.d.ts",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./index.js"
+    },
     "./import.js": "./import.js",
     "./archive.js": "./archive.js",
     "./import-archive.js": "./import-archive.js",
