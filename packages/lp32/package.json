@@ -29,7 +29,10 @@
   "module": "./index.js",
   "types": "./types.d.ts",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./index.js"
+    },
     "./reader.js": "./reader.js",
     "./writer.js": "./writer.js",
     "./package.json": "./package.json"
