@@ -69,7 +69,7 @@ A pragma can be used in any JavaScript file to import the global type
 definitions from SES into environments that assume SES has been initialized and
 do not directly import the shim.
 
-```
+```js
 /// <reference types="ses"/>
 ```
 
