@@ -313,8 +313,9 @@ export default makeE;
  * @template T
  * @typedef {(
  *   T extends import('./types').Callable
- *     ? (...args: Parameters<T>) => ReturnType<T>                     // a root callable, no methods
- *     : Pick<T, FilteredKeys<T, import('./types').Callable>>          // any callable methods
+ *     ? ((...args: Parameters<T>) => ReturnType<T>) &                // a root callable
+ *       Pick<T, FilteredKeys<T, import('./types').Callable>>         // and any callable properties
+ *     : Pick<T, FilteredKeys<T, import('./types').Callable>>         // or a record of callable properties
  * )} PickCallable
  */
 
