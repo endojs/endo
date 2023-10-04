@@ -18,7 +18,7 @@ import * as ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';
-import { makeDiskPowers, makeNetworkPowers, makeDaemonicPowers } from './daemon-node-powers.js';
+import { makeDiskPowers, makeNetworkPowers, makeDaemonicPowers, makeCryptoPowers } from './daemon-node-powers.js';
 
 if (process.argv.length < 5) {
   throw new Error(
@@ -43,15 +43,16 @@ const locator = {
 
 const { pid, env, kill } = process;
 
-const diskPowers = makeDiskPowers({ fs, path });
 const networkPowers = makeNetworkPowers({ http, ws, net });
+const diskPowers = makeDiskPowers({ fs, path });
+const cryptoPowers = makeCryptoPowers(crypto);
 const powers = makeDaemonicPowers({
   locator,
-  crypto,
   fs,
-  path,
   popen,
   url,
+  diskPowers,
+  cryptoPowers,
 });
 const { persistence: daemonicPersistencePowers } = powers;
 

@@ -419,7 +419,7 @@ export const makeCryptoPowers = (crypto) => {
   });
 }
 
-const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoPowers, locator) => {
+export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoPowers, locator) => {
 
   const initializePersistence = async () => {
     const { statePath, ephemeralStatePath, cachePath } = locator;
@@ -664,25 +664,23 @@ export const makeDaemonicControlPowers = (locator, fileURLToPath, diskPowers, fs
 /**
  * @param {object} opts
  * @param {import('./types.js').Locator} opts.locator
- * @param {typeof import('crypto')} opts.crypto
  * @param {typeof import('fs')} opts.fs
- * @param {typeof import('path')} opts.path
  * @param {typeof import('child_process')} opts.popen
  * @param {typeof import('url')} opts.url
+ * @param {import('./types.js').DiskPowers} opts.diskPowers
+ * @param {import('./types.js').CryptoPowers} opts.cryptoPowers
  * @returns {import('./types.js').DaemonicPowers}
  */
 export const makeDaemonicPowers = ({
   locator,
-  crypto,
   fs,
-  path: fspath,
   popen,
   url,
+  diskPowers,
+  cryptoPowers,
 }) => {
   const { fileURLToPath } = url;
 
-  const cryptoPowers = makeCryptoPowers(crypto);
-  const diskPowers = makeDiskPowers({ fs, path: fspath });
   const petStorePowers = makePetStoreMaker(diskPowers, locator);
   const daemonicPersistencePowers = makeDaemonicPersistencePowers(fileURLToPath, diskPowers, cryptoPowers, locator);
   const daemonicControlPowers = makeDaemonicControlPowers(locator, fileURLToPath, diskPowers, fs, popen);
