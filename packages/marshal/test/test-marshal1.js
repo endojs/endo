@@ -35,10 +35,54 @@ const makeTestMarshal = () => {
   return m;
 };
 
+const brands = {
+  IST: Far('IST Brand', {}),
+  ATOM: Far('ATOM Brand', {}),
+};
+
 const suite = [
   { obj: null, json: '{"$body":null,"slots":[]}' },
   { obj: [1, 2, undefined], json: '{"$body":[1,2,"#undefined"],"slots":[]}' },
   { obj: { slots: [] }, json: '{"$body":{"slots":[]},"slots":[]}' },
+  // example from https://github.com/Agoric/agoric-sdk/issues/7999
+  {
+    obj: {
+      method: 'executeOffer',
+      offer: {
+        id: 'bid-1688229012779',
+        invitationSpec: {
+          callPipe: [['makeBidInvitation', [brands.ATOM]]],
+          instancePath: ['auctioneer'],
+          source: 'agoricContract',
+        },
+        offerArgs: {
+          maxBuy: {
+            brand: brands.ATOM,
+            value: 1_000_000_000_000n,
+          },
+          offerPrice: {
+            denominator: {
+              brand: brands.ATOM,
+              value: 1n,
+            },
+            numerator: {
+              brand: brands.IST,
+              value: 7n,
+            },
+          },
+        },
+        proposal: {
+          give: {
+            Bid: {
+              brand: brands.IST,
+              value: 3000n,
+            },
+          },
+        },
+      },
+    },
+    json: '{"$body":{"method":"executeOffer","offer":{"id":"bid-1688229012779","invitationSpec":{"callPipe":[["makeBidInvitation",["$0.Alleged: ATOM Brand"]]],"instancePath":["auctioneer"],"source":"agoricContract"},"offerArgs":{"maxBuy":{"brand":"$0","value":"+1000000000000"},"offerPrice":{"denominator":{"brand":"$0","value":"+1"},"numerator":{"brand":"$1.Alleged: IST Brand","value":"+7"}}},"proposal":{"give":{"Bid":{"brand":"$1","value":"+3000"}}}}},"slots":["r0","r1"]}',
+  },
 ];
 harden(suite);
 
@@ -46,7 +90,7 @@ test('encode example passables in 1 level of JSON', t => {
   const m = makeTestMarshal();
 
   for (const { obj, json } of suite) {
-    t.log(obj);
+    // t.log(obj);
     const cd = m.toCapData(obj);
     const j = capDataToJSON(cd);
     t.is(j, json);
