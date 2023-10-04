@@ -298,7 +298,7 @@ export const makeNetworkPowers = ({
   });
 }
 
-export const makeDiskPowers = ({
+export const makeFilePowers = ({
   fs,
   path: fspath,
 }) => {
@@ -419,29 +419,29 @@ export const makeCryptoPowers = (crypto) => {
   });
 }
 
-export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoPowers, locator) => {
+export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoPowers, locator) => {
 
   const initializePersistence = async () => {
     const { statePath, ephemeralStatePath, cachePath } = locator;
-    const statePathP = diskPowers.makePath(statePath);
-    const ephemeralStatePathP = diskPowers.makePath(ephemeralStatePath);
-    const cachePathP = diskPowers.makePath(cachePath);
+    const statePathP = filePowers.makePath(statePath);
+    const ephemeralStatePathP = filePowers.makePath(ephemeralStatePath);
+    const cachePathP = filePowers.makePath(cachePath);
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   }
 
   const makeHashedContentReadeableBlob = (sha512) => {
     const { statePath } = locator;
-    const storageDirectoryPath = diskPowers.joinPath(
+    const storageDirectoryPath = filePowers.joinPath(
       statePath,
       'store-sha512',
     );
-    const storagePath = diskPowers.joinPath(storageDirectoryPath, sha512);
+    const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
     const stream = async () => {
-      const reader = diskPowers.makeFileReader(storagePath);
+      const reader = filePowers.makeFileReader(storagePath);
       return makeReaderRef(reader);
     };
     const text = async () => {
-      return diskPowers.readFileText(storagePath);
+      return filePowers.readFileText(storagePath);
     };
     const json = async () => {
       return JSON.parse(await text());
@@ -451,11 +451,11 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoP
 
   const makeHashedContentWriter = async () => {
     const { statePath } = locator;
-    const storageDirectoryPath = diskPowers.joinPath(
+    const storageDirectoryPath = filePowers.joinPath(
       statePath,
       'store-sha512',
     );
-    await diskPowers.makePath(storageDirectoryPath);
+    await filePowers.makePath(storageDirectoryPath);
 
     // Pump the reader into a temporary file and hash.
     // We use a temporary file to avoid leaving a partially writen object,
@@ -463,11 +463,11 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoP
     // completed the hash.
     const digester = cryptoPowers.makeSha512();
     const storageId512 = await cryptoPowers.randomHex512();
-    const temporaryStoragePath = diskPowers.joinPath(
+    const temporaryStoragePath = filePowers.joinPath(
       storageDirectoryPath,
       storageId512,
     );
-    const fileWriter = diskPowers.makeFileWriter(temporaryStoragePath);
+    const fileWriter = filePowers.makeFileWriter(temporaryStoragePath);
     const sha512Kit = makePromiseKit();
 
     /** @type {import('@endo/stream').Writer<Uint8Array>} */
@@ -482,8 +482,8 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoP
         // Calculate hash.
         const sha512 = digester.digestHex();
         // Finish with an atomic rename.
-        const storagePath = diskPowers.joinPath(storageDirectoryPath, sha512);
-        await diskPowers.renamePath(temporaryStoragePath, storagePath);
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
+        await filePowers.renamePath(temporaryStoragePath, storagePath);
         // Notify the caller of the hash.
         sha512Kit.resolve(sha512);
         return result;
@@ -519,13 +519,13 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoP
     }
     const head = formulaId512.slice(0, 2);
     const tail = formulaId512.slice(3);
-    const directory = diskPowers.joinPath(
+    const directory = filePowers.joinPath(
       statePath,
       'formulas',
       formulaType,
       head,
     );
-    const file = diskPowers.joinPath(directory, `${tail}.json`);
+    const file = filePowers.joinPath(directory, `${tail}.json`);
     return { directory, file };
   };
 
@@ -536,7 +536,7 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoP
    */
   const readFormula = async (prefix, formulaNumber) => {
     const { file: formulaPath } = makeFormulaPath(prefix, formulaNumber);
-    const formulaText = await diskPowers.maybeReadFileText(formulaPath);
+    const formulaText = await filePowers.maybeReadFileText(formulaPath);
     if (formulaText === undefined) {
       throw new ReferenceError(`No reference exists at path ${formulaPath}`);
     }
@@ -556,8 +556,8 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoP
   const writeFormula = async (formula, formulaType, formulaId512) => {
     const { directory, file } = makeFormulaPath(formulaType, formulaId512);
     // TODO Take care to write atomically with a rename here.
-    await diskPowers.makePath(directory);
-    await diskPowers.writeFileText(file, `${q(formula)}\n`);
+    await filePowers.makePath(directory);
+    await filePowers.writeFileText(file, `${q(formula)}\n`);
   };
 
   const webPageFormula = {
@@ -579,7 +579,7 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, diskPowers, cryptoP
   })
 }
 
-export const makeDaemonicControlPowers = (locator, fileURLToPath, diskPowers, fs, popen) => {
+export const makeDaemonicControlPowers = (locator, fileURLToPath, filePowers, fs, popen) => {
 
   const endoWorkerPath = fileURLToPath(
     new URL('worker-node.js', import.meta.url),
@@ -595,29 +595,29 @@ export const makeDaemonicControlPowers = (locator, fileURLToPath, diskPowers, fs
   ) => {
     const { cachePath, statePath, ephemeralStatePath, sockPath } = locator;
 
-    const workerCachePath = diskPowers.joinPath(
+    const workerCachePath = filePowers.joinPath(
       cachePath,
       'worker-id512',
       id,
     );
-    const workerStatePath = diskPowers.joinPath(
+    const workerStatePath = filePowers.joinPath(
       statePath,
       'worker-id512',
       id,
     );
-    const workerEphemeralStatePath = diskPowers.joinPath(
+    const workerEphemeralStatePath = filePowers.joinPath(
       ephemeralStatePath,
       'worker-id512',
       id,
     );
 
     await Promise.all([
-      diskPowers.makePath(workerStatePath),
-      diskPowers.makePath(workerEphemeralStatePath),
+      filePowers.makePath(workerStatePath),
+      filePowers.makePath(workerEphemeralStatePath),
     ]);
 
-    const logPath = diskPowers.joinPath(workerStatePath, 'worker.log');
-    const pidPath = diskPowers.joinPath(
+    const logPath = filePowers.joinPath(workerStatePath, 'worker.log');
+    const pidPath = filePowers.joinPath(
       workerEphemeralStatePath,
       'worker.pid',
     );
@@ -647,7 +647,7 @@ export const makeDaemonicControlPowers = (locator, fileURLToPath, diskPowers, fs
       child.on('exit', () => resolve(undefined));
     });
 
-    await diskPowers.writeFileText(pidPath, `${child.pid}\n`);
+    await filePowers.writeFileText(pidPath, `${child.pid}\n`);
 
     cancelled.catch(async () => {
       child.kill();
@@ -667,7 +667,7 @@ export const makeDaemonicControlPowers = (locator, fileURLToPath, diskPowers, fs
  * @param {typeof import('fs')} opts.fs
  * @param {typeof import('child_process')} opts.popen
  * @param {typeof import('url')} opts.url
- * @param {import('./types.js').DiskPowers} opts.diskPowers
+ * @param {import('./types.js').FilePowers} opts.filePowers
  * @param {import('./types.js').CryptoPowers} opts.cryptoPowers
  * @returns {import('./types.js').DaemonicPowers}
  */
@@ -676,14 +676,14 @@ export const makeDaemonicPowers = ({
   fs,
   popen,
   url,
-  diskPowers,
+  filePowers,
   cryptoPowers,
 }) => {
   const { fileURLToPath } = url;
 
-  const petStorePowers = makePetStoreMaker(diskPowers, locator);
-  const daemonicPersistencePowers = makeDaemonicPersistencePowers(fileURLToPath, diskPowers, cryptoPowers, locator);
-  const daemonicControlPowers = makeDaemonicControlPowers(locator, fileURLToPath, diskPowers, fs, popen);
+  const petStorePowers = makePetStoreMaker(filePowers, locator);
+  const daemonicPersistencePowers = makeDaemonicPersistencePowers(fileURLToPath, filePowers, cryptoPowers, locator);
+  const daemonicControlPowers = makeDaemonicControlPowers(locator, fileURLToPath, filePowers, fs, popen);
 
   return harden({
     crypto: cryptoPowers,

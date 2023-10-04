@@ -18,7 +18,7 @@ import * as ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';
-import { makeDiskPowers, makeNetworkPowers, makeDaemonicPowers, makeCryptoPowers } from './daemon-node-powers.js';
+import { makeFilePowers, makeNetworkPowers, makeDaemonicPowers, makeCryptoPowers } from './daemon-node-powers.js';
 
 if (process.argv.length < 5) {
   throw new Error(
@@ -44,14 +44,14 @@ const locator = {
 const { pid, env, kill } = process;
 
 const networkPowers = makeNetworkPowers({ http, ws, net });
-const diskPowers = makeDiskPowers({ fs, path });
+const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
 const powers = makeDaemonicPowers({
   locator,
   fs,
   popen,
   url,
-  diskPowers,
+  filePowers,
   cryptoPowers,
 });
 const { persistence: daemonicPersistencePowers } = powers;
@@ -74,9 +74,9 @@ const { promise: cancelled, reject: cancel } =
   );
 
 const updateRecordedPid = async () => {
-  const pidPath = diskPowers.joinPath(ephemeralStatePath, 'endo.pid');
+  const pidPath = filePowers.joinPath(ephemeralStatePath, 'endo.pid');
 
-  await diskPowers
+  await filePowers
     .readFileText(pidPath)
     .then(pidText => {
       const oldPid = Number(pidText);
@@ -84,7 +84,7 @@ const updateRecordedPid = async () => {
     })
     .catch(() => {});
 
-  await diskPowers.writeFileText(pidPath, `${pid}\n`);
+  await filePowers.writeFileText(pidPath, `${pid}\n`);
 };
 
 const main = async () => {

@@ -12,10 +12,10 @@ const validFormulaPattern =
   /^(?:host|pet-store|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe-id512|import-bundle-id512|host-id512|guest-id512):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
 
 /**
- * @param {import('./types.js').DiskPowers} diskPowers
+ * @param {import('./types.js').FilePowers} filePowers
  * @param {import('./types.js').Locator} locator
  */
-export const makePetStoreMaker = (diskPowers, locator) => {
+export const makePetStoreMaker = (filePowers, locator) => {
 
   /**
    * @param {string} petNameDirectoryPath
@@ -31,8 +31,8 @@ export const makePetStoreMaker = (diskPowers, locator) => {
 
     /** @param {string} petName */
     const read = async petName => {
-      const petNamePath = diskPowers.joinPath(petNameDirectoryPath, petName);
-      const petNameText = await diskPowers.readFileText(petNamePath);
+      const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
+      const petNameText = await filePowers.readFileText(petNamePath);
       const formulaIdentifier = petNameText.trim();
       if (!validFormulaPattern.test(formulaIdentifier)) {
         throw new Error(
@@ -44,9 +44,9 @@ export const makePetStoreMaker = (diskPowers, locator) => {
       return formulaIdentifier;
     };
 
-    await diskPowers.makePath(petNameDirectoryPath);
+    await filePowers.makePath(petNameDirectoryPath);
 
-    const fileNames = await diskPowers.readDirectory(petNameDirectoryPath);
+    const fileNames = await filePowers.readDirectory(petNameDirectoryPath);
     await Promise.all(
       fileNames.map(async petName => {
         assertPetName(petName);
@@ -86,9 +86,9 @@ export const makePetStoreMaker = (diskPowers, locator) => {
         formulaPetNames.add(petName);
       }
 
-      const petNamePath = diskPowers.joinPath(petNameDirectoryPath, petName);
+      const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = `${formulaIdentifier}\n`;
-      await diskPowers.writeFileText(petNamePath, petNameText);
+      await filePowers.writeFileText(petNamePath, petNameText);
       changesTopic.publisher.next({ add: petName });
     };
 
@@ -120,8 +120,8 @@ export const makePetStoreMaker = (diskPowers, locator) => {
         throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
       }
 
-      const petNamePath = diskPowers.joinPath(petNameDirectoryPath, petName);
-      await diskPowers.removePath(petNamePath);
+      const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
+      await filePowers.removePath(petNamePath);
       petNames.delete(petName);
       const formulaPetNames = formulaIdentifiers.get(petName);
       if (formulaPetNames !== undefined) {
@@ -161,9 +161,9 @@ export const makePetStoreMaker = (diskPowers, locator) => {
         );
       }
 
-      const fromPath = diskPowers.joinPath(petNameDirectoryPath, fromName);
-      const toPath = diskPowers.joinPath(petNameDirectoryPath, toName);
-      await diskPowers.renamePath(fromPath, toPath);
+      const fromPath = filePowers.joinPath(petNameDirectoryPath, fromName);
+      const toPath = filePowers.joinPath(petNameDirectoryPath, toName);
+      await filePowers.renamePath(fromPath, toPath);
       petNames.set(toName, formulaIdentifier);
       petNames.delete(fromName);
 
@@ -226,7 +226,7 @@ export const makePetStoreMaker = (diskPowers, locator) => {
     }
     const prefix = id.slice(0, 2);
     const suffix = id.slice(3);
-    const petNameDirectoryPath = diskPowers.joinPath(
+    const petNameDirectoryPath = filePowers.joinPath(
       locator.statePath,
       'pet-store-id512',
       prefix,
@@ -239,7 +239,7 @@ export const makePetStoreMaker = (diskPowers, locator) => {
    * @param {string} name
    */
   const makeOwnPetStore = (name) => {
-    const petNameDirectoryPath = diskPowers.joinPath(locator.statePath, name);
+    const petNameDirectoryPath = filePowers.joinPath(locator.statePath, name);
     return makePetStoreAtPath(petNameDirectoryPath);
   };
 

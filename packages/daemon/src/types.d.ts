@@ -226,7 +226,7 @@ export type CryptoPowers = {
   randomHex512: () => Promise<string>;
 };
 
-export type DiskPowers = {
+export type FilePowers = {
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   writeFileText: (path: string, text: string) => Promise<void>;
