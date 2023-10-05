@@ -343,7 +343,10 @@ const makeEndoBootstrap = (
         return endoBootstrap;
       } else if (formulaIdentifier === 'least-authority') {
         return leastAuthority;
-      } else if (persistencePowers.webPageFormula && formulaIdentifier === 'web-page-js') {
+      } else if (formulaIdentifier === 'web-page-js') {
+        if (persistencePowers.webPageFormula === undefined) {
+          throw Error('No web-page-js formula provided.');
+        }
         return makeValueForFormula('web-page-js', zero512, persistencePowers.webPageFormula);
       }
       throw new TypeError(
