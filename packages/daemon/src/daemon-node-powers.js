@@ -244,13 +244,22 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
    * @param {Promise<never>} args.cancelled
    */
   const servePath = async ({ path, cancelled }) =>
-    serveListener(
-      server =>
-        new Promise(resolve =>
-          server.listen({ path }, () => resolve(undefined)),
-        ),
-      cancelled,
-    );
+    serveListener(server => {
+      return new Promise((resolve, reject) =>
+        server.listen({ path }, error => {
+          if (error) {
+            if (path.length >= 104) {
+              console.warn(
+                `Warning: Length of path for domain socket or named path exceeeds common maximum (104, possibly 108) for some platforms (length: ${path.length}, path: ${path})`,
+              );
+            }
+            reject(error);
+          } else {
+            resolve(undefined);
+          }
+        }),
+      );
+    }, cancelled);
 
   const connectionNumbers = (function* generateNumbers() {
     let n = 0;
