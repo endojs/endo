@@ -301,7 +301,7 @@ export type DaemonicPersistencePowers = {
     formulaType: string,
     formulaId512: string,
   ) => Promise<void>;
-  webPageFormula?: Formula;
+  webPageBundlerFormula?: Formula;
 };
 
 export type DaemonicControlPowers = {
