@@ -11,15 +11,15 @@ export const servePrivatePath = (
 ) => {
   const connectionsP = servePath({ path: sockPath, cancelled });
 
-  const started = async () => {
+  const started = (async () => {
     await connectionsP;
     // Resolve a promise in the Endo CLI through the IPC channel:
     console.log(
-      `Endo daemon listening for CapTP on ${q(
+      `Endo daemon listening for private CapTP on ${q(
         sockPath,
       )} ${new Date().toISOString()}`,
     );
-  };
+  })();
 
   const stopped = (async () => {
     /** @type {Set<Promise<void>>} */
@@ -33,7 +33,7 @@ export const servePrivatePath = (
       closed: connectionClosed,
     } of connections) {
       (async () => {
-        const connectionNumber = connectionNumbers.next();
+        const { value: connectionNumber } = connectionNumbers.next();
         console.log(
           `Endo daemon received domain connection ${connectionNumber} at ${new Date().toISOString()}`,
         );

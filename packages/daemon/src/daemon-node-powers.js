@@ -265,7 +265,7 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
    * @param {string} sockPath
    * @param {Promise<never>} cancelled
    * @param {(error: Error) => void} exitWithError
-   * @returns {{ started: () => Promise<void>, stopped: Promise<void> }}
+   * @returns {{ started: Promise<void>, stopped: Promise<void> }}
    */
   const makePrivatePathService = (
     endoBootstrap,
@@ -288,7 +288,7 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
    * @param {(port: Promise<number>) => void} assignWebletPort
    * @param {Promise<never>} cancelled
    * @param {(error: Error) => void} exitWithError
-   * @returns {{ started: () => Promise<void>, stopped: Promise<void> }}
+   * @returns {{ started: Promise<void>, stopped: Promise<void> }}
    */
   const makePrivateHttpService = (
     endoBootstrap,

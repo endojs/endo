@@ -271,14 +271,14 @@ export type NetworkPowers = {
     sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
-  ) => { started: () => Promise<void>; stopped: Promise<void> };
+  ) => { started: Promise<void>; stopped: Promise<void> };
   makePrivateHttpService: (
     endoBootstrap: FarRef<unknown>,
     port: number,
     assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
-  ) => { started: () => Promise<void>; stopped: Promise<void> };
+  ) => { started: Promise<void>; stopped: Promise<void> };
 };
 
 // The return type here is almost an EndoReadable, but not quite. Should fix.
