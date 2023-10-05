@@ -163,7 +163,7 @@ export type ReceiveFn = (
 
 export interface EndoReadable {
   sha512(): string;
-  stream(): ERef<Reader<Uint8Array>>;
+  stream(): FarRef<Reader<Uint8Array>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
   [Symbol.asyncIterator]: Reader<Uint8Array>;
@@ -277,16 +277,20 @@ export type NetworkPowers = {
   ) => { started: () => Promise<void>; stopped: Promise<void> };
 }
 
+// The return type here is almost an EndoReadable, but not quite. Should fix.
+export type AlmostEndoReadable = {
+  sha512(): string;
+  stream(): FarRef<Stream<string>>;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+  [Symbol.asyncIterator]: any;
+}
+
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
-  makeHashedContentWriter: () => Promise<{
-    writer: Writer<Uint8Array>;
-    getSha512Hex: () => Promise<string>;
-  }>;
-  makeHashedContentReadeableBlob: (sha512: string) => {
-    stream: () => Promise<FarRef<Stream<string>>>;
-    text: () => Promise<string>;
-    json: () => Promise<unknown>;
+  makeContentSha512Store: () => {
+    store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
+    fetch: (sha512: string) => AlmostEndoReadable;
   };
   readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
   writeFormula: (formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;

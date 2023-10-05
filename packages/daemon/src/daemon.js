@@ -62,6 +62,7 @@ const makeEndoBootstrap = (
     control: controlPowers,
   } = powers;
   const { randomHex512, makeSha512 } = cryptoPowers;
+  const contentStore = persistencePowers.makeContentSha512Store()
 
   /** @type {Map<string, unknown>} */
   const valuePromiseForFormulaIdentifier = new Map();
@@ -77,7 +78,7 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeSha512ReadableBlob = sha512 => {
-    const { text, json, stream } = persistencePowers.makeHashedContentReadeableBlob(sha512)
+    const { text, json, stream } = contentStore.fetch(sha512)
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
@@ -91,14 +92,8 @@ const makeEndoBootstrap = (
    * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
    */
   const storeReaderRef = async readerRef => {
-    const { writer, getSha512Hex } = await persistencePowers.makeHashedContentWriter();
-    for await (const chunk of makeRefReader(readerRef)) {
-      await writer.next(chunk);
-    }
-    await writer.return(undefined);
-    const sha512 = await getSha512Hex();
-
-    return `readable-blob-sha512:${sha512}`;
+    const sha512Hex = await contentStore.store(makeRefReader(readerRef));
+    return `readable-blob-sha512:${sha512Hex}`;
   };
 
   /**

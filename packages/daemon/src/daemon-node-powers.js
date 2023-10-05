@@ -313,6 +313,7 @@ export const makeFilePowers = ({
 
   /**
    * @param {string} path
+   * @returns {import('@endo/stream').Writer<Uint8Array>}
    */
   const makeFileWriter = path => {
     const nodeWriteStream = fs.createWriteStream(path);
@@ -419,6 +420,13 @@ export const makeCryptoPowers = (crypto) => {
   });
 }
 
+/**
+ * @param {(URL) => string} fileURLToPath
+ * @param {import('./types.js').FilePowers} filePowers
+ * @param {import('./types.js').CryptoPowers} cryptoPowers
+ * @param {import('./types.js').Locator} locator
+ * @returns {import('./types.js').DaemonicPersistencePowers}
+ */
 export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoPowers, locator) => {
 
   const initializePersistence = async () => {
@@ -429,80 +437,68 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   }
 
-  const makeHashedContentReadeableBlob = (sha512) => {
+  const makeContentSha512Store = () => {
     const { statePath } = locator;
     const storageDirectoryPath = filePowers.joinPath(
       statePath,
       'store-sha512',
     );
-    const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
-    const stream = async () => {
-      const reader = filePowers.makeFileReader(storagePath);
-      return makeReaderRef(reader);
-    };
-    const text = async () => {
-      return filePowers.readFileText(storagePath);
-    };
-    const json = async () => {
-      return JSON.parse(await text());
-    };
-    return { stream, text, json }
-  };
 
-  const makeHashedContentWriter = async () => {
-    const { statePath } = locator;
-    const storageDirectoryPath = filePowers.joinPath(
-      statePath,
-      'store-sha512',
-    );
-    await filePowers.makePath(storageDirectoryPath);
+    return {
+      /**
+       * @param {AsyncIterable<Uint8Array>} readable
+       * @returns {Promise<string>}
+       */
+      async store (readable) {
+        const digester = cryptoPowers.makeSha512();
+        const storageId512 = await cryptoPowers.randomHex512();
+        const temporaryStoragePath = filePowers.joinPath(
+          storageDirectoryPath,
+          storageId512,
+        );
 
-    // Pump the reader into a temporary file and hash.
-    // We use a temporary file to avoid leaving a partially writen object,
-    // but also because we won't know the name we will use until we've
-    // completed the hash.
-    const digester = cryptoPowers.makeSha512();
-    const storageId512 = await cryptoPowers.randomHex512();
-    const temporaryStoragePath = filePowers.joinPath(
-      storageDirectoryPath,
-      storageId512,
-    );
-    const fileWriter = filePowers.makeFileWriter(temporaryStoragePath);
-    const sha512Kit = makePromiseKit();
+        // Stream to temporary file and calculate hash.
+        await filePowers.makePath(storageDirectoryPath);
+        const fileWriter = filePowers.makeFileWriter(temporaryStoragePath);
+        for await (const chunk of readable) {
+          digester.update(chunk);
+          await fileWriter.next(chunk);
+        }
+        await fileWriter.return(undefined);
 
-    /** @type {import('@endo/stream').Writer<Uint8Array>} */
-    const hashedFileWriter = {
-      async next(chunk) {
-        digester.update(chunk);
-        return fileWriter.next(chunk);
-      },
-      async return() {
-        // Finish writing the file.
-        const result = await fileWriter.return(undefined);
         // Calculate hash.
         const sha512 = digester.digestHex();
         // Finish with an atomic rename.
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
         await filePowers.renamePath(temporaryStoragePath, storagePath);
-        // Notify the caller of the hash.
-        sha512Kit.resolve(sha512);
-        return result;
+        return sha512;
       },
-      async throw(error) {
-        return fileWriter.throw(error);
+      /**
+       * @param {string} sha512
+       * @returns {import('./types.js').AlmostEndoReadable}
+       */
+      fetch (sha512) {
+        const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
+        const stream = () => {
+          const reader = filePowers.makeFileReader(storagePath);
+          return makeReaderRef(reader);
+        };
+        const text = async () => {
+          return filePowers.readFileText(storagePath);
+        };
+        const json = async () => {
+          return JSON.parse(await text());
+        };
+        return {
+          sha512: () => sha512,
+          stream,
+          text,
+          json,
+          [Symbol.asyncIterator]: () => stream(),
+        }
       },
-      [Symbol.asyncIterator]() {
-        return this;
-      },
-    };
-
-    const getSha512Hex = () => {
-      return sha512Kit.promise;
     }
-
-    return { writer: hashedFileWriter, getSha512Hex };
   };
-
 
   /**
    * @param {string} formulaType
@@ -571,8 +567,7 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
 
   return harden({
     initializePersistence,
-    makeHashedContentReadeableBlob,
-    makeHashedContentWriter,
+    makeContentSha512Store,
     readFormula,
     writeFormula,
     webPageFormula,
