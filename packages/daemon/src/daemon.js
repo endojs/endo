@@ -3,12 +3,6 @@
 
 /* global setTimeout, clearTimeout */
 
-// Establish a perimeter:
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/promise-kit/shim.js';
-import '@endo/lockdown/commit.js';
-
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNetstringCapTP } from './connection.js';
