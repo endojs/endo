@@ -444,7 +444,7 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
       'store-sha512',
     );
 
-    return {
+    return harden({
       /**
        * @param {AsyncIterable<Uint8Array>} readable
        * @returns {Promise<string>}
@@ -489,15 +489,15 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
         const json = async () => {
           return JSON.parse(await text());
         };
-        return {
+        return harden({
           sha512: () => sha512,
           stream,
           text,
           json,
           [Symbol.asyncIterator]: () => stream(),
-        }
+        })
       },
-    }
+    })
   };
 
   /**
@@ -522,7 +522,7 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
       head,
     );
     const file = filePowers.joinPath(directory, `${tail}.json`);
-    return { directory, file };
+    return harden({ directory, file });
   };
 
   /**
