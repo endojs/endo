@@ -2414,6 +2414,8 @@ __export(emulation_exports, {
 });
 
 // src/ApiError.ts
+// bugfix kumavis
+var ErrorCode = 1
 var ErrorCode = /* @__PURE__ */ ((ErrorCode2) => {
   ErrorCode2[ErrorCode2["EPERM"] = 1] = "EPERM";
   ErrorCode2[ErrorCode2["ENOENT"] = 2] = "ENOENT";
@@ -2431,23 +2433,29 @@ var ErrorCode = /* @__PURE__ */ ((ErrorCode2) => {
   ErrorCode2[ErrorCode2["ENOTEMPTY"] = 39] = "ENOTEMPTY";
   ErrorCode2[ErrorCode2["ENOTSUP"] = 95] = "ENOTSUP";
   return ErrorCode2;
-})(ErrorCode || {});
-var ErrorStrings = {};
-ErrorStrings[1 /* EPERM */] = "Operation not permitted.";
-ErrorStrings[2 /* ENOENT */] = "No such file or directory.";
-ErrorStrings[5 /* EIO */] = "Input/output error.";
-ErrorStrings[9 /* EBADF */] = "Bad file descriptor.";
-ErrorStrings[13 /* EACCES */] = "Permission denied.";
-ErrorStrings[16 /* EBUSY */] = "Resource busy or locked.";
-ErrorStrings[17 /* EEXIST */] = "File exists.";
-ErrorStrings[20 /* ENOTDIR */] = "File is not a directory.";
-ErrorStrings[21 /* EISDIR */] = "File is a directory.";
-ErrorStrings[22 /* EINVAL */] = "Invalid argument.";
-ErrorStrings[27 /* EFBIG */] = "File is too big.";
-ErrorStrings[28 /* ENOSPC */] = "No space left on disk.";
-ErrorStrings[30 /* EROFS */] = "Cannot modify a read-only file system.";
-ErrorStrings[39 /* ENOTEMPTY */] = "Directory is not empty.";
-ErrorStrings[95 /* ENOTSUP */] = "Operation is not supported.";
+  // bugfix kumavis
+})({});
+  // bugfix kumavis
+var ErrorStrings = 1
+var ErrorStrings = ((ErrorStrings2) => {
+  ErrorStrings2[1 /* EPERM */] = "Operation not permitted.";
+  ErrorStrings2[2 /* ENOENT */] = "No such file or directory.";
+  ErrorStrings2[5 /* EIO */] = "Input/output error.";
+  ErrorStrings2[9 /* EBADF */] = "Bad file descriptor.";
+  ErrorStrings2[13 /* EACCES */] = "Permission denied.";
+  ErrorStrings2[16 /* EBUSY */] = "Resource busy or locked.";
+  ErrorStrings2[17 /* EEXIST */] = "File exists.";
+  ErrorStrings2[20 /* ENOTDIR */] = "File is not a directory.";
+  ErrorStrings2[21 /* EISDIR */] = "File is a directory.";
+  ErrorStrings2[22 /* EINVAL */] = "Invalid argument.";
+  ErrorStrings2[27 /* EFBIG */] = "File is too big.";
+  ErrorStrings2[28 /* ENOSPC */] = "No space left on disk.";
+  ErrorStrings2[30 /* EROFS */] = "Cannot modify a read-only file system.";
+  ErrorStrings2[39 /* ENOTEMPTY */] = "Directory is not empty.";
+  ErrorStrings2[95 /* ENOTSUP */] = "Operation is not supported.";
+  return ErrorStrings2;
+})({});
+
 var ApiError = class extends Error {
   /**
    * Represents a BrowserFS error. Passed back to applications after a failed
