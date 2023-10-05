@@ -341,13 +341,13 @@ const makeEndoBootstrap = (
       } else if (formulaIdentifier === 'least-authority') {
         return leastAuthority;
       } else if (formulaIdentifier === 'web-page-js') {
-        if (persistencePowers.webPageFormula === undefined) {
+        if (persistencePowers.webPageBundlerFormula === undefined) {
           throw Error('No web-page-js formula provided.');
         }
         return makeValueForFormula(
           'web-page-js',
           zero512,
-          persistencePowers.webPageFormula,
+          persistencePowers.webPageBundlerFormula,
         );
       }
       throw new TypeError(

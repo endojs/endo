@@ -424,6 +424,7 @@ export const makeCryptoPowers = crypto => {
  * @param {import('./types.js').FilePowers} filePowers
  * @param {import('./types.js').CryptoPowers} cryptoPowers
  * @param {import('./types.js').Locator} locator
+ * @param {boolean} [includeWebPageBundler]
  * @returns {import('./types.js').DaemonicPersistencePowers}
  */
 export const makeDaemonicPersistencePowers = (
@@ -431,6 +432,7 @@ export const makeDaemonicPersistencePowers = (
   filePowers,
   cryptoPowers,
   locator,
+  includeWebPageBundler = true,
 ) => {
   const initializePersistence = async () => {
     const { statePath, ephemeralStatePath, cachePath } = locator;
@@ -556,21 +558,21 @@ export const makeDaemonicPersistencePowers = (
     await filePowers.writeFileText(file, `${q(formula)}\n`);
   };
 
-  const webPageFormula = {
+  const webPageBundlerFormula = includeWebPageBundler ? {
     type: /** @type {'import-unsafe'} */ ('import-unsafe'),
     worker: `worker-id512:${zero512}`,
     powers: 'host',
     importPath: fileURLToPath(
       new URL('web-page-bundler.js', import.meta.url).href,
     ),
-  };
+  } : undefined;
 
   return harden({
     initializePersistence,
     makeContentSha512Store,
     readFormula,
     writeFormula,
-    webPageFormula,
+    webPageBundlerFormula,
   });
 };
 
