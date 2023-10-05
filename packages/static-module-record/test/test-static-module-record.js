@@ -792,3 +792,19 @@ test('should handle package "immer" source', t => {
     setUseProxies: ['vn', true],
   });
 });
+
+// Regression test for https://github.com/jvilk/BrowserFS
+test.failing('should handle package "browserfs" source', t => {
+  const { __syncModuleProgram__ } = new StaticModuleRecord(
+    readFixture('fixtures/browserfs.js'),
+  );
+  t.notThrows(() => {
+    // This is throwing a ReferenceError for "ErrorCode"
+    eval(__syncModuleProgram__)({
+      'imports': () => {},
+      'liveVar': {
+        ErrorCode: () => {},
+      }
+    });
+  });
+});
