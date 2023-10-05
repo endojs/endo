@@ -16,12 +16,11 @@ const validFormulaPattern =
  * @param {import('./types.js').Locator} locator
  */
 export const makePetStoreMaker = (filePowers, locator) => {
-
   /**
    * @param {string} petNameDirectoryPath
    * @returns {Promise<import('@endo/far').FarRef<import('./types.js').PetStore>>}
    */
-  const makePetStoreAtPath = async (petNameDirectoryPath) => {
+  const makePetStoreAtPath = async petNameDirectoryPath => {
     /** @type {Map<string, string>} */
     const petNames = new Map();
     /** @type {Map<string, Set<string>>} */
@@ -220,7 +219,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
   /**
    * @param {string} id
    */
-  const makeIdentifiedPetStore = (id) => {
+  const makeIdentifiedPetStore = id => {
     if (!validIdPattern.test(id)) {
       throw new Error(`Invalid identifier for pet store ${q(id)}`);
     }
@@ -238,7 +237,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
   /**
    * @param {string} name
    */
-  const makeOwnPetStore = (name) => {
+  const makeOwnPetStore = name => {
     const petNameDirectoryPath = filePowers.joinPath(locator.statePath, name);
     return makePetStoreAtPath(petNameDirectoryPath);
   };
@@ -247,5 +246,4 @@ export const makePetStoreMaker = (filePowers, locator) => {
     makeIdentifiedPetStore,
     makeOwnPetStore,
   };
-
 };

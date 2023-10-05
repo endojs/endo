@@ -62,7 +62,7 @@ const makeEndoBootstrap = (
     control: controlPowers,
   } = powers;
   const { randomHex512, makeSha512 } = cryptoPowers;
-  const contentStore = persistencePowers.makeContentSha512Store()
+  const contentStore = persistencePowers.makeContentSha512Store();
 
   /** @type {Map<string, unknown>} */
   const valuePromiseForFormulaIdentifier = new Map();
@@ -78,7 +78,7 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeSha512ReadableBlob = sha512 => {
-    const { text, json, stream } = contentStore.fetch(sha512)
+    const { text, json, stream } = contentStore.fetch(sha512);
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
@@ -123,10 +123,7 @@ const makeEndoBootstrap = (
       writer,
       closed: workerClosed,
       pid: workerPid,
-    } = await controlPowers.makeWorker(
-      workerId512,
-      workerCancelled,
-    );
+    } = await controlPowers.makeWorker(workerId512, workerCancelled);
 
     console.log(
       `Endo worker started PID ${workerPid} unique identifier ${workerId512}`,
@@ -347,7 +344,11 @@ const makeEndoBootstrap = (
         if (persistencePowers.webPageFormula === undefined) {
           throw Error('No web-page-js formula provided.');
         }
-        return makeValueForFormula('web-page-js', zero512, persistencePowers.webPageFormula);
+        return makeValueForFormula(
+          'web-page-js',
+          zero512,
+          persistencePowers.webPageFormula,
+        );
       }
       throw new TypeError(
         `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
@@ -378,7 +379,10 @@ const makeEndoBootstrap = (
         'web-bundle',
       ].includes(prefix)
     ) {
-      const formula = await persistencePowers.readFormula(prefix, formulaNumber);
+      const formula = await persistencePowers.readFormula(
+        prefix,
+        formulaNumber,
+      );
       // TODO validate
       return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
     } else {
@@ -512,7 +516,6 @@ const makeEndoBootstrap = (
  * @param {Promise<never>} cancelled
  */
 export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
-
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
       makePromiseKit()
@@ -535,16 +538,12 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
       makePromiseKit()
     );
 
-  const endoBootstrap = makeEndoBootstrap(
-    powers,
-    assignedWebletPortP,
-    {
-      cancelled,
-      cancel,
-      gracePeriodMs,
-      gracePeriodElapsed,
-    },
-  );
+  const endoBootstrap = makeEndoBootstrap(powers, assignedWebletPortP, {
+    cancelled,
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+  });
 
   return { endoBootstrap, cancelGracePeriod, assignWebletPort };
 };

@@ -178,11 +178,7 @@ export const makeHttpPowers = ({ http, ws }) => {
  * @param {typeof import('ws')} modules.ws
  * @returns {import('./types.js').NetworkPowers}
  */
-export const makeNetworkPowers = ({
-  http,
-  ws,
-  net,
-}) => {
+export const makeNetworkPowers = ({ http, ws, net }) => {
   const { servePortHttp } = makeHttpPowers({ http, ws });
 
   const serveListener = async (listen, cancelled) => {
@@ -254,7 +250,12 @@ export const makeNetworkPowers = ({
    * @param {(error: Error) => void} exitWithError
    * @returns {{ started: () => Promise<void>, stopped: Promise<void> }}
    */
-  const makePrivatePathService = (endoBootstrap, sockPath, cancelled, exitWithError) => {
+  const makePrivatePathService = (
+    endoBootstrap,
+    sockPath,
+    cancelled,
+    exitWithError,
+  ) => {
     const privatePathService = servePrivatePath(sockPath, endoBootstrap, {
       servePath,
       connectionNumbers,
@@ -262,7 +263,7 @@ export const makeNetworkPowers = ({
       exitWithError,
     });
     return privatePathService;
-  }
+  };
 
   /**
    * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
@@ -272,22 +273,24 @@ export const makeNetworkPowers = ({
    * @param {(error: Error) => void} exitWithError
    * @returns {{ started: () => Promise<void>, stopped: Promise<void> }}
    */
-  const makePrivateHttpService = (endoBootstrap, port, assignWebletPort, cancelled, exitWithError) => {
-    const privateHttpService = servePrivatePortHttp(
-      port,
-      endoBootstrap,
-      {
-        servePortHttp,
-        connectionNumbers,
-        cancelled,
-        exitWithError,
-      },
-    );
+  const makePrivateHttpService = (
+    endoBootstrap,
+    port,
+    assignWebletPort,
+    cancelled,
+    exitWithError,
+  ) => {
+    const privateHttpService = servePrivatePortHttp(port, endoBootstrap, {
+      servePortHttp,
+      connectionNumbers,
+      cancelled,
+      exitWithError,
+    });
 
     assignWebletPort(privateHttpService.started);
 
     return privateHttpService;
-  }
+  };
 
   return harden({
     servePortHttp,
@@ -296,13 +299,9 @@ export const makeNetworkPowers = ({
     makePrivatePathService,
     makePrivateHttpService,
   });
-}
+};
 
-export const makeFilePowers = ({
-  fs,
-  path: fspath,
-}) => {
-
+export const makeFilePowers = ({ fs, path: fspath }) => {
   /**
    * @param {string} path
    */
@@ -387,13 +386,13 @@ export const makeFilePowers = ({
     removePath,
     renamePath,
   });
-}
+};
 
 /**
  * @param {typeof import('crypto')} crypto
  * @returns {import('./types.js').CryptoPowers}
  */
-export const makeCryptoPowers = (crypto) => {
+export const makeCryptoPowers = crypto => {
   const makeSha512 = () => {
     const digester = crypto.createHash('sha512');
     return harden({
@@ -418,7 +417,7 @@ export const makeCryptoPowers = (crypto) => {
     makeSha512,
     randomHex512,
   });
-}
+};
 
 /**
  * @param {(URL) => string} fileURLToPath
@@ -427,29 +426,30 @@ export const makeCryptoPowers = (crypto) => {
  * @param {import('./types.js').Locator} locator
  * @returns {import('./types.js').DaemonicPersistencePowers}
  */
-export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoPowers, locator) => {
-
+export const makeDaemonicPersistencePowers = (
+  fileURLToPath,
+  filePowers,
+  cryptoPowers,
+  locator,
+) => {
   const initializePersistence = async () => {
     const { statePath, ephemeralStatePath, cachePath } = locator;
     const statePathP = filePowers.makePath(statePath);
     const ephemeralStatePathP = filePowers.makePath(ephemeralStatePath);
     const cachePathP = filePowers.makePath(cachePath);
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
-  }
+  };
 
   const makeContentSha512Store = () => {
     const { statePath } = locator;
-    const storageDirectoryPath = filePowers.joinPath(
-      statePath,
-      'store-sha512',
-    );
+    const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha512');
 
     return harden({
       /**
        * @param {AsyncIterable<Uint8Array>} readable
        * @returns {Promise<string>}
        */
-      async store (readable) {
+      async store(readable) {
         const digester = cryptoPowers.makeSha512();
         const storageId512 = await cryptoPowers.randomHex512();
         const temporaryStoragePath = filePowers.joinPath(
@@ -477,7 +477,7 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
        * @param {string} sha512
        * @returns {import('./types.js').AlmostEndoReadable}
        */
-      fetch (sha512) {
+      fetch(sha512) {
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
         const stream = () => {
           const reader = filePowers.makeFileReader(storagePath);
@@ -495,9 +495,9 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
           text,
           json,
           [Symbol.asyncIterator]: () => stream(),
-        })
+        });
       },
-    })
+    });
   };
 
   /**
@@ -563,7 +563,7 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
     importPath: fileURLToPath(
       new URL('web-page-bundler.js', import.meta.url).href,
     ),
-  }
+  };
 
   return harden({
     initializePersistence,
@@ -571,11 +571,16 @@ export const makeDaemonicPersistencePowers = (fileURLToPath, filePowers, cryptoP
     readFormula,
     writeFormula,
     webPageFormula,
-  })
-}
+  });
+};
 
-export const makeDaemonicControlPowers = (locator, fileURLToPath, filePowers, fs, popen) => {
-
+export const makeDaemonicControlPowers = (
+  locator,
+  fileURLToPath,
+  filePowers,
+  fs,
+  popen,
+) => {
   const endoWorkerPath = fileURLToPath(
     new URL('worker-node.js', import.meta.url),
   );
@@ -584,22 +589,11 @@ export const makeDaemonicControlPowers = (locator, fileURLToPath, filePowers, fs
    * @param {string} id
    * @param {Promise<never>} cancelled
    */
-  const makeWorker = async (
-    id,
-    cancelled,
-  ) => {
+  const makeWorker = async (id, cancelled) => {
     const { cachePath, statePath, ephemeralStatePath, sockPath } = locator;
 
-    const workerCachePath = filePowers.joinPath(
-      cachePath,
-      'worker-id512',
-      id,
-    );
-    const workerStatePath = filePowers.joinPath(
-      statePath,
-      'worker-id512',
-      id,
-    );
+    const workerCachePath = filePowers.joinPath(cachePath, 'worker-id512', id);
+    const workerStatePath = filePowers.joinPath(statePath, 'worker-id512', id);
     const workerEphemeralStatePath = filePowers.joinPath(
       ephemeralStatePath,
       'worker-id512',
@@ -612,15 +606,18 @@ export const makeDaemonicControlPowers = (locator, fileURLToPath, filePowers, fs
     ]);
 
     const logPath = filePowers.joinPath(workerStatePath, 'worker.log');
-    const pidPath = filePowers.joinPath(
-      workerEphemeralStatePath,
-      'worker.pid',
-    );
+    const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
 
     const log = fs.openSync(logPath, 'a');
     const child = popen.fork(
       endoWorkerPath,
-      [id, sockPath, workerStatePath, workerEphemeralStatePath, workerCachePath],
+      [
+        id,
+        sockPath,
+        workerStatePath,
+        workerEphemeralStatePath,
+        workerCachePath,
+      ],
       {
         stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
         // @ts-ignore Stale Node.js type definition.
@@ -654,7 +651,7 @@ export const makeDaemonicControlPowers = (locator, fileURLToPath, filePowers, fs
   return harden({
     makeWorker,
   });
-}
+};
 
 /**
  * @param {object} opts
@@ -677,8 +674,19 @@ export const makeDaemonicPowers = ({
   const { fileURLToPath } = url;
 
   const petStorePowers = makePetStoreMaker(filePowers, locator);
-  const daemonicPersistencePowers = makeDaemonicPersistencePowers(fileURLToPath, filePowers, cryptoPowers, locator);
-  const daemonicControlPowers = makeDaemonicControlPowers(locator, fileURLToPath, filePowers, fs, popen);
+  const daemonicPersistencePowers = makeDaemonicPersistencePowers(
+    fileURLToPath,
+    filePowers,
+    cryptoPowers,
+    locator,
+  );
+  const daemonicControlPowers = makeDaemonicControlPowers(
+    locator,
+    fileURLToPath,
+    filePowers,
+    fs,
+    popen,
+  );
 
   return harden({
     crypto: cryptoPowers,

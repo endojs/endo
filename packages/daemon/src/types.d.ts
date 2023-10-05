@@ -2,7 +2,10 @@ import type { ERef } from '@endo/eventual-send';
 import { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
-export type SomehowAsyncIterable<T> = AsyncIterable<T> | Iterable<T> | { next: () => IteratorResult<T> };
+export type SomehowAsyncIterable<T> =
+  | AsyncIterable<T>
+  | Iterable<T>
+  | { next: () => IteratorResult<T> };
 
 export type Locator = {
   statePath: string;
@@ -266,16 +269,16 @@ export type NetworkPowers = {
     endoBootstrap: FarRef<unknown>,
     sockPath: string,
     cancelled: Promise<never>,
-    exitWithError: (error: Error) => void
+    exitWithError: (error: Error) => void,
   ) => { started: () => Promise<void>; stopped: Promise<void> };
   makePrivateHttpService: (
     endoBootstrap: FarRef<unknown>,
     port: number,
     assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,
-    exitWithError: (error: Error) => void
+    exitWithError: (error: Error) => void,
   ) => { started: () => Promise<void>; stopped: Promise<void> };
-}
+};
 
 // The return type here is almost an EndoReadable, but not quite. Should fix.
 export type AlmostEndoReadable = {
@@ -284,7 +287,7 @@ export type AlmostEndoReadable = {
   text(): Promise<string>;
   json(): Promise<unknown>;
   [Symbol.asyncIterator]: any;
-}
+};
 
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
@@ -293,16 +296,17 @@ export type DaemonicPersistencePowers = {
     fetch: (sha512: string) => AlmostEndoReadable;
   };
   readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
-  writeFormula: (formula: Formula, formulaType: string, formulaId512: string) => Promise<void>;
+  writeFormula: (
+    formula: Formula,
+    formulaType: string,
+    formulaId512: string,
+  ) => Promise<void>;
   webPageFormula?: Formula;
 };
 
 export type DaemonicControlPowers = {
-  makeWorker: (
-    id: string,
-    cancelled: Promise<never>,
-  ) => Promise<Worker>;
-}
+  makeWorker: (id: string, cancelled: Promise<never>) => Promise<Worker>;
+};
 
 export type DaemonicPowers = {
   crypto: CryptoPowers;

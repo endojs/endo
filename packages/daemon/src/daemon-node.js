@@ -18,7 +18,12 @@ import * as ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';
-import { makeFilePowers, makeNetworkPowers, makeDaemonicPowers, makeCryptoPowers } from './daemon-node-powers.js';
+import {
+  makeFilePowers,
+  makeNetworkPowers,
+  makeDaemonicPowers,
+  makeCryptoPowers,
+} from './daemon-node-powers.js';
 
 if (process.argv.length < 5) {
   throw new Error(
@@ -88,7 +93,7 @@ const updateRecordedPid = async () => {
 };
 
 const main = async () => {
-  const daemonLabel = `daemon on PID ${pid}`
+  const daemonLabel = `daemon on PID ${pid}`;
   console.log(`Endo daemon starting on PID ${pid}`);
   cancelled.catch(() => {
     console.log(`Endo daemon stopping on PID ${pid}`);
@@ -97,10 +102,11 @@ const main = async () => {
   const requestedWebletPort = requestedWebletPortText
     ? Number(requestedWebletPortText)
     : defaultHttpPort;
-  
+
   await daemonicPersistencePowers.initializePersistence();
 
-  const { endoBootstrap, cancelGracePeriod, assignWebletPort } = await makeDaemon(powers, daemonLabel, cancel, cancelled);
+  const { endoBootstrap, cancelGracePeriod, assignWebletPort } =
+    await makeDaemon(powers, daemonLabel, cancel, cancelled);
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -109,16 +115,29 @@ const main = async () => {
   };
 
   // Start network services
-  const privatePathService = networkPowers.makePrivatePathService(endoBootstrap, sockPath, cancelled, exitWithError)
-  const privateHttpService = networkPowers.makePrivateHttpService(endoBootstrap, requestedWebletPort, assignWebletPort, cancelled, exitWithError)
+  const privatePathService = networkPowers.makePrivatePathService(
+    endoBootstrap,
+    sockPath,
+    cancelled,
+    exitWithError,
+  );
+  const privateHttpService = networkPowers.makePrivateHttpService(
+    endoBootstrap,
+    requestedWebletPort,
+    assignWebletPort,
+    cancelled,
+    exitWithError,
+  );
   const services = [privatePathService, privateHttpService];
-  await Promise.all(services.map(({ started }) => started)).then(() => {
-    informParentWhenReady();
-  },
-  error => {
-    reportErrorToParent(error.message);
-    throw error;
-  })
+  await Promise.all(services.map(({ started }) => started)).then(
+    () => {
+      informParentWhenReady();
+    },
+    error => {
+      reportErrorToParent(error.message);
+      throw error;
+    },
+  );
   const servicesStopped = Promise.all(services.map(({ stopped }) => stopped));
 
   // Record self as official daemon process
@@ -128,7 +147,7 @@ const main = async () => {
   await servicesStopped;
   cancel(new Error('Terminated normally'));
   cancelGracePeriod(new Error('Terminated normally'));
-}
+};
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 

@@ -4,7 +4,6 @@ import { encodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
 import { Far } from '@endo/far';
 
-
 /**
  * Returns the iterator for the given iterable object.
  * Supports both synchronous and asynchronous iterables.
@@ -24,7 +23,6 @@ export const asyncIterate = iterable => {
   }
   return iterator;
 };
-
 
 /**
  * @template T
