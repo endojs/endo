@@ -6865,6 +6865,14 @@ icss-replace-symbols@1.1.0, icss-replace-symbols@^1.1.0:
   resolved "https://registry.yarnpkg.com/icss-replace-symbols/-/icss-replace-symbols-1.1.0.tgz#06ea6f83679a7749e386cfe1fe812ae5db223ded"
   integrity sha512-chIaY3Vh2mh2Q3RGXttaDIzeiPvaVXJ+C4DAh/w3c37SKZ/U6PGMmuicR2EQQp9bKG8zLMCl7I+PtIoOOPp8Gg==
 
+idb-kv-store@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.yarnpkg.com/idb-kv-store/-/idb-kv-store-4.5.0.tgz#74c70534cb80b10880f905e17f8d4969a26175e2"
+  integrity sha512-snvtAQRforYUI+C2+45L2LBJy/0/uQUffxv8/uwiS98fSUoXHVrFPClgzWZWxT0drwkLHJRm9inZcYzTR42GLA==
+  dependencies:
+    inherits "^2.0.3"
+    promisize "^1.1.2"
+
 ieee754@^1.1.13, ieee754@^1.1.4, ieee754@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/ieee754/-/ieee754-1.2.1.tgz#8eb7a10a63fff25d15a57b001586d177d1b0d352"
@@ -10318,6 +10326,11 @@ promise-retry@^2.0.1:
   dependencies:
     err-code "^2.0.2"
     retry "^0.12.0"
+
+promisize@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/promisize/-/promisize-1.1.2.tgz#9b47e2cb2ae497eb1ebadc2c4191d64d15c949d1"
+  integrity sha512-6/X05CD1iri6YyLy6TW7a23HY0igsrb/qetltYKfJznLfzmspWtN/cY/UR0By3M5i13hBDWfmM2P42ovKl3GAw==
 
 promzard@^0.3.0:
   version "0.3.0"

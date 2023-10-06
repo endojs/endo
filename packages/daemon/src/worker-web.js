@@ -8,13 +8,16 @@ import '@endo/eventual-send/shim.js';
 import '@endo/promise-kit/shim.js';
 import '@endo/lockdown/commit.js';
 
-import { fs } from './web-fs.js';
+import IdbKvStore from 'idb-kv-store';
+import { makeKeyValueFs } from './web-fs.js';
 import url from 'url';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { main as workerMain } from './worker.js';
 import { makePowers } from './worker-web-powers.js';
 
+const idbStore = new IdbKvStore('endo-daemon')
+const { fs } = makeKeyValueFs(idbStore)
 
 const powers = makePowers({ fs, url });
 
@@ -51,4 +54,4 @@ const main = async () => {
   
 }
 
-main()
+globalThis.startWorker = main

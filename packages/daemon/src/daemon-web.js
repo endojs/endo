@@ -15,7 +15,8 @@ import { Buffer } from 'buffer';
 // import { configure, BFSRequire } from 'browserfs';
 // import { configure, fs } from './browserfs.mjs';
 import fsPath from 'path';
-import { fs } from './web-fs.js';
+import IdbKvStore from 'idb-kv-store';
+import { makeKeyValueFs } from './web-fs.js';
 // import makeDirectory from 'make-dir';
 
 import { makePromiseKit } from '@endo/promise-kit';
@@ -39,20 +40,6 @@ const locator = {
 };
 
 const { pid, env, kill } = process;
-
-const cb2promise =
-  (obj, method) =>
-  (...args) =>
-    new Promise((resolve, reject) => {
-      obj[method](...args, (err, ...rest) => {
-        if (err) {
-          reject(err);
-        } else {
-          // @ts-ignore
-          resolve(...rest);
-        }
-      });
-    });
 
 const informParentWhenReady = () => {
   if (process.send) {
@@ -113,118 +100,18 @@ const crypto = {
   },
 };
 
-// const permissionError = pth => {
-// 	// This replicates the exception of `fs.mkdir` with native the
-// 	// `recusive` option when run on an invalid drive under Windows.
-// 	const error = new Error(`operation not permitted, mkdir '${pth}'`);
-// 	error.code = 'EPERM';
-// 	error.errno = -4048;
-// 	error.path = pth;
-// 	error.syscall = 'mkdir';
-// 	return error;
-// };
 
-// const makeDirectory = async (input, options) => {
-//   const fs = options.fs.promises;
-//   const path = options.path;
+const makePowers = async ({ makeWebWorker }) => {
+  if (!makeWebWorker) {
+    throw new Error('makeWebWorker is required');
+  }
 
-//   const make = async pth => {
-//     console.log(`makeDirectory ${pth}`);
-//     // workaround for browserfs bug?
-//     if (pth === '/') {
-//       return pth;
-//     }
-//     try {
-//       await fs.mkdir(pth, options.mode);
-
-//       return pth;
-//     } catch (error) {
-//       // workaround for browserfs bug?
-//       if (error.code === 'EEXIST') {
-//         // continue normally
-//         return pth;
-//       }
-
-//       if (error.code === 'EPERM') {
-//         throw error;
-//       }
-
-//       if (error.code === 'ENOENT') {
-//         if (path.dirname(pth) === pth) {
-//           throw permissionError(pth);
-//         }
-
-//         if (error.message.includes('null bytes')) {
-//           throw error;
-//         }
-
-//         await make(path.dirname(pth));
-
-//         return make(pth);
-//       }
-
-//       // try {
-//       //   const stats = await stat(pth);
-//       //   if (!stats.isDirectory()) {
-//       //     throw new Error('The path is not a directory');
-//       //   }
-//       // } catch {
-//       //   throw error;
-//       // }
-
-//       return pth;
-//     }
-//   };
-
-//   return make(path.resolve(input));
-// };
-
-
-const makePowers = async () => {
-  // shim fs
-  // await new Promise(cb => configure({
-  //   fs: 'IndexedDB',
-  //   options: {},
-  // }, cb));
-  // // const fs = BFSRequire('fs');
-  // // const fsPath = BFSRequire('path');
-  // // @ts-ignore
-  // fs.promises = {
-  //   readFile: cb2promise(fs, 'readFile'),
-  //   writeFile: cb2promise(fs, 'writeFile'),
-  //   readdir: cb2promise(fs, 'readdir'),
-  //   mkdir: cb2promise(fs, 'mkdir'),
-  //   rm: cb2promise(fs, 'rmdir'),
-  //   rename: cb2promise(fs, 'rename'),
-  // };
-  // // shim mkdir recursive: true
-  // const _mkDir = fs.mkdir;
-  // fs.mkdir = (path, options, cb) => {
-  //   if (typeof options === 'function') {
-  //     cb = options;
-  //     options = undefined;
-  //   }
-  //   if (options && options.recursive) {
-  //     makeDirectory(path, {
-  //       fs,
-  //       path: fsPath,
-  //       mode: options.mode,
-  //     }).then(() => cb(null), cb);
-  //     return;
-  //   }
-  //   _mkDir.call(fs, path, options, cb);
-  // };
+  const idbStore = new IdbKvStore('endo-daemon')
+  const { fs } = makeKeyValueFs(idbStore)
 
   const filePowers = makeFilePowers({ fs, path: fsPath });
   // @ts-ignore
   const cryptoPowers = makeCryptoPowers(crypto);
-
-  const makeWebWorker = () => {
-    const worker = new Worker('./dist-worker-web-bundle.js', {
-      name: 'Endo Worker',
-    });
-    return worker;
-  }
 
   const powers = makeDaemonicPowers({
     locator,
@@ -236,19 +123,22 @@ const makePowers = async () => {
   });
   const { persistence: daemonicPersistencePowers } = powers;
 
-  // try {
+  // try {  
   //   console.log(await fs.promises.readdir('/'))
   // } catch (e) {
+  //   console.log(e)
   //   debugger
   // }
   // try {
   //   console.log(await fs.promises.mkdir('/'))
   // } catch (e) {
+  //   console.log(e)
   //   debugger
   // }
   // try {
   //   console.log(await fs.promises.readdir('/'))
   // } catch (e) {
+  //   console.log(e)
   //   debugger
   // }
   // try {
@@ -267,14 +157,15 @@ const makePowers = async () => {
   return powers;
 };
 
-const main = async () => {
+const main = async ({ makeWebWorker }) => {
   const daemonLabel = `daemon in worker`;
   console.log(`Endo daemon starting in worker`);
   cancelled.catch(() => {
     console.log(`Endo daemon stopping in worker`);
   });
 
-  const powers = await makePowers();
+  const powers = await makePowers({ makeWebWorker });
+  console.log(`Endo daemon powers created in worker`)
 
   const { endoBootstrap, cancelGracePeriod, assignWebletPort } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled);
@@ -302,4 +193,4 @@ const main = async () => {
 
 };
 
-main()
+globalThis.startDaemon = main;

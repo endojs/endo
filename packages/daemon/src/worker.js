@@ -90,7 +90,7 @@ export const makeWorkerFacet = ({
  * @param {Promise<never>} cancelled
  */
 export const main = async (powers, locator, uuid, pid, cancel, cancelled) => {
-  console.error(`Endo worker started on pid ${pid}`);
+  console.info(`Endo worker started on pid ${pid}`);
   cancelled.catch(() => {
     console.error(`Endo worker exiting on pid ${pid}`);
   });

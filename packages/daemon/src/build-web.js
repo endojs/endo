@@ -21,12 +21,29 @@ const daemonBundleLocation = new URL(
   '../dist-daemon-web-bundle.js',
   import.meta.url,
 ).toString();
+const daemonInitModuleLocation = new URL(
+  'daemon-web-init.js',
+  import.meta.url,
+).toString();
+const daemonInitBundleLocation = new URL(
+  '../dist-daemon-web-init-bundle.js',
+  import.meta.url,
+).toString();
+
 const workerModuleLocation = new URL(
   'worker-web.js',
   import.meta.url,
 ).toString();
 const workerBundleLocation = new URL(
   '../dist-worker-web-bundle.js',
+  import.meta.url,
+).toString();
+const workerInitModuleLocation = new URL(
+  'worker-web-init.js',
+  import.meta.url,
+).toString();
+const workerInitBundleLocation = new URL(
+  '../dist-worker-init-bundle.js',
   import.meta.url,
 ).toString();
 
@@ -43,6 +60,7 @@ const bundleOptions = {
 }
 
 async function main() {
+  // daemon kit hermetic bundle
   await writeBundle(
     write,
     read,
@@ -50,11 +68,28 @@ async function main() {
     daemonModuleLocation,
     bundleOptions,
   )
+  // worker kit hermetic bundle
   await writeBundle(
     write,
     read,
     workerBundleLocation,
     workerModuleLocation,
+    bundleOptions,
+  )
+  // self-initing daemon
+  await writeBundle(
+    write,
+    read,
+    daemonInitBundleLocation,
+    daemonInitModuleLocation,
+    bundleOptions,
+  )
+  // self-initing worker
+  await writeBundle(
+    write,
+    read,
+    workerInitBundleLocation,
+    workerInitModuleLocation,
     bundleOptions,
   )
 }
