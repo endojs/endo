@@ -7,6 +7,7 @@ import {
   setPrototypeOf,
   getOwnPropertyDescriptor,
   defineProperty,
+  errorToString,
 } from '../commons.js';
 import { NativeErrors } from '../permits.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
@@ -18,7 +19,7 @@ const stackDesc = getOwnPropertyDescriptor(FERAL_ERROR.prototype, 'stack');
 const stackGetter = stackDesc && stackDesc.get;
 
 // Use concise methods to obtain named functions without constructors.
-const tamedMethods = {
+const defaultGetStackString = {
   getStackString(error) {
     if (typeof stackGetter === 'function') {
       return apply(stackGetter, error, []);
@@ -26,9 +27,10 @@ const tamedMethods = {
       // The fallback is to just use the de facto `error.stack` if present
       return `${error.stack}`;
     }
-    return '';
+    // Fallback to the error details if no stack info is available at all
+    return errorToString(error);
   },
-};
+}.getStackString;
 
 export default function tameErrorConstructor(
   errorTaming = 'safe',
@@ -171,7 +173,7 @@ export default function tameErrorConstructor(
     });
   }
 
-  let initialGetStackString = tamedMethods.getStackString;
+  let initialGetStackString = defaultGetStackString;
   if (platform === 'v8') {
     initialGetStackString = tameV8ErrorConstructor(
       FERAL_ERROR,
@@ -179,7 +181,7 @@ export default function tameErrorConstructor(
       errorTaming,
       stackFiltering,
     );
-  } else if (errorTaming === 'unsafe') {
+  } else if (errorTaming !== 'unsafe') {
     // v8 has too much magic around their 'stack' own property for it to
     // coexist cleanly with this accessor. So only install it on non-v8
 
@@ -198,13 +200,12 @@ export default function tameErrorConstructor(
     // much code in the world that assumes `error.stack` is a string. So
     // where the proposal accommodates secure operation by making the
     // property optional, we instead accommodate secure operation by
-    // having the secure form always return only the stable part, the
-    // stringified error instance, and omitting all the frame information
-    // rather than omitting the property.
+    // having the secure form always return an empty string.
     defineProperties(ErrorPrototype, {
       stack: {
         get() {
-          return initialGetStackString(this);
+          // In safe mode, the `stack` property is always empty by default
+          return '';
         },
         set(newValue) {
           defineProperties(this, {
@@ -221,13 +222,12 @@ export default function tameErrorConstructor(
   } else {
     // v8 has too much magic around their 'stack' own property for it to
     // coexist cleanly with this accessor. So only install it on non-v8
+
+    // In unsafe taming, we return the full stack string
     defineProperties(ErrorPrototype, {
       stack: {
         get() {
-          // https://github.com/tc39/proposal-error-stacks/issues/46
-          // allows this to not add an unpleasant newline. Otherwise
-          // we should fix this.
-          return `${this}`;
+          return initialGetStackString(this);
         },
         set(newValue) {
           defineProperties(this, {
