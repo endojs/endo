@@ -128,6 +128,74 @@ export const makeWebWorkerReader = workerContext => {
 };
 
 /**
+ * @param {MessagePort} port 
+ */
+const makePortReader = port => {
+  const queue = makeQueue();
+  port.addEventListener('message', event => {
+    queue.put(event.data);
+  });
+  port.start();
+
+  /** @type {import('@endo/stream').Reader<Buffer>} */
+  const reader = {
+    async next() {
+      const result = await queue.get();
+      return { done: false, value: result };
+    },
+    async return() {
+      return { done: true, value: undefined };
+    },
+    async throw(error) {
+      console.log('> port reader throw requested', error)
+      port.close();
+      return { done: true, value: undefined };
+    },
+    [Symbol.asyncIterator]() {
+      return reader;
+    },
+  };
+
+  return reader;
+}
+
+/**
+ * @param {MessagePort} port 
+ */
+const makePortWriter = port => {
+  /** @type {import('@endo/stream').Writer<Buffer>} */
+  const writer = {
+    async next(value) {
+      port.postMessage(value);
+      return { done: false, value: undefined };
+    },
+    async return() {
+      port.close();
+      return { done: true, value: undefined };
+    },
+    async throw(error) {
+      port.close();
+      return { done: true, value: undefined };
+    },
+    [Symbol.asyncIterator]() {
+      return writer;
+    },
+  };
+
+  return writer;
+}
+
+/**
+ * @param {MessagePort} port 
+ */
+export const makePortConnection = (port) => {
+  return {
+    reader: makePortReader(port),
+    writer: makePortWriter(port),
+  }
+};
+
+/**
  * @param {import('./types.js').Locator} locator
  * @param {import('./types.js').FilePowers} filePowers
  * @param {() => Worker} makeWebWorker

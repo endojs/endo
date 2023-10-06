@@ -24,7 +24,14 @@ import { E, Far } from '@endo/far';
 
 import { makeDaemon } from './daemon.js';
 import { makeFilePowers, makeCryptoPowers } from './daemon-node-powers.js';
-import { makeDaemonicPowers } from './daemon-web-powers.js';
+import { makeDaemonicPowers, makePortConnection } from './daemon-web-powers.js';
+
+import {
+  makeMessageCapTP,
+  messageToBytes,
+  bytesToMessage,
+} from './connection.js';
+import { mapReader, mapWriter } from '@endo/stream';
 
 const sockPath = 'DAEMON/sock';
 const statePath = 'DAEMON/state';
@@ -122,36 +129,6 @@ const makePowers = async ({ makeWebWorker }) => {
 
   });
   const { persistence: daemonicPersistencePowers } = powers;
-
-  // try {  
-  //   console.log(await fs.promises.readdir('/'))
-  // } catch (e) {
-  //   console.log(e)
-  //   debugger
-  // }
-  // try {
-  //   console.log(await fs.promises.mkdir('/'))
-  // } catch (e) {
-  //   console.log(e)
-  //   debugger
-  // }
-  // try {
-  //   console.log(await fs.promises.readdir('/'))
-  // } catch (e) {
-  //   console.log(e)
-  //   debugger
-  // }
-  // try {
-  //   console.log(await fs.promises.mkdir('xyz/'))
-  // } catch (e) {
-  //   debugger
-  // }
-  // try {
-  //   console.log(await fs.promises.readdir('xyz/'))
-  // } catch (e) {
-  //   debugger
-  // }
-
   await daemonicPersistencePowers.initializePersistence();
 
   return powers;
@@ -165,11 +142,9 @@ const main = async ({ makeWebWorker }) => {
   });
 
   const powers = await makePowers({ makeWebWorker });
-  console.log(`Endo daemon powers created in worker`)
 
-  const { endoBootstrap, cancelGracePeriod, assignWebletPort } =
+  const { endoBootstrap, cancelGracePeriod } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled);
-  console.log(`Endo daemon started in worker`);
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -186,11 +161,34 @@ const main = async ({ makeWebWorker }) => {
   globalThis.host = host;
   globalThis.guest = newGuest;
 
-  // trigger worker
-  console.log('testing worker')
-  const result = await E(host).evaluate('NEW', '123', [], [], 'result')
-  console.log('testing worker done', result)
+  // // trigger worker
+  // console.log('testing worker')
+  // const result = await E(host).evaluate('NEW', '123', [], [], 'result')
+  // console.log('testing worker done', result)
 
+  const connectGuestPort = async (port, guestId) => {
+    const { reader: portReader, writer: portWriter } = makePortConnection(port);
+
+    const messageWriter = mapWriter(portWriter, messageToBytes);
+    const messageReader = mapReader(portReader, bytesToMessage);
+
+    console.log('daemon connecting to incomming guest')
+    const { closed: capTpClosed, getBootstrap } = makeMessageCapTP(
+      'Endo',
+      messageWriter,
+      messageReader,
+      cancelled,
+      newGuest, // bootstrap
+    );
+    await getBootstrap();
+    console.log('daemon connected to incomming guest!')
+
+    await capTpClosed;
+    console.log('captp peer closed')
+  };
+
+
+  return { connectGuestPort }
 };
 
 globalThis.startDaemon = main;

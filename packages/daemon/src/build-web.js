@@ -12,6 +12,14 @@ import { makeWritePowers, makeReadPowers } from '@endo/compartment-mapper/node-p
 const { write } = makeWritePowers({ fs });
 const { read } = makeReadPowers({ fs });
 
+const workerEnvModuleLocation = new URL(
+  'worker-env.js',
+  import.meta.url,
+).toString();
+const workerEnvBundleLocation = new URL(
+  '../dist-worker-env-bundle.js',
+  import.meta.url,
+).toString();
 
 const daemonModuleLocation = new URL(
   'daemon-web.js',
@@ -60,6 +68,14 @@ const bundleOptions = {
 }
 
 async function main() {
+  // worker env bundle
+  await writeBundle(
+    write,
+    read,
+    workerEnvBundleLocation,
+    workerEnvModuleLocation,
+    bundleOptions,
+  )
   // daemon kit hermetic bundle
   await writeBundle(
     write,
