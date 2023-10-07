@@ -745,6 +745,72 @@ test('source map generation', t => {
   t.assert(/must-appear/.test(__syncModuleProgram__));
 });
 
+test('should export a var', t => {
+  const { __syncModuleProgram__ } = new StaticModuleRecord(`
+    export var x = 10;
+  `);
+  const c = new Compartment();
+  t.notThrows(() => {
+    c.evaluate(__syncModuleProgram__, {
+      __moduleShimLexicals__: {
+        x: undefined,
+      },
+    })({
+      imports: () => {},
+      liveVar: {
+        x: () => {},
+      },
+    });
+  });
+});
+
+// Isolation test for https://github.com/jvilk/BrowserFS
+test('var should be able to initialize with its own value', t => {
+  const { __syncModuleProgram__ } = new StaticModuleRecord(`
+    export var x = x, y = (y, y);
+  `);
+  t.log(__syncModuleProgram__);
+  const c = new Compartment();
+  t.notThrows(() => {
+    // This is throwing a ReferenceError for "ErrorCode"
+    c.evaluate(__syncModuleProgram__, {
+      __moduleShimLexicals__: {
+        x: undefined,
+        y: undefined,
+      },
+    })({
+      imports: () => {},
+      liveVar: {
+        x: () => {},
+        y: () => {},
+      },
+    });
+  });
+});
+
+test('should hoist and reinitialize var', t => {
+  const { __syncModuleProgram__ } = new StaticModuleRecord(`
+    var x;
+    var x = x;
+    export { x };
+  `);
+  t.log(__syncModuleProgram__);
+  const c = new Compartment();
+  t.notThrows(() => {
+    // This is throwing a ReferenceError for "ErrorCode"
+    c.evaluate(__syncModuleProgram__, {
+      __moduleShimLexicals__: {
+        x: undefined,
+      },
+    })({
+      imports: () => {},
+      liveVar: {
+        x: () => {},
+      },
+    });
+  });
+});
+
 // Regression test for #823
 test('static module records can name Map in scope', t => {
   t.notThrows(() => initialize(t, `const { Map } = globalThis;`));
@@ -794,17 +860,22 @@ test('should handle package "immer" source', t => {
 });
 
 // Regression test for https://github.com/jvilk/BrowserFS
-test.failing('should handle package "browserfs" source', t => {
+test('should handle package "browserfs" source', t => {
   const { __syncModuleProgram__ } = new StaticModuleRecord(
     readFixture('fixtures/browserfs.js'),
   );
+  const c = new Compartment();
   t.notThrows(() => {
-    // This is throwing a ReferenceError for "ErrorCode"
-    eval(__syncModuleProgram__)({
-      'imports': () => {},
-      'liveVar': {
+    // This was throwing a ReferenceError for "ErrorCode"
+    c.evaluate(__syncModuleProgram__, {
+      __moduleShimLexicals__: {
+        ErrorCode: undefined,
+      },
+    })({
+      imports: () => {},
+      liveVar: {
         ErrorCode: () => {},
-      }
+      },
     });
   });
 });
