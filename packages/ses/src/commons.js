@@ -152,6 +152,7 @@ export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no
 
 export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty);
 //
+export const arrayEvery = uncurryThis(arrayPrototype.every);
 export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);

@@ -8,6 +8,12 @@ import {
   getOwnPropertyDescriptor,
   defineProperty,
   errorToString,
+  stringSplit,
+  stringStartsWith,
+  stringEndsWith,
+  arrayEvery,
+  stringSlice,
+  stringReplace,
 } from '../commons.js';
 import { NativeErrors } from '../permits.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
@@ -19,8 +25,9 @@ const stackDesc = getOwnPropertyDescriptor(FERAL_ERROR.prototype, 'stack');
 const stackGetter = stackDesc && stackDesc.get;
 
 // Use concise methods to obtain named functions without constructors.
-const defaultGetStackString = {
+const basicGetStackString = {
   getStackString(error) {
+    // TODO: format stack properly
     if (typeof stackGetter === 'function') {
       return apply(stackGetter, error, []);
     } else if ('stack' in error) {
@@ -31,6 +38,63 @@ const defaultGetStackString = {
     return errorToString(error);
   },
 }.getStackString;
+
+const testBasicStackStringShape = () => {
+  const error = FERAL_ERROR('test message');
+  error.name = 'TestError';
+  const stackString = basicGetStackString(error);
+  const isString = typeof stackString === 'string';
+  const stackStringLines = stringSplit(isString ? stackString : '', '\n');
+  const includesErrorDetails =
+    stringStartsWith(stackStringLines[0], error.name) &&
+    stringEndsWith(stackStringLines[0], error.message);
+  const trailingNewLine = stackStringLines[stackStringLines.length - 1] === '';
+  const stackFrameLinesHaveSpaces = arrayEvery(
+    stackStringLines,
+    (line, idx) =>
+      (includesErrorDetails && idx === 0) ||
+      (trailingNewLine && idx === stackStringLines.length - 1) ||
+      stringStartsWith(line, ' '),
+  );
+  return {
+    isString,
+    includesErrorDetails,
+    trailingNewLine,
+    stackFrameLinesHaveSpaces,
+  };
+};
+
+const defaultGetStackString = (() => {
+  const {
+    isString,
+    includesErrorDetails,
+    trailingNewLine,
+    stackFrameLinesHaveSpaces,
+  } = testBasicStackStringShape();
+  if (
+    !isString ||
+    (includesErrorDetails && !trailingNewLine && stackFrameLinesHaveSpaces)
+  ) {
+    return basicGetStackString;
+  }
+  return {
+    getStackString(error) {
+      let stackString = basicGetStackString(error);
+      if (trailingNewLine) {
+        stackString = stringSlice(stackString, 0, -1);
+      }
+      if (!stackFrameLinesHaveSpaces) {
+        stackString = stringReplace(stackString, /\n/gm, '\n  ');
+      }
+      if (!includesErrorDetails) {
+        const details = errorToString(error);
+        stackString =
+          details + (stackFrameLinesHaveSpaces ? '\n' : '\n  ') + stackString;
+      }
+      return stackString;
+    },
+  }.getStackString;
+})();
 
 export default function tameErrorConstructor(
   errorTaming = 'safe',
