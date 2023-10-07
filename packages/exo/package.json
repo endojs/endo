@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@endo/env-options": "^0.1.4",
+    "@endo/eventual-send": "^0.17.6",
     "@endo/far": "^0.2.22",
     "@endo/pass-style": "^0.1.7",
     "@endo/patterns": "^0.2.6"
