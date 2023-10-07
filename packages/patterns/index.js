@@ -71,9 +71,10 @@ export {
   kindOf,
 } from './src/patterns/patternMatchers.js';
 
-// ////////////////// Temporary, until these find their proper home ////////////
-
-export { listDifference, objectMap } from './src/utils.js';
-
 // eslint-disable-next-line import/export
 export * from './src/types.js';
+
+// Deprecating the reexporting of these @endo/utils exports. Rather,
+// importers should switch to import directly from @endo/utils instead.
+// TODO Uncomment to preserve compat during transition
+// export { listDifference, objectMap } from '@endo/utils';

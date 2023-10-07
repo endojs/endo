@@ -2,8 +2,6 @@ import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { hasOwnPropertyOf } from '@endo/pass-style';
 import { E, Far } from '@endo/far';
 import {
-  listDifference,
-  objectMap,
   mustMatch,
   M,
   isAwaitArgGuard,
@@ -13,6 +11,7 @@ import {
   getInterfaceGuardPayload,
   getCopyMapEntries,
 } from '@endo/patterns';
+import { listDifference, objectMap } from '@endo/utils';
 import { GET_INTERFACE_GUARD } from './get-interface.js';
 
 /** @typedef {import('@endo/patterns').Method} Method */

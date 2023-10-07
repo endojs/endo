@@ -2,24 +2,42 @@
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 
-/** @typedef {import('@endo/marshal').Checker} Checker */
-
-const { fromEntries, entries } = Object;
+const {
+  fromEntries,
+  entries,
+  getOwnPropertyDescriptors,
+  create,
+  defineProperties,
+} = Object;
 const { ownKeys } = Reflect;
 
 const { details: X, quote: q, Fail } = assert;
 
-// TODO migrate to proper home
-// From the `agoric-sdk` monorepo. Moved here temporarily because the pattern
-// code is migrated from `@agoric/store` to `@endo/patterns`, and depends on
-// the functionality in this file, which is otherwise available only
-// within the `agoric-sdk` monorepo.
+// TODO Complete migration of Checker type from @endo/pass-style to @endo/utils
+// by having @endo/pass-style, and everyone else who needs it, import it from
+// @endo/utils.
+/**
+ * @callback Checker
+ * Internal to a useful pattern for writing checking logic
+ * (a "checkFoo" function) that can be used to implement a predicate
+ * (an "isFoo" function) or a validator (an "assertFoo" function).
+ *
+ *    * A predicate ideally only returns `true` or `false` and rarely throws.
+ *    * A validator throws an informative diagnostic when the predicate
+ *      would have returned `false`, and simply returns `undefined` normally
+ *      when the predicate would have returned `true`.
+ *    * The internal checking function that they share is parameterized by a
+ *      `Checker` that determines how to proceed with a failure condition.
+ *      Predicates pass in an identity function as checker. Validators
+ *      pass in `assertChecker` which is a trivial wrapper around `assert`.
+ *
+ * See the various uses for good examples.
+ * @param {boolean} cond
+ * @param {import('ses').Details} [details]
+ * @returns {boolean}
+ */
 
 /**
- * TODO as long as `@endo/pass-style` remains the proper home of the
- * `Checker` type, it probably makes most sense to move `identChecker`
- * into `@endo/pass-style` as well.
- *
  * In the `assertFoo`/`isFoo`/`checkFoo` pattern, `checkFoo` has a `check`
  * parameter of type `Checker`. `assertFoo` calls `checkFoo` passes
  * `assertChecker` as the `check` argument. `isFoo` passes `identChecker`
@@ -92,7 +110,7 @@ harden(fromUniqueEntries);
  * a CopyRecord.
  *
  * @template {Record<string, any>} O
- * @template R result
+ * @template R map result
  * @param {O} original
  * @param {(value: O[keyof O], key: keyof O) => R} mapFn
  * @returns {Record<keyof O, R>}
@@ -105,6 +123,79 @@ export const objectMap = (original, mapFn) => {
   return /** @type {Record<keyof O, R>} */ (harden(fromEntries(mapEnts)));
 };
 harden(objectMap);
+
+/**
+ * Like `objectMap`, but at the reflective level of property descriptors
+ * rather than property values.
+ *
+ * Except for hardening, the edge case behavior is mostly the opposite of
+ * the `objectMap` edge cases.
+ *    * No matter how mutable the original object, the returned object is
+ *      hardened.
+ *    * All own properties of the original are mapped, even if symbol-named
+ *      or non-enumerable.
+ *    * If any of the original properties were accessors, the descriptor
+ *      containing the getter and setter are given to `metaMapFn`.
+ *    * The own properties of the returned are according to the descriptors
+ *      returned by `metaMapFn`.
+ *    * The returned object will always be a plain object whose state is
+ *      only these mapped own properties. It will inherit from the third
+ *      argument if provided, defaulting to `Object.prototype` if omitted.
+ *
+ * Because a property descriptor is distinct from `undefined`, we bundle
+ * mapping and filtering together. When the `metaMapFn` returns `undefined`,
+ * that property is omitted from the result.
+ *
+ * @template {Record<PropertyKey, any>} O
+ * @param {O} original
+ * @param {(
+ *   desc: TypedPropertyDescriptor<O[keyof O]>,
+ *   key: keyof O
+ * ) => (PropertyDescriptor | undefined)} metaMapFn
+ * @param {any} [proto]
+ * @returns {any}
+ */
+export const objectMetaMap = (
+  original,
+  metaMapFn,
+  proto = Object.prototype,
+) => {
+  const descs = getOwnPropertyDescriptors(original);
+  const keys = ownKeys(original);
+
+  const descEntries = /** @type {[PropertyKey,PropertyDescriptor][]} */ (
+    keys
+      .map(key => [key, metaMapFn(descs[key], key)])
+      .filter(([_key, optDesc]) => optDesc !== undefined)
+  );
+  return harden(create(proto, fromUniqueEntries(descEntries)));
+};
+harden(objectMetaMap);
+
+/**
+ * Like `Object.assign` but at the reflective level of property descriptors
+ * rather than property values.
+ *
+ * Unlike `Object.assign`, this includes all own properties, whether enumerable
+ * or not. An original accessor property is copied by sharing its getter and
+ * setter, rather than calling the getter to obtain a value. If an original
+ * property is non-configurable, a property of the same name on a later original
+ * that would conflict instead causes the call to `objectMetaAssign` to throw an
+ * error.
+ *
+ * Returns the enhanced `target` after hardening.
+ *
+ * @param {any} target
+ * @param {any[]} originals
+ * @returns {any}
+ */
+export const objectMetaAssign = (target, ...originals) => {
+  for (const original of originals) {
+    defineProperties(target, getOwnPropertyDescriptors(original));
+  }
+  return harden(target);
+};
+harden(objectMetaAssign);
 
 /**
  *
@@ -154,7 +245,9 @@ export const applyLabelingError = (func, args, label = undefined) => {
     throwLabeled(err, label);
   }
   if (isPromise(result)) {
-    // @ts-expect-error If result is a rejected promise, this will
+    // Cannot be at-ts-expect-error because there is no type error locally.
+    // Rather, a type error only as imported into exo.
+    // @ts-ignore If result is a rejected promise, this will
     // return a promise with a different rejection reason. But this
     // confuses TypeScript because it types that case as `Promise<never>`
     // which is cool for a promise that will never fulfll.
