@@ -55,6 +55,15 @@ const workerInitBundleLocation = new URL(
   import.meta.url,
 ).toString();
 
+const catModuleLocation = new URL(
+  '../../cli/demo/cat.js',
+  import.meta.url,
+).toString();
+const catBundleLocation = new URL(
+  '../dist-cat-bundle.js',
+  import.meta.url,
+).toString();
+
 const bundleOptions = {
   // node builtin shims for browser
   commonDependencies: {
@@ -106,6 +115,14 @@ async function main() {
     read,
     workerInitBundleLocation,
     workerInitModuleLocation,
+    bundleOptions,
+  )
+  // cat app
+  await writeBundle(
+    write,
+    read,
+    catBundleLocation,
+    catModuleLocation,
     bundleOptions,
   )
 }

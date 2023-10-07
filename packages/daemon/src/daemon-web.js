@@ -178,7 +178,8 @@ const main = async ({ makeWebWorker }) => {
       messageWriter,
       messageReader,
       cancelled,
-      newGuest, // bootstrap
+      // newGuest, // bootstrap
+      host, // bootstrap
     );
     await getBootstrap();
     console.log('daemon connected to incomming guest!')
