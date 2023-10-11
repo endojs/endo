@@ -23,8 +23,8 @@ export const makeGuestMaker = ({
     const petStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
-    const host = /** @type {object} */ (
-      await provideValueForFormulaIdentifier(hostFormulaIdentifier)
+    const hostController = /** @type {import('./types.js').Controller<>} */ (
+      await provideControllerForFormulaIdentifier(hostFormulaIdentifier)
     );
 
     const deliverToHost = partyRequestFunctions.get(host);
@@ -81,7 +81,7 @@ export const makeGuestMaker = ({
     partyReceiveFunctions.set(guest, receive);
     partyRequestFunctions.set(guest, respond);
 
-    return guest;
+    return { promise: guest };
   };
 
   return makeIdentifiedGuest;

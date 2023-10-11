@@ -140,6 +140,14 @@ export interface Topic<
   subscribe(): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
 }
 
+export interface Controller<Value = unknown, Internal = unknown> {
+  promise: Promise<Value>;
+  internal: Internal;
+  terminate?: () => {};
+  terminating?: Promise<void>;
+  terminated?: Promise<void>;
+}
+
 export interface PetStore {
   list(): Array<string>;
   write(petName: string, formulaIdentifier: string): Promise<void>;

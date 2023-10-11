@@ -59,8 +59,8 @@ const makeEndoBootstrap = (
   const { randomHex512, makeSha512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
 
-  /** @type {Map<string, unknown>} */
-  const valuePromiseForFormulaIdentifier = new Map();
+  /** @type {Map<string, import('./types.js').Controller<>>} */
+  const controllerForFormulaIdentifier = new Map();
   // Reverse look-up, for answering "what is my name for this near or far
   // reference", and not for "what is my name for this promise".
   /** @type {WeakMap<object, string>} */
@@ -74,13 +74,14 @@ const makeEndoBootstrap = (
    */
   const makeSha512ReadableBlob = sha512 => {
     const { text, json, stream } = contentStore.fetch(sha512);
-    return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
+    const promise = Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
       text,
       json,
       [Symbol.asyncIterator]: stream,
     });
+    return { promise };
   };
 
   /**
@@ -167,7 +168,7 @@ const makeEndoBootstrap = (
 
     workerBootstraps.set(worker, workerBootstrap);
 
-    return worker;
+    return { promise: worker };
   };
 
   /**
@@ -199,7 +200,12 @@ const makeEndoBootstrap = (
         provideValueForFormulaIdentifier(formulaIdentifier),
       ),
     );
-    return E(workerBootstrap).evaluate(source, codeNames, endowmentValues);
+    const promise = E(workerBootstrap).evaluate(
+      source,
+      codeNames,
+      endowmentValues,
+    );
+    return { promise };
   };
 
   /**
@@ -224,7 +230,8 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    return E(workerBootstrap).importUnsafeAndEndow(importPath, guestP);
+    const promise = E(workerBootstrap).importUnsafeAndEndow(importPath, guestP);
+    return { promise };
   };
 
   /**
@@ -257,7 +264,11 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    return E(workerBootstrap).importBundleAndEndow(readableBundleP, guestP);
+    const promise = E(workerBootstrap).importBundleAndEndow(
+      readableBundleP,
+      guestP,
+    );
+    return { promise };
   };
 
   /**
@@ -265,11 +276,7 @@ const makeEndoBootstrap = (
    * @param {string} formulaNumber
    * @param {import('./types.js').Formula} formula
    */
-  const makeValueForFormula = async (
-    formulaIdentifier,
-    formulaNumber,
-    formula,
-  ) => {
+  const makeValueForFormula = (formulaIdentifier, formulaNumber, formula) => {
     if (formula.type === 'eval') {
       return makeValueForEval(
         formula.worker,
@@ -299,15 +306,18 @@ const makeEndoBootstrap = (
         `worker-id512:${formulaNumber}`,
       );
     } else if (formula.type === 'web-bundle') {
-      return harden({
-        url: `http://${formulaNumber}.endo.localhost:${await webletPortP}`,
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        bundle: provideValueForFormulaIdentifier(formula.bundle),
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        powers: provideValueForFormulaIdentifier(formula.powers),
-      });
+      return {
+        promise: (async () =>
+          harden({
+            url: `http://${formulaNumber}.endo.localhost:${await webletPortP}`,
+            // Behold, recursion:
+            // eslint-disable-next-line no-use-before-define
+            bundle: provideValueForFormulaIdentifier(formula.bundle),
+            // Behold, recursion:
+            // eslint-disable-next-line no-use-before-define
+            powers: provideValueForFormulaIdentifier(formula.powers),
+          }))(),
+      };
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -320,7 +330,8 @@ const makeEndoBootstrap = (
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        return petStorePowers.makeOwnPetStore('pet-store', assertPetName);
+        const promise = petStorePowers.makeOwnPetStore('pet-store', assertPetName);
+        return { promise };
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -332,9 +343,9 @@ const makeEndoBootstrap = (
       } else if (formulaIdentifier === 'endo') {
         // Behold, self-referentiality:
         // eslint-disable-next-line no-use-before-define
-        return endoBootstrap;
+        return { promise: endoBootstrap };
       } else if (formulaIdentifier === 'least-authority') {
-        return leastAuthority;
+        return { promise: leastAuthority };
       } else if (formulaIdentifier === 'web-page-js') {
         if (persistencePowers.webPageBundlerFormula === undefined) {
           throw Error('No web-page-js formula provided.');
@@ -356,10 +367,11 @@ const makeEndoBootstrap = (
     } else if (prefix === 'worker-id512') {
       return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
-      return petStorePowers.makeIdentifiedPetStore(
+      const promise = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         assertPetName,
       );
+      return { promise };
     } else if (prefix === 'host-id512') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -392,7 +404,7 @@ const makeEndoBootstrap = (
 
   // The two functions provideValueForFormula and provideValueForFormulaIdentifier
   // share a responsibility for maintaining the memoization tables
-  // valuePromiseForFormulaIdentifier and formulaIdentifierForRef, since the
+  // controllerForFormulaIdentifier and formulaIdentifierForRef, since the
   // former bypasses the latter in order to avoid a round trip with disk.
 
   const provideValueForNumberedFormula = async (
@@ -405,17 +417,17 @@ const makeEndoBootstrap = (
     await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const promiseForValue = makeValueForFormula(
+    const controller = await makeValueForFormula(
       formulaIdentifier,
       formulaNumber,
       formula,
     );
 
     // Memoize for lookup.
-    valuePromiseForFormulaIdentifier.set(formulaIdentifier, promiseForValue);
+    controllerForFormulaIdentifier.set(formulaIdentifier, controller);
 
     // Prepare an entry for reverse-lookup of formula for presence.
-    const value = await promiseForValue;
+    const value = await controller.promise;
     if (typeof value === 'object' && value !== null) {
       formulaIdentifierForRef.set(value, formulaIdentifier);
     }
@@ -435,14 +447,26 @@ const makeEndoBootstrap = (
   /**
    * @param {string} formulaIdentifier
    */
-  const provideValueForFormulaIdentifier = async formulaIdentifier => {
-    let promiseForValue =
-      valuePromiseForFormulaIdentifier.get(formulaIdentifier);
-    if (promiseForValue === undefined) {
-      promiseForValue = makeValueForFormulaIdentifier(formulaIdentifier);
-      valuePromiseForFormulaIdentifier.set(formulaIdentifier, promiseForValue);
+  const provideControllerForFormulaIdentifier = async formulaIdentifier => {
+    let controller = controllerForFormulaIdentifier.get(formulaIdentifier);
+    if (controller === undefined) {
+      controller = await makeValueForFormulaIdentifier(formulaIdentifier);
+      if (controller === undefined) {
+        throw new Error('panic: not sure why the type is not narrower here');
+      }
+      controllerForFormulaIdentifier.set(formulaIdentifier, controller);
     }
-    const value = await promiseForValue;
+    return controller;
+  };
+
+  /**
+   * @param {string} formulaIdentifier
+   */
+  const provideValueForFormulaIdentifier = async formulaIdentifier => {
+    const controller = /** @type {import('./types.js').Controller<>} */ (
+      await provideControllerForFormulaIdentifier(formulaIdentifier)
+    );
+    const value = await controller.promise;
     if (typeof value === 'object' && value !== null) {
       formulaIdentifierForRef.set(value, formulaIdentifier);
     }

@@ -377,9 +377,12 @@ export const makeMailboxMaker = ({
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipient = /** @type {object} */ (
-        await provideValueForFormulaIdentifier(recipientFormulaIdentifier)
-      );
+      const recipientController =
+        /** @type {import('./types.js').Controller<>} */ (
+          await provideControllerForFormulaIdentifier(
+            recipientFormulaIdentifier,
+          )
+        );
 
       const deliverToRecipient = partyRequestFunctions.get(recipient);
       if (deliverToRecipient === undefined) {

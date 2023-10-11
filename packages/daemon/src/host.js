@@ -444,7 +444,7 @@ export const makeHostMaker = ({
     partyReceiveFunctions.set(host, receive);
     partyRequestFunctions.set(host, respond);
 
-    return host;
+    return { promise: host };
   };
 
   return makeIdentifiedHost;
