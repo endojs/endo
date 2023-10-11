@@ -203,6 +203,23 @@ test('sloppy option', t => {
   );
 });
 
+const RawGreeterI = M.interface('greeter', {}, { defaultGuards: 'raw' });
+
+test('raw defaultGuards', t => {
+  const greeter = makeExo('greeter', RawGreeterI, {
+    sayHello(mutable) {
+      mutable.x = 3;
+      return 'hello';
+    },
+  });
+  const mutable = {};
+  t.is(greeter.sayHello(mutable), 'hello');
+  t.deepEqual(mutable, { x: 3 });
+  mutable.y = 4;
+  t.deepEqual(mutable, { x: 3, y: 4 });
+  t.deepEqual(greeter[GET_INTERFACE_GUARD](), RawGreeterI);
+});
+
 const GreeterI = M.interface('greeter', {
   sayHello: M.call().returns('hello'),
 });

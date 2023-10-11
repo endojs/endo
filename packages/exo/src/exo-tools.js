@@ -6,11 +6,11 @@ import {
   mustMatch,
   M,
   isAwaitArgGuard,
+  isRawGuard,
   getAwaitArgGuardPayload,
   getMethodGuardPayload,
   getInterfaceGuardPayload,
   getCopyMapEntries,
-  // isRawValueGuard,
 } from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
@@ -20,7 +20,6 @@ import {
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard
  */
-/** @typedef {import('@endo/patterns').InterfaceGuardKit} InterfaceGuardKit */
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
@@ -30,7 +29,9 @@ const { defineProperties, fromEntries } = Object;
  * A method guard, for inclusion in an interface guard, that does not
  * enforce any constraints of incoming arguments or return results.
  */
-// const RawMethodGuard = M.call().rest(M.rawValue()).returns(M.rawValue());
+const RawMethodGuard = M.call().rest(M.raw()).returns(M.raw());
+
+const REDACTED_RAW_ARG = '<redacted raw arg>';
 
 /**
  * A method guard, for inclusion in an interface guard, that enforces only that
@@ -39,33 +40,119 @@ const { defineProperties, fromEntries } = Object;
  * enforcement for a method guard, and is implied by all other
  * non-raw method guards.
  */
-const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
+const PassableMethodGuard = M.call().rest(M.any()).returns(M.any());
+
+/**
+ * @typedef {object} MatchConfig
+ * @property {number} declaredLen
+ * @property {boolean} hasRestArgGuard
+ * @property {boolean} restArgGuardIsRaw
+ * @property {Pattern} paramsPattern
+ * @property {number[]} redactedIndices
+ */
 
 /**
  * @param {Passable[]} syncArgs
- * @param {MethodGuardPayload} methodGuardPayload
+ * @param {MatchConfig} matchConfig
  * @param {string} [label]
  * @returns {Passable[]} Returns the args that should be passed to the
  * raw method
  */
-const defendSyncArgs = (syncArgs, methodGuardPayload, label = undefined) => {
-  const { argGuards, optionalArgGuards, restArgGuard } = methodGuardPayload;
-  const paramsPattern = M.splitArray(
-    argGuards,
-    optionalArgGuards,
-    restArgGuard,
-  );
-  mustMatch(harden(syncArgs), paramsPattern, label);
-  if (restArgGuard !== undefined) {
+const defendSyncArgs = (syncArgs, matchConfig, label = undefined) => {
+  const {
+    declaredLen,
+    hasRestArgGuard,
+    restArgGuardIsRaw,
+    paramsPattern,
+    redactedIndices,
+  } = matchConfig;
+
+  // Use syncArgs if possible, but copy it when necessary to implement redactions.
+  let matchableArgs = syncArgs;
+  if (restArgGuardIsRaw && syncArgs.length > declaredLen) {
+    const restLen = syncArgs.length - declaredLen;
+    const redactedRest = Array(restLen).fill(REDACTED_RAW_ARG);
+    matchableArgs = [...syncArgs.slice(0, declaredLen), ...redactedRest];
+  } else if (
+    redactedIndices.length > 0 &&
+    redactedIndices[0] < syncArgs.length
+  ) {
+    // Copy the arguments array, avoiding hardening the redacted ones (which are
+    // trivially matched using REDACTED_RAW_ARG as a sentinel value).
+    matchableArgs = [...syncArgs];
+  }
+
+  for (const i of redactedIndices) {
+    if (i >= matchableArgs.length) {
+      break;
+    }
+    matchableArgs[i] = REDACTED_RAW_ARG;
+  }
+
+  mustMatch(harden(matchableArgs), paramsPattern, label);
+
+  if (hasRestArgGuard) {
     return syncArgs;
   }
-  const declaredLen =
-    argGuards.length + (optionalArgGuards ? optionalArgGuards.length : 0);
   if (syncArgs.length <= declaredLen) {
     return syncArgs;
   }
   // Ignore extraneous arguments, as a JS function call would do.
   return syncArgs.slice(0, declaredLen);
+};
+
+/**
+ * Convert a method guard to a match config for more efficient per-call
+ * execution.  This is a one-time conversion, so it's OK to be slow.
+ *
+ * Most of the work is done to detect `M.raw()` so that we build a match pattern
+ * and metadata instead of doing this in the hot path.
+ * @param {MethodGuardPayload} methodGuardPayload
+ * @returns {MatchConfig}
+ */
+const buildMatchConfig = methodGuardPayload => {
+  const {
+    argGuards,
+    optionalArgGuards = [],
+    restArgGuard,
+  } = methodGuardPayload;
+
+  const matchableArgGuards = [...argGuards, ...optionalArgGuards];
+
+  const redactedIndices = [];
+  for (let i = 0; i < matchableArgGuards.length; i += 1) {
+    if (isRawGuard(matchableArgGuards[i])) {
+      matchableArgGuards[i] = REDACTED_RAW_ARG;
+      redactedIndices.push(i);
+    }
+  }
+
+  // Pass through raw rest arguments without matching.
+  let matchableRestArgGuard = restArgGuard;
+  if (isRawGuard(matchableRestArgGuard)) {
+    matchableRestArgGuard = M.arrayOf(REDACTED_RAW_ARG);
+  }
+  const matchableMethodGuardPayload = harden({
+    ...methodGuardPayload,
+    argGuards: matchableArgGuards.slice(0, argGuards.length),
+    optionalArgGuards: matchableArgGuards.slice(argGuards.length),
+    restArgGuard: matchableRestArgGuard,
+  });
+
+  const paramsPattern = M.splitArray(
+    matchableMethodGuardPayload.argGuards,
+    matchableMethodGuardPayload.optionalArgGuards,
+    matchableMethodGuardPayload.restArgGuard,
+  );
+
+  return harden({
+    declaredLen: matchableArgGuards.length,
+    hasRestArgGuard: restArgGuard !== undefined,
+    restArgGuardIsRaw: restArgGuard !== matchableRestArgGuard,
+    paramsPattern,
+    redactedIndices,
+    matchableMethodGuardPayload,
+  });
 };
 
 /**
@@ -76,16 +163,17 @@ const defendSyncArgs = (syncArgs, methodGuardPayload, label = undefined) => {
  */
 const defendSyncMethod = (method, methodGuardPayload, label) => {
   const { returnGuard } = methodGuardPayload;
+  const isRawReturn = isRawGuard(returnGuard);
+  const matchConfig = buildMatchConfig(methodGuardPayload);
   const { syncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     syncMethod(...syncArgs) {
-      const realArgs = defendSyncArgs(
-        harden(syncArgs),
-        methodGuardPayload,
-        label,
-      );
+      // Only harden args and return value if not dealing with a raw value guard.
+      const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
       const result = apply(method, this, realArgs);
-      mustMatch(harden(result), returnGuard, `${label}: result`);
+      if (!isRawReturn) {
+        mustMatch(harden(result), returnGuard, `${label}: result`);
+      }
       return result;
     },
   };
@@ -193,6 +281,7 @@ const defendMethod = (method, methodGuard, label) => {
  * @param {CallableFunction} behaviorMethod
  * @param {boolean} [thisfulMethods]
  * @param {MethodGuard} [methodGuard]
+ * @param {import('@endo/patterns').DefaultGuardType} [defaultGuards]
  */
 const bindMethod = (
   methodTag,
@@ -200,6 +289,7 @@ const bindMethod = (
   behaviorMethod,
   thisfulMethods = false,
   methodGuard = undefined,
+  defaultGuards = 'never',
 ) => {
   assert.typeof(behaviorMethod, 'function');
 
@@ -235,12 +325,23 @@ const bindMethod = (
           return apply(behaviorMethod, null, [context, ...args]);
         },
       };
+  if (!methodGuard && thisfulMethods) {
+    switch (defaultGuards) {
+      case 'never':
+      case 'passable':
+        methodGuard = PassableMethodGuard;
+        break;
+      case 'raw':
+        methodGuard = RawMethodGuard;
+        break;
+      default:
+        throw Fail`Unrecognized defaultGuards ${q(defaultGuards)}`;
+    }
+  }
   if (methodGuard) {
     method = defendMethod(method, methodGuard, methodTag);
-  } else if (thisfulMethods) {
-    // For far classes ensure that inputs and outputs are passable.
-    method = defendMethod(method, MinMethodGuard, methodTag);
   }
+
   defineProperties(method, {
     name: { value: methodTag },
     length: {
@@ -267,7 +368,7 @@ export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
  * @template {Record<PropertyKey, CallableFunction>} T
  * @param {T} behaviorMethods
  * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }>} interfaceGuard
- * @returns {T}
+ * @returns {T & { [GET_INTERFACE_GUARD]: () => InterfaceGuard<{ [M in keyof T]: MethodGuard }> }}
  */
 const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
   harden({
@@ -284,7 +385,6 @@ const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
  * @param {T} behaviorMethods
  * @param {boolean} [thisfulMethods]
  * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }>} [interfaceGuard]
- * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
  */
 export const defendPrototype = (
   tag,
@@ -303,18 +403,22 @@ export const defendPrototype = (
   }
   /** @type {Record<PropertyKey, MethodGuard> | undefined} */
   let methodGuards;
+  /** @type {import('@endo/patterns').DefaultGuardType} */
+  let defaultGuards = 'never';
   if (interfaceGuard) {
     const {
       interfaceName,
       methodGuards: mg,
       symbolMethodGuards,
-      defaultGuards,
+      sloppy,
+      defaultGuards: dg = sloppy ? 'passable' : defaultGuards,
     } = getInterfaceGuardPayload(interfaceGuard);
     methodGuards = harden({
       ...mg,
       ...(symbolMethodGuards &&
         fromEntries(getCopyMapEntries(symbolMethodGuards))),
     });
+    defaultGuards = dg;
     {
       const methodNames = ownKeys(behaviorMethods);
       assert(methodGuards);
@@ -333,7 +437,6 @@ export const defendPrototype = (
       interfaceGuard,
     );
   }
-
   for (const prop of ownKeys(behaviorMethods)) {
     prototype[prop] = bindMethod(
       `In ${q(prop)} method of (${tag})`,
@@ -342,19 +445,26 @@ export const defendPrototype = (
       thisfulMethods,
       // TODO some tool does not yet understand the `?.[` syntax
       methodGuards && methodGuards[prop],
+      defaultGuards,
     );
   }
 
-  return Far(tag, /** @type {T} */ (prototype));
+  return Far(
+    tag,
+    /** @type {T & { [GET_INTERFACE_GUARD]: () => InterfaceGuard<{ [M in keyof T]: MethodGuard }>}} */ (
+      prototype
+    ),
+  );
 };
 harden(defendPrototype);
 
 /**
+ * @template {Record<FacetName, Methods>} F
  * @param {string} tag
- * @param {Record<FacetName, KitContextProvider>} contextProviderKit
- * @param {Record<FacetName, Record<PropertyKey, CallableFunction>>} behaviorMethodsKit
+ * @param {{ [K in keyof F]: KitContextProvider }} contextProviderKit
+ * @param {F} behaviorMethodsKit
  * @param {boolean} [thisfulMethods]
- * @param {InterfaceGuardKit} [interfaceGuardKit]
+ * @param {{ [K in keyof F]: InterfaceGuard<Record<keyof F[K], MethodGuard>> }} [interfaceGuardKit]
  */
 export const defendPrototypeKit = (
   tag,
@@ -381,13 +491,14 @@ export const defendPrototypeKit = (
   const extraFacetNames = listDifference(contextMapNames, facetNames);
   extraFacetNames.length === 0 ||
     Fail`Facets ${q(extraFacetNames)} of ${q(tag)} missing contexts`;
-  return objectMap(behaviorMethodsKit, (behaviorMethods, facetName) =>
+  const protoKit = objectMap(behaviorMethodsKit, (behaviorMethods, facetName) =>
     defendPrototype(
-      `${tag} ${facetName}`,
+      `${tag} ${String(facetName)}`,
       contextProviderKit[facetName],
       behaviorMethods,
       thisfulMethods,
       interfaceGuardKit && interfaceGuardKit[facetName],
     ),
   );
+  return protoKit;
 };
