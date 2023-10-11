@@ -23,8 +23,8 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { E, Far } from '@endo/far';
 
 import { makeDaemon } from './daemon.js';
-import { makeFilePowers, makeCryptoPowers } from './daemon-node-powers.js';
-import { makeDaemonicPowers, makePortConnection } from './daemon-web-powers.js';
+import { makeCryptoPowers } from './daemon-node-powers.js';
+import { makeFilePowers, makeDaemonicPowers, makePortConnection } from './daemon-web-powers.js';
 
 import {
   makeMessageCapTP,
@@ -141,7 +141,11 @@ const main = async ({ makeWebWorker }) => {
     console.log(`Endo daemon stopping in worker`);
   });
 
-  const powers = await makePowers({ makeWebWorker });
+  // const powers = await makePowers({ makeWebWorker });
+  const powers = {
+    ...(await makePowers({ makeWebWorker })),
+    fetch,
+  }
 
   const { endoBootstrap, cancelGracePeriod } =
     await makeDaemon(powers, daemonLabel, cancel, cancelled);
@@ -172,14 +176,24 @@ const main = async ({ makeWebWorker }) => {
     const messageWriter = mapWriter(portWriter, messageToBytes);
     const messageReader = mapReader(portReader, bytesToMessage);
 
-    console.log('daemon connecting to incomming guest')
+    // calculate truncated hash of guestId (app file location) for unique guest name
+    const accumulator = powers.crypto.makeSha512()
+    accumulator.update(guestId)
+    const guestTruncatedHash = (await accumulator.digestHex()).slice(0, 16)
+
+    // const powersParty = guestId === 'HOST' ? host : (
+    //   await E(host).provideGuest(`guest-${guestTruncatedHash}`)
+    // )
+
+    console.log('daemon connecting to incomming guest', guestId)
     const { closed: capTpClosed, getBootstrap } = makeMessageCapTP(
       'Endo',
       messageWriter,
       messageReader,
       cancelled,
-      // newGuest, // bootstrap
-      host, // bootstrap
+      // newGuest,
+      host,
+      // powersParty,
     );
     await getBootstrap();
     console.log('daemon connected to incomming guest!')

@@ -8,6 +8,9 @@ import fs from 'fs';
 
 import { writeBundle } from '@endo/compartment-mapper/bundle.js';
 import { makeWritePowers, makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
+import bundleSource from '@endo/bundle-source';
+import { fileURLToPath } from 'url';
+
 
 const { write } = makeWritePowers({ fs });
 const { read } = makeReadPowers({ fs });
@@ -63,6 +66,7 @@ const catBundleLocation = new URL(
   '../dist-cat-bundle.js',
   import.meta.url,
 ).toString();
+
 
 const bundleOptions = {
   // node builtin shims for browser
@@ -125,6 +129,67 @@ async function main() {
     catModuleLocation,
     bundleOptions,
   )
+  // llm app
+  await writeFacetBundle(
+    write,
+    read,
+    new URL(
+      '../dist-llm-bundle.js',
+      import.meta.url,
+    ).toString(),
+    new URL(
+      './llm.js',
+      import.meta.url,
+    ).toString(),
+  )
+  await writeBundle(
+    write,
+    read,
+    new URL(
+      '../dist-llm-ui-bundle.js',
+      import.meta.url,
+    ).toString(),
+    new URL(
+      './llm-ui.js',
+      import.meta.url,
+    ).toString(),
+    bundleOptions,
+  )
+  // catagotchi facet
+  await writeFacetBundle(
+    write,
+    read,
+    new URL(
+      '../dist-catagotchi-bundle.js',
+      import.meta.url,
+    ).toString(),
+    new URL(
+      './catagotchi.js',
+      import.meta.url,
+    ).toString(),
+  )
+  // catagotchi app
+  await writeBundle(
+    write,
+    read,
+    new URL(
+      '../dist-catagotchi-ui-bundle.js',
+      import.meta.url,
+    ).toString(),
+    new URL(
+      './catagotchi-ui.js',
+      import.meta.url,
+    ).toString(),
+    bundleOptions,
+  )
 }
 
 main()
+
+async function writeFacetBundle (write, read, bundleUrl, moduleUrl) {
+  const modulePath = fileURLToPath(new URL(moduleUrl, import.meta.url));
+  const bundle = await bundleSource(modulePath);
+  const bundleText = JSON.stringify(bundle);
+  const wrappedBundleText = `export default ${bundleText};`;
+  await write(bundleUrl, Buffer.from(wrappedBundleText, 'utf8'));
+}

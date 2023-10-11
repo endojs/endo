@@ -59,6 +59,7 @@
     "events": "^3.3.0",
     "idb-kv-store": "^4.5.0",
     "make-dir": "^4.0.0",
+    "openai": "^4.11.1",
     "path-browserify": "^1.0.1",
     "ses": "^0.18.8",
     "url": "^0.11.3",

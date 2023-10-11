@@ -512,6 +512,7 @@ export const makeKeyValueFs = (store, options = {}) => {
         return asyncIterator;
       },
     }
+    return asyncIterator;
   }
 
   const fs = {

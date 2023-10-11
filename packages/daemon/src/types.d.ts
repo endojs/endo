@@ -18,7 +18,7 @@ export type Locator = {
 export type Sha512 = {
   update: (chunk: Uint8Array) => void;
   updateText: (chunk: string) => void;
-  digestHex: () => string;
+  digestHex: () => Promise<string>;
 };
 
 export type Connection = {

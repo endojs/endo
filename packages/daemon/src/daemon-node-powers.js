@@ -469,7 +469,7 @@ export const makeDaemonicPersistencePowers = (
         await fileWriter.return(undefined);
 
         // Calculate hash.
-        const sha512 = digester.digestHex();
+        const sha512 = await digester.digestHex();
         // Finish with an atomic rename.
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
         await filePowers.renamePath(temporaryStoragePath, storagePath);

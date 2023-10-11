@@ -3,7 +3,7 @@ import { makeQueue } from '@endo/stream';
 
 import {
   makeCryptoPowers,
-  makeFilePowers,
+  makeFilePowers as makeFilePowersNode,
   makeDaemonicPersistencePowers,
 } from './daemon-node-powers.js';
 import { makePetStoreMaker } from './pet-store.js';
@@ -12,8 +12,18 @@ export {
   // I would prefer to use the web-crypto API, but the hash operations are async
   // so we just use node-powers with browserify-crypto.
   makeCryptoPowers,
-  makeFilePowers,
 };
+
+export const makeFilePowers = ({ fs, path: fspath }) => {
+  const filePowers = makeFilePowersNode({ fs, path: fspath });
+  return harden({
+    ...filePowers,
+    makeFileWriter: (path) => {
+      // our web shimmed fs is a Writer
+      return fs.createWriteStream(path);
+    }
+  });
+}
 
 /**
  * @param {object} opts

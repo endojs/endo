@@ -16,6 +16,7 @@ export const makeHostMaker = ({
   makeSha512,
   randomHex512,
   makeMailbox,
+  fetch,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -394,7 +395,7 @@ export const makeHostMaker = ({
       digester.updateText(
         `${bundleFormulaIdentifier},${powersFormulaIdentifier}`,
       );
-      const formulaNumber = digester.digestHex().slice(32, 64);
+      const formulaNumber = (await digester.digestHex()).slice(32, 64);
 
       const formula = {
         type: 'web-bundle',
@@ -420,6 +421,14 @@ export const makeHostMaker = ({
 
     const { list, follow: followNames } = petStore;
 
+    const fetchJson = async (url, opts) => {
+      const response = await fetch(url, opts);
+      if (!response.ok) {
+        throw new Error(`fetchJson failed: ${response.status}`);
+      }
+      return response.json();
+    }
+
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
       lookup,
@@ -436,6 +445,7 @@ export const makeHostMaker = ({
       followNames,
       remove,
       rename,
+      // special hosty bois:
       store,
       provideGuest,
       provideHost,
@@ -445,6 +455,8 @@ export const makeHostMaker = ({
       importUnsafeAndEndow,
       importBundleAndEndow,
       provideWebPage,
+      // i cheated
+      fetchJson,
     });
 
     partyReceiveFunctions.set(host, receive);

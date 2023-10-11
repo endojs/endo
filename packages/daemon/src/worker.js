@@ -2,6 +2,7 @@
 /// <reference types="ses"/>
 
 import { E, Far } from '@endo/far';
+import { importBundle } from '@endo/import-bundle';
 import { makeNetstringCapTP } from './connection.js';
 
 const endowments = harden({
@@ -72,7 +73,6 @@ export const makeWorkerFacet = ({
 
       // We defer importing the import-bundle machinery to this in order to
       // avoid an up-front cost for workers that never use importBundle.
-      const { importBundle } = await import('@endo/import-bundle');
       const namespace = await importBundle(bundle, {
         endowments,
       });

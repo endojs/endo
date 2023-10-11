@@ -458,6 +458,7 @@ const makeEndoBootstrap = (
     makeMailbox,
   });
 
+  const { fetch } = powers;
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
     provideValueForFormula,
@@ -469,6 +470,7 @@ const makeEndoBootstrap = (
     randomHex512,
     makeSha512,
     makeMailbox,
+    fetch,
   });
 
   const endoBootstrap = Far('Endo private facet', {
