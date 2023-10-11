@@ -457,20 +457,31 @@ export {};
  */
 
 /**
+ * @typedef {'never' | 'passable' | 'raw'} DefaultGuardType
+ */
+
+/**
+ * @typedef {<M extends Record<PropertyKey, MethodGuard>>(
+ *   interfaceName: string,
+ *   methodGuards: M,
+ *   options: {defaultGuards?: 'never', sloppy?: false }) => InterfaceGuard<M>
+ * } MakeInterfaceGuardStrict
+ */
+/**
  * @typedef {(
  *   interfaceName: string,
  *   methodGuards: any,
- *   options: {sloppy: true}) => InterfaceGuard<Record<PropertyKey, MethodGuard>>
+ *   options: {defaultGuards?: 'passable' | 'raw', sloppy?: true }) => InterfaceGuard<Record<PropertyKey, MethodGuard>>
  * } MakeInterfaceGuardSloppy
  */
 /**
  * @typedef {<M extends Record<PropertyKey, MethodGuard>>(
  *   interfaceName: string,
  *   methodGuards: M,
- *   options?: {sloppy?: boolean}) => InterfaceGuard<M>
+ *   options?: {defaultGuards?: DefaultGuardType, sloppy?: boolean}) => InterfaceGuard<M>
  * } MakeInterfaceGuardGeneral
  */
-/** @typedef {MakeInterfaceGuardSloppy & MakeInterfaceGuardGeneral} MakeInterfaceGuard */
+/** @typedef {MakeInterfaceGuardStrict & MakeInterfaceGuardSloppy & MakeInterfaceGuardGeneral} MakeInterfaceGuard */
 
 /**
  * @typedef {object} GuardMakers
@@ -500,20 +511,10 @@ export {};
  * Any `AwaitArgGuard` may not appear as a rest pattern or a result pattern,
  * only a top-level single parameter pattern.
  *
- * HAZARD: Until https://github.com/endojs/endo/pull/1712 an `AwaitArgGuard`
- * is itself a `CopyRecord`. If used nested within a pattern, rather than
- * at top level, it may be mistaken for a CopyRecord pattern that would match
- * only a specimen shaped like an `AwaitArgGuard`.
- *
  * @property {(() => RawValueGuard)} rawValue
  * In parameter position, pass this argument through without any checking.
  * In rest position, pass the rest of the arguments through without any checking.
  * In return position, return the result without any checking.
- *
- * HAZARD: Until https://github.com/endojs/endo/pull/1712 a `RawValueGuard`
- * is itself a `CopyRecord`. If used nested within a pattern, rather than
- * at top level, it may be mistaken for a CopyRecord pattern that would match
- * only a specimen shaped like a `RawValueGuard`.
  */
 
 /**
@@ -530,11 +531,8 @@ export {};
  *     Omit<T, symbol> & Partial<{ [K in Extract<keyof T, symbol>]: never }>,
  *   symbolMethodGuards?:
  *     CopyMap<Extract<keyof T, symbol>, T[Extract<keyof T, symbol>]>,
- *   sloppy?: boolean,
- *   raw?: boolean,
+ *   defaultGuards: DefaultGuardType,
  * }} InterfaceGuardPayload
- *
- * At most one of `sloppy` or `raw` can be true.
  */
 
 /**
@@ -622,14 +620,11 @@ export {};
  */
 
 /**
- * @typedef {{
- *   klass: 'rawValueGuard'
- * }} RawValueGuard
- *
- * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
- * guard that is distinct from a copyRecord.
- * Unlike InterfaceGuard or MethodGuard, for RawValueGuard it is a correctness
- * issue, so that the guard not be mistaken for the copyRecord as key/pattern.
+ * @typedef {{}} RawValueGuardPayload
+ */
+
+/**
+ * @typedef {CopyTagged<'guard:rawValueGuard', RawValueGuardPayload>} RawValueGuard
  */
 
 /** @typedef {RawValueGuard | Pattern} SyncValueGuard */

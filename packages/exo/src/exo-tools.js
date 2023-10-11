@@ -308,7 +308,7 @@ export const defendPrototype = (
       interfaceName,
       methodGuards: mg,
       symbolMethodGuards,
-      sloppy = false,
+      defaultGuards,
     } = getInterfaceGuardPayload(interfaceGuard);
     methodGuards = harden({
       ...mg,
@@ -322,7 +322,7 @@ export const defendPrototype = (
       const unimplemented = listDifference(methodGuardNames, methodNames);
       unimplemented.length === 0 ||
         Fail`methods ${q(unimplemented)} not implemented by ${q(tag)}`;
-      if (!sloppy) {
+      if (defaultGuards === 'never') {
         const unguarded = listDifference(methodNames, methodGuardNames);
         unguarded.length === 0 ||
           Fail`methods ${q(unguarded)} not guarded by ${q(interfaceName)}`;
