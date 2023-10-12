@@ -66,9 +66,6 @@ const makeEndoBootstrap = (
   /** @type {WeakMap<object, string>} */
   const formulaIdentifierForRef = new WeakMap();
 
-  /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
-  const workerBootstraps = new WeakMap();
-
   /**
    * @param {string} sha512
    */
@@ -169,9 +166,13 @@ const makeEndoBootstrap = (
       whenTerminated: () => terminated,
     });
 
-    workerBootstraps.set(worker, workerBootstrap);
-
-    return { promise: worker, terminate, terminating, terminated };
+    return {
+      promise: worker,
+      internal: workerBootstrap,
+      terminate,
+      terminating,
+      terminated,
+    };
   };
 
   /**
@@ -188,14 +189,14 @@ const makeEndoBootstrap = (
   ) => {
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const workerFacet = await provideValueForFormulaIdentifier(
+    const workerController = await provideControllerForFormulaIdentifier(
       workerFormulaIdentifier,
     );
-    // TODO consider a better mechanism for hiding the private facet.
-    // Maybe all these internal functions should return { public, private }
-    // duples.
-    const workerBootstrap = workerBootstraps.get(workerFacet);
-    assert(workerBootstrap);
+    const workerBootstrap = workerController.internal;
+    assert(
+      workerBootstrap,
+      `panic: No internal bootstrap for worker ${workerFormulaIdentifier}`,
+    );
     const endowmentValues = await Promise.all(
       formulaIdentifiers.map(formulaIdentifier =>
         // Behold, recursion:
@@ -223,11 +224,14 @@ const makeEndoBootstrap = (
   ) => {
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const workerFacet = await provideValueForFormulaIdentifier(
+    const workerController = await provideControllerForFormulaIdentifier(
       workerFormulaIdentifier,
     );
-    const workerBootstrap = workerBootstraps.get(workerFacet);
-    assert(workerBootstrap);
+    const workerBootstrap = workerController.internal;
+    assert(
+      workerBootstrap,
+      `panic: No internal bootstrap for worker ${workerFormulaIdentifier}`,
+    );
     const guestP = /** @type {Promise<import('./types.js').EndoGuest>} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -249,11 +253,14 @@ const makeEndoBootstrap = (
   ) => {
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const workerFacet = await provideValueForFormulaIdentifier(
+    const workerController = await provideControllerForFormulaIdentifier(
       workerFormulaIdentifier,
     );
-    const workerBootstrap = workerBootstraps.get(workerFacet);
-    assert(workerBootstrap);
+    const workerBootstrap = workerController.internal;
+    assert(
+      workerBootstrap,
+      `panic: No internal bootstrap for worker ${workerFormulaIdentifier}`,
+    );
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const readableBundleP =
@@ -333,7 +340,10 @@ const makeEndoBootstrap = (
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        const promise = petStorePowers.makeOwnPetStore('pet-store', assertPetName);
+        const promise = petStorePowers.makeOwnPetStore(
+          'pet-store',
+          assertPetName,
+        );
         return { promise };
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
