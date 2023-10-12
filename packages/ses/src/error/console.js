@@ -174,6 +174,10 @@ freeze(ErrorInfo);
 
 /** @type {MakeCausalConsole} */
 const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
+  if (!baseConsole) {
+    return undefined;
+  }
+
   const { getStackString, tagError, takeMessageLogArgs, takeNoteLogArgsArray } =
     loggedErrorHandler;
 
