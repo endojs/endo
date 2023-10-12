@@ -1,3 +1,5 @@
+// @ts-check
+
 import { makeNetstringCapTP } from './connection.js';
 
 const { quote: q } = assert;

@@ -1,3 +1,4 @@
+// @ts-check
 /* global window, document */
 
 import '@endo/init/debug.js';

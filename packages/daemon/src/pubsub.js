@@ -1,3 +1,5 @@
+// @ts-check
+
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeStream } from '@endo/stream';
 

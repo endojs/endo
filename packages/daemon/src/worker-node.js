@@ -1,3 +1,4 @@
+// @ts-check
 /* global process */
 
 // Establish a perimeter:

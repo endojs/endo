@@ -1,3 +1,5 @@
+// @ts-check
+
 import { E } from '@endo/far';
 import { mapReader, mapWriter } from '@endo/stream';
 import {
