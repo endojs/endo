@@ -6,8 +6,8 @@ export default () => {
   // this assignment is not rejected, even if it does nothing.
   Error.stackTraceLimit = Infinity;
 
-  harden(TextEncoder);
-  harden(TextDecoder);
+  harden(globalThis.TextEncoder); // Absent in eshost
+  harden(globalThis.TextDecoder); // Absent in eshost
   harden(globalThis.URL); // Absent only on XSnap
   harden(globalThis.Base64); // Present only on XSnap
 };
