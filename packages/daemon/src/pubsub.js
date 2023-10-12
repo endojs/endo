@@ -11,7 +11,7 @@ const freeze = /** @type {<T>(v: T | Readonly<T>) => T} */ (Object.freeze);
 /**
  * @template TValue TValue
  * @param {TValue} value
- * @returns {import('./types.js').AsyncQueue<TValue, unknown>}
+ * @returns {import('@endo/stream').AsyncQueue<TValue, unknown>}
  */
 export const makeNullQueue = value =>
   harden({
