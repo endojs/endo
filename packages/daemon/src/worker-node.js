@@ -25,7 +25,7 @@ if (process.argv.length < 7) {
 const [workerUuid, sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
 
-/** @type {import('../index.js').Locator} */
+/** @type {import('./types.js').Locator} */
 const locator = {
   sockPath,
   statePath,
