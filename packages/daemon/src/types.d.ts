@@ -141,13 +141,13 @@ export interface Topic<
 }
 
 export interface PetStore {
-  lookup(petName: string): string | undefined;
-  reverseLookup(formulaIdentifier: string): Array<string>;
   list(): Array<string>;
-  follow(): Promise<FarRef<Stream<unknown>>>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
+  lookup(petName: string): string | undefined;
+  reverseLookup(formulaIdentifier: string): Array<string>;
+  follow(): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
 }
 
 export type RequestFn = (
@@ -184,9 +184,10 @@ export interface EndoGuest {
 export interface EndoHost {
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
+  lookup(petName: string): Promise<unknown>;
   resolve(requestNumber: number, petName: string);
   reject(requestNumber: number, message: string);
-  lookup(ref: object): Promise<Array<string>>;
+  reverseLookup(ref: object): Promise<Array<string>>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
   list(): Array<string>; // pet names
