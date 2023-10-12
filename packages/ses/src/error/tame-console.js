@@ -8,7 +8,11 @@ import './types.js';
 import './internal-types.js';
 
 // eslint-disable-next-line no-restricted-globals
-const originalConsole = console;
+const originalConsole = /** @type {VirtualConsole} */ (
+  typeof console !== 'undefined'
+    ? console
+    : undefined
+);
 
 /**
  * Wrap console unless suppressed.
@@ -40,10 +44,11 @@ export const tameConsole = (
       getStackString: optGetStackString,
     };
   }
-  const ourConsole =
+  const ourConsole = /** @type {VirtualConsole} */ (
     consoleTaming === 'unsafe'
       ? originalConsole
-      : makeCausalConsole(originalConsole, loggedErrorHandler);
+      : makeCausalConsole(originalConsole, loggedErrorHandler)
+  );
 
   // Attach platform-specific error traps such that any error that gets thrown
   // at top-of-turn (the bottom of stack) will get logged by our causal
