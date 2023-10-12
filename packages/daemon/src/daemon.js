@@ -108,6 +108,10 @@ const makeEndoBootstrap = (
     // TODO validate workerId512
     const workerFormulaIdentifier = `worker-id512:${workerId512}`;
 
+    const { resolve: notifyTerminating, promise: terminating } =
+      /** @type {import('@endo/promise-kit').PromiseKit<void>} */ (
+        makePromiseKit()
+      );
     const { reject: cancelWorker, promise: workerCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
         makePromiseKit()
@@ -133,7 +137,7 @@ const makeEndoBootstrap = (
       makeWorkerBootstrap(workerId512, workerFormulaIdentifier),
     );
 
-    const closed = Promise.race([workerClosed, capTpClosed]).finally(() => {
+    const terminated = Promise.race([workerClosed, capTpClosed]).finally(() => {
       console.log(
         `Endo worker stopped PID ${workerPid} with unique identifier ${workerId512}`,
       );
@@ -143,13 +147,14 @@ const makeEndoBootstrap = (
     const workerBootstrap = getBootstrap();
 
     const terminate = async () => {
+      notifyTerminating();
       E.sendOnly(workerBootstrap).terminate();
       const cancelWorkerGracePeriod = () => {
         throw new Error('Exited gracefully before grace period elapsed');
       };
       const workerGracePeriodCancelled = Promise.race([
         gracePeriodElapsed,
-        closed,
+        terminated,
       ]).then(cancelWorkerGracePeriod, cancelWorkerGracePeriod);
       await delay(gracePeriodMs, workerGracePeriodCancelled)
         .then(() => {
@@ -161,14 +166,12 @@ const makeEndoBootstrap = (
     };
 
     const worker = Far('EndoWorker', {
-      terminate,
-
-      whenTerminated: () => closed,
+      whenTerminated: () => terminated,
     });
 
     workerBootstraps.set(worker, workerBootstrap);
 
-    return { promise: worker };
+    return { promise: worker, terminate, terminating, terminated };
   };
 
   /**
@@ -477,6 +480,7 @@ const makeEndoBootstrap = (
     makeMailboxMaker({
       formulaIdentifierForRef,
       provideValueForFormulaIdentifier,
+      provideControllerForFormulaIdentifier,
     });
 
   const makeIdentifiedGuest = makeGuestMaker({

@@ -9,6 +9,7 @@ const { quote: q } = assert;
 
 export const makeMailboxMaker = ({
   provideValueForFormulaIdentifier,
+  provideControllerForFormulaIdentifier,
   formulaIdentifierForRef,
 }) => {
   /** @type {WeakMap<object, import('./types.js').RequestFn>} */
@@ -50,6 +51,23 @@ export const makeMailboxMaker = ({
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return provideValueForFormulaIdentifier(formulaIdentifier);
+    };
+
+    const terminate = async petName => {
+      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+      }
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const controller = await provideControllerForFormulaIdentifier(
+        formulaIdentifier,
+      );
+      if (controller.terminate) {
+        controller.terminate();
+        return controller.terminated;
+      }
+      return undefined;
     };
 
     /**
@@ -454,6 +472,7 @@ export const makeMailboxMaker = ({
       adopt,
       rename,
       remove,
+      terminate,
     });
   };
 

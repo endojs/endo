@@ -49,6 +49,7 @@ export const makeHostMaker = ({
       adopt,
       rename,
       remove,
+      terminate,
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
@@ -436,6 +437,7 @@ export const makeHostMaker = ({
       makeWorker,
       provideWorker,
       evaluate,
+      terminate,
       importUnsafeAndEndow,
       importBundleAndEndow,
       provideWebPage,
