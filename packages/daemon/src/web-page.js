@@ -22,7 +22,7 @@ const endowments = Object.freeze({
   console,
 });
 
-const url = new URL('/', window.location);
+const url = new URL('/', `${window.location}`);
 url.protocol = 'ws';
 
 const bootstrap = Far('WebFacet', {
