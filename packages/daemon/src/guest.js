@@ -4,8 +4,7 @@ import { Far } from '@endo/far';
 
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
-  partyReceiveFunctions,
-  partyRequestFunctions,
+  provideControllerForFormulaIdentifier,
   makeMailbox,
 }) => {
   /**
@@ -26,9 +25,15 @@ export const makeGuestMaker = ({
     const hostController = /** @type {import('./types.js').Controller<>} */ (
       await provideControllerForFormulaIdentifier(hostFormulaIdentifier)
     );
-
-    const deliverToHost = partyRequestFunctions.get(host);
+    const { internal: hostPrivateFacet } = hostController;
+    if (hostPrivateFacet === undefined) {
+      throw new Error(
+        `panic: a host request function must exist for every host`,
+      );
+    }
+    const { respond: deliverToHost } = hostPrivateFacet;
     if (deliverToHost === undefined) {
+      console.log(hostController);
       throw new Error(
         `panic: a host request function must exist for every host`,
       );
@@ -78,10 +83,12 @@ export const makeGuestMaker = ({
       rename,
     });
 
-    partyReceiveFunctions.set(guest, receive);
-    partyRequestFunctions.set(guest, respond);
+    const internal = {
+      receive,
+      respond,
+    };
 
-    return { promise: guest };
+    return { promise: guest, internal };
   };
 
   return makeIdentifiedGuest;

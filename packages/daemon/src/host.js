@@ -9,8 +9,6 @@ export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideValueForFormula,
   provideValueForNumberedFormula,
-  partyReceiveFunctions,
-  partyRequestFunctions,
   formulaIdentifierForRef,
   storeReaderRef,
   makeSha512,
@@ -443,10 +441,9 @@ export const makeHostMaker = ({
       provideWebPage,
     });
 
-    partyReceiveFunctions.set(host, receive);
-    partyRequestFunctions.set(host, respond);
+    const internal = { receive, respond };
 
-    return { promise: host };
+    return { promise: host, internal };
   };
 
   return makeIdentifiedHost;

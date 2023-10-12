@@ -476,17 +476,15 @@ const makeEndoBootstrap = (
     return value;
   };
 
-  const { makeMailbox, partyReceiveFunctions, partyRequestFunctions } =
-    makeMailboxMaker({
-      formulaIdentifierForRef,
-      provideValueForFormulaIdentifier,
-      provideControllerForFormulaIdentifier,
-    });
+  const makeMailbox = makeMailboxMaker({
+    formulaIdentifierForRef,
+    provideValueForFormulaIdentifier,
+    provideControllerForFormulaIdentifier,
+  });
 
   const makeIdentifiedGuest = makeGuestMaker({
     provideValueForFormulaIdentifier,
-    partyReceiveFunctions,
-    partyRequestFunctions,
+    provideControllerForFormulaIdentifier,
     makeMailbox,
   });
 
@@ -495,8 +493,6 @@ const makeEndoBootstrap = (
     provideValueForFormula,
     provideValueForNumberedFormula,
     formulaIdentifierForRef,
-    partyReceiveFunctions,
-    partyRequestFunctions,
     storeReaderRef,
     randomHex512,
     makeSha512,
