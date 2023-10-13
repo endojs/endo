@@ -1,30 +1,20 @@
 // @ts-check
 /// <reference types="ses"/>
 
-// Establish a perimeter:
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/promise-kit/shim.js';
-import '@endo/lockdown/commit.js';
+/* global setTimeout, clearTimeout */
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
-import { makeReaderRef } from './reader-ref.js';
-import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
-import { servePrivatePortHttp } from './serve-private-port-http.js';
-import { servePrivatePath } from './serve-private-path.js';
 
 const { quote: q } = assert;
 
 const zero512 =
   '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
-
-const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
 
 /** @type {import('./types.js').EndoGuest} */
 const leastAuthority = Far('EndoGuest', {
@@ -33,9 +23,20 @@ const leastAuthority = Far('EndoGuest', {
   },
 });
 
+const delay = async (ms, cancelled) => {
+  // Do not attempt to set up a timer if already cancelled.
+  await Promise.race([cancelled, undefined]);
+  return new Promise((resolve, reject) => {
+    const handle = setTimeout(resolve, ms);
+    cancelled.catch(error => {
+      reject(error);
+      clearTimeout(handle);
+    });
+  });
+};
+
 /**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {import('./types.js').Locator} locator
  * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {Promise<never>} args.cancelled
@@ -45,11 +46,17 @@ const leastAuthority = Far('EndoGuest', {
  */
 const makeEndoBootstrap = (
   powers,
-  locator,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
-  const { randomHex512, makeSha512 } = powers;
+  const {
+    crypto: cryptoPowers,
+    petStore: petStorePowers,
+    persistence: persistencePowers,
+    control: controlPowers,
+  } = powers;
+  const { randomHex512, makeSha512 } = cryptoPowers;
+  const contentStore = persistencePowers.makeContentSha512Store();
 
   /** @type {Map<string, unknown>} */
   const valuePromiseForFormulaIdentifier = new Map();
@@ -65,21 +72,7 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeSha512ReadableBlob = sha512 => {
-    const storageDirectoryPath = powers.joinPath(
-      locator.statePath,
-      'store-sha512',
-    );
-    const storagePath = powers.joinPath(storageDirectoryPath, sha512);
-    const stream = async () => {
-      const reader = powers.makeFileReader(storagePath);
-      return makeReaderRef(reader);
-    };
-    const text = async () => {
-      return powers.readFileText(storagePath);
-    };
-    const json = async () => {
-      return JSON.parse(await text());
-    };
+    const { text, json, stream } = contentStore.fetch(sha512);
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
@@ -93,35 +86,8 @@ const makeEndoBootstrap = (
    * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
    */
   const storeReaderRef = async readerRef => {
-    const storageDirectoryPath = powers.joinPath(
-      locator.statePath,
-      'store-sha512',
-    );
-    await powers.makePath(storageDirectoryPath);
-
-    // Pump the reader into a temporary file and hash.
-    // We use a temporary file to avoid leaving a partially writen object,
-    // but also because we won't know the name we will use until we've
-    // completed the hash.
-    const digester = powers.makeSha512();
-    const storageId512 = await powers.randomHex512();
-    const temporaryStoragePath = powers.joinPath(
-      storageDirectoryPath,
-      storageId512,
-    );
-    const writer = powers.makeFileWriter(temporaryStoragePath);
-    for await (const chunk of makeRefReader(readerRef)) {
-      await writer.next(chunk);
-      digester.update(chunk);
-    }
-    await writer.return(undefined);
-    const sha512 = digester.digestHex();
-
-    // Finish with an atomic rename.
-    const storagePath = powers.joinPath(storageDirectoryPath, sha512);
-    await powers.renamePath(temporaryStoragePath, storagePath);
-
-    return `readable-blob-sha512:${sha512}`;
+    const sha512Hex = await contentStore.store(makeRefReader(readerRef));
+    return `readable-blob-sha512:${sha512Hex}`;
   };
 
   /**
@@ -139,26 +105,6 @@ const makeEndoBootstrap = (
   const makeIdentifiedWorker = async workerId512 => {
     // TODO validate workerId512
     const workerFormulaIdentifier = `worker-id512:${workerId512}`;
-    const workerCachePath = powers.joinPath(
-      locator.cachePath,
-      'worker-id512',
-      workerId512,
-    );
-    const workerStatePath = powers.joinPath(
-      locator.statePath,
-      'worker-id512',
-      workerId512,
-    );
-    const workerEphemeralStatePath = powers.joinPath(
-      locator.ephemeralStatePath,
-      'worker-id512',
-      workerId512,
-    );
-
-    await Promise.all([
-      powers.makePath(workerStatePath),
-      powers.makePath(workerEphemeralStatePath),
-    ]);
 
     const { reject: cancelWorker, promise: workerCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
@@ -166,27 +112,12 @@ const makeEndoBootstrap = (
       );
     cancelled.catch(async error => cancelWorker(error));
 
-    const logPath = powers.joinPath(workerStatePath, 'worker.log');
-    const workerPidPath = powers.joinPath(
-      workerEphemeralStatePath,
-      'worker.pid',
-    );
     const {
       reader,
       writer,
       closed: workerClosed,
       pid: workerPid,
-    } = await powers.makeWorker(
-      workerId512,
-      powers.endoWorkerPath,
-      logPath,
-      workerPidPath,
-      locator.sockPath,
-      workerStatePath,
-      workerEphemeralStatePath,
-      workerCachePath,
-      workerCancelled,
-    );
+    } = await controlPowers.makeWorker(workerId512, workerCancelled);
 
     console.log(
       `Endo worker started PID ${workerPid} unique identifier ${workerId512}`,
@@ -218,8 +149,7 @@ const makeEndoBootstrap = (
         gracePeriodElapsed,
         closed,
       ]).then(cancelWorkerGracePeriod, cancelWorkerGracePeriod);
-      await powers
-        .delay(gracePeriodMs, workerGracePeriodCancelled)
+      await delay(gracePeriodMs, workerGracePeriodCancelled)
         .then(() => {
           throw new Error(
             `Worker termination grace period ${gracePeriodMs}ms elapsed`,
@@ -383,72 +313,13 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} formulaType
-   * @param {string} formulaId512
-   */
-  const makeFormulaPath = (formulaType, formulaId512) => {
-    if (formulaId512.length < 3) {
-      throw new TypeError(
-        `Invalid formula identifier ${q(formulaId512)} for formula of type ${q(
-          formulaType,
-        )}`,
-      );
-    }
-    const head = formulaId512.slice(0, 2);
-    const tail = formulaId512.slice(3);
-    const directory = powers.joinPath(
-      locator.statePath,
-      'formulas',
-      formulaType,
-      head,
-    );
-    const file = powers.joinPath(directory, `${tail}.json`);
-    return { directory, file };
-  };
-
-  // Persist instructions for revival (this can be collected)
-  const writeFormula = async (formula, formulaType, formulaId512) => {
-    const { directory, file } = makeFormulaPath(formulaType, formulaId512);
-    // TODO Take care to write atomically with a rename here.
-    await powers.makePath(directory);
-    await powers.writeFileText(file, `${q(formula)}\n`);
-  };
-
-  /**
-   * @param {string} formulaIdentifier
-   * @param {string} formulaNumber
-   * @param {string} formulaPath
-   */
-  const makeValueForFormulaAtPath = async (
-    formulaIdentifier,
-    formulaNumber,
-    formulaPath,
-  ) => {
-    const formulaText = await powers.maybeReadFileText(formulaPath);
-    if (formulaText === undefined) {
-      throw new ReferenceError(`No reference exists at path ${formulaPath}`);
-    }
-    const formula = (() => {
-      try {
-        return JSON.parse(formulaText);
-      } catch (error) {
-        throw new TypeError(
-          `Corrupt description for reference in file ${formulaPath}: ${error.message}`,
-        );
-      }
-    })();
-    // TODO validate
-    return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
-  };
-
-  /**
    * @param {string} formulaIdentifier
    */
   const makeValueForFormulaIdentifier = async formulaIdentifier => {
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        return makeOwnPetStore(powers, locator, 'pet-store');
+        return petStorePowers.makeOwnPetStore('pet-store');
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -464,14 +335,14 @@ const makeEndoBootstrap = (
       } else if (formulaIdentifier === 'least-authority') {
         return leastAuthority;
       } else if (formulaIdentifier === 'web-page-js') {
-        return makeValueForFormula('web-page-js', zero512, {
-          type: /** @type {'import-unsafe'} */ ('import-unsafe'),
-          worker: `worker-id512:${zero512}`,
-          powers: 'host',
-          importPath: powers.fileURLToPath(
-            new URL('web-page-bundler.js', import.meta.url).href,
-          ),
-        });
+        if (persistencePowers.webPageBundlerFormula === undefined) {
+          throw Error('No web-page-js formula provided.');
+        }
+        return makeValueForFormula(
+          'web-page-js',
+          zero512,
+          persistencePowers.webPageBundlerFormula,
+        );
       }
       throw new TypeError(
         `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
@@ -484,7 +355,7 @@ const makeEndoBootstrap = (
     } else if (prefix === 'worker-id512') {
       return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
-      return makeIdentifiedPetStore(powers, locator, formulaNumber);
+      return petStorePowers.makeIdentifiedPetStore(formulaNumber);
     } else if (prefix === 'host-id512') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -502,8 +373,12 @@ const makeEndoBootstrap = (
         'web-bundle',
       ].includes(prefix)
     ) {
-      const { file: path } = makeFormulaPath(prefix, formulaNumber);
-      return makeValueForFormulaAtPath(formulaIdentifier, formulaNumber, path);
+      const formula = await persistencePowers.readFormula(
+        prefix,
+        formulaNumber,
+      );
+      // TODO validate
+      return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
     } else {
       throw new TypeError(
         `Invalid formula identifier, unrecognized type ${q(formulaIdentifier)}`,
@@ -523,7 +398,7 @@ const makeEndoBootstrap = (
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
 
-    await writeFormula(formula, formulaType, formulaNumber);
+    await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const promiseForValue = makeValueForFormula(
@@ -549,7 +424,7 @@ const makeEndoBootstrap = (
    * @param {string} formulaType
    */
   const provideValueForFormula = async (formula, formulaType) => {
-    const formulaNumber = await powers.randomHex512();
+    const formulaNumber = await randomHex512();
     return provideValueForNumberedFormula(formulaType, formulaNumber, formula);
   };
 
@@ -628,19 +503,13 @@ const makeEndoBootstrap = (
   return endoBootstrap;
 };
 
-/*
+/**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {import('./types.js').Locator} locator
- * @param {number | undefined} pid
+ * @param {string} daemonLabel
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
  */
-export const main = async (powers, locator, pid, cancel, cancelled) => {
-  console.log(`Endo daemon starting on PID ${pid}`);
-  cancelled.catch(() => {
-    console.log(`Endo daemon stopping on PID ${pid}`);
-  });
-
+export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
       makePromiseKit()
@@ -651,102 +520,24 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
 
   /** @type {Promise<never>} */
   const gracePeriodElapsed = cancelled.catch(async error => {
-    await powers.delay(gracePeriodMs, gracePeriodCancelled);
+    await delay(gracePeriodMs, gracePeriodCancelled);
     console.log(
-      `Endo daemon grace period ${gracePeriodMs}ms elapsed on PID ${pid}`,
+      `Endo daemon grace period ${gracePeriodMs}ms elapsed for ${daemonLabel}`,
     );
     throw error;
   });
-
-  /** @param {Error} error */
-  const exitWithError = error => {
-    cancel(error);
-    cancelGracePeriod(error);
-  };
-
-  const statePathP = powers.makePath(locator.statePath);
-  const ephemeralStatePathP = powers.makePath(locator.ephemeralStatePath);
-  const cachePathP = powers.makePath(locator.cachePath);
-  await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
-
-  const requestedWebletPortText = powers.env.ENDO_HTTP_PORT;
-  const requestedWebletPort = requestedWebletPortText
-    ? Number(requestedWebletPortText)
-    : defaultHttpPort;
 
   const { promise: assignedWebletPortP, resolve: assignWebletPort } =
     /** @type {import('@endo/promise-kit').PromiseKit<number>} */ (
       makePromiseKit()
     );
 
-  const endoBootstrap = makeEndoBootstrap(
-    powers,
-    locator,
-    assignedWebletPortP,
-    {
-      cancelled,
-      cancel,
-      gracePeriodMs,
-      gracePeriodElapsed,
-    },
-  );
-
-  const connectionNumbers = (function* generateNumbers() {
-    let n = 0;
-    for (;;) {
-      yield n;
-      n += 1;
-    }
-  })();
-
-  const { servePath, servePortHttp } = powers;
-
-  const privatePathService = servePrivatePath(locator.sockPath, endoBootstrap, {
-    servePath,
-    connectionNumbers,
+  const endoBootstrap = makeEndoBootstrap(powers, assignedWebletPortP, {
     cancelled,
-    exitWithError,
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
   });
 
-  const privateHttpService = servePrivatePortHttp(
-    requestedWebletPort,
-    endoBootstrap,
-    {
-      servePortHttp,
-      connectionNumbers,
-      cancelled,
-      exitWithError,
-    },
-  );
-
-  assignWebletPort(privateHttpService.started);
-
-  const services = [privatePathService, privateHttpService];
-
-  await Promise.all(services.map(({ started }) => started)).then(
-    () => {
-      powers.informParentWhenReady();
-    },
-    error => {
-      powers.reportErrorToParent(error.message);
-      throw error;
-    },
-  );
-
-  const pidPath = powers.joinPath(locator.ephemeralStatePath, 'endo.pid');
-
-  await powers
-    .readFileText(pidPath)
-    .then(pidText => {
-      const oldPid = Number(pidText);
-      powers.kill(oldPid);
-    })
-    .catch(() => {});
-
-  await powers.writeFileText(pidPath, `${pid}\n`);
-
-  await Promise.all(services.map(({ stopped }) => stopped));
-
-  cancel(new Error('Terminated normally'));
-  cancelGracePeriod(new Error('Terminated normally'));
+  return { endoBootstrap, cancelGracePeriod, assignWebletPort };
 };

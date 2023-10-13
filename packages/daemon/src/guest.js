@@ -1,3 +1,5 @@
+// @ts-check
+
 import { Far } from '@endo/far';
 
 export const makeGuestMaker = ({

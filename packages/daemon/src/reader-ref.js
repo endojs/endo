@@ -4,6 +4,14 @@ import { encodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
 import { Far } from '@endo/far';
 
+/**
+ * Returns the iterator for the given iterable object.
+ * Supports both synchronous and asynchronous iterables.
+ *
+ * @template T The item type of the iterable.
+ * @param {import('./types').SomehowAsyncIterable<T>} iterable The iterable object.
+ * @returns {import('@endo/stream').Stream<T>} sort of fudging this into a stream to appease "mapReader"
+ */
 export const asyncIterate = iterable => {
   let iterator;
   if (iterable[Symbol.asyncIterator]) {
@@ -16,11 +24,16 @@ export const asyncIterate = iterable => {
   return iterator;
 };
 
+/**
+ * @template T
+ * @param {import('./types').SomehowAsyncIterable<T>} iterable The iterable object.
+ * @returns {import('@endo/far').FarRef<import('@endo/stream').Stream<T>>}
+ */
 export const makeIteratorRef = iterable => {
   const iterator = asyncIterate(iterable);
   return Far('AsyncIterator', {
     async next() {
-      return iterator.next();
+      return iterator.next(undefined);
     },
     /**
      * @param {any} value
@@ -46,5 +59,9 @@ export const makeIteratorRef = iterable => {
   });
 };
 
+/**
+ * @param {import('./types').SomehowAsyncIterable<Uint8Array>} readable
+ * @returns {import('@endo/far').FarRef<import('@endo/stream').Stream<string>>}
+ */
 export const makeReaderRef = readable =>
   makeIteratorRef(mapReader(asyncIterate(readable), encodeBase64));
