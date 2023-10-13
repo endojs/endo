@@ -1,3 +1,5 @@
+// @ts-check
+
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
@@ -81,7 +83,8 @@ export const makeMailboxMaker = ({
      * @returns {import('./types.js').Message | undefined}
      */
     const dubMessage = message => {
-      if (message.type === 'request') {
+      const { type } = message;
+      if (type === 'request') {
         const { who: senderFormulaIdentifier, ...rest } = message;
         const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
@@ -90,7 +93,7 @@ export const makeMailboxMaker = ({
           return { who: senderName, ...rest };
         }
         return undefined;
-      } else if (message.type === 'package') {
+      } else if (type === 'package') {
         const { formulas: _, who: senderFormulaIdentifier, ...rest } = message;
         const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
@@ -100,7 +103,7 @@ export const makeMailboxMaker = ({
         }
         return undefined;
       }
-      throw new Error(`panic: Unknown message type ${message.type}`);
+      throw Error(`panic: Unknown message type ${type}`);
     };
 
     const listMessages = async () =>

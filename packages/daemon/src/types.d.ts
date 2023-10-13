@@ -1,5 +1,11 @@
 import type { ERef } from '@endo/eventual-send';
+import { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
+
+export type SomehowAsyncIterable<T> =
+  | AsyncIterable<T>
+  | Iterable<T>
+  | { next: () => IteratorResult<T> };
 
 export type Locator = {
   statePath: string;
@@ -42,56 +48,6 @@ export type HttpConnect = (
   connection: Connection,
   request: HttpRequest,
 ) => void;
-
-export type DaemonicPowers = {
-  env: Record<string, string | undefined>;
-  sinkError: (error) => void;
-  makeSha512: () => Sha512;
-  randomHex512: () => Promise<string>;
-  servePath: (args: {
-    path: string;
-    host?: string;
-    cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
-  servePort: (args: {
-    port: number;
-    host?: string;
-    cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
-  servePortHttp: (args: {
-    port: number;
-    host?: string;
-    respond?: HttpRespond;
-    connect?: HttpConnect;
-    cancelled: Promise<never>;
-  }) => Promise<number>;
-  informParentWhenReady: () => void;
-  reportErrorToParent: (message: string) => void;
-  makeFileReader: (path: string) => Reader<Uint8Array>;
-  makeFileWriter: (path: string) => Writer<Uint8Array>;
-  readFileText: (path: string) => Promise<string>;
-  maybeReadFileText: (path: string) => Promise<string | undefined>;
-  readDirectory: (path: string) => Promise<Array<string>>;
-  writeFileText: (path: string, text: string) => Promise<void>;
-  makePath: (path: string) => Promise<void>;
-  renamePath: (source: string, target: string) => Promise<void>;
-  removePath: (path: string) => Promise<void>;
-  joinPath: (...components: Array<string>) => string;
-  delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
-  makeWorker: (
-    id: string,
-    path: string,
-    logPath: string,
-    pidPath: string,
-    sockPath: string,
-    statePath: string,
-    ephemeralStatePath: string,
-    cachePath: string,
-    cancelled: Promise<never>,
-  ) => Promise<Worker>;
-  endoWorkerPath: string;
-  fileURLToPath: (url: string) => string;
-};
 
 export type MignonicPowers = {
   pathToFileURL: (path: string) => string;
@@ -185,12 +141,13 @@ export interface Topic<
 }
 
 export interface PetStore {
-  get(petName: string): string | undefined;
-  write(petName: string, formulaIdentifier: string): Promise<void>;
+  lookup(petName: string): string | undefined;
+  reverseLookup(formulaIdentifier: string): Array<string>;
   list(): Array<string>;
+  follow(): Promise<FarRef<Stream<unknown>>>;
+  write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
-  reverseLookup(formulaIdentifier: string): Array<string>;
 }
 
 export type RequestFn = (
@@ -209,7 +166,7 @@ export type ReceiveFn = (
 
 export interface EndoReadable {
   sha512(): string;
-  stream(): ERef<Reader<Uint8Array>>;
+  stream(): FarRef<Reader<Uint8Array>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
   [Symbol.asyncIterator]: Reader<Uint8Array>;
@@ -227,7 +184,6 @@ export interface EndoGuest {
 export interface EndoHost {
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
-  provide(petName: string): Promise<unknown>;
   resolve(requestNumber: number, petName: string);
   reject(requestNumber: number, message: string);
   lookup(ref: object): Promise<Array<string>>;
@@ -266,4 +222,95 @@ export type EndoWebBundle = {
   url: string;
   bundle: ERef<EndoReadable>;
   powers: ERef<unknown>;
+};
+
+export type CryptoPowers = {
+  makeSha512: () => Sha512;
+  randomHex512: () => Promise<string>;
+};
+
+export type FilePowers = {
+  makeFileReader: (path: string) => Reader<Uint8Array>;
+  makeFileWriter: (path: string) => Writer<Uint8Array>;
+  writeFileText: (path: string, text: string) => Promise<void>;
+  readFileText: (path: string) => Promise<string>;
+  maybeReadFileText: (path: string) => Promise<string | undefined>;
+  readDirectory: (path: string) => Promise<Array<string>>;
+  makePath: (path: string) => Promise<void>;
+  joinPath: (...components: Array<string>) => string;
+  removePath: (path: string) => Promise<void>;
+  renamePath: (source: string, target: string) => Promise<void>;
+};
+
+export type PetStorePowers = {
+  makeIdentifiedPetStore: (id: string) => Promise<FarRef<PetStore>>;
+  makeOwnPetStore: (name: string) => Promise<FarRef<PetStore>>;
+};
+
+export type NetworkPowers = {
+  servePath: (args: {
+    path: string;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePort: (args: {
+    port: number;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePortHttp: (args: {
+    port: number;
+    host?: string;
+    respond?: HttpRespond;
+    connect?: HttpConnect;
+    cancelled: Promise<never>;
+  }) => Promise<number>;
+  makePrivatePathService: (
+    endoBootstrap: FarRef<unknown>,
+    sockPath: string,
+    cancelled: Promise<never>,
+    exitWithError: (error: Error) => void,
+  ) => { started: () => Promise<void>; stopped: Promise<void> };
+  makePrivateHttpService: (
+    endoBootstrap: FarRef<unknown>,
+    port: number,
+    assignWebletPort: (portP: Promise<number>) => void,
+    cancelled: Promise<never>,
+    exitWithError: (error: Error) => void,
+  ) => { started: () => Promise<void>; stopped: Promise<void> };
+};
+
+// The return type here is almost an EndoReadable, but not quite. Should fix.
+export type AlmostEndoReadable = {
+  sha512(): string;
+  stream(): FarRef<Stream<string>>;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+  [Symbol.asyncIterator]: any;
+};
+
+export type DaemonicPersistencePowers = {
+  initializePersistence: () => Promise<void>;
+  makeContentSha512Store: () => {
+    store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
+    fetch: (sha512: string) => AlmostEndoReadable;
+  };
+  readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
+  writeFormula: (
+    formula: Formula,
+    formulaType: string,
+    formulaId512: string,
+  ) => Promise<void>;
+  webPageBundlerFormula?: Formula;
+};
+
+export type DaemonicControlPowers = {
+  makeWorker: (id: string, cancelled: Promise<never>) => Promise<Worker>;
+};
+
+export type DaemonicPowers = {
+  crypto: CryptoPowers;
+  petStore: PetStorePowers;
+  persistence: DaemonicPersistencePowers;
+  control: DaemonicControlPowers;
 };
