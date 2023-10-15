@@ -68,6 +68,7 @@ export {
   getInterfaceMethodKeys,
   assertInterfaceGuard,
   getInterfaceGuardPayload,
+  kindOf,
 } from './src/patterns/patternMatchers.js';
 
 // ////////////////// Temporary, until these find their proper home ////////////
