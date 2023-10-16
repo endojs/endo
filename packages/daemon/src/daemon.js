@@ -10,6 +10,7 @@ import { makeRefReader } from './ref-reader.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
+import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
 
@@ -319,7 +320,7 @@ const makeEndoBootstrap = (
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        return petStorePowers.makeOwnPetStore('pet-store');
+        return petStorePowers.makeOwnPetStore('pet-store', assertPetName);
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -355,7 +356,10 @@ const makeEndoBootstrap = (
     } else if (prefix === 'worker-id512') {
       return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
-      return petStorePowers.makeIdentifiedPetStore(formulaNumber);
+      return petStorePowers.makeIdentifiedPetStore(
+        formulaNumber,
+        assertPetName,
+      );
     } else if (prefix === 'host-id512') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define

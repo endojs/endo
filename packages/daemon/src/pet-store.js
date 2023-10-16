@@ -1,7 +1,6 @@
 // @ts-check
 
 import { Far } from '@endo/far';
-import { assertPetName } from './pet-name.js';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
 
@@ -18,9 +17,10 @@ const validFormulaPattern =
 export const makePetStoreMaker = (filePowers, locator) => {
   /**
    * @param {string} petNameDirectoryPath
+   * @param {(name: string) => void} assertValidName
    * @returns {Promise<import('@endo/far').FarRef<import('./types.js').PetStore>>}
    */
-  const makePetStoreAtPath = async petNameDirectoryPath => {
+  const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
     /** @type {Map<string, string>} */
     const petNames = new Map();
     /** @type {Map<string, Set<string>>} */
@@ -48,7 +48,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const fileNames = await filePowers.readDirectory(petNameDirectoryPath);
     await Promise.all(
       fileNames.map(async petName => {
-        assertPetName(petName);
+        assertValidName(petName);
         const formulaIdentifier = await read(petName);
         petNames.set(petName, formulaIdentifier);
         const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
@@ -62,7 +62,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
     /** @param {string} petName */
     const lookup = petName => {
-      assertPetName(petName);
+      assertValidName(petName);
       return petNames.get(petName);
     };
 
@@ -71,7 +71,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
      * @param {string} formulaIdentifier
      */
     const write = async (petName, formulaIdentifier) => {
-      assertPetName(petName);
+      assertValidName(petName);
       if (!validFormulaPattern.test(formulaIdentifier)) {
         throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
       }
@@ -108,7 +108,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
      * @param {string} petName
      */
     const remove = async petName => {
-      assertPetName(petName);
+      assertValidName(petName);
       const formulaIdentifier = petNames.get(petName);
       if (formulaIdentifier === undefined) {
         throw new Error(
@@ -136,8 +136,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
      * @param {string} toName
      */
     const rename = async (fromName, toName) => {
-      assertPetName(fromName);
-      assertPetName(toName);
+      assertValidName(fromName);
+      assertValidName(toName);
       if (fromName === toName) {
         return;
       }
@@ -218,8 +218,9 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
   /**
    * @param {string} id
+   * @param {(name: string) => void} assertValidName
    */
-  const makeIdentifiedPetStore = id => {
+  const makeIdentifiedPetStore = (id, assertValidName) => {
     if (!validIdPattern.test(id)) {
       throw new Error(`Invalid identifier for pet store ${q(id)}`);
     }
@@ -231,15 +232,16 @@ export const makePetStoreMaker = (filePowers, locator) => {
       prefix,
       suffix,
     );
-    return makePetStoreAtPath(petNameDirectoryPath);
+    return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
   };
 
   /**
    * @param {string} name
+   * @param {(name: string) => void} assertValidName
    */
-  const makeOwnPetStore = name => {
+  const makeOwnPetStore = (name, assertValidName) => {
     const petNameDirectoryPath = filePowers.joinPath(locator.statePath, name);
-    return makePetStoreAtPath(petNameDirectoryPath);
+    return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
   };
 
   return {

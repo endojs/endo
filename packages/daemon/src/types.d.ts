@@ -243,9 +243,17 @@ export type FilePowers = {
   renamePath: (source: string, target: string) => Promise<void>;
 };
 
+export type AssertValidNameFn = (name: string) => void;
+
 export type PetStorePowers = {
-  makeIdentifiedPetStore: (id: string) => Promise<FarRef<PetStore>>;
-  makeOwnPetStore: (name: string) => Promise<FarRef<PetStore>>;
+  makeIdentifiedPetStore: (
+    id: string,
+    assertValidName: AssertValidNameFn,
+  ) => Promise<FarRef<PetStore>>;
+  makeOwnPetStore: (
+    name: string,
+    assertValidName: AssertValidNameFn,
+  ) => Promise<FarRef<PetStore>>;
 };
 
 export type NetworkPowers = {
