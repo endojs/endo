@@ -92,15 +92,17 @@ harden(fromUniqueEntries);
  * a CopyRecord.
  *
  * @template {Record<string, any>} O
+ * @template R result
  * @param {O} original
- * @template R map result
  * @param {(value: O[keyof O], key: keyof O) => R} mapFn
- * @returns {{ [P in keyof O]: R}}
+ * @returns {Record<keyof O, R>}
  */
 export const objectMap = (original, mapFn) => {
   const ents = entries(original);
-  const mapEnts = ents.map(([k, v]) => [k, mapFn(v, k)]);
-  return harden(fromEntries(mapEnts));
+  const mapEnts = ents.map(
+    ([k, v]) => /** @type {[keyof O, R]} */ ([k, mapFn(v, k)]),
+  );
+  return /** @type {Record<keyof O, R>} */ (harden(fromEntries(mapEnts)));
 };
 harden(objectMap);
 

@@ -3,7 +3,14 @@
 import { makeEnvironmentCaptor } from '@endo/env-options';
 import { objectMap } from '@endo/patterns';
 
-import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
+import {
+  GET_INTERFACE_GUARD,
+  defendPrototype,
+  defendPrototypeKit,
+} from './exo-tools.js';
+
+// Used in typing.
+GET_INTERFACE_GUARD;
 
 const { create, seal, freeze, defineProperty, values } = Object;
 
@@ -13,6 +20,12 @@ const DEBUG = getEnvironmentOption('DEBUG', '');
 // Turn on to give each exo instance its own toStringTag value.
 const LABEL_INSTANCES = DEBUG.split(',').includes('label-instances');
 
+/**
+ * @template {{}} T
+ * @param {T} proto
+ * @param {number} instanceCount
+ * @returns {T}
+ */
 const makeSelf = (proto, instanceCount) => {
   const self = create(proto);
   if (LABEL_INSTANCES) {
@@ -83,6 +96,28 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
+ * @template {Methods} M
+ * @typedef {M & import('@endo/eventual-send').RemotableBrand<{}, M>} Farable
+ */
+
+/**
+ * @template {Methods} M
+ * @typedef {{
+ *   [GET_INTERFACE_GUARD]: () => InterfaceGuard<{ [K in keyof M]: MethodGuard }>
+ * }} GetInterfaceGuard
+ */
+
+/**
+ * @template {Methods} M
+ * @typedef {Farable<M & GetInterfaceGuard<M>>} Facet
+ */
+
+/**
+ * @template {Record<FacetName, Methods>} F
+ * @typedef {{ [K in keyof F]: Facet<F[K]> }} FacetKit
+ */
+
+/**
  * @template {(...args: any[]) => any} I init function
  * @template {Methods} M methods
  * @param {string} tag
@@ -90,9 +125,9 @@ export const initEmpty = () => emptyRecord;
  *   [K in keyof M]: import("@endo/patterns").MethodGuard
  * }> | undefined} interfaceGuard
  * @param {I} init
- * @param {M & ThisType<{ self: M, state: ReturnType<I> }>} methods
+ * @param {M & ThisType<{ self: Facet<M>, state: ReturnType<I> }>} methods
  * @param {FarClassOptions<ClassContext<ReturnType<I>, M>>} [options]
- * @returns {(...args: Parameters<I>) => (M & import('@endo/eventual-send').RemotableBrand<{}, M>)}
+ * @returns {(...args: Parameters<I>) => Facet<M>}
  */
 export const defineExoClass = (
   tag,
@@ -120,7 +155,6 @@ export const defineExoClass = (
     // Be careful not to freeze the state record
     const state = seal(init(...args));
     instanceCount += 1;
-    /** @type {M} */
     const self = makeSelf(proto, instanceCount);
 
     // Be careful not to freeze the state record
@@ -130,9 +164,7 @@ export const defineExoClass = (
     if (finish) {
       finish(context);
     }
-    return /** @type {M & import('@endo/eventual-send').RemotableBrand<{}, M>} */ (
-      self
-    );
+    return self;
   };
 
   if (receiveRevoker) {
@@ -149,13 +181,13 @@ harden(defineExoClass);
  * @template {(...args: any[]) => any} I init function
  * @template {Record<FacetName, Methods>} F facet methods
  * @param {string} tag
- * @param {{ [K in keyof F]: import("@endo/patterns").InterfaceGuard<{
- *   [M in keyof F[K]]: import("@endo/patterns").MethodGuard;
- * }> } | undefined} interfaceGuardKit
+ * @param {{ [K in keyof F]:
+ *   InterfaceGuard<{[M in keyof F[K]]: MethodGuard; }>
+ * } | undefined} interfaceGuardKit
  * @param {I} init
- * @param {F & ThisType<{ facets: F, state: ReturnType<I> }> } methodsKit
- * @param {FarClassOptions<KitContext<ReturnType<I>,F>>} [options]
- * @returns {(...args: Parameters<I>) => F}
+ * @param {F & { [K in keyof F]: ThisType<{ facets: FacetKit<F>, state: ReturnType<I> }> }} methodsKit
+ * @param {FarClassOptions<KitContext<ReturnType<I>, FacetKit<F>>>} [options]
+ * @returns {(...args: Parameters<I>) => FacetKit<F>}
  */
 export const defineExoClassKit = (
   tag,
@@ -186,8 +218,8 @@ export const defineExoClassKit = (
     // Be careful not to freeze the state record
     const state = seal(init(...args));
     // Don't freeze context until we add facets
-    /** @type {KitContext<ReturnType<I>,F>} */
-    const context = { state, facets: {} };
+    /** @type {{ state: ReturnType<I>, facets: unknown }} */
+    const context = { state, facets: null };
     instanceCount += 1;
     const facets = objectMap(prototypeKit, (proto, facetName) => {
       const self = makeSelf(proto, instanceCount);
@@ -200,7 +232,7 @@ export const defineExoClassKit = (
     if (finish) {
       finish(context);
     }
-    return context.facets;
+    return /** @type {FacetKit<F>} */ (context.facets);
   };
 
   if (receiveRevoker) {
@@ -222,7 +254,7 @@ harden(defineExoClassKit);
  * }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
  * @param {FarClassOptions<ClassContext<{},T>>} [options]
- * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
+ * @returns {Facet<T>}
  */
 export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {
   const makeInstance = defineExoClass(
