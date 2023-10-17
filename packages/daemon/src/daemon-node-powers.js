@@ -223,6 +223,12 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
     return readFrom;
   };
 
+  /**
+   * @param {object} args
+   * @param {number} args.port
+   * @param {string} [args.host]
+   * @param {Promise<never>} args.cancelled
+   */
   const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
     serveListener(
       server =>
@@ -232,6 +238,11 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
       cancelled,
     );
 
+  /**
+   * @param {object} args
+   * @param {string} args.path
+   * @param {Promise<never>} args.cancelled
+   */
   const servePath = async ({ path, cancelled }) =>
     serveListener(
       server =>

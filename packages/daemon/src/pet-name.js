@@ -1,3 +1,5 @@
+// @ts-check
+
 const { quote: q } = assert;
 
 const validNamePattern = /^[a-z][a-z0-9-]{0,127}$/;

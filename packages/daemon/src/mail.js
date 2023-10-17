@@ -103,7 +103,9 @@ export const makeMailboxMaker = ({
         }
         return undefined;
       }
-      throw Error(`panic: Unknown message type ${type}`);
+      throw new Error(
+        `panic: Unknown message type ${/** @type {any} */ (message).type}`,
+      );
     };
 
     const listMessages = async () =>

@@ -1,7 +1,14 @@
-export interface AsyncQueue<TValue> {
+export interface AsyncSink<TValue> {
   put(value: TValue | Promise<TValue>): void;
+}
+
+export interface AsyncSpring<TValue> {
   get(): Promise<TValue>;
 }
+
+export interface AsyncQueue<TSpringValue, TSinkValue = TSpringValue>
+  extends AsyncSpring<TSpringValue>,
+    AsyncSink<TSinkValue> {}
 
 // Stream is nearly identical to AsyncGenerator and AsyncGenerator should
 // probably be identical to this definition of Stream.
@@ -40,8 +47,8 @@ export declare function makeStream<
   TReadReturn = undefined,
   TWriteReturn = undefined,
 >(
-  acks: AsyncQueue<IteratorResult<TRead, TReadReturn>>,
-  data: AsyncQueue<IteratorResult<TWrite, TWriteReturn>>,
+  acks: AsyncSpring<IteratorResult<TRead, TReadReturn>>,
+  data: AsyncSink<IteratorResult<TWrite, TWriteReturn>>,
 ): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
 
 export declare function makePipe<
