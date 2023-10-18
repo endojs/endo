@@ -30,7 +30,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
@@ -39,7 +39,7 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:eslint && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
-    "lint:types": "tsc -p jsconfig.json"
+    "lint:types": "tsc"
   },
   "devDependencies": {
     "@endo/init": "^0.5.60",
@@ -69,5 +69,8 @@
     "extends": [
       "plugin:@endo/internal"
     ]
+  },
+  "typeCoverage": {
+    "atLeast": 86.52
   }
 }

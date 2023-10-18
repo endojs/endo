@@ -178,5 +178,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 81.13
   }
 }

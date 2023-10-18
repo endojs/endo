@@ -32,13 +32,13 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "prettier-fixtures": "prettier --write --with-node-modules './test/fixtures-*/**/*.*js'",
     "test": "ava"
   },
@@ -92,5 +92,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 85.78
   }
 }

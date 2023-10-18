@@ -25,14 +25,14 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "test": "ava",
     "test:xs": "exit 0"
   },
@@ -76,5 +76,8 @@
   },
   "engines": {
     "node": ">=11.0"
+  },
+  "typeCoverage": {
+    "atLeast": 90.9
   }
 }

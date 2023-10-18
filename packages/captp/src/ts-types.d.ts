@@ -1,7 +1,8 @@
 /* eslint-disable */
 // eslint-disable-next-line spaced-comment
 
-import type { Unpromise } from '@endo/eventual-send';
+// @ts-expect-error FIXME these aren't defined
+import type { ESingleMethod, Unpromise } from '@endo/eventual-send';
 
 /**
  * In order to type using Trap with a handler TrapHandler<T>, this template type
@@ -21,11 +22,14 @@ export type TrapHandler<T> = T extends (...args: infer P) => infer R
 /* Types for Trap proxy calls. */
 type TrapSingleMethod<T> = {
   readonly [P in keyof T]: (
+    // @ts-expect-error FIXME Type 'T[P]' does not satisfy the constraint '(...args: any) => any'.
     ...args: Parameters<T[P]>
+    // @ts-expect-error FIXME ditto
   ) => Unpromise<ReturnType<T[P]>>;
 };
 type TrapSingleCall<T> = T extends Function
-  ? ((...args: Parameters<T>) => Unpromise<ReturnType<T>>) &
+  ? // @ts-expect-error FIXME ditto
+    ((...args: Parameters<T>) => Unpromise<ReturnType<T>>) &
       ESingleMethod<Required<T>>
   : ESingleMethod<Required<T>>;
 type TrapSingleGet<T> = {

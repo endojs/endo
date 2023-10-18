@@ -19,12 +19,12 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:eslint": "eslint .",
-    "lint:types": "tsc -p jsconfig.json"
+    "lint:types": "tsc"
   },
   "dependencies": {
     "@endo/base64": "^0.2.35",
@@ -65,5 +65,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 65.38
   }
 }

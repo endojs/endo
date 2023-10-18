@@ -17,12 +17,12 @@
   "exports": {},
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "test": "exit 0"
   },
   "dependencies": {
@@ -65,5 +65,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 86.18
   }
 }

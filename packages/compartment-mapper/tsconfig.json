@@ -1,11 +1,7 @@
 {
   "extends": "../../tsconfig.eslint-base.json",
   "compilerOptions": {
-    "allowJs": true,
-    "checkJs": true,
-    "noImplicitAny": false,
-    "useUnknownInCatchVariables": false,
-    "skipLibCheck": false
+    "checkJs": false
   },
   "include": [
     "*.js",
