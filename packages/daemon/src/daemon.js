@@ -407,7 +407,7 @@ const makeEndoBootstrap = (
       formula,
     );
 
-    // Memoize provide.
+    // Memoize for lookup.
     valuePromiseForFormulaIdentifier.set(formulaIdentifier, promiseForValue);
 
     // Prepare an entry for reverse-lookup of formula for presence.

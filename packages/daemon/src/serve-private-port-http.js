@@ -65,7 +65,7 @@ export const servePrivatePortHttp = (
           closed: connectionClosed,
         } = connection;
 
-        const connectionNumber = connectionNumbers.next();
+        const { value: connectionNumber } = connectionNumbers.next();
         console.log(
           `Endo daemon received local web socket connection ${connectionNumber} at ${new Date().toISOString()}`,
         );
