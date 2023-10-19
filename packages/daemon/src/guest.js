@@ -12,20 +12,26 @@ export const makeGuestMaker = ({
    * @param {string} hostFormulaIdentifier
    * @param {string} petStoreFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeIdentifiedGuest = async (
+  const makeIdentifiedGuestController = async (
     guestFormulaIdentifier,
     hostFormulaIdentifier,
     petStoreFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    terminator,
   ) => {
+    terminator.thisDiesIfThatDies(hostFormulaIdentifier);
+    terminator.thisDiesIfThatDies(petStoreFormulaIdentifier);
+    terminator.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+
     const petStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
     const hostController = /** @type {import('./types.js').Controller<>} */ (
       await provideControllerForFormulaIdentifier(hostFormulaIdentifier)
     );
-    const { internal: hostPrivateFacet } = hostController;
+    const hostPrivateFacet = await hostController.internal;
     if (hostPrivateFacet === undefined) {
       throw new Error(
         `panic: a host request function must exist for every host`,
@@ -33,7 +39,6 @@ export const makeGuestMaker = ({
     }
     const { respond: deliverToHost } = hostPrivateFacet;
     if (deliverToHost === undefined) {
-      console.log(hostController);
       throw new Error(
         `panic: a host request function must exist for every host`,
       );
@@ -61,6 +66,7 @@ export const makeGuestMaker = ({
         SELF: guestFormulaIdentifier,
         HOST: hostFormulaIdentifier,
       },
+      terminator,
     });
 
     const { list, follow: followNames } = petStore;
@@ -83,13 +89,13 @@ export const makeGuestMaker = ({
       rename,
     });
 
-    const internal = {
+    const internal = harden({
       receive,
       respond,
-    };
+    });
 
-    return { promise: guest, internal };
+    return harden({ external: guest, internal });
   };
 
-  return makeIdentifiedGuest;
+  return makeIdentifiedGuestController;
 };

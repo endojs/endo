@@ -140,12 +140,23 @@ export interface Topic<
   subscribe(): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
 }
 
-export interface Controller<Value = unknown, Internal = unknown> {
-  promise: Promise<Value>;
+export interface Terminator {
+  terminate: (logPrefix?: string) => Promise<void>;
+  terminated: Promise<void>;
+  thisDiesIfThatDies: (formulaIdentifier: string) => void;
+  thatDiesIfThisDies: (formulaIdentifier: string) => void;
+  onTerminate: (hook: () => void | Promise<void>) => void;
+}
+
+export interface InternalExternal<External = unknown, Internal = unknown> {
+  external: External;
   internal: Internal;
-  terminate?: () => {};
-  terminating?: Promise<void>;
-  terminated?: Promise<void>;
+}
+
+export interface Controller<External = unknown, Internal = unknown> {
+  external: Promise<External>;
+  internal: Promise<Internal>;
+  terminator: Terminator;
 }
 
 export interface PetStore {

@@ -11,6 +11,7 @@ import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
+import { makeTerminatorMaker } from './terminator.js';
 
 const { quote: q } = assert;
 
@@ -69,16 +70,15 @@ const makeEndoBootstrap = (
   /**
    * @param {string} sha512
    */
-  const makeSha512ReadableBlob = sha512 => {
+  const makeReadableBlob = sha512 => {
     const { text, json, stream } = contentStore.fetch(sha512);
-    const promise = Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
+    return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
       text,
       json,
       [Symbol.asyncIterator]: stream,
     });
-    return { promise };
   };
 
   /**
@@ -100,15 +100,12 @@ const makeEndoBootstrap = (
 
   /**
    * @param {string} workerId512
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeIdentifiedWorker = async workerId512 => {
+  const makeIdentifiedWorkerController = async (workerId512, terminator) => {
     // TODO validate workerId512
     const workerFormulaIdentifier = `worker-id512:${workerId512}`;
 
-    const { resolve: notifyTerminating, promise: terminating } =
-      /** @type {import('@endo/promise-kit').PromiseKit<void>} */ (
-        makePromiseKit()
-      );
     const { reject: cancelWorker, promise: workerCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
         makePromiseKit()
@@ -144,7 +141,6 @@ const makeEndoBootstrap = (
     const workerBootstrap = getBootstrap();
 
     const terminate = async () => {
-      notifyTerminating();
       E.sendOnly(workerBootstrap).terminate();
       const cancelWorkerGracePeriod = () => {
         throw new Error('Exited gracefully before grace period elapsed');
@@ -160,43 +156,55 @@ const makeEndoBootstrap = (
           );
         })
         .catch(cancelWorker);
+      await terminated;
     };
 
+    terminator.onTerminate(terminate);
+
     const worker = Far('EndoWorker', {
-      whenTerminated: () => terminated,
+      terminate: terminator.terminate,
+      whenTerminated: () => terminator.terminated,
     });
 
     return {
-      promise: worker,
+      external: worker,
       internal: workerBootstrap,
-      terminate,
-      terminating,
-      terminated,
     };
   };
 
   /**
+   * @param {string} evalFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @param {string} source
    * @param {Array<string>} codeNames
    * @param {Array<string>} formulaIdentifiers
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeValueForEval = async (
+  const makeControllerForEval = async (
+    evalFormulaIdentifier,
     workerFormulaIdentifier,
     source,
     codeNames,
     formulaIdentifiers,
+    terminator,
   ) => {
-    // Behold, recursion:
-    // eslint-disable-next-line no-use-before-define
-    const workerController = await provideControllerForFormulaIdentifier(
-      workerFormulaIdentifier,
-    );
+    terminator.thisDiesIfThatDies(workerFormulaIdentifier);
+    for (const formulaIdentifier of formulaIdentifiers) {
+      terminator.thisDiesIfThatDies(formulaIdentifier);
+    }
+
+    const workerController =
+      /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideControllerForFormulaIdentifier(workerFormulaIdentifier)
+      );
     const workerBootstrap = workerController.internal;
     assert(
       workerBootstrap,
       `panic: No internal bootstrap for worker ${workerFormulaIdentifier}`,
     );
+
     const endowmentValues = await Promise.all(
       formulaIdentifiers.map(formulaIdentifier =>
         // Behold, recursion:
@@ -204,29 +212,50 @@ const makeEndoBootstrap = (
         provideValueForFormulaIdentifier(formulaIdentifier),
       ),
     );
-    const promise = E(workerBootstrap).evaluate(
+
+    const external = E(workerBootstrap).evaluate(
       source,
       codeNames,
       endowmentValues,
+      terminator.terminated.then(() => {
+        throw new Error('Terminated');
+      }),
     );
-    return { promise };
+
+    // TODO check whether the promise resolves to data that can be marshalled
+    // into the content-address-store and truncate the dependency chain.
+    // That will require some funny business around allowing eval formulas to
+    // have a level of indirection where the settled formula depends on how
+    // the indirect formula resolves.
+    // That might mean racing two formulas and terminating the evaluator
+    // if it turns out the value can be captured.
+
+    return { external, internal: undefined };
   };
 
   /**
+   * @param {string} valueFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
    * @param {string} importPath
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeValueForImportUnsafe0 = async (
+  const makeControllerForUnsafePlugin = async (
+    valueFormulaIdentifier,
     workerFormulaIdentifier,
     guestFormulaIdentifier,
     importPath,
+    terminator,
   ) => {
-    // Behold, recursion:
-    // eslint-disable-next-line no-use-before-define
-    const workerController = await provideControllerForFormulaIdentifier(
-      workerFormulaIdentifier,
-    );
+    terminator.thisDiesIfThatDies(workerFormulaIdentifier);
+    terminator.thisDiesIfThatDies(guestFormulaIdentifier);
+
+    const workerController =
+      /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideControllerForFormulaIdentifier(workerFormulaIdentifier)
+      );
     const workerBootstrap = workerController.internal;
     assert(
       workerBootstrap,
@@ -237,25 +266,36 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const promise = E(workerBootstrap).importUnsafeAndEndow(importPath, guestP);
-    return { promise };
+    const external = E(workerBootstrap).importUnsafeAndEndow(
+      importPath,
+      guestP,
+    );
+    return { external, internal: undefined };
   };
 
   /**
+   * @param {string} valueFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
    * @param {string} bundleFormulaIdentifier
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeValueForImportBundle0 = async (
+  const makeControllerForSafeBundle = async (
+    valueFormulaIdentifier,
     workerFormulaIdentifier,
     guestFormulaIdentifier,
     bundleFormulaIdentifier,
+    terminator,
   ) => {
-    // Behold, recursion:
-    // eslint-disable-next-line no-use-before-define
-    const workerController = await provideControllerForFormulaIdentifier(
-      workerFormulaIdentifier,
-    );
+    terminator.thisDiesIfThatDies(workerFormulaIdentifier);
+    terminator.thisDiesIfThatDies(guestFormulaIdentifier);
+
+    const workerController =
+      /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideControllerForFormulaIdentifier(workerFormulaIdentifier)
+      );
     const workerBootstrap = workerController.internal;
     assert(
       workerBootstrap,
@@ -274,50 +314,69 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const promise = E(workerBootstrap).importBundleAndEndow(
+    const external = E(workerBootstrap).importBundleAndEndow(
       readableBundleP,
       guestP,
     );
-    return { promise };
+    return { external, internal: undefined };
   };
 
   /**
    * @param {string} formulaIdentifier
    * @param {string} formulaNumber
    * @param {import('./types.js').Formula} formula
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeValueForFormula = (formulaIdentifier, formulaNumber, formula) => {
+  const makeControllerForFormula = async (
+    formulaIdentifier,
+    formulaNumber,
+    formula,
+    terminator,
+  ) => {
     if (formula.type === 'eval') {
-      return makeValueForEval(
+      return makeControllerForEval(
+        formulaIdentifier,
         formula.worker,
         formula.source,
         formula.names,
         formula.values,
+        terminator,
       );
     } else if (formula.type === 'import-unsafe') {
-      return makeValueForImportUnsafe0(
+      return makeControllerForUnsafePlugin(
+        formulaIdentifier,
         formula.worker,
         formula.powers,
         formula.importPath,
+        terminator,
       );
     } else if (formula.type === 'import-bundle') {
-      return makeValueForImportBundle0(
+      return makeControllerForSafeBundle(
+        formulaIdentifier,
         formula.worker,
         formula.powers,
         formula.bundle,
+        terminator,
       );
     } else if (formula.type === 'guest') {
+      const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
+      const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      return makeIdentifiedGuest(
+      return makeIdentifiedGuestController(
         formulaIdentifier,
         formula.host,
-        `pet-store-id512:${formulaNumber}`,
-        `worker-id512:${formulaNumber}`,
+        storeFormulaIdentifier,
+        workerFormulaIdentifier,
+        terminator,
       );
     } else if (formula.type === 'web-bundle') {
+      // Behold, forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      terminator.thisDiesIfThatDies(formula.bundle);
+      terminator.thisDiesIfThatDies(formula.powers);
       return {
-        promise: (async () =>
+        external: (async () =>
           harden({
             url: `http://${formulaNumber}.endo.localhost:${await webletPortP}`,
             // Behold, recursion:
@@ -327,6 +386,7 @@ const makeEndoBootstrap = (
             // eslint-disable-next-line no-use-before-define
             powers: provideValueForFormulaIdentifier(formula.powers),
           }))(),
+        internal: undefined,
       };
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
@@ -335,38 +395,48 @@ const makeEndoBootstrap = (
 
   /**
    * @param {string} formulaIdentifier
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeValueForFormulaIdentifier = async formulaIdentifier => {
+  const makeControllerForFormulaIdentifier = async (
+    formulaIdentifier,
+    terminator,
+  ) => {
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
-        const promise = petStorePowers.makeOwnPetStore(
+        const external = petStorePowers.makeOwnPetStore(
           'pet-store',
           assertPetName,
         );
-        return { promise };
+        return { external, internal: undefined };
       } else if (formulaIdentifier === 'host') {
+        const storeFormulaIdentifier = 'pet-store';
+        const workerFormulaIdentifier = `worker-id512:${zero512}`;
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
         return makeIdentifiedHost(
           formulaIdentifier,
-          'pet-store',
-          `worker-id512:${zero512}`,
+          storeFormulaIdentifier,
+          workerFormulaIdentifier,
+          terminator,
         );
       } else if (formulaIdentifier === 'endo') {
+        // TODO reframe "cancelled" as termination of the "endo" object and
+        // ensure that all values ultimately depend on "endo".
         // Behold, self-referentiality:
         // eslint-disable-next-line no-use-before-define
-        return { promise: endoBootstrap };
+        return { external: endoBootstrap, internal: undefined };
       } else if (formulaIdentifier === 'least-authority') {
-        return { promise: leastAuthority };
+        return { external: leastAuthority, internal: undefined };
       } else if (formulaIdentifier === 'web-page-js') {
         if (persistencePowers.webPageBundlerFormula === undefined) {
           throw Error('No web-page-js formula provided.');
         }
-        return makeValueForFormula(
+        return makeControllerForFormula(
           'web-page-js',
           zero512,
           persistencePowers.webPageBundlerFormula,
+          terminator,
         );
       }
       throw new TypeError(
@@ -376,23 +446,30 @@ const makeEndoBootstrap = (
     const prefix = formulaIdentifier.slice(0, delimiterIndex);
     const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
     if (prefix === 'readable-blob-sha512') {
-      return makeSha512ReadableBlob(formulaNumber);
+      // Behold, forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      const external = makeReadableBlob(formulaNumber);
+      return { external, internal: undefined };
     } else if (prefix === 'worker-id512') {
-      return makeIdentifiedWorker(formulaNumber);
+      return makeIdentifiedWorkerController(formulaNumber, terminator);
     } else if (prefix === 'pet-store-id512') {
-      const promise = petStorePowers.makeIdentifiedPetStore(
+      const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         assertPetName,
       );
-      return { promise };
+      return { external, internal: undefined };
     } else if (prefix === 'host-id512') {
+      const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
+      const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      return makeIdentifiedHost(
+      const external = makeIdentifiedHost(
         formulaIdentifier,
-        `pet-store-id512:${formulaNumber}`,
-        `worker-id512:${formulaNumber}`,
+        storeFormulaIdentifier,
+        workerFormulaIdentifier,
+        terminator,
       );
+      return { external, internal: undefined };
     } else if (
       [
         'eval-id512',
@@ -407,7 +484,12 @@ const makeEndoBootstrap = (
         formulaNumber,
       );
       // TODO validate
-      return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
+      return makeControllerForFormula(
+        formulaIdentifier,
+        formulaNumber,
+        formula,
+        terminator,
+      );
     } else {
       throw new TypeError(
         `Invalid formula identifier, unrecognized type ${q(formulaIdentifier)}`,
@@ -427,25 +509,43 @@ const makeEndoBootstrap = (
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
 
-    await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
+    // Memoize for lookup.
+    console.log(`Making ${formulaIdentifier}`);
+    const { promise: partial, resolve } =
+      /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
+        makePromiseKit()
+      );
+
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const controller = await makeValueForFormula(
-      formulaIdentifier,
-      formulaNumber,
-      formula,
-    );
-
-    // Memoize for lookup.
+    const terminator = makeTerminator(formulaIdentifier);
+    partial.catch(error => terminator.terminate());
+    const controller = harden({
+      terminator,
+      external: E.get(partial).external.then(value => {
+        if (typeof value === 'object' && value !== null) {
+          formulaIdentifierForRef.set(value, formulaIdentifier);
+        }
+        return value;
+      }),
+      internal: E.get(partial).internal,
+    });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
 
-    // Prepare an entry for reverse-lookup of formula for presence.
-    const value = await controller.promise;
-    if (typeof value === 'object' && value !== null) {
-      formulaIdentifierForRef.set(value, formulaIdentifier);
-    }
+    await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
+    resolve(
+      makeControllerForFormula(
+        formulaIdentifier,
+        formulaNumber,
+        formula,
+        terminator,
+      ),
+    );
 
-    return { formulaIdentifier, value };
+    return harden({
+      formulaIdentifier,
+      value: controller.external,
+    });
   };
 
   /**
@@ -460,15 +560,30 @@ const makeEndoBootstrap = (
   /**
    * @param {string} formulaIdentifier
    */
-  const provideControllerForFormulaIdentifier = async formulaIdentifier => {
+  const provideControllerForFormulaIdentifier = formulaIdentifier => {
     let controller = controllerForFormulaIdentifier.get(formulaIdentifier);
-    if (controller === undefined) {
-      controller = await makeValueForFormulaIdentifier(formulaIdentifier);
-      if (controller === undefined) {
-        throw new Error('panic: not sure why the type is not narrower here');
-      }
-      controllerForFormulaIdentifier.set(formulaIdentifier, controller);
+    if (controller !== undefined) {
+      return controller;
     }
+
+    console.log(`Making ${formulaIdentifier}`);
+    const { promise: partial, resolve } =
+      /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
+        makePromiseKit()
+      );
+
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    const terminator = makeTerminator(formulaIdentifier);
+    partial.catch(error => terminator.terminate());
+    controller = harden({
+      terminator,
+      external: E.get(partial).external,
+      internal: E.get(partial).internal,
+    });
+    controllerForFormulaIdentifier.set(formulaIdentifier, controller);
+    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, terminator));
+
     return controller;
   };
 
@@ -477,14 +592,19 @@ const makeEndoBootstrap = (
    */
   const provideValueForFormulaIdentifier = async formulaIdentifier => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
-      await provideControllerForFormulaIdentifier(formulaIdentifier)
+      provideControllerForFormulaIdentifier(formulaIdentifier)
     );
-    const value = await controller.promise;
+    const value = await controller.external;
     if (typeof value === 'object' && value !== null) {
       formulaIdentifierForRef.set(value, formulaIdentifier);
     }
     return value;
   };
+
+  const makeTerminator = makeTerminatorMaker({
+    controllerForFormulaIdentifier,
+    provideControllerForFormulaIdentifier,
+  });
 
   const makeMailbox = makeMailboxMaker({
     formulaIdentifierForRef,
@@ -492,7 +612,7 @@ const makeEndoBootstrap = (
     provideControllerForFormulaIdentifier,
   });
 
-  const makeIdentifiedGuest = makeGuestMaker({
+  const makeIdentifiedGuestController = makeGuestMaker({
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
     makeMailbox,

@@ -19,12 +19,17 @@ export const makeHostMaker = ({
    * @param {string} hostFormulaIdentifier
    * @param {string} storeFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {import('./types.js').Terminator} terminator
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
     storeFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    terminator,
   ) => {
+    terminator.thisDiesIfThatDies(storeFormulaIdentifier);
+    terminator.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+
     const petStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -56,6 +61,7 @@ export const makeHostMaker = ({
         NONE: 'least-authority',
         ENDO: 'endo',
       },
+      terminator,
     });
 
     /**
@@ -441,9 +447,11 @@ export const makeHostMaker = ({
       provideWebPage,
     });
 
-    const internal = { receive, respond };
+    const internal = harden({ receive, respond });
 
-    return { promise: host, internal };
+    await provideValueForFormulaIdentifier(mainWorkerFormulaIdentifier);
+
+    return harden({ external: host, internal });
   };
 
   return makeIdentifiedHost;

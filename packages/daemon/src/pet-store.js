@@ -63,7 +63,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @param {string} petName */
     const lookup = petName => {
       assertValidName(petName);
-      return petNames.get(petName);
+      const formulaIdentifier = petNames.get(petName);
+      return formulaIdentifier;
     };
 
     /**
