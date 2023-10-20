@@ -417,7 +417,7 @@ test('guest facet receives a message for host', async t => {
   const { value: message0 } = await E(iteratorRef).next();
   t.is(message0.number, 0);
   await E(host).resolve(message0.number, 'ten1');
-  await E(guest).send('HOST', 'Hello, World!', ['gift'], ['number']);
+  await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message1.number, 1);
   await E(host).adopt(message1.number, 'gift', 'ten2');
