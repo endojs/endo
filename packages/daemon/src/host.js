@@ -54,6 +54,8 @@ export const makeHostMaker = ({
       selfFormulaIdentifier: hostFormulaIdentifier,
       specialNames: {
         SELF: hostFormulaIdentifier,
+        NONE: 'least-authority',
+        ENDO: 'endo',
       },
     });
 
@@ -159,14 +161,6 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'HOST' | 'ENDO'} partyName
      */
     const providePowersFormulaIdentifier = async partyName => {
-      if (partyName === 'NONE') {
-        return 'least-authority';
-      } else if (partyName === 'HOST') {
-        return 'host';
-      } else if (partyName === 'ENDO') {
-        return 'endo';
-      }
-      assertPetName(partyName);
       let guestFormulaIdentifier = lookupFormulaIdentifierForName(partyName);
       if (guestFormulaIdentifier === undefined) {
         const guest = await provideGuest(partyName);
