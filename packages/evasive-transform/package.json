@@ -1,12 +1,11 @@
 {
-  "name": "@endo/transforms",
+  "name": "@endo/evasive-transform",
   "version": "0.1.3",
-  "private": true,
-  "description": "Automatic code transformations for Endo JavaScript applications",
-  "keywords": [],
+  "description": "Source transforms to evade SES censorship",
+  "keywords": ["ses", "transform"],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/transforms#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/evasive-transform#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"
@@ -33,12 +32,19 @@
     "lint-check": "yarn lint",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint '**/*.js'",
+    "test:rebuild-fixtures": "node test/rebuild-fixtures.js"
   },
   "devDependencies": {
+    "@babel/types": "7.23.0",    
     "@endo/ses-ava": "^0.2.44",
+    "@rollup/plugin-commonjs": "^19.0.0",
+    "@rollup/plugin-node-resolve": "^13.0.0",
+    "@types/babel__generator": "7.6.5",
+    "@types/babel__traverse": "^7.20.2",
     "ava": "^5.3.0",
     "c8": "^7.14.0",
+    "rollup": "^2.79.1",
     "tsd": "^0.28.1"
   },
   "files": [
@@ -62,5 +68,14 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "dependencies": {
+    "@agoric/babel-generator": "7.17.6",
+    "@babel/parser": "7.20.3",
+    "@babel/traverse": "7.20.1",
+    "source-map": "0.7.4"
+  },
+  "resolutions": {
+    "@babel/types": "7.23.0"
   }
 }
