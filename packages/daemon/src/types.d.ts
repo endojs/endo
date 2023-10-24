@@ -293,7 +293,7 @@ export type PetStorePowers = {
   ) => Promise<FarRef<PetStore>>;
 };
 
-export type NetworkPowers = {
+export type SocketPowers = {
   servePath: (args: {
     path: string;
     host?: string;
@@ -304,6 +304,9 @@ export type NetworkPowers = {
     host?: string;
     cancelled: Promise<never>;
   }) => Promise<AsyncIterableIterator<Connection>>;
+};
+
+export type NetworkPowers = SocketPowers & {
   servePortHttp: (args: {
     port: number;
     host?: string;
