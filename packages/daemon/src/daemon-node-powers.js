@@ -179,13 +179,9 @@ export const makeHttpPowers = ({ http, ws }) => {
 /**
  * @param {object} modules
  * @param {typeof import('net')} modules.net
- * @param {typeof import('http')} modules.http
- * @param {typeof import('ws')} modules.ws
- * @returns {import('./types.js').NetworkPowers}
+ * @returns {import('./types.js').SocketPowers}
  */
-export const makeNetworkPowers = ({ http, ws, net }) => {
-  const { servePortHttp } = makeHttpPowers({ http, ws });
-
+export const makeSocketPowers = ({ net }) => {
   const serveListener = async (listen, cancelled) => {
     const [
       /** @type {Reader<import('./types.js').Connection>} */ readFrom,
@@ -259,6 +255,20 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
         }),
       );
     }, cancelled);
+
+  return { servePort, servePath };
+};
+
+/**
+ * @param {object} modules
+ * @param {typeof import('net')} modules.net
+ * @param {typeof import('http')} modules.http
+ * @param {typeof import('ws')} modules.ws
+ * @returns {import('./types.js').NetworkPowers}
+ */
+export const makeNetworkPowers = ({ http, ws, net }) => {
+  const { servePortHttp } = makeHttpPowers({ http, ws });
+  const { servePort, servePath } = makeSocketPowers({ net });
 
   const connectionNumbers = (function* generateNumbers() {
     let n = 0;
