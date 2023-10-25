@@ -1706,9 +1706,9 @@ const makePatternKit = () => {
     await: argPattern =>
       // eslint-disable-next-line no-use-before-define
       makeAwaitArgGuard(argPattern),
-    rawValue: () =>
+    raw: () =>
       // eslint-disable-next-line no-use-before-define
-      makeRawValueGuard(),
+      makeRawGuard(),
   });
 
   return harden({
@@ -1792,36 +1792,30 @@ const makeAwaitArgGuard = argPattern => {
   return result;
 };
 
-// M.rawValue()
+// M.raw()
 
-const RawValueGuardPayloadShape = M.record();
+const RawGuardPayloadShape = M.record();
 
-// TODO does not need to be a singleton, and would not be if we added a
-// parameter, like a description string.
-/** @type {RawValueGuard} */
-const TheRawValueGuard = makeTagged('guard:rawValueGuard', {});
+const RawGuardShape = M.kind('guard:rawGuard');
 
-const RawValueGuardShape = M.kind('guard:rawValueGuard');
+export const isRawGuard = specimen => matches(specimen, RawGuardShape);
 
-export const isRawValueGuard = specimen =>
-  matches(specimen, RawValueGuardShape);
-
-export const assertRawValueGuard = specimen =>
-  mustMatch(specimen, RawValueGuardShape, 'rawValueGuard');
+export const assertRawGuard = specimen =>
+  mustMatch(specimen, RawGuardShape, 'rawGuard');
 
 /**
- * @returns {RawValueGuard}
+ * @returns {import('../types.js').RawGuard}
  */
-const makeRawValueGuard = () => TheRawValueGuard;
+const makeRawGuard = () => makeTagged('guard:rawGuard', {});
 
 // M.call(...)
 // M.callWhen(...)
 
-const SyncValueGuardShape = M.or(RawValueGuardShape, M.pattern());
+const SyncValueGuardShape = M.or(RawGuardShape, M.pattern());
 
 const SyncValueGuardListShape = M.arrayOf(SyncValueGuardShape);
 
-const ArgGuardShape = M.or(RawValueGuardShape, AwaitArgGuardShape, M.pattern());
+const ArgGuardShape = M.or(RawGuardShape, AwaitArgGuardShape, M.pattern());
 const ArgGuardListShape = M.arrayOf(ArgGuardShape);
 
 const SyncMethodGuardPayloadShape = harden({
@@ -2008,7 +2002,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
 
 const GuardPayloadShapes = harden({
   'guard:awaitArgGuard': AwaitArgGuardPayloadShape,
-  'guard:rawValueGuard': RawValueGuardPayloadShape,
+  'guard:rawGuard': RawGuardPayloadShape,
   'guard:methodGuard': MethodGuardPayloadShape,
   'guard:interfaceGuard': InterfaceGuardPayloadShape,
 });

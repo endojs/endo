@@ -471,7 +471,7 @@ export {};
  * @typedef {(
  *   interfaceName: string,
  *   methodGuards: any,
- *   options: {defaultGuards?: 'passable' | 'raw', sloppy?: true }) => InterfaceGuard<Record<PropertyKey, MethodGuard>>
+ *   options: {defaultGuards?: 'passable' | 'raw', sloppy?: true }) => InterfaceGuard<any>
  * } MakeInterfaceGuardSloppy
  */
 /**
@@ -511,7 +511,7 @@ export {};
  * Any `AwaitArgGuard` may not appear as a rest pattern or a result pattern,
  * only a top-level single parameter pattern.
  *
- * @property {(() => RawValueGuard)} rawValue
+ * @property {() => RawGuard} raw
  * In parameter position, pass this argument through without any checking.
  * In rest position, pass the rest of the arguments through without any checking.
  * In return position, return the result without any checking.
@@ -539,10 +539,6 @@ export {};
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>}InterfaceGuard
- */
-
-/**
- * @typedef {Record<string, InterfaceGuard>} InterfaceGuardKit
  */
 
 /**
@@ -621,13 +617,13 @@ export {};
  */
 
 /**
- * @typedef {{}} RawValueGuardPayload
+ * @typedef {{}} RawGuardPayload
  */
 
 /**
- * @typedef {CopyTagged<'guard:rawValueGuard', RawValueGuardPayload>} RawValueGuard
+ * @typedef {CopyTagged<'guard:rawGuard', RawGuardPayload>} RawGuard
  */
 
-/** @typedef {RawValueGuard | Pattern} SyncValueGuard */
+/** @typedef {RawGuard | Pattern} SyncValueGuard */
 
-/** @typedef {AwaitArgGuard | RawValueGuard | Pattern} ArgGuard */
+/** @typedef {AwaitArgGuard | RawGuard | Pattern} ArgGuard */

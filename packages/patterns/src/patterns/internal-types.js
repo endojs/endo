@@ -21,7 +21,7 @@
 
 /** @typedef {import('../types.js').AwaitArgGuardPayload} AwaitArgGuardPayload */
 /** @typedef {import('../types.js').AwaitArgGuard} AwaitArgGuard */
-/** @typedef {import('../types.js').RawValueGuard} RawValueGuard */
+/** @typedef {import('../types.js').RawGuard} RawGuard */
 /** @typedef {import('../types.js').ArgGuard} ArgGuard */
 /** @typedef {import('../types.js').MethodGuardPayload} MethodGuardPayload */
 /** @typedef {import('../types.js').SyncValueGuard} SyncValueGuard */
