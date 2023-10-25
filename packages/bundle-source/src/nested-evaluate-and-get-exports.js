@@ -3,7 +3,7 @@ import url from 'url';
 import { rollup as rollup0 } from 'rollup';
 import resolve0 from '@rollup/plugin-node-resolve';
 import commonjs0 from '@rollup/plugin-commonjs';
-import { transformSource } from './transform.js';
+import { evadeCensor } from '@endo/evasive-transform';
 
 const DEFAULT_FILE_PREFIX = '/bundled-source/...';
 
@@ -95,9 +95,9 @@ export async function bundleNestedEvaluateAndGetExports(
       const useLocationUnmap =
         moduleFormat === 'nestedEvaluate' && !fileName.startsWith('_virtual/');
 
-      const { code: transformedCode } = await transformSource(code, {
-        sourceMapUrl: pathname,
+      const { code: transformedCode } = await evadeCensor(code, {
         sourceMap: chunk.map,
+        sourceUrl: pathname,
         useLocationUnmap,
       });
       unsortedSourceBundle[shortName] = transformedCode;
