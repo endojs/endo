@@ -98,6 +98,7 @@ const defaultExpectations = {
       redPill: 'undefined',
       purplePill: 'number',
     },
+    nestedScopedBob: { scoped: 1 },
     scopedBob: { scoped: 1 },
     builtins: '{"a":1,"b":2,"default":{"a":1,"b":2}}',
     builtins2: '{"c":3,"default":{"c":3}}',
@@ -306,6 +307,15 @@ const errorAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
   }
 });
 
+const nestedAttenuator = recursiveEdit((key, obj) => {
+  if (key === 'attenuate') {
+    obj[key] = 'myattenuator/attenuate'
+  }
+  if (key === 'resources') {
+    obj[key]['myattenuator/attenuate'] = obj[key].myattenuator
+  }
+});
+
 scaffold(
   'policy - globals attenuator',
   test,
@@ -401,5 +411,20 @@ scaffold(
         });
       },
     },
+  },
+);
+
+scaffold(
+  'policy - nested export in attenuator',
+  test,
+  fixture,
+  combineAssertions(
+    makeResultAssertions(defaultExpectations),
+    assertNoPolicyBypassImport,
+  ),
+  2, // expected number of assertions
+  {
+    addGlobals: globals,
+    policy: nestedAttenuator(policy),
   },
 );
