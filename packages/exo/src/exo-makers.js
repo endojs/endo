@@ -3,14 +3,7 @@
 import { makeEnvironmentCaptor } from '@endo/env-options';
 import { objectMap } from '@endo/patterns';
 
-import {
-  GET_INTERFACE_GUARD,
-  defendPrototype,
-  defendPrototypeKit,
-} from './exo-tools.js';
-
-// Used in typing.
-GET_INTERFACE_GUARD;
+import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
 const { create, seal, freeze, defineProperty, values } = Object;
 
@@ -102,19 +95,12 @@ export const initEmpty = () => emptyRecord;
 
 /**
  * @template {Methods} M
- * @typedef {{
- *   [GET_INTERFACE_GUARD]: () => InterfaceGuard<{ [K in keyof M]: MethodGuard }>
- * }} GetInterfaceGuard
- */
-
-/**
- * @template {Methods} M
- * @typedef {Farable<M & GetInterfaceGuard<M>>} Facet
+ * @typedef {Farable<M & import('./get-interface.js').GetInterfaceGuard<M>>} Guarded
  */
 
 /**
  * @template {Record<FacetName, Methods>} F
- * @typedef {{ [K in keyof F]: Facet<F[K]> }} FacetKit
+ * @typedef {{ [K in keyof F]: Guarded<F[K]> }} GuardedKit
  */
 
 /**
@@ -125,9 +111,9 @@ export const initEmpty = () => emptyRecord;
  *   [K in keyof M]: import("@endo/patterns").MethodGuard
  * }> | undefined} interfaceGuard
  * @param {I} init
- * @param {M & ThisType<{ self: Facet<M>, state: ReturnType<I> }>} methods
+ * @param {M & ThisType<{ self: Guarded<M>, state: ReturnType<I> }>} methods
  * @param {FarClassOptions<ClassContext<ReturnType<I>, M>>} [options]
- * @returns {(...args: Parameters<I>) => Facet<M>}
+ * @returns {(...args: Parameters<I>) => Guarded<M>}
  */
 export const defineExoClass = (
   tag,
@@ -185,9 +171,9 @@ harden(defineExoClass);
  *   InterfaceGuard<{[M in keyof F[K]]: MethodGuard; }>
  * } | undefined} interfaceGuardKit
  * @param {I} init
- * @param {F & { [K in keyof F]: ThisType<{ facets: FacetKit<F>, state: ReturnType<I> }> }} methodsKit
- * @param {FarClassOptions<KitContext<ReturnType<I>, FacetKit<F>>>} [options]
- * @returns {(...args: Parameters<I>) => FacetKit<F>}
+ * @param {F & { [K in keyof F]: ThisType<{ facets: GuardedKit<F>, state: ReturnType<I> }> }} methodsKit
+ * @param {FarClassOptions<KitContext<ReturnType<I>, GuardedKit<F>>>} [options]
+ * @returns {(...args: Parameters<I>) => GuardedKit<F>}
  */
 export const defineExoClassKit = (
   tag,
@@ -232,7 +218,7 @@ export const defineExoClassKit = (
     if (finish) {
       finish(context);
     }
-    return /** @type {FacetKit<F>} */ (context.facets);
+    return /** @type {GuardedKit<F>} */ (context.facets);
   };
 
   if (receiveRevoker) {
@@ -254,7 +240,7 @@ harden(defineExoClassKit);
  * }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
  * @param {FarClassOptions<ClassContext<{},T>>} [options]
- * @returns {Facet<T>}
+ * @returns {Guarded<T>}
  */
 export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {
   const makeInstance = defineExoClass(

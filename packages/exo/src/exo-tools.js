@@ -13,6 +13,8 @@ import {
   getCopyMapEntries,
 } from '@endo/patterns';
 
+import { GET_INTERFACE_GUARD } from './get-interface.js';
+
 /** @typedef {import('@endo/patterns').Method} Method */
 /** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
 /** @typedef {import('@endo/patterns').MethodGuardPayload} MethodGuardPayload */
@@ -352,23 +354,11 @@ const bindMethod = (
 };
 
 /**
- * The name of the automatically added default meta-method for
- * obtaining an exo's interface, if it has one.
- *
- * TODO Name to be bikeshed. Perhaps even whether it is a
- * string or symbol to be bikeshed.
- *
- * TODO Beware that an exo's interface can change across an upgrade,
- * so remotes that cache it can become stale.
- */
-export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
-
-/**
  *
  * @template {Record<PropertyKey, CallableFunction>} T
  * @param {T} behaviorMethods
  * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }>} interfaceGuard
- * @returns {T & { [GET_INTERFACE_GUARD]: () => InterfaceGuard<{ [M in keyof T]: MethodGuard }> }}
+ * @returns {T & import('./get-interface.js').GetInterfaceGuard<T>}
  */
 const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
   harden({
@@ -451,7 +441,7 @@ export const defendPrototype = (
 
   return Far(
     tag,
-    /** @type {T & { [GET_INTERFACE_GUARD]: () => InterfaceGuard<{ [M in keyof T]: MethodGuard }>}} */ (
+    /** @type {T & import('./get-interface.js').GetInterfaceGuard<T>} */ (
       prototype
     ),
   );

@@ -5,11 +5,11 @@ import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
+  GET_INTERFACE_GUARD,
   defineExoClass,
   defineExoClassKit,
   makeExo,
-} from '../src/exo-makers.js';
-import { GET_INTERFACE_GUARD } from '../src/exo-tools.js';
+} from '../index.js';
 
 const NoExtraI = M.interface('NoExtra', {
   foo: M.call().returns(),
