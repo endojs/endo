@@ -490,10 +490,12 @@ export {};
  * Guard the interface of an exo object
  *
  * @property {(...argPatterns: SyncValueGuard[]) => MethodGuardMaker0} call
- * Guard a synchronous call
+ * Guard a synchronous call.  Arguments not guarded by `M.raw()` are
+ * automatically hardened and must be at least Passable.
  *
  * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker0} callWhen
- * Guard an async call
+ * Guard an async call.  Arguments not guarded by `M.raw()` are automatically
+ * hardened and must be at least Passable.
  *
  * @property {(argPattern: Pattern) => AwaitArgGuard} await
  * In parameter position, guard a parameter by awaiting it. Can only be used in
@@ -512,9 +514,9 @@ export {};
  * only a top-level single parameter pattern.
  *
  * @property {() => RawGuard} raw
- * In parameter position, pass this argument through without any checking.
- * In rest position, pass the rest of the arguments through without any checking.
- * In return position, return the result without any checking.
+ * In parameter position, pass this argument through without any hardening or checking.
+ * In rest position, pass the rest of the arguments through without any hardening or checking.
+ * In return position, return the result without any hardening or checking.
  */
 
 /**
@@ -555,8 +557,14 @@ export {};
  * }
  * ```
  * @property {(...optArgGuards: ArgGuard[]) => MethodGuardMaker1} optional
- * @property {(rArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
+ * Optional arguments not guarded with `M.raw()` are automatically hardened and
+ * must be Passable.
+ * @property {(restArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
+ * If the rest argument guard is not `M.raw()`, all rest arguments are
+ * automatically hardened and must be Passable.
  * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
+ * If the return guard is not `M.raw()`, the return value is automatically
+ * hardened and must be Passable.
  */
 
 /**
@@ -572,8 +580,12 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
- * @property {(rArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
+ * @property {(restArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
+ * If the rest argument guard is not `M.raw()`, all rest arguments are
+ * automatically hardened and must be Passable.
  * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
+ * If the return guard is not `M.raw()`, the return value is automatically
+ * hardened and must be Passable.
  */
 
 /**
@@ -590,6 +602,8 @@ export {};
  * }
  * ```
  * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
+ * If the return guard is not `M.raw()`, the return value is automatically
+ * hardened and must be Passable.
  */
 
 /**
