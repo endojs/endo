@@ -4,8 +4,7 @@ import { Far } from '@endo/far';
 
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
-  partyReceiveFunctions,
-  partyRequestFunctions,
+  provideControllerForFormulaIdentifier,
   makeMailbox,
 }) => {
   /**
@@ -13,21 +12,32 @@ export const makeGuestMaker = ({
    * @param {string} hostFormulaIdentifier
    * @param {string} petStoreFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {import('./types.js').Terminator} terminator
    */
-  const makeIdentifiedGuest = async (
+  const makeIdentifiedGuestController = async (
     guestFormulaIdentifier,
     hostFormulaIdentifier,
     petStoreFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    terminator,
   ) => {
+    terminator.thisDiesIfThatDies(hostFormulaIdentifier);
+    terminator.thisDiesIfThatDies(petStoreFormulaIdentifier);
+    terminator.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+
     const petStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
-    const host = /** @type {object} */ (
-      await provideValueForFormulaIdentifier(hostFormulaIdentifier)
+    const hostController = /** @type {import('./types.js').Controller<>} */ (
+      await provideControllerForFormulaIdentifier(hostFormulaIdentifier)
     );
-
-    const deliverToHost = partyRequestFunctions.get(host);
+    const hostPrivateFacet = await hostController.internal;
+    if (hostPrivateFacet === undefined) {
+      throw new Error(
+        `panic: a host request function must exist for every host`,
+      );
+    }
+    const { respond: deliverToHost } = hostPrivateFacet;
     if (deliverToHost === undefined) {
       throw new Error(
         `panic: a host request function must exist for every host`,
@@ -56,6 +66,7 @@ export const makeGuestMaker = ({
         SELF: guestFormulaIdentifier,
         HOST: hostFormulaIdentifier,
       },
+      terminator,
     });
 
     const { list, follow: followNames } = petStore;
@@ -78,11 +89,13 @@ export const makeGuestMaker = ({
       rename,
     });
 
-    partyReceiveFunctions.set(guest, receive);
-    partyRequestFunctions.set(guest, respond);
+    const internal = harden({
+      receive,
+      respond,
+    });
 
-    return guest;
+    return harden({ external: guest, internal });
   };
 
-  return makeIdentifiedGuest;
+  return makeIdentifiedGuestController;
 };

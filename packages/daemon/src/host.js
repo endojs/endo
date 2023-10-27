@@ -9,8 +9,6 @@ export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideValueForFormula,
   provideValueForNumberedFormula,
-  partyReceiveFunctions,
-  partyRequestFunctions,
   formulaIdentifierForRef,
   storeReaderRef,
   makeSha512,
@@ -21,12 +19,17 @@ export const makeHostMaker = ({
    * @param {string} hostFormulaIdentifier
    * @param {string} storeFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {import('./types.js').Terminator} terminator
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
     storeFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    terminator,
   ) => {
+    terminator.thisDiesIfThatDies(storeFormulaIdentifier);
+    terminator.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+
     const petStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -49,12 +52,16 @@ export const makeHostMaker = ({
       adopt,
       rename,
       remove,
+      terminate,
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
       specialNames: {
         SELF: hostFormulaIdentifier,
+        NONE: 'least-authority',
+        ENDO: 'endo',
       },
+      terminator,
     });
 
     /**
@@ -159,14 +166,6 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'HOST' | 'ENDO'} partyName
      */
     const providePowersFormulaIdentifier = async partyName => {
-      if (partyName === 'NONE') {
-        return 'least-authority';
-      } else if (partyName === 'HOST') {
-        return 'host';
-      } else if (partyName === 'ENDO') {
-        return 'endo';
-      }
-      assertPetName(partyName);
       let guestFormulaIdentifier = lookupFormulaIdentifierForName(partyName);
       if (guestFormulaIdentifier === undefined) {
         const guest = await provideGuest(partyName);
@@ -442,15 +441,17 @@ export const makeHostMaker = ({
       makeWorker,
       provideWorker,
       evaluate,
+      terminate,
       importUnsafeAndEndow,
       importBundleAndEndow,
       provideWebPage,
     });
 
-    partyReceiveFunctions.set(host, receive);
-    partyRequestFunctions.set(host, respond);
+    const internal = harden({ receive, respond });
 
-    return host;
+    await provideValueForFormulaIdentifier(mainWorkerFormulaIdentifier);
+
+    return harden({ external: host, internal });
   };
 
   return makeIdentifiedHost;

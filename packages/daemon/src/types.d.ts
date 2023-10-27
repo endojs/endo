@@ -140,6 +140,25 @@ export interface Topic<
   subscribe(): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
 }
 
+export interface Terminator {
+  terminate: (logPrefix?: string) => Promise<void>;
+  terminated: Promise<void>;
+  thisDiesIfThatDies: (formulaIdentifier: string) => void;
+  thatDiesIfThisDies: (formulaIdentifier: string) => void;
+  onTerminate: (hook: () => void | Promise<void>) => void;
+}
+
+export interface InternalExternal<External = unknown, Internal = unknown> {
+  external: External;
+  internal: Internal;
+}
+
+export interface Controller<External = unknown, Internal = unknown> {
+  external: Promise<External>;
+  internal: Promise<Internal>;
+  terminator: Terminator;
+}
+
 export interface PetStore {
   list(): Array<string>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
@@ -243,9 +262,17 @@ export type FilePowers = {
   renamePath: (source: string, target: string) => Promise<void>;
 };
 
+export type AssertValidNameFn = (name: string) => void;
+
 export type PetStorePowers = {
-  makeIdentifiedPetStore: (id: string) => Promise<FarRef<PetStore>>;
-  makeOwnPetStore: (name: string) => Promise<FarRef<PetStore>>;
+  makeIdentifiedPetStore: (
+    id: string,
+    assertValidName: AssertValidNameFn,
+  ) => Promise<FarRef<PetStore>>;
+  makeOwnPetStore: (
+    name: string,
+    assertValidName: AssertValidNameFn,
+  ) => Promise<FarRef<PetStore>>;
 };
 
 export type NetworkPowers = {

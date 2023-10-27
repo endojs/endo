@@ -9,14 +9,15 @@ const { quote: q } = assert;
 
 export const makeMailboxMaker = ({
   provideValueForFormulaIdentifier,
+  provideControllerForFormulaIdentifier,
   formulaIdentifierForRef,
 }) => {
-  /** @type {WeakMap<object, import('./types.js').RequestFn>} */
-  const partyRequestFunctions = new WeakMap();
-  /** @type {WeakMap<object, import('./types.js').ReceiveFn>} */
-  const partyReceiveFunctions = new WeakMap();
-
-  const makeMailbox = ({ selfFormulaIdentifier, petStore, specialNames }) => {
+  const makeMailbox = ({
+    selfFormulaIdentifier,
+    petStore,
+    specialNames,
+    terminator,
+  }) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
     /** @type {Map<number, import('./types.js').InternalMessage>} */
@@ -50,6 +51,20 @@ export const makeMailboxMaker = ({
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return provideValueForFormulaIdentifier(formulaIdentifier);
+    };
+
+    const terminate = async petName => {
+      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+      }
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const controller = await provideControllerForFormulaIdentifier(
+        formulaIdentifier,
+      );
+      console.log('Terminating:');
+      return controller.terminator.terminate();
     };
 
     /**
@@ -206,6 +221,8 @@ export const makeMailboxMaker = ({
         what,
         senderFormulaIdentifier,
       );
+      // TODO:
+      // terminator.thisDiesIfThatDies(formulaIdentifier);
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return provideValueForFormulaIdentifier(formulaIdentifier);
@@ -281,9 +298,18 @@ export const makeMailboxMaker = ({
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipient = await provideValueForFormulaIdentifier(
+      const recipientController = await provideControllerForFormulaIdentifier(
         recipientFormulaIdentifier,
       );
+      const recipientInternal = await recipientController.internal;
+      if (recipientInternal === undefined) {
+        throw new Error(`Recipient cannot receive messages: ${recipientName}`);
+      }
+      const { receive: partyReceive } = recipientInternal;
+      if (partyReceive === undefined) {
+        throw new Error(`Recipient cannot receive messages: ${recipientName}`);
+      }
+
       petNames.forEach(assertPetName);
       edgeNames.forEach(assertPetName);
       if (petNames.length !== edgeNames.length) {
@@ -299,10 +325,6 @@ export const makeMailboxMaker = ({
         );
       }
 
-      const partyReceive = partyReceiveFunctions.get(recipient);
-      if (partyReceive === undefined) {
-        throw new Error(`panic: Message not deliverable`);
-      }
       const formulaIdentifiers = petNames.map(petName => {
         const formulaIdentifier = lookupFormulaIdentifierForName(petName);
         if (formulaIdentifier === undefined) {
@@ -363,6 +385,7 @@ export const makeMailboxMaker = ({
           )} at ${q(index)}`,
         );
       }
+      terminator.thisDiesIfThatDies(formulaIdentifier);
       await petStore.write(petName, formulaIdentifier);
     };
 
@@ -377,16 +400,27 @@ export const makeMailboxMaker = ({
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipient = /** @type {object} */ (
-        await provideValueForFormulaIdentifier(recipientFormulaIdentifier)
-      );
+      const recipientController =
+        /** @type {import('./types.js').Controller<>} */ (
+          await provideControllerForFormulaIdentifier(
+            recipientFormulaIdentifier,
+          )
+        );
 
-      const deliverToRecipient = partyRequestFunctions.get(recipient);
+      const recipientInternal = await recipientController.internal;
+      if (recipientInternal === undefined) {
+        throw new Error(
+          `panic: a receive request function must exist for every party`,
+        );
+      }
+
+      const { respond: deliverToRecipient } = await recipientInternal;
       if (deliverToRecipient === undefined) {
         throw new Error(
           `panic: a receive request function must exist for every party`,
         );
       }
+
       if (responseName === undefined) {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -451,12 +485,9 @@ export const makeMailboxMaker = ({
       adopt,
       rename,
       remove,
+      terminate,
     });
   };
 
-  return {
-    makeMailbox,
-    partyRequestFunctions,
-    partyReceiveFunctions,
-  };
+  return makeMailbox;
 };

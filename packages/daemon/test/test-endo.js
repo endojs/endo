@@ -60,10 +60,8 @@ test('lifecycle', async t => {
   );
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
-  const worker = await E(host).makeWorker();
-  await E(worker)
-    .terminate()
-    .catch(() => {});
+  await E(host).makeWorker('worker');
+  await E(host).terminate('worker');
   cancel(new Error('Cancelled'));
   await closed.catch(() => {});
 
@@ -417,7 +415,7 @@ test('guest facet receives a message for host', async t => {
   const { value: message0 } = await E(iteratorRef).next();
   t.is(message0.number, 0);
   await E(host).resolve(message0.number, 'ten1');
-  await E(guest).send('HOST', 'Hello, World!', ['gift'], ['number']);
+  await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message1.number, 1);
   await E(host).adopt(message1.number, 'gift', 'ten2');
@@ -425,4 +423,250 @@ test('guest facet receives a message for host', async t => {
   t.is(ten, 10);
 
   await stop(locator);
+});
+
+test('direct termination', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'termination-direct');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  await E(host).importUnsafeAndEndow('worker', counterPath, 'NONE', 'counter');
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  await E(host).terminate('counter');
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  t.pass();
+});
+
+test('indirect termination', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'termination-indirect');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  await E(host).importUnsafeAndEndow('worker', counterPath, 'SELF', 'counter');
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  await E(host).terminate('worker');
+
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+});
+
+test('terminate because of requested capability', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'termination-via-request');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+  await E(host).provideGuest('guest');
+
+  const messages = E(host).followMessages();
+
+  const counterPath = path.join(dirname, 'test', 'counter-party.js');
+  E(host).importUnsafeAndEndow('worker', counterPath, 'guest', 'counter');
+
+  await E(host).evaluate('worker', '0', [], [], 'zero');
+  await E(messages).next();
+  E(host).resolve(0, 'zero');
+
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  await E(host).terminate('guest');
+
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
 });

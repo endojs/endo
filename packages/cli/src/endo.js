@@ -481,6 +481,21 @@ export const main = async rawArgs => {
       return mkguest({ name, partyNames });
     });
 
+  program
+    .command('kill <name>')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('terminate a value and its deps, recovering resources')
+    .action(async (name, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { killCommand } = await import('./kill.js');
+      return killCommand({ name, partyNames });
+    });
+
   const where = program
     .command('where')
     .description('prints paths for state, logs, caches, socket, pids');
