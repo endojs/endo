@@ -58,8 +58,11 @@ export interface PrecompiledStaticModuleInterface {
 export interface ThirdPartyStaticModuleInterface {
   imports: Array<string>;
   exports: Array<string>;
+  /**
+   * Note that this value does _not_ contain any numeric or symbol property keys, which can theoretically be members of `exports` in a CommonJS module.
+   */
   execute(
-    proxiedExports: Object,
+    proxiedExports: Record<string, any>,
     compartment: Compartment,
     resolvedImports: Record<string, string>,
   ): void;
