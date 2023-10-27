@@ -36,11 +36,13 @@
   "exports": {
     ".": {
       "import": "./index.js",
-      "require": "./dist/ses.cjs"
+      "require": "./dist/ses.cjs",
+      "types": "./types.d.ts"
     },
     "./lockdown": {
       "import": "./index.js",
-      "require": "./dist/ses.cjs"
+      "require": "./dist/ses.cjs",
+      "types": "./types.d.ts"
     },
     "./tools.js": "./tools.js",
     "./package.json": "./package.json"
