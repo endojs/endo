@@ -288,18 +288,11 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('list')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .command('list [directory]')
     .description('show names')
-    .action(async cmd => {
-      const { as: partyNames } = cmd.opts();
+    .action(async (directoryName, cmd) => {
       const { list } = await import('./list.js');
-      return list({ partyNames });
+      return list({ directoryName });
     });
 
   program
