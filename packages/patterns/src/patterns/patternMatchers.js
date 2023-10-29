@@ -1868,7 +1868,7 @@ harden(getMethodGuardPayload);
  * @param {ArgGuard[]} argGuards
  * @param {ArgGuard[]} [optionalArgGuards]
  * @param {SyncValueGuard} [restArgGuard]
- * @returns {MethodGuardMaker0}
+ * @returns {MethodGuardMaker}
  */
 const makeMethodGuardMaker = (
   callKind,

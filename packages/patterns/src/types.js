@@ -489,26 +489,26 @@ export {};
  * @property {MakeInterfaceGuard} interface
  * Guard the interface of an exo object
  *
- * @property {(...argPatterns: SyncValueGuard[]) => MethodGuardMaker0} call
+ * @property {(...argPatterns: SyncValueGuard[]) => MethodGuardMaker} call
  * Guard a synchronous call.  Arguments not guarded by `M.raw()` are
  * automatically hardened and must be at least Passable.
  *
- * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker0} callWhen
+ * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker} callWhen
  * Guard an async call.  Arguments not guarded by `M.raw()` are automatically
  * hardened and must be at least Passable.
  *
  * @property {(argPattern: Pattern) => AwaitArgGuard} await
- * In parameter position, guard a parameter by awaiting it. Can only be used in
- * parameter position of an `M.callWhen`.
- * `M.await(M.nat())`, for example, with `await` the corresponding argument,
- * check that the fulfillment of the `await` satisfies the `M.nat()`
- * pattern, and only then proceed to call the raw method with that fulfillment.
- * If the argument already passes the `M.nat()` pattern, then the result of
- * `await`ing it will still pass, and the `M.callWhen` will still delay the
- * raw method call to a future turn.
+ * Guard a positional parameter in `M.callWhen`, awaiting it and matching its
+ * fulfillment against the provided pattern.
+ * For example, `M.callWhen(M.await(M.nat())).returns()` will await the first
+ * argument, check that its fulfillment satisfies `M.nat()`, and only then call
+ * the guarded method with that fulfillment. If the argument is a non-promise
+ * value that already satisfies `M.nat()`, then the result of `await`ing it will
+ * still pass, and  `M.callWhen` will still delay the guarded method call to a
+ * future turn.
  * If the argument is a promise that rejects rather than fulfills, or if its
  * fulfillment does not satisfy the nested pattern, then the call is rejected
- * without ever calling the raw method.
+ * without ever invoking the guarded method.
  *
  * Any `AwaitArgGuard` may not appear as a rest pattern or a result pattern,
  * only a top-level single parameter pattern.
@@ -544,7 +544,7 @@ export {};
  */
 
 /**
- * @typedef {object} MethodGuardMaker0
+ * @typedef {MethodGuardOptional & MethodGuardRestReturns} MethodGuardMaker
  * A method name and parameter/return signature like:
  * ```js
  *   foo(a, b, c = d, ...e) => f
@@ -556,54 +556,29 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
- * @property {(...optArgGuards: ArgGuard[]) => MethodGuardMaker1} optional
+/**
+ * @typedef {object} MethodGuardReturns
+ * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
+ * Arguments have been specified, now finish by creating a `MethodGuard`.
+ * If the return guard is not `M.raw()`, the return value is automatically
+ * hardened and must be Passable.
+ */
+/**
+ * @typedef {object} MethodGuardRest
+ * @property {(restArgGuard: SyncValueGuard) => MethodGuardReturns} rest
+ * If the rest argument guard is not `M.raw()`, all rest arguments are
+ * automatically hardened and must be Passable.
+ */
+/**
+ * @typedef {MethodGuardRest & MethodGuardReturns} MethodGuardRestReturns
+ * Mandatory and optional arguments have been specified, now specify `rest`, or
+ * finish with `returns`.
+ */
+/**
+ * @typedef {object} MethodGuardOptional
+ * @property {(...optArgGuards: ArgGuard[]) => MethodGuardRestReturns} optional
  * Optional arguments not guarded with `M.raw()` are automatically hardened and
  * must be Passable.
- * @property {(restArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
- * If the rest argument guard is not `M.raw()`, all rest arguments are
- * automatically hardened and must be Passable.
- * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
- * If the return guard is not `M.raw()`, the return value is automatically
- * hardened and must be Passable.
- */
-
-/**
- * @typedef {object} MethodGuardMaker1
- * A method name and parameter/return signature like:
- * ```js
- *   foo(a, b, c = d, ...e) => f
- * ```
- * should be guarded by something like:
- * ```js
- * {
- *   ...otherMethodGuards,
- *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
- * }
- * ```
- * @property {(restArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
- * If the rest argument guard is not `M.raw()`, all rest arguments are
- * automatically hardened and must be Passable.
- * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
- * If the return guard is not `M.raw()`, the return value is automatically
- * hardened and must be Passable.
- */
-
-/**
- * @typedef {object} MethodGuardMaker2
- * A method name and parameter/return signature like:
- * ```js
- *   foo(a, b, c = d, ...e) => f
- * ```
- * should be guarded by something like:
- * ```js
- * {
- *   ...otherMethodGuards,
- *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
- * }
- * ```
- * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
- * If the return guard is not `M.raw()`, the return value is automatically
- * hardened and must be Passable.
  */
 
 /**

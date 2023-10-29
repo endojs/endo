@@ -34,7 +34,7 @@
  * @template {Record<PropertyKey, MethodGuard>} [T = Record<PropertyKey, MethodGuard>]
  * @typedef {import('../types.js').InterfaceGuard<T>} InterfaceGuard
  */
-/** @typedef {import('../types.js').MethodGuardMaker0} MethodGuardMaker0 */
+/** @typedef {import('../types.js').MethodGuardMaker} MethodGuardMaker */
 
 /** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
 /** @typedef {import('../types').Key} Key */
