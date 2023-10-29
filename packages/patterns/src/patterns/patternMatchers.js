@@ -174,17 +174,6 @@ const makePatternKit = () => {
     // eslint-disable-next-line no-use-before-define
     GuardPayloadShapes[tag];
 
-  /**
-   * @typedef {Exclude<PassStyle, 'tagged'> |
-   *   'copySet' | 'copyBag' | 'copyMap' | keyof HelpersByMatchTag
-   * } Kind
-   * It is either a PassStyle other than 'tagged', or, if the underlying
-   * PassStyle is 'tagged', then the `getTag` value for tags that are
-   * recognized at the store level of abstraction. For each of those
-   * tags, a tagged record only has that kind if it satisfies the invariants
-   * that the store level associates with that kind.
-   */
-
   /** @type {Map<Kind, unknown>} */
   const singletonKinds = new Map([
     ['null', null],
@@ -1719,6 +1708,7 @@ const makePatternKit = () => {
     isPattern,
     getRankCover,
     M,
+    kindOf,
   });
 };
 
@@ -1736,6 +1726,7 @@ export const {
   isPattern,
   getRankCover,
   M,
+  kindOf,
 } = makePatternKit();
 
 MM = M;
