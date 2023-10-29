@@ -291,7 +291,7 @@ const bindMethod = (
   behaviorMethod,
   thisfulMethods = false,
   methodGuard = undefined,
-  defaultGuards = 'never',
+  defaultGuards = undefined,
 ) => {
   assert.typeof(behaviorMethod, 'function');
 
@@ -329,7 +329,7 @@ const bindMethod = (
       };
   if (!methodGuard && thisfulMethods) {
     switch (defaultGuards) {
-      case 'never':
+      case undefined:
       case 'passable':
         methodGuard = PassableMethodGuard;
         break;
@@ -394,7 +394,7 @@ export const defendPrototype = (
   /** @type {Record<PropertyKey, MethodGuard> | undefined} */
   let methodGuards;
   /** @type {import('@endo/patterns').DefaultGuardType} */
-  let defaultGuards = 'never';
+  let defaultGuards;
   if (interfaceGuard) {
     const {
       interfaceName,
@@ -416,7 +416,7 @@ export const defendPrototype = (
       const unimplemented = listDifference(methodGuardNames, methodNames);
       unimplemented.length === 0 ||
         Fail`methods ${q(unimplemented)} not implemented by ${q(tag)}`;
-      if (defaultGuards === 'never') {
+      if (defaultGuards === undefined) {
         const unguarded = listDifference(methodNames, methodGuardNames);
         unguarded.length === 0 ||
           Fail`methods ${q(unguarded)} not guarded by ${q(interfaceName)}`;

@@ -457,14 +457,14 @@ export {};
  */
 
 /**
- * @typedef {'never' | 'passable' | 'raw'} DefaultGuardType
+ * @typedef {undefined | 'passable' | 'raw'} DefaultGuardType
  */
 
 /**
  * @typedef {<M extends Record<PropertyKey, MethodGuard>>(
  *   interfaceName: string,
  *   methodGuards: M,
- *   options: {defaultGuards?: 'never', sloppy?: false }) => InterfaceGuard<M>
+ *   options: {defaultGuards?: undefined, sloppy?: false }) => InterfaceGuard<M>
  * } MakeInterfaceGuardStrict
  */
 /**

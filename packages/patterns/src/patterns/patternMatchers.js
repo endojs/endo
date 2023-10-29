@@ -1911,9 +1911,9 @@ const InterfaceGuardPayloadShape = M.splitRecord(
   {
     interfaceName: M.string(),
     methodGuards: M.recordOf(M.string(), MethodGuardShape),
-    defaultGuards: M.or('never', 'passable', 'raw'),
   },
   {
+    defaultGuards: M.or(M.undefined(), 'passable', 'raw'),
     sloppy: M.boolean(),
     symbolMethodGuards: M.mapOf(M.symbol(), MethodGuardShape),
   },
@@ -1970,7 +1970,7 @@ harden(getInterfaceMethodKeys);
  * @returns {InterfaceGuard<M>}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
-  const { sloppy = false, defaultGuards = sloppy ? 'passable' : 'never' } =
+  const { sloppy = false, defaultGuards = sloppy ? 'passable' : undefined } =
     options;
   // For backwards compatibility, string-keyed method guards are represented in
   // a CopyRecord. But symbol-keyed methods cannot be, so we put those in a
