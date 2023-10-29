@@ -21,8 +21,10 @@
 
 /** @typedef {import('../types.js').AwaitArgGuardPayload} AwaitArgGuardPayload */
 /** @typedef {import('../types.js').AwaitArgGuard} AwaitArgGuard */
+/** @typedef {import('../types.js').RawGuard} RawGuard */
 /** @typedef {import('../types.js').ArgGuard} ArgGuard */
 /** @typedef {import('../types.js').MethodGuardPayload} MethodGuardPayload */
+/** @typedef {import('../types.js').SyncValueGuard} SyncValueGuard */
 /** @typedef {import('../types.js').MethodGuard} MethodGuard */
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
@@ -32,7 +34,7 @@
  * @template {Record<PropertyKey, MethodGuard>} [T = Record<PropertyKey, MethodGuard>]
  * @typedef {import('../types.js').InterfaceGuard<T>} InterfaceGuard
  */
-/** @typedef {import('../types.js').MethodGuardMaker0} MethodGuardMaker0 */
+/** @typedef {import('../types.js').MethodGuardMaker} MethodGuardMaker */
 
 /** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
 /** @typedef {import('../types').Key} Key */

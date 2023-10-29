@@ -1706,6 +1706,9 @@ const makePatternKit = () => {
     await: argPattern =>
       // eslint-disable-next-line no-use-before-define
       makeAwaitArgGuard(argPattern),
+    raw: () =>
+      // eslint-disable-next-line no-use-before-define
+      makeRawGuard(),
   });
 
   return harden({
@@ -1739,6 +1742,7 @@ MM = M;
 
 // //////////////////////////// Guards ///////////////////////////////////////
 
+// M.await(...)
 const AwaitArgGuardPayloadShape = harden({
   argGuard: M.pattern(),
 });
@@ -1788,25 +1792,46 @@ const makeAwaitArgGuard = argPattern => {
   return result;
 };
 
-const PatternListShape = M.arrayOf(M.pattern());
+// M.raw()
 
-const ArgGuardShape = M.or(M.pattern(), AwaitArgGuardShape);
+const RawGuardPayloadShape = M.record();
+
+const RawGuardShape = M.kind('guard:rawGuard');
+
+export const isRawGuard = specimen => matches(specimen, RawGuardShape);
+
+export const assertRawGuard = specimen =>
+  mustMatch(specimen, RawGuardShape, 'rawGuard');
+
+/**
+ * @returns {import('../types.js').RawGuard}
+ */
+const makeRawGuard = () => makeTagged('guard:rawGuard', {});
+
+// M.call(...)
+// M.callWhen(...)
+
+const SyncValueGuardShape = M.or(RawGuardShape, M.pattern());
+
+const SyncValueGuardListShape = M.arrayOf(SyncValueGuardShape);
+
+const ArgGuardShape = M.or(RawGuardShape, AwaitArgGuardShape, M.pattern());
 const ArgGuardListShape = M.arrayOf(ArgGuardShape);
 
 const SyncMethodGuardPayloadShape = harden({
   callKind: 'sync',
-  argGuards: PatternListShape,
-  optionalArgGuards: M.opt(PatternListShape),
-  restArgGuard: M.opt(M.pattern()),
-  returnGuard: M.pattern(),
+  argGuards: SyncValueGuardListShape,
+  optionalArgGuards: M.opt(SyncValueGuardListShape),
+  restArgGuard: M.opt(SyncValueGuardShape),
+  returnGuard: SyncValueGuardShape,
 });
 
 const AsyncMethodGuardPayloadShape = harden({
   callKind: 'async',
   argGuards: ArgGuardListShape,
   optionalArgGuards: M.opt(ArgGuardListShape),
-  restArgGuard: M.opt(M.pattern()),
-  returnGuard: M.pattern(),
+  restArgGuard: M.opt(SyncValueGuardShape),
+  returnGuard: SyncValueGuardShape,
 });
 
 const MethodGuardPayloadShape = M.or(
@@ -1842,8 +1867,8 @@ harden(getMethodGuardPayload);
  * @param {'sync'|'async'} callKind
  * @param {ArgGuard[]} argGuards
  * @param {ArgGuard[]} [optionalArgGuards]
- * @param {ArgGuard} [restArgGuard]
- * @returns {MethodGuardMaker0}
+ * @param {SyncValueGuard} [restArgGuard]
+ * @returns {MethodGuardMaker}
  */
 const makeMethodGuardMaker = (
   callKind,
@@ -1886,9 +1911,10 @@ const InterfaceGuardPayloadShape = M.splitRecord(
   {
     interfaceName: M.string(),
     methodGuards: M.recordOf(M.string(), MethodGuardShape),
-    sloppy: M.boolean(),
   },
   {
+    defaultGuards: M.or(M.undefined(), 'passable', 'raw'),
+    sloppy: M.boolean(),
     symbolMethodGuards: M.mapOf(M.symbol(), MethodGuardShape),
   },
 );
@@ -1940,11 +1966,12 @@ harden(getInterfaceMethodKeys);
  * @template {Record<PropertyKey, MethodGuard>} [M = Record<PropertyKey, MethodGuard>]
  * @param {string} interfaceName
  * @param {M} methodGuards
- * @param {{ sloppy?: boolean }} [options]
+ * @param {{ sloppy?: boolean, defaultGuards?: import('../types.js').DefaultGuardType }} [options]
  * @returns {InterfaceGuard<M>}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
-  const { sloppy = false } = options;
+  const { sloppy = false, defaultGuards = sloppy ? 'passable' : undefined } =
+    options;
   // For backwards compatibility, string-keyed method guards are represented in
   // a CopyRecord. But symbol-keyed methods cannot be, so we put those in a
   // CopyMap when present.
@@ -1967,7 +1994,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
     ...(symbolMethodGuardsEntries.length
       ? { symbolMethodGuards: makeCopyMap(symbolMethodGuardsEntries) }
       : {}),
-    sloppy,
+    defaultGuards,
   });
   assertInterfaceGuard(result);
   return /** @type {InterfaceGuard<M>} */ (result);
@@ -1975,6 +2002,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
 
 const GuardPayloadShapes = harden({
   'guard:awaitArgGuard': AwaitArgGuardPayloadShape,
+  'guard:rawGuard': RawGuardPayloadShape,
   'guard:methodGuard': MethodGuardPayloadShape,
   'guard:interfaceGuard': InterfaceGuardPayloadShape,
 });
