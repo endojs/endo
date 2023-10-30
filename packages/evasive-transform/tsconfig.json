@@ -3,7 +3,7 @@
   "compilerOptions": {
     "allowJs": true,
     "paths": {
-      "@agoric/babel-generator": ["../../node_modules/@types/babel__generator"],
+      "@babel/generator": ["../../node_modules/@types/babel__generator"],
     },
     "strict": true,
     "allowSyntheticDefaultImports": true

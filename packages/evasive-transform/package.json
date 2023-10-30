@@ -70,7 +70,7 @@
     "timeout": "2m"
   },
   "dependencies": {
-    "@agoric/babel-generator": "7.17.6",
+    "@babel/generator": "7.23.0",
     "@babel/parser": "^7.23.0",
     "@babel/traverse": "^7.23.2",
     "source-map": "0.7.4"

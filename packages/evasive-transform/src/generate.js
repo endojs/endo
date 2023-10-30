@@ -4,7 +4,7 @@
  * @module
  */
 
-import babelGenerate from '@agoric/babel-generator';
+import babelGenerate from '@babel/generator';
 
 /**
  * It works; don't ask.
