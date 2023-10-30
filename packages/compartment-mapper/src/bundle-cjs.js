@@ -5,7 +5,7 @@ const exportsCellRecord = exportsList =>
   ''.concat(
     ...exportsList.map(
       exportName => `\
-      ${exportName}: cell(${q(exportName)}${exportName !== 'default' ? '' : `, {}`}),
+      ${exportName}: cell(${q(exportName)}),
 `,
     ),
   );
@@ -20,6 +20,8 @@ const runtime = function wrapCjsFunctor(num) {
     // TODO: specifier not found handling
     const requireImpl = specifier => cells[imports[specifier]].default.get();
     functors[num](Object.freeze(requireImpl), cModule.exports, cModule);
+    // For every export in the module, set the corresponding cell to the
+    // value on the cjs module object.
     Object.keys(cells[num])
       .filter(k => k !== 'default' && k !== '*')
       .map(k => cells[num][k].set(cModule.exports[k]));
