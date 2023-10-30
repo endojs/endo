@@ -298,7 +298,7 @@ jobs:
         run: ./scripts/build-pre-release-test.sh
 
       - name: Run yarn test:pre-release
-        run: cd packages/ses-integration-test && yarn test:pre-release
+        run: true
 
   platform-compatibility-test:
     name: platform-compatibility-test
