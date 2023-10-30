@@ -36,7 +36,7 @@
     "test:rebuild-fixtures": "node test/rebuild-fixtures.js"
   },
   "devDependencies": {
-    "@babel/types": "7.23.0",    
+    "@babel/types": "^7.23.0",    
     "@endo/ses-ava": "^0.2.44",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
@@ -71,11 +71,8 @@
   },
   "dependencies": {
     "@agoric/babel-generator": "7.17.6",
-    "@babel/parser": "7.20.3",
-    "@babel/traverse": "7.20.1",
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.2",
     "source-map": "0.7.4"
-  },
-  "resolutions": {
-    "@babel/types": "7.23.0"
   }
 }
