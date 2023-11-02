@@ -154,10 +154,7 @@ export const getPolicyForPackage = (namingKit, policy) => {
   if (canonicalName === ATTENUATORS_COMPARTMENT) {
     return {
       defaultAttenuator: policy.defaultAttenuator,
-      packages: detectAttenuators(policy).reduce((packages, specifier) => {
-        packages[specifier] = true;
-        return packages;
-      }, {}),
+      packages: 'any',
     };
   }
   if (policy.resources && policy.resources[canonicalName]) {

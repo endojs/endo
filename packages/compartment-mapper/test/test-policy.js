@@ -309,10 +309,10 @@ const errorAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
 
 const nestedAttenuator = recursiveEdit((key, obj) => {
   if (key === 'attenuate') {
-    obj[key] = 'myattenuator/attenuate'
+    obj[key] = 'myattenuator/attenuate';
   }
   if (key === 'resources') {
-    obj[key]['myattenuator/attenuate'] = obj[key].myattenuator
+    obj[key]['myattenuator/attenuate'] = obj[key].myattenuator;
   }
 });
 
