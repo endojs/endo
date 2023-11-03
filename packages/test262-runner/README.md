@@ -1,10 +1,18 @@
 # test262-runner
 
-Run ECMAScript compliance tests on `node` using native ESM support.
+Run ECMAScript compliance tests on Node.js, XS, and potentially others, with a
+prelude that shims Hardened JavaScript on these platforms.
 
 ## Test262 subset
 
-The `test262` directory contains a copy of the `tests` and `harness` directories from https://github.com/tc39/test262.
+The `test262` directory contains
+
+* a copy of the `tests` and `harness` directories from https://github.com/tc39/test262.
+* additional tests from https://github.com/Moddable-OpenSource/moddable
+* additional Hardened JavaScript tests
+
+We currently only run tests expressly marked with the `ses-xs-parity` feature
+in their front-matter.
 
 ## Justification
 
