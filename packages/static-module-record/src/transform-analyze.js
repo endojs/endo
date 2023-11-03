@@ -96,7 +96,7 @@ const makeCreateStaticRecord = transformSource =>
   liveVar: ${h.HIDDEN_LIVE}, \
   onceVar: ${h.HIDDEN_ONCE}, \
   importMeta: ${h.HIDDEN_META}, \
-}) => (function () { \
+}) => (function () { 'use strict'; \
   ${preamble} \
   ${scriptSource}
 })()
