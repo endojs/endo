@@ -7,11 +7,10 @@
 /* eslint-disable max-classes-per-file */
 import { test } from './prepare-test-env-ava.js';
 
-// TODO enable import of getMethodNames without deep import
 // eslint-disable-next-line import/order
-import { getMethodNames } from '@endo/eventual-send/src/local.js';
+import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf } from '../src/passStyleOf.js';
-import { Far } from '../src/make-far.js';
+import { Far, GET_METHOD_NAMES } from '../src/make-far.js';
 
 const { apply } = Reflect;
 
@@ -61,11 +60,17 @@ class FarPoint extends FarBaseClass {
 }
 harden(FarPoint);
 
+const assertMethodNames = (t, obj, names) => {
+  t.deepEqual(getMethodNames(obj), names);
+  t.deepEqual(obj[GET_METHOD_NAMES](), names);
+};
+
 test('FarPoint instances', t => {
   const pt = new FarPoint(3, 5);
   t.is(passStyleOf(pt), 'remotable');
   t.assert(pt instanceof FarPoint);
-  t.deepEqual(getMethodNames(pt), [
+  assertMethodNames(t, pt, [
+    GET_METHOD_NAMES,
     'constructor',
     'getX',
     'getY',
@@ -103,7 +108,8 @@ test('FarWobblyPoint inheritance', t => {
   t.assert(wpt instanceof FarWobblyPoint);
   t.assert(wpt instanceof FarPoint);
   t.is(passStyleOf(wpt), 'remotable');
-  t.deepEqual(getMethodNames(wpt), [
+  assertMethodNames(t, wpt, [
+    GET_METHOD_NAMES,
     'constructor',
     'getX',
     'getY',

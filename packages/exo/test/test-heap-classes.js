@@ -345,7 +345,7 @@ test('naked function call', t => {
 
   t.throws(() => gigm(), {
     message:
-      'thisful method "In \\"[Symbol(getInterfaceGuard)]\\" method of (greeter)" called without \'this\' object',
+      'thisful method "In \\"__getInterfaceGuard__\\" method of (greeter)" called without \'this\' object',
   });
   t.deepEqual(gigm.bind(greeter)(), GreeterI);
 });

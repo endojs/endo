@@ -10,10 +10,9 @@
 /* eslint-disable-next-line import/order */
 import { test } from './prepare-test-env-ava.js';
 
-// TODO enable import of getMethodNames without deep import
 // eslint-disable-next-line import/order
-import { getMethodNames } from '@endo/eventual-send/src/local.js';
-import { passStyleOf, Far } from '@endo/pass-style';
+import { getMethodNames } from '@endo/eventual-send/utils.js';
+import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M } from '@endo/patterns';
 import { defineExoClass } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
@@ -96,12 +95,18 @@ harden(ExoPoint);
 
 const makeExoPoint = defineExoClassFromJSClass(ExoPoint);
 
+const assertMethodNames = (t, obj, names) => {
+  t.deepEqual(getMethodNames(obj), names);
+  t.deepEqual(obj[GET_METHOD_NAMES](), names);
+};
+
 test('ExoPoint instances', t => {
   const pt = makeExoPoint(3, 5);
   t.is(passStyleOf(pt), 'remotable');
   t.false(pt instanceof ExoPoint);
-  t.deepEqual(getMethodNames(pt), [
+  assertMethodNames(t, pt, [
     GET_INTERFACE_GUARD,
+    GET_METHOD_NAMES,
     'getX',
     'getY',
     'setY',
@@ -152,8 +157,9 @@ test('FarWobblyPoint inheritance', t => {
   t.false(wpt instanceof ExoWobblyPoint);
   t.false(wpt instanceof ExoPoint);
   t.is(passStyleOf(wpt), 'remotable');
-  t.deepEqual(getMethodNames(wpt), [
+  assertMethodNames(t, wpt, [
     GET_INTERFACE_GUARD,
+    GET_METHOD_NAMES,
     'getX',
     'getY',
     'setY',

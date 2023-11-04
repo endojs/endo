@@ -2,11 +2,10 @@
 /* eslint-disable max-classes-per-file */
 import { test } from './prepare-test-env-ava.js';
 
-// TODO enable import of getMethodNames without deep import
 // eslint-disable-next-line import/order
-import { getMethodNames } from '@endo/eventual-send/src/local.js';
+import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf } from '../src/passStyleOf.js';
-import { Far } from '../src/make-far.js';
+import { Far, GET_METHOD_NAMES } from '../src/make-far.js';
 
 /**
  * Classes whose instances should be Far objects may find it convenient to
@@ -17,7 +16,7 @@ import { Far } from '../src/make-far.js';
  * this object's identity. However, we discourage (but cannot prevent) such
  * use of private fields, as they cannot easily be refactored into Exo state.
  */
-export const FarBaseClass = class FarBaseClass {
+const FarBaseClass = class FarBaseClass {
   constructor() {
     harden(this);
   }
@@ -45,10 +44,15 @@ class FarSubclass2 extends FarSubclass1 {
   }
 }
 
+const assertMethodNames = (t, obj, names) => {
+  t.deepEqual(getMethodNames(obj), names);
+  t.deepEqual(obj[GET_METHOD_NAMES](), names);
+};
+
 test('far class instances', t => {
   const fb = new FarBaseClass();
   t.is(passStyleOf(fb), 'remotable');
-  t.deepEqual(getMethodNames(fb), ['constructor']);
+  assertMethodNames(t, fb, [GET_METHOD_NAMES, 'constructor']);
 
   t.assert(new fb.constructor() instanceof FarBaseClass);
   t.throws(() => fb.constructor(), {
@@ -60,13 +64,18 @@ test('far class instances', t => {
   t.is(passStyleOf(fs1), 'remotable');
   t.is(fs1.double(4), 8);
   t.assert(new fs1.constructor() instanceof FarSubclass1);
-  t.deepEqual(getMethodNames(fs1), ['constructor', 'double']);
+  assertMethodNames(t, fs1, [GET_METHOD_NAMES, 'constructor', 'double']);
 
   const fs2 = new FarSubclass2(3);
   t.is(passStyleOf(fs2), 'remotable');
   t.is(fs2.double(4), 8);
   t.is(fs2.doubleAdd(4), 11);
-  t.deepEqual(getMethodNames(fs2), ['constructor', 'double', 'doubleAdd']);
+  assertMethodNames(t, fs2, [
+    GET_METHOD_NAMES,
+    'constructor',
+    'double',
+    'doubleAdd',
+  ]);
 
   const yField = new WeakMap();
   class FarSubclass3 extends FarSubclass1 {
@@ -84,7 +93,12 @@ test('far class instances', t => {
   t.is(passStyleOf(fs3), 'remotable');
   t.is(fs3.double(4), 8);
   t.is(fs3.doubleAdd(4), 11);
-  t.deepEqual(getMethodNames(fs3), ['constructor', 'double', 'doubleAdd']);
+  assertMethodNames(t, fs3, [
+    GET_METHOD_NAMES,
+    'constructor',
+    'double',
+    'doubleAdd',
+  ]);
 });
 
 test('far class instance hardened empty', t => {

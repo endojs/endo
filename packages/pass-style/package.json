@@ -33,11 +33,11 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/eventual-send": "^0.17.6",
     "@endo/promise-kit": "^0.2.60",
     "@fast-check/ava": "^1.1.5"
   },
   "devDependencies": {
-    "@endo/eventual-send": "^0.17.6",
     "@endo/init": "^0.5.60",
     "@endo/ses-ava": "^0.2.44",
     "ava": "^5.3.0",

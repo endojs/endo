@@ -1,4 +1,5 @@
-import { getMethodNames } from '@endo/eventual-send/src/local.js';
+import { getMethodNames } from '@endo/eventual-send/utils.js';
+import { hasOwnPropertyOf } from '@endo/pass-style';
 import { E, Far } from '@endo/far';
 import {
   listDifference,
@@ -423,7 +424,6 @@ export const defendPrototype = (
       ...(symbolMethodGuards &&
         fromEntries(getCopyMapEntries(symbolMethodGuards))),
     });
-    assert(methodGuards !== undefined);
     defaultGuards = dg;
     {
       const methodGuardNames = ownKeys(methodGuards);
