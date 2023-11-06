@@ -24,7 +24,7 @@ test('transformComment() - defang HTML comment', async t => {
     value: '<!-- evil code -->',
   });
   transformComment(comment);
-  t.is(comment.value, '<!\u{2010}- evil code -\u{2010}>');
+  t.is(comment.value, '<!=- evil code -=>');
 });
 
 test('transformComment() - rewrite suspicious import(...)', async t => {
@@ -37,9 +37,7 @@ test('transformComment() - rewrite suspicious import(...)', async t => {
   transformComment(comment);
   t.regex(
     comment.value,
-    new RegExp(
-      "\\* @type \\{im\u{440}ort\\('c:\\\\My Documents\\\\user\\.js'\\)",
-    ),
+    new RegExp("\\* @type \\{IMPORT\\('c:\\\\My Documents\\\\user\\.js'\\)"),
   );
 });
 

@@ -35,11 +35,11 @@ export function transformComment(node, unmapLoc) {
     // ...strip extraneous comment whitespace
     .replace(/^\s+/gm, ' ')
     // ...replace HTML comments with a defanged version to pass SES restrictions.
-    .replace(HTML_COMMENT_START_RE, '<!\u{2010}-')
-    .replace(HTML_COMMENT_END_RE, '-\u{2010}>')
+    .replace(HTML_COMMENT_START_RE, '<!=-')
+    .replace(HTML_COMMENT_END_RE, '-=>')
     // ...replace import expressions with a defanged version to pass SES restrictions
     // (featuring homoglyphs for @kriskowal)
-    .replace(IMPORT_RE, 'im\u{440}ort$2')
+    .replace(IMPORT_RE, 'IMPORT$2')
     // ...replace end-of-comment markers
     .replace(/\*\//g, '*X/');
   if (unmapLoc) {
