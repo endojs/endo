@@ -1414,6 +1414,7 @@ export const permitted = {
     race: fn,
     reject: fn,
     resolve: fn,
+    withResolvers: fn,
     '@@species': getter,
   },
 
