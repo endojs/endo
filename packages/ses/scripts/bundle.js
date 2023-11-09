@@ -4,7 +4,8 @@ import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
 import { fileURLToPath, pathToFileURL } from 'url';
-import packageJson from '../package.json' assert { type: 'json' };
+
+const textDecoder = new TextDecoder();
 
 const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs).toString());
 const root = new URL('..', import.meta.url).toString();
@@ -16,7 +17,13 @@ const write = async (target, content) => {
 };
 
 const main = async () => {
+  const bytes = await fs.promises.readFile(
+    fileURLToPath(`${root}/package.json`),
+  );
+  const text = textDecoder.decode(bytes);
+  const packageJson = JSON.parse(text);
   const version = packageJson.version;
+
   const bundle = `// v${version}\n${await makeBundle(
     read,
     pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
