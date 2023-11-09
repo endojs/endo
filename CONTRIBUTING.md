@@ -18,6 +18,10 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
 
 # Making a Release
 
+* Review the [next release](
+https://github.com/endojs/endo/labels/next-release
+) label for additional tasks or pending changes particular to this release.
+
 * Do not release from a Git workspace.
   In a Git workspace, `.git` is a file and not a directory.
   At time of writing, Lerna does not account for Git workspaces when it looks
