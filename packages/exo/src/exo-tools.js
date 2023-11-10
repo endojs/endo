@@ -182,6 +182,9 @@ const defendSyncMethod = (method, methodGuardPayload, label) => {
   return syncMethod;
 };
 
+/**
+ * @param {MethodGuardPayload} methodGuardPayload
+ */
 const desync = methodGuardPayload => {
   const {
     argGuards,
@@ -210,22 +213,43 @@ const desync = methodGuardPayload => {
   };
 };
 
+/**
+ * @param {(...args: unknown[]) => any} method
+ * @param {MethodGuardPayload} methodGuardPayload
+ * @param {string} label
+ */
 const defendAsyncMethod = (method, methodGuardPayload, label) => {
   const { returnGuard } = methodGuardPayload;
+  const isRawReturn = isRawGuard(returnGuard);
+
   const { awaitIndexes, rawMethodGuardPayload } = desync(methodGuardPayload);
+  const matchConfig = buildMatchConfig(rawMethodGuardPayload);
+
   const { asyncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     asyncMethod(...args) {
-      const awaitList = awaitIndexes.map(i => args[i]);
+      const awaitList = [];
+      for (const i of awaitIndexes) {
+        if (i >= args.length) {
+          break;
+        }
+        awaitList.push(args[i]);
+      }
       const p = Promise.all(awaitList);
       const syncArgs = [...args];
-      const resultP = E.when(p, awaitedArgs => {
-        for (let j = 0; j < awaitIndexes.length; j += 1) {
-          syncArgs[awaitIndexes[j]] = awaitedArgs[j];
-        }
-        const realArgs = defendSyncArgs(syncArgs, rawMethodGuardPayload, label);
-        return apply(method, this, realArgs);
-      });
+      const resultP = E.when(
+        p,
+        /** @param {any[]} awaitedArgs */ awaitedArgs => {
+          for (let j = 0; j < awaitedArgs.length; j += 1) {
+            syncArgs[awaitIndexes[j]] = awaitedArgs[j];
+          }
+          const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
+          return apply(method, this, realArgs);
+        },
+      );
+      if (isRawReturn) {
+        return resultP;
+      }
       return E.when(resultP, result => {
         mustMatch(harden(result), returnGuard, `${label}: result`);
         return result;
