@@ -24,6 +24,19 @@ test('what happens with extra arguments', t => {
   exo.foo('an extra arg');
 });
 
+const OptionalArrayI = M.interface('OptionalArray', {
+  foo: M.callWhen().optional(M.arrayOf(M.any())).returns(),
+});
+
+test('callWhen-guarded method called without optional array argument', async t => {
+  const exo = makeExo('WithNoOption', OptionalArrayI, {
+    async foo(arr) {
+      t.is(arr, undefined);
+    },
+  });
+  await t.notThrowsAsync(() => exo.foo());
+});
+
 const UpCounterI = M.interface('UpCounter', {
   incr: M.call()
     // TODO M.number() should not be needed to get a better error message
