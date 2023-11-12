@@ -1664,7 +1664,8 @@ const makePatternKit = () => {
       ),
     split: (base, rest = undefined) => {
       if (passStyleOf(harden(base)) === 'copyArray') {
-        // @ts-expect-error We know it should be an array
+        // TODO at-ts-expect-error works locally but not from @endo/exo
+        // @ts-ignore We know it should be an array
         return M.splitArray(base, rest && [], rest);
       } else {
         return M.splitRecord(base, rest && {}, rest);
@@ -1672,7 +1673,8 @@ const makePatternKit = () => {
     },
     partial: (base, rest = undefined) => {
       if (passStyleOf(harden(base)) === 'copyArray') {
-        // @ts-expect-error We know it should be an array
+        // TODO at-ts-expect-error works locally but not from @endo/exo
+        // @ts-ignore We know it should be an array
         return M.splitArray([], base, rest);
       } else {
         return M.splitRecord({}, base, rest);
@@ -1945,7 +1947,8 @@ export const getInterfaceMethodKeys = interfaceGuard => {
   const { methodGuards, symbolMethodGuards = emptyCopyMap } =
     getInterfaceGuardPayload(interfaceGuard);
   /** @type {(string | symbol)[]} */
-  // @ts-expect-error inference is too weak to see this is ok
+  // TODO at-ts-expect-error works locally but not from @endo/exo
+  // @ts-ignore inference is too weak to see this is ok
   return harden([
     ...Reflect.ownKeys(methodGuards),
     ...getCopyMapKeys(symbolMethodGuards),

@@ -24,7 +24,12 @@ export {
 export { passStyleOf, assertPassable } from './src/passStyleOf.js';
 
 export { makeTagged } from './src/makeTagged.js';
-export { Remotable, Far, ToFarFunction } from './src/make-far.js';
+export {
+  Remotable,
+  Far,
+  ToFarFunction,
+  GET_METHOD_NAMES,
+} from './src/make-far.js';
 
 export {
   assertRecord,

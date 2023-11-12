@@ -185,9 +185,7 @@ test('missing interface', t => {
     message:
       'In "makeSayHello" method of (greeterMaker): result: "[Symbol(passStyle)]" property expected: "[Function <anon>]"',
   });
-  t.throws(() => greeterMaker[GET_INTERFACE_GUARD](), {
-    message: 'greeterMaker[GET_INTERFACE_GUARD] is not a function',
-  });
+  t.is(greeterMaker[GET_INTERFACE_GUARD](), undefined);
 });
 
 const SloppyGreeterI = M.interface('greeter', {}, { sloppy: true });
@@ -347,7 +345,7 @@ test('naked function call', t => {
 
   t.throws(() => gigm(), {
     message:
-      'thisful method "In \\"[Symbol(getInterfaceGuard)]\\" method of (greeter)" called without \'this\' object',
+      'thisful method "In \\"__getInterfaceGuard__\\" method of (greeter)" called without \'this\' object',
   });
   t.deepEqual(gigm.bind(greeter)(), GreeterI);
 });

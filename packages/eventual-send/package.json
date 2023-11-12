@@ -18,6 +18,12 @@
     "lint:types": "tsc",
     "lint:eslint": "eslint '**/*.js'"
   },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/no-shim.js",
+    "./shim.js": "./shim.js",
+    "./utils.js": "./utils.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"
