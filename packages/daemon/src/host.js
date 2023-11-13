@@ -417,10 +417,23 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /**
+     * @param {string} petName
+     */
+    const has = async petName => {
+      try {
+        await lookup(petName);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
     const { list, follow: followNames } = petStore;
 
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
+      has,
       lookup,
       reverseLookup,
       listMessages,
