@@ -69,7 +69,8 @@ const useSubscriptionForArray = (sub) => {
             return [...prevState, name];
           } else if ('remove' in change) {
             const name = change.remove;
-            return prevState.filter(n => n !== name);
+            prevState.splice(prevState.indexOf(name), 1);
+            return prevState;
           }
           return prevState;
         });
@@ -116,6 +117,100 @@ const useSubscriptionForValue = (sub) => {
   return state;
 }
 
+const useRaf = (
+  callback,
+  isActive,
+) => {
+  const savedCallback = React.useRef();
+  // Remember the latest function.
+  React.useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
+
+  React.useEffect(() => {
+    let animationFrame;
+    let startTime = Date.now();
+
+    function tick() {
+      const timeElapsed = Date.now() - startTime;
+      startTime = Date.now();
+      loop();
+      savedCallback.current?.(timeElapsed);
+    }
+
+    function loop() {
+      animationFrame = requestAnimationFrame(tick);
+    }
+
+    if (isActive) {
+      startTime = Date.now();
+      loop();
+
+      return () => {
+        if (animationFrame) {
+          cancelAnimationFrame(animationFrame);
+        }
+      };
+    }
+  }, [isActive]);
+}
+
+function getMousePositionFromEvent(event) {
+  const {
+    screenX,
+    screenY,
+    movementX,
+    movementY,
+    pageX,
+    pageY,
+    clientX,
+    clientY,
+    offsetX,
+    offsetY,
+  } = event;
+
+  return {
+    clientX,
+    clientY,
+    movementX,
+    movementY,
+    offsetX,
+    offsetY,
+    pageX,
+    pageY,
+    screenX,
+    screenY,
+    x: screenX,
+    y: screenY,
+  };
+}
+
+/**
+ * useMouse hook
+ *
+ * Retrieves current mouse position and information about the position like
+ * screenX, pageX, clientX, movementX, offsetX
+ * @see https://rooks.vercel.app/docs/useMouse
+ */
+export function useMouse() {
+  const [mousePosition, setMousePosition] =
+    React.useState({});
+
+  function updateMousePosition(event) {
+    setMousePosition(getMousePositionFromEvent(event));
+  }
+
+  React.useEffect(() => {
+    document.addEventListener("mousemove", updateMousePosition);
+
+    return () => {
+      document.removeEventListener("mousemove", updateMousePosition);
+    };
+  }, []);
+
+  return mousePosition;
+}
+
 const makeThing = async (powers, importFullPath, resultName) => {
   const workerName = 'MAIN';
   const powersName = 'NONE';
@@ -149,9 +244,55 @@ const DeckCardsCardComponent = ({ actions, card }) => {
     }
     return await actions.reverseLookupCard(card)
   }, [card]);
+  const mouseData = useMouse()
+  const canvasRef = React.useRef(null);
+  const { value: render } = useAsync(async () => {
+    return await actions.getCardRenderer(card)
+  }, [card]);
+  useRaf((timeElapsed) => {
+    if (!render) return
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    const mousePosition = {
+      x: mouseData.clientX - rect.x,
+      y: mouseData.clientY - rect.y,
+    };
+    render(ctx, rect, mousePosition, timeElapsed)
+  }, true)
+
   return (
-    h('div', {}, [
-      h('span', null, [nickname]),
+    h('div', {
+      style: {
+        border: '1px solid black',
+        width: '120px',
+        height: '200px',
+        borderRadius: '10px',
+        margin: '6px',
+        flexShrink: 0,
+        flexGrow: 0,
+        overflow: 'hidden',
+        position: 'relative',
+      }
+    }, [
+      h('canvas', {
+        ref: canvasRef,
+        style: {
+          position: 'absolute',
+          width: '100%',
+          height: '100%',
+        }
+      }),
+      h('span', {
+        style: {
+          position: 'absolute',
+          padding: '6px',
+          color: 'aliceblue',
+          fontweight: 'bold',
+        },
+      }, [nickname]),
     ])
   )
 };
@@ -170,9 +311,7 @@ const DeckCardsComponent = ({ actions, deck }) => {
       cardsList = 'No cards in deck.'
     } else {
       cardsList = cards.map(card => {
-        return h('li', null, [
-          h(DeckCardsCardComponent, { actions, card })
-        ])
+        return h(DeckCardsCardComponent, { actions, card })
       })
     }
   }
@@ -180,7 +319,12 @@ const DeckCardsComponent = ({ actions, deck }) => {
   return (
     h('div', {}, [
       h('h3', null, ['Cards in deck']),
-      h('ul', null, cardsList),
+      h('div', {
+        style: {
+          display: 'flex',
+          flexWrap: 'wrap',
+        }
+      }, cardsList),
     ])
   )
 };
@@ -350,6 +494,21 @@ const App = ({ powers }) => {
     },
     async reverseLookupCard (card) {
       return await E(powers).reverseLookup(card)
+    },
+    async getCardRenderer (card) {
+      let renderer
+      try {
+        const code = await E(card).getRendererCode()
+        const compartment = new Compartment({ Math })
+        const makeRenderer = compartment.evaluate(`(${code})`)
+        renderer = makeRenderer()
+      } catch (_err) {
+        // ignore missing or failed renderer
+        renderer = () => {}
+      }
+      console.log('renderer', renderer)
+      
+      return renderer
     },
 
     // inventory

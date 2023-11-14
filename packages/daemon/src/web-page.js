@@ -88,6 +88,9 @@ const endowments = Object.freeze({
   // react compat
   Date,
   MessageChannel,
+  // app
+  requestAnimationFrame,
+  cancelAnimationFrame,
 });
 
 const url = new URL(window.location.href);

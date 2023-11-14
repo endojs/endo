@@ -5,6 +5,9 @@ export const make = (powers) => {
     async play (game) {
       const card = await E(game).targetCard()
       await E(game).setLocation(card, 'texas')
-    }
+    },
+    getRendererCode () {
+      return `${function(){}}`
+    },
   })
 }
