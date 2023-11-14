@@ -48,7 +48,7 @@ const useAsync = (asyncFn, deps) => {
 }
 
 // subscribes to Endo Topic changes
-const useTopicSubscription = (sub) => {
+const useSubscriptionForArray = (sub) => {
   const [state, setState] = React.useState([]);
 
   React.useEffect(() => {
@@ -86,12 +86,41 @@ const useTopicSubscription = (sub) => {
   return state;
 }
 
+// subscribes to Endo Topic changes
+const useSubscriptionForValue = (sub) => {
+  const [state, setState] = React.useState();
+
+  React.useEffect(() => {
+    if (sub === undefined) {
+      return;
+    }
+    let shouldAbort = false;
+    const iterateChanges = async () => {
+      for await (const change of sub) {
+        // Check if we should abort iteration
+        if (shouldAbort) {
+          break;
+        }
+        // apply change
+        setState(change.value);
+      }
+    }
+    // start iteration
+    iterateChanges()
+    // cleanup
+    return () => {
+      shouldAbort = true;
+    }
+  }, [sub]);
+
+  return state;
+}
+
 const makeThing = async (powers, importFullPath, resultName) => {
   const workerName = 'MAIN';
   const powersName = 'NONE';
   const deck = await E(powers).importUnsafeAndEndow(
     workerName,
-    // path.resolve(importPath),
     importFullPath,
     powersName,
     resultName,
@@ -113,11 +142,6 @@ const makeGame = async (powers) => {
   return await makeThing(powers, importFullPath, resultName)
 }
 
-const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
-  dateStyle: 'full',
-  timeStyle: 'long',
-});
-
 const DeckCardsCardComponent = ({ actions, card }) => {
   const { value: nickname } = useAsync(async () => {
     if (card === undefined) {
@@ -137,7 +161,7 @@ const DeckCardsComponent = ({ actions, deck }) => {
     () => deck && makeRefIterator(E(deck).follow()),
     [deck]
   )
-  const cards = useTopicSubscription(sub)
+  const cards = useSubscriptionForArray(sub)
   let cardsList
   if (deck === undefined) {
     cardsList = 'No deck found.'
@@ -171,12 +195,12 @@ const DeckManagerComponent = ({ actions, deck }) => {
         }
       }, ['New Deck']),
       h(DeckCardsComponent, { actions, deck }),
-      h(ObjectsListComponent, { actions }),
+      deck && h(ObjectsListComponent, { actions }),
     ])
   )
 };
 
-const ActiveGamePlayerComponent = ({ actions, player }) => {
+const ActiveGamePlayerComponent = ({ actions, player, isCurrentPlayer }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
@@ -184,14 +208,19 @@ const ActiveGamePlayerComponent = ({ actions, player }) => {
     () => player && makeRefIterator(E(player).followHand()),
     [player]
   )
-  const hand = useTopicSubscription(handSub)
+  const hand = useSubscriptionForArray(handSub)
 
   return (
     h('div', {}, [
-      h('span', null, [name]),
+      h('span', null, [`${name} ${isCurrentPlayer ? '(current)' : ''}`]),
       h('ul', null, hand && hand.map(card => {
         return h('li', null, [
-          h(DeckCardsCardComponent, { actions, card })
+          h(DeckCardsCardComponent, { actions, card }),
+          isCurrentPlayer && h('button', {
+            onClick: async () => {
+              actions.playCardFromHand(player, card)
+            }
+          }, ['Play']),
         ])
       })),
     ])
@@ -202,13 +231,27 @@ const ActiveGameComponent = ({ actions, game }) => {
   const { value: players } = useAsync(async () => {
     return await E(game).getPlayers()
   }, [game]);
-  
+  // const { value: gameState } = useAsync(async () => {
+  //   return await E(game).getState()
+  // }, [game]);
+  const stateSub = React.useMemo(() => makeRefIterator(E(game).followState()), [game])
+  const gameState = useSubscriptionForValue(stateSub)
+  const sub = React.useMemo(() => makeRefIterator(E(game).followCurrentPlayer()), [game])
+  const currentPlayer = useSubscriptionForValue(sub)
+  console.log('currentPlayer', currentPlayer)
+
   return (
     h('div', {}, [
+      h('h3', null, ['Game']),
+      h('pre', null, JSON.stringify(gameState, null, 2)),
       h('h3', null, ['Players']),
       h('ul', null, players && players.map(player => {
         return h('li', null, [
-          h(ActiveGamePlayerComponent, { actions, player })
+          h(ActiveGamePlayerComponent, {
+            actions,
+            player,
+            isCurrentPlayer: player === currentPlayer
+          })
         ])
       })),
     ])
@@ -253,7 +296,7 @@ const ObjectsListComponent = ({ actions }) => {
     []
   )
   // pet store topic doesnt send removals when overwriting existing names
-  const names = useTopicSubscription(sub)
+  const names = useSubscriptionForArray(sub)
   const uniqueNames = [...new Set(names)]
 
   let objectList
@@ -324,7 +367,10 @@ const App = ({ powers }) => {
       setGame(game)
       console.log('start', deck, game)
       await E(game).start(deck)
-    }
+    },
+    async playCardFromHand (player, card) {
+      await E(game).playCardFromHand(player, card)
+    },
   }
 
   // on first render
