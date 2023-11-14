@@ -5,6 +5,7 @@ import '@endo/init/debug.js';
 import { makeCapTP } from '@endo/captp';
 import { E, Far } from '@endo/far';
 import { importBundle } from '@endo/import-bundle';
+import { transforms } from 'ses/tools.js';
 
 const hardenedEndowments = harden({
   assert,
@@ -20,6 +21,15 @@ const endowments = Object.freeze({
   window,
   document,
   console,
+  // react-dom compat
+  process: {
+    env: {}
+  },
+  Math,
+  navigator,
+  // react compat
+  Date,
+  MessageChannel,
 });
 
 const url = new URL('/', `${window.location}`);
@@ -33,6 +43,9 @@ const bootstrap = Far('WebFacet', {
   async importBundleAndEndow(bundle, powers) {
     const namespace = await importBundle(bundle, {
       endowments,
+      transforms: [
+        transforms.evadeHtmlCommentTest,
+      ],
     });
     return namespace.make(powers);
   },

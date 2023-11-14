@@ -67,31 +67,6 @@ export const makePetStoreMaker = (filePowers, locator) => {
       return formulaIdentifier;
     };
 
-    /**
-     * @param {string} petName
-     * @param {string} formulaIdentifier
-     */
-    const write = async (petName, formulaIdentifier) => {
-      assertValidName(petName);
-      if (!validFormulaPattern.test(formulaIdentifier)) {
-        throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
-      }
-
-      petNames.set(petName, formulaIdentifier);
-
-      const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
-      if (formulaPetNames === undefined) {
-        formulaIdentifiers.set(formulaIdentifier, new Set([petName]));
-      } else {
-        formulaPetNames.add(petName);
-      }
-
-      const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
-      const petNameText = `${formulaIdentifier}\n`;
-      await filePowers.writeFileText(petNamePath, petNameText);
-      changesTopic.publisher.next({ add: petName });
-    };
-
     const list = () => harden([...petNames.keys()].sort());
 
     const follow = async () =>
@@ -131,6 +106,36 @@ export const makePetStoreMaker = (filePowers, locator) => {
       // TODO consider retaining a backlog of deleted names for recovery
       // TODO consider tracking historical pet names for formulas
     };
+
+    /**
+     * @param {string} petName
+     * @param {string} formulaIdentifier
+     */
+      const write = async (petName, formulaIdentifier) => {
+        assertValidName(petName);
+        if (!validFormulaPattern.test(formulaIdentifier)) {
+          throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
+        }
+  
+        // remove the old pet name if it existed
+        if (petNames.has(petName)) {
+          await remove(petName);
+        }
+  
+        petNames.set(petName, formulaIdentifier);
+  
+        const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
+        if (formulaPetNames === undefined) {
+          formulaIdentifiers.set(formulaIdentifier, new Set([petName]));
+        } else {
+          formulaPetNames.add(petName);
+        }
+  
+        const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
+        const petNameText = `${formulaIdentifier}\n`;
+        await filePowers.writeFileText(petNamePath, petNameText);
+        changesTopic.publisher.next({ add: petName });
+      };
 
     /**
      * @param {string} fromName
