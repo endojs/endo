@@ -1,16 +1,29 @@
 import { E, Far } from '@endo/far';
-// import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
+import { makeTrackedArray } from './util.js';
 
 class Player {
   constructor (name) {
     this.name = name
-    this.hand = []
+    this.hand = makeTrackedArray()
   }
   addCard (card) {
     this.hand.push(card)
   }
-  async chooseCard () {
-    return this.hand.pop()
+  // async chooseCard () {
+  //   return this.hand.pop()
+  // }
+  getRemoteInterface () {
+    const player = this
+    return Far('Player', {
+      getName () {
+        return player.name
+      },
+      followHand () {
+        return makeIteratorRef(player.hand.follow())
+      },
+    })
   }
 }
 
@@ -23,9 +36,18 @@ export const make = (powers) => {
     async start (deck) {
       // await E(powers).request('HOST', 'deck for game', 'deck')
       await game.importDeck(deck)
-      // game.shuffleDeck()
-      // await controller.takeTurn()
-    }
+      game.shuffleDeck()
+      await controller.takeTurn()
+    },
+    async takeTurn () {
+      await controller.takeTurn()
+    },
+    async getPlayers () {
+      return game.getPlayers()
+    },
+    async getState () {
+      return game.getState()
+    },
   });
 };
 
@@ -43,6 +65,11 @@ export function makeGame () {
   }
   const getCurrentPlayer = () => {
     return state.players[state.currentPlayer]
+  }
+  const getPlayers = () => {
+    return state.players.map(player => {
+      return player.getRemoteInterface()
+    })
   }
   const addPlayer = (player) => {
     state.players.push(player)
@@ -69,6 +96,7 @@ export function makeGame () {
   // Far
   return {
     getState,
+    getPlayers,
     getCurrentPlayer,
     addPlayer,
     addCardToDeck,

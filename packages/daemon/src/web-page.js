@@ -7,6 +7,7 @@ import { E, Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { makeExo } from '@endo/exo';
 import { importBundle } from '@endo/import-bundle';
+import { transforms } from 'ses/tools.js';
 
 import { WebPageControllerInterface } from './interfaces/web.js';
 
@@ -75,10 +76,18 @@ delete globalProps.Infinity;
 
 const endowments = Object.freeze({
   ...hardenedEndowments,
-  ...globalProps,
+  window,
+  document,
+  console,
+  // react-dom compat
   process: {
-    env: {},
+    env: {}
   },
+  Math,
+  navigator,
+  // react compat
+  Date,
+  MessageChannel,
 });
 
 const url = new URL(window.location.href);
@@ -92,6 +101,9 @@ const bootstrap = makeExo('EndoWebPageForServer', WebPageControllerInterface, {
   async makeBundle(bundle, powers) {
     const namespace = await importBundle(bundle, {
       endowments,
+      transforms: [
+        transforms.evadeHtmlCommentTest,
+      ],
     });
     return namespace.make(powers);
   },

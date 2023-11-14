@@ -1,30 +1,90 @@
-// This is a demo weblet that demonstrates a permission management UI for the
-// pet daemon itself.
-//
-// This command will set up the cat page, create a URL,
-// and open it.
-//
-// > endo open familiar-chat cat.js --powers HOST
-//
-// Thereafter,
-//
-// > endo open fami ar-chat
-//
-// To interact with the permission manager, you can mock requests from a fake
-// guest.
-//
-// > endo eval 42 --name ft
-// > endo request --as cat 'pet me'
-//
-// At this point, the command will pause, waiting for a response.
-// In the Familiar Chat window, resolve the request with the pet name "ft" and
-// the request will exit with the number 42.
-
 /* global window document */
 
 import { E } from '@endo/far';
-import { makePromiseKit } from '@endo/promise-kit';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { createRoot } from 'react-dom/client';
+import React from 'react';
+
+const h = React.createElement;
+const useAsync = (asyncFn, deps) => {
+  const [state, setState] = React.useState({
+    loading: true,
+    error: null,
+    value: null,
+  });
+  React.useEffect(() => {
+    let didAbort = false
+    setState({
+      loading: true,
+      error: null,
+      value: null,
+    });
+    asyncFn()
+      .then(value => {
+        if (didAbort) {
+          return;
+        }
+        setState({
+          loading: false,
+          error: null,
+          value,
+        });
+      })
+      .catch(error => {
+        if (didAbort) {
+          return;
+        }
+        setState({
+          loading: false,
+          error,
+          value: null,
+        });
+      });
+    return () => {
+      didAbort = true;
+    }
+  }, deps);
+  return state;
+}
+
+// subscribes to Endo Topic changes
+const useTopicSubscription = (sub) => {
+  const [state, setState] = React.useState([]);
+
+  React.useEffect(() => {
+    if (sub === undefined) {
+      return;
+    }
+    let shouldAbort = false;
+    const iterateChanges = async () => {
+      for await (const change of sub) {
+        // Check if we should abort iteration
+        if (shouldAbort) {
+          break;
+        }
+        // apply change
+        setState(prevState => {
+          if ('add' in change) {
+            const name = change.add;
+            return [...prevState, name];
+          } else if ('remove' in change) {
+            const name = change.remove;
+            return prevState.filter(n => n !== name);
+          }
+          return prevState;
+        });
+      }
+    }
+    // start iteration
+    iterateChanges()
+    // cleanup
+    return () => {
+      shouldAbort = true;
+    }
+  }, [sub]);
+
+  return state;
+}
 
 const makeThing = async (powers, importFullPath, resultName) => {
   const workerName = 'MAIN';
@@ -39,7 +99,7 @@ const makeThing = async (powers, importFullPath, resultName) => {
   return deck
 }
 
-const makeDeck = async (powers) => {
+const makeNewDeck = async (powers) => {
   const importPath = './deck.js';
   const importFullPath = '/home/xyz/Development/endo/packages/cli/demo/deck.js';
   const resultName = 'deck';
@@ -58,384 +118,235 @@ const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   timeStyle: 'long',
 });
 
-const followCardsComponent = async ($parent, powers, deck, cancelled) => {
-  const $subtitle = document.createElement('h2');
-  $subtitle.innerText = 'cards in deck'
-  $parent.appendChild($subtitle);
-  
-  const $cards = document.createElement('ul');
-  $parent.appendChild($cards);
-  const $endOfCards = document.createTextNode('');
-  $parent.appendChild($endOfCards);
+const DeckCardsCardComponent = ({ actions, card }) => {
+  const { value: nickname } = useAsync(async () => {
+    if (card === undefined) {
+      return '<no card>';
+    }
+    return await actions.reverseLookupCard(card)
+  }, [card]);
+  return (
+    h('div', {}, [
+      h('span', null, [nickname]),
+    ])
+  )
+};
 
+const DeckCardsComponent = ({ actions, deck }) => {
+  const sub = React.useMemo(
+    () => deck && makeRefIterator(E(deck).follow()),
+    [deck]
+  )
+  const cards = useTopicSubscription(sub)
+  let cardsList
   if (deck === undefined) {
-    // show no deck message
-    const $emptyDeck = document.createElement('li');
-    $emptyDeck.innerText = 'No deck found.';
-    $cards.appendChild($emptyDeck);
-  }
-
-  let isCancelled = false
-  cancelled.then(() => {
-    isCancelled = true
-  })
-
-  for await (const card of await E(deck).getCards()) {
-  // for await (const card of makeRefIterator(E(deck).getCards())) {
-    if (isCancelled) {
-      return
+    cardsList = 'No deck found.'
+  } else {
+    if (cards.length === 0) {
+      cardsList = 'No cards in deck.'
+    } else {
+      cardsList = cards.map(card => {
+        return h('li', null, [
+          h(DeckCardsCardComponent, { actions, card })
+        ])
+      })
     }
-    const $card = document.createElement('li');
-    const nickname = await E(powers).reverseLookup(card)
-    $card.innerText = nickname;
-    $cards.appendChild($card);
   }
+
+  return (
+    h('div', {}, [
+      h('h3', null, ['Cards in deck']),
+      h('ul', null, cardsList),
+    ])
+  )
 };
 
-// const cardCreatorComponent = async ($parent, powers, deck) => {
-
-//   // add card name
-//   const $cardName = document.createElement('input');
-//   $cardName.placeholder = 'Enter card name here';
-//   $parent.appendChild($cardName);
-
-//   // card content text area
-//   const $cardContent = document.createElement('textarea');
-//   $cardContent.value = `import { Far } from '@endo/far';
-// Far('Card', {
-//   play (game) {
-    
-//   }
-// });
-// `;
-
-//   $parent.appendChild($cardContent);
-  
-//   // add card button
-//   const $addCard = document.createElement('button');
-//   $addCard.innerText = 'Add Card';
-//   $parent.appendChild($addCard);
-
-//   $addCard.onclick = async () => {
-//     const workerName = 'MAIN'
-//     const source = $cardContent.value
-//     const codeNames = []
-//     const petNames = []
-//     const resultName = $cardName.value
-//     const card = await E(powers).evaluate(
-//       workerName,
-//       source,
-//       codeNames,
-//       petNames,
-//       resultName,
-//     )
-//     await E(deck).add(card);
-//     drawDeckCards()
-//   };
-// }
-
-const cardAdderComponent = async ($parent, powers, addCardByName) => {
-
-  // add card name
-  const $cardName = document.createElement('input');
-  $cardName.placeholder = 'Enter card name here';
-  $parent.appendChild($cardName);
-  
-  // add card button
-  const $addCard = document.createElement('button');
-  $addCard.innerText = 'Add Card';
-  $parent.appendChild($addCard);
-
-  $addCard.onclick = async () => {
-    addCardByName($cardName.value)
-  };
-
-}
-
-const deckManagerComponent = async ($parent, powers) => {
-  let deck
-  // workaround for https://github.com/endojs/endo/issues/1843
-  if (await E(powers).has('deck')) {
-    deck = await E(powers).lookup('deck')
-    console.log('deck', deck)
-  }
-
-  let drawCardsProcess
-  let $cardsContainer
-  const drawDeckCards = () => {
-    if (drawCardsProcess) {
-      drawCardsProcess()
-    }
-    const { resolve, promise: cancelled } = makePromiseKit()
-    drawCardsProcess = resolve
-    if ($cardsContainer) {
-      $cardsContainer.remove()
-    }
-    $cardsContainer = document.createElement('div');
-    $parent.appendChild($cardsContainer);
-    followCardsComponent($cardsContainer, powers, deck, cancelled);
-  }
-
-  // make deck button
-  const $makeDeck = document.createElement('button');
-  $makeDeck.innerText = 'Make Deck';
-  $parent.appendChild($makeDeck);
-  $makeDeck.onclick = async () => {
-    deck = await makeDeck(powers)
-    console.log('deck', deck);
-    drawDeckCards()
-  };
-
-  // list cards
-  drawDeckCards()
-
-  const addCardByName = async (cardName) => {
-    const card = await E(powers).lookup(
-      cardName,
-    )
-    await E(deck).add(card);
-    drawDeckCards()
-  }
-
-  cardAdderComponent($parent, powers, addCardByName)
-
-  return {
-    addCardByName,
-    getDeck: () => deck,
-  }
-};
-
-const followMessagesComponent = async ($parent, $end, powers) => {
-  for await (const message of makeRefIterator(E(powers).followMessages())) {
-    const { number, who, when, dismissed } = message;
-
-    const $error = document.createElement('span');
-    $error.style.color = 'red';
-    $error.innerText = '';  
-
-    const $message = document.createElement('div');
-    $parent.insertBefore($message, $end);
-
-    dismissed.then(() => {
-      $message.remove();
-    });
-
-    const $number = document.createElement('span');
-    $number.innerText = `${number}. `;
-    $message.appendChild($number);
-
-    const $who = document.createElement('b');
-    $who.innerText = `${who}:`;
-    $message.appendChild($who);
-
-    if (message.type === 'request') {
-      const { what, settled } = message;
-
-      const $what = document.createElement('span');
-      $what.innerText = ` ${what} `;
-      $message.appendChild($what);
-
-      const $when = document.createElement('i');
-      $when.innerText = dateFormatter.format(Date.parse(when));
-      $message.appendChild($when);
-
-      const $input = document.createElement('span');
-      $message.appendChild($input);
-
-      const $pet = document.createElement('input');
-      $input.appendChild($pet);
-
-      const $resolve = document.createElement('button');
-      $resolve.innerText = 'resolve';
-      $input.appendChild($resolve);
-
-      const $reject = document.createElement('button');
-      $reject.innerText = 'reject';
-      $reject.onclick = () => {
-        E(powers).reject(number, $pet.value).catch(window.reportError);
-      };
-      $input.appendChild($reject);
-
-      $resolve.onclick = () => {
-        E(powers)
-          .resolve(number, $pet.value)
-          .catch(error => {
-            $error.innerText = ` ${error.message}`;
-          });
-      };
-
-      settled.then(status => {
-        $input.innerText = ` ${status} `;
-      });
-    } else if (message.type === 'package') {
-      const { strings, names } = message;
-      assert(Array.isArray(strings));
-      assert(Array.isArray(names));
-
-      $message.appendChild(document.createTextNode(' "'));
-
-      let index = 0;
-      for (
-        index = 0;
-        index < Math.min(strings.length, names.length);
-        index += 1
-      ) {
-        assert.typeof(strings[index], 'string');
-        const outer = JSON.stringify(strings[index]);
-        const inner = outer.slice(1, outer.length - 1);
-        $message.appendChild(document.createTextNode(inner));
-        assert.typeof(names[index], 'string');
-        const name = `@${names[index]}`;
-        const $name = document.createElement('b');
-        $name.innerText = name;
-        $message.appendChild($name);
-      }
-      if (strings.length > names.length) {
-        const outer = JSON.stringify(strings[index]);
-        const inner = outer.slice(1, outer.length - 1);
-        $message.appendChild(document.createTextNode(inner));
-      }
-
-      $message.appendChild(document.createTextNode('" '));
-
-      const $when = document.createElement('i');
-      $when.innerText = dateFormatter.format(Date.parse(when));
-      $message.appendChild($when);
-
-      $message.appendChild(document.createTextNode(' '));
-
-      if (names.length > 0) {
-        const $names = document.createElement('select');
-        $message.appendChild($names);
-        for (const name of names) {
-          const $name = document.createElement('option');
-          $name.innerText = name;
-          $names.appendChild($name);
+const DeckManagerComponent = ({ actions, deck }) => {
+  return (
+    h('div', {}, [
+      h('h2', null, ['Deck Manager']),
+      h('button', {
+        onClick: async () => {
+          await actions.makeNewDeck()
         }
-
-        $message.appendChild(document.createTextNode(' '));
-
-        const $as = document.createElement('input');
-        $as.type = 'text';
-        $message.appendChild($as);
-
-        $message.appendChild(document.createTextNode(' '));
-
-        const $adopt = document.createElement('button');
-        $adopt.innerText = 'Adopt';
-        $message.appendChild($adopt);
-        $adopt.onclick = () => {
-          console.log($as.value, $as);
-          E(powers)
-            .adopt(number, $names.value, $as.value || $names.value)
-            .then(
-              () => {
-                $as.value = '';
-              },
-              error => {
-                $error.innerText = ` ${error.message}`;
-              },
-            );
-        };
-      }
-    }
-
-    $message.appendChild(document.createTextNode(' '));
-
-    const $dismiss = document.createElement('button');
-    $dismiss.innerText = 'Dismiss';
-    $message.appendChild($dismiss);
-    $dismiss.onclick = () => {
-      E(powers)
-        .dismiss(number)
-        .catch(error => {
-          $error.innerText = ` ${error.message}`;
-        });
-    };
-
-    $message.appendChild($error);
-  }
+      }, ['New Deck']),
+      h(DeckCardsComponent, { actions, deck }),
+      h(ObjectsListComponent, { actions }),
+    ])
+  )
 };
 
-const playGameComponent = ($parent, powers, getDeck) => {
-  const $title = document.createElement('h2');
-  $title.innerText = 'Play';
-  $parent.appendChild($title);
+const ActiveGamePlayerComponent = ({ actions, player }) => {
+  const { value: name } = useAsync(async () => {
+    return await E(player).getName()
+  }, [player]);
+  const handSub = React.useMemo(
+    () => player && makeRefIterator(E(player).followHand()),
+    [player]
+  )
+  const hand = useTopicSubscription(handSub)
 
-  const $button = document.createElement('button');
-  $button.innerText = 'Start';
-  $parent.appendChild($button);
-  $button.onclick = async () => {
-    const deck = getDeck()
-    // make game
-    const game = await makeGame(powers)
-    console.log('start', deck, game)
-    await E(game).start(deck)
-  }
+  return (
+    h('div', {}, [
+      h('span', null, [name]),
+      h('ul', null, hand && hand.map(card => {
+        return h('li', null, [
+          h(DeckCardsCardComponent, { actions, card })
+        ])
+      })),
+    ])
+  )
 }
 
-const followNamesComponent = async ($parent, $end, powers, addToDeck) => {
-  const $title = document.createElement('h2');
-  $title.innerText = 'Inventory';
-  $parent.insertBefore($title, $end);
+const ActiveGameComponent = ({ actions, game }) => {
+  const { value: players } = useAsync(async () => {
+    return await E(game).getPlayers()
+  }, [game]);
+  
+  return (
+    h('div', {}, [
+      h('h3', null, ['Players']),
+      h('ul', null, players && players.map(player => {
+        return h('li', null, [
+          h(ActiveGamePlayerComponent, { actions, player })
+        ])
+      })),
+    ])
+  )
+}
 
-  const $ul = document.createElement('ul');
-  $parent.insertBefore($ul, $end);
+const PlayGameComponent = ({ actions, game }) => {
+  return (
+    h('div', {}, [
+      h('h2', null, ['Play Game']),
+      !game && h('button', {
+        onClick: async () => {
+          actions.start()
+        }
+      }, ['Start']),
+      game && h(ActiveGameComponent, { actions, game }),
+    ])
+  )
+}
 
-  const $names = new Map();
-  for await (const change of makeRefIterator(E(powers).followNames())) {
-    if ('add' in change) {
-      const name = change.add;
+const ObjectsListObjectComponent = ({ actions, name }) => {
+  return (
+    h('div', {}, [
+      h('span', null, [name]),
+      h('button', {
+        onClick: async () => {
+          await actions.removeName(name)
+        }
+      }, ['Remove']),
+      h('button', {
+        onClick: async () => {
+          await actions.addCardToDeckByName(name)
+        }
+      }, ['Add to Deck']),
+    ])
+  )
+}
 
-      const $li = document.createElement('li');
-      $ul.appendChild($li);
+const ObjectsListComponent = ({ actions }) => {
+  const sub = React.useMemo(
+    () => actions.subscribeToNames(),
+    []
+  )
+  // pet store topic doesnt send removals when overwriting existing names
+  const names = useTopicSubscription(sub)
+  const uniqueNames = [...new Set(names)]
 
-      const $name = document.createTextNode(`${name} `);
-      $li.appendChild($name);
-      $name.innerText = change.add;
-
-      const $remove = document.createElement('button');
-      $li.appendChild($remove);
-      $remove.innerText = 'Remove';
-      $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
-
-      const $addToDeck = document.createElement('button');
-      $li.appendChild($addToDeck);
-      $addToDeck.innerText = 'Add to Deck';
-      $addToDeck.onclick = () => addToDeck(name);
-
-      $names.set(name, $li);
-    } else if ('remove' in change) {
-      const $li = $names.get(change.remove);
-      if ($li !== undefined) {
-        $li.remove();
-        $names.delete(change.remove);
-      }
-    }
+  let objectList
+  if (uniqueNames.length === 0) {
+    objectList = 'No objects found.'
+  } else {
+    objectList = uniqueNames.map(name => {
+      return h('li', null, [
+        h('span', null, [
+          h(ObjectsListObjectComponent, { actions, name })
+        ]),
+      ])
+    })
   }
+  
+  return (
+    h('div', {}, [
+      h('h3', null, ['Inventory']),
+      h('ul', null, objectList),
+    ])
+  )
+
 };
 
-const bodyComponent = async ($parent, powers) => {
-  const $title = document.createElement('h1');
-  $title.innerText = '🃏';
-  $parent.appendChild($title);
+const App = ({ powers }) => {
 
-  const { addCardByName, getDeck } = await deckManagerComponent($parent, powers);
+  const [deck, setDeck] = React.useState(undefined);
+  const [game, setGame] = React.useState(undefined);
 
-  const $endOfMessages = document.createTextNode('');
-  $parent.appendChild($endOfMessages);
-  followMessagesComponent($parent, $endOfMessages, powers).catch(
-    window.reportError,
-  );
+  const actions = {
+    // deck mgmt
+    async fetchDeck () {
+      // workaround for https://github.com/endojs/endo/issues/1843
+      if (await E(powers).has('deck')) {
+        const deck = await E(powers).lookup('deck')
+        setDeck(deck)
+      }
+    },
+    async makeNewDeck () {
+      const deck = await makeNewDeck(powers)
+      setDeck(deck)
+    },
+    async addCardToDeck (card) {
+      await E(deck).add(card);
+    },
+    async addCardToDeckByName (cardName) {
+      const card = await E(powers).lookup(
+        cardName,
+      )
+      await E(deck).add(card);
+    },
+    async reverseLookupCard (card) {
+      return await E(powers).reverseLookup(card)
+    },
 
-  const $endOfNames = document.createTextNode('');
-  $parent.appendChild($endOfNames);
-  followNamesComponent($parent, $endOfNames, powers, addCardByName).catch(window.reportError);
+    // inventory
+    subscribeToNames () {
+      return makeRefIterator(E(powers).followNames())
+    },
+    async removeName (name) {
+      await E(powers).remove(name)
+    },
 
-  playGameComponent($parent, powers, getDeck)
+    // game
+    async start () {
+      // make game
+      const game = await makeGame(powers)
+      setGame(game)
+      console.log('start', deck, game)
+      await E(game).start(deck)
+    }
+  }
+
+  // on first render
+  React.useEffect(() => {
+    actions.fetchDeck()
+  }, []);
+
+  return (
+    h('div', {}, [
+      h('h1', null, ['🃏']),
+      !game && h(DeckManagerComponent, { actions, deck }),
+      // h(FollowMessagesComponent, { powers }),
+      deck && h(PlayGameComponent, { actions, game }),
+    ])
+  )
 };
 
 export const make = async powers => {
   document.body.innerHTML = '';
-  bodyComponent(document.body, powers);
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  const root = createRoot(container);
+  root.render(h(App, { powers }));
 };
