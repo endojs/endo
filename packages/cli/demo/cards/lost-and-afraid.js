@@ -5,6 +5,12 @@ export const make = (powers) => {
     async play (game) {
       await E(game).currentPlayerScores(-50)
     },
+    getDetails () {
+      return {
+        name: 'lost and afraid',
+        description: 'you are lost and afraid\n-50 points',
+      }
+    },
     async getRendererCode () {
       return `${makeRenderer}`
     },
@@ -36,14 +42,6 @@ function makeRenderer () {
     gradient.addColorStop(0.4, "#2c343f");
     ctx.fillStyle = gradient;
     ctx.fill();
-
-    // ctx.beginPath();
-    // ctx.arc(light.x, light.y, 20, 0, 2 * Math.PI);
-    // gradient = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, 5);
-    // gradient.addColorStop(0, "#fff");
-    // gradient.addColorStop(1, "#3b4654");
-    // ctx.fillStyle = gradient;
-    // ctx.fill();
   }
 
   function Box(c) {
