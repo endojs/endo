@@ -8,7 +8,7 @@ export const make = (powers) => {
     getDetails () {
       return {
         name: 'vivid imagination',
-        description: 'you are blessed with a vivid imagination and can see things that others cannot\n+50 points',
+        description: 'you are blessed with a vivid imagination and can see things that others cannot\n\n+50 points',
       }
     },
     getRendererCode () {

@@ -48,11 +48,14 @@ const useAsync = (asyncFn, deps) => {
 }
 
 // subscribes to Endo Topic changes
-const useSubscriptionForArray = (sub) => {
+const useSubscriptionForArray = (getSubFn, deps) => {
   const [state, setState] = React.useState([]);
 
   React.useEffect(() => {
+    setState([]);
+    const sub = getSubFn()
     if (sub === undefined) {
+      console.warn('sub is undefined')
       return;
     }
     let shouldAbort = false;
@@ -82,17 +85,20 @@ const useSubscriptionForArray = (sub) => {
     return () => {
       shouldAbort = true;
     }
-  }, [sub]);
+  }, deps);
 
   return state;
 }
 
 // subscribes to Endo Topic changes
-const useSubscriptionForValue = (sub) => {
+const useSubscriptionForValue = (getSubFn, deps) => {
   const [state, setState] = React.useState();
 
   React.useEffect(() => {
+    setState(undefined);
+    const sub = getSubFn()
     if (sub === undefined) {
+      console.warn('sub is undefined')
       return;
     }
     let shouldAbort = false;
@@ -112,7 +118,7 @@ const useSubscriptionForValue = (sub) => {
     return () => {
       shouldAbort = true;
     }
-  }, [sub]);
+  }, deps);
 
   return state;
 }
@@ -349,34 +355,36 @@ const DeckCardsCardComponent = ({ actions, card }) => {
   )
 };
 
-const DeckCardsComponent = ({ actions, deck }) => {
-  const sub = React.useMemo(
-    () => deck && makeRefIterator(E(deck).follow()),
-    [deck]
+const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) => {
+  const cardsList = cards.map(card => {
+    return (
+      h('div', null, [
+        h(DeckCardsCardComponent, { actions, card }),
+        cardControlComponent && h(cardControlComponent, { card }),
+      ])
+    )
+  })
+  return (
+    h('div', {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+      }
+    }, cards.length > 0 ? cardsList : '(no cards)')
   )
-  const cards = useSubscriptionForArray(sub)
-  let cardsList
-  if (deck === undefined) {
-    cardsList = 'No deck found.'
-  } else {
-    if (cards.length === 0) {
-      cardsList = 'No cards in deck.'
-    } else {
-      cardsList = cards.map(card => {
-        return h(DeckCardsCardComponent, { actions, card })
-      })
-    }
-  }
+}
+
+const DeckCardsComponent = ({ actions, deck }) => {
+  const cards = useSubscriptionForArray(() => {
+    return makeRefIterator(E(deck).follow())
+  }, [deck])
 
   return (
     h('div', {}, [
       h('h3', null, ['Cards in deck']),
-      h('div', {
-        style: {
-          display: 'flex',
-          flexWrap: 'wrap',
-        }
-      }, cardsList),
+      !deck && 'No deck found.',
+      cards.length === 0 && 'No cards in deck.',
+      cards.length > 0 && h(CardsDisplayComponent, { actions, cards }),
     ])
   )
 };
@@ -390,35 +398,62 @@ const DeckManagerComponent = ({ actions, deck }) => {
           await actions.makeNewDeck()
         }
       }, ['New Deck']),
-      h(DeckCardsComponent, { actions, deck }),
+      deck && h(DeckCardsComponent, { actions, deck }),
       deck && h(ObjectsListComponent, { actions }),
     ])
   )
 };
 
-const ActiveGamePlayerComponent = ({ actions, player, isCurrentPlayer }) => {
+const GameCurrentPlayerComponent = ({ actions, player }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const handSub = React.useMemo(
-    () => player && makeRefIterator(E(player).followHand()),
+  // YIKES: THIS IS NOT WORKING CORRECTLY !!!!
+  const hand = useSubscriptionForArray(
+    () => actions.followPlayerHand(player),
     [player]
   )
-  const hand = useSubscriptionForArray(handSub)
+
+  // specify a component to render under the cards
+  const cardControlComponent = ({ card }) => {
+    return (
+      h('div', {
+        style: {
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }
+      }, [
+        h('button', {
+          onClick: async () => {
+            actions.playCardFromHand(player, card)
+          }
+        }, ['Play'])
+      ])
+    )
+  }
 
   return (
     h('div', {}, [
-      h('span', null, [`${name} ${isCurrentPlayer ? '(current)' : ''}`]),
-      h('ul', null, hand && hand.map(card => {
-        return h('li', null, [
-          h(DeckCardsCardComponent, { actions, card }),
-          isCurrentPlayer && h('button', {
-            onClick: async () => {
-              actions.playCardFromHand(player, card)
-            }
-          }, ['Play']),
-        ])
-      })),
+      h('h3', null, [`Current Player: ${name}`]),
+      h(CardsDisplayComponent, { actions, cards: hand, cardControlComponent }),
+    ])
+  )
+}
+
+const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
+  const { value: name } = useAsync(async () => {
+    return await E(player).getName()
+  }, [player]);
+  const playerAreaCards = useSubscriptionForArray(
+    () => actions.getCardsAtPlayerLocation(player),
+    [player]
+  )
+
+  return (
+    h('div', {}, [
+      h('h4', null, [`${name} ${isCurrentPlayer ? '(current)' : ''}`]),
+      h(CardsDisplayComponent, { actions, cards: playerAreaCards }),
     ])
   )
 }
@@ -427,29 +462,30 @@ const ActiveGameComponent = ({ actions, game }) => {
   const { value: players } = useAsync(async () => {
     return await E(game).getPlayers()
   }, [game]);
-  // const { value: gameState } = useAsync(async () => {
-  //   return await E(game).getState()
-  // }, [game]);
-  const stateSub = React.useMemo(() => makeRefIterator(E(game).followState()), [game])
-  const gameState = useSubscriptionForValue(stateSub)
-  const sub = React.useMemo(() => makeRefIterator(E(game).followCurrentPlayer()), [game])
-  const currentPlayer = useSubscriptionForValue(sub)
-  console.log('currentPlayer', currentPlayer)
+  const gameState = useSubscriptionForValue(
+    () => makeRefIterator(E(game).followState()),
+    [game]
+  )
+  const currentPlayer = useSubscriptionForValue(
+    () => makeRefIterator(E(game).followCurrentPlayer()),
+    [game]
+  )
 
   return (
     h('div', {}, [
       h('h3', null, ['Game']),
       h('pre', null, JSON.stringify(gameState, null, 2)),
       h('h3', null, ['Players']),
-      h('ul', null, players && players.map(player => {
-        return h('li', null, [
-          h(ActiveGamePlayerComponent, {
+      h('div', null, players && players.map(player => {
+        return h('div', null, [
+          h(GamePlayerAreaComponent, {
             actions,
             player,
             isCurrentPlayer: player === currentPlayer
           })
         ])
       })),
+      h(GameCurrentPlayerComponent, { actions, player: currentPlayer }),
     ])
   )
 }
@@ -487,12 +523,10 @@ const ObjectsListObjectComponent = ({ actions, name }) => {
 }
 
 const ObjectsListComponent = ({ actions }) => {
-  const sub = React.useMemo(
+  const names = useSubscriptionForArray(
     () => actions.subscribeToNames(),
     []
   )
-  // pet store topic doesnt send removals when overwriting existing names
-  const names = useSubscriptionForArray(sub)
   const uniqueNames = [...new Set(names)]
 
   let objectList
@@ -562,9 +596,16 @@ const App = ({ powers }) => {
         // ignore missing or failed renderer
         renderer = () => {}
       }
-      console.log('renderer', renderer)
-      
       return renderer
+    },
+    getCardsAtLocation (location) {
+      return makeRefIterator(E(game).getCardsAtLocation(location))
+    },
+    getCardsAtPlayerLocation (player) {
+      return makeRefIterator(E(game).getCardsAtPlayerLocation(player))
+    },
+    followPlayerHand (player) {
+      return makeRefIterator(E(player).followHand())
     },
 
     // inventory
