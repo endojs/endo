@@ -8,7 +8,7 @@ export const make = (powers) => {
     getDetails () {
       return {
         name: 'the firmament',
-        description: 'you have discovered the firmament, the mysteries of the universe unfold in a boundless dance.\n+100 points',
+        description: 'you have discovered the firmament, the mysteries of the universe unfold in a boundless dance.\n\n+100 points',
       }
     },
     getRendererCode () {

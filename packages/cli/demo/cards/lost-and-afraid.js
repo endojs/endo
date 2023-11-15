@@ -8,7 +8,7 @@ export const make = (powers) => {
     getDetails () {
       return {
         name: 'lost and afraid',
-        description: 'you are lost and afraid\n-50 points',
+        description: 'you are lost and afraid\n\n-50 points',
       }
     },
     async getRendererCode () {

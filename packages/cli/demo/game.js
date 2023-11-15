@@ -2,6 +2,7 @@ import { E, Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
 import { makeTrackedArray, makeTrackedValue } from './util.js';
 
+const playerInterfaces = new Map()
 class Player {
   constructor (name) {
     this.name = name
@@ -18,6 +19,7 @@ class Player {
         player.removeCard(card)
       }
     })
+    playerInterfaces.set(this.remoteInterface, this)
   }
   addCard (card) {
     this.hand.push(card)
@@ -53,20 +55,57 @@ export const make = (powers) => {
     async getState () {
       return game.getState()
     },
+    async getCardsAtLocation (location) {
+      return makeIteratorRef(game.getCardsAtLocation(location).follow())
+    },
+    async getCardsAtPlayerLocation (player) {
+      const { name } = playerInterfaces.get(player)
+      return makeIteratorRef(game.getCardsAtLocation(name).follow())
+    },
   });
 };
 
+class TrackedArrayMap {
+  constructor () {
+    this.map = new Map()
+  }
+  get (key) {
+    if (!this.map.has(key)) {
+      this.map.set(key, makeTrackedArray())
+    }
+    return this.map.get(key)
+  }
+  push (key, value) {
+    if (!this.map.has(key)) {
+      this.map.set(key, makeTrackedArray())
+    }
+    this.map.get(key).push(value)
+  }
+  remove (key, value) {
+    if (!this.map.has(key)) {
+      return
+    }
+    const array = this.map.get(key)
+    array.splice(array.indexOf(value), 1)
+  }
+}
 
 export function makeGame () {
-
   const state = makeTrackedValue({
     currentPlayer: 0,
     deck: [],
     points: [],
+    log: [],
   })
+  const locations = new TrackedArrayMap()
   const players = []
   const currentPlayer = makeTrackedValue()
-  
+  const log = (message) => {
+    state.set({
+      ...state.get(),
+      log: [...state.get().log, message]
+    })
+  }
   const getState = () => {
     return state.get()
   }
@@ -138,16 +177,20 @@ export function makeGame () {
   const playCardFromHand = async (player, card) => {
     // remove card from hand
     player.removeCard(card)
-    // add card to discard pile
+    // add card to player pile
+    const actualPlayer = playerInterfaces.get(player)
+    locations.push(actualPlayer.name, card)
+    log(`${actualPlayer.name} played card to self`)
     // trigger card effect
-    // const playedCard = await currentPlayer.chooseCard()
-    // whats appropriate to give to a card?
-    // its funny because it should be able to do anything
-    // but this is an example of an ocap system
     const controller = makeGameController(game)
     await E(card).play(controller)
     // next player
     advanceCurrentPlayer()
+  }
+
+  const getCardsAtLocation = (location) => {
+    log(`getCardsAtLocation ${location}`)
+    return locations.get(location)
   }
 
   const currentPlayerScores = async (points) => {
@@ -178,6 +221,7 @@ export function makeGame () {
     drawInitialCards,
     playCardFromHand,
     currentPlayerScores,
+    getCardsAtLocation,
 
     importDeck,
     shuffleDeck,
