@@ -1,9 +1,9 @@
 import { Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
-import { makeTrackedArray } from './util.js';
+import { makeTrackedArrayValue } from './util.js';
 
 export const make = () => {
-  let cards = makeTrackedArray();
+  let cards = makeTrackedArrayValue();
   return Far('Deck', {
     add (card) {
       cards.push(card);

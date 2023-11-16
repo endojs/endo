@@ -47,7 +47,8 @@ const useAsync = (asyncFn, deps) => {
   return state;
 }
 
-// subscribes to Endo Topic changes
+// subscribes to Endo Topic changes, optimized for arrays
+// YIKES: THIS IS NOT WORKING CORRECTLY !!!!
 const useSubscriptionForArray = (getSubFn, deps) => {
   const [state, setState] = React.useState([]);
 
@@ -91,11 +92,11 @@ const useSubscriptionForArray = (getSubFn, deps) => {
 }
 
 // subscribes to Endo Topic changes
-const useSubscriptionForValue = (getSubFn, deps) => {
-  const [state, setState] = React.useState();
+const useSubscriptionForValue = (getSubFn, deps, initValue) => {
+  const [state, setState] = React.useState(initValue);
 
   React.useEffect(() => {
-    setState(undefined);
+    setState(initValue);
     const sub = getSubFn()
     if (sub === undefined) {
       console.warn('sub is undefined')
@@ -121,6 +122,11 @@ const useSubscriptionForValue = (getSubFn, deps) => {
   }, deps);
 
   return state;
+}
+
+// subscribes to Endo Topic changes, specialized for arrays
+const useSubscriptionForArrayValue = (getSubFn, deps) => {
+  return useSubscriptionForValue(getSubFn, deps, [])
 }
 
 const useRaf = (
@@ -375,7 +381,7 @@ const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) => {
 }
 
 const DeckCardsComponent = ({ actions, deck }) => {
-  const cards = useSubscriptionForArray(() => {
+  const cards = useSubscriptionForArrayValue(() => {
     return makeRefIterator(E(deck).follow())
   }, [deck])
 
@@ -408,8 +414,7 @@ const GameCurrentPlayerComponent = ({ actions, player }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  // YIKES: THIS IS NOT WORKING CORRECTLY !!!!
-  const hand = useSubscriptionForArray(
+  const hand = useSubscriptionForArrayValue(
     () => actions.followPlayerHand(player),
     [player]
   )
@@ -445,7 +450,7 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const playerAreaCards = useSubscriptionForArray(
+  const playerAreaCards = useSubscriptionForArrayValue(
     () => actions.getCardsAtPlayerLocation(player),
     [player]
   )
@@ -485,7 +490,7 @@ const ActiveGameComponent = ({ actions, game }) => {
           })
         ])
       })),
-      h(GameCurrentPlayerComponent, { actions, player: currentPlayer }),
+      currentPlayer && h(GameCurrentPlayerComponent, { actions, player: currentPlayer }),
     ])
   )
 }
@@ -621,7 +626,6 @@ const App = ({ powers }) => {
       // make game
       const game = await makeGame(powers)
       setGame(game)
-      console.log('start', deck, game)
       await E(game).start(deck)
     },
     async playCardFromHand (player, card) {
