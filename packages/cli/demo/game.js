@@ -1,12 +1,12 @@
 import { E, Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
-import { makeTrackedArray, makeTrackedValue } from './util.js';
+import { makeTrackedArray, makeTrackedValue, makeTrackedArrayValue } from './util.js';
 
 const playerInterfaces = new Map()
 class Player {
   constructor (name) {
     this.name = name
-    this.hand = makeTrackedArray()
+    this.hand = makeTrackedArrayValue()
     const player = this
     this.remoteInterface = Far('Player', {
       getName () {
@@ -71,13 +71,13 @@ class TrackedArrayMap {
   }
   get (key) {
     if (!this.map.has(key)) {
-      this.map.set(key, makeTrackedArray())
+      this.map.set(key, makeTrackedArrayValue())
     }
     return this.map.get(key)
   }
   push (key, value) {
     if (!this.map.has(key)) {
-      this.map.set(key, makeTrackedArray())
+      this.map.set(key, makeTrackedArrayValue())
     }
     this.map.get(key).push(value)
   }

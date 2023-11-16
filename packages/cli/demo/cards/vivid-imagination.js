@@ -447,9 +447,6 @@ const SimplexNoise = (function () {
 
   function init(rect, context) {
 
-    // canvas = document.getElementById('c');
-
-    // window.addEventListener('resize', onWindowResize, false);
     onWindowResize(rect, context);
 
     for (let i = 0, len = Configs.particleNum; i < len; i++) {
@@ -457,16 +454,6 @@ const SimplexNoise = (function () {
     }
 
     simplexNoise = new SimplexNoise();
-
-    // canvas.addEventListener('click', onCanvasClick, false);
-
-    // gui = new dat.GUI();
-    // gui.add(Configs, 'step', 1, 10);
-    // gui.add(Configs, 'base', 500, 3000);
-    // gui.add(Configs, 'zInc', 0.0001, 0.01);
-    // gui.close();
-
-    // update();
     initialized = true
   }
 
@@ -474,42 +461,28 @@ const SimplexNoise = (function () {
   // Event listeners
 
   function onWindowResize(rect, context) {
-    // screenWidth  = canvas.width  = window.innerWidth;
-    // screenHeight = canvas.height = window.innerHeight;
     screenWidth  = rect.width
     screenHeight = rect.height
 
     centerX = screenWidth / 2;
     centerY = screenHeight / 2;
 
-    // context = canvas.getContext('2d');
-    context.lineWidth = 0.3;
+    context.lineWidth = 1.2;
     context.lineCap = context.lineJoin = 'round';
   }
-
-  // function onCanvasClick(e) {
-  //   context.save();
-  //   context.globalAlpha = 0.8;
-  //   context.fillStyle = Configs.backgroundColor;
-  //   context.fillRect(0, 0, screenWidth, screenHeight);
-  //   context.restore();
-    
-  //   simplexNoise = new SimplexNoise();
-  // }
-
 
   // Functions
 
   function getNoise(x, y, z) {
     var octaves = 4,
-        fallout = 0.5,
-        amp = 1, f = 1, sum = 0,
-        i;
+      fallout = 0.5,
+      amp = 1, f = 1, sum = 0,
+      i;
 
     for (i = 0; i < octaves; ++i) {
-        amp *= fallout;
-        sum += amp * (simplexNoise.noise3D(x * f, y * f, z * f) + 1) * 0.5;
-        f *= 2;
+      amp *= fallout;
+      sum += amp * (simplexNoise.noise3D(x * f, y * f, z * f) + 1) * 0.5;
+      f *= 2;
     }
 
     return sum;
@@ -533,36 +506,35 @@ const SimplexNoise = (function () {
     }
 
     var step = Configs.step,
-        base = Configs.base,
-        p, angle;
+      base = Configs.base,
+      p, angle;
     
     for (let i = 0, len = particles.length; i < len; i++) {
-        p = particles[i];
+      p = particles[i];
 
-        p.pastX = p.x;
-        p.pastY = p.y;
-    
-        angle = Math.PI * 6 * getNoise(p.x / base * 1.75, p.y / base * 1.75, zoff);
-        p.x += Math.cos(angle) * step;
-        p.y += Math.sin(angle) * step;
-        
-        if (p.color.a < 1) p.color.a += 0.003;
+      p.pastX = p.x;
+      p.pastY = p.y;
+  
+      angle = Math.PI * 6 * getNoise(p.x / base * 1.75, p.y / base * 1.75, zoff);
+      // todo: modify angle by mouse position if in frame
+      p.x += Math.cos(angle) * step;
+      p.y += Math.sin(angle) * step;
+      
+      if (p.color.a < 1) p.color.a += 0.003;
 
-        context.beginPath();
-        context.strokeStyle = p.color.toString();
-        context.moveTo(p.pastX, p.pastY);
-        context.lineTo(p.x, p.y);
-        context.stroke();
-        
-        if (p.x < 0 || p.x > screenWidth || p.y < 0 || p.y > screenHeight) {
-            initParticle(p);
-        }
+      context.beginPath();
+      context.strokeStyle = p.color.toString();
+      context.moveTo(p.pastX, p.pastY);
+      context.lineTo(p.x, p.y);
+      context.stroke();
+      
+      if (p.x < 0 || p.x > screenWidth || p.y < 0 || p.y > screenHeight) {
+        initParticle(p);
+      }
     }
     
     hueBase += 0.1;
     zoff += Configs.zInc;
-
-    // requestAnimationFrame(update);
   }
 
 
@@ -594,7 +566,6 @@ const SimplexNoise = (function () {
 
   // Run
 
-  // init();
   return draw;
 
 }

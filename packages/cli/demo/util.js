@@ -1,5 +1,49 @@
 import { makeChangeTopic } from '@endo/daemon/pubsub.js';
 
+export const makeTrackedArrayValue = () => {
+  const value = makeTrackedValue([])
+
+  function push (item) {
+    const array = value.get().slice()
+    array.push(item);
+    value.set(array)
+  }
+  function remove (item) {
+    const array = value.get().slice()
+    array.splice(array.indexOf(item), 1);
+    value.set(array)
+  }
+  function splice (index, length) {
+    const array = value.get().slice()
+    const removed = array.splice(index, length);
+    value.set(array)
+    return removed
+  }
+
+  function slice (from, to) {
+    const array = value.get().slice(from, to)
+    return array
+  }
+  function indexOf (element) {
+    const array = value.get()
+    return array.indexOf(element)
+  }
+
+  function follow () {
+    return value.follow();
+  }
+
+  return {
+    push,
+    remove,
+    splice,
+    slice,
+    indexOf,
+    follow,
+  }
+};
+
+// not working correctly in some cases!
 export const makeTrackedArray = () => {
   const topic = makeChangeTopic();
   const array = [];
