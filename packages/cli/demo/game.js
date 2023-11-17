@@ -126,6 +126,10 @@ export function makeGame () {
 
   // deck
   const deckGrain = makeSyncArrayGrain()
+  const deckCardsRemaining = makeDerivedSyncGrain(
+    deckGrain,
+    deck => deck.length
+  )
   const addCardToDeck = (card) => {
     deckGrain.push(card)
   }
@@ -200,6 +204,14 @@ export function makeGame () {
       async appendTurnPhase (phase) {
         appendTurnPhase(phase)
       },
+      async getDeckCards () {
+        return deckGrain.get()
+      },
+      async addCardsToDeck (cards) {
+        for (const card of cards) {
+          addCardToDeck(card)
+        }
+      },
     })
   }
   const playCard = async (card) => {
@@ -234,6 +246,7 @@ export function makeGame () {
     locations: locations,
     scores: scoresGrain,
     deck: deckGrain,
+    deckCardsRemaining,
   })
   const followState = (canceled) => {
     return state.follow(canceled)
