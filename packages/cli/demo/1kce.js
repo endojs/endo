@@ -4,6 +4,7 @@ import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
+import { makeSyncGrainFromFollow } from './grain.js';
 
 const h = React.createElement;
 const useAsync = (asyncFn, deps) => {
@@ -49,7 +50,7 @@ const useAsync = (asyncFn, deps) => {
 
 // subscribes to Endo Topic changes, optimized for arrays
 // YIKES: THIS IS NOT WORKING CORRECTLY !!!!
-const useSubscriptionForArray = (getSubFn, deps) => {
+const useBrokenSubscriptionForArray = (getSubFn, deps) => {
   const [state, setState] = React.useState([]);
 
   React.useEffect(() => {
@@ -91,42 +92,56 @@ const useSubscriptionForArray = (getSubFn, deps) => {
   return state;
 }
 
-// subscribes to Endo Topic changes
-const useSubscriptionForValue = (getSubFn, deps, initValue) => {
-  const [state, setState] = React.useState(initValue);
+// // grain follow via async iteration
+// const useGrainFollow = (grainFollowGetter, deps, initValue) => {
+//   const [grainValue, setGrainValue] = React.useState(initValue);
+
+//   React.useEffect(() => {
+//     let abort = false;
+//     let cancel;
+//     const canceled = new Promise(resolve => { cancel = resolve });
+//     const grainFollow = grainFollowGetter(canceled);
+//     if (grainFollow === undefined) return;
+//     (async () => {
+//       for await (const value of grainFollow) {
+//         if (abort) break;
+//         setGrainValue(value);
+//       }
+//     })();
+//     return () => {
+//       abort = true;
+//       cancel();
+//     }
+//   }, deps);
+
+//   return grainValue;
+// }
+
+// grain follow via subscribe (should be same as async iteration useGrainFollow)
+const useGrainFollow = (grainFollowGetter, deps, initValue) => {
+  const [grainValue, setGrainValue] = React.useState(initValue);
 
   React.useEffect(() => {
-    setState(initValue);
-    const sub = getSubFn()
-    if (sub === undefined) {
-      console.warn('sub is undefined')
-      return;
-    }
-    let shouldAbort = false;
-    const iterateChanges = async () => {
-      for await (const change of sub) {
-        // Check if we should abort iteration
-        if (shouldAbort) {
-          break;
-        }
-        // apply change
-        setState(change.value);
-      }
-    }
-    // start iteration
-    iterateChanges()
-    // cleanup
+    let cancel;
+    const canceled = new Promise(resolve => { cancel = resolve });
+    const grainFollow = grainFollowGetter(canceled);
+    if (grainFollow === undefined) return;
+    const grain = makeSyncGrainFromFollow(grainFollow, initValue)
+    const unsubscribe = grain.subscribe(value => {
+      setGrainValue(value)
+    })
     return () => {
-      shouldAbort = true;
+      unsubscribe();
+      cancel();
     }
   }, deps);
 
-  return state;
+  return grainValue;
 }
 
-// subscribes to Endo Topic changes, specialized for arrays
-const useSubscriptionForArrayValue = (getSubFn, deps) => {
-  return useSubscriptionForValue(getSubFn, deps, [])
+// grain follow, specialized for arrays
+const useArrayGrainFollow = (getSubFn, deps) => {
+  return useGrainFollow(getSubFn, deps, [])
 }
 
 const useRaf = (
@@ -267,6 +282,7 @@ const DeckCardsCardComponent = ({ actions, card }) => {
   useRaf((timeElapsed) => {
     if (!render) return
     const canvas = canvasRef.current;
+    if (!canvas) return
     const ctx = canvas.getContext("2d");
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width;
@@ -381,9 +397,10 @@ const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) => {
 }
 
 const DeckCardsComponent = ({ actions, deck }) => {
-  const cards = useSubscriptionForArrayValue(() => {
-    return makeRefIterator(E(deck).follow())
-  }, [deck])
+  const cards = useArrayGrainFollow(
+    (canceled) => makeRefIterator(E(deck).follow(canceled)),
+    [deck]
+  )
 
   return (
     h('div', {}, [
@@ -410,30 +427,49 @@ const DeckManagerComponent = ({ actions, deck }) => {
   )
 };
 
-const GameCurrentPlayerComponent = ({ actions, player }) => {
+const GameCurrentPlayerComponent = ({ actions, player, players }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const hand = useSubscriptionForArrayValue(
-    () => actions.followPlayerHand(player),
+  const hand = useArrayGrainFollow(
+    (canceled) => actions.followPlayerHand(player, canceled),
     [player]
   )
 
   // specify a component to render under the cards
   const cardControlComponent = ({ card }) => {
+    const makePlayCardButton = ({ sourcePlayer, destPlayer }) => {
+      const playLabel = sourcePlayer === destPlayer ? `Play on self` : `Play on ${destPlayer}`
+      return h('button', {
+        style: {
+          margin: '2px',
+        },
+        onClick: async () => {
+          await actions.playCardFromHand(sourcePlayer, card, destPlayer)
+        }
+      }, [playLabel])
+    }
+    const playControls = [
+      // first to self
+      makePlayCardButton({ sourcePlayer: player, destPlayer: player }),
+      // then to all other players except self
+      ...players.map(otherPlayer => {
+        if (otherPlayer === player) {
+          return null
+        }
+        return makePlayCardButton({ sourcePlayer: player, destPlayer: otherPlayer })
+      })
+    ]
     return (
       h('div', {
         style: {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
+          flexDirection: 'column',
         }
       }, [
-        h('button', {
-          onClick: async () => {
-            actions.playCardFromHand(player, card)
-          }
-        }, ['Play'])
+        ...playControls,
       ])
     )
   }
@@ -450,8 +486,8 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const playerAreaCards = useSubscriptionForArrayValue(
-    () => actions.getCardsAtPlayerLocation(player),
+  const playerAreaCards = useArrayGrainFollow(
+    (canceled) => actions.getCardsAtPlayerLocation(player, canceled),
     [player]
   )
 
@@ -467,12 +503,12 @@ const ActiveGameComponent = ({ actions, game }) => {
   const { value: players } = useAsync(async () => {
     return await E(game).getPlayers()
   }, [game]);
-  const gameState = useSubscriptionForValue(
-    () => makeRefIterator(E(game).followState()),
+  const gameState = useGrainFollow(
+    (canceled) => makeRefIterator(E(game).followState(canceled)),
     [game]
   )
-  const currentPlayer = useSubscriptionForValue(
-    () => makeRefIterator(E(game).followCurrentPlayer()),
+  const currentPlayer = useGrainFollow(
+    (canceled) => makeRefIterator(E(game).followCurrentPlayer(canceled)),
     [game]
   )
 
@@ -490,7 +526,7 @@ const ActiveGameComponent = ({ actions, game }) => {
           })
         ])
       })),
-      currentPlayer && h(GameCurrentPlayerComponent, { actions, player: currentPlayer }),
+      currentPlayer && h(GameCurrentPlayerComponent, { actions, player: currentPlayer, players }),
     ])
   )
 }
@@ -528,7 +564,7 @@ const ObjectsListObjectComponent = ({ actions, name }) => {
 }
 
 const ObjectsListComponent = ({ actions }) => {
-  const names = useSubscriptionForArray(
+  const names = useBrokenSubscriptionForArray(
     () => actions.subscribeToNames(),
     []
   )
@@ -555,6 +591,20 @@ const ObjectsListComponent = ({ actions }) => {
   )
 
 };
+
+// for debugging
+const GrainComponent = ({ grain }) => {
+  const grainValue = useGrainFollow(
+    (canceled) => makeRefIterator(grain.follow(canceled)),
+    [game]
+  )
+
+  return (
+    h('pre', null, [
+      grainValue ? JSON.stringify(grainValue, null, 2) : 'no grain',
+    ])
+  )
+}
 
 const App = ({ powers }) => {
 
@@ -603,14 +653,14 @@ const App = ({ powers }) => {
       }
       return renderer
     },
-    getCardsAtLocation (location) {
-      return makeRefIterator(E(game).getCardsAtLocation(location))
+    // getCardsAtLocation (location, canceled) {
+    //   return makeRefIterator(E(game).getCardsAtLocation(location, canceled))
+    // },
+    getCardsAtPlayerLocation (player, canceled) {
+      return makeRefIterator(E(game).getCardsAtPlayerLocation(player, canceled))
     },
-    getCardsAtPlayerLocation (player) {
-      return makeRefIterator(E(game).getCardsAtPlayerLocation(player))
-    },
-    followPlayerHand (player) {
-      return makeRefIterator(E(player).followHand())
+    followPlayerHand (player, canceled) {
+      return makeRefIterator(E(player).followHand(canceled))
     },
 
     // inventory
@@ -628,8 +678,8 @@ const App = ({ powers }) => {
       setGame(game)
       await E(game).start(deck)
     },
-    async playCardFromHand (player, card) {
-      await E(game).playCardFromHand(player, card)
+    async playCardFromHand (player, card, destinationPlayer) {
+      await E(game).playCardFromHand(player, card, destinationPlayer)
     },
   }
 

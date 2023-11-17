@@ -3,12 +3,13 @@ import { Far } from "@endo/far"
 export const make = (powers) => {
   return Far('the firmament', {
     async play (game) {
-      await E(game).currentPlayerScores(100)
+      // await E(game).currentPlayerScores(100)
     },
     getDetails () {
       return {
         name: 'the firmament',
         description: 'you have discovered the firmament, the mysteries of the universe unfold in a boundless dance.\n\n+100 points',
+        pointValue: 100,
       }
     },
     getRendererCode () {
