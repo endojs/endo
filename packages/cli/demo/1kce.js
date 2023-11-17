@@ -487,7 +487,7 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
     return await E(player).getName()
   }, [player]);
   const playerAreaCards = useArrayGrainFollow(
-    (canceled) => actions.getCardsAtPlayerLocation(player, canceled),
+    (canceled) => actions.followCardsAtPlayerLocation(player, canceled),
     [player]
   )
 
@@ -500,9 +500,10 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
 }
 
 const ActiveGameComponent = ({ actions, game }) => {
-  const { value: players } = useAsync(async () => {
-    return await E(game).getPlayers()
-  }, [game]);
+  const players = useArrayGrainFollow(
+    (canceled) => makeRefIterator(E(game).followPlayers(canceled)),
+    [game]
+  )
   const gameState = useGrainFollow(
     (canceled) => makeRefIterator(E(game).followState(canceled)),
     [game]
@@ -656,8 +657,8 @@ const App = ({ powers }) => {
     // getCardsAtLocation (location, canceled) {
     //   return makeRefIterator(E(game).getCardsAtLocation(location, canceled))
     // },
-    getCardsAtPlayerLocation (player, canceled) {
-      return makeRefIterator(E(game).getCardsAtPlayerLocation(player, canceled))
+    followCardsAtPlayerLocation (player, canceled) {
+      return makeRefIterator(E(game).followCardsAtPlayerLocation(player, canceled))
     },
     followPlayerHand (player, canceled) {
       return makeRefIterator(E(player).followHand(canceled))
