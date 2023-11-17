@@ -53,24 +53,26 @@ export function makeGame () {
     currentLocalPlayer => currentLocalPlayer?.remoteInterface
   )
 
-  const defaultScoreFn = async ({ localPlayers, locations }) => {
-    const scores = []
-    for (const localPlayer of localPlayers) {
-      let score = 0
-      for (const card of locations[localPlayer.name]) {
-        const { pointValue } = await E(card).getDetails()
-        score += pointValue
-      }
-      scores.push(score)
+  const defaultScoreFn = async ({ cards }) => {
+    let score = 0
+    for (const card of cards) {
+      const { pointValue } = await E(card).getDetails()
+      score += pointValue
     }
-    return scores
+    return score
   }
   const scoreFn = makeSyncGrain(defaultScoreFn)
 
   const scoresGrain = composeGrainsAsync(
     { localPlayers, locations: state.getGrain('locations'), scoreFn },
     async ({ localPlayers, locations, scoreFn }) => {
-      return scoreFn({ localPlayers, locations })
+      const scores = []
+      for (const localPlayer of localPlayers) {
+        const cards = locations[localPlayer.name]
+        const score = await scoreFn({ cards })
+        scores.push(score)
+      }
+      return scores
     },
     []
   )
@@ -178,6 +180,7 @@ export function makeGame () {
     drawInitialCards,
     playCardFromHand,
     getCardsAtLocation,
+    scoreFn,
 
     importDeck,
     shuffleDeck,
@@ -188,7 +191,11 @@ export function makeGame () {
 // exposed to cards when played
 export function makeGameController (game) {
   return Far('GameController', {
-
+    async setScoreFn (scoreFnWrapper) {
+      game.scoreFn.set(({ cards }) => {
+        return E(scoreFnWrapper).scoreFn({ cards })
+      })
+    }
   })
 }
 
