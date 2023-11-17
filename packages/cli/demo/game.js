@@ -1,6 +1,6 @@
 import { E, Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
-import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain } from './grain.js';
+import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain, composeGrainsAsync } from './grain.js';
 
 const playerRemoteToLocal = new Map()
 class Player {
@@ -34,7 +34,6 @@ export function makeGame () {
   const state = makeSyncGrainMap({
     currentPlayer: makeSyncGrain(-1),
     deck: makeSyncArrayGrain(),
-    points: makeSyncArrayGrain(),
     log: makeSyncArrayGrain(),
     locations: makeSyncGrainArrayMap(),
   })
@@ -44,24 +43,38 @@ export function makeGame () {
 
   // TODO: computed values are broken bc
   // they also depend on localPlayers which is not a grain
-  const localPlayers = []
+  const localPlayers = makeSyncArrayGrain()
   const currentLocalPlayerGrain = makeDerivedSyncGrain(
     state.getGrain('currentPlayer'),
-    currentPlayerIndex => localPlayers[currentPlayerIndex]
+    currentPlayerIndex => localPlayers.getAtIndex(currentPlayerIndex)
   )
   const currentRemotePlayerGrain = makeDerivedSyncGrain(
     currentLocalPlayerGrain,
     currentLocalPlayer => currentLocalPlayer?.remoteInterface
   )
 
-  // let calculateScoreForPlayer = async (player) => {
-  //   let score = 0
-  //   await Promise.all(getCardsAtLocation(player.name).map(async card => {
-  //     const { pointValue } = await E(card).getDetails()
-  //     score += pointValue
-  //   }))
-  //   return score
-  // }
+  const defaultScoreFn = async ({ localPlayers, locations }) => {
+    const scores = []
+    for (const localPlayer of localPlayers) {
+      let score = 0
+      for (const card of locations[localPlayer.name]) {
+        const { pointValue } = await E(card).getDetails()
+        score += pointValue
+      }
+      scores.push(score)
+    }
+    return scores
+  }
+  const scoreFn = makeSyncGrain(defaultScoreFn)
+
+  const scoresGrain = composeGrainsAsync(
+    { localPlayers, locations: state.getGrain('locations'), scoreFn },
+    async ({ localPlayers, locations, scoreFn }) => {
+      return scoreFn({ localPlayers, locations })
+    },
+    []
+  )
+  state.setGrain('scores', scoresGrain)
 
   const getState = () => {
     return state.get()
@@ -74,16 +87,15 @@ export function makeGame () {
   }
   const getCurrentPlayer = () => {
     const currentPlayerIndex = state.getGrain('currentPlayer').get()
-    return localPlayers[currentPlayerIndex]
+    return localPlayers.getAtIndex(currentPlayerIndex)
   }
   const getPlayers = () => {
-    return localPlayers.map(player => {
-      return player.remoteInterface
+    return localPlayers.get().map(localPlayer => {
+      return localPlayer.remoteInterface
     })
   }
-  const addPlayer = (player) => {
-    localPlayers.push(player)
-    state.getGrain('points').push(0)
+  const addPlayer = (localPlayer) => {
+    localPlayers.push(localPlayer)
   }
   const addCardToDeck = (card) => {
     state.getGrain('deck').push(card)
@@ -118,7 +130,7 @@ export function makeGame () {
   }
   const drawInitialCards = () => {
     for (let i = 0; i < localPlayers.length; i++) {
-      playerDrawsCards(localPlayers[i], 3)
+      playerDrawsCards(localPlayers.getAtIndex(i), 3)
     }
   }
 
@@ -151,12 +163,6 @@ export function makeGame () {
     return state.getGrain('locations').getGrain(location)
   }
 
-  const currentPlayerScores = async (points) => {
-    const currentPlayerIndex = state.getGrain('currentPlayer').get()
-    state.getGrain('points').updateAtIndex(currentPlayerIndex, score => score + points)
-    log(`${getCurrentPlayer().name} scored ${points} points`)
-  }
-
   // Far
   const game = {
     getState,
@@ -171,7 +177,6 @@ export function makeGame () {
     drawCard,
     drawInitialCards,
     playCardFromHand,
-    currentPlayerScores,
     getCardsAtLocation,
 
     importDeck,
@@ -183,9 +188,7 @@ export function makeGame () {
 // exposed to cards when played
 export function makeGameController (game) {
   return Far('GameController', {
-    currentPlayerScores (points) {
-      game.currentPlayerScores(points)
-    }
+
   })
 }
 
