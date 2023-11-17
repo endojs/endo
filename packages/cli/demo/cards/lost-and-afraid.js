@@ -3,12 +3,13 @@ import { Far } from "@endo/far"
 export const make = (powers) => {
   return Far('lost and afraid', {
     async play (game) {
-      await E(game).currentPlayerScores(-50)
+      // await E(game).currentPlayerScores(-50)
     },
     getDetails () {
       return {
         name: 'lost and afraid',
         description: 'you are lost and afraid\n\n-50 points',
+        pointValue: -50,
       }
     },
     async getRendererCode () {

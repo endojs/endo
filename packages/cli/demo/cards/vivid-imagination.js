@@ -3,12 +3,13 @@ import { Far } from "@endo/far"
 export const make = (powers) => {
   return Far('vivid imagination', {
     async play (game) {
-      await E(game).currentPlayerScores(50)
+      // await E(game).currentPlayerScores(50)
     },
     getDetails () {
       return {
         name: 'vivid imagination',
         description: 'you are blessed with a vivid imagination and can see things that others cannot\n\n+50 points',
+        pointValue: 50,
       }
     },
     getRendererCode () {
