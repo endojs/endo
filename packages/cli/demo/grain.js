@@ -211,15 +211,15 @@ export const makeSyncGrainFromFollow = (iterator, initValue) => {
     }
     grain.destroy();
   })();
-  return grain
+  return grain.readonly()
 }
 
-export const makeDerivedSyncGrain = (grain, derive) => {
-  const derivedGrain = makeSyncGrain(derive(grain.get()))
+export const makeDerivedSyncGrain = (grain, deriveFn) => {
+  const derivedGrain = makeSyncGrain(deriveFn(grain.get()))
   grain.subscribe(value => {
-    derivedGrain.set(derive(value))
+    derivedGrain.set(deriveFn(value))
   })
-  return derivedGrain
+  return derivedGrain.readonly()
 }
 
 export const makeAsyncDerivedSyncGrain = (grain, derive, initValue) => {
@@ -227,11 +227,11 @@ export const makeAsyncDerivedSyncGrain = (grain, derive, initValue) => {
   grain.subscribe(async value => {
     derivedGrain.set(await derive(value))
   })
-  return derivedGrain
+  return derivedGrain.readonly()
 }
 
 // TODO: propagate destruction of the grain to the derived grain
-export const makeLazyDerivedSyncGrain = (grain, derive) => {
+export const makeLazyDerivedSyncGrain = (grain, deriveFn) => {
   const lifecycle = makeDestroyController()
   let subscriberCount = 0
   let cachedValue
@@ -260,7 +260,7 @@ export const makeLazyDerivedSyncGrain = (grain, derive) => {
   
   const _get = () => {
     if (cacheStale) {
-      cachedValue = derive(grain.get())
+      cachedValue = deriveFn(grain.get())
       cacheStale = false
     }
     return cachedValue
@@ -412,6 +412,8 @@ export const makeSyncGrainArrayMap = (grains = {}) => {
   }
 }
 
-// const grain = makeSyncGrain(42)
-// makeDerivedSyncGrain(grain, x => x + 1)
-// makeAsyncDerivedSyncGrain(grain, async x => x + 1)
+export const composeGrainsAsync = (grains, deriveFn, initValue) => {
+  const grainMap = makeSyncGrainMap(grains)
+  const grain = makeAsyncDerivedSyncGrain(grainMap, deriveFn, initValue)
+  return grain
+}

@@ -3,7 +3,7 @@ import { Far } from "@endo/far"
 export const make = (powers) => {
   return Far('the firmament', {
     async play (game) {
-      // await E(game).currentPlayerScores(100)
+
     },
     getDetails () {
       return {
