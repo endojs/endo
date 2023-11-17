@@ -88,6 +88,8 @@ export function makeGame () {
   }
   const prependTurnPhase = (phase) => {
     turnPhases.unshift(phase)
+    // advance turn phase so that we are still on the current phase
+    advanceTurnPhase()
   }
   const appendTurnPhase = (phase) => {
     turnPhases.push(phase)
