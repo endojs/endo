@@ -300,6 +300,7 @@ const DeckCardsCardComponent = ({ actions, card }) => {
   return (
     h('div', {
       style: {
+        background: 'white',
         border: '2px solid black',
         width: '200px',
         height: '320px',
@@ -416,13 +417,13 @@ const DeckManagerComponent = ({ actions, deck }) => {
   return (
     h('div', {}, [
       h('h2', null, ['Deck Manager']),
+      deck && h(ObjectsListComponent, { actions }),
       h('button', {
         onClick: async () => {
           await actions.makeNewDeck()
         }
       }, ['New Deck']),
       deck && h(DeckCardsComponent, { actions, deck }),
-      deck && h(ObjectsListComponent, { actions }),
     ])
   )
 };
@@ -552,12 +553,10 @@ const ObjectsListObjectComponent = ({ actions, name }) => {
       h('span', null, [name]),
       h('button', {
         onClick: async () => {
-          await actions.removeName(name)
-        }
-      }, ['Remove']),
-      h('button', {
-        onClick: async () => {
           await actions.addCardToDeckByName(name)
+        },
+        style: {
+          margin: '6px',
         }
       }, ['Add to Deck']),
     ])
@@ -691,7 +690,16 @@ const App = ({ powers }) => {
 
   return (
     h('div', {}, [
-      h('h1', null, ['🃏']),
+      h('h1', {
+        style: {
+          display: 'inline',
+          border: '2px solid black',
+          borderRadius: '12px',
+          padding: '4px',
+          background: 'white',
+          fontSize: '42px',
+        }
+      }, ['🃏1kce🃏']),
       !game && h(DeckManagerComponent, { actions, deck }),
       // h(FollowMessagesComponent, { powers }),
       deck && h(PlayGameComponent, { actions, game }),
@@ -701,6 +709,22 @@ const App = ({ powers }) => {
 
 export const make = async powers => {
   document.body.innerHTML = '';
+
+  const style = document.createElement('style');
+  style.innerHTML = `
+    html, body {
+      box-sizing: border-box;
+      margin: 0;
+      height: 100%;
+    }
+    body {
+      padding: 12px;
+      font-family: sans-serif;
+      background: #e3e3e3;
+    }
+  `;
+  document.body.appendChild(style);
+
   const container = document.createElement('div');
   document.body.appendChild(container);
 
