@@ -159,6 +159,15 @@ export const makeSyncArrayGrain = (initValue = []) => {
     _set(array)
     return removed
   }
+  const shift = () => {
+    const array = get().slice()
+    const removed = array.shift();
+    _set(array)
+    return removed
+  }
+  const unshift = (item) => {
+    _set([item, ...get()])
+  }
   const splice = (index, length) => {
     const array = get().slice()
     const removed = array.splice(index, length);
@@ -192,6 +201,8 @@ export const makeSyncArrayGrain = (initValue = []) => {
     updateAtIndex,
     push,
     pop,
+    shift,
+    unshift,
     splice,
     get length() {
       return getLength()

@@ -86,6 +86,12 @@ export function makeGame () {
   const resetTurnPhase = () => {
     currentTurnPhase.set(0)
   }
+  const prependTurnPhase = (phase) => {
+    turnPhases.unshift(phase)
+  }
+  const appendTurnPhase = (phase) => {
+    turnPhases.push(phase)
+  }
 
   // locations
   const locations = makeSyncGrainArrayMap()
@@ -179,8 +185,25 @@ export function makeGame () {
       }
     }
   }
+  // game controller is exposed to cards when played
+  const makeGameController = () => {
+    return Far('GameController', {
+      // i think you need to wrap the scoreFn in a Far, so i did
+      async setScoreFn (scoreFnWrapper) {
+        setScoreFn(({ cards }) => {
+          return E(scoreFnWrapper).scoreFn({ cards })
+        })
+      },
+      async prependTurnPhase (phase) {
+        prependTurnPhase(phase)
+      },
+      async appendTurnPhase (phase) {
+        appendTurnPhase(phase)
+      },
+    })
+  }
   const playCard = async (card) => {
-    const controller = makeGameController(game)
+    const controller = makeGameController()
     await E(card).play(controller)
   }
   const playCardFromHand = async (localSourcePlayer, card, localDestinationPlayer = localSourcePlayer) => {
@@ -225,21 +248,8 @@ export function makeGame () {
     followState,
     followCurrentRemotePlayer,
     getCardsAtLocation,
-    setScoreFn,
   }
   return game
-}
-
-// game controller is exposed to cards when played
-function makeGameController (game) {
-  return Far('GameController', {
-    // i think you need to wrap the scoreFn in a Far, so i did
-    async setScoreFn (scoreFnWrapper) {
-      game.setScoreFn(({ cards }) => {
-        return E(scoreFnWrapper).scoreFn({ cards })
-      })
-    }
-  })
 }
 
 export const make = (powers) => {
