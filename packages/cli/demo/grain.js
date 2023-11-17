@@ -67,6 +67,9 @@ export const makeSyncGrain = initValue => {
       handler(value)
     }
   }
+  const update = (update) => {
+    set(update(value))
+  }
   // get changes by providing a handler
   const subscribe = (handler) => {
     if (lifecycle.isDestroyed()) {
@@ -107,6 +110,7 @@ export const makeSyncGrain = initValue => {
   return {
     get,
     set,
+    update,
     destroy,
     readonly,
     subscribe,
@@ -410,6 +414,12 @@ export const makeSyncGrainArrayMap = (grains = {}) => {
     follow,
     push,
   }
+}
+
+export const composeGrains = (grains, deriveFn) => {
+  const grainMap = makeSyncGrainMap(grains)
+  const grain = makeDerivedSyncGrain(grainMap, deriveFn)
+  return grain
 }
 
 export const composeGrainsAsync = (grains, deriveFn, initValue) => {
