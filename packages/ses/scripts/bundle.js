@@ -24,7 +24,7 @@ const main = async () => {
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
 
-  const bundle = `// v${version}\n${await makeBundle(
+  const bundle = `// ses@${version}\n${await makeBundle(
     read,
     pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
   )}`;
