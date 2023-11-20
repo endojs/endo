@@ -99,7 +99,7 @@ export const makeTrackedValue = (initValue) => {
   trackedValue.follow = () => {
     return (async function* currentAndSubsequentEntries() {
       const changes = topic.subscribe();
-      yield { value: value };
+      yield { value };
       yield* changes;
     })();
   }

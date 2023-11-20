@@ -1,4 +1,4 @@
-import { Far } from "@endo/far"
+import { Far } from '@endo/far'
 
 export const make = (powers) => {
   return Far('lost and afraid', {
@@ -28,19 +28,19 @@ function makeRenderer () {
   //   c.height = box.height;
   // }
 
-  var light = {
+  const light = {
     x: 160,
-    y: 200
+    y: 200,
   }
 
-  var colors = ["#f5c156", "#e6616b", "#5cd3ad"];
+  const colors = ['#f5c156', '#e6616b', '#5cd3ad'];
 
   function drawLight (ctx) {
     ctx.beginPath();
     ctx.arc(light.x, light.y, 10000, 0, 2 * Math.PI);
-    var gradient = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, 1000);
-    gradient.addColorStop(0, "#3b4654");
-    gradient.addColorStop(0.4, "#2c343f");
+    const gradient = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, 1000);
+    gradient.addColorStop(0, '#3b4654');
+    gradient.addColorStop(0.4, '#2c343f');
     ctx.fillStyle = gradient;
     ctx.fill();
   }
@@ -54,40 +54,40 @@ function makeRenderer () {
       this.color = colors[Math.floor((Math.random() * colors.length))];
     
       this.getDots = function() {
-        var full = (Math.PI * 2) / 4;
+        const full = (Math.PI * 2) / 4;
 
-        var p1 = {
+        const p1 = {
           x: this.x + this.half_size * Math.sin(this.r),
-          y: this.y + this.half_size * Math.cos(this.r)
+          y: this.y + this.half_size * Math.cos(this.r),
         };
-        var p2 = {
+        const p2 = {
           x: this.x + this.half_size * Math.sin(this.r + full),
-          y: this.y + this.half_size * Math.cos(this.r + full)
+          y: this.y + this.half_size * Math.cos(this.r + full),
         };
-        var p3 = {
+        const p3 = {
           x: this.x + this.half_size * Math.sin(this.r + full * 2),
-          y: this.y + this.half_size * Math.cos(this.r + full * 2)
+          y: this.y + this.half_size * Math.cos(this.r + full * 2),
         };
-        var p4 = {
+        const p4 = {
           x: this.x + this.half_size * Math.sin(this.r + full * 3),
-          y: this.y + this.half_size * Math.cos(this.r + full * 3)
+          y: this.y + this.half_size * Math.cos(this.r + full * 3),
         };
 
         return {
-          p1: p1,
-          p2: p2,
-          p3: p3,
-          p4: p4
+          p1,
+          p2,
+          p3,
+          p4,
         };
       }
       this.rotate = function() {
-        var speed = (60 - this.half_size) / 200;
+        const speed = (60 - this.half_size) / 200;
         this.r += speed * 0.002;
         this.x += speed;
         this.y += speed;
       }
       this.draw = function(ctx) {
-        var dots = this.getDots();
+        const dots = this.getDots();
         ctx.beginPath();
         ctx.moveTo(dots.p1.x, dots.p1.y);
         ctx.lineTo(dots.p2.x, dots.p2.y);
@@ -104,37 +104,37 @@ function makeRenderer () {
         }
       }
       this.drawShadow = function(ctx) {
-        var dots = this.getDots();
-        var angles = [];
-        var points = [];
+        const dots = this.getDots();
+        const angles = [];
+        const points = [];
 
         for (const dot in dots) {
-          var angle = Math.atan2(light.y - dots[dot].y, light.x - dots[dot].x);
-          var endX = dots[dot].x + this.shadow_length * Math.sin(-angle - Math.PI / 2);
-          var endY = dots[dot].y + this.shadow_length * Math.cos(-angle - Math.PI / 2);
+          const angle = Math.atan2(light.y - dots[dot].y, light.x - dots[dot].x);
+          const endX = dots[dot].x + this.shadow_length * Math.sin(-angle - Math.PI / 2);
+          const endY = dots[dot].y + this.shadow_length * Math.cos(-angle - Math.PI / 2);
           angles.push(angle);
           points.push({
-            endX: endX,
-            endY: endY,
+            endX,
+            endY,
             startX: dots[dot].x,
-            startY: dots[dot].y
+            startY: dots[dot].y,
           });
         };
 
-        for (var i = points.length - 1; i >= 0; i--) {
-          var n = i == 3 ? 0 : i + 1;
+        for (let i = points.length - 1; i >= 0; i--) {
+          const n = i == 3 ? 0 : i + 1;
           ctx.beginPath();
           ctx.moveTo(points[i].startX, points[i].startY);
           ctx.lineTo(points[n].startX, points[n].startY);
           ctx.lineTo(points[n].endX, points[n].endY);
           ctx.lineTo(points[i].endX, points[i].endY);
-          ctx.fillStyle = "#2c343f";
+          ctx.fillStyle = '#2c343f';
           ctx.fill();
         };
       }
   }
 
-  var boxes = [];
+  const boxes = [];
 
   function draw(ctx, c, mousePos) {
     makeBoxes(c)
@@ -168,11 +168,11 @@ function makeRenderer () {
   }
 
   function collisionDetection(b){
-    for (var i = boxes.length - 1; i >= 0; i--) {
+    for (let i = boxes.length - 1; i >= 0; i--) {
       if(i != b){	
-        var dx = (boxes[b].x + boxes[b].half_size) - (boxes[i].x + boxes[i].half_size);
-        var dy = (boxes[b].y + boxes[b].half_size) - (boxes[i].y + boxes[i].half_size);
-        var d = Math.sqrt(dx * dx + dy * dy);
+        const dx = (boxes[b].x + boxes[b].half_size) - (boxes[i].x + boxes[i].half_size);
+        const dy = (boxes[b].y + boxes[b].half_size) - (boxes[i].y + boxes[i].half_size);
+        const d = Math.sqrt(dx * dx + dy * dy);
         if (d < boxes[b].half_size + boxes[i].half_size) {
             boxes[b].half_size = boxes[b].half_size > 1 ? boxes[b].half_size-=1 : 1;
             boxes[i].half_size = boxes[i].half_size > 1 ? boxes[i].half_size-=1 : 1;

@@ -1,4 +1,4 @@
-import { E, Far } from "@endo/far"
+import { E, Far } from '@endo/far'
 
 export const make = (powers) => {
   return Far('library of alexandria', {
@@ -11,7 +11,7 @@ export const make = (powers) => {
             score += name.length * 10
           }
           return score
-        }
+        },
       }))
     },
     getDetails () {

@@ -1,4 +1,4 @@
-import { Far } from "@endo/far"
+import { Far } from '@endo/far'
 
 export const make = (powers) => {
   return Far('deja vu', {
@@ -21,7 +21,7 @@ export const make = (powers) => {
 
 function makeRenderer() {
   let isInitialized = false;
-  let elements = [];
+  const elements = [];
   const speed = 0.1;
 
   function initialize(rect) {
@@ -31,7 +31,7 @@ function makeRenderer() {
         x: Math.random() * rect.width,
         y: Math.random() * rect.height,
         size: Math.random() * 20 + 5,
-        color: `hsla(${Math.random() * 360}, 100%, 50%, 0.7)`
+        color: `hsla(${Math.random() * 360}, 100%, 50%, 0.7)`,
       });
     }
   }

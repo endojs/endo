@@ -1,6 +1,6 @@
 import { E, Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
-import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain, composeGrainsAsync, composeGrains } from './grain.js';
+import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain, composeGrainsAsync, composeGrains, makeRemoteGrain } from './grain.js';
 
 const playerRemoteToLocal = new Map()
 class Player {
@@ -15,15 +15,20 @@ class Player {
       async followHand (canceled) {
         return makeIteratorRef(localPlayer.hand.follow(canceled))
       },
+      async getHandGrain () {
+        return makeRemoteGrain(localPlayer.hand)
+      },
       async removeCard (card) {
         localPlayer.removeCard(card)
-      }
+      },
     })
     playerRemoteToLocal.set(this.remoteInterface, localPlayer)
   }
+
   addCard (card) {
     this.hand.push(card)
   }
+
   removeCard (card) {
     this.hand.splice(this.hand.get().indexOf(card), 1)
   }
@@ -41,7 +46,7 @@ export function makeGame () {
   const localPlayers = makeSyncArrayGrain()
   const remotePlayers = makeDerivedSyncGrain(
     localPlayers,
-    localPlayers => localPlayers.map(localPlayer => localPlayer.remoteInterface)
+    localPlayers => localPlayers.map(localPlayer => localPlayer.remoteInterface),
   )
   const followRemotePlayers = (canceled) => {
     return remotePlayers.follow(canceled)
@@ -54,11 +59,11 @@ export function makeGame () {
   const currentPlayerIndex = makeSyncGrain(0)
   const currentLocalPlayer = composeGrains(
     { localPlayers, currentPlayerIndex },
-    ({ localPlayers, currentPlayerIndex }) => localPlayers[currentPlayerIndex]
+    ({ localPlayers, currentPlayerIndex }) => localPlayers[currentPlayerIndex],
   )
   const currentRemotePlayer = makeDerivedSyncGrain(
     currentLocalPlayer,
-    currentLocalPlayer => currentLocalPlayer?.remoteInterface
+    currentLocalPlayer => currentLocalPlayer?.remoteInterface,
   )
   const followCurrentRemotePlayer = (canceled) => {
     return currentRemotePlayer.follow(canceled)
@@ -78,7 +83,7 @@ export function makeGame () {
   const currentTurnPhase = makeSyncGrain(0)
   const currentTurnPhaseName = makeDerivedSyncGrain(
     currentTurnPhase,
-    currentTurnPhase => turnPhases.getAtIndex(currentTurnPhase)
+    currentTurnPhase => turnPhases.getAtIndex(currentTurnPhase),
   )
   const advanceTurnPhase = () => {
     currentTurnPhase.update(currentTurnPhase => (currentTurnPhase + 1) % turnPhases.length)
@@ -123,14 +128,14 @@ export function makeGame () {
       }
       return scores
     },
-    []
+    [],
   )
 
   // deck
   const deckGrain = makeSyncArrayGrain()
   const deckCardsRemaining = makeDerivedSyncGrain(
     deckGrain,
-    deck => deck.length
+    deck => deck.length,
   )
   const addCardToDeck = (card) => {
     deckGrain.push(card)
@@ -245,7 +250,7 @@ export function makeGame () {
     log: logGrain,
     currentPlayer: currentPlayerIndex,
     currentTurnPhase: currentTurnPhaseName,
-    locations: locations,
+    locations,
     scores: scoresGrain,
     deck: deckGrain,
     deckCardsRemaining,
@@ -256,6 +261,7 @@ export function makeGame () {
 
   // Far
   const game = {
+    state,
     addPlayer,
     start,
     playCardFromHand,
@@ -295,6 +301,13 @@ export const make = (powers) => {
     async followCardsAtPlayerLocation (remotePlayer, canceled) {
       const { name } = playerRemoteToLocal.get(remotePlayer)
       return makeIteratorRef(game.getCardsAtLocation(name).follow(canceled))
+    },
+    async getCardsAtPlayerLocationGrain (remotePlayer) {
+      const { name } = playerRemoteToLocal.get(remotePlayer)
+      return makeRemoteGrain(game.getCardsAtLocation(name))
+    },
+    async getStateGrain () {
+      return makeRemoteGrain(game.state)
     },
   });
 };
