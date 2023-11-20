@@ -459,7 +459,7 @@ export const makeSyncGrainArrayMap = (grains = {}) => {
   }
 
   const readonly = () => {
-    const getGrainReadOnly = () => {
+    const getGrainReadOnly = (key) => {
       return getGrain(key).readonly()
     }
     return {
