@@ -19,7 +19,7 @@ const write = async (target, content) => {
 const main = async () => {
   const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
-    'utf8'
+    'utf8',
   );
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
