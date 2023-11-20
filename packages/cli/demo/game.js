@@ -70,7 +70,7 @@ export function makeGame () {
   }
   const advanceCurrentPlayer = () => {
     const currentPlayerGrain = currentPlayerIndex
-    currentPlayerGrain.update(currentPlayer => (currentPlayer + 1) % localPlayers.length)
+    currentPlayerGrain.update(currentPlayer => (currentPlayer + 1) % localPlayers.getLength())
     log(`Current player is now ${currentLocalPlayer.get().name}`)
   }
 
@@ -86,7 +86,7 @@ export function makeGame () {
     currentTurnPhase => turnPhases.getAtIndex(currentTurnPhase),
   )
   const advanceTurnPhase = () => {
-    currentTurnPhase.update(currentTurnPhase => (currentTurnPhase + 1) % turnPhases.length)
+    currentTurnPhase.update(currentTurnPhase => (currentTurnPhase + 1) % turnPhases.getLength())
   }
   const resetTurnPhase = () => {
     currentTurnPhase.set(0)
@@ -122,7 +122,7 @@ export function makeGame () {
     async ({ localPlayers, locations, scoreFn }) => {
       const scores = []
       for (const localPlayer of localPlayers) {
-        const cards = locations[localPlayer.name]
+        const cards = locations[localPlayer.name] || []
         const score = await scoreFn({ cards })
         scores.push(score)
       }
@@ -133,10 +133,6 @@ export function makeGame () {
 
   // deck
   const deckGrain = makeSyncArrayGrain()
-  const deckCardsRemaining = makeDerivedSyncGrain(
-    deckGrain,
-    deck => deck.length,
-  )
   const addCardToDeck = (card) => {
     deckGrain.push(card)
   }
@@ -158,19 +154,19 @@ export function makeGame () {
   const drawCard = () => {
     return deckGrain.pop()
   }
-  const playerDrawsCards = (player, numCards) => {
+  const playerDrawsCards = (localPlayer, numCards) => {
     for (let i = 0; i < numCards; i++) {
       const card = drawCard()
       if (!card) {
         return
       }
-      log(`${player.name} drew a card`)
-      player.addCard(card)
+      log(`${localPlayer.name} drew a card`)
+      localPlayer.addCard(card)
     }
   }
   const drawInitialCards = () => {
-    for (let i = 0; i < localPlayers.length; i++) {
-      playerDrawsCards(localPlayers.getAtIndex(i), 3)
+    for (const localPlayer of localPlayers.get()) {
+      playerDrawsCards(localPlayer, 3)
     }
   }
 
@@ -178,8 +174,8 @@ export function makeGame () {
   const continueTurn = async () => {
     while (true) {
       const currentPlayer = currentLocalPlayer.get()
-      const currentTurnPhase = currentTurnPhaseName.get()
-      switch (currentTurnPhase) {
+      const phaseName = currentTurnPhaseName.get()
+      switch (phaseName) {
         case 'draw':
           playerDrawsCards(currentPlayer, 1)
           advanceTurnPhase()
@@ -193,6 +189,9 @@ export function makeGame () {
           advanceCurrentPlayer()
           resetTurnPhase()
           break
+        default:
+          currentTurnPhase.get()
+          throw new Error(`Unexpected turn phase "${phaseName}"`)
       }
     }
   }
@@ -253,7 +252,6 @@ export function makeGame () {
     locations,
     scores: scoresGrain,
     deck: deckGrain,
-    deckCardsRemaining,
   })
   const followState = (canceled) => {
     return state.follow(canceled)
@@ -287,7 +285,7 @@ export const make = (powers) => {
       await game.playCardFromHand(localSourcePlayer, card, localDestinationPlayer)
     },
     async followPlayers (canceled) {
-      return game.followRemotePlayers(canceled)
+      return makeIteratorRef(game.followRemotePlayers(canceled))
     },
     async followState (canceled) {
       return makeIteratorRef(game.followState(canceled))

@@ -7,7 +7,6 @@ export const make = () => {
   return Far('Deck', {
     add (card) {
       cards.push(card);
-      
     },
     getCards () {
       return harden(cards.get().slice());

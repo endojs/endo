@@ -222,9 +222,7 @@ export const makeArrayGrainFromSyncGrain = (syncGrain) => {
       readonly,
       // array grain methods
       getAtIndex,
-      get length() {
-        return getLength()
-      },
+      getLength,
     }
   }
 
@@ -241,9 +239,7 @@ export const makeArrayGrainFromSyncGrain = (syncGrain) => {
     shift,
     unshift,
     splice,
-    set length(length) {
-      setLength(length)
-    },
+    setLength,
   }
 }
 
@@ -418,28 +414,22 @@ export const makeSyncGrainMap = (grains = {}) => {
     setGrain(key, grain)
   }
 
-  const { get, subscribe, follow } = grainMap;
-
   const readonly = () => {
     return {
-      get,
+      ...grainMap.readonly(),
       hasGrain,
       getGrain,
       readonly,
-      subscribe,
-      follow,
     }
   }
 
   return {
-    get,
-    hasGrain,
-    getGrain,
-    setGrain,
+    // grainMap methods
+    ...grainMap,
+    // overrides and additions
+    ...readonly(),
     destroy,
-    readonly,
-    subscribe,
-    follow,
+    setGrain,
   }
 }
 

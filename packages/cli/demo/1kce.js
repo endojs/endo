@@ -15,7 +15,7 @@ const keyForItem = (item) => {
   return keyMap.get(item)
 }
 const keyForItems = (...items) => {
-  return items.map((item) => typeof key === 'string' ? item : keyForItem(item)).join('-')
+  return items.map((item) => typeof item === 'string' ? item : keyForItem(item)).join('-')
 }
 
 const h = React.createElement;
@@ -170,19 +170,20 @@ const useGrain = (grain) => {
 }
 
 const useGrainGetter = (grainGetter, deps) => {
-  const grain = useMemo(grainGetter, deps)
+  const grain = React.useMemo(grainGetter, deps)
   return useGrain(grain)
 }
 
 const useRaf = (
   callback,
   isActive,
+  deps = [],
 ) => {
   const savedCallback = React.useRef();
   // Remember the latest function.
   React.useEffect(() => {
     savedCallback.current = callback;
-  }, [callback]);
+  }, deps);
 
   React.useEffect(() => {
     let animationFrame;
@@ -316,7 +317,7 @@ const DeckCardsCardComponent = ({ actions, card }) => {
       y: (mouseData.clientY || 0) - rect.y,
     };
     render(ctx, rect, mousePosition, timeElapsed)
-  }, true)
+  }, true, [render, mouseData])
 
   const cardName = cardDetails?.name || '<no name>'
   const cardDescription = cardDetails?.description || '<no description>'
@@ -641,7 +642,7 @@ const ObjectsListComponent = ({ actions }) => {
 const GrainComponent = ({ grain }) => {
   const grainValue = useGrainFollow(
     (canceled) => makeRefIterator(grain.follow(canceled)),
-    [game],
+    [grain],
   )
 
   return (
