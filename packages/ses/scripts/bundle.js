@@ -17,10 +17,10 @@ const write = async (target, content) => {
 };
 
 const main = async () => {
-  const bytes = await fs.promises.readFile(
+  const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
+    'utf8'
   );
-  const text = textDecoder.decode(bytes);
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
 
