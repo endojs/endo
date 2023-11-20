@@ -5,8 +5,6 @@ import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
 import { fileURLToPath, pathToFileURL } from 'url';
 
-const textDecoder = new TextDecoder();
-
 const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs).toString());
 const root = new URL('..', import.meta.url).toString();
 
