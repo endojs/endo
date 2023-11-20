@@ -24,28 +24,30 @@ const main = async () => {
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
 
-  const bundle = `// ses@${version}\n${await makeBundle(
+  const bundle = await makeBundle(
     read,
     pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
-  )}`;
-  const { code: terse } = await minify(bundle, {
+  );
+  const versionedBundle = `// ses@${version}\n${bundle}`;
+
+  const { code: terse } = await minify(versionedBundle, {
     mangle: false,
     keep_classnames: true,
   });
   assert.string(terse);
 
-  console.log(`Bundle size: ${bundle.length} bytes`);
+  console.log(`Bundle size: ${versionedBundle.length} bytes`);
   console.log(`Minified bundle size: ${terse.length} bytes`);
 
   await fs.promises.mkdir('dist', { recursive: true });
-  await write('dist/ses.cjs', bundle);
-  await write('dist/ses.mjs', bundle);
-  await write('dist/ses.umd.js', bundle);
+  await write('dist/ses.cjs', versionedBundle);
+  await write('dist/ses.mjs', versionedBundle);
+  await write('dist/ses.umd.js', versionedBundle);
   await write('dist/ses.umd.min.js', terse);
 
-  await write('dist/lockdown.cjs', bundle);
-  await write('dist/lockdown.mjs', bundle);
-  await write('dist/lockdown.umd.js', bundle);
+  await write('dist/lockdown.cjs', versionedBundle);
+  await write('dist/lockdown.mjs', versionedBundle);
+  await write('dist/lockdown.umd.js', versionedBundle);
   await write('dist/lockdown.umd.min.js', terse);
 };
 
