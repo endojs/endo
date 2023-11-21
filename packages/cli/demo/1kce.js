@@ -4,7 +4,19 @@ import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { makeSyncGrainFromFollow } from './grain.js';
+import { makeReadonlyArrayGrainFromRemote, makeReadonlyGrainFromRemote } from './grain.js';
+
+const randomString = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+const keyMap = new WeakMap()
+const keyForItem = (item) => {
+  if (!keyMap.has(item)) {
+    keyMap.set(item, randomString())
+  }
+  return keyMap.get(item)
+}
+const keyForItems = (...items) => {
+  return items.map((item) => typeof item === 'string' ? item : keyForItem(item)).join('-')
+}
 
 const h = React.createElement;
 const useAsync = (asyncFn, deps) => {
@@ -92,67 +104,34 @@ const useBrokenSubscriptionForArray = (getSubFn, deps) => {
   return state;
 }
 
-// // grain follow via async iteration
-// const useGrainFollow = (grainFollowGetter, deps, initValue) => {
-//   const [grainValue, setGrainValue] = React.useState(initValue);
-
-//   React.useEffect(() => {
-//     let abort = false;
-//     let cancel;
-//     const canceled = new Promise(resolve => { cancel = resolve });
-//     const grainFollow = grainFollowGetter(canceled);
-//     if (grainFollow === undefined) return;
-//     (async () => {
-//       for await (const value of grainFollow) {
-//         if (abort) break;
-//         setGrainValue(value);
-//       }
-//     })();
-//     return () => {
-//       abort = true;
-//       cancel();
-//     }
-//   }, deps);
-
-//   return grainValue;
-// }
-
-// grain follow via subscribe (should be same as async iteration useGrainFollow)
-const useGrainFollow = (grainFollowGetter, deps, initValue) => {
-  const [grainValue, setGrainValue] = React.useState(initValue);
-
+const useGrain = (grain) => {
+  const [grainValue, setGrainValue] = React.useState(grain.get());
   React.useEffect(() => {
-    let cancel;
-    const canceled = new Promise(resolve => { cancel = resolve });
-    const grainFollow = grainFollowGetter(canceled);
-    if (grainFollow === undefined) return;
-    const grain = makeSyncGrainFromFollow(grainFollow, initValue)
     const unsubscribe = grain.subscribe(value => {
       setGrainValue(value)
     })
     return () => {
       unsubscribe();
-      cancel();
     }
-  }, deps);
-
+  }, [grain])
   return grainValue;
 }
 
-// grain follow, specialized for arrays
-const useArrayGrainFollow = (getSubFn, deps) => {
-  return useGrainFollow(getSubFn, deps, [])
+const useGrainGetter = (grainGetter, deps) => {
+  const grain = React.useMemo(grainGetter, deps)
+  return useGrain(grain)
 }
 
 const useRaf = (
   callback,
   isActive,
+  deps = [],
 ) => {
   const savedCallback = React.useRef();
   // Remember the latest function.
   React.useEffect(() => {
     savedCallback.current = callback;
-  }, [callback]);
+  }, deps);
 
   React.useEffect(() => {
     let animationFrame;
@@ -228,10 +207,10 @@ export function useMouse() {
   }
 
   React.useEffect(() => {
-    document.addEventListener("mousemove", updateMousePosition);
+    document.addEventListener('mousemove', updateMousePosition);
 
     return () => {
-      document.removeEventListener("mousemove", updateMousePosition);
+      document.removeEventListener('mousemove', updateMousePosition);
     };
   }, []);
 
@@ -265,12 +244,6 @@ const makeGame = async (powers) => {
 }
 
 const DeckCardsCardComponent = ({ actions, card }) => {
-  const { value: nickname } = useAsync(async () => {
-    if (card === undefined) {
-      return '<no card>';
-    }
-    return await actions.reverseLookupCard(card)
-  }, [card]);
   const { value: cardDetails } = useAsync(async () => {
     return await actions.getCardDetails(card)
   }, [card]);
@@ -283,7 +256,7 @@ const DeckCardsCardComponent = ({ actions, card }) => {
     if (!render) return
     const canvas = canvasRef.current;
     if (!canvas) return
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
@@ -292,7 +265,7 @@ const DeckCardsCardComponent = ({ actions, card }) => {
       y: (mouseData.clientY || 0) - rect.y,
     };
     render(ctx, rect, mousePosition, timeElapsed)
-  }, true)
+  }, true, [render, mouseData])
 
   const cardName = cardDetails?.name || '<no name>'
   const cardDescription = cardDetails?.description || '<no description>'
@@ -310,17 +283,19 @@ const DeckCardsCardComponent = ({ actions, card }) => {
         flexGrow: 0,
         overflow: 'hidden',
         position: 'relative',
-      }
+      },
     }, [
       h('canvas', {
+        key: 'card-art',
         ref: canvasRef,
         style: {
           position: 'absolute',
           width: '100%',
           height: '100%',
-        }
+        },
       }),
       h('div', {
+        key: 'card-body',
         style: {
           position: 'absolute',
           overflow: 'hidden',
@@ -329,14 +304,16 @@ const DeckCardsCardComponent = ({ actions, card }) => {
         },
       }, [
         h('div', {
+          key: 'card-body-inner',
           style: {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
             height: '100%',
-          }
+          },
         }, [
           h('span', {
+            key: 'title',
             title: cardName,
             style: {
               margin: '8px 12px',
@@ -354,9 +331,10 @@ const DeckCardsCardComponent = ({ actions, card }) => {
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               cursor: 'default',
-            }
+            },
           }, [cardName]),
           h('pre', {
+            key: 'description',
             style: {
               margin: '8px 12px',
               padding: '6px 4px',
@@ -370,9 +348,9 @@ const DeckCardsCardComponent = ({ actions, card }) => {
               color: 'aliceblue',
               cursor: 'default',
               whiteSpace: 'pre-wrap',
-            }
+            },
           }, [cardDescription]),
-        ])
+        ]),
       ]),
     ])
   )
@@ -381,7 +359,9 @@ const DeckCardsCardComponent = ({ actions, card }) => {
 const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) => {
   const cardsList = cards.map(card => {
     return (
-      h('div', null, [
+      h('div', {
+        key: keyForItems(card),
+      }, [
         h(DeckCardsCardComponent, { actions, card }),
         cardControlComponent && h(cardControlComponent, { card }),
       ])
@@ -392,23 +372,25 @@ const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) => {
       style: {
         display: 'flex',
         flexWrap: 'wrap',
-      }
+      },
     }, cards.length > 0 ? cardsList : '(no cards)')
   )
 }
 
 const DeckCardsComponent = ({ actions, deck }) => {
-  const cards = useArrayGrainFollow(
-    (canceled) => makeRefIterator(E(deck).follow(canceled)),
-    [deck]
+  const cards = useGrainGetter(
+    () => makeReadonlyArrayGrainFromRemote(
+      E(deck).getCardsGrain(),
+    ),
+    [deck],
   )
 
   return (
     h('div', {}, [
-      h('h3', null, ['Cards in deck']),
+      h('h3', { key: 'title' }, ['Cards in deck']),
       !deck && 'No deck found.',
       cards.length === 0 && 'No cards in deck.',
-      cards.length > 0 && h(CardsDisplayComponent, { actions, cards }),
+      cards.length > 0 && h(CardsDisplayComponent, { key: 'cards', actions, cards }),
     ])
   )
 };
@@ -416,14 +398,15 @@ const DeckCardsComponent = ({ actions, deck }) => {
 const DeckManagerComponent = ({ actions, deck }) => {
   return (
     h('div', {}, [
-      h('h2', null, ['Deck Manager']),
-      deck && h(ObjectsListComponent, { actions }),
+      h('h2', { key: 'title' }, ['Deck Manager']),
       h('button', {
+        key: 'new-deck',
         onClick: async () => {
           await actions.makeNewDeck()
-        }
+        },
       }, ['New Deck']),
-      deck && h(DeckCardsComponent, { actions, deck }),
+      deck && h(ObjectsListComponent, { key: 'inventory', actions }),
+      deck && h(DeckCardsComponent, { key: 'deck', actions, deck }),
     ])
   )
 };
@@ -432,9 +415,9 @@ const GameCurrentPlayerComponent = ({ actions, player, players }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const hand = useArrayGrainFollow(
-    (canceled) => actions.followPlayerHand(player, canceled),
-    [player]
+  const hand = useGrainGetter(
+    () => actions.getPlayerHandGrain(player),
+    [player],
   )
 
   // specify a component to render under the cards
@@ -442,12 +425,13 @@ const GameCurrentPlayerComponent = ({ actions, player, players }) => {
     const makePlayCardButton = ({ sourcePlayer, destPlayer }) => {
       const playLabel = sourcePlayer === destPlayer ? `Play on self` : `Play on ${destPlayer}`
       return h('button', {
+        key: keyForItems(sourcePlayer, destPlayer),
         style: {
           margin: '2px',
         },
         onClick: async () => {
           await actions.playCardFromHand(sourcePlayer, card, destPlayer)
-        }
+        },
       }, [playLabel])
     }
     const playControls = [
@@ -459,7 +443,7 @@ const GameCurrentPlayerComponent = ({ actions, player, players }) => {
           return null
         }
         return makePlayCardButton({ sourcePlayer: player, destPlayer: otherPlayer })
-      })
+      }),
     ]
     return (
       h('div', {
@@ -468,7 +452,7 @@ const GameCurrentPlayerComponent = ({ actions, player, players }) => {
           justifyContent: 'center',
           alignItems: 'center',
           flexDirection: 'column',
-        }
+        },
       }, [
         ...playControls,
       ])
@@ -487,9 +471,9 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const playerAreaCards = useArrayGrainFollow(
-    (canceled) => actions.followCardsAtPlayerLocation(player, canceled),
-    [player]
+  const playerAreaCards = useGrainGetter(
+    () => actions.getCardsAtPlayerLocationGrain(player),
+    [player],
   )
 
   return (
@@ -501,31 +485,40 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
 }
 
 const ActiveGameComponent = ({ actions, game }) => {
-  const players = useArrayGrainFollow(
-    (canceled) => makeRefIterator(E(game).followPlayers(canceled)),
-    [game]
+  const players = useGrainGetter(
+    () => makeReadonlyArrayGrainFromRemote(
+      E(game).getPlayersGrain(),
+    ),
+    [game],
   )
-  const gameState = useGrainFollow(
-    (canceled) => makeRefIterator(E(game).followState(canceled)),
-    [game]
+  const gameState = useGrainGetter(
+    () => makeReadonlyGrainFromRemote(
+      E(game).getStateGrain(),
+      {},
+    ),
+    [game],
   )
-  const currentPlayer = useGrainFollow(
-    (canceled) => makeRefIterator(E(game).followCurrentPlayer(canceled)),
-    [game]
+  const currentPlayer = useGrainGetter(
+    () => makeReadonlyGrainFromRemote(
+      E(game).getCurrentPlayerGrain(),
+    ),
+    [game],
   )
 
   return (
     h('div', {}, [
-      h('h3', null, ['Game']),
-      h('pre', null, JSON.stringify(gameState, null, 2)),
-      h('h3', null, ['Players']),
-      h('div', null, players && players.map(player => {
-        return h('div', null, [
+      h('h3', { key: 'title'}, ['Game']),
+      h('pre', { key: 'gamestate' }, JSON.stringify(gameState, null, 2)),
+      h('h3', { key: 'subtitle' }, ['Players']),
+      h('div', { key: 'players' }, players && players.map(player => {
+        return h('div', {
+          key: keyForItems(player),
+        }, [
           h(GamePlayerAreaComponent, {
             actions,
             player,
-            isCurrentPlayer: player === currentPlayer
-          })
+            isCurrentPlayer: player === currentPlayer,
+          }),
         ])
       })),
       currentPlayer && h(GameCurrentPlayerComponent, { actions, player: currentPlayer, players }),
@@ -536,13 +529,16 @@ const ActiveGameComponent = ({ actions, game }) => {
 const PlayGameComponent = ({ actions, game }) => {
   return (
     h('div', {}, [
-      h('h2', null, ['Play Game']),
+      h('h2', {
+        key: 'title',
+      }, ['Play Game']),
       !game && h('button', {
+        key: 'start',
         onClick: async () => {
           actions.start()
-        }
+        },
       }, ['Start']),
-      game && h(ActiveGameComponent, { actions, game }),
+      game && h(ActiveGameComponent, { key: 'game', actions, game }),
     ])
   )
 }
@@ -550,14 +546,15 @@ const PlayGameComponent = ({ actions, game }) => {
 const ObjectsListObjectComponent = ({ actions, name }) => {
   return (
     h('div', {}, [
-      h('span', null, [name]),
+      h('span', { key: 'name'}, [name]),
       h('button', {
+        key: 'add',
         onClick: async () => {
           await actions.addCardToDeckByName(name)
         },
         style: {
           margin: '6px',
-        }
+        },
       }, ['Add to Deck']),
     ])
   )
@@ -566,7 +563,7 @@ const ObjectsListObjectComponent = ({ actions, name }) => {
 const ObjectsListComponent = ({ actions }) => {
   const names = useBrokenSubscriptionForArray(
     () => actions.subscribeToNames(),
-    []
+    [],
   )
   const uniqueNames = [...new Set(names)]
 
@@ -575,9 +572,11 @@ const ObjectsListComponent = ({ actions }) => {
     objectList = 'No objects found.'
   } else {
     objectList = uniqueNames.map(name => {
-      return h('li', null, [
+      return h('li', {
+        key: name,
+      }, [
         h('span', null, [
-          h(ObjectsListObjectComponent, { actions, name })
+          h(ObjectsListObjectComponent, { actions, name }),
         ]),
       ])
     })
@@ -585,8 +584,8 @@ const ObjectsListComponent = ({ actions }) => {
   
   return (
     h('div', {}, [
-      h('h3', null, ['Inventory']),
-      h('ul', null, objectList),
+      h('h3', { key: 'title' }, ['Inventory']),
+      h('ul', { key: 'list' }, objectList),
     ])
   )
 
@@ -594,10 +593,7 @@ const ObjectsListComponent = ({ actions }) => {
 
 // for debugging
 const GrainComponent = ({ grain }) => {
-  const grainValue = useGrainFollow(
-    (canceled) => makeRefIterator(grain.follow(canceled)),
-    [game]
-  )
+  const grainValue = useGrain(grain)
 
   return (
     h('pre', null, [
@@ -628,9 +624,7 @@ const App = ({ powers }) => {
       await E(deck).add(card);
     },
     async addCardToDeckByName (cardName) {
-      const card = await E(powers).lookup(
-        cardName,
-      )
+      const card = await E(powers).lookup(cardName)
       await E(deck).add(card);
     },
     async reverseLookupCard (card) {
@@ -659,8 +653,16 @@ const App = ({ powers }) => {
     followCardsAtPlayerLocation (player, canceled) {
       return makeRefIterator(E(game).followCardsAtPlayerLocation(player, canceled))
     },
+    getCardsAtPlayerLocationGrain (player) {
+      const remoteGrain = E(game).getCardsAtPlayerLocationGrain(player)
+      return makeReadonlyArrayGrainFromRemote(remoteGrain)
+    },
     followPlayerHand (player, canceled) {
       return makeRefIterator(E(player).followHand(canceled))
+    },
+    getPlayerHandGrain (player) {
+      const remoteGrain = E(player).getHandGrain()
+      return makeReadonlyArrayGrainFromRemote(remoteGrain)
     },
 
     // inventory
@@ -691,6 +693,7 @@ const App = ({ powers }) => {
   return (
     h('div', {}, [
       h('h1', {
+        key: 'title',
         style: {
           display: 'inline',
           border: '2px solid black',
@@ -698,11 +701,10 @@ const App = ({ powers }) => {
           padding: '4px',
           background: 'white',
           fontSize: '42px',
-        }
+        },
       }, ['🃏1kce🃏']),
-      !game && h(DeckManagerComponent, { actions, deck }),
-      // h(FollowMessagesComponent, { powers }),
-      deck && h(PlayGameComponent, { actions, game }),
+      !game && h(DeckManagerComponent, { key: 'deck-manager', actions, deck }),
+      deck && h(PlayGameComponent, { key: 'play-game-component', actions, game }),
     ])
   )
 };

@@ -1,4 +1,4 @@
-import { Far } from "@endo/far"
+import { Far } from '@endo/far'
 
 export const make = (powers) => {
   return Far('fruitful harvest', {
@@ -27,7 +27,7 @@ function makeRenderer() {
     fruits = Array.from({ length: 5 }, () => ({
       x: Math.random() * rect.width,
       y: Math.random() * rect.height,
-      size: 10 + Math.random() * 10 // Size between 10 and 20
+      size: 10 + Math.random() * 10, // Size between 10 and 20
     }));
   }
 
@@ -60,7 +60,7 @@ function makeRenderer() {
     // Change something based on mousePos.x and mousePos.y
     // Example: Increase the size of the nearest fruit
     const nearestFruit = fruits.reduce((nearest, fruit) => {
-      let distance = Math.sqrt((fruit.x - mousePos.x) ** 2 + (fruit.y - mousePos.y) ** 2);
+      const distance = Math.sqrt((fruit.x - mousePos.x) ** 2 + (fruit.y - mousePos.y) ** 2);
       return distance < nearest.distance ? { fruit, distance } : nearest;
     }, { fruit: null, distance: Infinity });
 
