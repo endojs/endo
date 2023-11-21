@@ -4,7 +4,7 @@ import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { makeSyncGrainFromFollow, makeReadonlyArrayGrainFromRemote } from './grain.js';
+import { makeReadonlyArrayGrainFromRemote, makeReadonlyGrainFromRemote } from './grain.js';
 
 const randomString = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 const keyMap = new WeakMap()
@@ -104,58 +104,6 @@ const useBrokenSubscriptionForArray = (getSubFn, deps) => {
   return state;
 }
 
-// // grain follow via async iteration
-// const useGrainFollow = (grainFollowGetter, deps, initValue) => {
-//   const [grainValue, setGrainValue] = React.useState(initValue);
-
-//   React.useEffect(() => {
-//     let abort = false;
-//     let cancel;
-//     const canceled = new Promise(resolve => { cancel = resolve });
-//     const grainFollow = grainFollowGetter(canceled);
-//     if (grainFollow === undefined) return;
-//     (async () => {
-//       for await (const value of grainFollow) {
-//         if (abort) break;
-//         setGrainValue(value);
-//       }
-//     })();
-//     return () => {
-//       abort = true;
-//       cancel();
-//     }
-//   }, deps);
-
-//   return grainValue;
-// }
-
-// grain follow via subscribe (should be same as async iteration useGrainFollow)
-const useGrainFollow = (grainFollowGetter, deps, initValue) => {
-  const [grainValue, setGrainValue] = React.useState(initValue);
-
-  React.useEffect(() => {
-    let cancel;
-    const canceled = new Promise(resolve => { cancel = resolve });
-    const grainFollow = grainFollowGetter(canceled);
-    if (grainFollow === undefined) return;
-    const grain = makeSyncGrainFromFollow(grainFollow, initValue)
-    const unsubscribe = grain.subscribe(value => {
-      setGrainValue(value)
-    })
-    return () => {
-      unsubscribe();
-      cancel();
-    }
-  }, deps);
-
-  return grainValue;
-}
-
-// grain follow, specialized for arrays
-const useArrayGrainFollow = (getSubFn, deps) => {
-  return useGrainFollow(getSubFn, deps, [])
-}
-
 const useGrain = (grain) => {
   const [grainValue, setGrainValue] = React.useState(grain.get());
   React.useEffect(() => {
@@ -165,7 +113,7 @@ const useGrain = (grain) => {
     return () => {
       unsubscribe();
     }
-  })
+  }, [grain])
   return grainValue;
 }
 
@@ -430,8 +378,10 @@ const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) => {
 }
 
 const DeckCardsComponent = ({ actions, deck }) => {
-  const cards = useArrayGrainFollow(
-    (canceled) => makeRefIterator(E(deck).follow(canceled)),
+  const cards = useGrainGetter(
+    () => makeReadonlyArrayGrainFromRemote(
+      E(deck).getCardsGrain(),
+    ),
     [deck],
   )
 
@@ -465,8 +415,8 @@ const GameCurrentPlayerComponent = ({ actions, player, players }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const hand = useArrayGrainFollow(
-    (canceled) => actions.followPlayerHand(player, canceled),
+  const hand = useGrainGetter(
+    () => actions.getPlayerHandGrain(player),
     [player],
   )
 
@@ -521,14 +471,10 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const playerAreaCards = useArrayGrainFollow(
-    (canceled) => actions.followCardsAtPlayerLocation(player, canceled),
-    [player],
+  const playerAreaCards = useGrainGetter(
+    () => actions.getCardsAtPlayerLocationGrain(player),
+    [player]
   )
-  // const playerAreaCards = useGrainGetter(
-  //   () => actions.getCardsAtPlayerLocationGrain(player),
-  //   [player]
-  // )
 
   return (
     h('div', {}, [
@@ -539,16 +485,23 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
 }
 
 const ActiveGameComponent = ({ actions, game }) => {
-  const players = useArrayGrainFollow(
-    (canceled) => makeRefIterator(E(game).followPlayers(canceled)),
+  const players = useGrainGetter(
+    () => makeReadonlyArrayGrainFromRemote(
+      E(game).getPlayersGrain()
+    ),
     [game],
   )
-  const gameState = useGrainFollow(
-    (canceled) => makeRefIterator(E(game).followState(canceled)),
+  const gameState = useGrainGetter(
+    () => makeReadonlyGrainFromRemote(
+      E(game).getStateGrain(),
+      {},
+    ),
     [game],
   )
-  const currentPlayer = useGrainFollow(
-    (canceled) => makeRefIterator(E(game).followCurrentPlayer(canceled)),
+  const currentPlayer = useGrainGetter(
+    () => makeReadonlyGrainFromRemote(
+      E(game).getCurrentPlayerGrain()
+    ),
     [game],
   )
 
@@ -640,10 +593,7 @@ const ObjectsListComponent = ({ actions }) => {
 
 // for debugging
 const GrainComponent = ({ grain }) => {
-  const grainValue = useGrainFollow(
-    (canceled) => makeRefIterator(grain.follow(canceled)),
-    [grain],
-  )
+  const grainValue = useGrain(grain)
 
   return (
     h('pre', null, [

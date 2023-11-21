@@ -2,7 +2,7 @@ import '@endo/init/debug.js';
 import { make as makeGame } from './game.js';
 import { make as makeDeck } from './deck.js';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-import { makeSyncGrainFromFollow } from './grain.js';
+import { makeDerivedSyncGrain, makeReadonlyArrayGrainFromRemote, makeSyncGrainFromFollow } from './grain.js';
 import { E } from '@endo/far';
 
 import { make as makeCard } from './cards/firmament.js';
@@ -39,9 +39,18 @@ async function main () {
   // await E(deck).add(makeCard());
   // await E(deck).add(makeCard());
   // await E(deck).add(makeCard());
-  console.log('START>>>', await E(deck).getCards())
+  // console.log('START>>>', await E(deck).getCards())
 
   await E(game).start(deck)
+
+  const playersGrain = makeReadonlyArrayGrainFromRemote(E(game).getPlayersGrain())
+  playersGrain.subscribe(players => {
+    console.log({players})
+  })
+  const firstPlayerGrain = makeDerivedSyncGrain(playersGrain, players => players[0])
+
+  // const remoteGrain = E(game).getCardsAtPlayerLocationGrain(player)
+  // const playerLocationCards = makeReadonlyArrayGrainFromRemote(remoteGrain)
 }
 
 // TODO: investigate:

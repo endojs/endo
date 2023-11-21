@@ -51,6 +51,9 @@ export function makeGame () {
   const followRemotePlayers = (canceled) => {
     return remotePlayers.follow(canceled)
   }
+  const getRemotePlayersGrain = () => {
+    return remotePlayers
+  }
   const addPlayer = (localPlayer) => {
     localPlayers.push(localPlayer)
   }
@@ -67,6 +70,9 @@ export function makeGame () {
   )
   const followCurrentRemotePlayer = (canceled) => {
     return currentRemotePlayer.follow(canceled)
+  }
+  const getCurrentRemotePlayerGrain = () => {
+    return currentRemotePlayer
   }
   const advanceCurrentPlayer = () => {
     const currentPlayerGrain = currentPlayerIndex
@@ -264,8 +270,10 @@ export function makeGame () {
     start,
     playCardFromHand,
     followRemotePlayers,
+    getRemotePlayersGrain,
     followState,
     followCurrentRemotePlayer,
+    getCurrentRemotePlayerGrain,
     getCardsAtLocation,
   }
   return game
@@ -284,18 +292,32 @@ export const make = (powers) => {
       const localDestinationPlayer = playerRemoteToLocal.get(remoteDestinationPlayer)
       await game.playCardFromHand(localSourcePlayer, card, localDestinationPlayer)
     },
+
     async followPlayers (canceled) {
       return makeIteratorRef(game.followRemotePlayers(canceled))
     },
+    async getPlayersGrain () {
+      return makeRemoteGrain(game.getRemotePlayersGrain())
+    },
+
     async followState (canceled) {
       return makeIteratorRef(game.followState(canceled))
     },
+    async getStateGrain () {
+      return makeRemoteGrain(game.state)
+    },
+
     async followCurrentPlayer (canceled) {
       return makeIteratorRef(game.followCurrentRemotePlayer(canceled))
     },
+    async getCurrentPlayerGrain () {
+      return makeRemoteGrain(game.getCurrentRemotePlayerGrain())
+    },
+
     async followCardsAtLocation (location, canceled) {
       return makeIteratorRef(game.getCardsAtLocation(location).follow(canceled))
     },
+
     async followCardsAtPlayerLocation (remotePlayer, canceled) {
       const { name } = playerRemoteToLocal.get(remotePlayer)
       return makeIteratorRef(game.getCardsAtLocation(name).follow(canceled))
@@ -303,9 +325,6 @@ export const make = (powers) => {
     async getCardsAtPlayerLocationGrain (remotePlayer) {
       const { name } = playerRemoteToLocal.get(remotePlayer)
       return makeRemoteGrain(game.getCardsAtLocation(name))
-    },
-    async getStateGrain () {
-      return makeRemoteGrain(game.state)
     },
   });
 };
