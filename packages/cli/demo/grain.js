@@ -507,11 +507,11 @@ export const makeSubscribedSyncGrainFromAsyncGrain = (asyncGrain, initialValue) 
 //
 
 // given a grain, returns a remote grain for sending over captp
-export const makeRemoteGrain = (grain, name = 'grain') => {
+export const makeRemoteGrain = (localSyncGrain, name = 'grain') => {
   return Far(name, {
-    ...grain,
+    ...localSyncGrain,
     follow: async (canceled) => {
-      return makeIteratorRef(E(grain).follow(canceled))
+      return makeIteratorRef(localSyncGrain.follow(canceled))
     },
   })
 }
@@ -538,9 +538,12 @@ export const makeLocalAsyncGrainFromRemote = (remoteGrain) => {
   const follow = (canceled) => {
     return makeRefIterator(E(remoteGrain).follow(canceled))
   }
+
+  // late bound reference to this grain
+  let asyncGrain
   // this is convenient but unless you provide an initial value, it will be uninitialized
   const makeSubscribedSyncGrain = (initialValue) => {
-   return makeSubscribedSyncGrainFromAsyncGrain(remoteGrain, initialValue).readonly()
+   return makeSubscribedSyncGrainFromAsyncGrain(asyncGrain, initialValue).readonly()
   }
   // this waits for the first value, at the cost of being async
   const makeSubscribedSyncGrainAndInitialize = async () => {
@@ -564,12 +567,20 @@ export const makeLocalAsyncGrainFromRemote = (remoteGrain) => {
     }
   }
 
-  return {
+  asyncGrain = {
     ...readonly(),
     set,
     update,
     destroy,
   }
+
+  return asyncGrain
+}
+
+export const makeReadonlyGrainFromRemote = (remoteGrain, initValue) => {
+  const localAsyncGrain = makeLocalAsyncGrainFromRemote(remoteGrain)
+  const localSyncGrain = localAsyncGrain.makeSubscribedSyncGrain(initValue)
+  return localSyncGrain
 }
 
 // given a remote grain, returns a readonly array grain that is subscribed to the remote grain
