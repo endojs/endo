@@ -485,6 +485,7 @@ export const composeGrainsAsync = (grains, deriveFn, initValue) => {
 }
 
 // given an AsyncGrain, returns a readonly SyncGrain that is subscribed to the remote grain
+// TODO: consider that subs/follows may not need the current unsynced value
 export const makeSubscribedSyncGrainFromAsyncGrain = (asyncGrain, initialValue) => {
   const { promise: canceled, resolve: cancel } = makePromiseKit()
   const syncGrain = makeSyncGrainFromFollow(
