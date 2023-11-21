@@ -1,4 +1,4 @@
-import { Far } from '@endo/far'
+import { E, Far } from '@endo/far'
 
 export const make = (powers) => {
   return Far('deja vu', {
