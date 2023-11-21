@@ -1,4 +1,4 @@
-import { Far } from "@endo/far"
+import { Far } from '@endo/far'
 
 export const make = (powers) => {
   return Far('the firmament', {
@@ -42,7 +42,7 @@ function makeRenderer () {
   function draw(context, rect, mousePos) {
     context.clearRect(0, 0, 600, 400);
     context.beginPath();
-    context.fillStyle = "#EFEFEF";
+    context.fillStyle = '#EFEFEF';
     context.rect(0, 0, 600, 400);
     context.closePath();
     context.fill();
@@ -54,7 +54,7 @@ function makeRenderer () {
         const px = p.x;
         const py = p.y;
         context.beginPath();
-        context.fillStyle = "#000000";
+        context.fillStyle = '#000000';
         context.arc(px, py, radius, 0, Math.PI * 2, true);
         context.closePath();
         context.fill();
