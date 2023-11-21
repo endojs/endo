@@ -4,7 +4,7 @@ import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { makeReadonlyArrayGrainFromRemote, makeReadonlyGrainFromRemote } from './grain.js';
+import { makeReadonlyArrayGrainFromRemote, makeReadonlyGrainFromRemote } from '@endo/grain/captp.js';
 
 const randomString = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 const keyMap = new WeakMap()
