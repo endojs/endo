@@ -473,7 +473,7 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
   }, [player]);
   const playerAreaCards = useGrainGetter(
     () => actions.getCardsAtPlayerLocationGrain(player),
-    [player]
+    [player],
   )
 
   return (
@@ -487,7 +487,7 @@ const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
 const ActiveGameComponent = ({ actions, game }) => {
   const players = useGrainGetter(
     () => makeReadonlyArrayGrainFromRemote(
-      E(game).getPlayersGrain()
+      E(game).getPlayersGrain(),
     ),
     [game],
   )
@@ -500,7 +500,7 @@ const ActiveGameComponent = ({ actions, game }) => {
   )
   const currentPlayer = useGrainGetter(
     () => makeReadonlyGrainFromRemote(
-      E(game).getCurrentPlayerGrain()
+      E(game).getCurrentPlayerGrain(),
     ),
     [game],
   )

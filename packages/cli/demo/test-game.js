@@ -1,9 +1,9 @@
 import '@endo/init/debug.js';
+import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { E } from '@endo/far';
 import { make as makeGame } from './game.js';
 import { make as makeDeck } from './deck.js';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { makeDerivedSyncGrain, makeReadonlyArrayGrainFromRemote, makeSyncGrainFromFollow } from './grain.js';
-import { E } from '@endo/far';
 
 import { make as makeCard } from './cards/firmament.js';
 
