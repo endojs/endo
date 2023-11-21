@@ -4,13 +4,30 @@ import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { makeArrayGrainFromSyncGrain, makeSubscribedSyncGrainFromAsyncGrain } from './index.js';
 
-// given a grain, returns a remote grain for sending over captp
-export const makeRemoteGrain = (localSyncGrain, name = 'grain') => {
-  return Far(name, {
+const makeRemoteGrainInterface = (localSyncGrain) => {
+  return {
     ...localSyncGrain,
     follow: async (canceled) => {
       return makeIteratorRef(localSyncGrain.follow(canceled))
     },
+  }
+}
+
+// given a grain, returns a remote grain for sending over captp
+export const makeRemoteGrain = (localSyncGrain, name = 'grain') => {
+  return Far(name, {
+    ...makeRemoteGrainInterface(localSyncGrain),
+  })
+}
+
+export const makeRemoteGrainMap = (localSyncGrainMap, name = 'grainmap') => {
+  const getGrain = async (key, childName = `${name}/${key}`) => {
+    const childLocalSyncGrain = localSyncGrainMap.getGrain(key)
+    return makeRemoteGrain(childLocalSyncGrain, childName)
+  }
+  return Far(name, {
+    ...makeRemoteGrainInterface(localSyncGrainMap),
+    getGrain,
   })
 }
 
@@ -75,6 +92,19 @@ export const makeLocalAsyncGrainFromRemote = (remoteGrain) => {
   return asyncGrain
 }
 
+export const makeLocalAsyncGrainMapFromRemote = (remoteGrain) => {
+  const asyncGrain = makeLocalAsyncGrainFromRemote(remoteGrain)
+  const getGrain = (key) => {
+    const childRemoteGrain = E(remoteGrain).getGrain(key)
+    const childLocalAsyncGrain = makeLocalAsyncGrainFromRemote(childRemoteGrain)
+   return childLocalAsyncGrain
+  }
+  return {
+    ...asyncGrain,
+    getGrain,
+  }
+}
+
 export const makeReadonlyGrainFromRemote = (remoteGrain, initValue) => {
   const localAsyncGrain = makeLocalAsyncGrainFromRemote(remoteGrain)
   const localSyncGrain = localAsyncGrain.makeSubscribedSyncGrain(initValue)
@@ -89,4 +119,19 @@ export const makeReadonlyArrayGrainFromRemote = (remoteGrain, initValue = []) =>
   const localSyncGrain = localAsyncGrain.makeSubscribedSyncGrain(initValue)
   const localArrayGrain = makeArrayGrainFromSyncGrain(localSyncGrain).readonly()
   return localArrayGrain
+}
+
+export const makeReadonlyGrainMapFromRemote = (remoteGrainMap, initValue = {}) => {
+  const localAsyncGrain = makeLocalAsyncGrainFromRemote(remoteGrainMap)
+  const localAsyncGrainMap = makeLocalAsyncGrainMapFromRemote(remoteGrainMap)
+  const localSyncGrain = localAsyncGrain.makeSubscribedSyncGrain(initValue)
+  const getGrain = (key) => {
+    const childLocalAsyncGrain = localAsyncGrainMap.getGrain(key)
+    const childLocalSyncGrain = childLocalAsyncGrain.makeSubscribedSyncGrain()
+    return childLocalSyncGrain
+  }
+  return {
+    ...localSyncGrain,
+    getGrain,
+  }
 }
