@@ -38,6 +38,7 @@
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
+    "@endo/grain": "workspace:^",
     "@endo/import-bundle": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/pass-style": "workspace:^",

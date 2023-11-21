@@ -1,6 +1,7 @@
 import { E, Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
-import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain, composeGrainsAsync, composeGrains, makeRemoteGrain } from './grain.js';
+import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain, composeGrainsAsync, composeGrains } from '@endo/grain';
+import { makeRemoteGrain } from '@endo/grain/captp.js';
 
 const playerRemoteToLocal = new Map()
 class Player {

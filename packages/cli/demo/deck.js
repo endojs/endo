@@ -1,6 +1,7 @@
 import { Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
-import { makeSyncArrayGrain, makeRemoteGrain } from './grain.js';
+import { makeSyncArrayGrain } from '@endo/grain';
+import { makeRemoteGrain } from '@endo/grain/captp.js';
 
 export const make = () => {
   const cards = makeSyncArrayGrain();
