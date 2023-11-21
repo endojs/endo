@@ -19,6 +19,8 @@
   "type": "module",
   "exports": {},
   "scripts": {
+    "1kce": "./demo/1kce/start.sh",
+    "1kce:dev": "./demo/1kce/dev.sh",
     "build": "exit 0",
     "prepack": "tsc --build jsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
