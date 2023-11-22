@@ -63,13 +63,14 @@ export const ObjectsListObjectComponent = ({ addAction, name }) => {
   )
 }
 
-export const ObjectsListComponent = ({ inventory, addAction }) => {
+const filterNoop = () => true
+export const ObjectsListComponent = ({ inventory, addAction, filterFn = filterNoop }) => {
   const names = useBrokenSubscriptionForArray(
     () => inventory.subscribeToNames(),
     [],
   )
   
-  const uniqueNames = [...new Set(names)]
+  const uniqueNames = [...new Set(names)].filter(filterFn)
   let objectList
   if (uniqueNames.length === 0) {
     objectList = 'No objects found.'

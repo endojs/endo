@@ -1,5 +1,5 @@
 import { E } from '@endo/far';
-import { makeRefIterator } from '@endo/daemon/ref-reader';
+import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { make as makeApp } from './ui/index.js';
 
 // no way of resolving relative paths from the weblet

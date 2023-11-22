@@ -2,7 +2,7 @@ import React from 'react';
 import { E } from '@endo/far';
 import { makeReadonlyGrainMapFromRemote } from '@endo/grain/captp.js';
 import { h } from './util.js';
-import { DeckManagerComponent, PlayGameComponent } from './game.js';
+import { ActiveGameComponent, DeckManagerComponent, PlayGameComponent } from './game.js';
 
 
 export const App = ({ inventory }) => {
@@ -63,7 +63,8 @@ export const App = ({ inventory }) => {
         },
       }, ['🃏1kce🃏']),
       !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, inventory }),
-      deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
+      !game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
+      game && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
     ])
   )
 };

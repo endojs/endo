@@ -1,0 +1,25 @@
+Please make a canvas animation that responds to mouse position without using any libraries or external resources.
+The animation should depict a "deja vu".
+Respond with just the makeRenderer function. Match the below format:
+
+function makeRenderer () {
+  let isInitialized = false
+  function initialize (rect) {
+    // init code
+  }
+  
+  /**
+   * @param {CanvasRenderingContext2D} context
+   * @param {DOMRect} rect
+   * @param {Object} mousePos
+   * @param {number} mousePos.x
+   * @param {number} mousePos.y
+  **/
+  return function draw(context, rect, mousePos) {
+    if (!isInitialized) {
+      initialize(rect)
+      isInitialized = true
+    }
+    // draw code  
+  };
+}

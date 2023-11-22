@@ -132,25 +132,38 @@ export const CardComponent = ({ card }) => {
   )
 };
 
-export const CardsDisplayComponent = ({ cards, cardControlComponent }) => {
-  const cardsList = cards.map(card => {
-    return (
-      h('div', {
-        key: keyForItems(card),
-      }, [
-        h(CardComponent, { card }),
-        cardControlComponent && h(cardControlComponent, { card }),
-      ])
-    )
-  })
+export const CardAndControlsComponent = ({ card, cardControlComponent }) => {
+  return (
+    h('div', {
+      key: keyForItems(card),
+    }, [
+      h(CardComponent, { card }),
+      cardControlComponent && h(cardControlComponent, { card }),
+    ])
+  )
+}
+
+export const CardsDisplayComponent = ({ cards, cardControlComponent, emptyMessage = `( no cards )` }) => {
+  const cardsList = cards.map(card => h(CardAndControlsComponent, { card, cardControlComponent }))
   return (
     h('div', {
       style: {
         display: 'flex',
         flexWrap: 'wrap',
+        alignItems: 'center',
+        minHeight: '336px',
       },
-    }, cards.length > 0 ? cardsList : '(no cards)')
+    }, cards.length > 0 ? cardsList : emptyMessage)
   )
+}
+
+const getCardDuplicateCount = (cards) => {
+  const countForCard = new Map()
+  for (const card of cards) {
+    const count = countForCard.get(card) || 0
+    countForCard.set(card, count + 1)
+  }
+  return countForCard
 }
 
 export const DeckCardsComponent = ({ deck }) => {
@@ -160,18 +173,52 @@ export const DeckCardsComponent = ({ deck }) => {
     ),
     [deck],
   )
+  const cardsCount = getCardDuplicateCount(cards)
+  const uniqueCards = [...cardsCount.keys()]
+
+  // specify a component to render under the cards
+  const cardControlComponent = ({ card }) => {
+    const count = cardsCount.get(card)
+    return (
+      h('div', {
+        key: 'deck-card-controls',
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          alignContent: 'center',
+          alignItems: 'center',
+        },
+      }, [
+        h('span', {
+          key: 'count',
+          style: {
+            margin: '2px',
+          },
+        }, [`${count}x`]),
+        h('button', {
+          key: 'remove-button',
+          style: {
+            margin: '2px',
+          },
+          onClick: async () => {
+            await E(deck).remove(card)
+          },
+        }, ['Remove from Deck']),
+      ])
+    )
+  }
 
   return (
     h('div', {}, [
       h('h3', { key: 'title' }, ['Cards in deck']),
       !deck && 'No deck found.',
-      cards.length === 0 && 'No cards in deck.',
-      cards.length > 0 && h(CardsDisplayComponent, { key: 'cards', cards }),
+      h(CardsDisplayComponent, { key: 'cards', cards: uniqueCards, cardControlComponent, emptyMessage: '( No cards in deck. )' }),
     ])
   )
 };
 
 export const DeckManagerComponent = ({ deck, deckMgmt, inventory }) => {
+  const nameStartsWithCard = (name) => name.startsWith('card-')
   const addAction = (name) => {
     return deckMgmt.addCardToDeckByName(name)
   }
@@ -184,11 +231,28 @@ export const DeckManagerComponent = ({ deck, deckMgmt, inventory }) => {
           await deckMgmt.makeNewDeck()
         },
       }, ['New Deck']),
-      deck && h(ObjectsListComponent, { key: 'inventory', inventory, addAction }),
+      deck && h(ObjectsListComponent, { key: 'inventory', inventory, addAction, filterFn: nameStartsWithCard }),
       deck && h(DeckCardsComponent, { key: 'deck', deck }),
     ])
   )
 };
+
+const PlayCardButtonComponent = ({ card, gameMgmt, sourcePlayer, destPlayer }) => {
+  const { value: destPlayerName } = useAsync(async () => {
+    return await E(destPlayer).getName()
+  }, [destPlayer]);
+
+  const playLabel = sourcePlayer === destPlayer ? `Play on self` : `Play on ${destPlayerName}`
+  return h('button', {
+    key: keyForItems(sourcePlayer, destPlayer),
+    style: {
+      margin: '2px',
+    },
+    onClick: async () => {
+      await gameMgmt.playCardFromHand(sourcePlayer, card, destPlayer)
+    },
+  }, [playLabel])
+}
 
 export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
   const { value: name } = useAsync(async () => {
@@ -203,27 +267,15 @@ export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
 
   // specify a component to render under the cards
   const cardControlComponent = ({ card }) => {
-    const makePlayCardButton = ({ sourcePlayer, destPlayer }) => {
-      const playLabel = sourcePlayer === destPlayer ? `Play on self` : `Play on ${destPlayer}`
-      return h('button', {
-        key: keyForItems(sourcePlayer, destPlayer),
-        style: {
-          margin: '2px',
-        },
-        onClick: async () => {
-          await gameMgmt.playCardFromHand(sourcePlayer, card, destPlayer)
-        },
-      }, [playLabel])
-    }
     const playControls = [
       // first to self
-      makePlayCardButton({ sourcePlayer: player, destPlayer: player }),
+      h(PlayCardButtonComponent, { card, gameMgmt, sourcePlayer: player, destPlayer: player }),
       // then to all other players except self
       ...players.map(otherPlayer => {
         if (otherPlayer === player) {
           return null
         }
-        return makePlayCardButton({ sourcePlayer: player, destPlayer: otherPlayer })
+        return h(PlayCardButtonComponent, { card, gameMgmt, sourcePlayer: player, destPlayer: otherPlayer })
       }),
     ]
     return (
@@ -243,12 +295,12 @@ export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
   return (
     h('div', {}, [
       h('h3', null, [`Current Player: ${name}`]),
-      h(CardsDisplayComponent, { cards: hand, cardControlComponent }),
+      h(CardsDisplayComponent, { cards: hand, cardControlComponent, emptyMessage: '( No cards in hand. )' }),
     ])
   )
 }
 
-export const GamePlayerAreaComponent = ({ game, player, isCurrentPlayer }) => {
+export const GamePlayerAreaComponent = ({ game, player, isCurrentPlayer, score }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
@@ -261,14 +313,13 @@ export const GamePlayerAreaComponent = ({ game, player, isCurrentPlayer }) => {
 
   return (
     h('div', {}, [
-      h('h4', null, [`${name} ${isCurrentPlayer ? '(current)' : ''}`]),
-      h(CardsDisplayComponent, { cards: playerAreaCards }),
+      h('h4', null, [`${name} [${score}] ${isCurrentPlayer ? '(current)' : ''}`]),
+      h(CardsDisplayComponent, { cards: playerAreaCards, emptyMessage: '( No cards in player area. )' }),
     ])
   )
 }
 
 export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
-  const gameState = useGrain(stateGrain)
   const players = useGrainGetter(
     () => stateGrain.getGrain('players'),
     [stateGrain],
@@ -277,41 +328,96 @@ export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
     () => stateGrain.getGrain('currentPlayer'),
     [stateGrain],
   )
+  const scores = useGrainGetter(
+    () => stateGrain.getGrain('scores'),
+    [stateGrain],
+  )
+  const deckCardsCount = useGrainGetter(
+    () => stateGrain.getGrain('deckCardsCount'),
+    [stateGrain],
+  )
+  const log = useGrainGetter(
+    () => stateGrain.getGrain('log'),
+    [stateGrain],
+  )
 
   return (
-    h('div', {}, [
-      h('h3', { key: 'title'}, ['Game']),
-      h('pre', { key: 'gamestate' }, JSON.stringify(gameState, null, 2)),
-      h('h3', { key: 'subtitle' }, ['Players']),
-      h('div', { key: 'players' }, players && players.map(player => {
-        return h('div', {
-          key: keyForItems(player),
-        }, [
-          h(GamePlayerAreaComponent, {
-            game,
-            player,
-            isCurrentPlayer: player === currentPlayer,
-          }),
-        ])
-      })),
-      currentPlayer && h(GameCurrentPlayerComponent, { gameMgmt, player: currentPlayer, players }),
+    h('div', {
+      style: {
+        display: 'flex',
+      },
+    }, [
+      h('section', {
+        key: 'game-board',
+        style: {
+          flexGrow: 1,
+        },
+      }, [
+        h('h3', { key: 'title'}, ['Game']),
+        h('div', { key: 'deck-count' }, [`Cards remaining in deck: ${deckCardsCount}`]),
+        // log
+        h('h3', { key: 'subtitle' }, ['Players']),
+        h('div', { key: 'players' }, players && players.map((player, index) => {
+          const score = scores ? scores[index] : 0
+          return h('div', {
+            key: keyForItems(player),
+          }, [
+            h(GamePlayerAreaComponent, {
+              game,
+              player,
+              isCurrentPlayer: player === currentPlayer,
+              score,
+            }),
+          ])
+        })),
+        currentPlayer && h(GameCurrentPlayerComponent, { gameMgmt, player: currentPlayer, players }),
+      ]),
+      h('section', {
+        key: 'log',
+        style: {
+          boxSizing: 'border-box',
+          width: '400px',
+          border: '2px solid',
+          padding: '0 12px',
+          background: 'whitesmoke',
+        },
+      }, [
+        h('h3', { key: 'title'}, ['Log']),
+        log && h('ul', {
+          key: 'log',
+          style: {
+            padding: '0px 20px',
+          },
+        }, log.map((entry, index) => {
+          return h('li', {
+            key: index,
+          }, [entry])
+        })),
+      ]),
     ])
   )
 }
 
-export const PlayGameComponent = ({ game, stateGrain, gameMgmt }) => {
+export const PlayGameComponent = ({ gameMgmt }) => {
   return (
     h('div', {}, [
-      h('h2', {
-        key: 'title',
-      }, ['Play Game']),
-      !game && h('button', {
+      // start game button
+      h('button', {
         key: 'start',
+        style: {
+          margin: '36px',
+        },
         onClick: async () => {
           gameMgmt.start()
         },
-      }, ['Start']),
-      game && h(ActiveGameComponent, { key: 'game', game, gameMgmt, stateGrain }),
+      }, [
+        h('div', {
+          key: 'title',
+          style: {
+            fontSize: '28px',
+          },
+        }, ['Play Game']),
+      ]),
     ])
   )
 }

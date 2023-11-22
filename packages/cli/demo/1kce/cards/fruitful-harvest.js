@@ -1,6 +1,6 @@
 import { E, Far } from '@endo/far'
 
-export const make = (powers) => {
+export const make = () => {
   return Far('fruitful harvest', {
     async play (game) {
       await E(game).prependTurnPhase('draw')
@@ -9,7 +9,7 @@ export const make = (powers) => {
       return {
         name: 'fruitful harvest',
         description: 'each player now draws an additional card at the start of each turn.\n\n+25 points',
-        pointValue: 50,
+        pointValue: 25,
       }
     },
     getRendererCode () {
