@@ -46,14 +46,14 @@ const useBrokenSubscriptionForArray = (getSubFn, deps) => {
   return state;
 }
 
-export const ObjectsListObjectComponent = ({ actions, name }) => {
+export const ObjectsListObjectComponent = ({ addAction, name }) => {
   return (
     h('div', {}, [
       h('span', { key: 'name'}, [name]),
       h('button', {
         key: 'add',
         onClick: async () => {
-          await actions.addCardToDeckByName(name)
+          await addAction(name)
         },
         style: {
           margin: '6px',
@@ -63,9 +63,9 @@ export const ObjectsListObjectComponent = ({ actions, name }) => {
   )
 }
 
-export const ObjectsListComponent = ({ actions }) => {
+export const ObjectsListComponent = ({ inventory, addAction }) => {
   const names = useBrokenSubscriptionForArray(
-    () => actions.subscribeToNames(),
+    () => inventory.subscribeToNames(),
     [],
   )
   
@@ -79,7 +79,7 @@ export const ObjectsListComponent = ({ actions }) => {
         key: name,
       }, [
         h('span', null, [
-          h(ObjectsListObjectComponent, { actions, name }),
+          h(ObjectsListObjectComponent, { addAction, name }),
         ]),
       ])
     })

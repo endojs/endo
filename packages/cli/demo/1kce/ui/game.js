@@ -1,18 +1,32 @@
 import React from 'react';
 import { E } from '@endo/far';
-import { makeReadonlyArrayGrainFromRemote, makeReadonlyGrainFromRemote } from '@endo/grain/captp.js';
-import { h, useRaf, useMouse, useAsync, keyForItems, useGrainGetter } from './util.js';
+import { makeReadonlyArrayGrainFromRemote } from '@endo/grain/captp.js';
+import { h, useRaf, useMouse, useAsync, keyForItems, useGrainGetter, useGrain } from './util.js';
 import { ObjectsListComponent } from './endo.js';
 
+const getCardRenderer = async (card) => {
+  let renderer
+  try {
+    const code = await E(card).getRendererCode()
+    const compartment = new Compartment({ Math, console })
+    const makeRenderer = compartment.evaluate(`(${code})`)
+    renderer = makeRenderer()
+  } catch (err) {
+    console.error(err)
+    // ignore missing or failed renderer
+    renderer = () => {}
+  }
+  return renderer
+}
 
-export const CardComponent = ({ actions, card }) => {
+export const CardComponent = ({ card }) => {
   const { value: cardDetails } = useAsync(async () => {
-    return await actions.getCardDetails(card)
+    return await E(card).getDetails()
   }, [card]);
   const mouseData = useMouse()
   const canvasRef = React.useRef(null);
   const { value: render } = useAsync(async () => {
-    return await actions.getCardRenderer(card)
+    return await getCardRenderer(card)
   }, [card]);
   useRaf((timeElapsed) => {
     if (!render) return
@@ -118,13 +132,13 @@ export const CardComponent = ({ actions, card }) => {
   )
 };
 
-export const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) => {
+export const CardsDisplayComponent = ({ cards, cardControlComponent }) => {
   const cardsList = cards.map(card => {
     return (
       h('div', {
         key: keyForItems(card),
       }, [
-        h(CardComponent, { actions, card }),
+        h(CardComponent, { card }),
         cardControlComponent && h(cardControlComponent, { card }),
       ])
     )
@@ -139,7 +153,7 @@ export const CardsDisplayComponent = ({ actions, cards, cardControlComponent }) 
   )
 }
 
-export const DeckCardsComponent = ({ actions, deck }) => {
+export const DeckCardsComponent = ({ deck }) => {
   const cards = useGrainGetter(
     () => makeReadonlyArrayGrainFromRemote(
       E(deck).getCardsGrain(),
@@ -152,33 +166,38 @@ export const DeckCardsComponent = ({ actions, deck }) => {
       h('h3', { key: 'title' }, ['Cards in deck']),
       !deck && 'No deck found.',
       cards.length === 0 && 'No cards in deck.',
-      cards.length > 0 && h(CardsDisplayComponent, { key: 'cards', actions, cards }),
+      cards.length > 0 && h(CardsDisplayComponent, { key: 'cards', cards }),
     ])
   )
 };
 
-export const DeckManagerComponent = ({ actions, deck }) => {
+export const DeckManagerComponent = ({ deck, deckMgmt, inventory }) => {
+  const addAction = (name) => {
+    return deckMgmt.addCardToDeckByName(name)
+  }
   return (
     h('div', {}, [
       h('h2', { key: 'title' }, ['Deck Manager']),
       h('button', {
         key: 'new-deck',
         onClick: async () => {
-          await actions.makeNewDeck()
+          await deckMgmt.makeNewDeck()
         },
       }, ['New Deck']),
-      deck && h(ObjectsListComponent, { key: 'inventory', actions }),
-      deck && h(DeckCardsComponent, { key: 'deck', actions, deck }),
+      deck && h(ObjectsListComponent, { key: 'inventory', inventory, addAction }),
+      deck && h(DeckCardsComponent, { key: 'deck', deck }),
     ])
   )
 };
 
-export const GameCurrentPlayerComponent = ({ actions, player, players }) => {
+export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
   const hand = useGrainGetter(
-    () => actions.getPlayerHandGrain(player),
+    () => makeReadonlyArrayGrainFromRemote(
+      E(player).getHandGrain(),
+    ),
     [player],
   )
 
@@ -192,7 +211,7 @@ export const GameCurrentPlayerComponent = ({ actions, player, players }) => {
           margin: '2px',
         },
         onClick: async () => {
-          await actions.playCardFromHand(sourcePlayer, card, destPlayer)
+          await gameMgmt.playCardFromHand(sourcePlayer, card, destPlayer)
         },
       }, [playLabel])
     }
@@ -224,47 +243,39 @@ export const GameCurrentPlayerComponent = ({ actions, player, players }) => {
   return (
     h('div', {}, [
       h('h3', null, [`Current Player: ${name}`]),
-      h(CardsDisplayComponent, { actions, cards: hand, cardControlComponent }),
+      h(CardsDisplayComponent, { cards: hand, cardControlComponent }),
     ])
   )
 }
 
-export const GamePlayerAreaComponent = ({ actions, player, isCurrentPlayer }) => {
+export const GamePlayerAreaComponent = ({ game, player, isCurrentPlayer }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
   const playerAreaCards = useGrainGetter(
-    () => actions.getCardsAtPlayerLocationGrain(player),
+    () => makeReadonlyArrayGrainFromRemote(
+      E(game).getCardsAtPlayerLocationGrain(player),
+    ),
     [player],
   )
 
   return (
     h('div', {}, [
       h('h4', null, [`${name} ${isCurrentPlayer ? '(current)' : ''}`]),
-      h(CardsDisplayComponent, { actions, cards: playerAreaCards }),
+      h(CardsDisplayComponent, { cards: playerAreaCards }),
     ])
   )
 }
 
-export const ActiveGameComponent = ({ actions, game }) => {
+export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
+  const gameState = useGrain(stateGrain)
   const players = useGrainGetter(
-    () => makeReadonlyArrayGrainFromRemote(
-      E(game).getPlayersGrain(),
-    ),
-    [game],
-  )
-  const gameState = useGrainGetter(
-    () => makeReadonlyGrainFromRemote(
-      E(game).getStateGrain(),
-      {},
-    ),
-    [game],
+    () => stateGrain.getGrain('players'),
+    [stateGrain],
   )
   const currentPlayer = useGrainGetter(
-    () => makeReadonlyGrainFromRemote(
-      E(game).getCurrentPlayerGrain(),
-    ),
-    [game],
+    () => stateGrain.getGrain('currentPlayer'),
+    [stateGrain],
   )
 
   return (
@@ -277,18 +288,18 @@ export const ActiveGameComponent = ({ actions, game }) => {
           key: keyForItems(player),
         }, [
           h(GamePlayerAreaComponent, {
-            actions,
+            game,
             player,
             isCurrentPlayer: player === currentPlayer,
           }),
         ])
       })),
-      currentPlayer && h(GameCurrentPlayerComponent, { actions, player: currentPlayer, players }),
+      currentPlayer && h(GameCurrentPlayerComponent, { gameMgmt, player: currentPlayer, players }),
     ])
   )
 }
 
-export const PlayGameComponent = ({ actions, game }) => {
+export const PlayGameComponent = ({ game, stateGrain, gameMgmt }) => {
   return (
     h('div', {}, [
       h('h2', {
@@ -297,10 +308,10 @@ export const PlayGameComponent = ({ actions, game }) => {
       !game && h('button', {
         key: 'start',
         onClick: async () => {
-          actions.start()
+          gameMgmt.start()
         },
       }, ['Start']),
-      game && h(ActiveGameComponent, { key: 'game', actions, game }),
+      game && h(ActiveGameComponent, { key: 'game', game, gameMgmt, stateGrain }),
     ])
   )
 }

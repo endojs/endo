@@ -1,7 +1,7 @@
 import { E, Far } from '@endo/far';
 import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
 import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain, composeGrainsAsync, composeGrains } from '@endo/grain';
-import { makeRemoteGrain } from '@endo/grain/captp.js';
+import { makeRemoteGrain, makeRemoteGrainMap } from '@endo/grain/captp.js';
 
 const playerRemoteToLocal = new Map()
 class Player {
@@ -12,9 +12,6 @@ class Player {
     this.remoteInterface = Far(`Player "${name}"`, {
       async getName () {
         return localPlayer.name
-      },
-      async followHand (canceled) {
-        return makeIteratorRef(localPlayer.hand.follow(canceled))
       },
       async getHandGrain () {
         return makeRemoteGrain(localPlayer.hand)
@@ -254,11 +251,13 @@ export function makeGame () {
   // game state, aggregated for remote subscribers
   const state = makeSyncGrainMap({
     log: logGrain,
-    currentPlayer: currentPlayerIndex,
+    currentPlayerIndex,
+    currentPlayer: currentRemotePlayer,
     currentTurnPhase: currentTurnPhaseName,
     locations,
     scores: scoresGrain,
     deck: deckGrain,
+    players: remotePlayers,
   })
   const followState = (canceled) => {
     return state.follow(canceled)
@@ -305,7 +304,7 @@ export const make = (powers) => {
       return makeIteratorRef(game.followState(canceled))
     },
     async getStateGrain () {
-      return makeRemoteGrain(game.state)
+      return makeRemoteGrainMap(game.state)
     },
 
     async followCurrentPlayer (canceled) {
@@ -319,10 +318,6 @@ export const make = (powers) => {
       return makeIteratorRef(game.getCardsAtLocation(location).follow(canceled))
     },
 
-    async followCardsAtPlayerLocation (remotePlayer, canceled) {
-      const { name } = playerRemoteToLocal.get(remotePlayer)
-      return makeIteratorRef(game.getCardsAtLocation(name).follow(canceled))
-    },
     async getCardsAtPlayerLocationGrain (remotePlayer) {
       const { name } = playerRemoteToLocal.get(remotePlayer)
       return makeRemoteGrain(game.getCardsAtLocation(name))

@@ -1,110 +1,42 @@
 import React from 'react';
 import { E } from '@endo/far';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-import { makeReadonlyArrayGrainFromRemote } from '@endo/grain/captp.js';
+import { makeReadonlyGrainMapFromRemote } from '@endo/grain/captp.js';
 import { h } from './util.js';
 import { DeckManagerComponent, PlayGameComponent } from './game.js';
 
-// no way of resolving relative paths from the weblet
-const projectRootPath = './demo/1kce';
 
-const makeThing = async (powers, importFullPath, resultName) => {
-  const workerName = 'MAIN';
-  const powersName = 'NONE';
-  const deck = await E(powers).importUnsafeAndEndow(
-    workerName,
-    importFullPath,
-    powersName,
-    resultName,
-  );
-  return deck
-}
-
-const makeNewDeck = async (powers) => {
-  const importFullPath = `${projectRootPath}/deck.js`;
-  const resultName = 'deck';
-  return await makeThing(powers, importFullPath, resultName)
-}
-
-const makeGame = async (powers) => {
-  const importFullPath = `${projectRootPath}/game.js`;
-  const resultName = 'game';
-  return await makeThing(powers, importFullPath, resultName)
-}
-
-export const App = ({ powers }) => {
+export const App = ({ inventory }) => {
   const [deck, setDeck] = React.useState(undefined);
-  const [game, setGame] = React.useState(undefined);
+  const [{ game, stateGrain }, setGame] = React.useState({});
 
-  const actions = {
+  const deckMgmt = {
     // deck mgmt
     async fetchDeck () {
-      // workaround for https://github.com/endojs/endo/issues/1843
-      if (await E(powers).has('deck')) {
-        const deck = await E(powers).lookup('deck')
+      // has-check is workaround for https://github.com/endojs/endo/issues/1843
+      if (await inventory.has('deck')) {
+        const deck = await inventory.lookup('deck')
         setDeck(deck)
       }
     },
     async makeNewDeck () {
-      const deck = await makeNewDeck(powers)
+      const deck = await inventory.makeNewDeck()
       setDeck(deck)
     },
     async addCardToDeck (card) {
       await E(deck).add(card);
     },
     async addCardToDeckByName (cardName) {
-      const card = await E(powers).lookup(cardName)
+      const card = await inventory.lookup(cardName)
       await E(deck).add(card);
     },
-    async reverseLookupCard (card) {
-      return await E(powers).reverseLookup(card)
-    },
-    async getCardDetails (card) {
-      return await E(card).getDetails()
-    },
-    async getCardRenderer (card) {
-      let renderer
-      try {
-        const code = await E(card).getRendererCode()
-        const compartment = new Compartment({ Math, console })
-        const makeRenderer = compartment.evaluate(`(${code})`)
-        renderer = makeRenderer()
-      } catch (err) {
-        console.error(err)
-        // ignore missing or failed renderer
-        renderer = () => {}
-      }
-      return renderer
-    },
+  }
 
-    followCardsAtPlayerLocation (player, canceled) {
-      return makeRefIterator(E(game).followCardsAtPlayerLocation(player, canceled))
-    },
-    getCardsAtPlayerLocationGrain (player) {
-      const remoteGrain = E(game).getCardsAtPlayerLocationGrain(player)
-      return makeReadonlyArrayGrainFromRemote(remoteGrain)
-    },
-    followPlayerHand (player, canceled) {
-      return makeRefIterator(E(player).followHand(canceled))
-    },
-    getPlayerHandGrain (player) {
-      const remoteGrain = E(player).getHandGrain()
-      return makeReadonlyArrayGrainFromRemote(remoteGrain)
-    },
-
-    // inventory
-    subscribeToNames () {
-      return makeRefIterator(E(powers).followNames())
-    },
-    async removeName (name) {
-      await E(powers).remove(name)
-    },
-
-    // game
+  const gameMgmt = {
     async start () {
       // make game
-      const game = await makeGame(powers)
-      setGame(game)
+      const game = await inventory.makeGame()
+      const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
+      setGame({ game, stateGrain })
       await E(game).start(deck)
     },
     async playCardFromHand (player, card, destinationPlayer) {
@@ -114,7 +46,7 @@ export const App = ({ powers }) => {
 
   // on first render
   React.useEffect(() => {
-    actions.fetchDeck()
+    deckMgmt.fetchDeck()
   }, []);
 
   return (
@@ -130,8 +62,8 @@ export const App = ({ powers }) => {
           fontSize: '42px',
         },
       }, ['🃏1kce🃏']),
-      !game && h(DeckManagerComponent, { key: 'deck-manager', actions, deck }),
-      deck && h(PlayGameComponent, { key: 'play-game-component', actions, game }),
+      !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, inventory }),
+      deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
     ])
   )
 };
