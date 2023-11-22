@@ -9,6 +9,11 @@ export const make = () => {
     add (card) {
       cards.push(card);
     },
+    remove (card) {
+      const index = cards.get().indexOf(card)
+      if (index === -1) return
+      cards.splice(index, 1);
+    },
     getCards () {
       return harden(cards.get().slice());
     },
