@@ -1,6 +1,6 @@
 import { E, Far } from '@endo/far'
 
-export const make = (powers) => {
+export const make = () => {
   return Far('library of alexandria', {
     async play (controller) {
       await E(controller).setScoreFn(Far('scoreFn container', {

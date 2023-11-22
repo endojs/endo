@@ -137,6 +137,10 @@ export function makeGame () {
 
   // deck
   const deckGrain = makeSyncArrayGrain()
+  const deckCardsCount = makeDerivedSyncGrain(
+    deckGrain,
+    deckGrain => deckGrain.length,
+  )
   const addCardToDeck = (card) => {
     deckGrain.push(card)
   }
@@ -251,12 +255,11 @@ export function makeGame () {
   // game state, aggregated for remote subscribers
   const state = makeSyncGrainMap({
     log: logGrain,
-    currentPlayerIndex,
     currentPlayer: currentRemotePlayer,
     currentTurnPhase: currentTurnPhaseName,
     locations,
     scores: scoresGrain,
-    deck: deckGrain,
+    deckCardsCount,
     players: remotePlayers,
   })
   const followState = (canceled) => {
@@ -279,7 +282,7 @@ export function makeGame () {
   return game
 }
 
-export const make = (powers) => {
+export const make = () => {
   const game = makeGame()
   game.addPlayer(new Player('alice'))
   game.addPlayer(new Player('bob'))

@@ -1,6 +1,6 @@
 import { Far } from '@endo/far'
 
-export const make = (powers) => {
+export const make = () => {
   return Far('vivid imagination', {
     async play (game) {
 

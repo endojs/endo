@@ -1,6 +1,6 @@
 import { E, Far } from '@endo/far'
 
-export const make = (powers) => {
+export const make = () => {
   return Far('deja vu', {
     async play (gameController) {
       const cards = await E(gameController).getDeckCards()
@@ -10,7 +10,7 @@ export const make = (powers) => {
       return {
         name: 'deja vu',
         description: 'duplicate the cards in the deck, in the same order.\n\n-25 points',
-        pointValue: 50,
+        pointValue: -25,
       }
     },
     getRendererCode () {
