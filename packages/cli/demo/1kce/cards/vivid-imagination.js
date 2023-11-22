@@ -468,7 +468,7 @@ const SimplexNoise = (function () {
     centerX = screenWidth / 2;
     centerY = screenHeight / 2;
 
-    context.lineWidth = 1.2;
+    context.lineWidth = 4;
     context.lineCap = context.lineJoin = 'round';
   }
 
@@ -501,7 +501,7 @@ const SimplexNoise = (function () {
 
   // Update
 
-  function draw(context, rect) {
+  function draw(context, rect, mousePos) {
     if (!initialized) {
       init(rect, context)
     }
@@ -509,6 +509,8 @@ const SimplexNoise = (function () {
     const step = Configs.step;
       const base = Configs.base;
       let p; let angle;
+
+    const mouseIsInFrame = mousePos.x > 0 && mousePos.x < screenWidth && mousePos.y > 0 && mousePos.y < screenHeight;
     
     for (let i = 0, len = particles.length; i < len; i++) {
       p = particles[i];
@@ -517,6 +519,7 @@ const SimplexNoise = (function () {
       p.pastY = p.y;
   
       angle = Math.PI * 6 * getNoise(p.x / base * 1.75, p.y / base * 1.75, zoff);
+      if (mouseIsInFrame) angle += Math.atan2(mousePos.y - p.y, mousePos.x - p.x);
       // todo: modify angle by mouse position if in frame
       p.x += Math.cos(angle) * step;
       p.y += Math.sin(angle) * step;
