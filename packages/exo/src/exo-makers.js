@@ -168,7 +168,7 @@ harden(defineExoClass);
  * @template {Record<FacetName, Methods>} F facet methods
  * @param {string} tag
  * @param {{ [K in keyof F]:
- *   InterfaceGuard<{[M in keyof F[K]]: MethodGuard; }>
+ *   import('@endo/patterns').InterfaceGuard<{[M in keyof F[K]]: import('@endo/patterns').MethodGuard; }>
  * } | undefined} interfaceGuardKit
  * @param {I} init
  * @param {F & { [K in keyof F]: ThisType<{ facets: GuardedKit<F>, state: ReturnType<I> }> }} methodsKit

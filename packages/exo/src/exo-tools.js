@@ -49,16 +49,15 @@ const PassableMethodGuard = M.call().rest(M.any()).returns(M.any());
  * @property {number} declaredLen
  * @property {boolean} hasRestArgGuard
  * @property {boolean} restArgGuardIsRaw
- * @property {Pattern} paramsPattern
+ * @property {import('@endo/patterns').Pattern} paramsPattern
  * @property {number[]} redactedIndices
  */
 
 /**
- * @param {Passable[]} syncArgs
+ * @param {import('@endo/pass-style').Passable[]} syncArgs
  * @param {MatchConfig} matchConfig
  * @param {string} [label]
- * @returns {import('@endo/pass-style').Passable[]}
- * Returns the args that should be passed to the raw method.
+ * @returns {import('@endo/pass-style').Passable[]} Returns the args that should be passed to the raw method.
  */
 const defendSyncArgs = (syncArgs, matchConfig, label = undefined) => {
   const {
