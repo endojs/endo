@@ -34,6 +34,16 @@ https://github.com/endojs/endo/labels/next-release
   git checkout -b release-$now
   ```
 
+* Generate types.
+
+  ```sh
+  yarn lerna run build:types
+  ```
+
+  We generate types from the bottom up before publishing because this allows
+  each package to rely on the generated types of its dependencies in the
+  workspace.
+
 * Create the release CHANGELOGs.
 
   ```sh
@@ -154,6 +164,12 @@ https://github.com/endojs/endo/labels/next-release
 
   ```sh
   git tag -l | egrep -e '@[0-9]+\.[0-9]+\.[0-9]+$' | xargs git push origin
+  ```
+
+* Clean up generated types.
+
+  ```sh
+  yarn lerna run glean:types
   ```
 
 ## More information

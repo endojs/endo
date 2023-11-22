@@ -397,6 +397,14 @@ jobs:
       - name: build
         run: yarn run build
 
+      - name: build:types
+        # Concurrency is 1 to avoid bizarre cross-package contamination.
+        run: yarn lerna run generate:types
+
       - name: pack
         # Concurrency is 1 to avoid bizarre cross-package contamination.
-        run: yarn run lerna exec --concurrency=1 yarn pack
+        run: yarn lerna run pack
+
+      - name: clean:types
+        # Concurrency is 1 to avoid bizarre cross-package contamination.
+        run: yarn lerna run clean:types
