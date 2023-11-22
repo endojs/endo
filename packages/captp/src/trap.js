@@ -1,11 +1,9 @@
 // Lifted mostly from `@endo/eventual-send/src/E.js`.
 
-import './types.js';
-
 /**
  * Default implementation of Trap for near objects.
  *
- * @type {TrapImpl}
+ * @type {import('./types.js').TrapImpl}
  */
 export const nearTrapImpl = harden({
   applyFunction(target, args) {
@@ -39,7 +37,7 @@ const baseFreezableProxyHandler = {
  * A Proxy handler for Trap(x)
  *
  * @param {*} x Any value passed to Trap(x)
- * @param {TrapImpl} trapImpl
+ * @param {import('./types.js').TrapImpl} trapImpl
  * @returns {ProxyHandler}
  */
 const TrapProxyHandler = (x, trapImpl) => {
@@ -59,7 +57,7 @@ const TrapProxyHandler = (x, trapImpl) => {
 };
 
 /**
- * @param {TrapImpl} trapImpl
+ * @param {import('./types.js').TrapImpl} trapImpl
  * @returns {Trap}
  */
 export const makeTrap = trapImpl => {

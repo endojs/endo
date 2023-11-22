@@ -21,10 +21,10 @@ const { quote: q, Fail } = assert;
  * rank, into an iterable that resolves those ties using `fullCompare`.
  *
  * @template [V=unknown]
- * @param {Array<[Key, V]>} entries
+ * @param {Array<[import('../types.js').Key, V]>} entries
  * @param {RankCompare} rankCompare
  * @param {FullCompare} fullCompare
- * @returns {IterableIterator<[Key, V]>}
+ * @returns {IterableIterator<[import('../types.js').Key, V]>}
  */
 const generateFullSortedEntries = (entries, rankCompare, fullCompare) => {
   assertRankSorted(entries, rankCompare);
@@ -81,9 +81,9 @@ harden(generateFullSortedEntries);
  * @template [V=unknown]
  * @param {C} c1
  * @param {C} c2
- * @param {(collection: C) => Array<[Key, V]>} getEntries
+ * @param {(collection: C) => Array<[import('../types.js').Key, V]>} getEntries
  * @param {any} absentValue
- * @returns {IterableIterator<[Key, V | absentValue, V | absentValue]>}
+ * @returns {IterableIterator<[import('../types.js').Key, V | absentValue, V | absentValue]>}
  */
 export const generateCollectionPairEntries = (
   c1,
@@ -126,7 +126,7 @@ export const generateCollectionPairEntries = (
   nextY();
   return makeIterator(() => {
     let done = false;
-    /** @type {[Key, V | absentValue, V | absentValue]} */
+    /** @type {[import('../types.js').Key, V | absentValue, V | absentValue]} */
     let value;
     if (xDone && yDone) {
       done = true;
@@ -177,7 +177,7 @@ harden(generateCollectionPairEntries);
  *
  * @template [C=KeyCollection]
  * @template [V=unknown]
- * @param {(collection: C) => Array<[Key, V]>} getEntries
+ * @param {(collection: C) => Array<[import('../types.js').Key, V]>} getEntries
  * @param {any} absentValue
  * @param {KeyCompare} compareValues
  * @returns {(left: C, right: C) => KeyComparison}
