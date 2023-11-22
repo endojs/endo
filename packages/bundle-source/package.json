@@ -15,8 +15,8 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
