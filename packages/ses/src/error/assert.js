@@ -15,7 +15,6 @@ import {
   RangeError,
   TypeError,
   WeakMap,
-  arrayJoin,
   arrayMap,
   arrayPop,
   arrayPush,
@@ -110,7 +109,7 @@ const hiddenDetailsMap = new WeakMap();
  * @returns {string}
  */
 const getMessageString = ({ template, args }) => {
-  const parts = [template[0]];
+  let result = `${template[0]}`;
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     let argStr;
@@ -121,9 +120,9 @@ const getMessageString = ({ template, args }) => {
     } else {
       argStr = `(${an(typeof arg)})`;
     }
-    arrayPush(parts, argStr, template[i + 1]);
+    result += argStr + template[i + 1];
   }
-  return arrayJoin(parts, '');
+  return result;
 };
 
 /**
