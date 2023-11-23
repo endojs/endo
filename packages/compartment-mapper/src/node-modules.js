@@ -611,11 +611,6 @@ const translateGraph = (
       },
       policy,
     );
-    // do not include compartments for packages not covered by policy
-    if (policy && !packagePolicy) {
-      // eslint-disable-next-line no-continue
-      continue;
-    }
 
     /**
      * @param {string} dependencyName

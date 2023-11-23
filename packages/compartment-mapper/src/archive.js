@@ -145,16 +145,13 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
       if (compartment.modules) {
         for (const name of keys(compartmentModules).sort()) {
           const module = compartmentModules[name];
-          if (
-            module.compartment !== undefined &&
-            compartmentRenames[module.compartment] !== undefined
-          ) {
+          if (module.compartment !== undefined) {
             modules[name] = {
               ...module,
               compartment: compartmentRenames[module.compartment],
             };
           } else {
-            // If compartment is not defined, the module must not be part of the compartment map.
+            modules[name] = module;
           }
         }
       }

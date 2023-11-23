@@ -19,7 +19,6 @@ import { parseExtension } from './extension.js';
 import {
   enforceModulePolicy,
   ATTENUATORS_COMPARTMENT,
-  diagnoseMissingCompartmentError,
   attenuateGlobals,
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
@@ -236,6 +235,7 @@ const makeModuleMapHook = (
           // archive goes through foreignModuleSpecifier for local modules too
           enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: false,
+            errorHint: `TODO`, // TODO: add a testcase for this and provide a helpful hint
           });
         }
 
@@ -244,12 +244,7 @@ const makeModuleMapHook = (
           throw Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}${diagnoseMissingCompartmentError({
-              moduleSpecifier,
-              compartmentDescriptor,
-              foreignModuleSpecifier,
-              foreignCompartmentName,
-            })}`,
+            )}}`,
           );
         }
         return foreignCompartment.module(foreignModuleSpecifier);
@@ -279,20 +274,19 @@ const makeModuleMapHook = (
           throw Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}${diagnoseMissingCompartmentError({
-              moduleSpecifier,
-              compartmentDescriptor,
-              foreignModuleSpecifier,
-              foreignCompartmentName,
-            })}`,
+            )}`,
           );
         }
 
-        // Despite all non-exit modules not allowed by policy being dropped
-        // while building the graph, this check is necessary because module
-        // is written back to the compartment map below.
         enforceModulePolicy(scopePrefix, compartmentDescriptor, {
           exit: false,
+          errorHint: ` There is an alias defined that causes another package to be imported as ${q(
+            moduleSpecifier,
+          )}. Package ${q(moduleSpecifier)} resolves to ${q(
+            foreignModuleSpecifier,
+          )} in ${q(
+            foreignCompartmentName,
+          )}.`,
         });
         // The following line is weird.
         // Information is flowing backward.
