@@ -220,7 +220,9 @@ export const makeImportHookMaker = (
             // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
             enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
               exit: true,
-              errorHint: 'The module was not in the compartment map and an attempt was made to load it as a builtin',
+              errorHint: `Blocked in loading. ${q(
+                moduleSpecifier,
+              )} was not in the compartment map and an attempt was made to load it as a builtin`,
             });
             if (archiveOnly) {
               // Return a place-holder.

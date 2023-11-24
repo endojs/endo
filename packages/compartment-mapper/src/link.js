@@ -231,11 +231,14 @@ const makeModuleMapHook = (
         return undefined; // fall through to import hook
       }
       if (foreignModuleSpecifier !== undefined) {
+        // archive goes through foreignModuleSpecifier for local modules too
         if (!moduleSpecifier.startsWith('./')) {
-          // archive goes through foreignModuleSpecifier for local modules too
+          // This code path seems to only be reached on subsequent imports of the same specifier in the same compartment.
+          // The check should be redundant and is only left here out of abundance of caution.
           enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: false,
-            errorHint: `TODO`, // TODO: add a testcase for this and provide a helpful hint
+            errorHint:
+              'This check should not be reachable. If you see this error, please file an issue.',
           });
         }
 
@@ -280,11 +283,9 @@ const makeModuleMapHook = (
 
         enforceModulePolicy(scopePrefix, compartmentDescriptor, {
           exit: false,
-          errorHint: ` There is an alias defined that causes another package to be imported as ${q(
+          errorHint: `Blocked in linking. ${q(
             moduleSpecifier,
-          )}. Package ${q(moduleSpecifier)} resolves to ${q(
-            foreignModuleSpecifier,
-          )} in ${q(
+          )} is part of the compartment map and resolves to ${q(
             foreignCompartmentName,
           )}.`,
         });

@@ -328,31 +328,35 @@ export const attenuateGlobals = (
   freezeGlobalThisUnlessOptedOut();
 };
 
-
-const diagnoseModulePolicy = (errorHint) => {
-  if(!errorHint) {
+const diagnoseModulePolicy = errorHint => {
+  if (!errorHint) {
     return '';
   }
-  return ` (${errorHint})`;
-}
-
+  return ` (info: ${errorHint})`;
+};
 /**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier
- * @param {object} compartmentDescriptor
+ * @param {import('./types.js').CompartmentDescriptor} compartmentDescriptor
  * @param {object} [info]
  */
-export const enforceModulePolicy = (specifier, compartmentDescriptor, info = {}) => {
-  const { policy, modules } = compartmentDescriptor;
+export const enforceModulePolicy = (
+  specifier,
+  compartmentDescriptor,
+  info = {},
+) => {
+  const { policy, modules, label } = compartmentDescriptor;
   if (!policy) {
     return;
   }
-  
+
   if (!info.exit) {
     if (!modules[specifier]) {
       throw Error(
-        `Importing ${q(specifier)} was not allowed by policy packages:${q(
+        `Importing ${q(specifier)} in ${q(
+          label,
+        )} was not allowed by packages policy ${q(
           policy.packages,
         )}${diagnoseModulePolicy(info.errorHint)}`,
       );

@@ -113,10 +113,13 @@ const anyExpectations = {
 const powerlessCarolExpectations = {
   namespace: {
     ...defaultExpectations.namespace,
-    carol: { bluePill: 'undefined', redPill: 'undefined', purplePill: 'undefined' },
+    carol: {
+      bluePill: 'undefined',
+      redPill: 'undefined',
+      purplePill: 'undefined',
+    },
   },
 };
-
 
 const makeResultAssertions =
   expectations =>
@@ -167,7 +170,7 @@ scaffold(
 );
 
 scaffold(
-  'policy - attack - browser alias',
+  'policy - attack - browser alias - with alias hint',
   test,
   fixtureAttack,
   assertTestAlwaysThrows,
@@ -175,7 +178,8 @@ scaffold(
   {
     shouldFailBeforeArchiveOperations: true,
     onError: (t, { error }) => {
-      t.regex(error.message, /dan.*alias.*hackity/);
+      t.regex(error.message, /dan.*resolves.*hackity/);
+      // see the snapshot for the error hint in the message
       t.snapshot(sanitizePaths(error.message));
     },
     addGlobals: globals,
@@ -236,12 +240,16 @@ const recursiveEdit = editor => originalPolicy => {
 };
 const mutationEdit = editor => originalPolicy => {
   const policyToAlter = JSON.parse(JSON.stringify(originalPolicy));
-  editor(policyToAlter)
+  editor(policyToAlter);
   return policyToAlter;
-}
+};
 
-const skipCarol = mutationEdit((policyToAlter) => {
+const skipCarol = mutationEdit(policyToAlter => {
   policyToAlter.resources['alice>carol'] = undefined;
+});
+
+const disallowCarol = mutationEdit(policyToAlter => {
+  policyToAlter.resources.alice.packages['alice>carol'] = false;
 });
 
 const addAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
@@ -280,7 +288,6 @@ const nestedAttenuator = recursiveEdit((key, obj) => {
   }
 });
 
-
 scaffold(
   'policy - allow skipping policy entries for powerless compartments',
   test,
@@ -290,6 +297,23 @@ scaffold(
   {
     addGlobals: globals,
     policy: skipCarol(policy),
+  },
+);
+
+scaffold(
+  'policy - disallowed package with error hint',
+  test,
+  fixture,
+  assertTestAlwaysThrows,
+  2, // expected number of assertions
+  {
+    shouldFailBeforeArchiveOperations: true,
+    onError: (t, { error }) => {
+      t.regex(error.message, /Importing.*carol.*in.*alice.*not allowed/i);
+      t.snapshot(sanitizePaths(error.message));
+    },
+    addGlobals: globals,
+    policy: disallowCarol(policy),
   },
 );
 
