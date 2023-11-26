@@ -1,10 +1,12 @@
 // @ts-check
 
 import { Far } from '@endo/far';
+import { assertPetName } from './pet-name.js';
 
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
+  storeReaderRef,
   makeMailbox,
 }) => {
   /**
@@ -69,10 +71,39 @@ export const makeGuestMaker = ({
       terminator,
     });
 
+    /**
+     * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
+     * @param {string} [petName]
+     */
+    const store = async (readerRef, petName) => {
+      if (petName !== undefined) {
+        assertPetName(petName);
+      }
+
+      const formulaIdentifier = await storeReaderRef(readerRef);
+
+      if (petName !== undefined) {
+        await petStore.write(petName, formulaIdentifier);
+      }
+    };
+
+    /**
+     * @param {string} petName
+     */
+    const has = async petName => {
+      try {
+        await lookup(petName);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
     const { list, follow: followNames } = petStore;
 
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
+      has,
       lookup,
       reverseLookup,
       request,
@@ -87,6 +118,7 @@ export const makeGuestMaker = ({
       adopt,
       remove,
       rename,
+      store,
     });
 
     const internal = harden({
