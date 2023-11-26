@@ -22,12 +22,8 @@ export const App = ({ inventory }) => {
       const deck = await inventory.makeNewDeck()
       setDeck(deck)
     },
-    async addCardToDeck (card) {
-      await E(deck).add(card);
-    },
     async addCardToDeckByName (cardName) {
-      const card = await inventory.lookup(cardName)
-      await E(deck).add(card);
+      return inventory.addCardToDeckByName(cardName)
     },
   }
 
