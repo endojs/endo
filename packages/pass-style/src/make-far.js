@@ -157,6 +157,13 @@ const getMethodNamesMethod = harden({
   },
 })[GET_METHOD_NAMES];
 
+const getMethodNamesDescriptor = harden({
+  value: getMethodNamesMethod,
+  enumerable: false,
+  configurable: false,
+  writable: false,
+});
+
 /**
  * A concise convenience for the most common `Remotable` use.
  *
@@ -179,7 +186,7 @@ export const Far = (farName, remotable = undefined) => {
     // * does further mutations,
     // * hardens the mutated object before returning it.
     // so this mutation is not unprecedented. But it is surprising!
-    r[GET_METHOD_NAMES] = getMethodNamesMethod;
+    Object.defineProperty(r, GET_METHOD_NAMES, getMethodNamesDescriptor);
   }
   return Remotable(`Alleged: ${farName}`, undefined, r);
 };

@@ -267,7 +267,7 @@ test('passStyleOf testing remotables', t => {
   class Subclass9 extends NonFarBaseClass9 {}
   t.throws(() => Far('FarType9', Subclass9.prototype), {
     message:
-      'For now, remotables cannot inherit from anything unusual, in {"__getMethodNames__":"[Function __getMethodNames__]"}',
+      'For now, remotables cannot inherit from anything unusual, in {}',
   });
 
   const unusualTagRecordProtoMessage =
