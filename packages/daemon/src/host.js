@@ -37,6 +37,7 @@ export const makeHostMaker = ({
     );
 
     const {
+      has,
       lookup,
       reverseLookup,
       lookupFormulaIdentifierForName,
@@ -416,18 +417,6 @@ export const makeHostMaker = ({
 
       return value;
     };
-
-    /**
-     * @param {string} petName
-     */
-    const has = async petName => {
-      try {
-        await lookup(petName);
-        return true;
-      } catch (error) {
-        return false;
-      }
-    }
 
     const { list, follow: followNames } = petStore;
 

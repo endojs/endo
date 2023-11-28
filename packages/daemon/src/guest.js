@@ -47,6 +47,7 @@ export const makeGuestMaker = ({
     }
 
     const {
+      has,
       lookup,
       reverseLookup,
       followMessages,
@@ -86,18 +87,6 @@ export const makeGuestMaker = ({
         await petStore.write(petName, formulaIdentifier);
       }
     };
-
-    /**
-     * @param {string} petName
-     */
-    const has = async petName => {
-      try {
-        await lookup(petName);
-        return true;
-      } catch (error) {
-        return false;
-      }
-    }
 
     const { list, follow: followNames } = petStore;
 

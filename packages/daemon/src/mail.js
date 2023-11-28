@@ -43,6 +43,17 @@ export const makeMailboxMaker = ({
     /**
      * @param {string} petName
      */
+    const has = async petName => {
+      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+      if (formulaIdentifier === undefined) {
+        return false
+      }
+      return true
+    };
+
+    /**
+     * @param {string} petName
+     */
     const lookup = async petName => {
       const formulaIdentifier = lookupFormulaIdentifierForName(petName);
       if (formulaIdentifier === undefined) {
@@ -469,6 +480,7 @@ export const makeMailboxMaker = ({
     };
 
     return harden({
+      has,
       lookup,
       reverseLookup,
       reverseLookupFormulaIdentifier,
