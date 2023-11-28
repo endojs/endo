@@ -89,14 +89,20 @@ export const makeSyncGrain = initValue => {
     return _get()
   }
   // set a new value and notify subscribers
+  let updateInProgress = false
   const set = (newValue) => {
     if (lifecycle.isDestroyed()) {
       throw new Error('grain is destroyed')
     }
+    if (updateInProgress) {
+      throw new Error('grain set while processing subscriptions, possible infinite loop')
+    }
+    updateInProgress = true
     value = newValue
     for (const handler of subscriptionHandlers) {
       handler(value)
     }
+    updateInProgress = false
   }
   const update = (update) => {
     set(update(value))
@@ -367,6 +373,9 @@ export const makeSyncGrainMap = (grains = {}) => {
   // composed grain
   const grainMap = makeSyncGrain({})
 
+  const set = () => {
+    throw new Error('cannot set grain map')
+  }
   const hasGrain = (key) => {
     if (lifecycle.isDestroyed()) {
       throw new Error('grain is destroyed')
@@ -423,6 +432,7 @@ export const makeSyncGrainMap = (grains = {}) => {
     ...grainMap,
     // overrides and additions
     ...readonly(),
+    set,
     destroy,
     setGrain,
   }
