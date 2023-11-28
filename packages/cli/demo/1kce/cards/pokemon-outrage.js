@@ -3,8 +3,7 @@ import { E, Far } from '@endo/far'
 export const make = () => {
   return Far('pokemon-outrage', {
     async play (gameController) {
-      const cards = await E(gameController).getDeckCards()
-      await E(gameController).addCardsToDeck(cards)
+
     },
     getDetails () {
       return {

@@ -21,13 +21,13 @@ const getCardRenderer = async (card) => {
 
 export const CardComponent = ({ card }) => {
   const { value: cardDetails } = useAsync(async () => {
-    return await E(card).getDetails()
-  }, [card]);
+    return await E(card.remote).getDetails()
+  }, [card.remote]);
   const mouseData = useMouse()
   const canvasRef = React.useRef(null);
   const { value: render } = useAsync(async () => {
-    return await getCardRenderer(card)
-  }, [card]);
+    return await getCardRenderer(card.remote)
+  }, [card.remote]);
   useRaf((timeElapsed) => {
     if (!render) return
     const canvas = canvasRef.current;
@@ -135,7 +135,7 @@ export const CardComponent = ({ card }) => {
 export const CardAndControlsComponent = ({ card, cardControlComponent }) => {
   return (
     h('div', {
-      key: keyForItems(card),
+      key: keyForItems(card.remote),
     }, [
       h(CardComponent, { card }),
       cardControlComponent && h(cardControlComponent, { card }),
@@ -157,23 +157,33 @@ export const CardsDisplayComponent = ({ cards, cardControlComponent, emptyMessag
   )
 }
 
-const getCardDuplicateCount = (cards) => {
-  const countForCard = new Map()
-  for (const card of cards) {
-    const count = countForCard.get(card) || 0
-    countForCard.set(card, count + 1)
+const getCardDuplicateCount = (cardsData) => {
+  const countForCardRemote = new Map()
+  for (const card of cardsData) {
+    const count = countForCardRemote.get(card.remote) || 0
+    countForCardRemote.set(card.remote, count + 1)
   }
-  return countForCard
+  // map back to card data format
+  const countForCards = new Map(
+    [...countForCardRemote.entries()].map(([cardRemote, count]) => {
+      return [cardsData.find(card => card.remote === cardRemote), count]
+    }),
+  )
+  return countForCards
 }
 
 export const DeckCardsComponent = ({ deck }) => {
-  const cards = useGrainGetter(
+  const cardRemotes = useGrainGetter(
     () => makeReadonlyArrayGrainFromRemote(
       E(deck).getCardsGrain(),
     ),
     [deck],
   )
+  // cards as CardData format
+  const cards = cardRemotes.map((remote, index) => ({ id: index, remote }))
   const cardsCount = getCardDuplicateCount(cards)
+  // map back to CardData format
+  // we dont use the card id for anything when building the deck, so we set it to null
   const uniqueCards = [...cardsCount.keys()]
 
   // specify a component to render under the cards
@@ -201,7 +211,7 @@ export const DeckCardsComponent = ({ deck }) => {
             margin: '2px',
           },
           onClick: async () => {
-            await E(deck).remove(card)
+            await E(deck).remove(card.remote)
           },
         }, ['Remove from Deck']),
       ])
@@ -241,7 +251,6 @@ const PlayCardButtonComponent = ({ card, gameMgmt, sourcePlayer, destPlayer }) =
   const { value: destPlayerName } = useAsync(async () => {
     return await E(destPlayer).getName()
   }, [destPlayer]);
-
   const playLabel = sourcePlayer === destPlayer ? `Play on self` : `Play on ${destPlayerName}`
   return h('button', {
     key: keyForItems(sourcePlayer, destPlayer),
@@ -249,7 +258,7 @@ const PlayCardButtonComponent = ({ card, gameMgmt, sourcePlayer, destPlayer }) =
       margin: '2px',
     },
     onClick: async () => {
-      await gameMgmt.playCardFromHand(sourcePlayer, card, destPlayer)
+      await gameMgmt.playCardByIdFromHand(sourcePlayer, card.id, destPlayer)
     },
   }, [playLabel])
 }
@@ -332,8 +341,8 @@ export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
     () => stateGrain.getGrain('scores'),
     [stateGrain],
   )
-  const deckCardsCount = useGrainGetter(
-    () => stateGrain.getGrain('deckCardsCount'),
+  const drawStackCount = useGrainGetter(
+    () => stateGrain.getGrain('drawStackCount'),
     [stateGrain],
   )
   const log = useGrainGetter(
@@ -354,7 +363,7 @@ export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
         },
       }, [
         h('h3', { key: 'title'}, ['Game']),
-        h('div', { key: 'deck-count' }, [`Cards remaining in deck: ${deckCardsCount}`]),
+        h('div', { key: 'draw-stack-count' }, [`Cards remaining in draw stack: ${drawStackCount}`]),
         // log
         h('h3', { key: 'subtitle' }, ['Players']),
         h('div', { key: 'players' }, players && players.map((player, index) => {

@@ -1,18 +1,19 @@
 import { E, Far } from '@endo/far'
 
 export const make = () => {
+
   return Far('library of alexandria', {
     async play (controller) {
-      await E(controller).setScoreFn(Far('scoreFn container', {
-        scoreFn: async ({ cards }) => {
-          let score = 0
-          for (const card of cards) {
-            const { name } = await E(card).getDetails()
-            score += name.length * 10
-          }
-          return score
-        },
-      }))
+      // tell the game to call "scoreFunction" on this card when it wants to calculate scores
+      await E(controller).setScoreFn('scoreFunction')
+    },
+    async scoreFunction ({ cardsData }) {
+      let score = 0
+      for (const cardData of cardsData) {
+        const { name } = await E(cardData.remote).getDetails()
+        score += name.length * 10
+      }
+      return score
     },
     getDetails () {
       return {

@@ -6,29 +6,33 @@ import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 
 const cardPrefix = 'card-';
 
-export const make = (powers) => {
+export const make = async (powers) => {
   const cards = makeSyncArrayGrain();
 
   // cards already saved in petstore
-  const followNames = async () => {
-    for await (const change of makeRefIterator(E(powers).followNames())) {
-      if (change.add === undefined) continue
-      const name = change.add
+  const loadExistingNames = async () => {
+    for await (const name of await E(powers).list()) {
       if (!name.startsWith(cardPrefix)) continue
+      const indexString = name.slice(cardPrefix.length)
       const card = await E(powers).lookup(name);
-      cards.push(card);
+      cards.setAtIndex(indexString, card);
     }
   }
   // incomming cards
-  const followMessages = async () => {
+  const listenForIncommingCards = async () => {
     for await (const message of makeRefIterator(E(powers).followMessages())) {
       if (message.type !== 'package') continue
-      await E(powers).adopt(message.number, 'card', `${cardPrefix}${cards.getLength()}`);
+      const petName = `${cardPrefix}${cards.getLength()}`
+      await E(powers).adopt(message.number, 'card', petName);
+      const card = await E(powers).lookup(petName);
+      cards.push(card);
     }
   }
 
-  followNames()
-  followMessages()
+  // ensure all cards are loaded before continuing
+  await loadExistingNames()
+  // listen for new cards, but dont await as it will never resolve
+  listenForIncommingCards()
 
   return Far('Deck', {
     add (card) {

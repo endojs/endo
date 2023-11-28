@@ -1,47 +1,72 @@
 import { E, Far } from '@endo/far';
-import { makeIteratorRef } from '@endo/daemon/reader-ref.js';
-import { makeSyncArrayGrain, makeSyncGrain, makeSyncGrainArrayMap, makeSyncGrainMap, makeDerivedSyncGrain, composeGrainsAsync, composeGrains } from '@endo/grain';
 import { makeRemoteGrain, makeRemoteGrainMap } from '@endo/grain/captp.js';
+import { makeReaderRef } from '@endo/daemon/reader-ref.js';
+import { makeRefReader } from '@endo/daemon/ref-reader.js';
+import {
+  makeSyncArrayGrain,
+  makeSyncGrain,
+  makeSyncGrainArrayMap,
+  makeSyncGrainMap,
+  makeDerivedSyncGrain,
+  composeGrainsAsync,
+  composeGrains,
+} from '@endo/grain';
+import { makeMutex } from './util.js';
+
+const textEncoder = new TextEncoder()
+const textDecoder = new TextDecoder()
 
 const playerRemoteToLocal = new Map()
-class Player {
-  constructor (name) {
-    const localPlayer = this
-    this.name = name
-    this.hand = makeSyncArrayGrain()
-    this.remoteInterface = Far(`Player "${name}"`, {
-      async getName () {
-        return localPlayer.name
-      },
-      async getHandGrain () {
-        return makeRemoteGrain(localPlayer.hand)
-      },
-      async removeCard (card) {
-        localPlayer.removeCard(card)
-      },
-    })
-    playerRemoteToLocal.set(this.remoteInterface, localPlayer)
+const makePlayer = (getCardDataById, initialState = {}) => {
+  const name = initialState.name || 'player'
+  const handIds = makeSyncArrayGrain(initialState.handIds || [])
+  const hand = makeDerivedSyncGrain(
+    handIds,
+    handIds => handIds.map(id => getCardDataById(id)),
+  )
+  const addCardById = (cardId) => {
+    handIds.push(cardId)
+  }
+  const removeCardById = (cardId) => {
+    const index = handIds.get().indexOf(cardId)
+    if (index === -1) return
+    handIds.splice(index, 1)
   }
 
-  addCard (card) {
-    this.hand.push(card)
+  const remoteInterface = Far(`Player "${name}"`, {
+    async getName () {
+      return name
+    },
+    async getHandGrain () {
+      return makeRemoteGrain(hand)
+    },
+    async removeCardById (cardId) {
+      removeCardById(cardId)
+    },
+  })
+  const localPlayer = {
+    name,
+    handIds,
+    hand,
+    addCardById,
+    removeCardById,
+    remoteInterface,
   }
-
-  removeCard (card) {
-    this.hand.splice(this.hand.get().indexOf(card), 1)
-  }
+  playerRemoteToLocal.set(remoteInterface, localPlayer)
+  return localPlayer
 }
 
-export function makeGame () {
+export function makeGame (initialState = {}, deck, persistState) {
 
   // logging
-  const logGrain = makeSyncArrayGrain()
+  const logGrain = makeSyncArrayGrain(initialState.log || [])
   const log = (message) => {
     logGrain.push(message)
   }
 
   // players
   const localPlayers = makeSyncArrayGrain()
+  const playerHandIds = makeSyncGrainMap()
   const remotePlayers = makeDerivedSyncGrain(
     localPlayers,
     localPlayers => localPlayers.map(localPlayer => localPlayer.remoteInterface),
@@ -54,10 +79,11 @@ export function makeGame () {
   }
   const addPlayer = (localPlayer) => {
     localPlayers.push(localPlayer)
+    playerHandIds.setGrain(localPlayer.name, localPlayer.handIds)
   }
 
   // current player
-  const currentPlayerIndex = makeSyncGrain(0)
+  const currentPlayerIndex = makeSyncGrain(initialState.currentPlayerIndex || 0)
   const currentLocalPlayer = composeGrains(
     { localPlayers, currentPlayerIndex },
     ({ localPlayers, currentPlayerIndex }) => localPlayers[currentPlayerIndex],
@@ -79,12 +105,12 @@ export function makeGame () {
   }
 
   // turn phases
-  const turnPhases = makeSyncArrayGrain([
+  const turnPhases = makeSyncArrayGrain(initialState.turnPhases || [
     'draw',
     'play',
     'end',
   ])
-  const currentTurnPhase = makeSyncGrain(0)
+  const currentTurnPhase = makeSyncGrain(initialState.currentTurnPhase || 0)
   const currentTurnPhaseName = makeDerivedSyncGrain(
     currentTurnPhase,
     currentTurnPhase => turnPhases.getAtIndex(currentTurnPhase),
@@ -105,29 +131,63 @@ export function makeGame () {
   }
 
   // locations
-  const locations = makeSyncGrainArrayMap()
-  const getCardsAtLocation = (location) => {
+  const initialLocations = Object.fromEntries(Object.entries(initialState.locations || {}).map(([location, cardIds]) => {
+    return [location, makeSyncArrayGrain(cardIds)]
+  }))
+  // const initialLocations = undefined
+  const locations = makeSyncGrainArrayMap(initialLocations)
+  const getLocationGrain = (location) => {
     return locations.getGrain(location)
+  }
+  const getCardsDataAtLocation = (location) => {
+    // if we dont guard here we trigger inf-loop protections on
+    // locations grainMap bc a read triggers a write
+    // problematic when using this function to derive a grain
+    if (!locations.hasGrain(location)) {
+      return []
+    }
+    const cardIds = getLocationGrain(location).get()
+    return cardIds.map(id => getCardDataById(id))
+  }
+  // TODO: consider automatically checking if in a location and removing
+  const setLocationForCardId = (cardId, to, from) => {
+    if (from) {
+      locations.remove(from, cardId)
+    }
+    locations.push(to, cardId)
   }
 
   // scoring
-  const defaultScoreFn = async ({ cards }) => {
+  const scoreFnCard = makeSyncGrain(initialState.scoreFnCard || undefined)
+  const defaultScoreFn = async ({ cardsData }) => {
     let score = 0
-    for (const card of cards) {
-      const { pointValue } = await E(card).getDetails()
+    for (const cardData of cardsData) {
+      const { pointValue } = await E(cardData.remote).getDetails()
       score += pointValue
     }
     return score
   }
-  const scoreFn = makeSyncGrain(defaultScoreFn)
-  const setScoreFn = (newScoreFn) => scoreFn.set(newScoreFn)
+  const scoreFn = makeDerivedSyncGrain(
+    scoreFnCard,
+    scoreFnCard => {
+      if (scoreFnCard) {
+        return async ({ cardsData }) => {
+          const { cardId, methodName } = scoreFnCard
+          const cardData = getCardDataById(cardId)
+          if (!cardData) return 0
+          return E(cardData.remote)[methodName]({ cardsData })
+        }
+      }
+      return defaultScoreFn
+    },
+  )
   const scoresGrain = composeGrainsAsync(
     { localPlayers, locations, scoreFn },
-    async ({ localPlayers, locations, scoreFn }) => {
+    async ({ localPlayers, scoreFn }) => {
       const scores = []
       for (const localPlayer of localPlayers) {
-        const cards = locations[localPlayer.name] || []
-        const score = await scoreFn({ cards })
+        const cardsData = getCardsDataAtLocation(localPlayer.name)
+        const score = await scoreFn({ cardsData })
         scores.push(score)
       }
       return scores
@@ -135,41 +195,74 @@ export function makeGame () {
     [],
   )
 
-  // deck
+  // deck - the deck is the local copy of the deck cards we will play with
+  // a card's id is its index in the deck
   const deckGrain = makeSyncArrayGrain()
-  const deckCardsCount = makeDerivedSyncGrain(
-    deckGrain,
-    deckGrain => deckGrain.length,
-  )
-  const addCardToDeck = (card) => {
-    deckGrain.push(card)
+  const getCardRemoteById = (id) => {
+    return deckGrain.getAtIndex(id)
   }
-  const importDeck = async (deck) => {
+  const getCardDataById = (id) => {
+    const remote = getCardRemoteById(id)
+    if (!remote) {
+      return undefined
+    }
+    return {
+      id,
+      remote,
+    }
+  }
+  const importDeck = async () => {
     for await (const card of await E(deck).getCards()) {
-      addCardToDeck(card)
+      deckGrain.push(card)
     }
   }
-  const shuffleDeck = () => {
-    const deck = deckGrain.get().slice()
-    for (let i = deck.length - 1; i > 0; i--) {
+
+  // draw stack - this is the stack of cards the players draw from
+  const drawStackIds = makeSyncArrayGrain(initialState.drawStackIds || [])
+  const drawStackCount = makeDerivedSyncGrain(
+    drawStackIds,
+    drawStackIds => drawStackIds.length,
+  )
+  // draw stack cards are { id, remote }
+  const drawStack = makeDerivedSyncGrain(
+    drawStackIds,
+    drawStackIds => drawStackIds.map(id => getCardDataById(id)),
+  )
+  const addCardByIdToDrawStack = (cardId) => {
+    drawStackIds.push(cardId)
+  }
+  const populateDrawStackFromDeck = () => {
+    deckGrain.get().forEach((_card, index) => {
+      const id = index
+      addCardByIdToDrawStack(id)
+    })
+  }
+  const shuffleDrawStack = () => {
+    const cards = drawStackIds.get().slice()
+    for (let i = cards.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
+      [cards[i], cards[j]] = [cards[j], cards[i]];
     }
-    deckGrain.set(deck)
+    drawStackIds.set(cards)
   }
 
   // cards
   const drawCard = () => {
-    return deckGrain.pop()
+    const id = drawStackIds.pop()
+    if (id === undefined) {
+      return undefined
+    }
+    return getCardDataById(id)
   }
   const playerDrawsCards = (localPlayer, numCards) => {
     for (let i = 0; i < numCards; i++) {
-      const card = drawCard()
-      if (!card) {
+      const cardData = drawCard()
+      if (!cardData) {
+        log(`${localPlayer.name} tried to draw a card, but none remain`)
         return
       }
       log(`${localPlayer.name} drew a card`)
-      localPlayer.addCard(card)
+      localPlayer.addCardById(cardData.id)
     }
   }
   const drawInitialCards = () => {
@@ -204,13 +297,14 @@ export function makeGame () {
     }
   }
   // game controller is exposed to cards when played
-  const makeGameController = () => {
+  const makeGameController = (cardData) => {
     return Far('GameController', {
       // i think you need to wrap the scoreFn in a Far, so i did
-      async setScoreFn (scoreFnWrapper) {
-        setScoreFn(({ cards }) => {
-          return E(scoreFnWrapper).scoreFn({ cards })
-        })
+      async setScoreFn (methodName) {
+        // set scoreFn card
+        const { name: cardName } = await E(cardData.remote).getDetails()
+        log(`${cardName} overwrote the scoring function`)
+        scoreFnCard.set({ cardId: cardData.id, methodName })
       },
       async prependTurnPhase (phase) {
         prependTurnPhase(phase)
@@ -218,112 +312,171 @@ export function makeGame () {
       async appendTurnPhase (phase) {
         appendTurnPhase(phase)
       },
-      async getDeckCards () {
-        return deckGrain.get()
+      async getDrawStackCards () {
+        return drawStack.get()
       },
-      async addCardsToDeck (cards) {
-        for (const card of cards) {
-          addCardToDeck(card)
+      async addCardsByIdToDrawStack (cardIds) {
+        for (const cardId of cardIds) {
+          addCardByIdToDrawStack(cardId)
         }
       },
     })
   }
-  const playCard = async (card) => {
-    const controller = makeGameController()
-    await E(card).play(controller)
+  const playCard = async (cardData) => {
+    const controller = makeGameController(cardData)
+    await E(cardData.remote).play(controller)
   }
-  const playCardFromHand = async (localSourcePlayer, card, localDestinationPlayer = localSourcePlayer) => {
+  const playCardByIdFromHand = async (localSourcePlayer, cardId, localDestinationPlayer = localSourcePlayer) => {
+    const cardData = getCardDataById(cardId)
     // move card from hand to destination
-    localSourcePlayer.removeCard(card)
-    locations.push(localDestinationPlayer.name, card)
+    localSourcePlayer.removeCardById(cardData.id)
+    setLocationForCardId(cardData.id, localDestinationPlayer.name)
+    // note in log
     const isPlayedToSelf = localSourcePlayer === localDestinationPlayer
     log(`${localSourcePlayer.name} played card to ${isPlayedToSelf ? 'self' : localDestinationPlayer.name}`)
     // trigger card effect
-    await playCard(card)
+    await playCard(cardData)
+    // continue turn, dont await completion
     advanceTurnPhase()
-    // dont await completion
     continueTurn()
   }
-  const start = async (deck) => {
+  // to be called at boot of game
+  const initialize = async () => {
+    // get a local copy of the deck cards
     await importDeck(deck)
-    shuffleDeck()
+    // create players
+    const aliceData = {
+      name: 'alice',
+      handIds: initialState.playerHandIds?.alice || [],
+    }
+    const bobData = {
+      name: 'bob',
+      handIds: initialState.playerHandIds?.bob || [],
+    }
+    addPlayer(makePlayer(getCardDataById, aliceData))
+    addPlayer(makePlayer(getCardDataById, bobData))
+  }
+  // to be called at the start of a new game
+  const start = async () => {
+    // populate the draw stack
+    populateDrawStackFromDeck()
+    shuffleDrawStack()
+    // draw initial cards
     drawInitialCards()
-    // dont await completion
+    // start turn, dont await completion
     continueTurn()
   }
 
-  // game state, aggregated for remote subscribers
-  const state = makeSyncGrainMap({
+  // remote observable game state, aggregated for remote subscribers
+  const statePublic = makeSyncGrainMap({
     log: logGrain,
     currentPlayer: currentRemotePlayer,
     currentTurnPhase: currentTurnPhaseName,
     locations,
     scores: scoresGrain,
-    deckCardsCount,
+    drawStackCount,
     players: remotePlayers,
   })
-  const followState = (canceled) => {
-    return state.follow(canceled)
-  }
+
+  // persisted game state
+  const statePersist = makeSyncGrainMap({
+    log: logGrain,
+    drawStackIds,
+    playerHandIds,
+    locations,
+    currentPlayerIndex,
+    currentTurnPhase,
+    turnPhases,
+    scoreFnCard,
+  })
+  statePersist.subscribe(newState => {
+    persistState(newState).catch(err => {
+      log(`Error persisting state: ${err.message}`)
+    })
+  })
 
   // Far
   const game = {
-    state,
-    addPlayer,
+    state: statePublic,
+    initialize,
     start,
-    playCardFromHand,
+    getCardDataById,
+    playCardByIdFromHand,
     followRemotePlayers,
     getRemotePlayersGrain,
-    followState,
     followCurrentRemotePlayer,
     getCurrentRemotePlayerGrain,
-    getCardsAtLocation,
+    getLocationGrain,
   }
   return game
 }
 
-export const make = () => {
-  const game = makeGame()
-  game.addPlayer(new Player('alice'))
-  game.addPlayer(new Player('bob'))
+export const make = async (powers) => {
+
+  const loadState = async () => {
+    if (!await E(powers).has('state')) {
+      return undefined
+    }
+    const readable = await E(powers).lookup('state');
+    const readerRef = E(readable).stream();
+    const reader = makeRefReader(readerRef);
+    let stateBlob = ''
+    for await (const chunk of reader) {
+      stateBlob += textDecoder.decode(chunk)
+    }
+    return JSON.parse(stateBlob)
+  }
+  const mutex = makeMutex()
+  const persistState = async (state) => {
+    await mutex.enqueue(async () => {
+      const stateBlob = JSON.stringify(state)
+      const encoded = textEncoder.encode(stateBlob)
+      const reader = makeReaderRef([encoded])
+      await E(powers).store(reader, 'state')
+    })
+  }
+
+  const deck = await E(powers).request(
+    // recipient
+    'HOST',
+    // description
+    'game/deck',
+    // my petname
+    'deck',
+  )
+
+  const gameState = await loadState()
+  const game = makeGame(gameState, deck, persistState)
+  await game.initialize()
+
   return Far('Game', {
-    async start (deck) {
-      await game.start(deck)
+    async start () {
+      return game.start()
     },
-    async playCardFromHand (remoteSourcePlayer, card, remoteDestinationPlayer) {
+    async playCardByIdFromHand (remoteSourcePlayer, cardId, remoteDestinationPlayer) {
       const localSourcePlayer = playerRemoteToLocal.get(remoteSourcePlayer)
       const localDestinationPlayer = playerRemoteToLocal.get(remoteDestinationPlayer)
-      await game.playCardFromHand(localSourcePlayer, card, localDestinationPlayer)
-    },
-
-    async followPlayers (canceled) {
-      return makeIteratorRef(game.followRemotePlayers(canceled))
+      await game.playCardByIdFromHand(localSourcePlayer, cardId, localDestinationPlayer)
     },
     async getPlayersGrain () {
       return makeRemoteGrain(game.getRemotePlayersGrain())
     },
-
-    async followState (canceled) {
-      return makeIteratorRef(game.followState(canceled))
-    },
     async getStateGrain () {
       return makeRemoteGrainMap(game.state)
-    },
-
-    async followCurrentPlayer (canceled) {
-      return makeIteratorRef(game.followCurrentRemotePlayer(canceled))
     },
     async getCurrentPlayerGrain () {
       return makeRemoteGrain(game.getCurrentRemotePlayerGrain())
     },
-
-    async followCardsAtLocation (location, canceled) {
-      return makeIteratorRef(game.getCardsAtLocation(location).follow(canceled))
-    },
-
     async getCardsAtPlayerLocationGrain (remotePlayer) {
       const { name } = playerRemoteToLocal.get(remotePlayer)
-      return makeRemoteGrain(game.getCardsAtLocation(name))
+      const locationCardIdsGrain = game.getLocationGrain(name)
+      // map location cardIds to CardData
+      // TODO: mem leak because we never unsubscribe / subscriptions are not lazy
+      const locationCardDataGrain = makeDerivedSyncGrain(
+        locationCardIdsGrain,
+        locationCardIds => locationCardIds.map(id => game.getCardDataById(id)),
+      )
+      return makeRemoteGrain(locationCardDataGrain)
     },
   });
 };

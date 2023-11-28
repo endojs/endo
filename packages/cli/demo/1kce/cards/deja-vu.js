@@ -3,13 +3,15 @@ import { E, Far } from '@endo/far'
 export const make = () => {
   return Far('deja vu', {
     async play (gameController) {
-      const cards = await E(gameController).getDeckCards()
-      await E(gameController).addCardsToDeck(cards)
+      // duplicate the cards in the draw stack, in the same order.
+      const cards = await E(gameController).getDrawStackCards()
+      const cardIds = cards.map(({ id }) => id)
+      await E(gameController).addCardsByIdToDrawStack(cardIds)
     },
     getDetails () {
       return {
         name: 'deja vu',
-        description: 'duplicate the cards in the deck, in the same order.\n\n-25 points',
+        description: 'duplicate the cards in the draw stack, in the same order.\n\n-25 points',
         pointValue: -25,
       }
     },

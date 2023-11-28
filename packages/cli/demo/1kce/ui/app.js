@@ -28,6 +28,15 @@ export const App = ({ inventory }) => {
   }
 
   const gameMgmt = {
+    async fetchGame () {
+      // has-check is workaround for https://github.com/endojs/endo/issues/1843
+      if (await inventory.has('game')) {
+        const game = await inventory.lookup('game')
+        setDeck(game)
+        const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
+        setGame({ game, stateGrain })
+      }
+    },
     async start () {
       // make game
       const game = await inventory.makeGame()
@@ -35,14 +44,15 @@ export const App = ({ inventory }) => {
       setGame({ game, stateGrain })
       await E(game).start(deck)
     },
-    async playCardFromHand (player, card, destinationPlayer) {
-      await E(game).playCardFromHand(player, card, destinationPlayer)
+    async playCardByIdFromHand (player, cardId, destinationPlayer) {
+      await E(game).playCardByIdFromHand(player, cardId, destinationPlayer)
     },
   }
 
   // on first render
   React.useEffect(() => {
     deckMgmt.fetchDeck()
+    gameMgmt.fetchGame()
   }, []);
 
   return (
