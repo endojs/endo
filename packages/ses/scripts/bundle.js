@@ -39,7 +39,7 @@ const main = async () => {
 
   await fs.promises.mkdir('dist', { recursive: true });
 
-  const bundles = [
+  const bundleFilePaths = [
     'dist/ses.cjs',
     'dist/ses.mjs',
     'dist/ses.umd.js',
@@ -47,11 +47,11 @@ const main = async () => {
     'dist/lockdown.mjs',
     'dist/lockdown.umd.js',
   ];
-  const terses = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
+  const terseFilePaths = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
 
   await Promise.all([
-    ...bundles.map(dest => write(dest, versionedBundle)),
-    ...terses.map(dest => write(dest, terse)),
+    ...bundleFilePaths.map(dest => write(dest, versionedBundle)),
+    ...terseFilePaths.map(dest => write(dest, terse)),
   ]);
 };
 
