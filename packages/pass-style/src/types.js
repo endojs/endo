@@ -30,7 +30,7 @@ export {};
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
- *     * higher-order types as CopyTaggeds (PassStyle 'tagged').
+ *     * higher-level types as CopyTaggeds (PassStyle 'tagged').
  *   * PassableCaps (PassStyle 'remotable' | 'promise') expose local values to
  *     remote interaction.
  *   * As a special case to support system observability, error objects are
