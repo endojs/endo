@@ -38,15 +38,21 @@ const main = async () => {
   console.log(`Minified bundle size: ${terse.length} bytes`);
 
   await fs.promises.mkdir('dist', { recursive: true });
-  await write('dist/ses.cjs', versionedBundle);
-  await write('dist/ses.mjs', versionedBundle);
-  await write('dist/ses.umd.js', versionedBundle);
-  await write('dist/ses.umd.min.js', terse);
 
-  await write('dist/lockdown.cjs', versionedBundle);
-  await write('dist/lockdown.mjs', versionedBundle);
-  await write('dist/lockdown.umd.js', versionedBundle);
-  await write('dist/lockdown.umd.min.js', terse);
+  const bundles = [
+    'dist/ses.cjs',
+    'dist/ses.mjs',
+    'dist/ses.umd.js',
+    'dist/lockdown.cjs',
+    'dist/lockdown.mjs',
+    'dist/lockdown.umd.js',
+  ];
+  const terses = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
+
+  await Promise.all([
+    ...bundles.map(dest => write(dest, versionedBundle)),
+    ...terses.map(dest => write(dest, terse)),
+  ]);
 };
 
 main().catch(err => {
