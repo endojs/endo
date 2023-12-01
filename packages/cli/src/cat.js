@@ -13,4 +13,6 @@ export const cat = async ({ name, partyNames }) =>
     for await (const chunk of reader) {
       process.stdout.write(chunk);
     }
+    // "yarn endo" will not display output unless we write a newline
+    process.stdout.write('\n');
   });
