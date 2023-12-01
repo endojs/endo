@@ -83,6 +83,15 @@ export const makePetStoreMaker = (filePowers, locator) => {
         throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
       }
 
+      if (petNames.has(petName)) {
+        // Perform cleanup on the overwritten pet name.
+        const formulaPetNames = formulaIdentifiers.get(petName);
+        if (formulaPetNames !== undefined) {
+          formulaPetNames.delete(petName);
+        }
+        changesTopic.publisher.next({ remove: petName });
+      }
+
       petNames.set(petName, formulaIdentifier);
 
       const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
