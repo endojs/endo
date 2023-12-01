@@ -160,6 +160,7 @@ export interface Controller<External = unknown, Internal = unknown> {
 }
 
 export interface PetStore {
+  has(petName: string): boolean;
   list(): Array<string>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
