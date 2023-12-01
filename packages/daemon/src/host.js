@@ -417,10 +417,11 @@ export const makeHostMaker = ({
       return value;
     };
 
-    const { list, follow: followNames } = petStore;
+    const { has, list, follow: followNames } = petStore;
 
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
+      has,
       lookup,
       reverseLookup,
       listMessages,

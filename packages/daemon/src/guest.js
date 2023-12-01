@@ -69,10 +69,11 @@ export const makeGuestMaker = ({
       terminator,
     });
 
-    const { list, follow: followNames } = petStore;
+    const { has, list, follow: followNames } = petStore;
 
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
+      has,
       lookup,
       reverseLookup,
       request,
