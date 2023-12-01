@@ -61,6 +61,12 @@ export const makePetStoreMaker = (filePowers, locator) => {
     );
 
     /** @param {string} petName */
+    const has = petName => {
+      assertValidName(petName);
+      return petNames.has(petName);
+    };
+
+    /** @param {string} petName */
     const lookup = petName => {
       assertValidName(petName);
       const formulaIdentifier = petNames.get(petName);
@@ -205,6 +211,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
     /** @type {import('./types.js').PetStore} */
     const petStore = {
+      has,
       lookup,
       reverseLookup,
       list,
