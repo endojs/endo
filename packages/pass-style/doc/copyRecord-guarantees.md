@@ -25,27 +25,10 @@ If `r` is a proxy, then, if this plan goes as we expect, this test will throw wi
 
 # How do I enumerate thee, let me list the ways
 
-Why only string-named own enumerable data properties? JavaScript has a tremendous number of different constructs for enumerating the properties of an object, with different semantics of what subset they choose to enumerate:
-
-| API                         | inherited?  | non-enumerable? | strings? | symbols? | output    |
-| --------------------------- | ----------- | --------------- | -------- | -------- | --------- |
-| for..in                     | yes         | no              | yes      | no       | k*        |
-| O.keys                      | no          | no              | yes      | no       | [k,*]     |
-| O.values                    | no          | no              | yes      | no       | [v,*]     |
-| O.entries                   | no          | no              | yes      | no       | [[k,v],*] |
-| {...obj}                    | no          | no              | yes      | yes      | {k:v,*}   |
-| O.assign after 1st arg      | no          | no              | yes      | yes      | {k:v,*}   |
-| Reflect.ownKeys             | no          | yes             | yes      | yes      | [k,*]     |
-| O.getOwnPropertyNames       | no          | yes             | yes      | no       | [k,*]     |
-| O.getOwnPropertySymbols     | no          | yes             | no       | yes      | [k,*]     |
-| O.getOwnPropertyDescriptors | no          | yes             | yes      | yes      | {k:d,*}   |
-
-    For accessor properties,
-       when the output contains a `v`, the getter is called to get the value:
-           O.values, O.entries, {...obj}, O.assign
-       when the output contains a `d`, the getter and setter are in the descriptor:
-           O.getOwnPropertyDescriptors
-
+Why only string-named own enumerable data properties?
+JavaScript has a [tremendous number of different constructs for enumerating the
+properties](enumerating-properties.md) of an object, with different semantics
+of what subset they choose to enumerate.
 Once an object passes `assertRecord(r)`, all of these are guaranteed to agree.
 
 # Like Records from Records & Tuples.
