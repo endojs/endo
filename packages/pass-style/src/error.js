@@ -81,6 +81,12 @@ export const ErrorHelper = harden({
       // TODO Must allow `cause`, `errors`
       message: mDesc,
       stack: stackDesc,
+
+      // workaround
+      columnNumber: _cn,
+      fileName: _fn,
+      lineNumber: _ln,
+
       ...restDescs
     } = getOwnPropertyDescriptors(candidate);
     ownKeys(restDescs).length < 1 ||
