@@ -1,7 +1,10 @@
-/* global window document */
+/* global window document globalThis */
 
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+
+/** @type any */
+const { assert } = globalThis;
 
 const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
@@ -72,6 +75,7 @@ const followMessagesComponent = async ($parent, $end, powers) => {
         $input.innerText = ` ${status} `;
       });
     } else if (message.type === 'package') {
+      /** @type {{ strings: Array<string>, names: Array<string> }} */
       const { strings, names } = message;
       assert(Array.isArray(strings));
       assert(Array.isArray(names));
@@ -179,7 +183,7 @@ const followNamesComponent = async ($parent, $end, powers) => {
 
       const $name = document.createTextNode(`${name} `);
       $li.appendChild($name);
-      $name.innerText = change.add;
+      $name.nodeValue = change.add;
 
       const $remove = document.createElement('button');
       $li.appendChild($remove);
