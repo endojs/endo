@@ -66,6 +66,13 @@ export const makePetStoreMaker = (filePowers, locator) => {
       return petNames.has(petName);
     };
 
+    /** @param {string} type */
+    const queryByType = (type) => {
+      return [...petNames.entries()]
+        .filter(([_name, formulaIdentifier]) => formulaIdentifier.startsWith(`${type}:`))
+        .map(([name]) => name)
+    }
+
     /** @param {string} petName */
     const lookup = petName => {
       assertValidName(petName);
@@ -109,16 +116,55 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
     const list = () => harden([...petNames.keys()].sort());
 
+    const filterForAddAndRemove = (filterFn) => {
+      return (change) => {
+        if ('add' in change) {
+          return filterFn(change.add);
+        } else if ('remove' in change) {
+          return filterFn(change.remove);
+        }
+        return false;
+      }
+    }
+
+    const makeFollowIterator = () => {
+      const changes = changesTopic.subscribe();
+      return (async function* currentAndSubsequentNames() {
+        for (const name of [...petNames.keys()].sort()) {
+          yield { add: name };
+        }
+        yield* changes;
+      })();
+    }
+
+    const makeFollowIteratorWithFilter = (filterFn) => {
+      return (async function* currentAndSubsequentNames() {
+        for await (const change of makeFollowIterator()) {
+          if (filterFn(change)) {
+            yield change;
+          }
+        }
+      })();
+    }
+
     const follow = async () =>
       makeIteratorRef(
-        (async function* currentAndSubsequentNames() {
-          const changes = changesTopic.subscribe();
-          for (const name of [...petNames.keys()].sort()) {
-            yield { add: name };
-          }
-          yield* changes;
-        })(),
+        makeFollowIterator(),
       );
+
+    const followQueryByType = (type) => {
+      return makeIteratorRef(
+        makeFollowIteratorWithFilter(
+          filterForAddAndRemove(name => {
+            const formulaIdentifier = petNames.get(name);
+            if (formulaIdentifier === undefined) {
+              return false;
+            }
+            return formulaIdentifier.startsWith(`${type}:`)
+          })
+        ),
+      );
+    }
 
     /**
      * @param {string} petName
@@ -221,6 +267,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore} */
     const petStore = {
       has,
+      queryByType,
+      followQueryByType,
       lookup,
       reverseLookup,
       list,

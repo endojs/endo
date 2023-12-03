@@ -161,6 +161,8 @@ export interface Controller<External = unknown, Internal = unknown> {
 
 export interface PetStore {
   has(petName: string): boolean;
+  queryByType(type: string): Array<string>;
+  followQueryByType(type: string): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
   list(): Array<string>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
