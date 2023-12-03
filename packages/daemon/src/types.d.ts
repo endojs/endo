@@ -116,12 +116,16 @@ export type Request = {
 };
 export type InternalRequest = Request;
 
-export type Package = {
+export type BasePackage = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<string>; // edge names
+}
+
+export type Package = BasePackage & {
+  formulaPetNames: Array<string>; // formula identifiers
 };
-export type InternalPackage = Package & {
+export type InternalPackage = BasePackage & {
   formulas: Array<string>; // formula identifiers
 };
 

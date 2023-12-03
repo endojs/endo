@@ -112,15 +112,18 @@ export const makeMailboxMaker = ({
         }
         return undefined;
       } else if (type === 'package') {
-        const { formulas: _, who: senderFormulaIdentifier, dest: recipientFormulaIdentifier, ...rest } = message;
+        const { formulas, who: senderFormulaIdentifier, dest: recipientFormulaIdentifier, ...rest } = message;
         const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
         );
         const [recipientName] = reverseLookupFormulaIdentifier(
           recipientFormulaIdentifier,
         );
+        const formulaPetNames = formulas.map(formula => {
+          return reverseLookupFormulaIdentifier(formula)[0];
+        });
         if (senderName !== undefined) {
-          return { who: senderName, dest: recipientName, ...rest };
+          return { who: senderName, dest: recipientName, formulaPetNames, ...rest };
         }
         return undefined;
       }
