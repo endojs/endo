@@ -197,7 +197,7 @@ const requestMessageComponent = ({ message, actions }) => {
   ]);
 };
 
-const messageComponent = ({ message, powers }) => {
+const messageComponent = ({ message, target }) => {
   const { number, who } = message;
   const [errorText, setErrorText] = useState('');
 
@@ -214,11 +214,11 @@ const messageComponent = ({ message, powers }) => {
     setErrorText(error.message);
   };
   const actions = {
-    dismiss: () => E(powers).dismiss(number).catch(reportError),
-    resolve: value => E(powers).resolve(number, value).catch(reportError),
-    reject: value => E(powers).reject(number, value).catch(reportError),
+    dismiss: () => E(target).dismiss(number).catch(reportError),
+    resolve: value => E(target).resolve(number, value).catch(reportError),
+    reject: value => E(target).reject(number, value).catch(reportError),
     adopt: (selectedName, asValue) =>
-      E(powers).adopt(number, selectedName, asValue).catch(reportError),
+      E(target).adopt(number, selectedName, asValue).catch(reportError),
   };
 
   return h('div', null, [
@@ -246,11 +246,11 @@ const messageComponent = ({ message, powers }) => {
   ]);
 };
 
-const followMessagesComponent = ({ powers }) => {
-  const messages = useFollowMessages(() => E(powers).followMessages(), []);
+const followMessagesComponent = ({ target }) => {
+  const messages = useFollowMessages(() => E(target).followMessages(), []);
 
   const messageEntries = messages.map(message => {
-    return h(messageComponent, { message, powers });
+    return h(messageComponent, { message, target });
   });
 
   return h(Fragment, null, [
@@ -259,8 +259,8 @@ const followMessagesComponent = ({ powers }) => {
   ]);
 };
 
-const followNamesComponent = ({ powers }) => {
-  const names = useFollowNames(() => E(powers).followNames(), []);
+const followNamesComponent = ({ target }) => {
+  const names = useFollowNames(() => E(target).followNames(), []);
 
   const inventoryEntries = names.map(name => {
     return h('li', null, [
@@ -269,7 +269,7 @@ const followNamesComponent = ({ powers }) => {
         // @ts-ignore
         'button',
         {
-          onclick: () => E(powers).remove(name).catch(window.reportError),
+          onclick: () => E(target).remove(name).catch(window.reportError),
         },
         'Remove',
       ),
@@ -283,10 +283,30 @@ const followNamesComponent = ({ powers }) => {
 };
 
 const bodyComponent = ({ powers }) => {
+  const [currentInbox, setCurrentInbox] = useState('host');
+  const guests = useFollowNames(() => E(powers).followQueryByType('guest-id512'), []);
+  const target = useAsync(() => {
+    if (currentInbox === 'host') {
+      return powers;
+    }
+    return E(powers).lookup(currentInbox)
+  }, [currentInbox]);
+
+  const inboxes = ['host', ...guests]
+
   return h(Fragment, null, [
     h('h1', {}, '🐈‍⬛'),
-    h(followMessagesComponent, { powers }),
-    h(followNamesComponent, { powers }),
+    h('span', {}, 'Logged in as:'),
+    h(
+      'select',
+      {
+        value: currentInbox,
+        onchange: e => setCurrentInbox(e.target.value),
+      },
+      inboxes.map(inbox => h('option', { value: inbox }, inbox)),
+    ),
+    target && h(followMessagesComponent, { target }),
+    target && h(followNamesComponent, { target }),
   ]);
 };
 
