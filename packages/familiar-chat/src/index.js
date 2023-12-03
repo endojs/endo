@@ -106,8 +106,25 @@ const useFollowNames = (getSubFn, deps) => {
   return state;
 };
 
-const packageMessageComponent = ({ message, actions }) => {
-  const { when, strings, names } = message;
+/**
+ * @param {Date} date
+ */
+const formatChatTime = (date) => {
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+
+  hours %= 12;
+  hours = hours || 12; // the hour '0' should be '12'
+  const minutesStr = minutes < 10 ? `0${  minutes}` : minutes;
+
+  const strTime = `${hours}:${minutesStr} ${ampm}`
+  return strTime;
+}
+
+const packageMessageComponent = ({ message, actions, showControls }) => {
+  /** @type {{ strings: string[], names: string[] }} */
+  const { strings, names } = message;
   assert(Array.isArray(strings));
   assert(Array.isArray(names));
 
@@ -121,7 +138,15 @@ const packageMessageComponent = ({ message, actions }) => {
       const textDisplay = JSON.stringify(string).slice(1, -1);
       return textDisplay;
     } else {
-      return h(Fragment, null, [string, h('b', null, `@${name}`)]);
+      return h(Fragment, null, [
+        string,
+        h('b', {
+          onClick: () => setSelectedName(name),
+          style: {
+            cursor: 'pointer',
+          },
+        }, `@${name}`),
+      ]);
     }
   });
 
@@ -158,16 +183,14 @@ const packageMessageComponent = ({ message, actions }) => {
   }
 
   return h(Fragment, null, [
-    ' "',
-    ...stringEntries,
-    '" ',
-    h('i', null, dateFormatter.format(Date.parse(when))),
     ' ',
-    hasItems && makeControls(),
+    ...stringEntries,
+    showControls && h('br', null),
+    showControls && hasItems && makeControls(),
   ]);
 };
 
-const requestMessageComponent = ({ message, actions }) => {
+const requestMessageComponent = ({ message, actions, showControls }) => {
   const [petName, setPetName] = useState('');
   const { what, when, settled } = message;
   const status = useAsync(() => settled, [settled]);
@@ -204,12 +227,12 @@ const requestMessageComponent = ({ message, actions }) => {
     h('span', null, ` ${what} `),
     h('i', null, dateFormatter.format(Date.parse(when))),
     h('span', null, statusText),
-    isUnsettled && makeControls(),
+    showControls && isUnsettled && makeControls(),
   ]);
 };
 
-const messageComponent = ({ message, target }) => {
-  const { number, who } = message;
+const messageComponent = ({ message, target, targetName, setActiveMessage, showControls }) => {
+  const { number, who, when } = message;
   const [errorText, setErrorText] = useState('');
 
   let messageBodyComponent;
@@ -220,6 +243,8 @@ const messageComponent = ({ message, target }) => {
   } else {
     throw new Error(`Unknown message type: ${message.type}`);
   }
+
+  const whoText = who === 'SELF' ? `${targetName}` : `${who}`;
 
   const reportError = error => {
     setErrorText(error.message);
@@ -232,36 +257,43 @@ const messageComponent = ({ message, target }) => {
       E(target).adopt(number, selectedName, asValue).catch(reportError),
   };
 
-  return h('div', null, [
-    h('span', null, `${number}. `),
-    h('b', null, `${who}:`),
-    h(messageBodyComponent, { message, actions }),
+  return h('div', {
+    onClick: () => setActiveMessage(message),
+  }, [
+    h('span', null, [
+      formatChatTime(new Date(when)),
+    ]),
     ' ',
-    h(
+    h('b', null, `${whoText}:`),
+    h(messageBodyComponent, { message, actions, showControls }),
+    ' ',
+    showControls && h(
       // @ts-ignore
       'button',
       {
         onclick: () => actions.dismiss(),
       },
-      'Dismiss',
+      'Hide',
     ),
-    h(
+    showControls && h(
       'span',
       {
         style: {
           color: 'red',
         },
       },
-      errorText,
+      ` ${errorText}`,
     ),
   ]);
 };
 
-const followMessagesComponent = ({ target }) => {
+const followMessagesComponent = ({ target, targetName }) => {
+  const [activeMessage, setActiveMessage] = useState(false);
   const messages = useFollowMessages(() => E(target).followMessages(), [target]);
 
   const messageEntries = messages.map(message => {
-    return h(messageComponent, { message, target });
+    const showControls = activeMessage === message;
+    return h(messageComponent, { message, target, targetName, setActiveMessage, showControls });
   });
 
   return h(Fragment, null, [
@@ -272,10 +304,12 @@ const followMessagesComponent = ({ target }) => {
 
 const followNamesComponent = ({ target }) => {
   const names = useFollowNames(() => E(target).followNames(), [target]);
+  const sortedNames = names.sort((a, b) => a.localeCompare(b));
 
-  const inventoryEntries = names.map(name => {
+  const inventoryEntries = sortedNames.map(name => {
     return h('li', null, [
       name,
+      ' ',
       h(
         // @ts-ignore
         'button',
@@ -375,7 +409,7 @@ const bodyComponent = ({ powers }) => {
 
   return h(Fragment, null, [
     h('h1', {}, '🐈‍⬛'),
-    h('span', {}, 'Logged in as:'),
+    h('span', {}, 'Logged in as: '),
     h(
       'select',
       {
@@ -384,8 +418,8 @@ const bodyComponent = ({ powers }) => {
       },
       inboxes.map(inbox => h('option', { value: inbox }, inbox)),
     ),
-    target && h(followMessagesComponent, { target }),
     target && h(followNamesComponent, { target }),
+    target && h(followMessagesComponent, { target, targetName: currentInbox }),
     target && h(sendComponent, { target }),
   ]);
 };
