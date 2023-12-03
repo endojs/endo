@@ -338,6 +338,17 @@ export const makeMailboxMaker = ({
         edgeNames,
         formulaIdentifiers,
       );
+      const selfController = await provideControllerForFormulaIdentifier(
+        selfFormulaIdentifier,
+      );
+      const selfInternal = await selfController.internal;
+      const { receive: selfReceive } = selfInternal;
+      selfReceive(
+        selfFormulaIdentifier,
+        strings,
+        edgeNames,
+        formulaIdentifiers,
+      );
     };
 
     const dismiss = async messageNumber => {

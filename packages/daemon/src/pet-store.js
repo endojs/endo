@@ -161,7 +161,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
               return false;
             }
             return formulaIdentifier.startsWith(`${type}:`)
-          })
+          }),
         ),
       );
     }
