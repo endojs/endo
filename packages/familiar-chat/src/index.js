@@ -122,15 +122,22 @@ const formatChatTime = (date) => {
   return strTime;
 }
 
-const packageMessageComponent = ({ message, actions, showControls }) => {
-  /** @type {{ strings: string[], names: string[] }} */
-  const { strings, names } = message;
-  assert(Array.isArray(strings));
-  assert(Array.isArray(names));
+const packageMessageEdgeNameComponent = ({ edgeName, formulaPetname, setSelectedName }) => {
+  const nameIsKnown = formulaPetname !== undefined;
+  const nameDisplay = nameIsKnown ? `@${formulaPetname}` : `?${edgeName}`;
+  return (
+    h('b', {
+      onClick: () => setSelectedName(edgeName),
+      style: {
+        cursor: 'pointer',
+      },
+    }, nameDisplay)
+  )
+};
 
-  const [asValue, setAsValue] = useState('');
-  const [selectedName, setSelectedName] = useState(names[0]);
-
+const packageMessageDisplayComponent = ({ message, setSelectedName }) => {
+  /** @type {{ strings: string[], names: string[], formulaPetNames: string[] }} */
+  const { strings, names, formulaPetNames } = message;
   const stringEntries = strings.map((string, index) => {
     const name = names[index];
     if (name === undefined) {
@@ -138,18 +145,26 @@ const packageMessageComponent = ({ message, actions, showControls }) => {
       const textDisplay = JSON.stringify(string).slice(1, -1);
       return textDisplay;
     } else {
+      const formulaPetname = formulaPetNames[index];
       return h(Fragment, null, [
         string,
-        h('b', {
-          onClick: () => setSelectedName(name),
-          style: {
-            cursor: 'pointer',
-          },
-        }, `@${name}`),
+        h(packageMessageEdgeNameComponent, { edgeName: name, formulaPetname, setSelectedName }),
       ]);
     }
   });
+  return h(Fragment, null, [
+    ...stringEntries,
+  ]);
+};
 
+const packageMessageBodyComponent = ({ message, actions, showControls }) => {
+  /** @type {{ strings: string[], names: string[] }} */
+  const { strings, names } = message;
+  assert(Array.isArray(strings));
+  assert(Array.isArray(names));
+
+  const [asValue, setAsValue] = useState('');
+  const [selectedName, setSelectedName] = useState(names[0]);
   const hasItems = names.length > 0;
 
   const makeControls = () => {
@@ -184,13 +199,13 @@ const packageMessageComponent = ({ message, actions, showControls }) => {
 
   return h(Fragment, null, [
     ' ',
-    ...stringEntries,
+    h(packageMessageDisplayComponent, { message, setSelectedName }),
     showControls && h('br', null),
     showControls && hasItems && makeControls(),
   ]);
 };
 
-const requestMessageComponent = ({ message, actions, showControls }) => {
+const requestMessageBodyComponent = ({ message, actions, showControls }) => {
   const [petName, setPetName] = useState('');
   const { what, when, settled } = message;
   const status = useAsync(() => settled, [settled]);
@@ -237,9 +252,9 @@ const messageComponent = ({ message, target, targetName, setActiveMessage, showC
 
   let messageBodyComponent;
   if (message.type === 'request') {
-    messageBodyComponent = requestMessageComponent;
+    messageBodyComponent = requestMessageBodyComponent;
   } else if (message.type === 'package') {
-    messageBodyComponent = packageMessageComponent;
+    messageBodyComponent = packageMessageBodyComponent;
   } else {
     throw new Error(`Unknown message type: ${message.type}`);
   }
