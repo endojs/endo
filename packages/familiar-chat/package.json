@@ -23,6 +23,7 @@
   },
   "scripts": {
     "start": "endo open familiar-chat ./index.js --powers SELF",
+    "dev": "nodemon --exec 'endo open familiar-chat ./index.js --powers SELF'",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
@@ -67,6 +68,7 @@
   "dependencies": {
     "@endo/cli": "^0.2.6",
     "@endo/daemon": "^0.2.6",
-    "@endo/far": "^0.2.22"
+    "@endo/far": "^0.2.22",
+    "preact": "^10.19.2"
   }
 }
