@@ -247,7 +247,7 @@ const messageComponent = ({ message, target }) => {
 };
 
 const followMessagesComponent = ({ target }) => {
-  const messages = useFollowMessages(() => E(target).followMessages(), []);
+  const messages = useFollowMessages(() => E(target).followMessages(), [target]);
 
   const messageEntries = messages.map(message => {
     return h(messageComponent, { message, target });
@@ -260,7 +260,7 @@ const followMessagesComponent = ({ target }) => {
 };
 
 const followNamesComponent = ({ target }) => {
-  const names = useFollowNames(() => E(target).followNames(), []);
+  const names = useFollowNames(() => E(target).followNames(), [target]);
 
   const inventoryEntries = names.map(name => {
     return h('li', null, [
@@ -280,6 +280,73 @@ const followNamesComponent = ({ target }) => {
     h('h2', null, 'Inventory'),
     h('ul', null, inventoryEntries),
   ]);
+};
+
+const pattern = /@([a-z][a-z0-9-]{0,127})(?::([a-z][a-z0-9-]{0,127}))?/g;
+
+export const parseMessage = message => {
+  const strings = [];
+  const petNames = [];
+  const edgeNames = [];
+  let start = 0;
+  message.replace(pattern, (match, edgeName, petName, stop) => {
+    strings.push(message.slice(start, stop));
+    start = stop + match.length;
+
+    edgeNames.push(edgeName);
+    petNames.push(petName ?? edgeName);
+    return '';
+  });
+  strings.push(message.slice(start));
+  return {
+    strings,
+    petNames,
+    edgeNames,
+  };
+};
+
+
+const sendComponent = ({ target }) => {
+  const [message, setMessage] = useState('');
+  const [recipientName, setRecipientName] = useState();
+  const recipients = useFollowNames(() => E(target).followQueryByType('guest-id512'), []);
+
+  return (
+    h(Fragment, null, [
+      h('h2', null, 'Send'),
+      h(
+        'select',
+        {
+          value: recipientName,
+          onchange: e => setRecipientName(e.target.value),
+        },
+        recipients.map(name => h('option', { value: name }, name)),
+      ),
+      h(
+        'input',
+        {
+          type: 'text',
+          value: message,
+          oninput: e => setMessage(e.target.value),
+        },
+      ),
+      h(
+        // @ts-ignore
+        'button',
+        {
+          disabled: !recipientName,
+          onclick: () => {
+            setMessage('');
+            const { strings, edgeNames, petNames } = parseMessage(message);
+            E(target)
+              .send(recipientName, strings, edgeNames, petNames)
+              .catch(window.reportError);
+          },
+        },
+        'Send',
+      ),
+    ])
+  )
 };
 
 const bodyComponent = ({ powers }) => {
@@ -307,6 +374,7 @@ const bodyComponent = ({ powers }) => {
     ),
     target && h(followMessagesComponent, { target }),
     target && h(followNamesComponent, { target }),
+    target && h(sendComponent, { target }),
   ]);
 };
 
