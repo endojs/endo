@@ -287,18 +287,101 @@ const messageComponent = ({ message, target, targetName, setActiveMessage, showC
   ]);
 };
 
+const pattern = /@([a-z][a-z0-9-]{0,127})(?::([a-z][a-z0-9-]{0,127}))?/g;
+
+export const parseMessage = message => {
+  const strings = [];
+  const petNames = [];
+  const edgeNames = [];
+  let start = 0;
+  message.replace(pattern, (match, edgeName, petName, stop) => {
+    strings.push(message.slice(start, stop));
+    start = stop + match.length;
+
+    edgeNames.push(edgeName);
+    petNames.push(petName ?? edgeName);
+    return '';
+  });
+  strings.push(message.slice(start));
+  return {
+    strings,
+    petNames,
+    edgeNames,
+  };
+};
+
+const sendComponent = ({ target, recipientName }) => {
+  const [message, setMessage] = useState('');
+
+  const submitMessage = () => {
+    setMessage('');
+    const { strings, edgeNames, petNames } = parseMessage(message);
+    E(target)
+      .send(recipientName, strings, edgeNames, petNames)
+      .catch(window.reportError);
+  }
+
+  return (
+    h(Fragment, null, [
+      h(
+        'input',
+        {
+          type: 'text',
+          value: message,
+          oninput: e => setMessage(e.target.value),
+          onkeydown: e => {
+            if (e.key === 'Enter') {
+              submitMessage()
+            }
+          },
+        },
+      ),
+      h(
+        // @ts-ignore
+        'button',
+        {
+          disabled: !recipientName,
+          onclick: () => {
+            submitMessage()
+          },
+        },
+        'Send',
+      ),
+    ])
+  )
+};
+
 const followMessagesComponent = ({ target, targetName }) => {
   const [activeMessage, setActiveMessage] = useState(false);
   const messages = useFollowMessages(() => E(target).followMessages(), [target]);
+  const knownGuests = useFollowNames(() => E(target).followQueryByType('guest-id512'), []);
+  const isHost = targetName === 'host';
+  const recipients = isHost ? knownGuests : ['HOST', ...knownGuests];
+  const [specifiedRecipientName, setRecipientName] = useState();
+  const recipientName = specifiedRecipientName || recipients[0];
+  const currentMessages = messages.filter(message => {
+    const { who, dest } = message;
+    return who === recipientName || dest === recipientName;
+  })
 
-  const messageEntries = messages.map(message => {
+  const messageEntries = currentMessages.map(message => {
     const showControls = activeMessage === message;
     return h(messageComponent, { message, target, targetName, setActiveMessage, showControls });
   });
 
   return h(Fragment, null, [
-    h('h2', null, 'Messages'),
+    h('h2', null, 'Chat'),
+    h('span', null, ['Chatting with:']),
+    h(
+      'select',
+      {
+        value: recipientName,
+        onchange: e => setRecipientName(e.target.value),
+      },
+      recipients.map(name => h('option', { value: name }, name)),
+    ),
     h('div', null, messageEntries),
+    h(sendComponent, { target, recipientName }),
   ]);
 };
 
@@ -327,74 +410,6 @@ const followNamesComponent = ({ target }) => {
   ]);
 };
 
-const pattern = /@([a-z][a-z0-9-]{0,127})(?::([a-z][a-z0-9-]{0,127}))?/g;
-
-export const parseMessage = message => {
-  const strings = [];
-  const petNames = [];
-  const edgeNames = [];
-  let start = 0;
-  message.replace(pattern, (match, edgeName, petName, stop) => {
-    strings.push(message.slice(start, stop));
-    start = stop + match.length;
-
-    edgeNames.push(edgeName);
-    petNames.push(petName ?? edgeName);
-    return '';
-  });
-  strings.push(message.slice(start));
-  return {
-    strings,
-    petNames,
-    edgeNames,
-  };
-};
-
-
-const sendComponent = ({ target }) => {
-  const [message, setMessage] = useState('');
-  const [specifiedRecipientName, setRecipientName] = useState();
-  const recipients = useFollowNames(() => E(target).followQueryByType('guest-id512'), []);
-  const recipientName = specifiedRecipientName || recipients[0];
-
-  return (
-    h(Fragment, null, [
-      h('h2', null, 'Send'),
-      h(
-        'select',
-        {
-          value: recipientName,
-          onchange: e => setRecipientName(e.target.value),
-        },
-        recipients.map(name => h('option', { value: name }, name)),
-      ),
-      h(
-        'input',
-        {
-          type: 'text',
-          value: message,
-          oninput: e => setMessage(e.target.value),
-        },
-      ),
-      h(
-        // @ts-ignore
-        'button',
-        {
-          disabled: !recipientName,
-          onclick: () => {
-            setMessage('');
-            const { strings, edgeNames, petNames } = parseMessage(message);
-            E(target)
-              .send(recipientName, strings, edgeNames, petNames)
-              .catch(window.reportError);
-          },
-        },
-        'Send',
-      ),
-    ])
-  )
-};
-
 const bodyComponent = ({ powers }) => {
   const [currentInbox, setCurrentInbox] = useState('host');
   const guests = useFollowNames(() => E(powers).followQueryByType('guest-id512'), []);
@@ -420,7 +435,6 @@ const bodyComponent = ({ powers }) => {
     ),
     target && h(followNamesComponent, { target }),
     target && h(followMessagesComponent, { target, targetName: currentInbox }),
-    target && h(sendComponent, { target }),
   ]);
 };
 
