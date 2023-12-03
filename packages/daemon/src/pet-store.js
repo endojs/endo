@@ -152,7 +152,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
         makeFollowIterator(),
       );
 
-    const followQueryByType = (type) => {
+    /** @param {string} type */
+    const followQueryByType = async (type) => {
       return makeIteratorRef(
         makeFollowIteratorWithFilter(
           filterForAddAndRemove(name => {

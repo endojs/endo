@@ -100,21 +100,27 @@ export const makeMailboxMaker = ({
     const dubMessage = message => {
       const { type } = message;
       if (type === 'request') {
-        const { who: senderFormulaIdentifier, ...rest } = message;
+        const { who: senderFormulaIdentifier, dest: recipientFormulaIdentifier, ...rest } = message;
         const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
         );
+        const [recipientName] = reverseLookupFormulaIdentifier(
+          recipientFormulaIdentifier,
+        );
         if (senderName !== undefined) {
-          return { who: senderName, ...rest };
+          return { who: senderName, dest: recipientName, ...rest };
         }
         return undefined;
       } else if (type === 'package') {
-        const { formulas: _, who: senderFormulaIdentifier, ...rest } = message;
+        const { formulas: _, who: senderFormulaIdentifier, dest: recipientFormulaIdentifier, ...rest } = message;
         const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
         );
+        const [recipientName] = reverseLookupFormulaIdentifier(
+          recipientFormulaIdentifier,
+        );
         if (senderName !== undefined) {
-          return { who: senderName, ...rest };
+          return { who: senderName, dest: recipientName, ...rest };
         }
         return undefined;
       }
@@ -172,8 +178,9 @@ export const makeMailboxMaker = ({
     /**
      * @param {string} what - user visible description of the desired value
      * @param {string} who
+     * @param {string} dest
      */
-    const requestFormulaIdentifier = async (what, who) => {
+    const requestFormulaIdentifier = async (what, who, dest) => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
       const { promise, resolve } = makePromiseKit();
       const settled = promise.then(
@@ -183,6 +190,7 @@ export const makeMailboxMaker = ({
       const message = deliver({
         type: /** @type {const} */ ('request'),
         who,
+        dest,
         what,
         settled,
       });
@@ -209,6 +217,7 @@ export const makeMailboxMaker = ({
           formulaIdentifier = await requestFormulaIdentifier(
             what,
             senderFormulaIdentifier,
+            selfFormulaIdentifier,
           );
           await senderPetStore.write(responseName, formulaIdentifier);
         }
@@ -220,6 +229,7 @@ export const makeMailboxMaker = ({
       const formulaIdentifier = await requestFormulaIdentifier(
         what,
         senderFormulaIdentifier,
+        selfFormulaIdentifier,
       );
       // TODO:
       // terminator.thisDiesIfThatDies(formulaIdentifier);
@@ -271,12 +281,14 @@ export const makeMailboxMaker = ({
      * @param {Array<string>} strings
      * @param {Array<string>} edgeNames
      * @param {Array<string>} formulaIdentifiers
+     * @param {string} receiverFormulaIdentifier
      */
     const receive = (
       senderFormulaIdentifier,
       strings,
       edgeNames,
       formulaIdentifiers,
+      receiverFormulaIdentifier = selfFormulaIdentifier,
     ) =>
       deliver({
         type: /** @type {const} */ ('package'),
@@ -284,6 +296,7 @@ export const makeMailboxMaker = ({
         names: edgeNames,
         formulas: formulaIdentifiers,
         who: senderFormulaIdentifier,
+        dest: receiverFormulaIdentifier,
       });
 
     /**
@@ -332,22 +345,21 @@ export const makeMailboxMaker = ({
         }
         return formulaIdentifier;
       });
+      // add to recipient mailbox
       partyReceive(
         selfFormulaIdentifier,
         strings,
         edgeNames,
         formulaIdentifiers,
+        recipientFormulaIdentifier,
       );
-      const selfController = await provideControllerForFormulaIdentifier(
-        selfFormulaIdentifier,
-      );
-      const selfInternal = await selfController.internal;
-      const { receive: selfReceive } = selfInternal;
-      selfReceive(
+      // add to own mailbox
+      receive(
         selfFormulaIdentifier,
         strings,
         edgeNames,
         formulaIdentifiers,
+        recipientFormulaIdentifier,
       );
     };
 
