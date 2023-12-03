@@ -125,34 +125,45 @@ const packageMessageComponent = ({ message, actions }) => {
     }
   });
 
+  const hasItems = names.length > 0;
+
+  const makeControls = () => {
+    return (
+      h(Fragment, null, [
+        h(
+          'select',
+          {
+            value: selectedName,
+            onchange: e => setSelectedName(e.target.value),
+          },
+          names.map(name => h('option', { value: name }, name)),
+        ),
+        ' ',
+        h('input', {
+          type: 'text',
+          placeholder: selectedName,
+          value: asValue,
+          oninput: e => setAsValue(e.target.value),
+        }),
+        h(
+          // @ts-ignore
+          'button',
+          {
+            onclick: () => actions.adopt(selectedName, asValue || selectedName),
+          },
+          'Adopt',
+        ),
+      ])
+    )
+  }
+
   return h(Fragment, null, [
     ' "',
     ...stringEntries,
     '" ',
     h('i', null, dateFormatter.format(Date.parse(when))),
     ' ',
-    h(
-      'select',
-      {
-        value: selectedName,
-        onchange: e => setSelectedName(e.target.value),
-      },
-      names.map(name => h('option', { value: name }, name)),
-    ),
-    ' ',
-    h('input', {
-      type: 'text',
-      value: asValue,
-      oninput: e => setAsValue(e.target.value),
-    }),
-    h(
-      // @ts-ignore
-      'button',
-      {
-        onclick: () => actions.adopt(selectedName, asValue),
-      },
-      'Adopt',
-    ),
+    hasItems && makeControls(),
   ]);
 };
 
@@ -308,8 +319,9 @@ export const parseMessage = message => {
 
 const sendComponent = ({ target }) => {
   const [message, setMessage] = useState('');
-  const [recipientName, setRecipientName] = useState();
+  const [specifiedRecipientName, setRecipientName] = useState();
   const recipients = useFollowNames(() => E(target).followQueryByType('guest-id512'), []);
+  const recipientName = specifiedRecipientName || recipients[0];
 
   return (
     h(Fragment, null, [
