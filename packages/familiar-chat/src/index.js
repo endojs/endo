@@ -402,20 +402,62 @@ const chatComponent = ({ target, targetName, nameIdPairs }) => {
   ]);
 };
 
-const inventoryComponent = ({ target, names }) => {
-  const inventoryEntries = names.map(name => {
-    return h('li', null, [
-      name,
-      ' ',
-      h(
-        // @ts-ignore
-        'button',
-        {
-          onclick: () => E(target).remove(name).catch(window.reportError),
+const inventoryTypeDisplayDict = {
+  'web-bundle': 'app',
+  'guest-id512': 'guest',
+  'readable-blob-sha512': 'file',
+}
+
+const inventoryEntryComponent = ({ target, item }) => {
+  const [appUrl, setAppUrl] = useState();
+  const { name, type } = item;
+  const isWebBundle = type === 'web-bundle';
+  const typeDisplay = inventoryTypeDisplayDict[type] ?? type;
+  return h('li', null, [
+    `${name} `,
+    h('i', null, `(${typeDisplay})`),
+    ' ',
+    h(
+      // @ts-ignore
+      'button',
+      {
+        onclick: () => E(target).remove(name).catch(window.reportError),
+      },
+      'Remove',
+    ),
+    isWebBundle && appUrl && h(
+      // @ts-ignore
+      'button',
+      {
+        onclick: () => {
+          window.open(appUrl, '_blank')
         },
-        'Remove',
-      ),
-    ]);
+      },
+      'Open App',
+    ),
+    isWebBundle && !appUrl && h(
+      // @ts-ignore
+      'button',
+      {
+        onclick: async () => {
+          const { url } = await E(target).lookup(name);
+          setAppUrl(url);
+        },
+      },
+      'Load App',
+    ),
+  ]);
+}
+
+const inventoryComponent = ({ target, inventory }) => {
+  const inventoryMap = new Map()
+  for (const item of inventory) {
+    inventoryMap.set(item.name, item);
+  }
+  const sortedNames = [...inventoryMap.keys()].sort((a, b) => a.localeCompare(b));
+
+  const inventoryEntries = sortedNames.map(name => {
+    return h(inventoryEntryComponent, { target, item: inventoryMap.get(name) });
   });
 
   return h(Fragment, null, [
@@ -434,8 +476,8 @@ const bodyComponent = ({ powers }) => {
     return E(powers).lookup(currentInbox)
   }, [currentInbox]);
   const nameIdPairs = useFollowNames(() => E(target).followNamesWithId(), [target]);
-  const names = nameIdPairs.map(({ name }) => name);
-  const sortedNames = names.sort((a, b) => a.localeCompare(b));
+  // const names = nameIdPairs.map(({ name }) => name);
+  // const sortedNames = names.sort((a, b) => a.localeCompare(b));
 
   const inboxes = ['host', ...guests]
 
@@ -450,7 +492,7 @@ const bodyComponent = ({ powers }) => {
       },
       inboxes.map(inbox => h('option', { value: inbox }, inbox)),
     ),
-    target && h(inventoryComponent, { target, names: sortedNames }),
+    target && h(inventoryComponent, { target, inventory: nameIdPairs }),
     target && h(chatComponent, { target, targetName: currentInbox, nameIdPairs }),
   ]);
 };
