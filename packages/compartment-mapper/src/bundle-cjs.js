@@ -1,3 +1,4 @@
+// @ts-nocheck
 /** quotes strings */
 const q = JSON.stringify;
 
