@@ -122,9 +122,11 @@ const formatChatTime = (date) => {
   return strTime;
 }
 
-const packageMessageEdgeNameComponent = ({ edgeName, formulaPetname, setSelectedName }) => {
-  const nameIsKnown = formulaPetname !== undefined;
-  const nameDisplay = nameIsKnown ? `@${formulaPetname}` : `?${edgeName}`;
+const packageMessageEdgeNameComponent = ({ edgeName, formulaId, setSelectedName, nameIdPairs }) => {
+  const matchingPair = nameIdPairs.find(({ id }) => formulaId === id);
+  const nameIsKnown = matchingPair !== undefined;
+  const nameDisplay = nameIsKnown ? `@${matchingPair.name}` : `?${edgeName}`;
+
   return (
     h('b', {
       onClick: () => setSelectedName(edgeName),
@@ -135,9 +137,9 @@ const packageMessageEdgeNameComponent = ({ edgeName, formulaPetname, setSelected
   )
 };
 
-const packageMessageDisplayComponent = ({ message, setSelectedName }) => {
-  /** @type {{ strings: string[], names: string[], formulaPetNames: string[] }} */
-  const { strings, names, formulaPetNames } = message;
+const packageMessageDisplayComponent = ({ message, setSelectedName, nameIdPairs }) => {
+  /** @type {{ strings: string[], names: string[], formulaIds: string[] }} */
+  const { strings, names, formulaIds } = message;
   const stringEntries = strings.map((string, index) => {
     const name = names[index];
     if (name === undefined) {
@@ -145,10 +147,10 @@ const packageMessageDisplayComponent = ({ message, setSelectedName }) => {
       const textDisplay = JSON.stringify(string).slice(1, -1);
       return textDisplay;
     } else {
-      const formulaPetname = formulaPetNames[index];
+      const formulaId = formulaIds[index];
       return h(Fragment, null, [
         string,
-        h(packageMessageEdgeNameComponent, { edgeName: name, formulaPetname, setSelectedName }),
+        h(packageMessageEdgeNameComponent, { edgeName: name, formulaId, setSelectedName, nameIdPairs }),
       ]);
     }
   });
@@ -157,7 +159,7 @@ const packageMessageDisplayComponent = ({ message, setSelectedName }) => {
   ]);
 };
 
-const packageMessageBodyComponent = ({ message, actions, showControls }) => {
+const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPairs }) => {
   /** @type {{ strings: string[], names: string[] }} */
   const { strings, names } = message;
   assert(Array.isArray(strings));
@@ -199,7 +201,7 @@ const packageMessageBodyComponent = ({ message, actions, showControls }) => {
 
   return h(Fragment, null, [
     ' ',
-    h(packageMessageDisplayComponent, { message, setSelectedName }),
+    h(packageMessageDisplayComponent, { message, setSelectedName, nameIdPairs }),
     showControls && h('br', null),
     showControls && hasItems && makeControls(),
   ]);
@@ -246,7 +248,7 @@ const requestMessageBodyComponent = ({ message, actions, showControls }) => {
   ]);
 };
 
-const messageComponent = ({ message, target, targetName, setActiveMessage, showControls }) => {
+const messageComponent = ({ message, target, targetName, setActiveMessage, showControls, nameIdPairs }) => {
   const { number, who, when } = message;
   const [errorText, setErrorText] = useState('');
 
@@ -280,7 +282,7 @@ const messageComponent = ({ message, target, targetName, setActiveMessage, showC
     ]),
     ' ',
     h('b', null, `${whoText}:`),
-    h(messageBodyComponent, { message, actions, showControls }),
+    h(messageBodyComponent, { message, actions, showControls, nameIdPairs }),
     ' ',
     showControls && h(
       // @ts-ignore
@@ -366,7 +368,7 @@ const sendComponent = ({ target, recipientName }) => {
   )
 };
 
-const followMessagesComponent = ({ target, targetName }) => {
+const chatComponent = ({ target, targetName, nameIdPairs }) => {
   const [activeMessage, setActiveMessage] = useState(false);
   const messages = useFollowMessages(() => E(target).followMessages(), [target]);
   const knownGuests = useFollowNames(() => E(target).followQueryByType('guest-id512'), []);
@@ -381,7 +383,7 @@ const followMessagesComponent = ({ target, targetName }) => {
 
   const messageEntries = currentMessages.map(message => {
     const showControls = activeMessage === message;
-    return h(messageComponent, { message, target, targetName, setActiveMessage, showControls });
+    return h(messageComponent, { message, target, targetName, setActiveMessage, showControls, nameIdPairs });
   });
 
   return h(Fragment, null, [
@@ -400,11 +402,8 @@ const followMessagesComponent = ({ target, targetName }) => {
   ]);
 };
 
-const followNamesComponent = ({ target }) => {
-  const names = useFollowNames(() => E(target).followNames(), [target]);
-  const sortedNames = names.sort((a, b) => a.localeCompare(b));
-
-  const inventoryEntries = sortedNames.map(name => {
+const inventoryComponent = ({ target, names }) => {
+  const inventoryEntries = names.map(name => {
     return h('li', null, [
       name,
       ' ',
@@ -434,6 +433,9 @@ const bodyComponent = ({ powers }) => {
     }
     return E(powers).lookup(currentInbox)
   }, [currentInbox]);
+  const nameIdPairs = useFollowNames(() => E(target).followNamesWithId(), [target]);
+  const names = nameIdPairs.map(({ name }) => name);
+  const sortedNames = names.sort((a, b) => a.localeCompare(b));
 
   const inboxes = ['host', ...guests]
 
@@ -448,8 +450,8 @@ const bodyComponent = ({ powers }) => {
       },
       inboxes.map(inbox => h('option', { value: inbox }, inbox)),
     ),
-    target && h(followNamesComponent, { target }),
-    target && h(followMessagesComponent, { target, targetName: currentInbox }),
+    target && h(inventoryComponent, { target, names: sortedNames }),
+    target && h(chatComponent, { target, targetName: currentInbox, nameIdPairs }),
   ]);
 };
 
