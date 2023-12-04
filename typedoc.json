@@ -1,0 +1,12 @@
+{
+    "entryPoints": [
+        "packages/*"
+    ],
+    "exclude": [
+        "packages/test262-runner/"
+    ],
+    "name": "Endo API documentation",
+    "entryPointStrategy": "packages",
+    "out": "api-docs",
+    "includeVersion": true
+}
