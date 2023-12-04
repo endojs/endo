@@ -1,5 +1,5 @@
-import { makePromiseKit } from '@endo/promise-kit';
 import { test } from './prepare-test-env-ava.js';
+import { makePromiseKit } from '@endo/promise-kit';
 import { makeSyncGrain, makeSyncArrayGrain, makeSyncGrainMap } from '../src/index.js';
 import { makeReadonlyGrainMapFromRemote, makeRemoteGrainMap } from '../src/captp.js';
 
