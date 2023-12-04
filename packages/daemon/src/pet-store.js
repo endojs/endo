@@ -42,8 +42,10 @@ export const makePetStoreMaker = (filePowers, locator) => {
       if (formulaIdentifier === undefined) {
         return undefined;
       }
+      const [type] = formulaIdentifier.split(':');
       return {
         name: petName,
+        type,
         id: getIdForFormulaIdentifier(formulaIdentifier),
       };
     }
