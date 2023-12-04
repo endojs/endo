@@ -30,6 +30,8 @@ export const makeMailboxMaker = ({
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
 
+    const { getIdForFormulaIdentifier } = petStore;
+
     /**
      * @param {string} petName
      */
@@ -119,11 +121,9 @@ export const makeMailboxMaker = ({
         const [recipientName] = reverseLookupFormulaIdentifier(
           recipientFormulaIdentifier,
         );
-        const formulaPetNames = formulas.map(formula => {
-          return reverseLookupFormulaIdentifier(formula)[0];
-        });
+        const formulaIds = formulas.map(getIdForFormulaIdentifier);
         if (senderName !== undefined) {
-          return { who: senderName, dest: recipientName, formulaPetNames, ...rest };
+          return { who: senderName, dest: recipientName, formulaIds, ...rest };
         }
         return undefined;
       }

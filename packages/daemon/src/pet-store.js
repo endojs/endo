@@ -27,6 +27,26 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const formulaIdentifiers = new Map();
     /** @type {import('./types.js').Topic<unknown>} */
     const changesTopic = makeChangeTopic();
+    
+    // TODO: I guess these would need to be persisted to disk
+    const randomId = () => `${Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)}`;
+    const idForFormulaIdentifier = new Map();
+    const getIdForFormulaIdentifier = formulaIdentifier => {
+      if (!idForFormulaIdentifier.has(formulaIdentifier)) {
+        idForFormulaIdentifier.set(formulaIdentifier, randomId());
+      }
+      return idForFormulaIdentifier.get(formulaIdentifier);
+    }
+    const petNameToNameIdPair = (petName) => {
+      const formulaIdentifier = petNames.get(petName);
+      if (formulaIdentifier === undefined) {
+        return undefined;
+      }
+      return {
+        name: petName,
+        id: getIdForFormulaIdentifier(formulaIdentifier),
+      };
+    }
 
     /** @param {string} petName */
     const read = async petName => {
@@ -115,7 +135,18 @@ export const makePetStoreMaker = (filePowers, locator) => {
     };
 
     const list = () => harden([...petNames.keys()].sort());
+    const listWithId = () => list().map(petNameToNameIdPair);
 
+    const mapForAddAndRemove = (mapFn) => {
+      return (change) => {
+        if ('add' in change) {
+          return { add: mapFn(change.add) };
+        } else if ('remove' in change) {
+          return { remove: mapFn(change.remove) };
+        }
+        return undefined;
+      }
+    }
     const filterForAddAndRemove = (filterFn) => {
       return (change) => {
         if ('add' in change) {
@@ -147,10 +178,26 @@ export const makePetStoreMaker = (filePowers, locator) => {
       })();
     }
 
+    const mapAsyncIterator = async function* (asyncIterator, mapFn) {
+      for await (const value of asyncIterator) {
+        yield mapFn(value);
+      }
+    }
+
     const follow = async () =>
       makeIteratorRef(
         makeFollowIterator(),
       );
+    const followWithId = async () =>
+      makeIteratorRef(
+        mapAsyncIterator(
+          makeFollowIterator(),
+          mapForAddAndRemove(
+            petNameToNameIdPair,
+          ),
+        ),
+      );
+
 
     /** @param {string} type */
     const followQueryByType = async (type) => {
@@ -273,10 +320,13 @@ export const makePetStoreMaker = (filePowers, locator) => {
       lookup,
       reverseLookup,
       list,
+      listWithId,
       follow,
+      followWithId,
       write,
       remove,
       rename,
+      getIdForFormulaIdentifier,
     };
 
     return Far('PetStore', petStore);

@@ -123,7 +123,7 @@ export type BasePackage = {
 }
 
 export type Package = BasePackage & {
-  formulaPetNames: Array<string>; // formula identifiers
+  formulaIds: Array<string>; // formula IDs
 };
 export type InternalPackage = BasePackage & {
   formulas: Array<string>; // formula identifiers
@@ -168,13 +168,16 @@ export interface PetStore {
   has(petName: string): boolean;
   queryByType(type: string): Array<string>;
   list(): Array<string>;
+  listWithId(): Array<{ name: string, id: string } | undefined>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
   lookup(petName: string): string | undefined;
   reverseLookup(formulaIdentifier: string): Array<string>;
   follow(): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
+  followWithId(): Promise<FarRef<String<{ add: { name: string, id: string } } | { remove: { name: string, id: string } }>>>;
   followQueryByType(type: string): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
+  getIdForFormulaIdentifier(formulaIdentifier: string): string;
 }
 
 export type RequestFn = (
