@@ -37,7 +37,8 @@
     "test262": "lerna run test262",
     "postinstall": "patch-package",
     "patch-package": "patch-package",
-    "build": "lerna run build"
+    "build": "lerna run build",
+    "build-ts": "tsc --build tsconfig.build.json"
   },
   "dependencies": {
     "conventional-changelog-conventionalcommits": "^4.6.0",
