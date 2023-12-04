@@ -43,7 +43,7 @@ export const policyLookupHelper = (packagePolicy, field, itemName) => {
 /**
  * Checks if the policy value is set to wildcard to allow everything
  *
- * @param {*} policyValue
+ * @param {any} policyValue
  * @returns {boolean}
  */
 export const isAllowingEverything = policyValue =>

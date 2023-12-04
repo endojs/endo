@@ -73,8 +73,8 @@ export const makeHandledPromise = () => {
    * to propagate changes down to the children efficiently:
    * https://en.wikipedia.org/wiki/Disjoint-set_data_structure
    *
-   * @param {*} target Any value.
-   * @returns {*} If the target was a HandledPromise, the most-resolved parent
+   * @param {any} target Any value.
+   * @returns {any} If the target was a HandledPromise, the most-resolved parent
    * of it, otherwise the target.
    */
   const shorten = target => {

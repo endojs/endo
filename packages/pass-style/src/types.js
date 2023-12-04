@@ -134,7 +134,7 @@ export {};
 /**
  * @callback MarshalGetInterfaceOf
  * Simple semantics, just tell what interface (or undefined) a remotable has.
- * @param {*} maybeRemotable the value to check
+ * @param {any} maybeRemotable the value to check
  * @returns {InterfaceSpec|undefined} the interface specification, or undefined
  * if not a deemed to be a Remotable
  */

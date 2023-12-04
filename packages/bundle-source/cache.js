@@ -121,7 +121,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
   /**
    * @param {string} targetName
-   * @param {*} rootOpt
+   * @param {any} rootOpt
    * @param {Logger} [log]
    * @param {BundleMeta} [meta]
    * @returns {Promise<BundleMeta>}
