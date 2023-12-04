@@ -133,7 +133,7 @@ export {};
 
 /**
  * @callback HashFn
- * @param {Uint8Array} bytes
+ * @param {string | Uint8Array} bytes
  * @returns {string} hash
  */
 

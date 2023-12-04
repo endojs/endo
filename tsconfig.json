@@ -1,0 +1,25 @@
+{
+    "extends": [
+        "./tsconfig.eslint-base.json",
+    ],
+    "compilerOptions": {
+        "allowSyntheticDefaultImports": true,
+    },
+    "exclude": [
+        "packages/eslint-plugin",
+        "packages/ses-integration-test",
+        "packages/static-module-record",
+        "packages/test262-runner",
+        "packages/ses/test262",
+        "packages/ses/types.test-d.ts",
+        "**/build",
+        "**/demo",
+        "**/dist",
+        "**/docs",
+        "**/test"
+    ],
+    "include": [
+        "./**/*.ts",
+        "packages/**/*.js"
+    ],
+}
