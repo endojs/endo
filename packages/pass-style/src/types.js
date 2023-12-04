@@ -18,7 +18,7 @@ export {};
 // and IDE can be more helpful.
 
 /**
- * @typedef {*} Passable
+ * @typedef {any} Passable
  *
  * A Passable is acyclic data that can be marshalled. It must be hardened to
  * remain
