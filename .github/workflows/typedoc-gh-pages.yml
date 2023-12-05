@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v4
       # Generate the TypeDoc site
-      - run: yarn docs
+      - run: npx typedocs
       - uses: actions/upload-pages-artifact@v2
         with:
           path: ./api-docs # the "out" path in typedoc.json
