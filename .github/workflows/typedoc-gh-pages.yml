@@ -1,0 +1,40 @@
+# Adapted from https://github.com/TypeStrong/typedoc/issues/1485#issuecomment-1796185086
+# and https://github.com/endojs/endo/new/master?filename=.github%2Fworkflows%2Fjekyll-gh-pages.yml&workflow_template=pages%2Fjekyll-gh-pages
+name: Deploy TypeDoc site with GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v4
+      # Generate the TypeDoc site
+      - run: yarn docs
+      - uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./api-docs # the "out" path in typedoc.json
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v3
