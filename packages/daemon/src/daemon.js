@@ -601,6 +601,24 @@ const makeEndoBootstrap = (
     return value;
   };
 
+    /**
+     * @param {string} formulaIdentifier
+     */
+  const provideFormulaForFormulaIdentifier = async formulaIdentifier => {
+    const delimiterIndex = formulaIdentifier.indexOf(':');
+    if (delimiterIndex < 0) {
+      throw new TypeError(
+        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
+      );
+    }
+    const [prefix, formulaNumber] = formulaIdentifier.split(':');
+    const formula = await persistencePowers.readFormula(
+      prefix,
+      formulaNumber,
+    );
+    return formula;
+  };
+
   const makeTerminator = makeTerminatorMaker({
     controllerForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
@@ -610,6 +628,9 @@ const makeEndoBootstrap = (
     formulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
+    provideValueForNumberedFormula,
+    makeSha512,
+    provideFormulaForFormulaIdentifier,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({

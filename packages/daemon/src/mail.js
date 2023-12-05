@@ -11,6 +11,9 @@ export const makeMailboxMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
   formulaIdentifierForRef,
+  provideValueForNumberedFormula,
+  makeSha512,
+  provideFormulaForFormulaIdentifier,
 }) => {
   const makeMailbox = ({
     selfFormulaIdentifier,
@@ -414,6 +417,66 @@ export const makeMailboxMaker = ({
       terminator.thisDiesIfThatDies(formulaIdentifier);
       await petStore.write(petName, formulaIdentifier);
     };
+    const adoptApp = async (messageNumber, edgeName, petName) => {
+      assertPetName(edgeName);
+      assertPetName(petName);
+      if (
+        typeof messageNumber !== 'number' ||
+        messageNumber >= Number.MAX_SAFE_INTEGER
+      ) {
+        throw new Error(`Invalid message number ${q(messageNumber)}`);
+      }
+      const message = messages.get(messageNumber);
+      if (message === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (message.type !== 'package') {
+        throw new Error(`Message must be a package ${q(messageNumber)}`);
+      }
+      const index = message.names.lastIndexOf(edgeName);
+      if (index === -1) {
+        throw new Error(
+          `No reference named ${q(edgeName)} in message ${q(messageNumber)}`,
+        );
+      }
+      const formulaIdentifier = message.formulas[index];
+      if (formulaIdentifier === undefined) {
+        throw new Error(
+          `panic: message must contain a formula for every name, including the name ${q(
+            edgeName,
+          )} at ${q(index)}`,
+        );
+      }
+
+      /** @type {import('./types.js').WebBundleFormula} */
+      const appFormula = await provideFormulaForFormulaIdentifier(
+        formulaIdentifier,
+      );
+      assert(appFormula.type === 'web-bundle');
+
+      const bundleFormulaIdentifier = appFormula.bundle;
+      const powersFormulaIdentifier = selfFormulaIdentifier;
+      /** @type {import('./types.js').WebBundleFormula} */
+      const newAppFormula = {
+        type: 'web-bundle',
+        bundle: bundleFormulaIdentifier,
+        powers: powersFormulaIdentifier,
+      }
+
+      const digester = makeSha512();
+      digester.updateText(
+        `${bundleFormulaIdentifier},${powersFormulaIdentifier}`,
+      );
+      const formulaNumber = digester.digestHex().slice(32, 64);
+      const { formulaIdentifier: newAppFormulaIdentifier } = await provideValueForNumberedFormula(
+        'web-bundle',
+        formulaNumber,
+        newAppFormula,
+      );
+      terminator.thisDiesIfThatDies(newAppFormulaIdentifier);
+      await petStore.write(petName, newAppFormulaIdentifier);
+      return newAppFormulaIdentifier;
+    };
 
     /**
      * @param {string} recipientName
@@ -509,6 +572,7 @@ export const makeMailboxMaker = ({
       send,
       dismiss,
       adopt,
+      adoptApp,
       rename,
       remove,
       terminate,

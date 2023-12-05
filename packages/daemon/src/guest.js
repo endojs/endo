@@ -59,6 +59,7 @@ export const makeGuestMaker = ({
       request,
       rename,
       remove,
+      adoptApp,
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: guestFormulaIdentifier,
@@ -90,6 +91,7 @@ export const makeGuestMaker = ({
       reject,
       dismiss,
       adopt,
+      adoptApp,
       remove,
       rename,
     });
