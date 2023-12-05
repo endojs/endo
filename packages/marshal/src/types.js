@@ -12,7 +12,7 @@ export {};
  * @template Slot
  * @callback ConvertSlotToVal
  * @param {Slot} slot
- * @param {import('@endo/pass-style').InterfaceSpec=} iface
+ * @param {import('@endo/pass-style').InterfaceSpec} [iface]
  * @returns {any}
  */
 
