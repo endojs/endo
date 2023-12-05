@@ -5,6 +5,7 @@ import '@endo/init/debug.js';
 import { makeCapTP } from '@endo/captp';
 import { E, Far } from '@endo/far';
 import { importBundle } from '@endo/import-bundle';
+import { transforms } from 'ses/tools.js';
 
 const getPrototypeChain = obj => {
   const chain = [];
@@ -85,6 +86,9 @@ const bootstrap = Far('WebFacet', {
   async importBundleAndEndow(bundle, powers) {
     const namespace = await importBundle(bundle, {
       endowments,
+      transforms: [
+        transforms.evadeHtmlCommentTest,
+      ],
     });
     return namespace.make(powers);
   },
