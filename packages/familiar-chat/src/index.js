@@ -191,9 +191,23 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
           // @ts-ignore
           'button',
           {
-            onclick: () => actions.adopt(selectedName, asValue || selectedName),
+            onclick: () => {
+              // TODO: lookup type, do Adopt App instead
+              actions.adopt(selectedName, asValue || selectedName)
+            },
           },
           'Adopt',
+        ),
+        h(
+          // @ts-ignore
+          'button',
+          {
+            onclick: () => {
+              // TODO: lookup type, do Adopt App instead
+              actions.adoptApp(selectedName, asValue || selectedName)
+            },
+          },
+          'Adopt App',
         ),
       ])
     )
@@ -272,6 +286,8 @@ const messageComponent = ({ message, target, targetName, setActiveMessage, showC
     reject: value => E(target).reject(number, value).catch(reportError),
     adopt: (selectedName, asValue) =>
       E(target).adopt(number, selectedName, asValue).catch(reportError),
+    adoptApp: (selectedName, asValue) =>
+      E(target).adoptApp(number, selectedName, asValue).catch(reportError),
   };
 
   return h('div', {
@@ -406,6 +422,8 @@ const inventoryTypeDisplayDict = {
   'web-bundle': 'app',
   'guest-id512': 'guest',
   'readable-blob-sha512': 'file',
+  'import-bundle-id512': 'object',
+  'import-unsafe-id512': 'unsafe object',
 }
 
 const inventoryEntryComponent = ({ target, item }) => {
@@ -475,7 +493,7 @@ const bodyComponent = ({ powers }) => {
     }
     return E(powers).lookup(currentInbox)
   }, [currentInbox]);
-  const nameIdPairs = useFollowNames(() => E(target).followNamesWithId(), [target]);
+  const nameIdPairs = target && useFollowNames(() => E(target).followNamesWithId(), [target]);
   // const names = nameIdPairs.map(({ name }) => name);
   // const sortedNames = names.sort((a, b) => a.localeCompare(b));
 
