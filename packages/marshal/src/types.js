@@ -1,9 +1,10 @@
+// @ts-check
 export {};
 
 /**
  * @template Slot
  * @callback ConvertValToSlot
- * @param {PassableCap} val
+ * @param {any} val
  * @returns {Slot}
  */
 
@@ -11,8 +12,8 @@ export {};
  * @template Slot
  * @callback ConvertSlotToVal
  * @param {Slot} slot
- * @param {import('@endo/pass-style').InterfaceSpec=} iface
- * @returns {PassableCap}
+ * @param {import('@endo/pass-style').InterfaceSpec} [iface]
+ * @returns {any}
  */
 
 /**

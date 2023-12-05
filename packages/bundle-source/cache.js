@@ -26,6 +26,8 @@ export const jsOpts = {
   toBundleMeta: n => `bundle-${n}-js-meta.json`,
 };
 
+/** @typedef {typeof jsOpts} CacheOpts */
+
 export const jsonOpts = {
   encodeBundle: bundle => `${JSON.stringify(bundle)}\n`,
   toBundleName: n => `bundle-${n}.json`,
@@ -119,7 +121,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
   /**
    * @param {string} targetName
-   * @param {*} rootOpt
+   * @param {any} rootOpt
    * @param {Logger} [log]
    * @param {BundleMeta} [meta]
    * @returns {Promise<BundleMeta>}
@@ -282,7 +284,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
 /**
  * @param {string} dest
- * @param {{ format?: string, dev?: boolean, log?: Logger }} options
+ * @param {{ format?: string, cacheOpts?: CacheOpts, cacheSourceMaps: boolean, dev?: boolean, log?: Logger }} options
  * @param {(id: string) => Promise<any>} loadModule
  * @param {number} [pid]
  * @param {number} [nonce]

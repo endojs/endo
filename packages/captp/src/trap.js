@@ -38,7 +38,7 @@ const baseFreezableProxyHandler = {
 /**
  * A Proxy handler for Trap(x)
  *
- * @param {*} x Any value passed to Trap(x)
+ * @param {any} x Any value passed to Trap(x)
  * @param {TrapImpl} trapImpl
  * @returns {ProxyHandler}
  */

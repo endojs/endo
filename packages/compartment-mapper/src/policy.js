@@ -101,7 +101,7 @@ const generateCanonicalName = ({ isEntry = false, name, path }) => {
  * packagePolicy is required, when policy is not set, skipping needs to be handled by the caller.
  *
  * @param {PackageNamingKit} namingKit
- * @param {*} packagePolicy
+ * @param {any} packagePolicy
  * @returns {boolean}
  */
 export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {

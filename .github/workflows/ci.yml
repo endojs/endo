@@ -60,6 +60,10 @@ jobs:
       - name: Run yarn lint
         run: yarn lint
 
+      # build the API docs to verify it works
+      - name: build API docs
+        run: yarn docs
+
   test:
     name: test
 

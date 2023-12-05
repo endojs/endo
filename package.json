@@ -18,17 +18,19 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-jessie": "^0.0.6",
     "eslint-config-prettier": "^8.8.0",
-    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-import": "^2.29.0",
     "eslint-plugin-jsdoc": "^46.4.3",
     "lerna": "^5.6.2",
     "lerna-update-wizard": "^0.17.5",
     "type-coverage": "^2.26.3",
+    "typedoc": "^0.25.4",
     "typescript": "~5.2.2"
   },
   "scripts": {
     "clean": "lerna clean",
     "cover": "lerna run cover",
     "depcheck": "node scripts/check-mismatched-dependencies.js",
+    "docs": "typedoc --tsconfig tsconfig.build.json",
     "update": "lernaupdate --dedupe",
     "format": "yarn prettier --write .github packages",
     "lint": "yarn prettier --check .github packages && lerna run lint",
@@ -37,7 +39,8 @@
     "test262": "lerna run test262",
     "postinstall": "patch-package",
     "patch-package": "patch-package",
-    "build": "lerna run build"
+    "build": "lerna run build",
+    "build-ts": "tsc --build tsconfig.build.json"
   },
   "dependencies": {
     "conventional-changelog-conventionalcommits": "^4.6.0",

@@ -46,7 +46,7 @@ AsyncLocalStorage.prototype._propagate = _propagate;
 
 /**
  * @this {AsyncLocalStorage & AsyncLocalStorageInternal}
- * @param {*} store
+ * @param {any} store
  */
 AsyncLocalStorage.prototype.enterWith = function enterWith(store) {
   this._enable();

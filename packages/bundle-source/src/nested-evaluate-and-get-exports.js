@@ -33,7 +33,7 @@ function longestCommonPrefix(strings) {
  * @template {'nestedEvaluate' | 'getExport'} T
  * @param {string} startFilename
  * @param {T} moduleFormat
- * @param {*} powers
+ * @param {any} powers
  */
 export async function bundleNestedEvaluateAndGetExports(
   startFilename,

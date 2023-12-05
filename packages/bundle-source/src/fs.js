@@ -1,3 +1,4 @@
+// @ts-check
 let mutex = Promise.resolve(undefined);
 
 /**
@@ -68,10 +69,10 @@ export const makeFileReader = (fileName, { fs, path }) => {
  *   fs: Pick<import('fs'), 'existsSync'> &
  *     { promises: Pick<
  *         import('fs/promises'),
- *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rm'
+ *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rename' | 'rm'
  *       >,
  *     },
- *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ *   path: Pick<import('path'), 'dirname' | 'resolve' | 'relative' | 'normalize'>,
  * }} io
  * @param {(there: string) => ReturnType<makeFileWriter>} make
  */
@@ -120,8 +121,8 @@ export const makeFileWriter = (
  *     },
  *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
  * }} io
- * @param {number} pid
- * @param {number} nonce
+ * @param {number} [pid]
+ * @param {number} [nonce]
  * @param {(there: string) => ReturnType<makeAtomicFileWriter>} make
  */
 export const makeAtomicFileWriter = (
