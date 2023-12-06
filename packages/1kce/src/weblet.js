@@ -11,10 +11,13 @@ const gameGuestName = 'guest-game';
 const makeThing = async (powers, importFullPath, resultName, powersName = 'NONE') => {
   const workerName = 'MAIN';
   if (powersName !== 'NONE') {
-    // delete existing guest, its petstore is what stores all the persistence
-    if (await E(powers).has(powersName)) {
-      await E(powers).remove(powersName)
-    }
+    // Disabling the overwrite of the guest for now
+    // I want to use the premade guest bc it already knows alice
+    // and can receive her messages
+    // // delete existing guest, its petstore is what stores all the persistence
+    // if (await E(powers).has(powersName)) {
+    //   await E(powers).remove(powersName)
+    // }
     // make new guest
     await E(powers).provideGuest(powersName)
   }
