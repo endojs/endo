@@ -53,10 +53,12 @@ const useFollowReducer = (getSubFn, reducerFn, deps) => {
 
   useEffect(() => {
     setState([]);
-    const sub = makeRefIterator(getSubFn());
+    const sub = getSubFn();
+    if (!sub) return
+    const subIterator = makeRefIterator(sub);
     let shouldAbort = false;
     const iterateChanges = async () => {
-      for await (const event of sub) {
+      for await (const event of subIterator) {
         // Check if we should abort iteration
         if (shouldAbort) {
           break;
@@ -166,8 +168,8 @@ const packageMessageDisplayComponent = ({ message, setSelectedName, nameIdPairs 
 };
 
 const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPairs }) => {
-  /** @type {{ strings: string[], names: string[] }} */
-  const { strings, names } = message;
+  /** @type {{ strings: string[], names: string[], formulaTypes: string[] }} */
+  const { strings, names, formulaTypes } = message;
   assert(Array.isArray(strings));
   assert(Array.isArray(names));
 
@@ -176,6 +178,10 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
   const hasItems = names.length > 0;
 
   const makeControls = () => {
+    const index = names.indexOf(selectedName);
+    const formulaType = formulaTypes[index];
+    const isApp = formulaType === 'web-bundle';
+
     return (
       h(Fragment, null, [
         h(
@@ -193,27 +199,25 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
           value: asValue,
           oninput: e => setAsValue(e.target.value),
         }),
-        h(
+        !isApp && h(
           // @ts-ignore
           'button',
           {
             onclick: () => {
-              // TODO: lookup type, do Adopt App instead
               actions.adopt(selectedName, asValue || selectedName)
             },
           },
           'Adopt',
         ),
-        h(
+        isApp && h(
           // @ts-ignore
           'button',
           {
             onclick: () => {
-              // TODO: lookup type, do Adopt App instead
               actions.adoptApp(selectedName, asValue || selectedName)
             },
           },
-          'Adopt App',
+          'Install App',
         ),
       ])
     )
@@ -488,10 +492,7 @@ const bodyComponent = ({ powers }) => {
     }
     return E(powers).lookup(currentInbox)
   }, [currentInbox]);
-  const nameIdPairs = target && useFollowNames(() => E(target).followNamesWithId(), [target]);
-  // const names = nameIdPairs.map(({ name }) => name);
-  // const sortedNames = names.sort((a, b) => a.localeCompare(b));
-
+  const nameIdPairs = useFollowNames(() => target && E(target).followNamesWithId(), [target]);
   const inboxes = ['host', ...guests]
 
   return h(Fragment, null, [
