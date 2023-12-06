@@ -9,6 +9,14 @@ import { useState, useEffect } from 'preact/hooks';
 /** @type any */
 const { assert } = globalThis;
 
+const inventoryTypeDisplayDict = {
+  'web-bundle': 'app',
+  'guest-id512': 'guest',
+  'readable-blob-sha512': 'file',
+  'import-bundle-id512': 'object',
+  'import-unsafe-id512': 'unsafe object',
+}
+
 const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
   timeStyle: 'long',
@@ -22,7 +30,6 @@ const arrayWithout = (array, value) => {
   }
   return newArray;
 };
-
 
 /**
  * @param {()=>Promise} asyncFn
@@ -179,8 +186,9 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
 
   const makeControls = () => {
     const index = names.indexOf(selectedName);
-    const formulaType = formulaTypes[index];
-    const isApp = formulaType === 'web-bundle';
+    const type = formulaTypes[index];
+    const isApp = type === 'web-bundle';
+    const typeDisplay = inventoryTypeDisplayDict[type] ?? type;
 
     return (
       h(Fragment, null, [
@@ -192,7 +200,7 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
           },
           names.map(name => h('option', { value: name }, name)),
         ),
-        ' ',
+        ` (${typeDisplay}) `,
         h('input', {
           type: 'text',
           placeholder: selectedName,
@@ -427,14 +435,6 @@ const chatComponent = ({ target, targetName, nameIdPairs }) => {
     h(sendComponent, { target, recipientName }),
   ]);
 };
-
-const inventoryTypeDisplayDict = {
-  'web-bundle': 'app',
-  'guest-id512': 'guest',
-  'readable-blob-sha512': 'file',
-  'import-bundle-id512': 'object',
-  'import-unsafe-id512': 'unsafe object',
-}
 
 const inventoryEntryComponent = ({ target, item }) => {
   const { name, type } = item;
