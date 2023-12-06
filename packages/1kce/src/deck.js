@@ -22,6 +22,7 @@ export const make = async (powers) => {
   const listenForIncommingCards = async () => {
     for await (const message of makeRefIterator(E(powers).followMessages())) {
       if (message.type !== 'package') continue
+      if (!message.names.includes('card')) continue
       const petName = `${cardPrefix}${cards.getLength()}`
       await E(powers).adopt(message.number, 'card', petName);
       const card = await E(powers).lookup(petName);
