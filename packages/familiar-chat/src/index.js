@@ -23,6 +23,12 @@ const arrayWithout = (array, value) => {
   return newArray;
 };
 
+
+/**
+ * @param {()=>Promise} asyncFn
+ * @param {Array} deps
+ * @returns {any | undefined}
+ */
 const useAsync = (asyncFn, deps) => {
   const [state, setState] = useState();
   useEffect(() => {
@@ -427,9 +433,9 @@ const inventoryTypeDisplayDict = {
 }
 
 const inventoryEntryComponent = ({ target, item }) => {
-  const [appUrl, setAppUrl] = useState();
   const { name, type } = item;
   const isWebBundle = type === 'web-bundle';
+  const itemValue = useAsync(() => isWebBundle && E(target).lookup(name), [target, name, isWebBundle])
   const typeDisplay = inventoryTypeDisplayDict[type] ?? type;
   return h('li', null, [
     `${name} `,
@@ -443,26 +449,15 @@ const inventoryEntryComponent = ({ target, item }) => {
       },
       'Remove',
     ),
-    isWebBundle && appUrl && h(
+    isWebBundle && itemValue && h(
       // @ts-ignore
       'button',
       {
         onclick: () => {
-          window.open(appUrl, '_blank')
+          window.open(itemValue.url, '_blank')
         },
       },
       'Open App',
-    ),
-    isWebBundle && !appUrl && h(
-      // @ts-ignore
-      'button',
-      {
-        onclick: async () => {
-          const { url } = await E(target).lookup(name);
-          setAppUrl(url);
-        },
-      },
-      'Load App',
     ),
   ]);
 }
