@@ -638,6 +638,7 @@ const makeEndoBootstrap = (
     provideControllerForFormulaIdentifier,
     storeReaderRef,
     makeMailbox,
+    provideValueForFormula,
   });
 
   const makeIdentifiedHost = makeHostMaker({

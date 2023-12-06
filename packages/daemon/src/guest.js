@@ -3,11 +3,14 @@
 import { Far } from '@endo/far';
 import { assertPetName } from './pet-name.js';
 
+const { quote: q } = assert;
+
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
   storeReaderRef,
   makeMailbox,
+  provideValueForFormula,
 }) => {
   /**
    * @param {string} guestFormulaIdentifier
@@ -62,6 +65,7 @@ export const makeGuestMaker = ({
       rename,
       remove,
       adoptApp,
+      lookupFormulaIdentifierForName,
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: guestFormulaIdentifier,
@@ -71,6 +75,44 @@ export const makeGuestMaker = ({
       },
       terminator,
     });
+
+    /**
+     * @param {string} petName
+     */
+    const provideGuest = async petName => {
+      /** @type {string | undefined} */
+      let formulaIdentifier;
+      if (petName !== undefined) {
+        formulaIdentifier = lookupFormulaIdentifierForName(petName);
+      }
+      if (formulaIdentifier === undefined) {
+        /** @type {import('./types.js').GuestFormula} */
+        const formula = {
+          type: /* @type {'guest'} */ 'guest',
+          host: hostFormulaIdentifier,
+        };
+        const { value, formulaIdentifier: newGuestFormulaIdentifier } =
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          await provideValueForFormula(formula, 'guest-id512');
+        if (petName !== undefined) {
+          assertPetName(petName);
+          await petStore.write(petName, newGuestFormulaIdentifier);
+        }
+        return value;
+      } else if (!formulaIdentifier.startsWith('guest-id512:')) {
+        throw new Error(
+          `Existing pet name does not designate a guest powers capability: ${q(
+            petName,
+          )}`,
+        );
+      }
+      return /** @type {Promise<import('./types.js').EndoHost>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier(formulaIdentifier)
+      );
+    };
 
     const { has, queryByType, list, listWithId, follow: followNames, followWithId: followNamesWithId, followQueryByType } = petStore;
     /**
@@ -112,6 +154,7 @@ export const makeGuestMaker = ({
       remove,
       rename,
       store,
+      provideGuest,
     });
 
     const internal = harden({
