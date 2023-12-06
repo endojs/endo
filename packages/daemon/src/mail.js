@@ -125,8 +125,15 @@ export const makeMailboxMaker = ({
           recipientFormulaIdentifier,
         );
         const formulaIds = formulas.map(getIdForFormulaIdentifier);
+        const formulaTypes = formulas.map(forumlaIdentifier => {
+          const delimiterIndex = forumlaIdentifier.indexOf(':');
+          if (delimiterIndex === -1) {
+            throw new Error(`Invalid formula identifier ${forumlaIdentifier}`);
+          }
+          return forumlaIdentifier.slice(0, delimiterIndex);
+        });
         if (senderName !== undefined) {
-          return { who: senderName, dest: recipientName, formulaIds, ...rest };
+          return { who: senderName, dest: recipientName, formulaIds, formulaTypes, ...rest };
         }
         return undefined;
       }

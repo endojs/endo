@@ -124,6 +124,7 @@ export type BasePackage = {
 
 export type Package = BasePackage & {
   formulaIds: Array<string>; // formula IDs
+  formulaTypes: Array<string>; // formula types
 };
 export type InternalPackage = BasePackage & {
   formulas: Array<string>; // formula identifiers
