@@ -57,8 +57,8 @@ const PassableMethodGuard = M.call().rest(M.any()).returns(M.any());
  * @param {Passable[]} syncArgs
  * @param {MatchConfig} matchConfig
  * @param {string} [label]
- * @returns {Passable[]} Returns the args that should be passed to the
- * raw method
+ * @returns {import('@endo/pass-style').Passable[]}
+ * Returns the args that should be passed to the raw method.
  */
 const defendSyncArgs = (syncArgs, matchConfig, label = undefined) => {
   const {
@@ -69,7 +69,8 @@ const defendSyncArgs = (syncArgs, matchConfig, label = undefined) => {
     redactedIndices,
   } = matchConfig;
 
-  // Use syncArgs if possible, but copy it when necessary to implement redactions.
+  // Use syncArgs if possible, but copy it when necessary to implement
+  // redactions.
   let matchableArgs = syncArgs;
   if (restArgGuardIsRaw && syncArgs.length > declaredLen) {
     const restLen = syncArgs.length - declaredLen;
@@ -96,11 +97,11 @@ const defendSyncArgs = (syncArgs, matchConfig, label = undefined) => {
   if (hasRestArgGuard) {
     return syncArgs;
   }
-  if (syncArgs.length <= declaredLen) {
-    return syncArgs;
-  }
-  // Ignore extraneous arguments, as a JS function call would do.
-  return syncArgs.slice(0, declaredLen);
+  syncArgs.length <= declaredLen ||
+    Fail`${q(label)} accepts at most ${q(declaredLen)} arguments, not ${q(
+      syncArgs.length,
+    )}: ${syncArgs}`;
+  return syncArgs;
 };
 
 /**
