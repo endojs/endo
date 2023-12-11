@@ -16,12 +16,15 @@ const NoExtraI = M.interface('NoExtra', {
 });
 
 test('what happens with extra arguments', t => {
-  const exo = makeExo('WithExtra', NoExtraI, {
+  const exo = makeExo('NoExtraArgs', NoExtraI, {
     foo(x) {
       t.is(x, undefined);
     },
   });
-  exo.foo('an extra arg');
+  t.throws(() => exo.foo('an extra arg'), {
+    message:
+      '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
+  });
 });
 
 const OptionalArrayI = M.interface('OptionalArray', {
