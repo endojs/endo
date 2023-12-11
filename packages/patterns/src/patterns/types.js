@@ -1,5 +1,7 @@
 /// <reference types="ses"/>
 
+export {};
+
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
 /**

@@ -14,7 +14,6 @@ import { isPromise, makePromiseKit } from '@endo/promise-kit';
 
 import { makeTrap } from './trap.js';
 
-import './types.js';
 import { makeFinalizingMap } from './finalize.js';
 
 export { E };
@@ -39,8 +38,8 @@ const isThenable = maybeThenable =>
  * us, we need to reference just our own slot, not one from their
  * side.
  *
- * @param {CapTPSlot} slot
- * @returns {CapTPSlot} slot with direction reversed
+ * @param {import('./types.js').CapTPSlot} slot
+ * @returns {import('./types.js').CapTPSlot} slot with direction reversed
  */
 const reverseSlot = slot => {
   const otherDir = slot[1] === '+' ? '-' : '+';
@@ -50,15 +49,15 @@ const reverseSlot = slot => {
 
 /**
  * @typedef {object} CapTPOptions the options to makeCapTP
- * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
- * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
+ * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [exportHook]
+ * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [importHook]
  * @property {(err: any) => void} [onReject]
  * @property {number} [epoch] an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
- * @property {TrapGuest} [trapGuest] if specified, enable this CapTP (guest) to
+ * @property {import('./types.js').TrapGuest} [trapGuest] if specified, enable this CapTP (guest) to
  * use Trap(target) to block while the recipient (host) resolves and
  * communicates the response to the message
- * @property {TrapHost} [trapHost] if specified, enable this CapTP (host) to serve
+ * @property {import('./types.js').TrapHost} [trapHost] if specified, enable this CapTP (host) to serve
  * objects marked with makeTrapHandler to synchronous clients (guests)
  * @property {boolean} [gcImports] if true, aggressively garbage collect imports
  */
@@ -164,7 +163,7 @@ export const makeCapTP = (
     });
   };
 
-  /** @type {Map<CapTPSlot, number>} */
+  /** @type {Map<import('./types.js').CapTPSlot, number>} */
   const slotToNumRefs = new Map();
 
   const recvSlot = makeRefCounter(
@@ -219,13 +218,13 @@ export const makeCapTP = (
     },
   );
 
-  /** @type {WeakMap<any, CapTPSlot>} */
+  /** @type {WeakMap<any, import('./types.js').CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
-  /** @type {Map<CapTPSlot, any>} */
+  /** @type {Map<import('./types.js').CapTPSlot, any>} */
   const slotToExported = new Map();
   const slotToImported = makeFinalizingMap(
     /**
-     * @param {CapTPSlot} slotID
+     * @param {import('./types.js').CapTPSlot} slotID
      */
     slotID => {
       // We drop all the references we know about at once, since GC told us we
@@ -246,7 +245,7 @@ export const makeCapTP = (
   // Since we decide the ids for questions, we use this to increment the
   // question key
 
-  /** @type {Map<CapTPSlot, Settler<unknown>>} */
+  /** @type {Map<import('./types.js').CapTPSlot, Settler<unknown>>} */
   const settlers = new Map();
   /** @type {Map<string, any>} */
   const answers = new Map(); // chosen by our peer
@@ -257,14 +256,14 @@ export const makeCapTP = (
    * promise listener to inform the other side when the promise is
    * fulfilled/broken.
    *
-   * @type {import('@endo/marshal').ConvertValToSlot<CapTPSlot>}
+   * @type {import('@endo/marshal').ConvertValToSlot<import('./types.js').CapTPSlot>}
    */
   function convertValToSlot(val) {
     if (!valToSlot.has(val)) {
       /**
        * new export
        *
-       * @type {CapTPSlot}
+       * @type {import('./types.js').CapTPSlot}
        */
       let slot;
       if (isPromise(val)) {
@@ -327,7 +326,7 @@ export const makeCapTP = (
 
   const IS_REMOTE_PUMPKIN = harden({});
   /**
-   * @type {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>}
+   * @type {import('@endo/marshal').ConvertSlotToVal<import('./types.js').CapTPSlot>}
    */
   const assertValIsLocal = val => {
     const slot = valToSlot.get(val);
@@ -354,7 +353,7 @@ export const makeCapTP = (
    * Generate a new question in the questions table and set up a new
    * remote handled promise.
    *
-   * @returns {[CapTPSlot, Promise]}
+   * @returns {[import('./types.js').CapTPSlot, Promise]}
    */
   const makeQuestion = () => {
     lastPromiseID += 1;
@@ -464,7 +463,7 @@ export const makeCapTP = (
   /**
    * Set up import
    *
-   * @type {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>}
+   * @type {import('@endo/marshal').ConvertSlotToVal<import('./types.js').CapTPSlot>}
    */
   function convertSlotToVal(theirSlot, iface = undefined) {
     let val;
@@ -806,7 +805,7 @@ export const makeCapTP = (
     serialize,
     unserialize,
     makeTrapHandler,
-    Trap: /** @type {Trap | undefined} */ (undefined),
+    Trap: /** @type {import('./types.js').Trap | undefined} */ (undefined),
   };
 
   if (trapGuest) {
@@ -904,7 +903,7 @@ export const makeCapTP = (
         return value;
       };
 
-    /** @type {TrapImpl} */
+    /** @type {import('./types.js').TrapImpl} */
     const trapImpl = {
       applyFunction: makeTrapImpl('applyFunction'),
       applyMethod: makeTrapImpl('applyMethod'),

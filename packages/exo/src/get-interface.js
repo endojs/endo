@@ -18,7 +18,7 @@ export const GET_INTERFACE_GUARD = '__getInterfaceGuard__';
 /**
  * @template {Record<PropertyKey, CallableFunction>} M
  * @typedef {{
- *   [GET_INTERFACE_GUARD]: () =>
+ *   [GET_INTERFACE_GUARD]?: () =>
  *     import('@endo/patterns').InterfaceGuard<{
  *       [K in keyof M]: import('@endo/patterns').MethodGuard
  *     }> | undefined

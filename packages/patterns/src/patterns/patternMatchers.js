@@ -36,15 +36,13 @@ import {
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
-import './internal-types.js';
-
 /// <reference types="ses"/>
 
 const { quote: q, bare: b, details: X, Fail } = assert;
 const { entries, values } = Object;
 const { ownKeys } = Reflect;
 
-/** @type {WeakSet<Pattern>} */
+/** @type {WeakSet<import('./types.js').Pattern>} */
 const patternMemo = new WeakSet();
 
 // /////////////////////// Match Helpers Helpers /////////////////////////////
@@ -79,11 +77,13 @@ export const defaultLimits = harden({
  * Thus, the result only needs to support destructuring. The current
  * implementation uses inheritance as a cheap hack.
  *
- * @param {Limits} [limits]
- * @returns {AllLimits}
+ * @param {import('./types.js').Limits} [limits]
+ * @returns {import('./types.js').AllLimits}
  */
 const limit = (limits = {}) =>
-  /** @type {AllLimits} */ (harden({ __proto__: defaultLimits, ...limits }));
+  /** @type {import('./types.js').AllLimits} */ (
+    harden({ __proto__: defaultLimits, ...limits })
+  );
 
 const checkIsWellFormedWithLimit = (
   payload,
@@ -132,7 +132,7 @@ const checkIsWellFormedWithLimit = (
 /**
  * @param {unknown} specimen
  * @param {number} decimalDigitsLimit
- * @param {Checker} check
+ * @param {import('./types.js').Checker} check
  */
 const checkDecimalDigitsLimit = (specimen, decimalDigitsLimit, check) => {
   if (
@@ -148,7 +148,7 @@ const checkDecimalDigitsLimit = (specimen, decimalDigitsLimit, check) => {
 };
 
 /**
- * @returns {PatternKit}
+ * @returns {import('./types.js').PatternKit}
  */
 const makePatternKit = () => {
   /**
@@ -156,7 +156,7 @@ const makePatternKit = () => {
    * Otherwise result undefined.
    *
    * @param {string} tag
-   * @returns {MatchHelper | undefined}
+   * @returns {import('./types.js').MatchHelper | undefined}
    */
   const maybeMatchHelper = tag =>
     // eslint-disable-next-line no-use-before-define
@@ -168,20 +168,20 @@ const makePatternKit = () => {
    * to register a payload shape with that meaning, use `MM.undefined()`.
    *
    * @param {string} tag
-   * @returns {Pattern | undefined}
+   * @returns {import('./types.js').Pattern | undefined}
    */
   const maybePayloadShape = tag =>
     // eslint-disable-next-line no-use-before-define
     GuardPayloadShapes[tag];
 
-  /** @type {Map<Kind, unknown>} */
+  /** @type {Map<import('./types.js').Kind, unknown>} */
   const singletonKinds = new Map([
     ['null', null],
     ['undefined', undefined],
   ]);
 
   /**
-   * @type {WeakMap<CopyTagged, Kind>}
+   * @type {WeakMap<import('./types.js').CopyTagged, import('./types.js').Kind>}
    * Only for tagged records of recognized kinds whose store-level invariants
    * have already been checked.
    */
@@ -191,9 +191,9 @@ const makePatternKit = () => {
    * Checks only recognized tags, and only if the tagged
    * passes the invariants associated with that recognition.
    *
-   * @param {Passable} tagged
-   * @param {Kind} tag
-   * @param {Checker} check
+   * @param {import('./types.js').Passable} tagged
+   * @param {import('./types.js').Kind} tag
+   * @param {import('./types.js').Checker} check
    * @returns {boolean}
    */
   const checkTagged = (tagged, tag, check) => {
@@ -233,9 +233,9 @@ const makePatternKit = () => {
    * invariants associated with that recognition.
    * Otherwise, `check(false, ...)` and returns undefined
    *
-   * @param {Passable} specimen
-   * @param {Checker} [check]
-   * @returns {Kind | undefined}
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Checker} [check]
+   * @returns {import('./types.js').Kind | undefined}
    */
   const kindOf = (specimen, check = identChecker) => {
     const passStyle = passStyleOf(specimen);
@@ -264,9 +264,9 @@ const makePatternKit = () => {
    * Checks only recognized kinds, and only if the specimen
    * passes the invariants associated with that recognition.
    *
-   * @param {Passable} specimen
-   * @param {Kind} kind
-   * @param {Checker} check
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Kind} kind
+   * @param {import('./types.js').Checker} check
    * @returns {boolean}
    */
   const checkKind = (specimen, kind, check) => {
@@ -292,16 +292,16 @@ const makePatternKit = () => {
    * Checks only recognized kinds, and only if the specimen
    * passes the invariants associated with that recognition.
    *
-   * @param {Passable} specimen
-   * @param {Kind} kind
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Kind} kind
    * @returns {boolean}
    */
   const isKind = (specimen, kind) => checkKind(specimen, kind, identChecker);
 
   /**
-   * @param {Passable} specimen
-   * @param {Key} keyAsPattern
-   * @param {Checker} check
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Key} keyAsPattern
+   * @param {import('./types.js').Checker} check
    * @returns {boolean}
    */
   const checkAsKeyPatt = (specimen, keyAsPattern, check) => {
@@ -318,7 +318,7 @@ const makePatternKit = () => {
 
   // /////////////////////// isPattern /////////////////////////////////////////
 
-  /** @type {CheckPattern} */
+  /** @type {import('./types.js').CheckPattern} */
   const checkPattern = (patt, check) => {
     if (isKey(patt)) {
       // All keys are patterns. For these, the keyMemo will do.
@@ -339,9 +339,9 @@ const makePatternKit = () => {
   };
 
   /**
-   * @param {Passable} patt - known not to be a key, and therefore known
+   * @param {import('./types.js').Passable} patt - known not to be a key, and therefore known
    * not to be primitive.
-   * @param {Checker} check
+   * @param {import('./types.js').Checker} check
    * @returns {boolean}
    */
   const checkPatternInternal = (patt, check) => {
@@ -388,13 +388,13 @@ const makePatternKit = () => {
   };
 
   /**
-   * @param {Passable} patt
+   * @param {import('./types.js').Passable} patt
    * @returns {boolean}
    */
   const isPattern = patt => checkPattern(patt, identChecker);
 
   /**
-   * @param {Pattern} patt
+   * @param {import('./types.js').Pattern} patt
    */
   const assertPattern = patt => {
     checkPattern(patt, assertChecker);
@@ -403,9 +403,9 @@ const makePatternKit = () => {
   // /////////////////////// matches ///////////////////////////////////////////
 
   /**
-   * @param {Passable} specimen
-   * @param {Pattern} pattern
-   * @param {Checker} check
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Pattern} pattern
+   * @param {import('./types.js').Checker} check
    * @param {string|number} [label]
    * @returns {boolean}
    */
@@ -414,9 +414,9 @@ const makePatternKit = () => {
     applyLabelingError(checkMatchesInternal, [specimen, pattern, check], label);
 
   /**
-   * @param {Passable} specimen
-   * @param {Pattern} patt
-   * @param {Checker} check
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Pattern} patt
+   * @param {import('./types.js').Checker} check
    * @returns {boolean}
    */
   const checkMatchesInternal = (specimen, patt, check) => {
@@ -562,8 +562,8 @@ const makePatternKit = () => {
   };
 
   /**
-   * @param {Passable} specimen
-   * @param {Pattern} patt
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Pattern} patt
    * @returns {boolean}
    */
   const matches = (specimen, patt) =>
@@ -573,8 +573,8 @@ const makePatternKit = () => {
    * Returning normally indicates success. Match failure is indicated by
    * throwing.
    *
-   * @param {Passable} specimen
-   * @param {Pattern} patt
+   * @param {import('./types.js').Passable} specimen
+   * @param {import('./types.js').Pattern} patt
    * @param {string|number} [label]
    */
   const mustMatch = (specimen, patt, label = undefined) => {
@@ -599,7 +599,7 @@ const makePatternKit = () => {
 
   // /////////////////////// getRankCover //////////////////////////////////////
 
-  /** @type {GetRankCover} */
+  /** @type {import('./types.js').GetRankCover} */
   const getRankCover = (patt, encodePassable) => {
     if (isKey(patt)) {
       const encoded = encodePassable(patt);
@@ -710,9 +710,9 @@ const makePatternKit = () => {
   };
 
   /**
-   * @param {Passable[]} array
-   * @param {Pattern} patt
-   * @param {Checker} check
+   * @param {import('./types.js').Passable[]} array
+   * @param {import('./types.js').Pattern} patt
+   * @param {import('./types.js').Checker} check
    * @param {string} [labelPrefix]
    * @returns {boolean}
    */
@@ -728,7 +728,7 @@ const makePatternKit = () => {
 
   // /////////////////////// Match Helpers /////////////////////////////////////
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchAnyHelper = Far('match:any helper', {
     checkMatches: (_specimen, _matcherPayload, _check) => true,
 
@@ -739,7 +739,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['', '{'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchAndHelper = Far('match:and helper', {
     checkMatches: (specimen, patts, check) => {
       return patts.every(patt => checkMatches(specimen, patt, check));
@@ -761,7 +761,7 @@ const makePatternKit = () => {
       ),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchOrHelper = Far('match:or helper', {
     checkMatches: (specimen, patts, check) => {
       const { length } = patts;
@@ -796,7 +796,7 @@ const makePatternKit = () => {
       ),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchNotHelper = Far('match:not helper', {
     checkMatches: (specimen, patt, check) => {
       if (matches(specimen, patt)) {
@@ -814,7 +814,7 @@ const makePatternKit = () => {
     getRankCover: (_patt, _encodePassable) => ['', '{'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchScalarHelper = Far('match:scalar helper', {
     checkMatches: (specimen, _matcherPayload, check) =>
       checkScalarKey(specimen, check),
@@ -824,7 +824,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchKeyHelper = Far('match:key helper', {
     checkMatches: (specimen, _matcherPayload, check) =>
       checkKey(specimen, check),
@@ -834,7 +834,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchPatternHelper = Far('match:pattern helper', {
     checkMatches: (specimen, _matcherPayload, check) =>
       checkPattern(specimen, check),
@@ -844,7 +844,7 @@ const makePatternKit = () => {
     getRankCover: (_matchPayload, _encodePassable) => ['a', 'z~'],
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchKindHelper = Far('match:kind helper', {
     checkMatches: checkKind,
 
@@ -872,7 +872,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchBigintHelper = Far('match:bigint helper', {
     checkMatches: (specimen, [limits = undefined], check) => {
       const { decimalDigitsLimit } = limit(limits);
@@ -894,7 +894,7 @@ const makePatternKit = () => {
       getPassStyleCover('bigint'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchNatHelper = Far('match:nat helper', {
     checkMatches: (specimen, [limits = undefined], check) => {
       const { decimalDigitsLimit } = limit(limits);
@@ -921,7 +921,7 @@ const makePatternKit = () => {
       getPassStyleCover('bigint'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchStringHelper = Far('match:string helper', {
     checkMatches: (specimen, [limits = undefined], check) => {
       const { stringLengthLimit } = limit(limits);
@@ -949,7 +949,7 @@ const makePatternKit = () => {
       getPassStyleCover('string'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchSymbolHelper = Far('match:symbol helper', {
     checkMatches: (specimen, [limits = undefined], check) => {
       const { symbolNameLengthLimit } = limit(limits);
@@ -981,7 +981,7 @@ const makePatternKit = () => {
       getPassStyleCover('symbol'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchRemotableHelper = Far('match:remotable helper', {
     checkMatches: (specimen, remotableDesc, check) => {
       if (isKind(specimen, 'remotable')) {
@@ -1019,7 +1019,7 @@ const makePatternKit = () => {
       getPassStyleCover('remotable'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchLTEHelper = Far('match:lte helper', {
     checkMatches: (specimen, rightOperand, check) =>
       keyLTE(specimen, rightOperand) ||
@@ -1041,7 +1041,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchLTHelper = Far('match:lt helper', {
     checkMatches: (specimen, rightOperand, check) =>
       keyLT(specimen, rightOperand) ||
@@ -1052,7 +1052,7 @@ const makePatternKit = () => {
     getRankCover: matchLTEHelper.getRankCover,
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchGTEHelper = Far('match:gte helper', {
     checkMatches: (specimen, rightOperand, check) =>
       keyGTE(specimen, rightOperand) ||
@@ -1074,7 +1074,7 @@ const makePatternKit = () => {
     },
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchGTHelper = Far('match:gt helper', {
     checkMatches: (specimen, rightOperand, check) =>
       keyGT(specimen, rightOperand) ||
@@ -1085,7 +1085,7 @@ const makePatternKit = () => {
     getRankCover: matchGTEHelper.getRankCover,
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchRecordOfHelper = Far('match:recordOf helper', {
     checkMatches: (
       specimen,
@@ -1134,7 +1134,7 @@ const makePatternKit = () => {
     getRankCover: _entryPatt => getPassStyleCover('copyRecord'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchArrayOfHelper = Far('match:arrayOf helper', {
     checkMatches: (specimen, [subPatt, limits = undefined], check) => {
       const { arrayLengthLimit } = limit(limits);
@@ -1161,7 +1161,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('copyArray'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchSetOfHelper = Far('match:setOf helper', {
     checkMatches: (specimen, [keyPatt, limits = undefined], check) => {
       const { numSetElementsLimit } = limit(limits);
@@ -1188,7 +1188,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchBagOfHelper = Far('match:bagOf helper', {
     checkMatches: (
       specimen,
@@ -1229,7 +1229,7 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('tagged'),
   });
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchMapOfHelper = Far('match:mapOf helper', {
     checkMatches: (
       specimen,
@@ -1273,13 +1273,13 @@ const makePatternKit = () => {
   });
 
   /**
-   * @param {Passable[]} specimen
-   * @param {Pattern[]} requiredPatt
-   * @param {Pattern[]} optionalPatt
+   * @param {import('./types.js').Passable[]} specimen
+   * @param {import('./types.js').Pattern[]} requiredPatt
+   * @param {import('./types.js').Pattern[]} optionalPatt
    * @returns {{
-   *   requiredSpecimen: Passable[],
-   *   optionalSpecimen: Passable[],
-   *   restSpecimen: Passable[]
+   *   requiredSpecimen: import('./types.js').Passable[],
+   *   optionalSpecimen: import('./types.js').Passable[],
+   *   restSpecimen: import('./types.js').Passable[]
    * }}
    */
   const splitArrayParts = (specimen, requiredPatt, optionalPatt) => {
@@ -1299,14 +1299,14 @@ const makePatternKit = () => {
    * We encode this with the `M.or` pattern so it also produces a good
    * compression distinguishing `undefined` from absence.
    *
-   * @param {Pattern[]} optionalPatt
+   * @param {import('./types.js').Pattern[]} optionalPatt
    * @param {number} length
-   * @returns {Pattern[]} The partialPatt
+   * @returns {import('./types.js').Pattern[]} The partialPatt
    */
   const adaptArrayPattern = (optionalPatt, length) =>
     harden(optionalPatt.slice(0, length).map(patt => MM.opt(patt)));
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchSplitArrayHelper = Far('match:splitArray helper', {
     checkMatches: (
       specimen,
@@ -1345,7 +1345,7 @@ const makePatternKit = () => {
 
     /**
      * @param {Array} splitArray
-     * @param {Checker} check
+     * @param {import('./types.js').Checker} check
      */
     checkIsWellFormed: (splitArray, check) => {
       if (
@@ -1381,22 +1381,22 @@ const makePatternKit = () => {
   });
 
   /**
-   * @param {CopyRecord<Passable>} specimen
-   * @param {CopyRecord<Pattern>} requiredPatt
-   * @param {CopyRecord<Pattern>} optionalPatt
+   * @param {import('./types.js').CopyRecord<import('./types.js').Passable>} specimen
+   * @param {import('./types.js').CopyRecord<import('./types.js').Pattern>} requiredPatt
+   * @param {import('./types.js').CopyRecord<import('./types.js').Pattern>} optionalPatt
    * @returns {{
-   *   requiredSpecimen: CopyRecord<Passable>,
-   *   optionalSpecimen: CopyRecord<Passable>,
-   *   restSpecimen: CopyRecord<Passable>
+   *   requiredSpecimen: import('./types.js').CopyRecord<import('./types.js').Passable>,
+   *   optionalSpecimen: import('./types.js').CopyRecord<import('./types.js').Passable>,
+   *   restSpecimen: import('./types.js').CopyRecord<import('./types.js').Passable>
    * }}
    */
   const splitRecordParts = (specimen, requiredPatt, optionalPatt) => {
     // Not frozen! Mutated in place
-    /** @type {[string, Passable][]} */
+    /** @type {[string, import('./types.js').Passable][]} */
     const requiredEntries = [];
-    /** @type {[string, Passable][]} */
+    /** @type {[string, import('./types.js').Passable][]} */
     const optionalEntries = [];
-    /** @type {[string, Passable][]} */
+    /** @type {[string, import('./types.js').Passable][]} */
     const restEntries = [];
     for (const [name, value] of entries(specimen)) {
       if (hasOwnPropertyOf(requiredPatt, name)) {
@@ -1419,14 +1419,14 @@ const makePatternKit = () => {
    * We encode this with the `M.or` pattern so it also produces a good
    * compression distinguishing `undefined` from absence.
    *
-   * @param {CopyRecord<Pattern>} optionalPatt
+   * @param {import('./types.js').CopyRecord<import('./types.js').Pattern>} optionalPatt
    * @param {string[]} names
-   * @returns {CopyRecord<Pattern>} The partialPatt
+   * @returns {import('./types.js').CopyRecord<import('./types.js').Pattern>} The partialPatt
    */
   const adaptRecordPattern = (optionalPatt, names) =>
     fromUniqueEntries(names.map(name => [name, MM.opt(optionalPatt[name])]));
 
-  /** @type {MatchHelper} */
+  /** @type {import('./types.js').MatchHelper} */
   const matchSplitRecordHelper = Far('match:splitRecord helper', {
     checkMatches: (
       specimen,
@@ -1457,7 +1457,7 @@ const makePatternKit = () => {
 
     /**
      * @param {Array} splitArray
-     * @param {Checker} check
+     * @param {import('./types.js').Checker} check
      */
     checkIsWellFormed: (splitArray, check) => {
       if (
@@ -1492,7 +1492,7 @@ const makePatternKit = () => {
     ]) => getPassStyleCover(passStyleOf(requiredPatt)),
   });
 
-  /** @type {Record<string, MatchHelper>} */
+  /** @type {Record<string, import('./types.js').MatchHelper>} */
   const HelpersByMatchTag = harden({
     'match:any': matchAnyHelper,
     'match:and': matchAndHelper,
@@ -1557,7 +1557,7 @@ const makePatternKit = () => {
    * payloads array.
    *
    * @param {string} tag
-   * @param {Passable[]} payload
+   * @param {import('./types.js').Passable[]} payload
    */
   const makeLimitsMatcher = (tag, payload) => {
     if (payload[payload.length - 1] === undefined) {
@@ -1596,7 +1596,7 @@ const makePatternKit = () => {
 
   // //////////////////
 
-  /** @type {MatcherNamespace} */
+  /** @type {import('./types.js').MatcherNamespace} */
   const M = harden({
     any: () => AnyShape,
     and: (...patts) => makeMatcher('match:and', patts),
@@ -1744,7 +1744,7 @@ const AwaitArgGuardShape = M.kind('guard:awaitArgGuard');
 
 /**
  * @param {any} specimen
- * @returns {specimen is AwaitArgGuard}
+ * @returns {specimen is import('./types.js').AwaitArgGuard}
  */
 export const isAwaitArgGuard = specimen =>
   matches(specimen, AwaitArgGuardShape);
@@ -1752,7 +1752,7 @@ harden(isAwaitArgGuard);
 
 /**
  * @param {any} specimen
- * @returns {asserts specimen is AwaitArgGuard}
+ * @returns {asserts specimen is import('./types.js').AwaitArgGuard}
  */
 export const assertAwaitArgGuard = specimen => {
   mustMatch(specimen, AwaitArgGuardShape, 'awaitArgGuard');
@@ -1763,8 +1763,8 @@ harden(assertAwaitArgGuard);
  * By using this abstraction rather than accessing the properties directly,
  * we smooth the transition to https://github.com/endojs/endo/pull/1712
  *
- * @param {AwaitArgGuard} awaitArgGuard
- * @returns {AwaitArgGuardPayload}
+ * @param {import('./types.js').AwaitArgGuard} awaitArgGuard
+ * @returns {import('./types.js').AwaitArgGuardPayload}
  */
 export const getAwaitArgGuardPayload = awaitArgGuard => {
   assertAwaitArgGuard(awaitArgGuard);
@@ -1773,11 +1773,11 @@ export const getAwaitArgGuardPayload = awaitArgGuard => {
 harden(getAwaitArgGuardPayload);
 
 /**
- * @param {Pattern} argPattern
- * @returns {AwaitArgGuard}
+ * @param {import('./types.js').Pattern} argPattern
+ * @returns {import('./types.js').AwaitArgGuard}
  */
 const makeAwaitArgGuard = argPattern => {
-  /** @type {AwaitArgGuard} */
+  /** @type {import('./types.js').AwaitArgGuard} */
   const result = makeTagged('guard:awaitArgGuard', {
     argGuard: argPattern,
   });
@@ -1797,7 +1797,7 @@ export const assertRawGuard = specimen =>
   mustMatch(specimen, RawGuardShape, 'rawGuard');
 
 /**
- * @returns {import('../types.js').RawGuard}
+ * @returns {import('./types.js').RawGuard}
  */
 const makeRawGuard = () => makeTagged('guard:rawGuard', {});
 
@@ -1836,7 +1836,7 @@ const MethodGuardShape = M.kind('guard:methodGuard');
 
 /**
  * @param {any} specimen
- * @returns {asserts specimen is MethodGuard}
+ * @returns {asserts specimen is import('./types.js').MethodGuard}
  */
 export const assertMethodGuard = specimen => {
   mustMatch(specimen, MethodGuardShape, 'methodGuard');
@@ -1847,8 +1847,8 @@ harden(assertMethodGuard);
  * By using this abstraction rather than accessing the properties directly,
  * we smooth the transition to https://github.com/endojs/endo/pull/1712
  *
- * @param {MethodGuard} methodGuard
- * @returns {MethodGuardPayload}
+ * @param {import('./types.js').MethodGuard} methodGuard
+ * @returns {import('./types.js').MethodGuardPayload}
  */
 export const getMethodGuardPayload = methodGuard => {
   assertMethodGuard(methodGuard);
@@ -1858,10 +1858,10 @@ harden(getMethodGuardPayload);
 
 /**
  * @param {'sync'|'async'} callKind
- * @param {ArgGuard[]} argGuards
- * @param {ArgGuard[]} [optionalArgGuards]
- * @param {SyncValueGuard} [restArgGuard]
- * @returns {MethodGuardMaker}
+ * @param {import('./types.js').ArgGuard[]} argGuards
+ * @param {import('./types.js').ArgGuard[]} [optionalArgGuards]
+ * @param {import('./types.js').SyncValueGuard} [restArgGuard]
+ * @returns {import('./types.js').MethodGuardMaker}
  */
 const makeMethodGuardMaker = (
   callKind,
@@ -1887,7 +1887,7 @@ const makeMethodGuardMaker = (
       );
     },
     returns: (returnGuard = M.undefined()) => {
-      /** @type {MethodGuard} */
+      /** @type {import('./types.js').MethodGuard} */
       const result = makeTagged('guard:methodGuard', {
         callKind,
         argGuards,
@@ -1916,7 +1916,7 @@ const InterfaceGuardShape = M.kind('guard:interfaceGuard');
 
 /**
  * @param {any} specimen
- * @returns {asserts specimen is InterfaceGuard}
+ * @returns {asserts specimen is import('./types.js').InterfaceGuard}
  */
 export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
@@ -1927,9 +1927,9 @@ harden(assertInterfaceGuard);
  * By using this abstraction rather than accessing the properties directly,
  * we smooth the transition to https://github.com/endojs/endo/pull/1712
  *
- * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
- * @param {InterfaceGuard<T>} interfaceGuard
- * @returns {InterfaceGuardPayload<T>}
+ * @template {Record<PropertyKey, import('./types.js').MethodGuard>} [T=Record<PropertyKey, import('./types.js').MethodGuard>]
+ * @param {import('./types.js').InterfaceGuard<T>} interfaceGuard
+ * @returns {import('./types.js').InterfaceGuardPayload<T>}
  */
 export const getInterfaceGuardPayload = interfaceGuard => {
   assertInterfaceGuard(interfaceGuard);
@@ -1940,7 +1940,7 @@ harden(getInterfaceGuardPayload);
 const emptyCopyMap = makeCopyMap([]);
 
 /**
- * @param {InterfaceGuard} interfaceGuard
+ * @param {import('./types.js').InterfaceGuard} interfaceGuard
  * @returns {(string | symbol)[]}
  */
 export const getInterfaceMethodKeys = interfaceGuard => {
@@ -1957,11 +1957,11 @@ export const getInterfaceMethodKeys = interfaceGuard => {
 harden(getInterfaceMethodKeys);
 
 /**
- * @template {Record<PropertyKey, MethodGuard>} [M = Record<PropertyKey, MethodGuard>]
+ * @template {Record<PropertyKey, import('./types.js').MethodGuard>} [M = Record<PropertyKey, import('./types.js').MethodGuard>]
  * @param {string} interfaceName
  * @param {M} methodGuards
  * @param {{ sloppy?: boolean, defaultGuards?: import('../types.js').DefaultGuardType }} [options]
- * @returns {InterfaceGuard<M>}
+ * @returns {import('./types.js').InterfaceGuard<M>}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
   const { sloppy = false, defaultGuards = sloppy ? 'passable' : undefined } =
@@ -1969,9 +1969,9 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
   // For backwards compatibility, string-keyed method guards are represented in
   // a CopyRecord. But symbol-keyed methods cannot be, so we put those in a
   // CopyMap when present.
-  /** @type {Record<string, MethodGuard>} */
+  /** @type {Record<string, import('./types.js').MethodGuard>} */
   const stringMethodGuards = {};
-  /** @type {Array<[symbol, MethodGuard]>} */
+  /** @type {Array<[symbol, import('./types.js').MethodGuard]>} */
   const symbolMethodGuardsEntries = [];
   for (const key of ownKeys(methodGuards)) {
     const value = methodGuards[/** @type {string} */ (key)];
@@ -1981,7 +1981,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
       stringMethodGuards[key] = value;
     }
   }
-  /** @type {InterfaceGuard} */
+  /** @type {import('./types.js').InterfaceGuard} */
   const result = makeTagged('guard:interfaceGuard', {
     interfaceName,
     methodGuards: stringMethodGuards,
@@ -1991,7 +1991,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
     defaultGuards,
   });
   assertInterfaceGuard(result);
-  return /** @type {InterfaceGuard<M>} */ (result);
+  return /** @type {import('./types.js').InterfaceGuard<M>} */ (result);
 };
 
 const GuardPayloadShapes = harden({

@@ -16,7 +16,7 @@ import {
 } from './checkKey.js';
 import { makeCompareCollection } from './keycollection-operators.js';
 
-/** @template {Key} [K=Key] @typedef {import('../types').CopySet<K>} CopySet */
+/** @template {import('../types.js').Key} [K=import('../types.js').Key] @typedef {import('../types').CopySet<K>} CopySet */
 
 const { quote: q, Fail } = assert;
 
