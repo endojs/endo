@@ -17,7 +17,7 @@ import {
   isAllowingEverything,
 } from './policy-format.js';
 
-const { entries, values, assign, keys, freeze } = Object;
+const { create, entries, values, assign, keys, freeze } = Object;
 const q = JSON.stringify;
 
 /**
@@ -138,7 +138,7 @@ export const getPolicyForPackage = (namingKit, policy) => {
     return policy.resources[canonicalName];
   } else {
     // Allow skipping policy entries for packages with no powers.
-    return {};
+    return create(null);
   }
 };
 
