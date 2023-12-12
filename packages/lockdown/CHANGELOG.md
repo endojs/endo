@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.32...@endo/lockdown@1.0.0) (2023-12-12)
+
+
+### Bug Fixes
+
+* **lockdown:** Support absence of TextEncoder and TextDecoder ([383046e](https://github.com/endojs/endo/commit/383046ed02ce20ca4ac0260340b5eea93bb67719)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+
+
+
 ### [0.1.32](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.31...@endo/lockdown@0.1.32) (2023-09-12)
 
 **Note:** Version bump only for package @endo/lockdown

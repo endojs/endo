@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/static-module-record@0.8.2...@endo/static-module-record@1.0.0) (2023-12-12)
+
+
+### Features
+
+* **static-module-record:** Bind `this` and `arguments` properly ([8747cd8](https://github.com/endojs/endo/commit/8747cd84768f65652ec4f52db9e5e903d0128c9e))
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+
+
+
 ### [0.8.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.8.1...@endo/static-module-record@0.8.2) (2023-09-12)
 
 

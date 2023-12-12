@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/endojs/endo/compare/ses@0.18.8...ses@1.0.0) (2023-12-12)
+
+
+### Features
+
+* **ses:** add SES version ([db17743](https://github.com/endojs/endo/commit/db17743885e7a221eaf3f6cf5e811a1a1d97788f))
+* **ses:** Freeze evaluators, Compartment constructor and Symbol ([1016375](https://github.com/endojs/endo/commit/1016375f86082e927e7906f11046bb53d9025d68))
+
+
+### Bug Fixes
+
+* enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
+* **ses:** Fake a good-enough console ([a2fd851](https://github.com/endojs/endo/commit/a2fd85145b6c0e316b2205090ba49b60974d10e0)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+* **ses:** fix ThirdPartyStaticModuleInterface type ([fe38c40](https://github.com/endojs/endo/commit/fe38c4095c059ed9550aa682a0de5ab958d3522e))
+* **ses:** fix types export for newer module resolutions ([9cc3dd5](https://github.com/endojs/endo/commit/9cc3dd5551be369d854d5a4c3724b96dc8cc6691)), closes [#1803](https://github.com/endojs/endo/issues/1803)
+* **ses:** refactor import assert {type: json} to fs ([d5741a4](https://github.com/endojs/endo/commit/d5741a44450bb31150cf90e9a0d12eecc836503a))
+* **ses:** Support absence of console ([fece445](https://github.com/endojs/endo/commit/fece445f0191e41c1324d26d83d830dfa8822400)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+
+
+
 ### [0.18.8](https://github.com/endojs/endo/compare/ses@0.18.7...ses@0.18.8) (2023-09-12)
 
 
