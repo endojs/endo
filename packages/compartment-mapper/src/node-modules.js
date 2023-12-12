@@ -566,7 +566,7 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {object} policy
+ * @param {object|undefined} policy
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -611,11 +611,6 @@ const translateGraph = (
       },
       policy,
     );
-    // do not include compartments for packages not covered by policy
-    if (policy && !packagePolicy) {
-      // eslint-disable-next-line no-continue
-      continue;
-    }
 
     /**
      * @param {string} dependencyName

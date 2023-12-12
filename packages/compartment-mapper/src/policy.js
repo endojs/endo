@@ -17,7 +17,7 @@ import {
   isAllowingEverything,
 } from './policy-format.js';
 
-const { entries, values, assign, keys, freeze } = Object;
+const { create, entries, values, assign, keys, freeze } = Object;
 const q = JSON.stringify;
 
 /**
@@ -113,29 +113,6 @@ export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
   return !!policyLookupHelper(packagePolicy, 'packages', canonicalName);
 };
 
-const validateDependencies = (policy, canonicalName) => {
-  const packages = policy.resources[canonicalName].packages;
-  if (!packages || isAllowingEverything(packages)) {
-    return;
-  }
-
-  const packageNames = keys(packages);
-  const attenuators = detectAttenuators(policy);
-  // Join attenuators with packageNames into a Set to deduplicate and check if all are listed in policy.resources
-  const allSpecifiers = new Set([...packageNames, ...attenuators]);
-  for (const specifier of allSpecifiers) {
-    if (!(specifier in policy.resources)) {
-      throw Error(
-        `Package ${q(specifier)} is allowed for ${q(
-          canonicalName,
-        )} to import but its policy is not defined. Please add a policy for ${q(
-          specifier,
-        )}`,
-      );
-    }
-  }
-};
-
 /**
  * Returns the policy applicable to the canonicalName of the package
  *
@@ -154,20 +131,14 @@ export const getPolicyForPackage = (namingKit, policy) => {
   if (canonicalName === ATTENUATORS_COMPARTMENT) {
     return {
       defaultAttenuator: policy.defaultAttenuator,
-      packages: detectAttenuators(policy).reduce((packages, specifier) => {
-        packages[specifier] = true;
-        return packages;
-      }, {}),
+      packages: 'any',
     };
   }
-  if (policy.resources && policy.resources[canonicalName]) {
-    validateDependencies(policy, canonicalName);
+  if (policy.resources && policy.resources[canonicalName] !== undefined) {
     return policy.resources[canonicalName];
   } else {
-    console.warn(
-      `No policy for '${canonicalName}', omitting from compartment map.`,
-    );
-    return undefined;
+    // Allow skipping policy entries for packages with no powers.
+    return create(null);
   }
 };
 
@@ -357,15 +328,25 @@ export const attenuateGlobals = (
   freezeGlobalThisUnlessOptedOut();
 };
 
+const diagnoseModulePolicy = errorHint => {
+  if (!errorHint) {
+    return '';
+  }
+  return ` (info: ${errorHint})`;
+};
 /**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier
- * @param {object} compartmentDescriptor
+ * @param {import('./types.js').CompartmentDescriptor} compartmentDescriptor
  * @param {object} [info]
  */
-export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
-  const { policy, modules } = compartmentDescriptor;
+export const enforceModulePolicy = (
+  specifier,
+  compartmentDescriptor,
+  info = {},
+) => {
+  const { policy, modules, label } = compartmentDescriptor;
   if (!policy) {
     return;
   }
@@ -373,9 +354,11 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
   if (!info.exit) {
     if (!modules[specifier]) {
       throw Error(
-        `Importing ${q(specifier)} was not allowed by policy packages:${q(
+        `Importing ${q(specifier)} in ${q(
+          label,
+        )} was not allowed by packages policy ${q(
           policy.packages,
-        )}`,
+        )}${diagnoseModulePolicy(info.errorHint)}`,
       );
     }
     return;
@@ -385,7 +368,7 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
     throw Error(
       `Importing ${q(specifier)} was not allowed by policy builtins:${q(
         policy.builtins,
-      )}`,
+      )}${diagnoseModulePolicy(info.errorHint)}`,
     );
   }
 };
@@ -458,62 +441,4 @@ export const attenuateModuleHook = async (
     attenuationDefinition: policyValue,
     originalModuleRecord,
   });
-};
-
-const padDiagnosis = text => ` (${text})`;
-/**
- * Provide dignostic information for a missing compartment error
- *
- * @param {object}  args
- * @param {string}  args.moduleSpecifier
- * @param {object}  args.compartmentDescriptor
- * @param {string}  args.foreignModuleSpecifier
- * @param {string}  args.foreignCompartmentName
- * @returns {string}
- */
-export const diagnoseMissingCompartmentError = ({
-  moduleSpecifier,
-  compartmentDescriptor,
-  foreignModuleSpecifier,
-  foreignCompartmentName,
-}) => {
-  const { policy, name, scopes } = compartmentDescriptor;
-
-  if (policy) {
-    if (!policy.packages) {
-      return padDiagnosis(
-        `There were no allowed packages specified in policy for ${q(name)}`,
-      );
-    }
-    if (name === ATTENUATORS_COMPARTMENT) {
-      return padDiagnosis(
-        `Attenuator ${q(
-          moduleSpecifier,
-        )} was imported but there is no policy resources entry defined for it.`,
-      );
-    }
-
-    const scopeNames = entries(scopes)
-      .filter(([_name, scope]) => scope.compartment === foreignCompartmentName)
-      .map(([scopeName]) => scopeName);
-    if (scopeNames.length === 1 && scopeNames[0] === moduleSpecifier) {
-      return padDiagnosis(
-        `Package ${q(
-          moduleSpecifier,
-        )} is missing. Are you sure there is an entry in policy resources specified for it?`,
-      );
-    } else {
-      return padDiagnosis(
-        `Package ${q(moduleSpecifier)} resolves to ${q(
-          foreignModuleSpecifier,
-        )} in ${q(
-          foreignCompartmentName,
-        )} which seems disallowed by policy. There is likely an override defined that causes another package to be imported as ${q(
-          moduleSpecifier,
-        )}.`,
-      );
-    }
-  }
-  // Omit diagnostics when parent package had no policy - it means there was no policy.
-  return '';
 };

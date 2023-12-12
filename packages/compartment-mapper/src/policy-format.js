@@ -122,7 +122,7 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
   const packagePolicy = Object(allegedPackagePolicy);
   assert(
     allegedPackagePolicy === packagePolicy && !isArray(allegedPackagePolicy),
-    `${path} must be an object, got ${allegedPackagePolicy}${inUrl}`,
+    `${path} must be an object, got ${q(allegedPackagePolicy)}${inUrl}`,
   );
   const {
     packages,

@@ -95,6 +95,9 @@ const makeArchiveImportHookMaker = (
           // module is a "builtin" module and the policy needs to be enforced.
           enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: true,
+            errorHint: `Blocked in loading. ${q(
+              moduleSpecifier,
+            )} was not in the archive and an attempt was made to load it as a builtin`,
           });
           const record = await exitModuleImportHook(moduleSpecifier);
           if (record) {
