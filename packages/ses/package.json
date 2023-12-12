@@ -37,14 +37,12 @@
     ".": {
       "types": "./types.d.ts",
       "import": "./index.js",
-      "require": "./dist/ses.cjs",
-      "types": "./types.d.ts"
+      "require": "./dist/ses.cjs"
     },
     "./lockdown": {
       "types": "./types.d.ts",
       "import": "./index.js",
-      "require": "./dist/ses.cjs",
-      "types": "./types.d.ts"
+      "require": "./dist/ses.cjs"
     },
     "./tools.js": "./tools.js",
     "./package.json": "./package.json"
