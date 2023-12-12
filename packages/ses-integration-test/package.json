@@ -1,6 +1,6 @@
 {
   "name": "@endo/ses-integration-test",
-  "version": "3.0.34",
+  "version": "4.0.0",
   "private": true,
   "description": "",
   "keywords": [],
@@ -30,7 +30,7 @@
     "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel --no-minify"
   },
   "dependencies": {
-    "ses": "^0.18.8"
+    "ses": "^1.0.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^13.0.0",

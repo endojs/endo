@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.9.2...@endo/compartment-mapper@1.0.0) (2023-12-12)
+
+
+### Features
+
+* **compartment-mapper:** allow skipping powerless packages in policy resources WIP ([b03efc2](https://github.com/endojs/endo/commit/b03efc27dbd0a3f9fb3182f89f27895c87de4e56))
+* **compartment-mapper:** improve unresolved module error message ([323ca32](https://github.com/endojs/endo/commit/323ca3215cc62bcdce78c70f0c1869c2faec85ac))
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* **compartment-mapper:** correct error interpretations, negative policy enforcement test ([d19afd2](https://github.com/endojs/endo/commit/d19afd2f9a194f554c7218f7190b0070d3e9278a))
+* **compartment-mapper:** fix archive producing invalid compartment maps ([5d3a711](https://github.com/endojs/endo/commit/5d3a711b3f307f4e16221bba76b219b6f46dcab9))
+* **compartment-mapper:** fix for bundling of appended cjs exports ([65c7750](https://github.com/endojs/endo/commit/65c775026838dba3b03a50c4dbc6f1708fcee76f))
+* **compartment-mapper:** Import main as . ([19dc5bc](https://github.com/endojs/endo/commit/19dc5bc956e9e67fc1939df38ce337a58f858deb))
+* **compartment-mapper:** policy - allow any packages imported in the attenuators compartment ([bc5a0ae](https://github.com/endojs/endo/commit/bc5a0aed2796ca601d1970f42defdd37b08cc85b))
+* **compartment-mapper:** Turn empty policy into a null-prototype object ([db2545b](https://github.com/endojs/endo/commit/db2545b1d9b436baad597eea79154d9052e391f7))
+* enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
+
+
+
 ### [0.9.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.9.1...@endo/compartment-mapper@0.9.2) (2023-09-12)
 
 

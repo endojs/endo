@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.6...@endo/eventual-send@1.0.0) (2023-12-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eventual-send:** restrict exports
+
+### Features
+
+* **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+
+
+### Miscellaneous Chores
+
+* **eventual-send:** restrict exports ([1f29d4a](https://github.com/endojs/endo/commit/1f29d4ae95013881d0ec113c202d0fdf00647b4d))
+
+
+
 ### [0.17.6](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.5...@endo/eventual-send@0.17.6) (2023-09-12)
 
 **Note:** Version bump only for package @endo/eventual-send

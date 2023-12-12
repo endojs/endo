@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/netstring@0.3.30...@endo/netstring@1.0.0) (2023-12-12)
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* **netstring:** Fix writer early return during chunked write ([ae1d93b](https://github.com/endojs/endo/commit/ae1d93b37f7416853805abb276282ab876fdd04d))
+
+
+
 ### [0.3.30](https://github.com/endojs/endo/compare/@endo/netstring@0.3.29...@endo/netstring@0.3.30) (2023-09-12)
 
 **Note:** Version bump only for package @endo/netstring

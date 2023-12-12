@@ -3,6 +3,37 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/exo@0.2.6...@endo/exo@1.0.0) (2023-12-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **exo:** reject extra args by default
+* **exo:** extra undeclared args dropped
+
+### Features
+
+* **defaultGuards:** absorb `sloppy` and `raw` ([58a3d42](https://github.com/endojs/endo/commit/58a3d42a92102336d814690430e0feb3773227d4))
+* **defendSyncMethod:** implement raw exo methods ([c8126dc](https://github.com/endojs/endo/commit/c8126dc9d863fbb69cc53d57514368ba931df7fe))
+* **exo:** opt out individual arguments ([bf593d8](https://github.com/endojs/endo/commit/bf593d8e83ba7eb231b4d3a909c41751ab24fe66))
+* **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* **exo:** allow richer behaviorMethods ([fde26da](https://github.com/endojs/endo/commit/fde26da22f03a18045807d833c8e03c4409fd877))
+* **exo:** extra undeclared args dropped ([3a7e13c](https://github.com/endojs/endo/commit/3a7e13ce28f37e16c623df9804134d73326c3032))
+* **exo:** reject extra args by default ([4d100ef](https://github.com/endojs/endo/commit/4d100ef2527b74ea776b79533e996c87e983537c))
+* **exo:** Relax requirement on implementation of __getInterfaceGuard__ method ([64e1099](https://github.com/endojs/endo/commit/64e109997c4d1d67c2643c6d5f8c890cdb31df7e))
+* **exo:** tighten typing ([c50ee18](https://github.com/endojs/endo/commit/c50ee18b543c8da921cd095cdc65b56df1761b9f))
+* **exo:** update `M.callWhen` broken by `M.raw()` ([015696d](https://github.com/endojs/endo/commit/015696dc744599334f678d0c4882727cbeef8b04))
+* Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
+* **patterns:** remove `defaultGuards: 'never'` for `undefined` ([77d04b2](https://github.com/endojs/endo/commit/77d04b2902ddf539f10688dfb84fe2aa9e841f16))
+* review suggestions ([9de852b](https://github.com/endojs/endo/commit/9de852bb78d659ba274e7cacbfda96107844506f))
+
+
+
 ### [0.2.6](https://github.com/endojs/endo/compare/@endo/exo@0.2.5...@endo/exo@0.2.6) (2023-09-12)
 
 
