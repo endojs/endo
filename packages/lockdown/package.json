@@ -12,9 +12,6 @@
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'"
   },
-  "devDependencies": {
-    "ava": "^5.1.1"
-  },
   "dependencies": {
     "ses": "^1.0.0"
   },

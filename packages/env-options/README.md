@@ -74,3 +74,8 @@ if (capturedEnvironmentOptionNames.length > 0) {
   );
 }
 ```
+
+# Note of test migration
+
+To reduce cyclic dependencies, the tests of this module have been moved to
+@endo/ses-ava. Doing `yarn test` here currently does nothing.

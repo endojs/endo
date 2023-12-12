@@ -38,6 +38,8 @@
     "ses": "^1.0.0"
   },
   "devDependencies": {
+    "@endo/env-options": "^1.0.0",
+    "@endo/lockdown": "^1.0.0",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",
