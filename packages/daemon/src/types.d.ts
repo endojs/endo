@@ -182,10 +182,9 @@ export type ReceiveFn = (
 
 export interface EndoReadable {
   sha512(): string;
-  stream(): FarRef<Reader<Uint8Array>>;
+  streamBase64(): FarRef<Reader<string>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
-  [Symbol.asyncIterator]: Reader<Uint8Array>;
 }
 
 export interface EndoWorker {
@@ -305,20 +304,11 @@ export type NetworkPowers = {
   ) => { started: Promise<void>; stopped: Promise<void> };
 };
 
-// The return type here is almost an EndoReadable, but not quite. Should fix.
-export type AlmostEndoReadable = {
-  sha512(): string;
-  stream(): FarRef<Stream<string>>;
-  text(): Promise<string>;
-  json(): Promise<unknown>;
-  [Symbol.asyncIterator]: any;
-};
-
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
-    fetch: (sha512: string) => AlmostEndoReadable;
+    fetch: (sha512: string) => EndoReadable;
   };
   readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
   writeFormula: (

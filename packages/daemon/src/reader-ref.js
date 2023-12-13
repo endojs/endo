@@ -27,7 +27,7 @@ export const asyncIterate = iterable => {
 /**
  * @template T
  * @param {import('./types').SomehowAsyncIterable<T>} iterable The iterable object.
- * @returns {import('@endo/far').FarRef<import('@endo/stream').Stream<T>>}
+ * @returns {import('@endo/far').FarRef<import('@endo/stream').Reader<T>>}
  */
 export const makeIteratorRef = iterable => {
   const iterator = asyncIterate(iterable);

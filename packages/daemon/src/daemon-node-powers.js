@@ -504,11 +504,11 @@ export const makeDaemonicPersistencePowers = (
       },
       /**
        * @param {string} sha512
-       * @returns {import('./types.js').AlmostEndoReadable}
+       * @returns {import('./types.js').EndoReadable}
        */
       fetch(sha512) {
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
-        const stream = () => {
+        const streamBase64 = () => {
           const reader = filePowers.makeFileReader(storagePath);
           return makeReaderRef(reader);
         };
@@ -520,10 +520,9 @@ export const makeDaemonicPersistencePowers = (
         };
         return harden({
           sha512: () => sha512,
-          stream,
+          streamBase64,
           text,
           json,
-          [Symbol.asyncIterator]: () => stream(),
         });
       },
     });
