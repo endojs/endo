@@ -27,10 +27,6 @@ export type Connection = {
   closed: Promise<void>;
 };
 
-export type Worker = Connection & {
-  pid: number | undefined;
-};
-
 export type HttpRequest = {
   method: string;
   url: string;
@@ -333,8 +329,29 @@ export type DaemonicPersistencePowers = {
   webPageBundlerFormula?: Formula;
 };
 
+export interface DaemonWorkerFacet {}
+
+export interface WorkerDaemonFacet {
+  terminate(): void;
+  evaluate(
+    source: string,
+    names: Array<string>,
+    values: Array<unknown>,
+    cancelled: Promise<never>,
+  ): Promise<unknown>;
+  importBundleAndEndow(bundle: ERef<EndoReadable>, powers: ERef<unknown>);
+  importUnsafeAndEndow(path: string, powers: ERef<unknown>);
+}
+
 export type DaemonicControlPowers = {
-  makeWorker: (id: string, cancelled: Promise<never>) => Promise<Worker>;
+  makeWorker: (
+    id: string,
+    daemonWorkerFacet: DaemonWorkerFacet,
+    cancelled: Promise<never>,
+  ) => Promise<{
+    workerTerminated: Promise<void>;
+    workerDaemonFacet: ERef<WorkerDaemonFacet>;
+  }>;
 };
 
 export type DaemonicPowers = {

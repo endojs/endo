@@ -4,6 +4,7 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
+import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePortHttp } from './serve-private-port-http.js';
@@ -616,18 +617,27 @@ export const makeDaemonicControlPowers = (
   );
 
   /**
-   * @param {string} id
+   * @param {string} workerId
+   * @param {import('./types.js').DaemonWorkerFacet} daemonWorkerFacet
    * @param {Promise<never>} cancelled
    */
-  const makeWorker = async (id, cancelled) => {
+  const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
     const { cachePath, statePath, ephemeralStatePath, sockPath } = locator;
 
-    const workerCachePath = filePowers.joinPath(cachePath, 'worker-id512', id);
-    const workerStatePath = filePowers.joinPath(statePath, 'worker-id512', id);
+    const workerCachePath = filePowers.joinPath(
+      cachePath,
+      'worker-id512',
+      workerId,
+    );
+    const workerStatePath = filePowers.joinPath(
+      statePath,
+      'worker-id512',
+      workerId,
+    );
     const workerEphemeralStatePath = filePowers.joinPath(
       ephemeralStatePath,
       'worker-id512',
-      id,
+      workerId,
     );
 
     await Promise.all([
@@ -642,7 +652,7 @@ export const makeDaemonicControlPowers = (
     const child = popen.fork(
       endoWorkerPath,
       [
-        id,
+        workerId,
         sockPath,
         workerStatePath,
         workerEphemeralStatePath,
@@ -654,6 +664,7 @@ export const makeDaemonicControlPowers = (
         windowsHide: true,
       },
     );
+    const workerPid = child.pid;
     const nodeWriter = /** @type {import('stream').Writable} */ (
       child.stdio[3]
     );
@@ -665,8 +676,13 @@ export const makeDaemonicControlPowers = (
     const reader = makeNodeReader(nodeReader);
     const writer = makeNodeWriter(nodeWriter);
 
-    const closed = new Promise(resolve => {
-      child.on('exit', () => resolve(undefined));
+    const workerClosed = new Promise(resolve => {
+      child.on('exit', () => {
+        console.log(
+          `Endo worker exited for PID ${workerPid} with unique identifier ${workerId}`,
+        );
+        resolve(undefined);
+      });
     });
 
     await filePowers.writeFileText(pidPath, `${child.pid}\n`);
@@ -675,7 +691,30 @@ export const makeDaemonicControlPowers = (
       child.kill();
     });
 
-    return { reader, writer, closed, pid: child.pid };
+    console.log(
+      `Endo worker started PID ${workerPid} unique identifier ${workerId}`,
+    );
+
+    const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
+      `Worker ${workerId}`,
+      writer,
+      reader,
+      cancelled,
+      daemonWorkerFacet,
+    );
+
+    capTpClosed.finally(() => {
+      console.log(
+        `Endo worker connection closed for PID ${workerPid} with unique identifier ${workerId}`,
+      );
+    });
+
+    const workerTerminated = Promise.race([workerClosed, capTpClosed]);
+
+    /** @type {import('@endo/eventual-send').ERef<import('./types.js').WorkerDaemonFacet>} */
+    const workerDaemonFacet = getBootstrap();
+
+    return { workerTerminated, workerDaemonFacet };
   };
 
   return harden({
