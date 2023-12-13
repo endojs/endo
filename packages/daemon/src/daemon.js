@@ -5,7 +5,6 @@
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
@@ -106,48 +105,32 @@ const makeEndoBootstrap = (
     // TODO validate workerId512
     const workerFormulaIdentifier = `worker-id512:${workerId512}`;
 
+    const daemonWorkerFacet = makeWorkerBootstrap(
+      workerId512,
+      workerFormulaIdentifier,
+    );
+
     const { reject: cancelWorker, promise: workerCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
         makePromiseKit()
       );
     cancelled.catch(async error => cancelWorker(error));
 
-    const {
-      reader,
-      writer,
-      closed: workerClosed,
-      pid: workerPid,
-    } = await controlPowers.makeWorker(workerId512, workerCancelled);
-
-    console.log(
-      `Endo worker started PID ${workerPid} unique identifier ${workerId512}`,
-    );
-
-    const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
-      `Worker ${workerId512}`,
-      writer,
-      reader,
-      gracePeriodElapsed,
-      makeWorkerBootstrap(workerId512, workerFormulaIdentifier),
-    );
-
-    const terminated = Promise.race([workerClosed, capTpClosed]).finally(() => {
-      console.log(
-        `Endo worker stopped PID ${workerPid} with unique identifier ${workerId512}`,
+    const { workerTerminated, workerDaemonFacet } =
+      await controlPowers.makeWorker(
+        workerId512,
+        daemonWorkerFacet,
+        Promise.race([workerCancelled, gracePeriodElapsed]),
       );
-    });
-
-    /** @type {import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>} */
-    const workerBootstrap = getBootstrap();
 
     const terminate = async () => {
-      E.sendOnly(workerBootstrap).terminate();
+      E.sendOnly(workerDaemonFacet).terminate();
       const cancelWorkerGracePeriod = () => {
         throw new Error('Exited gracefully before grace period elapsed');
       };
       const workerGracePeriodCancelled = Promise.race([
         gracePeriodElapsed,
-        terminated,
+        workerTerminated,
       ]).then(cancelWorkerGracePeriod, cancelWorkerGracePeriod);
       await delay(gracePeriodMs, workerGracePeriodCancelled)
         .then(() => {
@@ -156,7 +139,7 @@ const makeEndoBootstrap = (
           );
         })
         .catch(cancelWorker);
-      await terminated;
+      await workerTerminated;
     };
 
     terminator.onTerminate(terminate);
@@ -168,7 +151,7 @@ const makeEndoBootstrap = (
 
     return {
       external: worker,
-      internal: workerBootstrap,
+      internal: workerDaemonFacet,
     };
   };
 
@@ -199,9 +182,9 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         provideControllerForFormulaIdentifier(workerFormulaIdentifier)
       );
-    const workerBootstrap = workerController.internal;
+    const workerDaemonFacet = workerController.internal;
     assert(
-      workerBootstrap,
+      workerDaemonFacet,
       `panic: No internal bootstrap for worker ${workerFormulaIdentifier}`,
     );
 
@@ -213,7 +196,7 @@ const makeEndoBootstrap = (
       ),
     );
 
-    const external = E(workerBootstrap).evaluate(
+    const external = E(workerDaemonFacet).evaluate(
       source,
       codeNames,
       endowmentValues,
@@ -256,9 +239,9 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         provideControllerForFormulaIdentifier(workerFormulaIdentifier)
       );
-    const workerBootstrap = workerController.internal;
+    const workerDaemonFacet = workerController.internal;
     assert(
-      workerBootstrap,
+      workerDaemonFacet,
       `panic: No internal bootstrap for worker ${workerFormulaIdentifier}`,
     );
     const guestP = /** @type {Promise<import('./types.js').EndoGuest>} */ (
@@ -266,7 +249,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerBootstrap).importUnsafeAndEndow(
+    const external = E(workerDaemonFacet).importUnsafeAndEndow(
       importPath,
       guestP,
     );
@@ -296,9 +279,9 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         provideControllerForFormulaIdentifier(workerFormulaIdentifier)
       );
-    const workerBootstrap = workerController.internal;
+    const workerDaemonFacet = workerController.internal;
     assert(
-      workerBootstrap,
+      workerDaemonFacet,
       `panic: No internal bootstrap for worker ${workerFormulaIdentifier}`,
     );
     // Behold, recursion:
@@ -314,7 +297,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerBootstrap).importBundleAndEndow(
+    const external = E(workerDaemonFacet).importBundleAndEndow(
       readableBundleP,
       guestP,
     );
