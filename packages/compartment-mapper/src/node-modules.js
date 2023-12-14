@@ -42,18 +42,18 @@
  * @typedef {Record<string, {spec: string, alias: string}>} CommonDependencyDescriptors
  */
 
+import { pathCompare } from './compartment-map.js';
 import { inferExportsAndAliases } from './infer-exports.js';
-import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
-import { unpackReadPowers } from './powers.js';
+import { join } from './node-module-specifier.js';
+import { assertPolicy } from './policy-format.js';
 import {
-  getPolicyForPackage,
   ATTENUATORS_COMPARTMENT,
   dependencyAllowedByPolicy,
+  getPolicyForPackage,
 } from './policy.js';
-import { join } from './node-module-specifier.js';
-import { pathCompare } from './compartment-map.js';
-import { assertPolicy } from './policy-format.js';
+import { unpackReadPowers } from './powers.js';
+import { searchDescriptor } from './search.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -566,7 +566,7 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {object|undefined} policy
+ * @param {import('./types.js').Policy} [policy]
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -626,13 +626,14 @@ const translateGraph = (
         const localPath = join(dependencyName, exportPath);
         if (
           !policy ||
-          dependencyAllowedByPolicy(
-            {
-              name,
-              path,
-            },
-            /** @type {import('./types.js').PackagePolicy} */ (packagePolicy),
-          )
+          (packagePolicy &&
+            dependencyAllowedByPolicy(
+              {
+                name,
+                path,
+              },
+              packagePolicy,
+            ))
         ) {
           moduleDescriptors[localPath] = {
             compartment: packageLocation,

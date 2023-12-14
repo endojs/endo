@@ -133,11 +133,11 @@ const isPolicyItem = item =>
  * @param {unknown} allegedPackagePolicy - Alleged `PackagePolicy` to test
  * @param {string} path - Path in the `Policy` object; used for error messages only
  * @param {string} [url] - URL of the policy file; used for error messages only
- * @returns {allegedPackagePolicy is import('./types.js').PackagePolicy}
+ * @returns {asserts allegedPackagePolicy is import('./types.js').PackagePolicy|undefined}
  */
 export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
   if (allegedPackagePolicy === undefined) {
-    return true;
+    return;
   }
   const inUrl = url ? ` in ${q(url)}` : '';
 
@@ -191,7 +191,6 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
         builtins,
       })}${inUrl}`,
     );
-  return true;
 };
 
 /**
@@ -200,11 +199,11 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
  * It also moonlights as a type guard.
  *
  * @param {unknown} allegedPolicy - Alleged `Policy` to test
- * @returns {allegedPolicy is import('./types.js').Policy}
+ * @returns {asserts allegedPolicy is import('./types.js').Policy|undefined}
  */
 export const assertPolicy = allegedPolicy => {
   if (allegedPolicy === undefined) {
-    return true;
+    return;
   }
   const policy = Object(allegedPolicy);
   assert(
@@ -232,5 +231,4 @@ export const assertPolicy = allegedPolicy => {
   for (const [key, value] of entries(resources)) {
     assertPackagePolicy(value, `policy.resources["${key}"]`);
   }
-  return true;
 };

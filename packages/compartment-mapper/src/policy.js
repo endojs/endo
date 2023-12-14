@@ -114,9 +114,26 @@ export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
 /**
  * Returns the policy applicable to the canonicalName of the package
  *
- * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived frm these
+ * @overload
+ * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {import('./types.js').Policy} policy - user supplied policy
+ * @returns {import('./types.js').PackagePolicy} packagePolicy if policy was specified
+ */
+
+/**
+ * Returns `undefined`
+ *
+ * @overload
+ * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
  * @param {import('./types.js').Policy} [policy] - user supplied policy
  * @returns {import('./types.js').PackagePolicy|undefined} packagePolicy if policy was specified
+ */
+
+/**
+ * Returns the policy applicable to the canonicalName of the package
+ *
+ * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {import('./types.js').Policy} [policy] - user supplied policy
  */
 export const getPolicyForPackage = (namingKit, policy) => {
   if (!policy) {
@@ -149,7 +166,7 @@ const getGlobalsList = packagePolicy => {
   if (!packagePolicy?.globals) {
     return [];
   }
-  return entries(packagePolicy?.globals)
+  return entries(packagePolicy.globals)
     .filter(([_key, value]) => value)
     .map(([key, _vvalue]) => key);
 };
