@@ -57,6 +57,9 @@ export const makeHostMaker = ({
       send,
       dismiss,
       adopt,
+      list,
+      listAll,
+      listSpecial,
       rename,
       remove,
       terminate,
@@ -486,13 +489,7 @@ export const makeHostMaker = ({
       return value;
     };
 
-    const {
-      has,
-      list,
-      follow: followNames,
-      listEntries,
-      followEntries,
-    } = petStore;
+    const { has, follow: followNames, listEntries, followEntries } = petStore;
 
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
@@ -508,6 +505,8 @@ export const makeHostMaker = ({
       request,
       send,
       list,
+      listSpecial,
+      listAll,
       followNames,
       listEntries,
       followEntries,
