@@ -70,13 +70,12 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeReadableBlob = sha512 => {
-    const { text, json, stream } = contentStore.fetch(sha512);
+    const { text, json, streamBase64 } = contentStore.fetch(sha512);
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
-      stream,
+      streamBase64,
       text,
       json,
-      [Symbol.asyncIterator]: stream,
     });
   };
 
