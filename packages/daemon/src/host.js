@@ -18,12 +18,14 @@ export const makeHostMaker = ({
   /**
    * @param {string} hostFormulaIdentifier
    * @param {string} storeFormulaIdentifier
+   * @param {string} infoFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
    * @param {import('./types.js').Terminator} terminator
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
     storeFormulaIdentifier,
+    infoFormulaIdentifier,
     mainWorkerFormulaIdentifier,
     terminator,
   ) => {
@@ -58,6 +60,7 @@ export const makeHostMaker = ({
       selfFormulaIdentifier: hostFormulaIdentifier,
       specialNames: {
         SELF: hostFormulaIdentifier,
+        INFO: infoFormulaIdentifier,
         NONE: 'least-authority',
         ENDO: 'endo',
       },

@@ -36,6 +36,17 @@ const delay = async (ms, cancelled) => {
   });
 };
 
+const makeInfo = (type, number, record) =>
+  Far(`Inspector (${type} ${number})`, {
+    lookup: async petName => {
+      if (!Object.hasOwn(record, petName)) {
+        return undefined;
+      }
+      return record[petName];
+    },
+    list: () => Object.keys(record),
+  });
+
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
@@ -393,14 +404,21 @@ const makeEndoBootstrap = (
           assertPetName,
         );
         return { external, internal: undefined };
+      } else if (formulaIdentifier === 'pet-inspector') {
+        // Behold, unavoidable forward-reference:
+        // eslint-disable-next-line no-use-before-define
+        const external = makeIdentifiedInspector('pet-store');
+        return { external, internal: undefined };
       } else if (formulaIdentifier === 'host') {
         const storeFormulaIdentifier = 'pet-store';
+        const infoFormulaIdentifier = 'pet-inspector';
         const workerFormulaIdentifier = `worker-id512:${zero512}`;
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
         return makeIdentifiedHost(
           formulaIdentifier,
           storeFormulaIdentifier,
+          infoFormulaIdentifier,
           workerFormulaIdentifier,
           terminator,
         );
@@ -436,6 +454,13 @@ const makeEndoBootstrap = (
       return { external, internal: undefined };
     } else if (prefix === 'worker-id512') {
       return makeIdentifiedWorkerController(formulaNumber, terminator);
+    } else if (prefix === 'pet-inspector-id512') {
+      // Behold, unavoidable forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      const external = makeIdentifiedInspector(
+        `pet-store-id512:${formulaNumber}`,
+      );
+      return { external, internal: undefined };
     } else if (prefix === 'pet-store-id512') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
@@ -444,12 +469,14 @@ const makeEndoBootstrap = (
       return { external, internal: undefined };
     } else if (prefix === 'host-id512') {
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
+      const infoFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
       const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedHost(
         formulaIdentifier,
         storeFormulaIdentifier,
+        infoFormulaIdentifier,
         workerFormulaIdentifier,
         terminator,
       );
@@ -611,6 +638,112 @@ const makeEndoBootstrap = (
     makeSha512,
     makeMailbox,
   });
+
+  const makeIdentifiedInspector = async petStoreFormulaIdentifier => {
+    const petStore = /** @type {import('./types.js').PetStore} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
+    );
+
+    /**
+     * @param {string} petName
+     */
+    const lookup = async petName => {
+      const formulaIdentifier = petStore.lookup(petName);
+      if (formulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name ${petName}`);
+      }
+      const delimiterIndex = formulaIdentifier.indexOf(':');
+      // eslint-disable-next-line @endo/restrict-comparison-operands
+      if (delimiterIndex < 0) {
+        return undefined;
+      }
+      const prefix = formulaIdentifier.slice(0, delimiterIndex);
+      const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
+      if (
+        ![
+          'eval-id512',
+          'import-unsafe-id512',
+          'import-bundle-id512',
+          'guest-id512',
+          'web-bundle',
+        ].includes(prefix)
+      ) {
+        return makeInfo(prefix, formulaNumber, harden({}));
+      }
+      const formula = await persistencePowers.readFormula(
+        prefix,
+        formulaNumber,
+      );
+      if (formula.type === 'eval') {
+        return makeInfo(
+          formula.type,
+          formulaNumber,
+          harden({
+            SOURCE: formula.source,
+            WORKER: provideValueForFormulaIdentifier(formula.worker),
+            ENDOWMENTS: Object.fromEntries(
+              formula.names.map((name, index) => {
+                return [
+                  name,
+                  provideValueForFormulaIdentifier(formula.values[index]),
+                ];
+              }),
+            ),
+          }),
+        );
+      } else if (formula.type === 'import-unsafe') {
+        return makeInfo(
+          formula.type,
+          formulaNumber,
+          harden({
+            SPECIFIER: formula.specifier,
+            WORKER: provideValueForFormulaIdentifier(formula.worker),
+            POWERS: provideValueForFormulaIdentifier(formula.powers),
+          }),
+        );
+      } else if (formula.type === 'import-bundle') {
+        return makeInfo(
+          formula.type,
+          formulaNumber,
+          harden({
+            WORKER: provideValueForFormulaIdentifier(formula.worker),
+            BUNDLE: provideValueForFormulaIdentifier(formula.bundle),
+            POWERS: provideValueForFormulaIdentifier(formula.powers),
+          }),
+        );
+      } else if (formula.type === 'guest') {
+        return makeInfo(
+          formula.type,
+          formulaNumber,
+          harden({
+            HOST: provideValueForFormulaIdentifier(formula.host),
+          }),
+        );
+      } else if (formula.type === 'web-bundle') {
+        return makeInfo(
+          formula.type,
+          formulaNumber,
+          harden({
+            BUNDLE: provideValueForFormulaIdentifier(formula.bundle),
+            POWERS: provideValueForFormulaIdentifier(formula.powers),
+          }),
+        );
+      }
+      // @ts-expect-error this should never occur
+      return makeInfo(formula.type, formulaNumber, harden({}));
+    };
+
+    const list = () => petStore.list();
+
+    const info = Far('Endo info facet', {
+      lookup,
+      list,
+    });
+
+    return info;
+  };
 
   const endoBootstrap = Far('Endo private facet', {
     // TODO for user named
