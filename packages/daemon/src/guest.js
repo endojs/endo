@@ -59,6 +59,9 @@ export const makeGuestMaker = ({
       request,
       rename,
       remove,
+      list,
+      listSpecial,
+      listAll,
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: guestFormulaIdentifier,
@@ -69,7 +72,7 @@ export const makeGuestMaker = ({
       terminator,
     });
 
-    const { has, list, follow: followNames } = petStore;
+    const { has, follow: followNames } = petStore;
 
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
@@ -79,6 +82,8 @@ export const makeGuestMaker = ({
       request,
       send,
       list,
+      listSpecial,
+      listAll,
       followNames,
       followMessages,
       listMessages,

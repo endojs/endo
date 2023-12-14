@@ -73,6 +73,13 @@ export const makeMailboxMaker = ({
       return controller.terminator.terminate();
     };
 
+    const list = () => harden(petStore.list());
+
+    const listSpecial = () => harden(Object.keys(specialNames).sort());
+
+    const listAll = () =>
+      harden([...Object.keys(specialNames).sort(), ...petStore.list()]);
+
     /**
      * @param {string} formulaIdentifier
      */
@@ -489,6 +496,9 @@ export const makeMailboxMaker = ({
       send,
       dismiss,
       adopt,
+      list,
+      listSpecial,
+      listAll,
       rename,
       remove,
       terminate,
