@@ -219,14 +219,14 @@ const makeEndoBootstrap = (
    * @param {string} valueFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
-   * @param {string} importPath
+   * @param {string} specifier
    * @param {import('./types.js').Terminator} terminator
    */
   const makeControllerForUnsafePlugin = async (
     valueFormulaIdentifier,
     workerFormulaIdentifier,
     guestFormulaIdentifier,
-    importPath,
+    specifier,
     terminator,
   ) => {
     terminator.thisDiesIfThatDies(workerFormulaIdentifier);
@@ -249,7 +249,7 @@ const makeEndoBootstrap = (
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
     const external = E(workerDaemonFacet).importUnsafeAndEndow(
-      importPath,
+      specifier,
       guestP,
     );
     return { external, internal: undefined };
@@ -329,7 +329,9 @@ const makeEndoBootstrap = (
         formulaIdentifier,
         formula.worker,
         formula.powers,
-        formula.importPath,
+        formula.specifier ??
+          // @ts-expect-error
+          formula.importPath, // (TODO deprecated)
         terminator,
       );
     } else if (formula.type === 'import-bundle') {
