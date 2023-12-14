@@ -22,13 +22,8 @@ const endowments = harden({
  * @param {object} args
  * @param {() => any} args.getDaemonBootstrap
  * @param {(error: Error) => void} args.cancel
- * @param {(path: string) => string} args.pathToFileURL
  */
-export const makeWorkerFacet = ({
-  getDaemonBootstrap,
-  pathToFileURL,
-  cancel,
-}) => {
+export const makeWorkerFacet = ({ getDaemonBootstrap, cancel }) => {
   return Far('EndoWorkerFacet', {
     terminate: async () => {
       console.error('Endo worker received terminate request');
@@ -55,12 +50,11 @@ export const makeWorkerFacet = ({
     },
 
     /**
-     * @param {string} path
+     * @param {string} specifier
      * @param {unknown} powersP
      */
-    importUnsafeAndEndow: async (path, powersP) => {
-      const url = pathToFileURL(path);
-      const namespace = await import(url);
+    importUnsafeAndEndow: async (specifier, powersP) => {
+      const namespace = await import(specifier);
       return namespace.make(powersP);
     },
 
@@ -97,15 +91,12 @@ export const main = async (powers, locator, uuid, pid, cancel, cancelled) => {
     console.error(`Endo worker exiting on pid ${pid}`);
   });
 
-  const { pathToFileURL } = powers;
-
   const { reader, writer } = powers.connection;
 
   const workerFacet = makeWorkerFacet({
     // Behold: reference cycle
     // eslint-disable-next-line no-use-before-define
     getDaemonBootstrap: () => getBootstrap(),
-    pathToFileURL,
     cancel,
   });
 

@@ -358,7 +358,8 @@ test('persist unsafe services and their requests', async t => {
     await E(host).makeWorker('w1');
     await E(host).provideGuest('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
-    await E(host).importUnsafeAndEndow('w1', servicePath, 'o1', 's1');
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    await E(host).importUnsafeAndEndow('w1', serviceLocation, 'o1', 's1');
 
     await E(host).makeWorker('w2');
     const answer = await E(host).evaluate(
@@ -444,7 +445,13 @@ test('direct termination', async t => {
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).importUnsafeAndEndow('worker', counterPath, 'NONE', 'counter');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).importUnsafeAndEndow(
+    'worker',
+    counterLocation,
+    'NONE',
+    'counter',
+  );
   t.is(
     1,
     await E(host).evaluate(
@@ -524,7 +531,13 @@ test('indirect termination', async t => {
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).importUnsafeAndEndow('worker', counterPath, 'SELF', 'counter');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).importUnsafeAndEndow(
+    'worker',
+    counterLocation,
+    'SELF',
+    'counter',
+  );
   t.is(
     1,
     await E(host).evaluate(
@@ -606,7 +619,8 @@ test('terminate because of requested capability', async t => {
   const messages = E(host).followMessages();
 
   const counterPath = path.join(dirname, 'test', 'counter-party.js');
-  E(host).importUnsafeAndEndow('worker', counterPath, 'guest', 'counter');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  E(host).importUnsafeAndEndow('worker', counterLocation, 'guest', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], 'zero');
   await E(messages).next();

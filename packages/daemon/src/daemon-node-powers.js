@@ -589,9 +589,7 @@ export const makeDaemonicPersistencePowers = (
         type: /** @type {'import-unsafe'} */ ('import-unsafe'),
         worker: `worker-id512:${zero512}`,
         powers: 'host',
-        importPath: fileURLToPath(
-          new URL('web-page-bundler.js', import.meta.url).href,
-        ),
+        specifier: new URL('web-page-bundler.js', import.meta.url).href,
       }
     : undefined;
 
