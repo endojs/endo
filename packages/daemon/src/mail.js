@@ -1,5 +1,6 @@
 // @ts-check
 
+import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
@@ -41,16 +42,21 @@ export const makeMailboxMaker = ({
     };
 
     /**
-     * @param {string} petName
+     * @param {string} petNamePath
      */
-    const lookup = async petName => {
-      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+    const lookup = async petNamePath => {
+      const [headName, ...tailNames] = petNamePath.split('.');
+      const formulaIdentifier = lookupFormulaIdentifierForName(headName);
       if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+        throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      return provideValueForFormulaIdentifier(formulaIdentifier);
+      const value = provideValueForFormulaIdentifier(formulaIdentifier);
+      return tailNames.reduce(
+        (directory, petName) => E(directory).lookup(petName),
+        value,
+      );
     };
 
     const terminate = async petName => {
