@@ -2,6 +2,7 @@
 
 import os from 'os';
 
+import openWebPage from 'open';
 import { E } from '@endo/far';
 import { makeReaderRef } from '@endo/daemon';
 import bundleSource from '@endo/bundle-source';
@@ -17,6 +18,7 @@ export const install = async ({
   powersName,
   webPageName,
   programPath,
+  doOpen,
 }) => {
   /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
   let bundleReaderRef;
@@ -54,7 +56,11 @@ export const install = async ({
       } else {
         ({ url: webPageUrl } = await E(party).lookup(webPageName));
       }
+      assert(webPageUrl !== undefined);
       process.stdout.write(`${webPageUrl}\n`);
+      if (doOpen) {
+        openWebPage(webPageUrl);
+      }
     } finally {
       if (temporaryBundleName) {
         await E(party).remove(temporaryBundleName);

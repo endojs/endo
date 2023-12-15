@@ -44,14 +44,17 @@ export const main = async rawArgs => {
       '-p,--powers <endowment>',
       'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
     )
+    .option('-o,--open', 'Open the new web page immediately (weblet)')
     .action(async (webPageName, programPath, cmd) => {
       const {
         bundle: bundleName,
         powers: powersName = 'NONE',
         as: partyNames,
+        open: doOpen,
       } = cmd.opts();
       const { install } = await import('./install.js');
       return install({
+        doOpen,
         webPageName,
         programPath,
         bundleName,
