@@ -426,6 +426,38 @@ test('guest facet receives a message for host', async t => {
   await stop(locator);
 });
 
+test('save eval to guest', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'save-eval-to-guest');
+
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const guest = E(host).provideGuest('guest');
+  await E(host).provideWorker('worker');
+  await E(host).evaluate('worker', '10', [], [], 'guest.ten');
+  const hostList = await E(host).list();
+  const guestList = await E(guest).list();
+  t.deepEqual(
+    hostList.filter(name => name.toLowerCase() === name),
+    ['guest', 'worker'],
+  );
+  t.deepEqual(
+    guestList.filter(name => name.toLowerCase() === name),
+    ['ten'],
+  );
+
+  await stop(locator);
+});
+
 test('direct termination', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));

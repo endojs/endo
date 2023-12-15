@@ -47,6 +47,7 @@ export const makeGuestMaker = ({
     const {
       lookup,
       reverseLookup,
+      lookupPath,
       followMessages,
       listMessages,
       resolve,
@@ -98,6 +99,7 @@ export const makeGuestMaker = ({
     const internal = harden({
       receive,
       respond,
+      lookupPath,
     });
 
     return harden({ external: guest, internal });

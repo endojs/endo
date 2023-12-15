@@ -41,6 +41,8 @@ export const makeHostMaker = ({
     const {
       lookup,
       reverseLookup,
+      lookupPath,
+      lookupWriter,
       lookupFormulaIdentifierForName,
       listMessages,
       followMessages,
@@ -113,15 +115,9 @@ export const makeHostMaker = ({
      * @param {string} [petName]
      */
     const store = async (readerRef, petName) => {
-      if (petName !== undefined) {
-        assertPetName(petName);
-      }
-
+      const writeResult = await lookupWriter(petName);
       const formulaIdentifier = await storeReaderRef(readerRef);
-
-      if (petName !== undefined) {
-        await petStore.write(petName, formulaIdentifier);
-      }
+      await writeResult(formulaIdentifier);
     };
 
     /**
@@ -203,9 +199,8 @@ export const makeHostMaker = ({
         workerName,
       );
 
-      if (resultName !== undefined) {
-        assertPetName(resultName);
-      }
+      const writeResult = await lookupWriter(resultName);
+
       if (petNames.length !== codeNames.length) {
         throw new Error('Evaluator requires one pet name for each code name');
       }
@@ -238,9 +233,9 @@ export const makeHostMaker = ({
         formula,
         'eval-id512',
       );
-      if (resultName !== undefined) {
-        await petStore.write(resultName, formulaIdentifier);
-      }
+
+      await writeResult(formulaIdentifier);
+
       return value;
     };
 
@@ -264,6 +259,8 @@ export const makeHostMaker = ({
         powersName,
       );
 
+      const writeResult = await lookupWriter(resultName);
+
       const formula = {
         /** @type {'import-unsafe'} */
         type: 'import-unsafe',
@@ -278,9 +275,9 @@ export const makeHostMaker = ({
         formula,
         'import-unsafe-id512',
       );
-      if (resultName !== undefined) {
-        await petStore.write(resultName, formulaIdentifier);
-      }
+
+      await writeResult(formulaIdentifier);
+
       return value;
     };
 
@@ -299,6 +296,8 @@ export const makeHostMaker = ({
       const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
         workerName,
       );
+
+      const writeResult = await lookupWriter(resultName);
 
       const bundleFormulaIdentifier =
         lookupFormulaIdentifierForName(bundleName);
@@ -325,9 +324,7 @@ export const makeHostMaker = ({
         'import-bundle-id512',
       );
 
-      if (resultName !== undefined) {
-        await petStore.write(resultName, formulaIdentifier);
-      }
+      await writeResult(formulaIdentifier);
 
       return value;
     };
@@ -456,7 +453,7 @@ export const makeHostMaker = ({
       provideWebPage,
     });
 
-    const internal = harden({ receive, respond });
+    const internal = harden({ receive, respond, lookupPath });
 
     await provideValueForFormulaIdentifier(mainWorkerFormulaIdentifier);
 

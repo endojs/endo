@@ -165,7 +165,7 @@ export interface PetStore {
   follow(): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
 }
 
-export type RequestFn = (
+export type RespondFn = (
   what: string,
   responseName: string,
   guestFormulaIdentifier: string,
@@ -178,6 +178,17 @@ export type ReceiveFn = (
   edgeNames: Array<string>,
   formulaIdentifiers: Array<string>,
 ) => void;
+
+export type LookupPathFn = (petNamePath: Array<string>) => {
+  store: PetStore;
+  name: string;
+};
+
+export interface Internal {
+  receive?: ReceiveFn;
+  respond?: RespondFn;
+  lookupPath?: LookupPathFn;
+}
 
 export interface EndoReadable {
   sha512(): string;

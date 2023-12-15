@@ -44,7 +44,7 @@ export const makeMailboxMaker = ({
     /**
      * @param {string} petNamePath
      */
-    const lookup = async petNamePath => {
+    const lookup = petNamePath => {
       const [headName, ...tailNames] = petNamePath.split('.');
       const formulaIdentifier = lookupFormulaIdentifierForName(headName);
       if (formulaIdentifier === undefined) {
@@ -481,9 +481,54 @@ export const makeMailboxMaker = ({
       responses.delete(petName);
     };
 
+    /**
+     * @param {Array<string>} petNamePath
+     */
+    const lookupPath = async petNamePath => {
+      const [headName, ...tailPath] = petNamePath;
+      if (tailPath.length === 0) {
+        return { store: petStore, name: headName };
+      }
+      const headFormulaIdentifier = lookupFormulaIdentifierForName(headName);
+      if (headFormulaIdentifier === undefined) {
+        throw new Error(`Unknown name: ${headName}`);
+      }
+      const headController = provideControllerForFormulaIdentifier(
+        headFormulaIdentifier,
+      );
+      const { internal: internalP } = headController;
+      if (internalP === undefined) {
+        throw new Error(`Unable to store in object: ${q(headName)}`);
+      }
+      const internal = await internalP;
+      if (internal === undefined) {
+        throw new Error(`Unable to store in object: ${q(headName)}`);
+      }
+      if (internal.lookupPath === undefined) {
+        throw new Error(`Unable to store in object: ${q(headName)}`);
+      }
+      const lookupPathNext = /** @type {import('./types.js').LookupPathFn} */ (
+        internal.lookupPath
+      );
+      return lookupPathNext(tailPath);
+    };
+
+    /**
+     * @param {string} [petNamePath]
+     */
+    const lookupWriter = async petNamePath => {
+      if (petNamePath === undefined) {
+        return () => {};
+      }
+      const { store, name } = await lookupPath(petNamePath.split('.'));
+      return formulaIdentifier => store.write(name, formulaIdentifier);
+    };
+
     return harden({
       lookup,
       reverseLookup,
+      lookupPath,
+      lookupWriter,
       reverseLookupFormulaIdentifier,
       lookupFormulaIdentifierForName,
       followMessages,
