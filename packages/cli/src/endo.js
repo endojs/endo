@@ -29,15 +29,15 @@ export const main = async rawArgs => {
   program.name('endo').version(packageDescriptor.version);
 
   program
-    .command('open <name> [filePath]')
-    .description('opens a web page (weblet)')
+    .command('install <name> [filePath]')
+    .description('installs a web page (weblet)')
     .option(
       '-a,--as <party>',
       'Pose as named party (as named by current party)',
       collect,
       [],
     )
-    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
+    .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
     .option(
       '-p,--powers <endowment>',
       'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
@@ -48,8 +48,8 @@ export const main = async rawArgs => {
         powers: powersName = 'NONE',
         as: partyNames,
       } = cmd.opts();
-      const { open } = await import('./open.js');
-      return open({
+      const { install } = await import('./install.js');
+      return install({
         webPageName,
         programPath,
         bundleName,
@@ -58,6 +58,23 @@ export const main = async rawArgs => {
       });
     });
 
+  program
+    .command('open <name>')
+    .description('opens a web page (weblet)')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (webPageName, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { open } = await import('./open.js');
+      return open({
+        webPageName,
+        partyNames,
+      });
+    });
   program
     .command('run [<file>] [<args>...]')
     .description('runs a program (runlet)')
