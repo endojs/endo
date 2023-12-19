@@ -59,7 +59,9 @@ const { default: generator } = /** @type {any} */ (babelGenerate);
 export const generate =
   /** @type {GenerateAstWithSourceMap & GenerateAstWithoutSourceMap} */ (
     (ast, options) => {
-      const sourceUrl = options?.sourceUrl;
+      // TODO Use options?.sourceUrl when resolved:
+      // https://github.com/Agoric/agoric-sdk/issues/8671
+      const sourceUrl = options ? options.sourceUrl : undefined;
       const result = generator(ast, {
         sourceFileName: sourceUrl,
         sourceMaps: Boolean(sourceUrl),

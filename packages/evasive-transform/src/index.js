@@ -35,7 +35,9 @@ import { generate } from './generate.js';
  * @public
  */
 export async function evadeCensor(source, options) {
-  const { sourceMap, sourceUrl, useLocationUnmap, sourceType } = options ?? {};
+  // TODO Use options ?? {} when resolved:
+  // https://github.com/Agoric/agoric-sdk/issues/8671
+  const { sourceMap, sourceUrl, useLocationUnmap, sourceType } = options || {};
 
   // See "Chesterton's Fence"
   await null;
