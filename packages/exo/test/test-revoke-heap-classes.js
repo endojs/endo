@@ -8,17 +8,11 @@ import { defineExoClass, defineExoClassKit } from '../src/exo-makers.js';
 const { apply } = Reflect;
 
 const UpCounterI = M.interface('UpCounter', {
-  incr: M.call()
-    // TODO M.number() should not be needed to get a better error message
-    .optional(M.and(M.number(), M.gte(0)))
-    .returns(M.number()),
+  incr: M.call().optional(M.gte(0)).returns(M.number()),
 });
 
 const DownCounterI = M.interface('DownCounter', {
-  decr: M.call()
-    // TODO M.number() should not be needed to get a better error message
-    .optional(M.and(M.number(), M.gte(0)))
-    .returns(M.number()),
+  decr: M.call().optional(M.gte(0)).returns(M.number()),
 });
 
 test('test revoke defineExoClass', t => {
