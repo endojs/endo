@@ -4,13 +4,17 @@
  * @module
  */
 
-import babelGenerate from '@agoric/babel-generator';
+import babelGenerator from '@agoric/babel-generator';
 
-/**
- * It works; don't ask.
- * @type {typeof import('@babel/generator')}
- */
-const { default: generator } = /** @type {any} */ (babelGenerate);
+// TODO The following is sufficient on Node.js, but for compatibility with
+// `node -r esm`, we must use the pattern below.
+// Restore after https://github.com/Agoric/agoric-sdk/issues/8671.
+// OR, upgrading to Babel 8 probably addresses this defect.
+// const { default: generator } = /** @type {any} */ (babelGenerator);
+const generator = /** @type {typeof import('@babel/generator')['default']} */ (
+  // @ts-expect-error
+  babelGenerator.default || babelGenerator
+);
 
 /**
  * Options for {@link generateCode} with source map

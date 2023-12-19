@@ -8,11 +8,15 @@ import babelTraverse from '@babel/traverse';
 import { transformComment } from './transform-comment.js';
 import { makeLocationUnmapper } from './location-unmapper.js';
 
-/**
- * This is what happens when you compile Babel using Babel.
- * @type {typeof import('@babel/traverse')}
- */
-const { default: traverse } = /** @type {any} */ (babelTraverse);
+// TODO The following is sufficient on Node.js, but for compatibility with
+// `node -r esm`, we must use the pattern below.
+// Restore after https://github.com/Agoric/agoric-sdk/issues/8671.
+// OR, upgrading to Babel 8 probably addresses this defect.
+// const { default: traverse } = /** @type {any} */ (babelTraverse);
+const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
+  // @ts-expect-error
+  babelTraverse.default || babelTraverse
+);
 
 /**
  * Options for {@link transformAst}
