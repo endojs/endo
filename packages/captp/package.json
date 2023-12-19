@@ -12,6 +12,10 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "license": "Apache-2.0",
   "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
   "module": "src/index.js",
   "directories": {
     "src": "src",
