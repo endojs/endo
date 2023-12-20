@@ -1,1 +1,0 @@
-{"version":3,"file":"remotable.d.ts","sourceRoot":"","sources":["remotable.js"],"names":[],"mappings":"AAgEO,mCAFI,aAAa,WAE4C;AAyGpE,oCAAoC;AACpC,6BADW,qBAAqB,CAU9B;AAGF;;;GAGG;AACH,8BAFU,eAAe,CAqFtB;sBAhQW,OAAO,YAAY,EAAE,OAAO;4BAC5B,OAAO,YAAY,EAAE,aAAa;oCAClC,OAAO,YAAY,EAAE,qBAAqB;8BAC1C,OAAO,qBAAqB,EAAE,eAAe;wBAC7C,OAAO,YAAY,EAAE,eAAe"}
