@@ -4,6 +4,10 @@
   "description": "marshal: encoding and deconding of Passable subgraphs",
   "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
   "directories": {
     "test": "test"
   },

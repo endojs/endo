@@ -4,6 +4,14 @@
   "description": "Wrappers for hardening JavaScript for Endo",
   "type": "module",
   "main": "pre.js",
+  "exports": {
+    ".": "./pre.js",
+    "./pre.js": "./pre.js",
+    "./post.js": "./post.js",
+    "./commit.js": "./commit.js",
+    "./commit-debug.js": "./commit-debug.js",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "build": "exit 0",
     "test": "exit 0",
