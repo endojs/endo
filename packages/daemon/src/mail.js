@@ -474,14 +474,6 @@ export const makeMailboxMaker = ({
     };
 
     /**
-     * @param {string} petName
-     */
-    const remove = async petName => {
-      await petStore.remove(petName);
-      responses.delete(petName);
-    };
-
-    /**
      * @param {Array<string>} petNamePath
      */
     const lookupPath = async petNamePath => {
@@ -522,6 +514,17 @@ export const makeMailboxMaker = ({
       }
       const { store, name } = await lookupPath(petNamePath.split('.'));
       return formulaIdentifier => store.write(name, formulaIdentifier);
+    };
+
+    /**
+     * @param {string} petNamePath
+     */
+    const remove = async petNamePath => {
+      const { store, name } = await lookupPath(petNamePath.split('.'));
+      if (store === petStore) {
+        responses.delete(name);
+      }
+      await store.remove(name);
     };
 
     /**
