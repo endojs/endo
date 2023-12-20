@@ -332,6 +332,36 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('move <from> <to>')
+    .description('move name from one path to another')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (fromPath, toPath, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { move } = await import('./move.js');
+      return move({ fromPath, toPath, partyNames });
+    });
+
+  program
+    .command('copy <from> <to>')
+    .description('copy name from one path to another')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (fromPath, toPath, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { copy } = await import('./copy.js');
+      return copy({ fromPath, toPath, partyNames });
+    });
+
+  program
     .command('show <name>')
     .description('prints the named value')
     .option(

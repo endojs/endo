@@ -59,6 +59,8 @@ export const makeHostMaker = ({
       listSpecial,
       rename,
       remove,
+      move,
+      copy,
       terminate,
     } = makeMailbox({
       petStore,
@@ -441,6 +443,8 @@ export const makeHostMaker = ({
       followNames,
       remove,
       rename,
+      move,
+      copy,
       store,
       provideGuest,
       provideHost,

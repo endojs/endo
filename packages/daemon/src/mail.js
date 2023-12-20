@@ -524,6 +524,40 @@ export const makeMailboxMaker = ({
       return formulaIdentifier => store.write(name, formulaIdentifier);
     };
 
+    /**
+     * @param {string} fromPath
+     * @param {string} toPath
+     */
+    const move = async (fromPath, toPath) => {
+      const { store: fromStore, name: fromName } = await lookupPath(fromPath.split('.'));
+      const { store: toStore, name: toName } = await lookupPath(toPath.split('.'));
+      if (fromStore === toStore) {
+        return fromStore.rename(fromPath, toPath);
+      } else {
+        const formulaIdentifier = fromStore.lookup(fromName);
+        if (formulaIdentifier === undefined) {
+          throw new Error(`Unknown name: ${q(fromPath)}`);
+        }
+        const removeP = fromStore.remove(fromName);
+        const addP = toStore.write(toName, formulaIdentifier);
+        return Promise.all([addP, removeP]);
+      }
+    };
+
+    /**
+     * @param {string} fromPath
+     * @param {string} toPath
+     */
+    const copy = async (fromPath, toPath) => {
+      const { store: fromStore, name: fromName } = await lookupPath(fromPath.split('.'));
+      const { store: toStore, name: toName } = await lookupPath(toPath.split('.'));
+      const formulaIdentifier = fromStore.lookup(fromName);
+      if (formulaIdentifier === undefined) {
+        throw new Error(`Unknown name: ${q(fromPath)}`);
+      }
+      await toStore.write(toName, formulaIdentifier);
+    };
+
     return harden({
       lookup,
       reverseLookup,
@@ -546,6 +580,8 @@ export const makeMailboxMaker = ({
       listAll,
       rename,
       remove,
+      move,
+      copy,
       terminate,
     });
   };

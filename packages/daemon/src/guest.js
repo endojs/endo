@@ -60,6 +60,8 @@ export const makeGuestMaker = ({
       request,
       rename,
       remove,
+      copy,
+      move,
       list,
       listSpecial,
       listAll,
@@ -94,6 +96,8 @@ export const makeGuestMaker = ({
       adopt,
       remove,
       rename,
+      copy,
+      move,
     });
 
     const internal = harden({
