@@ -6,6 +6,7 @@
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeRefReader } from './ref-reader.js';
+import { makeDirectoryMaker } from './directory.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
@@ -467,6 +468,14 @@ const makeEndoBootstrap = (
         assertPetName,
       );
       return { external, internal: undefined };
+    } else if (prefix === 'directory-id512') {
+      const petStoreFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
+      // Behold, forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      return makeIdentifiedDirectory({
+        petStoreFormulaIdentifier,
+        terminator,
+      });
     } else if (prefix === 'host-id512') {
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
       const infoFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
@@ -616,10 +625,17 @@ const makeEndoBootstrap = (
     provideControllerForFormulaIdentifier,
   });
 
+  const { makeIdentifiedDirectory, makeNode } = makeDirectoryMaker({
+    provideValueForFormulaIdentifier,
+    provideControllerForFormulaIdentifier,
+    randomHex512,
+  });
+
   const makeMailbox = makeMailboxMaker({
     formulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
+    makeNode,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({

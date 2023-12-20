@@ -62,6 +62,7 @@ export const makeGuestMaker = ({
       remove,
       copy,
       move,
+      makeDirectory,
       list,
       listSpecial,
       listAll,
@@ -98,6 +99,7 @@ export const makeGuestMaker = ({
       rename,
       copy,
       move,
+      makeDirectory,
     });
 
     const internal = harden({

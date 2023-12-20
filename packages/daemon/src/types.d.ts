@@ -202,6 +202,14 @@ export interface EndoWorker {
   whenTerminated(): Promise<void>;
 }
 
+export interface EndoDirectory {
+  lookup(petName: string): Promise<unknown>;
+  remove(petName: string);
+  rename(fromPetName: string, toPetName: string);
+  list(): Array<string>; // pet names
+  makeDirectory(petName: string): Promise<EndoDirectory>;
+}
+
 export interface EndoGuest {
   request(what: string, responseName: string): Promise<unknown>;
 }
@@ -220,6 +228,7 @@ export interface EndoHost {
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
   ): Promise<void>;
+  makeDirectory(petName: string): Promise<EndoDirectory>;
   provideGuest(petName?: string): Promise<EndoGuest>;
   provideHost(petName?: string): Promise<EndoHost>;
   makeWorker(petName: string): Promise<EndoWorker>;
