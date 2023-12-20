@@ -405,6 +405,19 @@ const makeEndoBootstrap = (
           assertPetName,
         );
         return { external, internal: undefined };
+      } else if (formulaIdentifier === 'networks-pet-store') {
+        const external = petStorePowers.makeOwnPetStore(
+          'networks-pet-store',
+          assertPetName,
+        );
+        return { external, internal: undefined };
+      } else if (formulaIdentifier === 'networks') {
+        // Behold, forward-reference:
+        // eslint-disable-next-line no-use-before-define
+        return makeIdentifiedDirectory({
+          petStoreFormulaIdentifier: 'networks-pet-store',
+          terminator,
+        });
       } else if (formulaIdentifier === 'pet-inspector') {
         // Behold, unavoidable forward-reference:
         // eslint-disable-next-line no-use-before-define

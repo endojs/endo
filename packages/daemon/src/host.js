@@ -71,6 +71,7 @@ export const makeHostMaker = ({
         INFO: infoFormulaIdentifier,
         NONE: 'least-authority',
         ENDO: 'endo',
+        NETS: 'networks',
       },
       terminator,
     });
