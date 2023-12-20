@@ -1,6 +1,6 @@
 {
   "name": "@endo/exo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "exo: remotable objects protected by interface guards.",
   "keywords": [],
   "author": "Endo contributors",
@@ -32,15 +32,15 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/env-options": "^1.0.0",
-    "@endo/eventual-send": "^1.0.0",
-    "@endo/far": "^1.0.0",
-    "@endo/pass-style": "^1.0.0",
-    "@endo/patterns": "^1.0.0"
+    "@endo/env-options": "^1.0.1",
+    "@endo/eventual-send": "^1.0.1",
+    "@endo/far": "^1.0.1",
+    "@endo/pass-style": "^1.0.1",
+    "@endo/patterns": "^1.0.1"
   },
   "devDependencies": {
-    "@endo/init": "^1.0.0",
-    "@endo/ses-ava": "^1.0.0",
+    "@endo/init": "^1.0.1",
+    "@endo/ses-ava": "^1.0.1",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",

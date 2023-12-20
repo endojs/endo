@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/marshal@1.0.0...@endo/marshal@1.0.1) (2023-12-20)
+
+
+### Bug Fixes
+
+* Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
+
+
+
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/marshal@0.8.9...@endo/marshal@1.0.0) (2023-12-12)
 
 

@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.0.0...@endo/evasive-transform@1.0.1) (2023-12-20)
+
+
+### Bug Fixes
+
+* **evasive-transform:** Do not use ?? nor ?. operators ([9c2445e](https://github.com/endojs/endo/commit/9c2445eba86b0f6d2dee00d1f66e94df420924cb))
+* **evasive-transform:** RESM treatment ([db660ce](https://github.com/endojs/endo/commit/db660ceaf1b0dbc8af32af001373386d7806d6de))
+
+
+
 ## 1.0.0 (2023-12-12)
 
 
