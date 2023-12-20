@@ -562,6 +562,36 @@ export const main = async rawArgs => {
       return cancelCommand({ name, partyNames, reason });
     });
 
+  program
+    .command('invite <name> [rsvp]')
+    .description('create an invitation for the named peer')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (guestName, rsvpName = guestName, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { invite } = await import('./invite.js');
+      return invite({ guestName, rsvpName, partyNames });
+    });
+
+  program
+    .command('accept <name>')
+    .description('accept an invitation from the named peer')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (guestName, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { accept } = await import('./accept.js');
+      return accept({ guestName, partyNames });
+    });
+
   const where = program
     .command('where')
     .description('prints paths for state, logs, caches, socket, pids');
