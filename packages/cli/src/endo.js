@@ -113,6 +113,7 @@ export const main = async rawArgs => {
 
   program
     .command('make [file]')
+    .alias('mk')
     .description('make a plugin or a worker caplet (worklet)')
     .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
     .option('--UNSAFE <file>', 'Path to a Node.js module')
@@ -292,6 +293,7 @@ export const main = async rawArgs => {
 
   program
     .command('list [directory]')
+    .alias('ls')
     .description('show names (dot delimited pet name path)')
     .option('-s,--special', 'show special names')
     .option('-a,--all', 'show all names')
@@ -303,6 +305,7 @@ export const main = async rawArgs => {
 
   program
     .command('remove [names...]')
+    .alias('rm')
     .description('forget a named value')
     .option(
       '-a,--as <party>',
@@ -333,6 +336,7 @@ export const main = async rawArgs => {
 
   program
     .command('move <from> <to>')
+    .alias('mv')
     .description('move name from one path to another')
     .option(
       '-a,--as <party>',
@@ -348,6 +352,7 @@ export const main = async rawArgs => {
 
   program
     .command('copy <from> <to>')
+    .alias('cp')
     .description('copy name from one path to another')
     .option(
       '-a,--as <party>',
