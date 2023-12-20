@@ -503,6 +503,21 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('mkdir <name>')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('makes a directory')
+    .action(async (name, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { mkdir } = await import('./mkdir.js');
+      return mkdir({ name, partyNames });
+    });
+
+  program
     .command('mkhost <name>')
     .option(
       '-a,--as <party>',
