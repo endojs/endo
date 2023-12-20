@@ -261,7 +261,7 @@ export const main = async rawArgs => {
       collect,
       [],
     )
-    .description('accept a @value from a message')
+    .description('adopt a @value from a message')
     .action(async (messageNumberText, edgeName, cmd) => {
       const { name = edgeName, as: partyNames } = cmd.opts();
       const { adoptCommand } = await import('./adopt.js');
