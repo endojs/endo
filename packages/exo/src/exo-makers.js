@@ -19,7 +19,7 @@ const LABEL_INSTANCES = DEBUG.split(',').includes('label-instances');
  * @param {number} instanceCount
  * @returns {T}
  */
-const makeSelf = (proto, instanceCount) => {
+export const makeSelf = (proto, instanceCount) => {
   const self = create(proto);
   if (LABEL_INSTANCES) {
     defineProperty(self, Symbol.toStringTag, {

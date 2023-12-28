@@ -14,31 +14,161 @@ import { test } from './prepare-test-env-ava.js';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M } from '@endo/patterns';
-import { defineExoClass } from '../src/exo-makers.js';
+import { defendPrototype } from '../src/exo-tools.js';
+import { makeSelf } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
 
 const { Fail, quote: q } = assert;
 const { apply } = Reflect;
+const { create, seal, freeze, defineProperty } = Object;
+
+/**
+ * @typedef {import('../src/exo-tools.js').FacetName} FacetName
+ * @typedef {import('../src/exo-tools.js').Methods} Methods
+ */
+
+/**
+ * @template [S = any]
+ * @template {Methods} [M = any]
+ * @typedef {import('../src/exo-tools.js').ClassContext} ClassContext
+ */
+
+/**
+ * @template {Methods} M
+ * @typedef {Farable<M & import('./get-interface.js').GetInterfaceGuard<M>>} Guarded
+ */
 
 const ExoEmptyI = M.interface('ExoEmpty', {});
 
-class ExoBaseClass {
-  constructor() {
-    Fail`Turn Exo JS classes into Exo classes with defineExoClassFromJSClass: ${q(
-      new.target.name,
-    )}`;
-  }
+const makeHardenedState = state =>
+  harden(
+    create(
+      null,
+      Object.fromEntries(
+        Reflect.ownKeys(state).map(key => [
+          key,
+          {
+            get() {
+              return state[key];
+            },
+            set(value) {
+              state[key] = value;
+            },
+          },
+        ]),
+      ),
+    ),
+  );
+const dummyStateTarget = freeze({});
 
+const makeState = () => {
+  const state = {};
+  const stateProxy = new Proxy(dummyStateTarget, {
+    get(target, prop, receiver) {
+      return Reflect.get(state, prop);
+    },
+    set(target, prop, value, receiver) {
+      return Reflect.set(state, prop, value);
+    },
+    deleteProperty(target, prop) {
+      return Reflect.deleteProperty(state, prop);
+    },
+  });
+  const sealer = () => {
+    seal(state);
+    return makeHardenedState(state);
+  };
+  return { state: stateProxy, sealer };
+};
+
+const pendingConstruct = new WeakMap();
+
+const makeTarget = () =>
+  function target() {
+    Fail`Should not call the target`;
+  };
+
+/**
+ * @template {new (...args: any[]) => Methods} C constructor
+ * @param {C} constructor
+ * @returns {(...args: Parameters<C>) => Guarded<InstanceType<C>>}
+ */
+export const defineExoClassFromJSClass = constructor => {
+  harden(constructor);
+  /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
+  const contextMap = new WeakMap();
+  const tag = constructor.name;
+  const proto = defendPrototype(
+    tag,
+    self => /** @type {any} */ (contextMap.get(self)),
+    constructor.prototype,
+    true,
+    constructor.implements,
+  );
+  let instanceCount = 0;
+
+  const makeContext = () => {
+    instanceCount += 1;
+    const { state, sealer } = makeState();
+    const self = makeSelf(proto, instanceCount);
+    // It's safe to harden the state record
+    /** @type {ClassContext<ReturnType<I>,M>} */
+    const context = harden({ state, self });
+    contextMap.set(self, context);
+    return { context, sealer };
+  };
+
+  const makeInstance = {
+    /**
+     * @param  {Parameters<C>} args
+     */
+    // eslint-disable-next-line object-shorthand, func-names
+    [tag]: function (...args) {
+      const target = makeTarget();
+      defineProperty(target, 'prototype', { value: constructor.prototype });
+      const pending = { makeContext, sealer: null };
+      pendingConstruct.set(target, pending);
+
+      try {
+        const context = Reflect.construct(constructor, args, target);
+        pending.sealer ||
+          Fail`Exo ${q(tag)} constructor did not call ExoBaseClass`;
+        const state = pending.sealer();
+        context || Fail`Exo ${q(tag)} constructor did not return a context`;
+        const { self } = context;
+        contextMap.get(self) === context ||
+          Fail`Exo ${q(tag)} constructor did not return a valid context`;
+        const newContext = harden({ state, self });
+        contextMap.set(self, newContext);
+        return self;
+      } finally {
+        pendingConstruct.delete(target);
+      }
+    },
+  }[tag];
+  defineProperty(makeInstance, 'prototype', { value: proto });
+
+  return harden(makeInstance);
+};
+harden(defineExoClassFromJSClass);
+
+class ExoBaseClass {
   static implements = ExoEmptyI;
 
-  static init() {
-    return harden({});
+  constructor() {
+    const pending = pendingConstruct.get(new.target);
+    pending ||
+      Fail`Not constructed through Exo maker: ${q(
+        (new.target || this.constructor || { name: 'Unknown' }).name,
+      )}`;
+    !pending.sealer || Fail`Already constructed`;
+
+    const { context, sealer } = pending.makeContext();
+    pending.sealer = sealer;
+    // eslint-disable-next-line no-constructor-return
+    return context;
   }
 }
-
-const defineExoClassFromJSClass = klass =>
-  defineExoClass(klass.name, klass.implements, klass.init, klass.prototype);
-harden(defineExoClassFromJSClass);
 
 const ExoPointI = M.interface('ExoPoint', {
   toString: M.call().returns(M.string()),
@@ -64,12 +194,10 @@ test('cannot make abstract class concrete', t => {
 });
 
 class ExoPoint extends ExoAbstractPoint {
-  static init(x, y) {
-    // Heap exos currently use the returned record directly, so
-    // needs to not be frozen for `state.y` to be assignable.
-    // TODO not true for other zones. May make heap zone more like
-    // the others in treatment of `state`.
-    return { x, y };
+  constructor(x, y) {
+    super();
+    this.state.x = x;
+    this.state.y = y;
   }
 
   getX() {
@@ -100,10 +228,19 @@ const assertMethodNames = (t, obj, names) => {
   t.deepEqual(obj[GET_METHOD_NAMES](), names);
 };
 
+test('ExoPoint constructor', t => {
+  t.throws(() => ExoPoint(1, 2));
+  t.throws(() => new ExoPoint(1, 2));
+
+  const makeFoo = defineExoClassFromJSClass(class Foo {});
+  t.throws(() => makeFoo());
+});
+
 test('ExoPoint instances', t => {
   const pt = makeExoPoint(3, 5);
   t.is(passStyleOf(pt), 'remotable');
   t.false(pt instanceof ExoPoint);
+  t.true(pt instanceof makeExoPoint);
   assertMethodNames(t, pt, [
     GET_INTERFACE_GUARD,
     GET_METHOD_NAMES,
@@ -132,8 +269,9 @@ test('ExoPoint instances', t => {
 });
 
 class ExoWobblyPoint extends ExoPoint {
-  static init(x, y, getWobble) {
-    return { ...super.init(x, y), getWobble };
+  constructor(x, y, getWobble) {
+    super(x, y);
+    this.state.getWobble = getWobble;
   }
 
   getX() {
