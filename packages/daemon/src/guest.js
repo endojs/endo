@@ -12,18 +12,18 @@ export const makeGuestMaker = ({
    * @param {string} hostFormulaIdentifier
    * @param {string} petStoreFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeIdentifiedGuestController = async (
     guestFormulaIdentifier,
     hostFormulaIdentifier,
     petStoreFormulaIdentifier,
     mainWorkerFormulaIdentifier,
-    terminator,
+    context,
   ) => {
-    terminator.thisDiesIfThatDies(hostFormulaIdentifier);
-    terminator.thisDiesIfThatDies(petStoreFormulaIdentifier);
-    terminator.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+    context.thisDiesIfThatDies(hostFormulaIdentifier);
+    context.thisDiesIfThatDies(petStoreFormulaIdentifier);
+    context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
     const petStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
@@ -73,7 +73,7 @@ export const makeGuestMaker = ({
         SELF: guestFormulaIdentifier,
         HOST: hostFormulaIdentifier,
       },
-      terminator,
+      context,
     });
 
     const { has, follow: followNames } = petStore;

@@ -61,7 +61,7 @@ test('lifecycle', async t => {
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
   await E(host).makeWorker('worker');
-  await E(host).terminate('worker');
+  await E(host).cancel('worker');
   cancel(new Error('Cancelled'));
   await closed.catch(() => {});
 
@@ -512,7 +512,7 @@ test('direct termination', async t => {
     ),
   );
 
-  await E(host).terminate('counter');
+  await E(host).cancel('counter');
   t.is(
     1,
     await E(host).evaluate(
@@ -598,7 +598,7 @@ test('indirect termination', async t => {
     ),
   );
 
-  await E(host).terminate('worker');
+  await E(host).cancel('worker');
 
   t.is(
     1,
@@ -629,7 +629,7 @@ test('indirect termination', async t => {
   );
 });
 
-test('terminate because of requested capability', async t => {
+test('cancel because of requested capability', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
@@ -686,7 +686,7 @@ test('terminate because of requested capability', async t => {
     ),
   );
 
-  await E(host).terminate('guest');
+  await E(host).cancel('guest');
 
   t.is(
     1,

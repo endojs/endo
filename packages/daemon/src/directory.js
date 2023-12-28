@@ -144,13 +144,13 @@ export const makeDirectoryMaker = ({
   /**
    * @param {object} args
    * @param {string} args.petStoreFormulaIdentifier
-   * @param {import('./types.js').Terminator} args.terminator
+   * @param {import('./types.js').Context} args.context
    */
   const makeIdentifiedDirectory = async ({
     petStoreFormulaIdentifier,
-    terminator,
+    context,
   }) => {
-    // TODO thread terminator
+    // TODO thread cancellation
 
     const petStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)

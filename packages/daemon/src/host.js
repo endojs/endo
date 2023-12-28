@@ -20,17 +20,17 @@ export const makeHostMaker = ({
    * @param {string} storeFormulaIdentifier
    * @param {string} infoFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
     storeFormulaIdentifier,
     infoFormulaIdentifier,
     mainWorkerFormulaIdentifier,
-    terminator,
+    context,
   ) => {
-    terminator.thisDiesIfThatDies(storeFormulaIdentifier);
-    terminator.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+    context.thisDiesIfThatDies(storeFormulaIdentifier);
+    context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
     const petStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
@@ -62,7 +62,7 @@ export const makeHostMaker = ({
       move,
       copy,
       makeDirectory,
-      terminate,
+      cancel,
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
@@ -73,7 +73,7 @@ export const makeHostMaker = ({
         ENDO: 'endo',
         NETS: 'networks',
       },
-      terminator,
+      context,
     });
 
     /**
@@ -454,7 +454,7 @@ export const makeHostMaker = ({
       makeWorker,
       provideWorker,
       evaluate,
-      terminate,
+      cancel,
       importUnsafeAndEndow,
       importBundleAndEndow,
       provideWebPage,

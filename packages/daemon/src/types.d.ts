@@ -135,12 +135,19 @@ export interface Topic<
   subscribe(): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
 }
 
-export interface Terminator {
-  terminate: (logPrefix?: string) => Promise<void>;
-  terminated: Promise<void>;
+export interface Context {
+  cancel: (reason?: string, logPrefix?: string) => Promise<void>;
+  cancelled: Promise<never>;
+  disposed: Promise<void>;
   thisDiesIfThatDies: (formulaIdentifier: string) => void;
   thatDiesIfThisDies: (formulaIdentifier: string) => void;
-  onTerminate: (hook: () => void | Promise<void>) => void;
+  onCancel: (hook: () => void | Promise<void>) => void;
+}
+
+export interface FarContext {
+  cancel: (reason: string) => Promise<never>;
+  whenCancelled: () => Promise<never>;
+  whenDisposed: () => Promise<void>;
 }
 
 export interface InternalExternal<External = unknown, Internal = unknown> {
@@ -151,7 +158,7 @@ export interface InternalExternal<External = unknown, Internal = unknown> {
 export interface Controller<External = unknown, Internal = unknown> {
   external: Promise<External>;
   internal: Promise<Internal>;
-  terminator: Terminator;
+  context: Context;
 }
 
 export interface PetStore {
