@@ -445,13 +445,12 @@ const makeEndoBootstrap = (
       const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const external = makeIdentifiedHost(
+      return makeIdentifiedHost(
         formulaIdentifier,
         storeFormulaIdentifier,
         workerFormulaIdentifier,
         terminator,
       );
-      return { external, internal: undefined };
     } else if (
       [
         'eval-id512',
