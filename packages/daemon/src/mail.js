@@ -19,7 +19,7 @@ export const makeMailboxMaker = ({
     selfFormulaIdentifier,
     petStore,
     specialNames,
-    terminator,
+    context,
   }) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
@@ -61,7 +61,7 @@ export const makeMailboxMaker = ({
       );
     };
 
-    const terminate = async petName => {
+    const cancel = async (petName, reason = 'Cancelled') => {
       const formulaIdentifier = identifyLocal(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
@@ -71,8 +71,8 @@ export const makeMailboxMaker = ({
       const controller = await provideControllerForFormulaIdentifier(
         formulaIdentifier,
       );
-      console.log('Terminating:');
-      return controller.terminator.terminate();
+      console.log('Cancelled:');
+      return controller.context.cancel(new Error(reason));
     };
 
     const list = () => harden(petStore.list());
@@ -291,7 +291,7 @@ export const makeMailboxMaker = ({
         recipientFormulaIdentifier,
       );
       // TODO:
-      // terminator.thisDiesIfThatDies(formulaIdentifier);
+      // context.thisDiesIfThatDies(formulaIdentifier);
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return provideValueForFormulaIdentifier(formulaIdentifier);
@@ -466,7 +466,7 @@ export const makeMailboxMaker = ({
           )} at ${q(index)}`,
         );
       }
-      terminator.thisDiesIfThatDies(formulaIdentifier);
+      context.thisDiesIfThatDies(formulaIdentifier);
       await petStore.write(petName, formulaIdentifier);
     };
 
@@ -576,7 +576,7 @@ export const makeMailboxMaker = ({
       listAll,
       rename,
       remove,
-      terminate,
+      cancel,
     });
   };
 

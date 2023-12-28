@@ -2,75 +2,78 @@
 
 import { makePromiseKit } from '@endo/promise-kit';
 
-export const makeTerminatorMaker = ({
+export const makeContextMaker = ({
   controllerForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
 }) => {
   /**
    * @param {string} formulaIdentifier
    */
-  const makeTerminator = formulaIdentifier => {
-    let terminating = false;
-    const { promise: terminated, resolve: resolveTerminated } =
+  const makeContext = formulaIdentifier => {
+    let done = false;
+    const { promise: cancelled, reject: rejectCancelled } =
+      /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
+        makePromiseKit()
+      );
+    const { promise: disposed, resolve: resolveDisposed } =
       /** @type {import('@endo/promise-kit').PromiseKit<void>} */ (
         makePromiseKit()
       );
 
-    /** @type {Map<string, import('./types.js').Terminator>} */
+    /** @type {Map<string, import('./types.js').Context>} */
     const dependents = new Map();
     /** @type {Array<() => void>} */
     const hooks = [];
 
-    const terminate = (prefix = '*') => {
-      if (terminating) return terminated;
-      terminating = true;
+    const cancel = (reason, prefix = '*') => {
+      if (done) return disposed;
+      done = true;
+      rejectCancelled(reason || harden(new Error('Cancelled')));
 
       console.log(`${prefix} ${formulaIdentifier}`);
 
       controllerForFormulaIdentifier.delete(formulaIdentifier);
-      for (const dependentTerminator of dependents.values()) {
-        dependentTerminator.terminate(` ${prefix}`);
+      for (const dependentContext of dependents.values()) {
+        dependentContext.cancel(reason, ` ${prefix}`);
       }
       dependents.clear();
 
-      resolveTerminated(Promise.all(hooks.map(hook => hook())).then(() => {}));
+      resolveDisposed(Promise.all(hooks.map(hook => hook())).then(() => {}));
 
-      return terminated;
+      return disposed;
     };
 
     const thatDiesIfThisDies = dependentFormulaIdentifier => {
-      assert(!terminating);
+      assert(!done);
       const dependentController = provideControllerForFormulaIdentifier(
         dependentFormulaIdentifier,
       );
-      dependents.set(
-        dependentFormulaIdentifier,
-        dependentController.terminator,
-      );
+      dependents.set(dependentFormulaIdentifier, dependentController.context);
     };
 
     const thisDiesIfThatDies = dependencyIdentifier => {
       const dependencyController =
         provideControllerForFormulaIdentifier(dependencyIdentifier);
-      dependencyController.terminator.thatDiesIfThisDies(formulaIdentifier);
+      dependencyController.context.thatDiesIfThisDies(formulaIdentifier);
     };
 
     /**
      * @param {() => void} hook
      */
-    const onTerminate = hook => {
-      assert(!terminating);
+    const onCancel = hook => {
+      assert(!done);
       hooks.push(hook);
     };
 
     return {
-      terminate,
-      terminated,
+      cancel,
+      cancelled,
+      disposed,
       thatDiesIfThisDies,
       thisDiesIfThatDies,
-      onTerminate,
+      onCancel,
     };
   };
 
-  return makeTerminator;
+  return makeContext;
 };

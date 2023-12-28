@@ -10,7 +10,7 @@ import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
-import { makeTerminatorMaker } from './terminator.js';
+import { makeContextMaker } from './terminator.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
 
 const { quote: q } = assert;
@@ -131,26 +131,25 @@ const makeEndoBootstrap = async (
 
   /**
    * @param {string} workerId512
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
-  const makeIdentifiedWorkerController = async (workerId512, terminator) => {
+  const makeIdentifiedWorkerController = async (workerId512, context) => {
     // TODO validate workerId512
     const daemonWorkerFacet = makeWorkerBootstrap(workerId512);
 
-    const { reject: cancelWorker, promise: workerCancelled } =
+    const { promise: hardCancelled, reject: hardCancel } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
         makePromiseKit()
       );
-    cancelled.catch(async error => cancelWorker(error));
 
     const { workerTerminated, workerDaemonFacet } =
       await controlPowers.makeWorker(
         workerId512,
         daemonWorkerFacet,
-        Promise.race([workerCancelled, gracePeriodElapsed]),
+        Promise.race([hardCancelled, gracePeriodElapsed]),
       );
 
-    const terminate = async () => {
+    const softCancel = async () => {
       E.sendOnly(workerDaemonFacet).terminate();
       const cancelWorkerGracePeriod = () => {
         throw new Error('Exited gracefully before grace period elapsed');
@@ -165,16 +164,13 @@ const makeEndoBootstrap = async (
             `Worker termination grace period ${gracePeriodMs}ms elapsed`,
           );
         })
-        .catch(cancelWorker);
+        .catch(hardCancel);
       await workerTerminated;
     };
 
-    terminator.onTerminate(terminate);
+    context.onCancel(softCancel);
 
-    const worker = Far('EndoWorker', {
-      terminate: terminator.terminate,
-      whenTerminated: () => terminator.terminated,
-    });
+    const worker = Far('EndoWorker', {});
 
     return {
       external: worker,
@@ -187,18 +183,18 @@ const makeEndoBootstrap = async (
    * @param {string} source
    * @param {Array<string>} codeNames
    * @param {Array<string>} formulaIdentifiers
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeControllerForEval = async (
     workerFormulaIdentifier,
     source,
     codeNames,
     formulaIdentifiers,
-    terminator,
+    context,
   ) => {
-    terminator.thisDiesIfThatDies(workerFormulaIdentifier);
+    context.thisDiesIfThatDies(workerFormulaIdentifier);
     for (const formulaIdentifier of formulaIdentifiers) {
-      terminator.thisDiesIfThatDies(formulaIdentifier);
+      context.thisDiesIfThatDies(formulaIdentifier);
     }
 
     const workerController =
@@ -225,9 +221,7 @@ const makeEndoBootstrap = async (
       source,
       codeNames,
       endowmentValues,
-      terminator.terminated.then(() => {
-        throw new Error('Terminated');
-      }),
+      context.cancelled,
     );
 
     // TODO check whether the promise resolves to data that can be marshalled
@@ -247,14 +241,14 @@ const makeEndoBootstrap = async (
    *
    * @param {string} hubFormulaIdentifier
    * @param {string[]} path
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeControllerForLookup = async (
     hubFormulaIdentifier,
     path,
-    terminator,
+    context,
   ) => {
-    terminator.thisDiesIfThatDies(hubFormulaIdentifier);
+    context.thisDiesIfThatDies(hubFormulaIdentifier);
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
@@ -268,16 +262,16 @@ const makeEndoBootstrap = async (
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
    * @param {string} specifier
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeControllerForUnconfinedPlugin = async (
     workerFormulaIdentifier,
     guestFormulaIdentifier,
     specifier,
-    terminator,
+    context,
   ) => {
-    terminator.thisDiesIfThatDies(workerFormulaIdentifier);
-    terminator.thisDiesIfThatDies(guestFormulaIdentifier);
+    context.thisDiesIfThatDies(workerFormulaIdentifier);
+    context.thisDiesIfThatDies(guestFormulaIdentifier);
 
     const workerController =
       /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
@@ -303,16 +297,16 @@ const makeEndoBootstrap = async (
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
    * @param {string} bundleFormulaIdentifier
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeControllerForSafeBundle = async (
     workerFormulaIdentifier,
     guestFormulaIdentifier,
     bundleFormulaIdentifier,
-    terminator,
+    context,
   ) => {
-    terminator.thisDiesIfThatDies(workerFormulaIdentifier);
-    terminator.thisDiesIfThatDies(guestFormulaIdentifier);
+    context.thisDiesIfThatDies(workerFormulaIdentifier);
+    context.thisDiesIfThatDies(guestFormulaIdentifier);
 
     const workerController =
       /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
@@ -346,13 +340,13 @@ const makeEndoBootstrap = async (
    * @param {string} formulaIdentifier
    * @param {string} formulaNumber
    * @param {import('./types.js').Formula} formula
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeControllerForFormula = async (
     formulaIdentifier,
     formulaNumber,
     formula,
-    terminator,
+    context,
   ) => {
     if (formula.type === 'eval') {
       return makeControllerForEval(
@@ -360,23 +354,23 @@ const makeEndoBootstrap = async (
         formula.source,
         formula.names,
         formula.values,
-        terminator,
+        context,
       );
     } else if (formula.type === 'lookup') {
-      return makeControllerForLookup(formula.hub, formula.path, terminator);
+      return makeControllerForLookup(formula.hub, formula.path, context);
     } else if (formula.type === 'make-unconfined') {
       return makeControllerForUnconfinedPlugin(
         formula.worker,
         formula.powers,
         formula.specifier,
-        terminator,
+        context,
       );
     } else if (formula.type === 'make-bundle') {
       return makeControllerForSafeBundle(
         formula.worker,
         formula.powers,
         formula.bundle,
-        terminator,
+        context,
       );
     } else if (formula.type === 'guest') {
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
@@ -388,13 +382,13 @@ const makeEndoBootstrap = async (
         formula.host,
         storeFormulaIdentifier,
         workerFormulaIdentifier,
-        terminator,
+        context,
       );
     } else if (formula.type === 'web-bundle') {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
-      terminator.thisDiesIfThatDies(formula.bundle);
-      terminator.thisDiesIfThatDies(formula.powers);
+      context.thisDiesIfThatDies(formula.bundle);
+      context.thisDiesIfThatDies(formula.powers);
       return {
         external: (async () =>
           harden({
@@ -415,11 +409,11 @@ const makeEndoBootstrap = async (
 
   /**
    * @param {string} formulaIdentifier
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeControllerForFormulaIdentifier = async (
     formulaIdentifier,
-    terminator,
+    context,
   ) => {
     const { type: formulaType, number: formulaNumber } =
       parseFormulaIdentifier(formulaIdentifier);
@@ -429,7 +423,7 @@ const makeEndoBootstrap = async (
       const external = makeReadableBlob(formulaNumber);
       return { external, internal: undefined };
     } else if (formulaType === 'worker-id512') {
-      return makeIdentifiedWorkerController(formulaNumber, terminator);
+      return makeIdentifiedWorkerController(formulaNumber, context);
     } else if (formulaType === 'pet-inspector-id512') {
       const storeFormulaNumber = derive(formulaNumber, 'pet-store');
       const storeFormulaIdentifier = `pet-store-id512:${storeFormulaNumber}`;
@@ -462,7 +456,7 @@ const makeEndoBootstrap = async (
         inspectorFormulaIdentifier,
         workerFormulaIdentifier,
         leastAuthorityFormulaIdentifier,
-        terminator,
+        context,
       );
     } else if (formulaType === 'endo-id512') {
       if (formulaNumber !== rootNonce) {
@@ -492,7 +486,7 @@ const makeEndoBootstrap = async (
           workerFormulaIdentifier,
           defaultHostFormulaIdentifier,
         ),
-        terminator,
+        context,
       );
     } else if (
       [
@@ -512,7 +506,7 @@ const makeEndoBootstrap = async (
         formulaIdentifier,
         formulaNumber,
         formula,
-        terminator,
+        context,
       );
     } else {
       throw new TypeError(
@@ -548,10 +542,10 @@ const makeEndoBootstrap = async (
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const terminator = makeTerminator(formulaIdentifier);
-    partial.catch(() => terminator.terminate());
+    const context = makeContext(formulaIdentifier);
+    partial.catch(context.cancel);
     const controller = harden({
-      terminator,
+      context,
       external: E.get(partial).external.then(value => {
         if (typeof value === 'object' && value !== null) {
           formulaIdentifierForRef.set(value, formulaIdentifier);
@@ -568,7 +562,7 @@ const makeEndoBootstrap = async (
         formulaIdentifier,
         formulaNumber,
         formula,
-        terminator,
+        context,
       ),
     );
 
@@ -604,15 +598,15 @@ const makeEndoBootstrap = async (
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const terminator = makeTerminator(formulaIdentifier);
-    partial.catch(() => terminator.terminate());
+    const context = makeContext(formulaIdentifier);
+    partial.catch(context.cancel);
     controller = harden({
-      terminator,
+      context,
       external: E.get(partial).external,
       internal: E.get(partial).internal,
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
-    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, terminator));
+    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, context));
 
     return controller;
   };
@@ -631,7 +625,7 @@ const makeEndoBootstrap = async (
     return value;
   };
 
-  const makeTerminator = makeTerminatorMaker({
+  const makeContext = makeContextMaker({
     controllerForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
   });
