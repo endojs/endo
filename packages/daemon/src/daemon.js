@@ -11,7 +11,7 @@ import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
-import { makeContextMaker } from './terminator.js';
+import { makeContextMaker } from './context.js';
 
 const { quote: q } = assert;
 
