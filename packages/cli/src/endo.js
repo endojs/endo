@@ -431,13 +431,13 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('kill <name>')
+    .command('cancel <name> [reason]')
     .option(...commonOptions.as)
-    .description('terminate a value and its deps, recovering resources')
-    .action(async (name, cmd) => {
+    .description('cancel a value and its deps, recovering resources')
+    .action(async (name, reason, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { killCommand } = await import('./commands/kill.js');
-      return killCommand({ name, partyNames });
+      const { cancelCommand } = await import('./commands/cancel.js');
+      return cancelCommand({ name, partyNames, reason });
     });
 
   const where = program
