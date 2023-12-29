@@ -71,6 +71,7 @@ async function* makeLp32Iterator(
     );
   }
 }
+harden(makeLp32Iterator);
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} reader
