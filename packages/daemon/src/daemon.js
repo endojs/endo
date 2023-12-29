@@ -85,7 +85,7 @@ const makeEndoBootstrap = async (
   // const networksPetStoreFormulaIdentifier = `pet-store:${networksPetStoreFormulaNumber}`;
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
-  const controllerForFormulaIdentifier = new Map();
+  const controllerForFormulaNumber = new Map();
   // Reverse look-up, for answering "what is my name for this near or far
   // reference", and not for "what is my name for this promise".
   /** @type {WeakMap<object, string>} */
@@ -506,7 +506,7 @@ const makeEndoBootstrap = async (
 
   // The two functions provideValueForFormula and provideValueForFormulaIdentifier
   // share a responsibility for maintaining the memoization tables
-  // controllerForFormulaIdentifier and formulaIdentifierForRef, since the
+  // controllerForFormulaNumber and formulaIdentifierForRef, since the
   // former bypasses the latter in order to avoid a round trip with disk.
 
   const provideValueForNumberedFormula = async (
@@ -525,9 +525,10 @@ const makeEndoBootstrap = async (
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const context = makeContext(formulaIdentifier);
+    const context = makeContext(formulaType, formulaNumber);
     partial.catch(context.cancel);
     const controller = harden({
+      type: formulaType,
       context,
       external: E.get(partial).external.then(value => {
         if (typeof value === 'object' && value !== null) {
@@ -537,7 +538,7 @@ const makeEndoBootstrap = async (
       }),
       internal: E.get(partial).internal,
     });
-    controllerForFormulaIdentifier.set(formulaIdentifier, controller);
+    controllerForFormulaNumber.set(formulaNumber, controller);
 
     await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
     resolve(
@@ -568,7 +569,16 @@ const makeEndoBootstrap = async (
    * @param {string} formulaIdentifier
    */
   const provideControllerForFormulaIdentifier = formulaIdentifier => {
-    let controller = controllerForFormulaIdentifier.get(formulaIdentifier);
+    const delimiterIndex = formulaIdentifier.indexOf(':');
+    if (delimiterIndex < 0) {
+      throw new TypeError(
+        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
+      );
+    }
+    const formulaType = formulaIdentifier.slice(0, delimiterIndex);
+    const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
+
+    let controller = controllerForFormulaNumber.get(formulaNumber);
     if (controller !== undefined) {
       return controller;
     }
@@ -581,26 +591,22 @@ const makeEndoBootstrap = async (
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const context = makeContext(formulaIdentifier);
+    const context = makeContext(formulaType, formulaNumber);
     partial.catch(context.cancel);
     controller = harden({
+      type: formulaType,
       context,
       external: E.get(partial).external,
       internal: E.get(partial).internal,
     });
-    controllerForFormulaIdentifier.set(formulaIdentifier, controller);
+    controllerForFormulaNumber.set(formulaNumber, controller);
 
-    const delimiterIndex = formulaIdentifier.indexOf(':');
-    if (delimiterIndex < 0) {
-      throw new TypeError(
-        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
-      );
-    }
-    const formulaType = formulaIdentifier.slice(0, delimiterIndex);
-    const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
-    resolve(
-      makeControllerForFormulaIdentifier(formulaType, formulaNumber, context),
+    const controllerP = makeControllerForFormulaIdentifier(
+      formulaType,
+      formulaNumber,
+      context,
     );
+    resolve(controllerP);
 
     return controller;
   };
@@ -620,7 +626,7 @@ const makeEndoBootstrap = async (
   };
 
   const makeContext = makeContextMaker({
-    controllerForFormulaIdentifier,
+    controllerForFormulaNumber,
     provideControllerForFormulaIdentifier,
   });
 

@@ -3,13 +3,16 @@
 import { makePromiseKit } from '@endo/promise-kit';
 
 export const makeContextMaker = ({
-  controllerForFormulaIdentifier,
+  controllerForFormulaNumber,
   provideControllerForFormulaIdentifier,
 }) => {
   /**
-   * @param {string} formulaIdentifier
+   * @param {string} formulaType
+   * @param {string} formulaNumber
    */
-  const makeContext = formulaIdentifier => {
+  const makeContext = (formulaType, formulaNumber) => {
+    const formulaIdentifier = `${formulaType}:${formulaNumber}`;
+
     let done = false;
     const { promise: cancelled, reject: rejectCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
@@ -29,10 +32,9 @@ export const makeContextMaker = ({
       if (done) return disposed;
       done = true;
       rejectCancelled(reason || harden(new Error('Cancelled')));
-
       console.log(`${prefix} ${formulaIdentifier}`);
 
-      controllerForFormulaIdentifier.delete(formulaIdentifier);
+      controllerForFormulaNumber.delete(formulaNumber);
       for (const dependentContext of dependents.values()) {
         dependentContext.cancel(reason, ` ${prefix}`);
       }
