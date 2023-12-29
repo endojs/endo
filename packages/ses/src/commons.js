@@ -113,6 +113,7 @@ export const defineProperty = (object, prop, descriptor) => {
 export const {
   apply,
   construct,
+  deleteProperty,
   get: reflectGet,
   getOwnPropertyDescriptor: reflectGetOwnPropertyDescriptor,
   has: reflectHas,
@@ -178,6 +179,11 @@ export const setDelete = uncurryThis(setPrototype.delete);
 export const setForEach = uncurryThis(setPrototype.forEach);
 export const setHas = uncurryThis(setPrototype.has);
 export const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
+export const setGetSize = uncurryThis(
+  /** @type {{get: () => number}} */ (
+    getOwnPropertyDescriptor(setPrototype, 'size')
+  ).get,
+);
 //
 export const regexpTest = uncurryThis(regexpPrototype.test);
 export const regexpExec = uncurryThis(regexpPrototype.exec);

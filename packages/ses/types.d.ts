@@ -19,6 +19,8 @@
 // version of harden.
 export type Harden = <T>(value: T) => T; // not Hardened<T>;
 
+export type IsHardened = (value: object) => boolean;
+
 export interface RepairOptions {
   regExpTaming?: 'safe' | 'unsafe';
   localeTaming?: 'safe' | 'unsafe';
@@ -231,6 +233,7 @@ interface CompartmentEvaluateOptions {
 
 declare global {
   var harden: Harden;
+  var isHardened: IsHardened;
 
   var repairIntrinsics: RepairIntrinsics;
   var hardenIntrinsics: HardenIntrinsics;

@@ -27,8 +27,9 @@ import {
   noEvalEvaluate,
   getOwnPropertyNames,
   getPrototypeOf,
+  deleteProperty,
 } from './commons.js';
-import { makeHardener } from './make-hardener.js';
+import { makeHardenerKit } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
@@ -52,7 +53,7 @@ import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment.js';
-import { tameHarden } from './tame-harden.js';
+import { tameHardenKit } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 
 /** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
@@ -65,14 +66,15 @@ let priorRepairIntrinsics;
 /** @type {Error=} */
 let priorHardenIntrinsics;
 
+// @ts-expect-error harden always defined
+if (globalThis.harden) {
+  deleteProperty(globalThis, 'harden');
+}
+
 // Build a harden() with an empty fringe.
 // Gate it on lockdown.
-/**
- * @template T
- * @param {T} ref
- * @returns {T}
- */
-const safeHarden = makeHardener();
+/** @type {import('./make-hardener.js').HardenerKit} */
+const safeHardenKit = makeHardenerKit();
 
 /**
  * @callback Transform
@@ -265,8 +267,11 @@ export const repairIntrinsics = (options = {}) => {
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector();
 
-  const tamedHarden = tameHarden(safeHarden, __hardenTaming__);
-  addIntrinsics({ harden: tamedHarden });
+  const { hardenIntrinsics, ...tamedHardenKit } = tameHardenKit(
+    safeHardenKit,
+    __hardenTaming__,
+  );
+  addIntrinsics(tamedHardenKit);
 
   addIntrinsics(tameFunctionConstructors());
 
@@ -289,6 +294,13 @@ export const repairIntrinsics = (options = {}) => {
   if (typeof globalThis.Buffer === 'function') {
     hostIntrinsics.Buffer = globalThis.Buffer;
   }
+
+  /**
+   * Add the harden functions since they're safe to use before
+   * hardenIntrinsics
+   */
+  globalThis.harden = tamedHardenKit.harden;
+  globalThis.isHardened = tamedHardenKit.isHardened;
 
   /**
    * Wrap console unless suppressed.
@@ -386,7 +398,7 @@ export const repairIntrinsics = (options = {}) => {
    * repair separately from hardening.
    */
 
-  const hardenIntrinsics = () => {
+  const guardedHardenIntrinsics = () => {
     priorHardenIntrinsics === undefined ||
       // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(
@@ -430,10 +442,8 @@ export const repairIntrinsics = (options = {}) => {
       toHarden.globals[prop] = globalThis[prop];
     }
 
-    tamedHarden(toHarden);
-
-    return tamedHarden;
+    hardenIntrinsics(toHarden);
   };
 
-  return hardenIntrinsics;
+  return guardedHardenIntrinsics;
 };

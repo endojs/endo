@@ -1,13 +1,13 @@
 // @ts-check
 
 import test from 'ava';
-import { makeHardener } from '../src/make-hardener.js';
+import { makeHardenerKit } from '../src/make-hardener.js';
 import { assert } from '../src/error/assert.js';
 
 const { quote: q } = assert;
 
 test('makeHardener', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const o = { a: {} };
   t.is(h(o), o);
   t.truthy(Object.isFrozen(o));
@@ -15,7 +15,7 @@ test('makeHardener', t => {
 });
 
 test('harden the same thing twice', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const o = { a: {} };
   t.is(h(o), o);
   t.is(h(o), o);
@@ -24,7 +24,7 @@ test('harden the same thing twice', t => {
 });
 
 test('harden objects with cycles', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const o = { a: {} };
   o.a.foo = o;
   t.is(h(o), o);
@@ -33,7 +33,7 @@ test('harden objects with cycles', t => {
 });
 
 test('harden overlapping objects', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const o1 = { a: {} };
   const o2 = { a: o1.a };
   t.is(h(o1), o1);
@@ -44,18 +44,38 @@ test('harden overlapping objects', t => {
   t.truthy(Object.isFrozen(o2));
 });
 
-test('harden up prototype chain', t => {
-  const h = makeHardener();
-  const a = { a: 1 };
+test('harden prototype chain (pre-lockdown)', t => {
+  const { harden: h, isHardened, hardenIntrinsics } = makeHardenerKit();
+  const a = { a: 1, __proto__: null };
   const b = { b: 1, __proto__: a };
   const c = { c: 1, __proto__: b };
 
+  h(a);
+  t.true(isHardened(a));
+  h(b);
+  t.true(isHardened(b));
   h(c);
-  t.truthy(Object.isFrozen(a));
+  t.true(isHardened(c));
+  t.notThrows(() => hardenIntrinsics(Object.create(null)));
+});
+
+test('harden prototype chain (post-lockdown)', t => {
+  const { harden: h, isHardened, hardenIntrinsics } = makeHardenerKit();
+  const a = { a: 1, __proto__: null };
+  const b = { b: 1, __proto__: a };
+  const c = { c: 1, __proto__: b };
+
+  t.notThrows(() => hardenIntrinsics(Object.create(null)));
+  h(a);
+  t.true(isHardened(a));
+  h(b);
+  t.true(isHardened(b));
+  h(c);
+  t.true(isHardened(c));
 });
 
 test('harden tolerates objects with null prototypes', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const o = { a: 1 };
   Object.setPrototypeOf(o, null);
   t.is(h(o), o);
@@ -79,7 +99,7 @@ test('harden typed arrays', t => {
   ];
 
   for (const TypedArray of typedArrayConstructors) {
-    const h = makeHardener();
+    const h = makeHardenerKit().harden;
     const a = new TypedArray(1);
 
     t.is(h(a), a, `harden ${TypedArray}`);
@@ -103,7 +123,7 @@ test('harden typed arrays', t => {
 });
 
 test('harden typed arrays and their expandos', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const a = new Uint8Array(1);
   const b = new Uint8Array(1);
 
@@ -232,7 +252,7 @@ test('harden typed arrays and their expandos', t => {
 });
 
 test('hardening makes writable properties readonly even if non-configurable', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const o = {};
   Object.defineProperty(o, 'x', {
     value: 10,
@@ -251,7 +271,7 @@ test('hardening makes writable properties readonly even if non-configurable', t 
 });
 
 test('harden a typed array with a writable non-configurable expando', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
   const a = new Uint8Array(1);
   Object.defineProperty(a, 'x', {
     value: 'A',
@@ -275,14 +295,13 @@ test('harden a typed array with a writable non-configurable expando', t => {
 });
 
 test('harden a typed array subclass', t => {
-  const h = makeHardener();
+  const h = makeHardenerKit().harden;
 
   class Ooint8Array extends Uint8Array {
     oo = 'ghosts';
   }
   h(Ooint8Array);
   t.truthy(Object.isFrozen(Ooint8Array.prototype));
-  t.truthy(Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
 
   const a = new Ooint8Array(1);
   t.is(h(a), a);
