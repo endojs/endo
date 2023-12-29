@@ -60,6 +60,7 @@ module.exports = {
     // ESNext
     lockdown: 'readonly',
     harden: 'readonly',
+    isHardened: 'readonly',
     HandledPromise: 'readonly',
   },
   rules: {
