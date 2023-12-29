@@ -136,7 +136,7 @@ export const makeMailboxMaker = ({
       };
 
       return provideValueForNumberedFormula(
-        'lookup-id512',
+        'lookup',
         lookupFormulaNumber,
         lookupFormula,
       );

@@ -528,17 +528,21 @@ test('guest facet receives a message for host', async t => {
   const guest = E(host).provideGuest('guest');
   await E(host).provideWorker('worker');
   await E(host).evaluate('worker', '10', [], [], 'ten1');
+
   const iteratorRef = E(host).followMessages();
   E.sendOnly(guest).request('HOST', 'a number', 'number');
   const { value: message0 } = await E(iteratorRef).next();
   t.is(message0.number, 0);
   await E(host).resolve(message0.number, 'ten1');
+
   await E(guest).send('HOST', ['Hello, World!'], ['gift'], ['number']);
+
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message1.number, 1);
   await E(host).adopt(message1.number, 'gift', 'ten2');
   const ten = await E(host).lookup('ten2');
   t.is(ten, 10);
+
   // Host should have received messages.
   const hostInbox = await E(host).listMessages();
   t.deepEqual(
@@ -548,6 +552,7 @@ test('guest facet receives a message for host', async t => {
       { type: 'package', who: 'guest', dest: 'SELF' },
     ],
   );
+
   // Guest should have own sent messages.
   const guestInbox = await E(guest).listMessages();
   t.deepEqual(

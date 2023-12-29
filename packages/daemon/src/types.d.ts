@@ -285,10 +285,10 @@ export type EndoInspector<Record = string> = {
 };
 
 export type KnownEndoInspectors = {
-  'eval-id512': EndoInspector<'endowments' | 'source' | 'worker'>;
-  'make-unconfined-id512': EndoInspector<'host'>;
-  'make-bundle-id512': EndoInspector<'bundle' | 'powers' | 'worker'>;
-  'guest-id512': EndoInspector<'bundle' | 'powers'>;
+  eval: EndoInspector<'endowments' | 'source' | 'worker'>;
+  'make-unconfined': EndoInspector<'host'>;
+  'make-bundle': EndoInspector<'bundle' | 'powers' | 'worker'>;
+  guest: EndoInspector<'bundle' | 'powers'>;
   'web-bundle': EndoInspector<'powers' | 'specifier' | 'worker'>;
   // This is an "empty" inspector, in that there is nothing to `lookup()` or `list()`.
   [formulaType: string]: EndoInspector<string>;
@@ -381,7 +381,7 @@ export type DaemonicPersistencePowers = {
   writeFormula: (
     formula: Formula,
     formulaType: string,
-    formulaId512: string,
+    formulaNumber: string,
   ) => Promise<void>;
   getWebPageBundlerFormula?: (
     workerFormulaIdentifier: string,
