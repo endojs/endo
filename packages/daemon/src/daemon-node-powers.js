@@ -9,7 +9,6 @@ import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePortHttp } from './serve-private-port-http.js';
 import { servePrivatePath } from './serve-private-path.js';
-import { zero512 } from './common.js';
 
 const { quote: q } = assert;
 
@@ -495,6 +494,16 @@ export const makeDaemonicPersistencePowers = (
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   };
 
+  const provideRootNonce = async () => {
+    const noncePath = filePowers.joinPath(locator.statePath, 'nonce');
+    let nonce = await filePowers.maybeReadFileText(noncePath);
+    if (nonce === undefined) {
+      nonce = await cryptoPowers.randomHex512();
+      await filePowers.writeFileText(noncePath, `${nonce}\n`);
+    }
+    return nonce.trim();
+  };
+
   const makeContentSha512Store = () => {
     const { statePath } = locator;
     const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha512');
@@ -610,21 +619,22 @@ export const makeDaemonicPersistencePowers = (
     await filePowers.writeFileText(file, `${q(formula)}\n`);
   };
 
-  const webPageBundlerFormula = includeWebPageBundler
-    ? {
+  const getWebPageBundlerFormula = includeWebPageBundler
+    ? (workerFormulaIdentifier, powersFormulaIdentifier) => ({
         type: /** @type {'make-unconfined'} */ ('make-unconfined'),
-        worker: `worker-id512:${zero512}`,
-        powers: `host-id512:${zero512}`,
+        worker: workerFormulaIdentifier,
+        powers: powersFormulaIdentifier,
         specifier: new URL('web-page-bundler.js', import.meta.url).href,
-      }
+      })
     : undefined;
 
   return harden({
     initializePersistence,
+    provideRootNonce,
     makeContentSha512Store,
     readFormula,
     writeFormula,
-    webPageBundlerFormula,
+    getWebPageBundlerFormula,
   });
 };
 

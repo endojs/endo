@@ -365,6 +365,7 @@ export type NetworkPowers = SocketPowers & {
 
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
+  provideRootNonce: () => Promise<string>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
     fetch: (sha512: string) => EndoReadable;
@@ -375,7 +376,10 @@ export type DaemonicPersistencePowers = {
     formulaType: string,
     formulaId512: string,
   ) => Promise<void>;
-  webPageBundlerFormula?: Formula;
+  getWebPageBundlerFormula?: (
+    workerFormulaIdentifier: string,
+    powersFormulaIdentifier: string,
+  ) => Formula;
 };
 
 export interface DaemonWorkerFacet {}
