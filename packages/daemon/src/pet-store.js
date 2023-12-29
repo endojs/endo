@@ -252,17 +252,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
   };
 
-  /**
-   * @param {string} name
-   * @param {(name: string) => void} assertValidName
-   */
-  const makeOwnPetStore = (name, assertValidName) => {
-    const petNameDirectoryPath = filePowers.joinPath(locator.statePath, name);
-    return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
-  };
-
   return {
     makeIdentifiedPetStore,
-    makeOwnPetStore,
   };
 };

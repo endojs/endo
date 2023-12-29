@@ -20,6 +20,9 @@ export const makeHostMaker = ({
    * @param {string} storeFormulaIdentifier
    * @param {string} infoFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {string} leastAuthorityFormulaIdentifier
+   * @param {string} endoFormulaIdentifier
+   * @param {string} networksFormulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
@@ -27,6 +30,9 @@ export const makeHostMaker = ({
     storeFormulaIdentifier,
     infoFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    leastAuthorityFormulaIdentifier,
+    endoFormulaIdentifier,
+    networksFormulaIdentifier,
     context,
   ) => {
     context.thisDiesIfThatDies(storeFormulaIdentifier);
@@ -69,9 +75,9 @@ export const makeHostMaker = ({
       specialNames: {
         SELF: hostFormulaIdentifier,
         INFO: infoFormulaIdentifier,
-        NONE: 'least-authority',
-        ENDO: 'endo',
-        NETS: 'networks',
+        NONE: leastAuthorityFormulaIdentifier,
+        ENDO: endoFormulaIdentifier,
+        NETS: networksFormulaIdentifier,
       },
       context,
     });

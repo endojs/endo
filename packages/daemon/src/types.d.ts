@@ -291,10 +291,6 @@ export type PetStorePowers = {
     id: string,
     assertValidName: AssertValidNameFn,
   ) => Promise<FarRef<PetStore>>;
-  makeOwnPetStore: (
-    name: string,
-    assertValidName: AssertValidNameFn,
-  ) => Promise<FarRef<PetStore>>;
 };
 
 export type NetworkPowers = {
@@ -332,6 +328,7 @@ export type NetworkPowers = {
 
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
+  provideRootNonce: () => Promise<string>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
     fetch: (sha512: string) => EndoReadable;
