@@ -83,16 +83,16 @@ test('E call missing method', async t => {
 });
 
 test('E call missing inherited methods', async t => {
-  const x = {
-    __proto__: {
+  const x = harden({
+    __proto__: harden({
       half(n) {
         return n / 2;
       },
-    },
+    }),
     double(n) {
       return 2 * n;
     },
-  };
+  });
   await t.throwsAsync(() => E(x).triple(6), {
     message: 'target has no method "triple", has ["double","half"]',
   });
@@ -108,6 +108,7 @@ test('E call missing class methods', async t => {
       return n / 2;
     }
   }
+  harden(X1);
   class X2 extends X1 {
     constructor() {
       super();
@@ -118,6 +119,7 @@ test('E call missing class methods', async t => {
       return 2 * n;
     }
   }
+  harden(X2);
   const x = new X2();
   await t.throwsAsync(() => E(x).triple(6), {
     message:
