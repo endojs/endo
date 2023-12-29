@@ -75,14 +75,14 @@ const makeEndoBootstrap = async (
   const contentStore = persistencePowers.makeContentSha512Store();
   const rootNonce = await persistencePowers.provideRootNonce();
 
-  const endoFormulaIdentifier = `endo-id512:${rootNonce}`;
+  const endoFormulaIdentifier = `endo:${rootNonce}`;
   const leastAuthorityFormulaNumber = derive(rootNonce, 'least-authority');
-  const leastAuthorityFormulaIdentifier = `least-authority-id512:${leastAuthorityFormulaNumber}`;
+  const leastAuthorityFormulaIdentifier = `least-authority:${leastAuthorityFormulaNumber}`;
   const networksFormulaNumber = derive(rootNonce, 'networks');
-  const networksFormulaIdentifier = `directory-id512:${networksFormulaNumber}`;
+  const networksFormulaIdentifier = `directory:${networksFormulaNumber}`;
   // TODO for enumerating networks:
   // const networksPetStoreFormulaNumber = derive(networksFormulaNumber, 'pet-store');
-  // const networksPetStoreFormulaIdentifier = `pet-store-id512:${networksPetStoreFormulaNumber}`;
+  // const networksPetStoreFormulaIdentifier = `pet-store:${networksPetStoreFormulaNumber}`;
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
   const controllerForFormulaIdentifier = new Map();
@@ -109,7 +109,7 @@ const makeEndoBootstrap = async (
    */
   const storeReaderRef = async readerRef => {
     const sha512Hex = await contentStore.store(makeRefReader(readerRef));
-    return `readable-blob-sha512:${sha512Hex}`;
+    return `readable-blob:${sha512Hex}`;
   };
 
   /**
@@ -127,7 +127,7 @@ const makeEndoBootstrap = async (
    */
   const makeIdentifiedWorkerController = async (workerId512, context) => {
     // TODO validate workerId512
-    const workerFormulaIdentifier = `worker-id512:${workerId512}`;
+    const workerFormulaIdentifier = `worker:${workerId512}`;
 
     const daemonWorkerFacet = makeWorkerBootstrap(
       workerId512,
@@ -362,8 +362,8 @@ const makeEndoBootstrap = async (
         context,
       );
     } else if (formula.type === 'guest') {
-      const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
-      const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
+      const storeFormulaIdentifier = `pet-store:${formulaNumber}`;
+      const workerFormulaIdentifier = `worker:${formulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedGuestController(
@@ -397,57 +397,52 @@ const makeEndoBootstrap = async (
   };
 
   /**
-   * @param {string} formulaIdentifier
+   * @param {string} formulaType
+   * @param {string} formulaNumber
    * @param {import('./types.js').Context} context
    */
   const makeControllerForFormulaIdentifier = async (
-    formulaIdentifier,
+    formulaType,
+    formulaNumber,
     context,
   ) => {
-    const delimiterIndex = formulaIdentifier.indexOf(':');
-    if (delimiterIndex < 0) {
-      throw new TypeError(
-        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
-      );
-    }
-    const prefix = formulaIdentifier.slice(0, delimiterIndex);
-    const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
-    if (prefix === 'readable-blob-sha512') {
+    const formulaIdentifier = `${formulaType}:${formulaNumber}`;
+    if (formulaType === 'readable-blob') {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
       const external = makeReadableBlob(formulaNumber);
       return { external, internal: undefined };
-    } else if (prefix === 'worker-id512') {
+    } else if (formulaType === 'worker') {
       return makeIdentifiedWorkerController(formulaNumber, context);
-    } else if (prefix === 'pet-inspector-id512') {
+    } else if (formulaType === 'pet-inspector') {
       const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store-id512:${storeFormulaNumber}`;
+      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
       const external = makeIdentifiedInspector(storeFormulaIdentifier);
       return { external, internal: undefined };
-    } else if (prefix === 'pet-store-id512') {
+    } else if (formulaType === 'pet-store') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         assertPetName,
       );
       return { external, internal: undefined };
-    } else if (prefix === 'directory-id512') {
+    } else if (formulaType === 'directory') {
       const petStoreFormulaNumber = derive(formulaNumber, 'pet-store');
-      const petStoreFormulaIdentifier = `pet-store-id512:${petStoreFormulaNumber}`;
+      const petStoreFormulaIdentifier = `pet-store:${petStoreFormulaNumber}`;
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedDirectory({
         petStoreFormulaIdentifier,
         context,
       });
-    } else if (prefix === 'host-id512') {
+    } else if (formulaType === 'host') {
       const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store-id512:${storeFormulaNumber}`;
+      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
       const infoFormulaNumber = derive(formulaNumber, 'pet-inspector');
-      const infoFormulaIdentifier = `pet-inspector-id512:${infoFormulaNumber}`;
+      const infoFormulaIdentifier = `pet-inspector:${infoFormulaNumber}`;
       const workerFormulaNumber = derive(formulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker-id512:${workerFormulaNumber}`;
+      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedHost(
@@ -460,7 +455,7 @@ const makeEndoBootstrap = async (
         networksFormulaIdentifier,
         context,
       );
-    } else if (prefix === 'endo-id512') {
+    } else if (formulaType === 'endo') {
       if (formulaNumber === rootNonce) {
         // TODO reframe "cancelled" as termination of the "endo" object and
         // ensure that all values ultimately depend on "endo".
@@ -470,9 +465,9 @@ const makeEndoBootstrap = async (
       } else {
         throw new Error(`Get out`);
       }
-    } else if (prefix === 'least-authority-id512') {
+    } else if (formulaType === 'least-authority') {
       return { external: leastAuthority, internal: undefined };
-    } else if (prefix === 'web-page-js-id512') {
+    } else if (formulaType === 'web-page-js') {
       if (persistencePowers.webPageBundlerFormula === undefined) {
         throw Error('No web-page-js formula provided.');
       }
@@ -484,15 +479,15 @@ const makeEndoBootstrap = async (
       );
     } else if (
       [
-        'eval-id512',
-        'import-unsafe-id512',
-        'import-bundle-id512',
-        'guest-id512',
+        'eval',
+        'import-unsafe',
+        'import-bundle',
+        'guest',
         'web-bundle',
-      ].includes(prefix)
+      ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
-        prefix,
+        formulaType,
         formulaNumber,
       );
       // TODO validate
@@ -594,7 +589,18 @@ const makeEndoBootstrap = async (
       internal: E.get(partial).internal,
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
-    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, context));
+
+    const delimiterIndex = formulaIdentifier.indexOf(':');
+    if (delimiterIndex < 0) {
+      throw new TypeError(
+        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
+      );
+    }
+    const formulaType = formulaIdentifier.slice(0, delimiterIndex);
+    const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
+    resolve(
+      makeControllerForFormulaIdentifier(formulaType, formulaNumber, context),
+    );
 
     return controller;
   };
@@ -668,21 +674,21 @@ const makeEndoBootstrap = async (
       if (delimiterIndex < 0) {
         return undefined;
       }
-      const prefix = formulaIdentifier.slice(0, delimiterIndex);
+      const formulaType = formulaIdentifier.slice(0, delimiterIndex);
       const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
       if (
         ![
-          'eval-id512',
-          'import-unsafe-id512',
-          'import-bundle-id512',
-          'guest-id512',
+          'eval',
+          'import-unsafe',
+          'import-bundle',
+          'guest',
           'web-bundle',
-        ].includes(prefix)
+        ].includes(formulaType)
       ) {
-        return makeInfo(prefix, formulaNumber, harden({}));
+        return makeInfo(formulaType, formulaNumber, harden({}));
       }
       const formula = await persistencePowers.readFormula(
-        prefix,
+        formulaType,
         formulaNumber,
       );
       if (formula.type === 'eval') {
@@ -764,15 +770,13 @@ const makeEndoBootstrap = async (
     },
 
     host: () =>
-      provideValueForFormulaIdentifier(
-        `host-id512:${derive(rootNonce, 'host')}`,
-      ),
+      provideValueForFormulaIdentifier(`host:${derive(rootNonce, 'host')}`),
 
     leastAuthority: () => leastAuthority,
 
     webPageJs: () =>
       provideValueForFormulaIdentifier(
-        `web-page-js-id512:${derive(rootNonce, 'web-page-js')}`,
+        `web-page-js:${derive(rootNonce, 'web-page-js')}`,
       ),
 
     importAndEndowInWebPage: async (webPageP, webPageNumber) => {

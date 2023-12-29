@@ -100,13 +100,13 @@ export const makeHostMaker = ({
         const { value, formulaIdentifier: guestFormulaIdentifier } =
           // Behold, recursion:
           // eslint-disable-next-line no-use-before-define
-          await provideValueForFormula(formula, 'guest-id512');
+          await provideValueForFormula(formula, 'guest');
         if (petName !== undefined) {
           assertPetName(petName);
           await petStore.write(petName, guestFormulaIdentifier);
         }
         return value;
-      } else if (!formulaIdentifier.startsWith('guest-id512:')) {
+      } else if (!formulaIdentifier.startsWith('guest:')) {
         throw new Error(
           `Existing pet name does not designate a guest powers capability: ${q(
             petName,
@@ -140,10 +140,10 @@ export const makeHostMaker = ({
       let workerFormulaIdentifier = lookupFormulaIdentifierForName(workerName);
       if (workerFormulaIdentifier === undefined) {
         const workerId512 = await randomHex512();
-        workerFormulaIdentifier = `worker-id512:${workerId512}`;
+        workerFormulaIdentifier = `worker:${workerId512}`;
         assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
-      } else if (!workerFormulaIdentifier.startsWith('worker-id512:')) {
+      } else if (!workerFormulaIdentifier.startsWith('worker:')) {
         throw new Error(`Not a worker ${q(workerName)}`);
       }
       return /** @type {Promise<import('./types.js').EndoWorker>} */ (
@@ -161,13 +161,13 @@ export const makeHostMaker = ({
         return mainWorkerFormulaIdentifier;
       } else if (workerName === 'NEW') {
         const workerId512 = await randomHex512();
-        return `worker-id512:${workerId512}`;
+        return `worker:${workerId512}`;
       }
       assertPetName(workerName);
       let workerFormulaIdentifier = lookupFormulaIdentifierForName(workerName);
       if (workerFormulaIdentifier === undefined) {
         const workerId512 = await randomHex512();
-        workerFormulaIdentifier = `worker-id512:${workerId512}`;
+        workerFormulaIdentifier = `worker:${workerId512}`;
         assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
       }
@@ -241,7 +241,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { formulaIdentifier, value } = await provideValueForFormula(
         formula,
-        'eval-id512',
+        'eval',
       );
 
       await writeResult(formulaIdentifier);
@@ -283,7 +283,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { formulaIdentifier, value } = await provideValueForFormula(
         formula,
-        'import-unsafe-id512',
+        'import-unsafe',
       );
 
       await writeResult(formulaIdentifier);
@@ -331,7 +331,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { value, formulaIdentifier } = await provideValueForFormula(
         formula,
-        'import-bundle-id512',
+        'import-bundle',
       );
 
       await writeResult(formulaIdentifier);
@@ -344,7 +344,7 @@ export const makeHostMaker = ({
      */
     const makeWorker = async petName => {
       const workerId512 = await randomHex512();
-      const formulaIdentifier = `worker-id512:${workerId512}`;
+      const formulaIdentifier = `worker:${workerId512}`;
       if (petName !== undefined) {
         assertPetName(petName);
         await petStore.write(petName, formulaIdentifier);
@@ -367,12 +367,12 @@ export const makeHostMaker = ({
       }
       if (formulaIdentifier === undefined) {
         const id512 = await randomHex512();
-        formulaIdentifier = `host-id512:${id512}`;
+        formulaIdentifier = `host:${id512}`;
         if (petName !== undefined) {
           assertPetName(petName);
           await petStore.write(petName, formulaIdentifier);
         }
-      } else if (!formulaIdentifier.startsWith('host-id512:')) {
+      } else if (!formulaIdentifier.startsWith('host:')) {
         throw new Error(
           `Existing pet name does not designate a host powers capability: ${q(
             petName,

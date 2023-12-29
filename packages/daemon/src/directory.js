@@ -112,7 +112,7 @@ export const makeDirectoryMaker = ({
 
     const makeDirectory = async directoryPetName => {
       const formulaNumber = await randomHex512();
-      const formulaIdentifier = `directory-id512:${formulaNumber}`;
+      const formulaIdentifier = `directory:${formulaNumber}`;
       await petStore.write(directoryPetName, formulaIdentifier);
       return /** @type {import('./types.js').EndoDirectory} */ (
         provideValueForFormulaIdentifier(formulaIdentifier)

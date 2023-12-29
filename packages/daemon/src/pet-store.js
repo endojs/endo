@@ -8,7 +8,7 @@ const { quote: q } = assert;
 
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:host|pet-store|networks-pet-store|networks|pet-inspector|(?:readable-blob-sha512|worker-id512|pet-store-id512|directory-id512|pet-inspector-id512|eval-id512|import-unsafe-id512|import-bundle-id512|host-id512|guest-id512):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
+  /^(?:(?:readable-blob|worker|pet-store|directory|pet-inspector|eval|import-unsafe|import-bundle|host|guest|networks):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
 
 /**
  * @param {import('./types.js').FilePowers} filePowers
@@ -245,7 +245,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const suffix = id.slice(3);
     const petNameDirectoryPath = filePowers.joinPath(
       locator.statePath,
-      'pet-store-id512',
+      'pet-store',
       prefix,
       suffix,
     );

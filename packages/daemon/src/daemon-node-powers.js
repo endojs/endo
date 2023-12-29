@@ -553,12 +553,7 @@ export const makeDaemonicPersistencePowers = (
     }
     const head = formulaId512.slice(0, 2);
     const tail = formulaId512.slice(3);
-    const directory = filePowers.joinPath(
-      statePath,
-      'formulas',
-      formulaType,
-      head,
-    );
+    const directory = filePowers.joinPath(statePath, 'formulas', head);
     const file = filePowers.joinPath(directory, `${tail}.json`);
     return harden({ directory, file });
   };
@@ -597,7 +592,7 @@ export const makeDaemonicPersistencePowers = (
   const webPageBundlerFormula = includeWebPageBundler
     ? {
         type: /** @type {'import-unsafe'} */ ('import-unsafe'),
-        worker: `worker-id512:${zero512}`,
+        worker: `worker:${zero512}`,
         powers: 'host',
         specifier: new URL('web-page-bundler.js', import.meta.url).href,
       }
@@ -632,19 +627,11 @@ export const makeDaemonicControlPowers = (
   const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
     const { cachePath, statePath, ephemeralStatePath, sockPath } = locator;
 
-    const workerCachePath = filePowers.joinPath(
-      cachePath,
-      'worker-id512',
-      workerId,
-    );
-    const workerStatePath = filePowers.joinPath(
-      statePath,
-      'worker-id512',
-      workerId,
-    );
+    const workerCachePath = filePowers.joinPath(cachePath, 'worker', workerId);
+    const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
     const workerEphemeralStatePath = filePowers.joinPath(
       ephemeralStatePath,
-      'worker-id512',
+      'worker',
       workerId,
     );
 
