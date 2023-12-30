@@ -1071,3 +1071,34 @@ test('evaluate name resolved by lookup path', async t => {
 
   await stop(locator);
 });
+
+test('list special names', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'list-names');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+
+  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  await E(host).store(readerRef, 'hello-text');
+
+  const names = await E(host).list();
+  /** @type {string[]} */
+  const specialNames = await E(host).listSpecial();
+  const allNames = await E(host).listAll();
+
+  t.deepEqual(['hello-text'], names);
+  t.assert(specialNames.length > 0);
+  t.assert(specialNames.every(name => name.toUpperCase() === name));
+  t.deepEqual([...specialNames, ...names], allNames);
+});
