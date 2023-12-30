@@ -670,3 +670,27 @@ test('terminate because of requested capability', async t => {
     ),
   );
 });
+
+test('make a host', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'make-host');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const host2 = E(host).provideHost('fellow-host');
+  await E(host2).makeWorker('w1');
+  const ten = await E(host2).evaluate('w1', '10', [], []);
+  t.is(ten, 10);
+
+  await stop(locator);
+});
