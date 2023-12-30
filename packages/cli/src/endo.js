@@ -289,10 +289,13 @@ export const main = async rawArgs => {
 
   program
     .command('list [directory]')
-    .description('show names')
+    .description('show names (dot delimited pet name path)')
+    .option('-s,--special', 'show special names')
+    .option('-a,--all', 'show all names')
     .action(async (directoryName, cmd) => {
+      const { special, all } = cmd.opts();
       const { list } = await import('./list.js');
-      return list({ directoryName });
+      return list({ directoryName, special, all });
     });
 
   program
