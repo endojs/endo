@@ -5,6 +5,7 @@ import { objectMap } from '@endo/patterns';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
+const { Fail, quote: q } = assert;
 const { create, seal, freeze, defineProperty, values } = Object;
 
 const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
@@ -81,11 +82,25 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
+ * @callback Amplifier
+ * @param {any} exo
+ * @param {string} facetName
+ * @returns {any}
+ */
+
+/**
+ * @callback ReceiveAmplifier
+ * @param {Amplifier} amplifier
+ * @returns {void}
+ */
+
+/**
  * @template C
  * @typedef {object} FarClassOptions
  * @property {(context: C) => void} [finish]
  * @property {StateShape} [stateShape]
  * @property {ReceiveRevoker} [receiveRevoker]
+ * @property {ReceiveAmplifier} [receiveAmplifier]
  */
 
 /**
@@ -123,7 +138,14 @@ export const defineExoClass = (
   options = {},
 ) => {
   harden(methods);
-  const { finish = undefined, receiveRevoker = undefined } = options;
+  const {
+    finish = undefined,
+    receiveRevoker = undefined,
+    receiveAmplifier = undefined,
+  } = options;
+  receiveAmplifier === undefined ||
+    Fail`Only facets of an exo class kit can be amplified ${q(tag)}`;
+
   /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
   const proto = defendPrototype(
@@ -183,7 +205,11 @@ export const defineExoClassKit = (
   options = {},
 ) => {
   harden(methodsKit);
-  const { finish = undefined, receiveRevoker = undefined } = options;
+  const {
+    finish = undefined,
+    receiveRevoker = undefined,
+    receiveAmplifier = undefined,
+  } = options;
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
     contextMapKit,
@@ -226,6 +252,21 @@ export const defineExoClassKit = (
       values(contextMapKit).some(contextMap => contextMap.delete(aFacet));
     harden(revoke);
     receiveRevoker(revoke);
+  }
+
+  if (receiveAmplifier) {
+    const amplify = (aFacet, facetName) => {
+      for (const contextMap of values(contextMapKit)) {
+        if (contextMap.has(aFacet)) {
+          const otherFacet = contextMap.get(aFacet).facets[facetName];
+          otherFacet || Fail`${q(facetName)} must be a facet name of ${q(tag)}`;
+          return otherFacet;
+        }
+      }
+      throw Fail`Must be an unrevoked facet of ${q(tag)}: ${aFacet}`;
+    };
+    harden(amplify);
+    receiveAmplifier(amplify);
   }
 
   return harden(makeInstanceKit);
