@@ -1,3 +1,8 @@
+/* global globalThis */
+globalThis.LOCKDOWN_OPTIONS = JSON.stringify({
+  overrideTaming: 'moderate',
+})
+
 /* global process */
 globalThis.process = {
   // version is less than 10.12.0 for fs.mkdir recursive polyfill
