@@ -562,7 +562,7 @@ export const makeDaemonicPersistencePowers = (
       );
     }
     const head = formulaId512.slice(0, 2);
-    const tail = formulaId512.slice(3);
+    const tail = formulaId512.slice(2);
     const directory = filePowers.joinPath(statePath, 'formulas', head);
     const file = filePowers.joinPath(directory, `${tail}.json`);
     return harden({ directory, file });

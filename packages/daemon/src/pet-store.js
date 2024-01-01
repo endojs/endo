@@ -242,7 +242,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       throw new Error(`Invalid identifier for pet store ${q(id)}`);
     }
     const prefix = id.slice(0, 2);
-    const suffix = id.slice(3);
+    const suffix = id.slice(2);
     const petNameDirectoryPath = filePowers.joinPath(
       locator.statePath,
       'pet-store',
