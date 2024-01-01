@@ -17,3 +17,6 @@ globalThis.process = {
     console.warn(`something attempted to set event "${event}" on process`, handler)
   },
 };
+
+// shim for browserfs IdbKvStore in worker?
+globalThis.window = globalThis;
