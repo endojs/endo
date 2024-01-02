@@ -227,7 +227,7 @@ export interface Context {
 }
 
 export interface FarContext {
-  cancel: (reason: string) => Promise<never>;
+  cancel: (reason: Error) => Promise<void>;
   whenCancelled: () => Promise<never>;
   whenDisposed: () => Promise<void>;
 }

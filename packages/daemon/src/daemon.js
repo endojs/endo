@@ -46,6 +46,14 @@ const makeInspector = (type, number, record) =>
     list: () => Object.keys(record),
   });
 
+const makeFarContext = context =>
+  Far('Context', {
+    cancel: context.cancel,
+    whenCancelled: () => context.cancelled,
+    whenDisposed: () => context.disposed,
+    addDisposalHook: context.onCancel,
+  });
+
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
@@ -284,7 +292,12 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).makeUnconfined(specifier, guestP);
+    const external = E(workerDaemonFacet).makeUnconfined(
+      specifier,
+      guestP,
+      // TODO fix type
+      /** @type {any} */ (makeFarContext(context)),
+    );
     return { external, internal: undefined };
   };
 
@@ -327,7 +340,12 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).makeBundle(readableBundleP, guestP);
+    const external = E(workerDaemonFacet).makeBundle(
+      readableBundleP,
+      guestP,
+      // TODO fix type
+      /** @type {any} */ (makeFarContext(context)),
+    );
     return { external, internal: undefined };
   };
 
