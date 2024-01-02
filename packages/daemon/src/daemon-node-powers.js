@@ -240,6 +240,24 @@ export const makeSocketPowers = ({ net }) => {
       cancelled,
     );
 
+  const connectPort = ({ port, host, cancelled }) =>
+    new Promise((resolve, reject) => {
+      const conn = net.connect(port, host, err => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const reader = makeNodeReader(conn);
+        const writer = makeNodeWriter(conn);
+        const closed = new Promise(close => conn.on('close', close));
+        resolve({
+          reader,
+          writer,
+          closed,
+        });
+      });
+    });
+
   /**
    * @param {object} args
    * @param {string} args.path
@@ -265,7 +283,7 @@ export const makeSocketPowers = ({ net }) => {
     return connections;
   };
 
-  return { servePort, servePath };
+  return { servePort, servePath, connectPort };
 };
 
 /**
@@ -277,7 +295,7 @@ export const makeSocketPowers = ({ net }) => {
  */
 export const makeNetworkPowers = ({ http, ws, net }) => {
   const { servePortHttp } = makeHttpPowers({ http, ws });
-  const { servePort, servePath } = makeSocketPowers({ net });
+  const { servePort, servePath, connectPort } = makeSocketPowers({ net });
 
   const connectionNumbers = (function* generateNumbers() {
     let n = 0;
@@ -340,6 +358,7 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
     servePortHttp,
     servePort,
     servePath,
+    connectPort,
     makePrivatePathService,
     makePrivateHttpService,
   });
