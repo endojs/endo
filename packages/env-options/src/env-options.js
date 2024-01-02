@@ -61,22 +61,21 @@ export const makeEnvironmentCaptor = aGlobal => {
 
     /** @type {string} */
     let setting = defaultSetting;
-    const globalProcess = aGlobal.process;
-    if (globalProcess && typeof globalProcess === 'object') {
-      const globalEnv = globalProcess.env;
-      if (globalEnv && typeof globalEnv === 'object') {
-        if (optionName in globalEnv) {
-          arrayPush(capturedEnvironmentOptionNames, optionName);
-          const optionValue = globalEnv[optionName];
-          // eslint-disable-next-line @endo/no-polymorphic-call
-          typeof optionValue === 'string' ||
-            Fail`Environment option named ${q(
-              optionName,
-            )}, if present, must have a corresponding string value, got ${q(
-              optionValue,
-            )}`;
-          setting = optionValue;
-        }
+    const globalProcess = aGlobal.process || undefined;
+    const globalEnv =
+      (typeof globalProcess === 'object' && globalProcess.env) || undefined;
+    if (typeof globalEnv === 'object') {
+      if (optionName in globalEnv) {
+        arrayPush(capturedEnvironmentOptionNames, optionName);
+        const optionValue = globalEnv[optionName];
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        typeof optionValue === 'string' ||
+          Fail`Environment option named ${q(
+            optionName,
+          )}, if present, must have a corresponding string value, got ${q(
+            optionValue,
+          )}`;
+        setting = optionValue;
       }
     }
     return setting;

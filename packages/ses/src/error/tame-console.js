@@ -95,10 +95,9 @@ export const tameConsole = (
   /* eslint-disable @endo/no-polymorphic-call */
 
   // Node.js
-  const globalProcess = globalThis.process;
+  const globalProcess = globalThis.process || undefined;
   if (
     errorTrapping !== 'none' &&
-    globalProcess &&
     typeof globalProcess === 'object' &&
     typeof globalProcess.on === 'function'
   ) {
@@ -112,10 +111,8 @@ export const tameConsole = (
       }
     });
   }
-
   if (
     unhandledRejectionTrapping !== 'none' &&
-    globalProcess &&
     typeof globalProcess === 'object' &&
     typeof globalProcess.on === 'function'
   ) {
@@ -134,25 +131,25 @@ export const tameConsole = (
   }
 
   // Browser
+  const globalWindow = globalThis.window || undefined;
   if (
     errorTrapping !== 'none' &&
-    globalThis.window !== undefined &&
-    globalThis.window.addEventListener !== undefined
+    typeof globalWindow === 'object' &&
+    typeof globalWindow.addEventListener === 'function'
   ) {
-    globalThis.window.addEventListener('error', event => {
+    globalWindow.addEventListener('error', event => {
       event.preventDefault();
       // 'platform' and 'report' just log the reason.
       ourConsole.error(event.error);
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
-        globalThis.window.location.href = `about:blank`;
+        globalWindow.location.href = `about:blank`;
       }
     });
   }
-
   if (
     unhandledRejectionTrapping !== 'none' &&
-    globalThis.window !== undefined &&
-    globalThis.window.addEventListener !== undefined
+    typeof globalWindow === 'object' &&
+    typeof globalWindow.addEventListener === 'function'
   ) {
     const handleRejection = reason => {
       ourConsole.error('SES_UNHANDLED_REJECTION:', reason);
@@ -161,17 +158,17 @@ export const tameConsole = (
     const h = makeRejectionHandlers(handleRejection);
     if (h) {
       // Rejection handlers are supported.
-      globalThis.window.addEventListener('unhandledrejection', event => {
+      globalWindow.addEventListener('unhandledrejection', event => {
         event.preventDefault();
         h.unhandledRejectionHandler(event.reason, event.promise);
       });
 
-      globalThis.window.addEventListener('rejectionhandled', event => {
+      globalWindow.addEventListener('rejectionhandled', event => {
         event.preventDefault();
         h.rejectionHandledHandler(event.promise);
       });
 
-      globalThis.window.addEventListener('beforeunload', _event => {
+      globalWindow.addEventListener('beforeunload', _event => {
         h.processTerminationHandler();
       });
     }
