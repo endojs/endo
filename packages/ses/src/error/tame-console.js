@@ -95,21 +95,29 @@ export const tameConsole = (
   /* eslint-disable @endo/no-polymorphic-call */
 
   // Node.js
-  if (errorTrapping !== 'none' && globalThis.process !== undefined) {
-    globalThis.process.on('uncaughtException', error => {
+  const globalProcess = globalThis.process;
+  if (
+    errorTrapping !== 'none' &&
+    globalProcess &&
+    typeof globalProcess === 'object' &&
+    typeof globalProcess.on === 'function'
+  ) {
+    globalProcess.on('uncaughtException', error => {
       // causalConsole is born frozen so not vulnerable to method tampering.
       ourConsole.error(error);
       if (errorTrapping === 'platform' || errorTrapping === 'exit') {
-        globalThis.process.exit(globalThis.process.exitCode || -1);
+        globalProcess.exit(globalProcess.exitCode || -1);
       } else if (errorTrapping === 'abort') {
-        globalThis.process.abort();
+        globalProcess.abort();
       }
     });
   }
 
   if (
     unhandledRejectionTrapping !== 'none' &&
-    globalThis.process !== undefined
+    globalProcess &&
+    typeof globalProcess === 'object' &&
+    typeof globalProcess.on === 'function'
   ) {
     const handleRejection = reason => {
       // 'platform' and 'report' just log the reason.
@@ -119,9 +127,9 @@ export const tameConsole = (
     const h = makeRejectionHandlers(handleRejection);
     if (h) {
       // Rejection handlers are supported.
-      globalThis.process.on('unhandledRejection', h.unhandledRejectionHandler);
-      globalThis.process.on('rejectionHandled', h.rejectionHandledHandler);
-      globalThis.process.on('exit', h.processTerminationHandler);
+      globalProcess.on('unhandledRejection', h.unhandledRejectionHandler);
+      globalProcess.on('rejectionHandled', h.rejectionHandledHandler);
+      globalProcess.on('exit', h.processTerminationHandler);
     }
   }
 
