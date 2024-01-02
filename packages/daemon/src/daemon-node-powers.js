@@ -215,7 +215,12 @@ export const makeSocketPowers = ({ net }) => {
       void writeTo.next({ reader, writer, closed });
     });
 
-    return readFrom;
+    const port = await listening;
+
+    return harden({
+      port,
+      connections: readFrom,
+    });
   };
 
   /**
@@ -228,7 +233,7 @@ export const makeSocketPowers = ({ net }) => {
     serveListener(
       server =>
         new Promise(resolve =>
-          server.listen(port, host, () => resolve(undefined)),
+          server.listen(port, host, () => resolve(server.address().port)),
         ),
       cancelled,
     );
@@ -238,8 +243,8 @@ export const makeSocketPowers = ({ net }) => {
    * @param {string} args.path
    * @param {Promise<never>} args.cancelled
    */
-  const servePath = async ({ path, cancelled }) =>
-    serveListener(server => {
+  const servePath = async ({ path, cancelled }) => {
+    const { connections } = await serveListener(server => {
       return new Promise((resolve, reject) =>
         server.listen({ path }, error => {
           if (error) {
@@ -255,6 +260,8 @@ export const makeSocketPowers = ({ net }) => {
         }),
       );
     }, cancelled);
+    return connections;
+  };
 
   return { servePort, servePath };
 };
