@@ -5,7 +5,9 @@ import { Far } from '@endo/far';
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
+  locate,
   makeMailbox,
+  nonceLocatorFormulaIdentifier,
 }) => {
   /**
    * @param {string} guestFormulaIdentifier
@@ -72,17 +74,22 @@ export const makeGuestMaker = ({
       specialNames: {
         SELF: guestFormulaIdentifier,
         HOST: hostFormulaIdentifier,
+        HELO: nonceLocatorFormulaIdentifier,
       },
       context,
     });
 
     const { has, follow: followNames } = petStore;
 
+    const nonceLocator = () =>
+      provideValueForFormulaIdentifier(nonceLocatorFormulaIdentifier);
+
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
       has,
       lookup,
       reverseLookup,
+      locate,
       request,
       send,
       list,
@@ -100,6 +107,7 @@ export const makeGuestMaker = ({
       copy,
       move,
       makeDirectory,
+      nonceLocator,
     });
 
     const internal = harden({

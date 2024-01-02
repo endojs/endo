@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Far } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
@@ -10,10 +10,12 @@ export const makeHostMaker = ({
   provideValueForFormula,
   provideValueForNumberedFormula,
   formulaIdentifierForRef,
+  locate,
   storeReaderRef,
   makeSha512,
   randomHex512,
   makeMailbox,
+  nonceLocatorFormulaIdentifier,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -23,6 +25,9 @@ export const makeHostMaker = ({
    * @param {string} leastAuthorityFormulaIdentifier
    * @param {string} endoFormulaIdentifier
    * @param {string} networksFormulaIdentifier
+   * @param {string} networksPetStoreFormulaIdentifier
+   * @param {string} invitationsFormulaIdentifier
+   * @param {string} invitationsPetStoreFormulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
@@ -33,6 +38,9 @@ export const makeHostMaker = ({
     leastAuthorityFormulaIdentifier,
     endoFormulaIdentifier,
     networksFormulaIdentifier,
+    networksPetStoreFormulaIdentifier,
+    invitationsFormulaIdentifier,
+    invitationsPetStoreFormulaIdentifier,
     context,
   ) => {
     context.thisDiesIfThatDies(storeFormulaIdentifier);
@@ -78,6 +86,8 @@ export const makeHostMaker = ({
         NONE: leastAuthorityFormulaIdentifier,
         ENDO: endoFormulaIdentifier,
         NETS: networksFormulaIdentifier,
+        RSVP: invitationsFormulaIdentifier,
+        HELO: nonceLocatorFormulaIdentifier,
       },
       context,
     });
@@ -85,7 +95,7 @@ export const makeHostMaker = ({
     /**
      * @param {string} petName
      */
-    const provideGuest = async petName => {
+    const provideGuestFormulaIdentifier = async petName => {
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
@@ -97,7 +107,7 @@ export const makeHostMaker = ({
           type: /* @type {'guest'} */ 'guest',
           host: hostFormulaIdentifier,
         };
-        const { value, formulaIdentifier: guestFormulaIdentifier } =
+        const { formulaIdentifier: guestFormulaIdentifier } =
           // Behold, recursion:
           // eslint-disable-next-line no-use-before-define
           await provideValueForFormula(formula, 'guest');
@@ -105,7 +115,7 @@ export const makeHostMaker = ({
           assertPetName(petName);
           await petStore.write(petName, guestFormulaIdentifier);
         }
-        return value;
+        return guestFormulaIdentifier;
       } else if (!formulaIdentifier.startsWith('guest:')) {
         throw new Error(
           `Existing pet name does not designate a guest powers capability: ${q(
@@ -113,7 +123,15 @@ export const makeHostMaker = ({
           )}`,
         );
       }
-      return /** @type {Promise<import('./types.js').EndoHost>} */ (
+      return formulaIdentifier;
+    };
+
+    /**
+     * @param {string} petName
+     */
+    const provideGuest = async petName => {
+      const formulaIdentifier = await provideGuestFormulaIdentifier(petName);
+      return /** @type {Promise<import('./types.js').EndoGuest>} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
         provideValueForFormulaIdentifier(formulaIdentifier)
@@ -430,13 +448,83 @@ export const makeHostMaker = ({
       return value;
     };
 
+    // TODO expand guestName to guestPath
+    /**
+     * @param {string} guestName
+     * @param {string} [invitationName]
+     */
+    const invite = async (guestName, invitationName = guestName) => {
+      const networksPetStore = /** @type {import('./types.js').PetStore} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        await provideValueForFormulaIdentifier(
+          networksPetStoreFormulaIdentifier,
+        )
+      );
+      const invitationsPetStore = /** @type {import('./types.js').PetStore} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        await provideValueForFormulaIdentifier(
+          invitationsPetStoreFormulaIdentifier,
+        )
+      );
+      const guestFormulaIdentifier = await provideGuestFormulaIdentifier(
+        guestName,
+      );
+      if (guestFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name: ${guestName}`);
+      }
+      await invitationsPetStore.write(invitationName, guestFormulaIdentifier);
+      const networkFormulaIdentifiers = networksPetStore
+        .list()
+        .map(name => networksPetStore.lookup(name));
+      const addresses = (
+        await Promise.all(
+          networkFormulaIdentifiers.map(async networkFormulaIdentifier => {
+            const network = await provideValueForFormulaIdentifier(
+              networkFormulaIdentifier,
+            );
+            return E(network).addresses();
+          }),
+        )
+      ).flat();
+      return harden({
+        powers: guestFormulaIdentifier,
+        addresses,
+      });
+    };
+
+    /**
+     * @param {import('./types.js').Invitation} invitation
+     * @param {string} resultName
+     */
+    const accept = async (invitation, resultName) => {
+      const writeResult = await lookupWriter(resultName);
+      // TODO validate invitation
+      const { powers, addresses } = invitation;
+      const formula = {
+        type: 'peer',
+        powers,
+        addresses,
+      };
+      const { formulaIdentifier } = await provideValueForFormula(
+        formula,
+        'peer',
+      );
+      await writeResult(formulaIdentifier);
+    };
+
     const { has, follow: followNames } = petStore;
+
+    const nonceLocator = () =>
+      provideValueForFormulaIdentifier(nonceLocatorFormulaIdentifier);
 
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
       has,
       lookup,
       reverseLookup,
+      locate,
       listMessages,
       followMessages,
       resolve,
@@ -464,6 +552,9 @@ export const makeHostMaker = ({
       makeUnsafe,
       makeBundle,
       provideWebPage,
+      invite,
+      accept,
+      nonceLocator,
     });
 
     const internal = harden({ receive, respond, lookupPath });

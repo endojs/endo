@@ -82,6 +82,12 @@ type ImportBundleFormula = {
   // TODO formula slots
 };
 
+type PeerFormula = {
+  type: 'peer';
+  powers: string;
+  addresses: Array<string>;
+};
+
 type WebBundleFormula = {
   type: 'web-bundle';
   bundle: string;
@@ -93,6 +99,7 @@ export type Formula =
   | EvalFormula
   | ImportUnsafeFormula
   | ImportBundleFormula
+  | PeerFormula
   | WebBundleFormula;
 
 export type Label = {
@@ -124,6 +131,11 @@ export type InternalPayload = InternalRequest | InternalPackage;
 
 export type Message = Label & Payload;
 export type InternalMessage = InternalLabel & InternalPayload;
+
+export type Invitation = {
+  powers: string;
+  addresses: Array<string>;
+};
 
 export interface Topic<
   TRead,
@@ -303,7 +315,15 @@ export type SocketPowers = {
     port: number;
     host?: string;
     cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
+  }) => Promise<{
+    port: number;
+    connections: AsyncIterableIterator<Connection>;
+  }>;
+  connectPort: (args: {
+    port: number;
+    host: string;
+    cancelled: Promise<never>;
+  }) => Promise<Connection>;
 };
 
 export type NetworkPowers = SocketPowers & {

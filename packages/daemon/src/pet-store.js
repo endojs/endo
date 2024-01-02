@@ -8,7 +8,7 @@ const { quote: q } = assert;
 
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:(?:readable-blob|worker|pet-store|directory|pet-inspector|eval|import-unsafe|import-bundle|host|guest|networks):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
+  /^(?:(?:readable-blob|worker|pet-store|directory|pet-inspector|eval|import-unsafe|import-bundle|host|guest|networks|peer):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
 
 /**
  * @param {import('./types.js').FilePowers} filePowers

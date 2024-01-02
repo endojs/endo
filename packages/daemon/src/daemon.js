@@ -88,9 +88,20 @@ const makeEndoBootstrap = async (
   const leastAuthorityFormulaIdentifier = `least-authority:${leastAuthorityFormulaNumber}`;
   const networksFormulaNumber = derive(rootNonce, 'networks');
   const networksFormulaIdentifier = `directory:${networksFormulaNumber}`;
-  // TODO for enumerating networks:
-  // const networksPetStoreFormulaNumber = derive(networksFormulaNumber, 'pet-store');
-  // const networksPetStoreFormulaIdentifier = `pet-store:${networksPetStoreFormulaNumber}`;
+  const networksPetStoreFormulaNumber = derive(
+    networksFormulaNumber,
+    'pet-store',
+  );
+  const networksPetStoreFormulaIdentifier = `pet-store:${networksPetStoreFormulaNumber}`;
+  const invitationsFormulaNumber = derive(rootNonce, 'invitations');
+  const invitationsFormulaIdentifier = `directory:${invitationsFormulaNumber}`;
+  const invitationsPetStoreFormulaNumber = derive(
+    invitationsFormulaNumber,
+    'pet-store',
+  );
+  const invitationsPetStoreFormulaIdentifier = `pet-store:${invitationsPetStoreFormulaNumber}`;
+  const nonceLocatorFormulaNumber = derive(rootNonce, 'nonce-locator');
+  const nonceLocatorFormulaIdentifier = `nonce-locator:${nonceLocatorFormulaNumber}`;
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
   const controllerForFormulaNumber = new Map();
@@ -372,8 +383,10 @@ const makeEndoBootstrap = async (
         context,
       );
     } else if (formula.type === 'guest') {
-      const storeFormulaIdentifier = `pet-store:${formulaNumber}`;
-      const workerFormulaIdentifier = `worker:${formulaNumber}`;
+      const storeFormulaNumber = derive(formulaNumber, 'pet-store');
+      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
+      const workerFormulaNumber = derive(formulaNumber, 'worker');
+      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedGuestController(
@@ -401,6 +414,10 @@ const makeEndoBootstrap = async (
           }))(),
         internal: undefined,
       };
+    } else if (formula.type === 'peer') {
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      return makePeer(formula.powers, formula.addresses, context);
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -463,6 +480,9 @@ const makeEndoBootstrap = async (
         leastAuthorityFormulaIdentifier,
         endoFormulaIdentifier,
         networksFormulaIdentifier,
+        networksPetStoreFormulaIdentifier,
+        invitationsFormulaIdentifier,
+        invitationsPetStoreFormulaIdentifier,
         context,
       );
     } else if (formulaType === 'endo') {
@@ -473,10 +493,18 @@ const makeEndoBootstrap = async (
         // eslint-disable-next-line no-use-before-define
         return { external: endoBootstrap, internal: undefined };
       } else {
-        throw new Error(`Get out`);
+        throw new Error('Get out');
       }
     } else if (formulaType === 'least-authority') {
       return { external: leastAuthority, internal: undefined };
+    } else if (formulaType === 'nonce-locator') {
+      if (formulaNumber === nonceLocatorFormulaNumber) {
+        // Behold, forward-reference:
+        // eslint-disable-next-line no-use-before-define
+        return { external: nonceLocator, internal: undefined };
+      } else {
+        throw new Error('Get out');
+      }
     } else if (formulaType === 'web-page-js') {
       if (persistencePowers.webPageBundlerFormula === undefined) {
         throw Error('No web-page-js formula provided.');
@@ -493,6 +521,7 @@ const makeEndoBootstrap = async (
         'import-unsafe',
         'import-bundle',
         'guest',
+        'peer',
         'web-bundle',
       ].includes(formulaType)
     ) {
@@ -635,6 +664,72 @@ const makeEndoBootstrap = async (
     return value;
   };
 
+  /**
+   * @param {string} formulaIdentifier
+   */
+  const locate = async formulaIdentifier => {
+    const invitationsPetStore = /** @type {import('./types.js').PetStore} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(
+        invitationsPetStoreFormulaIdentifier,
+      )
+    );
+    const names = invitationsPetStore.reverseLookup(formulaIdentifier);
+    if (names.length === 0) {
+      throw new Error('Noncence: no such nonce');
+    }
+    return provideValueForFormulaIdentifier(formulaIdentifier);
+  };
+
+  const nonceLocator = Far('NonceLocator', { locate });
+
+  const makePeer = async (powersFormulaIdentifier, addresses, context) => {
+    const networksPetStore = /** @type {import('./types.js').PetStore} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(networksPetStoreFormulaIdentifier)
+    );
+
+    // TODO race networks that support protocol for connection
+    // TODO retry, exponential back-off, with full jitter
+    // TODO (in connect implementations) allow for the possibility of
+    // connection loss and invalidate the connection formula and its transitive
+    // dependees when this occurs.
+
+    // TODO listAll() to allow the networks directory to contain special names
+    // like LOOP that the platform might provide.
+    const networkFormulaIdentifiers = networksPetStore
+      .list()
+      .map(name => networksPetStore.lookup(name));
+    const networks = await Promise.all(
+      networkFormulaIdentifiers.map(provideValueForFormulaIdentifier),
+    );
+
+    for (const address of addresses) {
+      const { protocol } = new URL(address);
+      for (const network of networks) {
+        if (await E(network).supports(protocol)) {
+          const remoteNonceLocator = E(network).connect(
+            address,
+            makeFarContext(context),
+          );
+          const external = E(remoteNonceLocator).locate(
+            powersFormulaIdentifier,
+          );
+          const internal = undefined;
+          // const internal = {
+          //   receive, // TODO
+          //   respond, // TODO
+          //   lookupPath, // TODO
+          // };
+          return harden({ internal, external });
+        }
+      }
+    }
+    throw new Error('Cannot connect to peer: no supported addresses');
+  };
+
   const makeContext = makeContextMaker({
     controllerForFormulaNumber,
     provideControllerForFormulaIdentifier,
@@ -656,7 +751,9 @@ const makeEndoBootstrap = async (
   const makeIdentifiedGuestController = makeGuestMaker({
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
+    locate,
     makeMailbox,
+    nonceLocatorFormulaIdentifier,
   });
 
   const makeIdentifiedHost = makeHostMaker({
@@ -664,10 +761,12 @@ const makeEndoBootstrap = async (
     provideValueForFormula,
     provideValueForNumberedFormula,
     formulaIdentifierForRef,
+    locate,
     storeReaderRef,
     randomHex512,
     makeSha512,
     makeMailbox,
+    nonceLocatorFormulaIdentifier,
   });
 
   const makeIdentifiedInspector = async petStoreFormulaIdentifier => {
@@ -761,6 +860,15 @@ const makeEndoBootstrap = async (
             POWERS: provideValueForFormulaIdentifier(formula.powers),
           }),
         );
+      } else if (formula.type === 'peer') {
+        return makeInfo(
+          formula.type,
+          formulaNumber,
+          harden({
+            POWERS: provideValueForFormulaIdentifier(formula.powers),
+            ADDRESSES: formula.addresses,
+          }),
+        );
       }
       // @ts-expect-error this should never occur
       return makeInfo(formula.type, formulaNumber, harden({}));
@@ -808,6 +916,22 @@ const makeEndoBootstrap = async (
       await E(webPageP).makeBundle(bundle, endowedPowers);
     },
   });
+
+  const reviveNetworks = async () => {
+    const networksPetStore = /** @type {import('./types.js').PetStore} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(networksPetStoreFormulaIdentifier)
+    );
+    const networkFormulaIdentifiers = networksPetStore
+      .list()
+      .map(name => networksPetStore.lookup(name));
+    await Promise.allSettled(
+      networkFormulaIdentifiers.map(provideValueForFormulaIdentifier),
+    );
+  };
+
+  await reviveNetworks();
 
   return endoBootstrap;
 };
