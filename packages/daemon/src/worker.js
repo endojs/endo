@@ -52,17 +52,19 @@ export const makeWorkerFacet = ({ getDaemonBootstrap, cancel }) => {
     /**
      * @param {string} specifier
      * @param {unknown} powersP
+     * @param {unknown} contextP
      */
-    importUnsafeAndEndow: async (specifier, powersP) => {
+    importUnsafeAndEndow: async (specifier, powersP, contextP) => {
       const namespace = await import(specifier);
-      return namespace.make(powersP);
+      return namespace.make(powersP, contextP);
     },
 
     /**
      * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoReadable>} readableP
      * @param {unknown} powersP
+     * @param {unknown} contextP
      */
-    importBundleAndEndow: async (readableP, powersP) => {
+    importBundleAndEndow: async (readableP, powersP, contextP) => {
       const bundleText = await E(readableP).text();
       const bundle = JSON.parse(bundleText);
 
@@ -72,7 +74,7 @@ export const makeWorkerFacet = ({ getDaemonBootstrap, cancel }) => {
       const namespace = await importBundle(bundle, {
         endowments,
       });
-      return namespace.make(powersP);
+      return namespace.make(powersP, contextP);
     },
   });
 };

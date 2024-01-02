@@ -45,6 +45,14 @@ const makeInfo = (type, number, record) =>
     list: () => Object.keys(record),
   });
 
+const makeFarContext = context =>
+  Far('Context', {
+    cancel: context.cancel,
+    whenCancelled: () => context.cancelled,
+    whenDisposed: () => context.disposed,
+    addDisposalHook: context.onCancel,
+  });
+
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
@@ -270,6 +278,7 @@ const makeEndoBootstrap = async (
     const external = E(workerDaemonFacet).importUnsafeAndEndow(
       specifier,
       guestP,
+      makeFarContext(context),
     );
     return { external, internal: undefined };
   };
@@ -318,6 +327,7 @@ const makeEndoBootstrap = async (
     const external = E(workerDaemonFacet).importBundleAndEndow(
       readableBundleP,
       guestP,
+      makeFarContext(context),
     );
     return { external, internal: undefined };
   };
