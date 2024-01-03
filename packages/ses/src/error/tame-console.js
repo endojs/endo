@@ -14,6 +14,10 @@ import { makeRejectionHandlers } from './unhandled-rejection.js';
 import './types.js';
 import './internal-types.js';
 
+const failFast = message => {
+  throw TypeError(message);
+};
+
 const wrapLogger = (logger, thisArg) =>
   freeze((...args) => apply(logger, thisArg, args));
 
@@ -61,9 +65,9 @@ export const tameConsole = (
   unhandledRejectionTrapping = 'report',
   optGetStackString = undefined,
 ) => {
-  if (consoleTaming !== 'safe' && consoleTaming !== 'unsafe') {
-    throw TypeError(`unrecognized consoleTaming ${consoleTaming}`);
-  }
+  consoleTaming === 'safe' ||
+    consoleTaming === 'unsafe' ||
+    failFast(`unrecognized consoleTaming ${consoleTaming}`);
 
   let loggedErrorHandler;
   if (optGetStackString === undefined) {
@@ -105,17 +109,13 @@ export const tameConsole = (
     let terminate;
     if (errorTrapping === 'platform' || errorTrapping === 'exit') {
       const { exit } = globalProcess;
-      if (typeof exit !== 'function') {
-        // There is a function-valued process.on but no function-valued process.exit;
-        // fail early without caring whether errorTrapping is "platform" only by default.
-        throw TypeError('missing process.exit');
-      }
+      // If there is a function-valued process.on but no function-valued process.exit,
+      // fail early without caring whether errorTrapping is "platform" only by default.
+      typeof exit === 'function' || failFast('missing process.exit');
       terminate = () => exit(globalProcess.exitCode || -1);
     } else if (errorTrapping === 'abort') {
       terminate = globalProcess.abort;
-      if (typeof terminate !== 'function') {
-        throw TypeError('missing process.abort');
-      }
+      typeof terminate === 'function' || failFast('missing process.abort');
     }
 
     globalProcess.on('uncaughtException', error => {
