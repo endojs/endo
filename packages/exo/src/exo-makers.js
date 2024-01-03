@@ -70,37 +70,93 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * @callback Revoker
+ * Template for function-valued options for exo class or exo class kit
+ * definitions, for receiving powers back at definition time. For example,
+ * ```js
+ * let amplify;
+ * const makeFoo = defineExoClassKit(
+ *   tag,
+ *   interfaceGuardKit,
+ *   initFn,
+ *   behaviorKit,
+ *   {
+ *     receiveAmplifier(a) { amplify = a; },
+ *   },
+ * );
+ * ```
+ * uses the `receiveAmplifier` option to receive, during the
+ * definition of this exo class kit, the power to amplify a facet of the kit.
+ *
+ * @template {any} P
+ * @typedef {(power: P) => void} ReceivePower
+ */
+
+/**
+ * The power to revoke a live instance of the associated exo class, or the
+ * power to revoke a live facet instance of the associated exo class kit.
+ * If called with such a live instance, it revokes it and returns true. Once
+ * revoked, it is no longer live, and calling any of its methods throw
+ * an informative diagnostic with no further effects.
+ *
+ * @callback Revoke
  * @param {any} exo
  * @returns {boolean}
  */
 
 /**
- * @callback ReceiveRevoker
- * @param {Revoker} revoke
- * @returns {void}
+ * The power to amplify a live facet instance of the associated exo class kit
+ * into the record of all facets of this facet instance's cohort.
+ *
+ * @template {any} [F=any]
+ * @callback Amplify
+ * @param {any} exoFacet
+ * @returns {F}
  */
 
+// TODO Should we split FarClassOptions into distinct types for
+// class options vs class kit options? After all, `receiveAmplifier`
+// makes no sense for normal exo classes.
 /**
- * @callback Amplifier
- * @param {any} exo
- * @param {string} facetName
- * @returns {any}
- */
-
-/**
- * @callback ReceiveAmplifier
- * @param {Amplifier} amplifier
- * @returns {void}
- */
-
-/**
- * @template C
+ * Currently, this one options type is used both for regular exo classes
+ * as well as exo class kits. However, we may split these into distinct types
+ * in the future, as not all options make sense for both uses.
+ *
+ * @template {any} C
+ * @template {any} [F=any]
  * @typedef {object} FarClassOptions
  * @property {(context: C) => void} [finish]
+ * If provided, the `finish` function is called after the instance has been
+ * initialized and registered, but before it is returned. Try to avoid using
+ * `finish` if you can, as we think we'd like to deprecate and retire it.
+ * OTOH, if you encounter a compelling need, please let us know so we can
+ * revise our plans.
+ *
  * @property {StateShape} [stateShape]
- * @property {ReceiveRevoker} [receiveRevoker]
- * @property {ReceiveAmplifier} [receiveAmplifier]
+ * If provided, it must be a RecordPattern, i.e., a CopyRecord which is also
+ * a Pattern. It thus has an exactly defined set of property names and
+ * a Pattern as the value of each property. This is supposed to be an invariant
+ * on the properties of an instance state record.
+ * TODO Though note that only the virtual and durable exos currently
+ * enforce the `stateShape` invariant. The heap exos defined in this
+ * package currently ignore `stateShape`, but will enforce this in the future.
+ *
+ * @property {ReceivePower<Revoke>} [receiveRevoker]
+ * If a `receiveRevoker` function is provided, it will be called during
+ * definition of the exo class or exo class kit with a `Revoke` function.
+ * A `Revoke` function is a function of one argument. If you call the revoke
+ * function with a live instance of this exo class, or a live facet instance
+ * of this exo class kit, then it will "revoke" it and return true. Once
+ * revoked, this instance is no longer "live": Any attempt to invoke any of
+ * its methods will fail without further effect.
+ *
+ * @property {ReceivePower<Amplify<F>>} [receiveAmplifier]
+ * If a `receiveAmplifier` function is provided, it will be called during
+ * definition of the exo class kit with an `Amplify` function. If called
+ * during the definition of a normal exo or exo class, it will throw, since
+ * only exo kits can be amplified.
+ * An `Amplify` function is a function that takes a live facet instance of
+ * this class kit as an argument, in which case it will return the facets
+ * record, giving access to all the facet instances of the same cohort.
  */
 
 /**
@@ -194,7 +250,10 @@ harden(defineExoClass);
  * } | undefined} interfaceGuardKit
  * @param {I} init
  * @param {F & { [K in keyof F]: ThisType<{ facets: GuardedKit<F>, state: ReturnType<I> }> }} methodsKit
- * @param {FarClassOptions<KitContext<ReturnType<I>, GuardedKit<F>>>} [options]
+ * @param {FarClassOptions<
+ *   KitContext<ReturnType<I>, GuardedKit<F>>,
+ *   GuardedKit<F>
+ * >} [options]
  * @returns {(...args: Parameters<I>) => GuardedKit<F>}
  */
 export const defineExoClassKit = (
@@ -255,12 +314,11 @@ export const defineExoClassKit = (
   }
 
   if (receiveAmplifier) {
-    const amplify = (aFacet, facetName) => {
+    const amplify = aFacet => {
       for (const contextMap of values(contextMapKit)) {
         if (contextMap.has(aFacet)) {
-          const otherFacet = contextMap.get(aFacet).facets[facetName];
-          otherFacet || Fail`${q(facetName)} must be a facet name of ${q(tag)}`;
-          return otherFacet;
+          const { facets } = contextMap.get(aFacet);
+          return facets;
         }
       }
       throw Fail`Must be an unrevoked facet of ${q(tag)}: ${aFacet}`;
