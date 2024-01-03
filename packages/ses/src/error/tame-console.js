@@ -1,6 +1,7 @@
 // @ts-check
 
 import {
+  // Using TypeError minimizes risk of exposing the feral Error constructor
   TypeError,
   apply,
   defineProperty,
@@ -101,13 +102,27 @@ export const tameConsole = (
     typeof globalProcess === 'object' &&
     typeof globalProcess.on === 'function'
   ) {
+    let terminate;
+    if (errorTrapping === 'platform' || errorTrapping === 'exit') {
+      const { exit } = globalProcess;
+      if (typeof exit !== 'function') {
+        // There is a function-valued process.on but no function-valued process.exit;
+        // fail early without caring whether errorTrapping is "platform" only by default.
+        throw TypeError('missing process.exit');
+      }
+      terminate = () => exit(globalProcess.exitCode || -1);
+    } else if (errorTrapping === 'abort') {
+      terminate = globalProcess.abort;
+      if (typeof terminate !== 'function') {
+        throw TypeError('missing process.abort');
+      }
+    }
+
     globalProcess.on('uncaughtException', error => {
       // causalConsole is born frozen so not vulnerable to method tampering.
       ourConsole.error(error);
-      if (errorTrapping === 'platform' || errorTrapping === 'exit') {
-        globalProcess.exit(globalProcess.exitCode || -1);
-      } else if (errorTrapping === 'abort') {
-        globalProcess.abort();
+      if (terminate) {
+        terminate();
       }
     });
   }
