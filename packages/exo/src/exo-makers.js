@@ -82,25 +82,63 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
+ * @template {any} F
  * @callback Amplifier
  * @param {any} exo
- * @param {string} facetName
- * @returns {any}
+ * @returns {F}
  */
 
 /**
+ * @template {any} F
  * @callback ReceiveAmplifier
- * @param {Amplifier} amplifier
+ * @param {Amplifier<F>} amplifier
  * @returns {void}
  */
 
+// TODO Should we split FarClassOptions into distinct types for
+// class options vs class kit options? After all, `receiveAmplifier`
+// makes no sense for normal exo classes.
 /**
- * @template C
+ * Currently, this one options type is used both for regular exo classes
+ * as well as exo class kits. However, we may split these into distinct types
+ * in the future, as not all options make sense for both uses.
+ *
+ * @template {any} C
+ * @template {any} [F=any]
  * @typedef {object} FarClassOptions
  * @property {(context: C) => void} [finish]
+ * If provided, the `finish` function is called after the instance has been
+ * initialized and registered, but before it is returned. Try to avoid using
+ * `finish` if you can, as we think we'd like to deprecate and retire it.
+ * OTOH, if you encounter a compelling need, please let us know so we can
+ * revise our plans.
+ *
  * @property {StateShape} [stateShape]
+ * If provided, it must be a RecordPattern, i.e., a CopyRecord which is also
+ * a Pattern. It thus has an exactly defined set of property names and
+ * a Pattern as the value of each property. This is supposed to be an invariant
+ * on the properties of an instance state record.
+ * TODO Though note that only the virtual and durable exos currently
+ * enforce the `stateShape` invariant. The heap exos defined in this
+ * package currently ignore `stateShape`, but will enforce this in the future.
+ *
  * @property {ReceiveRevoker} [receiveRevoker]
- * @property {ReceiveAmplifier} [receiveAmplifier]
+ * If a `receiveRevoker` function is provided, it will be called during
+ * definition of the exo class or exo class kit with a `Revoker` function.
+ * A `Revoker` function is a function of one argument. If you call the revoker
+ * function with a live instance of this exo class, or a live facet instance
+ * of this exo class kit, then it will "revoke" it and return true. Once
+ * revoked, this instance is no longer "live": Any attempt to invoke any of
+ * its methods will fail without further effect.
+ *
+ * @property {ReceiveAmplifier<F>} [receiveAmplifier]
+ * If a `receiveAmplifier` function is provided, it will be called during
+ * definition of the exo class kit with an `Amplifier` function. If called
+ * during the definition of a normal exo or exo class, it will throw, since
+ * only exo kits can be amplified.
+ * An `Amplifier` function is a function that takes a live facet instance of
+ * this class kit as an argument, in which case it will return the facets
+ * record, giving access to all the other facet instances of the same cohort.
  */
 
 /**
@@ -255,12 +293,11 @@ export const defineExoClassKit = (
   }
 
   if (receiveAmplifier) {
-    const amplify = (aFacet, facetName) => {
+    const amplify = aFacet => {
       for (const contextMap of values(contextMapKit)) {
         if (contextMap.has(aFacet)) {
-          const otherFacet = contextMap.get(aFacet).facets[facetName];
-          otherFacet || Fail`${q(facetName)} must be a facet name of ${q(tag)}`;
-          return otherFacet;
+          const { facets } = contextMap.get(aFacet);
+          return facets;
         }
       }
       throw Fail`Must be an unrevoked facet of ${q(tag)}: ${aFacet}`;
