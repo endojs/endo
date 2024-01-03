@@ -70,29 +70,47 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * @callback Revoker
+ * Template for function-valued options for exo class or exo class kit
+ * definitions, for receiving powers back at definition time. For example,
+ * ```js
+ * let amplify;
+ * const makeFoo = defineExoClassKit(
+ *   tag,
+ *   interfaceGuardKit,
+ *   initFn,
+ *   behaviorKit,
+ *   {
+ *     receiveAmplifier(a) { amplify = a; },
+ *   },
+ * );
+ * ```
+ * uses the `receiveAmplifier` option to receive, during the
+ * definition of this exo class kit, the power to amplify a facet of the kit.
+ *
+ * @template {any} P
+ * @typedef {(power: P) => void} ReceivePower
+ */
+
+/**
+ * The power to revoke a live instance of the associated exo class, or the
+ * power to revoke a live facet instance of the associated exo class kit.
+ * If called with such a live instance, it revokes it and returns true. Once
+ * revoked, it is no longer live, and calling any of its methods throw
+ * an informative diagnostic with no further effects.
+ *
+ * @callback Revoke
  * @param {any} exo
  * @returns {boolean}
  */
 
 /**
- * @callback ReceiveRevoker
- * @param {Revoker} revoke
- * @returns {void}
- */
-
-/**
- * @template {any} F
- * @callback Amplifier
- * @param {any} exo
+ * The power to amplify a live facet instance of the associated exo class kit
+ * into the record of all facets of this facet instance's cohort.
+ *
+ * @template {any} [F=any]
+ * @callback Amplify
+ * @param {any} exoFacet
  * @returns {F}
- */
-
-/**
- * @template {any} F
- * @callback ReceiveAmplifier
- * @param {Amplifier<F>} amplifier
- * @returns {void}
  */
 
 // TODO Should we split FarClassOptions into distinct types for
@@ -122,23 +140,23 @@ export const initEmpty = () => emptyRecord;
  * enforce the `stateShape` invariant. The heap exos defined in this
  * package currently ignore `stateShape`, but will enforce this in the future.
  *
- * @property {ReceiveRevoker} [receiveRevoker]
+ * @property {ReceivePower<Revoke>} [receiveRevoker]
  * If a `receiveRevoker` function is provided, it will be called during
- * definition of the exo class or exo class kit with a `Revoker` function.
- * A `Revoker` function is a function of one argument. If you call the revoker
+ * definition of the exo class or exo class kit with a `Revoke` function.
+ * A `Revoke` function is a function of one argument. If you call the revoke
  * function with a live instance of this exo class, or a live facet instance
  * of this exo class kit, then it will "revoke" it and return true. Once
  * revoked, this instance is no longer "live": Any attempt to invoke any of
  * its methods will fail without further effect.
  *
- * @property {ReceiveAmplifier<F>} [receiveAmplifier]
+ * @property {ReceivePower<Amplify<F>>} [receiveAmplifier]
  * If a `receiveAmplifier` function is provided, it will be called during
- * definition of the exo class kit with an `Amplifier` function. If called
+ * definition of the exo class kit with an `Amplify` function. If called
  * during the definition of a normal exo or exo class, it will throw, since
  * only exo kits can be amplified.
- * An `Amplifier` function is a function that takes a live facet instance of
+ * An `Amplify` function is a function that takes a live facet instance of
  * this class kit as an argument, in which case it will return the facets
- * record, giving access to all the other facet instances of the same cohort.
+ * record, giving access to all the facet instances of the same cohort.
  */
 
 /**
@@ -232,7 +250,10 @@ harden(defineExoClass);
  * } | undefined} interfaceGuardKit
  * @param {I} init
  * @param {F & { [K in keyof F]: ThisType<{ facets: GuardedKit<F>, state: ReturnType<I> }> }} methodsKit
- * @param {FarClassOptions<KitContext<ReturnType<I>, GuardedKit<F>>>} [options]
+ * @param {FarClassOptions<
+ *   KitContext<ReturnType<I>, GuardedKit<F>>,
+ *   GuardedKit<F>
+ * >} [options]
  * @returns {(...args: Parameters<I>) => GuardedKit<F>}
  */
 export const defineExoClassKit = (
