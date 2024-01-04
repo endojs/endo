@@ -612,6 +612,12 @@ const translateGraph = (
       policy,
     );
 
+    /* c8 ignore next */
+    if (policy && !packagePolicy) {
+      // this should never happen
+      throw new TypeError('Unexpectedly falsy package policy');
+    }
+
     /**
      * @param {string} dependencyName
      * @param {string} packageLocation
