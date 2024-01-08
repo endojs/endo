@@ -1,7 +1,8 @@
+// @ts-check
 // Detect if this is run as a script.
-import url from 'url';
-import process from 'process';
-import fs from 'fs';
+import * as url from 'url';
+import * as process from 'process';
+import * as fs from 'fs';
 
 // Agoric still uses Endo dependencies under an emulation of ESM we call RESM
 // because it is invoked with `node -r esm`.
@@ -13,4 +14,4 @@ const favor = (primary, secondary) =>
 // FIXME: Should maybe be exported by '@endo/something'?
 export const isEntrypoint = href =>
   String(href) ===
-  url.pathToFileURL(fs.realpathSync(favor(process.argv[1]), '/')).href;
+  url.pathToFileURL(fs.realpathSync(favor(process.argv[1]))).href;
