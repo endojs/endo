@@ -13,7 +13,6 @@ import {
 
 /** @typedef {import('./types.js').Checker} Checker */
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
-/** @typedef {import('./types.js').MarshalGetInterfaceOf} MarshalGetInterfaceOf */
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').RemotableObject} Remotable */
 
@@ -167,15 +166,26 @@ const checkRemotable = (val, check) => {
   return result;
 };
 
-/** @type {MarshalGetInterfaceOf} */
+/**
+ * Simple semantics, just tell what interface (or undefined) a remotable has.
+ * @type {{
+ * <T extends string>(val: import('./types.js').TaggedRecord<any, T>): T;
+ * (val: any): string | undefined;
+ * }}
+ * @returns the interface specification, or undefined
+ * if not a deemed to be a Remotable
+ */
 export const getInterfaceOf = val => {
   if (
     !isObject(val) ||
     val[PASS_STYLE] !== 'remotable' ||
+    // @ts-expect-error FIXME
     !checkRemotable(val)
   ) {
+    // @ts-expect-error FIXME
     return undefined;
   }
+  // @ts-expect-error FIXME
   return getTag(val);
 };
 harden(getInterfaceOf);

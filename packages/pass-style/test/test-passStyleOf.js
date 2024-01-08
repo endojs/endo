@@ -161,6 +161,11 @@ test('passStyleOf testing tagged records', t => {
       value: { [PASS_STYLE]: 0 },
       message: '0 must be a string',
     },
+    {
+      label: 'unrecognized',
+      value: { [PASS_STYLE]: 'arbitrary' },
+      message: 'Unrecognized PassStyle: "arbitrary"',
+    },
   ];
   for (const testCase of tagRecordBadPayloads) {
     const { label, message, ...desc } = testCase;
