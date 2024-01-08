@@ -24,7 +24,7 @@
     "lerna-update-wizard": "^0.17.5",
     "type-coverage": "^2.26.3",
     "typedoc": "^0.25.7",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "scripts": {
     "clean": "lerna clean",
