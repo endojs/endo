@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# Updates or creates a package with the given name (idempotent).
+# Creates a package with the given name.
 # The name is the directory it will be housed in.
-# The name will have @endo/ in package.json by default, if the package is
-# new.
+# The name will implicitly have the @endo org prefix.
 #
-# Usage: scripts/repackage.sh NAME
-# Example: scripts/repackage.sh console
+# Usage: scripts/create-package.sh NAME
+# Example: scripts/create-package.sh console
 
 set -ueo pipefail
 
