@@ -6,19 +6,21 @@ export {};
  * } PrimitiveStyle
  */
 
+/** @typedef {'copyRecord' | 'copyArray' | 'tagged'} ContainerStyle */
+
 /**
  * @typedef { PrimitiveStyle |
- *   'copyRecord' | 'copyArray' | 'tagged' |
+ *   ContainerStyle |
  *   'remotable' |
  *   'error' | 'promise'
  * } PassStyle
  */
 
-// TODO declare more precise types throughout this file, so the type system
-// and IDE can be more helpful.
+/** @typedef {CopyArray | CopyRecord | CopyTagged } PassByCopy */
+/** @typedef {RemotableObject | Promise<RemotableObject> | Promise<PassByCopy> } PassByRef */
 
 /**
- * @typedef {any} Passable
+ * @typedef {PassByCopy | PassByRef} Passable
  *
  * A Passable is acyclic data that can be marshalled. It must be hardened to
  * remain
@@ -74,7 +76,7 @@ export {};
  */
 
 /**
- * @typedef {Passable} RemotableObject
+ * @typedef {WeakKey} RemotableObject
  *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
@@ -87,14 +89,14 @@ export {};
  */
 
 /**
- * @template {Passable} [T=Passable]
+ * @template {Passable} [T=any]
  * @typedef {T[]} CopyArray
  *
  * A Passable sequence of Passable values.
  */
 
 /**
- * @template {Passable} [T=Passable]
+ * @template {Passable} [T=any]
  * @typedef {Record<string, T>} CopyRecord
  *
  * A Passable dictionary in which each key is a string and each value is Passable.
@@ -102,7 +104,7 @@ export {};
 
 /**
  * @template {string} [Tag=string]
- * @template {Passable} [Payload=Passable]
+ * @template {Passable} [Payload=any]
  * @typedef {{
  *   [Symbol.toStringTag]: Tag,
  *   payload: Payload,
@@ -134,7 +136,7 @@ export {};
 /**
  * @callback MarshalGetInterfaceOf
  * Simple semantics, just tell what interface (or undefined) a remotable has.
- * @param {any} maybeRemotable the value to check
+ * @param {RemotableObject} maybeRemotable the value to check
  * @returns {InterfaceSpec|undefined} the interface specification, or undefined
  * if not a deemed to be a Remotable
  */
