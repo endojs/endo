@@ -16,7 +16,7 @@ export {};
  * } PassStyle
  */
 
-/** @typedef {CopyArray | CopyRecord | CopyTagged } PassByCopy */
+/** @typedef {import('type-fest').Primitive | CopyArray | CopyRecord | CopyTagged } PassByCopy */
 /** @typedef {RemotableObject | Promise<RemotableObject> | Promise<PassByCopy> } PassByRef */
 
 /**
@@ -89,14 +89,14 @@ export {};
  */
 
 /**
- * @template {Passable} [T=any]
+ * @template {Passable} [T=object]
  * @typedef {T[]} CopyArray
  *
  * A Passable sequence of Passable values.
  */
 
 /**
- * @template {Passable} [T=any]
+ * @template {Passable} [T=object]
  * @typedef {Record<string, T>} CopyRecord
  *
  * A Passable dictionary in which each key is a string and each value is Passable.

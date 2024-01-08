@@ -1,3 +1,4 @@
+// @ts-nocheck FIXME relies heavily on dynamic typing.
 import {
   assertChecker,
   Far,
