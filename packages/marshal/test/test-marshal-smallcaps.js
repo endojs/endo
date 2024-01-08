@@ -8,6 +8,11 @@ import { roundTripPairs } from './test-marshal-capdata.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
+const harden = /** @type {import('ses').Harden & {isFake: boolean}} */ (
+  // eslint-disable-next-line no-undef
+  global.harden
+);
+
 // this only includes the tests that do not use liveSlots
 
 /**
@@ -34,7 +39,6 @@ test('smallcaps serialize static data', t => {
   const { serialize } = makeTestMarshal();
   const ser = val => serialize(val);
 
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     t.throws(() => ser([1, 2]), {
       message: /Cannot pass non-frozen objects like/,
@@ -106,7 +110,6 @@ test('smallcaps serialize errors', t => {
   errExtra.foo = [];
   freeze(errExtra);
   t.assert(isFrozen(errExtra));
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     // @ts-ignore Check dynamic consequences of type violation
     t.falsy(isFrozen(errExtra.foo));
@@ -115,7 +118,6 @@ test('smallcaps serialize errors', t => {
     body: '#{"#error":"has extra properties","name":"Error"}',
     slots: [],
   });
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     // @ts-ignore Check dynamic consequences of type violation
     t.falsy(isFrozen(errExtra.foo));
@@ -186,7 +188,6 @@ test('smallcaps records', t => {
 
   // empty objects
 
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     // rejected because it is not hardened
     t.throws(
