@@ -12,7 +12,7 @@ import babelGenerator from '@agoric/babel-generator';
 // OR, upgrading to Babel 8 probably addresses this defect.
 // const { default: generator } = /** @type {any} */ (babelGenerator);
 const generator = /** @type {typeof import('@babel/generator')['default']} */ (
-  // @ts-expect-error
+  // @ts-ignore -- errors but not in typedoc build
   babelGenerator.default || babelGenerator
 );
 

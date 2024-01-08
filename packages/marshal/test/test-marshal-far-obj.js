@@ -12,7 +12,6 @@ const { create, getPrototypeOf, prototype: objectPrototype } = Object;
 
 test('Remotable/getInterfaceOf', t => {
   t.throws(
-    // @ts-ignore We're testing the dynamic consequences of this type violation
     () => Remotable({ bar: 29 }),
     { message: /unimplemented/ },
     'object ifaces are not implemented',
@@ -88,7 +87,7 @@ const testRecord = ({
 
 const goodRemotableProto = testRecord();
 
-// @ts-ignore We're testing bad things anyway
+// @ts-expect-error We're testing bad things anyway
 const badRemotableProto1 = testRecord({ styleSymbol: BAD_PASS_STYLE });
 
 const badRemotableProto2 = testRecord({ styleString: 'string' });
@@ -215,7 +214,7 @@ test('transitional remotables', t => {
         throw Error(`unknown option ${opt}`);
       }
     }
-    // @ts-ignore Don't yet understand typing, but want dynamic test anyway
+    // @ts-expect-error Don't yet understand typing, but want dynamic test anyway
     const o = create(objectPrototype, props);
     if (mark === 'far') {
       return Far('iface', o);
