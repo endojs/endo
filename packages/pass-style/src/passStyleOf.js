@@ -81,7 +81,7 @@ const makePassStyleOf = passStyleHelpers => {
    * structures, so without this cache, these algorithms could be
    * O(N**2) or worse.
    *
-   * @type {WeakMap<Passable, PassStyle>}
+   * @type {WeakMap<import('./types.js').PassByRef, PassStyle>}
    */
   const passStyleMemo = new WeakMap();
 
@@ -100,6 +100,7 @@ const makePassStyleOf = passStyleHelpers => {
     const passStyleOfRecur = inner => {
       const innerIsObject = isObject(inner);
       if (innerIsObject) {
+        // @ts-expect-error innerIsObject
         if (passStyleMemo.has(inner)) {
           // @ts-ignore TypeScript doesn't know that `get` after `has` is safe
           return passStyleMemo.get(inner);
@@ -111,6 +112,7 @@ const makePassStyleOf = passStyleHelpers => {
       // eslint-disable-next-line no-use-before-define
       const passStyle = passStyleOfInternal(inner);
       if (innerIsObject) {
+        // @ts-expect-error innerIsObject
         passStyleMemo.set(inner, passStyle);
         inProgress.delete(inner);
       }
@@ -151,8 +153,10 @@ const makePassStyleOf = passStyleHelpers => {
             assertSafePromise(inner);
             return 'promise';
           }
+          // @ts-expect-error innerIsObject
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
+          // @ts-expect-error innerIsObject
           const passStyleTag = inner[PASS_STYLE];
           if (passStyleTag !== undefined) {
             assert.typeof(passStyleTag, 'string');
@@ -174,6 +178,7 @@ const makePassStyleOf = passStyleHelpers => {
         case 'function': {
           isFrozen(inner) ||
             Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+          // @ts-expect-error innerIsObject
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
           remotableHelper.assertValid(inner, passStyleOfRecur);

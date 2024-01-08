@@ -29,6 +29,7 @@ export const hasOwnPropertyOf = (obj, prop) =>
   apply(objectHasOwnProperty, obj, [prop]);
 harden(hasOwnPropertyOf);
 
+/** @type {(val) => val is {}} */
 export const isObject = val => Object(val) === val;
 harden(isObject);
 
