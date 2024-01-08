@@ -29,9 +29,9 @@
     "build:types": "tsc --build tsconfig.build.json",
     "clean:types": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
-    "lint": "yarn lint:types && yarn lint:js",
+    "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
-    "lint:js": "eslint .",
+    "lint:eslint": "eslint .",
     "lint-fix": "eslint --fix .",
     "test": "ava"
   },
