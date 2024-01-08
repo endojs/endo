@@ -8,7 +8,7 @@ import { roundTripPairs } from './test-marshal-capdata.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
-const harden = /** @type {import('ses').Harden & {isFake: boolean}} */ (
+const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   // eslint-disable-next-line no-undef
   global.harden
 );
