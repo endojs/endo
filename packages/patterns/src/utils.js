@@ -123,8 +123,6 @@ harden(listDifference);
  * @param {ErrorConstructor=} ErrorConstructor
  * @returns {never}
  */
-
-// Evade https://github.com/endojs/endo/issues/1450 using blank line
 export const throwLabeled = (innerErr, label, ErrorConstructor = undefined) => {
   if (typeof label === 'number') {
     label = `[${label}]`;
