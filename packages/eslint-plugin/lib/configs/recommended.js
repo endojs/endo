@@ -65,10 +65,6 @@ module.exports = {
   rules: {
     '@endo/assert-fail-as-throw': 'error',
     'guard-for-in': 'error',
-    // Agoric still uses Endo dependencies under an emulation of ESM we call RESM
-    // because it is invoked with `node -r esm`.
-    // RESM does not support ?? nor ?. operators, so we must avoid them expressly.
-    '@endo/no-optional-chaining': 'warn',
     '@endo/no-nullish-coalescing': 'warn',
   },
 };
