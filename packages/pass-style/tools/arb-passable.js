@@ -99,7 +99,12 @@ const { arbDag } = fc.letrec(tie => {
             ),
           }),
         )
-        .map(({ type, payload }) => makeTagged(type, payload)),
+        .map(({ type, payload }) =>
+          makeTagged(
+            type,
+            /** @type {import('../src/types.js').Passable} */ (payload),
+          ),
+        ),
     ),
   };
 });
