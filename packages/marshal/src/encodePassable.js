@@ -27,7 +27,7 @@ const { ownKeys } = Reflect;
  * string-named own properties. `recordNames` returns those name *reverse*
  * sorted, because that's how records are compared, encoded, and sorted.
  *
- * @template T
+ * @template {Passable} T
  * @param {CopyRecord<T>} record
  * @returns {string[]}
  */
@@ -44,7 +44,7 @@ harden(recordNames);
  * Assuming that `record` is a CopyRecord and `names` is `recordNames(record)`,
  * return the corresponding array of property values.
  *
- * @template T
+ * @template {Passable} T
  * @param {CopyRecord<T>} record
  * @param {string[]} names
  * @returns {T[]}

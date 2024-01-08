@@ -382,18 +382,20 @@ export const coveredEntries = (sorted, [leftIndex, rightIndex]) => {
 harden(coveredEntries);
 
 /**
+ * @template {Passable} T
  * @param {RankCompare} compare
- * @param {Passable} a
- * @param {Passable} b
- * @returns {Passable}
+ * @param {T} a
+ * @param {T} b
+ * @returns {T}
  */
 const maxRank = (compare, a, b) => (compare(a, b) >= 0 ? a : b);
 
 /**
+ * @template {Passable} T
  * @param {RankCompare} compare
- * @param {Passable} a
- * @param {Passable} b
- * @returns {Passable}
+ * @param {T} a
+ * @param {T} b
+ * @returns {T}
  */
 const minRank = (compare, a, b) => (compare(a, b) <= 0 ? a : b);
 
