@@ -464,6 +464,7 @@ test('Allow toStringTag overrides', t => {
   const f = Far('Fred', fred);
   // @ts-expect-error TS doesn't know `fred` has changed
   t.is(f, fred);
+  // @ts-expect-error TS doesn't know `fred` has changed
   t.is(passStyleOf(fred), 'remotable');
   t.is(`${fred}`, '() => {}');
   t.is(Object.prototype.toString.call(fred), '[object DebugName: Friedrich]');

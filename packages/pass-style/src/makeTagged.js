@@ -8,7 +8,7 @@ const { create, prototype: objectPrototype } = Object;
 
 /**
  * @template {string} T
- * @template {any} P
+ * @template {import('./types.js').Passable} P
  * @param {T} tag
  * @param {P} payload
  * @returns {import('./types.js').CopyTagged<T,P>}

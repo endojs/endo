@@ -111,6 +111,7 @@ export const checkKey = (val, check) => {
     assertPassable(val);
     return true;
   }
+  // @ts-expect-error FIXME narrowed
   if (keyMemo.has(val)) {
     return true;
   }
@@ -119,6 +120,7 @@ export const checkKey = (val, check) => {
   if (result) {
     // Don't cache the undefined cases, so that if it is tried again
     // with `assertChecker` it'll throw a diagnostic again
+    // @ts-expect-error FIXME narrowed
     keyMemo.add(val);
   }
   // Note that we do not memoize a negative judgement, so that if it is tried
