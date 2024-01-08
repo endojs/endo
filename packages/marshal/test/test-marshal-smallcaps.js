@@ -106,12 +106,12 @@ test('smallcaps serialize errors', t => {
 
   // Extra properties
   const errExtra = Error('has extra properties');
-  // @ts-ignore Check dynamic consequences of type violation
+  // @ts-expect-error Check dynamic consequences of type violation
   errExtra.foo = [];
   freeze(errExtra);
   t.assert(isFrozen(errExtra));
   if (!harden.isFake) {
-    // @ts-ignore Check dynamic consequences of type violation
+    // @ts-expect-error Check dynamic consequences of type violation
     t.falsy(isFrozen(errExtra.foo));
   }
   t.deepEqual(ser(errExtra), {
@@ -119,7 +119,7 @@ test('smallcaps serialize errors', t => {
     slots: [],
   });
   if (!harden.isFake) {
-    // @ts-ignore Check dynamic consequences of type violation
+    // @ts-expect-error Check dynamic consequences of type violation
     t.falsy(isFrozen(errExtra.foo));
   }
 
