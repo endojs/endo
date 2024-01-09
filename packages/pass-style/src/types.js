@@ -150,14 +150,6 @@ export {};
  */
 
 /**
- * @callback MarshalGetInterfaceOf
- * Simple semantics, just tell what interface (or undefined) a remotable has.
- * @param {any} maybeRemotable the value to check
- * @returns {InterfaceSpec|undefined} the interface specification, or undefined
- * if not a deemed to be a Remotable
- */
-
-/**
  * @callback Checker
  * Internal to a useful pattern for writing checking logic
  * (a "checkFoo" function) that can be used to implement a predicate

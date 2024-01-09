@@ -13,7 +13,6 @@ import {
 
 /** @typedef {import('./types.js').Checker} Checker */
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
-/** @typedef {import('./types.js').MarshalGetInterfaceOf} MarshalGetInterfaceOf */
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').RemotableObject} Remotable */
 
@@ -167,7 +166,12 @@ const checkRemotable = (val, check) => {
   return result;
 };
 
-/** @type {MarshalGetInterfaceOf} */
+/**
+ * Simple semantics, just tell what interface (or undefined) a remotable has.
+ * @param {any} val the value to check
+ * @returns {InterfaceSpec | undefined} the interface specification, or undefined
+ * if not a deemed to be a Remotable
+ */
 export const getInterfaceOf = val => {
   if (
     !isObject(val) ||
