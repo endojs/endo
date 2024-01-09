@@ -22,7 +22,7 @@ export {};
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
 /**
- * @typedef {Passable} Key
+ * @typedef {Exclude<Passable, Error | Promise>} Key
  *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
@@ -61,7 +61,7 @@ export {};
  */
 
 /**
- * @typedef {CopyArray | CopyRecord | CopySet | CopyBag | CopyMap} Pattern
+ * @typedef {Exclude<Passable, Error | Promise>} Pattern
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every

@@ -81,7 +81,7 @@ const makePassStyleOf = passStyleHelpers => {
    * structures, so without this cache, these algorithms could be
    * O(N**2) or worse.
    *
-   * @type {WeakMap<import('./types.js').PassByRef, PassStyle>}
+   * @type {WeakMap<WeakKey, PassStyle>}
    */
   const passStyleMemo = new WeakMap();
 
