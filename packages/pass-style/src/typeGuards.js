@@ -43,13 +43,10 @@ const isRemotable = remotable => passStyleOf(remotable) === 'remotable';
 harden(isRemotable);
 
 /**
- * @callback AssertArray
  * @param {unknown} array
  * @param {string=} optNameOfArray
  * @returns {asserts array is CopyArray<unknown>}
  */
-
-/** @type {AssertArray} */
 const assertCopyArray = (array, optNameOfArray = 'Alleged array') => {
   const passStyle = passStyleOf(array);
   passStyle === 'copyArray' ||
@@ -60,13 +57,10 @@ const assertCopyArray = (array, optNameOfArray = 'Alleged array') => {
 harden(assertCopyArray);
 
 /**
- * @callback AssertRecord
  * @param {unknown} record
  * @param {string=} optNameOfRecord
  * @returns {asserts record is CopyRecord<unknown>}
  */
-
-/** @type {AssertRecord} */
 const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
   const passStyle = passStyleOf(record);
   passStyle === 'copyRecord' ||
@@ -77,13 +71,10 @@ const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
 harden(assertRecord);
 
 /**
- * @callback AssertRemotable
  * @param {Passable} remotable
  * @param {string=} optNameOfRemotable
  * @returns {asserts remotable is Remotable}
  */
-
-/** @type {AssertRemotable} */
 const assertRemotable = (
   remotable,
   optNameOfRemotable = 'Alleged remotable',
