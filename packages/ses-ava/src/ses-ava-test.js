@@ -75,6 +75,16 @@ const overrideList = [
   'only',
 ];
 
+// Helper to explicitely harden an object including its prototype chain
+const hardenWithProto = val => {
+  const protos = [];
+  while (val != null) {
+    protos.push(val);
+    val = Object.getPrototypeOf(val);
+  }
+  harden(protos);
+};
+
 /**
  * @template {import('ava').TestFn} T
  * @param {T} testerFunc
@@ -104,7 +114,8 @@ const augmentLogging = (testerFunc, logger) => {
     const wrapImplFunc = fn => {
       const wrappedFunc = t => {
         // `harden` should be functional by the time a test callback is invoked.
-        harden(t);
+        // However the context instance may have a non-hardened prototype chain
+        hardenWithProto(t);
         // Format source like `test("$rawTitle") "$resolvedTitle"`.
         const quotedRawTitle = hasRawTitle ? stringify(rawTitle) : '';
         const quotedResolvedTitle =
