@@ -28,7 +28,7 @@ const { quote: q, Fail } = assert;
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
 export const setCompare = makeCompareCollection(
-  /** @type {<K extends unknown>(s: CopySet<K>) => Array<[K, 1]>} */ (
+  /** @type {<K extends import('../types.js').Key>(s: CopySet<K>) => Array<[K, 1]>} */ (
     s => harden(getCopySetKeys(s).map(key => [key, 1]))
   ),
   0,
@@ -134,8 +134,10 @@ export const compareKeys = (left, right) => {
       // rank order.
       // Because the invariants above apply to the elements of the array,
       // they apply to the array as a whole.
+      // @ts-expect-error FIXME narrowed
       const len = Math.min(left.length, right.length);
       for (let i = 0; i < len; i += 1) {
+        // @ts-expect-error FIXME narrowed
         const result = compareKeys(left[i], right[i]);
         if (result !== 0) {
           return result;
@@ -143,11 +145,14 @@ export const compareKeys = (left, right) => {
       }
       // If all matching elements are keyEQ, then according to their lengths.
       // Thus, if array X is a prefix of array Y, then X is smaller than Y.
+      // @ts-expect-error FIXME narrowed
       return compareRank(left.length, right.length);
     }
     case 'copyRecord': {
       // Pareto partial order comparison.
+      // @ts-expect-error FIXME narrowed
       const leftNames = recordNames(left);
+      // @ts-expect-error FIXME narrowed
       const rightNames = recordNames(right);
 
       // eslint-disable-next-line no-use-before-define
@@ -159,7 +164,9 @@ export const compareKeys = (left, right) => {
         // to avoid more irrelevant ones.
         return NaN;
       }
+      // @ts-expect-error FIXME narrowed
       const leftValues = recordValues(left, leftNames);
+      // @ts-expect-error FIXME narrowed
       const rightValues = recordValues(right, rightNames);
       // Presume that both copyRecords have the same key order
       // until encountering a property disproving that hypothesis.
@@ -190,7 +197,9 @@ export const compareKeys = (left, right) => {
       return result;
     }
     case 'tagged': {
+      // @ts-expect-error FIXME narrowed
       const leftTag = getTag(left);
+      // @ts-expect-error FIXME narrowed
       const rightTag = getTag(right);
       if (leftTag !== rightTag) {
         // different tags are incommensurate
@@ -198,9 +207,11 @@ export const compareKeys = (left, right) => {
       }
       switch (leftTag) {
         case 'copySet': {
+          // @ts-expect-error FIXME narrowed
           return setCompare(left, right);
         }
         case 'copyBag': {
+          // @ts-expect-error FIXME narrowed
           return bagCompare(left, right);
         }
         case 'copyMap': {

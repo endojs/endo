@@ -22,6 +22,7 @@ export {};
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
+// FIXME exclude nested Error and Promise
 /**
  * @typedef {import('@endo/pass-style').Passable<RemotableObject, never>} Key
  *
@@ -61,8 +62,9 @@ export {};
  * @returns {string}
  */
 
+// FIXME exclude nested Error and Promise
 /**
- * @typedef {Passable} Pattern
+ * @typedef {Exclude<Passable, Error | Promise>} Pattern
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
@@ -422,14 +424,14 @@ export {};
  * The CopyRecord must have all properties that appear on `required`,
  * but may omit properties that appear on `optional`.
  *
- * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<any> | CopyArray<any>,
  *             rest?: Pattern,
  * ) => Matcher} split
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
  * An array or record is split into the first part that is matched by
  * `basePatt`, and the remainder, which is matched against `rest` if present.
  *
- * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<any> | CopyArray<any>,
  *             rest?: Pattern,
  * ) => Matcher} partial
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
