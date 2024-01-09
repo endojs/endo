@@ -8,8 +8,9 @@ import { q, Fail } from '@endo/errors';
 import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
 
 /**
+ * @import {Passable} from '@endo/pass-style';
  * @import {RankCompare} from '@endo/marshal'
- * @import {FullCompare} from '../types.js'
+ * @import {FullCompare, Key} from '../types.js'
  */
 
 // Based on merge-set-operators.js, but altered for the bag representation.
@@ -29,7 +30,7 @@ import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
  * to `fullOrder`. However, it optimizes for the case where these contiguous
  * runs that need to be resorted are either absent or small.
  *
- * @template T
+ * @template {Key} T
  * @param {[T,bigint][]} bagEntries
  * @param {RankCompare} rankCompare
  * @param {FullCompare} fullCompare
@@ -96,7 +97,7 @@ const bagWindowResort = (bagEntries, rankCompare, fullCompare) => {
  * For sets, these counts are always 0 or 1, but this representation
  * generalizes nicely for bags.
  *
- * @template T
+ * @template {Key} T
  * @param {[T,bigint][]} xbagEntries
  * @param {[T,bigint][]} ybagEntries
  * @returns {Iterable<[T,bigint,bigint]>}

@@ -284,9 +284,10 @@ harden(assertRankSorted);
  * function. This is a genuine bug for us NOW because sometimes we sort
  * in reverse order by passing a reversed rank comparison function.
  *
- * @param {Iterable<Passable>} passables
+ * @template {Passable} T
+ * @param {Iterable<T>} passables
  * @param {RankCompare} compare
- * @returns {Passable[]}
+ * @returns {T[]}
  */
 export const sortByRank = (passables, compare) => {
   if (Array.isArray(passables)) {

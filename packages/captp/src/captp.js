@@ -322,9 +322,6 @@ export const makeCapTP = (
   }
 
   const IS_REMOTE_PUMPKIN = harden({});
-  /**
-   * @type {import('@endo/marshal').ConvertSlotToVal<import('./types.js').CapTPSlot>}
-   */
   const assertValIsLocal = val => {
     const slot = valToSlot.get(val);
     if (slot && slot[1] === '-') {
@@ -496,6 +493,7 @@ export const makeCapTP = (
     }
 
     // If we imported this slot, mark it as one our peer exported.
+    // @ts-expect-error map lacks value type
     return slotToImported.get(recvSlot.add(slot));
   }
 
