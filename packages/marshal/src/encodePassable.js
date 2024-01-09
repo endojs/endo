@@ -333,7 +333,6 @@ export const makeEncodePassable = (encodeOptions = {}) => {
     encodeError = (err, _) => Fail`error unexpected: ${err}`,
   } = encodeOptions;
 
-  /** @param {Passable} passable */
   const encodePassable = passable => {
     if (isErrorLike(passable)) {
       return encodeError(passable, encodePassable);

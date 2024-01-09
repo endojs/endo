@@ -18,7 +18,7 @@ import {
 } from '@endo/pass-style';
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').Remotable} Remotable */
+/** @typedef {import('@endo/pass-style').RemotableObject} RemotableObject */
 // @typedef {import('./types.js').SmallcapsEncoding} SmallcapsEncoding */
 // @typedef {import('./types.js').SmallcapsEncodingUnion} SmallcapsEncodingUnion */
 /** @typedef {any} SmallcapsEncoding */
@@ -89,7 +89,7 @@ const startsSpecial = encodedStr => {
 /**
  * @typedef {object} EncodeToSmallcapsOptions
  * @property {(
- *   remotable: Remotable,
+ *   remotable: RemotableObject,
  *   encodeRecur: (p: Passable) => SmallcapsEncoding
  * ) => SmallcapsEncoding} [encodeRemotableToSmallcaps]
  * @property {(
@@ -161,7 +161,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
    * Readers must not care about this order anyway. We impose this requirement
    * mainly to reduce non-determinism exposed outside a vat.
    *
-   * @param {Passable} passable
+   * @param {any} passable
    * @returns {SmallcapsEncoding} except that `encodeToSmallcaps` does not generally
    * `harden` this result before returning. Rather, `encodeToSmallcaps` is not
    * directly exposed.
@@ -299,7 +299,7 @@ harden(makeEncodeToSmallcaps);
  * @property {(
  *   encodedRemotable: SmallcapsEncoding,
  *   decodeRecur: (e :SmallcapsEncoding) => Passable
- * ) => Remotable} [decodeRemotableFromSmallcaps]
+ * ) => RemotableObject} [decodeRemotableFromSmallcaps]
  * @property {(
  *   encodedPromise: SmallcapsEncoding,
  *   decodeRecur: (e :SmallcapsEncoding) => Passable

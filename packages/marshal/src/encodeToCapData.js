@@ -117,7 +117,7 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
    * Readers must not care about this order anyway. We impose this requirement
    * mainly to reduce non-determinism exposed outside a vat.
    *
-   * @param {Passable} passable
+   * @param {any} passable
    * @returns {Encoding} except that `encodeToCapData` does not generally
    * `harden` this result before returning. Rather, `encodeToCapData` is not
    * directly exposed.

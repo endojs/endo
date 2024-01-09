@@ -75,7 +75,7 @@ export {};
  * (p: Iterator): 'remotable';
  * <T extends PassStyled<any>>(p: T): ExtractStyle<T>
  * (p: {[key: string]: any}): 'copyRecord';
- * (p: any): never;
+ * (p: any): unknown;
  * }} PassStyleOf
  */
 
