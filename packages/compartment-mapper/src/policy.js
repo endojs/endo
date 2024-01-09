@@ -163,7 +163,7 @@ export const getPolicyForPackage = (namingKit, policy) => {
  * @returns {Array<string>}
  */
 const getGlobalsList = packagePolicy => {
-  if (!packagePolicy?.globals) {
+  if (!packagePolicy || !packagePolicy.globals) {
     return [];
   }
   return entries(packagePolicy.globals)

@@ -60,10 +60,11 @@ export const isAllowingEverything = policyValue =>
  * @returns {allegedDefinition is import('./types.js').AttenuationDefinition}
  */
 export const isAttenuationDefinition = allegedDefinition => {
-  return (
-    (typeof allegedDefinition === 'object' &&
-      typeof allegedDefinition?.[ATTENUATOR_KEY] === 'string') || // object with attenuator name
-    isArray(allegedDefinition) // params for default attenuator
+  return Boolean(
+    (allegedDefinition &&
+      typeof allegedDefinition === 'object' &&
+      typeof allegedDefinition[ATTENUATOR_KEY] === 'string') || // object with attenuator name
+      isArray(allegedDefinition), // params for default attenuator
   );
 };
 
