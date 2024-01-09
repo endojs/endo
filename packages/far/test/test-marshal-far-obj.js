@@ -49,7 +49,6 @@ test('Remotable/getInterfaceOf', t => {
 const GOOD_PASS_STYLE = Symbol.for('passStyle');
 const BAD_PASS_STYLE = Symbol('passStyle');
 
-/** @type {() => import('@endo/pass-style').RemotableObject<'Good remotable proto'>} */
 const testRecord = ({
   styleSymbol = GOOD_PASS_STYLE,
   styleString = 'remotable',
@@ -67,6 +66,7 @@ const testRecord = ({
     }),
   );
 
+/** @type {import('@endo/pass-style').PassStyled<'remotable'>} */
 const goodRemotableProto = testRecord();
 
 // @ts-ignore We're testing bad things anyway
@@ -130,6 +130,7 @@ test('passStyleOf validation of remotables', t => {
   t.throws(() => passStyleOf(badRemotableProto3), NON_METHOD);
   t.throws(() => passStyleOf(badRemotableProto4), NON_METHOD);
 
+  // @ts-expect-error UNTIL https://github.com/microsoft/TypeScript/issues/38385
   t.is(passStyleOf(sub(goodRemotableProto)), 'remotable');
 
   t.throws(() => passStyleOf(sub(badRemotableProto1)), EXPECTED_PASS_STYLE);

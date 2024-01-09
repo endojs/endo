@@ -79,7 +79,7 @@ export const makeMarshal = (
     const slotMap = new Map();
 
     /**
-     * @param {Remotable | Promise} passable
+     * @param {Passable} passable
      * @returns {{index: number, repeat: boolean}}
      */
     const encodeSlotCommon = passable => {
@@ -236,7 +236,7 @@ export const makeMarshal = (
 
     /**
      * @param {{iface?: string, index: number}} slotData
-     * @returns {Remotable | Promise}
+     * @returns {Passable}
      */
     const decodeSlotCommon = slotData => {
       const { iface = undefined, index, ...rest } = slotData;
@@ -255,7 +255,7 @@ export const makeMarshal = (
 
     /**
      * @param {{errorId?: string, message: string, name: string}} errData
-     * @param {(e: unknown) => Passable} decodeRecur
+     * @param {(e: unknown) => string} decodeRecur
      * @returns {Error}
      */
     const decodeErrorCommon = (errData, decodeRecur) => {
@@ -298,7 +298,9 @@ export const makeMarshal = (
     };
 
     const reviveFromCapData = makeDecodeFromCapData({
+      // @ts-expect-error FIXME
       decodeRemotableFromCapData: decodeRemotableOrPromiseFromCapData,
+      // @ts-expect-error FIXME
       decodePromiseFromCapData: decodeRemotableOrPromiseFromCapData,
       decodeErrorFromCapData,
     });
@@ -316,6 +318,7 @@ export const makeMarshal = (
         const index = Number(stringEncoding.slice(1, i < 0 ? undefined : i));
         // i < 0 means there was no iface included.
         const iface = i < 0 ? undefined : stringEncoding.slice(i + 1);
+        // @ts-expect-error FIXME
         return decodeSlotCommon({ iface, index });
       };
     };
@@ -330,7 +333,9 @@ export const makeMarshal = (
     };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
+      // @ts-expect-error FIXME
       decodeRemotableFromSmallcaps,
+      // @ts-expect-error FIXME
       decodePromiseFromSmallcaps,
       decodeErrorFromSmallcaps,
     });
