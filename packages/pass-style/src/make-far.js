@@ -207,7 +207,6 @@ harden(Far);
  * @param {(...args: any[]) => any} func
  */
 export const ToFarFunction = (farName, func) => {
-  // @ts-expect-error XXX funcs as objects
   if (getInterfaceOf(func) !== undefined) {
     return func;
   }
