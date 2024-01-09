@@ -11,8 +11,8 @@
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
-    "@typescript-eslint/eslint-plugin": "^6.6.0",
-    "@typescript-eslint/parser": "^6.6.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "@typescript-eslint/parser": "^6.18.1",
     "ava": "^5.3.0",
     "eslint": "^8.46.0",
     "eslint-config-airbnb-base": "^15.0.0",
