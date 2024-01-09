@@ -17,7 +17,7 @@
     "lint-check": "exit 0"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^6.6.0",
+    "@typescript-eslint/utils": "^6.18.1",
     "requireindex": "~1.1.0",
     "tsutils": "~3.21.0",
     "typescript": "~5.2.2"
