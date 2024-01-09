@@ -159,7 +159,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
    * Readers must not care about this order anyway. We impose this requirement
    * mainly to reduce non-determinism exposed outside a vat.
    *
-   * @param {Passable} passable
+   * @param {any} passable
    * @returns {SmallcapsEncoding} except that `encodeToSmallcaps` does not generally
    * `harden` this result before returning. Rather, `encodeToSmallcaps` is not
    * directly exposed.
@@ -386,6 +386,7 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
               encoding,
               decodeFromSmallcaps,
             );
+            // @ts-ignore FIXME tsc thinks result is 'copyRecord' style
             if (passStyleOf(result) !== 'remotable') {
               Fail`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`;
             }

@@ -7,7 +7,7 @@ import {
 import { q, Fail } from '@endo/errors';
 import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
 
-/** @import {KeyComparison} from '../types' */
+/** @import {Passable} from '@endo/pass-style' */
 /** @import {FullCompare} from '../types' */
 /** @import {RankCompare} from '@endo/marshal' */
 
@@ -28,7 +28,7 @@ import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
  * to `fullOrder`. However, it optimizes for the case where these contiguous
  * runs that need to be resorted are either absent or small.
  *
- * @template T
+ * @template {Passable} T
  * @param {[T,bigint][]} bagEntries
  * @param {RankCompare} rankCompare
  * @param {FullCompare} fullCompare
@@ -71,6 +71,7 @@ const bagWindowResort = (bagEntries, rankCompare, fullCompare) => {
             // Providing the same `fullCompare` should cause a memo hit
             // within `assertNoDuplicates` enabling it to avoid a
             // redundant resorting.
+            // @ts-expect-error FIXME Key types
             assertNoDuplicateKeys(resorted, fullCompare);
             // This is the raw JS array iterator whose `.next()` method
             // does not harden the IteratorResult, in violation of our
@@ -95,7 +96,7 @@ const bagWindowResort = (bagEntries, rankCompare, fullCompare) => {
  * For sets, these counts are always 0 or 1, but this representation
  * generalizes nicely for bags.
  *
- * @template T
+ * @template {Passable} T
  * @param {[T,bigint][]} xbagEntries
  * @param {[T,bigint][]} ybagEntries
  * @returns {Iterable<[T,bigint,bigint]>}

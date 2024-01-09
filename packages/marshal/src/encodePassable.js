@@ -324,7 +324,7 @@ const decodeLegacyStringSuffix = encoded => encoded;
  * format, each terminated by a space (which is part of the escaped range in
  * "compactOrdered" encoded strings).
  *
- * @param {unknown[]} array
+ * @param {Passable[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
@@ -399,7 +399,7 @@ const decodeCompactArray = (encoded, decodePassable, skip = 0) => {
  * This necessitated an undesirable amount of iteration and expansion; see
  * https://github.com/endojs/endo/pull/1260#discussion_r960369826
  *
- * @param {unknown[]} array
+ * @param {Passable[]} array
  * @param {(p: Passable) => string} encodePassable
  * @returns {string}
  */
@@ -728,6 +728,7 @@ const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
       }
     }
   };
+  // @ts-expect-error XXX Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
   return innerDecode;
 };
 

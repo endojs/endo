@@ -78,7 +78,7 @@ export const makeMarshal = (
     const slotMap = new Map();
 
     /**
-     * @param {Remotable | Promise} passable
+     * @param {import('@endo/pass-style').PassableCap} passable
      * @returns {{index: number, repeat: boolean}}
      */
     const encodeSlotCommon = passable => {
@@ -134,7 +134,7 @@ export const makeMarshal = (
 
     if (serializeBodyFormat === 'capdata') {
       /**
-       * @param {Passable} passable
+       * @param {import('@endo/pass-style').PassableCap} passable
        * @param {InterfaceSpec} [iface]
        * @returns {Encoding}
        */
@@ -148,9 +148,11 @@ export const makeMarshal = (
         }
       };
 
+      /** @type {(promise: import('@endo/pass-style').RemotableObject, encodeRecur: (p: Passable) => Encoding) => Encoding} */
       const encodeRemotableToCapData = (val, _encodeRecur) =>
         encodeSlotToCapData(val, getInterfaceOf(val));
 
+      /** @type {(promise: Promise, encodeRecur: (p: Passable) => Encoding) => Encoding} */
       const encodePromiseToCapData = (promise, _encodeRecur) =>
         encodeSlotToCapData(promise);
 
@@ -184,7 +186,7 @@ export const makeMarshal = (
     } else if (serializeBodyFormat === 'smallcaps') {
       /**
        * @param {string} prefix
-       * @param {Passable} passable
+       * @param {import('@endo/pass-style').PassableCap} passable
        * @param {InterfaceSpec} [iface]
        * @returns {string}
        */
@@ -231,7 +233,7 @@ export const makeMarshal = (
   };
 
   const makeFullRevive = slots => {
-    /** @type {Map<number, Passable>} */
+    /** @type {Map<number, Remotable | Promise>} */
     const valMap = new Map();
 
     /**
@@ -242,8 +244,9 @@ export const makeMarshal = (
       const { iface = undefined, index, ...rest } = slotData;
       ownKeys(rest).length === 0 ||
         Fail`unexpected encoded slot properties ${q(ownKeys(rest))}`;
-      if (valMap.has(index)) {
-        return valMap.get(index);
+      const extant = valMap.get(index);
+      if (extant) {
+        return extant;
       }
       // TODO SECURITY HAZARD: must enfoce that remotable vs promise
       // is according to the encoded string.
@@ -280,11 +283,13 @@ export const makeMarshal = (
       const dName = decodeRecur(name);
       const dMessage = decodeRecur(message);
       // errorId is a late addition so be tolerant of its absence.
-      const dErrorId = errorId && decodeRecur(errorId);
-      typeof dName === 'string' ||
-        Fail`invalid error name typeof ${q(typeof dName)}`;
-      typeof dMessage === 'string' ||
-        Fail`invalid error message typeof ${q(typeof dMessage)}`;
+      const dErrorId = /** @type {string} */ (errorId && decodeRecur(errorId));
+      if (typeof dName !== 'string') {
+        throw Fail`invalid error name typeof ${q(typeof dName)}`;
+      }
+      if (typeof dMessage !== 'string') {
+        throw Fail`invalid error message typeof ${q(typeof dMessage)}`;
+      }
       const errConstructor = getErrorConstructor(dName) || Error;
       const errorName =
         dErrorId === undefined
@@ -364,7 +369,9 @@ export const makeMarshal = (
     };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
+      // @ts-expect-error FIXME
       decodeRemotableFromSmallcaps,
+      // @ts-expect-error FIXME
       decodePromiseFromSmallcaps,
       decodeErrorFromSmallcaps,
     });
