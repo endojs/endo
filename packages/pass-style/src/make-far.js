@@ -75,7 +75,7 @@ const assertCanBeRemotable = candidate =>
  * @param {undefined} [props] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
  * @param {T} [remotable] The object used as the remotable
- * @returns {T & RemotableBrand<{}, T>} remotable, modified for debuggability
+ * @returns {T & import('./types.js').PassStyled<'remotable'> & RemotableBrand<{}, T>}} remotable, modified for debuggability
  */
 export const Remotable = (
   iface = 'Remotable',
@@ -125,7 +125,9 @@ export const Remotable = (
   // COMMITTED!
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
-  return /** @type {T & RemotableBrand<{}, T>} */ (remotable);
+  return /** @type {T & import('./types.js').PassStyled<'remotable'> & RemotableBrand<{}, T>} */ (
+    remotable
+  );
 };
 harden(Remotable);
 
