@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { expectType } from 'tsd';
+import { expectType, expectNotType } from 'tsd';
 import { Far } from './make-far';
 import { passStyleOf } from './passStyleOf';
 import { makeTagged } from './makeTagged';
@@ -10,6 +10,8 @@ const remotable = Far('foo', {});
 
 const copyTagged = makeTagged('someTag', remotable);
 expectType<CopyTagged<'someTag', typeof remotable>>(copyTagged);
+
+const arbitraryStyled = { [PASS_STYLE]: 'arbitrary' } as const;
 
 expectType<'undefined'>(passStyleOf(undefined));
 expectType<'string'>(passStyleOf('str'));
@@ -23,5 +25,7 @@ expectType<'error'>(passStyleOf(new Error()));
 expectType<'tagged'>(passStyleOf(copyTagged));
 expectType<'copyArray'>(passStyleOf([]));
 expectType<'copyRecord'>(passStyleOf({}));
-expectType<'arbitrary'>(passStyleOf({ [PASS_STYLE]: 'arbitrary' }));
+expectType<'arbitrary'>(passStyleOf(arbitraryStyled));
+// @ts-expect-error
+expectType<'foo'>(passStyleOf(arbitraryStyled));
 expectType<'remotable'>(passStyleOf(remotable));

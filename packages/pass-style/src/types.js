@@ -19,6 +19,16 @@ export {};
  * } PassStyle
  */
 
+/**
+ * @template {string} S style
+ * @typedef {{ [PASS_STYLE]: S }} PassStyled
+ */
+
+/**
+ * @template {PassStyled<any>} P
+ * @typedef {P[typeof PASS_STYLE]} ExtractStyle
+ */
+
 /** @typedef {import('type-fest').Primitive | CopyArray | CopyRecord | CopyTagged } PassByCopy */
 /** @typedef {RemotableObject | Promise<RemotableObject> | Promise<PassByCopy> } PassByRef */
 
@@ -63,8 +73,7 @@ export {};
  * (p: Array): 'copyArray';
  * (p: Iterable): 'remotable';
  * (p: Iterator): 'remotable';
- * (p: import('@endo/eventual-send/src/types.js').RemotableBrand<unknown, unknown>): 'remotable';
- * <T extends {[PASS_STYLE]: string}, S extends string>(p: T extends {[PASS_STYLE]: infer S} ? T : never): S;
+ * <T extends PassStyled<any>>(p: T): ExtractStyle<T>
  * (p: {[key: string]: any}): 'copyRecord';
  * (p: any): never;
  * }} PassStyleOf
