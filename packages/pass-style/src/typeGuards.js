@@ -18,7 +18,7 @@ const { Fail, quote: q } = assert;
  * in @endo/marshal terms
  *
  * @param {unknown} arr
- * @returns {arr is CopyArray<any>}
+ * @returns {arr is CopyArray<unknown>}
  */
 const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
 harden(isCopyArray);
@@ -28,7 +28,7 @@ harden(isCopyArray);
  * "copyRecord" in @endo/marshal terms
  *
  * @param {unknown} record
- * @returns {record is CopyRecord<any>}
+ * @returns {record is CopyRecord<unknown>}
  */
 const isRecord = record => passStyleOf(record) === 'copyRecord';
 harden(isRecord);
@@ -46,7 +46,7 @@ harden(isRemotable);
  * @callback AssertArray
  * @param {unknown} array
  * @param {string=} optNameOfArray
- * @returns {asserts array is CopyArray<any>}
+ * @returns {asserts array is CopyArray<unknown>}
  */
 
 /** @type {AssertArray} */
@@ -63,7 +63,7 @@ harden(assertCopyArray);
  * @callback AssertRecord
  * @param {unknown} record
  * @param {string=} optNameOfRecord
- * @returns {asserts record is CopyRecord<any>}
+ * @returns {asserts record is CopyRecord<unknown>}
  */
 
 /** @type {AssertRecord} */
