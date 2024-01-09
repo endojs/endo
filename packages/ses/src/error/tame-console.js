@@ -21,33 +21,6 @@ const failFast = message => {
 const wrapLogger = (logger, thisArg) =>
   freeze((...args) => apply(logger, thisArg, args));
 
-// eslint-disable-next-line no-restricted-globals
-const originalConsole = /** @type {VirtualConsole} */ (
-  // eslint-disable-next-line no-nested-ternary
-  typeof console !== 'undefined'
-    ? console
-    : typeof print === 'function'
-    ? // Make a good-enough console for eshost (including only functions that
-      // log at a specific level with no special argument interpretation).
-      // https://console.spec.whatwg.org/#logging
-      (p => freeze({ debug: p, log: p, info: p, warn: p, error: p }))(
-        // eslint-disable-next-line no-undef
-        wrapLogger(print),
-      )
-    : undefined
-);
-
-// Upgrade a log-only console (as in `eshost -h SpiderMonkey`).
-if (originalConsole && originalConsole.log) {
-  for (const methodName of ['warn', 'error']) {
-    if (!originalConsole[methodName]) {
-      defineProperty(originalConsole, methodName, {
-        value: wrapLogger(originalConsole.log, originalConsole),
-      });
-    }
-  }
-}
-
 /**
  * Wrap console unless suppressed.
  * At the moment, the console is considered a host power in the start
@@ -78,6 +51,34 @@ export const tameConsole = (
       getStackString: optGetStackString,
     };
   }
+
+  // eslint-disable-next-line no-restricted-globals
+  const originalConsole = /** @type {VirtualConsole} */ (
+    // eslint-disable-next-line no-nested-ternary
+    typeof globalThis.console !== 'undefined'
+      ? globalThis.console
+      : typeof globalThis.print === 'function'
+      ? // Make a good-enough console for eshost (including only functions that
+        // log at a specific level with no special argument interpretation).
+        // https://console.spec.whatwg.org/#logging
+        (p => freeze({ debug: p, log: p, info: p, warn: p, error: p }))(
+          // eslint-disable-next-line no-undef
+          wrapLogger(globalThis.print),
+        )
+      : undefined
+  );
+
+  // Upgrade a log-only console (as in `eshost -h SpiderMonkey`).
+  if (originalConsole && originalConsole.log) {
+    for (const methodName of ['warn', 'error']) {
+      if (!originalConsole[methodName]) {
+        defineProperty(originalConsole, methodName, {
+          value: wrapLogger(originalConsole.log, originalConsole),
+        });
+      }
+    }
+  }
+
   const ourConsole = /** @type {VirtualConsole} */ (
     consoleTaming === 'unsafe'
       ? originalConsole
