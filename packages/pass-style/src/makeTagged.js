@@ -6,6 +6,13 @@ import { assertPassable } from './passStyleOf.js';
 const { create, prototype: objectPrototype } = Object;
 const { Fail } = assert;
 
+/**
+ * @template {string} T
+ * @template {any} P
+ * @param {T} tag
+ * @param {P} payload
+ * @returns {import('./types.js').CopyTagged<T,P>}
+ */
 export const makeTagged = (tag, payload) => {
   typeof tag === 'string' ||
     Fail`The tag of a tagged record must be a string: ${tag}`;
