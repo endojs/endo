@@ -140,6 +140,10 @@ export const makeCapTP = (
     const seen = new Set();
 
     return harden({
+      /**
+       * @param {T} specimen
+       * @returns {T}
+       */
       add(specimen) {
         if (predicate(specimen)) {
           seen.add(specimen);
