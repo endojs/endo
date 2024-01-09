@@ -25,12 +25,14 @@ test('permit removal warnings', t => {
     t,
     () => lockdown(),
     [
+      ['groupCollapsed', 'Removing unpermitted intrinsics'],
       ['warn', 'Removing intrinsics.Array.isArray.prototype'],
       [
         'warn',
         'Tolerating undeletable intrinsics.Array.isArray.prototype === undefined',
       ],
       ['warn', 'Removing intrinsics.Array.extraRemovableDataProperty'],
+      ['groupEnd'],
     ],
     {},
   );
