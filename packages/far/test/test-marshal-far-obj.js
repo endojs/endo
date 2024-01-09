@@ -49,6 +49,7 @@ test('Remotable/getInterfaceOf', t => {
 const GOOD_PASS_STYLE = Symbol.for('passStyle');
 const BAD_PASS_STYLE = Symbol('passStyle');
 
+/** @type {() => import('@endo/pass-style').RemotableObject<'Good remotable proto'>} */
 const testRecord = ({
   styleSymbol = GOOD_PASS_STYLE,
   styleString = 'remotable',

@@ -168,19 +168,24 @@ const checkRemotable = (val, check) => {
 
 /**
  * Simple semantics, just tell what interface (or undefined) a remotable has.
- * @template {string} T
- * @param {import('./types.js').TaggedRecord<any, T>} val the value to check
- * @returns {T | undefined} the interface specification, or undefined
+ * @type {{
+ * <T extends string>(val: import('./types.js').TaggedRecord<any, T>): T;
+ * (val: any): any;
+ * }}
+ * @returns the interface specification, or undefined
  * if not a deemed to be a Remotable
  */
 export const getInterfaceOf = val => {
   if (
     !isObject(val) ||
     val[PASS_STYLE] !== 'remotable' ||
+    // @ts-expect-error FIXME
     !checkRemotable(val)
   ) {
+    // @ts-expect-error FIXME
     return undefined;
   }
+  // @ts-expect-error FIXME
   return getTag(val);
 };
 harden(getInterfaceOf);
