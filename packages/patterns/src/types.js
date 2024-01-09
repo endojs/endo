@@ -61,7 +61,7 @@ export {};
  */
 
 /**
- * @typedef {Passable} Pattern
+ * @typedef {CopyArray | CopyRecord | CopySet | CopyBag | CopyMap} Pattern
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
@@ -421,14 +421,14 @@ export {};
  * The CopyRecord must have all properties that appear on `required`,
  * but may omit properties that appear on `optional`.
  *
- * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<any> | CopyArray<any>,
  *             rest?: Pattern,
  * ) => Matcher} split
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
  * An array or record is split into the first part that is matched by
  * `basePatt`, and the remainder, which is matched against `rest` if present.
  *
- * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<any> | CopyArray<any>,
  *             rest?: Pattern,
  * ) => Matcher} partial
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
