@@ -272,7 +272,7 @@ const encodeCompactStringSuffix = str =>
  * @type {(encoded: string) => string}
  */
 const decodeCompactStringSuffix = encoded => {
-  return encoded.replace(/([!_])(.|\n)?/g, (esc, prefix, suffix) => {
+  return encoded.replace(/([\0-!_])(.|\n)?/g, (esc, prefix, suffix) => {
     switch (esc) {
       case '!_':
         return ' ';
@@ -284,7 +284,7 @@ const decodeCompactStringSuffix = encoded => {
         return '_';
       default: {
         const ch = /** @type {string} */ (suffix);
-        // The range of valid escapes is [(0x00+0x21)..(0x1F+0x21)], i.e.
+        // The range of valid `!`-escape suffixes is [(0x00+0x21)..(0x1F+0x21)], i.e.
         // [0x21..0x40] (U+0021 EXCLAMATION MARK to U+0040 COMMERCIAL AT).
         (prefix === '!' && suffix !== undefined && ch >= '!' && ch <= '@') ||
           Fail`invalid string escape: ${q(esc)}`;

@@ -261,6 +261,41 @@ test('capability encoding', t => {
   t.is(encodePassableCompact(decodeAsciiPassable(dataCompact)), dataCompact);
 });
 
+test('compact string validity', t => {
+  t.notThrows(() => decodePassableInternal('~sa"z'));
+  t.notThrows(() => decodePassableInternal('~sa!!z'));
+  const specialEscapes = ['!_', '!|', '_@', '__'];
+  for (const prefix of ['!', '_']) {
+    for (let cp = 0; cp <= 0x7f; cp += 1) {
+      const esc = `${prefix}${String.fromCodePoint(cp)}`;
+      const tryDecode = () => decodePassableInternal(`~sa${esc}z`);
+      if (esc.match(/![!-@]/) || specialEscapes.includes(esc)) {
+        t.notThrows(tryDecode, `valid string escape: ${JSON.stringify(esc)}`);
+      } else {
+        t.throws(
+          tryDecode,
+          { message: /invalid string escape/ },
+          `invalid string escape: ${JSON.stringify(esc)}`,
+        );
+      }
+    }
+    t.throws(
+      () => decodePassableInternal(`~sa${prefix}`),
+      { message: /invalid string escape/ },
+      `unterminated ${JSON.stringify(prefix)} escape`,
+    );
+  }
+  for (let cp = 0; cp < 0x20; cp += 1) {
+    const ch = String.fromCodePoint(cp);
+    const uCode = cp.toString(16).padStart(4, '0');
+    t.throws(
+      () => decodePassableInternal(`~sa${ch}z`),
+      { message: /invalid string escape/ },
+      `disallowed string control character: U+${uCode} ${JSON.stringify(ch)}`,
+    );
+  }
+});
+
 test('capability encoding validity constraints', t => {
   const r = Remotable();
   let encoding;
