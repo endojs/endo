@@ -105,7 +105,14 @@ export {};
  */
 
 /**
- * @typedef {import('@endo/eventual-send/src/types.js').RemotableBrand<{}, {}>} RemotableObject
+ * @template {string} S pass style
+ * @template {InterfaceSpec} I interface tag
+ * @typedef {PassStyled<S> & {[Symbol.toStringTag]: I}} TaggedRecord
+ */
+
+/**
+ * @template {InterfaceSpec} [I=string]
+ * @typedef {TaggedRecord<'remotable', I>} RemotableObject
  *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
@@ -132,12 +139,10 @@ export {};
  */
 
 /**
- * @template {string} [Tag=string]
+ * @template {InterfaceSpec} [Tag=string]
  * @template {Passable} [Payload=any]
- * @typedef {{
- *   [Symbol.toStringTag]: Tag,
+ * @typedef {TaggedRecord<'tagged', Tag> & {
  *   payload: Payload,
- *   [PASS_STYLE]: 'tagged',
  * }} CopyTagged
  *
  * A Passable "tagged record" with semantics specific to the tag identified in

@@ -123,6 +123,11 @@ export const checkNormalProperty = (
 };
 harden(checkNormalProperty);
 
+/**
+ * @template {import('./types.js').InterfaceSpec} T
+ * @param {import('./types.js').TaggedRecord<any, T>} tagRecord
+ * @returns {T}
+ */
 export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
@@ -139,7 +144,7 @@ harden(checkPassStyle);
 
 const makeCheckTagRecord = checkProto => {
   /**
-   * @param {{ [PASS_STYLE]: string }} tagRecord
+   * @param {import('./types.js').TaggedRecord<any, any>} tagRecord
    * @param {PassStyle} passStyle
    * @param {Checker} [check]
    * @returns {boolean}
