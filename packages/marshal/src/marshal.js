@@ -79,7 +79,7 @@ export const makeMarshal = (
     const slotMap = new Map();
 
     /**
-     * @param {Passable} passable
+     * @param {import('@endo/pass-style').PassableCap} passable
      * @returns {{index: number, repeat: boolean}}
      */
     const encodeSlotCommon = passable => {
@@ -134,7 +134,7 @@ export const makeMarshal = (
 
     if (serializeBodyFormat === 'capdata') {
       /**
-       * @param {Passable} passable
+       * @param {import('@endo/pass-style').PassableCap} passable
        * @param {InterfaceSpec} [iface]
        * @returns {Encoding}
        */
@@ -148,9 +148,11 @@ export const makeMarshal = (
         }
       };
 
+      /** @type {(promise: import('@endo/pass-style').RemotableObject, encodeRecur: (p: Passable) => Encoding) => Encoding} */
       const encodeRemotableToCapData = (val, _encodeRecur) =>
         encodeSlotToCapData(val, getInterfaceOf(val));
 
+      /** @type {(promise: Promise, encodeRecur: (p: Passable) => Encoding) => Encoding} */
       const encodePromiseToCapData = (promise, _encodeRecur) =>
         encodeSlotToCapData(promise);
 
@@ -184,7 +186,7 @@ export const makeMarshal = (
     } else if (serializeBodyFormat === 'smallcaps') {
       /**
        * @param {string} prefix
-       * @param {Passable} passable
+       * @param {import('@endo/pass-style').PassableCap} passable
        * @param {InterfaceSpec} [iface]
        * @returns {string}
        */
