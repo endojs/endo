@@ -308,6 +308,7 @@ test('records', t => {
   const fauxPresence = harden({});
   const { serialize: ser, unserialize: unser } = makeMarshal(
     _val => 'slot',
+    // @ts-expect-error mock
     _slot => fauxPresence,
     {
       errorTagging: 'off',
@@ -401,6 +402,7 @@ test('capdata proto problems', t => {
 test('capdata slot leniency', t => {
   const { unserialize: fromCapData } = makeMarshal(
     undefined,
+    // @ts-expect-error mock
     _slot => ({
       name: 'I should not be in a slot',
     }),

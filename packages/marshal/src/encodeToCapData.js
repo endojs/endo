@@ -20,7 +20,7 @@ import {
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('./types.js').Encoding} Encoding */
-/** @typedef {import('@endo/pass-style').Remotable} Remotable */
+/** @typedef {import('@endo/pass-style').RemotableObject} RemotableObject */
 /** @typedef {import('./types.js').EncodingUnion} EncodingUnion */
 
 const { ownKeys } = Reflect;
@@ -62,7 +62,7 @@ const qclassMatches = (encoded, qclass) =>
 /**
  * @typedef {object} EncodeToCapDataOptions
  * @property {(
- *   remotable: Remotable,
+ *   remotable: RemotableObject,
  *   encodeRecur: (p: Passable) => Encoding
  * ) => Encoding} [encodeRemotableToCapData]
  * @property {(
@@ -269,11 +269,11 @@ harden(makeEncodeToCapData);
  * @property {(
  *   encodedRemotable: Encoding,
  *   decodeRecur: (e: Encoding) => Passable
- * ) => (Promise|Remotable)} [decodeRemotableFromCapData]
+ * ) => (Promise|RemotableObject)} [decodeRemotableFromCapData]
  * @property {(
  *   encodedPromise: Encoding,
  *   decodeRecur: (e: Encoding) => Passable
- * ) => (Promise|Remotable)} [decodePromiseFromCapData]
+ * ) => (Promise|RemotableObject)} [decodePromiseFromCapData]
  * @property {(
  *   encodedError: Encoding,
  *   decodeRecur: (e: Encoding) => Passable

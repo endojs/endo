@@ -162,6 +162,7 @@ test('smallcaps records', t => {
   const fauxPresence = harden({});
   const { serialize: ser, unserialize: unser } = makeMarshal(
     _val => 'slot',
+    // @ts-expect-error mock
     _slot => fauxPresence,
     {
       errorTagging: 'off',
