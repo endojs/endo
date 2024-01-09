@@ -44,10 +44,24 @@ export {};
  * using 'slots').
  */
 
+// Cases match in sequence. The final case 'remotable' is for a Passable that isn't one of the others.
 /**
- * @callback PassStyleOf
- * @param {Passable} passable
- * @returns {PassStyle}
+ * @typedef {{
+ * (p: undefined): 'undefined';
+ * (p: string): 'string';
+ * (p: boolean): 'boolean';
+ * (p: number): 'number';
+ * (p: bigint): 'bigint';
+ * (p: symbol): 'symbol';
+ * (p: null): 'null';
+ * (p: Promise): 'promise';
+ * (p: Error): 'error';
+ * (p: CopyTagged): 'tagged';
+ * (p: Array): 'copyArray';
+ * (p: {[key: string]: any}): 'copyRecord';
+ * (p: Passable): 'remotable';
+ * (p: unknown): never;
+ * }} PassStyleOf
  */
 
 /**

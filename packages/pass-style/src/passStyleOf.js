@@ -88,22 +88,21 @@ const makePassStyleOf = passStyleHelpers => {
   /**
    * @type {PassStyleOf}
    */
+  // @ts-expect-error cast
   const passStyleOf = passable => {
     // Even when a WeakSet is correct, when the set has a shorter lifetime
     // than its keys, we prefer a Set due to expected implementation
     // tradeoffs.
     const inProgress = new Set();
 
-    /**
-     * @type {PassStyleOf}
-     */
     const passStyleOfRecur = inner => {
       const innerIsObject = isObject(inner);
       if (innerIsObject) {
-        // @ts-expect-error innerIsObject
-        if (passStyleMemo.has(inner)) {
-          // @ts-ignore TypeScript doesn't know that `get` after `has` is safe
-          return passStyleMemo.get(inner);
+        const innerMemo = passStyleMemo.get(inner);
+        if (innerMemo) {
+          // sanity check on falsy values. Do 'get' first to get the type narrowing of the `if`
+          assert(passStyleMemo.has(inner));
+          return innerMemo;
         }
         !inProgress.has(inner) ||
           Fail`Pass-by-copy data cannot be cyclic ${inner}`;
@@ -112,16 +111,12 @@ const makePassStyleOf = passStyleHelpers => {
       // eslint-disable-next-line no-use-before-define
       const passStyle = passStyleOfInternal(inner);
       if (innerIsObject) {
-        // @ts-expect-error innerIsObject
         passStyleMemo.set(inner, passStyle);
         inProgress.delete(inner);
       }
       return passStyle;
     };
 
-    /**
-     * @type {PassStyleOf}
-     */
     const passStyleOfInternal = inner => {
       const typestr = typeof inner;
       switch (typestr) {
@@ -153,10 +148,8 @@ const makePassStyleOf = passStyleHelpers => {
             assertSafePromise(inner);
             return 'promise';
           }
-          // @ts-expect-error innerIsObject
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
-          // @ts-expect-error innerIsObject
           const passStyleTag = inner[PASS_STYLE];
           if (passStyleTag !== undefined) {
             assert.typeof(passStyleTag, 'string');
@@ -168,19 +161,21 @@ const makePassStyleOf = passStyleHelpers => {
           }
           for (const helper of passStyleHelpers) {
             if (helper.canBeValid(inner)) {
+              // @ts-expect-error XXX
               helper.assertValid(inner, passStyleOfRecur);
               return helper.styleName;
             }
           }
+          // @ts-expect-error XXX
           remotableHelper.assertValid(inner, passStyleOfRecur);
           return 'remotable';
         }
         case 'function': {
           isFrozen(inner) ||
             Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
-          // @ts-expect-error innerIsObject
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
+          // @ts-expect-error XXX
           remotableHelper.assertValid(inner, passStyleOfRecur);
           return 'remotable';
         }

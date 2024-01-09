@@ -17,7 +17,7 @@ const { Fail, quote: q } = assert;
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
  * in @endo/marshal terms
  *
- * @param {Passable} arr
+ * @param {unknown} arr
  * @returns {arr is CopyArray<any>}
  */
 const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
@@ -27,7 +27,7 @@ harden(isCopyArray);
  * Check whether the argument is a pass-by-copy record, AKA a
  * "copyRecord" in @endo/marshal terms
  *
- * @param {Passable} record
+ * @param {unknown} record
  * @returns {record is CopyRecord<any>}
  */
 const isRecord = record => passStyleOf(record) === 'copyRecord';
@@ -44,7 +44,7 @@ harden(isRemotable);
 
 /**
  * @callback AssertArray
- * @param {Passable} array
+ * @param {unknown} array
  * @param {string=} optNameOfArray
  * @returns {asserts array is CopyArray<any>}
  */
@@ -61,7 +61,7 @@ harden(assertCopyArray);
 
 /**
  * @callback AssertRecord
- * @param {Passable} record
+ * @param {unknown} record
  * @param {string=} optNameOfRecord
  * @returns {asserts record is CopyRecord<any>}
  */
