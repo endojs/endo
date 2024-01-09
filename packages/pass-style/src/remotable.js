@@ -168,8 +168,9 @@ const checkRemotable = (val, check) => {
 
 /**
  * Simple semantics, just tell what interface (or undefined) a remotable has.
- * @param {any} val the value to check
- * @returns {InterfaceSpec | undefined} the interface specification, or undefined
+ * @template {string} T
+ * @param {import('./types.js').TaggedRecord<any, T>} val the value to check
+ * @returns {T | undefined} the interface specification, or undefined
  * if not a deemed to be a Remotable
  */
 export const getInterfaceOf = val => {
