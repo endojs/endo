@@ -128,7 +128,7 @@ export {};
  * @typedef {{
  *   [Symbol.toStringTag]: Tag,
  *   payload: Payload,
- *   [passStyle: symbol]: 'tagged' | string,
+ *   [PASS_STYLE]: 'tagged',
  * }} CopyTagged
  *
  * A Passable "tagged record" with semantics specific to the tag identified in
@@ -137,12 +137,6 @@ export {};
  * It must have a property with key equal to the `PASS_STYLE` export and
  * value 'tagged'
  * and no other properties except `[Symbol.toStringTag]` and `payload`.
- *
- * TODO
- * But TypeScript complains about a declaration like `[PASS_STYLE]: 'tagged'`
- * because importing packages do not know what `PASS_STYLE` is,
- * so we appease it with a looser but less accurate definition
- * using symbol index properties and `| string`.
  */
 
 /**
