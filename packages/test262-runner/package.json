@@ -25,5 +25,8 @@
     "extends": [
       "plugin:@endo/internal"
     ]
+  },
+  "repository": {
+    "directory": "packages/test262-runner"
   }
 }

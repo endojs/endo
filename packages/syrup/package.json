@@ -12,7 +12,8 @@
   "homepage": "https://github.com/endojs/endo/blob/master/packages/syrup/README.md",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/syrup"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

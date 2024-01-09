@@ -12,7 +12,8 @@
   "homepage": "https://github.com/endojs/endo/blob/master/packages/base64/README.md",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/base64"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

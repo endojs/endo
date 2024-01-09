@@ -10,7 +10,8 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/promise-kit"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

@@ -11,7 +11,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/ses-ava#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/ses-ava"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

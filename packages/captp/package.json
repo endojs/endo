@@ -30,7 +30,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/captp"
   },
   "scripts": {
     "build": "exit 0",

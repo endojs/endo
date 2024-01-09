@@ -14,7 +14,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/check-bundle#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/check-bundle"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

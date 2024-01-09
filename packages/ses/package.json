@@ -23,7 +23,8 @@
   "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/ses"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

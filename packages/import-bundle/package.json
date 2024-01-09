@@ -2,6 +2,18 @@
   "name": "@endo/import-bundle",
   "version": "1.0.2",
   "description": "load modules created by @endo/bundle-source",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/import-bundle",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/import-bundle"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
   "type": "module",
   "main": "src/index.js",
   "module": "src/index.js",
@@ -47,12 +59,6 @@
     "*.js",
     "*.ts"
   ],
-  "author": "Endo contributors",
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/endojs/endo/issues"
-  },
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/import-bundle",
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
