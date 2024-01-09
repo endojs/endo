@@ -9,12 +9,12 @@ import {
   passableSymbolForName,
 } from '@endo/pass-style';
 
-/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
+/** @typedef {import('@endo/pass-style/src/types.js').PassStyle} PassStyle */
+/** @typedef {import('@endo/pass-style/src/types.js').Passable} Passable */
+/** @typedef {import('@endo/pass-style/src/types.js').RemotableObject} Remotable */
 /**
  * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
+ * @typedef {import('@endo/pass-style/src/types.js').CopyRecord<T>} CopyRecord
  */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
@@ -333,6 +333,7 @@ export const makeEncodePassable = (encodeOptions = {}) => {
     encodeError = (err, _) => Fail`error unexpected: ${err}`,
   } = encodeOptions;
 
+  /** @param {Passable} passable */
   const encodePassable = passable => {
     if (isErrorLike(passable)) {
       return encodeError(passable, encodePassable);
