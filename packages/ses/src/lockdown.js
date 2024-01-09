@@ -388,19 +388,26 @@ export const repairIntrinsics = (options = {}) => {
 
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.
-    tamedHarden(intrinsics);
+    const toHarden = {
+      intrinsics,
+      globals: {
+        // Harden evaluators
+        Function: globalThis.Function,
+        eval: globalThis.eval,
+        // @ts-ignore Compartment does exist on globalThis
+        Compartment: globalThis.Compartment,
 
-    // Harden evaluators
-    tamedHarden(globalThis.Function);
-    tamedHarden(globalThis.eval);
-    // @ts-ignore Compartment does exist on globalThis
-    tamedHarden(globalThis.Compartment);
+        // Harden Symbol
+        Symbol: globalThis.Symbol,
+      },
+    };
 
     // Harden Symbol and properties for initialGlobalPropertyNames in the host realm
-    tamedHarden(globalThis.Symbol);
     for (const prop of getOwnPropertyNames(initialGlobalPropertyNames)) {
-      tamedHarden(globalThis[prop]);
+      toHarden.globals[prop] = globalThis[prop];
     }
+
+    tamedHarden(toHarden);
 
     return tamedHarden;
   };
