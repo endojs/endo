@@ -18,8 +18,9 @@ import {
  */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
-import { q, Fail } from '@endo/errors';
+import { b, q, Fail } from '@endo/errors';
 
+const { isArray } = Array;
 const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
 
@@ -487,32 +488,35 @@ const decodeTagged = (encoded, decodeArray, decodePassable) => {
   return makeTagged(tag, payload);
 };
 
-const makeEncodeRemotable = (unsafeEncodeRemotable, encodeStringSuffix) => {
+const makeEncodeRemotable = (unsafeEncodeRemotable, verifyEncoding) => {
   const encodeRemotable = (r, innerEncode) => {
     const encoding = unsafeEncodeRemotable(r, innerEncode);
     (typeof encoding === 'string' && encoding.charAt(0) === 'r') ||
       Fail`internal: Remotable encoding must start with "r": ${encoding}`;
-    return `r${encodeStringSuffix(encoding.slice(1))}`;
+    verifyEncoding(encoding, 'Remotable');
+    return encoding;
   };
   return encodeRemotable;
 };
 
-const makeEncodePromise = (unsafeEncodePromise, encodeStringSuffix) => {
+const makeEncodePromise = (unsafeEncodePromise, verifyEncoding) => {
   const encodePromise = (p, innerEncode) => {
     const encoding = unsafeEncodePromise(p, innerEncode);
     (typeof encoding === 'string' && encoding.charAt(0) === '?') ||
       Fail`internal: Promise encoding must start with "?": ${encoding}`;
-    return `?${encodeStringSuffix(encoding.slice(1))}`;
+    verifyEncoding(encoding, 'Promise');
+    return encoding;
   };
   return encodePromise;
 };
 
-const makeEncodeError = (unsafeEncodeError, encodeStringSuffix) => {
+const makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
   const encodeError = (err, innerEncode) => {
     const encoding = unsafeEncodeError(err, innerEncode);
     (typeof encoding === 'string' && encoding.charAt(0) === '!') ||
       Fail`internal: Error encoding must start with "!": ${encoding}`;
-    return `!${encodeStringSuffix(encoding.slice(1))}`;
+    verifyEncoding(encoding, 'Error');
+    return encoding;
   };
   return encodeError;
 };
@@ -535,42 +539,24 @@ const makeEncodeError = (unsafeEncodeError, encodeStringSuffix) => {
  */
 
 /**
- * @param {EncodeOptions} [encodeOptions]
- * @returns {(passable: Passable) => string}
+ * @param {(str: string) => string} encodeStringSuffix
+ * @param {(arr: unknown[], encodeRecur: (p: Passable) => string) => string} encodeArray
+ * @param {Required<EncodeOptions> & {verifyEncoding?: (encoded: string, label: string) => void}} options
+ * @returns {(p: Passable) => string}
  */
-export const makeEncodePassable = (encodeOptions = {}) => {
+const makeInnerEncode = (encodeStringSuffix, encodeArray, options) => {
   const {
-    encodeRemotable: unsafeEncodeRemotable = (r, _) =>
-      Fail`remotable unexpected: ${r}`,
-    encodePromise: unsafeEncodePromise = (p, _) =>
-      Fail`promise unexpected: ${p}`,
-    encodeError: unsafeEncodeError = (err, _) => Fail`error unexpected: ${err}`,
-    format = 'legacyOrdered',
-  } = encodeOptions;
-
-  let formatPrefix;
-  let encodeStringSuffix;
-  let encodeArray;
-  if (format === 'legacyOrdered') {
-    formatPrefix = '';
-    encodeStringSuffix = encodeLegacyStringSuffix;
-    encodeArray = encodeLegacyArray;
-  } else if (format === 'compactOrdered') {
-    formatPrefix = '~';
-    encodeStringSuffix = encodeCompactStringSuffix;
-    encodeArray = encodeCompactArray;
-  } else {
-    Fail`Unrecognized format: ${q(format)}`;
-  }
+    encodeRemotable: unsafeEncodeRemotable,
+    encodePromise: unsafeEncodePromise,
+    encodeError: unsafeEncodeError,
+    verifyEncoding = () => {},
+  } = options;
   const encodeRemotable = makeEncodeRemotable(
     unsafeEncodeRemotable,
-    encodeStringSuffix,
+    verifyEncoding,
   );
-  const encodePromise = makeEncodePromise(
-    unsafeEncodePromise,
-    encodeStringSuffix,
-  );
-  const encodeError = makeEncodeError(unsafeEncodeError, encodeStringSuffix);
+  const encodePromise = makeEncodePromise(unsafeEncodePromise, verifyEncoding);
+  const encodeError = makeEncodeError(unsafeEncodeError, verifyEncoding);
 
   const innerEncode = passable => {
     if (isErrorLike(passable)) {
@@ -618,6 +604,7 @@ export const makeEncodePassable = (encodeOptions = {}) => {
       case 'symbol': {
         // Strings and symbols share encoding logic.
         const name = nameForPassableSymbol(passable);
+        assert.typeof(name, 'string');
         return `y${encodeStringSuffix(name)}`;
       }
       case 'copyArray': {
@@ -634,10 +621,8 @@ export const makeEncodePassable = (encodeOptions = {}) => {
       }
     }
   };
-  const encodePassable = passable => `${formatPrefix}${innerEncode(passable)}`;
-  return harden(encodePassable);
+  return innerEncode;
 };
-harden(makeEncodePassable);
 
 /**
  * @typedef {object} DecodeOptions
@@ -655,94 +640,175 @@ harden(makeEncodePassable);
  * ) => Error} [decodeError]
  */
 
+const liberalDecoders = /** @type {Required<DecodeOptions>} */ (
+  /** @type {unknown} */ ({
+    decodeRemotable: (_encoding, _innerDecode) => undefined,
+    decodePromise: (_encoding, _innerDecode) => undefined,
+    decodeError: (_encoding, _innerDecode) => undefined,
+  })
+);
+
 /**
- * @param {DecodeOptions} [decodeOptions]
+ * @param {(encoded: string) => string} decodeStringSuffix
+ * @param {(encoded: string, decodeRecur: (e: string) => Passable) => unknown[]} decodeArray
+ * @param {Required<DecodeOptions>} options
  * @returns {(encoded: string) => Passable}
  */
-export const makeDecodePassable = (decodeOptions = {}) => {
-  const {
-    decodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
-    decodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
-    decodeError = (err, _) => Fail`error unexpected: ${err}`,
-  } = decodeOptions;
-
-  const makeInnerDecode = (decodeStringSuffix, decodeArray) => {
-    const innerDecode = encoded => {
-      switch (encoded.charAt(0)) {
-        case 'v': {
-          return null;
-        }
-        case 'z': {
-          return undefined;
-        }
-        case 'f': {
-          return decodeBinary64(encoded);
-        }
-        case 's': {
-          return decodeStringSuffix(encoded.slice(1));
-        }
-        case 'b': {
-          if (encoded === 'btrue') {
-            return true;
-          } else if (encoded === 'bfalse') {
-            return false;
-          }
-          throw Fail`expected encoded boolean to be "btrue" or "bfalse": ${encoded}`;
-        }
-        case 'n':
-        case 'p': {
-          return decodeBigInt(encoded);
-        }
-        case 'r': {
-          const normalized = `r${decodeStringSuffix(encoded.slice(1))}`;
-          return decodeRemotable(normalized, innerDecode);
-        }
-        case '?': {
-          const normalized = `?${decodeStringSuffix(encoded.slice(1))}`;
-          return decodePromise(normalized, innerDecode);
-        }
-        case '!': {
-          const normalized = `!${decodeStringSuffix(encoded.slice(1))}`;
-          return decodeError(normalized, innerDecode);
-        }
-        case 'y': {
-          // Strings and symbols share decoding logic.
-          const name = decodeStringSuffix(encoded.slice(1));
-          return passableSymbolForName(name);
-        }
-        case '[':
-        case '^': {
-          return decodeArray(encoded, innerDecode);
-        }
-        case '(': {
-          return decodeRecord(encoded, decodeArray, innerDecode);
-        }
-        case ':': {
-          return decodeTagged(encoded, decodeArray, innerDecode);
-        }
-        default: {
-          throw Fail`invalid database key: ${encoded}`;
-        }
+const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
+  const { decodeRemotable, decodePromise, decodeError } = options;
+  const innerDecode = encoded => {
+    switch (encoded.charAt(0)) {
+      case 'v': {
+        return null;
       }
-    };
-    return innerDecode;
+      case 'z': {
+        return undefined;
+      }
+      case 'f': {
+        return decodeBinary64(encoded);
+      }
+      case 's': {
+        return decodeStringSuffix(encoded.slice(1));
+      }
+      case 'b': {
+        if (encoded === 'btrue') {
+          return true;
+        } else if (encoded === 'bfalse') {
+          return false;
+        }
+        throw Fail`expected encoded boolean to be "btrue" or "bfalse": ${encoded}`;
+      }
+      case 'n':
+      case 'p': {
+        return decodeBigInt(encoded);
+      }
+      case 'r': {
+        return decodeRemotable(encoded, innerDecode);
+      }
+      case '?': {
+        return decodePromise(encoded, innerDecode);
+      }
+      case '!': {
+        return decodeError(encoded, innerDecode);
+      }
+      case 'y': {
+        // Strings and symbols share decoding logic.
+        const name = decodeStringSuffix(encoded.slice(1));
+        return passableSymbolForName(name);
+      }
+      case '[':
+      case '^': {
+        return decodeArray(encoded, innerDecode);
+      }
+      case '(': {
+        return decodeRecord(encoded, decodeArray, innerDecode);
+      }
+      case ':': {
+        return decodeTagged(encoded, decodeArray, innerDecode);
+      }
+      default: {
+        throw Fail`invalid database key: ${encoded}`;
+      }
+    }
   };
+  return innerDecode;
+};
+
+/**
+ * @typedef {object} PassableKit
+ * @property {ReturnType<makeInnerEncode>} encodePassable
+ * @property {ReturnType<makeInnerDecode>} decodePassable
+ */
+
+/**
+ * @param {EncodeOptions & DecodeOptions} [options]
+ * @returns {PassableKit}
+ */
+export const makePassableKit = (options = {}) => {
+  const {
+    encodeRemotable = (r, _) => Fail`remotable unexpected: ${r}`,
+    encodePromise = (p, _) => Fail`promise unexpected: ${p}`,
+    encodeError = (err, _) => Fail`error unexpected: ${err}`,
+    format = 'legacyOrdered',
+
+    decodeRemotable = (encoding, _) => Fail`remotable unexpected: ${encoding}`,
+    decodePromise = (encoding, _) => Fail`promise unexpected: ${encoding}`,
+    decodeError = (encoding, _) => Fail`error unexpected: ${encoding}`,
+  } = options;
+
+  /** @type {PassableKit['encodePassable']} */
+  let encodePassable;
+  const encodeOptions = { encodeRemotable, encodePromise, encodeError, format };
+  if (format === 'compactOrdered') {
+    const liberalDecode = makeInnerDecode(
+      decodeCompactStringSuffix,
+      decodeCompactArray,
+      liberalDecoders,
+    );
+    const verifyEncoding = (encoding, label) => {
+      const decoded = decodeCompactArray(`^s ${encoding} s `, liberalDecode);
+      (isArray(decoded) &&
+        decoded.length === 3 &&
+        decoded[0] === '' &&
+        decoded[2] === '') ||
+        Fail`internal: ${b(label)} encoding must be embeddable: ${encoding}`;
+    };
+    const encodeCompact = makeInnerEncode(
+      encodeCompactStringSuffix,
+      encodeCompactArray,
+      { ...encodeOptions, verifyEncoding },
+    );
+    encodePassable = passable => `~${encodeCompact(passable)}`;
+  } else if (format === 'legacyOrdered') {
+    encodePassable = makeInnerEncode(
+      encodeLegacyStringSuffix,
+      encodeLegacyArray,
+      encodeOptions,
+    );
+  } else {
+    throw Fail`Unrecognized format: ${q(format)}`;
+  }
+
+  const decodeOptions = { decodeRemotable, decodePromise, decodeError };
+  const decodeCompact = makeInnerDecode(
+    decodeCompactStringSuffix,
+    decodeCompactArray,
+    decodeOptions,
+  );
+  const decodeLegacy = makeInnerDecode(
+    decodeLegacyStringSuffix,
+    decodeLegacyArray,
+    decodeOptions,
+  );
   const decodePassable = encoded => {
     // A leading "~" indicates the v2 encoding (with escaping in strings rather than arrays).
     if (encoded.startsWith('~')) {
-      const innerDecode = makeInnerDecode(
-        decodeCompactStringSuffix,
-        decodeCompactArray,
-      );
-      return innerDecode(encoded.slice(1));
+      return decodeCompact(encoded.slice(1));
     }
-    const innerDecode = makeInnerDecode(
-      decodeLegacyStringSuffix,
-      decodeLegacyArray,
-    );
-    return innerDecode(encoded);
+    return decodeLegacy(encoded);
   };
-  return harden(decodePassable);
+
+  return harden({ encodePassable, decodePassable });
+};
+harden(makePassableKit);
+
+/**
+ * @param {EncodeOptions} [encodeOptions]
+ * @returns {PassableKit['encodePassable']}
+ */
+export const makeEncodePassable = encodeOptions => {
+  const { encodePassable } = makePassableKit(encodeOptions);
+  return encodePassable;
+};
+harden(makeEncodePassable);
+
+/**
+ * @param {DecodeOptions} [decodeOptions]
+ * @returns {PassableKit['decodePassable']}
+ */
+export const makeDecodePassable = decodeOptions => {
+  const { decodePassable } = makePassableKit(decodeOptions);
+  return decodePassable;
 };
 harden(makeDecodePassable);
 

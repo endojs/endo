@@ -12,6 +12,7 @@ import { Fail, q } from '@endo/errors';
 // eslint-disable-next-line import/no-extraneous-dependencies
 
 import {
+  makePassableKit,
   makeEncodePassable,
   makeDecodePassable,
 } from '../src/encodePassable.js';
@@ -94,23 +95,47 @@ const decodePassable = encoded => {
   return decodePassableInternal(encoded);
 };
 
-test('makeEncodePassable argument validation', t => {
-  t.notThrows(() => makeEncodePassable(), 'must accept zero arguments');
-  t.notThrows(() => makeEncodePassable({}), 'must accept empty options');
-  t.notThrows(
-    () => makeEncodePassable({ format: 'legacyOrdered' }),
-    'must accept format: "legacyOrdered"',
-  );
-  t.notThrows(
-    () => makeEncodePassable({ format: 'compactOrdered' }),
-    'must accept format: "compactOrdered"',
-  );
-  t.throws(
-    () => makeEncodePassable({ format: 'newHotness' }),
-    { message: /^Unrecognized format\b/ },
-    'must reject unknown format',
+test('makePassableKit output shape', t => {
+  const kit = makePassableKit();
+  t.deepEqual(Reflect.ownKeys(kit).sort(), [
+    'decodePassable',
+    'encodePassable',
+  ]);
+  t.deepEqual(
+    Object.fromEntries(
+      Object.entries(kit).map(([key, value]) => [key, typeof value]),
+    ),
+    { encodePassable: 'function', decodePassable: 'function' },
   );
 });
+
+const verifyEncodeOptions = test.macro({
+  title: label => `${label} encode options validation`,
+  // eslint-disable-next-line no-shadow
+  exec: (t, makeEncodePassable) => {
+    t.notThrows(() => makeEncodePassable(), 'must accept zero arguments');
+    t.notThrows(() => makeEncodePassable({}), 'must accept empty options');
+    t.notThrows(
+      () => makeEncodePassable({ format: 'legacyOrdered' }),
+      'must accept format: "legacyOrdered"',
+    );
+    t.notThrows(
+      () => makeEncodePassable({ format: 'compactOrdered' }),
+      'must accept format: "compactOrdered"',
+    );
+    t.throws(
+      () => makeEncodePassable({ format: 'newHotness' }),
+      { message: /^Unrecognized format\b/ },
+      'must reject unknown format',
+    );
+  },
+});
+test('makeEncodePassable', verifyEncodeOptions, makeEncodePassable);
+test(
+  'makePassableKit',
+  verifyEncodeOptions,
+  (...args) => makePassableKit(...args).encodePassable,
+);
 
 const { comparator: compareFull } = makeComparatorKit(compareRemotables);
 
@@ -170,30 +195,35 @@ test('capability encoding', t => {
     .fill()
     .map((_, i) => String.fromCharCode(i))
     .join('');
+  const forceSigil = (str, newSigil) => newSigil + str.slice(1);
   const encoders = {
-    encodeRemotable: _r => `r${allAscii}`,
-    encodePromise: _p => `?${allAscii}`,
-    encodeError: _err => `!${allAscii}`,
+    encodeRemotable: (_r, encodeRecur) =>
+      forceSigil(encodeRecur(allAscii), 'r'),
+    encodePromise: (_p, encodeRecur) => forceSigil(encodeRecur(allAscii), '?'),
+    encodeError: (_err, encodeRecur) => forceSigil(encodeRecur(allAscii), '!'),
   };
 
   const data = harden([Remotable(), new Promise(() => {}), Error('Foo')]);
   const decoders = Object.fromEntries(
-    Object.entries(encoders).map(([encoderName, encoder], i) => {
+    Object.keys(encoders).map((encoderName, i) => {
       const decoderName = encoderName.replace('encode', 'decode');
-      const decoder = encoded => {
+      const decoder = (encoded, decodeRecur) => {
+        const decodedString = decodeRecur(forceSigil(encoded, 's'));
         t.is(
-          encoded,
-          encoder(undefined),
-          `encoding-level escaping must be invisible in ${decoderName}`,
+          decodedString,
+          allAscii,
+          `encoding must be reversible in ${decoderName}`,
         );
         return data[i];
       };
       return [decoderName, decoder];
     }),
   );
-  const decodeAsciiPassable = makeDecodePassable(decoders);
 
-  const encodePassableLegacy = makeEncodePassable(encoders);
+  const {
+    encodePassable: encodePassableLegacy,
+    decodePassable: decodeAsciiPassable,
+  } = makePassableKit({ ...encoders, ...decoders });
   const dataLegacy = encodePassableLegacy(data);
   t.is(
     dataLegacy,
@@ -229,6 +259,55 @@ test('capability encoding', t => {
     'compactOrdered format must escape U+0000 through U+001F, space, exclamation, caret, and underscore in remotable/promise/error encodings',
   );
   t.is(encodePassableCompact(decodeAsciiPassable(dataCompact)), dataCompact);
+});
+
+test('capability encoding validity constraints', t => {
+  const r = Remotable();
+  let encoding;
+  const customEncode = makeEncodePassable({
+    format: 'compactOrdered',
+    encodeRemotable: _r => encoding,
+  });
+  const tryCustomEncode = () => {
+    const encoded = customEncode(r);
+    return encoded;
+  };
+
+  t.throws(tryCustomEncode, { message: /must start with "r"/ });
+
+  encoding = '?';
+  t.throws(tryCustomEncode, { message: /must start with "r"/ });
+
+  encoding = 'r ';
+  t.throws(tryCustomEncode, { message: /unexpected array element terminator/ });
+
+  encoding = 'r s';
+  t.throws(tryCustomEncode, { message: /must be embeddable/ });
+
+  encoding = 'r^^';
+  t.throws(tryCustomEncode, { message: /unterminated array/ });
+
+  encoding = 'r';
+  t.notThrows(tryCustomEncode, 'empty custom encoding is acceptable');
+
+  encoding = `r${encodePassableInternal2(harden([]))}`;
+  t.notThrows(
+    tryCustomEncode,
+    'custom encoding containing an empty array is acceptable',
+  );
+
+  encoding = `r${encodePassableInternal2(harden(['foo', []]))}`;
+  t.notThrows(
+    tryCustomEncode,
+    'custom encoding containing a non-empty array is acceptable',
+  );
+
+  // TODO turn into rejection?
+  encoding = `r\x04!`;
+  t.notThrows(
+    tryCustomEncode,
+    'custom encoding is not constrained to use string escaping',
+  );
 });
 
 const orderInvariants = (x, y) => {
