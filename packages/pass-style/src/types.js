@@ -1,3 +1,6 @@
+/* eslint-disable no-unused-vars */
+import { PASS_STYLE } from './passStyle-helpers.js';
+
 export {};
 
 /**
@@ -60,8 +63,9 @@ export {};
  * (p: Array): 'copyArray';
  * (p: Iterable): 'remotable';
  * (p: Iterator): 'remotable';
+ * (p: import('@endo/eventual-send/src/types.js').RemotableBrand<unknown, unknown>): 'remotable';
+ * <T extends {[PASS_STYLE]: string}, S extends string>(p: T extends {[PASS_STYLE]: infer S} ? T : never): S;
  * (p: {[key: string]: any}): 'copyRecord';
- * (p: RemotableObject): 'remotable';
  * (p: any): never;
  * }} PassStyleOf
  */

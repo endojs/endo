@@ -4,6 +4,7 @@ import { Far } from './make-far';
 import { passStyleOf } from './passStyleOf';
 import { makeTagged } from './makeTagged';
 import { CopyTagged } from './types';
+import { PASS_STYLE } from './passStyle-helpers';
 
 const remotable = Far('foo', {});
 
@@ -22,4 +23,5 @@ expectType<'error'>(passStyleOf(new Error()));
 expectType<'tagged'>(passStyleOf(copyTagged));
 expectType<'copyArray'>(passStyleOf([]));
 expectType<'copyRecord'>(passStyleOf({}));
+expectType<'arbitrary'>(passStyleOf({ [PASS_STYLE]: 'arbitrary' }));
 expectType<'remotable'>(passStyleOf(remotable));

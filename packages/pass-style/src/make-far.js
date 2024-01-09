@@ -5,7 +5,7 @@ import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
-/** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
+/** @template L,R @typedef {import('@endo/eventual-send/src/types').RemotableBrand<L, R>} RemotableBrand */
 
 const { quote: q, Fail } = assert;
 
