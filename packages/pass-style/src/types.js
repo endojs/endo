@@ -58,9 +58,11 @@ export {};
  * (p: Error): 'error';
  * (p: CopyTagged): 'tagged';
  * (p: Array): 'copyArray';
+ * (p: Iterable): 'remotable';
+ * (p: Iterator): 'remotable';
  * (p: {[key: string]: any}): 'copyRecord';
- * (p: Passable): 'remotable';
- * (p: unknown): never;
+ * (p: RemotableObject): 'remotable';
+ * (p: any): never;
  * }} PassStyleOf
  */
 
@@ -90,7 +92,7 @@ export {};
  */
 
 /**
- * @typedef {WeakKey} RemotableObject
+ * @typedef {import('@endo/eventual-send/src/types.js').RemotableBrand<{}, {}>} RemotableObject
  *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
