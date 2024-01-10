@@ -29,7 +29,7 @@ export {};
  * @typedef {P[typeof PASS_STYLE]} ExtractStyle
  */
 
-/** @typedef {import('type-fest').Primitive | CopyArray | CopyRecord | CopyTagged } PassByCopy */
+/** @typedef {import('type-fest').Primitive | Error | CopyArray | CopyRecord | CopyTagged } PassByCopy */
 /** @typedef {RemotableObject | Promise<RemotableObject> | Promise<PassByCopy> } PassByRef */
 
 /**
