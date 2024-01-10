@@ -1,8 +1,5 @@
 // @ts-check
 
-/** @typedef {import('./types.js').AttenuationDefinition} AttenuationDefinition */
-/** @typedef {import('./types.js').UnifiedAttenuationDefinition} UnifiedAttenuationDefinition */
-
 const { entries, keys } = Object;
 const { isArray } = Array;
 const q = JSON.stringify;
@@ -10,14 +7,18 @@ const q = JSON.stringify;
 const ATTENUATOR_KEY = 'attenuate';
 const ATTENUATOR_PARAMS_KEY = 'params';
 const WILDCARD_POLICY_VALUE = 'any';
-const POLICY_FIELDS_LOOKUP = ['builtins', 'globals', 'packages'];
+const POLICY_FIELDS_LOOKUP = /** @type {const} */ ([
+  'builtins',
+  'globals',
+  'packages',
+]);
 
 /**
  *
- * @param {object} packagePolicy
- * @param {string} field
+ * @param {import('./types.js').PackagePolicy} packagePolicy
+ * @param {'builtins'|'globals'|'packages'} field
  * @param {string} itemName
- * @returns {boolean | object}
+ * @returns {boolean | import('./types.js').AttenuationDefinition}
  */
 export const policyLookupHelper = (packagePolicy, field, itemName) => {
   if (!POLICY_FIELDS_LOOKUP.includes(field)) {
@@ -34,38 +35,43 @@ export const policyLookupHelper = (packagePolicy, field, itemName) => {
   if (packagePolicy[field] === WILDCARD_POLICY_VALUE) {
     return true;
   }
-  if (packagePolicy[field][itemName]) {
-    return packagePolicy[field][itemName];
+
+  const value = /** @type {import('./types.js').AttenuationDefinition} */ (
+    packagePolicy[field]
+  );
+  if (itemName in value) {
+    return value[itemName];
   }
   return false;
 };
 
 /**
- * Checks if the policy value is set to wildcard to allow everything
+ * Type guard; checks if the policy value is set to the wildcard value to allow everything
  *
- * @param {any} policyValue
- * @returns {boolean}
+ * @param {unknown} policyValue
+ * @returns {policyValue is import('./types.js').WildcardPolicy}
  */
 export const isAllowingEverything = policyValue =>
   policyValue === WILDCARD_POLICY_VALUE;
 
 /**
- *
- * @param {AttenuationDefinition} potentialDefinition
- * @returns {boolean}
+ * Type guard for `AttenuationDefinition`
+ * @param {unknown} allegedDefinition
+ * @returns {allegedDefinition is import('./types.js').AttenuationDefinition}
  */
-export const isAttenuationDefinition = potentialDefinition => {
-  return (
-    (typeof potentialDefinition === 'object' &&
-      typeof potentialDefinition[ATTENUATOR_KEY] === 'string') || // object with attenuator name
-    isArray(potentialDefinition) // params for default attenuator
+export const isAttenuationDefinition = allegedDefinition => {
+  return Boolean(
+    (allegedDefinition &&
+      typeof allegedDefinition === 'object' &&
+      typeof allegedDefinition[ATTENUATOR_KEY] === 'string') || // object with attenuator name
+      isArray(allegedDefinition), // params for default attenuator
   );
 };
 
 /**
  *
- * @param {AttenuationDefinition} attenuationDefinition
- * @returns {UnifiedAttenuationDefinition}
+ * @param {import('./types.js').AttenuationDefinition} attenuationDefinition
+ * @returns {import('./types.js').UnifiedAttenuationDefinition}
  */
 export const getAttenuatorFromDefinition = attenuationDefinition => {
   if (!isAttenuationDefinition(attenuationDefinition)) {
@@ -90,28 +96,45 @@ export const getAttenuatorFromDefinition = attenuationDefinition => {
   }
 };
 
+// TODO: should be a type guard
 const isRecordOf = (item, predicate) => {
   if (typeof item !== 'object' || item === null || isArray(item)) {
     return false;
   }
   return entries(item).every(([key, value]) => predicate(value, key));
 };
+
+/**
+ * Type guard for `boolean`
+ * @param {unknown} item
+ * @returns {item is boolean}
+ */
 const isBoolean = item => typeof item === 'boolean';
+
+// TODO: should be a type guard
 const predicateOr =
   (...predicates) =>
   item =>
     predicates.some(p => p(item));
+
+/**
+ * @param {unknown} item
+ * @returns {item is import('./types.js').PolicyItem}
+ */
 const isPolicyItem = item =>
   item === undefined ||
   item === WILDCARD_POLICY_VALUE ||
   isRecordOf(item, isBoolean);
 
 /**
+ * This asserts (i.e., throws) that `allegedPackagePolicy` is a valid `PackagePolicy`.
  *
- * @param {unknown} allegedPackagePolicy
- * @param {string} path
- * @param {string} [url]
- * @returns {void}
+ * Mild-mannered during the day, but fights crime at night as a type guard.
+ *
+ * @param {unknown} allegedPackagePolicy - Alleged `PackagePolicy` to test
+ * @param {string} path - Path in the `Policy` object; used for error messages only
+ * @param {string} [url] - URL of the policy file; used for error messages only
+ * @returns {asserts allegedPackagePolicy is import('./types.js').PackagePolicy|undefined}
  */
 export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
   if (allegedPackagePolicy === undefined) {
@@ -172,9 +195,12 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
 };
 
 /**
+ * This asserts (i.e., throws) that `allegedPolicy` is a valid `Policy`
  *
- * @param {unknown} allegedPolicy
- * @returns {void}
+ * It also moonlights as a type guard.
+ *
+ * @param {unknown} allegedPolicy - Alleged `Policy` to test
+ * @returns {asserts allegedPolicy is import('./types.js').Policy|undefined}
  */
 export const assertPolicy = allegedPolicy => {
   if (allegedPolicy === undefined) {
