@@ -56,7 +56,7 @@ export const makeAtomicsTrapHost = transferBuffer => {
 
   const te = new TextEncoder();
 
-  return async function* trapHost([isReject, serialized]) {
+  return harden(async function* trapHost([isReject, serialized]) {
     // Get the complete encoded message buffer.
     const json = JSON.stringify(serialized);
     const encoded = te.encode(json);
@@ -94,7 +94,7 @@ export const makeAtomicsTrapHost = transferBuffer => {
         yield;
       }
     }
-  };
+  });
 };
 
 /**

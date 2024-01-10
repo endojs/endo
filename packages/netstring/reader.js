@@ -132,6 +132,7 @@ async function* makeNetstringIterator(
 
   return undefined;
 }
+harden(makeNetstringIterator);
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
