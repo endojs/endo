@@ -1,30 +1,19 @@
 /// <reference types="ses"/>
 
-export {};
-
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
-/**
- * @template {string} [Tag=string]
- * @template {Passable} [Payload=Passable]
- * @typedef {import('@endo/pass-style').CopyTagged<Tag,Payload>} CopyTagged
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
- */
-/** @typedef {import('@endo/pass-style').Checker} Checker */
-/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
-/** @typedef {import('@endo/marshal').RankCover} RankCover */
+import type {
+  Passable,
+  PassStyle,
+  CopyTagged,
+  CopyRecord,
+  CopyArray,
+  Checker,
+  RankCompare,
+  RankCover,
+  RemotableObject,
+} from '@endo/pass-style/src/types';
 
 // FIXME exclude nested Error and Promise
 /**
- * @typedef {Exclude<Passable, Error | Promise>} Key
- *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
  * non-container leaf is either a Passable primitive value or a Remotable (a
@@ -47,6 +36,7 @@ export {};
  * they are `keyEQ` here. (`keyEQ` tests equality according to the
  * key distributed equality semantics.)
  */
+export type Key = Passable<RemotableObject, never>;
 
 /**
  * @callback GetRankCover
