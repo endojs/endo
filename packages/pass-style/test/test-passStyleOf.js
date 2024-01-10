@@ -62,7 +62,7 @@ test('some passStyleOf rejections', t => {
   });
 
   const prbad1 = Promise.resolve();
-  Object.setPrototypeOf(prbad1, { __proto__: Promise.prototype });
+  Object.setPrototypeOf(prbad1, harden({ __proto__: Promise.prototype }));
   harden(prbad1);
   t.throws(() => passStyleOf(prbad1), {
     message:
@@ -125,7 +125,7 @@ test('passStyleOf testing tagged records', t => {
   t.is(passStyleOf(harden(makeTagRecordVariant())), 'tagged');
   t.is(passStyleOf(harden(makeTagRecordVariant({ passable: true }))), 'tagged');
 
-  for (const proto of [null, {}]) {
+  for (const proto of [null, harden({})]) {
     const tagRecordBadProto = makeTagRecordVariant(undefined, proto);
     t.throws(
       () => passStyleOf(harden(tagRecordBadProto)),
@@ -176,7 +176,7 @@ test('passStyleOf testing remotables', t => {
   t.is(passStyleOf(Far('foo', {})), 'remotable');
   t.is(passStyleOf(Far('foo', () => 'far function')), 'remotable');
 
-  const tagRecord1 = makeTagishRecord('Alleged: manually constructed');
+  const tagRecord1 = harden(makeTagishRecord('Alleged: manually constructed'));
   const farObj1 = harden({
     __proto__: tagRecord1,
   });
@@ -203,13 +203,13 @@ test('passStyleOf testing remotables', t => {
   });
   t.is(passStyleOf(farObj3), 'remotable');
 
-  const tagRecord4 = makeTagishRecord('Remotable');
+  const tagRecord4 = harden(makeTagishRecord('Remotable'));
   const farObj4 = harden({
     __proto__: tagRecord4,
   });
   t.is(passStyleOf(farObj4), 'remotable');
 
-  const tagRecord5 = makeTagishRecord('Not alleging');
+  const tagRecord5 = harden(makeTagishRecord('Not alleging'));
   const farObj5 = harden({
     __proto__: tagRecord5,
   });
@@ -218,7 +218,7 @@ test('passStyleOf testing remotables', t => {
       /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented/,
   });
 
-  const tagRecord6 = makeTagishRecord('Alleged: manually constructed');
+  const tagRecord6 = harden(makeTagishRecord('Alleged: manually constructed'));
   const farObjProto6 = harden({
     __proto__: tagRecord6,
   });
@@ -259,6 +259,7 @@ test('passStyleOf testing remotables', t => {
       return this.add(4) + this.add(4);
     }
   }
+  harden(FarSubclass8);
   const farObj8 = new FarSubclass8(3);
   t.is(passStyleOf(farObj8), 'remotable');
   t.is(farObj8.twice(), 14);
@@ -272,9 +273,8 @@ test('passStyleOf testing remotables', t => {
   const unusualTagRecordProtoMessage =
     /A tagRecord must inherit from Object.prototype/;
 
-  const tagRecordA1 = makeTagishRecord(
-    'Alleged: null-proto tagRecord proto',
-    null,
+  const tagRecordA1 = harden(
+    makeTagishRecord('Alleged: null-proto tagRecord proto', null),
   );
   const farObjA1 = harden({ __proto__: tagRecordA1 });
   t.throws(
@@ -283,9 +283,8 @@ test('passStyleOf testing remotables', t => {
     'null-proto-tagRecord proto is rejected',
   );
 
-  const tagRecordA2 = makeTagishRecord(
-    'Alleged: null-proto tagRecord grandproto',
-    null,
+  const tagRecordA2 = harden(
+    makeTagishRecord('Alleged: null-proto tagRecord grandproto', null),
   );
   const farObjProtoA2 = harden({ __proto__: tagRecordA2 });
   const farObjA2 = harden({ __proto__: farObjProtoA2 });
@@ -299,7 +298,9 @@ test('passStyleOf testing remotables', t => {
     message: 'cannot serialize Remotables with accessors like "toString" in {}',
   });
 
-  const fauxTagRecordB = makeTagishRecord('Alleged: manually constructed', {});
+  const fauxTagRecordB = harden(
+    makeTagishRecord('Alleged: manually constructed', harden({})),
+  );
   const farObjProtoB = harden({
     __proto__: fauxTagRecordB,
   });
@@ -315,6 +316,7 @@ test('passStyleOf testing remotables', t => {
     'Alleged: manually constructed',
   );
   Object.defineProperty(farObjProtoWithExtra, 'extra', { value: () => {} });
+  harden(farObjProtoWithExtra);
   const badFarObjExtraProtoProp = harden({ __proto__: farObjProtoWithExtra });
   t.throws(() => passStyleOf(badFarObjExtraProtoProp), {
     message: 'Unexpected properties on Remotable Proto ["extra"]',

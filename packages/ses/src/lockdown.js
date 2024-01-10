@@ -26,6 +26,7 @@ import {
   stringSplit,
   noEvalEvaluate,
   getOwnPropertyNames,
+  getPrototypeOf,
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
@@ -281,6 +282,14 @@ export const repairIntrinsics = (options = {}) => {
 
   const intrinsics = finalIntrinsics();
 
+  const hostIntrinsics = { __proto__: null };
+
+  // The Node.js Buffer is a derived class of Uint8Array, and as such is often
+  // passed around where a Uint8Array is expected.
+  if (typeof globalThis.Buffer === 'function') {
+    hostIntrinsics.Buffer = globalThis.Buffer;
+  }
+
   /**
    * Wrap console unless suppressed.
    * At the moment, the console is considered a host power in the start
@@ -300,6 +309,19 @@ export const repairIntrinsics = (options = {}) => {
     optGetStackString,
   );
   globalThis.console = /** @type {Console} */ (consoleRecord.console);
+
+  // The untamed Node.js console cannot itself be hardened as it has mutable
+  // internal properties, but some of these properties expose internal versions
+  // of classes from node's "primordials" concept.
+  // eslint-disable-next-line no-underscore-dangle
+  if (typeof (/** @type {any} */ (consoleRecord.console)._times) === 'object') {
+    // SafeMap is a derived Map class used internally by Node
+    // There doesn't seem to be a cleaner way to reach it.
+    hostIntrinsics.SafeMap = getPrototypeOf(
+      // eslint-disable-next-line no-underscore-dangle
+      /** @type {any} */ (consoleRecord.console)._times,
+    );
+  }
 
   // @ts-ignore assert is absent on globalThis type def.
   if (errorTaming === 'unsafe' && globalThis.assert === assert) {
@@ -388,19 +410,27 @@ export const repairIntrinsics = (options = {}) => {
 
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.
-    tamedHarden(intrinsics);
+    const toHarden = {
+      intrinsics,
+      hostIntrinsics,
+      globals: {
+        // Harden evaluators
+        Function: globalThis.Function,
+        eval: globalThis.eval,
+        // @ts-ignore Compartment does exist on globalThis
+        Compartment: globalThis.Compartment,
 
-    // Harden evaluators
-    tamedHarden(globalThis.Function);
-    tamedHarden(globalThis.eval);
-    // @ts-ignore Compartment does exist on globalThis
-    tamedHarden(globalThis.Compartment);
+        // Harden Symbol
+        Symbol: globalThis.Symbol,
+      },
+    };
 
     // Harden Symbol and properties for initialGlobalPropertyNames in the host realm
-    tamedHarden(globalThis.Symbol);
     for (const prop of getOwnPropertyNames(initialGlobalPropertyNames)) {
-      tamedHarden(globalThis[prop]);
+      toHarden.globals[prop] = globalThis[prop];
     }
+
+    tamedHarden(toHarden);
 
     return tamedHarden;
   };

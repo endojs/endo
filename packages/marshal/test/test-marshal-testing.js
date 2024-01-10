@@ -49,10 +49,10 @@ const bob6 = harden({
 });
 const bob7 = harden({ __proto__: bob6 });
 const bob8 = harden({
-  __proto__: {
+  __proto__: harden({
     [Symbol.toStringTag]: 'Alleged: bob',
     foo: 'x',
-  },
+  }),
 });
 
 test('ava deepEqual related edge cases', t => {

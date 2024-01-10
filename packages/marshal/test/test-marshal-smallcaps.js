@@ -124,9 +124,12 @@ test('smallcaps serialize errors', t => {
   }
 
   // Bad prototype and bad "message" property
-  const nonErrorProto1 = { __proto__: Error.prototype, name: 'included' };
-  const nonError1 = { __proto__: nonErrorProto1, message: [] };
-  t.deepEqual(ser(harden(nonError1)), {
+  const nonErrorProto1 = harden({
+    __proto__: Error.prototype,
+    name: 'included',
+  });
+  const nonError1 = harden({ __proto__: nonErrorProto1, message: [] });
+  t.deepEqual(ser(nonError1), {
     body: '#{"#error":"","name":"included"}',
     slots: [],
   });

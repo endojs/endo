@@ -35,6 +35,7 @@ class ExoBaseClass {
     return harden({});
   }
 }
+harden(ExoBaseClass);
 
 const defineExoClassFromJSClass = klass =>
   defineExoClass(klass.name, klass.implements, klass.init, klass.prototype);
@@ -55,6 +56,7 @@ class ExoAbstractPoint extends ExoBaseClass {
     return `<${self.getX()},${self.getY()}>`;
   }
 }
+harden(ExoAbstractPoint);
 
 test('cannot make abstract class concrete', t => {
   t.throws(() => defineExoClassFromJSClass(ExoAbstractPoint), {

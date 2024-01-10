@@ -30,6 +30,7 @@ class FarSubclass1 extends FarBaseClass {
     return x + x;
   }
 }
+harden(FarSubclass1);
 
 class FarSubclass2 extends FarSubclass1 {
   #y = 0;
@@ -43,6 +44,7 @@ class FarSubclass2 extends FarSubclass1 {
     return this.double(x) + this.#y;
   }
 }
+harden(FarSubclass2);
 
 const assertMethodNames = (t, obj, names) => {
   t.deepEqual(getMethodNames(obj), names);
@@ -88,6 +90,7 @@ test('far class instances', t => {
       return this.double(x) + yField.get(this);
     }
   }
+  harden(FarSubclass3);
 
   const fs3 = new FarSubclass3(3);
   t.is(passStyleOf(fs3), 'remotable');
@@ -105,6 +108,7 @@ test('far class instance hardened empty', t => {
   class FarClass4 extends FarBaseClass {
     z = 0;
   }
+  harden(FarClass4);
   t.throws(() => new FarClass4(), {
     // TODO message depends on JS engine, and so is a fragile golden test
     message: 'Cannot define property z, object is not extensible',

@@ -280,6 +280,9 @@ test('harden a typed array subclass', t => {
   class Ooint8Array extends Uint8Array {
     oo = 'ghosts';
   }
+  h(Ooint8Array);
+  t.truthy(Object.isFrozen(Ooint8Array.prototype));
+  t.truthy(Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
 
   const a = new Ooint8Array(1);
   t.is(h(a), a);
@@ -290,8 +293,6 @@ test('harden a typed array subclass', t => {
     configurable: false,
     enumerable: true,
   });
-  t.truthy(Object.isFrozen(Ooint8Array.prototype));
-  t.truthy(Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
   t.truthy(Object.isSealed(a));
 });
 
