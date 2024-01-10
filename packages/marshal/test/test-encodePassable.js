@@ -287,7 +287,7 @@ test('compact string validity', t => {
   }
   for (let cp = 0; cp < 0x20; cp += 1) {
     const ch = String.fromCodePoint(cp);
-    const uCode = cp.toString(16).padStart(4, '0');
+    const uCode = cp.toString(16).padStart(4, '0').toUpperCase();
     t.throws(
       () => decodePassableInternal(`~sa${ch}z`),
       { message: /invalid string escape/ },
@@ -296,53 +296,65 @@ test('compact string validity', t => {
   }
 });
 
-test('capability encoding validity constraints', t => {
-  const r = Remotable();
-  let encoding;
-  const customEncode = makeEncodePassable({
+test('compact custom encoding validity constraints', t => {
+  const encodings = new Map();
+  const dynamicEncoder = obj => encodings.get(obj);
+  const dynamicEncodePassable = makeEncodePassable({
     format: 'compactOrdered',
-    encodeRemotable: _r => encoding,
+    encodeRemotable: dynamicEncoder,
+    encodePromise: dynamicEncoder,
+    encodeError: dynamicEncoder,
   });
-  const tryCustomEncode = () => {
-    const encoded = customEncode(r);
-    return encoded;
+  const makers = {
+    r: Remotable,
+    '?': Promise.resolve.bind(Promise),
+    '!': Error,
   };
 
-  t.throws(tryCustomEncode, { message: /must start with "r"/ });
+  for (const [sigil, makeInstance] of Object.entries(makers)) {
+    const instance = harden(makeInstance());
+    const makeTryEncode = encoding => {
+      encodings.set(instance, encoding);
+      const tryEncode = () => dynamicEncodePassable(instance);
+      return tryEncode;
+    };
 
-  encoding = '?';
-  t.throws(tryCustomEncode, { message: /must start with "r"/ });
+    const rMustStartWith = RegExp(`must start with "[${sigil}]"`);
+    t.throws(makeTryEncode(undefined), { message: rMustStartWith });
+    for (const otherSigil of Object.keys(makers).filter(s => s !== sigil)) {
+      t.throws(makeTryEncode(otherSigil), { message: rMustStartWith });
+    }
 
-  encoding = 'r ';
-  t.throws(tryCustomEncode, { message: /unexpected array element terminator/ });
+    t.throws(makeTryEncode(`${sigil} `), {
+      message: /unexpected array element terminator/,
+    });
+    t.throws(makeTryEncode(`${sigil} s`), { message: /must be embeddable/ });
+    t.throws(makeTryEncode(`${sigil}^^`), { message: /unterminated array/ });
+    t.notThrows(makeTryEncode(sigil), 'empty custom encoding is acceptable');
+    t.notThrows(
+      makeTryEncode(`${sigil}!`),
+      'custom encoding containing an invalid string escape is acceptable',
+    );
+    t.notThrows(
+      makeTryEncode(`${sigil}${encodePassableInternal2(harden([]))}`),
+      'custom encoding containing an empty array is acceptable',
+    );
+    t.notThrows(
+      makeTryEncode(`${sigil}${encodePassableInternal2(harden(['foo', []]))}`),
+      'custom encoding containing a non-empty array is acceptable',
+    );
 
-  encoding = 'r s';
-  t.throws(tryCustomEncode, { message: /must be embeddable/ });
-
-  encoding = 'r^^';
-  t.throws(tryCustomEncode, { message: /unterminated array/ });
-
-  encoding = 'r';
-  t.notThrows(tryCustomEncode, 'empty custom encoding is acceptable');
-
-  encoding = `r${encodePassableInternal2(harden([]))}`;
-  t.notThrows(
-    tryCustomEncode,
-    'custom encoding containing an empty array is acceptable',
-  );
-
-  encoding = `r${encodePassableInternal2(harden(['foo', []]))}`;
-  t.notThrows(
-    tryCustomEncode,
-    'custom encoding containing a non-empty array is acceptable',
-  );
-
-  // TODO turn into rejection?
-  encoding = `r\x04!`;
-  t.notThrows(
-    tryCustomEncode,
-    'custom encoding is not constrained to use string escaping',
-  );
+    for (let cp = 0; cp < 0x20; cp += 1) {
+      const ch = String.fromCodePoint(cp);
+      const encoding = `${sigil}${ch}`;
+      const uCode = cp.toString(16).padStart(4, '0').toUpperCase();
+      t.throws(
+        makeTryEncode(encoding),
+        { message: /must not contain a C0/ },
+        `disallowed encode output: U+${uCode} ${JSON.stringify(encoding)}`,
+      );
+    }
+  }
 });
 
 const orderInvariants = (x, y) => {

@@ -24,6 +24,9 @@ const { isArray } = Array;
 const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
 
+// eslint-disable-next-line no-control-regex
+const rC0 = /[\x00-\x1F]/;
+
 /**
  * Assuming that `record` is a CopyRecord, we have only
  * string-named own properties. `recordNames` returns those name *reverse*
@@ -492,7 +495,7 @@ const makeEncodeRemotable = (unsafeEncodeRemotable, verifyEncoding) => {
   const encodeRemotable = (r, innerEncode) => {
     const encoding = unsafeEncodeRemotable(r, innerEncode);
     (typeof encoding === 'string' && encoding.charAt(0) === 'r') ||
-      Fail`internal: Remotable encoding must start with "r": ${encoding}`;
+      Fail`Remotable encoding must start with "r": ${encoding}`;
     verifyEncoding(encoding, 'Remotable');
     return encoding;
   };
@@ -503,7 +506,7 @@ const makeEncodePromise = (unsafeEncodePromise, verifyEncoding) => {
   const encodePromise = (p, innerEncode) => {
     const encoding = unsafeEncodePromise(p, innerEncode);
     (typeof encoding === 'string' && encoding.charAt(0) === '?') ||
-      Fail`internal: Promise encoding must start with "?": ${encoding}`;
+      Fail`Promise encoding must start with "?": ${encoding}`;
     verifyEncoding(encoding, 'Promise');
     return encoding;
   };
@@ -514,7 +517,7 @@ const makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
   const encodeError = (err, innerEncode) => {
     const encoding = unsafeEncodeError(err, innerEncode);
     (typeof encoding === 'string' && encoding.charAt(0) === '!') ||
-      Fail`internal: Error encoding must start with "!": ${encoding}`;
+      Fail`Error encoding must start with "!": ${encoding}`;
     verifyEncoding(encoding, 'Error');
     return encoding;
   };
@@ -745,13 +748,22 @@ export const makePassableKit = (options = {}) => {
       decodeCompactArray,
       liberalDecoders,
     );
+    /**
+     * @param {string} encoding
+     * @param {string} label
+     * @returns {void}
+     */
     const verifyEncoding = (encoding, label) => {
+      !encoding.match(rC0) ||
+        Fail`${b(
+          label,
+        )} encoding must not contain a C0 control character: ${encoding}`;
       const decoded = decodeCompactArray(`^s ${encoding} s `, liberalDecode);
       (isArray(decoded) &&
         decoded.length === 3 &&
         decoded[0] === '' &&
         decoded[2] === '') ||
-        Fail`internal: ${b(label)} encoding must be embeddable: ${encoding}`;
+        Fail`${b(label)} encoding must be embeddable: ${encoding}`;
     };
     const encodeCompact = makeInnerEncode(
       encodeCompactStringSuffix,
