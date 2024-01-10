@@ -64,9 +64,9 @@ const DEBUG_VALUES = getEnvironmentOptionsList('DEBUG');
 const DEBUG_AGORIC = environmentOptionsListHas('DEBUG', 'agoric');
 ```
 
-Another common Unix convention is for the value of an option to be a
+Another common convention is for the value of an option to be a
 comma (`','`) separated list of strings. `getEnvironmentOptionsList` will
-return this list, or an empty list of the option is absent.
+return this list, or an empty list if the option is absent.
 `environmentOptionsListHas` will test if this list contains a specific
 value, or return false if the option is absent.
 
@@ -79,9 +79,10 @@ than comma. Once these are fixed, then these uses can be switched to use
 
 The `'@endo/env-options'` module also exports a lower-level
 `makeEnvironmentCaptor` that you can apply to whatever object you wish to treat
-as a global, such as the global of another compartment. It returns an entagled
+as a global(having a "process" property with its own "env" record),
+such as the global of another compartment. It returns an entagled
 pair of a `getEnvironmentOption` function as above, and a
-`getCapturedEnvironmentOptionNames` function for that returns an array of
+`getCapturedEnvironmentOptionNames` function that returns an array of
 the option names used by that `getEnvironmentOption` function. This is
 useful to give feedback about
 which environment variables were actually read, for diagnostic purposes.

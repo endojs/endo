@@ -52,13 +52,14 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
    *
    * @param {string} optionName
    * @param {string} defaultSetting
-   * @param {string[]} [optOtherNames]
+   * @param {string[]} [optOtherValues]
+   * If provided, the option value must be included or match `defaultSetting`.
    * @returns {string}
    */
   const getEnvironmentOption = (
     optionName,
     defaultSetting,
-    optOtherNames = undefined,
+    optOtherValues = undefined,
   ) => {
     typeof optionName === 'string' ||
       Fail`Environment option name ${q(optionName)} must be a string.`;
@@ -88,12 +89,12 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
         setting = optionValue;
       }
     }
-    optOtherNames === undefined ||
+    optOtherValues === undefined ||
       setting === defaultSetting ||
-      arrayIncludes(optOtherNames, setting) ||
+      arrayIncludes(optOtherValues, setting) ||
       Fail`Unrecognized ${q(optionName)} value ${q(
         setting,
-      )}. Expected one of ${q([defaultSetting, ...optOtherNames])}`;
+      )}. Expected one of ${q([defaultSetting, ...optOtherValues])}`;
     return setting;
   };
   freeze(getEnvironmentOption);
@@ -104,7 +105,7 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
    */
   const getEnvironmentOptionsList = optionName => {
     const option = getEnvironmentOption(optionName, '');
-    return option === '' ? [] : stringSplit(option, ',');
+    return freeze(option === '' ? [] : stringSplit(option, ','));
   };
   freeze(getEnvironmentOptionsList);
 
