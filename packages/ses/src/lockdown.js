@@ -14,7 +14,7 @@
 
 // @ts-check
 
-import { makeEnvironmentCaptor } from '@endo/env-options';
+import { getEnvironmentOption as getenv } from '@endo/env-options';
 import {
   FERAL_FUNCTION,
   FERAL_EVAL,
@@ -155,8 +155,6 @@ export const repairIntrinsics = (options = {}) => {
   // is useful. See
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/docs/lockdown.md#stackfiltering-options)
   // for an explanation.
-
-  const { getEnvironmentOption: getenv } = makeEnvironmentCaptor(globalThis);
 
   const {
     errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
