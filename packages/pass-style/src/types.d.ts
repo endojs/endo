@@ -110,8 +110,11 @@ export type PassStyleOf = {
  * trip (as exists between vats) to produce data structures disconnected from
  * any potential proxies.
  */
-export type PureData = Passable;
-export type TaggedRecord<S extends string, I extends string> = PassStyled<S> & {
+export type PureData = Passable<never, never>;
+export type TaggedRecord<
+  S extends string,
+  I extends InterfaceSpec,
+> = PassStyled<S> & {
   [Symbol.toStringTag]: I;
 };
 /**
