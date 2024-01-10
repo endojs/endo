@@ -532,6 +532,7 @@ const runTests = (t, successCase, failCase) => {
     t.throws(
       () => {
         copyMapComparison || Fail`No CopyMap comparison support`;
+        // @ts-expect-error FIXME Key types
         successCase(specimen, M.gt(makeCopyMap([])));
       },
       { message: 'No CopyMap comparison support' },

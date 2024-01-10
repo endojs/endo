@@ -4,6 +4,7 @@ export {};
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/** @typedef {import('@endo/pass-style').RemotableObject} RemotableObject */
 /**
  * @template {string} [Tag=string]
  * @template {Passable} [Payload=Passable]
@@ -22,7 +23,7 @@ export {};
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
 /**
- * @typedef {Passable} Key
+ * @typedef {import('@endo/pass-style').Passable<RemotableObject, never>} Key
  *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
