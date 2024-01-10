@@ -97,7 +97,7 @@ export const coerceToElements = elementsList => {
 harden(coerceToElements);
 
 /**
- * @template K
+ * @template {import('../types.js').Key} K
  * @param {Iterable<K>} elementIter
  * @returns {CopySet<K>}
  */

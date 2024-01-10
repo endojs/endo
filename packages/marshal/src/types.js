@@ -172,8 +172,8 @@ export {};
  * ordering would also compare magnitudes, and so agree with the rank ordering
  * of all values other than `NaN`. An array sorted by rank would enable range
  * queries by magnitude.
- * @param {Passable} left
- * @param {Passable} right
+ * @param {import("@endo/pass-style").Passable} left
+ * @param {import("@endo/pass-style").Passable} right
  * @returns {RankComparison}
  */
 

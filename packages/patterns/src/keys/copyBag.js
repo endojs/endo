@@ -123,7 +123,7 @@ export const coerceToBagEntries = bagEntriesList => {
 harden(coerceToBagEntries);
 
 /**
- * @template K
+ * @template {import('../types.js').Key} K
  * @param {Iterable<[K, bigint]>} bagEntryIter
  * @returns {CopyBag<K>}
  */

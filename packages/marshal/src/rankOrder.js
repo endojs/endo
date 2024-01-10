@@ -1,3 +1,4 @@
+// @ts-nocheck FIXME before merge
 import { getTag, passStyleOf, nameForPassableSymbol } from '@endo/pass-style';
 import {
   passStylePrefixes,

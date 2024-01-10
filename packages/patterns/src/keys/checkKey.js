@@ -199,7 +199,7 @@ export const assertCopySet = s => {
 harden(assertCopySet);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopySet<K>} s
  * @returns {K[]}
  */
@@ -210,7 +210,7 @@ export const getCopySetKeys = s => {
 harden(getCopySetKeys);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopySet<K>} s
  * @param {(key: K, index: number) => boolean} fn
  * @returns {boolean}
@@ -220,7 +220,7 @@ export const everyCopySetKey = (s, fn) =>
 harden(everyCopySetKey);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {Iterable<K>} elementIter
  * @returns {CopySet<K>}
  */
@@ -283,7 +283,7 @@ export const assertCopyBag = b => {
 harden(assertCopyBag);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopyBag<K>} b
  * @returns {CopyBag<K>['payload']}
  */
@@ -294,7 +294,7 @@ export const getCopyBagEntries = b => {
 harden(getCopyBagEntries);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopyBag<K>} b
  * @param {(entry: [K, bigint], index: number) => boolean} fn
  * @returns {boolean}
@@ -304,7 +304,7 @@ export const everyCopyBagEntry = (b, fn) =>
 harden(everyCopyBagEntry);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {Iterable<[K,bigint]>} bagEntryIter
  * @returns {CopyBag<K>}
  */
@@ -316,7 +316,7 @@ export const makeCopyBag = bagEntryIter => {
 harden(makeCopyBag);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {Iterable<K>} elementIter
  * @returns {CopyBag<K>}
  */
