@@ -4,7 +4,7 @@ export {};
 /**
  * @template Slot
  * @callback ConvertValToSlot
- * @param {any} val a PassableCap
+ * @param {import("@endo/pass-style").PassableCap} val
  * @returns {Slot}
  */
 
@@ -13,7 +13,7 @@ export {};
  * @callback ConvertSlotToVal
  * @param {Slot} slot
  * @param {string} [iface]
- * @returns {any} a PassableCap
+ * @returns {import("@endo/pass-style").PassableCap}
  */
 
 /**

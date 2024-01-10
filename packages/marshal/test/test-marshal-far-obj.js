@@ -12,6 +12,7 @@ const { create, getPrototypeOf, prototype: objectPrototype } = Object;
 
 test('Remotable/getInterfaceOf', t => {
   t.throws(
+    // @ts-expect-error invalid argument
     () => Remotable({ bar: 29 }),
     { message: /unimplemented/ },
     'object ifaces are not implemented',

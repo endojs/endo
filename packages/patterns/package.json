@@ -46,7 +46,7 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.29.0",
     "prettier": "^3.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "files": [
     "*.js",
@@ -70,6 +70,6 @@
     "timeout": "2m"
   },
   "typeCoverage": {
-    "atLeast": 79.81
+    "atLeast": 79.86
   }
 }
