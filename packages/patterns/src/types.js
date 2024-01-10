@@ -3,12 +3,12 @@
 export {};
 
 /**
- * @import {CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Checker} from '@endo/pass-style'
- * @import {RankCompare, RankCover} from '@endo/marshal'
+ * @import {CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, RemotableObject} from '@endo/pass-style';
+ * @import {RankCompare} from '@endo/marshal';
  */
 
 /**
- * @typedef {Passable} Key
+ * @typedef {Exclude<Passable<RemotableObject, never>, Error | Promise>} Key
  *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
