@@ -116,6 +116,9 @@ export {};
  *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
+ *
+ * A more natural name would be Remotable, but that could be confused with the
+ * value of the `Remotable` export of this module (a function).
  */
 
 /**
