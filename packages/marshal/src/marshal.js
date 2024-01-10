@@ -233,19 +233,20 @@ export const makeMarshal = (
   };
 
   const makeFullRevive = slots => {
-    /** @type {Map<number, Passable>} */
+    /** @type {Map<number, Remotable | Promise>} */
     const valMap = new Map();
 
     /**
      * @param {{iface?: string, index: number}} slotData
-     * @returns {Passable}
+     * @returns {Remotable | Promise}
      */
     const decodeSlotCommon = slotData => {
       const { iface = undefined, index, ...rest } = slotData;
       ownKeys(rest).length === 0 ||
         Fail`unexpected encoded slot properties ${q(ownKeys(rest))}`;
-      if (valMap.has(index)) {
-        return valMap.get(index);
+      const extant = valMap.get(index);
+      if (extant) {
+        return extant;
       }
       // TODO SECURITY HAZARD: must enfoce that remotable vs promise
       // is according to the encoded string.
@@ -300,9 +301,7 @@ export const makeMarshal = (
     };
 
     const reviveFromCapData = makeDecodeFromCapData({
-      // @ts-expect-error FIXME
       decodeRemotableFromCapData: decodeRemotableOrPromiseFromCapData,
-      // @ts-expect-error FIXME
       decodePromiseFromCapData: decodeRemotableOrPromiseFromCapData,
       decodeErrorFromCapData,
     });
@@ -320,7 +319,6 @@ export const makeMarshal = (
         const index = Number(stringEncoding.slice(1, i < 0 ? undefined : i));
         // i < 0 means there was no iface included.
         const iface = i < 0 ? undefined : stringEncoding.slice(i + 1);
-        // @ts-expect-error FIXME
         return decodeSlotCommon({ iface, index });
       };
     };
