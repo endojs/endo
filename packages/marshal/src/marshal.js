@@ -258,7 +258,7 @@ export const makeMarshal = (
 
     /**
      * @param {{errorId?: string, message: string, name: string}} errData
-     * @param {(e: unknown) => string} decodeRecur
+     * @param {(e: unknown) => Passable} decodeRecur
      * @returns {Error}
      */
     const decodeErrorCommon = (errData, decodeRecur) => {
@@ -270,11 +270,12 @@ export const makeMarshal = (
       // are for reuse by other encodings that do, such as smallcaps.
       const dName = decodeRecur(name);
       const dMessage = decodeRecur(message);
-      const dErrorId = errorId && decodeRecur(errorId);
+      const dErrorId = /** @type {string} */ (errorId && decodeRecur(errorId));
       typeof dName === 'string' ||
         Fail`invalid error name typeof ${q(typeof dName)}`;
-      typeof dMessage === 'string' ||
-        Fail`invalid error message typeof ${q(typeof dMessage)}`;
+      if (typeof dMessage !== 'string') {
+        throw Fail`invalid error message typeof ${q(typeof dMessage)}`;
+      }
       const EC = getErrorConstructor(dName) || Error;
       // errorId is a late addition so be tolerant of its absence.
       const errorName =
