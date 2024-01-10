@@ -5,7 +5,7 @@ Summary
    * To that end, SES introduces an `assert` global with functions that add to errors annotations that will be hidden from callers. SES also tames the `Error` constructor to hide the `stack` to parent callers when possible (currently: v8, SpiderMonkey, XS).
    * SES tames the global `console` and grants it the ability to reveal error annotations and stacks to the actual console.
    * Both `assert` and `console` are  powerful globals that SES does not implicitly carry into child compartments. When creating a child compartment, add `assert` to the compartment’s globals. Either add `console` too, or add a wrapper that annotates the console with a topic.
-   * SES hides annotations and stack traces by default. To reveal them, use a mechanism like `process.on("uncaughtException")` in Node.js to catch the error and log it back to the `console` tamed by `lockdown`.
+   * SES hides annotations and stack traces by default. To reveal them, SES uses mechanisms like `process.on("uncaughtException")` in Node.js to catch the error and log it back to the `console` tamed by `lockdown`.
    * In the scope of the Agoric software ecosystem, this architecture will allow us to eventually introduce a more powerful distributed `console` that can meaningfully capture stack traces for a distributed debugger, based on the design of [Causeway](https://github.com/Agoric/agoric-sdk/issues/1318#issuecomment-662127549).
 
 
