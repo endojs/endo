@@ -127,6 +127,7 @@ export {};
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
 
+// TODO a better default type. Ideally it's Passable, but that causes a circular definition.
 /**
  * @template {Passable} [T=object]
  * @typedef {T[]} CopyArray
@@ -134,6 +135,7 @@ export {};
  * A Passable sequence of Passable values.
  */
 
+// TODO a better default type. Ideally it's Passable, but that causes a circular definition.
 /**
  * @template {Passable} [T=object]
  * @typedef {Record<string, T>} CopyRecord

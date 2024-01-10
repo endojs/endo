@@ -21,6 +21,7 @@ export {};
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
+// FIXME exclude nested Error and Promise
 /**
  * @typedef {Exclude<Passable, Error | Promise>} Key
  *
@@ -60,6 +61,7 @@ export {};
  * @returns {string}
  */
 
+// FIXME exclude nested Error and Promise
 /**
  * @typedef {Exclude<Passable, Error | Promise>} Pattern
  *
