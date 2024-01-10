@@ -296,12 +296,13 @@ export const makeNodeBundleCache = async (
   pid,
   nonce,
 ) => {
-  const [fs, path, url, crypto, timers] = await Promise.all([
+  const [fs, path, url, crypto, timers, os] = await Promise.all([
     await loadModule('fs'),
     await loadModule('path'),
     await loadModule('url'),
     await loadModule('crypto'),
     await loadModule('timers'),
+    await loadModule('os'),
   ]);
 
   if (nonce === undefined) {
@@ -316,6 +317,6 @@ export const makeNodeBundleCache = async (
 
   const cwd = makeFileReader('', { fs, path });
   await fs.promises.mkdir(dest, { recursive: true });
-  const destWr = makeAtomicFileWriter(dest, { fs, path }, pid, nonce);
+  const destWr = makeAtomicFileWriter(dest, { fs, path, os }, pid, nonce);
   return makeBundleCache(destWr, cwd, readPowers, options);
 };
