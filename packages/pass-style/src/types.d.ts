@@ -118,7 +118,7 @@ export type PassStyleOf = {
  * trip (as exists between vats) to produce data structures disconnected from
  * any potential proxies.
  */
-export type PureData = Passable;
+export type PureData = Passable<never, never>;
 
 /**
  * @template {string} S pass style
