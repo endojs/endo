@@ -1,40 +1,43 @@
 /* eslint-disable no-unused-vars */
+/* eslint-disable no-use-before-define */
 import { PASS_STYLE } from './passStyle-helpers.js';
 
 export {};
 
+export type PrimitiveStyle =
+  | 'undefined'
+  | 'null'
+  | 'boolean'
+  | 'number'
+  | 'bigint'
+  | 'string'
+  | 'symbol';
+
+export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
+
+export type PassStyle =
+  | PrimitiveStyle
+  | ContainerStyle
+  | 'remotable'
+  | 'error'
+  | 'promise';
+
+export type PassStyled<S extends string> = { [PASS_STYLE]: S };
+
+export type ExtractStyle<P extends PassStyled<any>> = P[typeof PASS_STYLE];
+
+export type PassByCopy =
+  | import('type-fest').Primitive
+  | CopyArray
+  | CopyRecord
+  | CopyTagged;
+
+export type PassByRef =
+  | RemotableObject
+  | Promise<RemotableObject>
+  | Promise<PassByCopy>;
+
 /**
- * @typedef { 'undefined' | 'null' |
- *   'boolean' | 'number' | 'bigint' | 'string' | 'symbol'
- * } PrimitiveStyle
- */
-
-/** @typedef {'copyRecord' | 'copyArray' | 'tagged'} ContainerStyle */
-
-/**
- * @typedef { PrimitiveStyle |
- *   ContainerStyle |
- *   'remotable' |
- *   'error' | 'promise'
- * } PassStyle
- */
-
-/**
- * @template {string} S style
- * @typedef {{ [PASS_STYLE]: S }} PassStyled
- */
-
-/**
- * @template {PassStyled<any>} P
- * @typedef {P[typeof PASS_STYLE]} ExtractStyle
- */
-
-/** @typedef {import('type-fest').Primitive | CopyArray | CopyRecord | CopyTagged } PassByCopy */
-/** @typedef {RemotableObject | Promise<RemotableObject> | Promise<PassByCopy> } PassByRef */
-
-/**
- * @typedef {PassByCopy | PassByRef} Passable
- *
  * A Passable is acyclic data that can be marshalled. It must be hardened to
  * remain
  * stable (even if some components are proxies; see PureData restriction below),
@@ -56,32 +59,44 @@ export {};
  * exit point at the site of each PassableCap (which marshalling represents
  * using 'slots').
  */
+export type Passable<PC extends PassableCap = PassableCap, E = any> =
+  | import('type-fest').Primitive
+  | Container<PC, E>
+  | PC
+  | E;
+
+export type Container<PC extends PassableCap, E> =
+  | CopyArrayI<PC, E>
+  | CopyRecordI<PC, E>
+  | CopyTaggedI<PC, E>;
+interface CopyArrayI<PC extends PassableCap, E>
+  extends CopyArray<Passable<PC, E>> {}
+interface CopyRecordI<PC extends PassableCap, E>
+  extends CopyRecord<Passable<PC, E>> {}
+interface CopyTaggedI<PC extends PassableCap, E>
+  extends CopyTagged<string, Passable<PC, E>> {}
 
 // Cases match in sequence. The final case 'remotable' is for a Passable that isn't one of the others.
-/**
- * @typedef {{
- * (p: undefined): 'undefined';
- * (p: string): 'string';
- * (p: boolean): 'boolean';
- * (p: number): 'number';
- * (p: bigint): 'bigint';
- * (p: symbol): 'symbol';
- * (p: null): 'null';
- * (p: Promise): 'promise';
- * (p: Error): 'error';
- * (p: CopyTagged): 'tagged';
- * (p: Array): 'copyArray';
- * (p: Iterable): 'remotable';
- * (p: Iterator): 'remotable';
- * <T extends PassStyled<any>>(p: T): ExtractStyle<T>
- * (p: {[key: string]: any}): 'copyRecord';
- * (p: any): unknown;
- * }} PassStyleOf
- */
+export type PassStyleOf = {
+  (p: undefined): 'undefined';
+  (p: string): 'string';
+  (p: boolean): 'boolean';
+  (p: number): 'number';
+  (p: bigint): 'bigint';
+  (p: symbol): 'symbol';
+  (p: null): 'null';
+  (p: Promise<any>): 'promise';
+  (p: Error): 'error';
+  (p: CopyTagged): 'tagged';
+  (p: Array<any>): 'copyArray';
+  (p: Iterable<any>): 'remotable';
+  (p: Iterator<any>): 'remotable';
+  <T extends PassStyled<any>>(p: T): ExtractStyle<T>;
+  (p: { [key: string]: any }): 'copyRecord';
+  (p: any): unknown;
+};
 
 /**
- * @typedef {Passable} PureData
- *
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
  * PureData is an arbitrary composition of primitive values into CopyArray
@@ -103,48 +118,44 @@ export {};
  * trip (as exists between vats) to produce data structures disconnected from
  * any potential proxies.
  */
+export type PureData = Passable<never, never>;
 
 /**
  * @template {string} S pass style
  * @template {InterfaceSpec} I interface tag
- * @typedef {PassStyled<S> & {[Symbol.toStringTag]: I}} TaggedRecord
  */
+export type TaggedRecord<
+  S extends string,
+  I extends InterfaceSpec,
+> = PassStyled<S> & {
+  [Symbol.toStringTag]: I;
+};
 
 /**
- * @template {InterfaceSpec} [I=string]
- * @typedef {TaggedRecord<'remotable', I>} RemotableObject
- *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
  */
+export type RemotableObject<I extends InterfaceSpec = string> = TaggedRecord<
+  'remotable',
+  I
+>;
 
 /**
- * @typedef {Promise | RemotableObject} PassableCap
- *
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
+export type PassableCap = Promise<any> | RemotableObject;
 
 /**
- * @template {Passable} [T=object]
- * @typedef {T[]} CopyArray
- *
  * A Passable sequence of Passable values.
  */
+export type CopyArray<T extends Passable = any> = Array<T>;
 
 /**
- * @template {Passable} [T=object]
- * @typedef {Record<string, T>} CopyRecord
- *
  * A Passable dictionary in which each key is a string and each value is Passable.
  */
+export type CopyRecord<T extends Passable = any> = Record<string, T>;
 
 /**
- * @template {InterfaceSpec} [Tag=string]
- * @template {Passable} [Payload=any]
- * @typedef {TaggedRecord<'tagged', Tag> & {
- *   payload: Payload,
- * }} CopyTagged
- *
  * A Passable "tagged record" with semantics specific to the tag identified in
  * the `[Symbol.toStringTag]` property (such as 'copySet', 'copyBag',
  * or 'copyMap').
@@ -152,17 +163,22 @@ export {};
  * value 'tagged'
  * and no other properties except `[Symbol.toStringTag]` and `payload`.
  */
+export type CopyTagged<
+  Tag extends InterfaceSpec = string,
+  Payload extends Passable = any,
+> = TaggedRecord<'tagged', Tag> & {
+  payload: Payload;
+};
 
 /**
- * @typedef {string} InterfaceSpec
  * This is an interface specification.
  * For now, it is just a string, but will eventually be `PureData`. Either
  * way, it must remain pure, so that it can be safely shared by subgraphs that
  * are not supposed to be able to communicate.
  */
+export type InterfaceSpec = string;
 
 /**
- * @callback Checker
  * Internal to a useful pattern for writing checking logic
  * (a "checkFoo" function) that can be used to implement a predicate
  * (an "isFoo" function) or a validator (an "assertFoo" function).
@@ -177,7 +193,8 @@ export {};
  *      pass in `assertChecker` which is a trivial wrapper around `assert`.
  *
  * See the various uses for good examples.
- * @param {boolean} cond
- * @param {import('ses').Details} [details]
- * @returns {boolean}
  */
+export type Checker = (
+  cond: boolean,
+  details?: import('ses').Details,
+) => boolean;
