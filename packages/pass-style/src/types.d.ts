@@ -4,7 +4,7 @@ import { PASS_STYLE } from './passStyle-helpers.js';
 
 export {};
 
-type PrimitiveStyle =
+export type PrimitiveStyle =
   | 'undefined'
   | 'null'
   | 'boolean'
@@ -13,26 +13,26 @@ type PrimitiveStyle =
   | 'string'
   | 'symbol';
 
-type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
+export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
 
-type PassStyle =
+export type PassStyle =
   | PrimitiveStyle
   | ContainerStyle
   | 'remotable'
   | 'error'
   | 'promise';
 
-type PassStyled<S extends string> = { [PASS_STYLE]: S };
+export type PassStyled<S extends string> = { [PASS_STYLE]: S };
 
-type ExtractStyle<P extends PassStyled<any>> = P[typeof PASS_STYLE];
+export type ExtractStyle<P extends PassStyled<any>> = P[typeof PASS_STYLE];
 
-type PassByCopy =
+export type PassByCopy =
   | import('type-fest').Primitive
   | CopyArray
   | CopyRecord
   | CopyTagged;
 
-type PassByRef =
+export type PassByRef =
   | RemotableObject
   | Promise<RemotableObject>
   | Promise<PassByCopy>;
@@ -59,10 +59,10 @@ type PassByRef =
  * exit point at the site of each PassableCap (which marshalling represents
  * using 'slots').
  */
-type Passable = PassByCopy | PassByRef;
+export type Passable = PassByCopy | PassByRef;
 
 // Cases match in sequence. The final case 'remotable' is for a Passable that isn't one of the others.
-type PassStyleOf = {
+export type PassStyleOf = {
   (p: undefined): 'undefined';
   (p: string): 'string';
   (p: boolean): 'boolean';
@@ -103,13 +103,16 @@ type PassStyleOf = {
  * trip (as exists between vats) to produce data structures disconnected from
  * any potential proxies.
  */
-type PureData = Passable;
+export type PureData = Passable;
 
 /**
  * @template {string} S pass style
  * @template {InterfaceSpec} I interface tag
  */
-type TaggedRecord<S extends string, I extends InterfaceSpec> = PassStyled<S> & {
+export type TaggedRecord<
+  S extends string,
+  I extends InterfaceSpec,
+> = PassStyled<S> & {
   [Symbol.toStringTag]: I;
 };
 
@@ -117,7 +120,7 @@ type TaggedRecord<S extends string, I extends InterfaceSpec> = PassStyled<S> & {
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
  */
-type RemotableObject<I extends InterfaceSpec = string> = TaggedRecord<
+export type RemotableObject<I extends InterfaceSpec = string> = TaggedRecord<
   'remotable',
   I
 >;
@@ -125,17 +128,17 @@ type RemotableObject<I extends InterfaceSpec = string> = TaggedRecord<
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
-type PassableCap = Promise<any> | RemotableObject;
+export type PassableCap = Promise<any> | RemotableObject;
 
 /**
  * A Passable sequence of Passable values.
  */
-type CopyArray<T extends Passable = object> = T[];
+export type CopyArray<T extends Passable = object> = T[];
 
 /**
  * A Passable dictionary in which each key is a string and each value is Passable.
  */
-type CopyRecord<T extends Passable = object> = Record<string, T>;
+export type CopyRecord<T extends Passable = object> = Record<string, T>;
 
 /**
  * A Passable "tagged record" with semantics specific to the tag identified in
@@ -145,7 +148,7 @@ type CopyRecord<T extends Passable = object> = Record<string, T>;
  * value 'tagged'
  * and no other properties except `[Symbol.toStringTag]` and `payload`.
  */
-type CopyTagged<
+export type CopyTagged<
   Tag extends InterfaceSpec = string,
   Payload extends Passable = any,
 > = TaggedRecord<'tagged', Tag> & {
@@ -158,7 +161,7 @@ type CopyTagged<
  * way, it must remain pure, so that it can be safely shared by subgraphs that
  * are not supposed to be able to communicate.
  */
-type InterfaceSpec = string;
+export type InterfaceSpec = string;
 
 /**
  * Internal to a useful pattern for writing checking logic
@@ -176,4 +179,7 @@ type InterfaceSpec = string;
  *
  * See the various uses for good examples.
  */
-type Checker = (cond: boolean, details?: import('ses').Details) => boolean;
+export type Checker = (
+  cond: boolean,
+  details?: import('ses').Details,
+) => boolean;
