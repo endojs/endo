@@ -52,7 +52,24 @@ export type PassByRef =
  * exit point at the site of each PassableCap (which marshalling represents
  * using 'slots').
  */
-export type Passable = PassByCopy | PassByRef;
+export type Passable<PC extends PassableCap = PassableCap, E = any> =
+  | import('type-fest').Primitive
+  | Container<PC, E>
+  | PC
+  | E;
+
+export type Container<PC extends PassableCap, E> =
+  | CopyArrayI<PC, E>
+  | CopyRecordI<PC, E>
+  | CopyTaggedI<PC, E>;
+interface CopyArrayI<PC extends PassableCap, E>
+  extends CopyArray<Passable<PC, E>> {}
+interface CopyRecordI<PC extends PassableCap, E>
+  extends CopyRecord<Passable<PC, E>> {}
+interface CopyTaggedI<PC extends PassableCap, E>
+  extends CopyTagged<string, Passable<PC, E>> {}
+
+// Cases match in sequence. The final case 'remotable' is for a Passable that isn't one of the others.
 export type PassStyleOf = {
   (p: undefined): 'undefined';
   (p: string): 'string';
@@ -115,7 +132,8 @@ export type PassableCap = Promise<any> | RemotableObject;
 /**
  * A Passable sequence of Passable values.
  */
-export type CopyArray<T extends Passable = any> = T[];
+export type CopyArray<T extends Passable = any> = Array<T>;
+
 /**
  * A Passable dictionary in which each key is a string and each value is Passable.
  */
