@@ -5,7 +5,7 @@ import { main } from './main.js';
 const { Fail } = assert;
 
 /* global process */
-const allowedModules = ['fs', 'path', 'url', 'crypto', 'timers'];
+const allowedModules = ['fs', 'path', 'url', 'crypto', 'timers', 'os'];
 const loadModule = spec => {
   allowedModules.includes(spec) || Fail`Not allowed to import ${spec}`;
   return import(spec);

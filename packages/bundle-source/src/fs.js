@@ -120,6 +120,7 @@ export const makeFileWriter = (
  *       >,
  *     },
  *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ *   os: Pick<import('os'), 'platform'>,
  * }} io
  * @param {number} [pid]
  * @param {number} [nonce]
@@ -127,12 +128,26 @@ export const makeFileWriter = (
  */
 export const makeAtomicFileWriter = (
   fileName,
-  { fs, path },
+  { fs, path, os },
   pid = undefined,
   nonce = undefined,
-  make = there => makeAtomicFileWriter(there, { fs, path }, pid, nonce, make),
+  make = there =>
+    makeAtomicFileWriter(there, { fs, path, os }, pid, nonce, make),
 ) => {
   const writer = makeFileWriter(fileName, { fs, path }, make);
+
+  // Windows does not support atomic rename so we do the next best albeit racey
+  // thing.
+  if (os.platform() === 'win32') {
+    return harden({
+      ...writer,
+      atomicWriteText: async (txt, opts) => {
+        await writer.writeText(txt, opts);
+        return writer.readOnly().stat();
+      },
+    });
+  }
+
   return harden({
     ...writer,
     atomicWriteText: async (txt, opts) => {
