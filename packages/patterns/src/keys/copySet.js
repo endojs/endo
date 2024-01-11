@@ -19,7 +19,7 @@ const { details: X } = assert;
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 
 /**
- * @template {Passable} T
+ * @template T
  * @param {T[]} elements
  * @param {FullCompare | undefined} fullCompare If provided and `elements` is already known
  * to be sorted by this `fullCompare`, then we should get a memo hit rather
@@ -52,7 +52,7 @@ const checkNoDuplicates = (elements, fullCompare, check) => {
 };
 
 /**
- * @template {Passable} T
+ * @template T
  * @param {T[]} elements
  * @param {FullCompare} [fullCompare]
  * @returns {void}
@@ -88,10 +88,6 @@ export const assertElements = elements => {
 };
 harden(assertElements);
 
-/**
- * @template {import('../types.js').Key} K
- * @param {Iterable<K>} elementsList
- */
 export const coerceToElements = elementsList => {
   const elements = sortByRank(elementsList, compareAntiRank);
   assertElements(elements);
@@ -100,7 +96,7 @@ export const coerceToElements = elementsList => {
 harden(coerceToElements);
 
 /**
- * @template {import('../types.js').Key} K
+ * @template K
  * @param {Iterable<K>} elementIter
  * @returns {CopySet<K>}
  */

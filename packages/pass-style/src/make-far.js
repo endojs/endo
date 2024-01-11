@@ -5,7 +5,7 @@ import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
-/** @template L,R @typedef {import('@endo/eventual-send/src/types').RemotableBrand<L, R>} RemotableBrand */
+/** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
 
 const { quote: q, Fail } = assert;
 
@@ -62,8 +62,7 @@ const assertCanBeRemotable = candidate =>
  * // https://github.com/Agoric/agoric-sdk/issues/804
  *
  * @template {{}} T
- * @template {InterfaceSpec} I
- * @param {I} [iface] The interface specification for
+ * @param {InterfaceSpec} [iface] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
  * "Alleged: " or "DebugName: ", to serve as the alleged name. More
  * general ifaces are not yet implemented. This is temporary. We include the
@@ -76,10 +75,9 @@ const assertCanBeRemotable = candidate =>
  * @param {undefined} [props] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
  * @param {T} [remotable] The object used as the remotable
- * @returns {T & import('./types.js').RemotableObject<I> & RemotableBrand<{}, T>}} remotable, modified for debuggability
+ * @returns {T & RemotableBrand<{}, T>} remotable, modified for debuggability
  */
 export const Remotable = (
-  // @ts-expect-error I could have different subtype than string
   iface = 'Remotable',
   props = undefined,
   remotable = /** @type {T} */ ({}),
@@ -127,7 +125,7 @@ export const Remotable = (
   // COMMITTED!
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
-  return /** @type {any} */ (remotable);
+  return /** @type {T & RemotableBrand<{}, T>} */ (remotable);
 };
 harden(Remotable);
 

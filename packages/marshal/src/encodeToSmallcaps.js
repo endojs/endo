@@ -18,7 +18,7 @@ import {
 } from '@endo/pass-style';
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
+/** @typedef {import('@endo/pass-style').Remotable} Remotable */
 // @typedef {import('./types.js').SmallcapsEncoding} SmallcapsEncoding */
 // @typedef {import('./types.js').SmallcapsEncodingUnion} SmallcapsEncodingUnion */
 /** @typedef {any} SmallcapsEncoding */
@@ -161,7 +161,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
    * Readers must not care about this order anyway. We impose this requirement
    * mainly to reduce non-determinism exposed outside a vat.
    *
-   * @param {any} passable
+   * @param {Passable} passable
    * @returns {SmallcapsEncoding} except that `encodeToSmallcaps` does not generally
    * `harden` this result before returning. Rather, `encodeToSmallcaps` is not
    * directly exposed.

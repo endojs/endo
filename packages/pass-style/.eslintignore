@@ -1,2 +1,0 @@
-# typescript-eslint errors on this because it has no typecheck information, because tsc produced it for the `types.d.ts` instead
-/src/types.js
