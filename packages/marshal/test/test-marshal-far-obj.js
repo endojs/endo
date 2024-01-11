@@ -149,7 +149,6 @@ test('passStyleOf validation of remotables', t => {
   t.throws(() => passStyleOf(badRemotableProto3), NON_METHOD);
   t.throws(() => passStyleOf(badRemotableProto4), NON_METHOD);
 
-  // @ts-expect-error UNTIL https://github.com/microsoft/TypeScript/issues/38385
   t.is(passStyleOf(sub(goodRemotableProto)), 'remotable');
 
   t.throws(() => passStyleOf(sub(badRemotableProto1)), EXPECTED_PASS_STYLE);

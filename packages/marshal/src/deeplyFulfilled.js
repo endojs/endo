@@ -51,7 +51,6 @@ export const deeplyFulfilled = async val => {
   const passStyle = passStyleOf(val);
   switch (passStyle) {
     case 'copyRecord': {
-      // @ts-expect-error FIXME narrowed
       const names = ownKeys(val);
       const valPs = names.map(name => deeplyFulfilled(val[name]));
       return E.when(Promise.all(valPs), vals =>
@@ -59,14 +58,11 @@ export const deeplyFulfilled = async val => {
       );
     }
     case 'copyArray': {
-      // @ts-expect-error FIXME narrowed
       const valPs = val.map(p => deeplyFulfilled(p));
       return E.when(Promise.all(valPs), vals => harden(vals));
     }
     case 'tagged': {
-      // @ts-expect-error FIXME narrowed
       const tag = getTag(val);
-      // @ts-expect-error FIXME narrowed
       return E.when(deeplyFulfilled(val.payload), payload =>
         makeTagged(tag, payload),
       );
