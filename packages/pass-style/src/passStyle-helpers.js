@@ -29,6 +29,7 @@ export const hasOwnPropertyOf = (obj, prop) =>
   apply(objectHasOwnProperty, obj, [prop]);
 harden(hasOwnPropertyOf);
 
+/** @type {(val) => val is {}} */
 export const isObject = val => Object(val) === val;
 harden(isObject);
 
@@ -122,6 +123,11 @@ export const checkNormalProperty = (
 };
 harden(checkNormalProperty);
 
+/**
+ * @template {import('./types.js').InterfaceSpec} T
+ * @param {import('./types.js').PassStyled<any, T>} tagRecord
+ * @returns {T}
+ */
 export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
@@ -138,7 +144,7 @@ harden(checkPassStyle);
 
 const makeCheckTagRecord = checkProto => {
   /**
-   * @param {{ [PASS_STYLE]: string }} tagRecord
+   * @param {import('./types.js').PassStyled<any, any>} tagRecord
    * @param {PassStyle} passStyle
    * @param {Checker} [check]
    * @returns {boolean}

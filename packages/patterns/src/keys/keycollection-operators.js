@@ -27,6 +27,7 @@ const { quote: q, Fail } = assert;
  * @returns {IterableIterator<[import('../types.js').Key, V]>}
  */
 const generateFullSortedEntries = (entries, rankCompare, fullCompare) => {
+  // @ts-expect-error FIXME Key types
   assertRankSorted(entries, rankCompare);
   const { length } = entries;
   let i = 0;
@@ -56,8 +57,10 @@ const generateFullSortedEntries = (entries, rankCompare, fullCompare) => {
 
       // Sort the ties by `fullCompare`, enforce key uniqueness, and delegate to
       // a sub-iterator.
+      // @ts-expect-error FIXME Key types
       const sortedTies = sortByRank(ties, fullCompare);
       for (let k = 1; k < sortedTies.length; k += 1) {
+        // @ts-expect-error FIXME Key types
         const [key0] = sortedTies[k - 1];
         const [key1] = sortedTies[k];
         Math.sign(fullCompare(key0, key1)) ||

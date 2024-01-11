@@ -144,16 +144,20 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
       case 'string': {
         // Within each of these passStyles, the rank ordering agrees with
         // JavaScript's relational operators `<` and `>`.
+        // @ts-expect-error FIXME narrowed
         if (left < right) {
           return -1;
         } else {
+          // @ts-expect-error FIXME narrowed
           assert(left > right);
           return 1;
         }
       }
       case 'symbol': {
         return comparator(
+          // @ts-expect-error FIXME narrowed
           nameForPassableSymbol(left),
+          // @ts-expect-error FIXME narrowed
           nameForPassableSymbol(right),
         );
       }
@@ -167,9 +171,11 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         }
         // The rank ordering of non-NaN numbers agrees with JavaScript's
         // relational operators '<' and '>'.
+        // @ts-expect-error FIXME narrowed
         if (left < right) {
           return -1;
         } else {
+          // @ts-expect-error FIXME narrowed
           assert(left > right);
           return 1;
         }
@@ -186,7 +192,9 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         // of these names, which we then compare lexicographically. This ensures
         // that if the names of record X are a subset of the names of record Y,
         // then record X will have an earlier rank and sort to the left of Y.
+        // @ts-expect-error FIXME narrowed
         const leftNames = recordNames(left);
+        // @ts-expect-error FIXME narrowed
         const rightNames = recordNames(right);
 
         const result = comparator(leftNames, rightNames);
@@ -194,14 +202,18 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
           return result;
         }
         return comparator(
+          // @ts-expect-error FIXME narrowed
           recordValues(left, leftNames),
+          // @ts-expect-error FIXME narrowed
           recordValues(right, rightNames),
         );
       }
       case 'copyArray': {
         // Lexicographic
+        // @ts-expect-error FIXME narrowed
         const len = Math.min(left.length, right.length);
         for (let i = 0; i < len; i += 1) {
+          // @ts-expect-error FIXME narrowed
           const result = comparator(left[i], right[i]);
           if (result !== 0) {
             return result;
@@ -209,14 +221,17 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         }
         // If all matching elements were tied, then according to their lengths.
         // If array X is a prefix of array Y, then X has an earlier rank than Y.
+        // @ts-expect-error FIXME narrowed
         return comparator(left.length, right.length);
       }
       case 'tagged': {
         // Lexicographic by `[Symbol.toStringTag]` then `.payload`.
+        // @ts-expect-error FIXME narrowed
         const labelComp = comparator(getTag(left), getTag(right));
         if (labelComp !== 0) {
           return labelComp;
         }
+        // @ts-expect-error FIXME narrowed
         return comparator(left.payload, right.payload);
       }
       default: {
@@ -286,9 +301,10 @@ harden(assertRankSorted);
  * function. This is a genuine bug for us NOW because sometimes we sort
  * in reverse order by passing a reversed rank comparison function.
  *
- * @param {Iterable<Passable>} passables
+ * @template {Passable} T
+ * @param {Iterable<T>} passables
  * @param {RankCompare} compare
- * @returns {Passable[]}
+ * @returns {T[]}
  */
 export const sortByRank = (passables, compare) => {
   if (Array.isArray(passables)) {
@@ -382,18 +398,20 @@ export const coveredEntries = (sorted, [leftIndex, rightIndex]) => {
 harden(coveredEntries);
 
 /**
+ * @template {Passable} T
  * @param {RankCompare} compare
- * @param {Passable} a
- * @param {Passable} b
- * @returns {Passable}
+ * @param {T} a
+ * @param {T} b
+ * @returns {T}
  */
 const maxRank = (compare, a, b) => (compare(a, b) >= 0 ? a : b);
 
 /**
+ * @template {Passable} T
  * @param {RankCompare} compare
- * @param {Passable} a
- * @param {Passable} b
- * @returns {Passable}
+ * @param {T} a
+ * @param {T} b
+ * @returns {T}
  */
 const minRank = (compare, a, b) => (compare(a, b) <= 0 ? a : b);
 
