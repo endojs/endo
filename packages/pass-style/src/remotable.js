@@ -169,7 +169,7 @@ const checkRemotable = (val, check) => {
 /**
  * Simple semantics, just tell what interface (or undefined) a remotable has.
  * @type {{
- * <T extends string>(val: import('./types.js').TaggedRecord<any, T>): T;
+ * <T extends string>(val: import('./types.js').PassStyled<any, T>): T;
  * (val: any): string | undefined;
  * }}
  * @returns the interface specification, or undefined

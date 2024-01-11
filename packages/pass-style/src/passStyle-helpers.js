@@ -125,7 +125,7 @@ harden(checkNormalProperty);
 
 /**
  * @template {import('./types.js').InterfaceSpec} T
- * @param {import('./types.js').TaggedRecord<any, T>} tagRecord
+ * @param {import('./types.js').PassStyled<any, T>} tagRecord
  * @returns {T}
  */
 export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
@@ -144,7 +144,7 @@ harden(checkPassStyle);
 
 const makeCheckTagRecord = checkProto => {
   /**
-   * @param {import('./types.js').TaggedRecord<any, any>} tagRecord
+   * @param {import('./types.js').PassStyled<any, any>} tagRecord
    * @param {PassStyle} passStyle
    * @param {Checker} [check]
    * @returns {boolean}

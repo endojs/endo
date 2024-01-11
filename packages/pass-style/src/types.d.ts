@@ -33,11 +33,17 @@ export type PassStyle =
 
 export type TaggedOrRemotable = 'tagged' | 'remotable';
 
-export type PassStyled<S extends TaggedOrRemotable> = {
+/**
+ * Tagged has own [PASS_STYLE]: "tagged", [Symbol.toStringTag]: $tag.
+ *
+ * Remotable has a prototype chain in which the penultimate object has own [PASS_STYLE]: "remotable", [Symbol.toStringTag]: $iface (where both $tag and $iface must be strings, and the latter must either be "Remotable" or start with "Alleged: " or "DebugName: ").
+ */
+export type PassStyled<S extends TaggedOrRemotable, I extends InterfaceSpec> = {
   [PASS_STYLE]: S;
+  [Symbol.toStringTag]: I;
 };
 
-export type ExtractStyle<P extends PassStyled<any>> = P[typeof PASS_STYLE];
+export type ExtractStyle<P extends PassStyled<any, any>> = P[typeof PASS_STYLE];
 
 export type PassByCopy =
   | Primitive
@@ -103,7 +109,7 @@ export type PassStyleOf = {
   (p: any[]): 'copyArray';
   (p: Iterable<any>): 'remotable';
   (p: Iterator<any, any, undefined>): 'remotable';
-  <T extends PassStyled<TaggedOrRemotable>>(p: T): ExtractStyle<T>;
+  <T extends PassStyled<TaggedOrRemotable, any>>(p: T): ExtractStyle<T>;
   (p: { [key: string]: any }): 'copyRecord';
   (p: any): PassStyle;
 };
@@ -130,12 +136,6 @@ export type PassStyleOf = {
  * any potential proxies.
  */
 export type PureData = Passable<never, never>;
-export type TaggedRecord<
-  S extends TaggedOrRemotable,
-  I extends InterfaceSpec,
-> = PassStyled<S> & {
-  [Symbol.toStringTag]: I;
-};
 /**
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
@@ -143,7 +143,7 @@ export type TaggedRecord<
  * A more natural name would be Remotable, but that could be confused with the
  * value of the `Remotable` export of this module (a function).
  */
-export type RemotableObject<I extends InterfaceSpec = string> = TaggedRecord<
+export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
   'remotable',
   I
 >;
@@ -171,7 +171,7 @@ export type CopyRecord<T extends Passable = any> = Record<string, T>;
 export type CopyTagged<
   Tag extends string = string,
   Payload extends Passable = any,
-> = TaggedRecord<'tagged', Tag> & {
+> = PassStyled<'tagged', Tag> & {
   payload: Payload;
 };
 /**
