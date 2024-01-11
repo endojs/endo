@@ -22,7 +22,11 @@ export type PrimitiveStyle =
   | 'string'
   | 'symbol';
 
-export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
+export type ContainerStyle =
+  | 'copyRecord'
+  | 'copyArray'
+  | 'byteArray'
+  | 'tagged';
 
 export type PassStyle =
   | PrimitiveStyle
@@ -31,14 +35,14 @@ export type PassStyle =
   | 'error'
   | 'promise';
 
-export type TaggedOrRemotable = 'tagged' | 'remotable';
+export type ManifestPassStyle = 'byteArray' | 'tagged' | 'remotable';
 
 /**
  * Tagged has own [PASS_STYLE]: "tagged", [Symbol.toStringTag]: $tag.
  *
  * Remotable has a prototype chain in which the penultimate object has own [PASS_STYLE]: "remotable", [Symbol.toStringTag]: $iface (where both $tag and $iface must be strings, and the latter must either be "Remotable" or start with "Alleged: " or "DebugName: ").
  */
-export type PassStyled<S extends TaggedOrRemotable, I extends InterfaceSpec> = {
+export type PassStyled<S extends ManifestPassStyle, I extends InterfaceSpec> = {
   [PASS_STYLE]: S;
   [Symbol.toStringTag]: I;
 };
@@ -49,6 +53,7 @@ export type PassByCopy =
   | Primitive
   | Error
   | CopyArray
+  | ByteArray
   | CopyRecord
   | CopyTagged;
 
@@ -67,6 +72,7 @@ export type PassByRef =
  *     | 'string' | 'symbol').
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
+ *     * sequences of 8-bit bytes (PassStyle 'byteArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
  *     * higher-level types as CopyTaggeds (PassStyle 'tagged').
  *   * PassableCaps (PassStyle 'remotable' | 'promise') expose local values to
@@ -86,10 +92,12 @@ export type Passable<
 
 export type Container<PC extends PassableCap, E extends Error> =
   | CopyArrayI<PC, E>
+  | ByteArrayI
   | CopyRecordI<PC, E>
   | CopyTaggedI<PC, E>;
 interface CopyArrayI<PC extends PassableCap, E extends Error>
   extends CopyArray<Passable<PC, E>> {}
+interface ByteArrayI extends ByteArray {}
 interface CopyRecordI<PC extends PassableCap, E extends Error>
   extends CopyRecord<Passable<PC, E>> {}
 interface CopyTaggedI<PC extends PassableCap, E extends Error>
@@ -109,17 +117,16 @@ export type PassStyleOf = {
   (p: any[]): 'copyArray';
   (p: Iterable<any>): 'remotable';
   (p: Iterator<any, any, undefined>): 'remotable';
-  <T extends PassStyled<TaggedOrRemotable, any>>(p: T): ExtractStyle<T>;
+  <T extends PassStyled<ManifestPassStyle, any>>(p: T): ExtractStyle<T>;
   (p: { [key: string]: any }): 'copyRecord';
   (p: any): PassStyle;
 };
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
- * PureData is an arbitrary composition of primitive values into CopyArray
- * and/or
- * CopyRecord and/or CopyTagged containers (or a single primitive value with no
- * container), and is fully pass-by-copy.
+ * PureData is an arbitrary composition of primitive values into CopyArray,
+ * ByteArray, CopyRecord, and/or CopyTagged containers
+ * (or a single primitive value with no container), and is fully pass-by-copy.
  *
  * This restriction assures absence of side effects and interleaving risks *given*
  * that none of the containers can be a Proxy instance.
@@ -155,6 +162,17 @@ export type PassableCap = Promise<any> | RemotableObject;
  * A Passable sequence of Passable values.
  */
 export type CopyArray<T extends Passable = any> = Array<T>;
+
+/**
+ * It has the same structural type. But because it is not a builtin ArrayBuffer,
+ * it does not have the same nominal type; meaning, it cannot be used as an
+ * argument where an ArrayBuffer is expected, like the `DataView` or typed
+ * array constructors.
+ */
+export type ByteArray = PassStyled<'byteArray', string> & {
+  byteLength: number;
+  slice(start?: number, end?: number): ArrayBuffer;
+};
 
 /**
  * A Passable dictionary in which each key is a string and each value is Passable.

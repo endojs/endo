@@ -16,6 +16,7 @@ import {
  * @template {Passable} [T=Passable]
  * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
  */
+/** @typedef {import('@endo/pass-style').ByteArray} ByteArray */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
 const { quote: q, Fail } = assert;
@@ -270,6 +271,18 @@ const decodeArray = (encoded, decodePassable) => {
   return harden(elements);
 };
 
+/**
+ * @param {ByteArray} byteArray
+ * @param {(byteArray: ByteArray) => string} _encodePassable
+ * @returns {string}
+ */
+const encodeByteArray = (byteArray, _encodePassable) => {
+  // TODO implement
+  throw Fail`encodePassable(copyData) not yet implemented: ${byteArray}`;
+  // eslint-disable-next-line no-unreachable
+  return ''; // Just for the type
+};
+
 const encodeRecord = (record, encodePassable) => {
   const names = recordNames(record);
   const values = recordValues(record, names);
@@ -380,6 +393,9 @@ export const makeEncodePassable = (encodeOptions = {}) => {
       }
       case 'copyArray': {
         return encodeArray(passable, encodePassable);
+      }
+      case 'byteArray': {
+        return encodeByteArray(passable, encodePassable);
       }
       case 'copyRecord': {
         return encodeRecord(passable, encodePassable);
@@ -500,6 +516,7 @@ export const passStylePrefixes = {
   tagged: ':',
   promise: '?',
   copyArray: '[',
+  byteArray: '', // TODO pick a prefix
   boolean: 'b',
   number: 'f',
   bigint: 'np',

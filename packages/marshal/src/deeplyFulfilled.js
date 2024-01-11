@@ -63,6 +63,9 @@ export const deeplyFulfilled = async val => {
       const valPs = val.map(p => deeplyFulfilled(p));
       return E.when(Promise.all(valPs), vals => harden(vals));
     }
+    case 'byteArray': {
+      return val;
+    }
     case 'tagged': {
       // @ts-expect-error FIXME narrowed
       const tag = getTag(val);

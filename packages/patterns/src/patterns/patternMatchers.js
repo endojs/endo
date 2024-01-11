@@ -69,6 +69,7 @@ export const defaultLimits = harden({
   numPropertiesLimit: 80,
   propertyNameLengthLimit: 100,
   arrayLengthLimit: 10_000,
+  byteLengthLimit: 100_000,
   numSetElementsLimit: 10_000,
   numUniqueBagElementsLimit: 10_000,
   numMapEntriesLimit: 5000,
@@ -367,6 +368,9 @@ const makePatternKit = () => {
         // patterns
         return patt.every(checkIt);
       }
+      case 'byteArray': {
+        return true;
+      }
       case 'copyMap': {
         // A copyMap's keys are keys and therefore already known to be
         // patterns.
@@ -442,6 +446,7 @@ const makePatternKit = () => {
       case 'bigint':
       case 'string':
       case 'symbol':
+      case 'byteArray':
       case 'copySet':
       case 'copyBag':
       case 'remotable': {
@@ -622,6 +627,10 @@ const makePatternKit = () => {
         //   rankCovers.map(([_left, right]) => right),
         // ]);
         break;
+      }
+      case 'byteArray': {
+        // TODO implement
+        throw Fail`getCover of byteArray not yet implemented`;
       }
       case 'copyRecord': {
         // XXX this doesn't get along with the world of cover === pair of
@@ -1164,6 +1173,34 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
+  const matchBytesHelper = Far('match:bytes helper', {
+    checkMatches: (specimen, [limits = undefined], check) => {
+      const { byteLengthLimit } = limit(limits);
+      // prettier-ignore
+      return (
+        checkKind(specimen, 'byteArray', check) &&
+        // eslint-disable-next-line @endo/restrict-comparison-operands
+        (/** @type {import('./types.js').ByteArray} */ (specimen).byteLength <= byteLengthLimit ||
+          check(
+            false,
+            X`bytes ${specimen} must not be bigger than ${byteLengthLimit}`,
+          ))
+      );
+    },
+
+    checkIsWellFormed: (payload, check) =>
+      checkIsWellFormedWithLimit(
+        payload,
+        harden([]),
+        check,
+        'match:bytes payload',
+      ),
+
+    getRankCover: (_matchPayload, _encodePassable) =>
+      getPassStyleCover('string'),
+  });
+
+  /** @type {import('./types.js').MatchHelper} */
   const matchSetOfHelper = Far('match:setOf helper', {
     checkMatches: (specimen, [keyPatt, limits = undefined], check) => {
       const { numSetElementsLimit } = limit(limits);
@@ -1517,6 +1554,7 @@ const makePatternKit = () => {
     'match:gt': matchGTHelper,
 
     'match:arrayOf': matchArrayOfHelper,
+    'match:bytes': matchBytesHelper,
     'match:recordOf': matchRecordOfHelper,
     'match:setOf': matchSetOfHelper,
     'match:bagOf': matchBagOfHelper,
@@ -1545,6 +1583,7 @@ const makePatternKit = () => {
   const SymbolShape = makeTagged('match:symbol', []);
   const RecordShape = makeTagged('match:recordOf', [AnyShape, AnyShape]);
   const ArrayShape = makeTagged('match:arrayOf', [AnyShape]);
+  const BytesShape = makeTagged('match:bytes', []);
   const SetShape = makeTagged('match:setOf', [AnyShape]);
   const BagShape = makeTagged('match:bagOf', [AnyShape, AnyShape]);
   const MapShape = makeTagged('match:mapOf', [AnyShape, AnyShape]);
@@ -1623,6 +1662,8 @@ const makePatternKit = () => {
       limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
     array: (limits = undefined) =>
       limits ? M.arrayOf(M.any(), limits) : ArrayShape,
+    bytes: (limits = undefined) =>
+      limits ? makeLimitsMatcher('match:bytes', [limits]) : BytesShape,
     set: (limits = undefined) => (limits ? M.setOf(M.any(), limits) : SetShape),
     bag: (limits = undefined) =>
       limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
