@@ -64,7 +64,8 @@ module.exports = {
   },
   rules: {
     '@endo/assert-fail-as-throw': 'error',
-    'guard-for-in': 'error',
     '@endo/no-nullish-coalescing': 'warn',
+    'guard-for-in': 'error',
+    'no-self-compare': 'error',
   },
 };
