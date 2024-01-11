@@ -1,5 +1,8 @@
 /* global globalThis */
-import { getEnvironmentOption } from '@endo/env-options';
+import {
+  getEnvironmentOption,
+  environmentOptionsListHas,
+} from '@endo/env-options';
 
 // NOTE: We can't import these because they're not in scope before lockdown.
 // import { assert, details as X, Fail } from '@agoric/assert';
@@ -15,16 +18,8 @@ let hiddenPriorError;
 let hiddenCurrentTurn = 0;
 let hiddenCurrentEvent = 0;
 
-const DEBUG = getEnvironmentOption('DEBUG', '');
-
 // Turn on if you seem to be losing error logging at the top of the event loop
-//
-// TODO This use of colon (`':'`) as a separator is a bad legacy convention.
-// It should be comma (`','`). Once we can switch it to comma, then use the
-// following commented out definition of `VERBOSE` instead.
-// const VERBOSE = environmentOptionsListHas('DEBUG', 'track-turns');
-// See https://github.com/Agoric/agoric-sdk/issues/8096
-const VERBOSE = DEBUG.split(':').includes('track-turns');
+const VERBOSE = environmentOptionsListHas('DEBUG', 'track-turns');
 
 // Track-turns is disabled by default and can be enabled by an environment
 // option.
