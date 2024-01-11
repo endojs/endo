@@ -1,5 +1,3 @@
-// @ts-nocheck So many errors that the suppressions hamper readability.
-// TODO parameterize MatchHelper which will solve most of them
 import {
   assertChecker,
   Far,

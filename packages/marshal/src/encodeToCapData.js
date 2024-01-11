@@ -20,7 +20,7 @@ import {
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('./types.js').Encoding} Encoding */
-/** @typedef {import('@endo/pass-style').RemotableObject} RemotableObject */
+/** @typedef {import('@endo/pass-style').Remotable} Remotable */
 /** @typedef {import('./types.js').EncodingUnion} EncodingUnion */
 
 const { ownKeys } = Reflect;
@@ -62,7 +62,7 @@ const qclassMatches = (encoded, qclass) =>
 /**
  * @typedef {object} EncodeToCapDataOptions
  * @property {(
- *   remotable: RemotableObject,
+ *   remotable: Remotable,
  *   encodeRecur: (p: Passable) => Encoding
  * ) => Encoding} [encodeRemotableToCapData]
  * @property {(
@@ -117,7 +117,7 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
    * Readers must not care about this order anyway. We impose this requirement
    * mainly to reduce non-determinism exposed outside a vat.
    *
-   * @param {any} passable
+   * @param {Passable} passable
    * @returns {Encoding} except that `encodeToCapData` does not generally
    * `harden` this result before returning. Rather, `encodeToCapData` is not
    * directly exposed.
@@ -269,11 +269,11 @@ harden(makeEncodeToCapData);
  * @property {(
  *   encodedRemotable: Encoding,
  *   decodeRecur: (e: Encoding) => Passable
- * ) => (Promise|RemotableObject)} [decodeRemotableFromCapData]
+ * ) => (Promise|Remotable)} [decodeRemotableFromCapData]
  * @property {(
  *   encodedPromise: Encoding,
  *   decodeRecur: (e: Encoding) => Passable
- * ) => (Promise|RemotableObject)} [decodePromiseFromCapData]
+ * ) => (Promise|Remotable)} [decodePromiseFromCapData]
  * @property {(
  *   encodedError: Encoding,
  *   decodeRecur: (e: Encoding) => Passable

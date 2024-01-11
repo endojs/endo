@@ -100,13 +100,11 @@ harden(assertScalarKey);
 
 // ////////////////////////////// Keys /////////////////////////////////////////
 
-// @ts-expect-error Key does not satisfy WeakKey
 /** @type {WeakSet<Key>} */
-// @ts-expect-error Key does not satisfy WeakKey
 const keyMemo = new WeakSet();
 
 /**
- * @param {Key} val
+ * @param {Passable} val
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -134,7 +132,7 @@ export const checkKey = (val, check) => {
 harden(checkKey);
 
 /**
- * @param {Key} val
+ * @param {Passable} val
  * @returns {boolean}
  */
 export const isKey = val => checkKey(val, identChecker);
@@ -142,7 +140,6 @@ harden(isKey);
 
 /**
  * @param {Key} val
- * @returns {asserts val is Key}
  */
 export const assertKey = val => {
   checkKey(val, assertChecker);
@@ -158,7 +155,7 @@ harden(assertKey);
 const copySetMemo = new WeakSet();
 
 /**
- * @param {any} s
+ * @param {Passable} s
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -201,7 +198,7 @@ export const assertCopySet = s => {
 harden(assertCopySet);
 
 /**
- * @template {Key} K
+ * @template K
  * @param {CopySet<K>} s
  * @returns {K[]}
  */
@@ -212,7 +209,7 @@ export const getCopySetKeys = s => {
 harden(getCopySetKeys);
 
 /**
- * @template {Key} K
+ * @template K
  * @param {CopySet<K>} s
  * @param {(key: K, index: number) => boolean} fn
  * @returns {boolean}
@@ -222,7 +219,7 @@ export const everyCopySetKey = (s, fn) =>
 harden(everyCopySetKey);
 
 /**
- * @template {Key} K
+ * @template K
  * @param {Iterable<K>} elementIter
  * @returns {CopySet<K>}
  */
@@ -242,7 +239,7 @@ harden(makeCopySet);
 const copyBagMemo = new WeakSet();
 
 /**
- * @param {any} b
+ * @param {Passable} b
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -285,7 +282,7 @@ export const assertCopyBag = b => {
 harden(assertCopyBag);
 
 /**
- * @template {Key} K
+ * @template K
  * @param {CopyBag<K>} b
  * @returns {CopyBag<K>['payload']}
  */
@@ -296,7 +293,7 @@ export const getCopyBagEntries = b => {
 harden(getCopyBagEntries);
 
 /**
- * @template {Key} K
+ * @template K
  * @param {CopyBag<K>} b
  * @param {(entry: [K, bigint], index: number) => boolean} fn
  * @returns {boolean}
@@ -306,7 +303,7 @@ export const everyCopyBagEntry = (b, fn) =>
 harden(everyCopyBagEntry);
 
 /**
- * @template {Key} K
+ * @template K
  * @param {Iterable<[K,bigint]>} bagEntryIter
  * @returns {CopyBag<K>}
  */
@@ -318,7 +315,7 @@ export const makeCopyBag = bagEntryIter => {
 harden(makeCopyBag);
 
 /**
- * @template {Key} K
+ * @template K
  * @param {Iterable<K>} elementIter
  * @returns {CopyBag<K>}
  */
@@ -351,7 +348,7 @@ harden(makeCopyBagFromElements);
 const copyMapMemo = new WeakSet();
 
 /**
- * @param {any} m
+ * @param {Passable} m
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -546,7 +543,7 @@ harden(makeCopyMap);
 // //////////////////////// Keys Recur /////////////////////////////////////////
 
 /**
- * @param {any} val
+ * @param {Passable} val
  * @param {Checker} check
  * @returns {boolean}
  */

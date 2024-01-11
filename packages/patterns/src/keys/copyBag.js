@@ -19,7 +19,7 @@ const { details: X } = assert;
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 
 /**
- * @template {Key} T
+ * @template T
  * @param {[T,bigint][]} bagEntries
  * @param {FullCompare | undefined} fullCompare If provided and `bagEntries` is already
  * known to be sorted by this `fullCompare`, then we should get a memo hit
@@ -55,7 +55,7 @@ const checkNoDuplicateKeys = (bagEntries, fullCompare, check) => {
 };
 
 /**
- * @template {Key} T
+ * @template T
  * @param {[T,bigint][]} bagEntries
  * @param {FullCompare} [fullCompare]
  * @returns {void}
@@ -100,7 +100,6 @@ export const checkBagEntries = (bagEntries, check) => {
       );
     }
   }
-  // @ts-expect-error FIXME Key types
   return checkNoDuplicateKeys(bagEntries, undefined, check);
 };
 harden(checkBagEntries);
@@ -115,10 +114,6 @@ export const assertBagEntries = bagEntries => {
 };
 harden(assertBagEntries);
 
-/**
- * @template {import('../types.js').Key} K
- * @param {Iterable<[K, bigint]>} bagEntriesList
- */
 export const coerceToBagEntries = bagEntriesList => {
   const bagEntries = sortByRank(bagEntriesList, compareAntiRank);
   assertBagEntries(bagEntries);
@@ -127,7 +122,7 @@ export const coerceToBagEntries = bagEntriesList => {
 harden(coerceToBagEntries);
 
 /**
- * @template {import('../types.js').Key} K
+ * @template K
  * @param {Iterable<[K, bigint]>} bagEntryIter
  * @returns {CopyBag<K>}
  */
