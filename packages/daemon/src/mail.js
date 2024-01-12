@@ -140,7 +140,7 @@ export const makeMailboxMaker = ({
         })(),
       );
 
-    const deliver = partialMessage => {
+    const deliver = (partialMessage, cancelled) => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
       const dismissal = makePromiseKit();
       const messageNumber = nextMessageNumber;
@@ -153,10 +153,13 @@ export const makeMailboxMaker = ({
         ...partialMessage,
       });
 
-      dismissers.set(message, () => {
+      const dismiss = () => {
         messages.delete(messageNumber);
         dismissal.resolve();
-      });
+      };
+
+      dismissers.set(message, dismiss);
+      cancelled.catch(() => dismiss());
 
       messages.set(messageNumber, message);
       messagesTopic.publisher.next(message);
@@ -167,20 +170,24 @@ export const makeMailboxMaker = ({
     /**
      * @param {string} what - user visible description of the desired value
      * @param {string} who
+     * @param {Promise<never>} cancelled
      */
-    const requestFormulaIdentifier = async (what, who) => {
+    const requestFormulaIdentifier = async (what, who, cancelled) => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
       const { promise, resolve } = makePromiseKit();
       const settled = promise.then(
         () => 'fulfilled',
         () => 'rejected',
       );
-      const message = deliver({
-        type: /** @type {const} */ ('request'),
-        who,
-        what,
-        settled,
-      });
+      const message = deliver(
+        {
+          type: /** @type {const} */ ('request'),
+          who,
+          what,
+          settled,
+        },
+        cancelled,
+      );
       resolvers.set(message, resolve);
       return promise;
     };
@@ -190,12 +197,14 @@ export const makeMailboxMaker = ({
      * @param {string} responseName
      * @param {string} senderFormulaIdentifier
      * @param {import('./types.js').PetStore} senderPetStore
+     * @param {Promise<never>} senderCancelled
      */
     const respond = async (
       what,
       responseName,
       senderFormulaIdentifier,
       senderPetStore,
+      senderCancelled,
     ) => {
       if (responseName !== undefined) {
         /** @type {string | undefined} */
@@ -204,6 +213,7 @@ export const makeMailboxMaker = ({
           formulaIdentifier = await requestFormulaIdentifier(
             what,
             senderFormulaIdentifier,
+            senderCancelled,
           );
           await senderPetStore.write(responseName, formulaIdentifier);
         }
@@ -215,6 +225,7 @@ export const makeMailboxMaker = ({
       const formulaIdentifier = await requestFormulaIdentifier(
         what,
         senderFormulaIdentifier,
+        senderCancelled,
       );
       // TODO:
       // context.thisDiesIfThatDies(formulaIdentifier);
@@ -266,20 +277,25 @@ export const makeMailboxMaker = ({
      * @param {Array<string>} strings
      * @param {Array<string>} edgeNames
      * @param {Array<string>} formulaIdentifiers
+     * @param {Promise<never>} senderCancelled
      */
     const receive = (
       senderFormulaIdentifier,
       strings,
       edgeNames,
       formulaIdentifiers,
+      senderCancelled,
     ) =>
-      deliver({
-        type: /** @type {const} */ ('package'),
-        strings,
-        names: edgeNames,
-        formulas: formulaIdentifiers,
-        who: senderFormulaIdentifier,
-      });
+      deliver(
+        {
+          type: /** @type {const} */ ('package'),
+          strings,
+          names: edgeNames,
+          formulas: formulaIdentifiers,
+          who: senderFormulaIdentifier,
+        },
+        senderCancelled,
+      );
 
     /**
      * @param {string} recipientName
@@ -332,6 +348,7 @@ export const makeMailboxMaker = ({
         strings,
         edgeNames,
         formulaIdentifiers,
+        context.cancelled,
       );
     };
 
@@ -424,6 +441,7 @@ export const makeMailboxMaker = ({
           responseName,
           selfFormulaIdentifier,
           petStore,
+          context.cancelled,
         );
       }
       const responseP = responses.get(responseName);

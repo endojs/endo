@@ -189,6 +189,7 @@ export type RespondFn = (
   responseName: string,
   guestFormulaIdentifier: string,
   guestPetStore: PetStore,
+  cancelled: Promise<never>,
 ) => Promise<unknown>;
 
 export type ReceiveFn = (
@@ -196,6 +197,7 @@ export type ReceiveFn = (
   strings: Array<string>,
   edgeNames: Array<string>,
   formulaIdentifiers: Array<string>,
+  cancelled: Promise<never>,
 ) => void;
 
 export type LookupPathFn = (petNamePath: Array<string>) => {
