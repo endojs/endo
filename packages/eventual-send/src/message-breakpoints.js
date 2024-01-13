@@ -7,7 +7,7 @@ const { hasOwn, freeze, entries } = Object;
 /**
  * @typedef {string | '*'} MatchStringTag
  *   A star `'*'` matches any recipient. Otherwise, the string is
- *   matched against the value of a recipient's` @@toStringTag`
+ *   matched against the value of a recipient's `@@toStringTag`
  *   after stripping out any leading `'Alleged: '` or `'DebugName: '`
  *   prefix. For objects defined with `Far` this is the first argument,
  *   known as the `farName`. For exos, this is the tag.
@@ -22,7 +22,7 @@ const { hasOwn, freeze, entries } = Object;
 /**
  * @typedef {number | '*'} MatchCountdown
  *   A star `'*'` will always breakpoint. Otherwise, the string
- *   must be a non-negative integer. Once zero, that always breakpoint.
+ *   must be a non-negative integer. Once that is zero, always breakpoint.
  *   Otherwise decrement by one each time it matches until it reaches zero.
  *   In other words, the countdown represents the number of
  *   breakpoint occurrences to skip before actually breakpointing.
