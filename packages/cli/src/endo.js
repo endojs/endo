@@ -369,16 +369,12 @@ export const main = async rawArgs => {
   program
     .command('show <name>')
     .description('prints the named value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option('-j,--json', 'as JSON')
     .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
+      const { json: displayJson } = cmd.opts();
       const { show } = await import('./show.js');
-      return show({ name, partyNames });
+      return show({ name, displayJson });
+    });
 
   program
     .command('identify <name>')

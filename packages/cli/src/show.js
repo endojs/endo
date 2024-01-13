@@ -1,10 +1,14 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from './context.js';
+import { withEndoHost } from './context.js';
 
-export const show = async ({ cancel, cancelled, sockPath, name, partyNames }) =>
-  withEndoParty(partyNames, { os, process }, async ({ party }) => {
-    const pet = await E(party).lookup(name);
-    console.log(pet);
+export const show = async ({ name, displayJson }) =>
+  withEndoHost({ os, process }, async ({ host: party }) => {
+    const value = await E(party).lookup(name);
+    if (displayJson) {
+      process.stdout.write(`${JSON.stringify(value)}\n`);
+    } else {
+      console.log(value);
+    }
   });
