@@ -379,6 +379,17 @@ export const main = async rawArgs => {
       const { as: partyNames } = cmd.opts();
       const { show } = await import('./show.js');
       return show({ name, partyNames });
+
+  program
+    .command('identify <name>')
+    .alias('id')
+    .description('shows the identifier for a name')
+    .option('-j,--json', 'as JSON')
+    .option('-t,--type', 'include formula type')
+    .action(async (name, cmd) => {
+      const { json: displayJson, type: displayType } = cmd.opts();
+      const { identify } = await import('./identify.js');
+      return identify({ name, displayJson, displayType });
     });
 
   program
