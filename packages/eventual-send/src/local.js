@@ -1,9 +1,13 @@
+import { makeMessageBreakpointTester } from './message-breakpoints.js';
+
 const { details: X, quote: q, Fail } = assert;
 
 const { getOwnPropertyDescriptors, getPrototypeOf, freeze } = Object;
 const { apply, ownKeys } = Reflect;
 
 const ntypeof = specimen => (specimen === null ? 'null' : typeof specimen);
+
+const onDelivery = makeMessageBreakpointTester('ENDO_DELIVERY_BREAKPOINTS');
 
 /**
  * TODO Consolidate with `isObject` that's currently in `@endo/marshal`
@@ -64,39 +68,63 @@ export const getMethodNames = val => {
 // ses creates `harden`, and so cannot rely on `harden` at top level.
 freeze(getMethodNames);
 
-export const localApplyFunction = (t, args) => {
-  typeof t === 'function' ||
+export const localApplyFunction = (recipient, args) => {
+  typeof recipient === 'function' ||
     assert.fail(
-      X`Cannot invoke target as a function; typeof target is ${q(ntypeof(t))}`,
+      X`Cannot invoke target as a function; typeof target is ${q(
+        ntypeof(recipient),
+      )}`,
       TypeError,
     );
-  return apply(t, undefined, args);
+  if (onDelivery && onDelivery.shouldBreakpoint(recipient, undefined)) {
+    // eslint-disable-next-line no-debugger
+    debugger; // STEP INTO APPLY
+    // Stopped at a breakpoint on this delivery of an eventual function call
+    // so that you can step *into* the following `apply` in order to see the
+    // function call as it happens. Or step *over* to see what happens
+    // after the function call returns.
+  }
+  const result = apply(recipient, undefined, args);
+  return result;
 };
 
-export const localApplyMethod = (t, method, args) => {
-  if (method === undefined || method === null) {
+export const localApplyMethod = (recipient, methodName, args) => {
+  if (methodName === undefined || methodName === null) {
     // Base case; bottom out to apply functions.
-    return localApplyFunction(t, args);
+    return localApplyFunction(recipient, args);
   }
-  if (t === undefined || t === null) {
+  if (recipient === undefined || recipient === null) {
     assert.fail(
-      X`Cannot deliver ${q(method)} to target; typeof target is ${q(
-        ntypeof(t),
+      X`Cannot deliver ${q(methodName)} to target; typeof target is ${q(
+        ntypeof(recipient),
       )}`,
       TypeError,
     );
   }
-  const fn = t[method];
+  const fn = recipient[methodName];
   if (fn === undefined) {
     assert.fail(
-      X`target has no method ${q(method)}, has ${q(getMethodNames(t))}`,
+      X`target has no method ${q(methodName)}, has ${q(
+        getMethodNames(recipient),
+      )}`,
       TypeError,
     );
   }
   const ftype = ntypeof(fn);
   typeof fn === 'function' ||
-    Fail`invoked method ${q(method)} is not a function; it is a ${q(ftype)}`;
-  return apply(fn, t, args);
+    Fail`invoked method ${q(methodName)} is not a function; it is a ${q(
+      ftype,
+    )}`;
+  if (onDelivery && onDelivery.shouldBreakpoint(recipient, methodName)) {
+    // eslint-disable-next-line no-debugger
+    debugger; // STEP INTO APPLY
+    // Stopped at a breakpoint on this delivery of an eventual method call
+    // so that you can step *into* the following `apply` in order to see the
+    // method call as it happens. Or step *over* to see what happens
+    // after the method call returns.
+  }
+  const result = apply(fn, recipient, args);
+  return result;
 };
 
 export const localGet = (t, key) => t[key];
