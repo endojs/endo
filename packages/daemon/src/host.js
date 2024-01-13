@@ -2,6 +2,7 @@
 
 import { E, Far } from '@endo/far';
 import { assertPetName } from './pet-name.js';
+import { parseFormulaIdentifier } from './identifier.js';
 
 const { quote: q } = assert;
 
@@ -26,8 +27,6 @@ export const makeHostMaker = ({
    * @param {string} endoFormulaIdentifier
    * @param {string} networksFormulaIdentifier
    * @param {string} networksPetStoreFormulaIdentifier
-   * @param {string} invitationsFormulaIdentifier
-   * @param {string} invitationsPetStoreFormulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
@@ -39,8 +38,6 @@ export const makeHostMaker = ({
     endoFormulaIdentifier,
     networksFormulaIdentifier,
     networksPetStoreFormulaIdentifier,
-    invitationsFormulaIdentifier,
-    invitationsPetStoreFormulaIdentifier,
     context,
   ) => {
     context.thisDiesIfThatDies(storeFormulaIdentifier);
@@ -87,7 +84,6 @@ export const makeHostMaker = ({
         NONE: leastAuthorityFormulaIdentifier,
         ENDO: endoFormulaIdentifier,
         NETS: networksFormulaIdentifier,
-        RSVP: invitationsFormulaIdentifier,
         HELO: nonceLocatorFormulaIdentifier,
       },
       context,
@@ -452,21 +448,13 @@ export const makeHostMaker = ({
     // TODO expand guestName to guestPath
     /**
      * @param {string} guestName
-     * @param {string} [invitationName]
      */
-    const invite = async (guestName, invitationName = guestName) => {
+    const invite = async guestName => {
       const networksPetStore = /** @type {import('./types.js').PetStore} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
         await provideValueForFormulaIdentifier(
           networksPetStoreFormulaIdentifier,
-        )
-      );
-      const invitationsPetStore = /** @type {import('./types.js').PetStore} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        await provideValueForFormulaIdentifier(
-          invitationsPetStoreFormulaIdentifier,
         )
       );
       const guestFormulaIdentifier = await provideGuestFormulaIdentifier(
@@ -475,7 +463,9 @@ export const makeHostMaker = ({
       if (guestFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name: ${guestName}`);
       }
-      await invitationsPetStore.write(invitationName, guestFormulaIdentifier);
+      const { formulaNumber: guestFormulaNumber } = parseFormulaIdentifier(
+        guestFormulaIdentifier,
+      );
       const networkFormulaIdentifiers = networksPetStore
         .list()
         .map(name => networksPetStore.lookup(name));
@@ -490,7 +480,7 @@ export const makeHostMaker = ({
         )
       ).flat();
       return harden({
-        powers: guestFormulaIdentifier,
+        powers: guestFormulaNumber,
         addresses,
       });
     };

@@ -12,6 +12,7 @@ import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
+import { parseFormulaIdentifier } from './identifier.js';
 
 const { quote: q } = assert;
 
@@ -93,13 +94,6 @@ const makeEndoBootstrap = async (
     'pet-store',
   );
   const networksPetStoreFormulaIdentifier = `pet-store:${networksPetStoreFormulaNumber}`;
-  const invitationsFormulaNumber = derive(rootNonce, 'invitations');
-  const invitationsFormulaIdentifier = `directory:${invitationsFormulaNumber}`;
-  const invitationsPetStoreFormulaNumber = derive(
-    invitationsFormulaNumber,
-    'pet-store',
-  );
-  const invitationsPetStoreFormulaIdentifier = `pet-store:${invitationsPetStoreFormulaNumber}`;
   const nonceLocatorFormulaNumber = derive(rootNonce, 'nonce-locator');
   const nonceLocatorFormulaIdentifier = `nonce-locator:${nonceLocatorFormulaNumber}`;
 
@@ -481,8 +475,6 @@ const makeEndoBootstrap = async (
         endoFormulaIdentifier,
         networksFormulaIdentifier,
         networksPetStoreFormulaIdentifier,
-        invitationsFormulaIdentifier,
-        invitationsPetStoreFormulaIdentifier,
         context,
       );
     } else if (formulaType === 'endo') {
@@ -606,24 +598,21 @@ const makeEndoBootstrap = async (
   };
 
   /**
-   * @param {string} formulaIdentifier
+   * @param {string} formulaNumber
+   * @param {string} formulaType
    */
-  const provideControllerForFormulaIdentifier = formulaIdentifier => {
-    const delimiterIndex = formulaIdentifier.indexOf(':');
-    if (delimiterIndex < 0) {
-      throw new TypeError(
-        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
-      );
-    }
-    const formulaType = formulaIdentifier.slice(0, delimiterIndex);
-    const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
-
+  const provideControllerForFormulaNumber = (formulaNumber, formulaType) => {
     let controller = controllerForFormulaNumber.get(formulaNumber);
     if (controller !== undefined) {
+      if (formulaType !== controller.type) {
+        throw new Error(
+          `Failed invariant check: ${formulaNumber} corresponds to a ${controller.type}, not ${formulaType}`,
+        );
+      }
       return controller;
     }
 
-    console.log(`Making ${formulaIdentifier}`);
+    console.log(`Making ${formulaType}:${formulaNumber}`);
     const { promise: partial, resolve } =
       /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
         makePromiseKit()
@@ -655,36 +644,56 @@ const makeEndoBootstrap = async (
   /**
    * @param {string} formulaIdentifier
    */
-  const provideValueForFormulaIdentifier = async formulaIdentifier => {
+  const provideControllerForFormulaIdentifier = formulaIdentifier => {
+    const { formulaType, formulaNumber } =
+      parseFormulaIdentifier(formulaIdentifier);
+    return provideControllerForFormulaNumber(formulaNumber, formulaType);
+  };
+
+  /**
+   * @param {string} formulaNumber
+   * @param {string} formulaType
+   */
+  const provideValueForFormulaNumber = async (formulaNumber, formulaType) => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
-      provideControllerForFormulaIdentifier(formulaIdentifier)
+      provideControllerForFormulaNumber(formulaNumber, formulaType)
     );
     const value = await controller.external;
     if (typeof value === 'object' && value !== null) {
+      const formulaIdentifier = `${formulaType}:${formulaNumber}`;
       formulaIdentifierForRef.set(value, formulaIdentifier);
     }
     return value;
   };
 
   /**
-   * @param {string} formulaIdentifier
+   * @param {string} formulaNumber
+   * @param {string} [formulaType]
    */
-  const locate = async formulaIdentifier => {
-    const invitationsPetStore = /** @type {import('./types.js').PetStore} */ (
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      await provideValueForFormulaIdentifier(
-        invitationsPetStoreFormulaIdentifier,
-      )
-    );
-    const names = invitationsPetStore.reverseLookup(formulaIdentifier);
-    if (names.length === 0) {
-      throw new Error('Noncence: no such nonce');
+  const locate = (formulaNumber, formulaType) => {
+    const controller = controllerForFormulaNumber.get(formulaNumber);
+    if (controller === undefined) {
+      throw new Error(
+        `Not found ${formulaType ? `${formulaType}:` : ''}${formulaNumber}`,
+      );
     }
-    return provideValueForFormulaIdentifier(formulaIdentifier);
+    if (formulaType !== undefined && controller.type !== formulaType) {
+      throw new Error(
+        `Type mismatch for ${formulaNumber}: want ${formulaType}, got ${controller.type}`,
+      );
+    }
+    return controller.external;
   };
 
   const nonceLocator = Far('NonceLocator', { locate });
+  /**
+   * @param {string} formulaIdentifier
+   */
+  const provideValueForFormulaIdentifier = async formulaIdentifier => {
+    const { formulaType, formulaNumber } =
+      parseFormulaIdentifier(formulaIdentifier);
+    return provideValueForFormulaNumber(formulaNumber, formulaType);
+  };
 
   const makePeer = async (powersFormulaIdentifier, addresses, context) => {
     const networksPetStore = /** @type {import('./types.js').PetStore} */ (
@@ -786,13 +795,8 @@ const makeEndoBootstrap = async (
       if (formulaIdentifier === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }
-      const delimiterIndex = formulaIdentifier.indexOf(':');
-      // eslint-disable-next-line @endo/restrict-comparison-operands
-      if (delimiterIndex < 0) {
-        return undefined;
-      }
-      const formulaType = formulaIdentifier.slice(0, delimiterIndex);
-      const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
+      const { formulaNumber, formulaType } =
+        parseFormulaIdentifier(formulaIdentifier);
       if (
         ![
           'eval',
@@ -867,7 +871,7 @@ const makeEndoBootstrap = async (
           formula.type,
           formulaNumber,
           harden({
-            POWERS: provideValueForFormulaIdentifier(formula.powers),
+            POWERS: provideValueForFormulaNumber(formula.powers, 'guest'),
             ADDRESSES: formula.addresses,
           }),
         );
