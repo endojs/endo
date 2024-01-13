@@ -255,7 +255,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      * @param {string} resultName
      */
-    const importUnsafeAndEndow = async (
+    const makeUnsafe = async (
       workerName,
       importPath,
       powersName,
@@ -297,7 +297,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      * @param {string} resultName
      */
-    const importBundleAndEndow = async (
+    const makeBundle = async (
       workerName,
       bundleName,
       powersName,
@@ -461,8 +461,8 @@ export const makeHostMaker = ({
       provideWorker,
       evaluate,
       cancel,
-      importUnsafeAndEndow,
-      importBundleAndEndow,
+      makeUnsafe,
+      makeBundle,
       provideWebPage,
     });
 

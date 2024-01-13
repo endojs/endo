@@ -67,18 +67,13 @@ export const makeCommand = async ({
 
     const resultP =
       importPath !== undefined
-        ? E(party).importUnsafeAndEndow(
+        ? E(party).makeUnsafe(
             workerName,
             url.pathToFileURL(path.resolve(importPath)).href,
             powersName,
             resultName,
           )
-        : E(party).importBundleAndEndow(
-            workerName,
-            bundleName,
-            powersName,
-            resultName,
-          );
+        : E(party).makeBundle(workerName, bundleName, powersName, resultName);
     const result = await resultP;
     console.log(result);
 

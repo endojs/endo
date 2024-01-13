@@ -246,13 +246,13 @@ export interface EndoHost {
     petNames: Array<string>,
     resultName?: string,
   );
-  importUnsafeAndEndow(
+  makeUnsafe(
     workerPetName: string | undefined,
     importPath: string,
     powersName: string,
     resultName?: string,
   ): Promise<unknown>;
-  importBundleAndEndow(
+  makeBundle(
     workerPetName: string | undefined,
     bundleName: string,
     powersName: string,
@@ -355,8 +355,8 @@ export interface WorkerDaemonFacet {
     values: Array<unknown>,
     cancelled: Promise<never>,
   ): Promise<unknown>;
-  importBundleAndEndow(bundle: ERef<EndoReadable>, powers: ERef<unknown>);
-  importUnsafeAndEndow(path: string, powers: ERef<unknown>);
+  makeBundle(bundle: ERef<EndoReadable>, powers: ERef<unknown>);
+  makeUnsafe(path: string, powers: ERef<unknown>);
 }
 
 export type DaemonicControlPowers = {

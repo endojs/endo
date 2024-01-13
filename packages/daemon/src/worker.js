@@ -54,7 +54,7 @@ export const makeWorkerFacet = ({ getDaemonBootstrap, cancel }) => {
      * @param {unknown} powersP
      * @param {unknown} contextP
      */
-    importUnsafeAndEndow: async (specifier, powersP, contextP) => {
+    makeUnsafe: async (specifier, powersP, contextP) => {
       const namespace = await import(specifier);
       return namespace.make(powersP, contextP);
     },
@@ -64,7 +64,7 @@ export const makeWorkerFacet = ({ getDaemonBootstrap, cancel }) => {
      * @param {unknown} powersP
      * @param {unknown} contextP
      */
-    importBundleAndEndow: async (readableP, powersP, contextP) => {
+    makeBundle: async (readableP, powersP, contextP) => {
       const bundleText = await E(readableP).text();
       const bundle = JSON.parse(bundleText);
 

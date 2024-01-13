@@ -82,7 +82,7 @@ const bootstrap = Far('WebFacet', {
     console.log('received ping');
     return 'pong';
   },
-  async importBundleAndEndow(bundle, powers) {
+  async makeBundle(bundle, powers) {
     const namespace = await importBundle(bundle, {
       endowments,
     });

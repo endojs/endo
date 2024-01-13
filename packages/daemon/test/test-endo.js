@@ -359,7 +359,7 @@ test('persist unsafe services and their requests', async t => {
     await E(host).provideGuest('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
     const serviceLocation = url.pathToFileURL(servicePath).href;
-    await E(host).importUnsafeAndEndow('w1', serviceLocation, 'o1', 's1');
+    await E(host).makeUnsafe('w1', serviceLocation, 'o1', 's1');
 
     await E(host).makeWorker('w2');
     const answer = await E(host).evaluate(
@@ -478,12 +478,7 @@ test('direct termination', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).importUnsafeAndEndow(
-    'worker',
-    counterLocation,
-    'NONE',
-    'counter',
-  );
+  await E(host).makeUnsafe('worker', counterLocation, 'NONE', 'counter');
   t.is(
     1,
     await E(host).evaluate(
@@ -564,12 +559,7 @@ test('indirect termination', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).importUnsafeAndEndow(
-    'worker',
-    counterLocation,
-    'SELF',
-    'counter',
-  );
+  await E(host).makeUnsafe('worker', counterLocation, 'SELF', 'counter');
   t.is(
     1,
     await E(host).evaluate(
@@ -652,7 +642,7 @@ test('cancel because of requested capability', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter-party.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  E(host).importUnsafeAndEndow('worker', counterLocation, 'guest', 'counter');
+  E(host).makeUnsafe('worker', counterLocation, 'guest', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], 'zero');
   await E(messages).next();

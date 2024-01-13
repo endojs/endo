@@ -275,7 +275,7 @@ const makeEndoBootstrap = async (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).importUnsafeAndEndow(
+    const external = E(workerDaemonFacet).makeUnsafe(
       specifier,
       guestP,
       makeFarContext(context),
@@ -324,7 +324,7 @@ const makeEndoBootstrap = async (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).importBundleAndEndow(
+    const external = E(workerDaemonFacet).makeBundle(
       readableBundleP,
       guestP,
       makeFarContext(context),
@@ -805,7 +805,7 @@ const makeEndoBootstrap = async (
           })
         );
       const bundle = await E(bundleBlob).json();
-      await E(webPageP).importBundleAndEndow(bundle, endowedPowers);
+      await E(webPageP).makeBundle(bundle, endowedPowers);
     },
   });
 
