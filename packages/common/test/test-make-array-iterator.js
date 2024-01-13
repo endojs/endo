@@ -1,5 +1,5 @@
 import { test } from './prepare-test-env-ava.js';
-import { makeArrayIterator } from '../src/make-array-iterator.js';
+import { makeArrayIterator } from '../make-array-iterator.js';
 
 // Also serves as an adequate test of make-iterator.js
 

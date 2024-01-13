@@ -1,5 +1,5 @@
 import { test } from './prepare-test-env-ava.js';
-import { objectMap } from '../src/object-map.js';
+import { objectMap } from '../object-map.js';
 
 test('test objectMap', async t => {
   t.deepEqual(
