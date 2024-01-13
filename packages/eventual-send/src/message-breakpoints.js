@@ -5,12 +5,36 @@ const { quote: q, Fail } = assert;
 const { hasOwn, freeze, entries } = Object;
 
 /**
+ * @typedef {string | '*'} MatchStringTag
+ *   A star `'*'` matches any recipient. Otherwise, the string is
+ *   matched against the value of a recipient's` @@toStringTag`
+ *   after stripping out any leading `'Alleged: '` or `'DebugName: '`
+ *   prefix. For objects defined with `Far` this is the first argument,
+ *   known as the `farName`. For exos, this is the tag.
+ */
+/**
+ * @typedef {string | '*'} MatchMethodName
+ *   A star `'*'` matches any method name. Otherwise, the string is
+ *   matched against the method name. Currently, this is only an exact match.
+ *   However, beware that we may introduce a string syntax for
+ *   symbol method names.
+ */
+/**
+ * @typedef {number | '*'} MatchCountdown
+ *   A star `'*'` will always breakpoint. Otherwise, the string
+ *   must be a non-negative integer. Once zero, that always breakpoint.
+ *   Otherwise decrement by one each time it matches until it reaches zero.
+ *   In other words, the countdown represents the number of
+ *   breakpoint occurrences to skip before actually breakpointing.
+ */
+
+/**
  * This is the external JSON representation, in which
  * - the outer property name is the class-like tag or '*',
  * - the inner property name is the method name or '*',
  * - the value is a non-negative integer countdown or '*'.
  *
- * @typedef {Record<string, Record<string, number | '*'>>} MessageBreakpoints
+ * @typedef {Record<MatchStringTag, Record<MatchMethodName, MatchCountdown>>} MessageBreakpoints
  */
 
 /**
@@ -19,7 +43,7 @@ const { hasOwn, freeze, entries } = Object;
  * - the inner property name is the class-like tag or '*',
  * - the value is a non-negative integer countdown or '*'.
  *
- * @typedef {Record<string, Record<string, number | '*'>>} BreakpointTable
+ * @typedef {Record<MatchMethodName, Record<MatchStringTag, MatchCountdown>>} BreakpointTable
  */
 
 /**
@@ -40,6 +64,13 @@ const isJSONRecord = val =>
   typeof val === 'object' && val !== null && !Array.isArray(val);
 
 /**
+ * Return `tag` after stripping off any `'Alleged: '` or `'DebugName: '`
+ * prefix if present.
+ * ```js
+ * simplifyTag('Alleged: moola issuer') === 'moola issuer'
+ * ```
+ * If there are multiple such prefixes, only the outer one is removed.
+ *
  * @param {string} tag
  * @returns {string}
  */
@@ -108,7 +139,7 @@ export const makeMessageBreakpointTester = optionName => {
   freeze(setBreakpoints);
 
   const shouldBreakpoint = (recipient, methodName) => {
-    if (methodName === undefined) {
+    if (methodName === undefined || methodName === null) {
       // TODO enable function breakpointing
       return false;
     }

@@ -130,7 +130,6 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
       );
     },
     apply: (_target, _thisArg, argsArray = []) => {
-      HandledPromise.applyFunctionSendOnly(recipient, argsArray);
       if (onSend && onSend.shouldBreakpoint(recipient, undefined)) {
         // eslint-disable-next-line no-debugger
         debugger; // LOOK UP THE STACK
@@ -138,6 +137,7 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
         // so that you can walk back on the stack to see how we came to
         // make this eventual-send
       }
+      HandledPromise.applyFunctionSendOnly(recipient, argsArray);
       return undefined;
     },
     has: (_target, _p) => {
