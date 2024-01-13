@@ -74,7 +74,18 @@ export {
 // eslint-disable-next-line import/export
 export * from './src/types.js';
 
-// Deprecating the reexporting of these @endo/utils exports. Rather,
-// importers should switch to import directly from @endo/utils instead.
-// TODO Uncomment to preserve compat during transition
-// export { listDifference, objectMap } from '@endo/utils';
+// /////////////////////////// Deprecated //////////////////////////////////////
+
+export {
+  /**
+   * @deprecated
+   * Import directly from `@endo/utils` instead.
+   */
+  listDifference,
+
+  /**
+   * @deprecated
+   * Import directly from `@endo/utils` instead.
+   */
+  objectMap,
+} from '@endo/utils';
