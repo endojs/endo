@@ -31,10 +31,10 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/common": "^1.0.1",
     "@endo/eventual-send": "^1.0.1",
     "@endo/marshal": "^1.0.1",
-    "@endo/promise-kit": "^1.0.1",
-    "@endo/utils": "^1.0.1"
+    "@endo/promise-kit": "^1.0.1"
   },
   "devDependencies": {
     "@endo/init": "^1.0.1",

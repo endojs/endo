@@ -79,13 +79,13 @@ export * from './src/types.js';
 export {
   /**
    * @deprecated
-   * Import directly from `@endo/utils` instead.
+   * Import directly from `@endo/common` instead.
    */
   listDifference,
 
   /**
    * @deprecated
-   * Import directly from `@endo/utils` instead.
+   * Import directly from `@endo/common` instead.
    */
   objectMap,
-} from '@endo/utils';
+} from '@endo/common';

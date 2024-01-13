@@ -11,7 +11,7 @@ import {
   getInterfaceGuardPayload,
   getCopyMapEntries,
 } from '@endo/patterns';
-import { listDifference, objectMap } from '@endo/utils';
+import { listDifference, objectMap } from '@endo/common';
 import { GET_INTERFACE_GUARD } from './get-interface.js';
 
 /** @typedef {import('@endo/patterns').Method} Method */

@@ -1,12 +1,12 @@
 {
-  "name": "@endo/utils",
+  "name": "@endo/common",
   "version": "1.0.1",
   "private": true,
   "description": null,
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/skel#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/common#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"
