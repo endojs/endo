@@ -168,6 +168,8 @@ export interface InternalExternal<External = unknown, Internal = unknown> {
 }
 
 export interface Controller<External = unknown, Internal = unknown> {
+  type: string;
+  number: string;
   external: Promise<External>;
   internal: Promise<Internal>;
   context: Context;

@@ -41,6 +41,20 @@ export const makeMailboxMaker = ({
       return petStore.lookup(petName);
     };
 
+    /**
+     * @param {string} petName
+     */
+    const identify = petName => {
+      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+      if (formulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name: ${petName}`);
+      }
+      const controller =
+        provideControllerForFormulaIdentifier(formulaIdentifier);
+      const { type, number } = controller;
+      return harden({ type, number });
+    };
+
     const cancel = async (petName, reason = 'Cancelled') => {
       const formulaIdentifier = lookupFormulaIdentifierForName(petName);
       if (formulaIdentifier === undefined) {
@@ -491,6 +505,7 @@ export const makeMailboxMaker = ({
       reverseLookup,
       lookupPath,
       lookupWriter,
+      identify,
       reverseLookupFormulaIdentifier,
       lookupFormulaIdentifierForName,
       followMessages,

@@ -568,6 +568,7 @@ const makeEndoBootstrap = async (
     partial.catch(context.cancel);
     const controller = harden({
       type: formulaType,
+      number: formulaNumber,
       context,
       external: E.get(partial).external.then(value => {
         if (typeof value === 'object' && value !== null) {
@@ -634,6 +635,7 @@ const makeEndoBootstrap = async (
     partial.catch(context.cancel);
     controller = harden({
       type: formulaType,
+      number: formulaNumber,
       context,
       external: E.get(partial).external,
       internal: E.get(partial).internal,
