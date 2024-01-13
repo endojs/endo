@@ -46,12 +46,23 @@ export const log = async ({ follow, ping }) =>
       cancelled.catch(cancelFollower);
 
       (async () => {
-        const { getBootstrap } = await makeEndoClient(
+        const client = await makeEndoClient(
           'log-follower-probe',
           sockPath,
           followCancelled,
-        );
-        const bootstrap = await getBootstrap();
+        ).catch(error => {
+          console.error(`Endo offline: ${error.message}`);
+        });
+        if (client === undefined) {
+          return;
+        }
+        const { getBootstrap } = client;
+        const bootstrap = await getBootstrap().catch(error => {
+          console.error(`Endo offline: ${error.message}`);
+        });
+        if (bootstrap === undefined) {
+          return;
+        }
         for (;;) {
           await delay(logCheckIntervalMs, followCancelled);
           await E(bootstrap).ping();
