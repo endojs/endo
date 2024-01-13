@@ -1,5 +1,5 @@
 import { test } from './prepare-test-env-ava.js';
-import { objectMetaMap } from '../src/object-meta-map.js';
+import { objectMetaMap } from '../object-meta-map.js';
 
 const { getOwnPropertyDescriptors, getPrototypeOf } = Object;
 

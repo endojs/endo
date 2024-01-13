@@ -5,7 +5,8 @@ import {
   makeFullOrderComparatorKit,
   sortByRank,
 } from '@endo/marshal';
-import { makeIterator, makeArrayIterator } from '@endo/common';
+import { makeIterator } from '@endo/common/make-iterator.js';
+import { makeArrayIterator } from '@endo/common/make-array-iterator.js';
 
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('../types').KeyComparison} KeyComparison */
