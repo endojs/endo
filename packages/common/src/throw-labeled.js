@@ -1,6 +1,10 @@
 const { details: X } = assert;
 
 /**
+ * Given an error `innerErr` and a `label`, throws a similar
+ * error whose message string is `${label}: ${innerErr.message}`.
+ * See `applyLabelingError` for the motivating use.
+ *
  * @param {Error} innerErr
  * @param {string|number} label
  * @param {ErrorConstructor=} ErrorConstructor

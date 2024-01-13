@@ -2,7 +2,7 @@
   "name": "@endo/common",
   "version": "1.0.1",
   "private": true,
-  "description": null,
+  "description": "common low level utilities",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -19,6 +19,16 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./apply-labeling-error": "./src/apply-labeling-error.js",
+    "./from-unique-entries": "./src/from-unique-entries.js",
+    "./ident-checker": "./src/ident-checker.js",
+    "./list-difference": "./src/list-difference.js",
+    "./make-array-iterator": "./src/make-array-iterator.js",
+    "./make-iterator": "./src/make-iterator.js",
+    "./object-map": "./src/object-map.js",
+    "./object-meta-assign": "./src/object-meta-assign.js",
+    "./object-meta-map": "./src/object-meta-map.js",
+    "./throw-labeled": "./src/throw-labeled.js",
     "./package.json": "./package.json"
   },
   "scripts": {

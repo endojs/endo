@@ -3,6 +3,29 @@ import { isPromise } from '@endo/promise-kit';
 import { throwLabeled } from './throw-labeled.js';
 
 /**
+ * Calls `func(...args)`, but annotating any failure error with `label`.
+ *
+ * If `label` is omitted or `undefined`, then this is equivalent to
+ * `func(...args).
+ *
+ * Otherwise, if it successfully returns a non-promise, that non-promise is
+ * returned.
+ *
+ * If it throws, rethrow a similar error whose message is
+ * ```js
+ * `${label}: ${originalMessage}`
+ * ```
+ * That way, in an error happens deep within a stack of calls to
+ * `applyLabelingError`, the resulting error will show the stack of labels.
+ *
+ * If it returns a promise, then `applyLabelingError` cannot tell until that
+ * promise settles whether it represents a success or failure. So it immediately
+ * returns a new promise. If the original promise fulfills, then the
+ * fulfillment is propagated to the returned promise.
+ *
+ * If the promise rejects with an error, then the returned promise is
+ * rejected with a similar promise, prefixed with the label in that same way.
+ *
  * @template A,R
  * @param {(...args: A[]) => R} func
  * @param {A[]} args
