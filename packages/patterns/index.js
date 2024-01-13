@@ -71,9 +71,21 @@ export {
   kindOf,
 } from './src/patterns/patternMatchers.js';
 
-// ////////////////// Temporary, until these find their proper home ////////////
-
-export { listDifference, objectMap } from './src/utils.js';
-
 // eslint-disable-next-line import/export
 export * from './src/types.js';
+
+// /////////////////////////// Deprecated //////////////////////////////////////
+
+export {
+  /**
+   * @deprecated
+   * Import directly from `@endo/common` instead.
+   */
+  listDifference,
+
+  /**
+   * @deprecated
+   * Import directly from `@endo/common` instead.
+   */
+  objectMap,
+} from '@endo/common';

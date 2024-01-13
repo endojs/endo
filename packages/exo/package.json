@@ -32,6 +32,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/common": "^1.0.1",
     "@endo/env-options": "^1.0.1",
     "@endo/eventual-send": "^1.0.1",
     "@endo/far": "^1.0.1",

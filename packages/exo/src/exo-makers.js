@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 import { environmentOptionsListHas } from '@endo/env-options';
-import { objectMap } from '@endo/patterns';
+import { objectMap } from '@endo/common';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 

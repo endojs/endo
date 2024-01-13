@@ -18,7 +18,7 @@ import {
   applyLabelingError,
   fromUniqueEntries,
   listDifference,
-} from '../utils.js';
+} from '@endo/common';
 
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
 import {
