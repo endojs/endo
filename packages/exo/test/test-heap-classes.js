@@ -58,7 +58,7 @@ test('test defineExoClass', t => {
   const makeUpCounter = defineExoClass(
     'UpCounter',
     UpCounterI,
-    /** @param {number} x */
+    /** @param {number} [x] */
     (x = 0) => ({ x }),
     {
       incr(y = 1) {
@@ -105,7 +105,7 @@ test('test defineExoClassKit', t => {
   const makeCounterKit = defineExoClassKit(
     'Counter',
     { up: UpCounterI, down: DownCounterI },
-    /** @param {number} x */
+    /** @param {number} [x] */
     (x = 0) => ({ x }),
     {
       up: {

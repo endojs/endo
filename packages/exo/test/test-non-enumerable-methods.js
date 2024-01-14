@@ -81,7 +81,7 @@ test('test defineExoClass', t => {
   const makeUpCounter = defineExoClass(
     'UpCounter',
     UpCounterI,
-    /** @param {number} x */
+    /** @param {number} [x] */
     (x = 0) => ({ x }),
     denumerate({
       incr(y = 1) {
