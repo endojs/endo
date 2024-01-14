@@ -21,7 +21,7 @@ test('test amplify defineExoClass fails', t => {
       defineExoClass(
         'UpCounter',
         UpCounterI,
-        /** @param {number} x */
+        /** @param {number} [x] */
         (x = 0) => ({ x }),
         {
           incr(y = 1) {
@@ -46,7 +46,7 @@ test('test amplify defineExoClassKit', t => {
   const makeCounterKit = defineExoClassKit(
     'Counter',
     { up: UpCounterI, down: DownCounterI },
-    /** @param {number} x */
+    /** @param {number} [x] */
     (x = 0) => ({ x }),
     {
       up: {
