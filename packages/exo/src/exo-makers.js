@@ -88,18 +88,6 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * The power to revoke a live instance of the associated exo class, or the
- * power to revoke a live facet instance of the associated exo class kit.
- * If called with such a live instance, it revokes it and returns true. Once
- * revoked, it is no longer live, and calling any of its methods throw
- * an informative diagnostic with no further effects.
- *
- * @callback Revoke
- * @param {any} exo
- * @returns {boolean}
- */
-
-/**
  * The power to amplify a live facet instance of the associated exo class kit
  * into the record of all facets of this facet instance's cohort.
  *
@@ -135,15 +123,6 @@ export const initEmpty = () => emptyRecord;
  * TODO Though note that only the virtual and durable exos currently
  * enforce the `stateShape` invariant. The heap exos defined in this
  * package currently ignore `stateShape`, but will enforce this in the future.
- *
- * @property {ReceivePower<Revoke>} [receiveRevoker]
- * If a `receiveRevoker` function is provided, it will be called during
- * definition of the exo class or exo class kit with a `Revoke` function.
- * A `Revoke` function is a function of one argument. If you call the revoke
- * function with a live instance of this exo class, or a live facet instance
- * of this exo class kit, then it will "revoke" it and return true. Once
- * revoked, this instance is no longer "live": Any attempt to invoke any of
- * its methods will fail without further effect.
  *
  * @property {ReceivePower<Amplify<F>>} [receiveAmplifier]
  * If a `receiveAmplifier` function is provided, it will be called during
@@ -190,11 +169,7 @@ export const defineExoClass = (
   options = {},
 ) => {
   harden(methods);
-  const {
-    finish = undefined,
-    receiveRevoker = undefined,
-    receiveAmplifier = undefined,
-  } = options;
+  const { finish = undefined, receiveAmplifier = undefined } = options;
   receiveAmplifier === undefined ||
     Fail`Only facets of an exo class kit can be amplified ${q(tag)}`;
 
@@ -227,12 +202,6 @@ export const defineExoClass = (
     return self;
   };
 
-  if (receiveRevoker) {
-    const revoke = self => contextMap.delete(self);
-    harden(revoke);
-    receiveRevoker(revoke);
-  }
-
   return harden(makeInstance);
 };
 harden(defineExoClass);
@@ -260,11 +229,7 @@ export const defineExoClassKit = (
   options = {},
 ) => {
   harden(methodsKit);
-  const {
-    finish = undefined,
-    receiveRevoker = undefined,
-    receiveAmplifier = undefined,
-  } = options;
+  const { finish = undefined, receiveAmplifier = undefined } = options;
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
     contextMapKit,
@@ -302,13 +267,6 @@ export const defineExoClassKit = (
     return /** @type {GuardedKit<F>} */ (context.facets);
   };
 
-  if (receiveRevoker) {
-    const revoke = aFacet =>
-      values(contextMapKit).some(contextMap => contextMap.delete(aFacet));
-    harden(revoke);
-    receiveRevoker(revoke);
-  }
-
   if (receiveAmplifier) {
     const amplify = aFacet => {
       for (const contextMap of values(contextMapKit)) {
@@ -317,7 +275,7 @@ export const defineExoClassKit = (
           return facets;
         }
       }
-      throw Fail`Must be an unrevoked facet of ${q(tag)}: ${aFacet}`;
+      throw Fail`Must be a facet of ${q(tag)}: ${aFacet}`;
     };
     harden(amplify);
     receiveAmplifier(amplify);
