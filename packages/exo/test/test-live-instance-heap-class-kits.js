@@ -1,4 +1,4 @@
-// modeled on test-revoke-heap-classes.js
+// modeled on test-heap-classes.js
 
 // eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
@@ -15,8 +15,7 @@ const DownCounterI = M.interface('DownCounter', {
   decr: M.call().optional(M.gte(0)).returns(M.number()),
 });
 
-test('test revoke defineExoClass', t => {
-  let revoke;
+test('test isLiveInstance defineExoClass', t => {
   let isLiveInstance;
   const makeUpCounter = defineExoClass(
     'UpCounter',
@@ -31,9 +30,6 @@ test('test revoke defineExoClass', t => {
       },
     },
     {
-      receiveRevoker(r) {
-        revoke = r;
-      },
       receiveInstanceTester(i) {
         isLiveInstance = i;
       },
@@ -52,12 +48,9 @@ test('test revoke defineExoClass', t => {
     message:
       'facetName can only be used with an exo class kit: "UpCounter" has no facet "up"',
   });
-  t.is(revoke(upCounter), true);
-  t.is(isLiveInstance(upCounter), false);
 });
 
-test('test amplify defineExoClassKit', t => {
-  let revoke;
+test('test isLiveInstance defineExoClassKit', t => {
   let isLiveInstance;
   const makeCounterKit = defineExoClassKit(
     'Counter',
@@ -81,9 +74,6 @@ test('test amplify defineExoClassKit', t => {
       },
     },
     {
-      receiveRevoker(r) {
-        revoke = r;
-      },
       receiveInstanceTester(i) {
         isLiveInstance = i;
       },
@@ -96,7 +86,7 @@ test('test amplify defineExoClassKit', t => {
     message: 'exo class kit "Counter" has no facet named "foo"',
   });
 
-  const { up: upCounter, down: downCounter } = makeCounterKit(3);
+  const { up: upCounter } = makeCounterKit(3);
 
   t.is(isLiveInstance(upCounter), true);
   t.is(isLiveInstance(upCounter, 'up'), true);
@@ -104,13 +94,4 @@ test('test amplify defineExoClassKit', t => {
   t.throws(() => isLiveInstance(upCounter, 'foo'), {
     message: 'exo class kit "Counter" has no facet named "foo"',
   });
-
-  t.is(revoke(upCounter), true);
-
-  t.is(isLiveInstance(upCounter), false);
-  t.is(isLiveInstance(upCounter, 'up'), false);
-  t.is(isLiveInstance(upCounter, 'down'), false);
-  t.is(isLiveInstance(downCounter), true);
-  t.is(isLiveInstance(downCounter, 'up'), false);
-  t.is(isLiveInstance(downCounter, 'down'), true);
 });
