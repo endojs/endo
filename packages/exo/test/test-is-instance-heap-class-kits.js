@@ -15,8 +15,8 @@ const DownCounterI = M.interface('DownCounter', {
   decr: M.call().optional(M.gte(0)).returns(M.number()),
 });
 
-test('test isLiveInstance defineExoClass', t => {
-  let isLiveInstance;
+test('test isInstance defineExoClass', t => {
+  let isInstance;
   const makeUpCounter = defineExoClass(
     'UpCounter',
     UpCounterI,
@@ -31,27 +31,27 @@ test('test isLiveInstance defineExoClass', t => {
     },
     {
       receiveInstanceTester(i) {
-        isLiveInstance = i;
+        isInstance = i;
       },
     },
   );
-  t.is(isLiveInstance(harden({})), false);
-  t.throws(() => isLiveInstance(harden({}), 'up'), {
+  t.is(isInstance(harden({})), false);
+  t.throws(() => isInstance(harden({}), 'up'), {
     message:
       'facetName can only be used with an exo class kit: "UpCounter" has no facet "up"',
   });
 
   const upCounter = makeUpCounter(3);
 
-  t.is(isLiveInstance(upCounter), true);
-  t.throws(() => isLiveInstance(upCounter, 'up'), {
+  t.is(isInstance(upCounter), true);
+  t.throws(() => isInstance(upCounter, 'up'), {
     message:
       'facetName can only be used with an exo class kit: "UpCounter" has no facet "up"',
   });
 });
 
-test('test isLiveInstance defineExoClassKit', t => {
-  let isLiveInstance;
+test('test isInstance defineExoClassKit', t => {
+  let isInstance;
   const makeCounterKit = defineExoClassKit(
     'Counter',
     { up: UpCounterI, down: DownCounterI },
@@ -75,23 +75,23 @@ test('test isLiveInstance defineExoClassKit', t => {
     },
     {
       receiveInstanceTester(i) {
-        isLiveInstance = i;
+        isInstance = i;
       },
     },
   );
 
-  t.is(isLiveInstance(harden({})), false);
-  t.is(isLiveInstance(harden({}), 'up'), false);
-  t.throws(() => isLiveInstance(harden({}), 'foo'), {
+  t.is(isInstance(harden({})), false);
+  t.is(isInstance(harden({}), 'up'), false);
+  t.throws(() => isInstance(harden({}), 'foo'), {
     message: 'exo class kit "Counter" has no facet named "foo"',
   });
 
   const { up: upCounter } = makeCounterKit(3);
 
-  t.is(isLiveInstance(upCounter), true);
-  t.is(isLiveInstance(upCounter, 'up'), true);
-  t.is(isLiveInstance(upCounter, 'down'), false);
-  t.throws(() => isLiveInstance(upCounter, 'foo'), {
+  t.is(isInstance(upCounter), true);
+  t.is(isInstance(upCounter, 'up'), true);
+  t.is(isInstance(upCounter, 'down'), false);
+  t.throws(() => isInstance(upCounter, 'foo'), {
     message: 'exo class kit "Counter" has no facet named "foo"',
   });
 });

@@ -88,7 +88,7 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * The power to amplify a live facet instance of the associated exo class kit
+ * The power to amplify a facet instance of the associated exo class kit
  * into the record of all facets of this facet instance's cohort.
  *
  * @template {any} [F=any]
@@ -98,13 +98,13 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * The power to test if a value is a live instance of the
- * associated exo class, or a live facet instance of the
+ * The power to test if a value is an instance of the
+ * associated exo class, or a facet instance of the
  * associated exo class kit. In the later case, if a `facetName` is provided,
  * then it tests only whether the argument is a facet instance of that
  * facet of the associated exo class kit.
  *
- * @callback IsLiveInstance
+ * @callback IsInstance
  * @param {any} exo
  * @param {string} [facetName]
  * @returns {boolean}
@@ -142,14 +142,14 @@ export const initEmpty = () => emptyRecord;
  * definition of the exo class kit with an `Amplify` function. If called
  * during the definition of a normal exo or exo class, it will throw, since
  * only exo kits can be amplified.
- * An `Amplify` function is a function that takes a live facet instance of
+ * An `Amplify` function is a function that takes a facet instance of
  * this class kit as an argument, in which case it will return the facets
  * record, giving access to all the facet instances of the same cohort.
  *
- * @property {ReceivePower<IsLiveInstance>} [receiveInstanceTester]
+ * @property {ReceivePower<IsInstance>} [receiveInstanceTester]
  * If a `receiveInstanceTester` function is provided, it will be called
  * during the definition of the exo class or exo class kit with an
- * `IsLiveInstance` function. The first argument of `IsLiveInstance`
+ * `IsInstance` function. The first argument of `IsInstance`
  * is the value to be tested. When it may be a facet instance of an
  * exo class kit, the optional second argument, if provided, is
  * a `facetName`. In that case, the function tests only if the first
@@ -229,15 +229,15 @@ export const defineExoClass = (
   };
 
   if (receiveInstanceTester) {
-    const isLiveInstance = (exo, facetName = undefined) => {
+    const isInstance = (exo, facetName = undefined) => {
       facetName === undefined ||
         Fail`facetName can only be used with an exo class kit: ${q(
           tag,
         )} has no facet ${q(facetName)}`;
       return contextMap.has(exo);
     };
-    harden(isLiveInstance);
-    receiveInstanceTester(isLiveInstance);
+    harden(isInstance);
+    receiveInstanceTester(isInstance);
   }
 
   return harden(makeInstance);
@@ -324,7 +324,7 @@ export const defineExoClassKit = (
   }
 
   if (receiveInstanceTester) {
-    const isLiveInstance = (exoFacet, facetName = undefined) => {
+    const isInstance = (exoFacet, facetName = undefined) => {
       if (facetName === undefined) {
         return values(contextMapKit).some(contextMap =>
           contextMap.has(exoFacet),
@@ -336,8 +336,8 @@ export const defineExoClassKit = (
         Fail`exo class kit ${q(tag)} has no facet named ${q(facetName)}`;
       return contextMap.has(exoFacet);
     };
-    harden(isLiveInstance);
-    receiveInstanceTester(isLiveInstance);
+    harden(isInstance);
+    receiveInstanceTester(isInstance);
   }
 
   return harden(makeInstanceKit);
