@@ -54,6 +54,7 @@ import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
+import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 
 /** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
 
@@ -334,6 +335,8 @@ export const repairIntrinsics = (options = {}) => {
 
   // Replace *Locale* methods with their non-locale equivalents
   tameLocaleMethods(intrinsics, localeTaming);
+
+  tameFauxDataProperties(intrinsics);
 
   /**
    * 2. WHITELIST to standardize the environment.
