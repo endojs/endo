@@ -41,7 +41,6 @@ test('test amplify defineExoClass fails', t => {
 });
 
 test('test amplify defineExoClassKit', t => {
-  let revoke;
   let amp;
   const makeCounterKit = defineExoClassKit(
     'Counter',
@@ -65,9 +64,6 @@ test('test amplify defineExoClassKit', t => {
       },
     },
     {
-      receiveRevoker(r) {
-        revoke = r;
-      },
       receiveAmplifier(a) {
         amp = a;
       },
@@ -79,21 +75,8 @@ test('test amplify defineExoClassKit', t => {
   t.is(downCounter.decr(), 7);
 
   t.throws(() => amp(harden({})), {
-    message: 'Must be an unrevoked facet of "Counter": {}',
+    message: 'Must be a facet of "Counter": {}',
   });
   t.deepEqual(amp(upCounter), counterKit);
   t.deepEqual(amp(downCounter), counterKit);
-
-  t.is(revoke(upCounter), true);
-
-  t.throws(() => amp(upCounter), {
-    message: 'Must be an unrevoked facet of "Counter": "[Alleged: Counter up]"',
-  });
-  t.deepEqual(amp(downCounter), counterKit);
-  t.throws(() => upCounter.incr(3), {
-    message:
-      '"In \\"incr\\" method of (Counter up)" may only be applied to a valid instance: "[Alleged: Counter up]"',
-  });
-  t.deepEqual(amp(downCounter), counterKit);
-  t.is(downCounter.decr(), 6);
 });
