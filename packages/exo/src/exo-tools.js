@@ -297,8 +297,17 @@ const defendMethod = (method, methodGuard, label) => {
  */
 
 /**
- * @typedef {(facet: any) => KitContext} KitContextProvider
- * @typedef {((representative: any) => ClassContext) | KitContextProvider} ContextProvider
+ * @typedef {(
+ *   representative: any
+ * ) => ClassContext | undefined} ClassContextProvider
+ */
+
+/**
+ * @typedef {(facet: any) => KitContext | undefined} KitContextProvider
+ */
+
+/**
+ * @typedef { ClassContextProvider | KitContextProvider } ContextProvider
  */
 
 /**
