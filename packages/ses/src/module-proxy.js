@@ -25,6 +25,7 @@ import {
   reflectHas,
   reflectIsExtensible,
   reflectPreventExtensions,
+  toStringTagSymbol,
   weakmapSet,
 } from './commons.js';
 import { assert } from './error/assert.js';
@@ -51,7 +52,15 @@ const { quote: q } = assert;
 //
 export const deferExports = () => {
   let active = false;
-  const proxiedExports = create(null);
+  const proxiedExports = create(null, {
+    // Make this appear like an ESM module namespace object.
+    [toStringTagSymbol]: {
+      value: 'Module',
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    },
+  });
   return freeze({
     activate() {
       active = true;
