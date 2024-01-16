@@ -54,6 +54,7 @@ import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
+import { tameIteratorPrototype } from './tame-iterator-prototype.js';
 
 /** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
 
@@ -273,6 +274,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameMathObject(mathTaming));
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
+  tameIteratorPrototype();
 
   addIntrinsics(getAnonymousIntrinsics());
 

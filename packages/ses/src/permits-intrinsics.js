@@ -181,31 +181,35 @@ export default function whitelistIntrinsics(
     if (typeof permit === 'string') {
       // A string permit can have one of two meanings:
 
-      if (prop === 'prototype' || prop === 'constructor') {
-        // For prototype and constructor value properties, the permit
+      // The permit is the name of a primitive.
+      // Assert: the property value type is equal to that primitive.
+
+      // eslint-disable-next-line no-lonely-if
+      if (arrayIncludes(primitives, permit)) {
+        // eslint-disable-next-line valid-typeof
+        if (typeof value !== permit) {
+          throw TypeError(`At ${path} expected ${permit} not ${typeof value}`);
+        }
+        return true;
+      } else if (
+        prop === 'prototype' ||
+        prop === 'constructor' ||
+        prop === 'originalValue'
+      ) {
+        // All permits other than the name of a primitive apply
+        // only to properties named `prototype`, `constructor,
+        // or `originalValue`. The `originalValue` case is to allow
+        // early `enablePropertyOverride` to install the
+        // `originalValue` on the getter.
+
+        // For all these, the permit
         // is the name of an intrinsic.
-        // Assumption: prototype and constructor cannot be primitives.
         // Assert: the permit is the name of an intrinsic.
         // Assert: the property value is equal to that intrinsic.
 
         if (objectHasOwnProperty(intrinsics, permit)) {
           if (value !== intrinsics[permit]) {
             throw TypeError(`Does not match whitelist ${path}`);
-          }
-          return true;
-        }
-      } else {
-        // For all other properties, the permit is the name of a primitive.
-        // Assert: the permit is the name of a primitive.
-        // Assert: the property value type is equal to that primitive.
-
-        // eslint-disable-next-line no-lonely-if
-        if (arrayIncludes(primitives, permit)) {
-          // eslint-disable-next-line valid-typeof
-          if (typeof value !== permit) {
-            throw TypeError(
-              `At ${path} expected ${permit} not ${typeof value}`,
-            );
           }
           return true;
         }
@@ -232,12 +236,40 @@ export default function whitelistIntrinsics(
       }
       return isAllowedPropertyValue(path, desc.value, prop, permit);
     }
+    const { get, set } = desc;
+    if (typeof get !== 'function') {
+      throw TypeError('Accessor getter should always be a function');
+    }
     if (!isAccessorPermit(permit)) {
+      if ('originalValue' in get) {
+        if (typeof set !== 'function') {
+          throw TypeError(
+            'Expected property-override-enabler to have a setter',
+          );
+        }
+        // Assume that we've already done an early `enablePropertyOverride`
+        // for this property. Clean the getter by applying the permit
+        // to `get.originalValue`.
+        //
+        // Note that we need not worry about a counterfeit
+        // `desc.get.originalValue` because we're still in a phase we
+        // assume is before any malicious code runs.
+
+        const GetterInstance = {
+          ...FunctionInstance,
+          originalValue: permit,
+        };
+
+        return (
+          isAllowedPropertyValue(`${path}<get>`, get, prop, GetterInstance) &&
+          isAllowedPropertyValue(`${path}<set>`, set, prop, FunctionInstance)
+        );
+      }
       throw TypeError(`Accessor not expected at ${path}`);
     }
     return (
-      isAllowedPropertyValue(`${path}<get>`, desc.get, prop, permit.get) &&
-      isAllowedPropertyValue(`${path}<set>`, desc.set, prop, permit.set)
+      isAllowedPropertyValue(`${path}<get>`, get, prop, permit.get) &&
+      isAllowedPropertyValue(`${path}<set>`, set, prop, permit.set)
     );
   }
 

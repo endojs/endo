@@ -25,6 +25,80 @@ import {
 } from './enablements.js';
 
 /**
+ * Enable override of a singe property, using `desc` as if it is the original
+ * property descriptor of a data property. See tame-iterator-prototype.js
+ *
+ * This can be done before overrides are enabled in general. If a `desc` is
+ * passed in that does not have a `value` property, then it is not a valid
+ * data property descriptor and this function returns without doing anything.
+ * Thus, when `enablePropertyOverrides` calls this to override an
+ * already-overridden property, it will leave well enough alone.
+ *
+ * @param {string} path
+ * @param {any} obj
+ * @param {string|symbol} prop
+ * @param {{
+ *   value: any,
+ *   writable: boolean,
+ *   enumerable: boolean,
+ *   configurable: boolean,
+ * }} desc
+ * @param {boolean} [isDebug]
+ */
+export function enablePropertyOverride(path, obj, prop, desc, isDebug = false) {
+  if (!('value' in desc)) {
+    return;
+  }
+
+  const { value } = desc;
+
+  // Use concide method syntax so methods can be `this` sensitive, but
+  // still omit a `setter` property.
+  const { getter, setter } = {
+    getter() {
+      return value;
+    },
+    setter(newValue) {
+      if (obj === this) {
+        throw TypeError(
+          `Cannot assign to read only property '${String(prop)}' of '${path}'`,
+        );
+      }
+      if (objectHasOwnProperty(this, prop)) {
+        this[prop] = newValue;
+      } else {
+        if (isDebug) {
+          // eslint-disable-next-line @endo/no-polymorphic-call
+          console.error(
+            TypeError(`Override property '${String(prop)}' of '${path}'`),
+          );
+        }
+        defineProperty(this, prop, {
+          value: newValue,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      }
+    },
+  };
+
+  defineProperty(getter, 'originalValue', {
+    value,
+    writable: false,
+    enumerable: false,
+    configurable: false,
+  });
+
+  defineProperty(obj, prop, {
+    get: getter,
+    set: setter,
+    enumerable: desc.enumerable,
+    configurable: desc.configurable,
+  });
+}
+
+/**
  * For a special set of properties defined in the `enablement` whitelist,
  * `enablePropertyOverrides` ensures that the effect of freezing does not
  * suppress the ability to override these properties on derived objects by
@@ -85,51 +159,9 @@ export default function enablePropertyOverrides(
 ) {
   const debugProperties = new Set(overrideDebug);
   function enable(path, obj, prop, desc) {
-    if ('value' in desc && desc.configurable) {
-      const { value } = desc;
-
-      function getter() {
-        return value;
-      }
-      defineProperty(getter, 'originalValue', {
-        value,
-        writable: false,
-        enumerable: false,
-        configurable: false,
-      });
-
+    if (desc.configurable) {
       const isDebug = setHas(debugProperties, prop);
-
-      function setter(newValue) {
-        if (obj === this) {
-          throw TypeError(
-            `Cannot assign to read only property '${String(
-              prop,
-            )}' of '${path}'`,
-          );
-        }
-        if (objectHasOwnProperty(this, prop)) {
-          this[prop] = newValue;
-        } else {
-          if (isDebug) {
-            // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(TypeError(`Override property ${prop}`));
-          }
-          defineProperty(this, prop, {
-            value: newValue,
-            writable: true,
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
-
-      defineProperty(obj, prop, {
-        get: getter,
-        set: setter,
-        enumerable: desc.enumerable,
-        configurable: desc.configurable,
-      });
+      enablePropertyOverride(path, obj, prop, desc, isDebug);
     }
   }
 
