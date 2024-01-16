@@ -62,7 +62,7 @@ export interface ThirdPartyStaticModuleInterface {
    * Note that this value does _not_ contain any numeric or symbol property keys, which can theoretically be members of `exports` in a CommonJS module.
    */
   execute(
-    proxiedExports: Record<string, any>,
+    exportsTarget: Record<string, any>,
     compartment: Compartment,
     resolvedImports: Record<string, string>,
   ): void;
