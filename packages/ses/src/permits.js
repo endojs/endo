@@ -1121,6 +1121,20 @@ export const permitted = {
     values: fn,
     '@@iterator': fn,
     '@@toStringTag': 'string',
+    // See https://github.com/tc39/proposal-set-methods
+    intersection: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    union: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    difference: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    symmetricDifference: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    isSubsetOf: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    isSupersetOf: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    isDisjointFrom: fn,
   },
 
   '%SetIteratorPrototype%': {
