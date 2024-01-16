@@ -88,41 +88,49 @@ export default function enablePropertyOverrides(
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
-      function getter() {
-        return value;
-      }
+      const isDebug = setHas(debugProperties, prop);
+
+      // We use concise method syntax to be `this` sensitive, but still
+      // omit a prototype property or [[Construct]] behavior.
+      // @ts-expect-error We know there is an accessor descriptor there
+      const { get: getter, set: setter } = getOwnPropertyDescriptor(
+        {
+          get [prop]() {
+            return value;
+          },
+          set [prop](newValue) {
+            if (obj === this) {
+              throw TypeError(
+                `Cannot assign to read only property '${String(
+                  prop,
+                )}' of '${path}'`,
+              );
+            }
+            if (objectHasOwnProperty(this, prop)) {
+              this[prop] = newValue;
+            } else {
+              if (isDebug) {
+                // eslint-disable-next-line @endo/no-polymorphic-call
+                console.error(TypeError(`Override property ${prop}`));
+              }
+              defineProperty(this, prop, {
+                value: newValue,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+              });
+            }
+          },
+        },
+        prop,
+      );
+
       defineProperty(getter, 'originalValue', {
         value,
         writable: false,
         enumerable: false,
         configurable: false,
       });
-
-      const isDebug = setHas(debugProperties, prop);
-
-      function setter(newValue) {
-        if (obj === this) {
-          throw TypeError(
-            `Cannot assign to read only property '${String(
-              prop,
-            )}' of '${path}'`,
-          );
-        }
-        if (objectHasOwnProperty(this, prop)) {
-          this[prop] = newValue;
-        } else {
-          if (isDebug) {
-            // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(TypeError(`Override property ${prop}`));
-          }
-          defineProperty(this, prop, {
-            value: newValue,
-            writable: true,
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
 
       defineProperty(obj, prop, {
         get: getter,
