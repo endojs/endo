@@ -5,7 +5,7 @@ User-visible changes in SES:
   proposal includes two accessor properties whose purpose is to emulate
   a data property, but without the override mistake problem. The ses-shim
   creates many such properties, but was unprepared for them to already be
-  present in the JS platform it starts with. A Chrome Canary and Node 22
+  present in the JS platform it starts with. Chrome Canary and Node 22
   both implement the iterators-helper proposal, triggering this bug, preventing
   the ses-shim from initializing. The ses-shim
   [now copes safely](https://github.com/endojs/endo/pull/1969) with an
