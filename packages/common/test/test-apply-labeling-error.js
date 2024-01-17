@@ -1,5 +1,5 @@
 import { test } from './prepare-test-env-ava.js';
-import { applyLabelingError } from '../src/apply-labeling-error.js';
+import { applyLabelingError } from '../apply-labeling-error.js';
 
 const { Fail } = assert;
 

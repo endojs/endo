@@ -1,5 +1,5 @@
 import { test } from './prepare-test-env-ava.js';
-import { fromUniqueEntries } from '../src/from-unique-entries.js';
+import { fromUniqueEntries } from '../from-unique-entries.js';
 
 test('test fromUniqueEntries', async t => {
   t.deepEqual(

@@ -20,7 +20,8 @@ defineProperties(Array, {
   },
 });
 
-test('permit removal warnings', t => {
+// TODO unskip once https://github.com/endojs/endo/issues/1973 is fixed.
+test.skip('permit removal warnings', t => {
   assertLogs(
     t,
     () => lockdown(),

@@ -11,7 +11,8 @@ import {
   getInterfaceGuardPayload,
   getCopyMapEntries,
 } from '@endo/patterns';
-import { listDifference, objectMap } from '@endo/common';
+import { listDifference } from '@endo/common/list-difference.js';
+import { objectMap } from '@endo/common/object-map.js';
 import { GET_INTERFACE_GUARD } from './get-interface.js';
 
 /** @typedef {import('@endo/patterns').Method} Method */
@@ -296,8 +297,17 @@ const defendMethod = (method, methodGuard, label) => {
  */
 
 /**
- * @typedef {(facet: any) => KitContext} KitContextProvider
- * @typedef {((representative: any) => ClassContext) | KitContextProvider} ContextProvider
+ * @typedef {(
+ *   representative: any
+ * ) => ClassContext | undefined} ClassContextProvider
+ */
+
+/**
+ * @typedef {(facet: any) => KitContext | undefined} KitContextProvider
+ */
+
+/**
+ * @typedef { ClassContextProvider | KitContextProvider } ContextProvider
  */
 
 /**
