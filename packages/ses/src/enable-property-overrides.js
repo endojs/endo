@@ -11,7 +11,6 @@ import {
   defineProperty,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-  getOwnPropertyNames,
   isObject,
   objectHasOwnProperty,
   ownKeys,
@@ -156,12 +155,11 @@ export default function enablePropertyOverrides(
     }
     // TypeScript does not allow symbols to be used as indexes because it
     // cannot recokon types of symbolized properties.
-    // @ts-ignore
     arrayForEach(ownKeys(descs), prop => enable(path, obj, prop, descs[prop]));
   }
 
   function enableProperties(path, obj, plan) {
-    for (const prop of getOwnPropertyNames(plan)) {
+    for (const prop of ownKeys(plan)) {
       const desc = getOwnPropertyDescriptor(obj, prop);
       if (!desc || desc.get || desc.set) {
         // No not a value property, nothing to do.
@@ -169,10 +167,8 @@ export default function enablePropertyOverrides(
         continue;
       }
 
-      // Plan has no symbol keys and we use getOwnPropertyNames()
-      // so `prop` cannot only be a string, not a symbol. We coerce it in place
-      // with `String(..)` anyway just as good hygiene, since these paths are just
-      // for diagnostic purposes.
+      // In case `prop` is a symbol, we first coerce it with `String`,
+      // purely for diagnostic purposes.
       const subPath = `${path}.${String(prop)}`;
       const subPlan = plan[prop];
 

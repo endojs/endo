@@ -1,3 +1,5 @@
+import { toStringTagSymbol } from './commons.js';
+
 /**
  * @file Exports {@code enablements}, a recursively defined
  * JSON record defining the optimum set of intrinsics properties
@@ -73,6 +75,13 @@ export const minEnablements = {
 
   '%ErrorPrototype%': {
     name: true, // set by "precond", "ava", "node-fetch"
+  },
+  '%IteratorPrototype%': {
+    toString: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    constructor: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    [toStringTagSymbol]: true,
   },
 };
 
@@ -152,6 +161,10 @@ export const moderateEnablements = {
 
   '%IteratorPrototype%': {
     toString: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    constructor: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    [toStringTagSymbol]: true,
   },
 };
 
