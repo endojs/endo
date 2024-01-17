@@ -6,9 +6,9 @@ import { tameFauxDataProperty as tfdp } from '../src/tame-faux-data-properties.j
 const { freeze, defineProperty, getOwnPropertyDescriptor } = Object;
 
 test('unit test tameFauxDataProperty', t => {
-  t.is(tfdp(undefined, 'foo', 'bar'), false);
-  t.is(tfdp({}, 'foo', 'bar'), false);
-  t.is(tfdp({ foo: 'bar' }, 'foo', 'bar'), false);
+  t.is(tfdp(undefined, 'foo', 'bar'), false, 'the object does not exist');
+  t.is(tfdp({}, 'foo', 'bar'), false, 'the property does not exist');
+  t.is(tfdp({ foo: 'bar' }, 'foo', 'bar'), false, 'an actual data property');
 
   t.is(
     tfdp(
@@ -21,6 +21,7 @@ test('unit test tameFauxDataProperty', t => {
       'bar',
     ),
     false,
+    'a getter without a setter',
   );
 
   t.is(
@@ -33,6 +34,7 @@ test('unit test tameFauxDataProperty', t => {
       },
     }),
     false,
+    'setter should not always throw',
   );
 
   t.is(
@@ -45,6 +47,7 @@ test('unit test tameFauxDataProperty', t => {
       },
     }),
     false,
+    'setter should throw when "this === obj"',
   );
 
   const subject1 = {
@@ -57,7 +60,7 @@ test('unit test tameFauxDataProperty', t => {
       }
     },
   };
-  t.is(tfdp(subject1, 'foo', 'bar'), false);
+  t.is(tfdp(subject1, 'foo', 'bar'), false, 'does not assign when it should');
 
   const subject2 = {
     get foo() {
@@ -67,7 +70,11 @@ test('unit test tameFauxDataProperty', t => {
       defineProperty(this, 'foo', { value: newValue });
     },
   };
-  t.is(tfdp(subject2, 'foo', 'bar'), false);
+  t.is(
+    tfdp(subject2, 'foo', 'bar'),
+    false,
+    'setter must fail when "this === obj"',
+  );
 
   const subject3 = {
     get foo() {
@@ -80,7 +87,11 @@ test('unit test tameFauxDataProperty', t => {
       defineProperty(this, 'foo', { value: newValue });
     },
   };
-  t.is(tfdp(freeze(subject3), 'foo', 'bar'), false);
+  t.is(
+    tfdp(freeze(subject3), 'foo', 'bar'),
+    false,
+    'genuine faux data property, but non-configurable so we cannot change it anyway',
+  );
 
   const subject4 = {
     get foo() {
@@ -93,20 +104,32 @@ test('unit test tameFauxDataProperty', t => {
       defineProperty(this, 'foo', { value: newValue });
     },
   };
-  t.is(tfdp(subject4, 'foo', 'bar'), false);
+  t.is(
+    tfdp(subject4, 'foo', 'bar'),
+    false,
+    'genuine faux data property, but not the expected value',
+  );
 
   const desc4 = getOwnPropertyDescriptor(subject4, 'foo');
-  t.deepEqual(desc4, {
-    get: desc4.get,
-    set: desc4.set,
-    enumerable: true,
-    configurable: true,
-  });
-  t.is(tfdp(subject4, 'foo', 'zip'), true);
-  t.deepEqual(getOwnPropertyDescriptor(subject4, 'foo'), {
-    value: 'zip',
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
+  t.deepEqual(
+    desc4,
+    {
+      get: desc4.get,
+      set: desc4.set,
+      enumerable: true,
+      configurable: true,
+    },
+    'what the faux data property looks like',
+  );
+  t.is(tfdp(subject4, 'foo', 'zip'), true, 'changed into actual data prop');
+  t.deepEqual(
+    getOwnPropertyDescriptor(subject4, 'foo'),
+    {
+      value: 'zip',
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    },
+    'what the resulting actual data property looks like',
+  );
 });
