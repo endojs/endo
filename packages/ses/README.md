@@ -196,7 +196,7 @@ c1.globalThis.JSON === c2.globalThis.JSON; // true
 The global scope of every compartment includes a shallow, specialized copy of
 the JavaScript intrinsics, disabling `Math.random`, `Date.now` and the
 behaviors of the `Date` constructor which would reveal the current time.
-Comaprtments leave these out since they can be used as covert communication
+Compartments leave these out since they can be used as covert communication
 channels between programs.
 However, a compartment may be expressly given access to these objects
 through:
