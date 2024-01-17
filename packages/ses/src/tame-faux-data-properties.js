@@ -8,10 +8,10 @@ import {
 const throws = thunk => {
   try {
     thunk();
+    return false;
   } catch (er) {
     return true;
   }
-  return false;
 };
 
 /**
@@ -25,10 +25,10 @@ const throws = thunk => {
  * Returns whether `tameFauxDataProperty` turned the property in question
  * from an apparent faux data property into the actual data property it
  * seemed to emulate.
- * If it returns `false`, then we hope no effects happened. However, the whole
- * point of the validation tests here are to sniff out if an accessor
- * property seems to be a faux data property. To do we, it invokes the
- * getter and setter functions that might possibly have side effects.
+ * If this function returns `false`, then we hope no effects happened.
+ * However, sniffing out if an accessor property seems to be a faux data
+ * property requires invoking the getter and setter functions that might
+ * possibly have side effects.
  * `tameFauxDataProperty` is not in a position to tell.
  */
 export const tameFauxDataProperty = (obj, prop, expectedValue) => {
@@ -42,11 +42,8 @@ export const tameFauxDataProperty = (obj, prop, expectedValue) => {
     return false;
   }
   const { get, set } = desc;
-  if (typeof get !== 'function') {
+  if (typeof get !== 'function' || typeof set !== 'function') {
     // A faux data property has both a getter and a setter
-    return false;
-  }
-  if (typeof set !== 'function') {
     return false;
   }
   if (get() !== expectedValue) {
@@ -90,7 +87,6 @@ export const tameFauxDataProperty = (obj, prop, expectedValue) => {
     // calling the getter. That does not happen until `permits-intrinsics.js`
     // which is much later. So if we see one this early, we should
     // not assume we understand what's going on.
-    //
     return false;
   }
 
@@ -107,7 +103,7 @@ export const tameFauxDataProperty = (obj, prop, expectedValue) => {
 
   // For those properties that are also listed in `enablements.js`,
   // that phase will re-enable override for these properties, but
-  // via accessor functions that ses controls, so we know what they are
+  // via accessor functions that SES controls, so we know what they are
   // doing. In addition, the getter functions installed by
   // `enable-property-overrides.js` have an `originalValue` field
   // enabling meta-traversal code like harden to visit the original value
@@ -147,39 +143,39 @@ export const tameFauxDataProperty = (obj, prop, expectedValue) => {
  * ses-shim, `enable-property-overrides.js` makes the properties listed in
  * `enablements.js` into faux data properties.
  *
- * But the ses-shim is not the only one to use this trick. Starting with the
- * [iterators-helpers proposal](https://github.com/tc39/proposal-iterator-helpers),
+ * But the ses-shim is not alone in use of this trick. Starting with the
+ * [Iterator Helpers proposal](https://github.com/tc39/proposal-iterator-helpers),
  * some properties are defined as (what we call) faux data properties.
  * Some of these are new properties (`Interator.prototype.constructor`) and
  * some are old data properties converted to accessor properties
- * (`Iterator.prototype[String.toStringTag]`). So the ses shim needs to be
+ * (`Iterator.prototype[String.toStringTag]`). So the ses-shim needs to be
  * prepared for some enumerated set of properties to already be faux data
- * properties in the platform prior to the ses-shim initialization.
+ * properties in the platform prior to our initialization.
  *
  * For these possible faux data properties, it is important that
- * `permits.js` describe these as if they are a data property, so that
- * it can further constrain the apparent value (the value
- * that allegedly would be returned by the getter) according to its own permits.
+ * `permits.js` describe each as a data property, so that it can further
+ * constrain the apparent value (that allegedly would be returned by the
+ * getter) according to its own permits.
  *
  * However, at the time of this writing, the precise behavior specified
- * by the iterators-helpers proposal for these faux data properties is
+ * by the iterator-helpers proposal for these faux data properties is
  * novel. We should not be too confident that all further such platform
  * additions do what we would now expect. So, for each of these possible
  * faux data properties, we do some sniffing to see if it behaves as we
  * currently expect a faux data property to act. If not, then
  * `tameFauxDataProperties` tries not to modify it, leaving it to later
  * checks, especially `permits-intrinsics.js`, to error when it sees an
- * accessor is expected.
+ * unexpected accessor.
  *
  * If one of these enumerated accessor properties does seem to be
  * a faithful faux data property, then `tameFauxDataProperties` itself
  * *tempoarily* turns it into the actual data property that it seems to emulate.
- * This data property starts with writable, so that in this state it will
+ * This data property starts as writable, so that in this state it will
  * not trigger the override mistake, i.e., assignment to an object inheriting
  * this property is allowed to succeed at overriding this property.
  *
  * For those properties that should be a faux data property rather than an
- * actual one, such as those from the iterators-helpers proposal,
+ * actual one, such as those from the iterator-helpers proposal,
  * they should be listed as such in `enablements.js`, so
  * `enable-property-overrides.js` will turn it back into a faux data property.
  * But one controlled by the ses-shim, whose behavior we understand.
