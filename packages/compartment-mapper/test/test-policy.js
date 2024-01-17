@@ -1,7 +1,7 @@
 // import "./ses-lockdown.js";
 import 'ses';
 import test from 'ava';
-import { scaffold, sanitizePaths } from './scaffold.js';
+import { moduleify, scaffold, sanitizePaths } from './scaffold.js';
 
 function combineAssertions(...assertionFunctions) {
   return async (...args) => {
@@ -86,7 +86,7 @@ const anyPolicy = {
 };
 
 const defaultExpectations = {
-  namespace: {
+  namespace: moduleify({
     alice: {
       bluePill: 'undefined',
       redPill: 'number',
@@ -102,23 +102,23 @@ const defaultExpectations = {
     scopedBob: { scoped: 1 },
     builtins: '{"a":1,"b":2,"default":{"a":1,"b":2}}',
     builtins2: '{"c":3,"default":{"c":3}}',
-  },
+  }),
 };
 const anyExpectations = {
-  namespace: {
+  namespace: moduleify({
     ...defaultExpectations.namespace,
     carol: { bluePill: 'number', redPill: 'number', purplePill: 'number' },
-  },
+  }),
 };
 const powerlessCarolExpectations = {
-  namespace: {
+  namespace: moduleify({
     ...defaultExpectations.namespace,
     carol: {
       bluePill: 'undefined',
       redPill: 'undefined',
       purplePill: 'undefined',
     },
-  },
+  }),
 };
 
 const makeResultAssertions =
