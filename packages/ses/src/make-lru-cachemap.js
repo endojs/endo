@@ -1,9 +1,12 @@
 // @ts-check
 /* eslint-disable @endo/no-polymorphic-call */
-/* eslint-disable no-restricted-globals */
 
-const { freeze } = Object;
+// eslint-disable-next-line no-restricted-globals
 const { isSafeInteger } = Number;
+// eslint-disable-next-line no-restricted-globals
+const { freeze } = Object;
+// eslint-disable-next-line no-restricted-globals
+const { toStringTag: toStringTagSymbol } = Symbol;
 
 /**
  * @template Data
@@ -50,9 +53,11 @@ const makeSelfCell = data => {
  */
 const spliceAfter = (prev, selfCell) => {
   if (prev === selfCell) {
+    // eslint-disable-next-line no-restricted-globals
     throw TypeError('Cannot splice a cell into itself');
   }
   if (selfCell.next !== selfCell || selfCell.prev !== selfCell) {
+    // eslint-disable-next-line no-restricted-globals
     throw TypeError('Expected self-linked cell');
   }
   const cell = selfCell;
@@ -100,10 +105,12 @@ const spliceOut = cell => {
  */
 export const makeLRUCacheMap = keysBudget => {
   if (!isSafeInteger(keysBudget) || keysBudget < 0) {
+    // eslint-disable-next-line no-restricted-globals
     throw TypeError('keysBudget must be a safe non-negative integer number');
   }
   /** @typedef {DoublyLinkedCell<WeakMap<K, V> | undefined>} LRUCacheCell */
   /** @type {WeakMap<K, LRUCacheCell>} */
+  // eslint-disable-next-line no-restricted-globals
   const keyToCell = new WeakMap();
   let size = 0; // `size` must remain <= `keysBudget`
   // As a sigil, `head` uniquely is not in the `keyToCell` map.
@@ -158,6 +165,7 @@ export const makeLRUCacheMap = keysBudget => {
       // Either a fresh cell or a reused condemned cell.
       size += 1;
       // Add its data.
+      // eslint-disable-next-line no-restricted-globals
       cell.data = new WeakMap();
       // Advertise the cell for this key.
       keyToCell.set(key, cell);
@@ -204,7 +212,9 @@ export const makeLRUCacheMap = keysBudget => {
     get,
     set,
     delete: deleteIt,
-    [Symbol.toStringTag]: 'LRUCacheMap',
+    // eslint-disable-next-line jsdoc/check-types
+    [/** @type {typeof Symbol.toStringTag} */ (toStringTagSymbol)]:
+      'LRUCacheMap',
   });
   return lruCacheMap;
 };
