@@ -22,15 +22,11 @@ import { monodu64, padding } from './common.js';
  * @returns {Uint8Array} decoded bytes
  */
 export const jsDecodeBase64 = (string, name = '<unknown>') => {
-  // eslint-disable-next-line no-nested-ternary
-  const paddingLength = string.endsWith('==')
-    ? 2
-    : string.endsWith('=')
-    ? 1
-    : 0;
-  const data = new Uint8Array(
-    Math.ceil((string.length * 3) / 4) - paddingLength,
-  );
+  // String operations can be O(n) in XS as of 2024-01, so cache the length
+  // and use an iterator rather than sequential access by index.
+  const stringLength = string.length;
+  let paddingLength = 0;
+  const data = new Uint8Array(Math.ceil((stringLength * 3) / 4));
   let register = 0;
   let quantum = 0;
   let i = 0; // index in string
@@ -41,6 +37,7 @@ export const jsDecodeBase64 = (string, name = '<unknown>') => {
     if (done || ch === padding) {
       if (ch !== padding) break;
       done = true;
+      paddingLength += 1;
       quantum -= 2;
       i += 1;
       // Padding is only expected to complete a short chunk of two or three data characters
@@ -69,12 +66,14 @@ export const jsDecodeBase64 = (string, name = '<unknown>') => {
 
   if (quantum !== 0) {
     throw Error(`Missing padding at offset ${i} of string ${name}`);
-  } else if (i < string.length) {
+  } else if (i < stringLength) {
     throw Error(
       `Base64 string has trailing garbage ${string.slice(i)} in string ${name}`,
     );
   }
-  return data;
+  return paddingLength === 0
+    ? data
+    : data.subarray(0, data.length - paddingLength);
 };
 
 // The XS Base64.decode function is faster, but might return ArrayBuffer (not
