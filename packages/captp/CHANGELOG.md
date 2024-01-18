@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [4.0.2](https://github.com/endojs/endo/compare/@endo/captp@4.0.1...@endo/captp@4.0.2) (2024-01-18)
+
+
+### Bug Fixes
+
+* explicitely harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
+
+
+
 ### [4.0.1](https://github.com/endojs/endo/compare/@endo/captp@4.0.0...@endo/captp@4.0.1) (2023-12-20)
 
 

@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.0.1...@endo/compartment-mapper@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **compartment-mapper:** add policy-related types ([d3b49e8](https://github.com/endojs/endo/commit/d3b49e828bd0ea2344079d2b0d205e4633624bee))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** handle implicit policy/packagePolicy ([ed6f23e](https://github.com/endojs/endo/commit/ed6f23e5957dd89b9732aa087d99c10a58f56c26))
+* **compartment-mapper:** throw if policy/packagePolicy mismatch ([ece09e2](https://github.com/endojs/endo/commit/ece09e253f48416e465a948c0e85ee6d866d7358))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.0.0...@endo/compartment-mapper@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/compartment-mapper

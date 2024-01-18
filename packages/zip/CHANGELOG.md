@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/zip@1.0.0...@endo/zip@1.0.1) (2024-01-18)
+
+**Note:** Version bump only for package @endo/zip
+
+
+
+
+
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/zip@0.2.35...@endo/zip@1.0.0) (2023-12-12)
 
 

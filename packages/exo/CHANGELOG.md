@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/exo@1.0.1...@endo/exo@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
+* **exo:** lightweight inter-facet rights amplification ([b645649](https://github.com/endojs/endo/commit/b645649aefbda2ec31925ff6072b6dd5eb8e8d43))
+
+
+### Bug Fixes
+
+* "x" parameter in many tests was optional ([#1965](https://github.com/endojs/endo/issues/1965)) ([1ff3c4b](https://github.com/endojs/endo/commit/1ff3c4b45a4f9f6bf723d3200548db37df46989f))
+* **common:** fix @endo/common integration breakage ([#1963](https://github.com/endojs/endo/issues/1963)) ([73b5059](https://github.com/endojs/endo/commit/73b50590b7aef7eaffe2c435286fb291bf9b22bf))
+* **exo:** ContextProvider typing ([#1966](https://github.com/endojs/endo/issues/1966)) ([99107d4](https://github.com/endojs/endo/commit/99107d41e1f025fcaf13aef27b0b174a55939c3a))
+* **exo:** reform exo amplifier API ([#1924](https://github.com/endojs/endo/issues/1924)) ([4c67fe2](https://github.com/endojs/endo/commit/4c67fe2cbcfd2737cb389b3fb0e358f4eed58af0))
+* **exo:** remove receiveRevoker ([#1964](https://github.com/endojs/endo/issues/1964)) ([d848754](https://github.com/endojs/endo/commit/d84875412623bd43a12e79c45e8052dfecdf1a03))
+* **exo:** review suggestions ([bf29a3a](https://github.com/endojs/endo/commit/bf29a3af9cb669d46d7baf511063f8ee8e3f2c66))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/exo@1.0.0...@endo/exo@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/exo

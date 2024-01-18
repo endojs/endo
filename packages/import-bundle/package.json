@@ -1,6 +1,6 @@
 {
   "name": "@endo/import-bundle",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "load modules created by @endo/bundle-source",
   "type": "module",
   "main": "src/index.js",
@@ -27,15 +27,15 @@
     "lint:types": "tsc"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.0",
-    "@endo/compartment-mapper": "^1.0.1",
-    "@endo/where": "^1.0.0",
-    "ses": "^1.0.1"
+    "@endo/base64": "^1.0.1",
+    "@endo/compartment-mapper": "^1.1.0",
+    "@endo/where": "^1.0.1",
+    "ses": "^1.1.0"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^3.0.1",
-    "@endo/init": "^1.0.1",
-    "@endo/ses-ava": "^1.0.1",
+    "@endo/bundle-source": "^3.0.2",
+    "@endo/init": "^1.0.2",
+    "@endo/ses-ava": "^1.1.0",
     "ava": "^5.3.0",
     "c8": "^7.14.0"
   },

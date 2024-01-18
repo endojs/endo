@@ -1,6 +1,6 @@
 {
   "name": "@endo/errors",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Package exports of the `assert` global",
   "keywords": [],
   "author": "Endo contributors",
@@ -35,11 +35,11 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "ses": "^1.0.1"
+    "ses": "^1.1.0"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.1",
-    "@endo/ses-ava": "^1.0.1",
+    "@endo/lockdown": "^1.0.2",
+    "@endo/ses-ava": "^1.1.0",
     "ava": "^5.3.0",
     "c8": "^7.14.0",
     "tsd": "^0.28.1"

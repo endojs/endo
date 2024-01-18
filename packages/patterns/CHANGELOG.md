@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/patterns@1.0.1...@endo/patterns@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **types:** generic Passable ([ae6ad15](https://github.com/endojs/endo/commit/ae6ad156e43fafb11df394f901df372760f9cbcc))
+
+
+### Bug Fixes
+
+* **common:** fix @endo/common integration breakage ([#1963](https://github.com/endojs/endo/issues/1963)) ([73b5059](https://github.com/endojs/endo/commit/73b50590b7aef7eaffe2c435286fb291bf9b22bf))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/patterns@1.0.0...@endo/patterns@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/patterns
