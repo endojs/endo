@@ -6,10 +6,10 @@ import { arrayPush, arrayForEach } from './commons.js';
 /** @import {GenericErrorConstructor} from '../types.js' */
 
 /**
- * @module Exports {@code permits}, a recursively defined
- * JSON record enumerating all intrinsics and their properties
- * according to ECMA specs.
+ * Exports {@link permitted}, a recursively defined JSON record enumerating all
+ * intrinsics and their properties according to ECMA specs.
  *
+ * @module
  * @author JF Paradis
  * @author Mark S. Miller
  */
