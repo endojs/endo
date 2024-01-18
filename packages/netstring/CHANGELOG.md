@@ -8,7 +8,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Bug Fixes
 
-* explicitely harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
+* Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
 
 
 

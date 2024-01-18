@@ -6,7 +6,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/ses-ava@1.0.1...@endo/ses-ava@1.1.0) (2024-01-18)
 
 
-### Features
+### Testing
 
 * **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
 
