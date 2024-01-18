@@ -20,78 +20,57 @@ const string = new Array(10000).fill(shortString).join(' ');
 const shortData = encodeBase64(shortString);
 const data = encodeBase64(string);
 
-{
-  const start = Date.now();
-  const deadline = start + timeout / 2;
-  let operations = 0;
-  for (let n = 1; Date.now() < deadline; n *= 2) {
-    for (let i = 0; i < n; i += 1) {
-      encodeBase64(string);
+/** @type {string} */
+let result;
+
+for (const [label, fn, input] of [
+  ['encodes', encodeBase64, string],
+  ['JS short-string encodes', jsEncodeBase64, shortString],
+]) {
+  for (const pass of [1, 2]) {
+    const start = Date.now();
+    const deadline = start + timeout / 2;
+    let operations = 0;
+    for (let n = 1; Date.now() < deadline; n *= 2) {
+      for (let i = 0; i < n; i += 1) {
+        result = fn(input);
+      }
+      operations += n;
     }
-    operations += n;
+    const end = Date.now();
+    const duration = end - start;
+    log(
+      `[pass ${pass}] ${label}`,
+      (operations * input.length) / duration,
+      'characters per millisecond',
+    );
   }
-  const end = Date.now();
-  const duration = end - start;
-  log(
-    'encodes',
-    (operations * string.length) / duration,
-    'characters per millisecond',
-  );
 }
 
-{
-  const start = Date.now();
-  const deadline = start + timeout / 2;
-  let operations = 0;
-  for (let n = 1; Date.now() < deadline; n *= 2) {
-    for (let i = 0; i < n; i += 1) {
-      jsEncodeBase64(shortString);
+if (result.length < 100) throw Error(`unexpected result: ${result}`);
+
+for (const [label, fn, input] of [
+  ['decodes', decodeBase64, data],
+  ['JS short-string decodes', jsDecodeBase64, shortData],
+]) {
+  for (const pass of [1, 2]) {
+    const start = Date.now();
+    const deadline = start + timeout / 2;
+    let operations = 0;
+    for (let n = 1; Date.now() < deadline; n *= 2) {
+      for (let i = 0; i < n; i += 1) {
+        result = fn(input);
+      }
+      operations += n;
     }
-    operations += n;
+    const end = Date.now();
+    const duration = end - start;
+    log(
+      `[pass ${pass}] ${label}`,
+      (operations * input.length) / duration,
+      'bytes per millisecond',
+    );
   }
-  const end = Date.now();
-  const duration = end - start;
-  log(
-    'JS encodes',
-    (operations * shortString.length) / duration,
-    'characters per millisecond',
-  );
 }
 
-{
-  const start = Date.now();
-  const deadline = start + timeout / 2;
-  let operations = 0;
-  for (let n = 1; Date.now() < deadline; n *= 2) {
-    for (let i = 0; i < n; i += 1) {
-      decodeBase64(data);
-    }
-    operations += n;
-  }
-  const end = Date.now();
-  const duration = end - start;
-  log(
-    'decodes',
-    (operations * data.length) / duration,
-    'bytes per millisecond',
-  );
-}
-
-{
-  const start = Date.now();
-  const deadline = start + timeout / 2;
-  let operations = 0;
-  for (let n = 1; Date.now() < deadline; n *= 2) {
-    for (let i = 0; i < n; i += 1) {
-      jsDecodeBase64(shortData);
-    }
-    operations += n;
-  }
-  const end = Date.now();
-  const duration = end - start;
-  log(
-    'JS decodes',
-    (operations * shortData.length) / duration,
-    'bytes per millisecond',
-  );
-}
+if (result.length < 100) throw Error(`unexpected result: ${result}`);
