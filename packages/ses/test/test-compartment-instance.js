@@ -2,7 +2,7 @@ import test from 'ava';
 import '../index.js';
 
 test('Compartment instance', t => {
-  t.plan(12);
+  t.plan(11);
 
   const c = new Compartment();
 
@@ -28,22 +28,7 @@ test('Compartment instance', t => {
   );
 
   t.is(c.toString(), '[object Compartment]', 'toString()');
-  t.is(c[Symbol.toStringTag], undefined, '"Symbol.toStringTag" property');
+  t.is(c[Symbol.toStringTag], 'Compartment', '"Symbol.toStringTag" property');
 
   t.deepEqual(Reflect.ownKeys(c), [], 'static properties');
-  t.deepEqual(
-    Reflect.ownKeys(Object.getPrototypeOf(c)).sort(),
-    [
-      'constructor',
-      'evaluate',
-      'globalThis',
-      'import',
-      'importNow',
-      'load',
-      'module',
-      'name',
-      'toString',
-    ].sort(),
-    'prototype properties',
-  );
 });

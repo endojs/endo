@@ -1516,12 +1516,11 @@ export const permitted = {
     evaluate: fn,
     globalThis: getter,
     name: getter,
-    // Should this be proposed?
-    toString: fn,
     import: asyncFn,
     load: asyncFn,
     importNow: fn,
     module: fn,
+    '@@toStringTag': 'string',
   },
 
   lockdown: fn,

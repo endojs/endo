@@ -12,19 +12,22 @@ test('Compartment prototype', t => {
     'The initial value of Compartment.prototype.constructor',
   );
 
-  t.deepEqual(
-    Reflect.ownKeys(Compartment.prototype).sort(),
-    [
-      'constructor',
-      'evaluate',
-      'globalThis',
-      'import',
-      'importNow',
-      'load',
-      'module',
-      'name',
-      'toString',
-    ].sort(),
+  const expectedProps = new Set([
+    'constructor',
+    'evaluate',
+    'globalThis',
+    'import',
+    'importNow',
+    'load',
+    'module',
+    'name',
+    Symbol.toStringTag,
+  ]);
+  const actualProps = Reflect.ownKeys(Compartment.prototype);
+
+  t.assert(
+    actualProps.length === expectedProps.size &&
+      actualProps.every(key => expectedProps.has(key)),
     'prototype properties',
   );
 });
