@@ -22,45 +22,59 @@ import { monodu64, padding } from './common.js';
  * @returns {Uint8Array} decoded bytes
  */
 export const jsDecodeBase64 = (string, name = '<unknown>') => {
-  const data = new Uint8Array(Math.ceil((string.length * 4) / 3));
+  // eslint-disable-next-line no-nested-ternary
+  const paddingLength = string.endsWith('==')
+    ? 2
+    : string.endsWith('=')
+    ? 1
+    : 0;
+  const data = new Uint8Array(
+    Math.ceil((string.length * 3) / 4) - paddingLength,
+  );
   let register = 0;
   let quantum = 0;
   let i = 0; // index in string
   let j = 0; // index in data
+  let done = false;
 
-  while (i < string.length && string[i] !== padding) {
-    const number = monodu64[string[i]];
+  for (const ch of string) {
+    if (done || ch === padding) {
+      if (ch !== padding) break;
+      done = true;
+      quantum -= 2;
+      i += 1;
+      // Padding is only expected to complete a short chunk of two or three data characters
+      // (i.e., the last two in the `quantum` cycle of [0, 6, 12 - 8 = 4, 10 - 8 = 2]).
+      if (quantum === 4 || quantum === 2) {
+        // We MAY reject non-zero padding bits, but choose not to.
+        // https://datatracker.ietf.org/doc/html/rfc4648#section-3.5
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      break;
+    }
+    const number = monodu64[ch];
     if (number === undefined) {
-      throw Error(`Invalid base64 character ${string[i]} in string ${name}`);
+      throw Error(`Invalid base64 character ${ch} in string ${name}`);
     }
     register = (register << 6) | number;
     quantum += 6;
     if (quantum >= 8) {
       quantum -= 8;
-      data[j] = register >>> quantum;
+      data[j] = register >> quantum;
       j += 1;
-      register &= (1 << quantum) - 1;
     }
     i += 1;
   }
 
-  while (i < string.length && quantum % 8 !== 0) {
-    if (string[i] !== padding) {
-      throw Error(`Missing padding at offset ${i} of string ${name}`);
-    }
-    i += 1;
-    quantum += 6;
-  }
-
-  if (i < string.length) {
+  if (quantum !== 0) {
+    throw Error(`Missing padding at offset ${i} of string ${name}`);
+  } else if (i < string.length) {
     throw Error(
-      `Base64 string has trailing garbage ${string.substr(
-        i,
-      )} in string ${name}`,
+      `Base64 string has trailing garbage ${string.slice(i)} in string ${name}`,
     );
   }
-
-  return data.subarray(0, j);
+  return data;
 };
 
 // The XS Base64.decode function is faster, but might return ArrayBuffer (not
