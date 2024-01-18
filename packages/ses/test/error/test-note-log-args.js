@@ -1,10 +1,8 @@
 // @ts-check
 import test from 'ava';
 
-import {
-  makeNoteLogArgsArrayKit,
-  makeLRUCacheMap,
-} from '../../src/error/note-log-args.js';
+import { makeNoteLogArgsArrayKit } from '../../src/error/note-log-args.js';
+import { makeLRUCacheMap } from '../../src/make-lru-cachemap.js';
 
 test('note log args array kit basic', t => {
   const { addLogArgs, takeLogArgsArray } = makeNoteLogArgsArrayKit(3, 2);

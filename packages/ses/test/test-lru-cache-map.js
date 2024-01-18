@@ -1,6 +1,6 @@
 import test from 'ava';
 
-import { makeLRUCacheMap } from '../../src/error/note-log-args.js';
+import { makeLRUCacheMap } from '../src/make-lru-cachemap.js';
 
 test('lru cache map basic', t => {
   const lruMap = makeLRUCacheMap(2);
