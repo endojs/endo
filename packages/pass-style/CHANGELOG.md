@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.0.1...@endo/pass-style@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **eventual-send:** breakpoint on delivery by env-options ([#1860](https://github.com/endojs/endo/issues/1860)) ([b191aaf](https://github.com/endojs/endo/commit/b191aaf3d8b9015801d3f6793f0dd21995aba48e))
+* **types:** generic Passable ([ae6ad15](https://github.com/endojs/endo/commit/ae6ad156e43fafb11df394f901df372760f9cbcc))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/pass-style@1.0.0...@endo/pass-style@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/pass-style

@@ -1,6 +1,6 @@
 {
   "name": "@endo/bundle-source",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",
@@ -27,20 +27,20 @@
     "lint:types": "tsc"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.0",
-    "@endo/compartment-mapper": "^1.0.1",
-    "@endo/evasive-transform": "^1.0.1",
-    "@endo/init": "^1.0.1",
-    "@endo/promise-kit": "^1.0.1",
-    "@endo/where": "^1.0.0",
+    "@endo/base64": "^1.0.1",
+    "@endo/compartment-mapper": "^1.1.0",
+    "@endo/evasive-transform": "^1.0.2",
+    "@endo/init": "^1.0.2",
+    "@endo/promise-kit": "^1.0.2",
+    "@endo/where": "^1.0.1",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
     "rollup": "^2.79.1"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.1",
-    "@endo/ses-ava": "^1.0.1",
+    "@endo/lockdown": "^1.0.2",
+    "@endo/ses-ava": "^1.1.0",
     "ava": "^5.3.0",
     "c8": "^7.14.0",
     "execa": "^8.0.1"

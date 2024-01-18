@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.2](https://github.com/endojs/endo/compare/@endo/lp32@1.0.1...@endo/lp32@1.0.2) (2024-01-18)
+
+
+### Bug Fixes
+
+* Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/lp32@1.0.0...@endo/lp32@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/lp32

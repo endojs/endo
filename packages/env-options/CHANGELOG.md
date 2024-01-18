@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/env-options@1.0.1...@endo/env-options@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/env-options@1.0.0...@endo/env-options@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/env-options

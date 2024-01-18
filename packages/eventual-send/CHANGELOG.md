@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/eventual-send@1.0.1...@endo/eventual-send@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
+* **eventual-send:** breakpoint on delivery by env-options ([#1860](https://github.com/endojs/endo/issues/1860)) ([b191aaf](https://github.com/endojs/endo/commit/b191aaf3d8b9015801d3f6793f0dd21995aba48e))
+
+
+### Bug Fixes
+
+* **eventual-send:** switch DEBUG option to be comma separated ([#1922](https://github.com/endojs/endo/issues/1922)) ([3fae760](https://github.com/endojs/endo/commit/3fae760785379c726695e3e94fed839eb8f0141c))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/eventual-send@1.0.0...@endo/eventual-send@1.0.1) (2023-12-20)
 
 **Note:** Version bump only for package @endo/eventual-send

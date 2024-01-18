@@ -1,5 +1,6 @@
 User-visible changes in SES:
-# next
+
+# v1.1.0 (2024-01-17)
 
 - The [iterators-helpers](https://github.com/tc39/proposal-iterator-helpers)
   proposal includes two accessor properties whose purpose is to emulate

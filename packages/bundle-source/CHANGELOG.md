@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [3.0.2](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.1...@endo/bundle-source@3.0.2) (2024-01-18)
+
+
+### Bug Fixes
+
+* **bundle-source:** Accommodate Windows lack of atomic rename ([48135aa](https://github.com/endojs/endo/commit/48135aa7c2f39b1659afbca334ea26cbe7364596))
+* realpathSync usage ([cebcf09](https://github.com/endojs/endo/commit/cebcf09ba70bebdf5bb26176f76cb21d130ea20a))
+
+
+
 ### [3.0.1](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.0...@endo/bundle-source@3.0.1) (2023-12-20)
 
 
