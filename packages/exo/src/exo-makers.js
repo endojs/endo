@@ -88,13 +88,26 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * The power to amplify a live facet instance of the associated exo class kit
+ * The power to amplify a facet instance of the associated exo class kit
  * into the record of all facets of this facet instance's cohort.
  *
  * @template {any} [F=any]
  * @callback Amplify
  * @param {any} exoFacet
  * @returns {F}
+ */
+
+/**
+ * The power to test if a value is an instance of the
+ * associated exo class, or a facet instance of the
+ * associated exo class kit. In the later case, if a `facetName` is provided,
+ * then it tests only whether the argument is a facet instance of that
+ * facet of the associated exo class kit.
+ *
+ * @callback IsInstance
+ * @param {any} exo
+ * @param {string} [facetName]
+ * @returns {boolean}
  */
 
 // TODO Should we split FarClassOptions into distinct types for
@@ -129,9 +142,18 @@ export const initEmpty = () => emptyRecord;
  * definition of the exo class kit with an `Amplify` function. If called
  * during the definition of a normal exo or exo class, it will throw, since
  * only exo kits can be amplified.
- * An `Amplify` function is a function that takes a live facet instance of
+ * An `Amplify` function is a function that takes a facet instance of
  * this class kit as an argument, in which case it will return the facets
  * record, giving access to all the facet instances of the same cohort.
+ *
+ * @property {ReceivePower<IsInstance>} [receiveInstanceTester]
+ * If a `receiveInstanceTester` function is provided, it will be called
+ * during the definition of the exo class or exo class kit with an
+ * `IsInstance` function. The first argument of `IsInstance`
+ * is the value to be tested. When it may be a facet instance of an
+ * exo class kit, the optional second argument, if provided, is
+ * a `facetName`. In that case, the function tests only if the first
+ * argument is an instance of that facet of the associated exo class kit.
  */
 
 /**
@@ -169,7 +191,11 @@ export const defineExoClass = (
   options = {},
 ) => {
   harden(methods);
-  const { finish = undefined, receiveAmplifier = undefined } = options;
+  const {
+    finish = undefined,
+    receiveAmplifier = undefined,
+    receiveInstanceTester = undefined,
+  } = options;
   receiveAmplifier === undefined ||
     Fail`Only facets of an exo class kit can be amplified ${q(tag)}`;
 
@@ -202,6 +228,18 @@ export const defineExoClass = (
     return self;
   };
 
+  if (receiveInstanceTester) {
+    const isInstance = (exo, facetName = undefined) => {
+      facetName === undefined ||
+        Fail`facetName can only be used with an exo class kit: ${q(
+          tag,
+        )} has no facet ${q(facetName)}`;
+      return contextMap.has(exo);
+    };
+    harden(isInstance);
+    receiveInstanceTester(isInstance);
+  }
+
   return harden(makeInstance);
 };
 harden(defineExoClass);
@@ -229,7 +267,11 @@ export const defineExoClassKit = (
   options = {},
 ) => {
   harden(methodsKit);
-  const { finish = undefined, receiveAmplifier = undefined } = options;
+  const {
+    finish = undefined,
+    receiveAmplifier = undefined,
+    receiveInstanceTester = undefined,
+  } = options;
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
     contextMapKit,
@@ -268,17 +310,34 @@ export const defineExoClassKit = (
   };
 
   if (receiveAmplifier) {
-    const amplify = aFacet => {
+    const amplify = exoFacet => {
       for (const contextMap of values(contextMapKit)) {
-        if (contextMap.has(aFacet)) {
-          const { facets } = contextMap.get(aFacet);
+        if (contextMap.has(exoFacet)) {
+          const { facets } = contextMap.get(exoFacet);
           return facets;
         }
       }
-      throw Fail`Must be a facet of ${q(tag)}: ${aFacet}`;
+      throw Fail`Must be a facet of ${q(tag)}: ${exoFacet}`;
     };
     harden(amplify);
     receiveAmplifier(amplify);
+  }
+
+  if (receiveInstanceTester) {
+    const isInstance = (exoFacet, facetName = undefined) => {
+      if (facetName === undefined) {
+        return values(contextMapKit).some(contextMap =>
+          contextMap.has(exoFacet),
+        );
+      }
+      assert.typeof(facetName, 'string');
+      const contextMap = contextMapKit[facetName];
+      contextMap !== undefined ||
+        Fail`exo class kit ${q(tag)} has no facet named ${q(facetName)}`;
+      return contextMap.has(exoFacet);
+    };
+    harden(isInstance);
+    receiveInstanceTester(isInstance);
   }
 
   return harden(makeInstanceKit);

@@ -1,4 +1,4 @@
-// modeled on test-revoke-heap-classes.js
+// modeled on test-heap-classes.js
 
 // eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
