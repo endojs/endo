@@ -16,7 +16,7 @@ An example-based summary of the Smallcaps encoding
 | copyRecord      | Struct        | `{x:a,y:b}`         | `{<x>:<a>,<y>:<b>}`  |
 | error           | Error         | `TypeError(msg)`    | `{"#error":<msg>,"name":"TypeError"}` |
 | tagged          | Tagged        | `makeTagged(t,p)`   | `{"#tag":<t>,"payload":<p>}` |
-| ?               | ByteArray     | ?                   | ? |
+| ?               | ByteArray     | ?                   | ?                    |
 
 * The `-0` encoding is defined as above, but not yet implemented in JS.
 * In JS, only registered and well-known symbols are passable.
