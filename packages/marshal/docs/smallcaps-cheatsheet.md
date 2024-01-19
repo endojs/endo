@@ -30,3 +30,5 @@ An example-based summary of the Smallcaps encoding
 * The ByteArray encoding is not yet designed or implemented.
 
 Every JSON encoding with no special strings anywhere decodes to itself.
+
+See OCapN [Abstract Syntax](https://github.com/ocapn/ocapn/wiki/Abstract-Syntax).
