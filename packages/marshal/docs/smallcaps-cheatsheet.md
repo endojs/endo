@@ -27,6 +27,6 @@ An example-based summary of the Smallcaps encoding
 * Structs [can only have string-named properties](https://github.com/endojs/endo/blob/master/packages/pass-style/doc/copyRecord-guarantees.md).
 * Errors can also carry an optional `errorId` string property.
 * We expect to expand the optional error properties over time.
-* The ByteString encoding is not yet designed or implemented.
+* The ByteArray encoding is not yet designed or implemented.
 
 Every JSON encoding with no special strings anywhere decodes to itself.
