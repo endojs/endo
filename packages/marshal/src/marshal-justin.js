@@ -6,6 +6,7 @@ import {
   isObject,
   passableSymbolForName,
 } from '@endo/pass-style';
+import { q, X, Fail } from '@endo/errors';
 import { QCLASS } from './encodeToCapData.js';
 
 /** @typedef {import('./types.js').Encoding} Encoding */
@@ -14,7 +15,6 @@ import { QCLASS } from './encodeToCapData.js';
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const { stringify: quote } = JSON;
-const { quote: q, details: X, Fail } = assert;
 
 /**
  * @typedef {object} Indenter

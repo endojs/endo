@@ -2,9 +2,9 @@
 import { environmentOptionsListHas } from '@endo/env-options';
 import { objectMap } from '@endo/common/object-map.js';
 
+import { Fail, q } from '@endo/errors';
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
-const { Fail, quote: q } = assert;
 const { create, seal, freeze, defineProperty, values } = Object;
 
 // Turn on to give each exo instance its own toStringTag value.

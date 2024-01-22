@@ -14,10 +14,10 @@ import {
 } from '@endo/marshal';
 import { identChecker } from '@endo/common/ident-checker.js';
 
+import { X, q, Fail } from '@endo/errors';
 import { checkElements, makeSetOfElements } from './copySet.js';
 import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 
-const { details: X, quote: q, Fail } = assert;
 const { ownKeys } = Reflect;
 
 /** @typedef {import('@endo/marshal').Checker} Checker */

@@ -71,4 +71,10 @@ export {
   quote,
   redacted,
   throwRedacted,
+  // conventional abbreviations and aliases
+  bare as b,
+  quote as q,
+  redacted as X,
+  throwRedacted as Fail,
+  note as errorNote,
 };

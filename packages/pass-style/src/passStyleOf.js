@@ -3,6 +3,7 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
+import { X, Fail, q } from '@endo/errors';
 import { isObject, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
@@ -22,7 +23,6 @@ import { assertSafePromise } from './safe-promise.js';
 
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 
-const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 const { isFrozen } = Object;
 

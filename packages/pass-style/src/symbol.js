@@ -1,4 +1,5 @@
-const { Fail, quote: q } = assert;
+import { Fail, q } from '@endo/errors';
+
 const { ownKeys } = Reflect;
 
 /**

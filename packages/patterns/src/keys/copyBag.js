@@ -10,7 +10,7 @@ import {
 
 /// <reference types="ses"/>
 
-const { details: X } = assert;
+import { X } from '@endo/errors';
 
 /** @template {Key} [K=Key] @typedef {import('../types').CopyBag<K>} CopyBag */
 /** @typedef {import('../types').Key} Key */

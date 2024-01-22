@@ -40,7 +40,8 @@
   },
   "dependencies": {
     "@endo/base64": "^1.0.1",
-    "@endo/compartment-mapper": "^1.1.0"
+    "@endo/compartment-mapper": "^1.1.0",
+    "@endo/errors": "^1.0.2"
   },
   "devDependencies": {
     "@endo/bundle-source": "^3.0.2",

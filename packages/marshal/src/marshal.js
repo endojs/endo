@@ -8,6 +8,7 @@ import {
   hasOwnPropertyOf,
 } from '@endo/pass-style';
 
+import { X, Fail, q, makeError, errorNote } from '@endo/errors';
 import {
   QCLASS,
   makeEncodeToCapData,
@@ -29,7 +30,6 @@ import {
 /** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
 
 const { isArray } = Array;
-const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 
 /** @type {ConvertValToSlot<any>} */
@@ -124,7 +124,7 @@ export const makeMarshal = (
         // with the correlation.
         const errorId = encodeRecur(nextErrorId());
         assert.typeof(errorId, 'string');
-        assert.note(err, X`Sent as ${errorId}`);
+        errorNote(err, X`Sent as ${errorId}`);
         marshalSaveError(err);
         return harden({ errorId, message, name });
       } else {
@@ -278,7 +278,7 @@ export const makeMarshal = (
         dErrorId === undefined
           ? `Remote${EC.name}`
           : `Remote${EC.name}(${dErrorId})`;
-      const error = assert.error(dMessage, EC, { errorName });
+      const error = makeError(dMessage, EC, { errorName });
       return harden(error);
     };
 

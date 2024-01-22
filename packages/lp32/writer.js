@@ -1,9 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { Fail, q } from '@endo/errors';
 import { hostIsLittleEndian } from './src/host-endian.js';
-
-const { Fail, quote: q } = assert;
 
 /**
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output

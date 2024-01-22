@@ -4,9 +4,8 @@ import '@endo/init/pre-remoting.js';
 import '@endo/init/debug.js';
 
 import { parentPort } from 'worker_threads';
+import { Fail } from '@endo/errors';
 import { makeGuest, makeHost } from './traplib.js';
-
-const { Fail } = assert;
 
 let dispatch;
 parentPort.addListener('message', obj => {

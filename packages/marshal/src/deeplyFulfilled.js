@@ -7,7 +7,8 @@ import { getTag, isObject, makeTagged, passStyleOf } from '@endo/pass-style';
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
 
-const { details: X, quote: q } = assert;
+import { X, q } from '@endo/errors';
+
 const { ownKeys } = Reflect;
 const { fromEntries } = Object;
 

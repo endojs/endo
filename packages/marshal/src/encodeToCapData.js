@@ -17,6 +17,7 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
+import { X, Fail, q } from '@endo/errors';
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('./types.js').Encoding} Encoding */
@@ -33,7 +34,6 @@ const {
   fromEntries,
   freeze,
 } = Object;
-const { details: X, Fail, quote: q } = assert;
 
 /**
  * Special property name that indicates an encoding that needs special

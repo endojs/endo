@@ -7,9 +7,8 @@
 
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import { decodeBase64 } from '@endo/base64';
+import { Fail } from '@endo/errors';
 import { wrapInescapableCompartment } from './compartment-wrapper.js';
-
-const { Fail } = assert;
 
 // importBundle takes the output of bundle-source, and returns a namespace
 // object (with .default, and maybe other properties for named exports)

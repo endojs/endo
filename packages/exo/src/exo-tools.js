@@ -13,6 +13,7 @@ import {
 } from '@endo/patterns';
 import { listDifference } from '@endo/common/list-difference.js';
 import { objectMap } from '@endo/common/object-map.js';
+import { q, Fail } from '@endo/errors';
 import { GET_INTERFACE_GUARD } from './get-interface.js';
 
 /** @typedef {import('@endo/patterns').Method} Method */
@@ -23,7 +24,6 @@ import { GET_INTERFACE_GUARD } from './get-interface.js';
  * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard
  */
 
-const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
 const { defineProperties, fromEntries } = Object;
 

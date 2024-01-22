@@ -1,21 +1,21 @@
 // @ts-nocheck
 /* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
-
 // eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
 
-// eslint-disable-next-line import/no-extraneous-dependencies
+// eslint-disable-next-line import/order
 import { fc } from '@fast-check/ava';
-
 import { arbPassable } from '@endo/pass-style/tools.js';
+import { Fail, q } from '@endo/errors';
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+
 import {
   makeEncodePassable,
   makeDecodePassable,
 } from '../src/encodePassable.js';
 import { compareRank, makeComparatorKit } from '../src/rankOrder.js';
 import { sample } from './test-rankOrder.js';
-
-const { Fail, quote: q } = assert;
 
 const buffers = {
   __proto__: null,

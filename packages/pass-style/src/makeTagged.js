@@ -1,10 +1,10 @@
 /// <reference types="ses"/>
 
+import { Fail } from '@endo/errors';
 import { PASS_STYLE } from './passStyle-helpers.js';
 import { assertPassable } from './passStyleOf.js';
 
 const { create, prototype: objectPrototype } = Object;
-const { Fail } = assert;
 
 export const makeTagged = (tag, payload) => {
   typeof tag === 'string' ||

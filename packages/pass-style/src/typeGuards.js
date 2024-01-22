@@ -1,3 +1,4 @@
+import { Fail, q } from '@endo/errors';
 import { passStyleOf } from './passStyleOf.js';
 
 /** @typedef {import('./types.js').Passable} Passable */
@@ -10,8 +11,6 @@ import { passStyleOf } from './passStyleOf.js';
  * @typedef {import('./types.js').CopyRecord<T>} CopyRecord
  */
 /** @typedef {import('./types.js').RemotableObject} Remotable */
-
-const { Fail, quote: q } = assert;
 
 /**
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"

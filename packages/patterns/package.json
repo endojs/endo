@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@endo/common": "^1.0.2",
+    "@endo/errors": "^1.0.2",
     "@endo/eventual-send": "^1.1.0",
     "@endo/marshal": "^1.1.0",
     "@endo/promise-kit": "^1.0.2"

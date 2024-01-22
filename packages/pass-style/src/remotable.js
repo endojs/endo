@@ -1,5 +1,6 @@
 /// <reference types="ses"/>
 
+import { X, Fail, q } from '@endo/errors';
 import {
   assertChecker,
   canBeMethod,
@@ -17,7 +18,6 @@ import {
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').RemotableObject} Remotable */
 
-const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {

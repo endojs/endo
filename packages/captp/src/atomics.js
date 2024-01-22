@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-const { details: X, Fail } = assert;
+import { X, Fail } from '@endo/errors';
 
 // This is a pathological minimum, but exercised by the unit test.
 export const MIN_DATA_BUFFER_LENGTH = 1;
@@ -154,7 +154,7 @@ export const makeAtomicsTrapGuest = transferBuffer => {
     //
     // TODO: It would be nice to use an error type, but captp is just too
     // noisy with spurious "Temporary logging of sent error" messages.
-    // it.throw(assert.error(X`Trap host has not finished`));
+    // it.throw(makeError(X`Trap host has not finished`));
     it.throw(null);
 
     // eslint-disable-next-line no-bitwise

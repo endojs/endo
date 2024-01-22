@@ -12,13 +12,12 @@ import { Remotable, Far, makeMarshal, QCLASS } from '@endo/marshal';
 import { E, HandledPromise } from '@endo/eventual-send';
 import { isPromise, makePromiseKit } from '@endo/promise-kit';
 
+import { X, Fail, errorNote } from '@endo/errors';
 import { makeTrap } from './trap.js';
 
 import { makeFinalizingMap } from './finalize.js';
 
 export { E };
-
-const { details: X, Fail } = assert;
 
 const WELL_KNOWN_SLOT_PROPERTIES = harden(['answerID', 'questionID', 'target']);
 
@@ -670,7 +669,7 @@ export const makeCapTP = (
           if (!e) {
             Fail`trapGuest expected trapHost AsyncIterator(${questionID}) to be done, but it wasn't`;
           }
-          assert.note(e, X`trapHost AsyncIterator(${questionID}) threw`);
+          errorNote(e, X`trapHost AsyncIterator(${questionID}) threw`);
           throw e;
         }
       };

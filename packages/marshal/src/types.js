@@ -116,7 +116,7 @@ export {};
  * identify the sending of errors relative to this marshal instance.
  * @property {(err: Error) => void=} marshalSaveError If `errorTagging` is
  * `'on'`, then errors serialized by this marshal instance are also
- * logged by calling `marshalSaveError` *after* `assert.note` associated
+ * logged by calling `marshalSaveError` *after* `errorNote` associated
  * that error with its errorId. Thus, if `marshalSaveError` in turn logs
  * to the normal console, which is the default, then the console will
  * show that note showing the associated errorId.
