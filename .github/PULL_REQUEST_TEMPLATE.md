@@ -15,6 +15,10 @@ refs: #XXXX
 
 <!-- Does this change introduce new assumptions or dependencies that, if violated, could introduce security vulnerabilities? How does this PR change the boundaries between mutually-suspicious components? What new authorities are introduced by this change, perhaps by new API calls?  -->
 
+### Compatibility Considerations
+
+<!-- Does this change break any prior usage patterns? Does this change allow usage patterns to evolve? -->
+
 ### Scaling Considerations
 
 <!-- Does this change require or encourage significant increase in consumption of CPU cycles, RAM, on-chain storage, message exchanges, or other scarce resources? If so, can that be prevented or mitigated? -->
