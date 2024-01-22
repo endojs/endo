@@ -13,12 +13,15 @@ import { monodu64, padding } from './common.js';
  * arranges a native binding on the global object.
  * We use that if it is available instead.
  *
+ * This function is exported from this *file* for use in benchmarking,
+ * but is not part of the *module*'s public API.
+ *
  * @param {string} string Base64-encoded string
  * @param {string} [name] The name of the string as it will appear in error
  * messages.
  * @returns {Uint8Array} decoded bytes
  */
-const jsDecodeBase64 = (string, name = '<unknown>') => {
+export const jsDecodeBase64 = (string, name = '<unknown>') => {
   const data = new Uint8Array(Math.ceil((string.length * 4) / 3));
   let register = 0;
   let quantum = 0;
