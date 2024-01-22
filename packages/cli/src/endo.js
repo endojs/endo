@@ -599,7 +599,9 @@ export const main = async rawArgs => {
       const doPurge =
         force ||
         /^y(es)?$/u.test(
-          await prompt('Are you sure you want to erase all state? (y/n)'),
+          await prompt(
+            'Are you sure you want to erase all state? This irreversible action will permanently sever all peer connections. Continue? (y/n)',
+          ),
         );
       if (doPurge) {
         const { reset } = await import('@endo/daemon');
