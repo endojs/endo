@@ -10,6 +10,7 @@ import fs from 'fs';
 import url from 'url';
 
 import { Command } from 'commander';
+import { prompt } from './prompt.js';
 
 const collect = (value, values) => values.concat([value]);
 
@@ -590,11 +591,22 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('reset')
+    .command('purge')
+    .option('-f, --force', 'skip the confirmation prompt')
     .description('erases persistent state and restarts if running')
-    .action(async _cmd => {
-      const { reset } = await import('@endo/daemon');
-      await reset();
+    .action(async cmd => {
+      const { force } = cmd.opts();
+      const doPurge =
+        force ||
+        /^y(es)?$/u.test(
+          await prompt(
+            'Are you sure you want to erase all state? This irreversible action will permanently sever all peer connections. Continue? (y/n)',
+          ),
+        );
+      if (doPurge) {
+        const { reset } = await import('@endo/daemon');
+        await reset();
+      }
     });
 
   program
