@@ -13,10 +13,10 @@ assignees: ''
 
 ## Security Considerations
 
-## Compatibility Considerations
-
 ## Scaling Considerations
 
 ## Test Plan
+
+## Compatibility Considerations
 
 ## Upgrade Considerations
