@@ -25,7 +25,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const petNames = new Map();
     /** @type {Map<string, Set<string>>} */
     const formulaIdentifiers = new Map();
-    /** @type {import('./types.js').Topic<unknown>} */
+    /** @type {import('./types.js').Topic<{ add: string } | { remove: string }>} */
     const changesTopic = makeChangeTopic();
 
     /** @param {string} petName */
@@ -114,7 +114,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
         (async function* currentAndSubsequentNames() {
           const changes = changesTopic.subscribe();
           for (const name of [...petNames.keys()].sort()) {
-            yield { add: name };
+            yield /** @type {{ add: string }} */({ add: name });
           }
           yield* changes;
         })(),

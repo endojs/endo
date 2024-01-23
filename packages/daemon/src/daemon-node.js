@@ -14,7 +14,7 @@ import path from 'path';
 import popen from 'child_process';
 import url from 'url';
 import http from 'http';
-import * as ws from 'ws';
+import ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';

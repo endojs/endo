@@ -163,7 +163,7 @@ export interface PetStore {
   rename(fromPetName: string, toPetName: string);
   lookup(petName: string): string | undefined;
   reverseLookup(formulaIdentifier: string): Array<string>;
-  follow(): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
+  follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
 }
 
 export type RequestFn = (
