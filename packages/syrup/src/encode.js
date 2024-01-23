@@ -56,24 +56,34 @@ function grow(buffer, increaseBy) {
  * @param {string} value
  */
 function encodeString(buffer, value) {
-  const start = buffer.length;
-  for (;;) {
-    const { read = 0, written = 0 } = textEncoder.encodeInto(
-      value,
-      buffer.bytes.subarray(start),
+  const stringLength = value.length;
+  const likelyPrefixLength = `${stringLength}`.length + 1;
+  // buffer.length will be incorrect until we fix it before returning.
+  const start = grow(buffer, likelyPrefixLength + stringLength);
+  const likelyDataStart = start + likelyPrefixLength;
+
+  for (let remaining = value, read = 0, written = 0; ; ) {
+    const chunk = textEncoder.encodeInto(
+      remaining,
+      buffer.bytes.subarray(likelyDataStart + written),
     );
-    if (read === value.length) {
+    written += chunk.written || 0;
+    read += chunk.read || 0;
+    if (read === stringLength) {
       const prefix = `${written}"`; // length prefix quote suffix
+      const prefixLength = prefix.length;
       buffer.length = start;
-      grow(buffer, prefix.length + written);
-      buffer.bytes.copyWithin(start + prefix.length, start); // shift right
+      grow(buffer, prefixLength + written);
+      if (prefixLength !== likelyPrefixLength) {
+        buffer.bytes.copyWithin(start + prefixLength, likelyDataStart); // shift right
+      }
       textEncoder.encodeInto(
         prefix,
-        buffer.bytes.subarray(start, start + prefix.length),
+        buffer.bytes.subarray(start, start + prefixLength),
       );
-      buffer.length = start + prefix.length + written;
       return;
     }
+    remaining = remaining.substring(chunk.read || 0);
     grow(buffer, buffer.bytes.length);
   }
 }
