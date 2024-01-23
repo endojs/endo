@@ -163,12 +163,20 @@ export interface Controller<External = unknown, Internal = unknown> {
 export interface PetStore {
   has(petName: string): boolean;
   list(): Array<string>;
+  follow(): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
+  listEntries(): Array<[string, FormulaIdentifierRecord]>;
+  followEntries(): Promise<
+    FarRef<
+      String<
+        { add: string; value: FormulaIdentifierRecord } | { remove: string }
+      >
+    >
+  >;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
   lookup(petName: string): string | undefined;
   reverseLookup(formulaIdentifier: string): Array<string>;
-  follow(): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
 }
 
 export type RequestFn = (

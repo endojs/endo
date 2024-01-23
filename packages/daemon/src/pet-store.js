@@ -3,6 +3,7 @@
 import { Far } from '@endo/far';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
+import { parseFormulaIdentifier } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -104,21 +105,55 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = `${formulaIdentifier}\n`;
       await filePowers.writeFileText(petNamePath, petNameText);
-      changesTopic.publisher.next({ add: petName });
+      const formularIdentifierRecord =
+        parseFormulaIdentifier(formulaIdentifier);
+      changesTopic.publisher.next({
+        add: petName,
+        value: formularIdentifierRecord,
+      });
     };
 
-    const list = () => harden([...petNames.keys()].sort());
+    /**
+     * @param {string} petName
+     * @returns {import('./types.js').FormulaIdentifierRecord}
+     */
+    const formulaIdentifierRecordForName = petName => {
+      const formulaIdentifier = petNames.get(petName);
+      if (formulaIdentifier === undefined) {
+        throw new Error(`Formula does not exist for pet name ${q(petName)}`);
+      }
+      return parseFormulaIdentifier(formulaIdentifier);
+    };
 
+    // Returns in an Array format.
+    const list = () => harden([...petNames.keys()].sort());
+    // Returns in an object operations format ({ add, value } or { remove }).
     const follow = async () =>
       makeIteratorRef(
         (async function* currentAndSubsequentNames() {
           const changes = changesTopic.subscribe();
           for (const name of [...petNames.keys()].sort()) {
-            yield { add: name };
+            const formularIdentifierRecord =
+              formulaIdentifierRecordForName(name);
+            yield {
+              add: name,
+              value: formularIdentifierRecord,
+            };
           }
           yield* changes;
         })(),
       );
+
+    // Returns in Object.fromEntries format.
+    /** @returns {Array<[string, import('./types.js').FormulaIdentifierRecord]>} */
+    const listEntries = () =>
+      harden(
+        [...petNames.keys()].sort().map(name => {
+          return [name, formulaIdentifierRecordForName(name)];
+        }),
+      );
+    // Provided as an alias for follow, with naming symmetry to listEntries.
+    const followEntries = follow;
 
     /**
      * @param {string} petName
@@ -225,6 +260,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
       reverseLookup,
       list,
       follow,
+      listEntries,
+      followEntries,
       write,
       remove,
       rename,
