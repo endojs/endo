@@ -32,7 +32,7 @@ export const makeThirdPartyModuleInstance = (
   moduleSpecifier,
   resolvedImports,
 ) => {
-  const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+  const { exportsProxy, exportsTarget, activate } = getDeferredExports(
     compartment,
     weakmapGet(compartmentPrivateFields, compartment),
     moduleAliases,
@@ -51,7 +51,7 @@ export const makeThirdPartyModuleInstance = (
       );
     }
     arrayForEach(staticModuleRecord.exports, name => {
-      let value = proxiedExports[name];
+      let value = exportsTarget[name];
       const updaters = [];
 
       const get = () => value;
@@ -63,7 +63,7 @@ export const makeThirdPartyModuleInstance = (
         }
       };
 
-      defineProperty(proxiedExports, name, {
+      defineProperty(exportsTarget, name, {
         get,
         set,
         enumerable: true,
@@ -75,9 +75,9 @@ export const makeThirdPartyModuleInstance = (
         update(value);
       };
     });
-    // This is enough to support import * from cjs - the '*' field doesn't need to be in exports nor proxiedExports because import will only ever access it via notifiers
+    // This is enough to support import * from cjs - the '*' field doesn't need to be in exports nor exportsTarget because import will only ever access it via notifiers
     notifiers['*'] = update => {
-      update(proxiedExports);
+      update(exportsTarget);
     };
   }
 
@@ -97,7 +97,7 @@ export const makeThirdPartyModuleInstance = (
         try {
           // eslint-disable-next-line @endo/no-polymorphic-call
           staticModuleRecord.execute(
-            proxiedExports,
+            exportsTarget,
             compartment,
             resolvedImports,
           );
@@ -143,7 +143,7 @@ export const makeModuleInstance = (
 
   const { __shimTransforms__, importMetaHook } = compartmentFields;
 
-  const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+  const { exportsProxy, exportsTarget, activate } = getDeferredExports(
     compartment,
     compartmentFields,
     moduleAliases,
@@ -342,7 +342,7 @@ export const makeModuleInstance = (
   );
 
   const notifyStar = update => {
-    update(proxiedExports);
+    update(exportsTarget);
   };
   notifiers['*'] = notifyStar;
 
@@ -435,10 +435,10 @@ export const makeModuleInstance = (
     // and the string must correspond to a valid identifier, sorting these
     // properties works for this specific case.
     arrayForEach(arraySort(keys(exportsProps)), k =>
-      defineProperty(proxiedExports, k, exportsProps[k]),
+      defineProperty(exportsTarget, k, exportsProps[k]),
     );
 
-    freeze(proxiedExports);
+    freeze(exportsTarget);
     activate();
   }
 

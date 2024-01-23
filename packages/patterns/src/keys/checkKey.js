@@ -12,7 +12,7 @@ import {
   makeFullOrderComparatorKit,
   sortByRank,
 } from '@endo/marshal';
-import { identChecker } from '../utils.js';
+import { identChecker } from '@endo/common/ident-checker.js';
 
 import { checkElements, makeSetOfElements } from './copySet.js';
 import { checkBagEntries, makeBagOfEntries } from './copyBag.js';

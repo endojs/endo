@@ -95,6 +95,9 @@ const makeArchiveImportHookMaker = (
           // module is a "builtin" module and the policy needs to be enforced.
           enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: true,
+            errorHint: `Blocked in loading. ${q(
+              moduleSpecifier,
+            )} was not in the archive and an attempt was made to load it as a builtin`,
           });
           const record = await exitModuleImportHook(moduleSpecifier);
           if (record) {
@@ -205,9 +208,13 @@ const makeArchiveImportHookMaker = (
   return makeImportHook;
 };
 
-const makeFeauxModuleExportsNamespace = Compartment => {
-  // @ts-ignore Unclear at time of writing why Compartment type is not
-  // constructible.
+/**
+ * Creates a fake module namespace object that passes a brand check.
+ *
+ * @param {typeof Compartment} Compartment
+ * @returns {import('ses').ModuleExportsNamespace}
+ */
+const makeFauxModuleExportsNamespace = Compartment => {
   const compartment = new Compartment(
     {},
     {},
@@ -215,10 +222,11 @@ const makeFeauxModuleExportsNamespace = Compartment => {
       resolveHook() {
         return '.';
       },
-      importHook() {
+      async importHook() {
         return {
           imports: [],
           execute() {},
+          exports: [],
         };
       },
     },
@@ -333,7 +341,7 @@ export const parseArchive = async (
       parserForLanguage,
       modules: Object.fromEntries(
         Object.keys(modules || {}).map(specifier => {
-          return [specifier, makeFeauxModuleExportsNamespace(Compartment)];
+          return [specifier, makeFauxModuleExportsNamespace(Compartment)];
         }),
       ),
       Compartment,

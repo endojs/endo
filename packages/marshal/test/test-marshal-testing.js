@@ -1,14 +1,18 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
-import { Far, passStyleOf, Remotable } from '@endo/pass-style';
+import { passStyleOf, Remotable } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
 const { create } = Object;
 
-const alice = Far('alice');
-const bob1 = Far('bob');
-const bob2 = Far('bob');
+// Use the lower level `Remotable` rather than `Far` to make an empty
+// far object, i.e., one without even the miranda meta methods like
+// `GET_METHOD_NAMES`. Such an empty far object should be `t.deepEqual`
+// to its remote presences.
+const alice = Remotable('Alleged: alice');
+const bob1 = Remotable('Alleged: bob');
+const bob2 = Remotable('Alleged: bob');
 
 const convertValToSlot = val =>
   passStyleOf(val) === 'remotable' ? 'far' : val;
@@ -45,10 +49,10 @@ const bob6 = harden({
 });
 const bob7 = harden({ __proto__: bob6 });
 const bob8 = harden({
-  __proto__: {
+  __proto__: harden({
     [Symbol.toStringTag]: 'Alleged: bob',
     foo: 'x',
-  },
+  }),
 });
 
 test('ava deepEqual related edge cases', t => {

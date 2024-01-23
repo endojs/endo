@@ -13,5 +13,8 @@
     "@endo/compartment-mapper-demo-polyfill1": "file:polyfill",
     "dotenv": "16.0.1",
     "entropoetry": "2.0.0-alpha4"
+  },
+  "typeCoverage": {
+    "atLeast": 0
   }
 }

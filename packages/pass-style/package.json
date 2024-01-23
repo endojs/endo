@@ -1,6 +1,6 @@
 {
   "name": "@endo/pass-style",
-  "version": "0.1.7",
+  "version": "1.1.0",
   "description": "pass-style: defines the taxonomy of Passable objects.",
   "keywords": [],
   "author": "Endo contributors",
@@ -19,34 +19,36 @@
   "exports": {
     ".": "./index.js",
     "./tools.js": "./tools.js",
+    "./endow.js": "./endow.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
-    "lint": "yarn lint:types && yarn lint:js",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
+    "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
-    "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
     "test": "ava"
   },
   "dependencies": {
-    "@endo/promise-kit": "^0.2.60",
+    "@endo/eventual-send": "^1.1.0",
+    "@endo/promise-kit": "^1.0.2",
     "@fast-check/ava": "^1.1.5"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.60",
-    "@endo/ses-ava": "^0.2.44",
+    "@endo/init": "^1.0.2",
+    "@endo/ses-ava": "^1.1.0",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-import": "^2.29.0",
     "prettier": "^3.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "files": [
     "*.js",
@@ -70,5 +72,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 84.24
   }
 }

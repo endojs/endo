@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/ses-ava@1.0.1...@endo/ses-ava@1.1.0) (2024-01-18)
+
+
+### Testing
+
+* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
+
+
+
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/ses-ava@1.0.0...@endo/ses-ava@1.0.1) (2023-12-20)
+
+**Note:** Version bump only for package @endo/ses-ava
+
+
+
+
+
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.44...@endo/ses-ava@1.0.0) (2023-12-12)
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+
+
+
 ### [0.2.44](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.43...@endo/ses-ava@0.2.44) (2023-09-12)
 
 **Note:** Version bump only for package @endo/ses-ava

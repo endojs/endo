@@ -1,5 +1,22 @@
 User-visible changes in SES:
 
+# v1.1.0 (2024-01-17)
+
+- The [iterators-helpers](https://github.com/tc39/proposal-iterator-helpers)
+  proposal includes two accessor properties whose purpose is to emulate
+  a data property, but without the override mistake problem. The ses-shim
+  creates many such properties, but was unprepared for them to already be
+  present in the JS platform it starts with. Chrome Canary and Node 22
+  both implement the iterators-helper proposal, triggering this bug, preventing
+  the ses-shim from initializing. The ses-shim
+  [now copes safely](https://github.com/endojs/endo/pull/1969) with an
+  enumerated set of such properties, starting with these two properties from
+  the iterators-helpers proposal.
+- The ses-shim now permits the new methods from the
+  [set-methods](https://github.com/tc39/proposal-set-methods) proposal,
+  enabling these methods to be used on platforms where they are implemented,
+  which are currently a Chrome Canary and a Node 22.
+
 # v0.18.8 (2023-09-11)
 
 - Extracts `repairIntrinsics(options)` and `hardenIntrinsics()` from the
@@ -27,7 +44,7 @@ User-visible changes in SES:
 
 # v0.18.6 (2023-08-07)
 
-- Censors the pattern `{...import(specifier)`}.
+- Censors the pattern `{...import(specifier)}`.
   We previously censored `import(specifier)` and expressly allowed
   `object.import(specifier)`.
   The relaxation for the latter form in version 0.13.0 inadvertently allowed

@@ -3,6 +3,43 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.0.1...@endo/pass-style@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **eventual-send:** breakpoint on delivery by env-options ([#1860](https://github.com/endojs/endo/issues/1860)) ([b191aaf](https://github.com/endojs/endo/commit/b191aaf3d8b9015801d3f6793f0dd21995aba48e))
+* **types:** generic Passable ([ae6ad15](https://github.com/endojs/endo/commit/ae6ad156e43fafb11df394f901df372760f9cbcc))
+
+
+
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/pass-style@1.0.0...@endo/pass-style@1.0.1) (2023-12-20)
+
+**Note:** Version bump only for package @endo/pass-style
+
+
+
+
+
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/pass-style@0.1.7...@endo/pass-style@1.0.0) (2023-12-12)
+
+
+### Features
+
+* **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
+* **pass-style:** Safe promises can override @[@to](https://github.com/to)StringTag with a string ([55e094c](https://github.com/endojs/endo/commit/55e094c689b3460dae29baf04f7934b60c594c60))
+* **pass-style:** Use endowed passStyleOf if at global symbol ([53658ea](https://github.com/endojs/endo/commit/53658ea0b5c54e66883135ea872d0295b1487445))
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* **exo:** allow richer behaviorMethods ([fde26da](https://github.com/endojs/endo/commit/fde26da22f03a18045807d833c8e03c4409fd877))
+* **pass-style:** Make __getMethodNames__ non-enumerable ([75c26fb](https://github.com/endojs/endo/commit/75c26fb971b381a1f6e303a9d8cb4b0883c37102))
+* review suggestions ([25ded7a](https://github.com/endojs/endo/commit/25ded7a14b82103ca58be15b8ec0195bdc9dd434))
+
+
+
 ### [0.1.7](https://github.com/endojs/endo/compare/@endo/pass-style@0.1.6...@endo/pass-style@0.1.7) (2023-09-12)
 
 

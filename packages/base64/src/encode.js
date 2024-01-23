@@ -13,10 +13,13 @@ import { alphabet64, padding } from './common.js';
  * arranges a native binding on the global object.
  * We use that if it is available instead.
  *
+ * This function is exported from this *file* for use in benchmarking,
+ * but is not part of the *module*'s public API.
+ *
  * @param {Uint8Array} data
  * @returns {string} base64 encoding
  */
-const jsEncodeBase64 = data => {
+export const jsEncodeBase64 = data => {
   // A cursory benchmark shows that string concatenation is about 25% faster
   // than building an array and joining it in v8, in 2020, for strings of about
   // 100 long.

@@ -11,7 +11,6 @@ import {
   defineProperty,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-  getOwnPropertyNames,
   isObject,
   objectHasOwnProperty,
   ownKeys,
@@ -88,41 +87,49 @@ export default function enablePropertyOverrides(
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
-      function getter() {
-        return value;
-      }
+      const isDebug = setHas(debugProperties, prop);
+
+      // We use concise method syntax to be `this` sensitive, but still
+      // omit a prototype property or [[Construct]] behavior.
+      // @ts-expect-error We know there is an accessor descriptor there
+      const { get: getter, set: setter } = getOwnPropertyDescriptor(
+        {
+          get [prop]() {
+            return value;
+          },
+          set [prop](newValue) {
+            if (obj === this) {
+              throw TypeError(
+                `Cannot assign to read only property '${String(
+                  prop,
+                )}' of '${path}'`,
+              );
+            }
+            if (objectHasOwnProperty(this, prop)) {
+              this[prop] = newValue;
+            } else {
+              if (isDebug) {
+                // eslint-disable-next-line @endo/no-polymorphic-call
+                console.error(TypeError(`Override property ${prop}`));
+              }
+              defineProperty(this, prop, {
+                value: newValue,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+              });
+            }
+          },
+        },
+        prop,
+      );
+
       defineProperty(getter, 'originalValue', {
         value,
         writable: false,
         enumerable: false,
         configurable: false,
       });
-
-      const isDebug = setHas(debugProperties, prop);
-
-      function setter(newValue) {
-        if (obj === this) {
-          throw TypeError(
-            `Cannot assign to read only property '${String(
-              prop,
-            )}' of '${path}'`,
-          );
-        }
-        if (objectHasOwnProperty(this, prop)) {
-          this[prop] = newValue;
-        } else {
-          if (isDebug) {
-            // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(TypeError(`Override property ${prop}`));
-          }
-          defineProperty(this, prop, {
-            value: newValue,
-            writable: true,
-            enumerable: true,
-            configurable: true,
-          });
-        }
-      }
 
       defineProperty(obj, prop, {
         get: getter,
@@ -148,12 +155,11 @@ export default function enablePropertyOverrides(
     }
     // TypeScript does not allow symbols to be used as indexes because it
     // cannot recokon types of symbolized properties.
-    // @ts-ignore
     arrayForEach(ownKeys(descs), prop => enable(path, obj, prop, descs[prop]));
   }
 
   function enableProperties(path, obj, plan) {
-    for (const prop of getOwnPropertyNames(plan)) {
+    for (const prop of ownKeys(plan)) {
       const desc = getOwnPropertyDescriptor(obj, prop);
       if (!desc || desc.get || desc.set) {
         // No not a value property, nothing to do.
@@ -161,10 +167,8 @@ export default function enablePropertyOverrides(
         continue;
       }
 
-      // Plan has no symbol keys and we use getOwnPropertyNames()
-      // so `prop` cannot only be a string, not a symbol. We coerce it in place
-      // with `String(..)` anyway just as good hygiene, since these paths are just
-      // for diagnostic purposes.
+      // In case `prop` is a symbol, we first coerce it with `String`,
+      // purely for diagnostic purposes.
       const subPath = `${path}.${String(prop)}`;
       const subPlan = plan[prop];
 

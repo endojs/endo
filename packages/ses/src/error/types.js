@@ -4,7 +4,7 @@
  * @callback BaseAssert
  * The `assert` function itself.
  *
- * @param {*} flag The truthy/falsy value
+ * @param {any} flag The truthy/falsy value
  * @param {Details=} optDetails The details to throw
  * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
  * constructor to use.
@@ -51,8 +51,8 @@
  * The `assert.equal` method
  *
  * Assert that two values must be `Object.is`.
- * @param {*} actual The value we received
- * @param {*} expected What we wanted
+ * @param {any} actual The value we received
+ * @param {any} expected What we wanted
  * @param {Details=} optDetails The details to throw
  * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
  * constructor to use.
@@ -201,7 +201,7 @@
  * ```
  *
  * @callback AssertQuote
- * @param {*} payload What to declassify
+ * @param {any} payload What to declassify
  * @param {(string|number)=} spaces
  * @returns {StringablePayload} The declassified payload
  */

@@ -18,7 +18,7 @@ export {};
 // and IDE can be more helpful.
 
 /**
- * @typedef {*} Passable
+ * @typedef {any} Passable
  *
  * A Passable is acyclic data that can be marshalled. It must be hardened to
  * remain
@@ -30,7 +30,7 @@ export {};
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
- *     * higher-order types as CopyTaggeds (PassStyle 'tagged').
+ *     * higher-level types as CopyTaggeds (PassStyle 'tagged').
  *   * PassableCaps (PassStyle 'remotable' | 'promise') expose local values to
  *     remote interaction.
  *   * As a special case to support system observability, error objects are
@@ -134,7 +134,7 @@ export {};
 /**
  * @callback MarshalGetInterfaceOf
  * Simple semantics, just tell what interface (or undefined) a remotable has.
- * @param {*} maybeRemotable the value to check
+ * @param {any} maybeRemotable the value to check
  * @returns {InterfaceSpec|undefined} the interface specification, or undefined
  * if not a deemed to be a Remotable
  */

@@ -5,6 +5,8 @@
   "main": "./main.js",
   "scripts": {
     "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
+  },
+  "typeCoverage": {
+    "atLeast": 0
   }
 }
-

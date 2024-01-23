@@ -1,6 +1,6 @@
 {
   "name": "@endo/promise-kit",
-  "version": "0.2.60",
+  "version": "1.0.2",
   "description": "Helper for making promises",
   "keywords": [
     "promise"
@@ -25,22 +25,22 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
-    "lint": "yarn lint:types && yarn lint:js",
+    "lint": "yarn lint:types && yarn lint:eslint",
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix .",
-    "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
     "test": "ava",
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "ses": "^0.18.8"
+    "ses": "^1.1.0"
   },
   "devDependencies": {
-    "@endo/ses-ava": "^0.2.44",
+    "@endo/ses-ava": "^1.1.0",
     "@types/node": "^16.6.0",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
@@ -49,9 +49,9 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-import": "^2.29.0",
     "prettier": "^3.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "files": [
     "LICENSE*",
@@ -76,5 +76,8 @@
   },
   "engines": {
     "node": ">=11.0"
+  },
+  "typeCoverage": {
+    "atLeast": 90.9
   }
 }

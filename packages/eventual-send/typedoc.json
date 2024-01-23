@@ -1,0 +1,12 @@
+{
+    "extends": [
+        "../../typedoc.base.json"
+    ],
+    "entryPoints": [
+        "src/no-shim.js"
+    ],
+    "validation": {
+        "notExported": false,
+        "invalidLink": false,
+    }
+}

@@ -74,7 +74,18 @@ export default function whitelistIntrinsics(
   intrinsics,
   markVirtualizedNativeFunction,
 ) {
-  // These primitives are allowed allowed for permits.
+  let groupStarted = false;
+  const inConsoleGroup = (level, ...args) => {
+    if (!groupStarted) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      console.groupCollapsed('Removing unpermitted intrinsics');
+      groupStarted = true;
+    }
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    return console[level](...args);
+  };
+
+  // These primitives are allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
   // These symbols are allowed as well-known symbols
@@ -279,11 +290,7 @@ export default function whitelistIntrinsics(
         // that we are removing it so we know to look into it, as happens when
         // the language evolves new features to existing intrinsics.
         if (subPermit !== false) {
-          // This call to `console.warn` is intentional. It is not a vestige of
-          // a debugging attempt. See the comment at top of file for an
-          // explanation.
-          // eslint-disable-next-line @endo/no-polymorphic-call
-          console.warn(`Removing ${subPath}`);
+          inConsoleGroup('warn', `Removing ${subPath}`);
         }
         try {
           delete obj[prop];
@@ -292,17 +299,17 @@ export default function whitelistIntrinsics(
             if (typeof obj === 'function' && prop === 'prototype') {
               obj.prototype = undefined;
               if (obj.prototype === undefined) {
-                // eslint-disable-next-line @endo/no-polymorphic-call
-                console.warn(`Tolerating undeletable ${subPath} === undefined`);
+                inConsoleGroup(
+                  'warn',
+                  `Tolerating undeletable ${subPath} === undefined`,
+                );
                 // eslint-disable-next-line no-continue
                 continue;
               }
             }
-            // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(`failed to delete ${subPath}`, err);
+            inConsoleGroup('error', `failed to delete ${subPath}`, err);
           } else {
-            // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(`deleting ${subPath} threw`, err);
+            inConsoleGroup('error', `deleting ${subPath} threw`, err);
           }
           throw err;
         }
@@ -310,7 +317,14 @@ export default function whitelistIntrinsics(
     }
   }
 
-  // Start path with 'intrinsics' to clarify that properties are not
-  // removed from the global object by the whitelisting operation.
-  visitProperties('intrinsics', intrinsics, permitted);
+  try {
+    // Start path with 'intrinsics' to clarify that properties are not
+    // removed from the global object by the whitelisting operation.
+    visitProperties('intrinsics', intrinsics, permitted);
+  } finally {
+    if (groupStarted) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      console.groupEnd();
+    }
+  }
 }

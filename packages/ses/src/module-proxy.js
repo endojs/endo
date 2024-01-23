@@ -25,6 +25,7 @@ import {
   reflectHas,
   reflectIsExtensible,
   reflectPreventExtensions,
+  toStringTagSymbol,
   weakmapSet,
 } from './commons.js';
 import { assert } from './error/assert.js';
@@ -51,13 +52,21 @@ const { quote: q } = assert;
 //
 export const deferExports = () => {
   let active = false;
-  const proxiedExports = create(null);
+  const exportsTarget = create(null, {
+    // Make this appear like an ESM module namespace object.
+    [toStringTagSymbol]: {
+      value: 'Module',
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    },
+  });
   return freeze({
     activate() {
       active = true;
     },
-    proxiedExports,
-    exportsProxy: new Proxy(proxiedExports, {
+    exportsTarget,
+    exportsProxy: new Proxy(exportsTarget, {
       get(_target, name, receiver) {
         if (!active) {
           throw TypeError(
@@ -66,7 +75,7 @@ export const deferExports = () => {
             )} of module exports namespace, the module has not yet begun to execute`,
           );
         }
-        return reflectGet(proxiedExports, name, receiver);
+        return reflectGet(exportsTarget, name, receiver);
       },
       set(_target, name, _value) {
         throw TypeError(
@@ -81,7 +90,7 @@ export const deferExports = () => {
             )}, the module has not yet begun to execute`,
           );
         }
-        return reflectHas(proxiedExports, name);
+        return reflectHas(exportsTarget, name);
       },
       deleteProperty(_target, name) {
         throw TypeError(
@@ -94,7 +103,7 @@ export const deferExports = () => {
             'Cannot enumerate keys, the module has not yet begun to execute',
           );
         }
-        return ownKeys(proxiedExports);
+        return ownKeys(exportsTarget);
       },
       getOwnPropertyDescriptor(_target, name) {
         if (!active) {
@@ -104,7 +113,7 @@ export const deferExports = () => {
             )}, the module has not yet begun to execute`,
           );
         }
-        return reflectGetOwnPropertyDescriptor(proxiedExports, name);
+        return reflectGetOwnPropertyDescriptor(exportsTarget, name);
       },
       preventExtensions(_target) {
         if (!active) {
@@ -112,7 +121,7 @@ export const deferExports = () => {
             'Cannot prevent extensions of module exports namespace, the module has not yet begun to execute',
           );
         }
-        return reflectPreventExtensions(proxiedExports);
+        return reflectPreventExtensions(exportsTarget);
       },
       isExtensible() {
         if (!active) {
@@ -120,7 +129,7 @@ export const deferExports = () => {
             'Cannot check extensibility of module exports namespace, the module has not yet begun to execute',
           );
         }
-        return reflectIsExtensible(proxiedExports);
+        return reflectIsExtensible(exportsTarget);
       },
       getPrototypeOf(_target) {
         return null;
@@ -147,11 +156,30 @@ export const deferExports = () => {
   });
 };
 
-// `getDeferredExports` memoizes the creation of a deferred module exports
-// namespace proxy for any abritrary full specifier in a compartment.
-// It also records the compartment and specifier affiliated with that module
-// exports namespace proxy so it can be used as an alias into another
-// compartment when threaded through a compartment's `moduleMap` argument.
+/**
+ * @typedef {object} DeferredExports
+ * @property {Record<string, any>} exportsTarget - The object to which a
+ * module's exports will be added.
+ * @property {Record<string, any>} exportsProxy - A proxy over the `exportsTarget`,
+ * used to expose its "exports" to other compartments.
+ * @property {() => void} activate - Activate the `exportsProxy` such that it can
+ * be used as a module namespace object.
+ */
+
+/**
+ * Memoizes the creation of a deferred module exports namespace proxy for any
+ * arbitrary full specifier in a compartment. It also records the compartment
+ * and specifier affiliated with that module exports namespace proxy so it
+ * can be used as an alias into another compartment when threaded through
+ * a compartment's `moduleMap` argument.
+ *
+ * @param {*} compartment - The compartment to retrieve deferred exports from.
+ * @param {*} compartmentPrivateFields - The private fields of the compartment.
+ * @param {*} moduleAliases - The module aliases of the compartment.
+ * @param {string} specifier - The module specifier to retrieve deferred exports for.
+ * @returns {DeferredExports} - The deferred exports for the module specifier of
+ * the compartment.
+ */
 export const getDeferredExports = (
   compartment,
   compartmentPrivateFields,

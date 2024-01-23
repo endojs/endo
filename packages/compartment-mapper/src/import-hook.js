@@ -220,6 +220,9 @@ export const makeImportHookMaker = (
             // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
             enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
               exit: true,
+              errorHint: `Blocked in loading. ${q(
+                moduleSpecifier,
+              )} was not in the compartment map and an attempt was made to load it as a builtin`,
             });
             if (archiveOnly) {
               // Return a place-holder.
@@ -251,10 +254,8 @@ export const makeImportHookMaker = (
       // Collate candidate locations for the moduleSpecifier,
       // to support Node.js conventions and similar.
       const candidates = [moduleSpecifier];
-      if (moduleSpecifier !== '.') {
-        for (const candidateSuffix of searchSuffixes) {
-          candidates.push(`${moduleSpecifier}${candidateSuffix}`);
-        }
+      for (const candidateSuffix of searchSuffixes) {
+        candidates.push(`${moduleSpecifier}${candidateSuffix}`);
       }
 
       const { maybeRead } = unpackReadPowers(readPowers);

@@ -8,7 +8,11 @@ lockdown({
 
 import fs from 'fs';
 
-import { importLocation, makeArchive, parseArchive } from '../../index.js';
+import {
+  importLocation,
+  makeArchive,
+  parseArchive,
+} from '@endo/compartment-mapper';
 
 const readPower = async location =>
   fs.promises.readFile(new URL(location).pathname);
@@ -18,6 +22,7 @@ const entrypointPath = new URL('./app.js', import.meta.url).href;
 const ApiSubsetOfBuffer = harden({ from: Buffer.from });
 
 const options = {
+  /** @type {import('@endo/compartment-mapper').Policy} */
   policy: {
     defaultAttenuator:
       '@endo/compartment-mapper-demo-lavamoat-style-attenuator',

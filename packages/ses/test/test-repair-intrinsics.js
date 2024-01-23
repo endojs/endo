@@ -3,6 +3,8 @@
 
 import test from 'ava';
 import { repairIntrinsics } from '../src/lockdown.js';
+import { getOwnPropertyNames } from '../src/commons.js';
+import { initialGlobalPropertyNames } from '../src/permits.js';
 
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
@@ -20,6 +22,13 @@ test('permitted prototypes - on', t => {
   Object.prototype.foo = 1;
   Object.prototype.hasOwnProperty.foo = 1;
 
+  // eslint-disable-next-line no-eval
+  t.truthy(globalThis.eval && !Object.isFrozen(globalThis.eval));
+  t.truthy(globalThis.Function && !Object.isFrozen(globalThis.Function));
+  for (const prop of getOwnPropertyNames(initialGlobalPropertyNames)) {
+    globalThis[prop] && t.truthy(!Object.isFrozen(globalThis[prop]));
+  }
+
   console.time('Benchmark repairIntrinsics()');
   const hardenIntrinsics = repairIntrinsics();
   console.timeEnd('Benchmark repairIntrinsics()');
@@ -27,6 +36,14 @@ test('permitted prototypes - on', t => {
   console.time('Benchmark hardenIntrinsics()');
   hardenIntrinsics();
   console.timeEnd('Benchmark hardenIntrinsics()');
+
+  // eslint-disable-next-line no-eval
+  t.truthy(globalThis.eval && Object.isFrozen(globalThis.eval));
+  t.truthy(globalThis.Function && Object.isFrozen(globalThis.Function));
+  t.truthy(globalThis.Compartment && Object.isFrozen(globalThis.Compartment));
+  for (const name of getOwnPropertyNames(initialGlobalPropertyNames)) {
+    t.assert(globalThis[name] && Object.isFrozen(globalThis[name]));
+  }
 
   t.is(globalThis.foo, 1);
   t.is(Object.foo, undefined);

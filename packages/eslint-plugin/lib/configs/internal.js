@@ -43,6 +43,10 @@ module.exports = {
   rules: {
     // Work around https://github.com/import-js/eslint-plugin-import/issues/1810
     'import/no-unresolved': ['error', { ignore: ['ava'] }],
+    // Agoric still uses Endo dependencies under an emulation of ESM we call RESM
+    // because it is invoked with `node -r esm`.
+    // RESM does not support ?? nor ?. operators, so we must avoid them expressly.
+    '@endo/no-optional-chaining': 'error',
   },
   overrides: [
     {

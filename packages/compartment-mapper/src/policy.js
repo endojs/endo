@@ -1,23 +1,13 @@
 // @ts-check
 
-/** @typedef {import('./types.js').PackageNamingKit} PackageNamingKit */
-/** @typedef {import('./types.js').AttenuationDefinition} AttenuationDefinition */
-/** @typedef {import('./types.js').FullAttenuationDefinition} FullAttenuationDefinition */
-/** @typedef {import('./types.js').ImplicitAttenuationDefinition} ImplicitAttenuationDefinition */
-/** @typedef {import('./types.js').Attenuator} Attenuator */
-/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
-/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
-// get StaticModuleRecord from the ses package's types
-/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
-
 import {
-  policyLookupHelper,
-  isAttenuationDefinition,
   getAttenuatorFromDefinition,
   isAllowingEverything,
+  isAttenuationDefinition,
+  policyLookupHelper,
 } from './policy-format.js';
 
-const { entries, values, assign, keys, freeze } = Object;
+const { create, entries, values, assign, keys, freeze } = Object;
 const q = JSON.stringify;
 
 /**
@@ -46,8 +36,15 @@ const selectiveCopy = (from, to, list) => {
   return to;
 };
 
+/**
+ * Parses an attenuation definition for attenuator names
+ *
+ * Note: this function is recursive
+ * @param {string[]} attenuators - List of attenuator names; may be mutated
+ * @param {import('./types.js').AttenuationDefinition|import('./types.js').Policy} policyFragment
+ */
 const collectAttenuators = (attenuators, policyFragment) => {
-  if (policyFragment.attenuate) {
+  if ('attenuate' in policyFragment) {
     attenuators.push(policyFragment.attenuate);
   }
   for (const value of values(policyFragment)) {
@@ -58,11 +55,12 @@ const collectAttenuators = (attenuators, policyFragment) => {
 };
 
 const attenuatorsCache = new WeakMap();
+
 /**
  * Goes through policy and lists all attenuator specifiers used.
  * Memoization keyed on policy object reference
  *
- * @param {object} policy
+ * @param {import('./types.js').Policy} [policy]
  * @returns {Array<string>} attenuators
  */
 export const detectAttenuators = policy => {
@@ -83,7 +81,7 @@ export const detectAttenuators = policy => {
 /**
  * Generates a string identifying a package for policy lookup purposes.
  *
- * @param {PackageNamingKit} namingKit
+ * @param {import('./types.js').PackageNamingKit} namingKit
  * @returns {string}
  */
 const generateCanonicalName = ({ isEntry = false, name, path }) => {
@@ -97,11 +95,11 @@ const generateCanonicalName = ({ isEntry = false, name, path }) => {
 };
 
 /**
- * Verifies if a module identified by namingKit can be a dependency of a package per packagePolicy.
- * packagePolicy is required, when policy is not set, skipping needs to be handled by the caller.
+ * Verifies if a module identified by `namingKit` can be a dependency of a package per `packagePolicy`.
+ * `packagePolicy` is required, when policy is not set, skipping needs to be handled by the caller.
  *
- * @param {PackageNamingKit} namingKit
- * @param {*} packagePolicy
+ * @param {import('./types.js').PackageNamingKit} namingKit
+ * @param {import('./types.js').PackagePolicy} packagePolicy
  * @returns {boolean}
  */
 export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
@@ -113,35 +111,29 @@ export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
   return !!policyLookupHelper(packagePolicy, 'packages', canonicalName);
 };
 
-const validateDependencies = (policy, canonicalName) => {
-  const packages = policy.resources[canonicalName].packages;
-  if (!packages || isAllowingEverything(packages)) {
-    return;
-  }
+/**
+ * Returns the policy applicable to the canonicalName of the package
+ *
+ * @overload
+ * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {import('./types.js').Policy} policy - user supplied policy
+ * @returns {import('./types.js').PackagePolicy} packagePolicy if policy was specified
+ */
 
-  const packageNames = keys(packages);
-  const attenuators = detectAttenuators(policy);
-  // Join attenuators with packageNames into a Set to deduplicate and check if all are listed in policy.resources
-  const allSpecifiers = new Set([...packageNames, ...attenuators]);
-  for (const specifier of allSpecifiers) {
-    if (!(specifier in policy.resources)) {
-      throw Error(
-        `Package ${q(specifier)} is allowed for ${q(
-          canonicalName,
-        )} to import but its policy is not defined. Please add a policy for ${q(
-          specifier,
-        )}`,
-      );
-    }
-  }
-};
+/**
+ * Returns `undefined`
+ *
+ * @overload
+ * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {import('./types.js').Policy} [policy] - user supplied policy
+ * @returns {import('./types.js').PackagePolicy|undefined} packagePolicy if policy was specified
+ */
 
 /**
  * Returns the policy applicable to the canonicalName of the package
  *
- * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived frm these
- * @param {object|undefined} policy - user supplied policy
- * @returns {object|undefined} packagePolicy if policy was specified
+ * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {import('./types.js').Policy} [policy] - user supplied policy
  */
 export const getPolicyForPackage = (namingKit, policy) => {
   if (!policy) {
@@ -154,25 +146,24 @@ export const getPolicyForPackage = (namingKit, policy) => {
   if (canonicalName === ATTENUATORS_COMPARTMENT) {
     return {
       defaultAttenuator: policy.defaultAttenuator,
-      packages: detectAttenuators(policy).reduce((packages, specifier) => {
-        packages[specifier] = true;
-        return packages;
-      }, {}),
+      packages: 'any',
     };
   }
-  if (policy.resources && policy.resources[canonicalName]) {
-    validateDependencies(policy, canonicalName);
+  if (policy.resources && policy.resources[canonicalName] !== undefined) {
     return policy.resources[canonicalName];
   } else {
-    console.warn(
-      `No policy for '${canonicalName}', omitting from compartment map.`,
-    );
-    return undefined;
+    // Allow skipping policy entries for packages with no powers.
+    return create(null);
   }
 };
 
+/**
+ * Get list of globals from package policy
+ * @param {import('./types.js').PackagePolicy} [packagePolicy]
+ * @returns {Array<string>}
+ */
 const getGlobalsList = packagePolicy => {
-  if (!packagePolicy.globals) {
+  if (!packagePolicy || !packagePolicy.globals) {
     return [];
   }
   return entries(packagePolicy.globals)
@@ -182,10 +173,11 @@ const getGlobalsList = packagePolicy => {
 
 const GLOBAL_ATTENUATOR = 'attenuateGlobals';
 const MODULE_ATTENUATOR = 'attenuateModule';
+
 /**
- *
- * @param {AttenuationDefinition} attenuationDefinition
- * @param {DeferredAttenuatorsProvider} attenuatorsProvider
+ * Imports attenuator per its definition and provider
+ * @param {import('./types.js').AttenuationDefinition} attenuationDefinition
+ * @param {import('./types.js').DeferredAttenuatorsProvider} attenuatorsProvider
  * @param {string} attenuatorExportName
  * @returns {Promise<Function>}
  */
@@ -212,10 +204,10 @@ const importAttenuatorForDefinition = async (
 };
 
 /**
- *
+ * Makes an async provider for attenuators
  * @param {Record<string, Compartment>} compartments
- * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
- * @returns {DeferredAttenuatorsProvider}
+ * @param {Record<string, import('./types.js').CompartmentDescriptor>} compartmentDescriptors
+ * @returns {import('./types.js').DeferredAttenuatorsProvider}
  */
 export const makeDeferredAttenuatorsProvider = (
   compartments,
@@ -239,7 +231,7 @@ export const makeDeferredAttenuatorsProvider = (
     /**
      *
      * @param {string} attenuatorSpecifier
-     * @returns {Promise<Attenuator>}
+     * @returns {Promise<import('./types.js').Attenuator>}
      */
     importAttenuator = async attenuatorSpecifier => {
       if (!attenuatorSpecifier) {
@@ -261,10 +253,11 @@ export const makeDeferredAttenuatorsProvider = (
 };
 
 /**
+ * Attenuates the `globalThis` object
  *
  * @param {object} options
- * @param {DeferredAttenuatorsProvider} options.attenuators
- * @param {AttenuationDefinition} options.attenuationDefinition
+ * @param {import('./types.js').DeferredAttenuatorsProvider} options.attenuators
+ * @param {import('./types.js').AttenuationDefinition} options.attenuationDefinition
  * @param {object} options.globalThis
  * @param {object} options.globals
  */
@@ -303,8 +296,8 @@ async function attenuateGlobalThis({
  *
  * @param {object} globalThis
  * @param {object} globals
- * @param {object} packagePolicy
- * @param {DeferredAttenuatorsProvider} attenuators
+ * @param {import('./types.js').PackagePolicy} packagePolicy
+ * @param {import('./types.js').DeferredAttenuatorsProvider} attenuators
  * @param {Array<Promise>} pendingJobs
  * @param {string} name
  * @returns {void}
@@ -358,24 +351,48 @@ export const attenuateGlobals = (
 };
 
 /**
+ * @param {string} [errorHint]
+ * @returns {string}
+ */
+const diagnoseModulePolicy = errorHint => {
+  if (!errorHint) {
+    return '';
+  }
+  return ` (info: ${errorHint})`;
+};
+
+/**
+ * Options for {@link enforceModulePolicy}
+ * @typedef EnforceModulePolicyOptions
+ * @property {boolean} [exit] - Whether it is an exit module
+ * @property {string} [errorHint] - Error hint message
+ */
+
+/**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier
- * @param {object} compartmentDescriptor
- * @param {object} [info]
+ * @param {import('./types.js').CompartmentDescriptor} compartmentDescriptor
+ * @param {EnforceModulePolicyOptions} [options]
  */
-export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
-  const { policy, modules } = compartmentDescriptor;
+export const enforceModulePolicy = (
+  specifier,
+  compartmentDescriptor,
+  { exit, errorHint } = {},
+) => {
+  const { policy, modules, label } = compartmentDescriptor;
   if (!policy) {
     return;
   }
 
-  if (!info.exit) {
+  if (!exit) {
     if (!modules[specifier]) {
       throw Error(
-        `Importing ${q(specifier)} was not allowed by policy packages:${q(
+        `Importing ${q(specifier)} in ${q(
+          label,
+        )} was not allowed by packages policy ${q(
           policy.packages,
-        )}`,
+        )}${diagnoseModulePolicy(errorHint)}`,
       );
     }
     return;
@@ -385,18 +402,18 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
     throw Error(
       `Importing ${q(specifier)} was not allowed by policy builtins:${q(
         policy.builtins,
-      )}`,
+      )}${diagnoseModulePolicy(errorHint)}`,
     );
   }
 };
 
 /**
- *
+ * Attenuates a module
  * @param {object} options
- * @param {DeferredAttenuatorsProvider} options.attenuators
- * @param {AttenuationDefinition} options.attenuationDefinition
- * @param {ThirdPartyStaticModuleInterface} options.originalModuleRecord
- * @returns {Promise<ThirdPartyStaticModuleInterface>}
+ * @param {import('./types.js').DeferredAttenuatorsProvider} options.attenuators
+ * @param {import('./types.js').AttenuationDefinition} options.attenuationDefinition
+ * @param {import('ses').ThirdPartyStaticModuleInterface} options.originalModuleRecord
+ * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>}
  */
 async function attenuateModule({
   attenuators,
@@ -426,14 +443,15 @@ async function attenuateModule({
     },
   });
 }
+
 /**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier - exit module name
- * @param {ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
- * @param {object} policy - local compartment policy
- * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
- * @returns {Promise<ThirdPartyStaticModuleInterface>} - the attenuated module
+ * @param {import('ses').ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
+ * @param {import('./types.js').PackagePolicy} policy - local compartment policy
+ * @param {import('./types.js').DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
+ * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>} - the attenuated module
  */
 export const attenuateModuleHook = async (
   specifier,
@@ -458,62 +476,4 @@ export const attenuateModuleHook = async (
     attenuationDefinition: policyValue,
     originalModuleRecord,
   });
-};
-
-const padDiagnosis = text => ` (${text})`;
-/**
- * Provide dignostic information for a missing compartment error
- *
- * @param {object}  args
- * @param {string}  args.moduleSpecifier
- * @param {object}  args.compartmentDescriptor
- * @param {string}  args.foreignModuleSpecifier
- * @param {string}  args.foreignCompartmentName
- * @returns {string}
- */
-export const diagnoseMissingCompartmentError = ({
-  moduleSpecifier,
-  compartmentDescriptor,
-  foreignModuleSpecifier,
-  foreignCompartmentName,
-}) => {
-  const { policy, name, scopes } = compartmentDescriptor;
-
-  if (policy) {
-    if (!policy.packages) {
-      return padDiagnosis(
-        `There were no allowed packages specified in policy for ${q(name)}`,
-      );
-    }
-    if (name === ATTENUATORS_COMPARTMENT) {
-      return padDiagnosis(
-        `Attenuator ${q(
-          moduleSpecifier,
-        )} was imported but there is no policy resources entry defined for it.`,
-      );
-    }
-
-    const scopeNames = entries(scopes)
-      .filter(([_name, scope]) => scope.compartment === foreignCompartmentName)
-      .map(([scopeName]) => scopeName);
-    if (scopeNames.length === 1 && scopeNames[0] === moduleSpecifier) {
-      return padDiagnosis(
-        `Package ${q(
-          moduleSpecifier,
-        )} is missing. Are you sure there is an entry in policy resources specified for it?`,
-      );
-    } else {
-      return padDiagnosis(
-        `Package ${q(moduleSpecifier)} resolves to ${q(
-          foreignModuleSpecifier,
-        )} in ${q(
-          foreignCompartmentName,
-        )} which seems disallowed by policy. There is likely an override defined that causes another package to be imported as ${q(
-          moduleSpecifier,
-        )}.`,
-      );
-    }
-  }
-  // Omit diagnostics when parent package had no policy - it means there was no policy.
-  return '';
 };

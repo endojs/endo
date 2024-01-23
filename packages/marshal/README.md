@@ -54,7 +54,7 @@ be expressed directly in JSON. These special values are usually strings with
 reserved prefixes in the preferred "smallcaps" encoding, but in the original
 encoding were objects with a property named `@qclass`. For example:
 
-```
+```js
 import '@endo/init';
 import { makeMarshal } from '@endo/marshal';
 
@@ -104,7 +104,7 @@ will be used as the slot identifier to be placed into the slots array, and the
 serialized `body`, in place of the object, will contain a special value
 referencing that slot identifier by its index in the slots array. For example:
 
-```
+```js
 import '@endo/init';
 import { makeMarshal } from '@endo/marshal';
 

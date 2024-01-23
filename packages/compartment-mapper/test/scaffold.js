@@ -420,3 +420,14 @@ export function scaffold(
     });
   }
 }
+
+// Modifies the given object to make it appear to be an ESM module namespace object.
+export const moduleify = obj => {
+  Object.defineProperty(obj, Symbol.toStringTag, {
+    value: 'Module',
+    writable: false,
+    enumerable: false,
+    configurable: false,
+  });
+  return Object.setPrototypeOf(obj, null);
+};

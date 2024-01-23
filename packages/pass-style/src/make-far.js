@@ -1,5 +1,6 @@
 /// <reference types="ses"/>
 
+import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
@@ -129,7 +130,46 @@ export const Remotable = (
 harden(Remotable);
 
 /**
+ * The name of the automatically added default meta-method for obtaining a
+ * list of all methods of an object declared with `Far`, or an object that
+ * inherits from an object declared with `Far`.
+ *
+ * Modeled on `GET_INTERFACE_GUARD` from `@endo/exo`.
+ *
+ * TODO Name to be bikeshed. Perhaps even whether it is a
+ * string or symbol to be bikeshed. See
+ * https://github.com/endojs/endo/pull/1809#discussion_r1388052454
+ *
+ * HAZARD: Beware that an exo's interface can change across an upgrade,
+ * so remotes that cache it can become stale.
+ */
+export const GET_METHOD_NAMES = '__getMethodNames__';
+
+/**
+ * Note that `getMethodNamesMethod` is a thisful method! It must be so that
+ * it works as expected with far-object inheritance.
+ *
+ * @returns {(string|symbol)[]}
+ */
+const getMethodNamesMethod = harden({
+  [GET_METHOD_NAMES]() {
+    return getMethodNames(this);
+  },
+})[GET_METHOD_NAMES];
+
+const getMethodNamesDescriptor = harden({
+  value: getMethodNamesMethod,
+  enumerable: false,
+  configurable: false,
+  writable: false,
+});
+
+/**
  * A concise convenience for the most common `Remotable` use.
+ *
+ * For far objects (as opposed to far functions), also adds a miranda
+ * `GET_METHOD_NAMES` method that returns an array of all the method names,
+ * if there is not yet any method named `GET_METHOD_NAMES`. (Hence "miranda")
  *
  * @template {{}} T
  * @param {string} farName This name will be prepended with `Alleged: `
@@ -138,6 +178,16 @@ harden(Remotable);
  */
 export const Far = (farName, remotable = undefined) => {
   const r = remotable === undefined ? /** @type {T} */ ({}) : remotable;
+  if (typeof r === 'object' && !(GET_METHOD_NAMES in r)) {
+    // This test excludes far functions, since we currently consider them
+    // to only have a call-behavior, with no callable methods.
+    // Beware: Mutates the input argument! But `Remotable`
+    // * requires the object to be mutable
+    // * does further mutations,
+    // * hardens the mutated object before returning it.
+    // so this mutation is not unprecedented. But it is surprising!
+    Object.defineProperty(r, GET_METHOD_NAMES, getMethodNamesDescriptor);
+  }
   return Remotable(`Alleged: ${farName}`, undefined, r);
 };
 harden(Far);

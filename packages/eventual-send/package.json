@@ -1,6 +1,6 @@
 {
   "name": "@endo/eventual-send",
-  "version": "0.17.6",
+  "version": "1.1.0",
   "description": "Extend a Promise class to implement the eventual-send API",
   "type": "module",
   "main": "src/no-shim.js",
@@ -10,13 +10,19 @@
     "test:xs": "exit 0",
     "build": "exit 0",
     "clean": "git clean -f '*.d.ts*'",
-    "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "yarn clean",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint-check": "yarn lint",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",
     "lint:eslint": "eslint '**/*.js'"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/no-shim.js",
+    "./shim.js": "./shim.js",
+    "./utils.js": "./utils.js"
   },
   "repository": {
     "type": "git",
@@ -29,11 +35,11 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/env-options": "^0.1.4"
+    "@endo/env-options": "^1.1.0"
   },
   "devDependencies": {
-    "@endo/lockdown": "^0.1.32",
-    "@endo/ses-ava": "^0.2.44",
+    "@endo/lockdown": "^1.0.2",
+    "@endo/ses-ava": "^1.1.0",
     "ava": "^5.3.0",
     "c8": "^7.14.0",
     "tsd": "^0.28.1"
@@ -62,5 +68,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 77.81
   }
 }

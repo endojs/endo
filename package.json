@@ -11,32 +11,36 @@
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
-    "@typescript-eslint/eslint-plugin": "^6.6.0",
-    "@typescript-eslint/parser": "^6.6.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "@typescript-eslint/parser": "^6.18.1",
     "ava": "^5.3.0",
     "eslint": "^8.46.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-jessie": "^0.0.6",
     "eslint-config-prettier": "^8.8.0",
-    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-import": "^2.29.0",
     "eslint-plugin-jsdoc": "^46.4.3",
     "lerna": "^5.6.2",
     "lerna-update-wizard": "^0.17.5",
-    "typescript": "~5.2.2"
+    "type-coverage": "^2.26.3",
+    "typedoc": "^0.25.7",
+    "typescript": "~5.3.3"
   },
   "scripts": {
     "clean": "lerna clean",
     "cover": "lerna run cover",
     "depcheck": "node scripts/check-mismatched-dependencies.js",
+    "docs": "typedoc",
     "update": "lernaupdate --dedupe",
     "format": "yarn prettier --write .github packages",
     "lint": "yarn prettier --check .github packages && lerna run lint",
     "lint-fix": "lerna run --no-bail lint-fix",
-    "test": "lerna run test",
+    "test": "lerna run --ignore @endo/skel test",
     "test262": "lerna run test262",
     "postinstall": "patch-package",
     "patch-package": "patch-package",
-    "build": "lerna run build"
+    "build": "lerna run build",
+    "build-ts": "tsc --build tsconfig.build.json"
   },
   "dependencies": {
     "conventional-changelog-conventionalcommits": "^4.6.0",
@@ -45,5 +49,8 @@
   "prettier": {
     "arrowParens": "avoid",
     "singleQuote": true
+  },
+  "typeCoverage": {
+    "atLeast": 0
   }
 }

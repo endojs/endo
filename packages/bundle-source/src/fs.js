@@ -1,3 +1,4 @@
+// @ts-check
 let mutex = Promise.resolve(undefined);
 
 /**
@@ -68,10 +69,10 @@ export const makeFileReader = (fileName, { fs, path }) => {
  *   fs: Pick<import('fs'), 'existsSync'> &
  *     { promises: Pick<
  *         import('fs/promises'),
- *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rm'
+ *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rename' | 'rm'
  *       >,
  *     },
- *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ *   path: Pick<import('path'), 'dirname' | 'resolve' | 'relative' | 'normalize'>,
  * }} io
  * @param {(there: string) => ReturnType<makeFileWriter>} make
  */
@@ -119,19 +120,34 @@ export const makeFileWriter = (
  *       >,
  *     },
  *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ *   os: Pick<import('os'), 'platform'>,
  * }} io
- * @param {number} pid
- * @param {number} nonce
+ * @param {number} [pid]
+ * @param {number} [nonce]
  * @param {(there: string) => ReturnType<makeAtomicFileWriter>} make
  */
 export const makeAtomicFileWriter = (
   fileName,
-  { fs, path },
+  { fs, path, os },
   pid = undefined,
   nonce = undefined,
-  make = there => makeAtomicFileWriter(there, { fs, path }, pid, nonce, make),
+  make = there =>
+    makeAtomicFileWriter(there, { fs, path, os }, pid, nonce, make),
 ) => {
   const writer = makeFileWriter(fileName, { fs, path }, make);
+
+  // Windows does not support atomic rename so we do the next best albeit racey
+  // thing.
+  if (os.platform() === 'win32') {
+    return harden({
+      ...writer,
+      atomicWriteText: async (txt, opts) => {
+        await writer.writeText(txt, opts);
+        return writer.readOnly().stat();
+      },
+    });
+  }
+
   return harden({
     ...writer,
     atomicWriteText: async (txt, opts) => {

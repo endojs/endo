@@ -11,6 +11,7 @@ import {
   defineProperties,
   entries,
   promiseThen,
+  toStringTagSymbol,
   weakmapGet,
   weakmapSet,
 } from './commons.js';
@@ -105,10 +106,6 @@ export const CompartmentPrototype = {
     return compartmentEvaluate(compartmentFields, source, options);
   },
 
-  toString() {
-    return '[object Compartment]';
-  },
-
   module(specifier) {
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of module() must be a string');
@@ -167,6 +164,18 @@ export const CompartmentPrototype = {
     return compartmentImportNow(/** @type {Compartment} */ (this), specifier);
   },
 };
+
+// This causes `String(new Compartment())` to evaluate to `[object Compartment]`.
+// The descriptor follows the conventions of other globals with @@toStringTag
+// properties, e.g. Math.
+defineProperties(CompartmentPrototype, {
+  [toStringTagSymbol]: {
+    value: 'Compartment',
+    writable: false,
+    enumerable: false,
+    configurable: true,
+  },
+});
 
 defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },

@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/marshal@1.0.1...@endo/marshal@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **types:** generic Passable ([ae6ad15](https://github.com/endojs/endo/commit/ae6ad156e43fafb11df394f901df372760f9cbcc))
+
+
+
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/marshal@1.0.0...@endo/marshal@1.0.1) (2023-12-20)
+
+
+### Bug Fixes
+
+* Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
+
+
+
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/marshal@0.8.9...@endo/marshal@1.0.0) (2023-12-12)
+
+
+### Features
+
+* **pass-style:** Far GET_METHOD_NAMES meta method ([b079812](https://github.com/endojs/endo/commit/b07981215a64766b2813f92f6d6c430d181b5512))
+* **pass-style:** Safe promises can override @[@to](https://github.com/to)StringTag with a string ([55e094c](https://github.com/endojs/endo/commit/55e094c689b3460dae29baf04f7934b60c594c60))
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
+* review suggestions ([25ded7a](https://github.com/endojs/endo/commit/25ded7a14b82103ca58be15b8ec0195bdc9dd434))
+
+
+
 ### [0.8.9](https://github.com/endojs/endo/compare/@endo/marshal@0.8.8...@endo/marshal@0.8.9) (2023-09-12)
 
 

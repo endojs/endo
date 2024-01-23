@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [3.0.2](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.1...@endo/bundle-source@3.0.2) (2024-01-18)
+
+
+### Bug Fixes
+
+* **bundle-source:** Accommodate Windows lack of atomic rename ([48135aa](https://github.com/endojs/endo/commit/48135aa7c2f39b1659afbca334ea26cbe7364596))
+* realpathSync usage ([cebcf09](https://github.com/endojs/endo/commit/cebcf09ba70bebdf5bb26176f76cb21d130ea20a))
+
+
+
+### [3.0.1](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.0...@endo/bundle-source@3.0.1) (2023-12-20)
+
+
+### Bug Fixes
+
+* **bundle-source:** Avoid ?? operator for RESM ([3355c04](https://github.com/endojs/endo/commit/3355c044dbf461ad52045c0b380917726f954aa7))
+* **bundle-source:** Remove broken jessie linting for now ([74cfc5b](https://github.com/endojs/endo/commit/74cfc5b51e48edc144f6665eddfbd2b0e6145e56))
+
+
+
+## [3.0.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.8.0...@endo/bundle-source@3.0.0) (2023-12-12)
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+
+
+
 ## [2.8.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.7.0...@endo/bundle-source@2.8.0) (2023-09-12)
 
 

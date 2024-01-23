@@ -49,14 +49,14 @@ const splitTransferBuffer = transferBuffer => {
  * when the guest iterates over it.
  *
  * @param {SharedArrayBuffer} transferBuffer
- * @returns {TrapHost}
+ * @returns {import('./types.js').TrapHost}
  */
 export const makeAtomicsTrapHost = transferBuffer => {
   const { statusbuf, lenbuf, databuf } = splitTransferBuffer(transferBuffer);
 
   const te = new TextEncoder();
 
-  return async function* trapHost([isReject, serialized]) {
+  return harden(async function* trapHost([isReject, serialized]) {
     // Get the complete encoded message buffer.
     const json = JSON.stringify(serialized);
     const encoded = te.encode(json);
@@ -94,7 +94,7 @@ export const makeAtomicsTrapHost = transferBuffer => {
         yield;
       }
     }
-  };
+  });
 };
 
 /**
@@ -104,7 +104,7 @@ export const makeAtomicsTrapHost = transferBuffer => {
  * then returns it.
  *
  * @param {SharedArrayBuffer} transferBuffer
- * @returns {TrapGuest}
+ * @returns {import('./types.js').TrapGuest}
  */
 export const makeAtomicsTrapGuest = transferBuffer => {
   const { statusbuf, lenbuf, databuf } = splitTransferBuffer(transferBuffer);

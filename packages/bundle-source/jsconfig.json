@@ -1,7 +1,0 @@
-{
-  "extends": "../../jsconfig.eslint-base.json",
-  "compilerOptions": {
-    "checkJs": false
-  },
-  "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
-}

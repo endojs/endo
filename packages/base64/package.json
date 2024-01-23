@@ -1,6 +1,6 @@
 {
   "name": "@endo/base64",
-  "version": "0.2.35",
+  "version": "1.0.1",
   "description": "Transcodes base64",
   "keywords": [
     "base64",
@@ -31,13 +31,13 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
-    "lint": "yarn lint:types && yarn lint:js",
+    "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
-    "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
     "test": "ava"
   },
   "devDependencies": {
@@ -48,9 +48,9 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-import": "^2.29.0",
     "prettier": "^3.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "files": [
     "LICENSE*",
@@ -72,5 +72,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 95.21
   }
 }

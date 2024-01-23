@@ -7,6 +7,11 @@ import { roundTripPairs } from './test-marshal-capdata.js';
 
 const { isFrozen } = Object;
 
+const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
+  // eslint-disable-next-line no-undef
+  global.harden
+);
+
 test('stringify parse round trip pairs', t => {
   for (const [plain, encoded] of roundTripPairs) {
     const str = stringify(plain);
@@ -27,7 +32,6 @@ test('marshal parse', t => {
 });
 
 test('marshal stringify errors', t => {
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     t.throws(() => stringify([]), {
       message: /Cannot pass non-frozen objects like .*. Use harden()/,

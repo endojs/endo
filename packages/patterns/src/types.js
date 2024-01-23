@@ -457,20 +457,31 @@ export {};
  */
 
 /**
+ * @typedef {undefined | 'passable' | 'raw'} DefaultGuardType
+ */
+
+/**
+ * @typedef {<M extends Record<PropertyKey, MethodGuard>>(
+ *   interfaceName: string,
+ *   methodGuards: M,
+ *   options: {defaultGuards?: undefined, sloppy?: false }) => InterfaceGuard<M>
+ * } MakeInterfaceGuardStrict
+ */
+/**
  * @typedef {(
  *   interfaceName: string,
  *   methodGuards: any,
- *   options: {sloppy: true}) => InterfaceGuard<Record<PropertyKey, MethodGuard>>
+ *   options: {defaultGuards?: 'passable' | 'raw', sloppy?: true }) => InterfaceGuard<any>
  * } MakeInterfaceGuardSloppy
  */
 /**
  * @typedef {<M extends Record<PropertyKey, MethodGuard>>(
  *   interfaceName: string,
  *   methodGuards: M,
- *   options?: {sloppy?: boolean}) => InterfaceGuard<M>
+ *   options?: {defaultGuards?: DefaultGuardType, sloppy?: boolean}) => InterfaceGuard<M>
  * } MakeInterfaceGuardGeneral
  */
-/** @typedef {MakeInterfaceGuardSloppy & MakeInterfaceGuardGeneral} MakeInterfaceGuard */
+/** @typedef {MakeInterfaceGuardStrict & MakeInterfaceGuardSloppy & MakeInterfaceGuardGeneral} MakeInterfaceGuard */
 
 /**
  * @typedef {object} GuardMakers
@@ -478,14 +489,34 @@ export {};
  * @property {MakeInterfaceGuard} interface
  * Guard the interface of an exo object
  *
- * @property {(...argPatterns: Pattern[]) => MethodGuardMaker0} call
- * Guard a synchronous call
+ * @property {(...argPatterns: SyncValueGuard[]) => MethodGuardMaker} call
+ * Guard a synchronous call.  Arguments not guarded by `M.raw()` are
+ * automatically hardened and must be at least Passable.
  *
- * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker0} callWhen
- * Guard an async call
+ * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker} callWhen
+ * Guard an async call.  Arguments not guarded by `M.raw()` are automatically
+ * hardened and must be at least Passable.
  *
  * @property {(argPattern: Pattern) => AwaitArgGuard} await
- * Guard an await
+ * Guard a positional parameter in `M.callWhen`, awaiting it and matching its
+ * fulfillment against the provided pattern.
+ * For example, `M.callWhen(M.await(M.nat())).returns()` will await the first
+ * argument, check that its fulfillment satisfies `M.nat()`, and only then call
+ * the guarded method with that fulfillment. If the argument is a non-promise
+ * value that already satisfies `M.nat()`, then the result of `await`ing it will
+ * still pass, and  `M.callWhen` will still delay the guarded method call to a
+ * future turn.
+ * If the argument is a promise that rejects rather than fulfills, or if its
+ * fulfillment does not satisfy the nested pattern, then the call is rejected
+ * without ever invoking the guarded method.
+ *
+ * Any `AwaitArgGuard` may not appear as a rest pattern or a result pattern,
+ * only a top-level single parameter pattern.
+ *
+ * @property {() => RawGuard} raw
+ * In parameter position, pass this argument through without any hardening or checking.
+ * In rest position, pass the rest of the arguments through without any hardening or checking.
+ * In return position, return the result without any hardening or checking.
  */
 
 /**
@@ -502,6 +533,7 @@ export {};
  *     Omit<T, symbol> & Partial<{ [K in Extract<keyof T, symbol>]: never }>,
  *   symbolMethodGuards?:
  *     CopyMap<Extract<keyof T, symbol>, T[Extract<keyof T, symbol>]>,
+ *   defaultGuards?: DefaultGuardType,
  *   sloppy?: boolean,
  * }} InterfaceGuardPayload
  */
@@ -512,11 +544,7 @@ export {};
  */
 
 /**
- * @typedef {Record<string, InterfaceGuard>} InterfaceGuardKit
- */
-
-/**
- * @typedef {object} MethodGuardMaker0
+ * @typedef {MethodGuardOptional & MethodGuardRestReturns} MethodGuardMaker
  * A method name and parameter/return signature like:
  * ```js
  *   foo(a, b, c = d, ...e) => f
@@ -528,51 +556,38 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
- * @property {(...optArgGuards: ArgGuard[]) => MethodGuardMaker1} optional
- * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
- * @property {(returnGuard?: Pattern) => MethodGuard} returns
- */
-
 /**
- * @typedef {object} MethodGuardMaker1
- * A method name and parameter/return signature like:
- * ```js
- *   foo(a, b, c = d, ...e) => f
- * ```
- * should be guarded by something like:
- * ```js
- * {
- *   ...otherMethodGuards,
- *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
- * }
- * ```
- * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
- * @property {(returnGuard?: Pattern) => MethodGuard} returns
+ * @typedef {object} MethodGuardReturns
+ * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
+ * Arguments have been specified, now finish by creating a `MethodGuard`.
+ * If the return guard is not `M.raw()`, the return value is automatically
+ * hardened and must be Passable.
  */
-
 /**
- * @typedef {object} MethodGuardMaker2
- * A method name and parameter/return signature like:
- * ```js
- *   foo(a, b, c = d, ...e) => f
- * ```
- * should be guarded by something like:
- * ```js
- * {
- *   ...otherMethodGuards,
- *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
- * }
- * ```
- * @property {(returnGuard?: Pattern) => MethodGuard} returns
+ * @typedef {object} MethodGuardRest
+ * @property {(restArgGuard: SyncValueGuard) => MethodGuardReturns} rest
+ * If the rest argument guard is not `M.raw()`, all rest arguments are
+ * automatically hardened and must be Passable.
+ */
+/**
+ * @typedef {MethodGuardRest & MethodGuardReturns} MethodGuardRestReturns
+ * Mandatory and optional arguments have been specified, now specify `rest`, or
+ * finish with `returns`.
+ */
+/**
+ * @typedef {object} MethodGuardOptional
+ * @property {(...optArgGuards: ArgGuard[]) => MethodGuardRestReturns} optional
+ * Optional arguments not guarded with `M.raw()` are automatically hardened and
+ * must be Passable.
  */
 
 /**
  * @typedef {{
  *   callKind: 'sync' | 'async',
- *   argGuards: ArgGuard[]
- *   optionalArgGuards?: ArgGuard[]
- *   restArgGuard?: Pattern
- *   returnGuard: Pattern
+ *   argGuards: ArgGuard[],
+ *   optionalArgGuards?: ArgGuard[],
+ *   restArgGuard?: SyncValueGuard,
+ *   returnGuard: SyncValueGuard,
  * }} MethodGuardPayload
  */
 
@@ -590,4 +605,14 @@ export {};
  * @typedef {CopyTagged<'guard:awaitArgGuard', AwaitArgGuardPayload>} AwaitArgGuard
  */
 
-/** @typedef {AwaitArgGuard | Pattern} ArgGuard */
+/**
+ * @typedef {{}} RawGuardPayload
+ */
+
+/**
+ * @typedef {CopyTagged<'guard:rawGuard', RawGuardPayload>} RawGuard
+ */
+
+/** @typedef {RawGuard | Pattern} SyncValueGuard */
+
+/** @typedef {AwaitArgGuard | RawGuard | Pattern} ArgGuard */

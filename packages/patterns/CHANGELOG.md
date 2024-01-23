@@ -3,6 +3,57 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/patterns@1.0.1...@endo/patterns@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **types:** generic Passable ([ae6ad15](https://github.com/endojs/endo/commit/ae6ad156e43fafb11df394f901df372760f9cbcc))
+
+
+### Bug Fixes
+
+* **common:** fix @endo/common integration breakage ([#1963](https://github.com/endojs/endo/issues/1963)) ([73b5059](https://github.com/endojs/endo/commit/73b50590b7aef7eaffe2c435286fb291bf9b22bf))
+
+
+
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/patterns@1.0.0...@endo/patterns@1.0.1) (2023-12-20)
+
+**Note:** Version bump only for package @endo/patterns
+
+
+
+
+
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/patterns@0.2.6...@endo/patterns@1.0.0) (2023-12-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **patterns:** tag and retype guards
+
+### Features
+
+* **defaultGuards:** absorb `sloppy` and `raw` ([58a3d42](https://github.com/endojs/endo/commit/58a3d42a92102336d814690430e0feb3773227d4))
+* **defendSyncMethod:** implement raw exo methods ([c8126dc](https://github.com/endojs/endo/commit/c8126dc9d863fbb69cc53d57514368ba931df7fe))
+* **exo:** opt out individual arguments ([bf593d8](https://github.com/endojs/endo/commit/bf593d8e83ba7eb231b4d3a909c41751ab24fe66))
+* **patterns:** export kindOf ([#1834](https://github.com/endojs/endo/issues/1834)) ([f746e99](https://github.com/endojs/endo/commit/f746e996dfa827170b408ab276c1c438500c9ca1))
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* **exo:** allow richer behaviorMethods ([fde26da](https://github.com/endojs/endo/commit/fde26da22f03a18045807d833c8e03c4409fd877))
+* **exo:** tighten typing ([c50ee18](https://github.com/endojs/endo/commit/c50ee18b543c8da921cd095cdc65b56df1761b9f))
+* Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
+* **patterns:** `M.rawValue()` -> `M.raw()` ([5b94530](https://github.com/endojs/endo/commit/5b9453042aec993f5876deeed4488f4d32dc4803))
+* **patterns:** pass type parameter from interface guard to payload ([7d294eb](https://github.com/endojs/endo/commit/7d294eb7edb24da3034f96872e25e49d1553f73d))
+* **patterns:** remove `defaultGuards: 'never'` for `undefined` ([77d04b2](https://github.com/endojs/endo/commit/77d04b2902ddf539f10688dfb84fe2aa9e841f16))
+* **patterns:** tag and retype guards ([3e514c5](https://github.com/endojs/endo/commit/3e514c59b011d2a69778c2fb01c7262681d2bdee))
+* review suggestions ([25ded7a](https://github.com/endojs/endo/commit/25ded7a14b82103ca58be15b8ec0195bdc9dd434))
+
+
+
 ### [0.2.6](https://github.com/endojs/endo/compare/@endo/patterns@0.2.5...@endo/patterns@0.2.6) (2023-09-12)
 
 

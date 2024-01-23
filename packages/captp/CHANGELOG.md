@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [4.0.2](https://github.com/endojs/endo/compare/@endo/captp@4.0.1...@endo/captp@4.0.2) (2024-01-18)
+
+
+### Bug Fixes
+
+* Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
+
+
+
+### [4.0.1](https://github.com/endojs/endo/compare/@endo/captp@4.0.0...@endo/captp@4.0.1) (2023-12-20)
+
+
+### Bug Fixes
+
+* Expressly forbid deep imports through captp, far, lockdown, marshal ([8fb4e97](https://github.com/endojs/endo/commit/8fb4e9734bfeb7c024cd0b9d4916b7410159152a))
+
+
+
+## [4.0.0](https://github.com/endojs/endo/compare/@endo/captp@3.1.5...@endo/captp@4.0.0) (2023-12-12)
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* Import types explicitly throughout ([631d087](https://github.com/endojs/endo/commit/631d087e291262ce3e798f7a15482c534cb7233b))
+
+
+
 ### [3.1.5](https://github.com/endojs/endo/compare/@endo/captp@3.1.4...@endo/captp@3.1.5) (2023-09-12)
 
 **Note:** Version bump only for package @endo/captp

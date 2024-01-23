@@ -6,14 +6,14 @@ Endo-specific plugin
 
 You'll first need to install [ESLint](http://eslint.org):
 
-```
-$ npm i eslint --save-dev
+```sh
+npm i eslint --save-dev
 ```
 
 Next, install `@endo/eslint-plugin`:
 
-```
-$ npm install @endo/eslint-plugin --save-dev
+```sh
+npm install @endo/eslint-plugin --save-dev
 ```
 
 **Note:** If you installed ESLint globally (using the `-g` flag) then you must also install `@endo/eslint-plugin` globally.
@@ -52,8 +52,3 @@ You can configure individual rules you want to use under the rules section.
 ## Supported Rules
 
 * Fill in provided rules here
-
-
-
-
-
