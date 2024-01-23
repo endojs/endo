@@ -295,9 +295,9 @@ const decodeRecord = (encoded, decodePassable) => {
   assert(encoded.startsWith('('));
   // Skip the "(" inside `decodeArray` to avoid slow `substring` in XS.
   // https://github.com/endojs/endo/issues/1984
-  const keysvals = decodeArray(encoded, decodePassable, 1);
-  keysvals.length === 2 || Fail`expected keys,values pair: ${encoded}`;
-  const [keys, vals] = keysvals;
+  const unzippedEntries = decodeArray(encoded, decodePassable, 1);
+  unzippedEntries.length === 2 || Fail`expected keys,values pair: ${encoded}`;
+  const [keys, vals] = unzippedEntries;
 
   (passStyleOf(keys) === 'copyArray' &&
     passStyleOf(vals) === 'copyArray' &&
@@ -317,9 +317,9 @@ const decodeTagged = (encoded, decodePassable) => {
   assert(encoded.startsWith(':'));
   // Skip the ":" inside `decodeArray` to avoid slow `substring` in XS.
   // https://github.com/endojs/endo/issues/1984
-  const tagpayload = decodeArray(encoded, decodePassable, 1);
-  tagpayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
-  const [tag, payload] = tagpayload;
+  const taggedPayload = decodeArray(encoded, decodePassable, 1);
+  taggedPayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
+  const [tag, payload] = taggedPayload;
   passStyleOf(tag) === 'string' ||
     Fail`not a valid tagged encoding: ${encoded}`;
   return makeTagged(tag, payload);
