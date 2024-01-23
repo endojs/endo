@@ -91,7 +91,7 @@ function encodeString(buffer, value) {
 /**
  * @param {Buffer} buffer
  * @param {Record<string, any>} record
- * @param {string} path
+ * @param {Array<string | number>} path
  */
 function encodeRecord(buffer, record, path) {
   const restart = buffer.length;
@@ -132,7 +132,7 @@ function encodeRecord(buffer, record, path) {
     encodeString(buffer, key);
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value, `${path}/${key}`);
+    encodeAny(buffer, value, path, key);
   }
 
   cursor = grow(buffer, 1);
@@ -142,7 +142,7 @@ function encodeRecord(buffer, record, path) {
 /**
  * @param {Buffer} buffer
  * @param {Array<any>} array
- * @param {string} path
+ * @param {Array<string | number>} path
  */
 function encodeArray(buffer, array, path) {
   let cursor = grow(buffer, 2 + array.length);
@@ -153,7 +153,7 @@ function encodeArray(buffer, array, path) {
   for (const value of array) {
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value, `${path}/${index}`);
+    encodeAny(buffer, value, path, index);
     index += 1;
   }
 
@@ -164,9 +164,10 @@ function encodeArray(buffer, array, path) {
 /**
  * @param {Buffer} buffer
  * @param {any} value
- * @param {string} path
+ * @param {Array<string | number>} path
+ * @param {string | number} pathSuffix
  */
-function encodeAny(buffer, value, path) {
+function encodeAny(buffer, value, path, pathSuffix) {
   if (typeof value === 'string') {
     encodeString(buffer, value);
     return;
@@ -202,12 +203,16 @@ function encodeAny(buffer, value, path) {
   }
 
   if (Array.isArray(value)) {
+    path.push(pathSuffix);
     encodeArray(buffer, value, path);
+    path.pop();
     return;
   }
 
   if (Object(value) === value) {
+    path.push(pathSuffix);
     encodeRecord(buffer, value, path);
+    path.pop();
     return;
   }
 
@@ -223,7 +228,8 @@ function encodeAny(buffer, value, path) {
     return;
   }
 
-  throw TypeError(`Cannot encode value ${value} at ${path}`);
+  path.push(pathSuffix);
+  throw TypeError(`Cannot encode value ${value} at ${path.join('/')}`);
 }
 
 /**
@@ -239,6 +245,6 @@ export function encodeSyrup(value, options = {}) {
   const data = new DataView(bytes.buffer);
   const length = 0;
   const buffer = { bytes, data, length };
-  encodeAny(buffer, value, '/');
+  encodeAny(buffer, value, [], '/');
   return buffer.bytes.subarray(0, buffer.length);
 }
