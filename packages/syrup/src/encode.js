@@ -27,21 +27,22 @@ const textEncoder = new TextEncoder();
 
 /**
  * @param {Buffer} buffer
- * @param {number} length
- * @returns {number} cursor (old length)
+ * @param {number} increaseBy
+ * @returns {number} old length
  */
-function grow(buffer, length) {
+function grow(buffer, increaseBy) {
   const cursor = buffer.length;
-  if (length === 0) {
+  if (increaseBy === 0) {
     return cursor;
   }
-  buffer.length += length;
-  let newLength = buffer.bytes.length;
-  if (buffer.length + length > newLength) {
-    while (buffer.length + length > newLength) {
-      newLength *= 2;
+  buffer.length += increaseBy;
+  let capacity = buffer.bytes.length;
+  // Expand backing storage, leaving headroom for another similar-size increase.
+  if (buffer.length + increaseBy > capacity) {
+    while (buffer.length + increaseBy > capacity) {
+      capacity *= 2;
     }
-    const bytes = new Uint8Array(newLength);
+    const bytes = new Uint8Array(capacity);
     const data = new DataView(bytes.buffer);
     bytes.set(buffer.bytes.subarray(0, buffer.length), 0);
     buffer.bytes = bytes;
