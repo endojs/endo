@@ -53,6 +53,11 @@ export type MignonicPowers = {
   };
 };
 
+type FormulaIdentifierRecord = {
+  type: string;
+  number: string;
+};
+
 type GuestFormula = {
   type: 'guest';
   host: string;
