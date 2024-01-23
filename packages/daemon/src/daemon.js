@@ -621,13 +621,8 @@ const makeEndoBootstrap = (
       if (formulaIdentifier === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }
-      const delimiterIndex = formulaIdentifier.indexOf(':');
-      // eslint-disable-next-line @endo/restrict-comparison-operands
-      if (delimiterIndex < 0) {
-        return undefined;
-      }
-      const prefix = formulaIdentifier.slice(0, delimiterIndex);
-      const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
+      const { type: formulaType, number: formulaNumber } =
+        parseFormulaIdentifier(formulaIdentifier);
       if (
         ![
           'eval-id512',
@@ -635,12 +630,12 @@ const makeEndoBootstrap = (
           'import-bundle-id512',
           'guest-id512',
           'web-bundle',
-        ].includes(prefix)
+        ].includes(formulaType)
       ) {
-        return makeInfo(prefix, formulaNumber, harden({}));
+        return makeInfo(formulaType, formulaNumber, harden({}));
       }
       const formula = await persistencePowers.readFormula(
-        prefix,
+        formulaType,
         formulaNumber,
       );
       if (formula.type === 'eval') {
