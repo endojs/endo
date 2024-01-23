@@ -145,7 +145,8 @@ function encodeRecord(buffer, record, path) {
  * @param {string} path
  */
 function encodeArray(buffer, array, path) {
-  let cursor = grow(buffer, 1);
+  let cursor = grow(buffer, 2 + array.length);
+  buffer.length = cursor + 1;
   buffer.bytes[cursor] = LIST_START;
 
   let index = 0;
