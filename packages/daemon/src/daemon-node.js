@@ -14,7 +14,9 @@ import path from 'path';
 import popen from 'child_process';
 import url from 'url';
 import http from 'http';
-import ws from 'ws';
+
+// @ts-ignore We cannot use a synthetic default export in practice here (circa Node.js 16)
+import * as ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';

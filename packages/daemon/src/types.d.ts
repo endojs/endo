@@ -53,6 +53,11 @@ export type MignonicPowers = {
   };
 };
 
+type FormulaIdentifierRecord = {
+  type: string;
+  number: string;
+};
+
 type GuestFormula = {
   type: 'guest';
   host: string;
@@ -158,12 +163,20 @@ export interface Controller<External = unknown, Internal = unknown> {
 export interface PetStore {
   has(petName: string): boolean;
   list(): Array<string>;
+  follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
+  listEntries(): Array<[string, FormulaIdentifierRecord]>;
+  followEntries(): Promise<
+    FarRef<
+      Reader<
+        { add: string; value: FormulaIdentifierRecord } | { remove: string }
+      >
+    >
+  >;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
   lookup(petName: string): string | undefined;
   reverseLookup(formulaIdentifier: string): Array<string>;
-  follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
 }
 
 export type RequestFn = (

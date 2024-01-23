@@ -11,6 +11,7 @@ import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeTerminatorMaker } from './terminator.js';
+import { parseFormulaIdentifier } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -383,64 +384,57 @@ const makeEndoBootstrap = (
     formulaIdentifier,
     terminator,
   ) => {
-    const delimiterIndex = formulaIdentifier.indexOf(':');
-    if (delimiterIndex < 0) {
-      if (formulaIdentifier === 'pet-store') {
-        const external = petStorePowers.makeOwnPetStore(
-          'pet-store',
-          assertPetName,
-        );
-        return { external, internal: undefined };
-      } else if (formulaIdentifier === 'host') {
-        const storeFormulaIdentifier = 'pet-store';
-        const workerFormulaIdentifier = `worker-id512:${zero512}`;
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return makeIdentifiedHost(
-          formulaIdentifier,
-          storeFormulaIdentifier,
-          workerFormulaIdentifier,
-          terminator,
-        );
-      } else if (formulaIdentifier === 'endo') {
-        // TODO reframe "cancelled" as termination of the "endo" object and
-        // ensure that all values ultimately depend on "endo".
-        // Behold, self-referentiality:
-        // eslint-disable-next-line no-use-before-define
-        return { external: endoBootstrap, internal: undefined };
-      } else if (formulaIdentifier === 'least-authority') {
-        return { external: leastAuthority, internal: undefined };
-      } else if (formulaIdentifier === 'web-page-js') {
-        if (persistencePowers.webPageBundlerFormula === undefined) {
-          throw Error('No web-page-js formula provided.');
-        }
-        return makeControllerForFormula(
-          'web-page-js',
-          zero512,
-          persistencePowers.webPageBundlerFormula,
-          terminator,
-        );
-      }
-      throw new TypeError(
-        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
+    const { type: formulaType, number: formulaNumber } =
+      parseFormulaIdentifier(formulaIdentifier);
+    if (formulaIdentifier === 'pet-store') {
+      const external = petStorePowers.makeOwnPetStore(
+        'pet-store',
+        assertPetName,
       );
-    }
-    const prefix = formulaIdentifier.slice(0, delimiterIndex);
-    const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
-    if (prefix === 'readable-blob-sha512') {
+      return { external, internal: undefined };
+    } else if (formulaIdentifier === 'host') {
+      const storeFormulaIdentifier = 'pet-store';
+      const workerFormulaIdentifier = `worker-id512:${zero512}`;
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      return makeIdentifiedHost(
+        formulaIdentifier,
+        storeFormulaIdentifier,
+        workerFormulaIdentifier,
+        terminator,
+      );
+    } else if (formulaIdentifier === 'endo') {
+      // TODO reframe "cancelled" as termination of the "endo" object and
+      // ensure that all values ultimately depend on "endo".
+      // Behold, self-referentiality:
+      // eslint-disable-next-line no-use-before-define
+      return { external: endoBootstrap, internal: undefined };
+    } else if (formulaIdentifier === 'least-authority') {
+      return { external: leastAuthority, internal: undefined };
+    } else if (formulaIdentifier === 'web-page-js') {
+      if (persistencePowers.webPageBundlerFormula === undefined) {
+        throw Error('No web-page-js formula provided.');
+      }
+      return makeControllerForFormula(
+        'web-page-js',
+        zero512,
+        persistencePowers.webPageBundlerFormula,
+        terminator,
+      );
+    } else if (formulaType === 'readable-blob-sha512') {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
       const external = makeReadableBlob(formulaNumber);
       return { external, internal: undefined };
-    } else if (prefix === 'worker-id512') {
+    } else if (formulaType === 'worker-id512') {
       return makeIdentifiedWorkerController(formulaNumber, terminator);
-    } else if (prefix === 'pet-store-id512') {
+    } else if (formulaType === 'pet-store-id512') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         assertPetName,
       );
       return { external, internal: undefined };
-    } else if (prefix === 'host-id512') {
+    } else if (formulaType === 'host-id512') {
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
       const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
       // Behold, recursion:
@@ -458,10 +452,10 @@ const makeEndoBootstrap = (
         'import-bundle-id512',
         'guest-id512',
         'web-bundle',
-      ].includes(prefix)
+      ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
-        prefix,
+        formulaType,
         formulaNumber,
       );
       // TODO validate
