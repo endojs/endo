@@ -27,8 +27,7 @@ export const jsEncodeBase64 = data => {
   let register = 0;
   let quantum = 0;
 
-  for (let i = 0; i < data.length; i += 1) {
-    const b = data[i];
+  for (const b of data) {
     register = (register << 8) | b;
     quantum += 8;
     if (quantum === 24) {

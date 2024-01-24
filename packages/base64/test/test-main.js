@@ -57,3 +57,40 @@ test('bytes conversions', t => {
     t.is(atob(btoa(str)), str, `${str} round trips with atob(btoa)`);
   }
 });
+
+test('invalid encodings', t => {
+  const badInputs = [
+    ['%', /Invalid base64 character %/],
+    ['=', undefined], // this input is bad in multiple ways
+
+    ['Z%', /Invalid base64 character %/],
+    ['Z', /Missing padding at offset 1/],
+    ['Z=', /Missing padding at offset 2/],
+    ['Z=%', /Missing padding at offset 2/],
+    ['Z==%', /Missing padding at offset 3/],
+    ['Z==m', /Missing padding at offset 3/],
+
+    ['Zg%', /Invalid base64 character %/],
+    ['Zg', /Missing padding at offset 2/],
+    ['Zg=', /Missing padding at offset 3/],
+    ['Zg=%', /Missing padding at offset 3/],
+    ['Zg==%', /trailing garbage %/],
+    ['Zg==m', /trailing garbage m/],
+
+    ['Zm8%', /Invalid base64 character %/],
+    ['Zm8', /Missing padding at offset 3/],
+    // not invalid: 'Zm8='
+    ['Zm8=%', /trailing garbage %/],
+    ['Zm8==%', /trailing garbage =%/],
+    ['Zm8==m', /trailing garbage =m/],
+
+    // non-zero padding bits (MAY reject): ['Qf==', ...],
+  ];
+  for (const [badInput, message] of badInputs) {
+    t.throws(
+      () => decodeBase64(badInput),
+      message && { message },
+      `${badInput} is rejected`,
+    );
+  }
+});
