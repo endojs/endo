@@ -18,7 +18,7 @@ export const install = async ({
   webPageName,
   programPath,
 }) => {
-  /** @type {import('@endo/eventual-send').ERef<import('@endo/stream').Reader<string>> | undefined} */
+  /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
   let bundleReaderRef;
   /** @type {string | undefined} */
   let temporaryBundleName;

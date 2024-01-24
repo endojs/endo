@@ -42,6 +42,7 @@ const { promise: cancelled, reject: cancel } =
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
+// @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;
 main(powers, locator, workerUuid, process.pid, cancel, cancelled).then(
   () => {

@@ -10,7 +10,7 @@ import { Far } from '@endo/far';
  *
  * @template T The item type of the iterable.
  * @param {import('./types').SomehowAsyncIterable<T>} iterable The iterable object.
- * @returns {import('@endo/stream').Stream<T>} sort of fudging this into a stream to appease "mapReader"
+ * @returns {import('@endo/stream').Reader<T>} sort of fudging this into a stream to appease "mapReader"
  */
 export const asyncIterate = iterable => {
   let iterator;
@@ -61,7 +61,7 @@ export const makeIteratorRef = iterable => {
 
 /**
  * @param {import('./types').SomehowAsyncIterable<Uint8Array>} readable
- * @returns {import('@endo/far').FarRef<import('@endo/stream').Stream<string>>}
+ * @returns {import('@endo/far').FarRef<import('@endo/stream').Reader<string>>}
  */
 export const makeReaderRef = readable =>
   makeIteratorRef(mapReader(asyncIterate(readable), encodeBase64));

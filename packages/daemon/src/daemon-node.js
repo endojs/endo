@@ -153,6 +153,7 @@ const main = async () => {
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
+// @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;
 main().then(
   () => {

@@ -25,7 +25,7 @@ export const makeRefIterator = iteratorRef => {
 
 /**
  * @param {import('@endo/far').ERef<AsyncIterator<string>>} readerRef
- * @returns {AsyncIterableIterator<Uint8Array, any>}
+ * @returns {AsyncIterableIterator<Uint8Array>}
  */
 export const makeRefReader = readerRef =>
   mapReader(makeRefIterator(readerRef), decodeBase64);
