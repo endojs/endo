@@ -25,6 +25,8 @@ export {
   isPassableError,
   assertPassableError,
   toPassableError,
+  isWellFormedString,
+  assertWellFormedString,
 } from './src/passStyleOf.js';
 
 export { makeTagged } from './src/makeTagged.js';

@@ -36,6 +36,61 @@ import { assertSafePromise } from './safe-promise.js';
 const { ownKeys } = Reflect;
 const { isFrozen, getOwnPropertyDescriptors } = Object;
 
+// @ts-expect-error TS builtin `String` type does not yet
+// know about`isWellFormed`
+const hasWellFormedStringMethod = !!String.prototype.isWellFormed;
+
+/**
+ * Is the argument a well-formed string?
+ *
+ * Unfortunately, the
+ * [standard built-in `String.prototype.isWellFormed`](https://github.com/tc39/proposal-is-usv-string)
+ * does a ToString on its input, causing it to judge non-strings to be
+ * well-formed strings if they coerce to a well-formed strings. This
+ * recapitulates the mistake in having the global `isNaN` coerce its inputs,
+ * causing it to judge non-string to be NaN if they coerce to NaN.
+ *
+ * This `isWellFormedString` function only judges well-formed strings to be
+ * well-formed strings. For all non-strings it returns false.
+ *
+ * @param {unknown} str
+ * @returns {str is string}
+ */
+export const isWellFormedString = hasWellFormedStringMethod
+  ? // @ts-expect-error TS does not yet know about `isWellFormed`
+    str => typeof str === 'string' && str.isWellFormed()
+  : str => {
+      if (typeof str !== 'string') {
+        return false;
+      }
+      for (const ch of str) {
+        // The string iterator iterates by Unicode code point, not
+        // UTF16 code unit. But if it encounters an unpaired surrogate,
+        // it will produce it.
+        const cp = /** @type {number} */ (ch.codePointAt(0));
+        if (cp >= 0xd800 && cp <= 0xdfff) {
+          // All surrogates are in this range. The string iterator only
+          // produces a character in this range for unpaired surrogates,
+          // which only happens if the string is not well-formed.
+          return false;
+        }
+      }
+      return true;
+    };
+harden(isWellFormedString);
+
+/**
+ * Returns normally when `isWellFormedString(str)` would return true.
+ * Throws a diagnostic error when `isWellFormedString(str)` would return false.
+ *
+ * @param {unknown} str
+ * @returns {asserts str is string}
+ */
+export const assertWellFormedString = str => {
+  isWellFormedString(str) || Fail`Expected well-formed unicode string: ${str}`;
+};
+harden(assertWellFormedString);
+
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
  * @returns {Record<HelperPassStyle, PassStyleHelper> }
@@ -134,11 +189,14 @@ const makePassStyleOf = passStyleHelpers => {
       const typestr = typeof inner;
       switch (typestr) {
         case 'undefined':
-        case 'string':
         case 'boolean':
         case 'number':
         case 'bigint': {
           return typestr;
+        }
+        case 'string': {
+          assertWellFormedString(inner);
+          return 'string';
         }
         case 'symbol': {
           assertPassableSymbol(inner);

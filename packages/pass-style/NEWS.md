@@ -1,5 +1,10 @@
 User-visible changes in `@endo/pass-style`:
 
+# Next release
+
+- Previously, all JavaScript strings were considered Passable with `passStyleOf(str) === 'string'`. Now, only well-formed Unicode strings are considered Passable. For all others, `passStyleOf(str)` throws a diagnostic error. This brings us into closer conformance to the OCapN standard, which prohibits sending non-well-formed strings, and requires non-well-formed strings to be rejected when received. Applications that had previously handled non-well-formed strings successfully (even if inadvertantly) may now start experiences these failure.
+- Exports `isWellFormedString` and `assertWellFormedString`. Unfortunately the [standard `String.prototype.isWellFormed`](https://tc39.es/proposal-is-usv-string/) first coerces its input to string, leading it to claim that some non-strings are well-formed strings. By contrast, `isWellFormedString` and `assertWellFormedString` will not judge any non-strings to be well-formed strings.
+
 # v1.2.0 (2024-02-22)
 
 - Now supports `AggegateError`, `error.errors`, `error.cause`.
