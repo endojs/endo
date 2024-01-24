@@ -53,6 +53,10 @@ export const recordValues = (record, names) =>
   harden(names.map(name => record[name]));
 harden(recordValues);
 
+const zeroes = Array(16)
+  .fill(undefined)
+  .map((_, i) => '0'.repeat(i));
+
 /**
  * @param {unknown} n
  * @param {number} size
@@ -60,11 +64,10 @@ harden(recordValues);
  */
 export const zeroPad = (n, size) => {
   const nStr = `${n}`;
-  assert(nStr.length <= size);
-  const str = `00000000000000000000${nStr}`;
-  const result = str.substring(str.length - size);
-  assert(result.length === size);
-  return result;
+  const fillLen = size - nStr.length;
+  if (fillLen === 0) return nStr;
+  assert(fillLen > 0 && fillLen < zeroes.length);
+  return `${zeroes[fillLen]}${nStr}`;
 };
 harden(zeroPad);
 
@@ -241,32 +244,44 @@ const encodeArray = (array, encodePassable) => {
 /**
  * @param {string} encoded
  * @param {(encoded: string) => Passable} decodePassable
+ * @param {number} [skip]
  * @returns {Array}
  */
-const decodeArray = (encoded, decodePassable) => {
-  encoded.startsWith('[') || Fail`Encoded array expected: ${encoded}`;
+const decodeArray = (encoded, decodePassable, skip = 0) => {
   const elements = [];
   const elemChars = [];
-  for (let i = 1; i < encoded.length; i += 1) {
-    const c = encoded[i];
-    if (c === '\u0000') {
+  // Use a string iterator to avoid slow indexed access in XS.
+  // https://github.com/endojs/endo/issues/1984
+  let stillToSkip = skip + 1;
+  let inEscape = false;
+  for (const c of encoded) {
+    if (stillToSkip > 0) {
+      stillToSkip -= 1;
+      if (stillToSkip === 0) {
+        c === '[' || Fail`Encoded array expected: ${encoded.slice(skip)}`;
+      }
+    } else if (inEscape) {
+      c === '\u0000' ||
+        c === '\u0001' ||
+        Fail`Unexpected character after u0001 escape: ${c}`;
+      elemChars.push(c);
+    } else if (c === '\u0000') {
       const encodedElement = elemChars.join('');
       elemChars.length = 0;
       const element = decodePassable(encodedElement);
       elements.push(element);
     } else if (c === '\u0001') {
-      i += 1;
-      i < encoded.length || Fail`unexpected end of encoding ${encoded}`;
-      const c2 = encoded[i];
-      c2 === '\u0000' ||
-        c2 === '\u0001' ||
-        Fail`Unexpected character after u0001 escape: ${c2}`;
-      elemChars.push(c2);
+      inEscape = true;
+      // eslint-disable-next-line no-continue
+      continue;
     } else {
       elemChars.push(c);
     }
+    inEscape = false;
   }
-  elemChars.length === 0 || Fail`encoding terminated early: ${encoded}`;
+  !inEscape || Fail`unexpected end of encoding ${encoded.slice(skip)}`;
+  elemChars.length === 0 ||
+    Fail`encoding terminated early: ${encoded.slice(skip)}`;
   return harden(elements);
 };
 
@@ -278,9 +293,11 @@ const encodeRecord = (record, encodePassable) => {
 
 const decodeRecord = (encoded, decodePassable) => {
   assert(encoded.startsWith('('));
-  const keysvals = decodeArray(encoded.substring(1), decodePassable);
-  keysvals.length === 2 || Fail`expected keys,values pair: ${encoded}`;
-  const [keys, vals] = keysvals;
+  // Skip the "(" inside `decodeArray` to avoid slow `substring` in XS.
+  // https://github.com/endojs/endo/issues/1984
+  const unzippedEntries = decodeArray(encoded, decodePassable, 1);
+  unzippedEntries.length === 2 || Fail`expected keys,values pair: ${encoded}`;
+  const [keys, vals] = unzippedEntries;
 
   (passStyleOf(keys) === 'copyArray' &&
     passStyleOf(vals) === 'copyArray' &&
@@ -298,9 +315,11 @@ const encodeTagged = (tagged, encodePassable) =>
 
 const decodeTagged = (encoded, decodePassable) => {
   assert(encoded.startsWith(':'));
-  const tagpayload = decodeArray(encoded.substring(1), decodePassable);
-  tagpayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
-  const [tag, payload] = tagpayload;
+  // Skip the ":" inside `decodeArray` to avoid slow `substring` in XS.
+  // https://github.com/endojs/endo/issues/1984
+  const taggedPayload = decodeArray(encoded, decodePassable, 1);
+  taggedPayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
+  const [tag, payload] = taggedPayload;
   passStyleOf(tag) === 'string' ||
     Fail`not a valid tagged encoding: ${encoded}`;
   return makeTagged(tag, payload);
@@ -438,7 +457,12 @@ export const makeDecodePassable = (decodeOptions = {}) => {
         return encoded.substring(1);
       }
       case 'b': {
-        return encoded.substring(1) !== 'false';
+        if (encoded === 'btrue') {
+          return true;
+        } else if (encoded === 'bfalse') {
+          return false;
+        }
+        throw Fail`expected encoded boolean to be "btrue" or "bfalse": ${encoded}`;
       }
       case 'n':
       case 'p': {
