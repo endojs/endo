@@ -90,10 +90,9 @@ const makeEndoBootstrap = (
 
   /**
    * @param {string} workerId512
-   * @param {string} workerFormulaIdentifier
    */
-  const makeWorkerBootstrap = async (workerId512, workerFormulaIdentifier) => {
-    // TODO validate workerId512, workerFormulaIdentifier
+  const makeWorkerBootstrap = async workerId512 => {
+    // TODO validate workerId512
     return Far(`Endo for worker ${workerId512}`, {});
   };
 
@@ -103,12 +102,7 @@ const makeEndoBootstrap = (
    */
   const makeIdentifiedWorkerController = async (workerId512, terminator) => {
     // TODO validate workerId512
-    const workerFormulaIdentifier = `worker-id512:${workerId512}`;
-
-    const daemonWorkerFacet = makeWorkerBootstrap(
-      workerId512,
-      workerFormulaIdentifier,
-    );
+    const daemonWorkerFacet = makeWorkerBootstrap(workerId512);
 
     const { reject: cancelWorker, promise: workerCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
@@ -156,7 +150,6 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} evalFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @param {string} source
    * @param {Array<string>} codeNames
@@ -164,7 +157,6 @@ const makeEndoBootstrap = (
    * @param {import('./types.js').Terminator} terminator
    */
   const makeControllerForEval = async (
-    evalFormulaIdentifier,
     workerFormulaIdentifier,
     source,
     codeNames,
@@ -217,14 +209,12 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} valueFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
    * @param {string} importPath
    * @param {import('./types.js').Terminator} terminator
    */
   const makeControllerForUnsafePlugin = async (
-    valueFormulaIdentifier,
     workerFormulaIdentifier,
     guestFormulaIdentifier,
     importPath,
@@ -257,14 +247,12 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} valueFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
    * @param {string} bundleFormulaIdentifier
    * @param {import('./types.js').Terminator} terminator
    */
   const makeControllerForSafeBundle = async (
-    valueFormulaIdentifier,
     workerFormulaIdentifier,
     guestFormulaIdentifier,
     bundleFormulaIdentifier,
@@ -318,7 +306,6 @@ const makeEndoBootstrap = (
   ) => {
     if (formula.type === 'eval') {
       return makeControllerForEval(
-        formulaIdentifier,
         formula.worker,
         formula.source,
         formula.names,
@@ -327,7 +314,6 @@ const makeEndoBootstrap = (
       );
     } else if (formula.type === 'import-unsafe') {
       return makeControllerForUnsafePlugin(
-        formulaIdentifier,
         formula.worker,
         formula.powers,
         formula.importPath,
@@ -335,7 +321,6 @@ const makeEndoBootstrap = (
       );
     } else if (formula.type === 'import-bundle') {
       return makeControllerForSafeBundle(
-        formulaIdentifier,
         formula.worker,
         formula.powers,
         formula.bundle,
