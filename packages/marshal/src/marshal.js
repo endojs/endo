@@ -310,7 +310,7 @@ export const makeMarshal = (
        * @returns {Remotable | Promise}
        */
       return (stringEncoding, _decodeRecur) => {
-        assert(stringEncoding.startsWith(prefix));
+        assert(stringEncoding.charAt(0) === prefix);
         // slots: $slotIndex.iface or $slotIndex
         const i = stringEncoding.indexOf('.');
         const index = Number(stringEncoding.slice(1, i < 0 ? undefined : i));
@@ -350,7 +350,7 @@ export const makeMarshal = (
     const { reviveFromCapData, reviveFromSmallcaps } = makeFullRevive(slots);
     let result;
     // JSON cannot begin with a '#', so this is an unambiguous signal.
-    if (body.startsWith('#')) {
+    if (body.charAt(0) === '#') {
       const smallcapsBody = body.slice(1);
       const encoding = harden(JSON.parse(smallcapsBody));
       result = harden(reviveFromSmallcaps(encoding));
