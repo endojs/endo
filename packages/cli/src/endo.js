@@ -41,7 +41,7 @@ export const main = async rawArgs => {
     .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the weblet (a name, none, host, or endo)',
+      'Endowment to give the weblet (a name, "none", "host", or "endo")',
     )
     .action(async (webPageName, programPath, cmd) => {
       const {
@@ -92,7 +92,7 @@ export const main = async rawArgs => {
     )
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the worklet (a name, none, host, or endo)',
+      'Endowment to give the worklet (a name, "none", "host", or "endo")',
     )
     .action(async (filePath, args, cmd) => {
       const {
