@@ -100,7 +100,11 @@ export const makeMailboxMaker = ({
     const dubMessage = message => {
       const { type } = message;
       if (type === 'request') {
-        const { who: senderFormulaIdentifier, dest: recipientFormulaIdentifier, ...rest } = message;
+        const {
+          who: senderFormulaIdentifier,
+          dest: recipientFormulaIdentifier,
+          ...rest
+        } = message;
         const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
         );
@@ -112,7 +116,11 @@ export const makeMailboxMaker = ({
         }
         return undefined;
       } else if (type === 'package') {
-        const { formulas: _, who: senderFormulaIdentifier, dest: recipientFormulaIdentifier, ...rest } = message;
+        const {
+          who: senderFormulaIdentifier,
+          dest: recipientFormulaIdentifier,
+          ...rest
+        } = message;
         const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
         );

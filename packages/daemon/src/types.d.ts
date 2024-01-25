@@ -121,10 +121,9 @@ export type Package = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<string>; // edge names
-};
-export type InternalPackage = Package & {
   formulas: Array<string>; // formula identifiers
 };
+export type InternalPackage = Package;
 
 export type Payload = Request | Package;
 export type InternalPayload = InternalRequest | InternalPackage;
