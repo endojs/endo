@@ -132,7 +132,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
     // Assert that the #error property decodes to a string.
     const message = encoding['#error'];
     (typeof message === 'string' &&
-      (!startsSpecial(message) || message.startsWith('!'))) ||
+      (!startsSpecial(message) || message.charAt(0) === '!')) ||
       Fail`internal: Error encoding must have string message: ${q(message)}`;
   };
 
@@ -241,7 +241,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
           passable,
           encodeToSmallcapsRecur,
         );
-        if (typeof result === 'string' && result.startsWith('$')) {
+        if (typeof result === 'string' && result.charAt(0) === '$') {
           return result;
         }
         // `throw` is noop since `Fail` throws. But linter confused
@@ -252,7 +252,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
           passable,
           encodeToSmallcapsRecur,
         );
-        if (typeof result === 'string' && result.startsWith('&')) {
+        if (typeof result === 'string' && result.charAt(0) === '&') {
           return result;
         }
         throw Fail`internal: Promise encoding must start with "&": ${result}`;
@@ -446,7 +446,7 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
             Fail`Property name ${q(
               encodedName,
             )} of ${encoding} must be a string`;
-          !encodedName.startsWith('#') ||
+          encodedName.charAt(0) !== '#' ||
             Fail`Unrecognized record type ${q(encodedName)}: ${encoding}`;
           const name = decodeFromSmallcaps(encodedName);
           typeof name === 'string' ||
