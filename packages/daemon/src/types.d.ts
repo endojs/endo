@@ -104,6 +104,7 @@ export type Formula =
 export type Label = {
   number: number;
   who: string;
+  dest: string;
   when: string;
   dismissed: Promise<void>;
 };
