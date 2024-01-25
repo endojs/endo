@@ -8,8 +8,6 @@ Create a HandledPromise class to implement the eventual-send API.  This API is u
 
 ## How to use
 
-> Note: If you're writing an application, you probably don't want to use this package directly. You'll want to use the eventual-send `~.` operator (tildot) provided in [SES](https://github.com/Agoric/SES) or other platforms.
-
 To install the `HandledPromise` global property shim, do:
 
 ```js
