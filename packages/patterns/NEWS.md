@@ -2,13 +2,14 @@ User-visible changes in `@endo/patterns`:
 
 # Next release
 
+- JavaScript's relational comparison operators like `<` compare strings by lexicographic UTF16 code unit order, which exposes an internal representational detail not relevant to the string's meaning as a Unicode string.  Previously, `compareKeys` and associated functions compared strings using this JavaScript-native comparison. Now `compareKeys` and associated functions compare strings by lexicographic Unicode Code Point order. ***This change only affects strings containing so-called supplementary characters, i.e., those whose Unicode character code does not fit in 16 bits***.
+  - See the NEWS.md of @endo/marshal for more on this change.
 - In errors explaining why a specimen does not match a pattern, sometimes the error message contains a quoted form of a nested pattern. This quoting was done with `q`, producing an uninformative rendering of these nested patterns. Now this quoting is done with `qp`, which renders these nested patterns into readable [Justin](https://github.com/endojs/Jessie/blob/main/packages/parse/src/quasi-justin.js) source code.
 
 # v1.5.0 (2025-03-11)
 
 - New pattern: `M.containerHas(elementPatt, bound = 1n)` motivated to support want patterns in Zoe, to pull out only `bound` number of elements that match `elementPatt`. `bound` must be a positive bigint.
 - Closely related, `@endo/patterns` now exports `containerHasSplit` to support ERTP's use of `M.containerHas` on non-fungible (`set`, `copySet`) and semifungible (`copyBag`) assets, respectively. See https://github.com/Agoric/agoric-sdk/pull/10952 .
-
 # v1.4.0 (2024-05-06)
 
 - `Passable` is now an accurate type instead of `any`. Downstream type checking may require changes ([example](https://github.com/Agoric/agoric-sdk/pull/8774))
