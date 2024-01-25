@@ -71,7 +71,7 @@ const encodePassableInternal2 = makeEncodePassable({
   format: 'compactOrdered',
 });
 
-const encodePassable = passable => {
+export const encodePassable = passable => {
   resetBuffers();
   return encodePassableInternal(passable);
 };
@@ -86,7 +86,7 @@ const decodePassableInternal = makeDecodePassable({
   decodeError: e => decodeThing('!', e),
 });
 
-const decodePassable = encoded => {
+export const decodePassable = encoded => {
   resetCursors();
   return decodePassableInternal(encoded);
 };
