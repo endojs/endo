@@ -112,8 +112,11 @@ test(
   (...args) => makePassableKit(...args).encodePassable,
 );
 
+<<<<<<< HEAD
 const { comparator: compareFull } = makeFullOrderComparatorKit();
 
+=======
+>>>>>>> 18541abf1 (fix(marshal)!: compare strings by codepoint)
 const asNumber = new Float64Array(1);
 const asBits = new BigUint64Array(asNumber.buffer);
 const getNaN = (hexEncoding = '0008000000000000') => {
