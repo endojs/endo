@@ -107,6 +107,32 @@ export async function bundleZipBase64(
     };
   }
 
+  /**
+   *
+   * @param {import('@endo/compartment-mapper/src/types.js').Language} parser
+   */
+  const evadeEvalCensor = async (
+    parser,
+    sourceBytes,
+    specifier,
+    location,
+    sourceMap,
+  ) => {
+    if (!['mjs', 'cjs'].includes(parser)) {
+      throw Error(`Parser ${parser} not supported in evadeEvalCensor`);
+    }
+    const babelSourceType = parser === 'mjs' ? 'module' : 'script';
+    const source = textDecoder.decode(sourceBytes);
+    let object;
+    ({ code: object, map: sourceMap } = await transformSource(source, {
+      sourceType: babelSourceType,
+      sourceMap,
+      sourceMapUrl: new URL(specifier, location).href,
+    }));
+    const objectBytes = textEncoder.encode(object);
+    return { bytes: objectBytes, parser, sourceMap };
+  };
+
   const { bytes, sha512 } = await makeAndHashArchive(powers, entry, {
     dev,
     moduleTransforms: {
@@ -117,15 +143,28 @@ export async function bundleZipBase64(
         _packageLocation,
         { sourceMap },
       ) {
-        const source = textDecoder.decode(sourceBytes);
-        let object;
-        ({ code: object, map: sourceMap } = await transformSource(source, {
-          sourceType: 'module',
+        return evadeEvalCensor(
+          'mjs',
+          sourceBytes,
+          specifier,
+          location,
           sourceMap,
-          sourceMapUrl: new URL(specifier, location).href,
-        }));
-        const objectBytes = textEncoder.encode(object);
-        return { bytes: objectBytes, parser: 'mjs', sourceMap };
+        );
+      },
+      async cjs(
+        sourceBytes,
+        specifier,
+        location,
+        _packageLocation,
+        { sourceMap },
+      ) {
+        return evadeEvalCensor(
+          'cjs',
+          sourceBytes,
+          specifier,
+          location,
+          sourceMap,
+        );
       },
     },
     sourceMapHook(sourceMap, sourceDescriptor) {
