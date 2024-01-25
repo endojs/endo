@@ -4,7 +4,7 @@
 // This command will set up the cat page, create a URL,
 // and open it.
 //
-// > endo open familiar-chat cat.js --powers HOST
+// > endo open familiar-chat cat.js --powers host
 //
 // Thereafter,
 //

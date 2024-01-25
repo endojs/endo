@@ -57,9 +57,9 @@ export const makeHostMaker = ({
       petStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
       specialNames: {
-        SELF: hostFormulaIdentifier,
-        NONE: 'least-authority',
-        ENDO: 'endo',
+        self: hostFormulaIdentifier,
+        none: 'least-authority',
+        endo: 'endo',
       },
       terminator,
     });
@@ -142,12 +142,12 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'MAIN' | 'NEW'} workerName
+     * @param {string | 'main' | 'new'} workerName
      */
     const provideWorkerFormulaIdentifier = async workerName => {
-      if (workerName === 'MAIN') {
+      if (workerName === 'main') {
         return mainWorkerFormulaIdentifier;
-      } else if (workerName === 'NEW') {
+      } else if (workerName === 'new') {
         const workerId512 = await randomHex512();
         return `worker-id512:${workerId512}`;
       }
@@ -163,7 +163,7 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} partyName
+     * @param {string | 'none' | 'host' | 'endo'} partyName
      */
     const providePowersFormulaIdentifier = async partyName => {
       let guestFormulaIdentifier = lookupFormulaIdentifierForName(partyName);
@@ -180,7 +180,7 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'MAIN' | 'NEW'} workerName
+     * @param {string | 'main' | 'new'} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
      * @param {Array<string>} petNames
@@ -239,9 +239,9 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'NEW' | 'MAIN'} workerName
+     * @param {string | 'new' | 'main'} workerName
      * @param {string} importPath
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
+     * @param {string | 'none' | 'host' | 'endo'} powersName
      * @param {string} resultName
      */
     const importUnsafeAndEndow = async (
@@ -279,9 +279,9 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'MAIN' | 'NEW'} workerName
+     * @param {string | 'main' | 'new'} workerName
      * @param {string} bundleName
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
+     * @param {string | 'none' | 'host' | 'endo'} powersName
      * @param {string} resultName
      */
     const importBundleAndEndow = async (
@@ -376,7 +376,7 @@ export const makeHostMaker = ({
     /**
      * @param {string} webPageName
      * @param {string} bundleName
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
+     * @param {string | 'none' | 'host' | 'endo'} powersName
      */
     const provideWebPage = async (webPageName, bundleName, powersName) => {
       const bundleFormulaIdentifier =

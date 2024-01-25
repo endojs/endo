@@ -63,8 +63,8 @@ export const makeGuestMaker = ({
       petStore,
       selfFormulaIdentifier: guestFormulaIdentifier,
       specialNames: {
-        SELF: guestFormulaIdentifier,
-        HOST: hostFormulaIdentifier,
+        self: guestFormulaIdentifier,
+        host: hostFormulaIdentifier,
       },
       terminator,
     });

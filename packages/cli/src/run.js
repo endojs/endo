@@ -29,7 +29,7 @@ export const run = async ({
     importPath === undefined &&
     bundleName === undefined
   ) {
-    console.error('Specify at least one of --file, --bundle, or --UNSAFE');
+    console.error('Specify at least one of --file, --bundle, or --UNCONFINED');
     process.exitCode = 1;
     return;
   }
@@ -39,11 +39,11 @@ export const run = async ({
     { os, process },
     async ({ bootstrap, party }) => {
       let powersP;
-      if (powersName === 'NONE') {
+      if (powersName === 'none') {
         powersP = E(bootstrap).leastAuthority();
-      } else if (powersName === 'HOST') {
+      } else if (powersName === 'host') {
         powersP = party;
-      } else if (powersName === 'ENDO') {
+      } else if (powersName === 'endo') {
         powersP = bootstrap;
       } else {
         powersP = E(party).provideGuest(powersName);
@@ -51,7 +51,9 @@ export const run = async ({
 
       if (importPath !== undefined) {
         if (bundleName !== undefined) {
-          console.error('Must specify either --bundle or --UNSAFE, not both');
+          console.error(
+            'Must specify either --bundle or --UNCONFINED, not both',
+          );
           process.exitCode = 1;
           return;
         }
@@ -70,7 +72,9 @@ export const run = async ({
         let bundle;
         if (bundleName !== undefined) {
           if (importPath !== undefined) {
-            console.error('Must specify either --bundle or --UNSAFE, not both');
+            console.error(
+              'Must specify either --bundle or --UNCONFINED, not both',
+            );
             process.exitCode = 1;
             return;
           }

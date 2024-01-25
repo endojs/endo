@@ -41,12 +41,12 @@ export const main = async rawArgs => {
     .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
+      'Endowment to give the weblet (a name, none, host, or endo)',
     )
     .action(async (webPageName, programPath, cmd) => {
       const {
         bundle: bundleName,
-        powers: powersName = 'NONE',
+        powers: powersName = 'none',
         as: partyNames,
       } = cmd.opts();
       const { install } = await import('./install.js');
@@ -86,17 +86,20 @@ export const main = async rawArgs => {
       [],
     )
     .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
-    .option('--UNSAFE <path>', 'Or path of an unsafe plugin to run in Node.js')
+    .option(
+      '--UNCONFINED <path>',
+      'Or path of an unsafe plugin to run in Node.js',
+    )
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
+      'Endowment to give the worklet (a name, none, host, or endo)',
     )
     .action(async (filePath, args, cmd) => {
       const {
         as: partyNames,
         bundle: bundleName,
-        UNSAFE: importPath,
-        powers: powersName = 'NONE',
+        UNCONFINED: importPath,
+        powers: powersName = 'none',
       } = cmd.opts();
       const { run } = await import('./run.js');
       return run({
@@ -113,14 +116,14 @@ export const main = async rawArgs => {
     .command('make [file]')
     .description('make a plugin or a worker caplet (worklet)')
     .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
-    .option('--UNSAFE <file>', 'Path to a Node.js module')
+    .option('--UNCONFINED <file>', 'Path to a Node.js module')
     .option(
       '-a,--as <party>',
       'Pose as named party (as named by current party)',
       collect,
       [],
     )
-    .option('-p,--powers <name>', 'Name of powers to grant or NONE, HOST, ENDO')
+    .option('-p,--powers <name>', 'Name of powers to grant or none, host, endo')
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
@@ -131,12 +134,12 @@ export const main = async rawArgs => {
     )
     .action(async (filePath, cmd) => {
       const {
-        UNSAFE: importPath,
+        UNCONFINED: importPath,
         name: resultName,
         bundle: bundleName,
-        worker: workerName = 'NEW',
+        worker: workerName = 'new',
         as: partyNames,
-        powers: powersName = 'NONE',
+        powers: powersName = 'none',
       } = cmd.opts();
       const { makeCommand } = await import('./make.js');
       return makeCommand({
@@ -171,7 +174,7 @@ export const main = async rawArgs => {
     .description('ask someone for something')
     .option(
       '-t,--to <party>',
-      'Send the request to another party (default: HOST)',
+      'Send the request to another party (default: host)',
     )
     .option(
       '-a,--as <party>',
@@ -187,7 +190,7 @@ export const main = async rawArgs => {
       const {
         name: resultName,
         as: partyNames,
-        to: toName = 'HOST',
+        to: toName = 'host',
       } = cmd.opts();
       const { request } = await import('./request.js');
       return request({ toName, description, resultName, partyNames });
@@ -421,7 +424,7 @@ export const main = async rawArgs => {
     .action(async (source, names, cmd) => {
       const {
         name: resultName,
-        worker: workerName = 'MAIN',
+        worker: workerName = 'main',
         as: partyNames,
       } = cmd.opts();
       const { evalCommand } = await import('./eval.js');
