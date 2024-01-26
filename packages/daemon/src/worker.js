@@ -53,7 +53,7 @@ export const makeWorkerFacet = ({ pathToFileURL, cancel }) => {
      * @param {string} path
      * @param {unknown} powersP
      */
-    importUnsafeAndEndow: async (path, powersP) => {
+    makeUnconfined: async (path, powersP) => {
       const url = pathToFileURL(path);
       const namespace = await import(url);
       return namespace.make(powersP);
@@ -63,7 +63,7 @@ export const makeWorkerFacet = ({ pathToFileURL, cancel }) => {
      * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoReadable>} readableP
      * @param {unknown} powersP
      */
-    importBundleAndEndow: async (readableP, powersP) => {
+    makeBundle: async (readableP, powersP) => {
       const bundleText = await E(readableP).text();
       const bundle = JSON.parse(bundleText);
 

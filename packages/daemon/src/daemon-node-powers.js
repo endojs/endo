@@ -586,7 +586,7 @@ export const makeDaemonicPersistencePowers = (
 
   const webPageBundlerFormula = includeWebPageBundler
     ? {
-        type: /** @type {'import-unsafe'} */ ('import-unsafe'),
+        type: /** @type {'make-unconfined'} */ ('make-unconfined'),
         worker: `worker-id512:${zero512}`,
         powers: 'host',
         importPath: fileURLToPath(

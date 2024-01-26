@@ -244,7 +244,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      * @param {string} resultName
      */
-    const importUnsafeAndEndow = async (
+    const makeUnconfined = async (
       workerName,
       importPath,
       powersName,
@@ -259,8 +259,8 @@ export const makeHostMaker = ({
       );
 
       const formula = {
-        /** @type {'import-unsafe'} */
-        type: 'import-unsafe',
+        /** @type {'make-unconfined'} */
+        type: 'make-unconfined',
         worker: workerFormulaIdentifier,
         powers: powersFormulaIdentifier,
         importPath,
@@ -270,7 +270,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { formulaIdentifier, value } = await provideValueForFormula(
         formula,
-        'import-unsafe-id512',
+        'make-unconfined-id512',
       );
       if (resultName !== undefined) {
         await petStore.write(resultName, formulaIdentifier);
@@ -284,7 +284,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      * @param {string} resultName
      */
-    const importBundleAndEndow = async (
+    const makeBundle = async (
       workerName,
       bundleName,
       powersName,
@@ -305,8 +305,8 @@ export const makeHostMaker = ({
       );
 
       const formula = {
-        /** @type {'import-bundle'} */
-        type: 'import-bundle',
+        /** @type {'make-bundle'} */
+        type: 'make-bundle',
         worker: workerFormulaIdentifier,
         powers: powersFormulaIdentifier,
         bundle: bundleFormulaIdentifier,
@@ -316,7 +316,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { value, formulaIdentifier } = await provideValueForFormula(
         formula,
-        'import-bundle-id512',
+        'make-bundle-id512',
       );
 
       if (resultName !== undefined) {
@@ -451,8 +451,8 @@ export const makeHostMaker = ({
       provideWorker,
       evaluate,
       terminate,
-      importUnsafeAndEndow,
-      importBundleAndEndow,
+      makeUnconfined,
+      makeBundle,
       provideWebPage,
     });
 

@@ -1,8 +1,8 @@
 // @ts-check
 
-// This is a built-in unsafe plugin for lazily constructing the web-page.js
+// This is a built-in unconfined plugin for lazily constructing the web-page.js
 // bundle for booting up web caplets.
-// The hard-coded 'web-page-js' formula is a hard-coded 'import-unsafe' formula
+// The hard-coded 'web-page-js' formula is a hard-coded 'make-unconfined' formula
 // that runs this program in worker 0.
 // It does not accept its endowed powers.
 

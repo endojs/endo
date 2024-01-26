@@ -72,16 +72,16 @@ type EvalFormula = {
   // TODO formula slots
 };
 
-type ImportUnsafeFormula = {
-  type: 'import-unsafe';
+type MakeUnconfinedFormula = {
+  type: 'make-unconfined';
   worker: string;
   powers: string;
   importPath: string;
   // TODO formula slots
 };
 
-type ImportBundleFormula = {
-  type: 'import-bundle';
+type MakeBundleFormula = {
+  type: 'make-bundle';
   worker: string;
   powers: string;
   bundle: string;
@@ -97,8 +97,8 @@ type WebBundleFormula = {
 export type Formula =
   | GuestFormula
   | EvalFormula
-  | ImportUnsafeFormula
-  | ImportBundleFormula
+  | MakeUnconfinedFormula
+  | MakeBundleFormula
   | WebBundleFormula;
 
 export type Label = {
@@ -233,13 +233,13 @@ export interface EndoHost {
     petNames: Array<string>,
     resultName?: string,
   );
-  importUnsafeAndEndow(
+  makeUnconfined(
     workerPetName: string | undefined,
     importPath: string,
     powersName: string,
     resultName?: string,
   ): Promise<unknown>;
-  importBundleAndEndow(
+  makeBundle(
     workerPetName: string | undefined,
     bundleName: string,
     powersName: string,
@@ -342,8 +342,8 @@ export interface WorkerDaemonFacet {
     values: Array<unknown>,
     cancelled: Promise<never>,
   ): Promise<unknown>;
-  importBundleAndEndow(bundle: ERef<EndoReadable>, powers: ERef<unknown>);
-  importUnsafeAndEndow(path: string, powers: ERef<unknown>);
+  makeBundle(bundle: ERef<EndoReadable>, powers: ERef<unknown>);
+  makeUnconfined(path: string, powers: ERef<unknown>);
 }
 
 export type DaemonicControlPowers = {

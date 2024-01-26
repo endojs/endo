@@ -24,7 +24,7 @@ export const makeCommand = async ({
   powersName,
 }) => {
   if (filePath !== undefined && importPath !== undefined) {
-    console.error('Specify only one of [file] or --UNSAFE <file>');
+    console.error('Specify only one of [file] or --UNCONFINED <file>');
     process.exitCode = 1;
     return;
   }
@@ -34,7 +34,7 @@ export const makeCommand = async ({
     bundleName === undefined
   ) {
     console.error(
-      'Specify at least one of [file], --bundle <file>, or --UNSAFE <file>',
+      'Specify at least one of [file], --bundle <file>, or --UNCONFINED <file>',
     );
     process.exitCode = 1;
     return;
@@ -66,18 +66,13 @@ export const makeCommand = async ({
 
     const resultP =
       importPath !== undefined
-        ? E(party).importUnsafeAndEndow(
+        ? E(party).makeUnconfined(
             workerName,
             path.resolve(importPath),
             powersName,
             resultName,
           )
-        : E(party).importBundleAndEndow(
-            workerName,
-            bundleName,
-            powersName,
-            resultName,
-          );
+        : E(party).makeBundle(workerName, bundleName, powersName, resultName);
     const result = await resultP;
     console.log(result);
 
