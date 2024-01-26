@@ -53,6 +53,10 @@ export const recordValues = (record, names) =>
   harden(names.map(name => record[name]));
 harden(recordValues);
 
+const zeroes = Array(16)
+  .fill(undefined)
+  .map((_, i) => '0'.repeat(i));
+
 /**
  * @param {unknown} n
  * @param {number} size
@@ -60,11 +64,10 @@ harden(recordValues);
  */
 export const zeroPad = (n, size) => {
   const nStr = `${n}`;
-  assert(nStr.length <= size);
-  const str = `00000000000000000000${nStr}`;
-  const result = str.substring(str.length - size);
-  assert(result.length === size);
-  return result;
+  const fillLen = size - nStr.length;
+  if (fillLen === 0) return nStr;
+  assert(fillLen > 0 && fillLen < zeroes.length);
+  return `${zeroes[fillLen]}${nStr}`;
 };
 harden(zeroPad);
 
@@ -118,7 +121,7 @@ const encodeBinary64 = n => {
  * @returns {number}
  */
 const decodeBinary64 = encoded => {
-  encoded.startsWith('f') || Fail`Encoded number expected: ${encoded}`;
+  encoded.charAt(0) === 'f' || Fail`Encoded number expected: ${encoded}`;
   let bits = BigInt(`0x${encoded.substring(1)}`);
   if (encoded[1] < '8') {
     bits ^= 0xffffffffffffffffn;
@@ -179,37 +182,38 @@ const encodeBigInt = n => {
   }
 };
 
+const rBigIntPayload = /([0-9]+)(:([0-9]+$|)|)/s;
+
 /**
  * @param {string} encoded
  * @returns {bigint}
  */
 const decodeBigInt = encoded => {
   const typePrefix = encoded.charAt(0); // faster than encoded[0]
-  let rem = encoded.slice(1);
   typePrefix === 'p' ||
     typePrefix === 'n' ||
     Fail`Encoded bigint expected: ${encoded}`;
 
-  const lDigits = rem.search(/[0-9]/) + 1;
-  lDigits >= 1 || Fail`Digit count expected: ${encoded}`;
-  rem = rem.slice(lDigits - 1);
+  const {
+    index: lDigits,
+    1: snDigits,
+    2: tail,
+    3: digits,
+  } = encoded.match(rBigIntPayload) || Fail`Digit count expected: ${encoded}`;
 
-  rem.length >= lDigits || Fail`Complete digit count expected: ${encoded}`;
-  const snDigits = rem.slice(0, lDigits);
-  rem = rem.slice(lDigits);
-  /^[0-9]+$/.test(snDigits) || Fail`Decimal digit count expected: ${encoded}`;
+  snDigits.length === lDigits ||
+    Fail`Unary-prefixed decimal digit count expected: ${encoded}`;
   let nDigits = parseInt(snDigits, 10);
   if (typePrefix === 'n') {
     // TODO Assert to reject forbidden encodings
     // like "n0:" and "n00:…" and "n91:…" through "n99:…"?
-    nDigits = 10 ** lDigits - nDigits;
+    nDigits = 10 ** /** @type {number} */ (lDigits) - nDigits;
   }
 
-  rem.startsWith(':') || Fail`Separator expected: ${encoded}`;
-  rem = rem.slice(1);
-  rem.length === nDigits ||
+  tail.charAt(0) === ':' || Fail`Separator expected: ${encoded}`;
+  digits.length === nDigits ||
     Fail`Fixed-length digit sequence expected: ${encoded}`;
-  let n = BigInt(rem);
+  let n = BigInt(digits);
   if (typePrefix === 'n') {
     // TODO Assert to reject forbidden encodings
     // like "n9:0" and "n8:00" and "n8:91" through "n8:99"?
@@ -241,32 +245,44 @@ const encodeArray = (array, encodePassable) => {
 /**
  * @param {string} encoded
  * @param {(encoded: string) => Passable} decodePassable
+ * @param {number} [skip]
  * @returns {Array}
  */
-const decodeArray = (encoded, decodePassable) => {
-  encoded.startsWith('[') || Fail`Encoded array expected: ${encoded}`;
+const decodeArray = (encoded, decodePassable, skip = 0) => {
   const elements = [];
   const elemChars = [];
-  for (let i = 1; i < encoded.length; i += 1) {
-    const c = encoded[i];
-    if (c === '\u0000') {
+  // Use a string iterator to avoid slow indexed access in XS.
+  // https://github.com/endojs/endo/issues/1984
+  let stillToSkip = skip + 1;
+  let inEscape = false;
+  for (const c of encoded) {
+    if (stillToSkip > 0) {
+      stillToSkip -= 1;
+      if (stillToSkip === 0) {
+        c === '[' || Fail`Encoded array expected: ${encoded.slice(skip)}`;
+      }
+    } else if (inEscape) {
+      c === '\u0000' ||
+        c === '\u0001' ||
+        Fail`Unexpected character after u0001 escape: ${c}`;
+      elemChars.push(c);
+    } else if (c === '\u0000') {
       const encodedElement = elemChars.join('');
       elemChars.length = 0;
       const element = decodePassable(encodedElement);
       elements.push(element);
     } else if (c === '\u0001') {
-      i += 1;
-      i < encoded.length || Fail`unexpected end of encoding ${encoded}`;
-      const c2 = encoded[i];
-      c2 === '\u0000' ||
-        c2 === '\u0001' ||
-        Fail`Unexpected character after u0001 escape: ${c2}`;
-      elemChars.push(c2);
+      inEscape = true;
+      // eslint-disable-next-line no-continue
+      continue;
     } else {
       elemChars.push(c);
     }
+    inEscape = false;
   }
-  elemChars.length === 0 || Fail`encoding terminated early: ${encoded}`;
+  !inEscape || Fail`unexpected end of encoding ${encoded.slice(skip)}`;
+  elemChars.length === 0 ||
+    Fail`encoding terminated early: ${encoded.slice(skip)}`;
   return harden(elements);
 };
 
@@ -277,10 +293,12 @@ const encodeRecord = (record, encodePassable) => {
 };
 
 const decodeRecord = (encoded, decodePassable) => {
-  assert(encoded.startsWith('('));
-  const keysvals = decodeArray(encoded.substring(1), decodePassable);
-  keysvals.length === 2 || Fail`expected keys,values pair: ${encoded}`;
-  const [keys, vals] = keysvals;
+  assert(encoded.charAt(0) === '(');
+  // Skip the "(" inside `decodeArray` to avoid slow `substring` in XS.
+  // https://github.com/endojs/endo/issues/1984
+  const unzippedEntries = decodeArray(encoded, decodePassable, 1);
+  unzippedEntries.length === 2 || Fail`expected keys,values pair: ${encoded}`;
+  const [keys, vals] = unzippedEntries;
 
   (passStyleOf(keys) === 'copyArray' &&
     passStyleOf(vals) === 'copyArray' &&
@@ -297,10 +315,12 @@ const encodeTagged = (tagged, encodePassable) =>
   `:${encodeArray(harden([getTag(tagged), tagged.payload]), encodePassable)}`;
 
 const decodeTagged = (encoded, decodePassable) => {
-  assert(encoded.startsWith(':'));
-  const tagpayload = decodeArray(encoded.substring(1), decodePassable);
-  tagpayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
-  const [tag, payload] = tagpayload;
+  assert(encoded.charAt(0) === ':');
+  // Skip the ":" inside `decodeArray` to avoid slow `substring` in XS.
+  // https://github.com/endojs/endo/issues/1984
+  const taggedPayload = decodeArray(encoded, decodePassable, 1);
+  taggedPayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
+  const [tag, payload] = taggedPayload;
   passStyleOf(tag) === 'string' ||
     Fail`not a valid tagged encoding: ${encoded}`;
   return makeTagged(tag, payload);
@@ -359,19 +379,19 @@ export const makeEncodePassable = (encodeOptions = {}) => {
       }
       case 'remotable': {
         const result = encodeRemotable(passable, encodePassable);
-        result.startsWith('r') ||
+        result.charAt(0) === 'r' ||
           Fail`internal: Remotable encoding must start with "r": ${result}`;
         return result;
       }
       case 'error': {
         const result = encodeError(passable, encodePassable);
-        result.startsWith('!') ||
+        result.charAt(0) === '!' ||
           Fail`internal: Error encoding must start with "!": ${result}`;
         return result;
       }
       case 'promise': {
         const result = encodePromise(passable, encodePassable);
-        result.startsWith('?') ||
+        result.charAt(0) === '?' ||
           Fail`internal: Promise encoding must start with "?": ${result}`;
         return result;
       }
@@ -438,7 +458,12 @@ export const makeDecodePassable = (decodeOptions = {}) => {
         return encoded.substring(1);
       }
       case 'b': {
-        return encoded.substring(1) !== 'false';
+        if (encoded === 'btrue') {
+          return true;
+        } else if (encoded === 'bfalse') {
+          return false;
+        }
+        throw Fail`expected encoded boolean to be "btrue" or "bfalse": ${encoded}`;
       }
       case 'n':
       case 'p': {

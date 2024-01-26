@@ -27,6 +27,13 @@ refs: #XXXX
 
 <!-- Every PR should of course come with tests of its own functionality. What additional tests are still needed beyond those unit tests? How does this affect CI, other test automation, or the testnet?  -->
 
+### Compatibility Considerations
+
+<!-- Does this change break any prior usage patterns? Does this change allow usage patterns to evolve? -->
+
 ### Upgrade Considerations
 
 <!-- What aspects of this PR are relevant to upgrading live production systems, and how should they be addressed? -->
+
+- [ ] Includes `*BREAKING*:` in the commit message with migration instructions for any breaking change.
+- [ ] Updates `NEWS.md` for user-facing changes.
