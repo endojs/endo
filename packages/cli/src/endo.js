@@ -86,7 +86,10 @@ export const main = async rawArgs => {
       [],
     )
     .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
-    .option('--UNSAFE <path>', 'Or path of an unsafe plugin to run in Node.js')
+    .option(
+      '--UNCONFINED <path>',
+      'Or path of an unsafe plugin to run in Node.js',
+    )
     .option(
       '-p,--powers <endowment>',
       'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
@@ -95,7 +98,7 @@ export const main = async rawArgs => {
       const {
         as: partyNames,
         bundle: bundleName,
-        UNSAFE: importPath,
+        UNCONFINED: importPath,
         powers: powersName = 'NONE',
       } = cmd.opts();
       const { run } = await import('./run.js');
@@ -113,7 +116,7 @@ export const main = async rawArgs => {
     .command('make [file]')
     .description('make a plugin or a worker caplet (worklet)')
     .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
-    .option('--UNSAFE <file>', 'Path to a Node.js module')
+    .option('--UNCONFINED <file>', 'Path to a Node.js module')
     .option(
       '-a,--as <party>',
       'Pose as named party (as named by current party)',
@@ -131,7 +134,7 @@ export const main = async rawArgs => {
     )
     .action(async (filePath, cmd) => {
       const {
-        UNSAFE: importPath,
+        UNCONFINED: importPath,
         name: resultName,
         bundle: bundleName,
         worker: workerName = 'NEW',
