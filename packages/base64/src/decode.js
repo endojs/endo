@@ -44,12 +44,14 @@ export const jsDecodeBase64 = (string, name = '<unknown>') => {
     i += 1;
   }
 
-  while (i < string.length && quantum % 8 !== 0) {
-    if (string[i] !== padding) {
+  while (quantum > 0) {
+    if (i === string.length || string[i] !== padding) {
       throw Error(`Missing padding at offset ${i} of string ${name}`);
     }
+    // We MAY reject non-zero padding bits, but choose not to.
+    // https://datatracker.ietf.org/doc/html/rfc4648#section-3.5
     i += 1;
-    quantum += 6;
+    quantum -= 2;
   }
 
   if (i < string.length) {
