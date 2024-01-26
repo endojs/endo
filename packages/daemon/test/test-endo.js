@@ -421,6 +421,24 @@ test('guest facet receives a message for host', async t => {
   await E(host).adopt(message1.number, 'gift', 'ten2');
   const ten = await E(host).lookup('ten2');
   t.is(ten, 10);
+  // Host should have received messages.
+  const hostInbox = await E(host).listMessages();
+  t.deepEqual(
+    hostInbox.map(({ type, who, dest }) => ({ type, who, dest })),
+    [
+      { type: 'request', who: 'guest', dest: 'SELF' },
+      { type: 'package', who: 'guest', dest: 'SELF' },
+    ],
+  );
+  // Guest should have own sent messages.
+  const guestInbox = await E(guest).listMessages();
+  t.deepEqual(
+    guestInbox.map(({ type, who, dest }) => ({ type, who, dest })),
+    [
+      // { type: 'request', who: 'SELF', dest: 'HOST' },
+      { type: 'package', who: 'SELF', dest: 'HOST' },
+    ],
+  );
 
   await stop(locator);
 });
