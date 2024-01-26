@@ -66,18 +66,13 @@ export const makeCommand = async ({
 
     const resultP =
       importPath !== undefined
-        ? E(party).importUnsafeAndEndow(
+        ? E(party).makeUnconfined(
             workerName,
             path.resolve(importPath),
             powersName,
             resultName,
           )
-        : E(party).importBundleAndEndow(
-            workerName,
-            bundleName,
-            powersName,
-            resultName,
-          );
+        : E(party).makeBundle(workerName, bundleName, powersName, resultName);
     const result = await resultP;
     console.log(result);
 

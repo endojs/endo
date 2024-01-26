@@ -239,10 +239,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).importUnsafeAndEndow(
-      importPath,
-      guestP,
-    );
+    const external = E(workerDaemonFacet).makeUnconfined(importPath, guestP);
     return { external, internal: undefined };
   };
 
@@ -285,10 +282,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).importBundleAndEndow(
-      readableBundleP,
-      guestP,
-    );
+    const external = E(workerDaemonFacet).makeBundle(readableBundleP, guestP);
     return { external, internal: undefined };
   };
 
@@ -312,14 +306,14 @@ const makeEndoBootstrap = (
         formula.values,
         terminator,
       );
-    } else if (formula.type === 'import-unsafe') {
+    } else if (formula.type === 'make-unconfined') {
       return makeControllerForUnsafePlugin(
         formula.worker,
         formula.powers,
         formula.importPath,
         terminator,
       );
-    } else if (formula.type === 'import-bundle') {
+    } else if (formula.type === 'make-bundle') {
       return makeControllerForSafeBundle(
         formula.worker,
         formula.powers,
@@ -433,8 +427,8 @@ const makeEndoBootstrap = (
     } else if (
       [
         'eval-id512',
-        'import-unsafe-id512',
-        'import-bundle-id512',
+        'make-unconfined-id512',
+        'make-bundle-id512',
         'guest-id512',
         'web-bundle',
       ].includes(formulaType)
@@ -614,7 +608,7 @@ const makeEndoBootstrap = (
           })
         );
       const bundle = await E(bundleBlob).json();
-      await E(webPageP).importBundleAndEndow(bundle, endowedPowers);
+      await E(webPageP).makeBundle(bundle, endowedPowers);
     },
   });
 

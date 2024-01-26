@@ -311,7 +311,7 @@ test('closure state lost by restart', async t => {
 test('persist unsafe services and their requests', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'import-unsafe');
+  const locator = makeLocator('tmp', 'make-unconfined');
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -358,7 +358,7 @@ test('persist unsafe services and their requests', async t => {
     await E(host).makeWorker('w1');
     await E(host).provideGuest('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
-    await E(host).importUnsafeAndEndow('w1', servicePath, 'o1', 's1');
+    await E(host).makeUnconfined('w1', servicePath, 'o1', 's1');
 
     await E(host).makeWorker('w2');
     const answer = await E(host).evaluate(
@@ -444,7 +444,7 @@ test('direct termination', async t => {
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).importUnsafeAndEndow('worker', counterPath, 'NONE', 'counter');
+  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
   t.is(
     1,
     await E(host).evaluate(
@@ -524,7 +524,7 @@ test('indirect termination', async t => {
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).importUnsafeAndEndow('worker', counterPath, 'SELF', 'counter');
+  await E(host).makeUnconfined('worker', counterPath, 'SELF', 'counter');
   t.is(
     1,
     await E(host).evaluate(
@@ -606,7 +606,7 @@ test('terminate because of requested capability', async t => {
   const messages = E(host).followMessages();
 
   const counterPath = path.join(dirname, 'test', 'counter-party.js');
-  E(host).importUnsafeAndEndow('worker', counterPath, 'guest', 'counter');
+  E(host).makeUnconfined('worker', counterPath, 'guest', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], 'zero');
   await E(messages).next();
