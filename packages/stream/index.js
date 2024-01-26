@@ -211,6 +211,7 @@ export const mapReader = (reader, transform) => {
     }
     return undefined;
   }
+  harden(transformGenerator);
   return harden(transformGenerator());
 };
 harden(mapReader);

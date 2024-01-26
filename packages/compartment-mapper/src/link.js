@@ -19,7 +19,6 @@ import { parseExtension } from './extension.js';
 import {
   enforceModulePolicy,
   ATTENUATORS_COMPARTMENT,
-  diagnoseMissingCompartmentError,
   attenuateGlobals,
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
@@ -232,10 +231,14 @@ const makeModuleMapHook = (
         return undefined; // fall through to import hook
       }
       if (foreignModuleSpecifier !== undefined) {
+        // archive goes through foreignModuleSpecifier for local modules too
         if (!moduleSpecifier.startsWith('./')) {
-          // archive goes through foreignModuleSpecifier for local modules too
+          // This code path seems to only be reached on subsequent imports of the same specifier in the same compartment.
+          // The check should be redundant and is only left here out of abundance of caution.
           enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: false,
+            errorHint:
+              'This check should not be reachable. If you see this error, please file an issue.',
           });
         }
 
@@ -244,12 +247,7 @@ const makeModuleMapHook = (
           throw Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}${diagnoseMissingCompartmentError({
-              moduleSpecifier,
-              compartmentDescriptor,
-              foreignModuleSpecifier,
-              foreignCompartmentName,
-            })}`,
+            )}}`,
           );
         }
         return foreignCompartment.module(foreignModuleSpecifier);
@@ -279,20 +277,17 @@ const makeModuleMapHook = (
           throw Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}${diagnoseMissingCompartmentError({
-              moduleSpecifier,
-              compartmentDescriptor,
-              foreignModuleSpecifier,
-              foreignCompartmentName,
-            })}`,
+            )}`,
           );
         }
 
-        // Despite all non-exit modules not allowed by policy being dropped
-        // while building the graph, this check is necessary because module
-        // is written back to the compartment map below.
         enforceModulePolicy(scopePrefix, compartmentDescriptor, {
           exit: false,
+          errorHint: `Blocked in linking. ${q(
+            moduleSpecifier,
+          )} is part of the compartment map and resolves to ${q(
+            foreignCompartmentName,
+          )}.`,
         });
         // The following line is weird.
         // Information is flowing backward.

@@ -8,6 +8,11 @@ import { roundTripPairs } from './test-marshal-capdata.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
+const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
+  // eslint-disable-next-line no-undef
+  global.harden
+);
+
 // this only includes the tests that do not use liveSlots
 
 /**
@@ -34,7 +39,6 @@ test('smallcaps serialize static data', t => {
   const { serialize } = makeTestMarshal();
   const ser = val => serialize(val);
 
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     t.throws(() => ser([1, 2]), {
       message: /Cannot pass non-frozen objects like/,
@@ -102,29 +106,30 @@ test('smallcaps serialize errors', t => {
 
   // Extra properties
   const errExtra = Error('has extra properties');
-  // @ts-ignore Check dynamic consequences of type violation
+  // @ts-expect-error Check dynamic consequences of type violation
   errExtra.foo = [];
   freeze(errExtra);
   t.assert(isFrozen(errExtra));
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
-    // @ts-ignore Check dynamic consequences of type violation
+    // @ts-expect-error Check dynamic consequences of type violation
     t.falsy(isFrozen(errExtra.foo));
   }
   t.deepEqual(ser(errExtra), {
     body: '#{"#error":"has extra properties","name":"Error"}',
     slots: [],
   });
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
-    // @ts-ignore Check dynamic consequences of type violation
+    // @ts-expect-error Check dynamic consequences of type violation
     t.falsy(isFrozen(errExtra.foo));
   }
 
   // Bad prototype and bad "message" property
-  const nonErrorProto1 = { __proto__: Error.prototype, name: 'included' };
-  const nonError1 = { __proto__: nonErrorProto1, message: [] };
-  t.deepEqual(ser(harden(nonError1)), {
+  const nonErrorProto1 = harden({
+    __proto__: Error.prototype,
+    name: 'included',
+  });
+  const nonError1 = harden({ __proto__: nonErrorProto1, message: [] });
+  t.deepEqual(ser(nonError1), {
     body: '#{"#error":"","name":"included"}',
     slots: [],
   });
@@ -186,7 +191,6 @@ test('smallcaps records', t => {
 
   // empty objects
 
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     // rejected because it is not hardened
     t.throws(

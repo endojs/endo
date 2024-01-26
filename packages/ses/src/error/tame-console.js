@@ -1,14 +1,25 @@
 // @ts-check
 
-import { TypeError, globalThis } from '../commons.js';
+import {
+  // Using TypeError minimizes risk of exposing the feral Error constructor
+  TypeError,
+  apply,
+  defineProperty,
+  freeze,
+  globalThis,
+} from '../commons.js';
 import { loggedErrorHandler as defaultHandler } from './assert.js';
 import { makeCausalConsole } from './console.js';
 import { makeRejectionHandlers } from './unhandled-rejection.js';
 import './types.js';
 import './internal-types.js';
 
-// eslint-disable-next-line no-restricted-globals
-const originalConsole = console;
+const failFast = message => {
+  throw TypeError(message);
+};
+
+const wrapLogger = (logger, thisArg) =>
+  freeze((...args) => apply(logger, thisArg, args));
 
 /**
  * Wrap console unless suppressed.
@@ -27,9 +38,9 @@ export const tameConsole = (
   unhandledRejectionTrapping = 'report',
   optGetStackString = undefined,
 ) => {
-  if (consoleTaming !== 'safe' && consoleTaming !== 'unsafe') {
-    throw TypeError(`unrecognized consoleTaming ${consoleTaming}`);
-  }
+  consoleTaming === 'safe' ||
+    consoleTaming === 'unsafe' ||
+    failFast(`unrecognized consoleTaming ${consoleTaming}`);
 
   let loggedErrorHandler;
   if (optGetStackString === undefined) {
@@ -40,10 +51,39 @@ export const tameConsole = (
       getStackString: optGetStackString,
     };
   }
-  const ourConsole =
+
+  // eslint-disable-next-line no-restricted-globals
+  const originalConsole = /** @type {VirtualConsole} */ (
+    // eslint-disable-next-line no-nested-ternary
+    typeof globalThis.console !== 'undefined'
+      ? globalThis.console
+      : typeof globalThis.print === 'function'
+      ? // Make a good-enough console for eshost (including only functions that
+        // log at a specific level with no special argument interpretation).
+        // https://console.spec.whatwg.org/#logging
+        (p => freeze({ debug: p, log: p, info: p, warn: p, error: p }))(
+          // eslint-disable-next-line no-undef
+          wrapLogger(globalThis.print),
+        )
+      : undefined
+  );
+
+  // Upgrade a log-only console (as in `eshost -h SpiderMonkey`).
+  if (originalConsole && originalConsole.log) {
+    for (const methodName of ['warn', 'error']) {
+      if (!originalConsole[methodName]) {
+        defineProperty(originalConsole, methodName, {
+          value: wrapLogger(originalConsole.log, originalConsole),
+        });
+      }
+    }
+  }
+
+  const ourConsole = /** @type {VirtualConsole} */ (
     consoleTaming === 'unsafe'
       ? originalConsole
-      : makeCausalConsole(originalConsole, loggedErrorHandler);
+      : makeCausalConsole(originalConsole, loggedErrorHandler)
+  );
 
   // Attach platform-specific error traps such that any error that gets thrown
   // at top-of-turn (the bottom of stack) will get logged by our causal
@@ -61,21 +101,36 @@ export const tameConsole = (
   /* eslint-disable @endo/no-polymorphic-call */
 
   // Node.js
-  if (errorTrapping !== 'none' && globalThis.process !== undefined) {
-    globalThis.process.on('uncaughtException', error => {
+  const globalProcess = globalThis.process || undefined;
+  if (
+    errorTrapping !== 'none' &&
+    typeof globalProcess === 'object' &&
+    typeof globalProcess.on === 'function'
+  ) {
+    let terminate;
+    if (errorTrapping === 'platform' || errorTrapping === 'exit') {
+      const { exit } = globalProcess;
+      // If there is a function-valued process.on but no function-valued process.exit,
+      // fail early without caring whether errorTrapping is "platform" only by default.
+      typeof exit === 'function' || failFast('missing process.exit');
+      terminate = () => exit(globalProcess.exitCode || -1);
+    } else if (errorTrapping === 'abort') {
+      terminate = globalProcess.abort;
+      typeof terminate === 'function' || failFast('missing process.abort');
+    }
+
+    globalProcess.on('uncaughtException', error => {
       // causalConsole is born frozen so not vulnerable to method tampering.
       ourConsole.error(error);
-      if (errorTrapping === 'platform' || errorTrapping === 'exit') {
-        globalThis.process.exit(globalThis.process.exitCode || -1);
-      } else if (errorTrapping === 'abort') {
-        globalThis.process.abort();
+      if (terminate) {
+        terminate();
       }
     });
   }
-
   if (
     unhandledRejectionTrapping !== 'none' &&
-    globalThis.process !== undefined
+    typeof globalProcess === 'object' &&
+    typeof globalProcess.on === 'function'
   ) {
     const handleRejection = reason => {
       // 'platform' and 'report' just log the reason.
@@ -85,32 +140,32 @@ export const tameConsole = (
     const h = makeRejectionHandlers(handleRejection);
     if (h) {
       // Rejection handlers are supported.
-      globalThis.process.on('unhandledRejection', h.unhandledRejectionHandler);
-      globalThis.process.on('rejectionHandled', h.rejectionHandledHandler);
-      globalThis.process.on('exit', h.processTerminationHandler);
+      globalProcess.on('unhandledRejection', h.unhandledRejectionHandler);
+      globalProcess.on('rejectionHandled', h.rejectionHandledHandler);
+      globalProcess.on('exit', h.processTerminationHandler);
     }
   }
 
   // Browser
+  const globalWindow = globalThis.window || undefined;
   if (
     errorTrapping !== 'none' &&
-    globalThis.window !== undefined &&
-    globalThis.window.addEventListener !== undefined
+    typeof globalWindow === 'object' &&
+    typeof globalWindow.addEventListener === 'function'
   ) {
-    globalThis.window.addEventListener('error', event => {
+    globalWindow.addEventListener('error', event => {
       event.preventDefault();
       // 'platform' and 'report' just log the reason.
       ourConsole.error(event.error);
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
-        globalThis.window.location.href = `about:blank`;
+        globalWindow.location.href = `about:blank`;
       }
     });
   }
-
   if (
     unhandledRejectionTrapping !== 'none' &&
-    globalThis.window !== undefined &&
-    globalThis.window.addEventListener !== undefined
+    typeof globalWindow === 'object' &&
+    typeof globalWindow.addEventListener === 'function'
   ) {
     const handleRejection = reason => {
       ourConsole.error('SES_UNHANDLED_REJECTION:', reason);
@@ -119,17 +174,17 @@ export const tameConsole = (
     const h = makeRejectionHandlers(handleRejection);
     if (h) {
       // Rejection handlers are supported.
-      globalThis.window.addEventListener('unhandledrejection', event => {
+      globalWindow.addEventListener('unhandledrejection', event => {
         event.preventDefault();
         h.unhandledRejectionHandler(event.reason, event.promise);
       });
 
-      globalThis.window.addEventListener('rejectionhandled', event => {
+      globalWindow.addEventListener('rejectionhandled', event => {
         event.preventDefault();
         h.rejectionHandledHandler(event.promise);
       });
 
-      globalThis.window.addEventListener('beforeunload', _event => {
+      globalWindow.addEventListener('beforeunload', _event => {
         h.processTerminationHandler();
       });
     }

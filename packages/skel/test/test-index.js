@@ -1,5 +1,5 @@
 import { test } from './prepare-test-env-ava.js';
 
-test('place holder', async t => {
-  t.pass();
+test('placeholder', async t => {
+  t.fail('TODO: add tests');
 });

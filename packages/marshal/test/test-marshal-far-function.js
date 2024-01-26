@@ -5,6 +5,11 @@ import { getInterfaceOf, passStyleOf, Far } from '@endo/pass-style';
 
 const { freeze, setPrototypeOf } = Object;
 
+const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
+  // eslint-disable-next-line no-undef
+  global.harden
+);
+
 test('Far functions', t => {
   t.notThrows(() => Far('arrow', a => a + 1), 'Far function');
   const arrow = Far('arrow', a => a + 1);
@@ -21,7 +26,6 @@ test('Acceptable far functions', t => {
 });
 
 test('Unacceptable far functions', t => {
-  // @ts-ignore `isFake` purposely omitted from type
   if (!harden.isFake) {
     t.throws(
       () =>

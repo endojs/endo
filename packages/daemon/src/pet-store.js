@@ -26,7 +26,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const petNames = new Map();
     /** @type {Map<string, Set<string>>} */
     const formulaIdentifiers = new Map();
-    /** @type {import('./types.js').Topic<unknown>} */
+    /** @type {import('./types.js').Topic<({ add: string, value: import('./types.js').FormulaIdentifierRecord } | { remove: string })>} */
     const changesTopic = makeChangeTopic();
 
     /** @param {string} petName */
@@ -105,11 +105,10 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = `${formulaIdentifier}\n`;
       await filePowers.writeFileText(petNamePath, petNameText);
-      const formularIdentifierRecord =
-        parseFormulaIdentifier(formulaIdentifier);
+      const formulaIdentifierRecord = parseFormulaIdentifier(formulaIdentifier);
       changesTopic.publisher.next({
         add: petName,
-        value: formularIdentifierRecord,
+        value: formulaIdentifierRecord,
       });
     };
 
@@ -133,11 +132,11 @@ export const makePetStoreMaker = (filePowers, locator) => {
         (async function* currentAndSubsequentNames() {
           const changes = changesTopic.subscribe();
           for (const name of [...petNames.keys()].sort()) {
-            const formularIdentifierRecord =
+            const formulaIdentifierRecord =
               formulaIdentifierRecordForName(name);
-            yield {
+            yield /** type {{ add:string, value: import('./types.js').FormulaIdentifierRecord }} */ {
               add: name,
-              value: formularIdentifierRecord,
+              value: formulaIdentifierRecord,
             };
           }
           yield* changes;
@@ -234,7 +233,11 @@ export const makePetStoreMaker = (filePowers, locator) => {
         formulaPetNames.add(toName);
       }
 
-      changesTopic.publisher.next({ add: toName });
+      const formulaIdentifierRecord = parseFormulaIdentifier(formulaIdentifier);
+      changesTopic.publisher.next({
+        add: toName,
+        value: formulaIdentifierRecord,
+      });
       changesTopic.publisher.next({ remove: fromName });
       // TODO consider retaining a backlog of overwritten names for recovery
     };

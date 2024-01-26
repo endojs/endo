@@ -1,18 +1,21 @@
-/* global globalThis */
 /// <reference types="ses"/>
-import { makeEnvironmentCaptor } from '@endo/env-options';
-import { objectMap } from '@endo/patterns';
+import { environmentOptionsListHas } from '@endo/env-options';
+import { objectMap } from '@endo/common/object-map.js';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
+const { Fail, quote: q } = assert;
 const { create, seal, freeze, defineProperty, values } = Object;
 
-const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
-const DEBUG = getEnvironmentOption('DEBUG', '');
-
 // Turn on to give each exo instance its own toStringTag value.
-const LABEL_INSTANCES = DEBUG.split(',').includes('label-instances');
+const LABEL_INSTANCES = environmentOptionsListHas('DEBUG', 'label-instances');
 
+/**
+ * @template {{}} T
+ * @param {T} proto
+ * @param {number} instanceCount
+ * @returns {T}
+ */
 const makeSelf = (proto, instanceCount) => {
   const self = create(proto);
   if (LABEL_INSTANCES) {
@@ -63,23 +66,109 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * @callback Revoker
+ * Template for function-valued options for exo class or exo class kit
+ * definitions, for receiving powers back at definition time. For example,
+ * ```js
+ * let amplify;
+ * const makeFoo = defineExoClassKit(
+ *   tag,
+ *   interfaceGuardKit,
+ *   initFn,
+ *   behaviorKit,
+ *   {
+ *     receiveAmplifier(a) { amplify = a; },
+ *   },
+ * );
+ * ```
+ * uses the `receiveAmplifier` option to receive, during the
+ * definition of this exo class kit, the power to amplify a facet of the kit.
+ *
+ * @template {any} P
+ * @typedef {(power: P) => void} ReceivePower
+ */
+
+/**
+ * The power to amplify a facet instance of the associated exo class kit
+ * into the record of all facets of this facet instance's cohort.
+ *
+ * @template {any} [F=any]
+ * @callback Amplify
+ * @param {any} exoFacet
+ * @returns {F}
+ */
+
+/**
+ * The power to test if a value is an instance of the
+ * associated exo class, or a facet instance of the
+ * associated exo class kit. In the later case, if a `facetName` is provided,
+ * then it tests only whether the argument is a facet instance of that
+ * facet of the associated exo class kit.
+ *
+ * @callback IsInstance
  * @param {any} exo
+ * @param {string} [facetName]
  * @returns {boolean}
  */
 
+// TODO Should we split FarClassOptions into distinct types for
+// class options vs class kit options? After all, `receiveAmplifier`
+// makes no sense for normal exo classes.
 /**
- * @callback ReceiveRevoker
- * @param {Revoker} revoke
- * @returns {void}
+ * Currently, this one options type is used both for regular exo classes
+ * as well as exo class kits. However, we may split these into distinct types
+ * in the future, as not all options make sense for both uses.
+ *
+ * @template {any} C
+ * @template {any} [F=any]
+ * @typedef {object} FarClassOptions
+ * @property {(context: C) => void} [finish]
+ * If provided, the `finish` function is called after the instance has been
+ * initialized and registered, but before it is returned. Try to avoid using
+ * `finish` if you can, as we think we'd like to deprecate and retire it.
+ * OTOH, if you encounter a compelling need, please let us know so we can
+ * revise our plans.
+ *
+ * @property {StateShape} [stateShape]
+ * If provided, it must be a RecordPattern, i.e., a CopyRecord which is also
+ * a Pattern. It thus has an exactly defined set of property names and
+ * a Pattern as the value of each property. This is supposed to be an invariant
+ * on the properties of an instance state record.
+ * TODO Though note that only the virtual and durable exos currently
+ * enforce the `stateShape` invariant. The heap exos defined in this
+ * package currently ignore `stateShape`, but will enforce this in the future.
+ *
+ * @property {ReceivePower<Amplify<F>>} [receiveAmplifier]
+ * If a `receiveAmplifier` function is provided, it will be called during
+ * definition of the exo class kit with an `Amplify` function. If called
+ * during the definition of a normal exo or exo class, it will throw, since
+ * only exo kits can be amplified.
+ * An `Amplify` function is a function that takes a facet instance of
+ * this class kit as an argument, in which case it will return the facets
+ * record, giving access to all the facet instances of the same cohort.
+ *
+ * @property {ReceivePower<IsInstance>} [receiveInstanceTester]
+ * If a `receiveInstanceTester` function is provided, it will be called
+ * during the definition of the exo class or exo class kit with an
+ * `IsInstance` function. The first argument of `IsInstance`
+ * is the value to be tested. When it may be a facet instance of an
+ * exo class kit, the optional second argument, if provided, is
+ * a `facetName`. In that case, the function tests only if the first
+ * argument is an instance of that facet of the associated exo class kit.
  */
 
 /**
- * @template C
- * @typedef {object} FarClassOptions
- * @property {(context: C) => void} [finish]
- * @property {StateShape} [stateShape]
- * @property {ReceiveRevoker} [receiveRevoker]
+ * @template {Methods} M
+ * @typedef {M & import('@endo/eventual-send').RemotableBrand<{}, M>} Farable
+ */
+
+/**
+ * @template {Methods} M
+ * @typedef {Farable<M & import('./get-interface.js').GetInterfaceGuard<M>>} Guarded
+ */
+
+/**
+ * @template {Record<FacetName, Methods>} F
+ * @typedef {{ [K in keyof F]: Guarded<F[K]> }} GuardedKit
  */
 
 /**
@@ -90,9 +179,9 @@ export const initEmpty = () => emptyRecord;
  *   [K in keyof M]: import("@endo/patterns").MethodGuard
  * }> | undefined} interfaceGuard
  * @param {I} init
- * @param {M & ThisType<{ self: M, state: ReturnType<I> }>} methods
+ * @param {M & ThisType<{ self: Guarded<M>, state: ReturnType<I> }>} methods
  * @param {FarClassOptions<ClassContext<ReturnType<I>, M>>} [options]
- * @returns {(...args: Parameters<I>) => (M & import('@endo/eventual-send').RemotableBrand<{}, M>)}
+ * @returns {(...args: Parameters<I>) => Guarded<M>}
  */
 export const defineExoClass = (
   tag,
@@ -102,7 +191,14 @@ export const defineExoClass = (
   options = {},
 ) => {
   harden(methods);
-  const { finish = undefined, receiveRevoker = undefined } = options;
+  const {
+    finish = undefined,
+    receiveAmplifier = undefined,
+    receiveInstanceTester = undefined,
+  } = options;
+  receiveAmplifier === undefined ||
+    Fail`Only facets of an exo class kit can be amplified ${q(tag)}`;
+
   /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
   const proto = defendPrototype(
@@ -120,7 +216,6 @@ export const defineExoClass = (
     // Be careful not to freeze the state record
     const state = seal(init(...args));
     instanceCount += 1;
-    /** @type {M} */
     const self = makeSelf(proto, instanceCount);
 
     // Be careful not to freeze the state record
@@ -130,15 +225,19 @@ export const defineExoClass = (
     if (finish) {
       finish(context);
     }
-    return /** @type {M & import('@endo/eventual-send').RemotableBrand<{}, M>} */ (
-      self
-    );
+    return self;
   };
 
-  if (receiveRevoker) {
-    const revoke = self => contextMap.delete(self);
-    harden(revoke);
-    receiveRevoker(revoke);
+  if (receiveInstanceTester) {
+    const isInstance = (exo, facetName = undefined) => {
+      facetName === undefined ||
+        Fail`facetName can only be used with an exo class kit: ${q(
+          tag,
+        )} has no facet ${q(facetName)}`;
+      return contextMap.has(exo);
+    };
+    harden(isInstance);
+    receiveInstanceTester(isInstance);
   }
 
   return harden(makeInstance);
@@ -149,13 +248,16 @@ harden(defineExoClass);
  * @template {(...args: any[]) => any} I init function
  * @template {Record<FacetName, Methods>} F facet methods
  * @param {string} tag
- * @param {{ [K in keyof F]: import("@endo/patterns").InterfaceGuard<{
- *   [M in keyof F[K]]: import("@endo/patterns").MethodGuard;
- * }> } | undefined} interfaceGuardKit
+ * @param {{ [K in keyof F]:
+ *   import('@endo/patterns').InterfaceGuard<{[M in keyof F[K]]: import('@endo/patterns').MethodGuard; }>
+ * } | undefined} interfaceGuardKit
  * @param {I} init
- * @param {F & ThisType<{ facets: F, state: ReturnType<I> }> } methodsKit
- * @param {FarClassOptions<KitContext<ReturnType<I>,F>>} [options]
- * @returns {(...args: Parameters<I>) => F}
+ * @param {F & { [K in keyof F]: ThisType<{ facets: GuardedKit<F>, state: ReturnType<I> }> }} methodsKit
+ * @param {FarClassOptions<
+ *   KitContext<ReturnType<I>, GuardedKit<F>>,
+ *   GuardedKit<F>
+ * >} [options]
+ * @returns {(...args: Parameters<I>) => GuardedKit<F>}
  */
 export const defineExoClassKit = (
   tag,
@@ -165,7 +267,11 @@ export const defineExoClassKit = (
   options = {},
 ) => {
   harden(methodsKit);
-  const { finish = undefined, receiveRevoker = undefined } = options;
+  const {
+    finish = undefined,
+    receiveAmplifier = undefined,
+    receiveInstanceTester = undefined,
+  } = options;
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
     contextMapKit,
@@ -186,8 +292,8 @@ export const defineExoClassKit = (
     // Be careful not to freeze the state record
     const state = seal(init(...args));
     // Don't freeze context until we add facets
-    /** @type {KitContext<ReturnType<I>,F>} */
-    const context = { state, facets: {} };
+    /** @type {{ state: ReturnType<I>, facets: unknown }} */
+    const context = { state, facets: null };
     instanceCount += 1;
     const facets = objectMap(prototypeKit, (proto, facetName) => {
       const self = makeSelf(proto, instanceCount);
@@ -200,14 +306,38 @@ export const defineExoClassKit = (
     if (finish) {
       finish(context);
     }
-    return context.facets;
+    return /** @type {GuardedKit<F>} */ (context.facets);
   };
 
-  if (receiveRevoker) {
-    const revoke = aFacet =>
-      values(contextMapKit).some(contextMap => contextMap.delete(aFacet));
-    harden(revoke);
-    receiveRevoker(revoke);
+  if (receiveAmplifier) {
+    const amplify = exoFacet => {
+      for (const contextMap of values(contextMapKit)) {
+        if (contextMap.has(exoFacet)) {
+          const { facets } = contextMap.get(exoFacet);
+          return facets;
+        }
+      }
+      throw Fail`Must be a facet of ${q(tag)}: ${exoFacet}`;
+    };
+    harden(amplify);
+    receiveAmplifier(amplify);
+  }
+
+  if (receiveInstanceTester) {
+    const isInstance = (exoFacet, facetName = undefined) => {
+      if (facetName === undefined) {
+        return values(contextMapKit).some(contextMap =>
+          contextMap.has(exoFacet),
+        );
+      }
+      assert.typeof(facetName, 'string');
+      const contextMap = contextMapKit[facetName];
+      contextMap !== undefined ||
+        Fail`exo class kit ${q(tag)} has no facet named ${q(facetName)}`;
+      return contextMap.has(exoFacet);
+    };
+    harden(isInstance);
+    receiveInstanceTester(isInstance);
   }
 
   return harden(makeInstanceKit);
@@ -222,7 +352,7 @@ harden(defineExoClassKit);
  * }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
  * @param {FarClassOptions<ClassContext<{},T>>} [options]
- * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
+ * @returns {Guarded<T>}
  */
 export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {
   const makeInstance = defineExoClass(

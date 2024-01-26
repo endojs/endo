@@ -59,7 +59,7 @@ export const run = async ({
           args.unshift(filePath);
         }
 
-        const importUrl = url.pathToFileURL(importPath);
+        const importUrl = url.pathToFileURL(importPath).href;
         const namespace = await import(importUrl);
         const result = await namespace.main(powersP, ...args);
         if (result !== undefined) {

@@ -1,3 +1,5 @@
+import { toStringTagSymbol } from './commons.js';
+
 /**
  * @file Exports {@code enablements}, a recursively defined
  * JSON record defining the optimum set of intrinsics properties
@@ -73,6 +75,13 @@ export const minEnablements = {
 
   '%ErrorPrototype%': {
     name: true, // set by "precond", "ava", "node-fetch"
+  },
+  '%IteratorPrototype%': {
+    toString: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    constructor: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    [toStringTagSymbol]: true,
   },
 };
 
@@ -152,6 +161,10 @@ export const moderateEnablements = {
 
   '%IteratorPrototype%': {
     toString: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    constructor: true,
+    // https://github.com/tc39/proposal-iterator-helpers
+    [toStringTagSymbol]: true,
   },
 };
 
@@ -193,7 +206,7 @@ export const severeEnablements = {
    * With the `'*'` setting here, all the properties inherited from
    * `Object.prototype` are accessors, creating an unusable display as seen
    * at As explained at
-   * https://github.com/endojs/endo/blob/master/packages/ses/lockdown-options.md#overridetaming-options
+   * https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#overridetaming-options
    * Open the triangles at the bottom of that section.
    */
   '%ObjectPrototype%': '*',

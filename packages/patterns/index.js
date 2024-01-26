@@ -61,16 +61,33 @@ export {
   isAwaitArgGuard,
   assertAwaitArgGuard,
   getAwaitArgGuardPayload,
+  isRawGuard,
+  assertRawGuard,
   assertMethodGuard,
   getMethodGuardPayload,
   getInterfaceMethodKeys,
   assertInterfaceGuard,
   getInterfaceGuardPayload,
+  kindOf,
 } from './src/patterns/patternMatchers.js';
-
-// ////////////////// Temporary, until these find their proper home ////////////
-
-export { listDifference, objectMap } from './src/utils.js';
 
 // eslint-disable-next-line import/export
 export * from './src/types.js';
+
+// /////////////////////////// Deprecated //////////////////////////////////////
+
+export {
+  /**
+   * @deprecated
+   * Import directly from `@endo/common/list-difference.js` instead.
+   */
+  listDifference,
+} from '@endo/common/list-difference.js';
+
+export {
+  /**
+   * @deprecated
+   * Import directly from `@endo/common/object-map.js` instead.
+   */
+  objectMap,
+} from '@endo/common/object-map.js';

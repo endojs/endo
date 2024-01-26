@@ -3,7 +3,7 @@
 This is an explainer for the module system configuration of the SES shim
 package through some properties of `package.json`.
 
-## "type": "module",
+## "type": "module"
 
 For Node.js, this means that any `.js` file will be interpreted as if it were
 `.mjs`, meaning a JavaScript module / ESM, as opposed to `.cjs` which is
@@ -14,7 +14,7 @@ and translates all `.js` files down from ESM to CommonJS.
 A patch to `esm` that is in the Agoric SDK repository allows `.js`
 files in dependencies to break through to the underlying Node.js ESM.
 
-## "main": "./dist/ses.cjs",
+## "main": "./dist/ses.cjs"
 
 SES provides its own translation from its own ESM sources to CommonJS, emitted
 by `yarn build`, specifically `scripts/bundle.js`.
@@ -35,7 +35,7 @@ The `main` property has been supported by the npm ecosystem since the
 earliest versions, so every version of Node.js and every tool will look
 here if nothing else in `package.json` overrides it.
 
-## "module": "./index.js",
+## "module": "./index.js"
 
 Some tools like WebPack, Parcel and the ESM emulation provided by `node -r esm`
 use this instead of `main` if it is present.
@@ -49,7 +49,7 @@ non-ASCII characters (we use zero-width-joiner to avoid collisions with other
 names in scope, then censor the use of zero-width-joiner in source).
 Most tools tolerate this, but WebPack does not.
 
-## "unpkg": "./dist/ses.umd.js",
+## "unpkg": "./dist/ses.umd.js"
 
 The [Unpkg][] CDN uses this property to direct usage of SES to a precompiled
 module in "Universal Module Definition" format.
@@ -60,7 +60,7 @@ a `<script>` tag.
 
 [Unpkg]: https://unpkg.com/
 
-## "types": "./index.d.ts",
+## "types": "./types.d.ts"
 
 TypeScript uses this to transport type definitions.
 These include type declarations (which are scoped like module exports)
@@ -69,7 +69,7 @@ A pragma can be used in any JavaScript file to import the global type
 definitions from SES into environments that assume SES has been initialized and
 do not directly import the shim.
 
-```
+```js
 /// <reference types="ses"/>
 ```
 
@@ -102,11 +102,17 @@ We have in the past experimented with using the precompiled bundle of SES here
 (`./dist/ses.cjs` or `./dist/ses.umd.js`), but found that this interacted
 poorly with Endo, because an Endo bundle contains identifiers that SES censors.
 
-## "require": "./dist/ses.cjs",
+## "require": "./dist/ses.cjs"
 
 Node.js and other tools will use this file when importing `ses` as an CommonJS module.
 
-## "./lockdown": ...
+## "types": "./types.d.ts"
+
+Only applicable for TypeScript v4.7+ consumers configured with `node16` or
+`nodenext` [module resolution][]. This serves the same purpose as the `types`
+prop at the top level.
+
+## "./lockdown"
 
 The most recent SES only provides one API, but a previous version
 exported a separate `ses/lockdown` layer.
@@ -115,7 +121,7 @@ is deprecated.
 
 The value is the same as for `"."` above.
 
-## "./tools.js": ...
+## "./tools.js"
 
 Exposes tools that are useful for creating hardened JavaScript environments that move certain responsibilities from `eval` to generated code.
 
@@ -125,3 +131,5 @@ Tools like Svelte need to access the `package.json` of every package in an
 application.
 Node.js versions with JavaScript module support require this "module" to be
 made expressly public.
+
+[module resolution]: https://www.typescriptlang.org/docs/handbook/modules/theory.html#module-resolution

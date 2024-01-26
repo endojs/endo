@@ -10,7 +10,7 @@ let abandon;
 // below). Currently it only checks for the `process.abort` or `process.exit`
 // found on Node. It should also sniff for a vat terminating function expected
 // to be found within the start compartment of SwingSet vats. What else?
-if (typeof process === 'object') {
+if (typeof process === 'object' && process) {
   abandon = process.abort || process.exit;
 }
 let raise;

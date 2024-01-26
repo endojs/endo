@@ -1,6 +1,6 @@
 # Initial setup
 
-```
+```sh
 git clone git@github.com:endojs/endo.git
 cd endo
 yarn
@@ -18,6 +18,10 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
 
 # Making a Release
 
+* Review the [next release](
+https://github.com/endojs/endo/labels/next-release
+) label for additional tasks or pending changes particular to this release.
+
 * Do not release from a Git workspace.
   In a Git workspace, `.git` is a file and not a directory.
   At time of writing, Lerna does not account for Git workspaces when it looks
@@ -29,6 +33,16 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
   now=`date -u +%Y-%m-%d-%H-%M-%S`
   git checkout -b release-$now
   ```
+
+* Generate types.
+
+  ```sh
+  yarn lerna run build:types
+  ```
+
+  We generate types from the bottom up before publishing because this allows
+  each package to rely on the generated types of its dependencies in the
+  workspace.
 
 * Create the release CHANGELOGs.
 
@@ -150,6 +164,12 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
 
   ```sh
   git tag -l | egrep -e '@[0-9]+\.[0-9]+\.[0-9]+$' | xargs git push origin
+  ```
+
+* Clean up generated types.
+
+  ```sh
+  yarn lerna run clean:types
   ```
 
 ## More information

@@ -3,6 +3,56 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/ses@1.0.1...ses@1.1.0) (2024-01-18)
+
+
+### Features
+
+* **env-options:** env-options conveniences for common cases ([#1710](https://github.com/endojs/endo/issues/1710)) ([4c686f6](https://github.com/endojs/endo/commit/4c686f6c9c3c54dbf73e8e7cd80a4dfebcbc61df))
+* **ses:** Anticipate set-methods proposal ([#1970](https://github.com/endojs/endo/issues/1970)) ([4a4f9fe](https://github.com/endojs/endo/commit/4a4f9fe8dbb30921765481f37da6bf8a2af3cbfa))
+* **ses:** Fail fast when a required process.exit or process.abort method is missing ([5d637d0](https://github.com/endojs/endo/commit/5d637d046fdc6354cef25514aea4e3aa37fa4792))
+* **ses:** group removal cleanup diagnostics ([173ec8e](https://github.com/endojs/endo/commit/173ec8e458f4181a36274dedfe3ceb93dc6f2d1d))
+* **ses:** harden some Node.js intrinsics ([148f101](https://github.com/endojs/endo/commit/148f101cf593a8b77410ec38fb3c91504846385d))
+
+
+### Bug Fixes
+
+* **ses:** Add `@[@to](https://github.com/to)StringTag` property to `proxiedExports` ([639de2a](https://github.com/endojs/endo/commit/639de2a68f38970a02a80a18cf50b972ec96e5ad))
+* **ses:** handle properties that are already override protected ([#1969](https://github.com/endojs/endo/issues/1969)) ([5792949](https://github.com/endojs/endo/commit/579294902f85fba6b171e2199a44ab7522258f46))
+* **ses:** Remove link to stale Read the Docs ([58864b7](https://github.com/endojs/endo/commit/58864b7c3cffa9521d1e990dd3c86d609adcffde)), closes [#1239](https://github.com/endojs/endo/issues/1239)
+* **ses:** Support an incomplete shimmed globalEnv.process ([6e92951](https://github.com/endojs/endo/commit/6e92951912ffde3603437cc2f0a8c31879467ff7)), closes [#1917](https://github.com/endojs/endo/issues/1917)
+* **ses:** Suppress bug [#1973](https://github.com/endojs/endo/issues/1973) until it is fixed ([#1974](https://github.com/endojs/endo/issues/1974)) ([03074ce](https://github.com/endojs/endo/commit/03074ce5eddfb391e1d690b5b5fa4113ea4b445e))
+
+
+
+### [1.0.1](https://github.com/endojs/endo/compare/ses@1.0.0...ses@1.0.1) (2023-12-20)
+
+**Note:** Version bump only for package ses
+
+
+
+
+
+## [1.0.0](https://github.com/endojs/endo/compare/ses@0.18.8...ses@1.0.0) (2023-12-12)
+
+
+### Features
+
+* **ses:** add SES version ([db17743](https://github.com/endojs/endo/commit/db17743885e7a221eaf3f6cf5e811a1a1d97788f))
+* **ses:** Freeze evaluators, Compartment constructor and Symbol ([1016375](https://github.com/endojs/endo/commit/1016375f86082e927e7906f11046bb53d9025d68))
+
+
+### Bug Fixes
+
+* enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
+* **ses:** Fake a good-enough console ([a2fd851](https://github.com/endojs/endo/commit/a2fd85145b6c0e316b2205090ba49b60974d10e0)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+* **ses:** fix ThirdPartyStaticModuleInterface type ([fe38c40](https://github.com/endojs/endo/commit/fe38c4095c059ed9550aa682a0de5ab958d3522e))
+* **ses:** fix types export for newer module resolutions ([9cc3dd5](https://github.com/endojs/endo/commit/9cc3dd5551be369d854d5a4c3724b96dc8cc6691)), closes [#1803](https://github.com/endojs/endo/issues/1803)
+* **ses:** refactor import assert {type: json} to fs ([d5741a4](https://github.com/endojs/endo/commit/d5741a44450bb31150cf90e9a0d12eecc836503a))
+* **ses:** Support absence of console ([fece445](https://github.com/endojs/endo/commit/fece445f0191e41c1324d26d83d830dfa8822400)), closes [#1819](https://github.com/endojs/endo/issues/1819)
+
+
+
 ### [0.18.8](https://github.com/endojs/endo/compare/ses@0.18.7...ses@0.18.8) (2023-09-12)
 
 

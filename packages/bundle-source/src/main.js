@@ -1,15 +1,16 @@
+// @ts-check
 import { jsOpts, jsonOpts, makeNodeBundleCache } from '../cache.js';
 
 const USAGE =
   'bundle-source [--cache-js | --cache-json] cache/ module1.js bundleName1 module2.js bundleName2 ...';
 
 /**
- * @param {[string, string, string[]]} args
+ * @param {[to: string, dest: string, ...rest: string[]]} args
  * @param {object} powers
  * @param {(spec: string) => any} powers.loadModule
  * @param {number} powers.pid
  * @param {import('../cache.js').Logger} [powers.log]
- * @returns {void}
+ * @returns {Promise<void>}
  */
 export const main = async (args, { loadModule, pid, log }) => {
   const [to, dest, ...pairs] = args;

@@ -1121,6 +1121,20 @@ export const permitted = {
     values: fn,
     '@@iterator': fn,
     '@@toStringTag': 'string',
+    // See https://github.com/tc39/proposal-set-methods
+    intersection: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    union: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    difference: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    symmetricDifference: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    isSubsetOf: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    isSupersetOf: fn,
+    // See https://github.com/tc39/proposal-set-methods
+    isDisjointFrom: fn,
   },
 
   '%SetIteratorPrototype%': {
@@ -1414,6 +1428,8 @@ export const permitted = {
     race: fn,
     reject: fn,
     resolve: fn,
+    // https://github.com/tc39/proposal-promise-with-resolvers
+    withResolvers: fn,
     '@@species': getter,
   },
 
@@ -1500,12 +1516,11 @@ export const permitted = {
     evaluate: fn,
     globalThis: getter,
     name: getter,
-    // Should this be proposed?
-    toString: fn,
     import: asyncFn,
     load: asyncFn,
     importNow: fn,
     module: fn,
+    '@@toStringTag': 'string',
   },
 
   lockdown: fn,

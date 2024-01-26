@@ -1,3 +1,5 @@
+export {};
+
 /** @typedef {string} CapTPSlot */
 
 /**

@@ -1,13 +1,11 @@
 /* global globalThis */
 
-import { freeze, getPrototypeOf, is } from '../../src/commons.js';
-import { loggedErrorHandler, assert } from '../../src/error/assert.js';
+import { freeze, getPrototypeOf } from '../../src/commons.js';
+import { loggedErrorHandler } from '../../src/error/assert.js';
 import {
   makeLoggingConsoleKit,
   makeCausalConsole,
 } from '../../src/error/console.js';
-
-const { quote: q } = assert;
 
 // For our internal debugging purposes
 // const internalDebugConsole = console;
@@ -19,11 +17,6 @@ const compareLogs = freeze((t, log, goldenLog) => {
   t.is(log.length, goldenLog.length, 'wrong log length');
   log.forEach((logRecord, i) => {
     const goldenRecord = goldenLog[i];
-    t.is(
-      logRecord.length,
-      goldenRecord.length,
-      `wrong length of log record ${i}`,
-    );
     logRecord.forEach((logEntry, j) => {
       const goldenEntry = goldenRecord[j];
       if (
@@ -33,16 +26,14 @@ const compareLogs = freeze((t, log, goldenLog) => {
       ) {
         t.assert(logEntry instanceof goldenEntry, 'not the right error');
       } else {
-        // tap uses `===` instead of `Object.is`.
-        // Assuming ava does the right thing, switch back to this when
-        // switching back to ava.
-        // t.is(logEntry, goldenEntry);
-        t.assert(
-          is(logEntry, goldenEntry),
-          `${q(logEntry)} not same as ${q(goldenEntry)}`,
-        );
+        t.is(logEntry, goldenEntry);
       }
     });
+    t.is(
+      logRecord.length,
+      goldenRecord.length,
+      `wrong length of log record ${i}`,
+    );
   });
 });
 

@@ -60,6 +60,10 @@ jobs:
       - name: Run yarn lint
         run: yarn lint
 
+      # build the API docs to verify it works
+      - name: build API docs
+        run: yarn docs
+
   test:
     name: test
 
@@ -119,9 +123,9 @@ jobs:
           - '16.5' # last version before unconditional promise fast-path
           - '16.6' # first version after unconditional promise fast-path
           - '18' # Active LTS
-          # UNTIL https://github.com/nodejs/node/issues/49497 is released (probably 20.6.1)
-          # - '20' # Future LTS
-          - '20.5' # last good version before breakage in 20.6.0
+          # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
+          # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
+          - '20.7' # Future LTS
         platform:
           - ubuntu-latest
 
@@ -397,6 +401,12 @@ jobs:
       - name: build
         run: yarn run build
 
+      - name: build:types
+        run: yarn lerna run build:types
+
       - name: pack
-        # Concurrency is 1 to avoid bizarre cross-package contamination.
-        run: yarn run lerna exec --concurrency=1 yarn pack
+        # Cannot use yarn lerna run pack
+        run: yarn lerna exec yarn pack
+
+      - name: clean:types
+        run: yarn lerna run clean:types

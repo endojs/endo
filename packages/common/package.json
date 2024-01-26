@@ -1,0 +1,75 @@
+{
+  "name": "@endo/common",
+  "version": "1.0.2",
+  "description": "common low level utilities",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/common#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    "./apply-labeling-error.js": "./apply-labeling-error.js",
+    "./from-unique-entries.js": "./from-unique-entries.js",
+    "./ident-checker.js": "./ident-checker.js",
+    "./list-difference.js": "./list-difference.js",
+    "./make-array-iterator.js": "./make-array-iterator.js",
+    "./make-iterator.js": "./make-iterator.js",
+    "./object-map.js": "./object-map.js",
+    "./object-meta-assign.js": "./object-meta-assign.js",
+    "./object-meta-map.js": "./object-meta-map.js",
+    "./throw-labeled.js": "./throw-labeled.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-check": "yarn lint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc",
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@endo/eventual-send": "^1.1.0",
+    "@endo/promise-kit": "^1.0.2"
+  },
+  "devDependencies": {
+    "@endo/lockdown": "^1.0.2",
+    "@endo/ses-ava": "^1.1.0",
+    "ava": "^5.3.0",
+    "c8": "^7.14.0",
+    "tsd": "^0.28.1"
+  },
+  "files": [
+    "*.js",
+    "*.ts",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}

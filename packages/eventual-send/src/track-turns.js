@@ -1,7 +1,8 @@
 /* global globalThis */
-import { makeEnvironmentCaptor } from '@endo/env-options';
-
-const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
+import {
+  getEnvironmentOption,
+  environmentOptionsListHas,
+} from '@endo/env-options';
 
 // NOTE: We can't import these because they're not in scope before lockdown.
 // import { assert, details as X, Fail } from '@agoric/assert';
@@ -17,18 +18,13 @@ let hiddenPriorError;
 let hiddenCurrentTurn = 0;
 let hiddenCurrentEvent = 0;
 
-const DEBUG = getEnvironmentOption('DEBUG', '');
-
 // Turn on if you seem to be losing error logging at the top of the event loop
-const VERBOSE = DEBUG.split(':').includes('track-turns');
+const VERBOSE = environmentOptionsListHas('DEBUG', 'track-turns');
 
 // Track-turns is disabled by default and can be enabled by an environment
 // option.
-const TRACK_TURNS = getEnvironmentOption('TRACK_TURNS', 'disabled');
-if (TRACK_TURNS !== 'enabled' && TRACK_TURNS !== 'disabled') {
-  throw TypeError(`unrecognized TRACK_TURNS ${JSON.stringify(TRACK_TURNS)}`);
-}
-const ENABLED = (TRACK_TURNS || 'disabled') === 'enabled';
+const ENABLED =
+  getEnvironmentOption('TRACK_TURNS', 'disabled', ['enabled']) === 'enabled';
 
 // We hoist the following functions out of trackTurns() to discourage the
 // closures from holding onto 'args' or 'func' longer than necessary,

@@ -9,7 +9,7 @@ import { makeNetstringCapTP } from './connection.js';
  * @param {string} name
  * @param {string} sockPath
  * @param {Promise<void>} cancelled
- * @param {TBootstrap=} bootstrap
+ * @param {TBootstrap} [bootstrap]
  */
 export const makeEndoClient = async (name, sockPath, cancelled, bootstrap) => {
   const conn = net.connect(sockPath);

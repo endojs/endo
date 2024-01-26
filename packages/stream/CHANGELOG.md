@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.2](https://github.com/endojs/endo/compare/@endo/stream@1.0.1...@endo/stream@1.0.2) (2024-01-18)
+
+
+### Bug Fixes
+
+* Explicitly harden prototypes ([3f98274](https://github.com/endojs/endo/commit/3f9827429dc79105230e8f5377dcc6a14038e9f5))
+
+
+
+### [1.0.1](https://github.com/endojs/endo/compare/@endo/stream@1.0.0...@endo/stream@1.0.1) (2023-12-20)
+
+**Note:** Version bump only for package @endo/stream
+
+
+
+
+
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/stream@0.3.29...@endo/stream@1.0.0) (2023-12-12)
+
+
+### Bug Fixes
+
+* Adjust type generation in release process and CI ([9465be3](https://github.com/endojs/endo/commit/9465be369e53167815ca444f6293a8e9eb48501d))
+* enable compatibility with node16/nodenext module resolution ([9063c47](https://github.com/endojs/endo/commit/9063c47a2016a8ed3ae371646c7b81e47006a091))
+
+
+
 ### [0.3.29](https://github.com/endojs/endo/compare/@endo/stream@0.3.28...@endo/stream@0.3.29) (2023-09-12)
 
 **Note:** Version bump only for package @endo/stream

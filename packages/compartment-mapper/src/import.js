@@ -115,7 +115,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {ExecuteOptions & ArchiveOptions} [options]
- * @returns {Promise<object>} the object of the imported modules exported
+ * @returns {Promise<import('./types.js').SomeObject>} the object of the imported modules exported
  * names.
  */
 export const importLocation = async (

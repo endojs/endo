@@ -302,7 +302,16 @@ ${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
 
 ${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
 
-  const namespaces = cells.map(cells => Object.freeze(Object.create(null, cells)));
+const namespaces = cells.map(cells => Object.freeze(Object.create(null, {
+    ...cells,
+    // Make this appear like an ESM module namespace object.
+    [Symbol.toStringTag]: {
+      value: 'Module',
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    },
+  })));
 
   for (let index = 0; index < namespaces.length; index += 1) {
     cells[index]['*'] = cell('*', namespaces[index]);

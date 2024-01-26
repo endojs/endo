@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global process */
 /* eslint-disable no-await-in-loop */
 

@@ -132,6 +132,11 @@ export const wrap = ({
   });
 
   const require = (/** @type {string} */ importSpecifier) => {
+    if (!has(resolvedImports, importSpecifier)) {
+      throw new Error(
+        `Cannot find module "${importSpecifier}" in "${location}"`,
+      );
+    }
     const namespace = compartment.importNow(resolvedImports[importSpecifier]);
     // If you read this file carefully, you'll see it's not possible for a cjs module to not have the default anymore.
     // It's currently possible to require modules that were not created by this file though.

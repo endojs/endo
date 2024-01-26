@@ -3,6 +3,40 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.0.1](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.0.0...@endo/eslint-plugin@2.0.1) (2024-01-18)
+
+**Note:** Version bump only for package @endo/eslint-plugin
+
+
+
+
+
+## [2.0.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@1.0.0...@endo/eslint-plugin@2.0.0) (2023-12-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eslint-plugin:** Disallow ?? and ?. operators
+
+### Features
+
+* **eslint-plugin:** Disallow ?? and ?. operators ([15b543a](https://github.com/endojs/endo/commit/15b543ace415c8c5848bbf50aac758bf94d4ce09))
+
+
+### Bug Fixes
+
+* **eslint-plugin:** Relax null coalescing and optional chaining to warning ([3ffb01e](https://github.com/endojs/endo/commit/3ffb01efc775a37a909c5a3bc3bc07d338ba65e5))
+
+
+
+## [1.0.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.5.2...@endo/eslint-plugin@1.0.0) (2023-12-12)
+
+**Note:** Version bump only for package @endo/eslint-plugin
+
+
+
+
+
 ### [0.5.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.5.1...@endo/eslint-plugin@0.5.2) (2023-09-12)
 
 **Note:** Version bump only for package @endo/eslint-plugin

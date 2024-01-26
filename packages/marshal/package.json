@@ -1,16 +1,20 @@
 {
   "name": "@endo/marshal",
-  "version": "0.8.9",
+  "version": "1.1.0",
   "description": "marshal: encoding and deconding of Passable subgraphs",
   "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
   "directories": {
     "test": "test"
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
@@ -19,7 +23,7 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint-check": "yarn lint",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "lint:eslint": "eslint '**/*.js'"
   },
   "repository": {
@@ -36,15 +40,15 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/eventual-send": "^0.17.6",
-    "@endo/nat": "^4.1.31",
-    "@endo/pass-style": "^0.1.7",
-    "@endo/promise-kit": "^0.2.60"
+    "@endo/eventual-send": "^1.1.0",
+    "@endo/nat": "^5.0.2",
+    "@endo/pass-style": "^1.1.0",
+    "@endo/promise-kit": "^1.0.2"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.60",
-    "@endo/lockdown": "^0.1.32",
-    "@endo/ses-ava": "^0.2.44",
+    "@endo/init": "^1.0.2",
+    "@endo/lockdown": "^1.0.2",
+    "@endo/ses-ava": "^1.1.0",
     "@fast-check/ava": "^1.1.5",
     "ava": "^5.3.0",
     "c8": "^7.14.0"
@@ -71,5 +75,8 @@
       "test/**/test-*.js"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 85.3
   }
 }

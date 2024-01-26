@@ -1,26 +1,43 @@
+// @ts-check
 // eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
+  GET_INTERFACE_GUARD,
   defineExoClass,
   defineExoClassKit,
   makeExo,
-} from '../src/exo-makers.js';
-import { GET_INTERFACE_GUARD } from '../src/exo-tools.js';
+} from '../index.js';
 
 const NoExtraI = M.interface('NoExtra', {
   foo: M.call().returns(),
 });
 
 test('what happens with extra arguments', t => {
-  const exo = makeExo('WithExtra', NoExtraI, {
+  const exo = makeExo('NoExtraArgs', NoExtraI, {
     foo(x) {
       t.is(x, undefined);
     },
   });
-  exo.foo('an extra arg');
+  t.throws(() => exo.foo('an extra arg'), {
+    message:
+      '"In \\"foo\\" method of (NoExtraArgs)" accepts at most 0 arguments, not 1: ["an extra arg"]',
+  });
+});
+
+const OptionalArrayI = M.interface('OptionalArray', {
+  foo: M.callWhen().optional(M.arrayOf(M.any())).returns(),
+});
+
+test('callWhen-guarded method called without optional array argument', async t => {
+  const exo = makeExo('WithNoOption', OptionalArrayI, {
+    async foo(arr) {
+      t.is(arr, undefined);
+    },
+  });
+  await t.notThrowsAsync(() => exo.foo());
 });
 
 const UpCounterI = M.interface('UpCounter', {
@@ -41,7 +58,7 @@ test('test defineExoClass', t => {
   const makeUpCounter = defineExoClass(
     'UpCounter',
     UpCounterI,
-    /** @param {number} x */
+    /** @param {number} [x] */
     (x = 0) => ({ x }),
     {
       incr(y = 1) {
@@ -77,6 +94,7 @@ test('test defineExoClass', t => {
   });
   const foo = makeFoo();
   t.deepEqual(foo[GET_INTERFACE_GUARD](), FooI);
+  // @ts-expect-error intentional for test
   t.throws(() => foo[symbolic]('invalid arg'), {
     message:
       'In "[Symbol(symbolic)]" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
@@ -87,7 +105,7 @@ test('test defineExoClassKit', t => {
   const makeCounterKit = defineExoClassKit(
     'Counter',
     { up: UpCounterI, down: DownCounterI },
-    /** @param {number} x */
+    /** @param {number} [x] */
     (x = 0) => ({ x }),
     {
       up: {
@@ -170,9 +188,7 @@ test('missing interface', t => {
     message:
       'In "makeSayHello" method of (greeterMaker): result: "[Symbol(passStyle)]" property expected: "[Function <anon>]"',
   });
-  t.throws(() => greeterMaker[GET_INTERFACE_GUARD](), {
-    message: 'greeterMaker[GET_INTERFACE_GUARD] is not a function',
-  });
+  t.is(greeterMaker[GET_INTERFACE_GUARD](), undefined);
 });
 
 const SloppyGreeterI = M.interface('greeter', {}, { sloppy: true });
@@ -203,6 +219,115 @@ test('sloppy option', t => {
   );
 });
 
+const makeBehavior = () => ({
+  behavior() {
+    return 'something';
+  },
+});
+
+const PassableGreeterI = M.interface(
+  'greeter',
+  {},
+  { defaultGuards: 'passable' },
+);
+test('passable guards', t => {
+  const greeter = makeExo('greeter', PassableGreeterI, {
+    sayHello(immutabe) {
+      t.is(Object.isFrozen(immutabe), true);
+      return 'hello';
+    },
+  });
+
+  const mutable = {};
+  t.is(greeter.sayHello(mutable), 'hello', `passableGreeter can sayHello`);
+  t.is(Object.isFrozen(mutable), true, `mutable is frozen`);
+  t.throws(() => greeter.sayHello(makeBehavior()), {
+    message:
+      /In "sayHello" method of \(greeter\): Remotables must be explicitly declared/,
+  });
+});
+
+const RawGreeterI = M.interface('greeter', {}, { defaultGuards: 'raw' });
+
+const testGreeter = (t, greeter, msg) => {
+  const mutable = {};
+  t.is(greeter.sayHello(mutable), 'hello', `${msg} can sayHello`);
+  t.deepEqual(mutable, { x: 3 }, `${msg} mutable is mutated`);
+  mutable.y = 4;
+  t.deepEqual(mutable, { x: 3, y: 4 }, `${msg} mutable is mutated again}`);
+};
+
+test('raw guards', t => {
+  const greeter = makeExo('greeter', RawGreeterI, {
+    sayHello(mutable) {
+      mutable.x = 3;
+      return 'hello';
+    },
+  });
+  t.deepEqual(greeter[GET_INTERFACE_GUARD](), RawGreeterI);
+  testGreeter(t, greeter, 'raw defaultGuards');
+
+  const Greeter2I = M.interface('greeter2', {
+    sayHello: M.call(M.raw()).returns(M.string()),
+    rawIn: M.call(M.raw()).returns(M.any()),
+    rawOut: M.call(M.any()).returns(M.raw()),
+    passthrough: M.call(M.raw()).returns(M.raw()),
+    tortuous: M.call(M.any(), M.raw(), M.any())
+      .optional(M.any(), M.raw())
+      .returns(M.any()),
+  });
+  const greeter2 = makeExo('greeter2', Greeter2I, {
+    sayHello(mutable) {
+      mutable.x = 3;
+      return 'hello';
+    },
+    rawIn(obj) {
+      t.is(Object.isFrozen(obj), false);
+      return obj;
+    },
+    rawOut(obj) {
+      t.is(Object.isFrozen(obj), true);
+      return { ...obj };
+    },
+    passthrough(obj) {
+      t.is(Object.isFrozen(obj), false);
+      return obj;
+    },
+    tortuous(hardA, softB, hardC, optHardD, optSoftE = {}) {
+      // Test that `M.raw()` does not freeze the arguments, unlike `M.any()`.
+      t.is(Object.isFrozen(hardA), true);
+      t.is(Object.isFrozen(softB), false);
+      softB.b = 2;
+      t.is(Object.isFrozen(hardC), true);
+      t.is(Object.isFrozen(optHardD), true);
+      t.is(Object.isFrozen(optSoftE), false);
+      return {};
+    },
+  });
+  t.deepEqual(greeter2[GET_INTERFACE_GUARD](), Greeter2I);
+  testGreeter(t, greeter, 'explicit raw');
+
+  t.is(Object.isFrozen(greeter2.rawIn({})), true);
+  t.is(Object.isFrozen(greeter2.rawOut({})), false);
+  t.is(Object.isFrozen(greeter2.passthrough({})), false);
+
+  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {}, {}, {})), true);
+  t.is(Object.isFrozen(greeter2.tortuous({}, {}, {})), true);
+
+  t.throws(
+    () => greeter2.tortuous(makeBehavior(), {}, {}),
+    {
+      message:
+        /In "tortuous" method of \(greeter2\): Remotables must be explicitly declared/,
+    },
+    'passable behavior not allowed',
+  );
+  t.notThrows(
+    () => greeter2.tortuous({}, makeBehavior(), {}),
+    'raw behavior allowed',
+  );
+});
+
 const GreeterI = M.interface('greeter', {
   sayHello: M.call().returns('hello'),
 });
@@ -223,7 +348,7 @@ test('naked function call', t => {
 
   t.throws(() => gigm(), {
     message:
-      'thisful method "In \\"[Symbol(getInterfaceGuard)]\\" method of (greeter)" called without \'this\' object',
+      'thisful method "In \\"__getInterfaceGuard__\\" method of (greeter)" called without \'this\' object',
   });
   t.deepEqual(gigm.bind(greeter)(), GreeterI);
 });

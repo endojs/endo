@@ -110,10 +110,12 @@ export const setGlobalObjectMutableProperties = (
     globalThis: globalObject,
   };
 
-  perCompartmentGlobals.Compartment = makeCompartmentConstructor(
-    makeCompartmentConstructor,
-    intrinsics,
-    markVirtualizedNativeFunction,
+  perCompartmentGlobals.Compartment = freeze(
+    makeCompartmentConstructor(
+      makeCompartmentConstructor,
+      intrinsics,
+      markVirtualizedNativeFunction,
+    ),
   );
 
   // TODO These should still be tamed according to the whitelist before
@@ -145,7 +147,7 @@ export const setGlobalObjectEvaluators = (
   markVirtualizedNativeFunction,
 ) => {
   {
-    const f = makeEvalFunction(evaluator);
+    const f = freeze(makeEvalFunction(evaluator));
     markVirtualizedNativeFunction(f);
     defineProperty(globalObject, 'eval', {
       value: f,
@@ -155,7 +157,7 @@ export const setGlobalObjectEvaluators = (
     });
   }
   {
-    const f = makeFunctionConstructor(evaluator);
+    const f = freeze(makeFunctionConstructor(evaluator));
     markVirtualizedNativeFunction(f);
     defineProperty(globalObject, 'Function', {
       value: f,

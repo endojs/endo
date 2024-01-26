@@ -20,8 +20,8 @@ coverage
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
-.grunt
+# Platform metadata
+.DS_Store
 
 # Bower dependency directory (https://bower.io/)
 bower_components
@@ -64,4 +64,5 @@ typings/
 dist/
 
 /packages-graph*
+api-docs
 

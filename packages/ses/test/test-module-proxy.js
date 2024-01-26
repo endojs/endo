@@ -4,7 +4,7 @@ import { deferExports } from '../src/module-proxy.js';
 
 test('proxied exports keys are readable', t => {
   t.plan(2);
-  const { proxiedExports, exportsProxy, activate } = deferExports();
+  const { exportsTarget, exportsProxy, activate } = deferExports();
   t.throws(
     () => {
       keys(exportsProxy);
@@ -12,16 +12,16 @@ test('proxied exports keys are readable', t => {
     { message: /^Cannot enumerate keys/ },
     'keys fails for inactive module',
   );
-  proxiedExports.a = 10;
-  proxiedExports.b = 20;
+  exportsTarget.a = 10;
+  exportsTarget.b = 20;
   activate();
   t.deepEqual(keys(exportsProxy), ['a', 'b']);
 });
 
 test('proxied exports is not extensible', t => {
   t.plan(1);
-  const { proxiedExports, exportsProxy, activate } = deferExports();
-  seal(proxiedExports);
+  const { exportsTarget, exportsProxy, activate } = deferExports();
+  seal(exportsTarget);
   activate();
   t.truthy(
     !isExtensible(exportsProxy),
@@ -31,7 +31,7 @@ test('proxied exports is not extensible', t => {
 
 test('proxied exports has own keys', t => {
   t.plan(3);
-  const { proxiedExports, exportsProxy, activate } = deferExports();
+  const { exportsTarget, exportsProxy, activate } = deferExports();
   t.throws(
     () => {
       'irrelevant' in exportsProxy;
@@ -39,7 +39,7 @@ test('proxied exports has own keys', t => {
     { message: /^Cannot check property/ },
     'module must throw error for owns trap before it begins executing',
   );
-  proxiedExports.present = 'here';
+  exportsTarget.present = 'here';
   activate(seal());
   t.truthy('present' in exportsProxy, 'module has key');
   t.truthy(!('absent' in exportsProxy), 'module does not have key');
@@ -47,7 +47,7 @@ test('proxied exports has own keys', t => {
 
 test('proxied exports set/get round-trip', t => {
   t.plan(3);
-  const { proxiedExports, exportsProxy, activate } = deferExports();
+  const { exportsTarget, exportsProxy, activate } = deferExports();
   t.throws(
     () => {
       exportsProxy.ceciNEstPasUnePipe;
@@ -63,8 +63,8 @@ test('proxied exports set/get round-trip', t => {
     'properties must not be mutable',
   );
 
-  proxiedExports.ceciNEstPasUnePipe = 'pipe';
-  seal(proxiedExports);
+  exportsTarget.ceciNEstPasUnePipe = 'pipe';
+  seal(exportsTarget);
   activate();
 
   t.throws(

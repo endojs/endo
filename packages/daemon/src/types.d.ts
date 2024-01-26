@@ -163,11 +163,11 @@ export interface Controller<External = unknown, Internal = unknown> {
 export interface PetStore {
   has(petName: string): boolean;
   list(): Array<string>;
-  follow(): Promise<FarRef<String<{ add: string } | { remove: string }>>>;
+  follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
   listEntries(): Array<[string, FormulaIdentifierRecord]>;
   followEntries(): Promise<
     FarRef<
-      String<
+      Reader<
         { add: string; value: FormulaIdentifierRecord } | { remove: string }
       >
     >

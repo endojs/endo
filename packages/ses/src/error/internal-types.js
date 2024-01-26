@@ -83,7 +83,7 @@
  * calls methods of the `loggedErrorHandler` to customize how it handles logged
  * errors.
  *
- * @param {VirtualConsole} baseConsole
+ * @param {VirtualConsole | undefined} baseConsole
  * @param {LoggedErrorHandler} loggedErrorHandler
- * @returns {VirtualConsole}
+ * @returns {VirtualConsole | undefined}
  */

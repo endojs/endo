@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global process */
 
 import crypto from 'crypto';
@@ -10,7 +11,7 @@ import { makeAndHashArchive } from '@endo/compartment-mapper/archive.js';
 import { encodeBase64 } from '@endo/base64';
 import { whereEndoCache } from '@endo/where';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
-import { transformSource } from './transform.js';
+import { evadeCensor } from '@endo/evasive-transform';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -119,10 +120,10 @@ export async function bundleZipBase64(
       ) {
         const source = textDecoder.decode(sourceBytes);
         let object;
-        ({ code: object, map: sourceMap } = await transformSource(source, {
-          sourceType: 'module',
+        ({ code: object, map: sourceMap } = await evadeCensor(source, {
           sourceMap,
-          sourceMapUrl: new URL(specifier, location).href,
+          sourceUrl: new URL(specifier, location).href,
+          sourceType: 'module',
         }));
         const objectBytes = textEncoder.encode(object);
         return { bytes: objectBytes, parser: 'mjs', sourceMap };
