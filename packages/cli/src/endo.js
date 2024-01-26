@@ -88,7 +88,7 @@ export const main = async rawArgs => {
     .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
     .option(
       '--UNCONFINED <path>',
-      'Or path of an unsafe plugin to run in Node.js',
+      'Or path of an unconfined plugin to run in Node.js',
     )
     .option(
       '-p,--powers <endowment>',

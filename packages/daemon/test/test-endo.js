@@ -308,7 +308,7 @@ test('closure state lost by restart', async t => {
   await stop(locator);
 });
 
-test('persist unsafe services and their requests', async t => {
+test('persist unconfined services and their requests', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'make-unconfined');

@@ -214,7 +214,7 @@ const makeEndoBootstrap = (
    * @param {string} importPath
    * @param {import('./types.js').Terminator} terminator
    */
-  const makeControllerForUnsafePlugin = async (
+  const makeControllerForUnconfinedPlugin = async (
     workerFormulaIdentifier,
     guestFormulaIdentifier,
     importPath,
@@ -307,7 +307,7 @@ const makeEndoBootstrap = (
         terminator,
       );
     } else if (formula.type === 'make-unconfined') {
-      return makeControllerForUnsafePlugin(
+      return makeControllerForUnconfinedPlugin(
         formula.worker,
         formula.powers,
         formula.importPath,

@@ -72,7 +72,7 @@ type EvalFormula = {
   // TODO formula slots
 };
 
-type ImportUnsafeFormula = {
+type MakeUnconfinedFormula = {
   type: 'make-unconfined';
   worker: string;
   powers: string;
@@ -80,7 +80,7 @@ type ImportUnsafeFormula = {
   // TODO formula slots
 };
 
-type ImportBundleFormula = {
+type MakeBundleFormula = {
   type: 'make-bundle';
   worker: string;
   powers: string;
@@ -97,8 +97,8 @@ type WebBundleFormula = {
 export type Formula =
   | GuestFormula
   | EvalFormula
-  | ImportUnsafeFormula
-  | ImportBundleFormula
+  | MakeUnconfinedFormula
+  | MakeBundleFormula
   | WebBundleFormula;
 
 export type Label = {
