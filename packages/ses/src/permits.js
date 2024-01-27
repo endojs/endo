@@ -53,6 +53,8 @@ export const universalPropertyNames = {
   Boolean: 'Boolean',
   DataView: 'DataView',
   EvalError: 'EvalError',
+  // https://github.com/tc39/proposal-float16array
+  Float16Array: 'Float16Array',
   Float32Array: 'Float32Array',
   Float64Array: 'Float64Array',
   Int8Array: 'Int8Array',
@@ -1045,6 +1047,8 @@ export const permitted = {
 
   BigInt64Array: TypedArray('%BigInt64ArrayPrototype%'),
   BigUint64Array: TypedArray('%BigUint64ArrayPrototype%'),
+  // https://github.com/tc39/proposal-float16array
+  Float16Array: TypedArray('%Float16ArrayPrototype%'),
   Float32Array: TypedArray('%Float32ArrayPrototype%'),
   Float64Array: TypedArray('%Float64ArrayPrototype%'),
   Int16Array: TypedArray('%Int16ArrayPrototype%'),
@@ -1057,6 +1061,8 @@ export const permitted = {
 
   '%BigInt64ArrayPrototype%': TypedArrayPrototype('BigInt64Array'),
   '%BigUint64ArrayPrototype%': TypedArrayPrototype('BigUint64Array'),
+  // https://github.com/tc39/proposal-float16array
+  '%Float16ArrayPrototype%': TypedArrayPrototype('Float16Array'),
   '%Float32ArrayPrototype%': TypedArrayPrototype('Float32Array'),
   '%Float64ArrayPrototype%': TypedArrayPrototype('Float64Array'),
   '%Int16ArrayPrototype%': TypedArrayPrototype('Int16Array'),
@@ -1222,6 +1228,8 @@ export const permitted = {
     constructor: 'DataView',
     getBigInt64: fn,
     getBigUint64: fn,
+    // https://github.com/tc39/proposal-float16array
+    getFloat16: fn,
     getFloat32: fn,
     getFloat64: fn,
     getInt8: fn,
@@ -1232,6 +1240,8 @@ export const permitted = {
     getUint32: fn,
     setBigInt64: fn,
     setBigUint64: fn,
+    // https://github.com/tc39/proposal-float16array
+    setFloat16: fn,
     setFloat32: fn,
     setFloat64: fn,
     setInt8: fn,
