@@ -17,9 +17,8 @@ import url from 'url';
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import { q } from '@endo/errors';
 import { makeNodeNetstringCapTP } from './connection.js';
-
-const { quote: q } = assert;
 
 const { promise: cancelled, reject: cancel } = makePromiseKit();
 

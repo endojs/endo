@@ -8,7 +8,7 @@
 
 import { mapReader } from '@endo/stream';
 
-const { Fail, quote: q } = assert;
+import { Fail, q } from '@endo/errors';
 
 /**
  * @param {import('stream').Readable} input the source Node.js reader

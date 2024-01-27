@@ -32,6 +32,7 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
+    "@endo/errors": "^1.0.2",
     "@endo/eventual-send": "^1.1.0",
     "@endo/pass-style": "^1.1.0"
   },

@@ -1,5 +1,6 @@
 /// <reference types="ses"/>
 
+import { Fail } from '@endo/errors';
 import {
   assertChecker,
   checkTagRecord,
@@ -8,7 +9,6 @@ import {
   checkPassStyle,
 } from './passStyle-helpers.js';
 
-const { Fail } = assert;
 const { ownKeys } = Reflect;
 const { getOwnPropertyDescriptors } = Object;
 

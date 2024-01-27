@@ -3,7 +3,8 @@
 /** @typedef {import('./types.js').Checker} Checker */
 /** @typedef {import('./types.js').PassStyle} PassStyle */
 
-const { details: X, quote: q } = assert;
+import { X, q } from '@endo/errors';
+
 const { isArray } = Array;
 const { prototype: functionPrototype } = Function;
 const {

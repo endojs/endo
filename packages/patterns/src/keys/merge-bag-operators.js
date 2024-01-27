@@ -4,9 +4,8 @@ import {
   makeFullOrderComparatorKit,
   sortByRank,
 } from '@endo/marshal';
+import { q, Fail } from '@endo/errors';
 import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
-
-const { quote: q, Fail } = assert;
 
 /** @typedef {import('../types').KeyComparison} KeyComparison */
 /** @typedef {import('../types').FullCompare} FullCompare */

@@ -1,4 +1,4 @@
-const { details: X } = assert;
+import { X, makeError, annotateError } from '@endo/errors';
 
 /**
  * Given an error `innerErr` and a `label`, throws a similar
@@ -14,11 +14,8 @@ export const throwLabeled = (innerErr, label, ErrorConstructor = undefined) => {
   if (typeof label === 'number') {
     label = `[${label}]`;
   }
-  const outerErr = assert.error(
-    `${label}: ${innerErr.message}`,
-    ErrorConstructor,
-  );
-  assert.note(outerErr, X`Caused by ${innerErr}`);
+  const outerErr = makeError(`${label}: ${innerErr.message}`, ErrorConstructor);
+  annotateError(outerErr, X`Caused by ${innerErr}`);
   throw outerErr;
 };
 harden(throwLabeled);

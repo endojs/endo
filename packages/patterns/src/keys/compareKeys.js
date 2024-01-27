@@ -8,6 +8,7 @@ import {
   recordValues,
   trivialComparator,
 } from '@endo/marshal';
+import { q, Fail } from '@endo/errors';
 import {
   assertKey,
   getCopyBagEntries,
@@ -17,8 +18,6 @@ import {
 import { makeCompareCollection } from './keycollection-operators.js';
 
 /** @template {import('../types.js').Key} [K=import('../types.js').Key] @typedef {import('../types').CopySet<K>} CopySet */
-
-const { quote: q, Fail } = assert;
 
 /**
  * CopySet X is smaller than CopySet Y iff all of these conditions hold:

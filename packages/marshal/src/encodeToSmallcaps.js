@@ -16,6 +16,7 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
+import { X, Fail, q } from '@endo/errors';
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('@endo/pass-style').Remotable} Remotable */
@@ -27,7 +28,6 @@ import {
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const { is, entries, fromEntries } = Object;
-const { details: X, Fail, quote: q } = assert;
 
 const BANG = '!'.charCodeAt(0);
 const DASH = '-'.charCodeAt(0);

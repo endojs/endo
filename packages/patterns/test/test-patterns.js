@@ -1,6 +1,8 @@
 /* eslint-disable no-continue */
-import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
+import { test } from './prepare-test-env-ava.js';
+
+import { Fail } from '@endo/errors';
 import { makeTagged, Far } from '@endo/marshal';
 import {
   makeCopyBag,
@@ -12,8 +14,6 @@ import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 import '../src/types.js';
 
 /** @typedef {import('ava').ExecutionContext} TestContext */
-
-const { Fail } = assert;
 
 // TODO The desired semantics for CopyMap comparison have not yet been decided.
 // See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411

@@ -18,7 +18,8 @@ import {
  */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
-const { quote: q, Fail } = assert;
+import { q, Fail } from '@endo/errors';
+
 const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
 

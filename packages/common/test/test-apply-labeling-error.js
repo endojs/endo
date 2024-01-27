@@ -1,7 +1,8 @@
 import { test } from './prepare-test-env-ava.js';
-import { applyLabelingError } from '../apply-labeling-error.js';
 
-const { Fail } = assert;
+// eslint-disable-next-line import/order
+import { Fail } from '@endo/errors';
+import { applyLabelingError } from '../apply-labeling-error.js';
 
 test('test applyLabelingError', async t => {
   t.is(

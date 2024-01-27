@@ -1,4 +1,5 @@
 import { getTag, passStyleOf, nameForPassableSymbol } from '@endo/pass-style';
+import { Fail, q } from '@endo/errors';
 import {
   passStylePrefixes,
   recordNames,
@@ -12,7 +13,6 @@ import {
 /** @typedef {import('./types.js').RankCompare} RankCompare */
 /** @typedef {import('./types.js').FullCompare} FullCompare */
 
-const { Fail, quote: q } = assert;
 const { entries, fromEntries, setPrototypeOf, is } = Object;
 
 /**

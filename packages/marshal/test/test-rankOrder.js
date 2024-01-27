@@ -12,6 +12,7 @@ import {
   arbPassable,
 } from '@endo/pass-style/tools.js';
 
+import { q } from '@endo/errors';
 import {
   FullRankCover,
   compareRank,
@@ -21,8 +22,6 @@ import {
   getIndexCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
-
-const { quote: q } = assert;
 
 test('compareRank is reflexive', async t => {
   await fc.assert(

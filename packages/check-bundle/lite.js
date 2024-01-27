@@ -4,7 +4,7 @@
 import { decodeBase64 } from '@endo/base64/decode.js';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 
-const { Fail, details: d, quote: q } = assert;
+import { Fail, X, q } from '@endo/errors';
 
 /**
  * Verifies that a bundle passes its own integrity checks or rejects the
@@ -25,7 +25,7 @@ export const checkBundle = async (
   assert.typeof(
     bundle,
     'object',
-    d`checkBundle cannot hash non-bundle, must be of type object, got ${q(
+    X`checkBundle cannot hash non-bundle, must be of type object, got ${q(
       bundle,
     )}`,
   );
@@ -56,7 +56,7 @@ export const checkBundle = async (
   assert.typeof(
     moduleFormat,
     'string',
-    d`checkBundle cannot hash non-bundle, moduleFormat must be a string, got ${typeof moduleFormat}`,
+    X`checkBundle cannot hash non-bundle, moduleFormat must be a string, got ${typeof moduleFormat}`,
   );
 
   if (moduleFormat === 'endoZipBase64') {
@@ -64,12 +64,12 @@ export const checkBundle = async (
     assert.typeof(
       endoZipBase64,
       'string',
-      d`checkBundle cannot hash non-bundle, property 'endoZipBase64' must be a string, got ${typeof endoZipBase64}`,
+      X`checkBundle cannot hash non-bundle, property 'endoZipBase64' must be a string, got ${typeof endoZipBase64}`,
     );
     assert.typeof(
       endoZipBase64Sha512,
       'string',
-      d`checkBundle cannot bundle without the property 'endoZipBase64Sha512', which must be a string, got ${typeof endoZipBase64Sha512}`,
+      X`checkBundle cannot bundle without the property 'endoZipBase64Sha512', which must be a string, got ${typeof endoZipBase64Sha512}`,
     );
     const bytes = decodeBase64(endoZipBase64);
     const { sha512: parsedSha512 } = await parseArchive(bytes, bundleName, {

@@ -1,10 +1,9 @@
 /// <reference types="ses"/>
 
+import { Fail } from '@endo/errors';
 import { makeMarshal } from './marshal.js';
 
 /** @typedef {import('@endo/pass-style').Passable} Passable */
-
-const { Fail } = assert;
 
 /** @type {import('./types.js').ConvertValToSlot<any>} */
 const doNotConvertValToSlot = val =>
