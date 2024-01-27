@@ -211,12 +211,14 @@ export const makeMailboxMaker = ({
      * @param {string} responseName
      * @param {string} senderFormulaIdentifier
      * @param {import('./types.js').PetStore} senderPetStore
+     * @param {string} [recipientFormulaIdentifier]
      */
     const respond = async (
       what,
       responseName,
       senderFormulaIdentifier,
       senderPetStore,
+      recipientFormulaIdentifier = selfFormulaIdentifier,
     ) => {
       if (responseName !== undefined) {
         /** @type {string | undefined} */
@@ -225,7 +227,7 @@ export const makeMailboxMaker = ({
           formulaIdentifier = await requestFormulaIdentifier(
             what,
             senderFormulaIdentifier,
-            selfFormulaIdentifier,
+            recipientFormulaIdentifier,
           );
           await senderPetStore.write(responseName, formulaIdentifier);
         }
@@ -237,7 +239,7 @@ export const makeMailboxMaker = ({
       const formulaIdentifier = await requestFormulaIdentifier(
         what,
         senderFormulaIdentifier,
-        selfFormulaIdentifier,
+        recipientFormulaIdentifier,
       );
       // TODO:
       // terminator.thisDiesIfThatDies(formulaIdentifier);
@@ -452,29 +454,36 @@ export const makeMailboxMaker = ({
         );
       }
 
-      if (responseName === undefined) {
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return deliverToRecipient(
-          what,
-          responseName,
-          selfFormulaIdentifier,
-          petStore,
-        );
+      if (responseName !== undefined) {
+        const responseP = responses.get(responseName);
+        if (responseP !== undefined) {
+          return responseP;
+        }
       }
-      const responseP = responses.get(responseName);
-      if (responseP !== undefined) {
-        return responseP;
-      }
+
+      // Note: consider sending to each mailbox with different powers.
       // Behold, recursion:
       // eslint-disable-next-line
-      const newResponseP = deliverToRecipient(
+      const recipientResponseP = deliverToRecipient(
         what,
         responseName,
         selfFormulaIdentifier,
         petStore,
       );
-      responses.set(responseName, newResponseP);
+      // Send to own inbox.
+      const selfResponseP = respond(
+        what,
+        responseName,
+        selfFormulaIdentifier,
+        petStore,
+        recipientFormulaIdentifier,
+      );
+      const newResponseP = Promise.race([recipientResponseP, selfResponseP]);
+
+      if (responseName !== undefined) {
+        responses.set(responseName, newResponseP);
+      }
+
       return newResponseP;
     };
 

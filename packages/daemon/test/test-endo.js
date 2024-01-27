@@ -435,7 +435,7 @@ test('guest facet receives a message for host', async t => {
   t.deepEqual(
     guestInbox.map(({ type, who, dest }) => ({ type, who, dest })),
     [
-      // { type: 'request', who: 'SELF', dest: 'HOST' },
+      { type: 'request', who: 'SELF', dest: 'HOST' },
       { type: 'package', who: 'SELF', dest: 'HOST' },
     ],
   );
