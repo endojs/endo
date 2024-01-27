@@ -4,11 +4,11 @@
 // This command will set up the cat page, create a URL,
 // and open it.
 //
-// > endo open familiar-chat cat.js --powers HOST
+// > endo install familiar-chat cat.js --powers SELF
 //
 // Thereafter,
 //
-// > endo open fami ar-chat
+// > endo open familiar-chat
 //
 // To interact with the permission manager, you can mock requests from a fake
 // guest.

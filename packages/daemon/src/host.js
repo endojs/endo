@@ -163,7 +163,7 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} partyName
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
      */
     const providePowersFormulaIdentifier = async partyName => {
       let guestFormulaIdentifier = lookupFormulaIdentifierForName(partyName);
@@ -241,7 +241,7 @@ export const makeHostMaker = ({
     /**
      * @param {string | 'NEW' | 'MAIN'} workerName
      * @param {string} importPath
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
      * @param {string} resultName
      */
     const makeUnconfined = async (
@@ -281,7 +281,7 @@ export const makeHostMaker = ({
     /**
      * @param {string | 'MAIN' | 'NEW'} workerName
      * @param {string} bundleName
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
      * @param {string} resultName
      */
     const makeBundle = async (
@@ -376,7 +376,7 @@ export const makeHostMaker = ({
     /**
      * @param {string} webPageName
      * @param {string} bundleName
-     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
      */
     const provideWebPage = async (webPageName, bundleName, powersName) => {
       const bundleFormulaIdentifier =
