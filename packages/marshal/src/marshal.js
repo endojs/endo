@@ -8,7 +8,7 @@ import {
   hasOwnPropertyOf,
 } from '@endo/pass-style';
 
-import { X, Fail, q, makeError, errorNote } from '@endo/errors';
+import { X, Fail, q, makeError, annotateError } from '@endo/errors';
 import {
   QCLASS,
   makeEncodeToCapData,
@@ -124,7 +124,7 @@ export const makeMarshal = (
         // with the correlation.
         const errorId = encodeRecur(nextErrorId());
         assert.typeof(errorId, 'string');
-        errorNote(err, X`Sent as ${errorId}`);
+        annotateError(err, X`Sent as ${errorId}`);
         marshalSaveError(err);
         return harden({ errorId, message, name });
       } else {

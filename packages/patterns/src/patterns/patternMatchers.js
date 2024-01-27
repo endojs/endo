@@ -18,7 +18,7 @@ import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
 import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
 import { listDifference } from '@endo/common/list-difference.js';
 
-import { q, b, X, Fail, makeError, errorNote } from '@endo/errors';
+import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
 import {
   assertKey,
@@ -590,7 +590,7 @@ const makePatternKit = () => {
       X`internal: ${label}: inconsistent pattern match: ${q(patt)}`,
     );
     if (innerError !== undefined) {
-      errorNote(outerError, X`caused by ${innerError}`);
+      annotateError(outerError, X`caused by ${innerError}`);
     }
     throw outerError;
   };

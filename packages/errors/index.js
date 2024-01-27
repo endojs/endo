@@ -76,5 +76,5 @@ export {
   quote as q,
   redacted as X,
   throwRedacted as Fail,
-  note as errorNote,
+  note as annotateError,
 };

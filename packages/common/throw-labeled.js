@@ -1,4 +1,4 @@
-import { X, makeError, errorNote } from '@endo/errors';
+import { X, makeError, annotateError } from '@endo/errors';
 
 /**
  * Given an error `innerErr` and a `label`, throws a similar
@@ -15,7 +15,7 @@ export const throwLabeled = (innerErr, label, ErrorConstructor = undefined) => {
     label = `[${label}]`;
   }
   const outerErr = makeError(`${label}: ${innerErr.message}`, ErrorConstructor);
-  errorNote(outerErr, X`Caused by ${innerErr}`);
+  annotateError(outerErr, X`Caused by ${innerErr}`);
   throw outerErr;
 };
 harden(throwLabeled);
