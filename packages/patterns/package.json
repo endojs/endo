@@ -1,7 +1,7 @@
 {
   "name": "@endo/patterns",
   "version": "1.4.2",
-  "description": "Description forthcoming.",
+  "description": "Matchers and guards for the pass-style taxonomy.",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
