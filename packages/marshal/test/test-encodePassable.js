@@ -1,139 +1,21 @@
-// @ts-nocheck
 /* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { fc } from '@fast-check/ava';
 import { Remotable } from '@endo/pass-style';
 import { arbPassable } from '@endo/pass-style/tools.js';
-import { Fail, q } from '@endo/errors';
+import { Fail } from '@endo/errors';
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+
+import { compareRank } from '../src/rankOrder.js';
+import { sample } from './test-rankOrder.js';
 
 import {
-  makePassableKit,
-  makeEncodePassable,
-  makeDecodePassable,
-} from '../src/encodePassable.js';
-import { compareRank, makeComparatorKit } from '../src/rankOrder.js';
-import { unsortedSample } from './marshal-test-data.js';
-
-const buffers = {
-  __proto__: null,
-  r: [],
-  '?': [],
-  '!': [],
-};
-const resetBuffers = () => {
-  buffers.r = [];
-  buffers['?'] = [];
-  buffers['!'] = [];
-};
-const cursors = {
-  __proto__: null,
-  r: 0,
-  '?': 0,
-  '!': 0,
-};
-const resetCursors = () => {
-  cursors.r = 0;
-  cursors['?'] = 0;
-  cursors['!'] = 0;
-};
-
-const encodeThing = (prefix, r) => {
-  buffers[prefix].push(r);
-  // With this encoding, all things with the same prefix have the same rank
-  return prefix;
-};
-
-const decodeThing = (prefix, e) => {
-  prefix === e ||
-    Fail`expected encoding ${q(e)} to simply be the prefix ${q(prefix)}`;
-  (cursors[prefix] >= 0 && cursors[prefix] < buffers[prefix].length) ||
-    Fail`while decoding ${q(e)}, expected cursors[${q(prefix)}], i.e., ${q(
-      cursors[prefix],
-    )} <= ${q(buffers[prefix].length)}`;
-  const thing = buffers[prefix][cursors[prefix]];
-  cursors[prefix] += 1;
-  return thing;
-};
-
-const compareRemotables = (x, y) =>
-  compareRank(encodeThing('r', x), encodeThing('r', y));
-
-const encodePassableInternal = makeEncodePassable({
-  encodeRemotable: r => encodeThing('r', r),
-  encodePromise: p => encodeThing('?', p),
-  encodeError: er => encodeThing('!', er),
-});
-const encodePassableInternal2 = makeEncodePassable({
-  encodeRemotable: r => encodeThing('r', r),
-  encodePromise: p => encodeThing('?', p),
-  encodeError: er => encodeThing('!', er),
-  format: 'compactOrdered',
-});
-
-export const encodePassable = passable => {
-  resetBuffers();
-  return encodePassableInternal(passable);
-};
-const encodePassable2 = passable => {
-  resetBuffers();
-  return encodePassableInternal2(passable);
-};
-
-const decodePassableInternal = makeDecodePassable({
-  decodeRemotable: e => decodeThing('r', e),
-  decodePromise: e => decodeThing('?', e),
-  decodeError: e => decodeThing('!', e),
-});
-
-export const decodePassable = encoded => {
-  resetCursors();
-  return decodePassableInternal(encoded);
-};
-
-test('makePassableKit output shape', t => {
-  const kit = makePassableKit();
-  t.deepEqual(Reflect.ownKeys(kit).sort(), [
-    'decodePassable',
-    'encodePassable',
-  ]);
-  t.deepEqual(
-    Object.fromEntries(
-      Object.entries(kit).map(([key, value]) => [key, typeof value]),
-    ),
-    { encodePassable: 'function', decodePassable: 'function' },
-  );
-});
-
-const verifyEncodeOptions = test.macro({
-  title: label => `${label} encode options validation`,
-  // eslint-disable-next-line no-shadow
-  exec: (t, makeEncodePassable) => {
-    t.notThrows(() => makeEncodePassable(), 'must accept zero arguments');
-    t.notThrows(() => makeEncodePassable({}), 'must accept empty options');
-    t.notThrows(
-      () => makeEncodePassable({ format: 'legacyOrdered' }),
-      'must accept format: "legacyOrdered"',
-    );
-    t.notThrows(
-      () => makeEncodePassable({ format: 'compactOrdered' }),
-      'must accept format: "compactOrdered"',
-    );
-    t.throws(
-      () => makeEncodePassable({ format: 'newHotness' }),
-      { message: /^Unrecognized format\b/ },
-      'must reject unknown format',
-    );
-  },
-});
-test('makeEncodePassable', verifyEncodeOptions, makeEncodePassable);
-test(
-  'makePassableKit',
-  verifyEncodeOptions,
-  (...args) => makePassableKit(...args).encodePassable,
-);
-
-const { comparator: compareFull } = makeComparatorKit(compareRemotables);
+  encodePassable,
+  decodePassable,
+  compareFull,
+} from './encodePassable-for-testing.js';
 
 const asNumber = new Float64Array(1);
 const asBits = new BigUint64Array(asNumber.buffer);
@@ -149,7 +31,7 @@ const getNaN = (hexEncoding = '0008000000000000') => {
 
 const NegativeNaN = getNaN('ffffffffffffffff');
 
-/** @type {[Key, string][]} */
+/** @type {[number | bigint, string][]} */
 const goldenPairs = harden([
   [1, 'fbff0000000000000'],
   [-1, 'f400fffffffffffff'],
