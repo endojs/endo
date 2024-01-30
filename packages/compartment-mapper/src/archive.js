@@ -250,7 +250,7 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
 /**
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
- * @returns {{archiveCompartmentMap: CompartmentMapDescriptor, archiveSources: Sources}}
+ * @returns {import('./types.js').MakeArchiveCompartmentMapResult}
  */
 export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   const {
@@ -282,29 +282,27 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   // accept all valid compartment maps.
   assertCompartmentMap(archiveCompartmentMap);
 
-  return { archiveCompartmentMap, archiveSources };
+  return { archiveCompartmentMap, archiveSources, compartmentRenames };
 };
 
 /**
- * @param {ReadFn | ReadPowers} powers
- * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
- * @returns {Promise<{sources: Sources, compartmentMapBytes: Uint8Array, sha512?: string}>}
+ * @param {import('./types.js').LoadCompartmentMapForArchiveOptions & ArchiveOptions} options
+ * @returns {Promise<import('./types.js').LoadCompartmentMapForArchiveResult>}
  */
-const digestLocation = async (powers, moduleLocation, options) => {
-  const {
-    moduleTransforms,
-    modules: exitModules = {},
-    dev = false,
-    tags = new Set(),
-    captureSourceLocation = undefined,
-    searchSuffixes = undefined,
-    commonDependencies = undefined,
-    importHook: exitModuleImportHook = undefined,
-    policy = undefined,
-    sourceMapHook = undefined,
-  } = options || {};
-  const { read, computeSha512 } = unpackReadPowers(powers);
+export const loadCompartmentMapForArchive = async ({
+  readPowers,
+  moduleLocation,
+  moduleTransforms,
+  modules: exitModules = {},
+  dev = false,
+  tags = new Set(),
+  searchSuffixes = undefined,
+  commonDependencies = undefined,
+  importHook: exitModuleImportHook = undefined,
+  policy = undefined,
+  sourceMapHook = undefined,
+}) => {
+  const { read, computeSha512 } = unpackReadPowers(readPowers);
   const {
     packageLocation,
     packageDescriptorText,
@@ -321,7 +319,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     packageDescriptorLocation,
   );
   const compartmentMap = await compartmentMapForNodeModules(
-    powers,
+    readPowers,
     packageLocation,
     tags,
     packageDescriptor,
@@ -362,6 +360,15 @@ const digestLocation = async (powers, moduleLocation, options) => {
     archiveOnly: true,
   });
   await compartment.load(entryModuleSpecifier);
+
+  /** @type {string|undefined} */
+  let compartmentMapSha512;
+  if (computeSha512 !== undefined) {
+    const compartmentMapText = JSON.stringify(compartmentMap, null, 2);
+    const compartmentMapBytes = textEncoder.encode(compartmentMapText);
+    compartmentMapSha512 = computeSha512(compartmentMapBytes);
+  }
+
   if (policy) {
     // retain all attenuators.
     await Promise.all(
@@ -371,10 +378,33 @@ const digestLocation = async (powers, moduleLocation, options) => {
     );
   }
 
-  const { archiveCompartmentMap, archiveSources } = makeArchiveCompartmentMap(
-    compartmentMap,
-    sources,
-  );
+  const { archiveCompartmentMap, archiveSources, compartmentRenames } =
+    makeArchiveCompartmentMap(compartmentMap, sources);
+
+  return {
+    archiveCompartmentMap,
+    archiveSources,
+    compartmentMapSha512,
+    compartmentRenames,
+    computeSha512,
+  };
+};
+
+/**
+ * @param {ReadFn | ReadPowers} powers
+ * @param {string} moduleLocation
+ * @param {ArchiveOptions} [options]
+ * @returns {Promise<{sources: Sources, compartmentMapBytes: Uint8Array, sha512?: string}>}
+ */
+const digestLocation = async (powers, moduleLocation, options = {}) => {
+  const { captureSourceLocation = undefined } = options;
+
+  const { archiveCompartmentMap, archiveSources, computeSha512 } =
+    await loadCompartmentMapForArchive({
+      readPowers: powers,
+      moduleLocation,
+      ...options,
+    });
 
   const archiveCompartmentMapText = JSON.stringify(
     archiveCompartmentMap,

@@ -5,6 +5,7 @@ export {
   writeArchive,
   mapLocation,
   hashLocation,
+  loadCompartmentMapForArchive,
 } from './src/archive.js';
 export {
   parseArchive,
