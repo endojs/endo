@@ -504,3 +504,29 @@ export {};
  * Any object. All objects. Not `null`, though.
  * @typedef {Record<PropertyKey, any>} SomeObject
  */
+
+/**
+ * @typedef LoadCompartmentForArchiveOptions
+ * @property {ReadFn | ReadPowers} readPowers
+ * @property {string} moduleLocation
+ */
+
+/**
+ * Return value of `loadCompartmentForArchive`.
+ *
+ * @typedef LoadCompartmentForArchiveResult
+ * @property {CompartmentMapDescriptor} archiveCompartmentMap
+ * @property {Sources} archiveSources
+ * @property {Record<string, string>} compartmentRenames
+ * @property {string} [compartmentMapSha512]
+ * @property {HashFn} [computeSha512]
+ */
+
+/**
+ * Return value of `makeArchiveCompartmentMap`
+ *
+ * @typedef MakeArchiveCompartmentMapResult
+ * @property {CompartmentMapDescriptor} archiveCompartmentMap
+ * @property {Sources} archiveSources
+ * @property {Record<string, string>} compartmentRenames
+ */
