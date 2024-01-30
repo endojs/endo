@@ -42,16 +42,19 @@ export const main = async rawArgs => {
     .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
     .option(
       '-p,--powers <endowment>',
-      'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
+      'Endowment to give the weblet (a name, NONE, SELF, or ENDO)',
     )
+    .option('-o,--open', 'Open the new web page immediately (weblet)')
     .action(async (webPageName, programPath, cmd) => {
       const {
         bundle: bundleName,
         powers: powersName = 'NONE',
         as: partyNames,
+        open: doOpen,
       } = cmd.opts();
       const { install } = await import('./install.js');
       return install({
+        doOpen,
         webPageName,
         programPath,
         bundleName,
@@ -124,7 +127,7 @@ export const main = async rawArgs => {
       collect,
       [],
     )
-    .option('-p,--powers <name>', 'Name of powers to grant or NONE, HOST, ENDO')
+    .option('-p,--powers <name>', 'Name of powers to grant or NONE, SELF, ENDO')
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
