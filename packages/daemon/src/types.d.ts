@@ -247,6 +247,21 @@ export interface EndoHost {
   ): Promise<unknown>;
 }
 
+export type EndoInspector<Record = string> = {
+  lookup: (petName: Record) => Promise<unknown>;
+  list: () => Record[];
+};
+
+export type KnownEndoInspectors = {
+  'eval-id512': EndoInspector<'endowments' | 'source' | 'worker'>;
+  'make-unconfined-id512': EndoInspector<'host'>;
+  'make-bundle-id512': EndoInspector<'bundle' | 'powers' | 'worker'>;
+  'guest-id512': EndoInspector<'bundle' | 'powers'>;
+  'web-bundle': EndoInspector<'powers' | 'specifier' | 'worker'>;
+  // This is an "empty" inspector, in that there is nothing to `lookup()` or `list()`.
+  [formulaType: string]: EndoInspector<string>;
+};
+
 export type EndoWebBundle = {
   url: string;
   bundle: ERef<EndoReadable>;

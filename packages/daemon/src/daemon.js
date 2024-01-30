@@ -37,7 +37,15 @@ const delay = async (ms, cancelled) => {
   });
 };
 
-const makeInfo = (type, number, record) =>
+/**
+ * Creates an inspector object for a formula.
+ *
+ * @param {string} type - The formula type.
+ * @param {string} number - The formula number.
+ * @param {Record<string, unknown>} record - A mapping from special names to formula values.
+ * @returns {import('./types.js').EndoInspector} The inspector for the given formula.
+ */
+const makeInspector = (type, number, record) =>
   Far(`Inspector (${type} ${number})`, {
     lookup: async petName => {
       if (!Object.hasOwn(record, petName)) {
@@ -385,18 +393,18 @@ const makeEndoBootstrap = (
     } else if (formulaIdentifier === 'pet-inspector') {
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
-      const external = makeIdentifiedInspector('pet-store');
+      const external = makePetStoreInspector('pet-store');
       return { external, internal: undefined };
     } else if (formulaIdentifier === 'host') {
       const storeFormulaIdentifier = 'pet-store';
-      const infoFormulaIdentifier = 'pet-inspector';
+      const inspectorFormulaIdentifier = 'pet-inspector';
       const workerFormulaIdentifier = `worker-id512:${zero512}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedHost(
         formulaIdentifier,
         storeFormulaIdentifier,
-        infoFormulaIdentifier,
+        inspectorFormulaIdentifier,
         workerFormulaIdentifier,
         terminator,
       );
@@ -428,7 +436,7 @@ const makeEndoBootstrap = (
     } else if (formulaType === 'pet-inspector-id512') {
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
-      const external = makeIdentifiedInspector(
+      const external = makePetStoreInspector(
         `pet-store-id512:${formulaNumber}`,
       );
       return { external, internal: undefined };
@@ -440,14 +448,14 @@ const makeEndoBootstrap = (
       return { external, internal: undefined };
     } else if (formulaType === 'host-id512') {
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
-      const infoFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
+      const inspectorFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
       const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedHost(
         formulaIdentifier,
         storeFormulaIdentifier,
-        infoFormulaIdentifier,
+        inspectorFormulaIdentifier,
         workerFormulaIdentifier,
         terminator,
       );
@@ -610,12 +618,25 @@ const makeEndoBootstrap = (
     makeMailbox,
   });
 
-  const makeIdentifiedInspector = async petStoreFormulaIdentifier => {
+  /**
+   * Creates an inspector for the current party's pet store, used to create
+   * inspectors for values therein. Notably, can provide references to otherwise
+   * un-nameable values such as the `MAIN` worker. See `KnownEndoInspectors` for
+   * more details.
+   *
+   * @param {string} petStoreFormulaIdentifier
+   * @returns {Promise<import('./types').EndoInspector>}
+   */
+  const makePetStoreInspector = async petStoreFormulaIdentifier => {
     const petStore = await provideValueForFormulaIdentifier(
       petStoreFormulaIdentifier,
     );
 
-    /** @param {string} petName */
+    /**
+     * @param {string} petName - The pet name to inspect.
+     * @returns {Promise<import('./types').KnownEndoInspectors[string]>} An
+     * inspector for the value of the given pet name.
+     */
     const lookup = async petName => {
       const formulaIdentifier = petStore.lookup(petName);
       if (formulaIdentifier === undefined) {
@@ -626,26 +647,24 @@ const makeEndoBootstrap = (
       if (
         ![
           'eval-id512',
-          'import-unsafe-id512',
-          'import-bundle-id512',
+          'make-unconfined-id512',
+          'make-bundle-id512',
           'guest-id512',
           'web-bundle',
         ].includes(formulaType)
       ) {
-        return makeInfo(formulaType, formulaNumber, harden({}));
+        return makeInspector(formulaType, formulaNumber, harden({}));
       }
       const formula = await persistencePowers.readFormula(
         formulaType,
         formulaNumber,
       );
       if (formula.type === 'eval') {
-        return makeInfo(
+        return makeInspector(
           formula.type,
           formulaNumber,
           harden({
-            SOURCE: formula.source,
-            WORKER: provideValueForFormulaIdentifier(formula.worker),
-            ENDOWMENTS: Object.fromEntries(
+            endowments: Object.fromEntries(
               formula.names.map((name, index) => {
                 return [
                   name,
@@ -653,53 +672,56 @@ const makeEndoBootstrap = (
                 ];
               }),
             ),
-          }),
-        );
-      } else if (formula.type === 'import-unsafe') {
-        return makeInfo(
-          formula.type,
-          formulaNumber,
-          harden({
-            SPECIFIER: formula.type,
-            WORKER: provideValueForFormulaIdentifier(formula.worker),
-            POWERS: provideValueForFormulaIdentifier(formula.powers),
-          }),
-        );
-      } else if (formula.type === 'import-bundle') {
-        return makeInfo(
-          formula.type,
-          formulaNumber,
-          harden({
-            WORKER: provideValueForFormulaIdentifier(formula.worker),
-            BUNDLE: provideValueForFormulaIdentifier(formula.bundle),
-            POWERS: provideValueForFormulaIdentifier(formula.powers),
+            source: formula.source,
+            worker: provideValueForFormulaIdentifier(formula.worker),
           }),
         );
       } else if (formula.type === 'guest') {
-        return makeInfo(
+        return makeInspector(
           formula.type,
           formulaNumber,
           harden({
-            HOST: provideValueForFormulaIdentifier(formula.host),
+            host: provideValueForFormulaIdentifier(formula.host),
+          }),
+        );
+      } else if (formula.type === 'make-bundle') {
+        return makeInspector(
+          formula.type,
+          formulaNumber,
+          harden({
+            bundle: provideValueForFormulaIdentifier(formula.bundle),
+            powers: provideValueForFormulaIdentifier(formula.powers),
+            worker: provideValueForFormulaIdentifier(formula.worker),
+          }),
+        );
+      } else if (formula.type === 'make-unconfined') {
+        return makeInspector(
+          formula.type,
+          formulaNumber,
+          harden({
+            powers: provideValueForFormulaIdentifier(formula.powers),
+            specifier: formula.type,
+            worker: provideValueForFormulaIdentifier(formula.worker),
           }),
         );
       } else if (formula.type === 'web-bundle') {
-        return makeInfo(
+        return makeInspector(
           formula.type,
           formulaNumber,
           harden({
-            BUNDLE: provideValueForFormulaIdentifier(formula.bundle),
-            POWERS: provideValueForFormulaIdentifier(formula.powers),
+            bundle: provideValueForFormulaIdentifier(formula.bundle),
+            powers: provideValueForFormulaIdentifier(formula.powers),
           }),
         );
       }
       // @ts-expect-error this should never occur
-      return makeInfo(formula.type, formulaNumber, harden({}));
+      return makeInspector(formula.type, formulaNumber, harden({}));
     };
 
+    /** @returns {string[]} The list of all names in the pet store. */
     const list = () => petStore.list();
 
-    const info = Far('Endo info facet', {
+    const info = Far('Endo inspector facet', {
       lookup,
       list,
     });
