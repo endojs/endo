@@ -1,10 +1,11 @@
 const { quote: q } = assert;
 
 const numberlessFormulasIdentifiers = new Set([
-  'pet-store',
-  'host',
   'endo',
+  'host',
   'least-authority',
+  'pet-inspector',
+  'pet-store',
   'web-page-js',
 ]);
 
