@@ -694,3 +694,44 @@ test('make a host', async t => {
 
   await stop(locator);
 });
+
+test('name and reuse inspector', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'inspector-reuse');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
+
+  const inspector = await E(host).evaluate(
+    'worker',
+    'E(INFO).lookup("counter")',
+    ['INFO'],
+    ['INFO'],
+    'inspector',
+  );
+  t.regex(String(inspector), /Alleged: Inspector.+make-unconfined/u);
+
+  const worker = await E(host).evaluate(
+    'worker',
+    'E(inspector).lookup("worker")',
+    ['inspector'],
+    ['inspector'],
+  );
+  t.regex(String(worker), /Alleged: EndoWorker/u);
+
+  await stop(locator);
+});
