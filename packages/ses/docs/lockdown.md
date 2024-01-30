@@ -20,24 +20,39 @@ compatibility vs better tool compatibility.
 
 Each option is explained in its own section below.
 
-| option             | default setting  | other settings | about |
-|--------------------|------------------|----------------|-------|
-| `regExpTaming`     | `'safe'`         | `'unsafe'`     | `RegExp.prototype.compile` |
-| `localeTaming`     | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
-| `consoleTaming`    | `'safe'`         | `'unsafe'`     | deep stacks                |
-| `errorTaming`      | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
-| `errorTrapping`    | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
-| `unhandledRejectionTrapping` | `'report'` | `'none'`   | handling of finalized unhandled rejections |
-| `evalTaming`       | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
-| `stackFiltering`   | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
-| `overrideTaming`   | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
-| `overrideDebug`    | `[]`             | array of property names | detect override mistake |
-| `domainTaming`     | `'safe'`         | `'unsafe'`     | Node.js `domain` module |
-| `__hardenTaming__` | `'safe'`         | `'unsafe'`     | Making `harden` no-op for performance in trusted environments |
+| option                       | default setting  | other settings                         | about |
+|------------------------------|------------------|----------------------------------------|-------|
+| `regExpTaming`               | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` |
+| `localeTaming`               | `'safe'`         | `'unsafe'`                             | `toLocaleString`           |
+| `consoleTaming`              | `'safe'`         | `'unsafe'`                             | deep stacks                |
+| `errorTaming`                | `'safe'`         | `'unsafe'`                             | `errorInstance.stack`      |
+| `errorTrapping`              | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
+| `unhandledRejectionTrapping` | `'report'`       | `'none'`                               | handling of finalized unhandled rejections |
+| `evalTaming`                 | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment. |
+| `stackFiltering`             | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   |
+| `overrideTaming`             | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  |
+| `overrideDebug`              | `[]`             | array of property names                | detect override mistake |
+| `domainTaming`               | `'safe'`         | `'unsafe'`                             | Node.js `domain` module |
+| `__hardenTaming__`           | `'safe'`         | `'unsafe'`                             | Making `harden` no-op for performance in trusted environments |
 
 In the absence of any of these options in lockdown arguments, lockdown will
-attempt to read these from the Node.js `process.env` environment.
-The corresponding environment variables are the same but in `UPPER_SNAKE_CASE`.
+attempt to read these options from `process.env`, using the Node.js convention
+for threading environment variables into a JavaScript program.
+
+| option                       | environment variable                    | notes                 |
+|------------------------------|-----------------------------------------|-----------------------|
+| `regExpTaming`               | `LOCKDOWN_REGEXP_TAMING`                |                       |
+| `localeTaming`               | `LOCKDOWN_LOCALE_TAMING`                |                       |
+| `consoleTaming`              | `LOCKDOWN_CONSOLE_TAMING`               |                       |
+| `errorTaming`                | `LOCKDOWN_ERROR_TAMING`                 |                       |
+| `errorTrapping`              | `LOCKDOWN_ERROR_TRAPPING`               |                       |
+| `unhandledRejectionTrapping` | `LOCKDOWN_UNHANDLED_REJECTION_TRAPPING` |                       |
+| `evalTaming`                 | `LOCKDOWN_EVAL_TAMING`                  |                       |
+| `stackFiltering`             | `LOCKDOWN_STACK_FILTERING`              |                       |
+| `overrideTaming`             | `LOCKDOWN_OVERRIDE_TAMING`              |                       |
+| `overrideDebug`              | `LOCKDOWN_OVERRIDE_DEBUG`               | comma separated names |
+| `domainTaming`               | `LOCKDOWN_DOMAIN_TAMING`                |                       |
+| `__hardenTaming__`           | `LOCKDOWN_HARDEN_TAMING`                |                       |
 
 The options `mathTaming` and `dateTaming` are deprecated.
 `Math.random`, `Date.now`, and the `new Date()` are disabled within
@@ -71,6 +86,14 @@ lockdown(); // regExpTaming defaults to 'safe'
 lockdown({ regExpTaming: 'safe' }); // Delete RegExp.prototype.compile
 // vs
 lockdown({ regExpTaming: 'unsafe' }); // Preserve RegExp.prototype.compile
+```
+
+If `lockdown` does not receive a `regExpTaming` option, it will respect
+`process.env.LOCKDOWN_REGEXP_TAMING`.
+
+```console
+LOCKDOWN_REGEXP_TAMING=safe
+LOCKDOWN_REGEXP_TAMING=unsafe
 ```
 
 The `regExpTaming` default `'safe'` setting deletes this dangerous method. The
@@ -121,6 +144,14 @@ lockdown({ localeTaming: 'safe' }); // Alias toLocaleString to toString, etc
 lockdown({ localeTaming: 'unsafe' }); // Allow locale-specific behavior
 ```
 
+If `lockdown` does not receive a `localeTaming` option, it will respect
+`process.env.LOCKDOWN_LOCALE_TAMING`.
+
+```console
+LOCKDOWN_LOCALE_TAMING=safe
+LOCKDOWN_LOCALE_TAMING=unsafe
+```
+
 The `localeTaming` default `'safe'` option replaces each of these methods with
 the corresponding non-locale-specific method. `Object.prototype.toLocaleString`
 becomes just another name for `Object.prototype.toString`. The `'unsafe'`
@@ -166,17 +197,35 @@ lockdown({
   overrideTaming: 'min', // Until https://github.com/endojs/endo/issues/636
 });
 ```
+
+If `lockdown` does not receive a `consoleTaming` option, it will respect
+`process.env.LOCKDOWN_CONSOLE_TAMING`.
+
+```console
+LOCKDOWN_CONSOLE_TAMING=safe
+LOCKDOWN_CONSOLE_TAMING=unsafe
+```
+
+The `consoleTaming: 'safe'` setting replaces the global console with a tamed
+console, and that tamed console is safe to endow to a guest `Compartment`.
+Additionally, any errors created with the `assert` function or methods on its
+namespace may have [redacted details](../src/error/README.md): information
+included in the error message that is informative to a debugger and made
+invisible to an attacker.
+The tamed console removes redactions and shows these details to the original
+console.
+
 The `consoleTaming: 'unsafe'` setting leaves the original console in place.
 The `assert` package and error objects will continue to work, but the `console`
 logging output will not show any of this extra information.
 
 The risk is that the original platform-provided `console` object often has
-additional methods beyond the de facto `console` "standards". Under the
-`'unsafe'` setting we do not remove them.
-We do not know whether any of these additional
-methods violate ocap security. Until we know otherwise, we should assume these
-are unsafe. Such a raw `console` object should only be handled by very
-trustworthy code.
+additional methods beyond the de facto `console` "standards" and may be unsafe
+to endow to a guest `Compartment`.
+Under the `'unsafe'` setting we do not remove them.
+We do not know whether any of these additional methods violate ocap security.
+Until we know otherwise, we should assume these are unsafe. Such a raw
+`console` object should only be handled by very trustworthy code.
 
 Until the bug
 [Node console gets confused if .constructor is an accessor (#636)](https://github.com/endojs/endo/issues/636)
@@ -267,6 +316,14 @@ lockdown({ errorTaming: 'safe' }); // Deny unprivileged access to stacks, if pos
 lockdown({ errorTaming: 'unsafe' }); // stacks also available by errorInstance.stack
 ```
 
+If `lockdown` does not receive an `errorTaming` option, it will respect
+`process.env.LOCKDOWN_ERROR_TAMING`.
+
+```console
+LOCKDOWN_ERROR_TAMING=safe
+LOCKDOWN_ERROR_TAMING=unsafe
+```
+
 The `errorTaming` default `'safe'` setting makes the stack trace inaccessible
 from error instances alone, when possible. It currently does this only on
 v8 (Chrome, Brave, Node). It will also do so on SpiderMonkey (Firefox).
@@ -336,6 +393,17 @@ lockdown({ errorTrapping: 'report' }); // just report
 lockdown({ errorTrapping: 'none' }); // no platform error traps
 ```
 
+If `lockdown` does not receive an `errorTrapping` option, it will respect
+`process.env.LOCKDOWN_ERROR_TRAPPING`.
+
+```console
+LOCKDOWN_ERROR_TRAPPING=platform
+LOCKDOWN_ERROR_TRAPPING=exit
+LOCKDOWN_ERROR_TRAPPING=abort
+LOCKDOWN_ERROR_TRAPPING=report
+LOCKDOWN_ERROR_TRAPPING=none
+```
+
 On the web, the `window` event emitter has a trap for `error` events.
 In the absence of a trap, the platform logs the error to the debugger console
 and continues.
@@ -383,6 +451,14 @@ lockdown({ unhandledRejectionTrapping: 'report' }); // print finalized unhandled
 lockdown({ unhandledRejectionTrapping: 'none' }); // no special unhandled rejection traps
 ```
 
+If `lockdown` does not receive an `unhandledRejectionTrapping` option, it will
+respect `process.env.LOCKDOWN_UNHANDLED_REJECTION_TRAPPING`.
+
+```console
+LOCKDOWN_UNHANDLED_REJECTION_TRAPPING=report
+LOCKDOWN_UNHANDLED_REJECTION_TRAPPING=none
+```
+
 On the web, the `window` event emitter has a trap for `unhandledrejection` and
 `rejectionhandled` events.  In the absence of a trap, the platform logs
 rejections that were not handled in the same turn in which they were created to
@@ -410,13 +486,14 @@ triggering the SES trap handler.
 
 This option only affects the start compartment!
 
-To disallows eval in the explicit compartments, replace the constructors in the compartment.
+To disallow `eval` in specific compartments, replace `eval` and the function
+constructors in the compartment.
 
 ```js
 const c = new Compartment()
 c.globalThis.eval = c.globalThis.Function = function() {
-  throw new TypeError()
-}
+  throw new TypeError();
+};
 ```
 
 **Background**: Every realm has an implicit initial compartment we call the "start compartment". Explicit compartments are made with the `Compartment` constructor.
@@ -459,6 +536,15 @@ lockdown({ evalTaming: 'noEval' }); // disallowing calling eval like there is a 
 lockdown({ evalTaming: 'unsafeEval' });
 ```
 
+If `lockdown` does not receive an `evalTaming` option, it will respect
+`process.env.LOCKDOWN_EVAL_TAMING`.
+
+```console
+LOCKDOWN_EVAL_TAMING=safeEval
+LOCKDOWN_EVAL_TAMING=noEval
+LOCKDOWN_EVAL_TAMING=unsafeEval
+```
+
 ## `stackFiltering` Options
 
 **Background**: The error stacks shown by many JavaScript engines are
@@ -478,6 +564,14 @@ lockdown(); // stackFiltering defaults to 'concise'
 lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info
 // vs
 lockdown({ stackFiltering: 'verbose' }); // Console shows full deep stacks
+```
+
+If `lockdown` does not receive a `stackFiltering` option, it will respect
+`process.env.LOCKDOWN_STACK_FILTERING`.
+
+```console
+LOCKDOWN_STACK_FILTERING=concise
+LOCKDOWN_STACK_FILTERING=verbose
 ```
 
 When looking at deep distributed stacks, in order to debug distributed
@@ -617,6 +711,15 @@ lockdown({ overrideTaming: 'min' }); // Minimal mitigations for purely modern co
 lockdown({ overrideTaming: 'severe' }); // More severe legacy compat
 ```
 
+If `lockdown` does not receive a `overrideTaming` option, it will respect
+`process.env.LOCKDOWN_OVERRIDE_TAMING`.
+
+```console
+LOCKDOWN_OVERRIDE_TAMING=moderate
+LOCKDOWN_OVERRIDE_TAMING=min
+LOCKDOWN_OVERRIDE_TAMING=severe
+```
+
 The `overrideTaming` default `'moderate'` option of `lockdown` is intended to
 be fairly minimal, but we expand it as needed, when we
 encounter code which should run under SES but is prevented from doing so
@@ -661,9 +764,11 @@ by our override mitigation.
 
 ## `overrideDebug` Options
 
-To help diagnose problems with the override mistake, you can set this option to
-a list of properties that will print diagnostic information when their override
-enablement is triggered.
+To help diagnose problems with the [Property Override Mistake][POM], you can
+set this option to a list of properties that will print diagnostic information
+when their override enablement is triggered.
+
+  [POM]: https://github.com/endojs/endo/discussions/1855
 
 For example, to find the client code that causes a `constructor` property override
 mistake, set the options as follows:
@@ -675,12 +780,24 @@ mistake, set the options as follows:
 }
 ```
 
+If `lockdown` does not receive a `regExpTaming` option, it will respect
+`process.env.LOCKDOWN_OVERRIDE_DEBUG`, a comma-separated list of property names
+on shared intrinsics to replace with debugger accessors.
+
+```console
+LOCKDOWN_OVERRIDE_DEBUG=constructor,toString
+```
+
 The idiom for `@agoric/install-ses` when tracking down the override
 mistake with the `constructor` property is to set the following
 environment variable:
 
 ```sh
-LOCKDOWN_OPTIONS='{"errorTaming":"unsafe","stackFiltering":"verbose","overrideTaming":"severe","overrideDebug":["constructor"]}'
+LOCKDOWN_ERROR_TAMING=unsafe \
+LOCKDOWN_STACK_FILTERING=verbose \
+LOCKDOWN_OVERRIDE_TAMING=severe \
+LOCKDOWN_OVERRIDE_DEBUG=constructor \
+node ...
 ```
 
 Then, when some script deep in the require stack does:
@@ -746,6 +863,14 @@ lockdown(); // __hardenTaming__ defaults to 'safe'
 lockdown({ __hardenTaming__: 'safe' }); // harden works
 // vs
 lockdown({ __hardenTaming__: 'unsafe' }); // harden is noop. Other tests pretend
+```
+
+If `lockdown` does not receive a `__hardenTaming__` option, it will respect
+`process.env.LOCKDOWN_HARDEN_TAMING`.
+
+```console
+LOCKDOWN_HARDEN_TAMING=safe
+LOCKDOWN_HARDEN_TAMING=unsafe
 ```
 
 We created this option specifically for
