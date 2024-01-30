@@ -86,8 +86,12 @@ test('harden typed arrays', t => {
     t.truthy(Object.isSealed(a));
     const descriptor = Object.getOwnPropertyDescriptor(a, '0');
     t.is(descriptor.value, a[0]);
-    // Fails in Node.js 14 and earlier due to an engine bug:
-    // t.is(descriptor.configurable, true, 'hardened typed array indexed property remains configurable');
+    // Failed in Node.js 14 and earlier due to an engine bug:
+    t.is(
+      descriptor.configurable,
+      true,
+      'hardened typed array indexed property remains configurable',
+    );
     // Note that indexes of typed arrays are exceptionally writable for hardened objects.
     t.is(
       descriptor.writable,
@@ -187,8 +191,12 @@ test('harden typed arrays and their expandos', t => {
       { value: 0, writable: true, enumerable: true },
       'hardened typed array index property',
     );
-    // Fails in Node.js 14 and earlier due to an engine bug:
-    // t.is(descriptor.configurable, true, 'typed array indexed property is configurable');
+    // Failed in Node.js 14 and earlier due to an engine bug:
+    t.is(
+      descriptor.configurable,
+      true,
+      'typed array indexed property is configurable',
+    );
     // Note that indexes of typed arrays are exceptionally writable for hardened objects:
   }
 
