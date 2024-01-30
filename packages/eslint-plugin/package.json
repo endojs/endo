@@ -27,7 +27,7 @@
     "eslint": "^8.46.0"
   },
   "engines": {
-    "node": ">=0.10.0"
+    "node": "16.13 || ^18.12 || ^20.9"
   },
   "publishConfig": {
     "access": "public"
