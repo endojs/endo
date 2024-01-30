@@ -27,21 +27,22 @@ const textEncoder = new TextEncoder();
 
 /**
  * @param {Buffer} buffer
- * @param {number} length
- * @returns {number} cursor (old length)
+ * @param {number} increaseBy
+ * @returns {number} old length
  */
-function grow(buffer, length) {
+function grow(buffer, increaseBy) {
   const cursor = buffer.length;
-  if (length === 0) {
+  if (increaseBy === 0) {
     return cursor;
   }
-  buffer.length += length;
-  let newLength = buffer.bytes.length;
-  if (buffer.length + length > newLength) {
-    while (buffer.length + length > newLength) {
-      newLength *= 2;
+  buffer.length += increaseBy;
+  let capacity = buffer.bytes.length;
+  // Expand backing storage, leaving headroom for another similar-size increase.
+  if (buffer.length + increaseBy > capacity) {
+    while (buffer.length + increaseBy > capacity) {
+      capacity *= 2;
     }
-    const bytes = new Uint8Array(newLength);
+    const bytes = new Uint8Array(capacity);
     const data = new DataView(bytes.buffer);
     bytes.set(buffer.bytes.subarray(0, buffer.length), 0);
     buffer.bytes = bytes;
@@ -55,24 +56,34 @@ function grow(buffer, length) {
  * @param {string} value
  */
 function encodeString(buffer, value) {
-  const start = buffer.length;
-  for (;;) {
-    const { read = 0, written = 0 } = textEncoder.encodeInto(
-      value,
-      buffer.bytes.subarray(start),
+  const stringLength = value.length;
+  const likelyPrefixLength = `${stringLength}`.length + 1;
+  // buffer.length will be incorrect until we fix it before returning.
+  const start = grow(buffer, likelyPrefixLength + stringLength);
+  const likelyDataStart = start + likelyPrefixLength;
+
+  for (let remaining = value, read = 0, written = 0; ; ) {
+    const chunk = textEncoder.encodeInto(
+      remaining,
+      buffer.bytes.subarray(likelyDataStart + written),
     );
-    if (read === value.length) {
+    written += chunk.written || 0;
+    read += chunk.read || 0;
+    if (read === stringLength) {
       const prefix = `${written}"`; // length prefix quote suffix
+      const prefixLength = prefix.length;
       buffer.length = start;
-      grow(buffer, prefix.length + written);
-      buffer.bytes.copyWithin(start + prefix.length, start); // shift right
+      grow(buffer, prefixLength + written);
+      if (prefixLength !== likelyPrefixLength) {
+        buffer.bytes.copyWithin(start + prefixLength, likelyDataStart); // shift right
+      }
       textEncoder.encodeInto(
         prefix,
-        buffer.bytes.subarray(start, start + prefix.length),
+        buffer.bytes.subarray(start, start + prefixLength),
       );
-      buffer.length = start + prefix.length + written;
       return;
     }
+    remaining = remaining.substring(chunk.read || 0);
     grow(buffer, buffer.bytes.length);
   }
 }
@@ -80,7 +91,7 @@ function encodeString(buffer, value) {
 /**
  * @param {Buffer} buffer
  * @param {Record<string, any>} record
- * @param {string} path
+ * @param {Array<string | number>} path
  */
 function encodeRecord(buffer, record, path) {
   const restart = buffer.length;
@@ -121,7 +132,7 @@ function encodeRecord(buffer, record, path) {
     encodeString(buffer, key);
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value, `${path}/${key}`);
+    encodeAny(buffer, value, path, key);
   }
 
   cursor = grow(buffer, 1);
@@ -131,17 +142,18 @@ function encodeRecord(buffer, record, path) {
 /**
  * @param {Buffer} buffer
  * @param {Array<any>} array
- * @param {string} path
+ * @param {Array<string | number>} path
  */
 function encodeArray(buffer, array, path) {
-  let cursor = grow(buffer, 1);
+  let cursor = grow(buffer, 2 + array.length);
+  buffer.length = cursor + 1;
   buffer.bytes[cursor] = LIST_START;
 
   let index = 0;
   for (const value of array) {
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value, `${path}/${index}`);
+    encodeAny(buffer, value, path, index);
     index += 1;
   }
 
@@ -152,9 +164,10 @@ function encodeArray(buffer, array, path) {
 /**
  * @param {Buffer} buffer
  * @param {any} value
- * @param {string} path
+ * @param {Array<string | number>} path
+ * @param {string | number} pathSuffix
  */
-function encodeAny(buffer, value, path) {
+function encodeAny(buffer, value, path, pathSuffix) {
   if (typeof value === 'string') {
     encodeString(buffer, value);
     return;
@@ -190,12 +203,16 @@ function encodeAny(buffer, value, path) {
   }
 
   if (Array.isArray(value)) {
+    path.push(pathSuffix);
     encodeArray(buffer, value, path);
+    path.pop();
     return;
   }
 
   if (Object(value) === value) {
+    path.push(pathSuffix);
     encodeRecord(buffer, value, path);
+    path.pop();
     return;
   }
 
@@ -211,7 +228,8 @@ function encodeAny(buffer, value, path) {
     return;
   }
 
-  throw TypeError(`Cannot encode value ${value} at ${path}`);
+  path.push(pathSuffix);
+  throw TypeError(`Cannot encode value ${value} at ${path.join('/')}`);
 }
 
 /**
@@ -227,6 +245,6 @@ export function encodeSyrup(value, options = {}) {
   const data = new DataView(bytes.buffer);
   const length = 0;
   const buffer = { bytes, data, length };
-  encodeAny(buffer, value, '/');
+  encodeAny(buffer, value, [], '/');
   return buffer.bytes.subarray(0, buffer.length);
 }
