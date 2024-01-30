@@ -735,3 +735,52 @@ test('name and reuse inspector', async t => {
 
   await stop(locator);
 });
+
+// TODO: This test verifies existing behavior when pet-naming workers.
+// This behavior is undesirable. See: https://github.com/endojs/endo/issues/2021
+test('eval-mediated worker name', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'eval-worker-name');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
+
+  // We create a petname for the worker of `counter`.
+  // Note that while `worker === counter-worker`, it doesn't matter here.
+  const counterWorker = await E(host).evaluate(
+    'worker',
+    'E(E(INFO).lookup("counter")).lookup("worker")',
+    ['INFO'],
+    ['INFO'],
+    'counter-worker',
+  );
+  t.regex(String(counterWorker), /Alleged: EndoWorker/u);
+
+  try {
+    await E(host).evaluate(
+      'counter-worker', // Our worker pet name
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    );
+    t.fail('should have thrown');
+  } catch (error) {
+    // This is the error that we don't want
+    t.regex(error.message, /typeof target is "undefined"/u);
+    await stop(locator);
+  }
+});
