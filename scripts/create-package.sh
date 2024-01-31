@@ -45,6 +45,7 @@ NEWPKGJSONHASH=$(
     name: (.name // "@endo/\($name)"),
     version: (.version // "0.1.0"),
     homepage: (.homepage // "https://github.com/endojs/endo/tree/master/packages/\($name)#readme"),
+    repository: (.repository + { directory: "packages/\($name)" }),
     scripts: ((.scripts // {}) | to_entries | sort_by(.key) | from_entries),
     dependencies: ((.dependencies // {}) | to_entries | sort_by(.key) | from_entries),
     devDependencies: ((.devDependencies // {}) | to_entries | sort_by(.key) | from_entries),

@@ -13,7 +13,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/compartment-mapper#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/compartment-mapper"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

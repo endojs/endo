@@ -9,7 +9,8 @@
   "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses-integration-test#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/SES-shim.git"
+    "url": "git+https://github.com/Agoric/SES-shim.git",
+    "directory": "packages/ses-integration-test"
   },
   "bugs": {
     "url": "https://github.com/Agoric/SES-shim/issues"

@@ -9,7 +9,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/memoize#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/memoize"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

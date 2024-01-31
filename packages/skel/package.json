@@ -9,7 +9,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/skel#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/skel"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

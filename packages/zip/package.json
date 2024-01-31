@@ -12,7 +12,8 @@
   "homepage": "https://github.com/endojs/endo/blob/master/packages/zip/README.md",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/zip"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
