@@ -803,10 +803,10 @@ test('eval-mediated worker name', async t => {
   }
 });
 
-test('lookup with petname path', async t => {
+test('lookup with single petname', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'path-lookup');
+  const locator = makeLocator('tmp', 'lookup-single-petname');
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -820,17 +820,107 @@ test('lookup with petname path', async t => {
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
   await E(host).provideGuest('guest');
-
   const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
   t.is(ten, 10);
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
-    'E(SELF).lookup("guest", "HOST", "ten")',
+    'E(SELF).lookup("ten")',
     ['SELF'],
     ['SELF'],
   );
-  t.is(resolvedValue, ten);
+  t.is(resolvedValue, 10);
+
+  await stop(locator);
+});
+
+test('lookup with petname path (inspector)', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'lookup-petname-path-inspector');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const resolvedValue = await E(host).evaluate(
+    'MAIN',
+    'E(SELF).lookup("INFO", "ten", "source")',
+    ['SELF'],
+    ['SELF'],
+  );
+  t.is(resolvedValue, '10');
+
+  await stop(locator);
+});
+
+test('lookup with petname path (caplet with lookup method)', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'lookup-petname-path-caplet');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+
+  const lookupPath = path.join(dirname, 'test', 'lookup.js');
+  await E(host).makeUnconfined('MAIN', lookupPath, 'NONE', 'lookup');
+
+  const resolvedValue = await E(host).evaluate(
+    'MAIN',
+    'E(SELF).lookup("lookup", "name")',
+    ['SELF'],
+    ['SELF'],
+  );
+  t.is(resolvedValue, 'Looked up: name');
+
+  await stop(locator);
+});
+
+test('lookup with petname path (value has no lookup method)', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'lookup-petname-path-no-method');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await t.throwsAsync(
+    E(host).evaluate(
+      'MAIN',
+      'E(SELF).lookup("ten", "someName")',
+      ['SELF'],
+      ['SELF'],
+    ),
+    { message: 'target has no method "lookup", has []' },
+  );
 
   await stop(locator);
 });
