@@ -11,6 +11,7 @@ import url from 'url';
 import path from 'path';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import bundleSource from '@endo/bundle-source';
 import {
   start,
   stop,
@@ -39,6 +40,36 @@ const makeLocator = (...root) => {
     pets: new Map(),
     values: new Map(),
   };
+};
+
+// The id of the next bundle to make.
+let bundleId = 0;
+const textEncoder = new TextEncoder();
+
+// TODO: We should be able to use {import('../src/types').EndoHost} for `host`,
+// but when laundered through `E()` it becomes `never`.
+/**
+ * Performs the necessary rituals to go from an endo `host` and a module `filePath`
+ * to calling `makeBundle` without leaving temporary pet names behind.
+ *
+ * @param {any} host - The host to use.
+ * @param {string} filePath - The path to the file to bundle.
+ * @param {(bundleName: string) => Promise<unknown>} callback - A function that calls `makeBundle`
+ * on the `host`.
+ * @returns {Promise<unknown>} The result of the `callback`.
+ */
+const doMakeBundle = async (host, filePath, callback) => {
+  const bundleName = `tmp-bundle-${bundleId}`;
+  bundleId += 1;
+  const bundle = await bundleSource(filePath);
+  const bundleText = JSON.stringify(bundle);
+  const bundleBytes = textEncoder.encode(bundleText);
+  const bundleReaderRef = makeReaderRef([bundleBytes]);
+
+  await E(host).store(bundleReaderRef, bundleName);
+  const result = await callback(bundleName);
+  await E(host).remove(bundleName);
+  return result;
 };
 
 test('lifecycle', async t => {
@@ -359,6 +390,92 @@ test('persist unconfined services and their requests', async t => {
     await E(host).provideGuest('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
     await E(host).makeUnconfined('w1', servicePath, 'o1', 's1');
+
+    await E(host).makeWorker('w2');
+    const answer = await E(host).evaluate(
+      'w2',
+      'E(service).ask()',
+      ['service'],
+      ['s1'],
+      'answer',
+    );
+    const number = await E(answer).value();
+    t.is(number, 42);
+  })();
+
+  await Promise.all([responderFinished, requesterFinished]);
+
+  await restart(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const host = E(bootstrap).host();
+    const answer = await E(host).lookup('answer');
+    const number = await E(answer).value();
+    t.is(number, 42);
+  }
+
+  await stop(locator);
+});
+
+test('persist confined services and their requests', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'make-bundle');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const responderFinished = (async () => {
+    const { promise: followerCancelled, reject: cancelFollower } =
+      makePromiseKit();
+    cancelled.catch(cancelFollower);
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      followerCancelled,
+    );
+    const bootstrap = getBootstrap();
+    const host = E(bootstrap).host();
+    await E(host).makeWorker('user-worker');
+    await E(host).evaluate(
+      'user-worker',
+      `
+      Far('Answer', {
+        value: () => 42,
+      })
+    `,
+      [],
+      [],
+      'grant',
+    );
+    const iteratorRef = E(host).followMessages();
+    const { value: message } = await E(iteratorRef).next();
+    const { number, who } = E.get(message);
+    t.is(await who, 'o1');
+    await E(host).resolve(await number, 'grant');
+  })();
+
+  const requesterFinished = (async () => {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const host = E(bootstrap).host();
+    await E(host).makeWorker('w1');
+    await E(host).provideGuest('o1');
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    await doMakeBundle(host, servicePath, bundleName =>
+      E(host).makeBundle('w1', bundleName, 'o1', 's1'),
+    );
 
     await E(host).makeWorker('w2');
     const answer = await E(host).evaluate(
