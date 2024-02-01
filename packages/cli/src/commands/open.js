@@ -5,7 +5,7 @@ import os from 'os';
 import openWebPage from 'open';
 import { E } from '@endo/far';
 
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
 export const open = async ({ webPageName, partyNames }) => {
   await withEndoParty(partyNames, { os, process }, async ({ party }) => {

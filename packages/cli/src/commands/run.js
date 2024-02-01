@@ -4,7 +4,7 @@ import os from 'os';
 import { E, Far } from '@endo/far';
 import bundleSource from '@endo/bundle-source';
 
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
 const endowments = harden({
   assert,

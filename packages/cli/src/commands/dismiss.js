@@ -1,18 +1,18 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
-export const rejectCommand = async ({
+export const dismissCommand = async ({
   cancel,
   cancelled,
   sockPath,
-  requestNumberText,
+  messageNumberText,
   message,
   partyNames,
 }) =>
   withEndoParty(partyNames, { os, process }, async ({ party }) => {
     // TODO less bad number parsing.
-    const requestNumber = Number(requestNumberText);
-    await E(party).reject(requestNumber, message);
+    const messageNumber = Number(messageNumberText);
+    await E(party).dismiss(messageNumber);
   });

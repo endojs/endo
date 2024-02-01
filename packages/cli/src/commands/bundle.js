@@ -4,7 +4,7 @@ import os from 'os';
 import { E } from '@endo/far';
 import bundleSource from '@endo/bundle-source';
 import { makeReaderRef } from '@endo/daemon';
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
 const textEncoder = new TextEncoder();
 

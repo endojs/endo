@@ -52,7 +52,7 @@ export const main = async rawArgs => {
         as: partyNames,
         open: doOpen,
       } = cmd.opts();
-      const { install } = await import('./install.js');
+      const { install } = await import('./commands/install.js');
       return install({
         doOpen,
         webPageName,
@@ -74,7 +74,7 @@ export const main = async rawArgs => {
     )
     .action(async (webPageName, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { open } = await import('./open.js');
+      const { open } = await import('./commands/open.js');
       return open({
         webPageName,
         partyNames,
@@ -105,7 +105,7 @@ export const main = async rawArgs => {
         UNCONFINED: importPath,
         powers: powersName = 'NONE',
       } = cmd.opts();
-      const { run } = await import('./run.js');
+      const { run } = await import('./commands/run.js');
       return run({
         filePath,
         args,
@@ -145,7 +145,7 @@ export const main = async rawArgs => {
         as: partyNames,
         powers: powersName = 'NONE',
       } = cmd.opts();
-      const { makeCommand } = await import('./make.js');
+      const { makeCommand } = await import('./commands/make.js');
       return makeCommand({
         filePath,
         importPath,
@@ -169,7 +169,7 @@ export const main = async rawArgs => {
     .description('read messages')
     .action(async cmd => {
       const { as: partyNames, follow } = cmd.opts();
-      const { inbox } = await import('./inbox.js');
+      const { inbox } = await import('./commands/inbox.js');
       return inbox({ follow, partyNames });
     });
 
@@ -196,7 +196,7 @@ export const main = async rawArgs => {
         as: partyNames,
         to: toName = 'HOST',
       } = cmd.opts();
-      const { request } = await import('./request.js');
+      const { request } = await import('./commands/request.js');
       return request({ toName, description, resultName, partyNames });
     });
 
@@ -211,7 +211,7 @@ export const main = async rawArgs => {
     )
     .action(async (requestNumberText, resolutionName, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { resolveCommand } = await import('./resolve.js');
+      const { resolveCommand } = await import('./commands/resolve.js');
       return resolveCommand({
         requestNumberText,
         resolutionName,
@@ -230,7 +230,7 @@ export const main = async rawArgs => {
     )
     .action(async (requestNumberText, message, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { rejectCommand } = await import('./reject.js');
+      const { rejectCommand } = await import('./commands/reject.js');
       return rejectCommand({
         requestNumberText,
         message,
@@ -249,7 +249,7 @@ export const main = async rawArgs => {
     )
     .action(async (partyName, message, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { send } = await import('./send.js');
+      const { send } = await import('./commands/send.js');
       return send({ message, partyName, partyNames });
     });
 
@@ -268,7 +268,7 @@ export const main = async rawArgs => {
     .description('accept a @value from a message')
     .action(async (messageNumberText, edgeName, cmd) => {
       const { name = edgeName, as: partyNames } = cmd.opts();
-      const { adoptCommand } = await import('./adopt.js');
+      const { adoptCommand } = await import('./commands/adopt.js');
       return adoptCommand({
         messageNumberText,
         edgeName,
@@ -288,7 +288,7 @@ export const main = async rawArgs => {
     )
     .action(async (messageNumberText, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { dismissCommand } = await import('./dismiss.js');
+      const { dismissCommand } = await import('./commands/dismiss.js');
       return dismissCommand({
         messageNumberText,
         partyNames,
@@ -306,7 +306,7 @@ export const main = async rawArgs => {
     .description('show names')
     .action(async cmd => {
       const { as: partyNames } = cmd.opts();
-      const { list } = await import('./list.js');
+      const { list } = await import('./commands/list.js');
       return list({ partyNames });
     });
 
@@ -321,7 +321,7 @@ export const main = async rawArgs => {
     )
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { remove } = await import('./remove.js');
+      const { remove } = await import('./commands/remove.js');
       return remove({ petNames, partyNames });
     });
 
@@ -336,7 +336,7 @@ export const main = async rawArgs => {
     )
     .action(async (fromName, toName, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { rename } = await import('./rename.js');
+      const { rename } = await import('./commands/rename.js');
       return rename({ fromName, toName, partyNames });
     });
 
@@ -351,7 +351,7 @@ export const main = async rawArgs => {
     )
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { show } = await import('./show.js');
+      const { show } = await import('./commands/show.js');
       return show({ name, partyNames });
     });
 
@@ -366,7 +366,7 @@ export const main = async rawArgs => {
     .description('subscribe to a stream of values')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { followCommand } = await import('./follow.js');
+      const { followCommand } = await import('./commands/follow.js');
       return followCommand({ name, partyNames });
     });
 
@@ -381,7 +381,7 @@ export const main = async rawArgs => {
     )
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { cat } = await import('./cat.js');
+      const { cat } = await import('./commands/cat.js');
       return cat({ name, partyNames });
     });
 
@@ -400,7 +400,7 @@ export const main = async rawArgs => {
     )
     .action(async (storablePath, cmd) => {
       const { name, as: partyNames } = cmd.opts();
-      const { store } = await import('./store.js');
+      const { store } = await import('./commands/store.js');
       return store({
         storablePath,
         name,
@@ -431,7 +431,7 @@ export const main = async rawArgs => {
         worker: workerName = 'MAIN',
         as: partyNames,
       } = cmd.opts();
-      const { evalCommand } = await import('./eval.js');
+      const { evalCommand } = await import('./commands/eval.js');
       return evalCommand({
         source,
         names,
@@ -452,7 +452,7 @@ export const main = async rawArgs => {
     )
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { spawn } = await import('./spawn.js');
+      const { spawn } = await import('./commands/spawn.js');
       return spawn({ petNames, partyNames });
     });
 
@@ -468,7 +468,7 @@ export const main = async rawArgs => {
     .option('-n,--name <name>', 'Store the bundle into Endo')
     .action(async (applicationPath, cmd) => {
       const { name: bundleName, as: partyNames } = cmd.opts();
-      const { bundleCommand } = await import('./bundle.js');
+      const { bundleCommand } = await import('./commands/bundle.js');
       return bundleCommand({
         applicationPath,
         bundleName,
@@ -487,7 +487,7 @@ export const main = async rawArgs => {
     .description('makes a separate mailbox and storage for you')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { mkhost } = await import('./mkhost.js');
+      const { mkhost } = await import('./commands/mkhost.js');
       return mkhost({ name, partyNames });
     });
 
@@ -502,7 +502,7 @@ export const main = async rawArgs => {
     .description('makes a mailbox and storage for a guest (peer or program)')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { mkguest } = await import('./mkguest.js');
+      const { mkguest } = await import('./commands/mkguest.js');
       return mkguest({ name, partyNames });
     });
 
@@ -517,7 +517,7 @@ export const main = async rawArgs => {
     .description('terminate a value and its deps, recovering resources')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { killCommand } = await import('./kill.js');
+      const { killCommand } = await import('./commands/kill.js');
       return killCommand({ name, partyNames });
     });
 
@@ -623,7 +623,7 @@ export const main = async rawArgs => {
     .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
       const { follow, ping } = cmd.opts();
-      const { log: logCommand } = await import('./log.js');
+      const { log: logCommand } = await import('./commands/log.js');
       await logCommand({ follow, ping });
     });
 
@@ -631,7 +631,7 @@ export const main = async rawArgs => {
     .command('ping')
     .description('prints ok if the daemon is responsive')
     .action(async _cmd => {
-      const { ping } = await import('./ping.js');
+      const { ping } = await import('./commands/ping.js');
       await ping();
     });
 
