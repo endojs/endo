@@ -12,9 +12,6 @@ import { randomHex16 } from '../random.js';
 const textEncoder = new TextEncoder();
 
 export const makeCommand = async ({
-  cancel,
-  cancelled,
-  sockPath,
   filePath,
   importPath,
   resultName,
