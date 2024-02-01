@@ -3,7 +3,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
 export const followCommand = async ({ name, partyNames }) =>
   withEndoParty(partyNames, { os, process }, async ({ party }) => {

@@ -1,8 +1,8 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from './context.js';
-import { parseMessage } from './message-parse.js';
+import { withEndoParty } from '../context.js';
+import { parseMessage } from '../message-parse.js';
 
 export const send = async ({ message, partyName, partyNames }) => {
   const { strings, edgeNames, petNames } = parseMessage(message);

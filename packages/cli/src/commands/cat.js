@@ -3,7 +3,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { makeRefReader } from '@endo/daemon';
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
 export const cat = async ({ name, partyNames }) =>
   withEndoParty(partyNames, { os, process }, async ({ party }) => {

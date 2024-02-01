@@ -3,7 +3,7 @@ import os from 'os';
 import { E } from '@endo/far';
 import { whereEndoSock } from '@endo/where';
 import { makeEndoClient } from '@endo/daemon';
-import { withInterrupt } from './context.js';
+import { withInterrupt } from '../context.js';
 
 export const ping = () =>
   withInterrupt(async ({ cancel, cancelled }) => {

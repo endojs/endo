@@ -7,8 +7,8 @@ import { E } from '@endo/far';
 import { makeReaderRef } from '@endo/daemon';
 import bundleSource from '@endo/bundle-source';
 
-import { withEndoParty } from './context.js';
-import { randomHex16 } from './random.js';
+import { withEndoParty } from '../context.js';
+import { randomHex16 } from '../random.js';
 
 const textEncoder = new TextEncoder();
 

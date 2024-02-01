@@ -1,7 +1,7 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
 export const evalCommand = async ({
   source,

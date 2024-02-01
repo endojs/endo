@@ -1,9 +1,10 @@
+/* eslint-disable no-await-in-loop */
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from './context.js';
+import { withEndoParty } from '../context.js';
 
-export const remove = async ({
+export const spawn = async ({
   cancel,
   cancelled,
   sockPath,
@@ -11,5 +12,5 @@ export const remove = async ({
   partyNames,
 }) =>
   withEndoParty(partyNames, { os, process }, async ({ party }) =>
-    Promise.all(petNames.map(petName => E(party).remove(petName))),
+    Promise.all(petNames.map(petName => E(party).makeWorker(petName))),
   );

@@ -3,8 +3,8 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';
-import { withEndoParty } from './context.js';
-import { formatMessage } from './message-format.js';
+import { withEndoParty } from '../context.js';
+import { formatMessage } from '../message-format.js';
 
 export const inbox = async ({
   cancel,
