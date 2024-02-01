@@ -212,7 +212,7 @@ export interface EndoGuest {
 export interface EndoHost {
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
-  lookup(petName: string): Promise<unknown>;
+  lookup(...petNamePath: string[]): Promise<unknown>;
   resolve(requestNumber: number, petName: string);
   reject(requestNumber: number, message: string);
   reverseLookup(ref: object): Promise<Array<string>>;
