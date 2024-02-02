@@ -8,7 +8,7 @@ test('enablePropertyOverrides - on', t => {
   overrideTester(t, 'Object', {}, ['toString', 'valueOf']);
   // We allow 'length' *not* because it is in enablements; it is not;
   // but because each array instance has its own.
-  overrideTester(t, 'Array', [], ['toString', 'length', 'push']);
+  overrideTester(t, 'Array', [], ['toString', 'length', 'push', 'concat']);
   // eslint-disable-next-line func-names, prefer-arrow-callback
   overrideTester(t, 'Function', function () {}, [
     'constructor',

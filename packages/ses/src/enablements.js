@@ -1,4 +1,4 @@
-import { toStringTagSymbol } from './commons.js';
+import { toStringTagSymbol, iteratorSymbol } from './commons.js';
 
 /**
  * @file Exports {@code enablements}, a recursively defined
@@ -97,6 +97,8 @@ export const moderateEnablements = {
   '%ArrayPrototype%': {
     toString: true,
     push: true, // set by "Google Analytics"
+    concat: true, // set by mobx generated code (old TS compiler?)
+    [iteratorSymbol]: true, // set by mobx generated code (old TS compiler?)
   },
 
   // Function.prototype has no 'prototype' property to enable.
