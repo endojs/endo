@@ -100,3 +100,83 @@ Conclusion
 ----------
 
 Grain.js offers a robust set of tools for managing state across network boundaries, with an emphasis on flexibility, extensibility, and lifecycle management. It caters to a variety of use cases, from simple value storage to complex, derived data structures with real-time updates.
+
+Detailed API Reference
+======================
+
+Below, we dive deeper into the interfaces of the objects returned by the key functions of the Grain.js library.
+
+Sync Grain Interface
+--------------------
+
+Created via `makeSyncGrain(initValue)`, a Sync Grain supports basic operations to manage a single value synchronously.
+
+### Methods
+
+-   `get()`: Returns the current value of the grain.
+-   `set(newValue)`: Sets a new value for the grain and notifies all subscribers.
+-   `update(updateFn)`: Applies an update function to the current value of the grain.
+-   `subscribe(handler)`: Subscribes to changes in the grain's value. The handler is called with the new value.
+-   `follow()`: Returns an async iterator that yields the current and subsequent values of the grain.
+-   `destroy()`: Cancels all subscriptions and prevents further reads and writes.
+-   `readonly()`: Returns a read-only interface to the grain, excluding the `set`, `update`, and `destroy` methods.
+
+Array Grain Interface
+---------------------
+
+Enhanced by `makeArrayGrainFromSyncGrain(syncGrain)`, it adds array-specific manipulation methods to a Sync Grain.
+
+### Methods
+
+-   Inherits all methods from the Sync Grain interface.
+-   `getAtIndex(index)`: Returns the value at the specified array index.
+-   `setAtIndex(index, item)`: Sets a value at the specified array index.
+-   `updateAtIndex(index, updateFn)`: Applies an update function to the value at the specified array index.
+-   `push(item)`: Appends an item to the array.
+-   `pop()`: Removes and returns the last item of the array.
+-   `shift()`: Removes and returns the first item of the array.
+-   `unshift(item)`: Adds an item to the beginning of the array.
+-   `splice(index, length)`: Removes elements from the array and, if necessary, inserts new elements.
+-   `getLength()`: Returns the length of the array.
+-   `setLength(length)`: Sets the length of the array, truncating or expanding as necessary.
+
+Derived Grain Interface
+-----------------------
+
+Derived grains are created through functions like `makeDerivedSyncGrain(grain, deriveFn)` and offer a read-only view of a transformed source grain.
+
+### Methods
+
+-   `get()`: Retrieves the current, derived value of the grain.
+-   `subscribe(handler)`: Subscribes to changes in the derived value.
+-   `follow()`: Returns an async iterator for the derived value, yielding the current and subsequent derived values.
+-   `readonly()`: Further asserts the read-only nature of the derived grain, effectively a no-op as derived grains are read-only by design.
+
+Grain Map Interface
+-------------------
+
+Produced by `makeSyncGrainMap(grains = {})`, a Grain Map manages a collection of grains mapped by keys.
+
+### Methods
+
+-   `hasGrain(key)`: Checks if a grain exists for the given key.
+-   `getGrain(key)`: Retrieves the grain associated with the given key.
+-   `setGrain(key, grain)`: Associates a new grain with the given key.
+-   `destroy()`: Destroys the grain map, including all managed grains.
+
+Sync Grain Array Map Interface
+------------------------------
+
+Created with `makeSyncGrainArrayMap(grains = {})`, it specializes in managing a map where each value is an array grain.
+
+### Methods
+
+-   Inherits all methods from the Grain Map interface.
+-   `push(key, item)`: Adds an item to the array grain associated with the given key.
+
+General Usage Pattern
+---------------------
+
+For all grains, the usage pattern involves creation, interaction through methods (e.g., `get`, `set`, `subscribe`), and lifecycle management (e.g., `destroy` to clean up resources). Derived and lazy grains allow for efficient, on-demand computation and subscription models, supporting complex data relationships and real-time updates.
+
+This detailed interface documentation should help developers understand how to effectively use the Grain.js library to manage state in their applications, enabling powerful patterns for synchronizing and transforming data across network boundaries.
