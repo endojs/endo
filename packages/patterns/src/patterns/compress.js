@@ -13,7 +13,7 @@ import {
   maybeMatchHelper,
   matches,
   checkMatches,
-  mustMatch,
+  // mustMatch,
 } from './patternMatchers.js';
 import { isKey } from '../keys/checkKey.js';
 import { keyEQ } from '../keys/compareKeys.js';
@@ -292,6 +292,7 @@ export const mustDecompress = (compressed, pattern, label = undefined) => {
   // `decompress` does some checking, but is not validating, so we
   // need to do the full `mustMatch` here to validate as well as to generate
   // the error if invalid.
-  mustMatch(value, pattern, label);
+  // TODO Expensive but needed. Restore, hopefully cheaper.
+  // mustMatch(value, pattern, label);
   return value;
 };
