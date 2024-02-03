@@ -10,6 +10,11 @@ import { runTests } from './compress-tests-5.js';
 
 const STAMP = new Date().toISOString();
 
+/**
+ * @param {string} name
+ * @param {(reps: number) => any} fn
+ * @param {number} [reps]
+ */
 const bench = (name, fn, reps = 1_000_000) => {
   const label = `${STAMP}--${name}`;
   console.profile(label);
