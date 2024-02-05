@@ -72,6 +72,20 @@ type EvalFormula = {
   // TODO formula slots
 };
 
+type LookupFormula = {
+  type: 'lookup';
+
+  /**
+   * The formula identifier of the guest or host to call lookup on.
+   */
+  agent: string;
+
+  /**
+   * The pet name path.
+   */
+  path: Array<string>;
+};
+
 type MakeUnconfinedFormula = {
   type: 'make-unconfined';
   worker: string;
@@ -97,6 +111,7 @@ type WebBundleFormula = {
 export type Formula =
   | GuestFormula
   | EvalFormula
+  | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
   | WebBundleFormula;

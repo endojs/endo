@@ -12,3 +12,11 @@ export const assertPetName = petName => {
     throw new Error(`Invalid pet name ${q(petName)}`);
   }
 };
+
+/**
+ * @param {string | string[]} petNameOrPetNamePath
+ */
+export const petNamePathFrom = petNameOrPetNamePath =>
+  typeof petNameOrPetNamePath === 'string'
+    ? [petNameOrPetNamePath]
+    : petNameOrPetNamePath;

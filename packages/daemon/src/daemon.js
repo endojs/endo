@@ -228,6 +228,26 @@ const makeEndoBootstrap = (
   };
 
   /**
+   * @param {string} agentFormulaIdentifier
+   * @param {string[]} path
+   * @param {import('./types.js').Terminator} terminator
+   */
+  const makeControllerForLookup = async (
+    agentFormulaIdentifier,
+    path,
+    terminator,
+  ) => {
+    terminator.thisDiesIfThatDies(agentFormulaIdentifier);
+
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    const agent = provideValueForFormulaIdentifier(agentFormulaIdentifier);
+
+    const external = E(agent).lookup(...path);
+    return { external, internal: undefined };
+  };
+
+  /**
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
    * @param {string} importPath
@@ -325,6 +345,8 @@ const makeEndoBootstrap = (
         formula.values,
         terminator,
       );
+    } else if (formula.type === 'lookup') {
+      return makeControllerForLookup(formula.agent, formula.path, terminator);
     } else if (formula.type === 'make-unconfined') {
       return makeControllerForUnconfinedPlugin(
         formula.worker,
@@ -491,6 +513,12 @@ const makeEndoBootstrap = (
   // controllerForFormulaIdentifier and formulaIdentifierForRef, since the
   // former bypasses the latter in order to avoid a round trip with disk.
 
+  /**
+   * @param {string} formulaType - The type of the formula.
+   * @param {string} formulaNumber - The number of the formula.
+   * @param {import('./types').Formula} formula - The formula.
+   * @returns {Promise<unknown>} The value of the formula.
+   */
   const provideValueForNumberedFormula = async (
     formulaType,
     formulaNumber,
@@ -508,7 +536,7 @@ const makeEndoBootstrap = (
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const terminator = makeTerminator(formulaIdentifier);
-    partial.catch(error => terminator.terminate());
+    partial.catch(() => terminator.terminate());
     const controller = harden({
       terminator,
       external: E.get(partial).external.then(value => {
@@ -647,6 +675,7 @@ const makeEndoBootstrap = (
       if (
         ![
           'eval-id512',
+          'lookup',
           'make-unconfined-id512',
           'make-bundle-id512',
           'guest-id512',
@@ -674,6 +703,15 @@ const makeEndoBootstrap = (
             ),
             source: formula.source,
             worker: provideValueForFormulaIdentifier(formula.worker),
+          }),
+        );
+      } else if (formula.type === 'lookup') {
+        return makeInspector(
+          formula.type,
+          formulaNumber,
+          harden({
+            agent: provideValueForFormulaIdentifier(formula.agent),
+            path: formula.path,
           }),
         );
       } else if (formula.type === 'guest') {

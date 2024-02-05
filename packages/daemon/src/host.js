@@ -1,7 +1,7 @@
 // @ts-check
 
 import { Far } from '@endo/far';
-import { assertPetName } from './pet-name.js';
+import { assertPetName, petNamePathFrom } from './pet-name.js';
 
 const { quote: q } = assert;
 
@@ -185,15 +185,15 @@ export const makeHostMaker = ({
     /**
      * @param {string | 'MAIN' | 'NEW'} workerName
      * @param {string} source
-     * @param {Array<string>} codeNames
-     * @param {Array<string>} petNames
+     * @param {string[]} codeNames
+     * @param {(string | string[])[]} petNamePaths
      * @param {string} resultName
      */
     const evaluate = async (
       workerName,
       source,
       codeNames,
-      petNames,
+      petNamePaths,
       resultName,
     ) => {
       const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
@@ -203,24 +203,52 @@ export const makeHostMaker = ({
       if (resultName !== undefined) {
         assertPetName(resultName);
       }
-      if (petNames.length !== codeNames.length) {
+      if (petNamePaths.length !== codeNames.length) {
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
       const formulaIdentifiers = await Promise.all(
-        petNames.map(async (petName, index) => {
+        petNamePaths.map(async (petNameOrPath, index) => {
           if (typeof codeNames[index] !== 'string') {
             throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
           }
-          const formulaIdentifier = lookupFormulaIdentifierForName(petName);
-          if (formulaIdentifier === undefined) {
-            throw new Error(`Unknown pet name ${q(petName)}`);
+
+          const petNamePath = petNamePathFrom(petNameOrPath);
+          if (petNamePath.length === 1) {
+            const formulaIdentifier = lookupFormulaIdentifierForName(
+              petNamePath[0],
+            );
+            if (formulaIdentifier === undefined) {
+              throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
+            }
+            return formulaIdentifier;
           }
-          return formulaIdentifier;
+
+          const lookupAgent = lookupFormulaIdentifierForName('SELF');
+          const digester = makeSha512();
+          digester.updateText(`${lookupAgent},${petNamePath.join(',')}`);
+          const lookupFormulaNumber = digester.digestHex().slice(32, 64);
+
+          // TODO:lookup Check if the lookup formula already exists in the store
+
+          const lookupFormula = {
+            /** @type {'lookup'} */
+            type: 'lookup',
+            agent: lookupAgent,
+            path: petNamePath,
+          };
+
+          const { formulaIdentifier: lookupFormulaIdentifier } =
+            await provideValueForNumberedFormula(
+              'lookup',
+              lookupFormulaNumber,
+              lookupFormula,
+            );
+          return lookupFormulaIdentifier;
         }),
       );
 
-      const formula = {
+      const evalFormula = {
         /** @type {'eval'} */
         type: 'eval',
         worker: workerFormulaIdentifier,
@@ -232,7 +260,7 @@ export const makeHostMaker = ({
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const { formulaIdentifier, value } = await provideValueForFormula(
-        formula,
+        evalFormula,
         'eval-id512',
       );
       if (resultName !== undefined) {

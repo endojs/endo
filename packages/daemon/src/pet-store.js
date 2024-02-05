@@ -9,7 +9,7 @@ const { quote: q } = assert;
 
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:host|pet-store|pet-inspector|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|make-unconfined-id512|make-bundle-id512|host-id512|guest-id512):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
+  /^(?:host|pet-store|pet-inspector|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|make-unconfined-id512|make-bundle-id512|host-id512|guest-id512):[0-9a-f]{128}|(?:lookup|web-bundle):[0-9a-f]{32})$/;
 
 /**
  * @param {import('./types.js').FilePowers} filePowers

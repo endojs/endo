@@ -1041,3 +1041,33 @@ test('lookup with petname path (value has no lookup method)', async t => {
 
   await stop(locator);
 });
+
+test('evaluate name resolved by lookup path', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'name-resolved-by-lookup-path');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const resolvedValue = await E(host).evaluate(
+    'MAIN',
+    'foo',
+    ['foo'],
+    [['INFO', 'ten', 'source']],
+  );
+  t.is(resolvedValue, '10');
+
+  await stop(locator);
+});
