@@ -18,10 +18,25 @@ import {
  */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
-import { q, Fail } from '@endo/errors';
+import { b, q, Fail } from '@endo/errors';
 
+const { isArray } = Array;
 const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
+
+// eslint-disable-next-line no-control-regex
+const rC0 = /[\x00-\x1F]/;
+
+/**
+ * Return the suffix of a string starting at a particular index.
+ * This both expresses intent and potentially avoids slow `substring` in XS.
+ * https://github.com/endojs/endo/issues/1984
+ *
+ * @param {string} str
+ * @param {number} index
+ * @returns {string}
+ */
+const getSuffix = (str, index) => (index === 0 ? str : str.substring(index));
 
 /**
  * Assuming that `record` is a CopyRecord, we have only
@@ -119,19 +134,21 @@ const encodeBinary64 = n => {
 
 /**
  * @param {string} encoded
+ * @param {number} [skip]
  * @returns {number}
  */
-const decodeBinary64 = encoded => {
-  encoded.charAt(0) === 'f' || Fail`Encoded number expected: ${encoded}`;
-  let bits = BigInt(`0x${encoded.substring(1)}`);
-  if (encoded[1] < '8') {
+const decodeBinary64 = (encoded, skip = 0) => {
+  encoded.charAt(skip) === 'f' || Fail`Encoded number expected: ${encoded}`;
+  let bits = BigInt(`0x${getSuffix(encoded, skip + 1)}`);
+  if (encoded.charAt(skip + 1) < '8') {
     bits ^= 0xffffffffffffffffn;
   } else {
     bits ^= 0x8000000000000000n;
   }
   asBits[0] = bits;
   const result = asNumber[0];
-  !is(result, -0) || Fail`Unexpected negative zero: ${encoded}`;
+  !is(result, -0) ||
+    Fail`Unexpected negative zero: ${getSuffix(encoded, skip)}`;
   return result;
 };
 
@@ -224,11 +241,174 @@ const decodeBigInt = encoded => {
   return n;
 };
 
-// `'\u0000'` is the terminator after elements.
-// `'\u0001'` is the backslash-like escape character, for
-// escaping both of these characters.
+/**
+ * A sparse array for which every present index maps a code point in the ASCII
+ * range to a corresponding escape sequence.
+ *
+ * Escapes all characters from U+0000 NULL to U+001F INFORMATION SEPARATOR ONE
+ * like `!<character offset by 0x21>` to avoid JSON.stringify expansion as
+ * `\uHHHH`, and specially escapes U+0020 SPACE (the array element terminator)
+ * as `!_` and U+0021 EXCLAMATION MARK (the escape prefix) as `!|` (both chosen
+ * for visual approximation).
+ * Relative lexicographic ordering is preserved by this mapping of any character
+ * at or before `!` in the contiguous range [0x00..0x21] to a respective
+ * character in [0x21..0x40, 0x5F, 0x7C] preceded by `!` (which is itself in the
+ * replaced range).
+ * Similarly, escapes `^` as `_@` and `_` as `__` because `^` indicates the
+ * start of an encoded array.
+ *
+ * @type {Array<string>}
+ */
+const stringEscapes = Array(0x22)
+  .fill(undefined)
+  .map((_, cp) => {
+    switch (String.fromCharCode(cp)) {
+      case ' ':
+        return '!_';
+      case '!':
+        return '!|';
+      default:
+        return `!${String.fromCharCode(cp + 0x21)}`;
+    }
+  });
+stringEscapes['^'.charCodeAt(0)] = '_@';
+stringEscapes['_'.charCodeAt(0)] = '__';
 
-const encodeArray = (array, encodePassable) => {
+/**
+ * Encodes a string with escape sequences for use in the "compactOrdered" format.
+ *
+ * @type {(str: string) => string}
+ */
+const encodeCompactStringSuffix = str =>
+  str.replace(/[\0-!^_]/g, ch => stringEscapes[ch.charCodeAt(0)]);
+
+/**
+ * Decodes a string from the "compactOrdered" format.
+ *
+ * @type {(encoded: string) => string}
+ */
+const decodeCompactStringSuffix = encoded => {
+  return encoded.replace(/([\0-!_])(.|\n)?/g, (esc, prefix, suffix) => {
+    switch (esc) {
+      case '!_':
+        return ' ';
+      case '!|':
+        return '!';
+      case '_@':
+        return '^';
+      case '__':
+        return '_';
+      default: {
+        const ch = /** @type {string} */ (suffix);
+        // The range of valid `!`-escape suffixes is [(0x00+0x21)..(0x1F+0x21)], i.e.
+        // [0x21..0x40] (U+0021 EXCLAMATION MARK to U+0040 COMMERCIAL AT).
+        (prefix === '!' && suffix !== undefined && ch >= '!' && ch <= '@') ||
+          Fail`invalid string escape: ${q(esc)}`;
+        return String.fromCharCode(ch.charCodeAt(0) - 0x21);
+      }
+    }
+  });
+};
+
+/**
+ * Trivially identity-encodes a string for use in the "legacyOrdered" format.
+ *
+ * @type {(str: string) => string}
+ */
+const encodeLegacyStringSuffix = str => str;
+
+/**
+ * Trivially identity-decodes a string from the "legacyOrdered" format.
+ *
+ * @type {(encoded: string) => string}
+ */
+const decodeLegacyStringSuffix = encoded => encoded;
+
+/**
+ * Encodes an array into a sequence of encoded elements for use in the "compactOrdered"
+ * format, each terminated by a space (which is part of the escaped range in
+ * "compactOrdered" encoded strings).
+ *
+ * @param {unknown[]} array
+ * @param {(p: Passable) => string} encodePassable
+ * @returns {string}
+ */
+const encodeCompactArray = (array, encodePassable) => {
+  const chars = ['^'];
+  for (const element of array) {
+    const enc = encodePassable(element);
+    chars.push(enc, ' ');
+  }
+  return chars.join('');
+};
+
+/**
+ * @param {string} encoded
+ * @param {(encoded: string) => Passable} decodePassable
+ * @param {number} [skip]
+ * @returns {Array}
+ */
+const decodeCompactArray = (encoded, decodePassable, skip = 0) => {
+  const elements = [];
+  let depth = 0;
+  // Scan encoded rather than its tail to avoid slow `substring` in XS.
+  // https://github.com/endojs/endo/issues/1984
+  let nextIndex = skip + 1;
+  let currentElementStart = skip + 1;
+  for (const { 0: ch, index: i } of encoded.matchAll(/[\^ ]/g)) {
+    const index = /** @type {number} */ (i);
+    if (index <= skip) {
+      if (index === skip) {
+        ch === '^' || Fail`Encoded array expected: ${getSuffix(encoded, skip)}`;
+      }
+    } else if (ch === '^') {
+      // This is the start of a nested array.
+      // TODO: Since the syntax of nested arrays must be validated as part of
+      // decoding the outer one, consider decoding them here into a shared cache
+      // rather than discarding information about their contents until the later
+      // decodePassable.
+      depth += 1;
+    } else {
+      // This is a terminated element.
+      if (index === nextIndex) {
+        // A terminator after `[` or an another terminator indicates that an array is done.
+        depth -= 1;
+        depth >= 0 ||
+          // prettier-ignore
+          Fail`unexpected array element terminator: ${encoded.slice(skip, index + 2)}`;
+      }
+      if (depth === 0) {
+        // We have a complete element of the topmost array.
+        elements.push(
+          decodePassable(encoded.slice(currentElementStart, index)),
+        );
+        currentElementStart = index + 1;
+      }
+    }
+    // Advance the index.
+    nextIndex = index + 1;
+  }
+  depth === 0 || Fail`unterminated array: ${getSuffix(encoded, skip)}`;
+  nextIndex === encoded.length ||
+    Fail`unterminated array element: ${getSuffix(
+      encoded,
+      currentElementStart,
+    )}`;
+  return harden(elements);
+};
+
+/**
+ * Performs the original array encoding, which escapes all encoded array
+ * elements rather than just strings (`\u0000` as the element terminator and
+ * `\u0001` as the escape prefix for `\u0000` or `\u0001`).
+ * This necessitated an undesirable amount of iteration and expansion; see
+ * https://github.com/endojs/endo/pull/1260#discussion_r960369826
+ *
+ * @param {unknown[]} array
+ * @param {(p: Passable) => string} encodePassable
+ * @returns {string}
+ */
+const encodeLegacyArray = (array, encodePassable) => {
   const chars = ['['];
   for (const element of array) {
     const enc = encodePassable(element);
@@ -249,7 +429,7 @@ const encodeArray = (array, encodePassable) => {
  * @param {number} [skip]
  * @returns {Array}
  */
-const decodeArray = (encoded, decodePassable, skip = 0) => {
+const decodeLegacyArray = (encoded, decodePassable, skip = 0) => {
   const elements = [];
   const elemChars = [];
   // Use a string iterator to avoid slow indexed access in XS.
@@ -260,7 +440,7 @@ const decodeArray = (encoded, decodePassable, skip = 0) => {
     if (stillToSkip > 0) {
       stillToSkip -= 1;
       if (stillToSkip === 0) {
-        c === '[' || Fail`Encoded array expected: ${encoded.slice(skip)}`;
+        c === '[' || Fail`Encoded array expected: ${getSuffix(encoded, skip)}`;
       }
     } else if (inEscape) {
       c === '\u0000' ||
@@ -281,50 +461,85 @@ const decodeArray = (encoded, decodePassable, skip = 0) => {
     }
     inEscape = false;
   }
-  !inEscape || Fail`unexpected end of encoding ${encoded.slice(skip)}`;
+  !inEscape || Fail`unexpected end of encoding ${getSuffix(encoded, skip)}`;
   elemChars.length === 0 ||
-    Fail`encoding terminated early: ${encoded.slice(skip)}`;
+    Fail`encoding terminated early: ${getSuffix(encoded, skip)}`;
   return harden(elements);
 };
 
-const encodeRecord = (record, encodePassable) => {
+const encodeRecord = (record, encodeArray, encodePassable) => {
   const names = recordNames(record);
   const values = recordValues(record, names);
   return `(${encodeArray(harden([names, values]), encodePassable)}`;
 };
 
-const decodeRecord = (encoded, decodePassable) => {
-  assert(encoded.charAt(0) === '(');
+const decodeRecord = (encoded, decodeArray, decodePassable, skip = 0) => {
+  assert(encoded.charAt(skip) === '(');
   // Skip the "(" inside `decodeArray` to avoid slow `substring` in XS.
   // https://github.com/endojs/endo/issues/1984
-  const unzippedEntries = decodeArray(encoded, decodePassable, 1);
-  unzippedEntries.length === 2 || Fail`expected keys,values pair: ${encoded}`;
+  const unzippedEntries = decodeArray(encoded, decodePassable, skip + 1);
+  unzippedEntries.length === 2 ||
+    Fail`expected keys,values pair: ${getSuffix(encoded, skip)}`;
   const [keys, vals] = unzippedEntries;
 
   (passStyleOf(keys) === 'copyArray' &&
     passStyleOf(vals) === 'copyArray' &&
     keys.length === vals.length &&
     keys.every(key => typeof key === 'string')) ||
-    Fail`not a valid record encoding: ${encoded}`;
+    Fail`not a valid record encoding: ${getSuffix(encoded, skip)}`;
   const mapEntries = keys.map((key, i) => [key, vals[i]]);
   const record = harden(fromEntries(mapEntries));
   assertRecord(record, 'decoded record');
   return record;
 };
 
-const encodeTagged = (tagged, encodePassable) =>
+const encodeTagged = (tagged, encodeArray, encodePassable) =>
   `:${encodeArray(harden([getTag(tagged), tagged.payload]), encodePassable)}`;
 
-const decodeTagged = (encoded, decodePassable) => {
-  assert(encoded.charAt(0) === ':');
+const decodeTagged = (encoded, decodeArray, decodePassable, skip = 0) => {
+  assert(encoded.charAt(skip) === ':');
   // Skip the ":" inside `decodeArray` to avoid slow `substring` in XS.
   // https://github.com/endojs/endo/issues/1984
-  const taggedPayload = decodeArray(encoded, decodePassable, 1);
-  taggedPayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
+  const taggedPayload = decodeArray(encoded, decodePassable, skip + 1);
+  taggedPayload.length === 2 ||
+    Fail`expected tag,payload pair: ${getSuffix(encoded, skip)}`;
   const [tag, payload] = taggedPayload;
   passStyleOf(tag) === 'string' ||
-    Fail`not a valid tagged encoding: ${encoded}`;
+    Fail`not a valid tagged encoding: ${getSuffix(encoded, skip)}`;
   return makeTagged(tag, payload);
+};
+
+const makeEncodeRemotable = (unsafeEncodeRemotable, verifyEncoding) => {
+  const encodeRemotable = (r, innerEncode) => {
+    const encoding = unsafeEncodeRemotable(r, innerEncode);
+    (typeof encoding === 'string' && encoding.charAt(0) === 'r') ||
+      Fail`Remotable encoding must start with "r": ${encoding}`;
+    verifyEncoding(encoding, 'Remotable');
+    return encoding;
+  };
+  return encodeRemotable;
+};
+
+const makeEncodePromise = (unsafeEncodePromise, verifyEncoding) => {
+  const encodePromise = (p, innerEncode) => {
+    const encoding = unsafeEncodePromise(p, innerEncode);
+    (typeof encoding === 'string' && encoding.charAt(0) === '?') ||
+      Fail`Promise encoding must start with "?": ${encoding}`;
+    verifyEncoding(encoding, 'Promise');
+    return encoding;
+  };
+  return encodePromise;
+};
+
+const makeEncodeError = (unsafeEncodeError, verifyEncoding) => {
+  const encodeError = (err, innerEncode) => {
+    const encoding = unsafeEncodeError(err, innerEncode);
+    (typeof encoding === 'string' && encoding.charAt(0) === '!') ||
+      Fail`Error encoding must start with "!": ${encoding}`;
+    verifyEncoding(encoding, 'Error');
+    return encoding;
+  };
+  return encodeError;
 };
 
 /**
@@ -341,22 +556,42 @@ const decodeTagged = (encoded, decodePassable) => {
  *   error: Error,
  *   encodeRecur: (p: Passable) => string,
  * ) => string} [encodeError]
+ * @property {'legacyOrdered' | 'compactOrdered'} [format]
  */
 
 /**
- * @param {EncodeOptions} [encodeOptions]
- * @returns {(passable: Passable) => string}
+ * @param {(str: string) => string} encodeStringSuffix
+ * @param {(arr: unknown[], encodeRecur: (p: Passable) => string) => string} encodeArray
+ * @param {Required<EncodeOptions> & {verifyEncoding?: (encoded: string, label: string) => void}} options
+ * @returns {(p: Passable) => string}
  */
-export const makeEncodePassable = (encodeOptions = {}) => {
+const makeInnerEncode = (encodeStringSuffix, encodeArray, options) => {
   const {
-    encodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
-    encodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
-    encodeError = (err, _) => Fail`error unexpected: ${err}`,
-  } = encodeOptions;
+    encodeRemotable: unsafeEncodeRemotable,
+    encodePromise: unsafeEncodePromise,
+    encodeError: unsafeEncodeError,
+    verifyEncoding = () => {},
+  } = options;
+  const encodeRemotable = makeEncodeRemotable(
+    unsafeEncodeRemotable,
+    verifyEncoding,
+  );
+  const encodePromise = makeEncodePromise(unsafeEncodePromise, verifyEncoding);
+  const encodeError = makeEncodeError(unsafeEncodeError, verifyEncoding);
 
-  const encodePassable = passable => {
+  const innerEncode = passable => {
     if (isErrorLike(passable)) {
-      return encodeError(passable, encodePassable);
+      // We pull out this special case to accommodate errors that are not
+      // valid Passables. For example, because they're not frozen.
+      // The special case can only ever apply at the root, and therefore
+      // outside the recursion, since an error could only be deeper in
+      // a passable structure if it were passable.
+      //
+      // We pull out this special case because, for these errors, we're much
+      // more interested in reporting whatever diagnostic information they
+      // carry than we are about reporting problems encountered in reporting
+      // this information.
+      return encodeError(passable, innerEncode);
     }
     const passStyle = passStyleOf(passable);
     switch (passStyle) {
@@ -370,7 +605,7 @@ export const makeEncodePassable = (encodeOptions = {}) => {
         return encodeBinary64(passable);
       }
       case 'string': {
-        return `s${passable}`;
+        return `s${encodeStringSuffix(passable)}`;
       }
       case 'boolean': {
         return `b${passable}`;
@@ -379,43 +614,36 @@ export const makeEncodePassable = (encodeOptions = {}) => {
         return encodeBigInt(passable);
       }
       case 'remotable': {
-        const result = encodeRemotable(passable, encodePassable);
-        result.charAt(0) === 'r' ||
-          Fail`internal: Remotable encoding must start with "r": ${result}`;
-        return result;
+        return encodeRemotable(passable, innerEncode);
       }
       case 'error': {
-        const result = encodeError(passable, encodePassable);
-        result.charAt(0) === '!' ||
-          Fail`internal: Error encoding must start with "!": ${result}`;
-        return result;
+        return encodeError(passable, innerEncode);
       }
       case 'promise': {
-        const result = encodePromise(passable, encodePassable);
-        result.charAt(0) === '?' ||
-          Fail`internal: Promise encoding must start with "?": ${result}`;
-        return result;
+        return encodePromise(passable, innerEncode);
       }
       case 'symbol': {
-        return `y${nameForPassableSymbol(passable)}`;
+        // Strings and symbols share encoding logic.
+        const name = nameForPassableSymbol(passable);
+        assert.typeof(name, 'string');
+        return `y${encodeStringSuffix(name)}`;
       }
       case 'copyArray': {
-        return encodeArray(passable, encodePassable);
+        return encodeArray(passable, innerEncode);
       }
       case 'copyRecord': {
-        return encodeRecord(passable, encodePassable);
+        return encodeRecord(passable, encodeArray, innerEncode);
       }
       case 'tagged': {
-        return encodeTagged(passable, encodePassable);
+        return encodeTagged(passable, encodeArray, innerEncode);
       }
       default: {
         throw Fail`a ${q(passStyle)} cannot be used as a collection passable`;
       }
     }
   };
-  return harden(encodePassable);
+  return innerEncode;
 };
-harden(makeEncodePassable);
 
 /**
  * @typedef {object} DecodeOptions
@@ -433,19 +661,24 @@ harden(makeEncodePassable);
  * ) => Error} [decodeError]
  */
 
-/**
- * @param {DecodeOptions} [decodeOptions]
- * @returns {(encoded: string) => Passable}
- */
-export const makeDecodePassable = (decodeOptions = {}) => {
-  const {
-    decodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
-    decodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
-    decodeError = (err, _) => Fail`error unexpected: ${err}`,
-  } = decodeOptions;
+const liberalDecoders = /** @type {Required<DecodeOptions>} */ (
+  /** @type {unknown} */ ({
+    decodeRemotable: (_encoding, _innerDecode) => undefined,
+    decodePromise: (_encoding, _innerDecode) => undefined,
+    decodeError: (_encoding, _innerDecode) => undefined,
+  })
+);
 
-  const decodePassable = encoded => {
-    switch (encoded.charAt(0)) {
+/**
+ * @param {(encoded: string) => string} decodeStringSuffix
+ * @param {(encoded: string, decodeRecur: (e: string) => Passable, skip?: number) => unknown[]} decodeArray
+ * @param {Required<DecodeOptions>} options
+ * @returns {(encoded: string, skip?: number) => Passable}
+ */
+const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
+  const { decodeRemotable, decodePromise, decodeError } = options;
+  const innerDecode = (encoded, skip = 0) => {
+    switch (encoded.charAt(skip)) {
       case 'v': {
         return null;
       }
@@ -453,50 +686,162 @@ export const makeDecodePassable = (decodeOptions = {}) => {
         return undefined;
       }
       case 'f': {
-        return decodeBinary64(encoded);
+        return decodeBinary64(encoded, skip);
       }
       case 's': {
-        return encoded.substring(1);
+        return decodeStringSuffix(getSuffix(encoded, skip + 1));
       }
       case 'b': {
-        if (encoded === 'btrue') {
+        const substring = getSuffix(encoded, skip + 1);
+        if (substring === 'true') {
           return true;
-        } else if (encoded === 'bfalse') {
+        } else if (substring === 'false') {
           return false;
         }
-        throw Fail`expected encoded boolean to be "btrue" or "bfalse": ${encoded}`;
+        throw Fail`expected encoded boolean to be "btrue" or "bfalse": ${substring}`;
       }
       case 'n':
       case 'p': {
-        return decodeBigInt(encoded);
+        return decodeBigInt(getSuffix(encoded, skip));
       }
       case 'r': {
-        return decodeRemotable(encoded, decodePassable);
+        return decodeRemotable(getSuffix(encoded, skip), innerDecode);
       }
       case '?': {
-        return decodePromise(encoded, decodePassable);
+        return decodePromise(getSuffix(encoded, skip), innerDecode);
       }
       case '!': {
-        return decodeError(encoded, decodePassable);
+        return decodeError(getSuffix(encoded, skip), innerDecode);
       }
       case 'y': {
-        return passableSymbolForName(encoded.substring(1));
+        // Strings and symbols share decoding logic.
+        const name = decodeStringSuffix(getSuffix(encoded, skip + 1));
+        return passableSymbolForName(name);
       }
-      case '[': {
-        return decodeArray(encoded, decodePassable);
+      case '[':
+      case '^': {
+        return decodeArray(encoded, innerDecode, skip);
       }
       case '(': {
-        return decodeRecord(encoded, decodePassable);
+        return decodeRecord(encoded, decodeArray, innerDecode, skip);
       }
       case ':': {
-        return decodeTagged(encoded, decodePassable);
+        return decodeTagged(encoded, decodeArray, innerDecode, skip);
       }
       default: {
-        throw Fail`invalid database key: ${encoded}`;
+        throw Fail`invalid database key: ${getSuffix(encoded, skip)}`;
       }
     }
   };
-  return harden(decodePassable);
+  return innerDecode;
+};
+
+/**
+ * @typedef {object} PassableKit
+ * @property {ReturnType<makeInnerEncode>} encodePassable
+ * @property {ReturnType<makeInnerDecode>} decodePassable
+ */
+
+/**
+ * @param {EncodeOptions & DecodeOptions} [options]
+ * @returns {PassableKit}
+ */
+export const makePassableKit = (options = {}) => {
+  const {
+    encodeRemotable = (r, _) => Fail`remotable unexpected: ${r}`,
+    encodePromise = (p, _) => Fail`promise unexpected: ${p}`,
+    encodeError = (err, _) => Fail`error unexpected: ${err}`,
+    format = 'legacyOrdered',
+
+    decodeRemotable = (encoding, _) => Fail`remotable unexpected: ${encoding}`,
+    decodePromise = (encoding, _) => Fail`promise unexpected: ${encoding}`,
+    decodeError = (encoding, _) => Fail`error unexpected: ${encoding}`,
+  } = options;
+
+  /** @type {PassableKit['encodePassable']} */
+  let encodePassable;
+  const encodeOptions = { encodeRemotable, encodePromise, encodeError, format };
+  if (format === 'compactOrdered') {
+    const liberalDecode = makeInnerDecode(
+      decodeCompactStringSuffix,
+      decodeCompactArray,
+      liberalDecoders,
+    );
+    /**
+     * @param {string} encoding
+     * @param {string} label
+     * @returns {void}
+     */
+    const verifyEncoding = (encoding, label) => {
+      !encoding.match(rC0) ||
+        Fail`${b(
+          label,
+        )} encoding must not contain a C0 control character: ${encoding}`;
+      const decoded = decodeCompactArray(`^v ${encoding} v `, liberalDecode);
+      (isArray(decoded) &&
+        decoded.length === 3 &&
+        decoded[0] === null &&
+        decoded[2] === null) ||
+        Fail`${b(label)} encoding must be embeddable: ${encoding}`;
+    };
+    const encodeCompact = makeInnerEncode(
+      encodeCompactStringSuffix,
+      encodeCompactArray,
+      { ...encodeOptions, verifyEncoding },
+    );
+    encodePassable = passable => `~${encodeCompact(passable)}`;
+  } else if (format === 'legacyOrdered') {
+    encodePassable = makeInnerEncode(
+      encodeLegacyStringSuffix,
+      encodeLegacyArray,
+      encodeOptions,
+    );
+  } else {
+    throw Fail`Unrecognized format: ${q(format)}`;
+  }
+
+  const decodeOptions = { decodeRemotable, decodePromise, decodeError };
+  const decodeCompact = makeInnerDecode(
+    decodeCompactStringSuffix,
+    decodeCompactArray,
+    decodeOptions,
+  );
+  const decodeLegacy = makeInnerDecode(
+    decodeLegacyStringSuffix,
+    decodeLegacyArray,
+    decodeOptions,
+  );
+  const decodePassable = encoded => {
+    // A leading "~" indicates the v2 encoding (with escaping in strings rather than arrays).
+    // Skip it inside `decodeCompact` to avoid slow `substring` in XS.
+    // https://github.com/endojs/endo/issues/1984
+    if (encoded.charAt(0) === '~') {
+      return decodeCompact(encoded, 1);
+    }
+    return decodeLegacy(encoded);
+  };
+
+  return harden({ encodePassable, decodePassable });
+};
+harden(makePassableKit);
+
+/**
+ * @param {EncodeOptions} [encodeOptions]
+ * @returns {PassableKit['encodePassable']}
+ */
+export const makeEncodePassable = encodeOptions => {
+  const { encodePassable } = makePassableKit(encodeOptions);
+  return encodePassable;
+};
+harden(makeEncodePassable);
+
+/**
+ * @param {DecodeOptions} [decodeOptions]
+ * @returns {PassableKit['decodePassable']}
+ */
+export const makeDecodePassable = decodeOptions => {
+  const { decodePassable } = makePassableKit(decodeOptions);
+  return decodePassable;
 };
 harden(makeDecodePassable);
 
@@ -508,11 +853,13 @@ harden(isEncodedRemotable);
 /**
  * @type {Record<PassStyle, string>}
  * The single prefix characters to be used for each PassStyle category.
- * `bigint` is a two character string because each of those characters
- * individually is a valid bigint prefix. `n` for "negative" and `p` for
- * "positive". The ordering of these prefixes is the same as the
- * rankOrdering of their respective PassStyles. This table is imported by
- * rankOrder.js for this purpose.
+ * `bigint` is a two-character string because each of those characters
+ * individually is a valid bigint prefix (`n` for "negative" and `p` for
+ * "positive"), and copyArray is a two-character string because one encoding
+ * prefixes arrays with `[` while the other uses `^` (which is prohibited from
+ * appearing in an encoded string).
+ * The ordering of these prefixes is the same as the rankOrdering of their
+ * respective PassStyles, and rankOrder.js imports the table for this purpose.
  *
  * In addition, `|` is the remotable->ordinal mapping prefix:
  * This is not used in covers but it is
@@ -525,7 +872,7 @@ export const passStylePrefixes = {
   copyRecord: '(',
   tagged: ':',
   promise: '?',
-  copyArray: '[',
+  copyArray: '[^',
   boolean: 'b',
   number: 'f',
   bigint: 'np',

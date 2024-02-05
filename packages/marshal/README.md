@@ -41,6 +41,25 @@ console.log(o1 === o2);
 // false
 ```
 
+Additionally, this module exports a `makePassableKit` function for encoding into
+and decoding from a directly-serialized format in which string comparison
+corresponds with arbitrary value comparison (cf.
+[Patterns: Rank order and key order](https://github.com/endojs/endo/blob/master/packages/patterns/README.md#rank-order-and-key-order).
+Rather than accepting `convertValToSlot` and `convertSlotToVal` functions and
+keeping a "slots" side table, `makePassableKit` expects
+{encode,decode}{Remotable,Promise,Error} functions that directly convert between
+instances of the respective pass styles and properly-formatted encodings
+(in which Remotable encodings start with "r", Promise encodings start with "?",
+Error encodings start with "!", and all other details are left to the provided
+functions).
+`makePassableKit` supports two variations of this format: "legacyOrdered" and
+"compactOrdered". The former is the default for historical reasons (see
+https://github.com/endojs/endo/pull/1594 for background) but the latter is
+preferred for its better handling of deep structure. The ordering guarantees are
+upheld within each format variation, but not across them (i.e., it is not
+correct to treat a string comparison of legacyOrdered vs. compactOrdered as a
+corresponding value comparison).
+
 ## Frozen Objects Only
 
 The entire object graph must be "hardened" (recursively frozen), such as done
