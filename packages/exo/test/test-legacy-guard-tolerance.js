@@ -49,9 +49,8 @@ test('legacy guard tolerance', async t => {
     argGuard: 88,
   });
   // @ts-expect-error Legacy adaptor can be ill typed
-  t.throws(() => getAwaitArgGuardPayload(laag), {
-    message:
-      'awaitArgGuard: copyRecord {"argGuard":88,"klass":"awaitArg"} - Must be a guard:awaitArgGuard',
+  t.deepEqual(getAwaitArgGuardPayload(laag), {
+    argGuard: 88,
   });
 
   t.deepEqual(getMethodGuardPayload(mg1), {
@@ -69,9 +68,12 @@ test('legacy guard tolerance', async t => {
     returnGuard: M.any(),
   });
   // @ts-expect-error Legacy adaptor can be ill typed
-  t.throws(() => getMethodGuardPayload(lmg), {
-    message:
-      'methodGuard: copyRecord {"argGuards":[77,{"argGuard":88,"klass":"awaitArg"}],"callKind":"async","klass":"methodGuard","returnGuard":"[match:any]"} - Must be a guard:methodGuard',
+  t.deepEqual(getMethodGuardPayload(lmg), {
+    callKind: 'async',
+    argGuards: [77, aag],
+    optionalArgGuards: undefined,
+    restArgGuard: undefined,
+    returnGuard: M.any(),
   });
 
   t.deepEqual(getInterfaceGuardPayload(ig1), {
@@ -97,9 +99,16 @@ test('legacy guard tolerance', async t => {
     },
   );
   // @ts-expect-error Legacy adaptor can be ill typed
-  t.throws(() => getInterfaceGuardPayload(lig), {
-    message:
-      'interfaceGuard: copyRecord {"interfaceName":"Foo","klass":"Interface","methodGuards":{"lmg":{"argGuards":[77,{"argGuard":88,"klass":"awaitArg"}],"callKind":"async","klass":"methodGuard","returnGuard":"[match:any]"},"mg1":"[guard:methodGuard]","mg2":"[guard:methodGuard]"}} - Must be a guard:interfaceGuard',
+  t.deepEqual(getInterfaceGuardPayload(lig), {
+    interfaceName: 'Foo',
+    methodGuards: {
+      mg1,
+      mg2,
+      lmg: M.callWhen(77, M.await(88))
+        .optional()
+        .rest(M.any())
+        .returns(M.any()),
+    },
   });
 
   const { meth } = {
@@ -121,20 +130,29 @@ test('legacy guard tolerance', async t => {
   });
   t.deepEqual(await f1.mg2(77, laag), [77, laag]);
 
-  t.throws(
-    () =>
-      makeExo(
-        'foo',
-        // @ts-expect-error Legacy adaptor can be ill typed
-        lig,
-        {
-          mg1: meth,
-          mg2: meth,
-        },
-      ),
+  const f2 = makeExo(
+    'foo',
+    // @ts-expect-error Legacy adaptor can be ill typed
+    lig,
     {
-      message:
-        'interfaceGuard: copyRecord {"interfaceName":"Foo","klass":"Interface","methodGuards":{"lmg":{"argGuards":[77,{"argGuard":88,"klass":"awaitArg"}],"callKind":"async","klass":"methodGuard","returnGuard":"[match:any]"},"mg1":"[guard:methodGuard]","mg2":"[guard:methodGuard]"}} - Must be a guard:interfaceGuard',
+      mg1: meth,
+      mg2: meth,
+      lmg: meth,
     },
   );
+  t.deepEqual(await f2.mg1(77, 88), [77, 88]);
+  await t.throwsAsync(async () => f2.mg1(77, laag), {
+    message:
+      'In "mg1" method of (foo): arg 1: {"argGuard":88,"klass":"awaitArg"} - Must be: 88',
+  });
+  await t.throwsAsync(async () => f2.mg2(77, 88), {
+    message:
+      'In "mg2" method of (foo): arg 1: 88 - Must be: {"argGuard":88,"klass":"awaitArg"}',
+  });
+  t.deepEqual(await f2.mg2(77, laag), [77, laag]);
+  t.deepEqual(await f2.lmg(77, 88), [77, 88]);
+  await t.throwsAsync(async () => f2.lmg(77, laag), {
+    message:
+      'In "lmg" method of (foo): arg 1: {"argGuard":88,"klass":"awaitArg"} - Must be: 88',
+  });
 });
