@@ -12,6 +12,8 @@ export const makeMailboxMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
   formulaIdentifierForRef,
+  makeSha512,
+  provideValueForNumberedFormula,
 }) => {
   const makeMailbox = ({
     selfFormulaIdentifier,
@@ -96,6 +98,36 @@ export const makeMailboxMaker = ({
         return harden([]);
       }
       return reverseLookupFormulaIdentifier(formulaIdentifier);
+    };
+
+    /**
+     * Takes a sequence of pet names and returns a formula identifier and value
+     * for the corresponding lookup formula.
+     *
+     * @param {string[]} petNamePath - A sequence of pet names.
+     * @returns {Promise<{ formulaIdentifier: string, value: unknown }>} The formula
+     * identifier and value of the lookup formula.
+     */
+    const provideLookupFormula = async petNamePath => {
+      const agentFormulaIdentifier = lookupFormulaIdentifierForName('SELF');
+      const digester = makeSha512();
+      digester.updateText(`${agentFormulaIdentifier},${petNamePath.join(',')}`);
+      const lookupFormulaNumber = digester.digestHex().slice(32, 64);
+
+      // TODO:lookup Check if the lookup formula already exists in the store
+
+      const lookupFormula = {
+        /** @type {'lookup'} */
+        type: 'lookup',
+        agent: agentFormulaIdentifier,
+        path: petNamePath,
+      };
+
+      return provideValueForNumberedFormula(
+        'lookup',
+        lookupFormulaNumber,
+        lookupFormula,
+      );
     };
 
     /**
@@ -518,6 +550,7 @@ export const makeMailboxMaker = ({
       reverseLookup,
       reverseLookupFormulaIdentifier,
       lookupFormulaIdentifierForName,
+      provideLookupFormula,
       followMessages,
       listMessages,
       request,

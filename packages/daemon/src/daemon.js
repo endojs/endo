@@ -228,6 +228,9 @@ const makeEndoBootstrap = (
   };
 
   /**
+   * Creates a controller for a `lookup` formula. The external facet is the
+   * resolved value of the lookup.
+   *
    * @param {string} agentFormulaIdentifier
    * @param {string[]} path
    * @param {import('./types.js').Terminator} terminator
@@ -517,7 +520,7 @@ const makeEndoBootstrap = (
    * @param {string} formulaType - The type of the formula.
    * @param {string} formulaNumber - The number of the formula.
    * @param {import('./types').Formula} formula - The formula.
-   * @returns {Promise<unknown>} The value of the formula.
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>} The value of the formula.
    */
   const provideValueForNumberedFormula = async (
     formulaType,
@@ -627,6 +630,8 @@ const makeEndoBootstrap = (
     formulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
+    makeSha512,
+    provideValueForNumberedFormula,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({

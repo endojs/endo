@@ -43,6 +43,7 @@ export const makeHostMaker = ({
       reverseLookup,
       lookupFormulaIdentifierForName,
       listMessages,
+      provideLookupFormula,
       followMessages,
       resolve,
       reject,
@@ -224,26 +225,8 @@ export const makeHostMaker = ({
             return formulaIdentifier;
           }
 
-          const lookupAgent = lookupFormulaIdentifierForName('SELF');
-          const digester = makeSha512();
-          digester.updateText(`${lookupAgent},${petNamePath.join(',')}`);
-          const lookupFormulaNumber = digester.digestHex().slice(32, 64);
-
-          // TODO:lookup Check if the lookup formula already exists in the store
-
-          const lookupFormula = {
-            /** @type {'lookup'} */
-            type: 'lookup',
-            agent: lookupAgent,
-            path: petNamePath,
-          };
-
           const { formulaIdentifier: lookupFormulaIdentifier } =
-            await provideValueForNumberedFormula(
-              'lookup',
-              lookupFormulaNumber,
-              lookupFormula,
-            );
+            await provideLookupFormula(petNamePath);
           return lookupFormulaIdentifier;
         }),
       );
