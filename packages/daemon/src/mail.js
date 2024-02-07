@@ -112,7 +112,7 @@ export const makeMailboxMaker = ({
       const agentFormulaIdentifier = lookupFormulaIdentifierForName('SELF');
       const digester = makeSha512();
       digester.updateText(`${agentFormulaIdentifier},${petNamePath.join(',')}`);
-      const lookupFormulaNumber = digester.digestHex().slice(32, 64);
+      const lookupFormulaNumber = digester.digestHex();
 
       // TODO:lookup Check if the lookup formula already exists in the store
 
@@ -124,7 +124,7 @@ export const makeMailboxMaker = ({
       };
 
       return provideValueForNumberedFormula(
-        'lookup',
+        'lookup-id512',
         lookupFormulaNumber,
         lookupFormula,
       );

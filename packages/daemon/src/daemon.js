@@ -680,7 +680,7 @@ const makeEndoBootstrap = (
       if (
         ![
           'eval-id512',
-          'lookup',
+          'lookup-id512',
           'make-unconfined-id512',
           'make-bundle-id512',
           'guest-id512',
