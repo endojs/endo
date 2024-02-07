@@ -60,16 +60,19 @@ export {
   mustMatch,
   isAwaitArgGuard,
   assertAwaitArgGuard,
-  getAwaitArgGuardPayload,
   isRawGuard,
   assertRawGuard,
   assertMethodGuard,
-  getMethodGuardPayload,
-  getInterfaceMethodKeys,
   assertInterfaceGuard,
-  getInterfaceGuardPayload,
   kindOf,
 } from './src/patterns/patternMatchers.js';
+
+export {
+  getAwaitArgGuardPayload,
+  getMethodGuardPayload,
+  getInterfaceGuardPayload,
+  getInterfaceMethodKeys,
+} from './src/patterns/getGuardPayloads.js';
 
 // eslint-disable-next-line import/export
 export * from './src/types.js';
