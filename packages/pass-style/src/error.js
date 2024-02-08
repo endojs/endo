@@ -10,8 +10,20 @@ const { getPrototypeOf, getOwnPropertyDescriptors } = Object;
 const { ownKeys } = Reflect;
 
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
-// whilelist. Currently, both omit AggregateError, which is now standard. Both
-// must eventually include it.
+// whilelist.
+//
+// @ts-expect-error AggregateError is mistyped below because, for some reason,
+// TS is getting TS's definition for ES2021 at
+// node_modules/typescript/lib/lib.es2021.promise.d.ts
+// rather than TS's definition for ES2022 at
+// node_modules/typescript/lib/lib.es2022.error.d.ts
+// However, because the constructor parameter types of
+// the AggregateErrorConstructor are genuinely different that ErrorConstructor,
+// this at-ts-expect-error probably remains. This suggests that we should
+// not be using the ErrorConstructor as the type of that part of the `Map`
+// call. However, I don't see anywhere we declare that type. And if TS is
+// inferring a type, why is it inferring a type too narrow to succeed typing
+// the expression it is inferred from?
 const errorConstructors = new Map([
   ['Error', Error],
   ['EvalError', EvalError],
@@ -20,6 +32,9 @@ const errorConstructors = new Map([
   ['SyntaxError', SyntaxError],
   ['TypeError', TypeError],
   ['URIError', URIError],
+
+  // https://github.com/endojs/endo/issues/550
+  ['AggregateError', AggregateError],
 ]);
 
 export const getErrorConstructor = name => errorConstructors.get(name);

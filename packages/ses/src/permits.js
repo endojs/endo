@@ -82,6 +82,8 @@ export const universalPropertyNames = {
   Iterator: 'Iterator',
   // https://github.com/tc39/proposal-async-iterator-helpers
   AsyncIterator: 'AsyncIterator',
+  // https://github.com/endojs/endo/issues/550
+  AggregateError: 'AggregateError',
 
   // *** Other Properties of the Global Object
 
@@ -185,7 +187,6 @@ export const uniqueGlobalPropertyNames = {
 
 // All the "subclasses" of Error. These are collectively represented in the
 // ECMAScript spec by the meta variable NativeError.
-// TODO Add AggregateError https://github.com/Agoric/SES-shim/issues/550
 export const NativeErrors = [
   EvalError,
   RangeError,
@@ -193,6 +194,8 @@ export const NativeErrors = [
   SyntaxError,
   TypeError,
   URIError,
+  // https://github.com/endojs/endo/issues/550
+  AggregateError,
 ];
 
 /**
@@ -589,6 +592,8 @@ export const permitted = {
   SyntaxError: NativeError('%SyntaxErrorPrototype%'),
   TypeError: NativeError('%TypeErrorPrototype%'),
   URIError: NativeError('%URIErrorPrototype%'),
+  // https://github.com/endojs/endo/issues/550
+  AggregateError: NativeError('%AggregateErrorPrototype%'),
 
   '%EvalErrorPrototype%': NativeErrorPrototype('EvalError'),
   '%RangeErrorPrototype%': NativeErrorPrototype('RangeError'),
@@ -596,6 +601,8 @@ export const permitted = {
   '%SyntaxErrorPrototype%': NativeErrorPrototype('SyntaxError'),
   '%TypeErrorPrototype%': NativeErrorPrototype('TypeError'),
   '%URIErrorPrototype%': NativeErrorPrototype('URIError'),
+  // https://github.com/endojs/endo/issues/550
+  '%AggregateErrorPrototype%': NativeErrorPrototype('AggregateError'),
 
   // *** Numbers and Dates
 
@@ -1431,9 +1438,8 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     all: fn,
     allSettled: fn,
-    // To transition from `false` to `fn` once we also have `AggregateError`
-    // TODO https://github.com/Agoric/SES-shim/issues/550
-    any: false, // ES2021
+    // https://github.com/Agoric/SES-shim/issues/550
+    any: fn,
     prototype: '%PromisePrototype%',
     race: fn,
     reject: fn,
