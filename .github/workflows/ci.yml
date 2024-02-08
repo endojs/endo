@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [16.x]
+        node-version: [18.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -73,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [16.x]
+        node-version: [18.x]
         platform: [ubuntu-latest, windows-latest]
 
     steps:
@@ -175,7 +175,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [16.x]
+        node-version: [18.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -221,7 +221,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [16.x]
+        node-version: [18.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -258,52 +258,6 @@ jobs:
       - name: Run yarn test262
         run: exit 0 # TODO remove test262 from required tests for CI
 
-  integration-test:
-    name: integration-test
-
-    # begin macro
-
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [16.x]
-        platform: [ubuntu-latest]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Echo node version
-        run: node --version
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install dependencies
-        run: yarn --frozen-lockfile
-
-      # end macro
-
-      - name: Run build-pre-release-test
-        run: ./scripts/build-pre-release-test.sh
-
-      - name: Run yarn test:pre-release
-        run: cd packages/ses-integration-test && yarn test:pre-release
-
   platform-compatibility-test:
     name: platform-compatibility-test
 
@@ -313,7 +267,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [16.x]
+        node-version: [18.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -367,7 +321,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [16.x]
+        node-version: [18.x]
         platform: [ubuntu-latest]
 
     steps:
