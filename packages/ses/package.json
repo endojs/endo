@@ -59,8 +59,7 @@
     "lint:types": "tsc",
     "prepare": "yarn run clean && yarn build",
     "qt": "ava",
-    "test": "tsd && ava",
-    "test:platform-compatibility": "node test/package/test.cjs"
+    "test": "tsd && ava"
   },
   "dependencies": {
     "@endo/env-options": "^1.1.0"
