@@ -1,11 +1,21 @@
 /* global globalThis */
-import('./index.js').then(({ prepareOCell }) => {
-  const makeOCell = prepareOCell(null);
+console.log(
+  'Access properties and methods of O, or an arbitrary object with O(x)',
+);
 
-  const O = makeOCell(
-    Object.assign(makeOCell, { help: 'This is a help message' }),
-    'O',
-  );
+import('@endo/init')
+  .then(() => import('./index.js'))
+  .then(({ prepareOCell, stripFunction }) => {
+    const makeOCell = prepareOCell(null);
 
-  globalThis.O = O;
-});
+    const O = makeOCell(
+      Object.assign(
+        stripFunction(obj => makeOCell(obj)),
+        {
+          help: 'This is a help message',
+        },
+      ),
+    );
+
+    globalThis.O = O;
+  });

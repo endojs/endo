@@ -49,6 +49,31 @@ const harden = globalThis.harden || (x => x);
  */
 const when = p => Promise.resolve().then(() => p);
 
+const promiseMethods = ['then', 'catch', 'finally'];
+harden(promiseMethods);
+
+/**
+ * @typedef {(...args: any[]) => any} T
+ * @param {T} target
+ * @returns {T}
+ */
+export const stripFunction = target => {
+  Object.setPrototypeOf(target, null);
+  for (const key of Reflect.ownKeys(target)) {
+    delete target[key];
+  }
+  return target;
+};
+
+const makeTarget = objP => {
+  const target = stripFunction(() => {});
+  for (const key of promiseMethods) {
+    target[key] = Promise.prototype[key].bind(objP);
+  }
+  harden(target);
+  return target;
+};
+
 /**
  * @param {unknown} _zone TODO: use zones.
  */
@@ -56,13 +81,10 @@ export const prepareOCell = _zone => {
   /** @type {WeakMap<WeakKey, OCell>} */
   const objToCell = new WeakMap();
 
-  const promiseMethods = ['then', 'catch', 'finally'];
-  harden(promiseMethods);
-
   /**
    * @template T
    * @param {T} rawObj
-   * @param {unknown} [boundName]
+   * @param {PropertyKey} [boundName]
    * @param {unknown} [boundThis]
    * @returns {OCell<T>}
    */
@@ -79,15 +101,7 @@ export const prepareOCell = _zone => {
     const objP = when(rawObj);
 
     // Avoid contamination by our callable interface.
-    const target = () => {};
-    Object.setPrototypeOf(target, null);
-    for (const key of Reflect.ownKeys(target)) {
-      delete target[key];
-    }
-    for (const key of promiseMethods) {
-      target[key] = Promise.prototype[key].bind(objP);
-    }
-    harden(target);
+    const target = makeTarget(objP);
 
     cell = new Proxy(target, {
       apply(_target, thisArg, args) {
