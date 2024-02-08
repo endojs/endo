@@ -2,6 +2,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { withEndoParty } from '../context.js';
+import { parsePetNamePath } from '../pet-name.js';
 
 export const evalCommand = async ({
   source,
@@ -27,13 +28,13 @@ export const evalCommand = async ({
       return pair;
     });
     const codeNames = pairs.map(pair => pair[0]);
-    const endowmentNames = pairs.map(pair => pair[1]);
+    const petNames = pairs.map(pair => parsePetNamePath(pair[1]));
 
     const result = await E(party).evaluate(
       workerName,
       source,
       codeNames,
-      endowmentNames,
+      petNames,
       resultName,
     );
     console.log(result);

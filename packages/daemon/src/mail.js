@@ -12,6 +12,8 @@ export const makeMailboxMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
   formulaIdentifierForRef,
+  makeSha512,
+  provideValueForNumberedFormula,
 }) => {
   const makeMailbox = ({
     selfFormulaIdentifier,
@@ -96,6 +98,40 @@ export const makeMailboxMaker = ({
         return harden([]);
       }
       return reverseLookupFormulaIdentifier(formulaIdentifier);
+    };
+
+    /**
+     * Takes a sequence of pet names and returns a formula identifier and value
+     * for the corresponding lookup formula.
+     *
+     * @param {string[]} petNamePath - A sequence of pet names.
+     * @returns {Promise<{ formulaIdentifier: string, value: unknown }>} The formula
+     * identifier and value of the lookup formula.
+     */
+    const provideLookupFormula = async petNamePath => {
+      // The lookup formula identifier consists of the hash of the associated
+      // naming hub's formula identifier and the pet name path.
+      // A "naming hub" is an objected with a variadic lookup method. At present,
+      // the only such objects are guests and hosts.
+      const hubFormulaIdentifier = lookupFormulaIdentifierForName('SELF');
+      const digester = makeSha512();
+      digester.updateText(`${hubFormulaIdentifier},${petNamePath.join(',')}`);
+      const lookupFormulaNumber = digester.digestHex();
+
+      // TODO:lookup Check if the lookup formula already exists in the store
+
+      const lookupFormula = {
+        /** @type {'lookup'} */
+        type: 'lookup',
+        hub: hubFormulaIdentifier,
+        path: petNamePath,
+      };
+
+      return provideValueForNumberedFormula(
+        'lookup-id512',
+        lookupFormulaNumber,
+        lookupFormula,
+      );
     };
 
     /**
@@ -518,6 +554,7 @@ export const makeMailboxMaker = ({
       reverseLookup,
       reverseLookupFormulaIdentifier,
       lookupFormulaIdentifierForName,
+      provideLookupFormula,
       followMessages,
       listMessages,
       request,

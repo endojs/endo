@@ -72,6 +72,21 @@ type EvalFormula = {
   // TODO formula slots
 };
 
+type LookupFormula = {
+  type: 'lookup';
+
+  /**
+   * The formula identifier of the naming hub to call lookup on.
+   * A "naming hub" is an object with a variadic `lookup()` method.
+   */
+  hub: string;
+
+  /**
+   * The pet name path.
+   */
+  path: Array<string>;
+};
+
 type MakeUnconfinedFormula = {
   type: 'make-unconfined';
   worker: string;
@@ -97,6 +112,7 @@ type WebBundleFormula = {
 export type Formula =
   | GuestFormula
   | EvalFormula
+  | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
   | WebBundleFormula;
