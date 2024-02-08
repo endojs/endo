@@ -29,12 +29,13 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
+    "start": "node -r ./o.cjs",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "@endo/patterns": "^1.1.0"
+    "@endo/init": "^1.0.2"
   },
   "devDependencies": {
     "@endo/lockdown": "^1.0.2",
