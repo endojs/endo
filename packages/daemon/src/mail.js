@@ -109,9 +109,13 @@ export const makeMailboxMaker = ({
      * identifier and value of the lookup formula.
      */
     const provideLookupFormula = async petNamePath => {
-      const agentFormulaIdentifier = lookupFormulaIdentifierForName('SELF');
+      // The lookup formula identifier consists of the hash of the associated
+      // naming hub's formula identifier and the pet name path.
+      // A "naming hub" is an objected with a variadic lookup method. At present,
+      // the only such objects are guests and hosts.
+      const hubFormulaIdentifier = lookupFormulaIdentifierForName('SELF');
       const digester = makeSha512();
-      digester.updateText(`${agentFormulaIdentifier},${petNamePath.join(',')}`);
+      digester.updateText(`${hubFormulaIdentifier},${petNamePath.join(',')}`);
       const lookupFormulaNumber = digester.digestHex();
 
       // TODO:lookup Check if the lookup formula already exists in the store
@@ -119,7 +123,7 @@ export const makeMailboxMaker = ({
       const lookupFormula = {
         /** @type {'lookup'} */
         type: 'lookup',
-        agent: agentFormulaIdentifier,
+        hub: hubFormulaIdentifier,
         path: petNamePath,
       };
 

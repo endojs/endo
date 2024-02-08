@@ -76,9 +76,10 @@ type LookupFormula = {
   type: 'lookup';
 
   /**
-   * The formula identifier of the guest or host to call lookup on.
+   * The formula identifier of the naming hub to call lookup on.
+   * A "naming hub" is an object with a variadic `lookup()` method.
    */
-  agent: string;
+  hub: string;
 
   /**
    * The pet name path.

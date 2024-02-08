@@ -231,22 +231,22 @@ const makeEndoBootstrap = (
    * Creates a controller for a `lookup` formula. The external facet is the
    * resolved value of the lookup.
    *
-   * @param {string} agentFormulaIdentifier
+   * @param {string} hubFormulaIdentifier
    * @param {string[]} path
    * @param {import('./types.js').Terminator} terminator
    */
   const makeControllerForLookup = async (
-    agentFormulaIdentifier,
+    hubFormulaIdentifier,
     path,
     terminator,
   ) => {
-    terminator.thisDiesIfThatDies(agentFormulaIdentifier);
+    terminator.thisDiesIfThatDies(hubFormulaIdentifier);
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const agent = provideValueForFormulaIdentifier(agentFormulaIdentifier);
+    const hub = provideValueForFormulaIdentifier(hubFormulaIdentifier);
 
-    const external = E(agent).lookup(...path);
+    const external = E(hub).lookup(...path);
     return { external, internal: undefined };
   };
 
@@ -349,7 +349,7 @@ const makeEndoBootstrap = (
         terminator,
       );
     } else if (formula.type === 'lookup') {
-      return makeControllerForLookup(formula.agent, formula.path, terminator);
+      return makeControllerForLookup(formula.hub, formula.path, terminator);
     } else if (formula.type === 'make-unconfined') {
       return makeControllerForUnconfinedPlugin(
         formula.worker,
@@ -715,7 +715,7 @@ const makeEndoBootstrap = (
           formula.type,
           formulaNumber,
           harden({
-            agent: provideValueForFormulaIdentifier(formula.agent),
+            hub: provideValueForFormulaIdentifier(formula.hub),
             path: formula.path,
           }),
         );
