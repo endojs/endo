@@ -21,6 +21,7 @@ import {
   arrayPush,
   assign,
   freeze,
+  defineProperty,
   globalThis,
   is,
   isError,
@@ -33,6 +34,7 @@ import {
   weakmapGet,
   weakmapHas,
   weakmapSet,
+  AggregateError,
 } from '../commons.js';
 import { an, bestEffortStringify } from './stringify-utils.js';
 import './types.js';
@@ -257,8 +259,8 @@ const tagError = (err, optErrorName = err.name) => {
  */
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
-  ErrorConstructor = globalThis.Error,
-  { errorName = undefined } = {},
+  errConstructor = globalThis.Error,
+  { errorName = undefined, cause = undefined, errors = undefined } = {},
 ) => {
   if (typeof optDetails === 'string') {
     // If it is a string, use it as the literal part of the template so
@@ -270,7 +272,26 @@ const makeError = (
     throw TypeError(`unrecognized details ${quote(optDetails)}`);
   }
   const messageString = getMessageString(hiddenDetails);
-  const error = new ErrorConstructor(messageString);
+  const opts = cause && { cause };
+  let error;
+  if (errConstructor === AggregateError) {
+    error = AggregateError(errors || [], messageString, opts);
+  } else {
+    error = /** @type {ErrorConstructor} */ (errConstructor)(
+      messageString,
+      opts,
+    );
+    if (errors !== undefined) {
+      // Since we need to tolerate `errors` on an AggregateError, may as
+      // well tolerate it on all errors.
+      defineProperty(error, 'errors', {
+        value: errors,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      });
+    }
+  }
   weakmapSet(hiddenMessageLogArgs, error, getLogArgs(hiddenDetails));
   if (errorName !== undefined) {
     tagError(error, errorName);
@@ -382,9 +403,10 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   /** @type {AssertFail} */
   const fail = (
     optDetails = assertFailedDetails,
-    ErrorConstructor = globalThis.Error,
+    errConstructor = undefined,
+    options = undefined,
   ) => {
-    const reason = makeError(optDetails, ErrorConstructor);
+    const reason = makeError(optDetails, errConstructor, options);
     if (optRaise !== undefined) {
       optRaise(reason);
     }
@@ -402,9 +424,10 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   function baseAssert(
     flag,
     optDetails = undefined,
-    ErrorConstructor = undefined,
+    errConstructor = undefined,
+    options = undefined,
   ) {
-    flag || fail(optDetails, ErrorConstructor);
+    flag || fail(optDetails, errConstructor, options);
   }
 
   /** @type {AssertEqual} */
@@ -412,12 +435,14 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     actual,
     expected,
     optDetails = undefined,
-    ErrorConstructor = undefined,
+    errConstructor = undefined,
+    options = undefined,
   ) => {
     is(actual, expected) ||
       fail(
         optDetails || details`Expected ${actual} is same as ${expected}`,
-        ErrorConstructor || RangeError,
+        errConstructor || RangeError,
+        options,
       );
   };
   freeze(equal);

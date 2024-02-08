@@ -163,9 +163,6 @@ test('smallcaps unserialize extended errors', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
-  // TODO cause, errors, and AggregateError will eventually be recognized.
-  // See https://github.com/endojs/endo/pull/2042
-
   const refErr = uns(
     '#{"#error":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
@@ -178,10 +175,10 @@ test('smallcaps unserialize extended errors', t => {
   const aggErr = uns(
     '#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
-  t.is(getPrototypeOf(aggErr), Error.prototype); // direct instance of
+  t.is(getPrototypeOf(aggErr), AggregateError.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.false('cause' in aggErr);
-  t.false('errors' in aggErr);
+  t.is(aggErr.errors.length, 0);
   console.log('error with extra prop', aggErr);
 
   const unkErr = uns(
@@ -191,6 +188,40 @@ test('smallcaps unserialize extended errors', t => {
   t.false('extraProp' in unkErr);
   t.false('cause' in unkErr);
   t.false('errors' in unkErr);
+  console.log('error with extra prop', unkErr);
+});
+
+test('smallcaps unserialize errors w recognized extensions', t => {
+  const { unserialize } = makeTestMarshal();
+  const uns = body => unserialize({ body, slots: [] });
+
+  const errEnc = '{"#error":"msg","name":"URIError"}';
+
+  const refErr = uns(
+    `#{"#error":"msg","name":"ReferenceError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
+  );
+  t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
+  t.false('extraProp' in refErr);
+  t.is(getPrototypeOf(refErr.cause), URIError.prototype);
+  t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
+  console.log('error with extra prop', refErr);
+
+  const aggErr = uns(
+    `#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
+  );
+  t.is(getPrototypeOf(aggErr), AggregateError.prototype); // direct instance of
+  t.false('extraProp' in aggErr);
+  t.is(getPrototypeOf(refErr.cause), URIError.prototype);
+  t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
+  console.log('error with extra prop', aggErr);
+
+  const unkErr = uns(
+    `#{"#error":"msg","name":"UnknownError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
+  );
+  t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
+  t.false('extraProp' in unkErr);
+  t.is(getPrototypeOf(refErr.cause), URIError.prototype);
+  t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
   console.log('error with extra prop', unkErr);
 });
 
@@ -396,7 +427,7 @@ test('smallcaps encoding examples', t => {
   harden(nonPassableErr);
   t.throws(() => passStyleOf(nonPassableErr), {
     message:
-      /Passed Error has extra unpassed properties {"extraProperty":{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*}}/,
+      /Passable Error "extraProperty" own property must not be enumerable: \{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*\}/,
   });
   assertSer(
     nonPassableErr,

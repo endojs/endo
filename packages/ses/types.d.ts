@@ -119,6 +119,8 @@ export type Details = string | DetailsToken;
 
 export interface AssertMakeErrorOptions {
   errorName?: string;
+  cause?: Error;
+  errors?: Error[];
 }
 
 type AssertTypeofBigint = (
@@ -175,6 +177,10 @@ interface ToStringable {
   toString(): string;
 }
 
+export type GenericErrorConstructor =
+  | ErrorConstructor
+  | AggregateErrorConstructor;
+
 export type Raise = (reason: Error) => void;
 // Behold: recursion.
 // eslint-disable-next-line no-use-before-define
@@ -184,23 +190,29 @@ export interface AssertionFunctions {
   (
     value: any,
     details?: Details,
-    errorConstructor?: ErrorConstructor,
+    errConstructor?: GenericErrorConstructor,
+    options?: AssertMakeErrorOptions,
   ): asserts value;
   typeof: AssertTypeof;
   equal(
     left: any,
     right: any,
     details?: Details,
-    errorConstructor?: ErrorConstructor,
+    errConstructor?: GenericErrorConstructor,
+    options?: AssertMakeErrorOptions,
   ): void;
   string(specimen: any, details?: Details): asserts specimen is string;
-  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
+  fail(
+    details?: Details,
+    errConstructor?: GenericErrorConstructor,
+    options?: AssertMakeErrorOptions,
+  ): never;
 }
 
 export interface AssertionUtilities {
   error(
     details?: Details,
-    errorConstructor?: ErrorConstructor,
+    errConstructor?: GenericErrorConstructor,
     options?: AssertMakeErrorOptions,
   ): Error;
   note(error: Error, details: Details): void;

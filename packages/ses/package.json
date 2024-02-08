@@ -161,7 +161,8 @@
         "isNaN",
         "parseFloat",
         "parseInt",
-        "unescape"
+        "unescape",
+        "AggregateError"
       ],
       "@endo/no-polymorphic-call": "error"
     },

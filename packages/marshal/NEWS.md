@@ -1,5 +1,31 @@
 User-visible changes in `@endo/marshal`:
 
+# next release
+
+- Sending and receiving extended errors.
+  - As of the previous release, `@endo/marshal` tolerates extra error
+    properties with `Passable` values. However, all those extra properties
+    were only recorded in annotations, since they are not recognized as
+    legitimate on `Passable` errors.
+  - This release will use these extra properties to construct an error object
+    with all those extra properties, and then call `toPassableError` to make
+    the locally `Passable` error that it returns. Thus, if the extra properties
+    received are not recognized as a legitimate part of a locally `Passable`
+    error, the error with those extra properties itself becomes the annotation
+    on the returned `Passable` error.
+  - An `error.cause` property whose value is a `Passable` error with therefore
+    show up on the returned `Passable` error. If it is any other `Passable`
+    value, it will show up on the internal error used to annotate the
+    returned error.
+  - An `error.errors` property whose value is a `CopyArray` of `Passable`
+    errors will likewise show up on the returned `Passable` error. Otherwise,
+    only on the internal error annotation of the returned error.
+  - Although this release does otherwise support the error properties
+    `error.cause` and `error.errors` on `Passable` errors, it still does not
+    send these properties because releases prior to the previous release
+    do not tolerate receiving them. Once we no longer need to support
+    releases prior to the previous release, then we can start sending these.
+
 # v1.2.0 (2024-02-14)
 
 - Tolerates receiving extra error properties (https://github.com/endojs/endo/pull/2052). Once pervasive, this tolerance will eventually enable additional error properties to be sent. The motivating examples are the JavaScript standard properties `cause` and `errors`. This change also enables smoother interoperation with other languages with their own theories about diagnostic information to be included in errors.

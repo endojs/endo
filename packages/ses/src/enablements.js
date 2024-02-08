@@ -149,6 +149,12 @@ export const moderateEnablements = {
     name: true, // set by "node 14"
   },
 
+  // https://github.com/endojs/endo/issues/550
+  '%AggregateErrorPrototype%': {
+    message: true, // to match TypeErrorPrototype.message
+    name: true, // set by "node 14"?
+  },
+
   '%PromisePrototype%': {
     constructor: true, // set by "core-js"
   },

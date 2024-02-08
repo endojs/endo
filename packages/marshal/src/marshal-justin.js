@@ -217,8 +217,9 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'error': {
           const { name, message } = rawTree;
-          typeof name === 'string' ||
-            Fail`invalid error name typeof ${q(typeof name)}`;
+          if (typeof name !== 'string') {
+            throw Fail`invalid error name typeof ${q(typeof name)}`;
+          }
           getErrorConstructor(name) !== undefined ||
             Fail`Must be the name of an Error constructor ${name}`;
           typeof message === 'string' ||
@@ -389,11 +390,18 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
 
         case 'error': {
-          const { name, message } = rawTree;
-          // TODO cause, errors, AggregateError
-          // See https://github.com/endojs/endo/pull/2052
+          const {
+            name,
+            message,
+            cause = undefined,
+            errors = undefined,
+          } = rawTree;
+          cause === undefined ||
+            Fail`error cause not yet implemented in marshal-justin`;
           name !== `AggregateError` ||
             Fail`AggregateError not yet implemented in marshal-justin`;
+          errors === undefined ||
+            Fail`error errors not yet implemented in marshal-justin`;
           return out.next(`${name}(${quote(message)})`);
         }
 

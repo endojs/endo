@@ -61,6 +61,8 @@ module.exports = {
     lockdown: 'readonly',
     harden: 'readonly',
     HandledPromise: 'readonly',
+    // https://github.com/endojs/endo/issues/550
+    AggregateError: 'readonly',
   },
   rules: {
     '@endo/assert-fail-as-throw': 'error',

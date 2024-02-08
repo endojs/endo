@@ -60,6 +60,8 @@ test.skip('getGlobalIntrinsics', () => {
     'URIError',
     'WeakMap',
     'WeakSet',
+    // https://github.com/endojs/endo/issues/550
+    'AggregateError',
 
     // *** 18.4 Other Properties of the Global Object
 

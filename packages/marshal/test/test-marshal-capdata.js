@@ -172,10 +172,10 @@ test('unserialize extended errors', t => {
   const aggErr = uns(
     '{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
-  t.is(getPrototypeOf(aggErr), Error.prototype); // direct instance of
+  t.is(getPrototypeOf(aggErr), AggregateError.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.false('cause' in aggErr);
-  t.false('errors' in aggErr);
+  t.is(aggErr.errors.length, 0);
   console.log('error with extra prop', aggErr);
 
   const unkErr = uns(
@@ -185,6 +185,41 @@ test('unserialize extended errors', t => {
   t.false('extraProp' in unkErr);
   t.false('cause' in unkErr);
   t.false('errors' in unkErr);
+  console.log('error with extra prop', unkErr);
+});
+
+test('unserialize errors w recognized extensions', t => {
+  const { unserialize } = makeTestMarshal();
+  const uns = body => unserialize({ body, slots: [] });
+
+  const errEnc = '{"@qclass":"error","message":"msg","name":"URIError"}';
+
+  const refErr = uns(
+    `{"@qclass":"error","message":"msg","name":"ReferenceError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
+  );
+  t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
+  t.false('extraProp' in refErr);
+  t.is(getPrototypeOf(refErr.cause), URIError.prototype);
+  t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
+  console.log('error with extra prop', refErr);
+
+  const aggErr = uns(
+    `{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
+  );
+  t.is(getPrototypeOf(aggErr), AggregateError.prototype); // direct instance of
+  t.false('extraProp' in aggErr);
+  t.is(getPrototypeOf(aggErr.cause), URIError.prototype);
+  t.is(getPrototypeOf(aggErr.errors[0]), URIError.prototype);
+  console.log('error with extra prop', aggErr);
+
+  const unkErr = uns(
+    `{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
+  );
+  t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
+  t.false('extraProp' in unkErr);
+  t.is(getPrototypeOf(unkErr.cause), URIError.prototype);
+  t.is(getPrototypeOf(unkErr.errors[0]), URIError.prototype);
+
   console.log('error with extra prop', unkErr);
 });
 
