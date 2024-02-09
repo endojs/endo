@@ -18,6 +18,9 @@ export const inbox = async ({
       ? makeRefIterator(E(party).followMessages())
       : await E(party).listMessages();
     for await (const message of messages) {
+      if (message === undefined) {
+        continue;
+      }
       const { number, who, when } = message;
       if (message.type === 'request') {
         const { what } = message;
