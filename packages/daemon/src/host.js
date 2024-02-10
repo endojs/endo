@@ -41,7 +41,7 @@ export const makeHostMaker = ({
     const {
       lookup,
       reverseLookup,
-      lookupFormulaIdentifierForName,
+      identifyLocal,
       listMessages,
       provideLookupFormula,
       followMessages,
@@ -75,7 +75,7 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = lookupFormulaIdentifierForName(petName);
+        formulaIdentifier = identifyLocal(petName);
       }
       if (formulaIdentifier === undefined) {
         /** @type {import('./types.js').GuestFormula} */
@@ -129,7 +129,7 @@ export const makeHostMaker = ({
       if (typeof workerName !== 'string') {
         throw new Error('worker name must be string');
       }
-      let workerFormulaIdentifier = lookupFormulaIdentifierForName(workerName);
+      let workerFormulaIdentifier = identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         const workerId512 = await randomHex512();
         workerFormulaIdentifier = `worker-id512:${workerId512}`;
@@ -156,7 +156,7 @@ export const makeHostMaker = ({
         return `worker-id512:${workerId512}`;
       }
       assertPetName(workerName);
-      let workerFormulaIdentifier = lookupFormulaIdentifierForName(workerName);
+      let workerFormulaIdentifier = identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         const workerId512 = await randomHex512();
         workerFormulaIdentifier = `worker-id512:${workerId512}`;
@@ -170,7 +170,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
      */
     const providePowersFormulaIdentifier = async partyName => {
-      let guestFormulaIdentifier = lookupFormulaIdentifierForName(partyName);
+      let guestFormulaIdentifier = identifyLocal(partyName);
       if (guestFormulaIdentifier === undefined) {
         const guest = await provideGuest(partyName);
         guestFormulaIdentifier = formulaIdentifierForRef.get(guest);
@@ -216,9 +216,7 @@ export const makeHostMaker = ({
 
           const petNamePath = petNamePathFrom(petNameOrPath);
           if (petNamePath.length === 1) {
-            const formulaIdentifier = lookupFormulaIdentifierForName(
-              petNamePath[0],
-            );
+            const formulaIdentifier = identifyLocal(petNamePath[0]);
             if (formulaIdentifier === undefined) {
               throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
             }
@@ -308,8 +306,7 @@ export const makeHostMaker = ({
         workerName,
       );
 
-      const bundleFormulaIdentifier =
-        lookupFormulaIdentifierForName(bundleName);
+      const bundleFormulaIdentifier = identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
@@ -364,7 +361,7 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = lookupFormulaIdentifierForName(petName);
+        formulaIdentifier = identifyLocal(petName);
       }
       if (formulaIdentifier === undefined) {
         const id512 = await randomHex512();
@@ -393,8 +390,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
      */
     const provideWebPage = async (webPageName, bundleName, powersName) => {
-      const bundleFormulaIdentifier =
-        lookupFormulaIdentifierForName(bundleName);
+      const bundleFormulaIdentifier = identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name: ${q(bundleName)}`);
       }
