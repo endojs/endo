@@ -10,7 +10,7 @@ import {
 // For our internal debugging purposes
 // const internalDebugConsole = console;
 
-const compareLogs = freeze((t, log, goldenLog) => {
+const defaultCompareLogs = freeze((t, log, goldenLog) => {
   // For our internal debugging purposes
   // internalDebugConsole.log('LOG', log);
 
@@ -71,7 +71,11 @@ const getBogusStackString = error => {
 //            [['error', 'what ', err]]);
 // ```
 export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
-  const { checkLogs = true, wrapWithCausal = false } = options;
+  const {
+    checkLogs = true,
+    wrapWithCausal = false,
+    compareLogs = defaultCompareLogs,
+  } = options;
   const { loggingConsole, takeLog } = makeLoggingConsoleKit(
     loggedErrorHandler,
     { shouldResetForDebugging: true },
