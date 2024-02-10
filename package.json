@@ -7,6 +7,7 @@
   "engines": {
     "node": ">=16"
   },
+  "packageManager": "yarn@1.22.21",
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
