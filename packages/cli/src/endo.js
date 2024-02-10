@@ -13,11 +13,13 @@ import url from 'url';
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
 
-const collect = (value, values) => values.concat([value]);
-
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
+
+const commonOptions = {
+  as: ['-a,--as <party>', 'Pose as named party (as named by current party)'],
+};
 
 export const main = async rawArgs => {
   const program = new Command();
@@ -33,12 +35,7 @@ export const main = async rawArgs => {
   program
     .command('install <name> [filePath]')
     .description('installs a web page (weblet)')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
     .option(
       '-p,--powers <endowment>',
@@ -66,12 +63,7 @@ export const main = async rawArgs => {
   program
     .command('open <name>')
     .description('opens a web page (weblet)')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (webPageName, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { open } = await import('./commands/open.js');
@@ -83,12 +75,7 @@ export const main = async rawArgs => {
   program
     .command('run [<file>] [<args>...]')
     .description('runs a program (runlet)')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
     .option(
       '--UNCONFINED <path>',
@@ -121,12 +108,7 @@ export const main = async rawArgs => {
     .description('make a plugin or a worker caplet (worklet)')
     .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
     .option('--UNCONFINED <file>', 'Path to a Node.js module')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option('-p,--powers <name>', 'Name of powers to grant or NONE, SELF, ENDO')
     .option(
       '-n,--name <name>',
@@ -159,12 +141,7 @@ export const main = async rawArgs => {
 
   program
     .command('inbox')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option('-f,--follow', 'Follow the inbox for messages as they arrive')
     .description('read messages')
     .action(async cmd => {
@@ -180,12 +157,7 @@ export const main = async rawArgs => {
       '-t,--to <party>',
       'Send the request to another party (default: HOST)',
     )
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
@@ -203,12 +175,7 @@ export const main = async rawArgs => {
   program
     .command('resolve <request-number> <resolution-name>')
     .description('grant a request')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (requestNumberText, resolutionName, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { resolveCommand } = await import('./commands/resolve.js');
@@ -222,12 +189,7 @@ export const main = async rawArgs => {
   program
     .command('reject <request-number> [message]')
     .description('deny a request')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (requestNumberText, message, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { rejectCommand } = await import('./commands/reject.js');
@@ -241,12 +203,7 @@ export const main = async rawArgs => {
   program
     .command('send <party> <message-with-embedded-references>')
     .description('send a message with @named-values @for-you:from-me')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (partyName, message, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { send } = await import('./commands/send.js');
@@ -259,12 +216,7 @@ export const main = async rawArgs => {
       '-n,--name <name>',
       'Name to use, if different than the suggested name.',
     )
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .description('accept a @value from a message')
     .action(async (messageNumberText, edgeName, cmd) => {
       const { name = edgeName, as: partyNames } = cmd.opts();
@@ -280,12 +232,7 @@ export const main = async rawArgs => {
   program
     .command('dismiss <message-number>')
     .description('delete a message')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (messageNumberText, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { dismissCommand } = await import('./commands/dismiss.js');
@@ -297,12 +244,7 @@ export const main = async rawArgs => {
 
   program
     .command('list')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .description('show names')
     .action(async cmd => {
       const { as: partyNames } = cmd.opts();
@@ -313,12 +255,7 @@ export const main = async rawArgs => {
   program
     .command('remove [names...]')
     .description('forget a named value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { remove } = await import('./commands/remove.js');
@@ -328,12 +265,7 @@ export const main = async rawArgs => {
   program
     .command('rename <from> <to>')
     .description('change the name for a value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (fromName, toName, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { rename } = await import('./commands/rename.js');
@@ -343,12 +275,7 @@ export const main = async rawArgs => {
   program
     .command('show <name>')
     .description('prints the named value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { show } = await import('./commands/show.js');
@@ -357,12 +284,7 @@ export const main = async rawArgs => {
 
   program
     .command('follow <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .description('subscribe to a stream of values')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
@@ -373,12 +295,7 @@ export const main = async rawArgs => {
   program
     .command('cat <name>')
     .description('dumps a blob')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { cat } = await import('./commands/cat.js');
@@ -388,12 +305,7 @@ export const main = async rawArgs => {
   program
     .command('store <path>')
     .description('stores a blob')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option(
       '-n,--name <name>',
       'Assigns a pet name to the result for future reference',
@@ -411,12 +323,7 @@ export const main = async rawArgs => {
   program
     .command('eval <source> [names...]')
     .description('creates a value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option(
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
@@ -444,12 +351,7 @@ export const main = async rawArgs => {
   program
     .command('spawn [names...]')
     .description('creates a worker')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { spawn } = await import('./commands/spawn.js');
@@ -459,12 +361,7 @@ export const main = async rawArgs => {
   program
     .command('bundle <application-path>')
     .description('stores a program')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .option('-n,--name <name>', 'Store the bundle into Endo')
     .action(async (applicationPath, cmd) => {
       const { name: bundleName, as: partyNames } = cmd.opts();
@@ -478,12 +375,7 @@ export const main = async rawArgs => {
 
   program
     .command('mkhost <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .description('makes a separate mailbox and storage for you')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
@@ -493,12 +385,7 @@ export const main = async rawArgs => {
 
   program
     .command('mkguest <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .description('makes a mailbox and storage for a guest (peer or program)')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
@@ -508,12 +395,7 @@ export const main = async rawArgs => {
 
   program
     .command('kill <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
+    .option(...commonOptions.as)
     .description('terminate a value and its deps, recovering resources')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
