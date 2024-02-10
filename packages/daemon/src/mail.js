@@ -9,6 +9,7 @@ import { assertPetName } from './pet-name.js';
 const { quote: q } = assert;
 
 export const makeMailboxMaker = ({
+  identifyFrom,
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
   formulaIdentifierForRef,
@@ -42,6 +43,20 @@ export const makeMailboxMaker = ({
         return specialNames[petName];
       }
       return petStore.identifyLocal(petName);
+    };
+
+    /** @type {import('./types.js').IdentifyFn} */
+    const identify = async maybeNamePath => {
+      const namePath = Array.isArray(maybeNamePath)
+        ? maybeNamePath
+        : [maybeNamePath];
+      const [headName, ...namePathRest] = namePath;
+      const formulaIdentifier = identifyLocal(headName);
+      if (formulaIdentifier === undefined) {
+        return undefined;
+      } else {
+        return identifyFrom(formulaIdentifier, namePathRest);
+      }
     };
 
     /**
@@ -549,10 +564,11 @@ export const makeMailboxMaker = ({
     };
 
     return harden({
+      identifyLocal,
+      identify,
       lookup,
       reverseLookup,
       reverseLookupFormulaIdentifier,
-      identifyLocal,
       provideLookupFormula,
       followMessages,
       listMessages,

@@ -638,6 +638,7 @@ const makeEndoBootstrap = (
   });
 
   const makeMailbox = makeMailboxMaker({
+    identifyFrom,
     formulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
