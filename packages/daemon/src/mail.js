@@ -35,8 +35,9 @@ export const makeMailboxMaker = ({
 
     /**
      * @param {string} petName
+     * @returns {string | undefined}
      */
-    const lookupFormulaIdentifierForName = petName => {
+    const identifyLocal = petName => {
       if (Object.hasOwn(specialNames, petName)) {
         return specialNames[petName];
       }
@@ -49,7 +50,7 @@ export const makeMailboxMaker = ({
      */
     const lookup = async (...petNamePath) => {
       const [headName, ...tailNames] = petNamePath;
-      const formulaIdentifier = lookupFormulaIdentifierForName(headName);
+      const formulaIdentifier = identifyLocal(headName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
@@ -61,7 +62,7 @@ export const makeMailboxMaker = ({
     };
 
     const terminate = async petName => {
-      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+      const formulaIdentifier = identifyLocal(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
@@ -113,7 +114,7 @@ export const makeMailboxMaker = ({
       // naming hub's formula identifier and the pet name path.
       // A "naming hub" is an objected with a variadic lookup method. At present,
       // the only such objects are guests and hosts.
-      const hubFormulaIdentifier = lookupFormulaIdentifierForName('SELF');
+      const hubFormulaIdentifier = identifyLocal('SELF');
       const digester = makeSha512();
       digester.updateText(`${hubFormulaIdentifier},${petNamePath.join(',')}`);
       const lookupFormulaNumber = digester.digestHex();
@@ -302,7 +303,7 @@ export const makeMailboxMaker = ({
       if (resolveRequest === undefined) {
         throw new Error(`No pending request for number ${messageNumber}`);
       }
-      const formulaIdentifier = lookupFormulaIdentifierForName(resolutionName);
+      const formulaIdentifier = identifyLocal(resolutionName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(
           `No formula exists for the pet name ${q(resolutionName)}`,
@@ -357,8 +358,7 @@ export const makeMailboxMaker = ({
      * @param {Array<string>} petNames
      */
     const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipientFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
+      const recipientFormulaIdentifier = identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
@@ -390,7 +390,7 @@ export const makeMailboxMaker = ({
       }
 
       const formulaIdentifiers = petNames.map(petName => {
-        const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+        const formulaIdentifier = identifyLocal(petName);
         if (formulaIdentifier === undefined) {
           throw new Error(`Unknown pet name ${q(petName)}`);
         }
@@ -469,8 +469,7 @@ export const makeMailboxMaker = ({
      * @param {string} responseName
      */
     const request = async (recipientName, what, responseName) => {
-      const recipientFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
+      const recipientFormulaIdentifier = identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
@@ -553,7 +552,7 @@ export const makeMailboxMaker = ({
       lookup,
       reverseLookup,
       reverseLookupFormulaIdentifier,
-      lookupFormulaIdentifierForName,
+      identifyLocal,
       provideLookupFormula,
       followMessages,
       listMessages,
