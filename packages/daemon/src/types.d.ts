@@ -235,6 +235,7 @@ export interface EndoGuest {
 }
 
 export interface EndoHost {
+  identify: IdentifyFn;
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
   lookup(...petNamePath: string[]): Promise<unknown>;

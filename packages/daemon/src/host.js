@@ -39,9 +39,10 @@ export const makeHostMaker = ({
     );
 
     const {
+      identifyLocal,
+      identify,
       lookup,
       reverseLookup,
-      identifyLocal,
       listMessages,
       provideLookupFormula,
       followMessages,
@@ -438,6 +439,7 @@ export const makeHostMaker = ({
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
       has,
+      identify,
       lookup,
       reverseLookup,
       listMessages,
