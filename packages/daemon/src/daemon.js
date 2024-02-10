@@ -422,6 +422,7 @@ const makeEndoBootstrap = (
       const external = petStorePowers.makeOwnPetStore(
         'pet-store',
         assertPetName,
+        identifyFrom,
       );
       return { external, internal: undefined };
     } else if (formulaIdentifier === 'pet-inspector') {
@@ -478,6 +479,7 @@ const makeEndoBootstrap = (
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         assertPetName,
+        identifyFrom,
       );
       return { external, internal: undefined };
     } else if (formulaType === 'host-id512') {

@@ -176,9 +176,18 @@ export interface Controller<External = unknown, Internal = unknown> {
   terminator: Terminator;
 }
 
+export type IdentifyFromFn = (
+  originIdentifier: string,
+  namePath: string | string[],
+) => Promise<string | undefined>;
+export type IdentifyFn = (
+  namePath: string | string[],
+) => Promise<string | undefined>;
+
 export interface PetStore {
   has(petName: string): boolean;
   identifyLocal(petName: string): string | undefined;
+  identify: IdentifyFn;
   list(): Array<string>;
   follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
   listEntries(): Array<[string, FormulaIdentifierRecord]>;
@@ -304,19 +313,16 @@ export type FilePowers = {
 
 export type AssertValidNameFn = (name: string) => void;
 
-export type IdentifyFromFn = (
-  originIdentifier: string,
-  namePath: string | string[],
-) => Promise<string | undefined>;
-
 export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,
     assertValidName: AssertValidNameFn,
+    identifyFrom: IdentifyFromFn,
   ) => Promise<FarRef<PetStore>>;
   makeOwnPetStore: (
     name: string,
     assertValidName: AssertValidNameFn,
+    identifyFrom: IdentifyFromFn,
   ) => Promise<FarRef<PetStore>>;
 };
 
