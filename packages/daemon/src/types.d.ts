@@ -304,6 +304,11 @@ export type FilePowers = {
 
 export type AssertValidNameFn = (name: string) => void;
 
+export type IdentifyFromFn = (
+  originIdentifier: string,
+  namePath: string | string[],
+) => Promise<string | undefined>;
+
 export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,

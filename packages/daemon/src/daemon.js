@@ -107,6 +107,15 @@ const makeEndoBootstrap = (
     return `readable-blob-sha512:${sha512Hex}`;
   };
 
+  /** @type {import('./types.js').IdentifyFromFn} */
+  const identifyFrom = async (originFormulaIdentifier, namePath) => {
+    // eslint-disable-next-line no-use-before-define
+    const origin = await provideValueForFormulaIdentifier(
+      originFormulaIdentifier,
+    );
+    return E(origin).identify(namePath);
+  };
+
   /**
    * @param {string} workerId512
    */
@@ -782,6 +791,8 @@ const makeEndoBootstrap = (
     },
 
     host: () => provideValueForFormulaIdentifier('host'),
+
+    identifyFrom,
 
     leastAuthority: () => leastAuthority,
 
