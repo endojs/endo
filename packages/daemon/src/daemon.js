@@ -671,7 +671,7 @@ const makeEndoBootstrap = (
      * inspector for the value of the given pet name.
      */
     const lookup = async petName => {
-      const formulaIdentifier = petStore.lookup(petName);
+      const formulaIdentifier = petStore.identifyLocal(petName);
       if (formulaIdentifier === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }

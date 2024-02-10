@@ -178,6 +178,7 @@ export interface Controller<External = unknown, Internal = unknown> {
 
 export interface PetStore {
   has(petName: string): boolean;
+  identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
   follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
   listEntries(): Array<[string, FormulaIdentifierRecord]>;
@@ -191,7 +192,6 @@ export interface PetStore {
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
-  lookup(petName: string): string | undefined;
   reverseLookup(formulaIdentifier: string): Array<string>;
 }
 
