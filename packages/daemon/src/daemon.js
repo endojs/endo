@@ -109,6 +109,10 @@ const makeEndoBootstrap = (
 
   /** @type {import('./types.js').IdentifyFromFn} */
   const identifyFrom = async (originFormulaIdentifier, namePath) => {
+    await null;
+    if (namePath.length === 0) {
+      return originFormulaIdentifier;
+    }
     // eslint-disable-next-line no-use-before-define
     const origin = await provideValueForFormulaIdentifier(
       originFormulaIdentifier,

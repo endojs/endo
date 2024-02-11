@@ -178,7 +178,7 @@ export interface Controller<External = unknown, Internal = unknown> {
 
 export type IdentifyFromFn = (
   originIdentifier: string,
-  namePath: string | string[],
+  namePath: string[],
 ) => Promise<string | undefined>;
 export type IdentifyFn = (
   namePath: string | string[],
