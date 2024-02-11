@@ -663,6 +663,24 @@ const makeEndoBootstrap = (
     makeMailbox,
   });
 
+  const allowedInspectorFormulaTypes = [
+    'eval-id512',
+    'lookup-id512',
+    'make-unconfined-id512',
+    'make-bundle-id512',
+    'guest-id512',
+    'web-bundle',
+  ];
+
+  const allowedInspectorFormulaIdentificationsByType = {
+    eval: ['endowments', 'worker'],
+    lookup: ['hub'],
+    guest: ['host'],
+    'make-bundle': ['bundle', 'powers', 'worker'],
+    'make-unconfined': ['powers', 'worker'],
+    'web-bundle': ['bundle', 'powers'],
+  };
+
   /**
    * Creates an inspector for the current party's pet store, used to create
    * inspectors for values therein. Notably, can provide references to otherwise
@@ -677,6 +695,68 @@ const makeEndoBootstrap = (
       petStoreFormulaIdentifier,
     );
 
+    const identifyOnFormula = (formula, propertyName, namePath) => {
+      if (
+        allowedInspectorFormulaIdentificationsByType[formula.type] === undefined
+      ) {
+        // Cannot provide a reference under the requested formula type.
+        return { formulaIdentifier: undefined, remainderPath: namePath };
+      }
+      const allowedInspectorFormulaIdentifications =
+        allowedInspectorFormulaIdentificationsByType[formula.type];
+      if (!allowedInspectorFormulaIdentifications.includes(propertyName)) {
+        // Cannot provide a reference for the requested property.
+        return { formulaIdentifier: undefined, remainderPath: namePath };
+      }
+      if (formula.type === 'eval' && propertyName === 'endowments') {
+        // We consume an additional part of the path for the endowment name.
+        const [endowmentName, ...namePathRest] = namePath;
+        assertPetName(endowmentName);
+        const endowmentIndex = formula.names.indexOf(endowmentName);
+        if (endowmentIndex === -1) {
+          // Cannot provide a reference to the missing endowment.
+          return { formulaIdentifier: undefined, remainderPath: namePath };
+        }
+        const formulaIdentifier = formula.values[endowmentIndex];
+        return { formulaIdentifier, remainderPath: namePathRest };
+      }
+      const formulaIdentifier = formula[propertyName];
+      return { formulaIdentifier, remainderPath: namePath };
+    };
+
+    /** @type {import('./types.js').IdentifyFn} */
+    const identify = async maybeNamePath => {
+      const namePath = Array.isArray(maybeNamePath)
+        ? maybeNamePath
+        : [maybeNamePath];
+      const [petName, propertyName, ...namePathRest] = namePath;
+      assertPetName(petName);
+      assertPetName(propertyName);
+      const entryFormulaIdentifier = petStore.identifyLocal(petName);
+      if (entryFormulaIdentifier === undefined) {
+        return undefined;
+      }
+      const { type: formulaType, number: formulaNumber } =
+        parseFormulaIdentifier(entryFormulaIdentifier);
+      // Identify is only supported on these types of formulas.
+      if (!allowedInspectorFormulaTypes.includes(formulaType)) {
+        return undefined;
+      }
+      const formula = await persistencePowers.readFormula(
+        formulaType,
+        formulaNumber,
+      );
+      const { formulaIdentifier, remainderPath } = identifyOnFormula(
+        formula,
+        propertyName,
+        namePathRest,
+      );
+      if (formulaIdentifier === undefined) {
+        return undefined;
+      }
+      return identifyFrom(formulaIdentifier, remainderPath);
+    };
+
     /**
      * @param {string} petName - The pet name to inspect.
      * @returns {Promise<import('./types').KnownEndoInspectors[string]>} An
@@ -689,16 +769,7 @@ const makeEndoBootstrap = (
       }
       const { type: formulaType, number: formulaNumber } =
         parseFormulaIdentifier(formulaIdentifier);
-      if (
-        ![
-          'eval-id512',
-          'lookup-id512',
-          'make-unconfined-id512',
-          'make-bundle-id512',
-          'guest-id512',
-          'web-bundle',
-        ].includes(formulaType)
-      ) {
+      if (!allowedInspectorFormulaTypes.includes(formulaType)) {
         return makeInspector(formulaType, formulaNumber, harden({}));
       }
       const formula = await persistencePowers.readFormula(
@@ -777,6 +848,7 @@ const makeEndoBootstrap = (
     const list = () => petStore.list();
 
     const info = Far('Endo inspector facet', {
+      identify,
       lookup,
       list,
     });
