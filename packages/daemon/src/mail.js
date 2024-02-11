@@ -1,6 +1,5 @@
 // @ts-check
 
-import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
@@ -64,16 +63,8 @@ export const makeMailboxMaker = ({
      * @returns {Promise<unknown>} The value resolved by the pet name path.
      */
     const lookup = async (...petNamePath) => {
-      const [headName, ...tailNames] = petNamePath;
-      const formulaIdentifier = identifyLocal(headName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(headName)}`);
-      }
-      // Behold, recursion:
-      return tailNames.reduce(
-        (currentValue, petName) => E(currentValue).lookup(petName),
-        provideValueForFormulaIdentifier(formulaIdentifier),
-      );
+      const formulaIdentifier = await identify(petNamePath);
+      return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
     const terminate = async petName => {
