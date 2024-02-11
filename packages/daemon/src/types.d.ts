@@ -180,6 +180,12 @@ export type IdentifyFromFn = (
   originIdentifier: string,
   namePath: string[],
 ) => Promise<string | undefined>;
+
+export type LookupFromFn = (
+  originIdentifier: string,
+  namePath: string[],
+) => Promise<any>;
+
 export type IdentifyFn = (
   namePath: string | string[],
 ) => Promise<string | undefined>;

@@ -120,6 +120,19 @@ const makeEndoBootstrap = (
     return E(origin).identify(namePath);
   };
 
+  /** @type {import('./types.js').LookupFromFn} */
+  const lookupFrom = async (originFormulaIdentifier, namePath) => {
+    const formulaIdentifier = await identifyFrom(
+      originFormulaIdentifier,
+      namePath,
+    );
+    if (formulaIdentifier === undefined) {
+      throw new Error(`Failed to lookup ${namePath.join('.')}`);
+    }
+    // eslint-disable-next-line no-use-before-define
+    return provideValueForFormulaIdentifier(formulaIdentifier);
+  };
+
   /**
    * @param {string} workerId512
    */
@@ -872,6 +885,7 @@ const makeEndoBootstrap = (
     host: () => provideValueForFormulaIdentifier('host'),
 
     identifyFrom,
+    lookupFrom,
 
     leastAuthority: () => leastAuthority,
 
