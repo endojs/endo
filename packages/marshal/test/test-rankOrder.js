@@ -5,12 +5,7 @@ import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { fc } from '@fast-check/ava';
 import { makeTagged } from '@endo/pass-style';
-import {
-  exampleAlice,
-  exampleBob,
-  exampleCarol,
-  arbPassable,
-} from '@endo/pass-style/tools.js';
+import { arbPassable } from '@endo/pass-style/tools.js';
 
 import { q } from '@endo/errors';
 import {
@@ -22,6 +17,7 @@ import {
   getIndexCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
+import { unsortedSample, sortedSample } from './marshal-test-data.js';
 
 test('compareRank is reflexive', async t => {
   await fc.assert(
@@ -107,163 +103,10 @@ test('compareRank is transitive', async t => {
   );
 });
 
-/**
- * An unordered copyArray of some passables
- */
-export const sample = harden([
-  makeTagged('copySet', [
-    ['b', 3],
-    ['a', 4],
-  ]),
-  'foo',
-  3n,
-  'barr',
-  undefined,
-  [5, { foo: 4 }],
-  2,
-  null,
-  [5, { foo: 4, bar: null }],
-  exampleBob,
-  0,
-  makeTagged('copySet', [
-    ['a', 4],
-    ['b', 3],
-  ]),
-  NaN,
-  true,
-  undefined,
-  -Infinity,
-  [5],
-  exampleAlice,
-  [],
-  Symbol.for('foo'),
-  Error('not erroneous'),
-  Symbol.for('@@foo'),
-  [5, { bar: 5 }],
-  Symbol.for(''),
-  false,
-  exampleCarol,
-  -0,
-  {},
-  [5, undefined],
-  -3,
-  makeTagged('copyMap', [
-    ['a', 4],
-    ['b', 3],
-  ]),
-  true,
-  'bar',
-  [5, null],
-  new Promise(() => {}), // forever unresolved
-  makeTagged('nonsense', [
-    ['a', 4],
-    ['b', 3],
-  ]),
-  Infinity,
-  Symbol.isConcatSpreadable,
-  [5, { foo: 4, bar: undefined }],
-  Promise.resolve('fulfillment'),
-  [5, { foo: 4 }],
-  // The promises should be of the same rank, in which case
-  // the singleton array should be earlier. But if the encoded
-  // gives the earlier promise an earlier encoding (as it used to),
-  // then the encoded forms will not be order preserving.
-  [Promise.resolve(null), 'x'],
-  [Promise.resolve(null)],
-]);
-
-const rejectedP = Promise.reject(Error('broken'));
-rejectedP.catch(() => {}); // Suppress unhandled rejection warning/error
-
-/**
- * The correctly stable rank sorting of `sample`
- */
-const sortedSample = harden([
-  // All errors are tied.
-  Error('different'),
-
-  {},
-
-  // Lexicographic tagged: tag then payload
-  makeTagged('copyMap', [
-    ['a', 4],
-    ['b', 3],
-  ]),
-  makeTagged('copySet', [
-    ['a', 4],
-    ['b', 3],
-  ]),
-  // Doesn't care if a valid copySet
-  makeTagged('copySet', [
-    ['b', 3],
-    ['a', 4],
-  ]),
-  // Doesn't care if a recognized tagged tag
-  makeTagged('nonsense', [
-    ['a', 4],
-    ['b', 3],
-  ]),
-
-  // All promises are tied.
-  rejectedP,
-  rejectedP,
-
-  // Lexicographic arrays. Shorter beats longer.
-  // Lexicographic records by reverse sorted property name, then by values
-  // in that order.
-  [],
-  [Promise.resolve(null)],
-  [Promise.resolve(null), 'x'],
-  [5],
-  [5, { bar: 5 }],
-  [5, { foo: 4 }],
-  [5, { foo: 4 }],
-  [5, { foo: 4, bar: null }],
-  [5, { foo: 4, bar: undefined }],
-  [5, null],
-  [5, undefined],
-
-  false,
-  true,
-  true,
-
-  // -0 is equivalent enough to 0. NaN after all numbers.
-  -Infinity,
-  -3,
-  -0,
-  0,
-  2,
-  Infinity,
-  NaN,
-
-  3n,
-
-  // All remotables are tied for the same rank and the sort is stable,
-  // so their relative order is preserved
-  exampleBob,
-  exampleAlice,
-  exampleCarol,
-
-  // Lexicographic strings. Shorter beats longer.
-  // TODO Probe UTF-16 vs Unicode vs UTF-8 (Moddable) ordering.
-  'bar',
-  'barr',
-  'foo',
-
-  null,
-  Symbol.for(''),
-  Symbol.for('@@foo'),
-  Symbol.isConcatSpreadable,
-  Symbol.for('foo'),
-
-  undefined,
-  undefined,
-]);
-
 test('compare and sort by rank', t => {
   assertRankSorted(sortedSample, compareRank);
-  t.false(isRankSorted(sample, compareRank));
-  const sorted = sortByRank(sample, compareRank);
+  t.false(isRankSorted(unsortedSample, compareRank));
+  const sorted = sortByRank(unsortedSample, compareRank);
   t.is(
     compareRank(sorted, sortedSample),
     0,
