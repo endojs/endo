@@ -113,6 +113,25 @@ const makeEndoBootstrap = (
     if (namePath.length === 0) {
       return originFormulaIdentifier;
     }
+    // Attempt to shortcut the identify by reading directly from the petStore.
+    const { type: formulaType, number: formulaNumber } = parseFormulaIdentifier(
+      originFormulaIdentifier,
+    );
+    if (formulaType === 'host' || formulaType === 'host-id512') {
+      let storeFormulaIdentifier = `pet-store`;
+      if (formulaType === 'host-id512') {
+        storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
+      }
+      // eslint-disable-next-line no-use-before-define
+      const petStore = await provideValueForFormulaIdentifier(
+        storeFormulaIdentifier,
+      );
+      const result = await E(petStore).identify(namePath);
+      // Use result if present, otherwise fallback to identifying from the host.
+      if (result !== undefined) {
+        return result;
+      }
+    }
     // eslint-disable-next-line no-use-before-define
     const origin = await provideValueForFormulaIdentifier(
       originFormulaIdentifier,
