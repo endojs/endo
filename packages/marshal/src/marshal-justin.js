@@ -390,6 +390,10 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
 
         case 'error': {
           const { name, message } = rawTree;
+          // TODO cause, errors, AggregateError
+          // See https://github.com/endojs/endo/pull/2052
+          name !== `AggregateError` ||
+            Fail`AggregateError not yet implemented in marshal-justin`;
           return out.next(`${name}(${quote(message)})`);
         }
 

@@ -6,7 +6,13 @@ import { makeMarshal } from '../src/marshal.js';
 
 import { roundTripPairs } from './marshal-test-data.js';
 
-const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
+const {
+  freeze,
+  isFrozen,
+  create,
+  prototype: objectPrototype,
+  getPrototypeOf,
+} = Object;
 
 const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   // eslint-disable-next-line no-undef
@@ -151,6 +157,41 @@ test('smallcaps unserialize errors', t => {
   const em3 = uns('#{"#error":"msg3","name":"Unknown"}');
   t.truthy(em3 instanceof Error);
   t.is(em3.message, 'msg3');
+});
+
+test('smallcaps unserialize extended errors', t => {
+  const { unserialize } = makeTestMarshal();
+  const uns = body => unserialize({ body, slots: [] });
+
+  // TODO cause, errors, and AggregateError will eventually be recognized.
+  // See https://github.com/endojs/endo/pull/2042
+
+  const refErr = uns(
+    '#{"#error":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
+  );
+  t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
+  t.false('extraProp' in refErr);
+  t.false('cause' in refErr);
+  t.false('errors' in refErr);
+  console.log('error with extra prop', refErr);
+
+  const aggErr = uns(
+    '#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
+  );
+  t.is(getPrototypeOf(aggErr), Error.prototype); // direct instance of
+  t.false('extraProp' in aggErr);
+  t.false('cause' in aggErr);
+  t.false('errors' in aggErr);
+  console.log('error with extra prop', aggErr);
+
+  const unkErr = uns(
+    '#{"#error":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
+  );
+  t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
+  t.false('extraProp' in unkErr);
+  t.false('cause' in unkErr);
+  t.false('errors' in unkErr);
+  console.log('error with extra prop', unkErr);
 });
 
 test('smallcaps mal-formed @qclass', t => {
