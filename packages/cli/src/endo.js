@@ -341,6 +341,15 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('identify <namePath>')
+    .description('prints the formulaId for the named path')
+    .action(async namePathString => {
+      const namePath = namePathString.split('.');
+      const { identify } = await import('./commands/identify.js');
+      return identify({ namePath });
+    });
+
+  program
     .command('show <name>')
     .description('prints the named value')
     .option(
