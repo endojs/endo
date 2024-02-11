@@ -341,18 +341,21 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('show <name>')
+    .command('identify <namePath>')
+    .description('prints the formulaId for the named path')
+    .action(async namePathString => {
+      const namePath = namePathString.split('.');
+      const { identify } = await import('./commands/identify.js');
+      return identify({ namePath });
+    });
+
+  program
+    .command('show <namePath>')
     .description('prints the named value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
+    .action(async (namePathString, cmd) => {
+      const namePath = namePathString.split('.');
       const { show } = await import('./commands/show.js');
-      return show({ name, partyNames });
+      return show({ namePath });
     });
 
   program

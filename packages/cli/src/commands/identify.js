@@ -3,12 +3,12 @@ import os from 'os';
 import { E } from '@endo/far';
 import { withEndoBootstrap } from '../context.js';
 
-export const show = async ({ cancel, cancelled, sockPath, namePath }) =>
+export const identify = async ({ cancel, cancelled, sockPath, namePath }) =>
   withEndoBootstrap({ os, process }, async ({ bootstrap }) => {
     const defaultHostFormulaIdentifier = 'host';
-    const pet = await E(bootstrap).lookupFrom(
+    const formulaId = await E(bootstrap).identifyFrom(
       defaultHostFormulaIdentifier,
       namePath,
     );
-    console.log(pet);
+    console.log(formulaId);
   });

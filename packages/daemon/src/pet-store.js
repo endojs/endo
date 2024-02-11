@@ -19,9 +19,14 @@ export const makePetStoreMaker = (filePowers, locator) => {
   /**
    * @param {string} petNameDirectoryPath
    * @param {(name: string) => void} assertValidName
+   * @param {import('./types.js').IdentifyFromFn} identifyFrom
    * @returns {Promise<import('@endo/far').FarRef<import('./types.js').PetStore>>}
    */
-  const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
+  const makePetStoreAtPath = async (
+    petNameDirectoryPath,
+    assertValidName,
+    identifyFrom,
+  ) => {
     /** @type {Map<string, string>} */
     const petNames = new Map();
     /** @type {Map<string, Set<string>>} */
@@ -67,11 +72,27 @@ export const makePetStoreMaker = (filePowers, locator) => {
       return petNames.has(petName);
     };
 
-    /** @param {string} petName */
-    const lookup = petName => {
+    /**
+     * @param {string} petName
+     * @returns {string | undefined}
+     */
+    const identifyLocal = petName => {
       assertValidName(petName);
-      const formulaIdentifier = petNames.get(petName);
-      return formulaIdentifier;
+      return petNames.get(petName);
+    };
+
+    /** @type {import('./types.js').IdentifyFn} */
+    const identify = async maybeNamePath => {
+      const namePath = Array.isArray(maybeNamePath)
+        ? maybeNamePath
+        : [maybeNamePath];
+      const [headName, ...namePathRest] = namePath;
+      const formulaIdentifier = identifyLocal(headName);
+      if (formulaIdentifier === undefined) {
+        return undefined;
+      } else {
+        return identifyFrom(formulaIdentifier, namePathRest);
+      }
     };
 
     /**
@@ -259,7 +280,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore} */
     const petStore = {
       has,
-      lookup,
+      identifyLocal,
+      identify,
       reverseLookup,
       list,
       follow,
@@ -276,8 +298,9 @@ export const makePetStoreMaker = (filePowers, locator) => {
   /**
    * @param {string} id
    * @param {(name: string) => void} assertValidName
+   * @param {import('./types.js').IdentifyFromFn} identifyFrom
    */
-  const makeIdentifiedPetStore = (id, assertValidName) => {
+  const makeIdentifiedPetStore = (id, assertValidName, identifyFrom) => {
     if (!validIdPattern.test(id)) {
       throw new Error(`Invalid identifier for pet store ${q(id)}`);
     }
@@ -289,16 +312,25 @@ export const makePetStoreMaker = (filePowers, locator) => {
       prefix,
       suffix,
     );
-    return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
+    return makePetStoreAtPath(
+      petNameDirectoryPath,
+      assertValidName,
+      identifyFrom,
+    );
   };
 
   /**
    * @param {string} name
    * @param {(name: string) => void} assertValidName
+   * @param {import('./types.js').IdentifyFromFn} identifyFrom
    */
-  const makeOwnPetStore = (name, assertValidName) => {
+  const makeOwnPetStore = (name, assertValidName, identifyFrom) => {
     const petNameDirectoryPath = filePowers.joinPath(locator.statePath, name);
-    return makePetStoreAtPath(petNameDirectoryPath, assertValidName);
+    return makePetStoreAtPath(
+      petNameDirectoryPath,
+      assertValidName,
+      identifyFrom,
+    );
   };
 
   return {

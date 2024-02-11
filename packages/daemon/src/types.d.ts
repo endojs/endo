@@ -176,8 +176,24 @@ export interface Controller<External = unknown, Internal = unknown> {
   terminator: Terminator;
 }
 
+export type IdentifyFromFn = (
+  originIdentifier: string,
+  namePath: string[],
+) => Promise<string | undefined>;
+
+export type LookupFromFn = (
+  originIdentifier: string,
+  namePath: string[],
+) => Promise<any>;
+
+export type IdentifyFn = (
+  namePath: string | string[],
+) => Promise<string | undefined>;
+
 export interface PetStore {
   has(petName: string): boolean;
+  identifyLocal(petName: string): string | undefined;
+  identify: IdentifyFn;
   list(): Array<string>;
   follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
   listEntries(): Array<[string, FormulaIdentifierRecord]>;
@@ -191,7 +207,6 @@ export interface PetStore {
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
-  lookup(petName: string): string | undefined;
   reverseLookup(formulaIdentifier: string): Array<string>;
 }
 
@@ -226,6 +241,7 @@ export interface EndoGuest {
 }
 
 export interface EndoHost {
+  identify: IdentifyFn;
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
   lookup(...petNamePath: string[]): Promise<unknown>;
@@ -308,10 +324,12 @@ export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,
     assertValidName: AssertValidNameFn,
+    identifyFrom: IdentifyFromFn,
   ) => Promise<FarRef<PetStore>>;
   makeOwnPetStore: (
     name: string,
     assertValidName: AssertValidNameFn,
+    identifyFrom: IdentifyFromFn,
   ) => Promise<FarRef<PetStore>>;
 };
 

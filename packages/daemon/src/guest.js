@@ -45,6 +45,7 @@ export const makeGuestMaker = ({
     }
 
     const {
+      identify,
       lookup,
       reverseLookup,
       followMessages,
@@ -80,6 +81,7 @@ export const makeGuestMaker = ({
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
       has,
+      identify,
       lookup,
       reverseLookup,
       request,
