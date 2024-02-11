@@ -350,18 +350,12 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('show <name>')
+    .command('show <namePath>')
     .description('prints the named value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
+    .action(async (namePathString, cmd) => {
+      const namePath = namePathString.split('.');
       const { show } = await import('./commands/show.js');
-      return show({ name, partyNames });
+      return show({ namePath });
     });
 
   program
