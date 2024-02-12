@@ -400,21 +400,33 @@ export const main = async rawArgs => {
   program
     .command('mkhost <name>')
     .option(...commonOptions.as)
+    .option(
+      '--introduce <name>',
+      'Specify initial petnames for the new host. Use multiple times for multiple petnames. Format: --introduce myPetname:theirPetname',
+      parseOptionAsMapping,
+      {},
+    )
     .description('makes a separate mailbox and storage for you')
     .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
+      const { as: partyNames, introduce: introducedNames } = cmd.opts();
       const { mkhost } = await import('./commands/mkhost.js');
-      return mkhost({ name, partyNames });
+      return mkhost({ name, partyNames, introducedNames });
     });
 
   program
     .command('mkguest <name>')
     .option(...commonOptions.as)
+    .option(
+      '--introduce <name>',
+      'Specify initial petnames for the new guest. Use multiple times for multiple petnames. Format: --introduce myPetname:theirPetname',
+      parseOptionAsMapping,
+      {},
+    )
     .description('makes a mailbox and storage for a guest (peer or program)')
     .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
+      const { as: partyNames, introduce: introducedNames } = cmd.opts();
       const { mkguest } = await import('./commands/mkguest.js');
-      return mkguest({ name, partyNames });
+      return mkguest({ name, partyNames, introducedNames });
     });
 
   program
