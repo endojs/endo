@@ -4,89 +4,9 @@ import { test } from './prepare-test-env-ava.js';
 import { Remotable, makeTagged } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin } from '../src/marshal-justin.js';
+import { jsonJustinPairs } from './marshal-test-data.js';
 
 // this only includes the tests that do not use liveSlots
-
-/**
- * Based on roundTripPairs from test-marshal-capdata.js
- *
- * A list of `[body, justinSrc]` pairs, where the body parses into
- * an encoding that decodes to a Justin expression that evaluates to something
- * that has the same encoding.
- *
- * @type {([string, string] | [string, string, unknown[]])[]}
- */
-export const jsonPairs = harden([
-  // Justin is the same as the JSON encoding but without unnecessary quoting
-  ['[1,2]', '[1,2]'],
-  ['{"foo":1}', '{foo:1}'],
-  ['{"a":1,"b":2}', '{a:1,b:2}'],
-  ['{"a":1,"b":{"c":3}}', '{a:1,b:{c:3}}'],
-  ['true', 'true'],
-  ['1', '1'],
-  ['"abc"', '"abc"'],
-  ['null', 'null'],
-
-  // Primitives not representable in JSON
-  ['{"@qclass":"undefined"}', 'undefined'],
-  ['{"@qclass":"NaN"}', 'NaN'],
-  ['{"@qclass":"Infinity"}', 'Infinity'],
-  ['{"@qclass":"-Infinity"}', '-Infinity'],
-  ['{"@qclass":"bigint","digits":"4"}', '4n'],
-  ['{"@qclass":"bigint","digits":"9007199254740993"}', '9007199254740993n'],
-  ['{"@qclass":"symbol","name":"@@asyncIterator"}', 'Symbol.asyncIterator'],
-  ['{"@qclass":"symbol","name":"@@match"}', 'Symbol.match'],
-  ['{"@qclass":"symbol","name":"foo"}', 'Symbol.for("foo")'],
-  ['{"@qclass":"symbol","name":"@@@@foo"}', 'Symbol.for("@@foo")'],
-
-  // Arrays and objects
-  ['[{"@qclass":"undefined"}]', '[undefined]'],
-  ['{"foo":{"@qclass":"undefined"}}', '{foo:undefined}'],
-  ['{"@qclass":"error","message":"","name":"Error"}', 'Error("")'],
-  [
-    '{"@qclass":"error","message":"msg","name":"ReferenceError"}',
-    'ReferenceError("msg")',
-  ],
-
-  // The one case where JSON is not a semantic subset of JS
-  ['{"__proto__":8}', '{["__proto__"]:8}'],
-
-  // The Hilbert Hotel is always tricky
-  ['{"@qclass":"hilbert","original":8}', '{"@qclass":8}'],
-  ['{"@qclass":"hilbert","original":"@qclass"}', '{"@qclass":"@qclass"}'],
-  [
-    '{"@qclass":"hilbert","original":{"@qclass":"hilbert","original":8}}',
-    '{"@qclass":{"@qclass":8}}',
-  ],
-  [
-    '{"@qclass":"hilbert","original":{"@qclass":"hilbert","original":8,"rest":{"foo":"foo1"}},"rest":{"bar":{"@qclass":"hilbert","original":{"@qclass":"undefined"}}}}',
-    '{"@qclass":{"@qclass":8,foo:"foo1"},bar:{"@qclass":undefined}}',
-  ],
-
-  // tagged
-  ['{"@qclass":"tagged","tag":"x","payload":8}', 'makeTagged("x",8)'],
-  [
-    '{"@qclass":"tagged","tag":"x","payload":{"@qclass":"undefined"}}',
-    'makeTagged("x",undefined)',
-  ],
-
-  // Slots
-  [
-    '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0}]',
-    '[slot(0,"Alleged: for testing Justin")]',
-  ],
-  // More Slots
-  [
-    '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0},{"@qclass":"slot","iface":"Remotable","index":1}]',
-    '[slotToVal("hello","Alleged: for testing Justin"),slotToVal(null,"Remotable")]',
-    ['hello', null],
-  ],
-  // Tests https://github.com/endojs/endo/issues/1185 fix
-  [
-    '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0},{"@qclass":"slot","index":0}]',
-    '[slot(0,"Alleged: for testing Justin"),slot(0)]',
-  ],
-]);
 
 const fakeJustinCompartment = () => {
   const slots = [];
@@ -124,7 +44,7 @@ test('serialize decodeToJustin eval round trip pairs', t => {
     // TODO make Justin work with smallcaps
     serializeBodyFormat: 'capdata',
   });
-  for (const [body, justinSrc, slots] of jsonPairs) {
+  for (const [body, justinSrc, slots] of jsonJustinPairs) {
     const c = fakeJustinCompartment();
     const encoding = JSON.parse(body);
     const justinExpr = decodeToJustin(encoding, false, slots);
@@ -148,7 +68,7 @@ test('serialize decodeToJustin indented eval round trip', t => {
     // TODO make Justin work with smallcaps
     serializeBodyFormat: 'capdata',
   });
-  for (const [body, _, slots] of jsonPairs) {
+  for (const [body, _, slots] of jsonJustinPairs) {
     const c = fakeJustinCompartment();
     t.log(body);
     const encoding = JSON.parse(body);

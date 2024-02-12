@@ -17,7 +17,7 @@ import {
   makeDecodePassable,
 } from '../src/encodePassable.js';
 import { compareRank, makeComparatorKit } from '../src/rankOrder.js';
-import { sample } from './test-rankOrder.js';
+import { unsortedSample } from './marshal-test-data.js';
 
 const buffers = {
   __proto__: null,
@@ -420,9 +420,9 @@ test('Passable encoding corresponds to rankOrder', async t => {
 // the heuristic generation of fuzzing test cases, it always checks everything
 // in `sample`.
 test('Also test against all enumerated in sample', t => {
-  for (let i = 0; i < sample.length; i += 1) {
-    for (let j = i; j < sample.length; j += 1) {
-      orderInvariants(sample[i], sample[j]);
+  for (let i = 0; i < unsortedSample.length; i += 1) {
+    for (let j = i; j < unsortedSample.length; j += 1) {
+      orderInvariants(unsortedSample[i], unsortedSample[j]);
     }
   }
   // Ensure at least one ava assertion.

@@ -4,7 +4,7 @@ import { test } from './prepare-test-env-ava.js';
 import { Far, makeTagged, passStyleOf } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
-import { roundTripPairs } from './test-marshal-capdata.js';
+import { roundTripPairs } from './marshal-test-data.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
