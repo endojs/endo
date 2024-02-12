@@ -9,8 +9,9 @@ export const mkhost = async ({
   sockPath,
   name,
   partyNames,
+  introducedNames,
 }) =>
   withEndoParty(partyNames, { os, process }, async ({ party }) => {
-    const newHost = await E(party).provideHost(name);
+    const newHost = await E(party).provideHost(name, { introducedNames });
     console.log(newHost);
   });
