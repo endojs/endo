@@ -12,8 +12,16 @@ export const bundleCommand = async ({
   applicationPath,
   bundleName,
   partyNames,
+  bundleOptions,
 }) => {
-  const bundle = await bundleSource(applicationPath);
+  const bundle =
+    /** @type {{ moduleFormat: 'endoZipBase64', endoZipBase64: string, endoZipBase64Sha512: string }} */
+    (
+      await bundleSource(applicationPath, {
+        ...bundleOptions,
+        format: 'endoZipBase64',
+      })
+    );
   process.stdout.write(`${bundle.endoZipBase64Sha512}\n`);
   const bundleText = JSON.stringify(bundle);
   const bundleBytes = textEncoder.encode(bundleText);
