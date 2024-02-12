@@ -101,6 +101,7 @@ export const makeGuestMaker = ({
     const internal = harden({
       receive,
       respond,
+      petStore,
     });
 
     return harden({ external: guest, internal });
