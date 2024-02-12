@@ -16,38 +16,30 @@
 
 /**
  * @template T
- * @typedef { T extends Record<any, any> ? AsyncShallow<T> :
- *   T extends BigInt ? AsyncShallow<BigIntConstructor['prototype']> :
- *   T extends Boolean ? AsyncShallow<BooleanConstructor['prototype']> :
- *   T extends Function ? AsyncShallow<FunctionConstructor['prototype']> :
- *   T extends Number ? AsyncShallow<NumberConstructor['prototype']> :
- *   T extends String ? AsyncShallow<StringConstructor['prototype']> :
- *   T extends Symbol ? AsyncShallow<SymbolConstructor['prototype']> :
+ * @typedef {BigInt extends T ? AsyncShallow<BigIntConstructor['prototype']> :
+ *   String extends T ? AsyncShallow<StringConstructor['prototype']> :
+ *   Boolean extends T ? AsyncShallow<BooleanConstructor['prototype']> :
+ *   Number extends T ? AsyncShallow<NumberConstructor['prototype']> :
+ *   Symbol extends T ? AsyncShallow<SymbolConstructor['prototype']> :
  *   {}
- * } AsyncObject Primitives need to be explicitly handled or else their
+ * } AsyncPrimitive Primitives need to be explicitly handled or else their
  * prototype methods aren't asyncified.
  */
 
 /**
  * @template [T=any]
- * @typedef {Pick<Promise<Awaited<T>>, 'then' | 'catch' | 'finally'> &
- *   AsyncCallable<T, {}> & AsyncObject<T>}
- * OCell A cell is a wrapper for an object on which operations (await, call,
- * index) return a promise for execution in a future turn
+ * @typedef {Promise<Awaited<T>> & AsyncCallable<T, {}> & AsyncShallow<T> &
+ * AsyncPrimitive<T>} OCell A cell is a wrapper for an object on which
+ * operations (await, call, index) return a promise for execution in a future
+ * turn
  */
 
 /**
- * TODO: use lockdown.
  * @type {<T>(x: T) => T}
  */
 const harden = globalThis.harden || (x => x);
 
-/**
- * TODO: use whenables.
- * @template T
- * @param {T} p
- */
-const when = p => Promise.resolve().then(() => p);
+const sink = harden(() => {});
 
 const promiseMethods = ['then', 'catch', 'finally'];
 harden(promiseMethods);
@@ -65,10 +57,14 @@ export const stripFunction = target => {
   return target;
 };
 
-const makeTarget = objP => {
+const makeTarget = getThisArg => {
   const target = stripFunction(() => {});
-  for (const key of promiseMethods) {
-    target[key] = Promise.prototype[key].bind(objP);
+  const promiseMethodEntries = promiseMethods.map(key => [
+    key,
+    Promise.prototype[key],
+  ]);
+  for (const [key, fn] of promiseMethodEntries) {
+    target[key] = (...args) => Reflect.apply(fn, getThisArg(), args);
   }
   harden(target);
   return target;
@@ -76,54 +72,74 @@ const makeTarget = objP => {
 
 /**
  * @param {unknown} _zone TODO: use zones.
+ * @param {object} [powers]
+ * @param {{
+ *   applyFunction: (x: unknown, args: any[]) => Promise<unknown>
+ *   applyMethod: (x: unknown, prop: PropertyKey, args: any[]) => Promise<unknown>
+ *   get: (x: unknown, prop: PropertyKey) => Promise<unknown>
+ * }} [powers.HandledPromise]
+ * @param {(specimen: unknown) => Promise<any>} [powers.when]
  */
-export const prepareOCell = _zone => {
-  /** @type {WeakMap<WeakKey, OCell>} */
-  const objToCell = new WeakMap();
+export const prepareOTools = (_zone, powers) => {
+  const {
+    when = x => {
+      const p = Promise.resolve(x);
+      p.catch(sink);
+      return p;
+    },
+    HandledPromise = globalThis.HandledPromise,
+  } = powers || {};
+
+  const hpGet = HandledPromise
+    ? HandledPromise.get
+    : (x, prop) => when(x).then(y => y[prop]);
+  const hpApplyFunction = HandledPromise
+    ? HandledPromise.applyFunction
+    : (x, args) => when(x).then(y => y(...args));
+  const hpApplyMethod = HandledPromise
+    ? HandledPromise.applyMethod
+    : (x, prop, args) => when(x).then(y => y[prop](...args));
 
   /**
-   * @template T
-   * @param {T} rawObj
+   * @param {unknown} boundThis
+   * @param {OCell<any>} [parentCell]
    * @param {PropertyKey} [boundName]
-   * @param {unknown} [boundThis]
-   * @returns {OCell<T>}
    */
-  const makeOCell = (rawObj, boundName, boundThis) => {
-    const objRef = /** @type {WeakKey} */ (rawObj);
-    /** @type {any} */
-    let cell = objToCell.get(objRef);
-    if (cell) {
-      return cell;
-    }
+  const makeBoundOCell = (boundThis, parentCell, boundName) => {
+    let cachedThisArg;
+    const getThisArg = () => {
+      if (cachedThisArg === undefined) {
+        if (boundName === undefined) {
+          cachedThisArg = when(boundThis);
+        } else {
+          cachedThisArg = when(hpGet(boundThis, boundName));
+        }
+      }
+      return cachedThisArg;
+    };
 
-    // Get a promise for the fully shortened whenable chain.
-    // TODO: use pipelining.
-    const objP = when(rawObj);
+    const target = makeTarget(getThisArg);
 
-    // Avoid contamination by our callable interface.
-    const target = makeTarget(objP);
-
-    cell = new Proxy(target, {
+    const spaceName = boundName ? ` ${JSON.stringify(String(boundName))}` : '';
+    const cell = new Proxy(target, {
       apply(_target, thisArg, args) {
-        const retP = Promise.all([objP, boundThis]).then(([obj, bt]) => {
-          const spaceName = boundName
-            ? ` ${JSON.stringify(String(boundName))}`
-            : '';
-          if (typeof obj !== 'function') {
-            throw TypeError(`Cannot apply non-function${spaceName}`);
-          }
-          if (thisArg !== undefined && boundThis !== thisArg) {
-            throw TypeError(
-              `Cannot apply method${spaceName} to different this-binding`,
-            );
-          }
-          return Reflect.apply(
-            /** @type {(...args: any[]) => any} */ (obj),
-            bt,
-            args,
+        if (thisArg !== parentCell) {
+          return when(
+            Promise.reject(
+              TypeError(
+                `Cannot apply method${spaceName} to different this-binding`,
+              ),
+            ),
           );
-        });
-        return makeOCell(harden(retP));
+        }
+
+        if (boundName === undefined) {
+          const retP = hpApplyFunction(boundThis, args);
+          return makeBoundOCell(retP, cell);
+        }
+
+        const retP = hpApplyMethod(boundThis, boundName, args);
+        return makeBoundOCell(retP, cell);
       },
       get(_target, key) {
         if (typeof key === 'string' && promiseMethods.includes(key)) {
@@ -131,27 +147,44 @@ export const prepareOCell = _zone => {
           return target[key];
         }
         if (key === Symbol.toPrimitive) {
+          // Work around a bug that somehow freezes the Node.js REPL.
           return undefined;
         }
-        // Capture the this promise in case they apply a method, then move on.
-        const retP = objP.then(obj =>
-          makeOCell(obj == null ? obj : obj[key], key, cell),
-        );
-        return makeOCell(retP, key, cell);
+        const thisArg = getThisArg();
+
+        // Capture the key, since we won't know if this is a property get or a
+        // method call until later.
+        return makeBoundOCell(thisArg, cell, key);
       },
     });
 
     harden(cell);
-
-    // Reuse cells if possible.
-    if (Object(objRef) === objRef) {
-      objToCell.set(objRef, cell);
-    }
-    objToCell.set(objP, cell);
     return cell;
   };
 
+  /**
+   * @template T
+   * @param {T} obj
+   * @returns {Promise<Awaited<T>> & AsyncPrimitive<T> & AsyncShallow<T> & {
+   * <U>(x: U): OCell<U> }}
+   */
+  const makeO = obj => {
+    const cell = makeBoundOCell(obj);
+    const O = new Proxy(cell, {
+      apply(_target, _thisArg, args) {
+        return makeBoundOCell(args[0]);
+      },
+    });
+    return O;
+  };
+
+  /**
+   * @template T
+   * @param {T} obj
+   * @returns {OCell<T>}
+   */
+  const makeOCell = obj => makeBoundOCell(obj);
   harden(makeOCell);
-  return makeOCell;
+  return { makeOCell, makeO };
 };
-harden(prepareOCell);
+harden(prepareOTools);
