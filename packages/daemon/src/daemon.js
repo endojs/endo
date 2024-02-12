@@ -246,8 +246,18 @@ const makeEndoBootstrap = (
     // eslint-disable-next-line no-use-before-define
     const hub = provideValueForFormulaIdentifier(hubFormulaIdentifier);
 
-    const external = E(hub).lookup(...path);
-    return { external, internal: undefined };
+    const value = E(hub).lookup(...path);
+
+    // If there is already a formula identifier for the resolved value, then
+    // create a circular dependency between the two formulas. Otherwise, we
+    // would disconnect the garbage collection graph.
+    const valueFormulaIdentifier = formulaIdentifierForRef.get(await value);
+    if (valueFormulaIdentifier !== undefined) {
+      terminator.thisDiesIfThatDies(valueFormulaIdentifier);
+      terminator.thatDiesIfThisDies(valueFormulaIdentifier);
+    }
+
+    return { external: value, internal: undefined };
   };
 
   /**

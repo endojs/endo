@@ -636,8 +636,6 @@ test('direct termination', async t => {
       ['counter'],
     ),
   );
-
-  t.pass();
 });
 
 test('indirect termination', async t => {
@@ -690,6 +688,94 @@ test('indirect termination', async t => {
 
   await E(host).terminate('worker');
 
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+});
+
+test('termination via path', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'termination-path');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
+  t.is(
+    1,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+  t.is(
+    2,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  // Create a lookup proxy, granting it host powers.
+  const lookupProxyPath = path.join(dirname, 'test', 'lookup-proxy.js');
+  await E(host).makeUnconfined(
+    'worker',
+    lookupProxyPath,
+    'SELF',
+    'lookup-proxy',
+  );
+
+  t.is(
+    3,
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+  );
+
+  await E(host).terminate(['lookup-proxy', 'counter']);
   t.is(
     1,
     await E(host).evaluate(

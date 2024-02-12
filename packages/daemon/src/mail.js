@@ -4,7 +4,7 @@ import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
-import { assertPetName } from './pet-name.js';
+import { assertPetName, petNamePathFrom } from './pet-name.js';
 
 const { quote: q } = assert;
 
@@ -60,11 +60,36 @@ export const makeMailboxMaker = ({
       );
     };
 
-    const terminate = async petName => {
-      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+    /**
+     * @param {string | string[]} petNameOrPath - A pet name or a sequence of pet names.
+     * @returns {Promise<void>} A promise that resolves when the name is terminated.
+     */
+    const terminate = async petNameOrPath => {
+      const petNamePath = petNamePathFrom(petNameOrPath);
+
+      let formulaIdentifier;
+      if (petNamePath.length === 1) {
+        formulaIdentifier = lookupFormulaIdentifierForName(petNamePath[0]);
+        if (formulaIdentifier === undefined) {
+          throw new TypeError(`Unknown pet name: ${q(petNamePath[0])}`);
+        }
+      } else {
+        // eslint-disable-next-line no-use-before-define
+        const { value } = await provideLookupFormula(petNamePath);
+        // Values returned by lookup formulas may not be associated with a pet
+        // name or formula. We define the attempt to terminate such a value to
+        // be a no-op.
+        formulaIdentifier = formulaIdentifierForRef.get(await value);
+        if (formulaIdentifier === undefined) {
+          console.log(
+            `Ignoring attempt to terminate value at: ${q(
+              petNamePath.join('.'),
+            )}`,
+          );
+          return undefined;
+        }
       }
+
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const controller = await provideControllerForFormulaIdentifier(
