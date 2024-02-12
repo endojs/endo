@@ -466,7 +466,7 @@ export const makeHostMaker = ({
       provideWebPage,
     });
 
-    const internal = harden({ receive, respond });
+    const internal = harden({ receive, respond, petStore });
 
     await provideValueForFormulaIdentifier(mainWorkerFormulaIdentifier);
 
