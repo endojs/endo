@@ -32,8 +32,16 @@ const logRecordMatches = (logRecord, goldenRecord) =>
   logRecord.length === goldenRecord.length &&
   logRecord.every((logEntry, i) => logEntry === goldenRecord[i]);
 
-// Specialized for the test below.
-// See https://github.com/endojs/endo/issues/1973
+/**
+ * Test that log includes goldenLog in order
+ * that is: test that they match but for possible extra warning lines in log.
+ * Specialized for the test below.
+ * See https://github.com/endojs/endo/issues/1973
+ *
+ * @param {Implementation} t
+ * @param {any[][]} log
+ * @param {any[][]} goldenLog
+ */
 const compareLogs = (t, log, goldenLog) => {
   t.deepEqual(log[0], goldenLog[0]);
   const logLast = log.length - 1;
@@ -76,8 +84,6 @@ test('permit removal warnings', t => {
       ['warn', 'Removing intrinsics.Array.extraRemovableDataProperty'],
       ['groupEnd'],
     ],
-    {
-      compareLogs,
-    },
+    { compareLogs },
   );
 });
