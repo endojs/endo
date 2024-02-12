@@ -9,6 +9,7 @@ export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideValueForFormula,
   provideValueForNumberedFormula,
+  provideControllerForFormulaIdentifier,
   formulaIdentifierForRef,
   storeReaderRef,
   makeSha512,
@@ -69,9 +70,28 @@ export const makeHostMaker = ({
     });
 
     /**
-     * @param {string} petName
+     * @param {import('./types.js').Controller} newController
+     * @param {Record<string,string>} introducedNames
+     * @returns {Promise<void>}
      */
-    const provideGuest = async petName => {
+    const introduceNamesToNewHostOrGuest = async (
+      newController,
+      introducedNames,
+    ) => {
+      const { petStore: newPetStore } = await newController.internal;
+      await Promise.all(
+        Object.entries(introducedNames).map(async ([parentName, childName]) => {
+          const introducedFormulaIdentifier = identifyLocal(parentName);
+          if (introducedFormulaIdentifier === undefined) {
+            return;
+          }
+          await newPetStore.write(childName, introducedFormulaIdentifier);
+        }),
+      );
+    };
+
+    /** @type {import('./types.js').EndoHost['provideGuest']} */
+    const provideGuest = async (petName, { introducedNames = {} } = {}) => {
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
@@ -99,11 +119,14 @@ export const makeHostMaker = ({
           )}`,
         );
       }
-      return /** @type {Promise<import('./types.js').EndoHost>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provideValueForFormulaIdentifier(formulaIdentifier)
-      );
+      const newGuestController =
+        /** @type {import('./types.js').Controller<>} */ (
+          provideControllerForFormulaIdentifier(formulaIdentifier)
+        );
+      if (introducedNames !== undefined) {
+        introduceNamesToNewHostOrGuest(newGuestController, introducedNames);
+      }
+      return /** @type {Promise<import('./types.js').EndoGuest>} */ newGuestController.external;
     };
 
     /**
@@ -354,10 +377,8 @@ export const makeHostMaker = ({
       );
     };
 
-    /**
-     * @param {string} [petName]
-     */
-    const provideHost = async petName => {
+    /** @type {import('./types.js').EndoHost['provideHost']} */
+    const provideHost = async (petName, { introducedNames = {} } = {}) => {
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
@@ -377,11 +398,14 @@ export const makeHostMaker = ({
           )}`,
         );
       }
-      return /** @type {Promise<import('./types.js').EndoHost>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provideValueForFormulaIdentifier(formulaIdentifier)
-      );
+      const newHostController =
+        /** @type {import('./types.js').Controller<>} */ (
+          provideControllerForFormulaIdentifier(formulaIdentifier)
+        );
+      if (introducedNames !== undefined) {
+        introduceNamesToNewHostOrGuest(newHostController, introducedNames);
+      }
+      return /** @type {Promise<import('./types.js').EndoHost>} */ newHostController.external;
     };
 
     /**
