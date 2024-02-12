@@ -22,7 +22,7 @@ export async function bundleZipBase64(
   options = {},
   grantedPowers = {},
 ) {
-  const { dev = false, cacheSourceMaps = false } = options;
+  const { dev = false, cacheSourceMaps = false, commonDependencies } = options;
   const powers = { ...readPowers, ...grantedPowers };
   const {
     computeSha512,
@@ -174,6 +174,7 @@ export async function bundleZipBase64(
     sourceMapHook(sourceMap, sourceDescriptor) {
       sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
     },
+    commonDependencies,
   });
   assert(sha512);
   await Promise.all(sourceMapJobs);

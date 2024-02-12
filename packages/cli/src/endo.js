@@ -21,6 +21,17 @@ const commonOptions = {
   as: ['-a,--as <party>', 'Pose as named party (as named by current party)'],
 };
 
+const parseOptionAsMapping = (optionValueString, obj) => {
+  // arguments can be provided as "a:b" or just "a"
+  // eslint-disable-next-line prefer-const
+  let [from, to] = optionValueString.split(':');
+  if (to === undefined) {
+    to = from;
+  }
+  obj[from] = to;
+  return obj;
+};
+
 export const main = async rawArgs => {
   const program = new Command();
 
@@ -363,13 +374,26 @@ export const main = async rawArgs => {
     .description('stores a program')
     .option(...commonOptions.as)
     .option('-n,--name <name>', 'Store the bundle into Endo')
+    .option(
+      '--common-dep <name>',
+      'Specify common dependency for bundle (eg node builtin package shims)',
+      parseOptionAsMapping,
+      {},
+    )
     .action(async (applicationPath, cmd) => {
-      const { name: bundleName, as: partyNames } = cmd.opts();
+      const {
+        name: bundleName,
+        as: partyNames,
+        commonDep: commonDependencies,
+      } = cmd.opts();
       const { bundleCommand } = await import('./commands/bundle.js');
       return bundleCommand({
         applicationPath,
         bundleName,
         partyNames,
+        bundleOptions: {
+          commonDependencies,
+        },
       });
     });
 
