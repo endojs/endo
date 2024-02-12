@@ -4,6 +4,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { E } from '@endo/far';
 import { whereEndoSock } from '@endo/where';
 import { provideEndoClient } from './client.js';
+import { parsePetNamePath } from './pet-name.js';
 
 export const withInterrupt = async callback => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
@@ -61,14 +62,14 @@ export const withEndoHost = ({ os, process }, callback) =>
     },
   );
 
-export const withEndoParty = (partyNames, { os, process }, callback) =>
+export const withEndoParty = (partyNamePath, { os, process }, callback) =>
   withEndoHost(
     { os, process },
     async ({ cancel, cancelled, bootstrap, host }) => {
-      let party = host;
-      for (const partyName of partyNames) {
-        party = E(party).lookup(partyName);
-      }
+      const party =
+        partyNamePath === undefined
+          ? host
+          : E(host).lookup(...parsePetNamePath(partyNamePath));
       await callback({
         cancel,
         cancelled,
