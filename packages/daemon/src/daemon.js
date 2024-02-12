@@ -644,6 +644,7 @@ const makeEndoBootstrap = (
     provideValueForFormulaIdentifier,
     provideValueForFormula,
     provideValueForNumberedFormula,
+    provideControllerForFormulaIdentifier,
     formulaIdentifierForRef,
     storeReaderRef,
     randomHex512,

@@ -221,6 +221,10 @@ export interface EndoWorker {
   whenTerminated(): Promise<void>;
 }
 
+export type MakeHostOrGuestOptions = {
+  introducedNames?: Record<string, string>;
+};
+
 export interface EndoGuest {
   request(what: string, responseName: string): Promise<unknown>;
 }
@@ -239,8 +243,14 @@ export interface EndoHost {
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
   ): Promise<void>;
-  provideGuest(petName?: string): Promise<EndoGuest>;
-  provideHost(petName?: string): Promise<EndoHost>;
+  provideGuest(
+    petName?: string,
+    opts?: MakeHostOrGuestOptions,
+  ): Promise<EndoGuest>;
+  provideHost(
+    petName?: string,
+    opts?: MakeHostOrGuestOptions,
+  ): Promise<EndoHost>;
   makeWorker(petName: string): Promise<EndoWorker>;
   evaluate(
     workerPetName: string | undefined,
