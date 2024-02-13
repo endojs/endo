@@ -30,10 +30,7 @@ function longestCommonPrefix(strings) {
 }
 
 /**
- * @template {'nestedEvaluate' | 'getExport'} T
- * @param {string} startFilename
- * @param {T} moduleFormat
- * @param {any} powers
+ * @type {import('./types').BundleSourceWithFormat}
  */
 export async function bundleNestedEvaluateAndGetExports(
   startFilename,
@@ -47,7 +44,7 @@ export async function bundleNestedEvaluateAndGetExports(
     pathResolve = path.resolve,
     pathToFileURL = url.pathToFileURL,
     externals = [],
-  } = powers || {};
+  } = /** @type {any} */ (powers || {});
   const resolvedPath = pathResolve(startFilename);
   const bundle = await rollup({
     input: resolvedPath,
@@ -160,6 +157,7 @@ ${sourceBundle[entrypoint]}
 return module.exports;
 }
 ${sourceMap}`;
+    // @ts-expect-error generic T not assignable to moduleFormat
     return harden({ moduleFormat, source, sourceMap });
   } else if (moduleFormat === 'nestedEvaluate') {
     sourceMap = `//# sourceURL=${DEFAULT_FILE_PREFIX}-preamble.js\n`;
@@ -284,6 +282,7 @@ function getExportWithNestedEvaluate(filePrefix) {
   return computeExports(entrypoint, { require: systemRequire, systemEval }, {});
 }
 ${sourceMap}`;
+    // @ts-expect-error generic T not assignable to moduleFormat
     return harden({ moduleFormat, source, sourceMap });
   }
 
