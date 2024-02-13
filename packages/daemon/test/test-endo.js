@@ -20,6 +20,7 @@ import {
   reset,
   makeEndoClient,
   makeReaderRef,
+  teardown,
 } from '../index.js';
 
 const { raw } = String;
@@ -74,8 +75,9 @@ const doMakeBundle = async (host, filePath, callback) => {
 
 test('lifecycle', async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'lifecycle');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -102,8 +104,9 @@ test('lifecycle', async t => {
 
 test('spawn and evaluate', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'spawn-eval');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -125,8 +128,9 @@ test('spawn and evaluate', async t => {
 
 test('anonymous spawn and evaluate', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'spawn-eval-anon');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -147,8 +151,9 @@ test('anonymous spawn and evaluate', async t => {
 
 test('persist spawn and evaluation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'persist-spawn-eval');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -204,8 +209,9 @@ test('persist spawn and evaluation', async t => {
 
 test('store', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'store');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -241,8 +247,9 @@ test('store', async t => {
 
 test('closure state lost by restart', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'restart-closures');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -341,8 +348,9 @@ test('closure state lost by restart', async t => {
 
 test('persist unconfined services and their requests', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'make-unconfined');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -425,8 +433,9 @@ test('persist unconfined services and their requests', async t => {
 
 test('persist confined services and their requests', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'make-bundle');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -511,9 +520,9 @@ test('persist confined services and their requests', async t => {
 
 test('guest facet receives a message for host', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
   const locator = makeLocator('tmp', 'guest-sends-host');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await start(locator);
 
@@ -562,9 +571,9 @@ test('guest facet receives a message for host', async t => {
 
 test('direct termination', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
   const locator = makeLocator('tmp', 'termination-direct');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -642,9 +651,9 @@ test('direct termination', async t => {
 
 test('indirect termination', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
   const locator = makeLocator('tmp', 'termination-indirect');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -721,9 +730,9 @@ test('indirect termination', async t => {
 
 test('terminate because of requested capability', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
   const locator = makeLocator('tmp', 'termination-via-request');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -808,8 +817,9 @@ test('terminate because of requested capability', async t => {
 
 test('make a host', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'make-host');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -832,8 +842,9 @@ test('make a host', async t => {
 
 test('name and reuse inspector', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'inspector-reuse');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -875,8 +886,9 @@ test('name and reuse inspector', async t => {
 // This behavior is undesirable. See: https://github.com/endojs/endo/issues/2021
 test('eval-mediated worker name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'eval-worker-name');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -922,8 +934,9 @@ test('eval-mediated worker name', async t => {
 
 test('lookup with single petname', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'lookup-single-petname');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -953,8 +966,9 @@ test('lookup with single petname', async t => {
 
 test('lookup with petname path (inspector)', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'lookup-petname-path-inspector');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -982,8 +996,9 @@ test('lookup with petname path (inspector)', async t => {
 
 test('lookup with petname path (caplet with lookup method)', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'lookup-petname-path-caplet');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -1013,8 +1028,9 @@ test('lookup with petname path (caplet with lookup method)', async t => {
 
 test('lookup with petname path (value has no lookup method)', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'lookup-petname-path-no-method');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -1044,8 +1060,9 @@ test('lookup with petname path (value has no lookup method)', async t => {
 
 test('evaluate name resolved by lookup path', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'name-resolved-by-lookup-path');
+  t.teardown(() => cancel(Error('teardown')));
+  t.teardown(() => teardown(locator));
 
   await stop(locator).catch(() => {});
   await reset(locator);

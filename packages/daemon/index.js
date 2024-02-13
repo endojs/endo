@@ -163,7 +163,10 @@ export const stop = async (locator = defaultLocator) => {
   await clean(locator);
 };
 
-export const reset = async (locator = defaultLocator) => {
+export const resetInternal = async (
+  locator = defaultLocator,
+  turnOff = false,
+) => {
   // Attempt to restore to a running state if currently running, based on
   // whether we manage to terminate it.
   const needsRestart = await terminate(locator).then(
@@ -184,7 +187,12 @@ export const reset = async (locator = defaultLocator) => {
     removedCache,
   ]);
 
-  if (needsRestart) {
+  if (!turnOff && needsRestart) {
     await start(locator);
   }
 };
+
+export const reset = async (locator = defaultLocator) =>
+  resetInternal(locator, false);
+export const teardown = async (locator = defaultLocator) =>
+  resetInternal(locator, true);
