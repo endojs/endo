@@ -9,15 +9,13 @@ import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePortHttp } from './serve-private-port-http.js';
 import { servePrivatePath } from './serve-private-path.js';
+import { zero512 } from './common.js';
 
 const { quote: q } = assert;
 
 const textEncoder = new TextEncoder();
 const medialIterationResult = harden({ done: false });
 const finalIterationResult = harden({ done: false });
-
-const zero512 =
-  '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
 /**
  * @param {object} modules
