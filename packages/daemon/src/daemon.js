@@ -12,11 +12,9 @@ import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeTerminatorMaker } from './terminator.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
+import { zero512 } from './common.js';
 
 const { quote: q } = assert;
-
-const zero512 =
-  '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
 /** @type {import('./types.js').EndoGuest} */
 const leastAuthority = Far('EndoGuest', {
