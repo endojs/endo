@@ -413,7 +413,7 @@ const makeEndoBootstrap = (
       // Behold, self-referentiality:
       // eslint-disable-next-line no-use-before-define
       return { external: endoBootstrap, internal: undefined };
-    } else if (formulaIdentifier === 'least-authority') {
+    } else if (formulaType === 'least-authority-id512') {
       return { external: leastAuthority, internal: undefined };
     } else if (formulaIdentifier === 'web-page-js') {
       if (persistencePowers.webPageBundlerFormula === undefined) {
@@ -449,6 +449,7 @@ const makeEndoBootstrap = (
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
       const inspectorFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
       const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
+      const leastAuthorityFormulaIdentifier = `least-authority-id512:${zero512}`;
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -457,6 +458,7 @@ const makeEndoBootstrap = (
         storeFormulaIdentifier,
         inspectorFormulaIdentifier,
         workerFormulaIdentifier,
+        leastAuthorityFormulaIdentifier,
         terminator,
       );
     } else if (
