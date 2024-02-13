@@ -38,7 +38,8 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "ava"
+    "test": "ava",
+    "test:clean": "rm -rf tmp && yarn test"
   },
   "dependencies": {
     "@endo/base64": "^1.0.1",
