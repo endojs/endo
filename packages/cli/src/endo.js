@@ -254,13 +254,11 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('list')
-    .option(...commonOptions.as)
+    .command('list [directory]')
     .description('show names')
-    .action(async cmd => {
-      const { as: partyNames } = cmd.opts();
+    .action(async directoryName => {
       const { list } = await import('./commands/list.js');
-      return list({ partyNames });
+      return list({ directoryName });
     });
 
   program
