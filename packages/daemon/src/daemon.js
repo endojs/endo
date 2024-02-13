@@ -407,20 +407,7 @@ const makeEndoBootstrap = (
   ) => {
     const { type: formulaType, number: formulaNumber } =
       parseFormulaIdentifier(formulaIdentifier);
-    if (formulaIdentifier === 'host') {
-      const storeFormulaIdentifier = `pet-store-id512:${zero512}`;
-      const inspectorFormulaIdentifier = `pet-inspector-id512:${zero512}`;
-      const workerFormulaIdentifier = `worker-id512:${zero512}`;
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return makeIdentifiedHost(
-        formulaIdentifier,
-        storeFormulaIdentifier,
-        inspectorFormulaIdentifier,
-        workerFormulaIdentifier,
-        terminator,
-      );
-    } else if (formulaIdentifier === 'endo') {
+    if (formulaIdentifier === 'endo') {
       // TODO reframe "cancelled" as termination of the "endo" object and
       // ensure that all values ultimately depend on "endo".
       // Behold, self-referentiality:
@@ -462,6 +449,7 @@ const makeEndoBootstrap = (
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
       const inspectorFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
       const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
+
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedHost(
@@ -768,7 +756,7 @@ const makeEndoBootstrap = (
       cancel(new Error('Termination requested'));
     },
 
-    host: () => provideValueForFormulaIdentifier('host'),
+    host: () => provideValueForFormulaIdentifier(`host-id512:${zero512}`),
 
     leastAuthority: () => leastAuthority,
 
