@@ -85,5 +85,8 @@
   },
   "typeCoverage": {
     "atLeast": 98.69
+  },
+  "engines": {
+    "node": "16.13 || ^18.12 || ^20.9"
   }
 }

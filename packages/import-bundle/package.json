@@ -18,7 +18,7 @@
   "main": "src/index.js",
   "module": "src/index.js",
   "engines": {
-    "node": ">=12"
+    "node": "16.13 || ^18.12 || ^20.9"
   },
   "exports": {
     ".": "./src/index.js",
