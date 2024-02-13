@@ -5,7 +5,6 @@ const numberlessFormulasIdentifiers = new Set([
   'host',
   'least-authority',
   'pet-inspector',
-  'pet-store',
   'web-page-js',
 ]);
 
