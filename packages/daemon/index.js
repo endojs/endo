@@ -147,9 +147,9 @@ const enoentOk = error => {
 };
 
 export const clean = async (locator = defaultLocator) => {
-  if (process.platform !== 'win32') {
+  // if (process.platform !== 'win32') {
     await removePath(locator.sockPath).catch(enoentOk);
-  }
+  // }
 };
 
 export const restart = async (locator = defaultLocator) => {
