@@ -2,7 +2,6 @@ const { quote: q } = assert;
 
 const numberlessFormulasIdentifiers = new Set([
   'endo',
-  'host',
   'least-authority',
   'web-page-js',
 ]);
