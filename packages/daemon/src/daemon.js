@@ -407,7 +407,11 @@ const makeEndoBootstrap = (
   ) => {
     const { type: formulaType, number: formulaNumber } =
       parseFormulaIdentifier(formulaIdentifier);
-    if (formulaIdentifier === 'endo') {
+    if (formulaType === 'endo-id512') {
+      if (formulaNumber !== zero512) {
+        throw Error('Invalid endo-id512 formula number.');
+      }
+
       // TODO reframe "cancelled" as termination of the "endo" object and
       // ensure that all values ultimately depend on "endo".
       // Behold, self-referentiality:
@@ -449,6 +453,7 @@ const makeEndoBootstrap = (
       );
       return { external, internal: undefined };
     } else if (formulaType === 'host-id512') {
+      const endoFormulaIdentifier = `endo-id512:${zero512}`;
       const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
       const inspectorFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
       const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
@@ -458,6 +463,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedHost(
         formulaIdentifier,
+        endoFormulaIdentifier,
         storeFormulaIdentifier,
         inspectorFormulaIdentifier,
         workerFormulaIdentifier,
