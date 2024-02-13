@@ -10,7 +10,6 @@ export const makeHostMaker = ({
   provideValueForFormula,
   provideValueForNumberedFormula,
   provideControllerForFormulaIdentifier,
-  formulaIdentifierForRef,
   storeReaderRef,
   makeSha512,
   randomHex512,
@@ -90,8 +89,12 @@ export const makeHostMaker = ({
       );
     };
 
-    /** @type {import('./types.js').EndoHost['provideGuest']} */
-    const provideGuest = async (petName, { introducedNames = {} } = {}) => {
+    /**
+     * @param {string} [petName]
+     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
+     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
+     */
+    const makeGuest = async (petName, { introducedNames = {} } = {}) => {
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
@@ -111,7 +114,7 @@ export const makeHostMaker = ({
           assertPetName(petName);
           await petStore.write(petName, guestFormulaIdentifier);
         }
-        return value;
+        return { value, formulaIdentifier: guestFormulaIdentifier };
       } else if (!formulaIdentifier.startsWith('guest-id512:')) {
         throw new Error(
           `Existing pet name does not designate a guest powers capability: ${q(
@@ -126,7 +129,18 @@ export const makeHostMaker = ({
       if (introducedNames !== undefined) {
         introduceNamesToNewHostOrGuest(newGuestController, introducedNames);
       }
-      return /** @type {Promise<import('./types.js').EndoGuest>} */ newGuestController.external;
+      return {
+        formulaIdentifier,
+        value: /** @type {Promise<import('./types.js').EndoGuest>} */ (
+          newGuestController.external
+        ),
+      };
+    };
+
+    /** @type {import('./types.js').EndoHost['provideGuest']} */
+    const provideGuest = async (petName, opts) => {
+      const { value } = await makeGuest(petName, opts);
+      return value;
     };
 
     /**
@@ -191,12 +205,14 @@ export const makeHostMaker = ({
 
     /**
      * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
+     * @returns {Promise<string>}
      */
     const providePowersFormulaIdentifier = async partyName => {
       let guestFormulaIdentifier = identifyLocal(partyName);
       if (guestFormulaIdentifier === undefined) {
-        const guest = await provideGuest(partyName);
-        guestFormulaIdentifier = formulaIdentifierForRef.get(guest);
+        ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
+          partyName,
+        ));
         if (guestFormulaIdentifier === undefined) {
           throw new Error(
             `panic: provideGuest must return an guest with a corresponding formula identifier`,
@@ -377,8 +393,12 @@ export const makeHostMaker = ({
       );
     };
 
-    /** @type {import('./types.js').EndoHost['provideHost']} */
-    const provideHost = async (petName, { introducedNames = {} } = {}) => {
+    /**
+     * @param {string} [petName]
+     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
+     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
+     */
+    const makeHost = async (petName, { introducedNames = {} } = {}) => {
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
@@ -405,7 +425,18 @@ export const makeHostMaker = ({
       if (introducedNames !== undefined) {
         introduceNamesToNewHostOrGuest(newHostController, introducedNames);
       }
-      return /** @type {Promise<import('./types.js').EndoHost>} */ newHostController.external;
+      return {
+        formulaIdentifier,
+        value: /** @type {Promise<import('./types.js').EndoHost>} */ (
+          newHostController.external
+        ),
+      };
+    };
+
+    /** @type {import('./types.js').EndoHost['provideHost']} */
+    const provideHost = async (petName, opts) => {
+      const { value } = await makeHost(petName, opts);
+      return value;
     };
 
     /**
