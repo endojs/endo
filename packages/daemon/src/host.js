@@ -20,6 +20,7 @@ export const makeHostMaker = ({
    * @param {string} storeFormulaIdentifier
    * @param {string} inspectorFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {string} leastAuthorityFormulaIdentifier
    * @param {import('./types.js').Terminator} terminator
    */
   const makeIdentifiedHost = async (
@@ -27,6 +28,7 @@ export const makeHostMaker = ({
     storeFormulaIdentifier,
     inspectorFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    leastAuthorityFormulaIdentifier,
     terminator,
   ) => {
     terminator.thisDiesIfThatDies(storeFormulaIdentifier);
@@ -62,7 +64,7 @@ export const makeHostMaker = ({
       specialNames: {
         SELF: hostFormulaIdentifier,
         INFO: inspectorFormulaIdentifier,
-        NONE: 'least-authority',
+        NONE: leastAuthorityFormulaIdentifier,
         ENDO: 'endo',
       },
       terminator,

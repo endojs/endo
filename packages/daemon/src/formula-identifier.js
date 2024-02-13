@@ -1,10 +1,6 @@
 const { quote: q } = assert;
 
-const numberlessFormulasIdentifiers = new Set([
-  'endo',
-  'least-authority',
-  'web-page-js',
-]);
+const numberlessFormulasIdentifiers = new Set(['endo', 'web-page-js']);
 
 /**
  * @param {string} formulaIdentifier
