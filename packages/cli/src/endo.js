@@ -228,7 +228,7 @@ export const main = async rawArgs => {
       'Name to use, if different than the suggested name.',
     )
     .option(...commonOptions.as)
-    .description('accept a @value from a message')
+    .description('adopt a @value from a message')
     .action(async (messageNumberText, edgeName, cmd) => {
       const { name = edgeName, as: partyNames } = cmd.opts();
       const { adoptCommand } = await import('./commands/adopt.js');
