@@ -407,19 +407,13 @@ const makeEndoBootstrap = (
   ) => {
     const { type: formulaType, number: formulaNumber } =
       parseFormulaIdentifier(formulaIdentifier);
-    if (formulaIdentifier === 'pet-store') {
-      const external = petStorePowers.makeOwnPetStore(
-        'pet-store',
-        assertPetName,
-      );
-      return { external, internal: undefined };
-    } else if (formulaIdentifier === 'pet-inspector') {
+    if (formulaIdentifier === 'pet-inspector') {
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
-      const external = makePetStoreInspector('pet-store');
+      const external = makePetStoreInspector(`pet-store-id512:${zero512}`);
       return { external, internal: undefined };
     } else if (formulaIdentifier === 'host') {
-      const storeFormulaIdentifier = 'pet-store';
+      const storeFormulaIdentifier = `pet-store-id512:${zero512}`;
       const inspectorFormulaIdentifier = 'pet-inspector';
       const workerFormulaIdentifier = `worker-id512:${zero512}`;
       // Behold, recursion:

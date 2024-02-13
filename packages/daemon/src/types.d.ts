@@ -319,10 +319,6 @@ export type PetStorePowers = {
     id: string,
     assertValidName: AssertValidNameFn,
   ) => Promise<FarRef<PetStore>>;
-  makeOwnPetStore: (
-    name: string,
-    assertValidName: AssertValidNameFn,
-  ) => Promise<FarRef<PetStore>>;
 };
 
 export type NetworkPowers = {
