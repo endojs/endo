@@ -415,12 +415,15 @@ const makeEndoBootstrap = (
       return { external: endoBootstrap, internal: undefined };
     } else if (formulaType === 'least-authority-id512') {
       return { external: leastAuthority, internal: undefined };
-    } else if (formulaIdentifier === 'web-page-js') {
+    } else if (formulaType === 'web-page-js-id512') {
       if (persistencePowers.webPageBundlerFormula === undefined) {
-        throw Error('No web-page-js formula provided.');
+        throw Error('No web-page-js-id512 formula provided.');
+      }
+      if (formulaNumber !== zero512) {
+        throw Error('Invalid web-page-js-id512 formula number.');
       }
       return makeControllerForFormula(
-        'web-page-js',
+        formulaIdentifier,
         zero512,
         persistencePowers.webPageBundlerFormula,
         terminator,
@@ -762,7 +765,8 @@ const makeEndoBootstrap = (
 
     leastAuthority: () => leastAuthority,
 
-    webPageJs: () => provideValueForFormulaIdentifier('web-page-js'),
+    webPageJs: () =>
+      provideValueForFormulaIdentifier(`web-page-js-id512:${zero512}`),
 
     importAndEndowInWebPage: async (webPageP, webPageNumber) => {
       const { bundle: bundleBlob, powers: endowedPowers } =
