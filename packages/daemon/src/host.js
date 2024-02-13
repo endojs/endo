@@ -17,6 +17,7 @@ export const makeHostMaker = ({
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
+   * @param {string} endoFormulaIdentifier
    * @param {string} storeFormulaIdentifier
    * @param {string} inspectorFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
@@ -25,6 +26,7 @@ export const makeHostMaker = ({
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
+    endoFormulaIdentifier,
     storeFormulaIdentifier,
     inspectorFormulaIdentifier,
     mainWorkerFormulaIdentifier,
@@ -63,9 +65,9 @@ export const makeHostMaker = ({
       selfFormulaIdentifier: hostFormulaIdentifier,
       specialNames: {
         SELF: hostFormulaIdentifier,
+        ENDO: endoFormulaIdentifier,
         INFO: inspectorFormulaIdentifier,
         NONE: leastAuthorityFormulaIdentifier,
-        ENDO: 'endo',
       },
       terminator,
     });
