@@ -4,7 +4,6 @@ const numberlessFormulasIdentifiers = new Set([
   'endo',
   'host',
   'least-authority',
-  'pet-inspector',
   'web-page-js',
 ]);
 
