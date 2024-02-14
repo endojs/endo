@@ -565,25 +565,20 @@ export const makeDaemonicPersistencePowers = (
 
   /**
    * @param {string} formulaType
-   * @param {string} formulaId512
+   * @param {string} formulaNumber
    */
-  const makeFormulaPath = (formulaType, formulaId512) => {
+  const makeFormulaPath = (formulaType, formulaNumber) => {
     const { statePath } = locator;
-    if (formulaId512.length < 3) {
+    if (formulaNumber.length < 3) {
       throw new TypeError(
-        `Invalid formula identifier ${q(formulaId512)} for formula of type ${q(
+        `Invalid formula identifier ${q(formulaNumber)} for formula of type ${q(
           formulaType,
         )}`,
       );
     }
-    const head = formulaId512.slice(0, 2);
-    const tail = formulaId512.slice(2);
-    const directory = filePowers.joinPath(
-      statePath,
-      'formulas',
-      formulaType,
-      head,
-    );
+    const head = formulaNumber.slice(0, 2);
+    const tail = formulaNumber.slice(2);
+    const directory = filePowers.joinPath(statePath, 'formulas', head);
     const file = filePowers.joinPath(directory, `${tail}.json`);
     return harden({ directory, file });
   };
@@ -612,8 +607,8 @@ export const makeDaemonicPersistencePowers = (
   };
 
   // Persist instructions for revival (this can be collected)
-  const writeFormula = async (formula, formulaType, formulaId512) => {
-    const { directory, file } = makeFormulaPath(formulaType, formulaId512);
+  const writeFormula = async (formula, formulaType, formulaNumber) => {
+    const { directory, file } = makeFormulaPath(formulaType, formulaNumber);
     // TODO Take care to write atomically with a rename here.
     await filePowers.makePath(directory);
     await filePowers.writeFileText(file, `${q(formula)}\n`);
@@ -657,19 +652,11 @@ export const makeDaemonicControlPowers = (
   const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
     const { cachePath, statePath, ephemeralStatePath, sockPath } = locator;
 
-    const workerCachePath = filePowers.joinPath(
-      cachePath,
-      'worker-id512',
-      workerId,
-    );
-    const workerStatePath = filePowers.joinPath(
-      statePath,
-      'worker-id512',
-      workerId,
-    );
+    const workerCachePath = filePowers.joinPath(cachePath, 'worker', workerId);
+    const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
     const workerEphemeralStatePath = filePowers.joinPath(
       ephemeralStatePath,
-      'worker-id512',
+      'worker',
       workerId,
     );
 

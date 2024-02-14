@@ -83,15 +83,15 @@ const makeEndoBootstrap = async (
   const contentStore = persistencePowers.makeContentSha512Store();
   const rootNonce = await persistencePowers.provideRootNonce();
 
-  const endoFormulaIdentifier = `endo-id512:${rootNonce}`;
+  const endoFormulaIdentifier = `endo:${rootNonce}`;
   const defaultHostFormulaNumber = derive(rootNonce, 'host');
-  const defaultHostFormulaIdentifier = `host-id512:${defaultHostFormulaNumber}`;
-  const webPageJsFormulaIdentifier = `web-page-js-id512:${derive(
+  const defaultHostFormulaIdentifier = `host:${defaultHostFormulaNumber}`;
+  const webPageJsFormulaIdentifier = `web-page-js:${derive(
     rootNonce,
     'web-page-js',
   )}`;
   const leastAuthorityFormulaNumber = derive(rootNonce, 'least-authority');
-  const leastAuthorityFormulaIdentifier = `least-authority-id512:${leastAuthorityFormulaNumber}`;
+  const leastAuthorityFormulaIdentifier = `least-authority:${leastAuthorityFormulaNumber}`;
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
   const controllerForFormulaIdentifier = new Map();
@@ -118,7 +118,7 @@ const makeEndoBootstrap = async (
    */
   const storeReaderRef = async readerRef => {
     const sha512Hex = await contentStore.store(makeRefReader(readerRef));
-    return `readable-blob-sha512:${sha512Hex}`;
+    return `readable-blob:${sha512Hex}`;
   };
 
   /**
@@ -373,8 +373,8 @@ const makeEndoBootstrap = async (
         context,
       );
     } else if (formula.type === 'guest') {
-      const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
-      const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
+      const storeFormulaIdentifier = `pet-store:${formulaNumber}`;
+      const workerFormulaIdentifier = `worker:${formulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedGuestController(
@@ -408,44 +408,45 @@ const makeEndoBootstrap = async (
   };
 
   /**
-   * @param {string} formulaIdentifier
+   * @param {string} formulaType
+   * @param {string} formulaNumber
    * @param {import('./types.js').Context} context
    */
   const makeControllerForFormulaIdentifier = async (
-    formulaIdentifier,
+    formulaType,
+    formulaNumber,
     context,
   ) => {
-    const { type: formulaType, number: formulaNumber } =
-      parseFormulaIdentifier(formulaIdentifier);
-    if (formulaType === 'readable-blob-sha512') {
+    const formulaIdentifier = `${formulaType}:${formulaNumber}`;
+    if (formulaType === 'readable-blob') {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
       const external = makeReadableBlob(formulaNumber);
       return { external, internal: undefined };
-    } else if (formulaType === 'worker-id512') {
+    } else if (formulaType === 'worker') {
       return makeIdentifiedWorkerController(formulaNumber, context);
-    } else if (formulaType === 'pet-inspector-id512') {
+    } else if (formulaType === 'pet-inspector') {
       const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store-id512:${storeFormulaNumber}`;
+      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
       const external = makePetStoreInspector(storeFormulaIdentifier);
       return { external, internal: undefined };
-    } else if (formulaType === 'pet-store-id512') {
+    } else if (formulaType === 'pet-store') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         assertPetName,
       );
       return { external, internal: undefined };
-    } else if (formulaType === 'host-id512') {
+    } else if (formulaType === 'host') {
       const workerFormulaNumber = derive(formulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker-id512:${workerFormulaNumber}`;
+      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
       const inspectorFormulaNumber = derive(formulaNumber, 'pet-inspector');
-      const inspectorFormulaIdentifier = `pet-inspector-id512:${inspectorFormulaNumber}`;
+      const inspectorFormulaIdentifier = `pet-inspector:${inspectorFormulaNumber}`;
       // Note the pet store formula number derivation path:
       // root -> host -> inspector -> pet store
       const storeFormulaNumber = derive(inspectorFormulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store-id512:${storeFormulaNumber}`;
+      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -458,9 +459,9 @@ const makeEndoBootstrap = async (
         leastAuthorityFormulaIdentifier,
         context,
       );
-    } else if (formulaType === 'endo-id512') {
+    } else if (formulaType === 'endo') {
       if (formulaNumber !== rootNonce) {
-        throw new Error('Invalid endo-id512 formula number.');
+        throw new Error('Invalid endo formula number.');
       }
 
       // TODO reframe "cancelled" as termination of the "endo" object and
@@ -468,16 +469,16 @@ const makeEndoBootstrap = async (
       // Behold, self-referentiality:
       // eslint-disable-next-line no-use-before-define
       return { external: endoBootstrap, internal: undefined };
-    } else if (formulaType === 'least-authority-id512') {
+    } else if (formulaType === 'least-authority') {
       return { external: leastAuthority, internal: undefined };
-    } else if (formulaType === 'web-page-js-id512') {
+    } else if (formulaType === 'web-page-js') {
       if (persistencePowers.getWebPageBundlerFormula === undefined) {
         throw Error('No web-page-js formula provided.');
       }
       // Note that this worker is hardcoded to be the "MAIN" worker of the
       // default host.
       const workerFormulaNumber = derive(defaultHostFormulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker-id512:${workerFormulaNumber}`;
+      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
 
       return makeControllerForFormula(
         'web-page-js',
@@ -490,10 +491,10 @@ const makeEndoBootstrap = async (
       );
     } else if (
       [
-        'eval-id512',
-        'make-unconfined-id512',
-        'make-bundle-id512',
-        'guest-id512',
+        'eval',
+        'make-unconfined',
+        'make-bundle',
+        'guest',
         'web-bundle',
       ].includes(formulaType)
     ) {
@@ -585,6 +586,9 @@ const makeEndoBootstrap = async (
    * @param {string} formulaIdentifier
    */
   const provideControllerForFormulaIdentifier = formulaIdentifier => {
+    const { type: formulaType, number: formulaNumber } =
+      parseFormulaIdentifier(formulaIdentifier);
+
     let controller = controllerForFormulaIdentifier.get(formulaIdentifier);
     if (controller !== undefined) {
       return controller;
@@ -606,7 +610,10 @@ const makeEndoBootstrap = async (
       internal: E.get(partial).internal,
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
-    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, context));
+
+    resolve(
+      makeControllerForFormulaIdentifier(formulaType, formulaNumber, context),
+    );
 
     return controller;
   };
@@ -683,11 +690,11 @@ const makeEndoBootstrap = async (
         parseFormulaIdentifier(formulaIdentifier);
       if (
         ![
-          'eval-id512',
-          'lookup-id512',
-          'make-unconfined-id512',
-          'make-bundle-id512',
-          'guest-id512',
+          'eval',
+          'lookup',
+          'make-unconfined',
+          'make-bundle',
+          'guest',
           'web-bundle',
         ].includes(formulaType)
       ) {
