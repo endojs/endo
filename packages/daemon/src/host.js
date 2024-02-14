@@ -22,7 +22,7 @@ export const makeHostMaker = ({
    * @param {string} inspectorFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
    * @param {string} leastAuthorityFormulaIdentifier
-   * @param {import('./types.js').Terminator} terminator
+   * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
@@ -31,10 +31,10 @@ export const makeHostMaker = ({
     inspectorFormulaIdentifier,
     mainWorkerFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
-    terminator,
+    context,
   ) => {
-    terminator.thisDiesIfThatDies(storeFormulaIdentifier);
-    terminator.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+    context.thisDiesIfThatDies(storeFormulaIdentifier);
+    context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
     const petStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
@@ -62,7 +62,7 @@ export const makeHostMaker = ({
       listSpecial,
       rename,
       remove,
-      terminate,
+      cancel,
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
@@ -72,7 +72,7 @@ export const makeHostMaker = ({
         INFO: inspectorFormulaIdentifier,
         NONE: leastAuthorityFormulaIdentifier,
       },
-      terminator,
+      context,
     });
 
     /**
@@ -513,7 +513,7 @@ export const makeHostMaker = ({
       makeWorker,
       provideWorker,
       evaluate,
-      terminate,
+      cancel,
       makeUnconfined,
       makeBundle,
       provideWebPage,
