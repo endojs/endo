@@ -186,7 +186,13 @@ export interface PetStore {
   has(petName: string): boolean;
   identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
-  follow(): Promise<FarRef<Reader<{ add: string } | { remove: string }>>>;
+  follow(): Promise<
+    FarRef<
+      Reader<
+        { add: string; value: FormulaIdentifierRecord } | { remove: string }
+      >
+    >
+  >;
   listEntries(): Array<[string, FormulaIdentifierRecord]>;
   followEntries(): Promise<
     FarRef<
