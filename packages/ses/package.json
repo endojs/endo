@@ -46,6 +46,9 @@
       "require": "./dist/ses.cjs"
     },
     "./tools.js": "./tools.js",
+    "./assert-shim.js": "./assert-shim.js",
+    "./lockdown-shim.js": "./lockdown-shim.js",
+    "./compartment-shim.js": "./compartment-shim.js",
     "./package.json": "./package.json"
   },
   "scripts": {
