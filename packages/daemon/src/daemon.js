@@ -137,7 +137,7 @@ const makeEndoBootstrap = async (
     // TODO validate workerId512
     const daemonWorkerFacet = makeWorkerBootstrap(workerId512);
 
-    const { promise: hardCancelled, reject: hardCancel } =
+    const { promise: forceCancelled, reject: forceCancel } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
         makePromiseKit()
       );
@@ -146,10 +146,10 @@ const makeEndoBootstrap = async (
       await controlPowers.makeWorker(
         workerId512,
         daemonWorkerFacet,
-        Promise.race([hardCancelled, gracePeriodElapsed]),
+        Promise.race([forceCancelled, gracePeriodElapsed]),
       );
 
-    const softCancel = async () => {
+    const gracefulCancel = async () => {
       E.sendOnly(workerDaemonFacet).terminate();
       const cancelWorkerGracePeriod = () => {
         throw new Error('Exited gracefully before grace period elapsed');
@@ -164,11 +164,11 @@ const makeEndoBootstrap = async (
             `Worker termination grace period ${gracePeriodMs}ms elapsed`,
           );
         })
-        .catch(hardCancel);
+        .catch(forceCancel);
       await workerTerminated;
     };
 
-    context.onCancel(softCancel);
+    context.onCancel(gracefulCancel);
 
     const worker = Far('EndoWorker', {});
 

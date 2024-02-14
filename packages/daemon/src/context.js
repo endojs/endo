@@ -38,6 +38,7 @@ export const makeContextMaker = ({
       }
       dependents.clear();
 
+      // Execute all cancellation hooks and resolve a single `undefined` for them.
       resolveDisposed(Promise.all(hooks.map(hook => hook())).then(() => {}));
 
       return disposed;
