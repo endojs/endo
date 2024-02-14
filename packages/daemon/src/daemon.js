@@ -12,7 +12,6 @@ import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeTerminatorMaker } from './terminator.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
-import { zero512 } from './common.js';
 
 const { quote: q } = assert;
 
@@ -63,7 +62,7 @@ const makeInspector = (type, number, record) =>
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
  */
-const makeEndoBootstrap = (
+const makeEndoBootstrap = async (
   powers,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
@@ -75,7 +74,24 @@ const makeEndoBootstrap = (
     control: controlPowers,
   } = powers;
   const { randomHex512, makeSha512 } = cryptoPowers;
+  const derive = (...path) => {
+    const digester = makeSha512();
+    digester.updateText(path.join(':'));
+    return digester.digestHex();
+  };
+
   const contentStore = persistencePowers.makeContentSha512Store();
+  const rootNonce = await persistencePowers.provideRootNonce();
+
+  const endoFormulaIdentifier = `endo-id512:${rootNonce}`;
+  const defaultHostFormulaNumber = derive(rootNonce, 'host');
+  const defaultHostFormulaIdentifier = `host-id512:${defaultHostFormulaNumber}`;
+  const webPageJsFormulaIdentifier = `web-page-js-id512:${derive(
+    rootNonce,
+    'web-page-js',
+  )}`;
+  const leastAuthorityFormulaNumber = derive(rootNonce, 'least-authority');
+  const leastAuthorityFormulaIdentifier = `least-authority-id512:${leastAuthorityFormulaNumber}`;
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
   const controllerForFormulaIdentifier = new Map();
@@ -407,32 +423,7 @@ const makeEndoBootstrap = (
   ) => {
     const { type: formulaType, number: formulaNumber } =
       parseFormulaIdentifier(formulaIdentifier);
-    if (formulaType === 'endo-id512') {
-      if (formulaNumber !== zero512) {
-        throw Error('Invalid endo-id512 formula number.');
-      }
-
-      // TODO reframe "cancelled" as termination of the "endo" object and
-      // ensure that all values ultimately depend on "endo".
-      // Behold, self-referentiality:
-      // eslint-disable-next-line no-use-before-define
-      return { external: endoBootstrap, internal: undefined };
-    } else if (formulaType === 'least-authority-id512') {
-      return { external: leastAuthority, internal: undefined };
-    } else if (formulaType === 'web-page-js-id512') {
-      if (persistencePowers.webPageBundlerFormula === undefined) {
-        throw Error('No web-page-js-id512 formula provided.');
-      }
-      if (formulaNumber !== zero512) {
-        throw Error('Invalid web-page-js-id512 formula number.');
-      }
-      return makeControllerForFormula(
-        formulaIdentifier,
-        zero512,
-        persistencePowers.webPageBundlerFormula,
-        terminator,
-      );
-    } else if (formulaType === 'readable-blob-sha512') {
+    if (formulaType === 'readable-blob-sha512') {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
       const external = makeReadableBlob(formulaNumber);
@@ -440,11 +431,11 @@ const makeEndoBootstrap = (
     } else if (formulaType === 'worker-id512') {
       return makeIdentifiedWorkerController(formulaNumber, terminator);
     } else if (formulaType === 'pet-inspector-id512') {
+      const storeFormulaNumber = derive(formulaNumber, 'pet-store');
+      const storeFormulaIdentifier = `pet-store-id512:${storeFormulaNumber}`;
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
-      const external = makePetStoreInspector(
-        `pet-store-id512:${formulaNumber}`,
-      );
+      const external = makePetStoreInspector(storeFormulaIdentifier);
       return { external, internal: undefined };
     } else if (formulaType === 'pet-store-id512') {
       const external = petStorePowers.makeIdentifiedPetStore(
@@ -453,11 +444,14 @@ const makeEndoBootstrap = (
       );
       return { external, internal: undefined };
     } else if (formulaType === 'host-id512') {
-      const endoFormulaIdentifier = `endo-id512:${zero512}`;
-      const storeFormulaIdentifier = `pet-store-id512:${formulaNumber}`;
-      const inspectorFormulaIdentifier = `pet-inspector-id512:${formulaNumber}`;
-      const workerFormulaIdentifier = `worker-id512:${formulaNumber}`;
-      const leastAuthorityFormulaIdentifier = `least-authority-id512:${zero512}`;
+      const workerFormulaNumber = derive(formulaNumber, 'worker');
+      const workerFormulaIdentifier = `worker-id512:${workerFormulaNumber}`;
+      const inspectorFormulaNumber = derive(formulaNumber, 'pet-inspector');
+      const inspectorFormulaIdentifier = `pet-inspector-id512:${inspectorFormulaNumber}`;
+      // Note the pet store formula number derivation path:
+      // root -> host -> inspector -> pet store
+      const storeFormulaNumber = derive(inspectorFormulaNumber, 'pet-store');
+      const storeFormulaIdentifier = `pet-store-id512:${storeFormulaNumber}`;
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -468,6 +462,36 @@ const makeEndoBootstrap = (
         inspectorFormulaIdentifier,
         workerFormulaIdentifier,
         leastAuthorityFormulaIdentifier,
+        terminator,
+      );
+    } else if (formulaType === 'endo-id512') {
+      if (formulaNumber !== rootNonce) {
+        throw new Error('Invalid endo-id512 formula number.');
+      }
+
+      // TODO reframe "cancelled" as termination of the "endo" object and
+      // ensure that all values ultimately depend on "endo".
+      // Behold, self-referentiality:
+      // eslint-disable-next-line no-use-before-define
+      return { external: endoBootstrap, internal: undefined };
+    } else if (formulaType === 'least-authority-id512') {
+      return { external: leastAuthority, internal: undefined };
+    } else if (formulaType === 'web-page-js-id512') {
+      if (persistencePowers.getWebPageBundlerFormula === undefined) {
+        throw Error('No web-page-js formula provided.');
+      }
+      // Note that this worker is hardcoded to be the "MAIN" worker of the
+      // default host.
+      const workerFormulaNumber = derive(defaultHostFormulaNumber, 'worker');
+      const workerFormulaIdentifier = `worker-id512:${workerFormulaNumber}`;
+
+      return makeControllerForFormula(
+        'web-page-js',
+        derive(formulaNumber, 'web-page-js'),
+        persistencePowers.getWebPageBundlerFormula(
+          workerFormulaIdentifier,
+          defaultHostFormulaIdentifier,
+        ),
         terminator,
       );
     } else if (
@@ -581,7 +605,7 @@ const makeEndoBootstrap = (
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const terminator = makeTerminator(formulaIdentifier);
-    partial.catch(error => terminator.terminate());
+    partial.catch(() => terminator.terminate());
     controller = harden({
       terminator,
       external: E.get(partial).external,
@@ -767,12 +791,12 @@ const makeEndoBootstrap = (
       cancel(new Error('Termination requested'));
     },
 
-    host: () => provideValueForFormulaIdentifier(`host-id512:${zero512}`),
+    host: () => provideValueForFormulaIdentifier(defaultHostFormulaIdentifier),
 
     leastAuthority: () => leastAuthority,
 
     webPageJs: () =>
-      provideValueForFormulaIdentifier(`web-page-js-id512:${zero512}`),
+      provideValueForFormulaIdentifier(webPageJsFormulaIdentifier),
 
     importAndEndowInWebPage: async (webPageP, webPageNumber) => {
       const { bundle: bundleBlob, powers: endowedPowers } =
