@@ -2,6 +2,7 @@
 
 import os from 'os';
 import path from 'path';
+import url from 'url';
 
 import bundleSource from '@endo/bundle-source';
 import { makeReaderRef } from '@endo/daemon';
@@ -65,7 +66,7 @@ export const makeCommand = async ({
       importPath !== undefined
         ? E(party).makeUnconfined(
             workerName,
-            path.resolve(importPath),
+            url.pathToFileURL(path.resolve(importPath)).href,
             powersName,
             resultName,
           )

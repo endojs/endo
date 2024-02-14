@@ -46,7 +46,6 @@ export type HttpConnect = (
 ) => void;
 
 export type MignonicPowers = {
-  pathToFileURL: (path: string) => string;
   connection: {
     reader: Reader<Uint8Array>;
     writer: Writer<Uint8Array>;
@@ -91,7 +90,7 @@ type MakeUnconfinedFormula = {
   type: 'make-unconfined';
   worker: string;
   powers: string;
-  importPath: string;
+  specifier: string;
   // TODO formula slots
 };
 
@@ -260,9 +259,9 @@ export interface EndoHost {
     resultName?: string,
   );
   makeUnconfined(
-    workerPetName: string | undefined,
-    importPath: string,
-    powersName: string,
+    workerName: string | 'NEW' | 'MAIN',
+    specifier: string,
+    powersName: string | 'NONE' | 'SELF' | 'ENDO',
     resultName?: string,
   ): Promise<unknown>;
   makeBundle(
