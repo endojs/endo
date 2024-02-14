@@ -384,6 +384,8 @@ const CommonMath = {
   irem: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
   mod: false,
+  // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
+  irandom: false,
 };
 
 export const permitted = {
@@ -445,6 +447,8 @@ export const permitted = {
     values: fn,
     // https://github.com/tc39/proposal-array-grouping
     groupBy: fn,
+    // Seen on QuickJS
+    __getClass: false,
   },
 
   '%ObjectPrototype%': {
@@ -491,6 +495,10 @@ export const permitted = {
     caller: false,
     // proposed but not yet std. To be removed if there
     arguments: false,
+    // Seen on QuickJS. TODO grab getter for use by console
+    fileName: false,
+    // Seen on QuickJS. TODO grab getter for use by console
+    lineNumber: false,
   },
 
   Boolean: {
@@ -530,6 +538,8 @@ export const permitted = {
     useSimple: false,
     // Seen at core-js https://github.com/zloirock/core-js#ecmascript-symbol
     useSetter: false,
+    // Seen on QuickJS
+    operatorSet: false,
   },
 
   '%SymbolPrototype%': {
@@ -640,6 +650,30 @@ export const permitted = {
     bitLength: false,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     fromArrayBuffer: false,
+    // Seen on QuickJS
+    tdiv: false,
+    // Seen on QuickJS
+    fdiv: false,
+    // Seen on QuickJS
+    cdiv: false,
+    // Seen on QuickJS
+    ediv: false,
+    // Seen on QuickJS
+    tdivrem: false,
+    // Seen on QuickJS
+    fdivrem: false,
+    // Seen on QuickJS
+    cdivrem: false,
+    // Seen on QuickJS
+    edivrem: false,
+    // Seen on QuickJS
+    sqrt: false,
+    // Seen on QuickJS
+    sqrtrem: false,
+    // Seen on QuickJS
+    floorLog2: false,
+    // Seen on QuickJS
+    ctz: false,
   },
 
   '%BigIntPrototype%': {
@@ -808,6 +842,8 @@ export const permitted = {
     isWellFormed: fn,
     toWellFormed: fn,
     unicodeSets: fn,
+    // Seen on QuickJS
+    __quote: false,
   },
 
   '%StringIteratorPrototype%': {
@@ -1112,6 +1148,8 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%SetPrototype%',
     '@@species': getter,
+    // Seen on QuickJS
+    groupBy: false,
   },
 
   '%SetPrototype%': {
@@ -1294,6 +1332,8 @@ export const permitted = {
     '@@toStringTag': 'string',
     // https://github.com/tc39/proposal-async-iterator-helpers
     toAsync: fn,
+    // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
+    '@@dispose': false,
   },
 
   // https://github.com/tc39/proposal-iterator-helpers
@@ -1336,6 +1376,8 @@ export const permitted = {
     every: fn,
     find: fn,
     '@@toStringTag': 'string',
+    // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
+    '@@asyncDispose': false,
   },
 
   // https://github.com/tc39/proposal-async-iterator-helpers
