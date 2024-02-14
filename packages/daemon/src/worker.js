@@ -14,6 +14,21 @@ const endowments = harden({
   URL,
 });
 
+const normalizeFilePath = path => {
+  // Check if the path is already a file URL.
+  if (path.startsWith('file://')) {
+    return path;
+  }
+  // Windows path detection and conversion (look for a drive letter at the start).
+  const isWindowsPath = /^[a-zA-Z]:/.test(path);
+  if (isWindowsPath) {
+    // Correctly format the Windows path with three slashes.
+    return `file:///${path}`;
+  }
+  // For non-Windows paths, prepend the file protocol.
+  return `file://${path}`;
+};
+
 /**
  * @typedef {ReturnType<makeWorkerFacet>} WorkerBootstrap
  */
@@ -21,9 +36,8 @@ const endowments = harden({
 /**
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
- * @param {(path: string) => string} args.pathToFileURL
  */
-export const makeWorkerFacet = ({ pathToFileURL, cancel }) => {
+export const makeWorkerFacet = ({ cancel }) => {
   return Far('EndoWorkerFacet', {
     terminate: async () => {
       console.error('Endo worker received terminate request');
@@ -50,12 +64,15 @@ export const makeWorkerFacet = ({ pathToFileURL, cancel }) => {
     },
 
     /**
-     * @param {string} path
+     * @param {string} specifier
      * @param {unknown} powersP
      */
-    makeUnconfined: async (path, powersP) => {
-      const url = pathToFileURL(path);
-      const namespace = await import(url);
+    makeUnconfined: async (specifier, powersP) => {
+      // Windows absolute path includes drive letter which is confused for
+      // protocol specifier. So, we reformat the specifier to include the
+      // file protocol.
+      const specifierUrl = normalizeFilePath(specifier);
+      const namespace = await import(specifierUrl);
       return namespace.make(powersP);
     },
 
@@ -92,12 +109,9 @@ export const main = async (powers, locator, uuid, pid, cancel, cancelled) => {
     console.error(`Endo worker exiting on pid ${pid}`);
   });
 
-  const { pathToFileURL } = powers;
-
   const { reader, writer } = powers.connection;
 
   const workerFacet = makeWorkerFacet({
-    pathToFileURL,
     cancel,
   });
 

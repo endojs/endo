@@ -293,15 +293,10 @@ export const makeHostMaker = ({
       return value;
     };
 
-    /**
-     * @param {string | 'NEW' | 'MAIN'} workerName
-     * @param {string} importPath
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
-     * @param {string} resultName
-     */
+    /** @type {import('./types.js').EndoHost['makeUnconfined']} */
     const makeUnconfined = async (
       workerName,
-      importPath,
+      specifier,
       powersName,
       resultName,
     ) => {
@@ -318,7 +313,7 @@ export const makeHostMaker = ({
         type: 'make-unconfined',
         worker: workerFormulaIdentifier,
         powers: powersFormulaIdentifier,
-        importPath,
+        specifier,
       };
 
       // Behold, recursion:

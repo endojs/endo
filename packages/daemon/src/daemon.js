@@ -251,13 +251,13 @@ const makeEndoBootstrap = (
   /**
    * @param {string} workerFormulaIdentifier
    * @param {string} guestFormulaIdentifier
-   * @param {string} importPath
+   * @param {string} specifier
    * @param {import('./types.js').Terminator} terminator
    */
   const makeControllerForUnconfinedPlugin = async (
     workerFormulaIdentifier,
     guestFormulaIdentifier,
-    importPath,
+    specifier,
     terminator,
   ) => {
     terminator.thisDiesIfThatDies(workerFormulaIdentifier);
@@ -279,7 +279,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).makeUnconfined(importPath, guestP);
+    const external = E(workerDaemonFacet).makeUnconfined(specifier, guestP);
     return { external, internal: undefined };
   };
 
@@ -352,7 +352,7 @@ const makeEndoBootstrap = (
       return makeControllerForUnconfinedPlugin(
         formula.worker,
         formula.powers,
-        formula.importPath,
+        formula.specifier,
         terminator,
       );
     } else if (formula.type === 'make-bundle') {
