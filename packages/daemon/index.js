@@ -22,15 +22,22 @@ export { makeEndoClient } from './src/client.js';
 export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
 export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
 
+const removePathInternal = async removalPath => {
+  // workaround for windows wonkiness
+  if (os.platform() === 'win32') {
+    const { windows: windowsDelete } = await import('rimraf');
+    return windowsDelete(removalPath);
+  }
+  return fs.promises.rm(removalPath, { recursive: true, force: true });
+};
+
 const removePath = async removalPath => {
-  return fs.promises
-    .rm(removalPath, { recursive: true, force: true })
-    .catch(cause => {
-      /** @type {object} */
-      const error = new Error(cause.message, { cause });
-      error.code = cause.code;
-      throw error;
-    });
+  return removePathInternal(removalPath).catch(cause => {
+    /** @type {object} */
+    const error = new Error(cause.message, { cause });
+    error.code = cause.code;
+    throw error;
+  });
 };
 
 const { username, homedir } = os.userInfo();
@@ -147,9 +154,7 @@ const enoentOk = error => {
 };
 
 export const clean = async (locator = defaultLocator) => {
-  if (process.platform !== 'win32') {
-    await removePath(locator.sockPath).catch(enoentOk);
-  }
+  await removePath(locator.sockPath).catch(enoentOk);
 };
 
 export const restart = async (locator = defaultLocator) => {
@@ -163,7 +168,10 @@ export const stop = async (locator = defaultLocator) => {
   await clean(locator);
 };
 
-export const reset = async (locator = defaultLocator) => {
+export const resetInternal = async (
+  locator = defaultLocator,
+  turnOff = false,
+) => {
   // Attempt to restore to a running state if currently running, based on
   // whether we manage to terminate it.
   const needsRestart = await terminate(locator).then(
@@ -184,7 +192,12 @@ export const reset = async (locator = defaultLocator) => {
     removedCache,
   ]);
 
-  if (needsRestart) {
+  if (!turnOff && needsRestart) {
     await start(locator);
   }
 };
+
+export const reset = async (locator = defaultLocator) =>
+  resetInternal(locator, false);
+export const teardown = async (locator = defaultLocator) =>
+  resetInternal(locator, true);
