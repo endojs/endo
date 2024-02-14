@@ -321,17 +321,27 @@ export type PetStorePowers = {
   ) => Promise<FarRef<PetStore>>;
 };
 
-export type NetworkPowers = {
-  servePath: (args: {
-    path: string;
-    host?: string;
-    cancelled: Promise<never>;
-  }) => Promise<AsyncIterableIterator<Connection>>;
+export type SocketPowers = {
   servePort: (args: {
     port: number;
     host?: string;
     cancelled: Promise<never>;
+  }) => Promise<{
+    port: number;
+    connections: Reader<Connection>;
+  }>;
+  connectPort: (args: {
+    port: number;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<Connection>;
+  servePath: (args: {
+    path: string;
+    cancelled: Promise<never>;
   }) => Promise<AsyncIterableIterator<Connection>>;
+};
+
+export type NetworkPowers = SocketPowers & {
   servePortHttp: (args: {
     port: number;
     host?: string;

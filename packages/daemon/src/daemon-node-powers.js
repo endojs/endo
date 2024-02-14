@@ -179,13 +179,9 @@ export const makeHttpPowers = ({ http, ws }) => {
 /**
  * @param {object} modules
  * @param {typeof import('net')} modules.net
- * @param {typeof import('http')} modules.http
- * @param {typeof import('ws')} modules.ws
- * @returns {import('./types.js').NetworkPowers}
+ * @returns {import('./types.js').SocketPowers}
  */
-export const makeNetworkPowers = ({ http, ws, net }) => {
-  const { servePortHttp } = makeHttpPowers({ http, ws });
-
+export const makeSocketPowers = ({ net }) => {
   const serveListener = async (listen, cancelled) => {
     const [
       /** @type {Reader<import('./types.js').Connection>} */ readFrom,
@@ -219,31 +215,46 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
       void writeTo.next({ reader, writer, closed });
     });
 
-    return readFrom;
+    const port = await listening;
+
+    return harden({
+      port,
+      connections: readFrom,
+    });
   };
 
-  /**
-   * @param {object} args
-   * @param {number} args.port
-   * @param {string} [args.host]
-   * @param {Promise<never>} args.cancelled
-   */
+  /** @type {import('./types.js').SocketPowers['servePort']} */
   const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
     serveListener(
       server =>
         new Promise(resolve =>
-          server.listen(port, host, () => resolve(undefined)),
+          server.listen(port, host, () => resolve(server.address().port)),
         ),
       cancelled,
     );
 
-  /**
-   * @param {object} args
-   * @param {string} args.path
-   * @param {Promise<never>} args.cancelled
-   */
-  const servePath = async ({ path, cancelled }) =>
-    serveListener(server => {
+  /** @type {import('./types.js').SocketPowers['connectPort']} */
+  const connectPort = ({ port, host, cancelled }) =>
+    new Promise((resolve, reject) => {
+      const conn = net.connect(port, host, err => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const reader = makeNodeReader(conn);
+        const writer = makeNodeWriter(conn);
+        const closed = new Promise(close => conn.on('close', close));
+        resolve({
+          reader,
+          writer,
+          closed,
+        });
+      });
+    });
+
+  /** @type {import('./types.js').SocketPowers['servePath']} */
+  const servePath = async ({ path, cancelled }) => {
+    const { connections } = await serveListener(server => {
       return new Promise((resolve, reject) =>
         server.listen({ path }, error => {
           if (error) {
@@ -259,6 +270,22 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
         }),
       );
     }, cancelled);
+    return connections;
+  };
+
+  return { servePort, servePath, connectPort };
+};
+
+/**
+ * @param {object} modules
+ * @param {typeof import('net')} modules.net
+ * @param {typeof import('http')} modules.http
+ * @param {typeof import('ws')} modules.ws
+ * @returns {import('./types.js').NetworkPowers}
+ */
+export const makeNetworkPowers = ({ http, ws, net }) => {
+  const { servePortHttp } = makeHttpPowers({ http, ws });
+  const { servePort, servePath, connectPort } = makeSocketPowers({ net });
 
   const connectionNumbers = (function* generateNumbers() {
     let n = 0;
@@ -321,6 +348,7 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
     servePortHttp,
     servePort,
     servePath,
+    connectPort,
     makePrivatePathService,
     makePrivateHttpService,
   });
