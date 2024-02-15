@@ -17,7 +17,7 @@ import {
   stop,
   restart,
   clean,
-  reset,
+  purge,
   makeEndoClient,
   makeReaderRef,
 } from '../index.js';
@@ -78,7 +78,7 @@ test('lifecycle', async t => {
   const locator = makeLocator('tmp', 'lifecycle');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await clean(locator);
   await start(locator);
   await stop(locator);
@@ -106,7 +106,7 @@ test('spawn and evaluate', async t => {
   const locator = makeLocator('tmp', 'spawn-eval');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -129,7 +129,7 @@ test('anonymous spawn and evaluate', async t => {
   const locator = makeLocator('tmp', 'spawn-eval-anon');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -151,7 +151,7 @@ test('persist spawn and evaluation', async t => {
   const locator = makeLocator('tmp', 'persist-spawn-eval');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   {
@@ -208,7 +208,7 @@ test('store', async t => {
   const locator = makeLocator('tmp', 'store');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   {
@@ -245,7 +245,7 @@ test('closure state lost by restart', async t => {
   const locator = makeLocator('tmp', 'restart-closures');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   {
@@ -345,7 +345,7 @@ test('persist unconfined services and their requests', async t => {
   const locator = makeLocator('tmp', 'make-unconfined');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const responderFinished = (async () => {
@@ -430,7 +430,7 @@ test('persist confined services and their requests', async t => {
   const locator = makeLocator('tmp', 'make-bundle');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const responderFinished = (async () => {
@@ -821,7 +821,7 @@ test('make a host', async t => {
   const locator = makeLocator('tmp', 'make-host');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -845,7 +845,7 @@ test('name and reuse inspector', async t => {
   const locator = makeLocator('tmp', 'inspector-reuse');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -888,7 +888,7 @@ test('eval-mediated worker name', async t => {
   const locator = makeLocator('tmp', 'eval-worker-name');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -935,7 +935,7 @@ test('lookup with single petname', async t => {
   const locator = makeLocator('tmp', 'lookup-single-petname');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -966,7 +966,7 @@ test('lookup with petname path (inspector)', async t => {
   const locator = makeLocator('tmp', 'lookup-petname-path-inspector');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -995,7 +995,7 @@ test('lookup with petname path (caplet with lookup method)', async t => {
   const locator = makeLocator('tmp', 'lookup-petname-path-caplet');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -1026,7 +1026,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
   const locator = makeLocator('tmp', 'lookup-petname-path-no-method');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -1057,7 +1057,7 @@ test('evaluate name resolved by lookup path', async t => {
   const locator = makeLocator('tmp', 'name-resolved-by-lookup-path');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(
@@ -1087,7 +1087,7 @@ test('list special names', async t => {
   const locator = makeLocator('tmp', 'list-names');
 
   await stop(locator).catch(() => {});
-  await reset(locator);
+  await purge(locator);
   await start(locator);
 
   const { getBootstrap } = await makeEndoClient(

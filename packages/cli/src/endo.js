@@ -530,15 +530,18 @@ export const main = async rawArgs => {
           ),
         );
       if (doPurge) {
-        const { reset } = await import('@endo/daemon');
-        await reset();
+        const { purge } = await import('@endo/daemon');
+        await purge();
       }
     });
 
   program
     .command('log')
     .option('-f, --follow', 'follow the tail of the log')
-    .option('-p,--ping <interval>', 'milliseconds between daemon reset checks')
+    .option(
+      '-p,--ping <interval>',
+      'milliseconds between daemon restart checks',
+    )
     .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
       const { follow, ping } = cmd.opts();
