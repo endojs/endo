@@ -1,1 +1,0 @@
-{"version":3,"file":"passStyleOf.d.ts","sourceRoot":"","sources":["passStyleOf.js"],"names":[],"mappings":"AAgMA,uDAA0E;AAE1E;;;;;;;;;;;;;;GAcG;AACH,0BAFU,WAAW,CAUhB;AAEE,+CAEN;8BA5Ma,OAAO,qBAAqB,EAAE,eAAe;uBAC7C,OAAO,YAAY,EAAE,QAAQ;wBAC7B,OAAO,YAAY,EAAE,SAAS;0BAC9B,OAAO,YAAY,EAAE,WAAW;6BAChC,OAAO,YAAY,EAAE,cAAc;8BAEnC,QAAQ,SAAS,EAAE,cAAc,GAAG,SAAS,CAAC"}
