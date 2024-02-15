@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v1.2.0 (2024-02-14)
 
 - Exports `ses/lockdown-shim.js`, `ses/compartment-shim.js`, and
   `ses/assert-shim.js` for piecemeal usage.
