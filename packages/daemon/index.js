@@ -163,7 +163,7 @@ export const stop = async (locator = defaultLocator) => {
   await clean(locator);
 };
 
-export const reset = async (locator = defaultLocator) => {
+export const purge = async (locator = defaultLocator) => {
   // Attempt to restore to a running state if currently running, based on
   // whether we manage to terminate it.
   const needsRestart = await terminate(locator).then(
