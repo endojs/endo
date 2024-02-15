@@ -5,6 +5,7 @@
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import { q } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
@@ -12,7 +13,6 @@ import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
-import { q } from '@endo/errors';
 
 /** @type {import('./types.js').EndoGuest} */
 const leastAuthority = Far('EndoGuest', {
