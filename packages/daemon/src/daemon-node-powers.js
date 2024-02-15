@@ -234,7 +234,7 @@ export const makeSocketPowers = ({ net }) => {
     );
 
   /** @type {import('./types.js').SocketPowers['connectPort']} */
-  const connectPort = ({ port, host, cancelled }) =>
+  const connectPort = ({ port, host }) =>
     new Promise((resolve, reject) => {
       const conn = net.connect(port, host, err => {
         if (err) {

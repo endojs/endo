@@ -217,12 +217,50 @@ export interface Topic<
   subscribe(): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
 }
 
+/**
+ * The cancellation context of a live value associated with a formula.
+ */
 export interface Context {
-  cancel: (reason?: unknown, logPrefix?: string) => Promise<void>;
+  /**
+   * Cancel the value, preparing it for garbage collection. Cancellation
+   * propagates to all values that depend on this value.
+   *
+   * @param reason - The reason for the cancellation.
+   * @param logPrefix - The prefix to use within the log.
+   * @returns A promise that is resolved when the value is cancelled and
+   * can be garbage collected.
+   */
+  cancel: (reason?: Error, logPrefix?: string) => Promise<void>;
+
+  /**
+   * A promise that is rejected when the context is cancelled.
+   * Once rejected, the cancelled value may initiate any teardown procedures.
+   */
   cancelled: Promise<never>;
+
+  /**
+   * A promise that is resolved when the context is disposed. This occurs
+   * after the `cancelled` promise is rejected, and after all disposal hooks
+   * have been run.
+   * Once resolved, the value may be garbage collected at any time.
+   */
   disposed: Promise<void>;
+
+  /**
+   * @param formulaIdentifier - The formula identifier of the value whose
+   * cancellation should cause this value to be cancelled.
+   */
   thisDiesIfThatDies: (formulaIdentifier: string) => void;
+
+  /**
+   * @param formulaIdentifier - The formula identifier of the value that should
+   * be cancelled if this value is cancelled.
+   */
   thatDiesIfThisDies: (formulaIdentifier: string) => void;
+
+  /**
+   * @param hook - A hook to run when the value is cancelled.
+   */
   onCancel: (hook: () => void | Promise<void>) => void;
 }
 
@@ -230,6 +268,7 @@ export interface FarContext {
   cancel: (reason: Error) => Promise<void>;
   whenCancelled: () => Promise<never>;
   whenDisposed: () => Promise<void>;
+  addDisposalHook: Context['onCancel'];
 }
 
 export interface InternalExternal<External = unknown, Internal = unknown> {
@@ -322,7 +361,7 @@ export interface Mail {
   listSpecial(): Array<string>;
   listAll(): Array<string>;
   reverseLookupFormulaIdentifier(formulaIdentifier: string): Array<string>;
-  cancel(petName: string, reason: unknown): Promise<void>;
+  cancel(petName: string, reason: Error): Promise<void>;
   // Mail operations:
   listMessages(): Promise<Array<Message>>;
   followMessages(): Promise<FarRef<Reader<Message>>>;

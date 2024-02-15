@@ -46,6 +46,10 @@ const makeInspector = (type, number, record) =>
     list: () => Object.keys(record),
   });
 
+/**
+ * @param {import('./types.js').Context} context - The context to make far.
+ * @returns {import('./types.js').FarContext} The far context.
+ */
 const makeFarContext = context =>
   Far('Context', {
     cancel: context.cancel,
