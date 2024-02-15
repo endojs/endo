@@ -4,9 +4,6 @@ import { E } from '@endo/far';
 import { withEndoParty } from '../context.js';
 
 export const request = async ({
-  cancel,
-  cancelled,
-  sockPath,
   description,
   toName,
   resultName,

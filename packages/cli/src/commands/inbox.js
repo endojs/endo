@@ -6,13 +6,7 @@ import { makeRefIterator } from '@endo/daemon';
 import { withEndoParty } from '../context.js';
 import { formatMessage } from '../message-format.js';
 
-export const inbox = async ({
-  cancel,
-  cancelled,
-  sockPath,
-  follow,
-  partyNames,
-}) =>
+export const inbox = async ({ follow, partyNames }) =>
   withEndoParty(partyNames, { os, process }, async ({ party }) => {
     const messages = follow
       ? makeRefIterator(E(party).followMessages())

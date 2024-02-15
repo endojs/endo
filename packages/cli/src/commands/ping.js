@@ -6,7 +6,7 @@ import { makeEndoClient } from '@endo/daemon';
 import { withInterrupt } from '../context.js';
 
 export const ping = () =>
-  withInterrupt(async ({ cancel, cancelled }) => {
+  withInterrupt(async ({ cancelled }) => {
     const { username, homedir } = os.userInfo();
     const temp = os.tmpdir();
     const info = {

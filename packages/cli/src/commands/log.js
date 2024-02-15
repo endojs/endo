@@ -23,7 +23,7 @@ const delay = async (ms, cancelled) => {
 };
 
 export const log = async ({ follow, ping }) =>
-  withInterrupt(async ({ cancel, cancelled }) => {
+  withInterrupt(async ({ cancelled }) => {
     const logCheckIntervalMs = ping !== undefined ? Number(ping) : 5_000;
 
     const { username, homedir } = os.userInfo();

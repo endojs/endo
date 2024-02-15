@@ -4,9 +4,6 @@ import { E } from '@endo/far';
 import { withEndoParty } from '../context.js';
 
 export const rejectCommand = async ({
-  cancel,
-  cancelled,
-  sockPath,
   requestNumberText,
   message,
   partyNames,
