@@ -18,6 +18,7 @@ import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
 import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
 import { listDifference } from '@endo/common/list-difference.js';
 
+import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
 import {
   assertKey,
@@ -30,13 +31,11 @@ import {
   checkCopyBag,
   getCopyMapEntryArray,
   makeCopyMap,
-  getCopyMapKeys,
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
 /// <reference types="ses"/>
 
-const { quote: q, bare: b, details: X, Fail } = assert;
 const { entries, values } = Object;
 const { ownKeys } = Reflect;
 
@@ -586,11 +585,11 @@ const makePatternKit = () => {
     }
     // should only throw
     checkMatches(specimen, patt, assertChecker, label);
-    const outerError = assert.error(
+    const outerError = makeError(
       X`internal: ${label}: inconsistent pattern match: ${q(patt)}`,
     );
     if (innerError !== undefined) {
-      assert.note(outerError, X`caused by ${innerError}`);
+      annotateError(outerError, X`caused by ${innerError}`);
     }
     throw outerError;
   };
@@ -1738,7 +1737,7 @@ const AwaitArgGuardPayloadShape = harden({
   argGuard: M.pattern(),
 });
 
-const AwaitArgGuardShape = M.kind('guard:awaitArgGuard');
+export const AwaitArgGuardShape = M.kind('guard:awaitArgGuard');
 
 /**
  * @param {any} specimen
@@ -1758,19 +1757,6 @@ export const assertAwaitArgGuard = specimen => {
 harden(assertAwaitArgGuard);
 
 /**
- * By using this abstraction rather than accessing the properties directly,
- * we smooth the transition to https://github.com/endojs/endo/pull/1712
- *
- * @param {import('./types.js').AwaitArgGuard} awaitArgGuard
- * @returns {import('./types.js').AwaitArgGuardPayload}
- */
-export const getAwaitArgGuardPayload = awaitArgGuard => {
-  assertAwaitArgGuard(awaitArgGuard);
-  return awaitArgGuard.payload;
-};
-harden(getAwaitArgGuardPayload);
-
-/**
  * @param {import('./types.js').Pattern} argPattern
  * @returns {import('./types.js').AwaitArgGuard}
  */
@@ -1787,7 +1773,7 @@ const makeAwaitArgGuard = argPattern => {
 
 const RawGuardPayloadShape = M.record();
 
-const RawGuardShape = M.kind('guard:rawGuard');
+export const RawGuardShape = M.kind('guard:rawGuard');
 
 export const isRawGuard = specimen => matches(specimen, RawGuardShape);
 
@@ -1802,12 +1788,12 @@ const makeRawGuard = () => makeTagged('guard:rawGuard', {});
 // M.call(...)
 // M.callWhen(...)
 
-const SyncValueGuardShape = M.or(RawGuardShape, M.pattern());
+export const SyncValueGuardShape = M.or(RawGuardShape, M.pattern());
 
-const SyncValueGuardListShape = M.arrayOf(SyncValueGuardShape);
+export const SyncValueGuardListShape = M.arrayOf(SyncValueGuardShape);
 
 const ArgGuardShape = M.or(RawGuardShape, AwaitArgGuardShape, M.pattern());
-const ArgGuardListShape = M.arrayOf(ArgGuardShape);
+export const ArgGuardListShape = M.arrayOf(ArgGuardShape);
 
 const SyncMethodGuardPayloadShape = harden({
   callKind: 'sync',
@@ -1825,12 +1811,12 @@ const AsyncMethodGuardPayloadShape = harden({
   returnGuard: SyncValueGuardShape,
 });
 
-const MethodGuardPayloadShape = M.or(
+export const MethodGuardPayloadShape = M.or(
   SyncMethodGuardPayloadShape,
   AsyncMethodGuardPayloadShape,
 );
 
-const MethodGuardShape = M.kind('guard:methodGuard');
+export const MethodGuardShape = M.kind('guard:methodGuard');
 
 /**
  * @param {any} specimen
@@ -1840,19 +1826,6 @@ export const assertMethodGuard = specimen => {
   mustMatch(specimen, MethodGuardShape, 'methodGuard');
 };
 harden(assertMethodGuard);
-
-/**
- * By using this abstraction rather than accessing the properties directly,
- * we smooth the transition to https://github.com/endojs/endo/pull/1712
- *
- * @param {import('./types.js').MethodGuard} methodGuard
- * @returns {import('./types.js').MethodGuardPayload}
- */
-export const getMethodGuardPayload = methodGuard => {
-  assertMethodGuard(methodGuard);
-  return methodGuard.payload;
-};
-harden(getMethodGuardPayload);
 
 /**
  * @param {'sync'|'async'} callKind
@@ -1898,7 +1871,7 @@ const makeMethodGuardMaker = (
     },
   });
 
-const InterfaceGuardPayloadShape = M.splitRecord(
+export const InterfaceGuardPayloadShape = M.splitRecord(
   {
     interfaceName: M.string(),
     methodGuards: M.recordOf(M.string(), MethodGuardShape),
@@ -1910,7 +1883,7 @@ const InterfaceGuardPayloadShape = M.splitRecord(
   },
 );
 
-const InterfaceGuardShape = M.kind('guard:interfaceGuard');
+export const InterfaceGuardShape = M.kind('guard:interfaceGuard');
 
 /**
  * @param {any} specimen
@@ -1920,39 +1893,6 @@ export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
 };
 harden(assertInterfaceGuard);
-
-/**
- * By using this abstraction rather than accessing the properties directly,
- * we smooth the transition to https://github.com/endojs/endo/pull/1712
- *
- * @template {Record<PropertyKey, import('./types.js').MethodGuard>} [T=Record<PropertyKey, import('./types.js').MethodGuard>]
- * @param {import('./types.js').InterfaceGuard<T>} interfaceGuard
- * @returns {import('./types.js').InterfaceGuardPayload<T>}
- */
-export const getInterfaceGuardPayload = interfaceGuard => {
-  assertInterfaceGuard(interfaceGuard);
-  return interfaceGuard.payload;
-};
-harden(getInterfaceGuardPayload);
-
-const emptyCopyMap = makeCopyMap([]);
-
-/**
- * @param {import('./types.js').InterfaceGuard} interfaceGuard
- * @returns {(string | symbol)[]}
- */
-export const getInterfaceMethodKeys = interfaceGuard => {
-  const { methodGuards, symbolMethodGuards = emptyCopyMap } =
-    getInterfaceGuardPayload(interfaceGuard);
-  /** @type {(string | symbol)[]} */
-  // TODO at-ts-expect-error works locally but not from @endo/exo
-  // @ts-ignore inference is too weak to see this is ok
-  return harden([
-    ...Reflect.ownKeys(methodGuards),
-    ...getCopyMapKeys(symbolMethodGuards),
-  ]);
-};
-harden(getInterfaceMethodKeys);
 
 /**
  * @template {Record<PropertyKey, import('./types.js').MethodGuard>} [M = Record<PropertyKey, import('./types.js').MethodGuard>]

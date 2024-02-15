@@ -1,10 +1,17 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
-import { passStyleOf, makeTagged, Far } from '@endo/pass-style';
+import { passStyleOf, Far } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
+import { roundTripPairs } from './marshal-test-data.js';
 
-const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
+const {
+  freeze,
+  isFrozen,
+  create,
+  prototype: objectPrototype,
+  getPrototypeOf,
+} = Object;
 
 const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   // eslint-disable-next-line no-undef
@@ -12,155 +19,6 @@ const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
 );
 
 // this only includes the tests that do not use liveSlots
-
-/**
- * A list of `[plain, encoding]` pairs, where plain serializes to the
- * stringification of `encoding`, which unserializes to something deepEqual
- * to `plain`.
- */
-export const roundTripPairs = harden([
-  // Simple JSON data encodes as itself
-  [
-    [1, 2],
-    [1, 2],
-  ],
-  [{ foo: 1 }, { foo: 1 }],
-  [{}, {}],
-  [
-    { a: 1, b: 2 },
-    { a: 1, b: 2 },
-  ],
-  [
-    { a: 1, b: { c: 3 } },
-    { a: 1, b: { c: 3 } },
-  ],
-  [true, true],
-  [1, 1],
-  ['abc', 'abc'],
-  [null, null],
-
-  // proto problems
-  // The one case where JSON is not a semantic subset of JS
-  // Fails before https://github.com/endojs/endo/issues/1303 fix
-  [{ ['__proto__']: {} }, { ['__proto__']: {} }],
-  // Conflicts with non-overwrite-enable inherited frozen data property
-  // Fails before https://github.com/endojs/endo/issues/1303 fix
-  [{ isPrototypeOf: {} }, { isPrototypeOf: {} }],
-
-  // Scalars not represented in JSON
-  [undefined, { '@qclass': 'undefined' }],
-  [NaN, { '@qclass': 'NaN' }],
-  [Infinity, { '@qclass': 'Infinity' }],
-  [-Infinity, { '@qclass': '-Infinity' }],
-  [4n, { '@qclass': 'bigint', digits: '4' }],
-  // Does not fit into a number
-  [9007199254740993n, { '@qclass': 'bigint', digits: '9007199254740993' }],
-
-  // Well known symbols
-  [Symbol.asyncIterator, { '@qclass': 'symbol', name: '@@asyncIterator' }],
-  [Symbol.match, { '@qclass': 'symbol', name: '@@match' }],
-  // Registered symbols
-  [Symbol.for('foo'), { '@qclass': 'symbol', name: 'foo' }],
-  // Registered symbol hilbert hotel
-  [Symbol.for('@@foo'), { '@qclass': 'symbol', name: '@@@@foo' }],
-
-  // Normal json reviver cannot make properties with undefined values
-  [[undefined], [{ '@qclass': 'undefined' }]],
-  [{ foo: undefined }, { foo: { '@qclass': 'undefined' } }],
-
-  // tagged
-  [
-    makeTagged('x', 8),
-    {
-      '@qclass': 'tagged',
-      tag: 'x',
-      payload: 8,
-    },
-  ],
-  [
-    makeTagged('x', undefined),
-    {
-      '@qclass': 'tagged',
-      tag: 'x',
-      payload: { '@qclass': 'undefined' },
-    },
-  ],
-
-  // errors
-  [
-    Error(),
-    {
-      '@qclass': 'error',
-      message: '',
-      name: 'Error',
-    },
-  ],
-  [
-    ReferenceError('msg'),
-    {
-      '@qclass': 'error',
-      message: 'msg',
-      name: 'ReferenceError',
-    },
-  ],
-  [
-    ReferenceError('#msg'),
-    {
-      '@qclass': 'error',
-      message: '#msg',
-      name: 'ReferenceError',
-    },
-  ],
-
-  // Hilbert hotel
-  [
-    { '@qclass': 8 },
-    {
-      '@qclass': 'hilbert',
-      original: 8,
-    },
-  ],
-  [
-    { '@qclass': '@qclass' },
-    {
-      '@qclass': 'hilbert',
-      original: '@qclass',
-    },
-  ],
-  [
-    { '@qclass': { '@qclass': 8 } },
-    {
-      '@qclass': 'hilbert',
-      original: {
-        '@qclass': 'hilbert',
-        original: 8,
-      },
-    },
-  ],
-  [
-    {
-      '@qclass': {
-        '@qclass': 8,
-        foo: 'foo1',
-      },
-      bar: { '@qclass': undefined },
-    },
-    {
-      '@qclass': 'hilbert',
-      original: {
-        '@qclass': 'hilbert',
-        original: 8,
-        rest: { foo: 'foo1' },
-      },
-      rest: {
-        bar: {
-          '@qclass': 'hilbert',
-          original: { '@qclass': 'undefined' },
-        },
-      },
-    },
-  ],
-]);
 
 /**
  * @param {import('../src/types.js').MakeMarshalOptions} [opts]
@@ -293,6 +151,41 @@ test('unserialize errors', t => {
   const em3 = uns('{"@qclass":"error","message":"msg3","name":"Unknown"}');
   t.truthy(em3 instanceof Error);
   t.is(em3.message, 'msg3');
+});
+
+test('unserialize extended errors', t => {
+  const { unserialize } = makeTestMarshal();
+  const uns = body => unserialize({ body, slots: [] });
+
+  // TODO cause, errors, and AggregateError will eventually be recognized.
+  // See https://github.com/endojs/endo/pull/2042
+
+  const refErr = uns(
+    '{"@qclass":"error","message":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
+  );
+  t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
+  t.false('extraProp' in refErr);
+  t.false('cause' in refErr);
+  t.false('errors' in refErr);
+  console.log('error with extra prop', refErr);
+
+  const aggErr = uns(
+    '{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
+  );
+  t.is(getPrototypeOf(aggErr), Error.prototype); // direct instance of
+  t.false('extraProp' in aggErr);
+  t.false('cause' in aggErr);
+  t.false('errors' in aggErr);
+  console.log('error with extra prop', aggErr);
+
+  const unkErr = uns(
+    '{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
+  );
+  t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
+  t.false('extraProp' in unkErr);
+  t.false('cause' in unkErr);
+  t.false('errors' in unkErr);
+  console.log('error with extra prop', unkErr);
 });
 
 test('passStyleOf null is "null"', t => {

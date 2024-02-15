@@ -1,5 +1,12 @@
 User-visible changes in SES:
 
+# v1.2.0 (2024-02-14)
+
+- Exports `ses/lockdown-shim.js`, `ses/compartment-shim.js`, and
+  `ses/assert-shim.js` for piecemeal usage.
+  This change is motivated by the need to omit `ses/assert-shim.js` in Test262
+  environments.
+
 # v1.1.0 (2024-01-17)
 
 - The [iterators-helpers](https://github.com/tc39/proposal-iterator-helpers)

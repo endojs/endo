@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream-types-test",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "TypeScript validation for Endo stream types.",
   "keywords": [],
@@ -9,7 +9,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/stream-types-test#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/stream-types-test"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -25,8 +26,8 @@
     "test": "yarn lint:types"
   },
   "dependencies": {
-    "@endo/stream": "^1.0.2",
-    "ses": "^1.1.0"
+    "@endo/stream": "^1.0.3",
+    "ses": "^1.2.0"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",

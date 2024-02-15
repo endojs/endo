@@ -1,25 +1,49 @@
 {
   "name": "@endo/test262-runner",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "private": true,
-  "description": "Test262 Runner",
-  "author": "Agoric",
+  "description": "Hardened JavaScript Test262 Runner",
+  "keywords": [],
+  "author": "Endo contributors",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/skel#readme",
+  "repository": {
+    "directory": "packages/test262-runner"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
   "type": "module",
-  "main": "./src/main.js",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "exit 0",
+    "build": "node scripts/generate-preludes.js",
+    "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
-    "lint": "eslint ."
+    "lint:js": "eslint .",
+    "lint:types": "tsc",
+    "test": "exit 0",
+    "test262": "yarn build && yarn test262:xs && yarn test262:node",
+    "test262:xs": "test262-harness --host-type xs --host-path xst --test262-dir test262 --prelude prelude/xs.js 'test262/test/**/*.js' --features-include ses-xs-parity",
+    "test262:node": "test262-harness --host-type node --host-path node --test262-dir test262  --prelude prelude/node.js 'test262/test/**/*.js' --features-include ses-xs-parity"
   },
   "dependencies": {
-    "test262-parser": "^2.2.0"
+    "@endo/compartment-mapper": "^1.1.1",
+    "ses": "^1.2.0",
+    "test262-harness": "^10.0.0"
   },
-  "ava": {
-    "files": [
-      "*test*/**/test-*.js"
-    ],
-    "require": []
+  "devDependencies": {
+    "babel-eslint": "^10.0.3",
+    "eslint": "^8.46.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.27.5",
+    "prettier": "^3.0.0",
+    "typescript": "~5.2.2"
   },
   "eslintConfig": {
     "extends": [

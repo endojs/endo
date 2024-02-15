@@ -14,7 +14,7 @@ import { makeArrayIterator } from '@endo/common/make-array-iterator.js';
 /** @typedef {import('../types').FullCompare} FullCompare */
 /** @typedef {import('../types').KeyCollection} KeyCollection */
 
-const { quote: q, Fail } = assert;
+import { q, Fail } from '@endo/errors';
 
 /**
  * Refines a sequence of entries that is already sorted over its keys by the

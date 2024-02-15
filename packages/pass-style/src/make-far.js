@@ -1,13 +1,12 @@
 /// <reference types="ses"/>
 
 import { getMethodNames } from '@endo/eventual-send/utils.js';
+import { q, Fail } from '@endo/errors';
 import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
-
-const { quote: q, Fail } = assert;
 
 const { prototype: functionPrototype } = Function;
 const {

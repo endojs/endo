@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.2](https://github.com/endojs/endo/compare/@endo/base64@1.0.1...@endo/base64@1.0.2) (2024-02-15)
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+* **base64:** Reject too-short encodings ([06d2fc5](https://github.com/endojs/endo/commit/06d2fc5f81f68977e10b47448e1e0c56dce5048f)), closes [#1990](https://github.com/endojs/endo/issues/1990)
+
+
+### Performance Improvements
+
+* **base64:** Avoid unnecessary calculations ([01c06d4](https://github.com/endojs/endo/commit/01c06d43273cd1dd522e8736e998b1c050f0475c))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/base64@1.0.0...@endo/base64@1.0.1) (2024-01-18)
 
 **Note:** Version bump only for package @endo/base64

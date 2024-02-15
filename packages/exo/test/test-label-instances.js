@@ -4,13 +4,13 @@ import { test } from './prepare-test-env-ava-label-instances.js';
 // eslint-disable-next-line import/order
 import { passStyleOf } from '@endo/far';
 import { M } from '@endo/patterns';
+
+import { q } from '@endo/errors';
 import {
   defineExoClass,
   defineExoClassKit,
   makeExo,
 } from '../src/exo-makers.js';
-
-const { quote: q } = assert;
 
 const UpCounterI = M.interface('UpCounter', {
   incr: M.call().returns(M.number()),

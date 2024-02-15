@@ -1,6 +1,6 @@
 {
   "name": "@endo/memoize",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": null,
   "description": "Safe function memoization",
   "keywords": [],
@@ -9,7 +9,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/memoize#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/memoize"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -35,11 +36,11 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^1.1.0"
+    "ses": "^1.2.0"
   },
   "devDependencies": {
-    "@endo/init": "^1.0.2",
-    "@endo/ses-ava": "^1.1.0",
+    "@endo/init": "^1.0.3",
+    "@endo/ses-ava": "^1.1.1",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",

@@ -102,7 +102,6 @@ function verifyProperty(obj, name, desc, options) {
 
 function isConfigurable(obj, name) {
   var hasOwnProperty = Object.prototype.hasOwnProperty;
-  var desc = Object.getOwnPropertyDescriptor(obj, name);
   try {
     delete obj[name];
   } catch (e) {
@@ -110,11 +109,7 @@ function isConfigurable(obj, name) {
       $ERROR("Expected TypeError, got " + e);
     }
   }
-  const deleted = !hasOwnProperty.call(obj, name);
-  if (desc && deleted) {
-    Object.defineProperty(obj, name, desc);  
-  }
-  return deleted;
+  return !hasOwnProperty.call(obj, name);
 }
 
 function isEnumerable(obj, name) {
@@ -144,8 +139,12 @@ function isSameValue(a, b) {
   return a === b;
 }
 
+var __isArray = Array.isArray;
 function isWritable(obj, name, verifyProp, value) {
-  var newValue = value || "unlikelyValue";
+  var unlikelyValue = __isArray(obj) && name === "length" ?
+    Math.pow(2, 32) - 1 :
+    "unlikelyValue";
+  var newValue = value || unlikelyValue;
   var hadValue = Object.prototype.hasOwnProperty.call(obj, name);
   var oldValue = obj[name];
   var writeSucceeded;

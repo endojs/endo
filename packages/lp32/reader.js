@@ -4,9 +4,8 @@
 // We use a DataView to give users choice over endianness.
 // But DataView does not default to host-byte-order like other typed arrays.
 
+import { Fail, q } from '@endo/errors';
 import { hostIsLittleEndian } from './src/host-endian.js';
-
-const { Fail, quote: q } = assert;
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} reader

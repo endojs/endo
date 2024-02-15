@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.1.1](https://github.com/endojs/endo/compare/@endo/patterns@1.1.0...@endo/patterns@1.1.1) (2024-02-15)
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+* **patterns,exo:** Tolerate old guard format ([#2038](https://github.com/endojs/endo/issues/2038)) ([d5b31d9](https://github.com/endojs/endo/commit/d5b31d9ffcf7950c79070a7e792d466bd36ef5ff))
+
+
+
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/patterns@1.0.1...@endo/patterns@1.1.0) (2024-01-18)
 
 

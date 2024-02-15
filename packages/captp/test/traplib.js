@@ -2,11 +2,10 @@
 /// <reference types="ses"/>
 
 import { Far } from '@endo/marshal';
+import { X, Fail } from '@endo/errors';
 import { E, makeCapTP } from '../src/captp.js';
 
 import { makeAtomicsTrapGuest, makeAtomicsTrapHost } from '../src/atomics.js';
-
-const { details: X, Fail } = assert;
 
 export const createHostBootstrap = makeTrapHandler => {
   // Create a remotable that has a syncable return value.

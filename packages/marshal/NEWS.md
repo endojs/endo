@@ -1,5 +1,9 @@
 User-visible changes in `@endo/marshal`:
 
+# v1.2.0 (2024-02-14)
+
+- Tolerates receiving extra error properties (https://github.com/endojs/endo/pull/2052). Once pervasive, this tolerance will eventually enable additional error properties to be sent. The motivating examples are the JavaScript standard properties `cause` and `errors`. This change also enables smoother interoperation with other languages with their own theories about diagnostic information to be included in errors.
+
 # v0.8.1 (2022-12-23)
 
 - Remote objects now reflect methods present on their prototype chain.

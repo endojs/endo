@@ -1,11 +1,11 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
+import { X, q } from '@endo/errors';
 import { assertChecker, hasOwnPropertyOf } from './passStyle-helpers.js';
 
 /** @typedef {import('./types.js').Checker} Checker */
 
-const { details: X, quote: q } = assert;
 const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor } = Object;
 const { ownKeys } = Reflect;
 const { toStringTag } = Symbol;

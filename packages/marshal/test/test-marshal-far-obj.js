@@ -1,11 +1,11 @@
+// eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
 
-// eslint-disable-next-line import/order
+import { q } from '@endo/errors';
 import { passStyleOf, Remotable, Far, getInterfaceOf } from '@endo/pass-style';
 
 import { makeMarshal } from '../src/marshal.js';
 
-const { quote: q } = assert;
 const { create, getPrototypeOf, prototype: objectPrototype } = Object;
 
 // this only includes the tests that do not use liveSlots

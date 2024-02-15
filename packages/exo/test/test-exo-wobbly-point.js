@@ -14,10 +14,11 @@ import { test } from './prepare-test-env-ava.js';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M } from '@endo/patterns';
-import { defineExoClass } from '../src/exo-makers.js';
-import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
 
-const { Fail, quote: q } = assert;
+import { Fail, q } from '@endo/errors';
+import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
+import { defineExoClass } from '../src/exo-makers.js';
+
 const { apply } = Reflect;
 
 const ExoEmptyI = M.interface('ExoEmpty', {});

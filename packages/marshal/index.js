@@ -7,6 +7,7 @@ export { stringify, parse } from './src/marshal-stringify.js';
 export { decodeToJustin } from './src/marshal-justin.js';
 
 export {
+  makePassableKit,
   makeEncodePassable,
   makeDecodePassable,
   isEncodedRemotable,

@@ -1,6 +1,6 @@
 {
   "name": "@endo/syrup",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Syrup is a language-independent binary serialization format for structured object trees",
   "keywords": [
     "syrup",
@@ -12,7 +12,8 @@
   "homepage": "https://github.com/endojs/endo/blob/master/packages/syrup/README.md",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/syrup"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

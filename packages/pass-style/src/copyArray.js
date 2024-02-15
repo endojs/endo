@@ -1,8 +1,8 @@
 /// <reference types="ses"/>
 
+import { X } from '@endo/errors';
 import { assertChecker, checkNormalProperty } from './passStyle-helpers.js';
 
-const { details: X } = assert;
 const { getPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 const { isArray, prototype: arrayPrototype } = Array;

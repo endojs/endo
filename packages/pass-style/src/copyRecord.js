@@ -1,12 +1,12 @@
 /// <reference types="ses"/>
 
+import { X } from '@endo/errors';
 import {
   assertChecker,
   canBeMethod,
   checkNormalProperty,
 } from './passStyle-helpers.js';
 
-const { details: X } = assert;
 const { ownKeys } = Reflect;
 const { getPrototypeOf, values, prototype: objectPrototype } = Object;
 

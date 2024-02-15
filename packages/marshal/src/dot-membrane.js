@@ -3,11 +3,11 @@
 
 import { E } from '@endo/eventual-send';
 import { isObject, getInterfaceOf, Far, passStyleOf } from '@endo/pass-style';
+import { Fail } from '@endo/errors';
 import { makeMarshal } from './marshal.js';
 
 const { fromEntries } = Object;
 const { ownKeys } = Reflect;
-const { Fail } = assert;
 
 // TODO(erights): Add Converter type
 /** @param {any} [mirrorConverter] */

@@ -2,66 +2,12 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
+import { objectMetaMap } from '@endo/common/object-meta-map.js';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import { defineExoClass } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
 
-const { getPrototypeOf, getOwnPropertyDescriptors, create, fromEntries } =
-  Object;
-
-const { ownKeys } = Reflect;
-
-/**
- * Borrowed from https://github.com/endojs/endo/pull/1815 to avoid
- * depending on it being merged. TODO If it is merged, then delete this
- * copy and import `objectMetaMap` instead.
- *
- * Like `objectMap`, but at the reflective level of property descriptors
- * rather than property values.
- *
- * Except for hardening, the edge case behavior is mostly the opposite of
- * the `objectMap` edge cases.
- *    * No matter how mutable the original object, the returned object is
- *      hardened.
- *    * All own properties of the original are mapped, even if symbol-named
- *      or non-enumerable.
- *    * If any of the original properties were accessors, the descriptor
- *      containing the getter and setter are given to `metaMapFn`.
- *    * The own properties of the returned are according to the descriptors
- *      returned by `metaMapFn`.
- *    * The returned object will always be a plain object whose state is
- *      only these mapped own properties. It will inherit from the third
- *      argument if provided, defaulting to `Object.prototype` if omitted.
- *
- * Because a property descriptor is distinct from `undefined`, we bundle
- * mapping and filtering together. When the `metaMapFn` returns `undefined`,
- * that property is omitted from the result.
- *
- * @template {Record<PropertyKey, any>} O
- * @param {O} original
- * @param {(
- *   desc: TypedPropertyDescriptor<O[keyof O]>,
- *   key: keyof O
- * ) => (PropertyDescriptor | undefined)} metaMapFn
- * @param {any} [proto]
- * @returns {any}
- */
-export const objectMetaMap = (
-  original,
-  metaMapFn,
-  proto = Object.prototype,
-) => {
-  const descs = getOwnPropertyDescriptors(original);
-  const keys = ownKeys(original);
-
-  const descEntries = /** @type {[PropertyKey,PropertyDescriptor][]} */ (
-    keys
-      .map(key => [key, metaMapFn(descs[key], key)])
-      .filter(([_key, optDesc]) => optDesc !== undefined)
-  );
-  return harden(create(proto, fromEntries(descEntries)));
-};
-harden(objectMetaMap);
+const { getPrototypeOf } = Object;
 
 const UpCounterI = M.interface('UpCounter', {
   incr: M.call()

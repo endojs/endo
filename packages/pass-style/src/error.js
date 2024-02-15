@@ -1,11 +1,11 @@
 /// <reference types="ses"/>
 
+import { X, Fail, annotateError } from '@endo/errors';
 import { assertChecker } from './passStyle-helpers.js';
 
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').Checker} Checker */
 
-const { details: X, Fail } = assert;
 const { getPrototypeOf, getOwnPropertyDescriptors } = Object;
 const { ownKeys } = Reflect;
 
@@ -116,7 +116,7 @@ export const toPassableError = err => {
   // Even the cleaned up error copy, if sent to the console, should
   // cause hidden diagnostic information of the original error
   // to be logged.
-  assert.note(newError, X`copied from error ${err}`);
+  annotateError(newError, X`copied from error ${err}`);
   return newError;
 };
 harden(toPassableError);

@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.33](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.32...@endo/test262-runner@0.1.33) (2024-02-15)
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+* **test262-runner:** Remove extra repository entry in package.json ([8bc474e](https://github.com/endojs/endo/commit/8bc474ec18f2971656f5025491190f571bd15588))
+
+
+
 ### [0.1.32](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.31...@endo/test262-runner@0.1.32) (2023-07-19)
 
 **Note:** Version bump only for package @endo/test262-runner

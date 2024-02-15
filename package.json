@@ -1,5 +1,4 @@
 {
-  "name": "ses",
   "private": true,
   "useWorkspaces": true,
   "workspaces": [
@@ -8,6 +7,7 @@
   "engines": {
     "node": ">=16"
   },
+  "packageManager": "yarn@1.22.21",
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
@@ -22,6 +22,7 @@
     "eslint-plugin-jsdoc": "^46.4.3",
     "lerna": "^5.6.2",
     "lerna-update-wizard": "^0.17.5",
+    "ts-api-utils": "~1.0.1",
     "type-coverage": "^2.26.3",
     "typedoc": "^0.25.7",
     "typescript": "~5.3.3"

@@ -1,0 +1,14 @@
+{
+  "name": "browser-test",
+  "private": true,
+  "author": "Endo Contributors",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "serve-handler": "^6.1.5",
+    "@playwright/test": "^1.41.2",
+    "@types/node": "^20.11.16"
+  }
+}

@@ -1,7 +1,7 @@
+import { q, Fail } from '@endo/errors';
+
 const { fromEntries } = Object;
 const { ownKeys } = Reflect;
-
-const { quote: q, Fail } = assert;
 
 /**
  * Throws if multiple entries use the same property name. Otherwise acts

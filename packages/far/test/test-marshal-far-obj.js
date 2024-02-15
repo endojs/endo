@@ -1,10 +1,11 @@
 // @ts-check
-
 import { test } from './prepare-test-env-ava.js';
+
+// eslint-disable-next-line import/order
+import { q } from '@endo/errors';
 
 import { Far, passStyleOf, getInterfaceOf } from '../src/index.js';
 
-const { quote: q } = assert;
 const { create, getPrototypeOf } = Object;
 
 // this only includes the tests that do not use liveSlots

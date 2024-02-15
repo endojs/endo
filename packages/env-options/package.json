@@ -1,6 +1,6 @@
 {
   "name": "@endo/env-options",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": null,
   "description": "Reading environment options.",
   "keywords": [],
@@ -9,7 +9,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/env-options#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/env-options"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

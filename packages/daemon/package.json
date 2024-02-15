@@ -1,6 +1,6 @@
 {
   "name": "@endo/daemon",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Endo daemon",
   "keywords": [
@@ -12,7 +12,8 @@
   "homepage": "https://github.com/endojs/endo/blob/master/packages/daemon/README.md",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/daemon"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -43,26 +44,27 @@
     "test:clean": "rm -rf tmp && yarn test"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.1",
-    "@endo/captp": "^4.0.2",
-    "@endo/compartment-mapper": "^1.1.0",
-    "@endo/eventual-send": "^1.1.0",
-    "@endo/far": "^1.0.2",
-    "@endo/import-bundle": "^1.0.2",
-    "@endo/init": "^1.0.2",
-    "@endo/lockdown": "^1.0.2",
-    "@endo/netstring": "^1.0.2",
-    "@endo/promise-kit": "^1.0.2",
-    "@endo/stream": "^1.0.2",
-    "@endo/stream-node": "^1.0.2",
-    "@endo/where": "^1.0.1",
-    "ses": "^1.1.0",
-    "ws": "^8.13.0"
+    "@endo/base64": "^1.0.2",
+    "@endo/captp": "^4.0.3",
+    "@endo/compartment-mapper": "^1.1.1",
+    "@endo/eventual-send": "^1.1.1",
+    "@endo/far": "^1.0.3",
+    "@endo/import-bundle": "^1.0.3",
+    "@endo/init": "^1.0.3",
+    "@endo/lockdown": "^1.0.3",
+    "@endo/netstring": "^1.0.3",
+    "@endo/promise-kit": "^1.0.3",
+    "@endo/stream": "^1.0.3",
+    "@endo/stream-node": "^1.0.3",
+    "@endo/where": "^1.0.2",
+    "ses": "^1.2.0",
+    "ws": "^8.13.0",
+    "@endo/errors": "^1.0.3"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^3.0.2",
-    "@endo/init": "^1.0.2",
-    "@endo/ses-ava": "^1.1.0",
+    "@endo/bundle-source": "^3.0.3",
+    "@endo/init": "^1.0.3",
+    "@endo/ses-ava": "^1.1.1",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

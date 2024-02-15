@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.3](https://github.com/endojs/endo/compare/@endo/netstring@1.0.2...@endo/netstring@1.0.3) (2024-02-15)
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+* Edit change logs ([8186abe](https://github.com/endojs/endo/commit/8186abe62ed60c8db92ef8ddd39891dcf2863ee4))
+
+
+
 ### [1.0.2](https://github.com/endojs/endo/compare/@endo/netstring@1.0.1...@endo/netstring@1.0.2) (2024-01-18)
 
 

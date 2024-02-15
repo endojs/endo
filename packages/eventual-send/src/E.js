@@ -53,7 +53,7 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
               // Reject the async function call
               return HandledPromise.reject(
                 assert.error(
-                  X`Unexpected receiver for "${propertyKey}" method of E(${q(
+                  X`Unexpected receiver for "${q(propertyKey)}" method of E(${q(
                     recipient,
                   )})`,
                 ),

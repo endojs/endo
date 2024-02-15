@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream-node",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Uint8Array async iterator adapters for Node.js streams",
   "keywords": [
     "stream",
@@ -14,7 +14,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/stream-node#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/stream-node"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -40,12 +41,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/init": "^1.0.2",
-    "@endo/stream": "^1.0.2",
-    "ses": "^1.1.0"
+    "@endo/errors": "^1.0.3",
+    "@endo/init": "^1.0.3",
+    "@endo/stream": "^1.0.3",
+    "ses": "^1.2.0"
   },
   "devDependencies": {
-    "@endo/ses-ava": "^1.1.0",
+    "@endo/ses-ava": "^1.1.1",
     "@typescript-eslint/parser": "^6.18.1",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
@@ -57,6 +59,7 @@
     "eslint-plugin-import": "^2.29.0",
     "eslint-plugin-jsdoc": "^46.4.3",
     "prettier": "^3.0.0",
+    "ts-api-utils": "~1.0.1",
     "typescript": "~5.3.3"
   },
   "files": [

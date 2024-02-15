@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Foundation for async iterators as streams",
   "keywords": [
     "endo",
@@ -15,7 +15,8 @@
   "homepage": "https://github.com/endojs/endo/blob/master/packages/stream/README.md",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/stream"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -43,13 +44,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/eventual-send": "^1.1.0",
-    "@endo/promise-kit": "^1.0.2",
-    "ses": "^1.1.0"
+    "@endo/eventual-send": "^1.1.1",
+    "@endo/promise-kit": "^1.0.3",
+    "ses": "^1.2.0"
   },
   "devDependencies": {
-    "@endo/init": "^1.0.2",
-    "@endo/ses-ava": "^1.1.0",
+    "@endo/init": "^1.0.3",
+    "@endo/ses-ava": "^1.1.1",
     "@typescript-eslint/parser": "^6.18.1",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
@@ -61,6 +62,7 @@
     "eslint-plugin-import": "^2.29.0",
     "eslint-plugin-jsdoc": "^46.4.3",
     "prettier": "^3.0.0",
+    "ts-api-utils": "~1.0.1",
     "typescript": "~5.3.3"
   },
   "files": [

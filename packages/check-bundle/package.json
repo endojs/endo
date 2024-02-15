@@ -1,6 +1,6 @@
 {
   "name": "@endo/check-bundle",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Checks the integrity of an Endo bundle.",
   "keywords": [
     "endo",
@@ -14,7 +14,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/check-bundle#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/check-bundle"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -39,13 +40,14 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.1",
-    "@endo/compartment-mapper": "^1.1.0"
+    "@endo/base64": "^1.0.2",
+    "@endo/compartment-mapper": "^1.1.1",
+    "@endo/errors": "^1.0.3"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^3.0.2",
-    "@endo/init": "^1.0.2",
-    "@endo/zip": "^1.0.1",
+    "@endo/bundle-source": "^3.0.3",
+    "@endo/init": "^1.0.3",
+    "@endo/zip": "^1.0.2",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

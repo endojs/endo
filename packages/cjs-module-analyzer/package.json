@@ -1,6 +1,6 @@
 {
   "name": "@endo/cjs-module-analyzer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A JavaScript lexer dedicated to static analysis and transformation of ECMAScript modules.",
   "keywords": [],
   "author": "Endo contributors",
@@ -8,7 +8,8 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/cjs-module-analyzer#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/cjs-module-analyzer"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

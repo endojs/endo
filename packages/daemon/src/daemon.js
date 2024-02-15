@@ -12,8 +12,7 @@ import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
-
-const { quote: q } = assert;
+import { q } from '@endo/errors';
 
 /** @type {import('./types.js').EndoGuest} */
 const leastAuthority = Far('EndoGuest', {

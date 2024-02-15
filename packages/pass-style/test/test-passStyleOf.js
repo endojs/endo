@@ -1,12 +1,14 @@
 /* eslint-disable max-classes-per-file */
 import { test } from './prepare-test-env-ava.js';
 
+// eslint-disable-next-line import/order
+import { q } from '@endo/errors';
+
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
 
-const { quote: q } = assert;
 const { getPrototypeOf, defineProperty } = Object;
 const { ownKeys } = Reflect;
 

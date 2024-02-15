@@ -6,6 +6,7 @@ import {
   isObject,
   passableSymbolForName,
 } from '@endo/pass-style';
+import { q, X, Fail } from '@endo/errors';
 import { QCLASS } from './encodeToCapData.js';
 
 /** @typedef {import('./types.js').Encoding} Encoding */
@@ -14,7 +15,6 @@ import { QCLASS } from './encodeToCapData.js';
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const { stringify: quote } = JSON;
-const { quote: q, details: X, Fail } = assert;
 
 /**
  * @typedef {object} Indenter
@@ -390,6 +390,10 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
 
         case 'error': {
           const { name, message } = rawTree;
+          // TODO cause, errors, AggregateError
+          // See https://github.com/endojs/endo/pull/2052
+          name !== `AggregateError` ||
+            Fail`AggregateError not yet implemented in marshal-justin`;
           return out.next(`${name}(${quote(message)})`);
         }
 

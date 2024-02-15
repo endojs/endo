@@ -1,9 +1,0 @@
-diff --git a/node_modules/events/events.js b/node_modules/events/events.js
-index 34b69a0..2e70c60 100644
---- a/node_modules/events/events.js
-+++ b/node_modules/events/events.js
-@@ -1,3 +1,4 @@
-+// @ts-nocheck
- // Copyright Joyent, Inc. and other Node contributors.
- //
- // Permission is hereby granted, free of charge, to any person obtaining a

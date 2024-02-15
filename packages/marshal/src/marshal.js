@@ -8,6 +8,8 @@ import {
   hasOwnPropertyOf,
 } from '@endo/pass-style';
 
+import { X, Fail, q, makeError, annotateError } from '@endo/errors';
+import { objectMap } from '@endo/common/object-map.js';
 import {
   QCLASS,
   makeEncodeToCapData,
@@ -29,7 +31,6 @@ import {
 /** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
 
 const { isArray } = Array;
-const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 
 /** @type {ConvertValToSlot<any>} */
@@ -124,7 +125,7 @@ export const makeMarshal = (
         // with the correlation.
         const errorId = encodeRecur(nextErrorId());
         assert.typeof(errorId, 'string');
-        assert.note(err, X`Sent as ${errorId}`);
+        annotateError(err, X`Sent as ${errorId}`);
         marshalSaveError(err);
         return harden({ errorId, message, name });
       } else {
@@ -260,11 +261,11 @@ export const makeMarshal = (
      */
     const decodeErrorCommon = (errData, decodeRecur) => {
       const { errorId = undefined, message, name, ...rest } = errData;
-      ownKeys(rest).length === 0 ||
-        Fail`unexpected encoded error properties ${q(ownKeys(rest))}`;
-      // TODO Must decode `cause` and `errors` properties
-      // capData does not transform strings. The calls to `decodeRecur`
-      // are for reuse by other encodings that do, such as smallcaps.
+      // TODO Must decode `cause` and `errors` properties.
+      // See https://github.com/endojs/endo/pull/2052
+      // capData does not transform strings. The immediately following calls
+      // to `decodeRecur` are for reuse by other encodings that do,
+      // such as smallcaps.
       const dName = decodeRecur(name);
       const dMessage = decodeRecur(message);
       const dErrorId = errorId && decodeRecur(errorId);
@@ -278,7 +279,15 @@ export const makeMarshal = (
         dErrorId === undefined
           ? `Remote${EC.name}`
           : `Remote${EC.name}(${dErrorId})`;
-      const error = assert.error(dMessage, EC, { errorName });
+      const error = makeError(dMessage, EC, { errorName });
+      if (ownKeys(rest).length >= 1) {
+        // Note that this does not decodeRecur rest's property names.
+        // This would be inconsistent with smallcaps' expected handling,
+        // but is fine here since it is only used for `annotateError`,
+        // which is for diagnostic info that is otherwise unobservable.
+        const extras = objectMap(rest, decodeRecur);
+        annotateError(error, X`extra marshalled properties ${extras}`);
+      }
       return harden(error);
     };
 

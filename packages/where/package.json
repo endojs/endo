@@ -1,6 +1,6 @@
 {
   "name": "@endo/where",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Locator for Endo user state, caches, and ephemeral files",
   "keywords": [],
   "author": "Endo contributors",
@@ -8,7 +8,8 @@
   "homepage": "https://github.com/endojs/endo/blob/master/packages/where/README.md",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/endojs/endo.git"
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/where"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
