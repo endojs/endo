@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/endojs/endo/compare/@endo/marshal@1.1.0...@endo/marshal@1.2.0) (2024-02-15)
+
+
+### Features
+
+* **marshal:** Introduce makePassableKit and support arbitrary remotable/promise/error compactOrdered encodings ([043039f](https://github.com/endojs/endo/commit/043039f273802cc74806de71294425fc01384a9d))
+* **marshal:** tolerate extra error props ([#2052](https://github.com/endojs/endo/issues/2052)) ([70cdcd7](https://github.com/endojs/endo/commit/70cdcd7f314d459f9a53cf5cd76da2e1e00691c4))
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+* **marshal:** Add a smaller and more efficient passable encoding ([a85616f](https://github.com/endojs/endo/commit/a85616fdf4c1cf4104ef4921cdade4fb040e4068)), closes [#1349](https://github.com/endojs/endo/issues/1349)
+
+
+### Performance Improvements
+
+* **marshal:** Avoid even more substring operations ([59b02aa](https://github.com/endojs/endo/commit/59b02aae5a87050819298bab77621cf4c7d39afa))
+* **marshal:** Replace more XS-expensive string operations ([82e4770](https://github.com/endojs/endo/commit/82e47704707038ef930fbca598b02840dfeb62ef)), closes [#1982](https://github.com/endojs/endo/issues/1982) [#2001](https://github.com/endojs/endo/issues/2001)
+* **marshal:** Replace XS-expensive string operations ([2dd3b43](https://github.com/endojs/endo/commit/2dd3b43a4c06fec94d46822dd8bbf9d4ab3db31f)), closes [#1982](https://github.com/endojs/endo/issues/1982)
+
+
+
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/marshal@1.0.1...@endo/marshal@1.1.0) (2024-01-18)
 
 

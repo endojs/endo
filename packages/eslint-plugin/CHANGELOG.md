@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.0.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.0.1...@endo/eslint-plugin@2.0.2) (2024-02-15)
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+
+
+
 ### [2.0.1](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.0.0...@endo/eslint-plugin@2.0.1) (2024-01-18)
 
 **Note:** Version bump only for package @endo/eslint-plugin
