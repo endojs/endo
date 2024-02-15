@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [3.0.3](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.2...@endo/bundle-source@3.0.3) (2024-02-15)
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+* **bundle-source:** apply eval evasion for cjs modules too ([5b159cb](https://github.com/endojs/endo/commit/5b159cb8b572ef739529638cfb38c167977df222))
+
+
+
 ### [3.0.2](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.1...@endo/bundle-source@3.0.2) (2024-01-18)
 
 

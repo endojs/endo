@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.2](https://github.com/endojs/endo/compare/@endo/syrup@1.0.1...@endo/syrup@1.0.2) (2024-02-15)
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+
+
+### Performance Improvements
+
+* **syrup:** Account for element minimum size in encodeArray buffer expansion ([8ead45d](https://github.com/endojs/endo/commit/8ead45d1809c8e4de116e467ecf6d15e11b14c46))
+* **syrup:** Improve encodeString ([213d4b5](https://github.com/endojs/endo/commit/213d4b5d11f34a14e9116b54fc2dd1fcb9565ded))
+* **syrup:** Pass diagnostic path data as an array rather than a string ([5ef0882](https://github.com/endojs/endo/commit/5ef0882ea8f5946d9bbc6f3bb2f975a87e6ae490))
+
+
+
 ### [1.0.1](https://github.com/endojs/endo/compare/@endo/syrup@1.0.0...@endo/syrup@1.0.1) (2024-01-18)
 
 **Note:** Version bump only for package @endo/syrup

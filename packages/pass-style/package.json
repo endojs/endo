@@ -1,6 +1,6 @@
 {
   "name": "@endo/pass-style",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "pass-style: defines the taxonomy of Passable objects.",
   "keywords": [],
   "author": "Endo contributors",
@@ -34,14 +34,14 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/errors": "^1.0.2",
-    "@endo/eventual-send": "^1.1.0",
-    "@endo/promise-kit": "^1.0.2",
+    "@endo/errors": "^1.0.3",
+    "@endo/eventual-send": "^1.1.1",
+    "@endo/promise-kit": "^1.0.3",
     "@fast-check/ava": "^1.1.5"
   },
   "devDependencies": {
-    "@endo/init": "^1.0.2",
-    "@endo/ses-ava": "^1.1.0",
+    "@endo/init": "^1.0.3",
+    "@endo/ses-ava": "^1.1.1",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",

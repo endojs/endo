@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/endojs/endo/compare/ses@1.1.0...ses@1.2.0) (2024-02-15)
+
+
+### Features
+
+* **ses:** enablements needed by (old?) mobx ([#2030](https://github.com/endojs/endo/issues/2030)) ([553cb52](https://github.com/endojs/endo/commit/553cb52f81f33f202afca58f9230ffed67716eb7))
+* **ses:** expect more properties to censor ([#2070](https://github.com/endojs/endo/issues/2070)) ([4e5a88b](https://github.com/endojs/endo/commit/4e5a88bf5388d0cf6af9bb624b80c3206df9c5f0))
+* **ses:** Export assert-shim.js, lockdown-shim.js, compartment-shim.js ([2eca78d](https://github.com/endojs/endo/commit/2eca78db429575f39168de59398e303e9d9d53a2))
+* **ses:** permit stage 3 float16 proposal API ([#2014](https://github.com/endojs/endo/issues/2014)) ([cdb526a](https://github.com/endojs/endo/commit/cdb526a92ee7c67f1b6b322fcde031462cac9c7e))
+
+
+### Bug Fixes
+
+* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+
+
+
 ## [1.1.0](https://github.com/endojs/endo/compare/ses@1.0.1...ses@1.1.0) (2024-01-18)
 
 
