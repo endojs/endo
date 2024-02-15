@@ -3,7 +3,6 @@
 import { makeCapTP } from '@endo/captp';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';
-import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -16,7 +15,13 @@ const textDecoder = new TextDecoder();
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
  */
-const makeCapTPWithStreams = (name, writer, reader, cancelled, bootstrap) => {
+export const makeMessageCapTP = (
+  name,
+  writer,
+  reader,
+  cancelled,
+  bootstrap,
+) => {
   /** @param {any} message */
   const send = message => {
     return writer.next(message);
@@ -42,15 +47,17 @@ const makeCapTPWithStreams = (name, writer, reader, cancelled, bootstrap) => {
 };
 
 /** @param {any} message */
-const messageToBytes = message => {
+export const messageToBytes = message => {
   const text = JSON.stringify(message);
+  // console.log('->', text);
   const bytes = textEncoder.encode(text);
   return bytes;
 };
 
 /** @param {Uint8Array} bytes */
-const bytesToMessage = bytes => {
+export const bytesToMessage = bytes => {
   const text = textDecoder.decode(bytes);
+  // console.log('<-', text);
   const message = JSON.parse(text);
   return message;
 };
@@ -58,25 +65,31 @@ const bytesToMessage = bytes => {
 /**
  * @template TBootstrap
  * @param {string} name
- * @param {import('stream').Writable} nodeWriter
- * @param {import('stream').Readable} nodeReader
+ * @param {import('@endo/stream').Writer<Uint8Array>} bytesWriter
+ * @param {import('@endo/stream').Reader<Uint8Array>} bytesReader
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
  */
-export const makeNodeNetstringCapTP = (
+export const makeNetstringCapTP = (
   name,
-  nodeWriter,
-  nodeReader,
+  bytesWriter,
+  bytesReader,
   cancelled,
   bootstrap,
 ) => {
-  const writer = mapWriter(
-    makeNetstringWriter(makeNodeWriter(nodeWriter), { chunked: true }),
+  const messageWriter = mapWriter(
+    makeNetstringWriter(bytesWriter, { chunked: true }),
     messageToBytes,
   );
-  const reader = mapReader(
-    makeNetstringReader(makeNodeReader(nodeReader)),
+  const messageReader = mapReader(
+    makeNetstringReader(bytesReader),
     bytesToMessage,
   );
-  return makeCapTPWithStreams(name, writer, reader, cancelled, bootstrap);
+  return makeMessageCapTP(
+    name,
+    messageWriter,
+    messageReader,
+    cancelled,
+    bootstrap,
+  );
 };
