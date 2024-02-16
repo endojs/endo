@@ -61,25 +61,19 @@ export const makePetStoreMaker = (filePowers, locator) => {
       }),
     );
 
-    /** @param {string} petName */
+    /** @type {import('./types.js').PetStore['has']} */
     const has = petName => {
       assertValidName(petName);
       return petNames.has(petName);
     };
 
-    /**
-     * @param {string} petName
-     * @returns {string | undefined}
-     */
+    /** @type {import('./types.js').PetStore['identifyLocal']} */
     const identifyLocal = petName => {
       assertValidName(petName);
       return petNames.get(petName);
     };
 
-    /**
-     * @param {string} petName
-     * @param {string} formulaIdentifier
-     */
+    /** @type {import('./types.js').PetStore['write']} */
     const write = async (petName, formulaIdentifier) => {
       assertValidName(petName);
       if (!validFormulaPattern.test(formulaIdentifier)) {
@@ -127,8 +121,10 @@ export const makePetStoreMaker = (filePowers, locator) => {
     };
 
     // Returns in an Array format.
+    /** @type {import('./types.js').PetStore['list']} */
     const list = () => harden([...petNames.keys()].sort());
     // Returns in an object operations format ({ add, value } or { remove }).
+    /** @type {import('./types.js').PetStore['follow']} */
     const follow = async () =>
       makeIteratorRef(
         (async function* currentAndSubsequentNames() {
@@ -136,17 +132,17 @@ export const makePetStoreMaker = (filePowers, locator) => {
           for (const name of [...petNames.keys()].sort()) {
             const formulaIdentifierRecord =
               formulaIdentifierRecordForName(name);
-            yield /** type {{ add:string, value: import('./types.js').FormulaIdentifierRecord }} */ {
+            yield /** @type {{ add: string, value: import('./types.js').FormulaIdentifierRecord }} */ ({
               add: name,
               value: formulaIdentifierRecord,
-            };
+            });
           }
           yield* changes;
         })(),
       );
 
     // Returns in Object.fromEntries format.
-    /** @returns {Array<[string, import('./types.js').FormulaIdentifierRecord]>} */
+    /** @type {import('./types.js').PetStore['listEntries']} */
     const listEntries = () =>
       harden(
         [...petNames.keys()].sort().map(name => {
@@ -154,11 +150,10 @@ export const makePetStoreMaker = (filePowers, locator) => {
         }),
       );
     // Provided as an alias for follow, with naming symmetry to listEntries.
+    /** @type {import('./types.js').PetStore['follow']} */
     const followEntries = follow;
 
-    /**
-     * @param {string} petName
-     */
+    /** @type {import('./types.js').PetStore['remove']} */
     const remove = async petName => {
       assertValidName(petName);
       const formulaIdentifier = petNames.get(petName);
@@ -183,10 +178,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       // TODO consider tracking historical pet names for formulas
     };
 
-    /**
-     * @param {string} fromName
-     * @param {string} toName
-     */
+    /** @type {import('./types.js').PetStore['rename']} */
     const rename = async (fromName, toName) => {
       assertValidName(fromName);
       assertValidName(toName);
@@ -244,9 +236,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       // TODO consider retaining a backlog of overwritten names for recovery
     };
 
-    /**
-     * @param {string} formulaIdentifier
-     */
+    /** @type {import('./types.js').PetStore['reverseLookup']} */
     const reverseLookup = formulaIdentifier => {
       if (!validFormulaPattern.test(formulaIdentifier)) {
         throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
@@ -258,7 +248,6 @@ export const makePetStoreMaker = (filePowers, locator) => {
       return harden([...formulaPetNames]);
     };
 
-    /** @type {import('./types.js').PetStore} */
     const petStore = {
       has,
       identifyLocal,
