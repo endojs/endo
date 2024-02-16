@@ -157,7 +157,7 @@ export interface Topic<
 }
 
 export interface Context {
-  cancel: (reason?: string, logPrefix?: string) => Promise<void>;
+  cancel: (reason?: unknown, logPrefix?: string) => Promise<void>;
   cancelled: Promise<never>;
   disposed: Promise<void>;
   thisDiesIfThatDies: (formulaIdentifier: string) => void;
@@ -182,6 +182,21 @@ export interface Controller<External = unknown, Internal = unknown> {
   context: Context;
 }
 
+export type ProvideValueForFormulaIdentifier = (
+  formulaIdentifier: string,
+) => Promise<unknown>;
+export type ProvideControllerForFormulaIdentifier = (
+  formulaIdentifier: string,
+) => Controller;
+export type GetFormulaIdentifierForRef = (ref: unknown) => string | undefined;
+export type MakeSha512 = () => Sha512;
+
+export type ProvideValueForNumberedFormula = (
+  formulaType: string,
+  formulaNumber: string,
+  formula: Formula,
+) => Promise<{ formulaIdentifier: string; value: unknown }>;
+
 export interface PetStore {
   has(petName: string): boolean;
   identifyLocal(petName: string): string | undefined;
@@ -204,7 +219,71 @@ export interface PetStore {
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
+  /**
+   * @param formulaIdentifier The formula identifier to look up.
+   * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
+   */
   reverseLookup(formulaIdentifier: string): Array<string>;
+}
+
+export interface Mail {
+  // Partial inheritance from PetStore:
+  has: PetStore['has'];
+  rename: PetStore['rename'];
+  remove: PetStore['remove'];
+  list: PetStore['list'];
+  identifyLocal: PetStore['identifyLocal'];
+  reverseLookup: PetStore['reverseLookup'];
+  // Extended methods:
+  lookup(...petNamePath: string[]): Promise<unknown>;
+  listSpecial(): Array<string>;
+  listAll(): Array<string>;
+  reverseLookupFormulaIdentifier(formulaIdentifier: string): Array<string>;
+  cancel(petName: string, reason: unknown): Promise<void>;
+  /**
+   * Takes a sequence of pet names and returns a formula identifier and value
+   * for the corresponding lookup formula.
+   *
+   * @param petNamePath A sequence of pet names.
+   * @returns The formula identifier and value of the lookup formula.
+   */
+  provideLookupFormula(petNamePath: string[]): Promise<unknown>;
+  // Mail operations:
+  listMessages(): Promise<Array<Message>>;
+  followMessages(): Promise<FarRef<Reader<Message>>>;
+  request(
+    recipientName: string,
+    what: string,
+    responseName: string,
+  ): Promise<unknown>;
+  respond(
+    what: string,
+    responseName: string,
+    senderFormulaIdentifier: string,
+    senderPetStore: PetStore,
+    recipientFormulaIdentifier?: string,
+  ): Promise<unknown>;
+  receive(
+    senderFormulaIdentifier: string,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    formulaIdentifiers: Array<string>,
+    receiverFormulaIdentifier: string,
+  ): void;
+  send(
+    recipientName: string,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNames: Array<string>,
+  ): Promise<void>;
+  resolve(messageNumber: number, resolutionName: string): Promise<void>;
+  reject(messageNumber: number, message?: string): Promise<void>;
+  dismiss(messageNumber: number): Promise<void>;
+  adopt(
+    messageNumber: number,
+    edgeName: string,
+    petName: string,
+  ): Promise<void>;
 }
 
 export type RequestFn = (

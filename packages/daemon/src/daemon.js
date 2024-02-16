@@ -98,6 +98,7 @@ const makeEndoBootstrap = async (
   // reference", and not for "what is my name for this promise".
   /** @type {WeakMap<object, string>} */
   const formulaIdentifierForRef = new WeakMap();
+  const getFormulaIdentifierForRef = ref => formulaIdentifierForRef.get(ref);
 
   /**
    * @param {string} sha512
@@ -252,7 +253,7 @@ const makeEndoBootstrap = async (
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const hub = provideValueForFormulaIdentifier(hubFormulaIdentifier);
-
+    // @ts-expect-error calling lookup on an unknown object
     const external = E(hub).lookup(...path);
     return { external, internal: undefined };
   };
@@ -519,13 +520,7 @@ const makeEndoBootstrap = async (
   // share a responsibility for maintaining the memoization tables
   // controllerForFormulaIdentifier and formulaIdentifierForRef, since the
   // former bypasses the latter in order to avoid a round trip with disk.
-
-  /**
-   * @param {string} formulaType - The type of the formula.
-   * @param {string} formulaNumber - The number of the formula.
-   * @param {import('./types').Formula} formula - The formula.
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>} The value of the formula.
-   */
+  /** @type {import('./types.js').ProvideValueForNumberedFormula} */
   const provideValueForNumberedFormula = async (
     formulaType,
     formulaNumber,
@@ -581,9 +576,7 @@ const makeEndoBootstrap = async (
     return provideValueForNumberedFormula(formulaType, formulaNumber, formula);
   };
 
-  /**
-   * @param {string} formulaIdentifier
-   */
+  /** @type {import('./types.js').ProvideControllerForFormulaIdentifier} */
   const provideControllerForFormulaIdentifier = formulaIdentifier => {
     const { type: formulaType, number: formulaNumber } =
       parseFormulaIdentifier(formulaIdentifier);
@@ -617,9 +610,7 @@ const makeEndoBootstrap = async (
     return controller;
   };
 
-  /**
-   * @param {string} formulaIdentifier
-   */
+  /** @type {import('./types.js').ProvideValueForFormulaIdentifier} */
   const provideValueForFormulaIdentifier = async formulaIdentifier => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
       provideControllerForFormulaIdentifier(formulaIdentifier)
@@ -637,7 +628,7 @@ const makeEndoBootstrap = async (
   });
 
   const makeMailbox = makeMailboxMaker({
-    formulaIdentifierForRef,
+    getFormulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
     makeSha512,
@@ -671,9 +662,9 @@ const makeEndoBootstrap = async (
    * @returns {Promise<import('./types').EndoInspector>}
    */
   const makePetStoreInspector = async petStoreFormulaIdentifier => {
-    const petStore = await provideValueForFormulaIdentifier(
+    const petStore = /** @type {import('./types').PetStore} */ (await provideValueForFormulaIdentifier(
       petStoreFormulaIdentifier,
-    );
+    ));
 
     /**
      * @param {string} petName - The pet name to inspect.
