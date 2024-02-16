@@ -372,8 +372,10 @@ const makeEndoBootstrap = async (
         context,
       );
     } else if (formula.type === 'guest') {
-      const storeFormulaIdentifier = `pet-store:${formulaNumber}`;
-      const workerFormulaIdentifier = `worker:${formulaNumber}`;
+      const storeFormulaNumber = derive(formulaNumber, 'pet-store');
+      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
+      const workerFormulaNumber = derive(formulaNumber, 'worker');
+      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedGuestController(
