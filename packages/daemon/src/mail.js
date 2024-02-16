@@ -8,13 +8,29 @@ import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
 
+/**
+ * @param {object} args
+ * @param {import('./types.js').ProvideValueForFormulaIdentifier} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').ProvideControllerForFormulaIdentifier} args.provideControllerForFormulaIdentifier
+ * @param {import('./types.js').GetFormulaIdentifierForRef} args.getFormulaIdentifierForRef
+ * @param {import('./types.js').MakeSha512} args.makeSha512
+ * @param {import('./types.js').ProvideValueForNumberedFormula} args.provideValueForNumberedFormula
+ */
 export const makeMailboxMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
-  formulaIdentifierForRef,
+  getFormulaIdentifierForRef,
   makeSha512,
   provideValueForNumberedFormula,
 }) => {
+  /**
+   * @param {object} args
+   * @param {string} args.selfFormulaIdentifier
+   * @param {import('./types.js').PetStore} args.petStore
+   * @param {Record<string, string>} args.specialNames
+   * @param {import('./types.js').Context} args.context
+   * @returns {import('./types.js').Mail}
+   */
   const makeMailbox = ({
     selfFormulaIdentifier,
     petStore,
@@ -33,10 +49,12 @@ export const makeMailboxMaker = ({
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
 
-    /**
-     * @param {string} petName
-     * @returns {string | undefined}
-     */
+    /** @type {import('./types.js').Mail['has']} */
+    const has = petName => {
+      return Object.hasOwn(specialNames, petName) || petStore.has(petName);
+    };
+
+    /** @type {import('./types.js').Mail['identifyLocal']} */
     const identifyLocal = petName => {
       if (Object.hasOwn(specialNames, petName)) {
         return specialNames[petName];
@@ -44,10 +62,7 @@ export const makeMailboxMaker = ({
       return petStore.identifyLocal(petName);
     };
 
-    /**
-     * @param {...string} petNamePath - A sequence of pet names.
-     * @returns {Promise<unknown>} The value resolved by the pet name path.
-     */
+    /** @type {import('./types.js').Mail['lookup']} */
     const lookup = async (...petNamePath) => {
       const [headName, ...tailNames] = petNamePath;
       const formulaIdentifier = identifyLocal(headName);
@@ -56,12 +71,14 @@ export const makeMailboxMaker = ({
       }
       // Behold, recursion:
       return tailNames.reduce(
+        // @ts-expect-error calling lookup on an unknown object
         (currentValue, petName) => E(currentValue).lookup(petName),
         provideValueForFormulaIdentifier(formulaIdentifier),
       );
     };
 
-    const cancel = async (petName, reason = 'Cancelled') => {
+    /** @type {import('./types.js').Mail['cancel']} */
+    const cancel = async (petName, reason = new Error('Cancelled')) => {
       const formulaIdentifier = identifyLocal(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
@@ -72,19 +89,18 @@ export const makeMailboxMaker = ({
         formulaIdentifier,
       );
       console.log('Cancelled:');
-      return controller.context.cancel(new Error(reason));
+      return controller.context.cancel(reason);
     };
 
+    /** @type {import('./types.js').Mail['list']} */
     const list = () => harden(petStore.list());
-
+    /** @type {import('./types.js').Mail['listSpecial']} */
     const listSpecial = () => harden(Object.keys(specialNames).sort());
-
+    /** @type {import('./types.js').Mail['listAll']} */
     const listAll = () =>
       harden([...Object.keys(specialNames).sort(), ...petStore.list()]);
 
-    /**
-     * @param {string} formulaIdentifier
-     */
+    /** @type {import('./types.js').Mail['reverseLookupFormulaIdentifier']} */
     const reverseLookupFormulaIdentifier = formulaIdentifier => {
       const names = Array.from(petStore.reverseLookup(formulaIdentifier));
       for (const [specialName, specialFormulaIdentifier] of Object.entries(
@@ -97,37 +113,31 @@ export const makeMailboxMaker = ({
       return harden(names);
     };
 
-    /**
-     * @param {unknown} presence
-     */
+    /** @type {import('./types.js').Mail['reverseLookup']} */
     const reverseLookup = async presence => {
-      const formulaIdentifier = formulaIdentifierForRef.get(await presence);
+      const formulaIdentifier = getFormulaIdentifierForRef(await presence);
       if (formulaIdentifier === undefined) {
         return harden([]);
       }
       return reverseLookupFormulaIdentifier(formulaIdentifier);
     };
 
-    /**
-     * Takes a sequence of pet names and returns a formula identifier and value
-     * for the corresponding lookup formula.
-     *
-     * @param {string[]} petNamePath - A sequence of pet names.
-     * @returns {Promise<{ formulaIdentifier: string, value: unknown }>} The formula
-     * identifier and value of the lookup formula.
-     */
+    /** @type {import('./types.js').Mail['provideLookupFormula']} */
     const provideLookupFormula = async petNamePath => {
       // The lookup formula identifier consists of the hash of the associated
       // naming hub's formula identifier and the pet name path.
-      // A "naming hub" is an objected with a variadic lookup method. At present,
-      // the only such objects are guests and hosts.
+      // A "naming hub" is an objected with a variadic lookup method. It includes
+      // objects such as guests and hosts.
       const hubFormulaIdentifier = identifyLocal('SELF');
+      if (hubFormulaIdentifier === undefined) {
+        throw new Error('No SELF found during LookupFormula creation.');
+      }
       const digester = makeSha512();
       digester.updateText(`${hubFormulaIdentifier},${petNamePath.join(',')}`);
       const lookupFormulaNumber = digester.digestHex();
 
       // TODO:lookup Check if the lookup formula already exists in the store
-
+      /** @type {import('./types.js').LookupFormula} */
       const lookupFormula = {
         /** @type {'lookup'} */
         type: 'lookup',
@@ -186,9 +196,22 @@ export const makeMailboxMaker = ({
       );
     };
 
-    const listMessages = async () =>
-      harden(Array.from(messages.values(), dubMessage));
+    /**
+     * @returns {Generator<import('./types.js').Message>}
+     */
+    const dubAndFilterMessages = function* dubAndFilterMessages() {
+      for (const message of messages.values()) {
+        const dubbedMessage = dubMessage(message);
+        if (dubbedMessage !== undefined) {
+          yield dubbedMessage;
+        }
+      }
+    };
 
+    /** @type {import('./types.js').Mail['listMessages']} */
+    const listMessages = async () => harden(Array.from(dubAndFilterMessages()));
+
+    /** @type {import('./types.js').Mail['followMessages']} */
     const followMessages = async () =>
       makeIteratorRef(
         (async function* currentAndSubsequentMessages() {
@@ -196,18 +219,22 @@ export const makeMailboxMaker = ({
           for (const message of messages.values()) {
             const dubbedMessage = dubMessage(message);
             if (dubbedMessage !== undefined) {
-              yield dubMessage(message);
+              yield dubbedMessage;
             }
           }
           for await (const message of subsequentRequests) {
             const dubbedMessage = dubMessage(message);
             if (dubbedMessage !== undefined) {
-              yield dubMessage(message);
+              yield dubbedMessage;
             }
           }
         })(),
       );
 
+    /**
+     * @param {object} partialMessage
+     * @returns {import('./types.js').InternalMessage}
+     */
     const deliver = partialMessage => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
       const dismissal = makePromiseKit();
@@ -236,6 +263,7 @@ export const makeMailboxMaker = ({
      * @param {string} what - user visible description of the desired value
      * @param {string} who
      * @param {string} dest
+     * @returns {Promise<string>}
      */
     const requestFormulaIdentifier = async (what, who, dest) => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
@@ -255,13 +283,7 @@ export const makeMailboxMaker = ({
       return promise;
     };
 
-    /**
-     * @param {string} what
-     * @param {string} responseName
-     * @param {string} senderFormulaIdentifier
-     * @param {import('./types.js').PetStore} senderPetStore
-     * @param {string} [recipientFormulaIdentifier]
-     */
+    /** @type {import('./types.js').Mail['respond']} */
     const respond = async (
       what,
       responseName,
@@ -297,6 +319,7 @@ export const makeMailboxMaker = ({
       return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
+    /** @type {import('./types.js').Mail['resolve']} */
     const resolve = async (messageNumber, resolutionName) => {
       assertPetName(resolutionName);
       if (
@@ -320,10 +343,7 @@ export const makeMailboxMaker = ({
     };
 
     // TODO test reject
-    /**
-     * @param {number} messageNumber
-     * @param {string} [message]
-     */
+    /** @type {import('./types.js').Mail['reject']} */
     const reject = async (messageNumber, message = 'Declined') => {
       const req = messages.get(messageNumber);
       if (req !== undefined) {
@@ -335,20 +355,14 @@ export const makeMailboxMaker = ({
       }
     };
 
-    /**
-     * @param {string} senderFormulaIdentifier
-     * @param {Array<string>} strings
-     * @param {Array<string>} edgeNames
-     * @param {Array<string>} formulaIdentifiers
-     * @param {string} receiverFormulaIdentifier
-     */
+    /** @type {import('./types.js').Mail['receive']} */
     const receive = (
       senderFormulaIdentifier,
       strings,
       edgeNames,
       formulaIdentifiers,
       receiverFormulaIdentifier = selfFormulaIdentifier,
-    ) =>
+    ) => {
       deliver({
         type: /** @type {const} */ ('package'),
         strings,
@@ -357,13 +371,9 @@ export const makeMailboxMaker = ({
         who: senderFormulaIdentifier,
         dest: receiverFormulaIdentifier,
       });
+    };
 
-    /**
-     * @param {string} recipientName
-     * @param {Array<string>} strings
-     * @param {Array<string>} edgeNames
-     * @param {Array<string>} petNames
-     */
+    /** @type {import('./types.js').Mail['send']} */
     const send = async (recipientName, strings, edgeNames, petNames) => {
       const recipientFormulaIdentifier = identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
@@ -373,9 +383,10 @@ export const makeMailboxMaker = ({
         recipientFormulaIdentifier,
       );
       const recipientInternal = await recipientController.internal;
-      if (recipientInternal === undefined) {
+      if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(`Recipient cannot receive messages: ${recipientName}`);
       }
+      // @ts-expect-error We check if its undefined immediately after
       const { receive: partyReceive } = recipientInternal;
       if (partyReceive === undefined) {
         throw new Error(`Recipient cannot receive messages: ${recipientName}`);
@@ -421,6 +432,7 @@ export const makeMailboxMaker = ({
       );
     };
 
+    /** @type {import('./types.js').Mail['dismiss']} */
     const dismiss = async messageNumber => {
       if (
         typeof messageNumber !== 'number' ||
@@ -436,6 +448,7 @@ export const makeMailboxMaker = ({
       dismissMessage();
     };
 
+    /** @type {import('./types.js').Mail['adopt']} */
     const adopt = async (messageNumber, edgeName, petName) => {
       assertPetName(edgeName);
       assertPetName(petName);
@@ -470,11 +483,7 @@ export const makeMailboxMaker = ({
       await petStore.write(petName, formulaIdentifier);
     };
 
-    /**
-     * @param {string} recipientName
-     * @param {string} what
-     * @param {string} responseName
-     */
+    /** @type {import('./types.js').Mail['request']} */
     const request = async (recipientName, what, responseName) => {
       const recipientFormulaIdentifier = identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
@@ -534,10 +543,7 @@ export const makeMailboxMaker = ({
       return newResponseP;
     };
 
-    /**
-     * @param {string} fromName
-     * @param {string} toName
-     */
+    /** @type {import('./types.js').Mail['rename']} */
     const rename = async (fromName, toName) => {
       await petStore.rename(fromName, toName);
       const formulaIdentifier = responses.get(fromName);
@@ -547,15 +553,14 @@ export const makeMailboxMaker = ({
       }
     };
 
-    /**
-     * @param {string} petName
-     */
+    /** @type {import('./types.js').Mail['remove']} */
     const remove = async petName => {
       await petStore.remove(petName);
       responses.delete(petName);
     };
 
     return harden({
+      has,
       lookup,
       reverseLookup,
       reverseLookupFormulaIdentifier,
