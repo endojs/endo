@@ -57,6 +57,13 @@ type FormulaIdentifierRecord = {
   number: string;
 };
 
+type EndoFormula = {
+  type: 'endo';
+  host: string;
+  leastAuthority: string;
+  webPageJs: string;
+};
+
 type GuestFormula = {
   type: 'guest';
   host: string;
@@ -109,6 +116,7 @@ type WebBundleFormula = {
 };
 
 export type Formula =
+  | EndoFormula
   | GuestFormula
   | EvalFormula
   | LookupFormula
@@ -457,6 +465,7 @@ export type NetworkPowers = SocketPowers & {
 
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
+  isRootInitialized: () => Promise<boolean>;
   provideRootNonce: () => Promise<string>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;

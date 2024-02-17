@@ -54,6 +54,8 @@ const makeInspector = (type, number, record) =>
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
+ * @param {import('./types.js').EndoFormula} endoFormula
+ * @param {string} endoFormulaNumber
  * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {Promise<never>} args.cancelled
@@ -63,6 +65,8 @@ const makeInspector = (type, number, record) =>
  */
 const makeEndoBootstrap = async (
   powers,
+  endoFormula,
+  endoFormulaNumber,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
@@ -79,18 +83,17 @@ const makeEndoBootstrap = async (
     return digester.digestHex();
   };
 
-  const contentStore = persistencePowers.makeContentSha512Store();
-  const rootNonce = await persistencePowers.provideRootNonce();
+  const {
+    host: defaultHostFormulaIdentifier,
+    webPageJs: webPageJsFormulaIdentifier,
+    leastAuthority: leastAuthorityFormulaIdentifier,
+  } = endoFormula;
+  const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
+  const { number: defaultHostFormulaNumber } = parseFormulaIdentifier(
+    defaultHostFormulaIdentifier,
+  );
 
-  const endoFormulaIdentifier = `endo:${rootNonce}`;
-  const defaultHostFormulaNumber = derive(rootNonce, 'host');
-  const defaultHostFormulaIdentifier = `host:${defaultHostFormulaNumber}`;
-  const webPageJsFormulaIdentifier = `web-page-js:${derive(
-    rootNonce,
-    'web-page-js',
-  )}`;
-  const leastAuthorityFormulaNumber = derive(rootNonce, 'least-authority');
-  const leastAuthorityFormulaIdentifier = `least-authority:${leastAuthorityFormulaNumber}`;
+  const contentStore = persistencePowers.makeContentSha512Store();
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
   const controllerForFormulaIdentifier = new Map();
@@ -462,7 +465,7 @@ const makeEndoBootstrap = async (
         context,
       );
     } else if (formulaType === 'endo') {
-      if (formulaNumber !== rootNonce) {
+      if (formulaNumber !== endoFormulaNumber) {
         throw new Error('Invalid endo formula number.');
       }
 
@@ -760,7 +763,6 @@ const makeEndoBootstrap = async (
           }),
         );
       }
-      // @ts-expect-error this should never occur
       return makeInspector(formula.type, formulaNumber, harden({}));
     };
 
@@ -810,6 +812,78 @@ const makeEndoBootstrap = async (
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
+ * @param {Promise<number>} webletPortP
+ * @param {object} args
+ * @param {Promise<never>} args.cancelled
+ * @param {(error: Error) => void} args.cancel
+ * @param {number} args.gracePeriodMs
+ * @param {Promise<never>} args.gracePeriodElapsed
+ */
+const provideEndoBootstrap = async (
+  powers,
+  webletPortP,
+  { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
+) => {
+  const { crypto: cryptoPowers, persistence: persistencePowers } = powers;
+  const { makeSha512 } = cryptoPowers;
+  const derive = (...path) => {
+    const digester = makeSha512();
+    digester.updateText(path.join(':'));
+    return digester.digestHex();
+  };
+
+  const isInitialized = await persistencePowers.isRootInitialized();
+  // Reading root nonce before isRootInitialized will cause isRootInitialized to be true.
+  const rootNonce = await persistencePowers.provideRootNonce();
+  if (isInitialized) {
+    const endoFormula = /** @type {import('./types.js').EndoFormula} */ (
+      await persistencePowers.readFormula('endo', rootNonce)
+    );
+    console.log(`Using existing endo formula ${endoFormula}`);
+    return makeEndoBootstrap(powers, endoFormula, rootNonce, webletPortP, {
+      cancelled,
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
+    });
+  } else {
+    console.log(`Initializing endo formula for root nonce ${rootNonce}`);
+
+    const defaultHostFormulaNumber = derive(rootNonce, 'host');
+    const defaultHostFormulaIdentifier = `host:${defaultHostFormulaNumber}`;
+    const webPageJsFormulaIdentifier = `web-page-js:${derive(
+      rootNonce,
+      'web-page-js',
+    )}`;
+    const leastAuthorityFormulaNumber = derive(rootNonce, 'least-authority');
+    const leastAuthorityFormulaIdentifier = `least-authority:${leastAuthorityFormulaNumber}`;
+
+    /** @type {import('./types.js').EndoFormula} */
+    const endoFormula = {
+      type: 'endo',
+      host: defaultHostFormulaIdentifier,
+      leastAuthority: leastAuthorityFormulaIdentifier,
+      webPageJs: webPageJsFormulaIdentifier,
+    };
+    await persistencePowers.writeFormula(
+      endoFormula,
+      endoFormula.type,
+      rootNonce,
+    );
+    console.log(`wrote`);
+
+
+    return makeEndoBootstrap(powers, endoFormula, rootNonce, webletPortP, {
+      cancelled,
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
+    });
+  }
+};
+
+/**
+ * @param {import('./types.js').DaemonicPowers} powers
  * @param {string} daemonLabel
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
@@ -837,7 +911,7 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
       makePromiseKit()
     );
 
-  const endoBootstrap = makeEndoBootstrap(powers, assignedWebletPortP, {
+  const endoBootstrap = provideEndoBootstrap(powers, assignedWebletPortP, {
     cancelled,
     cancel,
     gracePeriodMs,
