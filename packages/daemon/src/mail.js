@@ -128,12 +128,8 @@ export const makeMailboxMaker = ({
       // naming hub's formula identifier and the pet name path.
       // A "naming hub" is an objected with a variadic lookup method. It includes
       // objects such as guests and hosts.
-      const hubFormulaIdentifier = identifyLocal('SELF');
-      if (hubFormulaIdentifier === undefined) {
-        throw new Error('No SELF found during LookupFormula creation.');
-      }
       const digester = makeSha512();
-      digester.updateText(`${hubFormulaIdentifier},${petNamePath.join(',')}`);
+      digester.updateText(`${selfFormulaIdentifier},${petNamePath.join(',')}`);
       const lookupFormulaNumber = digester.digestHex();
 
       // TODO:lookup Check if the lookup formula already exists in the store
@@ -141,7 +137,7 @@ export const makeMailboxMaker = ({
       const lookupFormula = {
         /** @type {'lookup'} */
         type: 'lookup',
-        hub: hubFormulaIdentifier,
+        hub: selfFormulaIdentifier,
         path: petNamePath,
       };
 
