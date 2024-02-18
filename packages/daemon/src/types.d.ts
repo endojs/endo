@@ -64,6 +64,15 @@ type EndoFormula = {
   webPageJs: string;
 };
 
+type HostFormula = {
+  type: 'host';
+  worker: string;
+  inspector: string;
+  petStore: string;
+  endo: string;
+  leastAuthority: string;
+};
+
 type GuestFormula = {
   type: 'guest';
   host: string;
@@ -117,6 +126,7 @@ type WebBundleFormula = {
 
 export type Formula =
   | EndoFormula
+  | HostFormula
   | GuestFormula
   | EvalFormula
   | LookupFormula

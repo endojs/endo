@@ -55,7 +55,6 @@ const makeInspector = (type, number, record) =>
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').EndoFormula} endoFormula
- * @param {string} endoFormulaNumber
  * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {Promise<never>} args.cancelled
@@ -66,7 +65,6 @@ const makeInspector = (type, number, record) =>
 const makeDaemonCore = async (
   powers,
   endoFormula,
-  endoFormulaNumber,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
@@ -83,11 +81,7 @@ const makeDaemonCore = async (
     return digester.digestHex();
   };
 
-  const {
-    host: defaultHostFormulaIdentifier,
-    leastAuthority: leastAuthorityFormulaIdentifier,
-  } = endoFormula;
-  const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
+  const { host: defaultHostFormulaIdentifier } = endoFormula;
   const { number: defaultHostFormulaNumber } = parseFormulaIdentifier(
     defaultHostFormulaIdentifier,
   );
@@ -374,6 +368,18 @@ const makeDaemonCore = async (
         formula.bundle,
         context,
       );
+    } else if (formula.type === 'host') {
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      return makeIdentifiedHost(
+        formulaIdentifier,
+        formula.endo,
+        formula.petStore,
+        formula.inspector,
+        formula.worker,
+        formula.leastAuthority,
+        context,
+      );
     } else if (formula.type === 'guest') {
       const storeFormulaNumber = derive(formulaNumber, 'pet-store');
       const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
@@ -442,27 +448,6 @@ const makeDaemonCore = async (
         assertPetName,
       );
       return { external, internal: undefined };
-    } else if (formulaType === 'host') {
-      const workerFormulaNumber = derive(formulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
-      const inspectorFormulaNumber = derive(formulaNumber, 'pet-inspector');
-      const inspectorFormulaIdentifier = `pet-inspector:${inspectorFormulaNumber}`;
-      // Note the pet store formula number derivation path:
-      // root -> host -> inspector -> pet store
-      const storeFormulaNumber = derive(inspectorFormulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
-
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return makeIdentifiedHost(
-        formulaIdentifier,
-        endoFormulaIdentifier,
-        storeFormulaIdentifier,
-        inspectorFormulaIdentifier,
-        workerFormulaIdentifier,
-        leastAuthorityFormulaIdentifier,
-        context,
-      );
     } else if (formulaType === 'endo') {
       throw new TypeError(
         `Not possible to create endo bootstrap from formulaIdentifier`,
@@ -492,6 +477,7 @@ const makeDaemonCore = async (
         'eval',
         'make-unconfined',
         'make-bundle',
+        'host',
         'guest',
         'web-bundle',
       ].includes(formulaType)
@@ -639,11 +625,46 @@ const makeDaemonCore = async (
     makeMailbox,
   });
 
+  /**
+   * @param {string} endoFormulaIdentifier
+   * @param {string} leastAuthorityFormulaIdentifier
+   * @param {string} [specifiedFormulaNumber]
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoHost }>}
+   */
+  const incarnateHost = async (
+    endoFormulaIdentifier,
+    leastAuthorityFormulaIdentifier,
+    specifiedFormulaNumber,
+  ) => {
+    const formulaNumber = specifiedFormulaNumber || (await randomHex512());
+    const workerFormulaNumber = derive(formulaNumber, 'worker');
+    const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
+    const inspectorFormulaNumber = derive(formulaNumber, 'pet-inspector');
+    const inspectorFormulaIdentifier = `pet-inspector:${inspectorFormulaNumber}`;
+    // Note the pet store formula number derivation path:
+    // root -> host -> inspector -> pet store
+    const storeFormulaNumber = derive(inspectorFormulaNumber, 'pet-store');
+    const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
+    /** @type {import('./types.js').HostFormula} */
+    const formula = {
+      type: 'host',
+      petStore: storeFormulaIdentifier,
+      inspector: inspectorFormulaIdentifier,
+      worker: workerFormulaIdentifier,
+      endo: endoFormulaIdentifier,
+      leastAuthority: leastAuthorityFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoHost }>} */ (
+      provideValueForNumberedFormula('host', formulaNumber, formula)
+    );
+  };
+
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
     provideValueForFormula,
     provideValueForNumberedFormula,
     provideControllerForFormulaIdentifier,
+    incarnateHost,
     storeReaderRef,
     randomHex512,
     makeSha512,
@@ -771,7 +792,14 @@ const makeDaemonCore = async (
   };
 
   // The only way the endo formula can be loaded is through controllerForFormulaIdentifier.
-  const setEndoBootstrap = endoBootstrap => {
+  const setEndoBootstrap = (endoFormulaIdentifier, endoBootstrap) => {
+    const { type } = parseFormulaIdentifier(endoFormulaIdentifier);
+    if (type !== 'endo') {
+      throw new TypeError(
+        `Invalid formula identifier, expected type 'endo', got ${q(type)}`,
+      );
+    }
+
     /** @type {import('./types.js').Controller} */
     const controller = {
       external: endoBootstrap,
@@ -783,6 +811,7 @@ const makeDaemonCore = async (
 
   const daemonCore = {
     provideValueForFormulaIdentifier,
+    incarnateHost,
     setEndoBootstrap,
   };
   return daemonCore;
@@ -791,6 +820,7 @@ const makeDaemonCore = async (
 const makeEndoBootstrapFromDaemonCore = async (
   daemonCore,
   endoFormula,
+  endoFormulaIdentifier,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   const { provideValueForFormulaIdentifier, setEndoBootstrap } = daemonCore;
@@ -822,14 +852,14 @@ const makeEndoBootstrapFromDaemonCore = async (
       await E(webPageP).makeBundle(bundle, endowedPowers);
     },
   });
-  setEndoBootstrap(endoBootstrap);
+  setEndoBootstrap(endoFormulaIdentifier, endoBootstrap);
   return endoBootstrap;
 };
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').EndoFormula} endoFormula
- * @param {string} endoFormulaNumber
+ * @param {string} endoFormulaIdentifier
  * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {Promise<never>} args.cancelled
@@ -840,25 +870,20 @@ const makeEndoBootstrapFromDaemonCore = async (
 const makeEndoBootstrap = async (
   powers,
   endoFormula,
-  endoFormulaNumber,
+  endoFormulaIdentifier,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
-  const daemonCore = await makeDaemonCore(
-    powers,
-    endoFormula,
-    endoFormulaNumber,
-    webletPortP,
-    {
-      cancelled,
-      cancel,
-      gracePeriodMs,
-      gracePeriodElapsed,
-    },
-  );
+  const daemonCore = await makeDaemonCore(powers, endoFormula, webletPortP, {
+    cancelled,
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+  });
   const endoBootstrap = await makeEndoBootstrapFromDaemonCore(
     daemonCore,
     endoFormula,
+    endoFormulaIdentifier,
     { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
   );
   return endoBootstrap;
@@ -889,6 +914,8 @@ const provideEndoBootstrap = async (
   const isInitialized = await persistencePowers.isRootInitialized();
   // Reading root nonce before isRootInitialized will cause isRootInitialized to be true.
   const endoFormulaNumber = await persistencePowers.provideRootNonce();
+  const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
+
   if (isInitialized) {
     const endoFormula = /** @type {import('./types.js').EndoFormula} */ (
       await persistencePowers.readFormula('endo', endoFormulaNumber)
@@ -896,7 +923,7 @@ const provideEndoBootstrap = async (
     return makeEndoBootstrap(
       powers,
       endoFormula,
-      endoFormulaNumber,
+      endoFormulaIdentifier,
       webletPortP,
       {
         cancelled,
@@ -931,21 +958,23 @@ const provideEndoBootstrap = async (
       endoFormulaNumber,
     );
 
-    const daemonCore = await makeDaemonCore(
-      powers,
-      endoFormula,
-      endoFormulaNumber,
-      webletPortP,
-      {
-        cancelled,
-        cancel,
-        gracePeriodMs,
-        gracePeriodElapsed,
-      },
+    const daemonCore = await makeDaemonCore(powers, endoFormula, webletPortP, {
+      cancelled,
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
+    });
+    // Ensure the default host is incarnated and persisted.
+    await daemonCore.incarnateHost(
+      endoFormulaIdentifier,
+      leastAuthorityFormulaIdentifier,
+      defaultHostFormulaNumber,
     );
+
     const endoBootstrap = await makeEndoBootstrapFromDaemonCore(
       daemonCore,
       endoFormula,
+      endoFormulaIdentifier,
       { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
     );
 

@@ -10,6 +10,7 @@ export const makeHostMaker = ({
   provideValueForFormula,
   provideValueForNumberedFormula,
   provideControllerForFormulaIdentifier,
+  incarnateHost,
   storeReaderRef,
   makeSha512,
   randomHex512,
@@ -410,12 +411,16 @@ export const makeHostMaker = ({
         formulaIdentifier = identifyLocal(petName);
       }
       if (formulaIdentifier === undefined) {
-        const id512 = await randomHex512();
-        formulaIdentifier = `host:${id512}`;
+        const { formulaIdentifier: newFormulaIdentifier, value } =
+          await incarnateHost(
+            endoFormulaIdentifier,
+            leastAuthorityFormulaIdentifier,
+          );
         if (petName !== undefined) {
           assertPetName(petName);
-          await petStore.write(petName, formulaIdentifier);
+          await petStore.write(petName, newFormulaIdentifier);
         }
+        return { formulaIdentifier: newFormulaIdentifier, value };
       } else if (!formulaIdentifier.startsWith('host:')) {
         throw new Error(
           `Existing pet name does not designate a host powers capability: ${q(
