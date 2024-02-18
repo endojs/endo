@@ -418,6 +418,15 @@ export type EndoWebBundle = {
   powers: ERef<unknown>;
 };
 
+export type EndoBootstrap = FarRef<{
+  ping: () => Promise<string>;
+  terminate: () => Promise<void>;
+  host: () => Promise<EndoHost>;
+  leastAuthority: () => Promise<EndoGuest>;
+  webPageJs: () => Promise<unknown>;
+  importAndEndowInWebPage: () => Promise<void>;
+}>;
+
 export type CryptoPowers = {
   makeSha512: () => Sha512;
   randomHex512: () => Promise<string>;
@@ -474,13 +483,13 @@ export type NetworkPowers = SocketPowers & {
     cancelled: Promise<never>;
   }) => Promise<number>;
   makePrivatePathService: (
-    endoBootstrap: FarRef<unknown>,
+    endoBootstrap: EndoBootstrap,
     sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
   ) => { started: Promise<void>; stopped: Promise<void> };
   makePrivateHttpService: (
-    endoBootstrap: FarRef<unknown>,
+    endoBootstrap: EndoBootstrap,
     port: number,
     assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,

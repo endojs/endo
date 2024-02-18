@@ -413,6 +413,49 @@ const makeDaemonCore = async (
           targetFormulaIdentifier: formula.target,
         },
       };
+    } else if (formula.type === 'endo') {
+      /** @type {import('./types.js').EndoBootstrap} */
+      const endoBootstrap = Far('Endo private facet', {
+        // TODO for user named
+        ping: async () => 'pong',
+        terminate: async () => {
+          cancel(new Error('Termination requested'));
+        },
+        host: () => {
+          // Behold, recursion:
+          return /** @type {Promise<import('./types.js').EndoHost>} */ (
+            // eslint-disable-next-line no-use-before-define
+            provideValueForFormulaIdentifier(formula.host)
+          );
+        },
+        leastAuthority: async () => leastAuthority,
+        webPageJs: () => {
+          if (formula.webPageJs === undefined) {
+            throw new Error('No web-page-js formula provided.');
+          }
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          return provideValueForFormulaIdentifier(formula.webPageJs);
+        },
+        importAndEndowInWebPage: async (webPageP, webPageNumber) => {
+          const { bundle: bundleBlob, powers: endowedPowers } =
+            /** @type {import('./types.js').EndoWebBundle} */ (
+              // Behold, recursion:
+              // eslint-disable-next-line no-use-before-define
+              await provideValueForFormulaIdentifier(
+                `web-bundle:${webPageNumber}`,
+              ).catch(() => {
+                throw new Error('Not found');
+              })
+            );
+          const bundle = await E(bundleBlob).json();
+          await E(webPageP).makeBundle(bundle, endowedPowers);
+        },
+      });
+      return {
+        external: endoBootstrap,
+        internal: undefined,
+      };
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -449,14 +492,11 @@ const makeDaemonCore = async (
         assertPetName,
       );
       return { external, internal: undefined };
-    } else if (formulaType === 'endo') {
-      throw new TypeError(
-        `Not possible to create endo bootstrap from formulaIdentifier`,
-      );
     } else if (formulaType === 'least-authority') {
       return { external: leastAuthority, internal: undefined };
     } else if (
       [
+        'endo',
         'eval',
         'make-unconfined',
         'make-bundle',
@@ -706,6 +746,46 @@ const makeDaemonCore = async (
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };
 
+  /**
+   * @param {string} [specifiedFormulaNumber]
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoBootstrap }>}
+   */
+  const incarnateEndoBootstrap = async specifiedFormulaNumber => {
+    const formulaNumber = specifiedFormulaNumber || (await randomHex512());
+    const endoFormulaIdentifier = `endo:${formulaNumber}`;
+
+    const leastAuthorityFormulaIdentifier = `least-authority:${await randomHex512()}`;
+    const defaultHostWorkerFormulaIdentifier = `worker:${await randomHex512()}`;
+
+    // Ensure the default host is incarnated and persisted.
+    const { formulaIdentifier: defaultHostFormulaIdentifier } =
+      await incarnateHost(
+        endoFormulaIdentifier,
+        leastAuthorityFormulaIdentifier,
+        defaultHostWorkerFormulaIdentifier,
+      );
+    // If supported, ensure the web page bundler is incarnated and persisted.
+    let webPageJsFormulaIdentifier;
+    if (persistencePowers.getWebPageBundlerFormula !== undefined) {
+      ({ formulaIdentifier: webPageJsFormulaIdentifier } =
+        await incarnateBundler(
+          defaultHostFormulaIdentifier,
+          defaultHostWorkerFormulaIdentifier,
+        ));
+    }
+
+    /** @type {import('./types.js').EndoFormula} */
+    const formula = {
+      type: 'endo',
+      host: defaultHostFormulaIdentifier,
+      leastAuthority: leastAuthorityFormulaIdentifier,
+      webPageJs: webPageJsFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoBootstrap }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
     provideValueForFormula,
@@ -839,105 +919,15 @@ const makeDaemonCore = async (
     return info;
   };
 
-  // The only way the endo formula can be loaded is through controllerForFormulaIdentifier.
-  const setEndoBootstrap = (endoFormulaIdentifier, endoBootstrap) => {
-    const { type } = parseFormulaIdentifier(endoFormulaIdentifier);
-    if (type !== 'endo') {
-      throw new TypeError(
-        `Invalid formula identifier, expected type 'endo', got ${q(type)}`,
-      );
-    }
-
-    /** @type {import('./types.js').Controller} */
-    const controller = {
-      external: endoBootstrap,
-      // @ts-expect-error types say internal cannot be undefined
-      internal: undefined,
-    };
-    controllerForFormulaIdentifier.set(endoFormulaIdentifier, controller);
-  };
-
   const daemonCore = {
     provideValueForFormulaIdentifier,
+    incarnateEndoBootstrap,
     incarnateHost,
     incarnateBundler,
-    setEndoBootstrap,
   };
   return daemonCore;
 };
 
-const makeEndoBootstrapFromDaemonCore = async (
-  daemonCore,
-  endoFormula,
-  endoFormulaIdentifier,
-  { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
-) => {
-  const { provideValueForFormulaIdentifier, setEndoBootstrap } = daemonCore;
-  const {
-    host: defaultHostFormulaIdentifier,
-    webPageJs: webPageJsFormulaIdentifier,
-  } = endoFormula;
-
-  const endoBootstrap = Far('Endo private facet', {
-    // TODO for user named
-    ping: async () => 'pong',
-    terminate: async () => {
-      cancel(new Error('Termination requested'));
-    },
-    host: () => provideValueForFormulaIdentifier(defaultHostFormulaIdentifier),
-    leastAuthority: () => leastAuthority,
-    webPageJs: () =>
-      provideValueForFormulaIdentifier(webPageJsFormulaIdentifier),
-    importAndEndowInWebPage: async (webPageP, webPageNumber) => {
-      const { bundle: bundleBlob, powers: endowedPowers } =
-        /** @type {import('./types.js').EndoWebBundle} */ (
-          await provideValueForFormulaIdentifier(
-            `web-bundle:${webPageNumber}`,
-          ).catch(() => {
-            throw new Error('Not found');
-          })
-        );
-      const bundle = await E(bundleBlob).json();
-      await E(webPageP).makeBundle(bundle, endowedPowers);
-    },
-  });
-  setEndoBootstrap(endoFormulaIdentifier, endoBootstrap);
-  return endoBootstrap;
-};
-
-/**
- * @param {import('./types.js').DaemonicPowers} powers
- * @param {import('./types.js').EndoFormula} endoFormula
- * @param {string} endoFormulaIdentifier
- * @param {Promise<number>} webletPortP
- * @param {object} args
- * @param {Promise<never>} args.cancelled
- * @param {(error: Error) => void} args.cancel
- * @param {number} args.gracePeriodMs
- * @param {Promise<never>} args.gracePeriodElapsed
- */
-const makeEndoBootstrap = async (
-  powers,
-  endoFormula,
-  endoFormulaIdentifier,
-  webletPortP,
-  { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
-) => {
-  const daemonCore = await makeDaemonCore(powers, webletPortP, {
-    cancelled,
-    cancel,
-    gracePeriodMs,
-    gracePeriodElapsed,
-  });
-  const endoBootstrap = await makeEndoBootstrapFromDaemonCore(
-    daemonCore,
-    endoFormula,
-    endoFormulaIdentifier,
-    { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
-  );
-  return endoBootstrap;
-};
-
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
@@ -946,82 +936,34 @@ const makeEndoBootstrap = async (
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
+ * @returns {Promise<import('./types.js').EndoBootstrap>}
  */
 const provideEndoBootstrap = async (
   powers,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
-  const { crypto: cryptoPowers, persistence: persistencePowers } = powers;
-  const { randomHex512 } = cryptoPowers;
+  const { persistence: persistencePowers } = powers;
+
+  const daemonCore = await makeDaemonCore(powers, webletPortP, {
+    cancelled,
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+  });
+
   const isInitialized = await persistencePowers.isRootInitialized();
   // Reading root nonce before isRootInitialized will cause isRootInitialized to be true.
   const endoFormulaNumber = await persistencePowers.provideRootNonce();
-  const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
-
   if (isInitialized) {
-    const endoFormula = /** @type {import('./types.js').EndoFormula} */ (
-      await persistencePowers.readFormula('endo', endoFormulaNumber)
-    );
-    return makeEndoBootstrap(
-      powers,
-      endoFormula,
-      endoFormulaIdentifier,
-      webletPortP,
-      {
-        cancelled,
-        cancel,
-        gracePeriodMs,
-        gracePeriodElapsed,
-      },
+    const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
+    return /** @type {Promise<import('./types.js').EndoBootstrap>} */ (
+      daemonCore.provideValueForFormulaIdentifier(endoFormulaIdentifier)
     );
   } else {
-    const leastAuthorityFormulaIdentifier = `least-authority:${await randomHex512()}`;
-    const defaultHostWorkerFormulaIdentifier = `worker:${await randomHex512()}`;
-
-    const daemonCore = await makeDaemonCore(powers, webletPortP, {
-      cancelled,
-      cancel,
-      gracePeriodMs,
-      gracePeriodElapsed,
-    });
-    // Ensure the default host is incarnated and persisted.
-    const { formulaIdentifier: defaultHostFormulaIdentifier } =
-      await daemonCore.incarnateHost(
-        endoFormulaIdentifier,
-        leastAuthorityFormulaIdentifier,
-        defaultHostWorkerFormulaIdentifier,
-      );
-    // If supported, ensure the web page bundler is incarnated and persisted.
-    let webPageJsFormulaIdentifier;
-    if (persistencePowers.getWebPageBundlerFormula !== undefined) {
-      ({ formulaIdentifier: webPageJsFormulaIdentifier } =
-        await daemonCore.incarnateBundler(
-          defaultHostFormulaIdentifier,
-          defaultHostWorkerFormulaIdentifier,
-        ));
-    }
-
-    /** @type {import('./types.js').EndoFormula} */
-    const endoFormula = {
-      type: 'endo',
-      host: defaultHostFormulaIdentifier,
-      leastAuthority: leastAuthorityFormulaIdentifier,
-      webPageJs: webPageJsFormulaIdentifier,
-    };
-    await persistencePowers.writeFormula(
-      endoFormula,
-      endoFormula.type,
+    const { value: endoBootstrap } = await daemonCore.incarnateEndoBootstrap(
       endoFormulaNumber,
     );
-
-    const endoBootstrap = await makeEndoBootstrapFromDaemonCore(
-      daemonCore,
-      endoFormula,
-      endoFormulaIdentifier,
-      { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
-    );
-
     return endoBootstrap;
   }
 };
@@ -1055,12 +997,16 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
       makePromiseKit()
     );
 
-  const endoBootstrap = provideEndoBootstrap(powers, assignedWebletPortP, {
-    cancelled,
-    cancel,
-    gracePeriodMs,
-    gracePeriodElapsed,
-  });
+  const endoBootstrap = await provideEndoBootstrap(
+    powers,
+    assignedWebletPortP,
+    {
+      cancelled,
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
+    },
+  );
 
   return { endoBootstrap, cancelGracePeriod, assignWebletPort };
 };
