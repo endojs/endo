@@ -54,7 +54,6 @@ const makeInspector = (type, number, record) =>
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {import('./types.js').EndoFormula} endoFormula
  * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {Promise<never>} args.cancelled
@@ -64,7 +63,6 @@ const makeInspector = (type, number, record) =>
  */
 const makeDaemonCore = async (
   powers,
-  endoFormula,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
@@ -80,11 +78,6 @@ const makeDaemonCore = async (
     digester.updateText(path.join(':'));
     return digester.digestHex();
   };
-
-  const { host: defaultHostFormulaIdentifier } = endoFormula;
-  const { number: defaultHostFormulaNumber } = parseFormulaIdentifier(
-    defaultHostFormulaIdentifier,
-  );
 
   const contentStore = persistencePowers.makeContentSha512Store();
 
@@ -454,24 +447,6 @@ const makeDaemonCore = async (
       );
     } else if (formulaType === 'least-authority') {
       return { external: leastAuthority, internal: undefined };
-    } else if (formulaType === 'web-page-js') {
-      if (persistencePowers.getWebPageBundlerFormula === undefined) {
-        throw Error('No web-page-js formula provided.');
-      }
-      // Note that this worker is hardcoded to be the "MAIN" worker of the
-      // default host.
-      const workerFormulaNumber = derive(defaultHostFormulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
-
-      return makeControllerForFormula(
-        'web-page-js',
-        derive(formulaNumber, 'web-page-js'),
-        persistencePowers.getWebPageBundlerFormula(
-          workerFormulaIdentifier,
-          defaultHostFormulaIdentifier,
-        ),
-        context,
-      );
     } else if (
       [
         'eval',
@@ -480,6 +455,7 @@ const makeDaemonCore = async (
         'host',
         'guest',
         'web-bundle',
+        'web-page-js',
       ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
@@ -659,6 +635,30 @@ const makeDaemonCore = async (
     );
   };
 
+  /**
+   * @param {string} powersFormulaIdentifier
+   * @param {string} workerFormulaIdentifier
+   * @param {string} [specifiedFormulaNumber]
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateBundler = async (
+    powersFormulaIdentifier,
+    workerFormulaIdentifier,
+    specifiedFormulaNumber,
+  ) => {
+    if (persistencePowers.getWebPageBundlerFormula === undefined) {
+      throw Error('No web-page-js bundler formula provided.');
+    }
+    const formulaNumber = specifiedFormulaNumber || (await randomHex512());
+    const formula = persistencePowers.getWebPageBundlerFormula(
+      powersFormulaIdentifier,
+      workerFormulaIdentifier,
+    );
+    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
     provideValueForFormula,
@@ -812,6 +812,7 @@ const makeDaemonCore = async (
   const daemonCore = {
     provideValueForFormulaIdentifier,
     incarnateHost,
+    incarnateBundler,
     setEndoBootstrap,
   };
   return daemonCore;
@@ -874,7 +875,7 @@ const makeEndoBootstrap = async (
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
-  const daemonCore = await makeDaemonCore(powers, endoFormula, webletPortP, {
+  const daemonCore = await makeDaemonCore(powers, webletPortP, {
     cancelled,
     cancel,
     gracePeriodMs,
@@ -935,10 +936,13 @@ const provideEndoBootstrap = async (
   } else {
     const defaultHostFormulaNumber = derive(endoFormulaNumber, 'host');
     const defaultHostFormulaIdentifier = `host:${defaultHostFormulaNumber}`;
-    const webPageJsFormulaIdentifier = `web-page-js:${derive(
-      endoFormulaNumber,
-      'web-page-js',
-    )}`;
+    const defaultHostWorkerFormulaNumber = derive(
+      defaultHostFormulaNumber,
+      'worker',
+    );
+    const defaultHostWorkerFormulaIdentifier = `worker:${defaultHostWorkerFormulaNumber}`;
+    const webPageJsFormulaNumber = derive(endoFormulaNumber, 'web-page-js');
+    const webPageJsFormulaIdentifier = `make-unconfined:${webPageJsFormulaNumber}`;
     const leastAuthorityFormulaNumber = derive(
       endoFormulaNumber,
       'least-authority',
@@ -958,7 +962,7 @@ const provideEndoBootstrap = async (
       endoFormulaNumber,
     );
 
-    const daemonCore = await makeDaemonCore(powers, endoFormula, webletPortP, {
+    const daemonCore = await makeDaemonCore(powers, webletPortP, {
       cancelled,
       cancel,
       gracePeriodMs,
@@ -970,6 +974,14 @@ const provideEndoBootstrap = async (
       leastAuthorityFormulaIdentifier,
       defaultHostFormulaNumber,
     );
+    // If supported, ensure the web page bundler is incarnated and persisted.
+    if (persistencePowers.getWebPageBundlerFormula !== undefined) {
+      await daemonCore.incarnateBundler(
+        defaultHostFormulaIdentifier,
+        defaultHostWorkerFormulaIdentifier,
+        webPageJsFormulaNumber,
+      );
+    }
 
     const endoBootstrap = await makeEndoBootstrapFromDaemonCore(
       daemonCore,

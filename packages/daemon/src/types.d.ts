@@ -490,7 +490,7 @@ export type DaemonicPersistencePowers = {
   getWebPageBundlerFormula?: (
     workerFormulaIdentifier: string,
     powersFormulaIdentifier: string,
-  ) => Formula;
+  ) => MakeUnconfinedFormula;
 };
 
 export interface DaemonWorkerFacet {}
