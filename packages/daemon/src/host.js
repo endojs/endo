@@ -11,6 +11,7 @@ export const makeHostMaker = ({
   provideValueForNumberedFormula,
   provideControllerForFormulaIdentifier,
   incarnateHost,
+  incarnateGuest,
   incarnateHandle,
   storeReaderRef,
   makeSha512,
@@ -120,15 +121,10 @@ export const makeHostMaker = ({
       if (formulaIdentifier === undefined) {
         const { formulaIdentifier: hostHandleFormulaIdentifier } =
           await makeNewHandleForSelf();
-        /** @type {import('./types.js').GuestFormula} */
-        const formula = {
-          type: 'guest',
-          host: hostHandleFormulaIdentifier,
-        };
         const { value, formulaIdentifier: guestFormulaIdentifier } =
           // Behold, recursion:
           // eslint-disable-next-line no-use-before-define
-          await provideValueForFormula(formula, 'guest');
+          await incarnateGuest(hostHandleFormulaIdentifier);
         if (petName !== undefined) {
           assertPetName(petName);
           await petStore.write(petName, guestFormulaIdentifier);

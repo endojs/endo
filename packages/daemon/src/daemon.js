@@ -727,6 +727,22 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @param {string} hostHandleFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>}
+   */
+  const incarnateGuest = async hostHandleFormulaIdentifier => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').GuestFormula} */
+    const formula = {
+      type: 'guest',
+      host: hostHandleFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
    * @param {string} powersFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
@@ -792,6 +808,7 @@ const makeDaemonCore = async (
     provideValueForNumberedFormula,
     provideControllerForFormulaIdentifier,
     incarnateHost,
+    incarnateGuest,
     incarnateHandle,
     storeReaderRef,
     randomHex512,
