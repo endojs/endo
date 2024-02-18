@@ -4,40 +4,36 @@ import { Far } from '@endo/far';
 
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
-  provideControllerForFormulaIdentifier,
+  provideControllerForFormulaIdentifierAndResolveHandle,
   makeMailbox,
 }) => {
   /**
    * @param {string} guestFormulaIdentifier
-   * @param {string} hostFormulaIdentifier
+   * @param {string} hostHandleFormulaIdentifier
    * @param {string} petStoreFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedGuestController = async (
     guestFormulaIdentifier,
-    hostFormulaIdentifier,
+    hostHandleFormulaIdentifier,
     petStoreFormulaIdentifier,
     mainWorkerFormulaIdentifier,
     context,
   ) => {
-    context.thisDiesIfThatDies(hostFormulaIdentifier);
+    context.thisDiesIfThatDies(hostHandleFormulaIdentifier);
     context.thisDiesIfThatDies(petStoreFormulaIdentifier);
     context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
     const petStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
-    const hostController = /** @type {import('./types.js').Controller<>} */ (
-      await provideControllerForFormulaIdentifier(hostFormulaIdentifier)
-    );
-    const hostPrivateFacet = await hostController.internal;
-    if (hostPrivateFacet === undefined) {
-      throw new Error(
-        `panic: a host request function must exist for every host`,
+    const hostController =
+      await provideControllerForFormulaIdentifierAndResolveHandle(
+        hostHandleFormulaIdentifier,
       );
-    }
-    const { respond: deliverToHost } = hostPrivateFacet;
+    const hostPrivateFacet = await hostController.internal;
+    const { respond: deliverToHost } = /** @type {any} */ (hostPrivateFacet);
     if (deliverToHost === undefined) {
       throw new Error(
         `panic: a host request function must exist for every host`,
@@ -67,7 +63,7 @@ export const makeGuestMaker = ({
       selfFormulaIdentifier: guestFormulaIdentifier,
       specialNames: {
         SELF: guestFormulaIdentifier,
-        HOST: hostFormulaIdentifier,
+        HOST: hostHandleFormulaIdentifier,
       },
       context,
     });

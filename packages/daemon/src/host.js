@@ -11,6 +11,7 @@ export const makeHostMaker = ({
   provideValueForNumberedFormula,
   provideControllerForFormulaIdentifier,
   incarnateHost,
+  incarnateHandle,
   storeReaderRef,
   makeSha512,
   randomHex512,
@@ -77,6 +78,13 @@ export const makeHostMaker = ({
     });
 
     /**
+     * @returns {Promise<{ formulaIdentifier: string, value: import('./types').Handle }>}
+     */
+    const makeNewHandleForSelf = () => {
+      return incarnateHandle(hostFormulaIdentifier);
+    };
+
+    /**
      * @param {import('./types.js').Controller} newController
      * @param {Record<string,string>} introducedNames
      * @returns {Promise<void>}
@@ -110,10 +118,12 @@ export const makeHostMaker = ({
       }
 
       if (formulaIdentifier === undefined) {
+        const { formulaIdentifier: hostHandleFormulaIdentifier } =
+          await makeNewHandleForSelf();
         /** @type {import('./types.js').GuestFormula} */
         const formula = {
-          type: /* @type {'guest'} */ 'guest',
-          host: hostFormulaIdentifier,
+          type: 'guest',
+          host: hostHandleFormulaIdentifier,
         };
         const { value, formulaIdentifier: guestFormulaIdentifier } =
           // Behold, recursion:

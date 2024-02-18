@@ -405,6 +405,14 @@ const makeDaemonCore = async (
           }))(),
         internal: undefined,
       };
+    } else if (formula.type === 'handle') {
+      context.thisDiesIfThatDies(formula.target);
+      return {
+        external: {},
+        internal: {
+          targetFormulaIdentifier: formula.target,
+        },
+      };
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -456,6 +464,7 @@ const makeDaemonCore = async (
         'guest',
         'web-bundle',
         'web-page-js',
+        'handle',
       ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
@@ -582,6 +591,31 @@ const makeDaemonCore = async (
     return value;
   };
 
+  /** @type {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} */
+  const provideControllerForFormulaIdentifierAndResolveHandle =
+    async formulaIdentifier => {
+      let currentFormulaIdentifier = formulaIdentifier;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const controller = provideControllerForFormulaIdentifier(
+          currentFormulaIdentifier,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        const internalFacet = await controller.internal;
+        if (internalFacet === undefined || internalFacet === null) {
+          return controller;
+        }
+        // @ts-expect-error We can't know the type of the internal facet.
+        if (internalFacet.targetFormulaIdentifier === undefined) {
+          return controller;
+        }
+        const handle = /** @type {import('./types.js').InternalHandle} */ (
+          internalFacet
+        );
+        currentFormulaIdentifier = handle.targetFormulaIdentifier;
+      }
+    };
+
   const makeContext = makeContextMaker({
     controllerForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
@@ -593,13 +627,30 @@ const makeDaemonCore = async (
     provideControllerForFormulaIdentifier,
     makeSha512,
     provideValueForNumberedFormula,
+    provideControllerForFormulaIdentifierAndResolveHandle,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
     provideValueForFormulaIdentifier,
-    provideControllerForFormulaIdentifier,
+    provideControllerForFormulaIdentifierAndResolveHandle,
     makeMailbox,
   });
+
+  /**
+   * @param {string} targetFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').Handle }>}
+   */
+  const incarnateHandle = async targetFormulaIdentifier => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').HandleFormula} */
+    const formula = {
+      type: 'handle',
+      target: targetFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').Handle }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
 
   /**
    * @param {string} endoFormulaIdentifier
@@ -661,6 +712,7 @@ const makeDaemonCore = async (
     provideValueForNumberedFormula,
     provideControllerForFormulaIdentifier,
     incarnateHost,
+    incarnateHandle,
     storeReaderRef,
     randomHex512,
     makeSha512,

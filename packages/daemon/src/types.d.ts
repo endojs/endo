@@ -124,6 +124,11 @@ type WebBundleFormula = {
   powers: string;
 };
 
+type HandleFormula = {
+  type: 'handle';
+  target: string;
+};
+
 export type Formula =
   | EndoFormula
   | HostFormula
@@ -132,7 +137,8 @@ export type Formula =
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
-  | WebBundleFormula;
+  | WebBundleFormula
+  | HandleFormula;
 
 export type Label = {
   number: number;
@@ -206,6 +212,15 @@ export type ProvideValueForFormulaIdentifier = (
 export type ProvideControllerForFormulaIdentifier = (
   formulaIdentifier: string,
 ) => Controller;
+export type ProvideControllerForFormulaIdentifierAndResolveHandle = (
+  formulaIdentifier: string,
+) => Promise<Controller>;
+
+export interface Handle {}
+export interface InternalHandle {
+  targetFormulaIdentifier: string;
+}
+
 export type GetFormulaIdentifierForRef = (ref: unknown) => string | undefined;
 export type MakeSha512 = () => Sha512;
 

@@ -15,6 +15,7 @@ const { quote: q } = assert;
  * @param {import('./types.js').GetFormulaIdentifierForRef} args.getFormulaIdentifierForRef
  * @param {import('./types.js').MakeSha512} args.makeSha512
  * @param {import('./types.js').ProvideValueForNumberedFormula} args.provideValueForNumberedFormula
+ * @param {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} args.provideControllerForFormulaIdentifierAndResolveHandle
  */
 export const makeMailboxMaker = ({
   provideValueForFormulaIdentifier,
@@ -22,6 +23,7 @@ export const makeMailboxMaker = ({
   getFormulaIdentifierForRef,
   makeSha512,
   provideValueForNumberedFormula,
+  provideControllerForFormulaIdentifierAndResolveHandle,
 }) => {
   /**
    * @param {object} args
@@ -375,9 +377,10 @@ export const makeMailboxMaker = ({
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipientController = await provideControllerForFormulaIdentifier(
-        recipientFormulaIdentifier,
-      );
+      const recipientController =
+        await provideControllerForFormulaIdentifierAndResolveHandle(
+          recipientFormulaIdentifier,
+        );
       const recipientInternal = await recipientController.internal;
       if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(`Recipient cannot receive messages: ${recipientName}`);
@@ -416,7 +419,6 @@ export const makeMailboxMaker = ({
         strings,
         edgeNames,
         formulaIdentifiers,
-        recipientFormulaIdentifier,
       );
       // add to own mailbox
       receive(
@@ -424,6 +426,7 @@ export const makeMailboxMaker = ({
         strings,
         edgeNames,
         formulaIdentifiers,
+        // Sender expects the handle formula identifier.
         recipientFormulaIdentifier,
       );
     };
@@ -486,20 +489,18 @@ export const makeMailboxMaker = ({
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
       const recipientController =
-        /** @type {import('./types.js').Controller<>} */ (
-          await provideControllerForFormulaIdentifier(
-            recipientFormulaIdentifier,
-          )
+        await provideControllerForFormulaIdentifierAndResolveHandle(
+          recipientFormulaIdentifier,
         );
-
       const recipientInternal = await recipientController.internal;
-      if (recipientInternal === undefined) {
+      if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(
           `panic: a receive request function must exist for every party`,
         );
       }
 
-      const { respond: deliverToRecipient } = await recipientInternal;
+      // @ts-expect-error We sufficiently check if recipientInternal or deliverToRecipient is undefined
+      const { respond: deliverToRecipient } = recipientInternal;
       if (deliverToRecipient === undefined) {
         throw new Error(
           `panic: a receive request function must exist for every party`,
@@ -528,6 +529,7 @@ export const makeMailboxMaker = ({
         responseName,
         selfFormulaIdentifier,
         petStore,
+        // Sender expects the handle formula identifier.
         recipientFormulaIdentifier,
       );
       const newResponseP = Promise.race([recipientResponseP, selfResponseP]);
