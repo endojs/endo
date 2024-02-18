@@ -61,7 +61,7 @@ type EndoFormula = {
   type: 'endo';
   host: string;
   leastAuthority: string;
-  webPageJs: string;
+  webPageJs?: string;
 };
 
 type HostFormula = {
