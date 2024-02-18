@@ -78,6 +78,10 @@ type GuestFormula = {
   host: string;
 };
 
+type LeastAuthorityFormula = {
+  type: 'least-authority';
+};
+
 type EvalFormula = {
   type: 'eval';
   worker: string;
@@ -133,6 +137,7 @@ export type Formula =
   | EndoFormula
   | HostFormula
   | GuestFormula
+  | LeastAuthorityFormula
   | EvalFormula
   | LookupFormula
   | MakeUnconfinedFormula

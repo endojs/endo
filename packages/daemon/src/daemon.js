@@ -14,13 +14,6 @@ import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
 
-/** @type {import('./types.js').EndoGuest} */
-const leastAuthority = Far('EndoGuest', {
-  async request() {
-    throw new Error('declined');
-  },
-});
-
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
   await Promise.race([cancelled, undefined]);
@@ -428,7 +421,13 @@ const makeDaemonCore = async (
             provideValueForFormulaIdentifier(formula.host)
           );
         },
-        leastAuthority: async () => leastAuthority,
+        leastAuthority: () => {
+          // Behold, recursion:
+          return /** @type {Promise<import('./types.js').EndoGuest>} */ (
+            // eslint-disable-next-line no-use-before-define
+            provideValueForFormulaIdentifier(formula.leastAuthority)
+          );
+        },
         webPageJs: () => {
           if (formula.webPageJs === undefined) {
             throw new Error('No web-page-js formula provided.');
@@ -456,6 +455,14 @@ const makeDaemonCore = async (
         external: endoBootstrap,
         internal: undefined,
       };
+    } else if (formula.type === 'least-authority') {
+      /** @type {import('./types.js').EndoGuest} */
+      const leastAuthority = Far('EndoGuest', {
+        async request() {
+          throw new Error('declined');
+        },
+      });
+      return { external: leastAuthority, internal: undefined };
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -492,8 +499,6 @@ const makeDaemonCore = async (
         assertPetName,
       );
       return { external, internal: undefined };
-    } else if (formulaType === 'least-authority') {
-      return { external: leastAuthority, internal: undefined };
     } else if (
       [
         'endo',
@@ -502,6 +507,7 @@ const makeDaemonCore = async (
         'make-bundle',
         'host',
         'guest',
+        'least-authority',
         'web-bundle',
         'web-page-js',
         'handle',
@@ -677,6 +683,20 @@ const makeDaemonCore = async (
   });
 
   /**
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>}
+   */
+  const incarnateLeastAuthority = async () => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').LeastAuthorityFormula} */
+    const formula = {
+      type: 'least-authority',
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
    * @param {string} targetFormulaIdentifier
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').Handle }>}
    */
@@ -769,9 +789,10 @@ const makeDaemonCore = async (
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = specifiedFormulaNumber || (await randomHex512());
     const endoFormulaIdentifier = `endo:${formulaNumber}`;
-
-    const leastAuthorityFormulaIdentifier = `least-authority:${await randomHex512()}`;
     const defaultHostWorkerFormulaIdentifier = `worker:${await randomHex512()}`;
+
+    const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
+      await incarnateLeastAuthority();
 
     // Ensure the default host is incarnated and persisted.
     const { formulaIdentifier: defaultHostFormulaIdentifier } =
