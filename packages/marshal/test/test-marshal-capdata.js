@@ -154,11 +154,12 @@ test('unserialize errors', t => {
 });
 
 test('unserialize extended errors', t => {
+  if (typeof AggregateError === 'undefined') {
+    t.pass('skip test on platforms prior to AggregateError');
+    return;
+  }
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
-
-  // TODO cause, errors, and AggregateError will eventually be recognized.
-  // See https://github.com/endojs/endo/pull/2042
 
   const refErr = uns(
     '{"@qclass":"error","message":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
@@ -167,7 +168,6 @@ test('unserialize extended errors', t => {
   t.false('extraProp' in refErr);
   t.false('cause' in refErr);
   t.false('errors' in refErr);
-  console.log('error with extra prop', refErr);
 
   const aggErr = uns(
     '{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
@@ -176,7 +176,6 @@ test('unserialize extended errors', t => {
   t.false('extraProp' in aggErr);
   t.false('cause' in aggErr);
   t.is(aggErr.errors.length, 0);
-  console.log('error with extra prop', aggErr);
 
   const unkErr = uns(
     '{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
@@ -185,10 +184,12 @@ test('unserialize extended errors', t => {
   t.false('extraProp' in unkErr);
   t.false('cause' in unkErr);
   t.false('errors' in unkErr);
-  console.log('error with extra prop', unkErr);
 });
 
-test('unserialize errors w recognized extensions', t => {
+const testIfAggregateError =
+  typeof AggregateError !== 'undefined' ? test : test.skip;
+
+testIfAggregateError('unserialize errors w recognized extensions', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
@@ -201,7 +202,6 @@ test('unserialize errors w recognized extensions', t => {
   t.false('extraProp' in refErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
   t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
-  console.log('error with extra prop', refErr);
 
   const aggErr = uns(
     `{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
@@ -210,7 +210,6 @@ test('unserialize errors w recognized extensions', t => {
   t.false('extraProp' in aggErr);
   t.is(getPrototypeOf(aggErr.cause), URIError.prototype);
   t.is(getPrototypeOf(aggErr.errors[0]), URIError.prototype);
-  console.log('error with extra prop', aggErr);
 
   const unkErr = uns(
     `{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
@@ -219,8 +218,6 @@ test('unserialize errors w recognized extensions', t => {
   t.false('extraProp' in unkErr);
   t.is(getPrototypeOf(unkErr.cause), URIError.prototype);
   t.is(getPrototypeOf(unkErr.errors[0]), URIError.prototype);
-
-  console.log('error with extra prop', unkErr);
 });
 
 test('passStyleOf null is "null"', t => {

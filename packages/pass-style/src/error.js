@@ -24,9 +24,16 @@ const errorConstructors = new Map(
     ['URIError', URIError],
 
     // https://github.com/endojs/endo/issues/550
-    ['AggregateError', AggregateError],
+    // To accommodate platforms prior to AggregateError, we comment out the
+    // following line and instead conditionally add it to the map below.
+    // ['AggregateError', AggregateError],
   ]),
 );
+
+if (typeof AggregateError !== 'undefined') {
+  // Conditional, to accommodate platforms prior to AggregateError
+  errorConstructors.set('AggregateError', AggregateError);
+}
 
 /**
  * Because the error constructor returned by this function might be

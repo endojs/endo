@@ -1,6 +1,6 @@
 User-visible changes in `@endo/patterns`:
 
-# next release
+# Next release
 
 - Add `M.tagged(tagPattern, payloadPattern)` for making patterns that match
   Passable Tagged objects.

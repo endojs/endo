@@ -274,7 +274,10 @@ const makeError = (
   const messageString = getMessageString(hiddenDetails);
   const opts = cause && { cause };
   let error;
-  if (errConstructor === AggregateError) {
+  if (
+    typeof AggregateError !== 'undefined' &&
+    errConstructor === AggregateError
+  ) {
     error = AggregateError(errors || [], messageString, opts);
   } else {
     error = /** @type {ErrorConstructor} */ (errConstructor)(

@@ -239,9 +239,11 @@ harden(assertPassable);
  *
  * TODO Deprecate and ultimately delete @agoric/base-zone's `isPassable' in
  * favor of this one.
+ * See https://github.com/endojs/endo/issues/2096
  *
  * TODO implement an isPassable that does not rely on try/catch.
- * This implementation is just a standin until then
+ * This implementation is just a standin until then.
+ * See https://github.com/endojs/endo/issues/2096
  *
  * @param {any} specimen
  * @returns {specimen is Passable}
@@ -299,7 +301,7 @@ export const assertPassableError = err => {
  * Return a new passable error that propagates the diagnostic info of the
  * original, and is linked to the original as a note.
  *
- * @param {Error | AggregateError} err
+ * @param {Error} err
  * @returns {Error}
  */
 export const toPassableError = err => {

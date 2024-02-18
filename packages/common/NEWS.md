@@ -1,8 +1,8 @@
 User-visible changes in `@endo/common`:
 
-# next release
+# Next release
 
-- Change to `throwLabeled`
+- `throwLabeled` parameterized error construction
   - Like the assertion functions/methods that were parameterized by an error
     constructor (`makeError`, `assert`, `assert.fail`, `assert.equal`),
     `throwLabeled` now also accepts named options `cause` and `errors` in its

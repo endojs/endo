@@ -1,6 +1,6 @@
 User-visible changes in `@endo/pass-style`:
 
-# next release
+# Next release
 
 - Now supports `AggegateError`, `error.errors`, `error.cause`.
   - A `Passable` error can now include an `error.cause` property whose

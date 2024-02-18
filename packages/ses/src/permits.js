@@ -1,4 +1,8 @@
 /* eslint-disable no-restricted-globals */
+/* eslint max-lines: 0 */
+
+import { arrayPush } from './commons.js';
+
 /**
  * @file Exports {@code whitelist}, a recursively defined
  * JSON record enumerating all intrinsics and their properties
@@ -7,8 +11,6 @@
  * @author JF Paradis
  * @author Mark S. Miller
  */
-
-/* eslint max-lines: 0 */
 
 /**
  * constantProperties
@@ -187,7 +189,8 @@ export const uniqueGlobalPropertyNames = {
 
 // All the "subclasses" of Error. These are collectively represented in the
 // ECMAScript spec by the meta variable NativeError.
-export const NativeErrors = [
+/** @type {GenericErrorConstructor[]} */
+const NativeErrors = [
   EvalError,
   RangeError,
   ReferenceError,
@@ -195,8 +198,17 @@ export const NativeErrors = [
   TypeError,
   URIError,
   // https://github.com/endojs/endo/issues/550
-  AggregateError,
+  // Commented out to accommodate platforms prior to AggregateError.
+  // Instead, conditional push below.
+  // AggregateError,
 ];
+
+if (typeof AggregateError !== 'undefined') {
+  // Conditional, to accommodate platforms prior to AggregateError
+  arrayPush(NativeErrors, AggregateError);
+}
+
+export { NativeErrors };
 
 /**
  * <p>Each JSON record enumerates the disposition of the properties on

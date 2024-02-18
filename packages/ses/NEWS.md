@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# next release
+# Next release
 
 - Now supports `Promise.any`, `AggegateError`, `error.errors`,
   and `error.cause`.

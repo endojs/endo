@@ -10,6 +10,10 @@ import '../../index.js';
 lockdown();
 
 test('aggregate error console demo', t => {
+  if (typeof AggregateError === 'undefined') {
+    t.pass('skip test on platforms prior to AggregateError');
+    return;
+  }
   const e3 = Error('e3');
   const e2 = Error('e2', { cause: e3 });
   const u4 = URIError('u4', { cause: e2 });

@@ -27,6 +27,10 @@ test('error cause', t => {
     enumerable: false,
     configurable: true,
   });
+  if (typeof AggregateError === 'undefined') {
+    t.pass('skip rest of test on platforms prior to AggregateError');
+    return;
+  }
   const a4 = AggregateError([e2, u3], 'a4', { cause: e1 });
   t.is(a4.message, 'a4');
   t.is(a4.cause, e1);

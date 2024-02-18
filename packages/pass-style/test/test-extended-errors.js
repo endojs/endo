@@ -18,6 +18,9 @@ test('style of extended errors', t => {
   const u3 = harden(URIError('u3', { cause: e1 }));
   t.is(passStyleOf(u3), 'error');
 
-  const a4 = harden(AggregateError([e2, u3], 'a4', { cause: e1 }));
-  t.is(passStyleOf(a4), 'error');
+  if (typeof AggregateError !== 'undefined') {
+    // Conditional, to accommodate platforms prior to AggregateError
+    const a4 = harden(AggregateError([e2, u3], 'a4', { cause: e1 }));
+    t.is(passStyleOf(a4), 'error');
+  }
 });
