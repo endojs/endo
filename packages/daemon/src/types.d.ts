@@ -91,6 +91,11 @@ type EvalFormula = {
   // TODO formula slots
 };
 
+type ReadableBlobFormula = {
+  type: 'readable-blob';
+  content: string;
+};
+
 type LookupFormula = {
   type: 'lookup';
 
@@ -139,6 +144,7 @@ export type Formula =
   | GuestFormula
   | LeastAuthorityFormula
   | EvalFormula
+  | ReadableBlobFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
@@ -344,6 +350,7 @@ export interface EndoReadable {
   text(): Promise<string>;
   json(): Promise<unknown>;
 }
+export type FarEndoReadable = FarRef<EndoReadable>;
 
 export interface EndoWorker {
   terminate(): void;

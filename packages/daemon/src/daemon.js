@@ -84,6 +84,7 @@ const makeDaemonCore = async (
 
   /**
    * @param {string} sha512
+   * @returns {import('./types.js').FarEndoReadable}
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
@@ -100,7 +101,9 @@ const makeDaemonCore = async (
    */
   const storeReaderRef = async readerRef => {
     const sha512Hex = await contentStore.store(makeRefReader(readerRef));
-    return `readable-blob:${sha512Hex}`;
+    // eslint-disable-next-line no-use-before-define
+    const { formulaIdentifier } = await incarnateReadableBlob(sha512Hex);
+    return formulaIdentifier;
   };
 
   /**
@@ -338,6 +341,9 @@ const makeDaemonCore = async (
         formula.values,
         context,
       );
+    } else if (formula.type === 'readable-blob') {
+      const external = makeReadableBlob(formula.content);
+      return { external, internal: undefined };
     } else if (formula.type === 'lookup') {
       return makeControllerForLookup(formula.hub, formula.path, context);
     } else if (formula.type === 'make-unconfined') {
@@ -479,12 +485,7 @@ const makeDaemonCore = async (
     context,
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
-    if (formulaType === 'readable-blob') {
-      // Behold, forward-reference:
-      // eslint-disable-next-line no-use-before-define
-      const external = makeReadableBlob(formulaNumber);
-      return { external, internal: undefined };
-    } else if (formulaType === 'worker') {
+    if (formulaType === 'worker') {
       return makeIdentifiedWorkerController(formulaNumber, context);
     } else if (formulaType === 'pet-inspector') {
       const storeFormulaNumber = derive(formulaNumber, 'pet-store');
@@ -503,6 +504,7 @@ const makeDaemonCore = async (
       [
         'endo',
         'eval',
+        'readable-blob',
         'make-unconfined',
         'make-bundle',
         'host',
@@ -785,6 +787,22 @@ const makeDaemonCore = async (
       values: endowmentFormulaIdentifiers,
     };
     return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} contentSha512
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types.js').FarEndoReadable }>}
+   */
+  const incarnateReadableBlob = async contentSha512 => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').ReadableBlobFormula} */
+    const formula = {
+      type: 'readable-blob',
+      content: contentSha512,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types.js').FarEndoReadable }>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
