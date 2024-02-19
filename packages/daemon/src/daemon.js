@@ -864,8 +864,8 @@ const makeDaemonCore = async (
     }
     const formulaNumber = await randomHex512();
     const formula = persistencePowers.getWebPageBundlerFormula(
-      powersFormulaIdentifier,
       workerFormulaIdentifier,
+      powersFormulaIdentifier,
     );
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };
