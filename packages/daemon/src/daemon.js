@@ -1125,8 +1125,20 @@ const makeDaemonCore = async (
   const daemonCore = {
     provideValueForFormulaIdentifier,
     incarnateEndoBootstrap,
+    incarnateLeastAuthority,
+    incarnateHandle,
+    incarnatePetStore,
+    incarnateWorker,
     incarnateHost,
+    incarnateGuest,
+    incarnateEval,
+    incarnateLookup,
+    incarnateUnconfined,
+    incarnateReadableBlob,
     incarnateBundler,
+    incarnateBundle,
+    incarnateWebBundle,
+    incarnatePetInspector,
   };
   return daemonCore;
 };
