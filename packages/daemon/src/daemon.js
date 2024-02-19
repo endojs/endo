@@ -467,6 +467,11 @@ const makeDaemonCore = async (
         },
       });
       return { external: leastAuthority, internal: undefined };
+    } else if (formula.type === 'pet-inspector') {
+      // Behold, unavoidable forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      const external = makePetStoreInspector(formula.petStore);
+      return { external, internal: undefined };
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -483,14 +488,7 @@ const makeDaemonCore = async (
     context,
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
-    if (formulaType === 'pet-inspector') {
-      const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
-      // Behold, unavoidable forward-reference:
-      // eslint-disable-next-line no-use-before-define
-      const external = makePetStoreInspector(storeFormulaIdentifier);
-      return { external, internal: undefined };
-    } else if (formulaType === 'pet-store') {
+    if (formulaType === 'pet-store') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         assertPetName,
@@ -510,6 +508,7 @@ const makeDaemonCore = async (
         'web-bundle',
         'web-page-js',
         'handle',
+        'pet-inspector',
       ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
@@ -733,12 +732,13 @@ const makeDaemonCore = async (
       ({ formulaIdentifier: workerFormulaIdentifier } =
         await incarnateWorker());
     }
-    const inspectorFormulaNumber = derive(formulaNumber, 'pet-inspector');
-    const inspectorFormulaIdentifier = `pet-inspector:${inspectorFormulaNumber}`;
     // Note the pet store formula number derivation path:
     // root -> host -> inspector -> pet store
-    const storeFormulaNumber = derive(inspectorFormulaNumber, 'pet-store');
+    const storeFormulaNumber = derive(formulaNumber, 'pet-store');
     const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
+    const { formulaIdentifier: inspectorFormulaIdentifier } =
+      // eslint-disable-next-line no-use-before-define
+      await incarnatePetInspector(storeFormulaIdentifier);
     /** @type {import('./types.js').HostFormula} */
     const formula = {
       type: 'host',
@@ -899,6 +899,20 @@ const makeDaemonCore = async (
       type: 'web-bundle',
       powers: powersFormulaIdentifier,
       bundle: bundleFormulaIdentifier,
+    };
+    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+  };
+
+  /**
+   * @param {string} petStoreFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnatePetInspector = async petStoreFormulaIdentifier => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').PetInspectorFormula} */
+    const formula = {
+      type: 'pet-inspector',
+      petStore: petStoreFormulaIdentifier,
     };
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };

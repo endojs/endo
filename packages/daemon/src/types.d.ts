@@ -144,6 +144,11 @@ type HandleFormula = {
   target: string;
 };
 
+type PetInspectorFormula = {
+  type: 'pet-inspector';
+  petStore: string;
+};
+
 export type Formula =
   | EndoFormula
   | WorkerFormula
@@ -156,7 +161,8 @@ export type Formula =
   | MakeUnconfinedFormula
   | MakeBundleFormula
   | WebBundleFormula
-  | HandleFormula;
+  | HandleFormula
+  | PetInspectorFormula;
 
 export type Label = {
   number: number;
