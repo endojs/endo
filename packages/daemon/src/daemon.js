@@ -792,6 +792,30 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @param {string} workerFormulaIdentifier
+   * @param {string} powersFormulaIdentifiers
+   * @param {string} specifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateUnconfined = async (
+    workerFormulaIdentifier,
+    powersFormulaIdentifiers,
+    specifier,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').MakeUnconfinedFormula} */
+    const formula = {
+      type: 'make-unconfined',
+      worker: workerFormulaIdentifier,
+      powers: powersFormulaIdentifiers,
+      specifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
    * @param {string} contentSha512
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types.js').FarEndoReadable }>}
    */
@@ -876,6 +900,7 @@ const makeDaemonCore = async (
     incarnateHost,
     incarnateGuest,
     incarnateEval,
+    incarnateUnconfined,
     incarnateHandle,
     storeReaderRef,
     randomHex512,

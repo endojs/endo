@@ -13,6 +13,7 @@ export const makeHostMaker = ({
   incarnateHost,
   incarnateGuest,
   incarnateEval,
+  incarnateUnconfined,
   incarnateHandle,
   storeReaderRef,
   makeSha512,
@@ -315,19 +316,12 @@ export const makeHostMaker = ({
         powersName,
       );
 
-      const formula = {
-        /** @type {'make-unconfined'} */
-        type: 'make-unconfined',
-        worker: workerFormulaIdentifier,
-        powers: powersFormulaIdentifier,
-        specifier,
-      };
-
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { formulaIdentifier, value } = await provideValueForFormula(
-        formula,
-        'make-unconfined',
+      const { formulaIdentifier, value } = await incarnateUnconfined(
+        workerFormulaIdentifier,
+        powersFormulaIdentifier,
+        specifier,
       );
       if (resultName !== undefined) {
         await petStore.write(resultName, formulaIdentifier);
