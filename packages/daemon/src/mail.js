@@ -10,19 +10,17 @@ const { quote: q } = assert;
 
 /**
  * @param {object} args
+ * @param {(hubFormulaIdentifier: string, petNamePath: string[]) => Promise<{ formulaIdentifier: string, value: unknown }>} args.incarnateLookup
  * @param {import('./types.js').ProvideValueForFormulaIdentifier} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').ProvideControllerForFormulaIdentifier} args.provideControllerForFormulaIdentifier
  * @param {import('./types.js').GetFormulaIdentifierForRef} args.getFormulaIdentifierForRef
- * @param {import('./types.js').MakeSha512} args.makeSha512
- * @param {import('./types.js').ProvideValueForNumberedFormula} args.provideValueForNumberedFormula
  * @param {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} args.provideControllerForFormulaIdentifierAndResolveHandle
  */
 export const makeMailboxMaker = ({
+  incarnateLookup,
+  getFormulaIdentifierForRef,
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
-  getFormulaIdentifierForRef,
-  makeSha512,
-  provideValueForNumberedFormula,
   provideControllerForFormulaIdentifierAndResolveHandle,
 }) => {
   /**
@@ -126,28 +124,8 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['provideLookupFormula']} */
     const provideLookupFormula = async petNamePath => {
-      // The lookup formula identifier consists of the hash of the associated
-      // naming hub's formula identifier and the pet name path.
-      // A "naming hub" is an objected with a variadic lookup method. It includes
-      // objects such as guests and hosts.
-      const digester = makeSha512();
-      digester.updateText(`${selfFormulaIdentifier},${petNamePath.join(',')}`);
-      const lookupFormulaNumber = digester.digestHex();
-
       // TODO:lookup Check if the lookup formula already exists in the store
-      /** @type {import('./types.js').LookupFormula} */
-      const lookupFormula = {
-        /** @type {'lookup'} */
-        type: 'lookup',
-        hub: selfFormulaIdentifier,
-        path: petNamePath,
-      };
-
-      return provideValueForNumberedFormula(
-        'lookup',
-        lookupFormulaNumber,
-        lookupFormula,
-      );
+      return incarnateLookup(selfFormulaIdentifier, petNamePath);
     };
 
     /**

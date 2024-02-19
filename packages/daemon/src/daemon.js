@@ -65,7 +65,7 @@ const makeDaemonCore = async (
     persistence: persistencePowers,
     control: controlPowers,
   } = powers;
-  const { randomHex512, makeSha512 } = cryptoPowers;
+  const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
@@ -504,6 +504,7 @@ const makeDaemonCore = async (
         'handle',
         'pet-inspector',
         'pet-store',
+        'lookup',
       ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
@@ -646,26 +647,6 @@ const makeDaemonCore = async (
       }
     };
 
-  const makeContext = makeContextMaker({
-    controllerForFormulaIdentifier,
-    provideControllerForFormulaIdentifier,
-  });
-
-  const makeMailbox = makeMailboxMaker({
-    getFormulaIdentifierForRef,
-    provideValueForFormulaIdentifier,
-    provideControllerForFormulaIdentifier,
-    makeSha512,
-    provideValueForNumberedFormula,
-    provideControllerForFormulaIdentifierAndResolveHandle,
-  });
-
-  const makeIdentifiedGuestController = makeGuestMaker({
-    provideValueForFormulaIdentifier,
-    provideControllerForFormulaIdentifierAndResolveHandle,
-    makeMailbox,
-  });
-
   /**
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>}
    */
@@ -803,6 +784,26 @@ const makeDaemonCore = async (
       source,
       names: codeNames,
       values: endowmentFormulaIdentifiers,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} hubFormulaIdentifier
+   * A "naming hub" is an objected with a variadic lookup method. It includes
+   * objects such as guests and hosts.
+   * @param {string[]} petNamePath
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateLookup = async (hubFormulaIdentifier, petNamePath) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').LookupFormula} */
+    const formula = {
+      type: 'lookup',
+      hub: hubFormulaIdentifier,
+      path: petNamePath,
     };
     return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
@@ -965,6 +966,25 @@ const makeDaemonCore = async (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
+
+  const makeContext = makeContextMaker({
+    controllerForFormulaIdentifier,
+    provideControllerForFormulaIdentifier,
+  });
+
+  const makeMailbox = makeMailboxMaker({
+    incarnateLookup,
+    getFormulaIdentifierForRef,
+    provideValueForFormulaIdentifier,
+    provideControllerForFormulaIdentifier,
+    provideControllerForFormulaIdentifierAndResolveHandle,
+  });
+
+  const makeIdentifiedGuestController = makeGuestMaker({
+    provideValueForFormulaIdentifier,
+    provideControllerForFormulaIdentifierAndResolveHandle,
+    makeMailbox,
+  });
 
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
