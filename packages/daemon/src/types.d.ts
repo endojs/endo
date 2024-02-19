@@ -64,6 +64,10 @@ type EndoFormula = {
   webPageJs?: string;
 };
 
+type WorkerFormula = {
+  type: 'worker';
+};
+
 type HostFormula = {
   type: 'host';
   worker: string;
@@ -76,6 +80,8 @@ type HostFormula = {
 type GuestFormula = {
   type: 'guest';
   host: string;
+  petStore: string;
+  worker: string;
 };
 
 type LeastAuthorityFormula = {
@@ -140,6 +146,7 @@ type HandleFormula = {
 
 export type Formula =
   | EndoFormula
+  | WorkerFormula
   | HostFormula
   | GuestFormula
   | LeastAuthorityFormula

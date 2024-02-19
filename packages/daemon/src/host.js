@@ -8,6 +8,7 @@ const { quote: q } = assert;
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
+  incarnateWorker,
   incarnateHost,
   incarnateGuest,
   incarnateEval,
@@ -186,8 +187,8 @@ export const makeHostMaker = ({
       }
       let workerFormulaIdentifier = identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
-        const workerId512 = await randomHex512();
-        workerFormulaIdentifier = `worker:${workerId512}`;
+        ({ formulaIdentifier: workerFormulaIdentifier } =
+          await incarnateWorker());
         assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
       } else if (!workerFormulaIdentifier.startsWith('worker:')) {
@@ -207,14 +208,15 @@ export const makeHostMaker = ({
       if (workerName === 'MAIN') {
         return mainWorkerFormulaIdentifier;
       } else if (workerName === 'NEW') {
-        const workerId512 = await randomHex512();
-        return `worker:${workerId512}`;
+        const { formulaIdentifier: workerFormulaIdentifier } =
+          await incarnateWorker();
+        return workerFormulaIdentifier;
       }
       assertPetName(workerName);
       let workerFormulaIdentifier = identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
-        const workerId512 = await randomHex512();
-        workerFormulaIdentifier = `worker:${workerId512}`;
+        ({ formulaIdentifier: workerFormulaIdentifier } =
+          await incarnateWorker());
         assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
       }
@@ -370,19 +372,16 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} [petName]
+     * @returns {Promise<import('./types.js').EndoWorker>}
      */
     const makeWorker = async petName => {
-      const workerId512 = await randomHex512();
-      const formulaIdentifier = `worker:${workerId512}`;
+      // Behold, recursion:
+      const { formulaIdentifier, value } = await incarnateWorker();
       if (petName !== undefined) {
         assertPetName(petName);
         await petStore.write(petName, formulaIdentifier);
       }
-      return /** @type {Promise<import('./types.js').EndoWorker>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provideValueForFormulaIdentifier(formulaIdentifier)
-      );
+      return /** @type {import('./types.js').EndoWorker} */ (value);
     };
 
     /**

@@ -346,6 +346,8 @@ const makeDaemonCore = async (
       return { external, internal: undefined };
     } else if (formula.type === 'lookup') {
       return makeControllerForLookup(formula.hub, formula.path, context);
+    } else if (formula.type === 'worker') {
+      return makeIdentifiedWorkerController(formulaNumber, context);
     } else if (formula.type === 'make-unconfined') {
       return makeControllerForUnconfinedPlugin(
         formula.worker,
@@ -373,17 +375,13 @@ const makeDaemonCore = async (
         context,
       );
     } else if (formula.type === 'guest') {
-      const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
-      const workerFormulaNumber = derive(formulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedGuestController(
         formulaIdentifier,
         formula.host,
-        storeFormulaIdentifier,
-        workerFormulaIdentifier,
+        formula.petStore,
+        formula.worker,
         context,
       );
     } else if (formula.type === 'web-bundle') {
@@ -485,9 +483,7 @@ const makeDaemonCore = async (
     context,
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
-    if (formulaType === 'worker') {
-      return makeIdentifiedWorkerController(formulaNumber, context);
-    } else if (formulaType === 'pet-inspector') {
+    if (formulaType === 'pet-inspector') {
       const storeFormulaNumber = derive(formulaNumber, 'pet-store');
       const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
       // Behold, unavoidable forward-reference:
@@ -503,6 +499,7 @@ const makeDaemonCore = async (
     } else if (
       [
         'endo',
+        'worker',
         'eval',
         'readable-blob',
         'make-unconfined',
@@ -706,6 +703,20 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
+   */
+  const incarnateWorker = async () => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').WorkerFormula} */
+    const formula = {
+      type: 'worker',
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
    * @param {string} endoFormulaIdentifier
    * @param {string} leastAuthorityFormulaIdentifier
    * @param {string} [specifiedWorkerFormulaIdentifier]
@@ -717,8 +728,11 @@ const makeDaemonCore = async (
     specifiedWorkerFormulaIdentifier,
   ) => {
     const formulaNumber = await randomHex512();
-    const workerFormulaIdentifier =
-      specifiedWorkerFormulaIdentifier || `worker:${await randomHex512()}`;
+    let workerFormulaIdentifier = specifiedWorkerFormulaIdentifier;
+    if (workerFormulaIdentifier === undefined) {
+      ({ formulaIdentifier: workerFormulaIdentifier } =
+        await incarnateWorker());
+    }
     const inspectorFormulaNumber = derive(formulaNumber, 'pet-inspector');
     const inspectorFormulaIdentifier = `pet-inspector:${inspectorFormulaNumber}`;
     // Note the pet store formula number derivation path:
@@ -745,10 +759,16 @@ const makeDaemonCore = async (
    */
   const incarnateGuest = async hostHandleFormulaIdentifier => {
     const formulaNumber = await randomHex512();
+    const storeFormulaNumber = derive(formulaNumber, 'pet-store');
+    const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
+    const { formulaIdentifier: workerFormulaIdentifier } =
+      await incarnateWorker();
     /** @type {import('./types.js').GuestFormula} */
     const formula = {
       type: 'guest',
       host: hostHandleFormulaIdentifier,
+      petStore: storeFormulaIdentifier,
+      worker: workerFormulaIdentifier,
     };
     return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
@@ -890,8 +910,9 @@ const makeDaemonCore = async (
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = specifiedFormulaNumber || (await randomHex512());
     const endoFormulaIdentifier = `endo:${formulaNumber}`;
-    const defaultHostWorkerFormulaIdentifier = `worker:${await randomHex512()}`;
 
+    const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
+      await incarnateWorker();
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
       await incarnateLeastAuthority();
 
@@ -927,6 +948,7 @@ const makeDaemonCore = async (
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
+    incarnateWorker,
     incarnateHost,
     incarnateGuest,
     incarnateEval,
