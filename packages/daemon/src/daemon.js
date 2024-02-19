@@ -584,15 +584,6 @@ const makeDaemonCore = async (
     });
   };
 
-  /**
-   * @param {import('./types.js').Formula} formula
-   * @param {string} formulaType
-   */
-  const provideValueForFormula = async (formula, formulaType) => {
-    const formulaNumber = await randomHex512();
-    return provideValueForNumberedFormula(formulaType, formulaNumber, formula);
-  };
-
   /** @type {import('./types.js').ProvideControllerForFormulaIdentifier} */
   const provideControllerForFormulaIdentifier = formulaIdentifier => {
     const { type: formulaType, number: formulaNumber } =
@@ -874,6 +865,25 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @param {string} powersFormulaIdentifier
+   * @param {string} bundleFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateWebBundle = async (
+    powersFormulaIdentifier,
+    bundleFormulaIdentifier,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').WebBundleFormula} */
+    const formula = {
+      type: 'web-bundle',
+      powers: powersFormulaIdentifier,
+      bundle: bundleFormulaIdentifier,
+    };
+    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+  };
+
+  /**
    * @param {string} [specifiedFormulaNumber]
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoBootstrap }>}
    */
@@ -916,18 +926,16 @@ const makeDaemonCore = async (
 
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
-    provideValueForFormula,
-    provideValueForNumberedFormula,
     provideControllerForFormulaIdentifier,
     incarnateHost,
     incarnateGuest,
     incarnateEval,
     incarnateUnconfined,
     incarnateBundle,
+    incarnateWebBundle,
     incarnateHandle,
     storeReaderRef,
     randomHex512,
-    makeSha512,
     makeMailbox,
   });
 

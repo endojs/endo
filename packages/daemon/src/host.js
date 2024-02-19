@@ -7,17 +7,15 @@ const { quote: q } = assert;
 
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
-  provideValueForFormula,
-  provideValueForNumberedFormula,
   provideControllerForFormulaIdentifier,
   incarnateHost,
   incarnateGuest,
   incarnateEval,
   incarnateUnconfined,
   incarnateBundle,
+  incarnateWebBundle,
   incarnateHandle,
   storeReaderRef,
-  makeSha512,
   randomHex512,
   makeMailbox,
 }) => {
@@ -452,24 +450,10 @@ export const makeHostMaker = ({
         powersName,
       );
 
-      const digester = makeSha512();
-      digester.updateText(
-        `${bundleFormulaIdentifier},${powersFormulaIdentifier}`,
-      );
-      const formulaNumber = digester.digestHex().slice(32, 64);
-
-      const formula = {
-        type: 'web-bundle',
-        bundle: bundleFormulaIdentifier,
-        powers: powersFormulaIdentifier,
-      };
-
       // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const { value, formulaIdentifier } = await provideValueForNumberedFormula(
-        'web-bundle',
-        formulaNumber,
-        formula,
+      const { value, formulaIdentifier } = await incarnateWebBundle(
+        powersFormulaIdentifier,
+        bundleFormulaIdentifier,
       );
 
       if (webPageName !== undefined) {
