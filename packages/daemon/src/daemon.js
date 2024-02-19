@@ -763,6 +763,33 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @param {string} workerFormulaIdentifier
+   * @param {string} source
+   * @param {string[]} codeNames
+   * @param {string[]} endowmentFormulaIdentifiers
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateEval = async (
+    workerFormulaIdentifier,
+    source,
+    codeNames,
+    endowmentFormulaIdentifiers,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').EvalFormula} */
+    const formula = {
+      type: 'eval',
+      worker: workerFormulaIdentifier,
+      source,
+      names: codeNames,
+      values: endowmentFormulaIdentifiers,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
    * @param {string} powersFormulaIdentifier
    * @param {string} workerFormulaIdentifier
    * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
@@ -830,6 +857,7 @@ const makeDaemonCore = async (
     provideControllerForFormulaIdentifier,
     incarnateHost,
     incarnateGuest,
+    incarnateEval,
     incarnateHandle,
     storeReaderRef,
     randomHex512,

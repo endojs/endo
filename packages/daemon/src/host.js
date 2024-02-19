@@ -12,6 +12,7 @@ export const makeHostMaker = ({
   provideControllerForFormulaIdentifier,
   incarnateHost,
   incarnateGuest,
+  incarnateEval,
   incarnateHandle,
   storeReaderRef,
   makeSha512,
@@ -264,7 +265,7 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      const formulaIdentifiers = await Promise.all(
+      const endowmentFormulaIdentifiers = await Promise.all(
         petNamePaths.map(async (petNameOrPath, index) => {
           if (typeof codeNames[index] !== 'string') {
             throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
@@ -285,20 +286,13 @@ export const makeHostMaker = ({
         }),
       );
 
-      const evalFormula = {
-        /** @type {'eval'} */
-        type: 'eval',
-        worker: workerFormulaIdentifier,
-        source,
-        names: codeNames,
-        values: formulaIdentifiers,
-      };
-
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { formulaIdentifier, value } = await provideValueForFormula(
-        evalFormula,
-        'eval',
+      const { formulaIdentifier, value } = await incarnateEval(
+        workerFormulaIdentifier,
+        source,
+        codeNames,
+        endowmentFormulaIdentifiers,
       );
       if (resultName !== undefined) {
         await petStore.write(resultName, formulaIdentifier);
