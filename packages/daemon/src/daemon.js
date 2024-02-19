@@ -66,12 +66,6 @@ const makeDaemonCore = async (
     control: controlPowers,
   } = powers;
   const { randomHex512, makeSha512 } = cryptoPowers;
-  const derive = (...path) => {
-    const digester = makeSha512();
-    digester.updateText(path.join(':'));
-    return digester.digestHex();
-  };
-
   const contentStore = persistencePowers.makeContentSha512Store();
 
   /** @type {Map<string, import('./types.js').Controller<>>} */
@@ -467,6 +461,12 @@ const makeDaemonCore = async (
         },
       });
       return { external: leastAuthority, internal: undefined };
+    } else if (formula.type === 'pet-store') {
+      const external = petStorePowers.makeIdentifiedPetStore(
+        formulaNumber,
+        assertPetName,
+      );
+      return { external, internal: undefined };
     } else if (formula.type === 'pet-inspector') {
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
@@ -488,13 +488,7 @@ const makeDaemonCore = async (
     context,
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
-    if (formulaType === 'pet-store') {
-      const external = petStorePowers.makeIdentifiedPetStore(
-        formulaNumber,
-        assertPetName,
-      );
-      return { external, internal: undefined };
-    } else if (
+    if (
       [
         'endo',
         'worker',
@@ -509,6 +503,7 @@ const makeDaemonCore = async (
         'web-page-js',
         'handle',
         'pet-inspector',
+        'pet-store',
       ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
@@ -702,6 +697,20 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').PetStore }>}
+   */
+  const incarnatePetStore = async () => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').PetStoreFormula} */
+    const formula = {
+      type: 'pet-store',
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').PetStore }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
    */
   const incarnateWorker = async () => {
@@ -732,10 +741,8 @@ const makeDaemonCore = async (
       ({ formulaIdentifier: workerFormulaIdentifier } =
         await incarnateWorker());
     }
-    // Note the pet store formula number derivation path:
-    // root -> host -> inspector -> pet store
-    const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-    const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
+    const { formulaIdentifier: storeFormulaIdentifier } =
+      await incarnatePetStore();
     const { formulaIdentifier: inspectorFormulaIdentifier } =
       // eslint-disable-next-line no-use-before-define
       await incarnatePetInspector(storeFormulaIdentifier);
@@ -759,8 +766,8 @@ const makeDaemonCore = async (
    */
   const incarnateGuest = async hostHandleFormulaIdentifier => {
     const formulaNumber = await randomHex512();
-    const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-    const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
+    const { formulaIdentifier: storeFormulaIdentifier } =
+      await incarnatePetStore();
     const { formulaIdentifier: workerFormulaIdentifier } =
       await incarnateWorker();
     /** @type {import('./types.js').GuestFormula} */
