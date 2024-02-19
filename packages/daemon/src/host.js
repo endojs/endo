@@ -14,6 +14,7 @@ export const makeHostMaker = ({
   incarnateGuest,
   incarnateEval,
   incarnateUnconfined,
+  incarnateBundle,
   incarnateHandle,
   storeReaderRef,
   makeSha512,
@@ -354,19 +355,12 @@ export const makeHostMaker = ({
         powersName,
       );
 
-      const formula = {
-        /** @type {'make-bundle'} */
-        type: 'make-bundle',
-        worker: workerFormulaIdentifier,
-        powers: powersFormulaIdentifier,
-        bundle: bundleFormulaIdentifier,
-      };
-
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { value, formulaIdentifier } = await provideValueForFormula(
-        formula,
-        'make-bundle',
+      const { value, formulaIdentifier } = await incarnateBundle(
+        powersFormulaIdentifier,
+        workerFormulaIdentifier,
+        bundleFormulaIdentifier,
       );
 
       if (resultName !== undefined) {

@@ -852,6 +852,28 @@ const makeDaemonCore = async (
   };
 
   /**
+   * @param {string} powersFormulaIdentifier
+   * @param {string} workerFormulaIdentifier
+   * @param {string} bundleFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateBundle = async (
+    powersFormulaIdentifier,
+    workerFormulaIdentifier,
+    bundleFormulaIdentifier,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').MakeBundleFormula} */
+    const formula = {
+      type: 'make-bundle',
+      worker: workerFormulaIdentifier,
+      powers: powersFormulaIdentifier,
+      bundle: bundleFormulaIdentifier,
+    };
+    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+  };
+
+  /**
    * @param {string} [specifiedFormulaNumber]
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoBootstrap }>}
    */
@@ -901,6 +923,7 @@ const makeDaemonCore = async (
     incarnateGuest,
     incarnateEval,
     incarnateUnconfined,
+    incarnateBundle,
     incarnateHandle,
     storeReaderRef,
     randomHex512,
