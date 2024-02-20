@@ -912,7 +912,8 @@ const makeDaemonCore = async (
     powersFormulaIdentifier,
     bundleFormulaIdentifier,
   ) => {
-    const formulaNumber = await randomHex512();
+    // TODO use regular-length (512-bit) formula numbers for web bundles
+    const formulaNumber = (await randomHex512()).slice(32, 64);
     /** @type {import('./types.js').WebBundleFormula} */
     const formula = {
       type: 'web-bundle',
