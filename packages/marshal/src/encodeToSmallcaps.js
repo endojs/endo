@@ -76,7 +76,7 @@ const DASH = '-'.charCodeAt(0);
  * @param {string} encodedStr
  * @returns {boolean}
  */
-const startsSpecial = encodedStr => {
+export const startsSpecial = encodedStr => {
   if (encodedStr === '') {
     return false;
   }
@@ -84,6 +84,19 @@ const startsSpecial = encodedStr => {
   const code = encodedStr.charCodeAt(0);
   // eslint-disable-next-line yoda
   return BANG <= code && code <= DASH;
+};
+
+export const encodeStringToSmallcaps = str => {
+  if (startsSpecial(str)) {
+    // Strings that start with a special char are quoted with `!`.
+    // Since `!` is itself a special character, this trivially does
+    // the Hilbert hotel. Also, since the special characters are
+    // a continuous subrange of ascii, this quoting is sort-order
+    // preserving.
+    return `!${str}`;
+  }
+  // All other strings pass through to JSON
+  return str;
 };
 
 /**
@@ -180,16 +193,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
         return passable;
       }
       case 'string': {
-        if (startsSpecial(passable)) {
-          // Strings that start with a special char are quoted with `!`.
-          // Since `!` is itself a special character, this trivially does
-          // the Hilbert hotel. Also, since the special characters are
-          // a continuous subrange of ascii, this quoting is sort-order
-          // preserving.
-          return `!${passable}`;
-        }
-        // All other strings pass through to JSON
-        return passable;
+        return encodeStringToSmallcaps(passable);
       }
       case 'undefined': {
         return '#undefined';
@@ -216,13 +220,12 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
         return `%${name}`;
       }
       case 'copyRecord': {
-        // Currently copyRecord allows only string keys so this will
-        // work. If we allow sortable symbol keys, this will need to
-        // become more interesting.
+        // copyRecord allows only string keys so this will
+        // work.
         const names = ownKeys(passable).sort();
         return fromEntries(
           names.map(name => [
-            encodeToSmallcapsRecur(name),
+            encodeStringToSmallcaps(name),
             encodeToSmallcapsRecur(passable[name]),
           ]),
         );
@@ -232,7 +235,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
       }
       case 'tagged': {
         return {
-          '#tag': encodeToSmallcapsRecur(getTag(passable)),
+          '#tag': encodeStringToSmallcaps(getTag(passable)),
           payload: encodeToSmallcapsRecur(passable.payload),
         };
       }
