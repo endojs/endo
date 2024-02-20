@@ -245,7 +245,20 @@ export type ProvideControllerForFormulaIdentifierAndResolveHandle = (
   formulaIdentifier: string,
 ) => Promise<Controller>;
 
+/**
+ * A handle is used to create a pointer to a formula without exposing it directly.
+ * This is the external facet of the Handle and is safe to expose. This is used to
+ * provide an EndoGuest with a reference to its creator EndoHost. By using a handle
+ * that points to the host instead of giving a direct reference to the host, the
+ * guest does not get access to the functions of the host. This is the external
+ * facet of a handle. It directly exposes nothing. The handle's target is only
+ * exposed on the internal facet.
+ */
 export interface Handle {}
+/**
+ * This is the internal facet of a handle. It exposes the formula id that the
+ * handle points to. This should not be exposed outside of the endo daemon.
+ */
 export interface InternalHandle {
   targetFormulaIdentifier: string;
 }
