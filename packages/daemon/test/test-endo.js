@@ -1111,3 +1111,28 @@ test('list special names', async t => {
   t.assert(specialNames.every(name => name.toUpperCase() === name));
   t.deepEqual([...specialNames, ...names], allNames);
 });
+
+test('guest cannot access host methods', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'guest-cannot-host');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const guest = E(host).provideGuest('guest');
+  const guestsHost = E(guest).lookup('HOST');
+  await t.throwsAsync(() => E(guestsHost).lookup('SELF'), {
+    message: /target has no method "lookup"/u,
+  });
+  const revealedTarget = await E.get(guestsHost).targetFormulaIdentifier;
+  t.is(revealedTarget, undefined);
+});
