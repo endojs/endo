@@ -7,11 +7,16 @@ const { quote: q } = assert;
 
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
-  provideValueForFormula,
-  provideValueForNumberedFormula,
   provideControllerForFormulaIdentifier,
+  incarnateWorker,
+  incarnateHost,
+  incarnateGuest,
+  incarnateEval,
+  incarnateUnconfined,
+  incarnateBundle,
+  incarnateWebBundle,
+  incarnateHandle,
   storeReaderRef,
-  makeSha512,
   randomHex512,
   makeMailbox,
 }) => {
@@ -76,6 +81,13 @@ export const makeHostMaker = ({
     });
 
     /**
+     * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
+     */
+    const makeNewHandleForSelf = () => {
+      return incarnateHandle(hostFormulaIdentifier);
+    };
+
+    /**
      * @param {import('./types.js').Controller} newController
      * @param {Record<string,string>} introducedNames
      * @returns {Promise<void>}
@@ -109,15 +121,12 @@ export const makeHostMaker = ({
       }
 
       if (formulaIdentifier === undefined) {
-        /** @type {import('./types.js').GuestFormula} */
-        const formula = {
-          type: /* @type {'guest'} */ 'guest',
-          host: hostFormulaIdentifier,
-        };
+        const { formulaIdentifier: hostHandleFormulaIdentifier } =
+          await makeNewHandleForSelf();
         const { value, formulaIdentifier: guestFormulaIdentifier } =
           // Behold, recursion:
           // eslint-disable-next-line no-use-before-define
-          await provideValueForFormula(formula, 'guest');
+          await incarnateGuest(hostHandleFormulaIdentifier);
         if (petName !== undefined) {
           assertPetName(petName);
           await petStore.write(petName, guestFormulaIdentifier);
@@ -178,8 +187,8 @@ export const makeHostMaker = ({
       }
       let workerFormulaIdentifier = identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
-        const workerId512 = await randomHex512();
-        workerFormulaIdentifier = `worker:${workerId512}`;
+        ({ formulaIdentifier: workerFormulaIdentifier } =
+          await incarnateWorker());
         assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
       } else if (!workerFormulaIdentifier.startsWith('worker:')) {
@@ -199,14 +208,15 @@ export const makeHostMaker = ({
       if (workerName === 'MAIN') {
         return mainWorkerFormulaIdentifier;
       } else if (workerName === 'NEW') {
-        const workerId512 = await randomHex512();
-        return `worker:${workerId512}`;
+        const { formulaIdentifier: workerFormulaIdentifier } =
+          await incarnateWorker();
+        return workerFormulaIdentifier;
       }
       assertPetName(workerName);
       let workerFormulaIdentifier = identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
-        const workerId512 = await randomHex512();
-        workerFormulaIdentifier = `worker:${workerId512}`;
+        ({ formulaIdentifier: workerFormulaIdentifier } =
+          await incarnateWorker());
         assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
       }
@@ -257,7 +267,7 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      const formulaIdentifiers = await Promise.all(
+      const endowmentFormulaIdentifiers = await Promise.all(
         petNamePaths.map(async (petNameOrPath, index) => {
           if (typeof codeNames[index] !== 'string') {
             throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
@@ -278,20 +288,13 @@ export const makeHostMaker = ({
         }),
       );
 
-      const evalFormula = {
-        /** @type {'eval'} */
-        type: 'eval',
-        worker: workerFormulaIdentifier,
-        source,
-        names: codeNames,
-        values: formulaIdentifiers,
-      };
-
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { formulaIdentifier, value } = await provideValueForFormula(
-        evalFormula,
-        'eval',
+      const { formulaIdentifier, value } = await incarnateEval(
+        workerFormulaIdentifier,
+        source,
+        codeNames,
+        endowmentFormulaIdentifiers,
       );
       if (resultName !== undefined) {
         await petStore.write(resultName, formulaIdentifier);
@@ -314,19 +317,12 @@ export const makeHostMaker = ({
         powersName,
       );
 
-      const formula = {
-        /** @type {'make-unconfined'} */
-        type: 'make-unconfined',
-        worker: workerFormulaIdentifier,
-        powers: powersFormulaIdentifier,
-        specifier,
-      };
-
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { formulaIdentifier, value } = await provideValueForFormula(
-        formula,
-        'make-unconfined',
+      const { formulaIdentifier, value } = await incarnateUnconfined(
+        workerFormulaIdentifier,
+        powersFormulaIdentifier,
+        specifier,
       );
       if (resultName !== undefined) {
         await petStore.write(resultName, formulaIdentifier);
@@ -359,19 +355,12 @@ export const makeHostMaker = ({
         powersName,
       );
 
-      const formula = {
-        /** @type {'make-bundle'} */
-        type: 'make-bundle',
-        worker: workerFormulaIdentifier,
-        powers: powersFormulaIdentifier,
-        bundle: bundleFormulaIdentifier,
-      };
-
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { value, formulaIdentifier } = await provideValueForFormula(
-        formula,
-        'make-bundle',
+      const { value, formulaIdentifier } = await incarnateBundle(
+        powersFormulaIdentifier,
+        workerFormulaIdentifier,
+        bundleFormulaIdentifier,
       );
 
       if (resultName !== undefined) {
@@ -383,19 +372,16 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} [petName]
+     * @returns {Promise<import('./types.js').EndoWorker>}
      */
     const makeWorker = async petName => {
-      const workerId512 = await randomHex512();
-      const formulaIdentifier = `worker:${workerId512}`;
+      // Behold, recursion:
+      const { formulaIdentifier, value } = await incarnateWorker();
       if (petName !== undefined) {
         assertPetName(petName);
         await petStore.write(petName, formulaIdentifier);
       }
-      return /** @type {Promise<import('./types.js').EndoWorker>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provideValueForFormulaIdentifier(formulaIdentifier)
-      );
+      return /** @type {import('./types.js').EndoWorker} */ (value);
     };
 
     /**
@@ -410,12 +396,16 @@ export const makeHostMaker = ({
         formulaIdentifier = identifyLocal(petName);
       }
       if (formulaIdentifier === undefined) {
-        const id512 = await randomHex512();
-        formulaIdentifier = `host:${id512}`;
+        const { formulaIdentifier: newFormulaIdentifier, value } =
+          await incarnateHost(
+            endoFormulaIdentifier,
+            leastAuthorityFormulaIdentifier,
+          );
         if (petName !== undefined) {
           assertPetName(petName);
-          await petStore.write(petName, formulaIdentifier);
+          await petStore.write(petName, newFormulaIdentifier);
         }
+        return { formulaIdentifier: newFormulaIdentifier, value };
       } else if (!formulaIdentifier.startsWith('host:')) {
         throw new Error(
           `Existing pet name does not designate a host powers capability: ${q(
@@ -459,24 +449,10 @@ export const makeHostMaker = ({
         powersName,
       );
 
-      const digester = makeSha512();
-      digester.updateText(
-        `${bundleFormulaIdentifier},${powersFormulaIdentifier}`,
-      );
-      const formulaNumber = digester.digestHex().slice(32, 64);
-
-      const formula = {
-        type: 'web-bundle',
-        bundle: bundleFormulaIdentifier,
-        powers: powersFormulaIdentifier,
-      };
-
       // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const { value, formulaIdentifier } = await provideValueForNumberedFormula(
-        'web-bundle',
-        formulaNumber,
-        formula,
+      const { value, formulaIdentifier } = await incarnateWebBundle(
+        powersFormulaIdentifier,
+        bundleFormulaIdentifier,
       );
 
       if (webPageName !== undefined) {

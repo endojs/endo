@@ -14,13 +14,6 @@ import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
 
-/** @type {import('./types.js').EndoGuest} */
-const leastAuthority = Far('EndoGuest', {
-  async request() {
-    throw new Error('declined');
-  },
-});
-
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
   await Promise.race([cancelled, undefined]);
@@ -61,7 +54,7 @@ const makeInspector = (type, number, record) =>
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
  */
-const makeEndoBootstrap = async (
+const makeDaemonCore = async (
   powers,
   webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
@@ -72,36 +65,35 @@ const makeEndoBootstrap = async (
     persistence: persistencePowers,
     control: controlPowers,
   } = powers;
-  const { randomHex512, makeSha512 } = cryptoPowers;
-  const derive = (...path) => {
-    const digester = makeSha512();
-    digester.updateText(path.join(':'));
-    return digester.digestHex();
-  };
-
+  const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
-  const rootNonce = await persistencePowers.provideRootNonce();
 
-  const endoFormulaIdentifier = `endo:${rootNonce}`;
-  const defaultHostFormulaNumber = derive(rootNonce, 'host');
-  const defaultHostFormulaIdentifier = `host:${defaultHostFormulaNumber}`;
-  const webPageJsFormulaIdentifier = `web-page-js:${derive(
-    rootNonce,
-    'web-page-js',
-  )}`;
-  const leastAuthorityFormulaNumber = derive(rootNonce, 'least-authority');
-  const leastAuthorityFormulaIdentifier = `least-authority:${leastAuthorityFormulaNumber}`;
+  /**
+   * The two functions "provideValueForNumberedFormula" and "provideValueForFormulaIdentifier"
+   * share a responsibility for maintaining the memoization tables
+   * "controllerForFormulaIdentifier" and "formulaIdentifierForRef".
+   * "provideValueForNumberedFormula" is used for incarnating and persisting
+   * new formulas, whereas "provideValueForFormulaIdentifier" is used for
+   * reincarnating stored formulas.
+   */
 
-  /** @type {Map<string, import('./types.js').Controller<>>} */
+  /**
+   * Reverse look-up, for answering "what is my name for this near or far
+   * reference", and not for "what is my name for this promise".
+   * @type {Map<string, import('./types.js').Controller>}
+   */
   const controllerForFormulaIdentifier = new Map();
-  // Reverse look-up, for answering "what is my name for this near or far
-  // reference", and not for "what is my name for this promise".
-  /** @type {WeakMap<object, string>} */
+  /**
+   * Reverse look-up, for answering "what is my name for this near or far
+   * reference", and not for "what is my name for this promise".
+   * @type {WeakMap<object, string>}
+   */
   const formulaIdentifierForRef = new WeakMap();
   const getFormulaIdentifierForRef = ref => formulaIdentifierForRef.get(ref);
 
   /**
    * @param {string} sha512
+   * @returns {import('./types.js').FarEndoReadable}
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
@@ -118,7 +110,9 @@ const makeEndoBootstrap = async (
    */
   const storeReaderRef = async readerRef => {
     const sha512Hex = await contentStore.store(makeRefReader(readerRef));
-    return `readable-blob:${sha512Hex}`;
+    // eslint-disable-next-line no-use-before-define
+    const { formulaIdentifier } = await incarnateReadableBlob(sha512Hex);
+    return formulaIdentifier;
   };
 
   /**
@@ -356,8 +350,13 @@ const makeEndoBootstrap = async (
         formula.values,
         context,
       );
+    } else if (formula.type === 'readable-blob') {
+      const external = makeReadableBlob(formula.content);
+      return { external, internal: undefined };
     } else if (formula.type === 'lookup') {
       return makeControllerForLookup(formula.hub, formula.path, context);
+    } else if (formula.type === 'worker') {
+      return makeIdentifiedWorkerController(formulaNumber, context);
     } else if (formula.type === 'make-unconfined') {
       return makeControllerForUnconfinedPlugin(
         formula.worker,
@@ -372,18 +371,26 @@ const makeEndoBootstrap = async (
         formula.bundle,
         context,
       );
+    } else if (formula.type === 'host') {
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      return makeIdentifiedHost(
+        formulaIdentifier,
+        formula.endo,
+        formula.petStore,
+        formula.inspector,
+        formula.worker,
+        formula.leastAuthority,
+        context,
+      );
     } else if (formula.type === 'guest') {
-      const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
-      const workerFormulaNumber = derive(formulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedGuestController(
         formulaIdentifier,
         formula.host,
-        storeFormulaIdentifier,
-        workerFormulaIdentifier,
+        formula.petStore,
+        formula.worker,
         context,
       );
     } else if (formula.type === 'web-bundle') {
@@ -404,6 +411,82 @@ const makeEndoBootstrap = async (
           }))(),
         internal: undefined,
       };
+    } else if (formula.type === 'handle') {
+      context.thisDiesIfThatDies(formula.target);
+      return {
+        external: {},
+        internal: {
+          targetFormulaIdentifier: formula.target,
+        },
+      };
+    } else if (formula.type === 'endo') {
+      /** @type {import('./types.js').FarEndoBootstrap} */
+      const endoBootstrap = Far('Endo private facet', {
+        // TODO for user named
+        ping: async () => 'pong',
+        terminate: async () => {
+          cancel(new Error('Termination requested'));
+        },
+        host: () => {
+          // Behold, recursion:
+          return /** @type {Promise<import('./types.js').EndoHost>} */ (
+            // eslint-disable-next-line no-use-before-define
+            provideValueForFormulaIdentifier(formula.host)
+          );
+        },
+        leastAuthority: () => {
+          // Behold, recursion:
+          return /** @type {Promise<import('./types.js').EndoGuest>} */ (
+            // eslint-disable-next-line no-use-before-define
+            provideValueForFormulaIdentifier(formula.leastAuthority)
+          );
+        },
+        webPageJs: () => {
+          if (formula.webPageJs === undefined) {
+            throw new Error('No web-page-js formula provided.');
+          }
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          return provideValueForFormulaIdentifier(formula.webPageJs);
+        },
+        importAndEndowInWebPage: async (webPageP, webPageNumber) => {
+          const { bundle: bundleBlob, powers: endowedPowers } =
+            /** @type {import('./types.js').EndoWebBundle} */ (
+              // Behold, recursion:
+              // eslint-disable-next-line no-use-before-define
+              await provideValueForFormulaIdentifier(
+                `web-bundle:${webPageNumber}`,
+              ).catch(() => {
+                throw new Error('Not found');
+              })
+            );
+          const bundle = await E(bundleBlob).json();
+          await E(webPageP).makeBundle(bundle, endowedPowers);
+        },
+      });
+      return {
+        external: endoBootstrap,
+        internal: undefined,
+      };
+    } else if (formula.type === 'least-authority') {
+      /** @type {import('./types.js').EndoGuest} */
+      const leastAuthority = Far('EndoGuest', {
+        async request() {
+          throw new Error('declined');
+        },
+      });
+      return { external: leastAuthority, internal: undefined };
+    } else if (formula.type === 'pet-store') {
+      const external = petStorePowers.makeIdentifiedPetStore(
+        formulaNumber,
+        assertPetName,
+      );
+      return { external, internal: undefined };
+    } else if (formula.type === 'pet-inspector') {
+      // Behold, unavoidable forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      const external = makePetStoreInspector(formula.petStore);
+      return { external, internal: undefined };
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -420,84 +503,23 @@ const makeEndoBootstrap = async (
     context,
   ) => {
     const formulaIdentifier = `${formulaType}:${formulaNumber}`;
-    if (formulaType === 'readable-blob') {
-      // Behold, forward-reference:
-      // eslint-disable-next-line no-use-before-define
-      const external = makeReadableBlob(formulaNumber);
-      return { external, internal: undefined };
-    } else if (formulaType === 'worker') {
-      return makeIdentifiedWorkerController(formulaNumber, context);
-    } else if (formulaType === 'pet-inspector') {
-      const storeFormulaNumber = derive(formulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
-      // Behold, unavoidable forward-reference:
-      // eslint-disable-next-line no-use-before-define
-      const external = makePetStoreInspector(storeFormulaIdentifier);
-      return { external, internal: undefined };
-    } else if (formulaType === 'pet-store') {
-      const external = petStorePowers.makeIdentifiedPetStore(
-        formulaNumber,
-        assertPetName,
-      );
-      return { external, internal: undefined };
-    } else if (formulaType === 'host') {
-      const workerFormulaNumber = derive(formulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
-      const inspectorFormulaNumber = derive(formulaNumber, 'pet-inspector');
-      const inspectorFormulaIdentifier = `pet-inspector:${inspectorFormulaNumber}`;
-      // Note the pet store formula number derivation path:
-      // root -> host -> inspector -> pet store
-      const storeFormulaNumber = derive(inspectorFormulaNumber, 'pet-store');
-      const storeFormulaIdentifier = `pet-store:${storeFormulaNumber}`;
-
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return makeIdentifiedHost(
-        formulaIdentifier,
-        endoFormulaIdentifier,
-        storeFormulaIdentifier,
-        inspectorFormulaIdentifier,
-        workerFormulaIdentifier,
-        leastAuthorityFormulaIdentifier,
-        context,
-      );
-    } else if (formulaType === 'endo') {
-      if (formulaNumber !== rootNonce) {
-        throw new Error('Invalid endo formula number.');
-      }
-
-      // TODO reframe "cancelled" as termination of the "endo" object and
-      // ensure that all values ultimately depend on "endo".
-      // Behold, self-referentiality:
-      // eslint-disable-next-line no-use-before-define
-      return { external: endoBootstrap, internal: undefined };
-    } else if (formulaType === 'least-authority') {
-      return { external: leastAuthority, internal: undefined };
-    } else if (formulaType === 'web-page-js') {
-      if (persistencePowers.getWebPageBundlerFormula === undefined) {
-        throw Error('No web-page-js formula provided.');
-      }
-      // Note that this worker is hardcoded to be the "MAIN" worker of the
-      // default host.
-      const workerFormulaNumber = derive(defaultHostFormulaNumber, 'worker');
-      const workerFormulaIdentifier = `worker:${workerFormulaNumber}`;
-
-      return makeControllerForFormula(
-        'web-page-js',
-        derive(formulaNumber, 'web-page-js'),
-        persistencePowers.getWebPageBundlerFormula(
-          workerFormulaIdentifier,
-          defaultHostFormulaIdentifier,
-        ),
-        context,
-      );
-    } else if (
+    if (
       [
+        'endo',
+        'worker',
         'eval',
+        'readable-blob',
         'make-unconfined',
         'make-bundle',
+        'host',
         'guest',
+        'least-authority',
         'web-bundle',
+        'web-page-js',
+        'handle',
+        'pet-inspector',
+        'pet-store',
+        'lookup',
       ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
@@ -518,10 +540,6 @@ const makeEndoBootstrap = async (
     }
   };
 
-  // The two functions provideValueForFormula and provideValueForFormulaIdentifier
-  // share a responsibility for maintaining the memoization tables
-  // controllerForFormulaIdentifier and formulaIdentifierForRef, since the
-  // former bypasses the latter in order to avoid a round trip with disk.
   /** @type {import('./types.js').ProvideValueForNumberedFormula} */
   const provideValueForNumberedFormula = async (
     formulaType,
@@ -567,15 +585,6 @@ const makeEndoBootstrap = async (
       formulaIdentifier,
       value: controller.external,
     });
-  };
-
-  /**
-   * @param {import('./types.js').Formula} formula
-   * @param {string} formulaType
-   */
-  const provideValueForFormula = async (formula, formulaType) => {
-    const formulaNumber = await randomHex512();
-    return provideValueForNumberedFormula(formulaType, formulaNumber, formula);
   };
 
   /** @type {import('./types.js').ProvideControllerForFormulaIdentifier} */
@@ -624,33 +633,384 @@ const makeEndoBootstrap = async (
     return value;
   };
 
+  /** @type {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} */
+  const provideControllerForFormulaIdentifierAndResolveHandle =
+    async formulaIdentifier => {
+      let currentFormulaIdentifier = formulaIdentifier;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const controller = provideControllerForFormulaIdentifier(
+          currentFormulaIdentifier,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        const internalFacet = await controller.internal;
+        if (internalFacet === undefined || internalFacet === null) {
+          return controller;
+        }
+        // @ts-expect-error We can't know the type of the internal facet.
+        if (internalFacet.targetFormulaIdentifier === undefined) {
+          return controller;
+        }
+        const handle = /** @type {import('./types.js').InternalHandle} */ (
+          internalFacet
+        );
+        currentFormulaIdentifier = handle.targetFormulaIdentifier;
+      }
+    };
+
+  /**
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>}
+   */
+  const incarnateLeastAuthority = async () => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').LeastAuthorityFormula} */
+    const formula = {
+      type: 'least-authority',
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} targetFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
+   */
+  const incarnateHandle = async targetFormulaIdentifier => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').HandleFormula} */
+    const formula = {
+      type: 'handle',
+      target: targetFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').PetStore }>}
+   */
+  const incarnatePetStore = async () => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').PetStoreFormula} */
+    const formula = {
+      type: 'pet-store',
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').PetStore }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
+   */
+  const incarnateWorker = async () => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').WorkerFormula} */
+    const formula = {
+      type: 'worker',
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} endoFormulaIdentifier
+   * @param {string} leastAuthorityFormulaIdentifier
+   * @param {string} [specifiedWorkerFormulaIdentifier]
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoHost }>}
+   */
+  const incarnateHost = async (
+    endoFormulaIdentifier,
+    leastAuthorityFormulaIdentifier,
+    specifiedWorkerFormulaIdentifier,
+  ) => {
+    const formulaNumber = await randomHex512();
+    let workerFormulaIdentifier = specifiedWorkerFormulaIdentifier;
+    if (workerFormulaIdentifier === undefined) {
+      ({ formulaIdentifier: workerFormulaIdentifier } =
+        await incarnateWorker());
+    }
+    const { formulaIdentifier: storeFormulaIdentifier } =
+      await incarnatePetStore();
+    const { formulaIdentifier: inspectorFormulaIdentifier } =
+      // eslint-disable-next-line no-use-before-define
+      await incarnatePetInspector(storeFormulaIdentifier);
+    /** @type {import('./types.js').HostFormula} */
+    const formula = {
+      type: 'host',
+      petStore: storeFormulaIdentifier,
+      inspector: inspectorFormulaIdentifier,
+      worker: workerFormulaIdentifier,
+      endo: endoFormulaIdentifier,
+      leastAuthority: leastAuthorityFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoHost }>} */ (
+      provideValueForNumberedFormula('host', formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} hostHandleFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>}
+   */
+  const incarnateGuest = async hostHandleFormulaIdentifier => {
+    const formulaNumber = await randomHex512();
+    const { formulaIdentifier: storeFormulaIdentifier } =
+      await incarnatePetStore();
+    const { formulaIdentifier: workerFormulaIdentifier } =
+      await incarnateWorker();
+    /** @type {import('./types.js').GuestFormula} */
+    const formula = {
+      type: 'guest',
+      host: hostHandleFormulaIdentifier,
+      petStore: storeFormulaIdentifier,
+      worker: workerFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} workerFormulaIdentifier
+   * @param {string} source
+   * @param {string[]} codeNames
+   * @param {string[]} endowmentFormulaIdentifiers
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateEval = async (
+    workerFormulaIdentifier,
+    source,
+    codeNames,
+    endowmentFormulaIdentifiers,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').EvalFormula} */
+    const formula = {
+      type: 'eval',
+      worker: workerFormulaIdentifier,
+      source,
+      names: codeNames,
+      values: endowmentFormulaIdentifiers,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} hubFormulaIdentifier
+   * A "naming hub" is an objected with a variadic lookup method. It includes
+   * objects such as guests and hosts.
+   * @param {string[]} petNamePath
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateLookup = async (hubFormulaIdentifier, petNamePath) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').LookupFormula} */
+    const formula = {
+      type: 'lookup',
+      hub: hubFormulaIdentifier,
+      path: petNamePath,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} workerFormulaIdentifier
+   * @param {string} powersFormulaIdentifiers
+   * @param {string} specifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateUnconfined = async (
+    workerFormulaIdentifier,
+    powersFormulaIdentifiers,
+    specifier,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').MakeUnconfinedFormula} */
+    const formula = {
+      type: 'make-unconfined',
+      worker: workerFormulaIdentifier,
+      powers: powersFormulaIdentifiers,
+      specifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} contentSha512
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types.js').FarEndoReadable }>}
+   */
+  const incarnateReadableBlob = async contentSha512 => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').ReadableBlobFormula} */
+    const formula = {
+      type: 'readable-blob',
+      content: contentSha512,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types.js').FarEndoReadable }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} powersFormulaIdentifier
+   * @param {string} workerFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateBundler = async (
+    powersFormulaIdentifier,
+    workerFormulaIdentifier,
+  ) => {
+    if (persistencePowers.getWebPageBundlerFormula === undefined) {
+      throw Error('No web-page-js bundler formula provided.');
+    }
+    const formulaNumber = await randomHex512();
+    const formula = persistencePowers.getWebPageBundlerFormula(
+      workerFormulaIdentifier,
+      powersFormulaIdentifier,
+    );
+    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+  };
+
+  /**
+   * @param {string} powersFormulaIdentifier
+   * @param {string} workerFormulaIdentifier
+   * @param {string} bundleFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateBundle = async (
+    powersFormulaIdentifier,
+    workerFormulaIdentifier,
+    bundleFormulaIdentifier,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').MakeBundleFormula} */
+    const formula = {
+      type: 'make-bundle',
+      worker: workerFormulaIdentifier,
+      powers: powersFormulaIdentifier,
+      bundle: bundleFormulaIdentifier,
+    };
+    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+  };
+
+  /**
+   * @param {string} powersFormulaIdentifier
+   * @param {string} bundleFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnateWebBundle = async (
+    powersFormulaIdentifier,
+    bundleFormulaIdentifier,
+  ) => {
+    // TODO use regular-length (512-bit) formula numbers for web bundles
+    const formulaNumber = (await randomHex512()).slice(32, 64);
+    /** @type {import('./types.js').WebBundleFormula} */
+    const formula = {
+      type: 'web-bundle',
+      powers: powersFormulaIdentifier,
+      bundle: bundleFormulaIdentifier,
+    };
+    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+  };
+
+  /**
+   * @param {string} petStoreFormulaIdentifier
+   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   */
+  const incarnatePetInspector = async petStoreFormulaIdentifier => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').PetInspectorFormula} */
+    const formula = {
+      type: 'pet-inspector',
+      petStore: petStoreFormulaIdentifier,
+    };
+    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+  };
+
+  /**
+   * @param {string} [specifiedFormulaNumber]
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').FarEndoBootstrap }>}
+   */
+  const incarnateEndoBootstrap = async specifiedFormulaNumber => {
+    const formulaNumber = specifiedFormulaNumber || (await randomHex512());
+    const endoFormulaIdentifier = `endo:${formulaNumber}`;
+
+    const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
+      await incarnateWorker();
+    const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
+      await incarnateLeastAuthority();
+
+    // Ensure the default host is incarnated and persisted.
+    const { formulaIdentifier: defaultHostFormulaIdentifier } =
+      await incarnateHost(
+        endoFormulaIdentifier,
+        leastAuthorityFormulaIdentifier,
+        defaultHostWorkerFormulaIdentifier,
+      );
+    // If supported, ensure the web page bundler is incarnated and persisted.
+    let webPageJsFormulaIdentifier;
+    if (persistencePowers.getWebPageBundlerFormula !== undefined) {
+      ({ formulaIdentifier: webPageJsFormulaIdentifier } =
+        await incarnateBundler(
+          defaultHostFormulaIdentifier,
+          defaultHostWorkerFormulaIdentifier,
+        ));
+    }
+
+    /** @type {import('./types.js').EndoFormula} */
+    const formula = {
+      type: 'endo',
+      host: defaultHostFormulaIdentifier,
+      leastAuthority: leastAuthorityFormulaIdentifier,
+      webPageJs: webPageJsFormulaIdentifier,
+    };
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').FarEndoBootstrap }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
   const makeContext = makeContextMaker({
     controllerForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
   });
 
   const makeMailbox = makeMailboxMaker({
+    incarnateLookup,
     getFormulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
-    makeSha512,
-    provideValueForNumberedFormula,
+    provideControllerForFormulaIdentifierAndResolveHandle,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
     provideValueForFormulaIdentifier,
-    provideControllerForFormulaIdentifier,
+    provideControllerForFormulaIdentifierAndResolveHandle,
     makeMailbox,
   });
 
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
-    provideValueForFormula,
-    provideValueForNumberedFormula,
     provideControllerForFormulaIdentifier,
+    incarnateWorker,
+    incarnateHost,
+    incarnateGuest,
+    incarnateEval,
+    incarnateUnconfined,
+    incarnateBundle,
+    incarnateWebBundle,
+    incarnateHandle,
     storeReaderRef,
     randomHex512,
-    makeSha512,
     makeMailbox,
   });
 
@@ -760,7 +1120,6 @@ const makeEndoBootstrap = async (
           }),
         );
       }
-      // @ts-expect-error this should never occur
       return makeInspector(formula.type, formulaNumber, harden({}));
     };
 
@@ -775,37 +1134,65 @@ const makeEndoBootstrap = async (
     return info;
   };
 
-  const endoBootstrap = Far('Endo private facet', {
-    // TODO for user named
+  const daemonCore = {
+    provideValueForFormulaIdentifier,
+    incarnateEndoBootstrap,
+    incarnateLeastAuthority,
+    incarnateHandle,
+    incarnatePetStore,
+    incarnateWorker,
+    incarnateHost,
+    incarnateGuest,
+    incarnateEval,
+    incarnateLookup,
+    incarnateUnconfined,
+    incarnateReadableBlob,
+    incarnateBundler,
+    incarnateBundle,
+    incarnateWebBundle,
+    incarnatePetInspector,
+  };
+  return daemonCore;
+};
 
-    ping: async () => 'pong',
+/**
+ * @param {import('./types.js').DaemonicPowers} powers
+ * @param {Promise<number>} webletPortP
+ * @param {object} args
+ * @param {Promise<never>} args.cancelled
+ * @param {(error: Error) => void} args.cancel
+ * @param {number} args.gracePeriodMs
+ * @param {Promise<never>} args.gracePeriodElapsed
+ * @returns {Promise<import('./types.js').FarEndoBootstrap>}
+ */
+const provideEndoBootstrap = async (
+  powers,
+  webletPortP,
+  { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
+) => {
+  const { persistence: persistencePowers } = powers;
 
-    terminate: async () => {
-      cancel(new Error('Termination requested'));
-    },
-
-    host: () => provideValueForFormulaIdentifier(defaultHostFormulaIdentifier),
-
-    leastAuthority: () => leastAuthority,
-
-    webPageJs: () =>
-      provideValueForFormulaIdentifier(webPageJsFormulaIdentifier),
-
-    importAndEndowInWebPage: async (webPageP, webPageNumber) => {
-      const { bundle: bundleBlob, powers: endowedPowers } =
-        /** @type {import('./types.js').EndoWebBundle} */ (
-          await provideValueForFormulaIdentifier(
-            `web-bundle:${webPageNumber}`,
-          ).catch(() => {
-            throw new Error('Not found');
-          })
-        );
-      const bundle = await E(bundleBlob).json();
-      await E(webPageP).makeBundle(bundle, endowedPowers);
-    },
+  const daemonCore = await makeDaemonCore(powers, webletPortP, {
+    cancelled,
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
   });
 
-  return endoBootstrap;
+  const { rootNonce: endoFormulaNumber, isNewlyCreated } =
+    await persistencePowers.provideRootNonce();
+  const isInitialized = !isNewlyCreated;
+  if (isInitialized) {
+    const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
+    return /** @type {Promise<import('./types.js').FarEndoBootstrap>} */ (
+      daemonCore.provideValueForFormulaIdentifier(endoFormulaIdentifier)
+    );
+  } else {
+    const { value: endoBootstrap } = await daemonCore.incarnateEndoBootstrap(
+      endoFormulaNumber,
+    );
+    return endoBootstrap;
+  }
 };
 
 /**
@@ -837,12 +1224,16 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
       makePromiseKit()
     );
 
-  const endoBootstrap = makeEndoBootstrap(powers, assignedWebletPortP, {
-    cancelled,
-    cancel,
-    gracePeriodMs,
-    gracePeriodElapsed,
-  });
+  const endoBootstrap = await provideEndoBootstrap(
+    powers,
+    assignedWebletPortP,
+    {
+      cancelled,
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
+    },
+  );
 
   return { endoBootstrap, cancelGracePeriod, assignWebletPort };
 };

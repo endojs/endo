@@ -57,9 +57,35 @@ type FormulaIdentifierRecord = {
   number: string;
 };
 
+type EndoFormula = {
+  type: 'endo';
+  host: string;
+  leastAuthority: string;
+  webPageJs?: string;
+};
+
+type WorkerFormula = {
+  type: 'worker';
+};
+
+type HostFormula = {
+  type: 'host';
+  worker: string;
+  inspector: string;
+  petStore: string;
+  endo: string;
+  leastAuthority: string;
+};
+
 type GuestFormula = {
   type: 'guest';
   host: string;
+  petStore: string;
+  worker: string;
+};
+
+type LeastAuthorityFormula = {
+  type: 'least-authority';
 };
 
 type EvalFormula = {
@@ -69,6 +95,11 @@ type EvalFormula = {
   names: Array<string>; // lexical names
   values: Array<string>; // formula identifiers
   // TODO formula slots
+};
+
+type ReadableBlobFormula = {
+  type: 'readable-blob';
+  content: string;
 };
 
 type LookupFormula = {
@@ -108,13 +139,35 @@ type WebBundleFormula = {
   powers: string;
 };
 
+type HandleFormula = {
+  type: 'handle';
+  target: string;
+};
+
+type PetStoreFormula = {
+  type: 'pet-store';
+};
+
+type PetInspectorFormula = {
+  type: 'pet-inspector';
+  petStore: string;
+};
+
 export type Formula =
+  | EndoFormula
+  | WorkerFormula
+  | HostFormula
   | GuestFormula
+  | LeastAuthorityFormula
   | EvalFormula
+  | ReadableBlobFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
-  | WebBundleFormula;
+  | WebBundleFormula
+  | HandleFormula
+  | PetInspectorFormula
+  | PetStoreFormula;
 
 export type Label = {
   number: number;
@@ -188,6 +241,28 @@ export type ProvideValueForFormulaIdentifier = (
 export type ProvideControllerForFormulaIdentifier = (
   formulaIdentifier: string,
 ) => Controller;
+export type ProvideControllerForFormulaIdentifierAndResolveHandle = (
+  formulaIdentifier: string,
+) => Promise<Controller>;
+
+/**
+ * A handle is used to create a pointer to a formula without exposing it directly.
+ * This is the external facet of the handle and is safe to expose. This is used to
+ * provide an EndoGuest with a reference to its creator EndoHost. By using a handle
+ * that points to the host instead of giving a direct reference to the host, the
+ * guest does not get access to the functions of the host. This is the external
+ * facet of a handle. It directly exposes nothing. The handle's target is only
+ * exposed on the internal facet.
+ */
+export interface ExternalHandle {}
+/**
+ * This is the internal facet of a handle. It exposes the formula id that the
+ * handle points to. This should not be exposed outside of the endo daemon.
+ */
+export interface InternalHandle {
+  targetFormulaIdentifier: string;
+}
+
 export type GetFormulaIdentifierForRef = (ref: unknown) => string | undefined;
 export type MakeSha512 = () => Sha512;
 
@@ -306,6 +381,7 @@ export interface EndoReadable {
   text(): Promise<string>;
   json(): Promise<unknown>;
 }
+export type FarEndoReadable = FarRef<EndoReadable>;
 
 export interface EndoWorker {
   terminate(): void;
@@ -385,6 +461,15 @@ export type EndoWebBundle = {
   powers: ERef<unknown>;
 };
 
+export type FarEndoBootstrap = FarRef<{
+  ping: () => Promise<string>;
+  terminate: () => Promise<void>;
+  host: () => Promise<EndoHost>;
+  leastAuthority: () => Promise<EndoGuest>;
+  webPageJs: () => Promise<unknown>;
+  importAndEndowInWebPage: () => Promise<void>;
+}>;
+
 export type CryptoPowers = {
   makeSha512: () => Sha512;
   randomHex512: () => Promise<string>;
@@ -441,13 +526,13 @@ export type NetworkPowers = SocketPowers & {
     cancelled: Promise<never>;
   }) => Promise<number>;
   makePrivatePathService: (
-    endoBootstrap: FarRef<unknown>,
+    endoBootstrap: FarEndoBootstrap,
     sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
   ) => { started: Promise<void>; stopped: Promise<void> };
   makePrivateHttpService: (
-    endoBootstrap: FarRef<unknown>,
+    endoBootstrap: FarEndoBootstrap,
     port: number,
     assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,
@@ -457,7 +542,10 @@ export type NetworkPowers = SocketPowers & {
 
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
-  provideRootNonce: () => Promise<string>;
+  provideRootNonce: () => Promise<{
+    rootNonce: string;
+    isNewlyCreated: boolean;
+  }>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
     fetch: (sha512: string) => EndoReadable;
@@ -471,7 +559,7 @@ export type DaemonicPersistencePowers = {
   getWebPageBundlerFormula?: (
     workerFormulaIdentifier: string,
     powersFormulaIdentifier: string,
-  ) => Formula;
+  ) => MakeUnconfinedFormula;
 };
 
 export interface DaemonWorkerFacet {}
