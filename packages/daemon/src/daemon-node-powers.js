@@ -504,20 +504,16 @@ export const makeDaemonicPersistencePowers = (
     await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
   };
 
-  const isRootInitialized = async () => {
-    const noncePath = filePowers.joinPath(locator.statePath, 'nonce');
-    const nonce = await filePowers.maybeReadFileText(noncePath);
-    return nonce !== undefined;
-  };
-
   const provideRootNonce = async () => {
     const noncePath = filePowers.joinPath(locator.statePath, 'nonce');
     let nonce = await filePowers.maybeReadFileText(noncePath);
+    const isNewlyCreated = nonce === undefined;
     if (nonce === undefined) {
       nonce = await cryptoPowers.randomHex512();
       await filePowers.writeFileText(noncePath, `${nonce}\n`);
     }
-    return nonce.trim();
+    const rootNonce = nonce.trim();
+    return { value: rootNonce, isNewlyCreated };
   };
 
   const makeContentSha512Store = () => {
@@ -642,7 +638,6 @@ export const makeDaemonicPersistencePowers = (
   return harden({
     initializePersistence,
     provideRootNonce,
-    isRootInitialized,
     makeContentSha512Store,
     readFormula,
     writeFormula,

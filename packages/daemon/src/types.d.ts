@@ -529,8 +529,7 @@ export type NetworkPowers = SocketPowers & {
 
 export type DaemonicPersistencePowers = {
   initializePersistence: () => Promise<void>;
-  isRootInitialized: () => Promise<boolean>;
-  provideRootNonce: () => Promise<string>;
+  provideRootNonce: () => Promise<{ value: string; isNewlyCreated: boolean }>;
   makeContentSha512Store: () => {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
     fetch: (sha512: string) => EndoReadable;

@@ -1167,9 +1167,10 @@ const provideEndoBootstrap = async (
     gracePeriodElapsed,
   });
 
-  const isInitialized = await persistencePowers.isRootInitialized();
   // Reading root nonce before isRootInitialized will cause isRootInitialized to be true.
-  const endoFormulaNumber = await persistencePowers.provideRootNonce();
+  const { value: endoFormulaNumber, isNewlyCreated } =
+    await persistencePowers.provideRootNonce();
+  const isInitialized = !isNewlyCreated;
   if (isInitialized) {
     const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
     return /** @type {Promise<import('./types.js').EndoBootstrap>} */ (
