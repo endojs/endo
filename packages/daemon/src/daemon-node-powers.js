@@ -512,8 +512,7 @@ export const makeDaemonicPersistencePowers = (
       nonce = await cryptoPowers.randomHex512();
       await filePowers.writeFileText(noncePath, `${nonce}\n`);
     }
-    const rootNonce = nonce.trim();
-    return { value: rootNonce, isNewlyCreated };
+    return { rootNonce: nonce.trim(), isNewlyCreated };
   };
 
   const makeContentSha512Store = () => {

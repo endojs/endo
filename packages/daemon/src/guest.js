@@ -33,7 +33,7 @@ export const makeGuestMaker = ({
         hostHandleFormulaIdentifier,
       );
     const hostPrivateFacet = await hostController.internal;
-    const { respond: deliverToHost } = /** @type {any} */ (hostPrivateFacet);
+    const { respond: deliverToHost } = hostPrivateFacet;
     if (deliverToHost === undefined) {
       throw new Error(
         `panic: a host request function must exist for every host`,

@@ -81,7 +81,7 @@ export const makeHostMaker = ({
     });
 
     /**
-     * @returns {Promise<{ formulaIdentifier: string, value: import('./types').Handle }>}
+     * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
      */
     const makeNewHandleForSelf = () => {
       return incarnateHandle(hostFormulaIdentifier);

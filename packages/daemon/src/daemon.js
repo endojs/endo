@@ -674,7 +674,7 @@ const makeDaemonCore = async (
 
   /**
    * @param {string} targetFormulaIdentifier
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').Handle }>}
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
    */
   const incarnateHandle = async targetFormulaIdentifier => {
     const formulaNumber = await randomHex512();
@@ -683,7 +683,7 @@ const makeDaemonCore = async (
       type: 'handle',
       target: targetFormulaIdentifier,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').Handle }>} */ (
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
@@ -1178,8 +1178,7 @@ const provideEndoBootstrap = async (
     gracePeriodElapsed,
   });
 
-  // Reading root nonce before isRootInitialized will cause isRootInitialized to be true.
-  const { value: endoFormulaNumber, isNewlyCreated } =
+  const { rootNonce: endoFormulaNumber, isNewlyCreated } =
     await persistencePowers.provideRootNonce();
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
