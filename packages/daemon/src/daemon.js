@@ -49,7 +49,6 @@ const makeInspector = (type, number, record) =>
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
  * @param {object} args
- * @param {Promise<never>} args.cancelled
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
@@ -57,7 +56,7 @@ const makeInspector = (type, number, record) =>
 const makeDaemonCore = async (
   powers,
   webletPortP,
-  { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
+  { cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   const {
     crypto: cryptoPowers,
@@ -336,7 +335,7 @@ const makeDaemonCore = async (
    * @param {import('./types.js').Formula} formula
    * @param {import('./types.js').Context} context
    */
-  const makeControllerForFormula = async (
+  const makeControllerForFormula = (
     formulaIdentifier,
     formulaNumber,
     formula,
@@ -622,15 +621,16 @@ const makeDaemonCore = async (
   };
 
   /** @type {import('./types.js').ProvideValueForFormulaIdentifier} */
-  const provideValueForFormulaIdentifier = async formulaIdentifier => {
+  const provideValueForFormulaIdentifier = formulaIdentifier => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
       provideControllerForFormulaIdentifier(formulaIdentifier)
     );
-    const value = await controller.external;
-    if (typeof value === 'object' && value !== null) {
-      formulaIdentifierForRef.set(value, formulaIdentifier);
-    }
-    return value;
+    return controller.external.then(value => {
+      if (typeof value === 'object' && value !== null) {
+        formulaIdentifierForRef.set(value, formulaIdentifier);
+      }
+      return value;
+    });
   };
 
   /** @type {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} */
@@ -1010,7 +1010,6 @@ const makeDaemonCore = async (
     incarnateWebBundle,
     incarnateHandle,
     storeReaderRef,
-    randomHex512,
     makeMailbox,
   });
 
@@ -1159,7 +1158,6 @@ const makeDaemonCore = async (
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
  * @param {object} args
- * @param {Promise<never>} args.cancelled
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
@@ -1168,12 +1166,11 @@ const makeDaemonCore = async (
 const provideEndoBootstrap = async (
   powers,
   webletPortP,
-  { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
+  { cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   const { persistence: persistencePowers } = powers;
 
   const daemonCore = await makeDaemonCore(powers, webletPortP, {
-    cancelled,
     cancel,
     gracePeriodMs,
     gracePeriodElapsed,
@@ -1228,7 +1225,6 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
     powers,
     assignedWebletPortP,
     {
-      cancelled,
       cancel,
       gracePeriodMs,
       gracePeriodElapsed,

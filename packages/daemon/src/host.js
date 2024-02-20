@@ -17,7 +17,6 @@ export const makeHostMaker = ({
   incarnateWebBundle,
   incarnateHandle,
   storeReaderRef,
-  randomHex512,
   makeMailbox,
 }) => {
   /**
