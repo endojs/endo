@@ -68,11 +68,26 @@ const makeDaemonCore = async (
   const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
 
-  /** @type {Map<string, import('./types.js').Controller<>>} */
+  /**
+   * The two functions "provideValueForNumberedFormula" and "provideValueForFormulaIdentifier"
+   * share a responsibility for maintaining the memoization tables
+   * "controllerForFormulaIdentifier" and "formulaIdentifierForRef".
+   * "provideValueForNumberedFormula" is used for incarnating and persisting
+   * new formulas, whereas "provideValueForFormulaIdentifier" is used for
+   * reincarnating stored formulas.
+   */
+
+  /**
+   * Reverse look-up, for answering "what is my name for this near or far
+   * reference", and not for "what is my name for this promise".
+   * @type {Map<string, import('./types.js').Controller>}
+   */
   const controllerForFormulaIdentifier = new Map();
-  // Reverse look-up, for answering "what is my name for this near or far
-  // reference", and not for "what is my name for this promise".
-  /** @type {WeakMap<object, string>} */
+  /**
+   * Reverse look-up, for answering "what is my name for this near or far
+   * reference", and not for "what is my name for this promise".
+   * @type {WeakMap<object, string>}
+   */
   const formulaIdentifierForRef = new WeakMap();
   const getFormulaIdentifierForRef = ref => formulaIdentifierForRef.get(ref);
 
@@ -525,10 +540,6 @@ const makeDaemonCore = async (
     }
   };
 
-  // The two functions provideValueForFormula and provideValueForFormulaIdentifier
-  // share a responsibility for maintaining the memoization tables
-  // controllerForFormulaIdentifier and formulaIdentifierForRef, since the
-  // former bypasses the latter in order to avoid a round trip with disk.
   /** @type {import('./types.js').ProvideValueForNumberedFormula} */
   const provideValueForNumberedFormula = async (
     formulaType,
