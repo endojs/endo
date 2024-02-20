@@ -448,7 +448,7 @@ export type EndoWebBundle = {
   powers: ERef<unknown>;
 };
 
-export type EndoBootstrap = FarRef<{
+export type FarEndoBootstrap = FarRef<{
   ping: () => Promise<string>;
   terminate: () => Promise<void>;
   host: () => Promise<EndoHost>;
@@ -513,13 +513,13 @@ export type NetworkPowers = SocketPowers & {
     cancelled: Promise<never>;
   }) => Promise<number>;
   makePrivatePathService: (
-    endoBootstrap: EndoBootstrap,
+    endoBootstrap: FarEndoBootstrap,
     sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
   ) => { started: Promise<void>; stopped: Promise<void> };
   makePrivateHttpService: (
-    endoBootstrap: EndoBootstrap,
+    endoBootstrap: FarEndoBootstrap,
     port: number,
     assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,

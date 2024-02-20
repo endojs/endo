@@ -405,7 +405,7 @@ const makeDaemonCore = async (
         },
       };
     } else if (formula.type === 'endo') {
-      /** @type {import('./types.js').EndoBootstrap} */
+      /** @type {import('./types.js').FarEndoBootstrap} */
       const endoBootstrap = Far('Endo private facet', {
         // TODO for user named
         ping: async () => 'pong',
@@ -927,7 +927,7 @@ const makeDaemonCore = async (
 
   /**
    * @param {string} [specifiedFormulaNumber]
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoBootstrap }>}
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').FarEndoBootstrap }>}
    */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = specifiedFormulaNumber || (await randomHex512());
@@ -962,7 +962,7 @@ const makeDaemonCore = async (
       leastAuthority: leastAuthorityFormulaIdentifier,
       webPageJs: webPageJsFormulaIdentifier,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoBootstrap }>} */ (
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').FarEndoBootstrap }>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
@@ -1151,7 +1151,7 @@ const makeDaemonCore = async (
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
- * @returns {Promise<import('./types.js').EndoBootstrap>}
+ * @returns {Promise<import('./types.js').FarEndoBootstrap>}
  */
 const provideEndoBootstrap = async (
   powers,
@@ -1173,7 +1173,7 @@ const provideEndoBootstrap = async (
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
     const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
-    return /** @type {Promise<import('./types.js').EndoBootstrap>} */ (
+    return /** @type {Promise<import('./types.js').FarEndoBootstrap>} */ (
       daemonCore.provideValueForFormulaIdentifier(endoFormulaIdentifier)
     );
   } else {
