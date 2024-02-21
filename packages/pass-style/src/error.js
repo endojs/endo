@@ -54,11 +54,11 @@ harden(getErrorConstructor);
  * @returns {boolean}
  */
 const checkErrorLike = (candidate, check = undefined) => {
-  const reject = !!check && (details => check(false, details));
+  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   // TODO: Need a better test than instanceof
   return (
     candidate instanceof Error ||
-    (reject && reject(X`Error expected: ${candidate}`))
+    (reject && reject`Error expected: ${candidate}`)
   );
 };
 harden(checkErrorLike);
@@ -98,25 +98,21 @@ export const checkRecursivelyPassableErrorPropertyDesc = (
   passStyleOfRecur,
   check = undefined,
 ) => {
-  const reject = !!check && (details => check(false, details));
+  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   if (desc.enumerable) {
     return (
       reject &&
-      reject(
-        X`Passable Error ${q(
-          propName,
-        )} own property must not be enumerable: ${desc}`,
-      )
+      reject`Passable Error ${q(
+        propName,
+      )} own property must not be enumerable: ${desc}`
     );
   }
   if (!hasOwn(desc, 'value')) {
     return (
       reject &&
-      reject(
-        X`Passable Error ${q(
-          propName,
-        )} own property must be a data property: ${desc}`,
-      )
+      reject`Passable Error ${q(
+        propName,
+      )} own property must be a data property: ${desc}`
     );
   }
   const { value } = desc;
@@ -126,11 +122,9 @@ export const checkRecursivelyPassableErrorPropertyDesc = (
       return (
         typeof value === 'string' ||
         (reject &&
-          reject(
-            X`Passable Error ${q(
-              propName,
-            )} own property must be a string: ${value}`,
-          ))
+          reject`Passable Error ${q(
+            propName,
+          )} own property must be a string: ${value}`)
       );
     }
     case 'cause': {
@@ -141,11 +135,9 @@ export const checkRecursivelyPassableErrorPropertyDesc = (
       if (!Array.isArray(value) || passStyleOfRecur(value) !== 'copyArray') {
         return (
           reject &&
-          reject(
-            X`Passable Error ${q(
-              propName,
-            )} own property must be a copyArray: ${value}`,
-          )
+          reject`Passable Error ${q(
+            propName,
+          )} own property must be a copyArray: ${value}`
         );
       }
       return value.every(err =>
@@ -158,8 +150,7 @@ export const checkRecursivelyPassableErrorPropertyDesc = (
     }
   }
   return (
-    reject &&
-    reject(X`Passable Error has extra unpassed property ${q(propName)}`)
+    reject && reject`Passable Error has extra unpassed property ${q(propName)}`
   );
 };
 harden(checkRecursivelyPassableErrorPropertyDesc);
@@ -175,7 +166,7 @@ export const checkRecursivelyPassableError = (
   passStyleOfRecur,
   check = undefined,
 ) => {
-  const reject = !!check && (details => check(false, details));
+  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   if (!checkErrorLike(candidate, check)) {
     return false;
   }
@@ -185,18 +176,14 @@ export const checkRecursivelyPassableError = (
   if (errConstructor === undefined || errConstructor.prototype !== proto) {
     return (
       reject &&
-      reject(
-        X`Passable Error must inherit from an error class .prototype: ${candidate}`,
-      )
+      reject`Passable Error must inherit from an error class .prototype: ${candidate}`
     );
   }
   const descs = getOwnPropertyDescriptors(candidate);
   if (!('message' in descs)) {
     return (
       reject &&
-      reject(
-        X`Passable Error must have an own "message" string property: ${candidate}`,
-      )
+      reject`Passable Error must have an own "message" string property: ${candidate}`
     );
   }
 

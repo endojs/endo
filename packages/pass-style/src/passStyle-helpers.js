@@ -93,32 +93,28 @@ export const checkNormalProperty = (
   shouldBeEnumerable,
   check,
 ) => {
-  const reject = !!check && (details => check(false, details));
+  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   const desc = getOwnPropertyDescriptor(candidate, propertyName);
   if (desc === undefined) {
-    return (
-      reject && reject(X`${q(propertyName)} property expected: ${candidate}`)
-    );
+    return reject && reject`${q(propertyName)} property expected: ${candidate}`;
   }
   return (
     (hasOwnPropertyOf(desc, 'value') ||
       (reject &&
-        reject(
-          X`${q(propertyName)} must not be an accessor property: ${candidate}`,
-        ))) &&
+        reject`${q(
+          propertyName,
+        )} must not be an accessor property: ${candidate}`)) &&
     (shouldBeEnumerable
       ? desc.enumerable ||
         (reject &&
-          reject(
-            X`${q(propertyName)} must be an enumerable property: ${candidate}`,
-          ))
+          reject`${q(
+            propertyName,
+          )} must be an enumerable property: ${candidate}`)
       : !desc.enumerable ||
         (reject &&
-          reject(
-            X`${q(
-              propertyName,
-            )} must not be an enumerable property: ${candidate}`,
-          )))
+          reject`${q(
+            propertyName,
+          )} must not be an enumerable property: ${candidate}`))
   );
 };
 harden(checkNormalProperty);
@@ -127,12 +123,12 @@ export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
 export const checkPassStyle = (obj, expectedPassStyle, check) => {
-  const reject = !!check && (details => check(false, details));
+  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   const actual = obj[PASS_STYLE];
   return (
     actual === expectedPassStyle ||
     (reject &&
-      reject(X`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`))
+      reject`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`)
   );
 };
 harden(checkPassStyle);
@@ -145,23 +141,20 @@ const makeCheckTagRecord = checkProto => {
    * @returns {boolean}
    */
   const checkTagRecord = (tagRecord, passStyle, check) => {
-    const reject = !!check && (details => check(false, details));
+    const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
     return (
       (isObject(tagRecord) ||
-        (reject &&
-          reject(X`A non-object cannot be a tagRecord: ${tagRecord}`))) &&
+        (reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
-        (reject && reject(X`A tagRecord must be frozen: ${tagRecord}`))) &&
+        (reject && reject`A tagRecord must be frozen: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
-        (reject && reject(X`An array cannot be a tagRecord: ${tagRecord}`))) &&
+        (reject && reject`An array cannot be a tagRecord: ${tagRecord}`)) &&
       checkNormalProperty(tagRecord, PASS_STYLE, false, check) &&
       checkPassStyle(tagRecord, passStyle, check) &&
       checkNormalProperty(tagRecord, Symbol.toStringTag, false, check) &&
       (typeof getTag(tagRecord) === 'string' ||
         (reject &&
-          reject(
-            X`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`,
-          ))) &&
+          reject`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`)) &&
       checkProto(tagRecord, getPrototypeOf(tagRecord), check)
     );
   };
