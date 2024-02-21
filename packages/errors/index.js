@@ -31,7 +31,10 @@ const missing = /** @type {const} */ ([
   'details',
   'Fail',
   'quote',
-  'bare',
+  // As of 2024-02, the Agoric chain's bootstrap vat runs with a version of SES that
+  // predates addition of the 'bare' method, so we must tolerate its absence and fall
+  // back to quote behavior in that environment (see below).
+  // 'bare',
   'makeAssert',
 ]).filter(name => globalAssert[name] === undefined);
 if (missing.length > 0) {
@@ -61,18 +64,23 @@ const assert = (value, optDetails, optErrorContructor) =>
   globalAssert(value, optDetails, optErrorContructor);
 Object.assign(assert, assertions);
 
+// As of 2024-02, the Agoric chain's bootstrap vat runs with a version of SES
+// that predates the addition of the 'bare' method, so we must fall back to
+// quote behavior for that environment.
+const bareOrQuote = bare || quote;
+
 export {
   // assertions
   assert,
   // related utilities that aren't assertions
-  bare,
+  bareOrQuote as bare,
   makeError,
   note,
   quote,
   redacted,
   throwRedacted,
   // conventional abbreviations and aliases
-  bare as b,
+  bareOrQuote as b,
   quote as q,
   redacted as X,
   throwRedacted as Fail,
