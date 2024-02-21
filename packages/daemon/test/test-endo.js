@@ -880,8 +880,8 @@ test('name and reuse inspector', async t => {
   await stop(locator);
 });
 
-// TODO: This test verifies existing behavior when pet-naming workers.
-// This behavior is undesirable. See: https://github.com/endojs/endo/issues/2021
+// This tests behavior that previously failed due to a bug.
+// See: https://github.com/endojs/endo/issues/2021
 test('eval-mediated worker name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
@@ -903,6 +903,16 @@ test('eval-mediated worker name', async t => {
   const counterPath = path.join(dirname, 'test', 'counter.js');
   await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
 
+  t.is(
+    await E(host).evaluate(
+      'worker',
+      'E(counter).incr()',
+      ['counter'],
+      ['counter'],
+    ),
+    1,
+  );
+
   // We create a petname for the worker of `counter`.
   // Note that while `worker === counter-worker`, it doesn't matter here.
   const counterWorker = await E(host).evaluate(
@@ -914,19 +924,18 @@ test('eval-mediated worker name', async t => {
   );
   t.regex(String(counterWorker), /Alleged: EndoWorker/u);
 
-  try {
+  // We should be able to use the new name for the worker.
+  t.is(
     await E(host).evaluate(
-      'counter-worker', // Our worker pet name
+      'counter-worker',
       'E(counter).incr()',
       ['counter'],
       ['counter'],
-    );
-    t.fail('should have thrown');
-  } catch (error) {
-    // This is the error that we don't want
-    t.regex(error.message, /typeof target is "undefined"/u);
-    await stop(locator);
-  }
+    ),
+    2,
+  );
+
+  await stop(locator);
 });
 
 test('lookup with single petname', async t => {

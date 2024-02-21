@@ -51,7 +51,6 @@ export const makeHostMaker = ({
       reverseLookup,
       identifyLocal,
       listMessages,
-      provideLookupFormula,
       followMessages,
       resolve,
       reject,
@@ -211,6 +210,7 @@ export const makeHostMaker = ({
           await incarnateWorker();
         return workerFormulaIdentifier;
       }
+
       assertPetName(workerName);
       let workerFormulaIdentifier = identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
@@ -218,6 +218,29 @@ export const makeHostMaker = ({
           await incarnateWorker());
         assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
+      }
+      return workerFormulaIdentifier;
+    };
+
+    /**
+     * @param {string | 'MAIN' | 'NEW'} workerName
+     * @param {(hook: import('./types.js').EvalFormulaHook) => void} addHook
+     * @returns {string | undefined}
+     */
+    const provideWorkerFormulaIdentifierSync = (workerName, addHook) => {
+      if (workerName === 'MAIN') {
+        return mainWorkerFormulaIdentifier;
+      } else if (workerName === 'NEW') {
+        return undefined;
+      }
+
+      assertPetName(workerName);
+      const workerFormulaIdentifier = identifyLocal(workerName);
+      if (workerFormulaIdentifier === undefined) {
+        addHook(identifiers =>
+          petStore.write(workerName, identifiers.workerFormulaIdentifier),
+        );
+        return undefined;
       }
       return workerFormulaIdentifier;
     };
@@ -255,10 +278,6 @@ export const makeHostMaker = ({
       petNamePaths,
       resultName,
     ) => {
-      const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
-        workerName,
-      );
-
       if (resultName !== undefined) {
         assertPetName(resultName);
       }
@@ -266,8 +285,21 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      const endowmentFormulaIdentifiers = await Promise.all(
-        petNamePaths.map(async (petNameOrPath, index) => {
+      /** @type {import('./types.js').EvalFormulaHook[]} */
+      const hooks = [];
+      /** @type {(hook: import('./types.js').EvalFormulaHook) => void} */
+      const addHook = hook => {
+        hooks.push(hook);
+      };
+
+      const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
+        workerName,
+        addHook,
+      );
+
+      /** @type {(string | string[])[]} */
+      const endowmentFormulaPointers = petNamePaths.map(
+        (petNameOrPath, index) => {
           if (typeof codeNames[index] !== 'string') {
             throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
           }
@@ -281,23 +313,26 @@ export const makeHostMaker = ({
             return formulaIdentifier;
           }
 
-          const { formulaIdentifier: lookupFormulaIdentifier } =
-            await provideLookupFormula(petNamePath);
-          return lookupFormulaIdentifier;
-        }),
+          // TODO:lookup Check if a formula already exists for the path. May have to be
+          // done in the daemon itself.
+          return petNamePath;
+        },
       );
 
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const { formulaIdentifier, value } = await incarnateEval(
-        workerFormulaIdentifier,
+      if (resultName !== undefined) {
+        addHook(identifiers =>
+          petStore.write(resultName, `eval:${identifiers.evalFormulaNumber}`),
+        );
+      }
+
+      const { value } = await incarnateEval(
+        hostFormulaIdentifier,
         source,
         codeNames,
-        endowmentFormulaIdentifiers,
+        endowmentFormulaPointers,
+        hooks,
+        workerFormulaIdentifier,
       );
-      if (resultName !== undefined) {
-        await petStore.write(resultName, formulaIdentifier);
-      }
       return value;
     };
 

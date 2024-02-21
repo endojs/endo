@@ -13,6 +13,7 @@ import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
+import { makeMutex } from './mutex.js';
 
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -66,6 +67,7 @@ const makeDaemonCore = async (
   } = powers;
   const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
+  const formulaGraphMutex = makeMutex();
 
   /**
    * The two functions "provideValueForNumberedFormula" and "provideValueForFormulaIdentifier"
@@ -549,10 +551,13 @@ const makeDaemonCore = async (
 
     // Memoize for lookup.
     console.log(`Making ${formulaIdentifier}`);
-    const { promise: partial, resolve } =
-      /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
-        makePromiseKit()
-      );
+    const {
+      promise: partial,
+      resolve: resolvePartial,
+      reject: rejectPartial,
+    } = /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
+      makePromiseKit()
+    );
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
@@ -570,16 +575,22 @@ const makeDaemonCore = async (
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
 
-    await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
-    resolve(
-      makeControllerForFormula(
-        formulaIdentifier,
-        formulaNumber,
-        formula,
-        context,
-      ),
+    // We _must not_ await before the controller value is constructed.
+    const controllerValue = makeControllerForFormula(
+      formulaIdentifier,
+      formulaNumber,
+      formula,
+      context,
     );
 
+    try {
+      await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
+    } catch (error) {
+      rejectPartial(error);
+      throw error;
+    }
+
+    resolvePartial(controllerValue);
     return harden({
       formulaIdentifier,
       value: controller.external,
@@ -717,6 +728,23 @@ const makeDaemonCore = async (
   };
 
   /**
+   * Incarnates a `worker` formula and synchronously adds it to the formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   * @param {string} formulaNumber - The worker formula number.
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
+   */
+  const incarnateWorkerSync = formulaNumber => {
+    /** @type {import('./types.js').WorkerFormula} */
+    const formula = {
+      type: 'worker',
+    };
+
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
    * @param {string} endoFormulaIdentifier
    * @param {string} leastAuthorityFormulaIdentifier
    * @param {string} [specifiedWorkerFormulaIdentifier]
@@ -775,19 +803,60 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} workerFormulaIdentifier
+   * @param {string} hostFormulaIdentifier
    * @param {string} source
    * @param {string[]} codeNames
-   * @param {string[]} endowmentFormulaIdentifiers
+   * @param {(string | string[])[]} endowmentFormulaPointers
+   * @param {import('./types.js').EvalFormulaHook[]} hooks
+   * @param {string} [specifiedWorkerFormulaIdentifier]
    * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
    */
   const incarnateEval = async (
-    workerFormulaIdentifier,
+    hostFormulaIdentifier,
     source,
     codeNames,
-    endowmentFormulaIdentifiers,
+    endowmentFormulaPointers,
+    hooks,
+    specifiedWorkerFormulaIdentifier,
   ) => {
-    const formulaNumber = await randomHex512();
+    const {
+      workerFormulaIdentifier,
+      endowmentFormulaIdentifiers,
+      evalFormulaNumber,
+    } = await formulaGraphMutex.enqueue(async () => {
+      const ownFormulaNumber = await randomHex512();
+      const workerFormulaNumber = await (specifiedWorkerFormulaIdentifier ??
+        randomHex512());
+
+      const identifiers = harden({
+        workerFormulaIdentifier: (
+          await incarnateWorkerSync(workerFormulaNumber)
+        ).formulaIdentifier,
+        endowmentFormulaIdentifiers: await Promise.all(
+          endowmentFormulaPointers.map(async formulaIdOrPath => {
+            if (typeof formulaIdOrPath === 'string') {
+              return formulaIdOrPath;
+            }
+            return (
+              /* eslint-disable no-use-before-define */
+              (
+                await incarnateLookupSync(
+                  await randomHex512(),
+                  hostFormulaIdentifier,
+                  formulaIdOrPath,
+                )
+              ).formulaIdentifier
+              /* eslint-enable no-use-before-define */
+            );
+          }),
+        ),
+        evalFormulaNumber: ownFormulaNumber,
+      });
+
+      await Promise.all(hooks.map(hook => hook(identifiers)));
+      return identifiers;
+    });
+
     /** @type {import('./types.js').EvalFormula} */
     const formula = {
       type: 'eval',
@@ -797,26 +866,33 @@ const makeDaemonCore = async (
       values: endowmentFormulaIdentifiers,
     };
     return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      provideValueForNumberedFormula(formula.type, evalFormulaNumber, formula)
     );
   };
 
   /**
-   * @param {string} hubFormulaIdentifier
-   * A "naming hub" is an objected with a variadic lookup method. It includes
-   * objects such as guests and hosts.
-   * @param {string[]} petNamePath
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
+   * Incarnates a `lookup` formula and synchronously adds it to the formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   * @param {string} formulaNumber - The lookup formula's number.
+   * @param {string} hubFormulaIdentifier - The formula identifier of the naming
+   * hub to call `lookup` on. A "naming hub" is an objected with a variadic
+   * lookup method. It includes objects such as guests and hosts.
+   * @param {string[]} petNamePath - The pet name path to look up.
+   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
    */
-  const incarnateLookup = async (hubFormulaIdentifier, petNamePath) => {
-    const formulaNumber = await randomHex512();
+  const incarnateLookupSync = (
+    formulaNumber,
+    hubFormulaIdentifier,
+    petNamePath,
+  ) => {
     /** @type {import('./types.js').LookupFormula} */
     const formula = {
       type: 'lookup',
       hub: hubFormulaIdentifier,
       path: petNamePath,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+
+    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types.js').EndoWorker }>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
@@ -938,11 +1014,11 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} [specifiedFormulaNumber]
+   * @param {string} [specifiedFormulaNumber] - The formula number of the endo bootstrap.
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').FarEndoBootstrap }>}
    */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
-    const formulaNumber = specifiedFormulaNumber || (await randomHex512());
+    const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
     const endoFormulaIdentifier = `endo:${formulaNumber}`;
 
     const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
@@ -985,7 +1061,6 @@ const makeDaemonCore = async (
   });
 
   const makeMailbox = makeMailboxMaker({
-    incarnateLookup,
     getFormulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
@@ -1143,7 +1218,6 @@ const makeDaemonCore = async (
     incarnateHost,
     incarnateGuest,
     incarnateEval,
-    incarnateLookup,
     incarnateUnconfined,
     incarnateReadableBlob,
     incarnateBundler,
