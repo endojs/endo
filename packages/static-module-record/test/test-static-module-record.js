@@ -792,3 +792,12 @@ test('should handle package "immer" source', t => {
     setUseProxies: ['vn', true],
   });
 });
+
+// https://github.com/endojs/endo/issues/2094
+test.failing('should support export of defaulted extraction', t => {
+  const _ = new StaticModuleRecord(`
+    const { x, y = x } = globalThis;
+    export { x, y };
+  `);
+  t.pass();
+});
