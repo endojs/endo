@@ -11,15 +11,15 @@ const { quote: q } = assert;
 /**
  * @param {object} args
  * @param {import('./types.js').ProvideValueForFormulaIdentifier} args.provideValueForFormulaIdentifier
- * @param {import('./types.js').ProvideControllerForFormulaIdentifier} args.provideControllerForFormulaIdentifier
  * @param {import('./types.js').GetFormulaIdentifierForRef} args.getFormulaIdentifierForRef
  * @param {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} args.provideControllerForFormulaIdentifierAndResolveHandle
+ * @param {import('./types.js').CancelValue} args.cancelValue
  */
 export const makeMailboxMaker = ({
   getFormulaIdentifierForRef,
   provideValueForFormulaIdentifier,
-  provideControllerForFormulaIdentifier,
   provideControllerForFormulaIdentifierAndResolveHandle,
+  cancelValue,
 }) => {
   /**
    * @param {object} args
@@ -81,11 +81,7 @@ export const makeMailboxMaker = ({
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
-      // Behold, recursion:
-      const controller =
-        provideControllerForFormulaIdentifier(formulaIdentifier);
-      console.log('Cancelled:');
-      return controller.context.cancel(reason);
+      return cancelValue(formulaIdentifier, reason);
     };
 
     /** @type {import('./types.js').Mail['list']} */

@@ -847,9 +847,6 @@ test('unconfined service can respond to cancellation', async t => {
     ['caplet'],
     ['context-consumer'],
   );
-  // TODO:cancel This should not be necessary.
-  // eslint-disable-next-line no-undef
-  await new Promise(resolve => setTimeout(resolve, 100));
   await E(host).cancel('context-consumer');
   t.is(await result, 'cancelled');
 });
@@ -883,9 +880,6 @@ test('confined service can respond to cancellation', async t => {
     ['caplet'],
     ['context-consumer'],
   );
-  // TODO:cancel This should not be necessary.
-  // eslint-disable-next-line no-undef
-  await new Promise(resolve => setTimeout(resolve, 100));
   await E(host).cancel('context-consumer');
   t.is(await result, 'cancelled');
 });

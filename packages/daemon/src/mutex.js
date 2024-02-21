@@ -1,7 +1,7 @@
 import { makeQueue } from '@endo/stream';
 
 /**
- * @returns {{ lock: () => Promise<void>, unlock: () => void, enqueue: (asyncFn: () => Promise<any>) => Promise<any> }}
+ * @returns {import('./types.js').Mutex}
  */
 export const makeMutex = () => {
   /** @type {import('@endo/stream').AsyncQueue<void>} */
@@ -17,8 +17,7 @@ export const makeMutex = () => {
   return {
     lock,
     unlock,
-    // helper for correct usage
-    enqueue: async asyncFn => {
+    enqueue: async (asyncFn = /** @type {any} */ (async () => {})) => {
       await lock();
       try {
         return await asyncFn();

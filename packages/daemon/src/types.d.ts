@@ -291,6 +291,10 @@ export type ProvideControllerForFormulaIdentifier = (
 export type ProvideControllerForFormulaIdentifierAndResolveHandle = (
   formulaIdentifier: string,
 ) => Promise<Controller>;
+export type CancelValue = (
+  formulaIdentifier: string,
+  reason: Error,
+) => Promise<void>;
 
 /**
  * A handle is used to create a pointer to a formula without exposing it directly.
@@ -631,4 +635,10 @@ export type DaemonicPowers = {
   petStore: PetStorePowers;
   persistence: DaemonicPersistencePowers;
   control: DaemonicControlPowers;
+};
+
+type Mutex = {
+  lock: () => Promise<void>;
+  unlock: () => void;
+  enqueue: <T>(asyncFn?: () => Promise<T>) => Promise<T>;
 };

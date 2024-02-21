@@ -652,6 +652,14 @@ const makeDaemonCore = async (
     return controller;
   };
 
+  /** @type {import('./types.js').CancelValue} */
+  const cancelValue = async (formulaIdentifier, reason) => {
+    await formulaGraphMutex.enqueue();
+    const controller = provideControllerForFormulaIdentifier(formulaIdentifier);
+    console.log('Cancelled:');
+    return controller.context.cancel(reason);
+  };
+
   /** @type {import('./types.js').ProvideValueForFormulaIdentifier} */
   const provideValueForFormulaIdentifier = formulaIdentifier => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
@@ -1087,8 +1095,8 @@ const makeDaemonCore = async (
   const makeMailbox = makeMailboxMaker({
     getFormulaIdentifierForRef,
     provideValueForFormulaIdentifier,
-    provideControllerForFormulaIdentifier,
     provideControllerForFormulaIdentifierAndResolveHandle,
+    cancelValue,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
