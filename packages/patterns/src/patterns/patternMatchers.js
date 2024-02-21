@@ -875,11 +875,15 @@ const makePatternKit = () => {
       if (passStyleOf(specimen) !== 'tagged') {
         return check(
           false,
-          X`Expected tagged object, not ${q(passStyleOf(specimen))}: ${specimen}`,
+          X`Expected tagged object, not ${q(
+            passStyleOf(specimen),
+          )}: ${specimen}`,
         );
       }
-      return checkMatches(getTag(specimen), tagPatt, check, 'tag') &&
-        checkMatches(specimen.payload, payloadPatt, check, 'payload');
+      return (
+        checkMatches(getTag(specimen), tagPatt, check, 'tag') &&
+        checkMatches(specimen.payload, payloadPatt, check, 'payload')
+      );
     },
 
     checkIsWellFormed: (payload, check) =>
