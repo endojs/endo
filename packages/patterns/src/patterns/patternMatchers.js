@@ -871,13 +871,16 @@ const makePatternKit = () => {
 
   /** @type {import('./types.js').MatchHelper} */
   const matchTaggedHelper = Far('match:tagged helper', {
-    checkMatches: (specimen, [tagPatt, payloadPatt], check) =>
-      check(
-        passStyleOf(specimen) === 'tagged',
-        X`Expected tagged object, not ${q(passStyleOf(specimen))}: ${specimen}`,
-      ) &&
-      checkMatches(getTag(specimen), tagPatt, check, 'tag') &&
-      checkMatches(specimen.payload, payloadPatt, check, 'payload'),
+    checkMatches: (specimen, [tagPatt, payloadPatt], check) => {
+      if (passStyleOf(specimen) !== 'tagged') {
+        return check(
+          false,
+          X`Expected tagged object, not ${q(passStyleOf(specimen))}: ${specimen}`,
+        );
+      }
+      return checkMatches(getTag(specimen), tagPatt, check, 'tag') &&
+        checkMatches(specimen.payload, payloadPatt, check, 'payload');
+    },
 
     checkIsWellFormed: (payload, check) =>
       checkMatches(
@@ -887,7 +890,7 @@ const makePatternKit = () => {
         'match:tagged payload',
       ),
 
-    getRankCover: (kind, _encodePassable) => getPassStyleCover('tagged'),
+    getRankCover: (_kind, _encodePassable) => getPassStyleCover('tagged'),
   });
 
   /** @type {import('./types.js').MatchHelper} */
