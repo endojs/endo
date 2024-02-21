@@ -104,6 +104,7 @@ const runTests = (t, successCase, failCase) => {
     failCase(specimen, M.and(3, 4), '3 - Must be: 4');
     failCase(specimen, M.or(4, 4), '3 - Must match one of [4,4]');
     failCase(specimen, M.or(), '3 - no pattern disjuncts to match: []');
+    failCase(specimen, M.tagged(), 'Expected tagged object, not "number": 3');
   }
   {
     const specimen = 0n;
@@ -672,6 +673,37 @@ const runTests = (t, successCase, failCase) => {
       'match:recordOf payload: [1]: A "promise" cannot be a pattern',
     );
   }
+  const specimen = makeTagged('Vowish', {
+    vowVX: Far('VowVX', {}),
+  });
+  successCase(specimen, M.any());
+  successCase(specimen, M.tagged());
+  successCase(specimen, M.tagged('Vowish'));
+  successCase(
+    specimen,
+    M.tagged(
+      'Vowish',
+      harden({
+        vowVX: M.remotable('VowVX'),
+      }),
+    ),
+  );
+  failCase(
+    specimen,
+    M.record(),
+    'cannot check unrecognized tag "Vowish": "[Vowish]"',
+  );
+  failCase(
+    specimen,
+    M.kind('tagged'),
+    'cannot check unrecognized tag "Vowish": "[Vowish]"',
+  );
+  failCase(specimen, M.tagged('Vowoid'), 'tag: "Vowish" - Must be: "Vowoid"');
+  failCase(
+    specimen,
+    M.tagged(undefined, harden({})),
+    'payload: {"vowVX":"[Alleged: VowVX]"} - Must be: {}',
+  );
 };
 
 /**
