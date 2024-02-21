@@ -272,6 +272,12 @@ export {};
  * Otherwise, does not match any value.
  * TODO: Reject attempts to create a kind matcher with unknown `kind`?
  *
+ * @property {(tagPatt?: Pattern, payloadPatt?: Pattern) => Matcher} tagged
+ * For matching an arbitrary Passable Tagged object, whether it has a
+ * recognized kind or not. If `tagPatt` is omitted, it defaults to
+ * `M.string()`. If `payloadPatt` is omitted, it defaults to
+ * `M.any()`.
+ *
  * @property {() => Matcher} boolean
  * Matches `true` or `false`.
  *

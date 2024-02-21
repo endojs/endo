@@ -870,6 +870,27 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
+  const matchTaggedHelper = Far('match:tagged helper', {
+    checkMatches: (specimen, [tagPatt, payloadPatt], check) =>
+      check(
+        passStyleOf(specimen) === 'tagged',
+        X`Expected tagged object, not ${q(passStyleOf(specimen))}: ${specimen}`,
+      ) &&
+      checkMatches(getTag(specimen), tagPatt, check, 'tag') &&
+      checkMatches(specimen.payload, payloadPatt, check, 'payload'),
+
+    checkIsWellFormed: (payload, check) =>
+      checkMatches(
+        payload,
+        harden([MM.pattern(), MM.pattern()]),
+        check,
+        'match:tagged payload',
+      ),
+
+    getRankCover: (kind, _encodePassable) => getPassStyleCover('tagged'),
+  });
+
+  /** @type {import('./types.js').MatchHelper} */
   const matchBigintHelper = Far('match:bigint helper', {
     checkMatches: (specimen, [limits = undefined], check) => {
       const { decimalDigitsLimit } = limit(limits);
@@ -1500,6 +1521,7 @@ const makePatternKit = () => {
     'match:key': matchKeyHelper,
     'match:pattern': matchPatternHelper,
     'match:kind': matchKindHelper,
+    'match:tagged': matchTaggedHelper,
     'match:bigint': matchBigintHelper,
     'match:nat': matchNatHelper,
     'match:string': matchStringHelper,
@@ -1604,6 +1626,8 @@ const makePatternKit = () => {
     key: () => KeyShape,
     pattern: () => PatternShape,
     kind: makeKindMatcher,
+    tagged: (tagPatt = M.string(), payloadPatt = M.any()) =>
+      makeMatcher('match:tagged', harden([tagPatt, payloadPatt])),
     boolean: () => BooleanShape,
     number: () => NumberShape,
     bigint: (limits = undefined) =>
