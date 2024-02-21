@@ -14,6 +14,7 @@ import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
 import { makeMutex } from './mutex.js';
+import { makeWeakMultimap } from './weak-multimap.js';
 
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -96,12 +97,15 @@ const makeDaemonCore = async (
    * @type {Map<string, import('./types.js').Controller>}
    */
   const controllerForFormulaIdentifier = new Map();
+
   /**
    * Reverse look-up, for answering "what is my name for this near or far
    * reference", and not for "what is my name for this promise".
-   * @type {WeakMap<object, string>}
+   * @type {import('./types.js').WeakMultimap<Record<string | symbol, unknown>, string>}
    */
-  const formulaIdentifierForRef = new WeakMap();
+  const formulaIdentifierForRef = makeWeakMultimap();
+
+  /** @type {import('./types.js').WeakMultimap<Record<string | symbol, unknown>, string>['get']} */
   const getFormulaIdentifierForRef = ref => formulaIdentifierForRef.get(ref);
 
   /**
@@ -586,7 +590,7 @@ const makeDaemonCore = async (
       context,
       external: E.get(partial).external.then(value => {
         if (typeof value === 'object' && value !== null) {
-          formulaIdentifierForRef.set(value, formulaIdentifier);
+          formulaIdentifierForRef.add(value, formulaIdentifier);
         }
         return value;
       }),
@@ -669,7 +673,7 @@ const makeDaemonCore = async (
       // Release the value to the public only after ensuring
       // we can reverse-lookup its nonce.
       if (typeof value === 'object' && value !== null) {
-        formulaIdentifierForRef.set(value, formulaIdentifier);
+        formulaIdentifierForRef.add(value, formulaIdentifier);
       }
       return value;
     });
