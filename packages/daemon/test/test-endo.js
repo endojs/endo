@@ -881,8 +881,7 @@ test('name and reuse inspector', async t => {
   await stop(locator);
 });
 
-// This tests behavior that previously failed due to a bug.
-// See: https://github.com/endojs/endo/issues/2021
+// Regression test for: https://github.com/endojs/endo/issues/2021
 test('eval-mediated worker name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));

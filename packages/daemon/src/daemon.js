@@ -551,13 +551,10 @@ const makeDaemonCore = async (
 
     // Memoize for lookup.
     console.log(`Making ${formulaIdentifier}`);
-    const {
-      promise: partial,
-      resolve: resolvePartial,
-      reject: rejectPartial,
-    } = /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
-      makePromiseKit()
-    );
+    const { promise: partial, resolve: resolvePartial } =
+      /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
+        makePromiseKit()
+      );
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
@@ -575,7 +572,7 @@ const makeDaemonCore = async (
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
 
-    // We _must not_ await before the controller value is constructed.
+    // The controller _must_ be constructed in the synchronous prelude of this function.
     const controllerValue = makeControllerForFormula(
       formulaIdentifier,
       formulaNumber,
@@ -583,14 +580,16 @@ const makeDaemonCore = async (
       context,
     );
 
-    try {
-      await persistencePowers.writeFormula(formula, formulaType, formulaNumber);
-    } catch (error) {
-      rejectPartial(error);
-      throw error;
-    }
+    // Ensure that failure to flush the formula to storage
+    // causes a rejection for both the controller and the incarnation value.
+    const written = persistencePowers.writeFormula(
+      formula,
+      formulaType,
+      formulaNumber,
+    );
+    resolvePartial(written.then(() => /** @type {any} */ (controllerValue)));
+    await written;
 
-    resolvePartial(controllerValue);
     return harden({
       formulaIdentifier,
       value: controller.external,
@@ -637,6 +636,8 @@ const makeDaemonCore = async (
       provideControllerForFormulaIdentifier(formulaIdentifier)
     );
     return controller.external.then(value => {
+      // Release the value to the public only after ensuring
+      // we can reverse-lookup its nonce.
       if (typeof value === 'object' && value !== null) {
         formulaIdentifierForRef.set(value, formulaIdentifier);
       }
@@ -733,7 +734,7 @@ const makeDaemonCore = async (
    * @param {string} formulaNumber - The worker formula number.
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
    */
-  const incarnateWorkerSync = formulaNumber => {
+  const incarnateNumberedWorker = formulaNumber => {
     /** @type {import('./types.js').WorkerFormula} */
     const formula = {
       type: 'worker',
@@ -806,7 +807,7 @@ const makeDaemonCore = async (
    * @param {string} hostFormulaIdentifier
    * @param {string} source
    * @param {string[]} codeNames
-   * @param {(string | string[])[]} endowmentFormulaPointers
+   * @param {(string | string[])[]} endowmentFormulaIdsOrPaths
    * @param {import('./types.js').EvalFormulaHook[]} hooks
    * @param {string} [specifiedWorkerFormulaIdentifier]
    * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
@@ -815,7 +816,7 @@ const makeDaemonCore = async (
     hostFormulaIdentifier,
     source,
     codeNames,
-    endowmentFormulaPointers,
+    endowmentFormulaIdsOrPaths,
     hooks,
     specifiedWorkerFormulaIdentifier,
   ) => {
@@ -831,17 +832,17 @@ const makeDaemonCore = async (
 
       const identifiers = harden({
         workerFormulaIdentifier: (
-          await incarnateWorkerSync(workerFormulaNumber)
+          await incarnateNumberedWorker(workerFormulaNumber)
         ).formulaIdentifier,
         endowmentFormulaIdentifiers: await Promise.all(
-          endowmentFormulaPointers.map(async formulaIdOrPath => {
+          endowmentFormulaIdsOrPaths.map(async formulaIdOrPath => {
             if (typeof formulaIdOrPath === 'string') {
               return formulaIdOrPath;
             }
             return (
               /* eslint-disable no-use-before-define */
               (
-                await incarnateLookupSync(
+                await incarnateNumberedLookup(
                   await randomHex512(),
                   hostFormulaIdentifier,
                   formulaIdOrPath,
@@ -881,7 +882,7 @@ const makeDaemonCore = async (
    * @param {string[]} petNamePath - The pet name path to look up.
    * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
    */
-  const incarnateLookupSync = (
+  const incarnateNumberedLookup = (
     formulaNumber,
     hubFormulaIdentifier,
     petNamePath,

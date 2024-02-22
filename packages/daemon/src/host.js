@@ -298,7 +298,7 @@ export const makeHostMaker = ({
       );
 
       /** @type {(string | string[])[]} */
-      const endowmentFormulaPointers = petNamePaths.map(
+      const endowmentFormulaIdsOrPaths = petNamePaths.map(
         (petNameOrPath, index) => {
           if (typeof codeNames[index] !== 'string') {
             throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
@@ -313,8 +313,6 @@ export const makeHostMaker = ({
             return formulaIdentifier;
           }
 
-          // TODO:lookup Check if a formula already exists for the path. May have to be
-          // done in the daemon itself.
           return petNamePath;
         },
       );
@@ -329,7 +327,7 @@ export const makeHostMaker = ({
         hostFormulaIdentifier,
         source,
         codeNames,
-        endowmentFormulaPointers,
+        endowmentFormulaIdsOrPaths,
         hooks,
         workerFormulaIdentifier,
       );
