@@ -10,14 +10,12 @@ const { quote: q } = assert;
 
 /**
  * @param {object} args
- * @param {(hubFormulaIdentifier: string, petNamePath: string[]) => Promise<{ formulaIdentifier: string, value: unknown }>} args.incarnateLookup
  * @param {import('./types.js').ProvideValueForFormulaIdentifier} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').ProvideControllerForFormulaIdentifier} args.provideControllerForFormulaIdentifier
  * @param {import('./types.js').GetFormulaIdentifierForRef} args.getFormulaIdentifierForRef
  * @param {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} args.provideControllerForFormulaIdentifierAndResolveHandle
  */
 export const makeMailboxMaker = ({
-  incarnateLookup,
   getFormulaIdentifierForRef,
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
@@ -84,10 +82,8 @@ export const makeMailboxMaker = ({
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
       // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const controller = await provideControllerForFormulaIdentifier(
-        formulaIdentifier,
-      );
+      const controller =
+        provideControllerForFormulaIdentifier(formulaIdentifier);
       console.log('Cancelled:');
       return controller.context.cancel(reason);
     };
@@ -120,12 +116,6 @@ export const makeMailboxMaker = ({
         return harden([]);
       }
       return reverseLookupFormulaIdentifier(formulaIdentifier);
-    };
-
-    /** @type {import('./types.js').Mail['provideLookupFormula']} */
-    const provideLookupFormula = async petNamePath => {
-      // TODO:lookup Check if the lookup formula already exists in the store
-      return incarnateLookup(selfFormulaIdentifier, petNamePath);
     };
 
     /**
@@ -541,7 +531,6 @@ export const makeMailboxMaker = ({
       reverseLookup,
       reverseLookupFormulaIdentifier,
       identifyLocal,
-      provideLookupFormula,
       followMessages,
       listMessages,
       request,

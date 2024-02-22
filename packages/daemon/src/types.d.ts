@@ -97,6 +97,14 @@ type EvalFormula = {
   // TODO formula slots
 };
 
+export type EvalFormulaHook = (
+  identifiers: Readonly<{
+    endowmentFormulaIdentifiers: string[];
+    evalFormulaNumber: string;
+    workerFormulaIdentifier: string;
+  }>,
+) => Promise<unknown>;
+
 type ReadableBlobFormula = {
   type: 'readable-blob';
   content: string;
@@ -315,14 +323,6 @@ export interface Mail {
   listAll(): Array<string>;
   reverseLookupFormulaIdentifier(formulaIdentifier: string): Array<string>;
   cancel(petName: string, reason: unknown): Promise<void>;
-  /**
-   * Takes a sequence of pet names and returns a formula identifier and value
-   * for the corresponding lookup formula.
-   *
-   * @param petNamePath A sequence of pet names.
-   * @returns The formula identifier and value of the lookup formula.
-   */
-  provideLookupFormula(petNamePath: string[]): Promise<unknown>;
   // Mail operations:
   listMessages(): Promise<Array<Message>>;
   followMessages(): Promise<FarRef<Reader<Message>>>;
