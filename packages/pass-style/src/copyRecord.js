@@ -18,27 +18,23 @@ export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
   canBeValid: (candidate, check = undefined) => {
-    const reject = !!check && (details => check(false, details));
+    const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
     if (getPrototypeOf(candidate) !== objectPrototype) {
       return (
         reject &&
-        reject(X`Records must inherit from Object.prototype: ${candidate}`)
+        reject`Records must inherit from Object.prototype: ${candidate}`
       );
     }
 
     return ownKeys(candidate).every(key => {
       return (
         (typeof key === 'string' ||
-          (!!reject &&
-            reject(
-              X`Records can only have string-named properties: ${candidate}`,
-            ))) &&
+          (reject &&
+            reject`Records can only have string-named properties: ${candidate}`)) &&
         (!canBeMethod(candidate[key]) ||
-          (!!reject &&
-            reject(
-              // TODO: Update message now that there is no such thing as "implicit Remotable".
-              X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
-            )))
+          (reject &&
+            // TODO: Update message now that there is no such thing as "implicit Remotable".
+            reject`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`))
       );
     });
   },

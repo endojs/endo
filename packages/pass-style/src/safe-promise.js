@@ -16,7 +16,7 @@ const { toStringTag } = Symbol;
  * @returns {pr is Promise} Whether it is a safe promise
  */
 const checkPromiseOwnKeys = (pr, check) => {
-  const reject = details => check(false, details);
+  const reject = (T, ...subs) => check(false, X(T, ...subs));
   const keys = ownKeys(pr);
 
   if (keys.length === 0) {
@@ -37,9 +37,7 @@ const checkPromiseOwnKeys = (pr, check) => {
   );
 
   if (unknownKeys.length !== 0) {
-    return reject(
-      X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
-    );
+    return reject`${pr} - Must not have any own properties: ${q(unknownKeys)}`;
   }
 
   /**
@@ -71,17 +69,15 @@ const checkPromiseOwnKeys = (pr, check) => {
       assert(tagDesc !== undefined);
       return (
         (hasOwnPropertyOf(tagDesc, 'value') ||
-          reject(
-            X`Own @@toStringTag must be a data property, not an accessor: ${q(
-              tagDesc,
-            )}`,
-          )) &&
+          reject`Own @@toStringTag must be a data property, not an accessor: ${q(
+            tagDesc,
+          )}`) &&
         (typeof tagDesc.value === 'string' ||
-          reject(
-            X`Own @@toStringTag value must be a string: ${q(tagDesc.value)}`,
-          )) &&
+          reject`Own @@toStringTag value must be a string: ${q(
+            tagDesc.value,
+          )}`) &&
         (!tagDesc.enumerable ||
-          reject(X`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`))
+          reject`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`)
       );
     }
     const val = pr[key];
@@ -107,11 +103,9 @@ const checkPromiseOwnKeys = (pr, check) => {
         return true;
       }
     }
-    return reject(
-      X`Unexpected Node async_hooks additions to promise: ${pr}.${q(
-        String(key),
-      )} is ${val}`,
-    );
+    return reject`Unexpected Node async_hooks additions to promise: ${pr}.${q(
+      String(key),
+    )} is ${val}`;
   };
 
   return keys.every(checkSafeOwnKey);
@@ -134,16 +128,14 @@ const checkPromiseOwnKeys = (pr, check) => {
  * @returns {pr is Promise} Whether it is a safe promise
  */
 const checkSafePromise = (pr, check) => {
-  const reject = details => check(false, details);
+  const reject = (T, ...subs) => check(false, X(T, ...subs));
   return (
-    (isFrozen(pr) || reject(X`${pr} - Must be frozen`)) &&
-    (isPromise(pr) || reject(X`${pr} - Must be a promise`)) &&
+    (isFrozen(pr) || reject`${pr} - Must be frozen`) &&
+    (isPromise(pr) || reject`${pr} - Must be a promise`) &&
     (getPrototypeOf(pr) === Promise.prototype ||
-      reject(
-        X`${pr} - Must inherit from Promise.prototype: ${q(
-          getPrototypeOf(pr),
-        )}`,
-      )) &&
+      reject`${pr} - Must inherit from Promise.prototype: ${q(
+        getPrototypeOf(pr),
+      )}`) &&
     checkPromiseOwnKeys(/** @type {Promise} */ (pr), check)
   );
 };
