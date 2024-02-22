@@ -169,6 +169,8 @@ export { makeLoggingConsoleKit };
 const ErrorInfo = {
   NOTE: 'ERROR_NOTE:',
   MESSAGE: 'ERROR_MESSAGE:',
+  CAUSE: 'cause:',
+  ERRORS: 'errors:',
 };
 freeze(ErrorInfo);
 
@@ -308,6 +310,14 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     // eslint-disable-next-line @endo/no-polymorphic-call
     baseConsole[severity](stackString);
     // Show the other annotations on error
+    if (error.cause) {
+      logErrorInfo(severity, error, ErrorInfo.CAUSE, [error.cause], subErrors);
+    }
+    // @ts-expect-error AggregateError has an `errors` property.
+    if (error.errors) {
+      // @ts-expect-error AggregateError has an `errors` property.
+      logErrorInfo(severity, error, ErrorInfo.ERRORS, error.errors, subErrors);
+    }
     for (const noteLogArgs of noteLogArgsArray) {
       logErrorInfo(severity, error, ErrorInfo.NOTE, noteLogArgs, subErrors);
     }

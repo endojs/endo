@@ -31,7 +31,9 @@ export {};
  *           EncodingClass<'symbol'> & { name: string } |
  *           EncodingClass<'error'> & { name: string,
  *                                      message: string,
- *                                      errorId?: string
+ *                                      errorId?: string,
+ *                                      cause?: Encoding,
+ *                                      errors?: Encoding[],
  *           } |
  *           EncodingClass<'slot'> & { index: number,
  *                                     iface?: string

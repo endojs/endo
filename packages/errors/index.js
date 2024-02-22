@@ -60,8 +60,8 @@ const {
 } = globalAssert;
 /** @type {import("ses").AssertionFunctions } */
 // @ts-expect-error missing properties assigned next
-const assert = (value, optDetails, optErrorContructor) =>
-  globalAssert(value, optDetails, optErrorContructor);
+const assert = (value, optDetails, errContructor, options) =>
+  globalAssert(value, optDetails, errContructor, options);
 Object.assign(assert, assertions);
 
 // As of 2024-02, the Agoric chain's bootstrap vat runs with a version of SES

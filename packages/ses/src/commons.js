@@ -47,6 +47,7 @@ export const {
   ReferenceError,
   SyntaxError,
   TypeError,
+  AggregateError,
 } = globalThis;
 
 export const {

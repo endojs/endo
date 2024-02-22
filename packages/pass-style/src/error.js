@@ -1,27 +1,50 @@
 /// <reference types="ses"/>
 
-import { X, Fail, annotateError } from '@endo/errors';
+import { X, q } from '@endo/errors';
 import { assertChecker } from './passStyle-helpers.js';
 
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').Checker} Checker */
 
-const { getPrototypeOf, getOwnPropertyDescriptors } = Object;
-const { ownKeys } = Reflect;
+const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
 
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
-// whilelist. Currently, both omit AggregateError, which is now standard. Both
-// must eventually include it.
-const errorConstructors = new Map([
-  ['Error', Error],
-  ['EvalError', EvalError],
-  ['RangeError', RangeError],
-  ['ReferenceError', ReferenceError],
-  ['SyntaxError', SyntaxError],
-  ['TypeError', TypeError],
-  ['URIError', URIError],
-]);
+// whilelist.
+const errorConstructors = new Map(
+  // Cast because otherwise TS is confused by AggregateError
+  // See https://github.com/endojs/endo/pull/2042#discussion_r1484933028
+  /** @type {Array<[string, import('ses').GenericErrorConstructor]>} */
+  ([
+    ['Error', Error],
+    ['EvalError', EvalError],
+    ['RangeError', RangeError],
+    ['ReferenceError', ReferenceError],
+    ['SyntaxError', SyntaxError],
+    ['TypeError', TypeError],
+    ['URIError', URIError],
 
+    // https://github.com/endojs/endo/issues/550
+    // To accommodate platforms prior to AggregateError, we comment out the
+    // following line and instead conditionally add it to the map below.
+    // ['AggregateError', AggregateError],
+  ]),
+);
+
+if (typeof AggregateError !== 'undefined') {
+  // Conditional, to accommodate platforms prior to AggregateError
+  errorConstructors.set('AggregateError', AggregateError);
+}
+
+/**
+ * Because the error constructor returned by this function might be
+ * `AggregateError`, which has different construction parameters
+ * from the other error constructors, do not use it directly to try
+ * to make an error instance. Rather, use `makeError` which encapsulates
+ * this non-uniformity.
+ *
+ * @param {string} name
+ * @returns {import('ses').GenericErrorConstructor | undefined}
+ */
 export const getErrorConstructor = name => errorConstructors.get(name);
 harden(getErrorConstructor);
 
@@ -39,6 +62,7 @@ const checkErrorLike = (candidate, check = undefined) => {
   );
 };
 harden(checkErrorLike);
+/// <reference types="ses"/>
 
 /**
  * Validating error objects are passable raises a tension between security
@@ -62,6 +86,132 @@ export const isErrorLike = candidate => checkErrorLike(candidate);
 harden(isErrorLike);
 
 /**
+ * @param {string} propName
+ * @param {PropertyDescriptor} desc
+ * @param {import('./internal-types.js').PassStyleOf} passStyleOfRecur
+ * @param {Checker} [check]
+ * @returns {boolean}
+ */
+export const checkRecursivelyPassableErrorPropertyDesc = (
+  propName,
+  desc,
+  passStyleOfRecur,
+  check = undefined,
+) => {
+  const reject = !!check && (details => check(false, details));
+  if (desc.enumerable) {
+    return (
+      reject &&
+      reject(
+        X`Passable Error ${q(
+          propName,
+        )} own property must not be enumerable: ${desc}`,
+      )
+    );
+  }
+  if (!hasOwn(desc, 'value')) {
+    return (
+      reject &&
+      reject(
+        X`Passable Error ${q(
+          propName,
+        )} own property must be a data property: ${desc}`,
+      )
+    );
+  }
+  const { value } = desc;
+  switch (propName) {
+    case 'message':
+    case 'stack': {
+      return (
+        typeof value === 'string' ||
+        (reject &&
+          reject(
+            X`Passable Error ${q(
+              propName,
+            )} own property must be a string: ${value}`,
+          ))
+      );
+    }
+    case 'cause': {
+      // eslint-disable-next-line no-use-before-define
+      return checkRecursivelyPassableError(value, passStyleOfRecur, check);
+    }
+    case 'errors': {
+      if (!Array.isArray(value) || passStyleOfRecur(value) !== 'copyArray') {
+        return (
+          reject &&
+          reject(
+            X`Passable Error ${q(
+              propName,
+            )} own property must be a copyArray: ${value}`,
+          )
+        );
+      }
+      return value.every(err =>
+        // eslint-disable-next-line no-use-before-define
+        checkRecursivelyPassableError(err, passStyleOfRecur, check),
+      );
+    }
+    default: {
+      break;
+    }
+  }
+  return (
+    reject &&
+    reject(X`Passable Error has extra unpassed property ${q(propName)}`)
+  );
+};
+harden(checkRecursivelyPassableErrorPropertyDesc);
+
+/**
+ * @param {unknown} candidate
+ * @param {import('./internal-types.js').PassStyleOf} passStyleOfRecur
+ * @param {Checker} [check]
+ * @returns {boolean}
+ */
+export const checkRecursivelyPassableError = (
+  candidate,
+  passStyleOfRecur,
+  check = undefined,
+) => {
+  const reject = !!check && (details => check(false, details));
+  if (!checkErrorLike(candidate, check)) {
+    return false;
+  }
+  const proto = getPrototypeOf(candidate);
+  const { name } = proto;
+  const errConstructor = getErrorConstructor(name);
+  if (errConstructor === undefined || errConstructor.prototype !== proto) {
+    return (
+      reject &&
+      reject(
+        X`Passable Error must inherit from an error class .prototype: ${candidate}`,
+      )
+    );
+  }
+  const descs = getOwnPropertyDescriptors(candidate);
+  if (!('message' in descs)) {
+    return (
+      reject &&
+      reject(
+        X`Passable Error must have an own "message" string property: ${candidate}`,
+      )
+    );
+  }
+
+  return entries(descs).every(([propName, desc]) =>
+    checkRecursivelyPassableErrorPropertyDesc(
+      propName,
+      desc,
+      passStyleOfRecur,
+      check,
+    ),
+  );
+};
+harden(checkRecursivelyPassableError);
+
+/**
  * @type {PassStyleHelper}
  */
 export const ErrorHelper = harden({
@@ -69,54 +219,6 @@ export const ErrorHelper = harden({
 
   canBeValid: checkErrorLike,
 
-  assertValid: candidate => {
-    ErrorHelper.canBeValid(candidate, assertChecker);
-    const proto = getPrototypeOf(candidate);
-    const { name } = proto;
-    const EC = getErrorConstructor(name);
-    (EC && EC.prototype === proto) ||
-      Fail`Errors must inherit from an error class .prototype ${candidate}`;
-
-    const {
-      // TODO Must allow `cause`, `errors`
-      message: mDesc,
-      stack: stackDesc,
-      ...restDescs
-    } = getOwnPropertyDescriptors(candidate);
-    ownKeys(restDescs).length < 1 ||
-      Fail`Passed Error has extra unpassed properties ${restDescs}`;
-    if (mDesc) {
-      typeof mDesc.value === 'string' ||
-        Fail`Passed Error "message" ${mDesc} must be a string-valued data property.`;
-      !mDesc.enumerable ||
-        Fail`Passed Error "message" ${mDesc} must not be enumerable`;
-    }
-    if (stackDesc) {
-      typeof stackDesc.value === 'string' ||
-        Fail`Passed Error "stack" ${stackDesc} must be a string-valued data property.`;
-      !stackDesc.enumerable ||
-        Fail`Passed Error "stack" ${stackDesc} must not be enumerable`;
-    }
-    return true;
-  },
+  assertValid: (candidate, passStyleOfRecur) =>
+    checkRecursivelyPassableError(candidate, passStyleOfRecur, assertChecker),
 });
-
-/**
- * Return a new passable error that propagates the diagnostic info of the
- * original, and is linked to the original as a note.
- *
- * @param {Error} err
- * @returns {Error}
- */
-export const toPassableError = err => {
-  const { name, message } = err;
-
-  const EC = getErrorConstructor(`${name}`) || Error;
-  const newError = harden(new EC(`${message}`));
-  // Even the cleaned up error copy, if sent to the console, should
-  // cause hidden diagnostic information of the original error
-  // to be logged.
-  annotateError(newError, X`copied from error ${err}`);
-  return newError;
-};
-harden(toPassableError);

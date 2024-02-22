@@ -3,13 +3,23 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { X, Fail, q } from '@endo/errors';
-import { isObject, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
+import { X, Fail, q, annotateError, makeError } from '@endo/errors';
+import {
+  assertChecker,
+  isObject,
+  isTypedArray,
+  PASS_STYLE,
+} from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
 import { CopyRecordHelper } from './copyRecord.js';
 import { TaggedHelper } from './tagged.js';
-import { ErrorHelper } from './error.js';
+import {
+  ErrorHelper,
+  checkRecursivelyPassableErrorPropertyDesc,
+  checkRecursivelyPassableError,
+  getErrorConstructor,
+} from './error.js';
 import { RemotableHelper } from './remotable.js';
 
 import { assertPassableSymbol } from './symbol.js';
@@ -24,7 +34,7 @@ import { assertSafePromise } from './safe-promise.js';
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 
 const { ownKeys } = Reflect;
-const { isFrozen } = Object;
+const { isFrozen, getOwnPropertyDescriptors } = Object;
 
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
@@ -221,3 +231,109 @@ export const assertPassable = val => {
   passStyleOf(val); // throws if val is not a passable
 };
 harden(assertPassable);
+
+/**
+ * Is `specimen` Passable? This returns true iff `passStyleOf(specimen)`
+ * returns a string. This returns `false` iff `passStyleOf(specimen)` throws.
+ * Under no normal circumstance should `isPassable(specimen)` throw.
+ *
+ * TODO Deprecate and ultimately delete @agoric/base-zone's `isPassable' in
+ * favor of this one.
+ * See https://github.com/endojs/endo/issues/2096
+ *
+ * TODO implement an isPassable that does not rely on try/catch.
+ * This implementation is just a standin until then.
+ * See https://github.com/endojs/endo/issues/2096
+ *
+ * @param {any} specimen
+ * @returns {specimen is Passable}
+ */
+export const isPassable = specimen => {
+  try {
+    // In fact, it never returns undefined. It either returns a
+    // string or throws.
+    return passStyleOf(specimen) !== undefined;
+  } catch (_) {
+    return false;
+  }
+};
+harden(isPassable);
+
+/**
+ * @param {string} name
+ * @param {PropertyDescriptor} desc
+ * @returns {boolean}
+ */
+const isPassableErrorPropertyDesc = (name, desc) =>
+  checkRecursivelyPassableErrorPropertyDesc(name, desc, passStyleOf);
+harden(isPassableErrorPropertyDesc);
+
+/**
+ * @param {string} name
+ * @param {PropertyDescriptor} desc
+ */
+const assertPassableErrorPropertyDesc = (name, desc) => {
+  checkRecursivelyPassableErrorPropertyDesc(
+    name,
+    desc,
+    passStyleOf,
+    assertChecker,
+  );
+};
+harden(assertPassableErrorPropertyDesc);
+
+/**
+ * @param {unknown} err
+ * @returns {err is Error}
+ */
+export const isPassableError = err =>
+  checkRecursivelyPassableError(err, passStyleOf);
+
+/**
+ * @param {unknown} err
+ * @returns {asserts err is Error}
+ */
+export const assertPassableError = err => {
+  checkRecursivelyPassableError(err, passStyleOf, assertChecker);
+};
+
+/**
+ * Return a new passable error that propagates the diagnostic info of the
+ * original, and is linked to the original as a note.
+ *
+ * @param {Error} err
+ * @returns {Error}
+ */
+export const toPassableError = err => {
+  if (isPassableError(err)) {
+    return err;
+  }
+  const { name, message } = err;
+  const { cause: causeDesc, errors: errorsDesc } =
+    getOwnPropertyDescriptors(err);
+  let cause;
+  let errors;
+  if (causeDesc && isPassableErrorPropertyDesc('cause', causeDesc)) {
+    // @ts-expect-error data descriptors have "value" property
+    cause = causeDesc.value;
+  }
+  if (errorsDesc && isPassableErrorPropertyDesc('errors', errorsDesc)) {
+    // @ts-expect-error data descriptors have "value" property
+    errors = errorsDesc.value;
+  }
+
+  const errConstructor = getErrorConstructor(`${name}`) || Error;
+  const newError = makeError(`${message}`, errConstructor, {
+    // @ts-ignore Assuming cause is Error | undefined
+    cause,
+    errors,
+  });
+  harden(newError);
+  // Even the cleaned up error copy, if sent to the console, should
+  // cause hidden diagnostic information of the original error
+  // to be logged.
+  annotateError(newError, X`copied from error ${err}`);
+  assertPassableError(newError);
+  return newError;
+};
+harden(toPassableError);

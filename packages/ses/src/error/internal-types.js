@@ -69,7 +69,12 @@
  */
 
 /**
- * @typedef {{ NOTE: 'ERROR_NOTE:', MESSAGE: 'ERROR_MESSAGE:' }} ErrorInfo
+ * @typedef {{
+ *   NOTE: 'ERROR_NOTE:',
+ *   MESSAGE: 'ERROR_MESSAGE:',
+ *   CAUSE: 'cause:',
+ *   ERRORS: 'errors:',
+ * }} ErrorInfo
  */
 
 /**

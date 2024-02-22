@@ -7,14 +7,24 @@ import { X, makeError, annotateError } from '@endo/errors';
  *
  * @param {Error} innerErr
  * @param {string|number} label
- * @param {ErrorConstructor=} ErrorConstructor
+ * @param {import('ses').GenericErrorConstructor} [errConstructor]
+ * @param {import('ses').AssertMakeErrorOptions} [options]
  * @returns {never}
  */
-export const throwLabeled = (innerErr, label, ErrorConstructor = undefined) => {
+export const throwLabeled = (
+  innerErr,
+  label,
+  errConstructor = undefined,
+  options = undefined,
+) => {
   if (typeof label === 'number') {
     label = `[${label}]`;
   }
-  const outerErr = makeError(`${label}: ${innerErr.message}`, ErrorConstructor);
+  const outerErr = makeError(
+    `${label}: ${innerErr.message}`,
+    errConstructor,
+    options,
+  );
   annotateError(outerErr, X`Caused by ${innerErr}`);
   throw outerErr;
 };

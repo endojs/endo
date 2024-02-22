@@ -1,19 +1,35 @@
 // @ts-check
 
 /**
+ * TypeScript does not treat `AggregateErrorConstructor` as a subtype of
+ * `ErrorConstructor`, which makes sense because their constructors
+ * have incompatible signatures. However, we want to parameterize some
+ * operations by any error constructor, including possible `AggregateError`.
+ * So we introduce `GenericErrorConstructor` as a common supertype. Any call
+ * to it to make an instance must therefore first case split on whether the
+ * constructor is an AggregateErrorConstructor or a normal ErrorConstructor.
+ *
+ * @typedef {ErrorConstructor | AggregateErrorConstructor} GenericErrorConstructor
+ */
+
+/**
  * @callback BaseAssert
  * The `assert` function itself.
  *
  * @param {any} flag The truthy/falsy value
- * @param {Details=} optDetails The details to throw
- * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
- * constructor to use.
+ * @param {Details} [optDetails] The details to throw
+ * @param {GenericErrorConstructor} [errConstructor]
+ * An optional alternate error constructor to use.
+ * @param {AssertMakeErrorOptions} [options]
  * @returns {asserts flag}
  */
 
 /**
  * @typedef {object} AssertMakeErrorOptions
- * @property {string=} errorName
+ * @property {string} [errorName]
+ * @property {Error} [cause]
+ * @property {Error[]} [errors]
+ *   Normally only used when the ErrorConstuctor is `AggregateError`
  */
 
 /**
@@ -22,10 +38,10 @@
  * The `assert.error` method, recording details for the console.
  *
  * The optional `optDetails` can be a string.
- * @param {Details=} optDetails The details of what was asserted
- * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
- * constructor to use.
- * @param {AssertMakeErrorOptions=} options
+ * @param {Details} [optDetails] The details of what was asserted
+ * @param {GenericErrorConstructor} [errConstructor]
+ * An optional alternate error constructor to use.
+ * @param {AssertMakeErrorOptions} [options]
  * @returns {Error}
  */
 
@@ -40,9 +56,10 @@
  *
  * The optional `optDetails` can be a string for backwards compatibility
  * with the nodejs assertion library.
- * @param {Details=} optDetails The details of what was asserted
- * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
- * constructor to use.
+ * @param {Details} [optDetails] The details of what was asserted
+ * @param {GenericErrorConstructor} [errConstructor]
+ * An optional alternate error constructor to use.
+ * @param {AssertMakeErrorOptions} [options]
  * @returns {never}
  */
 
@@ -53,9 +70,10 @@
  * Assert that two values must be `Object.is`.
  * @param {any} actual The value we received
  * @param {any} expected What we wanted
- * @param {Details=} optDetails The details to throw
- * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
- * constructor to use.
+ * @param {Details} [optDetails] The details to throw
+ * @param {GenericErrorConstructor} [errConstructor]
+ * An optional alternate error constructor to use.
+ * @param {AssertMakeErrorOptions} [options]
  * @returns {void}
  */
 
@@ -66,7 +84,7 @@
  * @callback AssertTypeofBigint
  * @param {any} specimen
  * @param {'bigint'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is bigint}
  */
 
@@ -74,7 +92,7 @@
  * @callback AssertTypeofBoolean
  * @param {any} specimen
  * @param {'boolean'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is boolean}
  */
 
@@ -82,7 +100,7 @@
  * @callback AssertTypeofFunction
  * @param {any} specimen
  * @param {'function'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is Function}
  */
 
@@ -90,7 +108,7 @@
  * @callback AssertTypeofNumber
  * @param {any} specimen
  * @param {'number'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is number}
  */
 
@@ -98,7 +116,7 @@
  * @callback AssertTypeofObject
  * @param {any} specimen
  * @param {'object'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is Record<any, any> | null}
  */
 
@@ -106,7 +124,7 @@
  * @callback AssertTypeofString
  * @param {any} specimen
  * @param {'string'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is string}
  */
 
@@ -114,7 +132,7 @@
  * @callback AssertTypeofSymbol
  * @param {any} specimen
  * @param {'symbol'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is symbol}
  */
 
@@ -122,7 +140,7 @@
  * @callback AssertTypeofUndefined
  * @param {any} specimen
  * @param {'undefined'} typename
- * @param {Details=} optDetails
+ * @param {Details} [optDetails]
  * @returns {asserts specimen is undefined}
  */
 
@@ -141,7 +159,7 @@
  *
  * Assert an expected typeof result.
  * @param {any} specimen The value to get the typeof
- * @param {Details=} optDetails The details to throw
+ * @param {Details} [optDetails] The details to throw
  * @returns {asserts specimen is string}
  */
 
@@ -202,7 +220,7 @@
  *
  * @callback AssertQuote
  * @param {any} payload What to declassify
- * @param {(string|number)=} spaces
+ * @param {(string|number)} [spaces]
  * @returns {StringablePayload} The declassified payload
  */
 
@@ -235,8 +253,8 @@
  * `optRaise` returns normally, which would be unusual, the throw following
  * `optRaise(reason)` would still happen.
  *
- * @param {Raise=} optRaise
- * @param {boolean=} unredacted
+ * @param {Raise} [optRaise]
+ * @param {boolean} [unredacted]
  * @returns {Assert}
  */
 
@@ -400,6 +418,6 @@
  * @callback FilterConsole
  * @param {VirtualConsole} baseConsole
  * @param {ConsoleFilter} filter
- * @param {string=} topic
+ * @param {string} [topic]
  * @returns {VirtualConsole}
  */

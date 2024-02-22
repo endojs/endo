@@ -30,15 +30,18 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
   t.is(passStyleOf(harden(Error('ok'))), 'error');
+});
 
+test('some passStyleOf rejections', t => {
   const hairlessError = Error('hairless');
   for (const k of ownKeys(hairlessError)) {
     delete hairlessError[k];
   }
-  t.is(passStyleOf(harden(hairlessError)), 'error');
-});
+  t.throws(() => passStyleOf(harden(hairlessError)), {
+    message:
+      'Passable Error must have an own "message" string property: "[Error: ]"',
+  });
 
-test('some passStyleOf rejections', t => {
   t.throws(() => passStyleOf(Symbol('unique')), {
     message:
       /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
@@ -391,7 +394,7 @@ test('remotables - safety from the gibson042 attack', t => {
   // console.log(passStyleOf(input1)); // => "remotable"
   t.throws(() => passStyleOf(input1), {
     message:
-      'Errors must inherit from an error class .prototype "[undefined: undefined]"',
+      'Passable Error must inherit from an error class .prototype: "[undefined: undefined]"',
   });
 
   // different because of changes in the prototype
@@ -400,7 +403,7 @@ test('remotables - safety from the gibson042 attack', t => {
   // console.log(passStyleOf(input2)); // => Error (Errors must inherit from an error class .prototype)
   t.throws(() => passStyleOf(input2), {
     message:
-      'Errors must inherit from an error class .prototype "[undefined: undefined]"',
+      'Passable Error must inherit from an error class .prototype: "[undefined: undefined]"',
   });
 });
 
@@ -417,8 +420,7 @@ test('Unexpected stack on errors', t => {
   Object.freeze(err);
 
   t.throws(() => passStyleOf(err), {
-    message:
-      'Passed Error "stack" {"configurable":false,"enumerable":false,"value":{},"writable":false} must be a string-valued data property.',
+    message: 'Passable Error "stack" own property must be a string: {}',
   });
   err.stack.foo = 42;
 });

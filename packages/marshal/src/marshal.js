@@ -6,6 +6,7 @@ import {
   getInterfaceOf,
   getErrorConstructor,
   hasOwnPropertyOf,
+  toPassableError,
 } from '@endo/pass-style';
 
 import { X, Fail, q, makeError, annotateError } from '@endo/errors';
@@ -30,6 +31,7 @@ import {
 /** @typedef {import('./types.js').Encoding} Encoding */
 /** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
 
+const { defineProperties } = Object;
 const { isArray } = Array;
 const { ownKeys } = Reflect;
 
@@ -113,8 +115,9 @@ export const makeMarshal = (
       assert.typeof(message, 'string');
       const name = encodeRecur(`${err.name}`);
       assert.typeof(name, 'string');
-      // Must encode `cause`, `errors`.
-      // nested non-passable errors must be ok from here.
+      // TODO Must encode `cause`, `errors`, but
+      // only once all possible counterparty decoders are tolerant of
+      // receiving them.
       if (errorTagging === 'on') {
         // We deliberately do not share the stack, but it would
         // be useful to log the stack locally so someone who has
@@ -255,40 +258,65 @@ export const makeMarshal = (
     };
 
     /**
-     * @param {{errorId?: string, message: string, name: string}} errData
+     * @param {{
+     *   errorId?: string,
+     *   message: string,
+     *   name: string,
+     *   cause: unknown,
+     *   errors: unknown,
+     * }} errData
      * @param {(e: unknown) => Passable} decodeRecur
      * @returns {Error}
      */
     const decodeErrorCommon = (errData, decodeRecur) => {
-      const { errorId = undefined, message, name, ...rest } = errData;
-      // TODO Must decode `cause` and `errors` properties.
+      const {
+        errorId = undefined,
+        message,
+        name,
+        cause = undefined,
+        errors = undefined,
+        ...rest
+      } = errData;
       // See https://github.com/endojs/endo/pull/2052
       // capData does not transform strings. The immediately following calls
       // to `decodeRecur` are for reuse by other encodings that do,
       // such as smallcaps.
       const dName = decodeRecur(name);
       const dMessage = decodeRecur(message);
+      // errorId is a late addition so be tolerant of its absence.
       const dErrorId = errorId && decodeRecur(errorId);
       typeof dName === 'string' ||
         Fail`invalid error name typeof ${q(typeof dName)}`;
       typeof dMessage === 'string' ||
         Fail`invalid error message typeof ${q(typeof dMessage)}`;
-      const EC = getErrorConstructor(dName) || Error;
-      // errorId is a late addition so be tolerant of its absence.
+      const errConstructor = getErrorConstructor(dName) || Error;
       const errorName =
         dErrorId === undefined
-          ? `Remote${EC.name}`
-          : `Remote${EC.name}(${dErrorId})`;
-      const error = makeError(dMessage, EC, { errorName });
-      if (ownKeys(rest).length >= 1) {
-        // Note that this does not decodeRecur rest's property names.
-        // This would be inconsistent with smallcaps' expected handling,
-        // but is fine here since it is only used for `annotateError`,
-        // which is for diagnostic info that is otherwise unobservable.
-        const extras = objectMap(rest, decodeRecur);
-        annotateError(error, X`extra marshalled properties ${extras}`);
+          ? `Remote${errConstructor.name}`
+          : `Remote${errConstructor.name}(${dErrorId})`;
+      const options = {
+        errorName,
+      };
+      if (cause) {
+        options.cause = decodeRecur(cause);
       }
-      return harden(error);
+      if (errors) {
+        options.errors = decodeRecur(errors);
+      }
+      const rawError = makeError(dMessage, errConstructor, options);
+      // Note that this does not decodeRecur rest's property names.
+      // This would be inconsistent with smallcaps' expected handling,
+      // but is fine here since it is only used for `annotateError`,
+      // which is for diagnostic info that is otherwise unobservable.
+      const descs = objectMap(rest, data => ({
+        value: decodeRecur(data),
+        writable: false,
+        enumerable: false,
+        configurable: false,
+      }));
+      defineProperties(rawError, descs);
+      harden(rawError);
+      return toPassableError(rawError);
     };
 
     // The current encoding does not give the decoder enough into to distinguish
