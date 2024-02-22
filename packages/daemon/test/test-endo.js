@@ -647,7 +647,8 @@ test('direct termination', async t => {
   t.pass();
 });
 
-test('indirect termination', async t => {
+// See: https://github.com/endojs/endo/issues/2074
+test.failing('indirect termination', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 

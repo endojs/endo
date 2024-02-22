@@ -825,8 +825,9 @@ const makeDaemonCore = async (
       evalFormulaNumber,
     } = await formulaGraphMutex.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
-      const workerFormulaNumber = await (specifiedWorkerFormulaIdentifier ??
-        randomHex512());
+      const workerFormulaNumber = await (specifiedWorkerFormulaIdentifier
+        ? parseFormulaIdentifier(specifiedWorkerFormulaIdentifier).number
+        : randomHex512());
 
       const identifiers = harden({
         workerFormulaIdentifier: (
