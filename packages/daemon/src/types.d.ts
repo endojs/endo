@@ -359,7 +359,7 @@ export interface Mail {
   remove: PetStore['remove'];
   list: PetStore['list'];
   identifyLocal: PetStore['identifyLocal'];
-  reverseLookup: PetStore['reverseLookup'];
+  reverseLookup(value: unknown): Array<string>;
   // Extended methods:
   lookup(...petNamePath: string[]): Promise<unknown>;
   listSpecial(): Array<string>;
@@ -637,8 +637,44 @@ export type DaemonicPowers = {
   control: DaemonicControlPowers;
 };
 
-type Mutex = {
+export type Mutex = {
   lock: () => Promise<void>;
   unlock: () => void;
   enqueue: <T>(asyncFn?: () => Promise<T>) => Promise<T>;
+};
+
+/**
+ * A multimap backed by a WeakMap. Keys must be objects.
+ */
+export type WeakMultimap<K extends WeakKey, V> = {
+  /**
+   * @param key - The key to add a value for.
+   * @param value - The value to add.
+   */
+  add(key: K, value: V): void;
+
+  /**
+   * @param key - The key whose value to delete.
+   * @param value - The value to delete.
+   * @returns `true` if the key was found and the value was deleted, `false` otherwise.
+   */
+  delete(key: K, value: V): boolean;
+
+  /**
+   * @param key - The key whose values to delete
+   * @returns `true` if the key was found and its values were deleted, `false` otherwise.
+   */
+  deleteAll(key: K): boolean;
+
+  /**
+   * @param key - The key whose first value to retrieve
+   * @returns The first value associated with the key.
+   */
+  get(key: K): V | undefined;
+
+  /**
+   * @param key - The key whose values to retrieve.
+   * @returns An array of all values associated with the key.
+   */
+  getAll(key: K): V[];
 };
