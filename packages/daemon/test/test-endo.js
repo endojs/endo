@@ -566,11 +566,11 @@ test('guest facet receives a message for host', async t => {
   await stop(locator);
 });
 
-test('direct termination', async t => {
+test('direct cancellation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'termination-direct');
+  const locator = makeLocator('tmp', 'cancellation-direct');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -643,16 +643,14 @@ test('direct termination', async t => {
       ['counter'],
     ),
   );
-
-  t.pass();
 });
 
 // See: https://github.com/endojs/endo/issues/2074
-test.failing('indirect termination', async t => {
+test.failing('indirect cancellation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'termination-indirect');
+  const locator = makeLocator('tmp', 'cancellation-indirect');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -732,7 +730,7 @@ test('cancel because of requested capability', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'termination-via-request');
+  const locator = makeLocator('tmp', 'cancellation-via-request');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -814,6 +812,76 @@ test('cancel because of requested capability', async t => {
       ['counter'],
     ),
   );
+});
+
+test('unconfined service can respond to cancellation', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'cancellation-unconfined-response');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+
+  const capletPath = path.join(dirname, 'test', 'context-consumer.js');
+  const capletLocation = url.pathToFileURL(capletPath).href;
+  await E(host).makeUnconfined(
+    'worker',
+    capletLocation,
+    'NONE',
+    'context-consumer',
+  );
+
+  const result = E(host).evaluate(
+    'worker',
+    'E(caplet).awaitCancellation()',
+    ['caplet'],
+    ['context-consumer'],
+  );
+  await E(host).cancel('context-consumer');
+  t.is(await result, 'cancelled');
+});
+
+test('confined service can respond to cancellation', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'cancellation-confined-response');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  await E(host).provideWorker('worker');
+
+  const capletPath = path.join(dirname, 'test', 'context-consumer.js');
+  await doMakeBundle(host, capletPath, bundleName =>
+    E(host).makeBundle('worker', bundleName, 'NONE', 'context-consumer'),
+  );
+
+  const result = E(host).evaluate(
+    'worker',
+    'E(caplet).awaitCancellation()',
+    ['caplet'],
+    ['context-consumer'],
+  );
+  await E(host).cancel('context-consumer');
+  t.is(await result, 'cancelled');
 });
 
 test('make a host', async t => {

@@ -47,6 +47,18 @@ const makeInspector = (type, number, record) =>
   });
 
 /**
+ * @param {import('./types.js').Context} context - The context to make far.
+ * @returns {import('./types.js').FarContext} The far context.
+ */
+const makeFarContext = context =>
+  Far('Context', {
+    cancel: context.cancel,
+    whenCancelled: () => context.cancelled,
+    whenDisposed: () => context.disposed,
+    addDisposalHook: context.onCancel,
+  });
+
+/**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
  * @param {object} args
@@ -284,7 +296,12 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).makeUnconfined(specifier, guestP);
+    const external = E(workerDaemonFacet).makeUnconfined(
+      specifier,
+      guestP,
+      // TODO fix type
+      /** @type {any} */ (makeFarContext(context)),
+    );
     return { external, internal: undefined };
   };
 
@@ -327,7 +344,12 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    const external = E(workerDaemonFacet).makeBundle(readableBundleP, guestP);
+    const external = E(workerDaemonFacet).makeBundle(
+      readableBundleP,
+      guestP,
+      // TODO fix type
+      /** @type {any} */ (makeFarContext(context)),
+    );
     return { external, internal: undefined };
   };
 
@@ -628,6 +650,14 @@ const makeDaemonCore = async (
     );
 
     return controller;
+  };
+
+  /** @type {import('./types.js').CancelValue} */
+  const cancelValue = async (formulaIdentifier, reason) => {
+    await formulaGraphMutex.enqueue();
+    const controller = provideControllerForFormulaIdentifier(formulaIdentifier);
+    console.log('Cancelled:');
+    return controller.context.cancel(reason);
   };
 
   /** @type {import('./types.js').ProvideValueForFormulaIdentifier} */
@@ -1065,8 +1095,8 @@ const makeDaemonCore = async (
   const makeMailbox = makeMailboxMaker({
     getFormulaIdentifierForRef,
     provideValueForFormulaIdentifier,
-    provideControllerForFormulaIdentifier,
     provideControllerForFormulaIdentifierAndResolveHandle,
+    cancelValue,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
