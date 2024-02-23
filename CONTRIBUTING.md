@@ -149,6 +149,10 @@ https://github.com/endojs/endo/labels/next-release
 
 * Revert the change that added generated types.
 
+  ```sh
+  git revert HEAD^
+  ```
+
   This command should then efect no changes.
 
   ```sh
