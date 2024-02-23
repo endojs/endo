@@ -1,7 +1,7 @@
 {
   "name": "@endo/skel",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": null,
   "keywords": [],
   "author": "Endo contributors",
@@ -36,8 +36,8 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.3",
-    "@endo/ses-ava": "^1.1.1",
+    "@endo/lockdown": "^1.0.4",
+    "@endo/ses-ava": "^1.1.2",
     "ava": "^5.3.0",
     "c8": "^7.14.0",
     "tsd": "^0.28.1"

@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/errors@1.0.3...@endo/errors@1.1.0) (2024-02-23)
+
+
+### Features
+
+* **ses:** permit Promise.any, AggregateError ([6a8c4d8](https://github.com/endojs/endo/commit/6a8c4d8795c991cdaf542d5dcb691aae4e989d79))
+
+
+### Bug Fixes
+
+* **errors:** Fix backward-compat for bare export ([ef7b9f0](https://github.com/endojs/endo/commit/ef7b9f041e8e3dc2ba92660b0ea918612d7c5bef))
+* **ses,pass-style,marshal:** tolerate platforms prior to AggregateError ([5762dd4](https://github.com/endojs/endo/commit/5762dd48e814e2e8435f666019e527d982eddbbd))
+
+
+
 ### [1.0.3](https://github.com/endojs/endo/compare/@endo/errors@1.0.2...@endo/errors@1.0.3) (2024-02-15)
 
 

@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.1.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.0.2...@endo/eslint-plugin@2.1.0) (2024-02-23)
+
+
+### Features
+
+* **ses:** permit Promise.any, AggregateError ([6a8c4d8](https://github.com/endojs/endo/commit/6a8c4d8795c991cdaf542d5dcb691aae4e989d79))
+
+
+### Bug Fixes
+
+* Relax lint for optional chaining and nullish coallescing for daemon ([ff58c06](https://github.com/endojs/endo/commit/ff58c065130b774ccb3c9cddbb7562505f0e43a0))
+
+
+
 ### [2.0.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.0.1...@endo/eslint-plugin@2.0.2) (2024-02-15)
 
 

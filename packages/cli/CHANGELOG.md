@@ -3,6 +3,92 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/endojs/endo/compare/@endo/cli@1.0.3...@endo/cli@2.0.0) (2024-02-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **daemon:** Change unsafe import formula from path to specifier
+* **daemon,cli:** Rename internals using "unsafe"
+* **cli:** Rename --UNSAFE to --UNCONFINED
+* **cli:** Remove archive commands in favor of bundles
+* **cli:** Remove hash command (redundant with bundle)
+
+### Features
+
+* **cli,daemon:** Make packages private ([986af72](https://github.com/endojs/endo/commit/986af720a64af07a4e5d6435ed9820727f2f283f))
+* **cli,daemon:** Support dot-delimited petname paths in eval ([d35bbe2](https://github.com/endojs/endo/commit/d35bbe23f9f0bdea928e5b8f6b50328a90f9c71f))
+* **cli:** Add adopt command ([b056164](https://github.com/endojs/endo/commit/b0561642828b4ec382b106f2116a8bc4d8c9a07d))
+* **cli:** Add bundle command ([7cf294a](https://github.com/endojs/endo/commit/7cf294a7e59850254f5b0462615071de4ca42f43))
+* **cli:** Add dismiss message command ([3d8ee2c](https://github.com/endojs/endo/commit/3d8ee2c996e7a3b987df9e9073acfe697286120d))
+* **cli:** Add endo bin to package descriptor ([291713e](https://github.com/endojs/endo/commit/291713e3f2c3b1401e0a7037fe1badd50cba196f))
+* **cli:** Add follow inbox flag ([afb86f6](https://github.com/endojs/endo/commit/afb86f6ca193c827100945a9eecd88c1e13b92b9))
+* **cli:** Add import-bundle0 command ([c6ac0ab](https://github.com/endojs/endo/commit/c6ac0ab54bf015e1e2e6d9d50c7433e93e4ad88d))
+* **cli:** Add import-unsafe0 command ([df70f42](https://github.com/endojs/endo/commit/df70f426fba89894160d73dda27f5475d63af23d))
+* **cli:** Add install --open flag ([3a4fc45](https://github.com/endojs/endo/commit/3a4fc457a592c7530c3917339a3c0f42b540bb85))
+* **cli:** Add list pet names command ([102ec83](https://github.com/endojs/endo/commit/102ec83aecfb7efef06a01a3f510c723d6935008))
+* **cli:** Add open command ([5b6a00a](https://github.com/endojs/endo/commit/5b6a00acd31cf98fb8076f275c62244bffea4a0d))
+* **cli:** Add receive message command ([547ce4d](https://github.com/endojs/endo/commit/547ce4d4d58a4a20d83445016767fb9f4e7d4bba))
+* **cli:** Add send command ([e4d64e2](https://github.com/endojs/endo/commit/e4d64e2bad7f39f14e965ccfe5cf5013d90b0e87))
+* **cli:** can specify introducedNames in mkhost and mkguest ([eb3bb85](https://github.com/endojs/endo/commit/eb3bb854295902fb205abbc8b2d29ca1f728f803))
+* **cli:** Cat command ([a380297](https://github.com/endojs/endo/commit/a3802972b615d18a918023c369f1a9deb11567af))
+* **cli:** Demo support for message send ([378c81e](https://github.com/endojs/endo/commit/378c81e26c016784d064641ef722264706b7ace7))
+* **cli:** Eval in worker ([463c6e6](https://github.com/endojs/endo/commit/463c6e693952cccb7e71e769f4b0b93fb83e3d6f))
+* **cli:** Extract install from open command ([512a645](https://github.com/endojs/endo/commit/512a64538bdeccc3bd75f5ac6c4b2034168cfd89))
+* **cli:** Familiar Chat pet name inventory ([7cb7e5a](https://github.com/endojs/endo/commit/7cb7e5a66ba97bd634c3dd7d62168a42932c6735))
+* **cli:** Follow command ([b029b5f](https://github.com/endojs/endo/commit/b029b5fe77b60ef230f82892bced8269bf9bbe4a))
+* **cli:** Generalize request method so it is suitable for the host ([6d95690](https://github.com/endojs/endo/commit/6d95690c5697e7521c96ae8a5baead6fbea8a7a2))
+* **cli:** Inbox support for package type messages ([c423281](https://github.com/endojs/endo/commit/c423281eae174ab7bbb3ba4d6b1a66d0f2479a21))
+* **cli:** Inbox, resolve, and reject commands ([f50320d](https://github.com/endojs/endo/commit/f50320d5a6fd10ac82e115b1e0b80c9fc97ce830))
+* **cli:** kill command ([e4cf09e](https://github.com/endojs/endo/commit/e4cf09e84285e8bc4c469ec0a0b0890c10f3c8e1))
+* **cli:** List all, list special ([e0de1ff](https://github.com/endojs/endo/commit/e0de1ff28995969c9f95414b29fe253741c26940))
+* **cli:** List named directory ([df056e5](https://github.com/endojs/endo/commit/df056e5a11f662d6004862ff46e1ed35fe3c4ab9))
+* **cli:** Log follow option ([2296c62](https://github.com/endojs/endo/commit/2296c62d9d080d784e37bde4ef2ecc1fe5874287))
+* **cli:** Log follow watches for reset ([f6bd1d6](https://github.com/endojs/endo/commit/f6bd1d6c939e33b32f1d1e0fb6da42b93c3fd2d1))
+* **cli:** Rename --UNSAFE to --UNCONFINED ([ba33e82](https://github.com/endojs/endo/commit/ba33e82e3de063665ee85c0f7ab0a30c8f7a6018))
+* **cli:** Show pet name ([3f5e983](https://github.com/endojs/endo/commit/3f5e98321f8cb0d6c1ccfd38480ad91693b7610e))
+* **cli:** Spawn for multiple workers ([c9f1fe8](https://github.com/endojs/endo/commit/c9f1fe8b3f1fa54117b6062bd98e1aab88c26e93))
+* **cli:** Spawn worker ([659d347](https://github.com/endojs/endo/commit/659d3473977c58b6862cec31ce40385478aec849))
+* **cli:** Start daemon on demand ([26243d4](https://github.com/endojs/endo/commit/26243d48ab17871a246df3d5c97471befb225aeb))
+* **cli:** Store archive as pet name ([3f022b4](https://github.com/endojs/endo/commit/3f022b4997f14d5f7423163d5e9dda201be0ac12))
+* **cli:** Store readable blob ([1e1f41b](https://github.com/endojs/endo/commit/1e1f41bd47c8cbb11faa6389b0cd5e15c6db0680))
+* **cli:** Support dot-delimited paths for `--as` option ([9848676](https://github.com/endojs/endo/commit/9848676ddbd7ccee88a78635462d75f08c7ed46a))
+* **cli:** Support runlets ([8ce61be](https://github.com/endojs/endo/commit/8ce61be38ff5c942624e278ba2639b6fff5747d2))
+* **cli:** Thread ephemeral state path ([e4e9917](https://github.com/endojs/endo/commit/e4e99171eb1d4f0e54652fb05ff685cff783af76))
+* **daemon,cli:** Rename internals using "unsafe" ([5623d60](https://github.com/endojs/endo/commit/5623d608056586c33d3d35798d8171d6ac69c5a5))
+* **daemon:** Reify inboxes and outboxes ([11f86a5](https://github.com/endojs/endo/commit/11f86a552d25570596ef20fc0928989abcdb8687))
+* endo bundle command supports specifying commonDeps ([d570060](https://github.com/endojs/endo/commit/d570060fd07bb5f01af478fb9b452671d0479a4d))
+
+
+### Bug Fixes
+
+* Appease lint harder ([3eaba38](https://github.com/endojs/endo/commit/3eaba3818af7d9acdb1fbdb2cb353b18b8661ec4))
+* **cli:** Appease TypeScript ([4ece3f8](https://github.com/endojs/endo/commit/4ece3f828e833d57b57e6ff587e2cb6d5435b095))
+* **cli:** Commands do not flush unless you await the result ([04a9af2](https://github.com/endojs/endo/commit/04a9af2862c77ac86678a0a70f6d4360a9a53226))
+* **cli:** Compensate for new request recipient name argument ([bc0a6ce](https://github.com/endojs/endo/commit/bc0a6ce3e74859a2d60193c52f851002d8da27eb))
+* **cli:** Correct command description kebab-case inconsistency ([6c1439b](https://github.com/endojs/endo/commit/6c1439bdd3f087e22f435832f1c0a15a64e6f74f))
+* **cli:** Corrections for demo instructions ([81b4651](https://github.com/endojs/endo/commit/81b4651b5b0bdf679b086b10d6dba89c35d7d4d7))
+* **cli:** Improve log behavior when stopped ([56c9138](https://github.com/endojs/endo/commit/56c9138742fd3f43cdb4f45b45a2aad038ab0d2c))
+* **cli:** Minor adopt description typo ([87e4922](https://github.com/endojs/endo/commit/87e49224a860c555397e6879f5c4ccfcf767cb54))
+* **cli:** Remove console debug line ([dd131ad](https://github.com/endojs/endo/commit/dd131ad0f0f3fbf7deb4e8c3da827cc80f4c5493))
+* **cli:** Remove receive (duplicative with send) ([d77cd79](https://github.com/endojs/endo/commit/d77cd79e1378123b7188e45451226931698c3f6e))
+* **cli:** Remove unused arguments to command handlers ([c30e7b3](https://github.com/endojs/endo/commit/c30e7b3adab609d05e27d4858e78d64c62b3bf33))
+* Relax lint for optional chaining and nullish coallescing for daemon ([ff58c06](https://github.com/endojs/endo/commit/ff58c065130b774ccb3c9cddbb7562505f0e43a0))
+* Settle the readable types ([6716862](https://github.com/endojs/endo/commit/6716862fca6dee0ad685d163101f157fd66682b0))
+
+
+### Miscellaneous Chores
+
+* **cli:** Remove archive commands in favor of bundles ([b24132a](https://github.com/endojs/endo/commit/b24132a48513599e4818977117852af3515f4765))
+* **cli:** Remove hash command (redundant with bundle) ([7ea4074](https://github.com/endojs/endo/commit/7ea4074fa9911929ed0e4fa2de17b927fe1822e6))
+
+
+### Code Refactoring
+
+* **daemon:** Change unsafe import formula from path to specifier ([a0f141f](https://github.com/endojs/endo/commit/a0f141f20e059e9988d9117c066f23f1bcbff559))
+
+
+
 ### [1.0.3](https://github.com/endojs/endo/compare/@endo/cli@1.0.2...@endo/cli@1.0.3) (2024-02-15)
 
 
