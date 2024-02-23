@@ -1,6 +1,6 @@
 User-visible changes in `@endo/common`:
 
-# Next release
+# v1.1.0 (2024-02-22)
 
 - `throwLabeled` parameterized error construction
   - Like the assertion functions/methods that were parameterized by an error

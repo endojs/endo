@@ -1,6 +1,6 @@
 User-visible changes in `@endo/marshal`:
 
-# Next release
+# v1.3.0 (2024-02-22)
 
 - Sending and receiving extended errors.
   - As of the previous release, `@endo/marshal` tolerates extra error
