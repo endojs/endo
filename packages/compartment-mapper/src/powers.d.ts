@@ -1,0 +1,2 @@
+export function unpackReadPowers(powers: import('./types.js').ReadFn | import('./types.js').ReadPowers | import('./types.js').MaybeReadPowers): import('./types.js').MaybeReadPowers;
+//# sourceMappingURL=powers.d.ts.map
