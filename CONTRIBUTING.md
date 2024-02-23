@@ -34,16 +34,6 @@ https://github.com/endojs/endo/labels/next-release
   git checkout -b release-$now
   ```
 
-* Generate types.
-
-  ```sh
-  yarn lerna run build:types
-  ```
-
-  We generate types from the bottom up before publishing because this allows
-  each package to rely on the generated types of its dependencies in the
-  workspace.
-
 * Create the release CHANGELOGs.
 
   ```sh
@@ -102,24 +92,35 @@ https://github.com/endojs/endo/labels/next-release
   origin/master` to remove the automatically generated `chore: lerna version`
   commit.
 
-* Recreate the changelogs with the current date *and* generate tags for the new
-  versions. This is the effect of removing the `--no-git-tag-version` flag.
-
-  ```sh
-  yarn lerna version --no-push --conventional-graduate
-  ```
-
-* Force push these changes back to the pull request branch.
-
-  ```sh
-  git push origin -f release-$now
-  ```
-
 * Ensure your dependency solution is fresh and rebuild all generated assets.
 
   ```sh
   yarn install
   yarn build
+  ```
+
+* Generate types.
+
+  ```sh
+  yarn lerna run build:types
+  ```
+
+  We generate types from the bottom up before publishing because this allows
+  each package to rely on the generated types of its dependencies in the
+  workspace.
+
+* Commit the generated types.
+
+  ```sh
+  git add .
+  git commit -m 'chore: Add generated types'
+  ```
+
+* Recreate the changelogs with the current date *and* generate tags for the new
+  versions. This is the effect of removing the `--no-git-tag-version` flag.
+
+  ```sh
+  yarn lerna version --no-push --conventional-graduate
   ```
 
 * Publish the versions to npm.
@@ -146,6 +147,20 @@ https://github.com/endojs/endo/labels/next-release
   npm view ses
   ```
 
+* Revert the change that added generated types.
+
+  This command should then efect no changes.
+
+  ```sh
+  yarn lerna run clean:types
+  ```
+
+* Force push these changes back to the pull request branch.
+
+  ```sh
+  git push origin -f release-$now
+  ```
+
 * Merge the release PR into master.
   DO NOT REBASE OR SQUASH OR YOU WILL LOSE REFERENCES TO YOUR TAGS.
 
@@ -164,12 +179,6 @@ https://github.com/endojs/endo/labels/next-release
 
   ```sh
   git tag -l | egrep -e '@[0-9]+\.[0-9]+\.[0-9]+$' | xargs git push origin
-  ```
-
-* Clean up generated types.
-
-  ```sh
-  yarn lerna run clean:types
   ```
 
 ## More information
