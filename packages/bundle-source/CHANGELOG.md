@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.3...@endo/bundle-source@3.1.0) (2024-02-23)
+
+
+### Features
+
+* endo bundle command supports specifying commonDeps ([d570060](https://github.com/endojs/endo/commit/d570060fd07bb5f01af478fb9b452671d0479a4d))
+
+
+
 ### [3.0.3](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.2...@endo/bundle-source@3.0.3) (2024-02-15)
 
 

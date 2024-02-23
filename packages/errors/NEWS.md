@@ -1,6 +1,6 @@
 User-visible changes in `@endo/errors`:
 
-# Next release
+# v1.1.0 (2024-02-22)
 
 - `AggegateError` support
   - Assertion functions/methods that were parameterized by an error constructor

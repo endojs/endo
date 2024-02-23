@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/endojs/endo/compare/@endo/patterns@1.1.1...@endo/patterns@1.2.0) (2024-02-23)
+
+
+### Features
+
+* **patterns:** New `M.tagged` pattern maker ([#2091](https://github.com/endojs/endo/issues/2091)) ([4394e6e](https://github.com/endojs/endo/commit/4394e6e3d1a953c22934d5f327ce173f32b4f3a1))
+
+
+### Bug Fixes
+
+* **ses,pass-style,marshal:** tolerate platforms prior to AggregateError ([5762dd4](https://github.com/endojs/endo/commit/5762dd48e814e2e8435f666019e527d982eddbbd))
+
+
+
 ### [1.1.1](https://github.com/endojs/endo/compare/@endo/patterns@1.1.0...@endo/patterns@1.1.1) (2024-02-15)
 
 

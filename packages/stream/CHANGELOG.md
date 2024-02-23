@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/stream@1.0.3...@endo/stream@1.1.0) (2024-02-23)
+
+
+### Features
+
+* **stream:** Relax makeStream queue argument types ([10c82b3](https://github.com/endojs/endo/commit/10c82b368913c96a0bc17ba0a12031ad958098e7))
+
+
+
 ### [1.0.3](https://github.com/endojs/endo/compare/@endo/stream@1.0.2...@endo/stream@1.0.3) (2024-02-15)
 
 
