@@ -76,12 +76,28 @@ const overrideList = [
 ];
 
 /**
+ * @param {Logger} tlog
+ * @param {Logger | 'tlog'} loggerOrOption
+ * @returns {Logger}
+ */
+const getLogger = (tlog, loggerOrOption) => {
+  if (typeof loggerOrOption === 'function') {
+    return loggerOrOption;
+  } else if (loggerOrOption === 'tlog') {
+    // TODO wrap with SES causal console
+    return tlog;
+  } else {
+    throw Error(`Unrecognized loggerOrOption ${loggerOrOption}`);
+  }
+};
+
+/**
  * @template {import('ava').TestFn} T
  * @param {T} testerFunc
- * @param {Logger} logger
+ * @param {Logger | 'tlog'} loggerOrOption
  * @returns {T} Not yet frozen!
  */
-const augmentLogging = (testerFunc, logger) => {
+const augmentLogging = (testerFunc, loggerOrOption) => {
   const testerFuncName = `ava ${testerFunc.name || 'test'}`;
   const augmented = (...args) => {
     // Align with ava argument parsing.
@@ -112,6 +128,8 @@ const augmentLogging = (testerFunc, logger) => {
             ? ` ${stringify(resolvedTitle)}`
             : '';
         const source = `${testerFuncName}(${quotedRawTitle})${quotedResolvedTitle}`;
+
+        const logger = getLogger(t.log, loggerOrOption);
         return logErrorFirst(fn, [t, ...args], source, logger);
       };
       const buildTitle = fn.title;
@@ -179,14 +197,14 @@ const augmentLogging = (testerFunc, logger) => {
  *
  * @template {import('ava').TestFn} T ava `test`
  * @param {T} avaTest
- * @param {Logger} [logger]
+ * @param {Logger | 'tlog'} [loggerOrOption]
  * @returns {T}
  */
-const wrapTest = (avaTest, logger = defaultLogger) => {
-  const sesAvaTest = augmentLogging(avaTest, logger);
+const wrapTest = (avaTest, loggerOrOption = defaultLogger) => {
+  const sesAvaTest = augmentLogging(avaTest, loggerOrOption);
   for (const methodName of overrideList) {
     defineProperty(sesAvaTest, methodName, {
-      value: augmentLogging(avaTest[methodName], logger),
+      value: augmentLogging(avaTest[methodName], loggerOrOption),
       writable: true,
       enumerable: true,
       configurable: true,

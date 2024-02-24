@@ -6,18 +6,23 @@ lockdown({
   // output shown below. When all the switches are uncommented, you should
   // see that output.
   //
-  stackFiltering: 'verbose', // Exclude `assert` infrastructure
-  consoleTaming: 'unsafe', // Doesn't make a difference here
-  errorTaming: 'unsafe', // Redacts entire `error.stack`
+  // Commenting out all settings for a given switch defaults to using
+  // the current relevant environment variable setting. To get results
+  // independent of that, always uncomment one setting for each switch.
+  //
+  // stackFiltering: 'concise', // Default. Hide infrastructure, shorten paths
+  stackFiltering: 'verbose', // Include `assert` infrastructure
+  // consoleTaming: 'safe', // Default. Console with access to redacted info
+  consoleTaming: 'unsafe', // Console without access to redacted info
+  // errorTaming: 'safe', // Default. Hide redacted info from ava
+  errorTaming: 'unsafe', // Disclose `error.stack` to ava
 });
 
 test('raw ava throw console output', t => {
   t.assert(true);
   // Uncomment this to see something like the text in the extended comment below
 
-  /*
-  assert.typeof(88, 'string', assert.details`msg ${'NOTICE ME'}`);
-  */
+  // assert.typeof(88, 'string', assert.details`msg ${'NOTICE ME'}`);
 });
 
 /*
