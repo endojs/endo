@@ -256,12 +256,9 @@ export const main = async rawArgs => {
   program
     .command('list [directory]')
     .description('show names known to the current or specified directory')
-    .option('-s,--special', 'show special names')
-    .option('--all', 'show all names')
-    .action(async (directoryName, cmd) => {
-      const { special, all } = cmd.opts();
+    .action(async (directoryPath, cmd) => {
       const { list } = await import('./commands/list.js');
-      return list({ directoryName, special, all });
+      return list({ directoryPath });
     });
 
   program

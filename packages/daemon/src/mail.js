@@ -85,11 +85,7 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {import('./types.js').Mail['list']} */
-    const list = () => harden(petStore.list());
-    /** @type {import('./types.js').Mail['listSpecial']} */
-    const listSpecial = () => harden(Object.keys(specialNames).sort());
-    /** @type {import('./types.js').Mail['listAll']} */
-    const listAll = () =>
+    const list = () =>
       harden([...Object.keys(specialNames).sort(), ...petStore.list()]);
 
     /** @type {import('./types.js').Mail['reverseLookupFormulaIdentifier']} */
@@ -538,8 +534,6 @@ export const makeMailboxMaker = ({
       dismiss,
       adopt,
       list,
-      listSpecial,
-      listAll,
       rename,
       remove,
       cancel,
