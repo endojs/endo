@@ -19,6 +19,10 @@ const packageDescriptorPath = url.fileURLToPath(
 
 const commonOptions = {
   as: ['-a,--as <party>', 'Pose as named party (as named by current party)'],
+  name: [
+    '-n,--name <name>',
+    'Assigns a name to the result for future reference',
+  ],
 };
 
 const parseOptionAsMapping = (optionValueString, obj) => {
@@ -121,10 +125,7 @@ export const main = async rawArgs => {
     .option('--UNCONFINED <file>', 'Path to a Node.js module')
     .option(...commonOptions.as)
     .option('-p,--powers <name>', 'Name of powers to grant or NONE, SELF, ENDO')
-    .option(
-      '-n,--name <name>',
-      'Assigns a name to the result for future reference, persisted between restarts',
-    )
+    .option(...commonOptions.name)
     .option(
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
@@ -169,10 +170,7 @@ export const main = async rawArgs => {
       'Send the request to another party (default: HOST)',
     )
     .option(...commonOptions.as)
-    .option(
-      '-n,--name <name>',
-      'Assigns a name to the result for future reference, persisted between restarts',
-    )
+    .option(...commonOptions.name)
     .action(async (description, cmd) => {
       const {
         name: resultName,
@@ -223,10 +221,7 @@ export const main = async rawArgs => {
 
   program
     .command('adopt <message-number> <name-in-message>')
-    .option(
-      '-n,--name <name>',
-      'Name to use, if different than the suggested name.',
-    )
+    .option(...commonOptions.name)
     .option(...commonOptions.as)
     .description('adopt a @value from a message')
     .action(async (messageNumberText, edgeName, cmd) => {
@@ -318,10 +313,7 @@ export const main = async rawArgs => {
     .command('store <path>')
     .description('stores a blob')
     .option(...commonOptions.as)
-    .option(
-      '-n,--name <name>',
-      'Assigns a pet name to the result for future reference',
-    )
+    .option(...commonOptions.name)
     .action(async (storablePath, cmd) => {
       const { name, as: partyNames } = cmd.opts();
       const { store } = await import('./commands/store.js');
@@ -340,10 +332,7 @@ export const main = async rawArgs => {
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
     )
-    .option(
-      '-n,--name <name>',
-      'Assigns a name to the result for future reference, persisted between restarts',
-    )
+    .option(...commonOptions.name)
     .action(async (source, names, cmd) => {
       const {
         name: resultName,
@@ -374,7 +363,7 @@ export const main = async rawArgs => {
     .command('bundle <application-path>')
     .description('stores a program')
     .option(...commonOptions.as)
-    .option('-n,--name <name>', 'Store the bundle into Endo')
+    .option(...commonOptions.name)
     .option(
       '--common-dep <name>',
       'Specify common dependency for bundle (eg node builtin package shims)',
