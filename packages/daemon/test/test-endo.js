@@ -1178,15 +1178,17 @@ test('list special names', async t => {
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
   await E(host).store(readerRef, 'hello-text');
 
-  const names = await E(host).list();
   /** @type {string[]} */
-  const specialNames = await E(host).listSpecial();
-  const allNames = await E(host).listAll();
+  const names = await E(host).list();
 
-  t.deepEqual(['hello-text'], names);
-  t.assert(specialNames.length > 0);
-  t.assert(specialNames.every(name => name.toUpperCase() === name));
-  t.deepEqual([...specialNames, ...names], allNames);
+  // There should be special names, but they are in flux at time of writing and
+  // we don't need to update this test for every change, so just verify that
+  // there's at least one for now.
+  t.assert(names.length > 1);
+  t.deepEqual(
+    names.filter(name => name.toUpperCase() !== name),
+    ['hello-text'],
+  );
 });
 
 test('guest cannot access host methods', async t => {

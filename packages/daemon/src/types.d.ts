@@ -362,8 +362,6 @@ export interface Mail {
   reverseLookup(value: unknown): Array<string>;
   // Extended methods:
   lookup(...petNamePath: string[]): Promise<unknown>;
-  listSpecial(): Array<string>;
-  listAll(): Array<string>;
   reverseLookupFormulaIdentifier(formulaIdentifier: string): Array<string>;
   cancel(petName: string, reason: Error): Promise<void>;
   // Mail operations:
