@@ -256,9 +256,12 @@ export const main = async rawArgs => {
   program
     .command('list [directory]')
     .description('show names known to the current or specified directory')
+    .option('-f,--follow', 'Follow updates')
+    .option('-j,--json', 'JSON format output')
     .action(async (directoryPath, cmd) => {
+      const { follow, json } = cmd.opts();
       const { list } = await import('./commands/list.js');
-      return list({ directoryPath });
+      return list({ directoryPath, follow, json });
     });
 
   program
