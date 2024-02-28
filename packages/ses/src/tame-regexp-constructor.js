@@ -25,11 +25,6 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
       return construct(FERAL_REG_EXP, rest, new.target);
     };
 
-    const speciesDesc = getOwnPropertyDescriptor(FERAL_REG_EXP, speciesSymbol);
-    if (!speciesDesc) {
-      throw TypeError('no RegExp[Symbol.species] descriptor');
-    }
-
     defineProperties(ResultRegExp, {
       length: { value: 2 },
       prototype: {
@@ -38,8 +33,20 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
         enumerable: false,
         configurable: false,
       },
-      [speciesSymbol]: speciesDesc,
     });
+    // Hermes does not have `Symbol.species`. We should support such platforms.
+    if (speciesSymbol) {
+      const speciesDesc = getOwnPropertyDescriptor(
+        FERAL_REG_EXP,
+        speciesSymbol,
+      );
+      if (!speciesDesc) {
+        throw TypeError('no RegExp[Symbol.species] descriptor');
+      }
+      defineProperties(ResultRegExp, {
+        [speciesSymbol]: speciesDesc,
+      });
+    }
     return ResultRegExp;
   };
 
