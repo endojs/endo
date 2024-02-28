@@ -34,7 +34,7 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
         configurable: false,
       },
     });
-    // Hermes does not have `Symbol.species`. We should suppory such platforms.
+    // Hermes does not have `Symbol.species`. We should support such platforms.
     if (speciesSymbol) {
       const speciesDesc = getOwnPropertyDescriptor(
         FERAL_REG_EXP,
