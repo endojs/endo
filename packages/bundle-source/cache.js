@@ -284,7 +284,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
 /**
  * @param {string} dest
- * @param {{ format?: string, cacheOpts?: CacheOpts, cacheSourceMaps: boolean, dev?: boolean, log?: Logger }} options
+ * @param {{ format?: string, cacheOpts?: CacheOpts, cacheSourceMaps?: boolean, dev?: boolean, log?: Logger }} options
  * @param {(id: string) => Promise<any>} loadModule
  * @param {number} [pid]
  * @param {number} [nonce]
