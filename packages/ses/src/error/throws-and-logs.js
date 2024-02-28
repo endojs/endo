@@ -1,11 +1,12 @@
+// This module supports testing/debugging, and should be exported from the
+// 'ses' package only by console-tools.js
+/* eslint-disable no-restricted-globals */
+/* eslint-disable @endo/no-polymorphic-call */
 /* global globalThis */
 
-import { freeze, getPrototypeOf } from '../../src/commons.js';
-import { loggedErrorHandler } from '../../src/error/assert.js';
-import {
-  makeLoggingConsoleKit,
-  makeCausalConsole,
-} from '../../src/error/console.js';
+import { freeze, getPrototypeOf } from '../commons.js';
+import { loggedErrorHandler } from './assert.js';
+import { makeLoggingConsoleKit, makeCausalConsole } from './console.js';
 
 // For our internal debugging purposes
 // const internalDebugConsole = console;
@@ -80,20 +81,27 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
     loggedErrorHandler,
     { shouldResetForDebugging: true },
   );
+  /** @type {VirtualConsole} */
   let useConsole = console;
   if (checkLogs) {
     useConsole = loggingConsole;
     if (wrapWithCausal) {
+      // @ts-ignore Console vs VirtualConsole vs undefined.
+      // Not interesting for the testing/debugging nature of this module
       useConsole = makeCausalConsole(useConsole, {
         ...loggedErrorHandler,
         getStackString: getBogusStackString,
       });
     }
   } else if (wrapWithCausal) {
+    // @ts-ignore Console vs VirtualConsole vs undefined.
+    // Not interesting for the testing/debugging nature of this module
     useConsole = nonLoggingConsole;
   }
 
   const priorConsole = console;
+  // @ts-ignore Console vs VirtualConsole vs undefined.
+  // Not interesting for the testing/debugging nature of this module
   globalThis.console = useConsole;
   try {
     // If thunk() throws, we restore the console and the logging array.

@@ -1,5 +1,5 @@
 import test from 'ava';
-import { assertLogs, throwsAndLogs } from './throws-and-logs.js';
+import { assertLogs, throwsAndLogs } from '../../src/error/throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';
 
 const { details: d, quote: q, bare: b } = assert;
