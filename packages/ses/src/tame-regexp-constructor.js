@@ -25,21 +25,26 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
       return construct(FERAL_REG_EXP, rest, new.target);
     };
 
-    const speciesDesc = getOwnPropertyDescriptor(FERAL_REG_EXP, speciesSymbol);
-    if (!speciesDesc) {
-      throw TypeError('no RegExp[Symbol.species] descriptor');
-    }
+    if (speciesSymbol) {
+      const speciesDesc = getOwnPropertyDescriptor(
+        FERAL_REG_EXP,
+        speciesSymbol,
+      );
+      if (!speciesDesc) {
+        throw TypeError('no RegExp[Symbol.species] descriptor');
+      }
 
-    defineProperties(ResultRegExp, {
-      length: { value: 2 },
-      prototype: {
-        value: RegExpPrototype,
-        writable: false,
-        enumerable: false,
-        configurable: false,
-      },
-      [speciesSymbol]: speciesDesc,
-    });
+      defineProperties(ResultRegExp, {
+        length: { value: 2 },
+        prototype: {
+          value: RegExpPrototype,
+          writable: false,
+          enumerable: false,
+          configurable: false,
+        },
+        [speciesSymbol]: speciesDesc,
+      });
+    }
     return ResultRegExp;
   };
 
