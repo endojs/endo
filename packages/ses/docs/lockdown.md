@@ -22,18 +22,18 @@ Each option is explained in its own section below.
 
 | option                       | default setting  | other settings                         | about |
 |------------------------------|------------------|----------------------------------------|-------|
-| `regExpTaming`               | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` |
-| `localeTaming`               | `'safe'`         | `'unsafe'`                             | `toLocaleString`           |
-| `consoleTaming`              | `'safe'`         | `'unsafe'`                             | deep stacks                |
-| `errorTaming`                | `'safe'`         | `'unsafe'`                             | `errorInstance.stack`      |
-| `errorTrapping`              | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
-| `unhandledRejectionTrapping` | `'report'`       | `'none'`                               | handling of finalized unhandled rejections |
-| `evalTaming`                 | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment. |
-| `stackFiltering`             | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   |
-| `overrideTaming`             | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  |
-| `overrideDebug`              | `[]`             | array of property names                | detect override mistake |
-| `domainTaming`               | `'safe'`         | `'unsafe'`                             | Node.js `domain` module |
-| `__hardenTaming__`           | `'safe'`         | `'unsafe'`                             | Making `harden` no-op for performance in trusted environments |
+| `regExpTaming`               | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` ([details](#regexptaming-options)) |
+| `localeTaming`               | `'safe'`         | `'unsafe'`                             | `toLocaleString`           ([details](#localetaming-options)) |
+| `consoleTaming`              | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
+| `errorTaming`                | `'safe'`         | `'unsafe'`                             | `errorInstance.stack`      ([details](#errortaming-options)) |
+| `errorTrapping`              | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
+| `unhandledRejectionTrapping` | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
+| `evalTaming`                 | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
+| `stackFiltering`             | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
+| `overrideTaming`             | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
+| `overrideDebug`              | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
+| `domainTaming`               | `'safe'`         | `'unsafe'`                             | Node.js `domain` module    ([details](#domaintaming-options)) |
+| `__hardenTaming__`           | `'safe'`         | `'unsafe'`                             | Making `harden` no-op for performance in trusted environments ([details](#__hardentaming__-options)) |
 
 In the absence of any of these options in lockdown arguments, lockdown will
 attempt to read these options from `process.env`, using the Node.js convention
