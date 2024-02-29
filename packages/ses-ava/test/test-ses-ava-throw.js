@@ -19,7 +19,7 @@ lockdown({
   errorTaming: 'unsafe', // Disclose `error.stack` to ava
 });
 
-const test = wrapTest(rawTest, 'tlog');
+const test = wrapTest(rawTest, { tlog: true });
 
 test('ses-ava throw console output', t => {
   t.assert(true);

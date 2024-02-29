@@ -76,25 +76,35 @@ const overrideList = [
 ];
 
 /**
- * @param {Logger} tlog
- * @param {Logger | 'tlog'} loggerOrOption
+ * @typedef {object} LoggingOptions
+ * @property {boolean} [tlog]
+ */
+
+/**
+ * @param {Logger} tlogger
+ * @param {Logger | LoggingOptions} loggerOrOptions
  * @returns {Logger}
  */
-const getLogger = (tlog, loggerOrOption) => {
-  if (typeof loggerOrOption === 'function') {
-    return loggerOrOption;
-  } else if (loggerOrOption === 'tlog') {
-    // TODO wrap with SES causal console
-    return tlog;
-  } else {
-    throw Error(`Unrecognized loggerOrOption ${loggerOrOption}`);
+const getLogger = (tlogger, loggerOrOptions) => {
+  if (typeof loggerOrOptions === 'function') {
+    return loggerOrOptions;
+  } else if (typeof loggerOrOptions === 'object') {
+    const { tlog } = loggerOrOptions;
+    if (tlog) {
+      // TODO wrap with SES causal console
+      return tlogger;
+    } else {
+      // Without causal console wrapper
+      return tlogger;
+    }
   }
+  throw Error(`Unrecognized loggerOrOption ${loggerOrOptions}`);
 };
 
 /**
  * @template {import('ava').TestFn} T
  * @param {T} testerFunc
- * @param {Logger | 'tlog'} loggerOrOption
+ * @param {Logger | LoggingOptions} loggerOrOption
  * @returns {T} Not yet frozen!
  */
 const augmentLogging = (testerFunc, loggerOrOption) => {
@@ -197,7 +207,7 @@ const augmentLogging = (testerFunc, loggerOrOption) => {
  *
  * @template {import('ava').TestFn} T ava `test`
  * @param {T} avaTest
- * @param {Logger | 'tlog'} [loggerOrOption]
+ * @param {Logger | LoggingOptions} [loggerOrOption]
  * @returns {T}
  */
 const wrapTest = (avaTest, loggerOrOption = defaultLogger) => {
