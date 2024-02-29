@@ -36,6 +36,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/errors": "^1.1.0",
     "ses": "^1.3.0"
   },
   "devDependencies": {

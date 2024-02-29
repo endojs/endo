@@ -1,4 +1,11 @@
+/* global globalThis */
 import 'ses';
+import {
+  loggedErrorHandler,
+  makeCausalConsole,
+  consoleLevelMethods,
+  consoleOtherMethods,
+} from 'ses/console-tools.js';
 
 const { stringify } = JSON;
 const { defineProperty, freeze } = Object;
@@ -43,14 +50,23 @@ const isPromise = maybePromise =>
  * @param {unknown[]} args
  * @param {string} source
  * @param {Logger} logger
+ * @param {import('ses/console-tools.js').VirtualConsole} [optConsole]
  */
-const logErrorFirst = (func, args, source, logger) => {
+const logErrorFirst = (func, args, source, logger, optConsole = undefined) => {
+  const originalConsole = globalThis.console;
+  if (optConsole) {
+    globalThis.console = optConsole;
+  }
   let result;
   try {
     result = apply(func, undefined, args);
   } catch (err) {
     logger(`THROWN from ${source}:`, err);
     throw err;
+  } finally {
+    if (optConsole) {
+      globalThis.console = originalConsole;
+    }
   }
   if (isPromise(result)) {
     return result.then(
@@ -76,8 +92,34 @@ const overrideList = [
 ];
 
 /**
+ * Implement the VirtualConsole API badly by turning all calls into
+ * calls on `tlogger`. We need to do this to have `console` logging
+ * turn into calls to Ava's `t.log`, so these console log messages
+ * are output in the right place.
+ *
+ * @param {Logger} tlogger
+ * @returns {import('ses/console-tools.js').VirtualConsole}
+ */
+const makeConsoleFromLogger = tlogger => {
+  const baseConsole = {};
+  for (const [name1, _] of consoleLevelMethods) {
+    baseConsole[name1] = tlogger;
+  }
+  for (const [name2, _] of [
+    ['group', 'log'],
+    ['groupCollapsed', 'log'],
+    ...consoleOtherMethods,
+  ]) {
+    baseConsole[name2] = (...args) => tlogger(name2, ...args);
+  }
+  harden(baseConsole);
+  return makeCausalConsole(baseConsole, loggedErrorHandler);
+};
+
+/**
  * @typedef {object} LoggingOptions
  * @property {boolean} [tlog]
+ * @property {boolean} [pushConsole]
  */
 
 /**
@@ -91,8 +133,8 @@ const getLogger = (tlogger, loggerOrOptions) => {
   } else if (typeof loggerOrOptions === 'object') {
     const { tlog } = loggerOrOptions;
     if (tlog) {
-      // TODO wrap with SES causal console
-      return tlogger;
+      const causalConsole = makeConsoleFromLogger(tlogger);
+      return causalConsole.error;
     } else {
       // Without causal console wrapper
       return tlogger;
@@ -140,7 +182,11 @@ const augmentLogging = (testerFunc, loggerOrOption) => {
         const source = `${testerFuncName}(${quotedRawTitle})${quotedResolvedTitle}`;
 
         const logger = getLogger(t.log, loggerOrOption);
-        return logErrorFirst(fn, [t, ...args], source, logger);
+        let optConsole;
+        if (typeof loggerOrOption === 'object' && loggerOrOption.pushConsole) {
+          optConsole = makeConsoleFromLogger(t.log);
+        }
+        return logErrorFirst(fn, [t, ...args], source, logger, optConsole);
       };
       const buildTitle = fn.title;
       if (buildTitle) {
