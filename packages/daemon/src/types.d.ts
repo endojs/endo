@@ -325,12 +325,7 @@ export interface PetStore {
 
 export interface Mail {
   // Partial inheritance from PetStore:
-  has: PetStore['has'];
-  rename: PetStore['rename'];
-  remove: PetStore['remove'];
-  list: PetStore['list'];
-  identifyLocal: PetStore['identifyLocal'];
-  reverseIdentify(formulaIdentifier: string): Array<string>;
+  petStore: PetStore;
   // Extended methods:
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;

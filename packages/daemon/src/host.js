@@ -62,7 +62,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       await provideValueForFormulaIdentifier(storeFormulaIdentifier)
     );
-    const petStore = makePetSitter(basePetStore, {
+    const specialStore = makePetSitter(basePetStore, {
       SELF: hostFormulaIdentifier,
       ENDO: endoFormulaIdentifier,
       INFO: inspectorFormulaIdentifier,
@@ -70,9 +70,9 @@ export const makeHostMaker = ({
     });
 
     const {
+      petStore,
       lookup,
       reverseLookup,
-      identifyLocal,
       listMessages,
       followMessages,
       resolve,
@@ -83,12 +83,9 @@ export const makeHostMaker = ({
       send,
       dismiss,
       adopt,
-      list,
-      rename,
-      remove,
       cancel,
     } = makeMailbox({
-      petStore,
+      petStore: specialStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
       context,
     });
@@ -112,7 +109,8 @@ export const makeHostMaker = ({
       const { petStore: newPetStore } = await newController.internal;
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
-          const introducedFormulaIdentifier = identifyLocal(parentName);
+          const introducedFormulaIdentifier =
+            petStore.identifyLocal(parentName);
           if (introducedFormulaIdentifier === undefined) {
             return;
           }
@@ -130,7 +128,7 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = identifyLocal(petName);
+        formulaIdentifier = petStore.identifyLocal(petName);
       }
 
       if (formulaIdentifier === undefined) {
@@ -201,7 +199,7 @@ export const makeHostMaker = ({
       if (typeof workerName !== 'string') {
         throw new Error('worker name must be string');
       }
-      let workerFormulaIdentifier = identifyLocal(workerName);
+      let workerFormulaIdentifier = petStore.identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         ({ formulaIdentifier: workerFormulaIdentifier } =
           await incarnateWorker());
@@ -230,7 +228,7 @@ export const makeHostMaker = ({
       }
 
       assertPetName(workerName);
-      let workerFormulaIdentifier = identifyLocal(workerName);
+      let workerFormulaIdentifier = petStore.identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         ({ formulaIdentifier: workerFormulaIdentifier } =
           await incarnateWorker());
@@ -253,7 +251,7 @@ export const makeHostMaker = ({
       }
 
       assertPetName(workerName);
-      const workerFormulaIdentifier = identifyLocal(workerName);
+      const workerFormulaIdentifier = petStore.identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         addHook(identifiers =>
           petStore.write(workerName, identifiers.workerFormulaIdentifier),
@@ -268,7 +266,7 @@ export const makeHostMaker = ({
      * @returns {Promise<string>}
      */
     const providePowersFormulaIdentifier = async partyName => {
-      let guestFormulaIdentifier = identifyLocal(partyName);
+      let guestFormulaIdentifier = petStore.identifyLocal(partyName);
       if (guestFormulaIdentifier === undefined) {
         ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
           partyName,
@@ -324,7 +322,7 @@ export const makeHostMaker = ({
 
           const petNamePath = petNamePathFrom(petNameOrPath);
           if (petNamePath.length === 1) {
-            const formulaIdentifier = identifyLocal(petNamePath[0]);
+            const formulaIdentifier = petStore.identifyLocal(petNamePath[0]);
             if (formulaIdentifier === undefined) {
               throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
             }
@@ -396,7 +394,7 @@ export const makeHostMaker = ({
         workerName,
       );
 
-      const bundleFormulaIdentifier = identifyLocal(bundleName);
+      const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
@@ -443,7 +441,7 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = identifyLocal(petName);
+        formulaIdentifier = petStore.identifyLocal(petName);
       }
       if (formulaIdentifier === undefined) {
         const { formulaIdentifier: newFormulaIdentifier, value } =
@@ -493,7 +491,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
      */
     const provideWebPage = async (webPageName, bundleName, powersName) => {
-      const bundleFormulaIdentifier = identifyLocal(bundleName);
+      const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name: ${q(bundleName)}`);
       }
@@ -516,13 +514,20 @@ export const makeHostMaker = ({
       return value;
     };
 
-    const { has, follow, listEntries, followEntries } = petStore;
+    const { has, remove, rename, list, follow, listEntries, followEntries } =
+      petStore;
 
     const followNames = () => makeIteratorRef(follow());
 
     /** @type {import('@endo/far').FarRef<import('./types.js').EndoHost>} */
     const host = Far('EndoHost', {
       has,
+      remove,
+      rename,
+      list,
+      followNames,
+      listEntries,
+      followEntries,
       lookup,
       reverseLookup,
       listMessages,
@@ -533,12 +538,6 @@ export const makeHostMaker = ({
       dismiss,
       request,
       send,
-      list,
-      followNames,
-      listEntries,
-      followEntries,
-      remove,
-      rename,
       store,
       provideGuest,
       provideHost,

@@ -473,16 +473,15 @@ export const makeMailboxMaker = ({
       responses.delete(petName);
     };
 
-    const { has, list, identifyLocal, reverseIdentify } = petStore;
-
-    return harden({
-      // PetStore
-      has,
+    /** @type {import('./types.js').PetStore} */
+    const mailStore = {
+      ...petStore,
       rename,
       remove,
-      list,
-      identifyLocal,
-      reverseIdentify,
+    };
+
+    return harden({
+      petStore: mailStore,
       // NameHub
       lookup,
       reverseLookup,

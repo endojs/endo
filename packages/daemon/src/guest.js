@@ -36,7 +36,7 @@ export const makeGuestMaker = ({
     const basePetStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
-    const petStore = makePetSitter(basePetStore, {
+    const specialStore = makePetSitter(basePetStore, {
       SELF: guestFormulaIdentifier,
       HOST: hostHandleFormulaIdentifier,
     });
@@ -56,6 +56,7 @@ export const makeGuestMaker = ({
     }
 
     const {
+      petStore,
       lookup,
       reverseLookup,
       followMessages,
@@ -68,38 +69,36 @@ export const makeGuestMaker = ({
       receive,
       respond,
       request,
-      rename,
-      remove,
-      list,
     } = makeMailbox({
-      petStore,
+      petStore: specialStore,
       selfFormulaIdentifier: guestFormulaIdentifier,
       context,
     });
 
-    const { has, follow, listEntries, followEntries } = petStore;
+    const { has, remove, rename, list, follow, listEntries, followEntries } =
+      petStore;
 
     const followNames = () => makeIteratorRef(follow());
 
     /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
       has,
+      remove,
+      rename,
+      list,
+      followNames,
+      listEntries,
+      followEntries,
       lookup,
       reverseLookup,
       request,
       send,
-      list,
-      followNames,
       listMessages,
       followMessages,
-      listEntries,
-      followEntries,
       resolve,
       reject,
       dismiss,
       adopt,
-      remove,
-      rename,
     });
 
     const internal = harden({
