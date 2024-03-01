@@ -7,6 +7,21 @@ import { makePetSitter } from './pet-sitter.js';
 
 const { quote: q } = assert;
 
+/**
+ * @param {object} args
+ * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} args.provideControllerForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['incarnateWorker']} args.incarnateWorker
+ * @param {import('./types.js').DaemonCore['incarnateHost']} args.incarnateHost
+ * @param {import('./types.js').DaemonCore['incarnateGuest']} args.incarnateGuest
+ * @param {import('./types.js').DaemonCore['incarnateEval']} args.incarnateEval
+ * @param {import('./types.js').DaemonCore['incarnateUnconfined']} args.incarnateUnconfined
+ * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
+ * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
+ * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
+ * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
+ * @param {import('./types.js').DaemonCore['makeMailbox']} args.makeMailbox
+ */
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
@@ -130,7 +145,10 @@ export const makeHostMaker = ({
           await petStore.write(petName, guestFormulaIdentifier);
         }
 
-        return { value, formulaIdentifier: guestFormulaIdentifier };
+        return {
+          value: Promise.resolve(value),
+          formulaIdentifier: guestFormulaIdentifier,
+        };
       } else if (!formulaIdentifier.startsWith('guest:')) {
         throw new Error(
           `Existing pet name does not designate a guest powers capability: ${q(
@@ -437,7 +455,10 @@ export const makeHostMaker = ({
           assertPetName(petName);
           await petStore.write(petName, newFormulaIdentifier);
         }
-        return { formulaIdentifier: newFormulaIdentifier, value };
+        return {
+          formulaIdentifier: newFormulaIdentifier,
+          value: Promise.resolve(value),
+        };
       } else if (!formulaIdentifier.startsWith('host:')) {
         throw new Error(
           `Existing pet name does not designate a host powers capability: ${q(

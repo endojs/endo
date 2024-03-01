@@ -10,10 +10,11 @@ const { quote: q } = assert;
 
 /**
  * @param {object} args
- * @param {import('./types.js').ProvideValueForFormulaIdentifier} args.provideValueForFormulaIdentifier
- * @param {import('./types.js').GetFormulaIdentifierForRef} args.getFormulaIdentifierForRef
- * @param {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} args.provideControllerForFormulaIdentifierAndResolveHandle
- * @param {import('./types.js').CancelValue} args.cancelValue
+ * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['getFormulaIdentifierForRef']} args.getFormulaIdentifierForRef
+ * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
+ * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
+ * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
   getFormulaIdentifierForRef,
@@ -22,12 +23,7 @@ export const makeMailboxMaker = ({
   cancelValue,
 }) => {
   /**
-   * @param {object} args
-   * @param {string} args.selfFormulaIdentifier
-   * @param {import('./types.js').PetStore} args.petStore
-   * @param {import('./types.js').Context} args.context
-   * @returns {import('./types.js').Mail}
-   */
+    @type {import('./types.js').MakeMailbox} */
   const makeMailbox = ({ selfFormulaIdentifier, petStore, context }) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
@@ -461,7 +457,7 @@ export const makeMailboxMaker = ({
       return newResponseP;
     };
 
-    /** @type {import('./types.js').Mail['rename']} */
+    /** @type {import('./types.js').PetStore['rename']} */
     const rename = async (fromName, toName) => {
       await petStore.rename(fromName, toName);
       const formulaIdentifier = responses.get(fromName);
@@ -471,7 +467,7 @@ export const makeMailboxMaker = ({
       }
     };
 
-    /** @type {import('./types.js').Mail['remove']} */
+    /** @type {import('./types.js').PetStore['remove']} */
     const remove = async petName => {
       await petStore.remove(petName);
       responses.delete(petName);

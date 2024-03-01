@@ -10,12 +10,12 @@ const { quote: q } = assert;
  * @returns {import('./types.js').PetStore}
  */
 export const makePetSitter = (petStore, specialNames) => {
-  /** @type {import('./types.js').Mail['has']} */
+  /** @type {import('./types.js').PetStore['has']} */
   const has = petName => {
     return Object.hasOwn(specialNames, petName) || petStore.has(petName);
   };
 
-  /** @type {import('./types.js').Mail['identifyLocal']} */
+  /** @type {import('./types.js').PetStore['identifyLocal']} */
   const identifyLocal = petName => {
     if (Object.hasOwn(specialNames, petName)) {
       return specialNames[petName];
@@ -35,7 +35,7 @@ export const makePetSitter = (petStore, specialNames) => {
     return parseFormulaIdentifier(formulaIdentifier);
   };
 
-  /** @type {import('./types.js').Mail['list']} */
+  /** @type {import('./types.js').PetStore['list']} */
   const list = () =>
     harden([...Object.keys(specialNames).sort(), ...petStore.list()]);
 

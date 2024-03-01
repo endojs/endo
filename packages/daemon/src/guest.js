@@ -4,6 +4,12 @@ import { Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 
+/**
+ * @param {object} args
+ * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
+ * @param {import('./types.js').DaemonCore['makeMailbox']} args.makeMailbox
+ */
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifierAndResolveHandle,
@@ -35,8 +41,11 @@ export const makeGuestMaker = ({
       HOST: hostHandleFormulaIdentifier,
     });
     const hostController =
-      await provideControllerForFormulaIdentifierAndResolveHandle(
-        hostHandleFormulaIdentifier,
+      /** @type {import('./types.js').EndoHostController} */
+      (
+        await provideControllerForFormulaIdentifierAndResolveHandle(
+          hostHandleFormulaIdentifier,
+        )
       );
     const hostPrivateFacet = await hostController.internal;
     const { respond: deliverToHost } = hostPrivateFacet;

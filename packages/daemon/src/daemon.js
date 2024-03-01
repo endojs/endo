@@ -122,9 +122,7 @@ const makeDaemonCore = async (
     });
   };
 
-  /**
-   * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
-   */
+  /** @type {import('./types.js').DaemonCore['storeReaderRef']} */
   const storeReaderRef = async readerRef => {
     const sha512Hex = await contentStore.store(makeRefReader(readerRef));
     // eslint-disable-next-line no-use-before-define
@@ -567,7 +565,7 @@ const makeDaemonCore = async (
     }
   };
 
-  /** @type {import('./types.js').ProvideValueForNumberedFormula} */
+  /** @type {import('./types.js').DaemonCore['provideValueForNumberedFormula']} */
   const provideValueForNumberedFormula = async (
     formulaType,
     formulaNumber,
@@ -622,7 +620,7 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').ProvideControllerForFormulaIdentifier} */
+  /** @type {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} */
   const provideControllerForFormulaIdentifier = formulaIdentifier => {
     const { type: formulaType, number: formulaNumber } =
       parseFormulaIdentifier(formulaIdentifier);
@@ -656,7 +654,7 @@ const makeDaemonCore = async (
     return controller;
   };
 
-  /** @type {import('./types.js').CancelValue} */
+  /** @type {import('./types.js').DaemonCore['cancelValue']} */
   const cancelValue = async (formulaIdentifier, reason) => {
     await formulaGraphMutex.enqueue();
     const controller = provideControllerForFormulaIdentifier(formulaIdentifier);
@@ -664,7 +662,7 @@ const makeDaemonCore = async (
     return controller.context.cancel(reason);
   };
 
-  /** @type {import('./types.js').ProvideValueForFormulaIdentifier} */
+  /** @type {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} */
   const provideValueForFormulaIdentifier = formulaIdentifier => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
       provideControllerForFormulaIdentifier(formulaIdentifier)
@@ -679,7 +677,7 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} */
+  /** @type {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} */
   const provideControllerForFormulaIdentifierAndResolveHandle =
     async formulaIdentifier => {
       let currentFormulaIdentifier = formulaIdentifier;
@@ -705,7 +703,7 @@ const makeDaemonCore = async (
     };
 
   /**
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>}
+   * @type {import('./types.js').DaemonCore['incarnateLeastAuthority']}
    */
   const incarnateLeastAuthority = async () => {
     const formulaNumber = await randomHex512();
@@ -713,14 +711,13 @@ const makeDaemonCore = async (
     const formula = {
       type: 'least-authority',
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoGuest>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
   /**
-   * @param {string} targetFormulaIdentifier
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
+   * @type {import('./types.js').DaemonCore['incarnateHandle']}
    */
   const incarnateHandle = async targetFormulaIdentifier => {
     const formulaNumber = await randomHex512();
@@ -729,13 +726,13 @@ const makeDaemonCore = async (
       type: 'handle',
       target: targetFormulaIdentifier,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').ExternalHandle>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
   /**
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').PetStore }>}
+   * @type {import('./types.js').DaemonCore['incarnatePetStore']}
    */
   const incarnatePetStore = async () => {
     const formulaNumber = await randomHex512();
@@ -743,13 +740,13 @@ const makeDaemonCore = async (
     const formula = {
       type: 'pet-store',
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').PetStore }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').PetStore>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
   /**
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
+   * @type {import('./types.js').DaemonCore['incarnateWorker']}
    */
   const incarnateWorker = async () => {
     const formulaNumber = await randomHex512();
@@ -757,7 +754,7 @@ const makeDaemonCore = async (
     const formula = {
       type: 'worker',
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoWorker>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
@@ -774,17 +771,12 @@ const makeDaemonCore = async (
       type: 'worker',
     };
 
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoWorker>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
-  /**
-   * @param {string} endoFormulaIdentifier
-   * @param {string} leastAuthorityFormulaIdentifier
-   * @param {string} [specifiedWorkerFormulaIdentifier]
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoHost }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateHost']} */
   const incarnateHost = async (
     endoFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
@@ -810,15 +802,12 @@ const makeDaemonCore = async (
       endo: endoFormulaIdentifier,
       leastAuthority: leastAuthorityFormulaIdentifier,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoHost }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
       provideValueForNumberedFormula('host', formulaNumber, formula)
     );
   };
 
-  /**
-   * @param {string} hostHandleFormulaIdentifier
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateGuest']} */
   const incarnateGuest = async hostHandleFormulaIdentifier => {
     const formulaNumber = await randomHex512();
     const { formulaIdentifier: storeFormulaIdentifier } =
@@ -832,20 +821,12 @@ const makeDaemonCore = async (
       petStore: storeFormulaIdentifier,
       worker: workerFormulaIdentifier,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').EndoGuest }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoGuest>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
-  /**
-   * @param {string} hostFormulaIdentifier
-   * @param {string} source
-   * @param {string[]} codeNames
-   * @param {(string | string[])[]} endowmentFormulaIdsOrPaths
-   * @param {import('./types.js').EvalFormulaHook[]} hooks
-   * @param {string} [specifiedWorkerFormulaIdentifier]
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateEval']} */
   const incarnateEval = async (
     hostFormulaIdentifier,
     source,
@@ -901,7 +882,7 @@ const makeDaemonCore = async (
       names: codeNames,
       values: endowmentFormulaIdentifiers,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+    return /** @type {import('./types.js').IncarnateResult<unknown>} */ (
       provideValueForNumberedFormula(formula.type, evalFormulaNumber, formula)
     );
   };
@@ -928,17 +909,12 @@ const makeDaemonCore = async (
       path: petNamePath,
     };
 
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types.js').EndoWorker }>} */ (
+    return /** @type {import('./types.js').IncarnateResult<import('./types.js').EndoWorker>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
-  /**
-   * @param {string} workerFormulaIdentifier
-   * @param {string} powersFormulaIdentifiers
-   * @param {string} specifier
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateUnconfined']} */
   const incarnateUnconfined = async (
     workerFormulaIdentifier,
     powersFormulaIdentifiers,
@@ -952,15 +928,12 @@ const makeDaemonCore = async (
       powers: powersFormulaIdentifiers,
       specifier,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: unknown }>} */ (
+    return /** @type {import('./types.js').IncarnateResult<unknown>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
-  /**
-   * @param {string} contentSha512
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types.js').FarEndoReadable }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateReadableBlob']} */
   const incarnateReadableBlob = async contentSha512 => {
     const formulaNumber = await randomHex512();
     /** @type {import('./types.js').ReadableBlobFormula} */
@@ -968,16 +941,12 @@ const makeDaemonCore = async (
       type: 'readable-blob',
       content: contentSha512,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types.js').FarEndoReadable }>} */ (
+    return /** @type {import('./types.js').IncarnateResult<import('./types.js').FarEndoReadable>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
 
-  /**
-   * @param {string} powersFormulaIdentifier
-   * @param {string} workerFormulaIdentifier
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateBundler']} */
   const incarnateBundler = async (
     powersFormulaIdentifier,
     workerFormulaIdentifier,
@@ -993,12 +962,7 @@ const makeDaemonCore = async (
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };
 
-  /**
-   * @param {string} powersFormulaIdentifier
-   * @param {string} workerFormulaIdentifier
-   * @param {string} bundleFormulaIdentifier
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateBundle']} */
   const incarnateBundle = async (
     powersFormulaIdentifier,
     workerFormulaIdentifier,
@@ -1015,11 +979,7 @@ const makeDaemonCore = async (
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };
 
-  /**
-   * @param {string} powersFormulaIdentifier
-   * @param {string} bundleFormulaIdentifier
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateWebBundle']} */
   const incarnateWebBundle = async (
     powersFormulaIdentifier,
     bundleFormulaIdentifier,
@@ -1035,10 +995,7 @@ const makeDaemonCore = async (
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };
 
-  /**
-   * @param {string} petStoreFormulaIdentifier
-   * @returns {Promise<{ formulaIdentifier: string, value: unknown }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnatePetInspector']} */
   const incarnatePetInspector = async petStoreFormulaIdentifier => {
     const formulaNumber = await randomHex512();
     /** @type {import('./types.js').PetInspectorFormula} */
@@ -1046,13 +1003,12 @@ const makeDaemonCore = async (
       type: 'pet-inspector',
       petStore: petStoreFormulaIdentifier,
     };
-    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoInspector>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
   };
 
-  /**
-   * @param {string} [specifiedFormulaNumber] - The formula number of the endo bootstrap.
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').FarEndoBootstrap }>}
-   */
+  /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
     const endoFormulaIdentifier = `endo:${formulaNumber}`;
@@ -1086,7 +1042,7 @@ const makeDaemonCore = async (
       leastAuthority: leastAuthorityFormulaIdentifier,
       webPageJs: webPageJsFormulaIdentifier,
     };
-    return /** @type {Promise<{ formulaIdentifier: string, value: import('./types').FarEndoBootstrap }>} */ (
+    return /** @type {import('./types').IncarnateResult<import('./types').FarEndoBootstrap>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
@@ -1244,8 +1200,16 @@ const makeDaemonCore = async (
     return info;
   };
 
+  /** @type {import('./types.js').DaemonCore} */
   const daemonCore = {
+    provideControllerForFormulaIdentifier,
+    provideControllerForFormulaIdentifierAndResolveHandle,
     provideValueForFormulaIdentifier,
+    provideValueForNumberedFormula,
+    getFormulaIdentifierForRef,
+    cancelValue,
+    storeReaderRef,
+    makeMailbox,
     incarnateEndoBootstrap,
     incarnateLeastAuthority,
     incarnateHandle,

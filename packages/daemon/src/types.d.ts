@@ -282,20 +282,6 @@ export interface Controller<External = unknown, Internal = unknown> {
   context: Context;
 }
 
-export type ProvideValueForFormulaIdentifier = (
-  formulaIdentifier: string,
-) => Promise<unknown>;
-export type ProvideControllerForFormulaIdentifier = (
-  formulaIdentifier: string,
-) => Controller;
-export type ProvideControllerForFormulaIdentifierAndResolveHandle = (
-  formulaIdentifier: string,
-) => Promise<Controller>;
-export type CancelValue = (
-  formulaIdentifier: string,
-  reason: Error,
-) => Promise<void>;
-
 /**
  * A handle is used to create a pointer to a formula without exposing it directly.
  * This is the external facet of the handle and is safe to expose. This is used to
@@ -314,14 +300,7 @@ export interface InternalHandle {
   targetFormulaIdentifier: string;
 }
 
-export type GetFormulaIdentifierForRef = (ref: unknown) => string | undefined;
 export type MakeSha512 = () => Sha512;
-
-export type ProvideValueForNumberedFormula = (
-  formulaType: string,
-  formulaNumber: string,
-  formula: Formula,
-) => Promise<{ formulaIdentifier: string; value: unknown }>;
 
 export type PetStoreNameDiff =
   | { add: string; value: FormulaIdentifierRecord }
@@ -393,6 +372,12 @@ export interface Mail {
     petName: string,
   ): Promise<void>;
 }
+
+export type MakeMailbox = (args: {
+  selfFormulaIdentifier: string;
+  petStore: PetStore;
+  context: Context;
+}) => Mail;
 
 export type RequestFn = (
   what: string,
@@ -473,6 +458,15 @@ export interface EndoHost {
     resultName?: string,
   ): Promise<unknown>;
 }
+
+export interface InternalEndoHost {
+  receive: Mail['receive'];
+  respond: Mail['respond'];
+  petStore: PetStore;
+}
+
+export interface EndoHostController
+  extends Controller<EndoHost, InternalEndoHost> {}
 
 export type EndoInspector<Record = string> = {
   lookup: (petName: Record) => Promise<unknown>;
@@ -627,6 +621,79 @@ export type DaemonicPowers = {
   persistence: DaemonicPersistencePowers;
   control: DaemonicControlPowers;
 };
+
+type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
+export interface DaemonCore {
+  provideValueForFormulaIdentifier: (
+    formulaIdentifier: string,
+  ) => Promise<unknown>;
+  provideControllerForFormulaIdentifier: (
+    formulaIdentifier: string,
+  ) => Controller;
+  provideControllerForFormulaIdentifierAndResolveHandle: (
+    formulaIdentifier: string,
+  ) => Promise<Controller>;
+  provideValueForNumberedFormula: (
+    formulaType: string,
+    formulaNumber: string,
+    formula: Formula,
+  ) => Promise<{ formulaIdentifier: string; value: unknown }>;
+  getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
+  incarnateEndoBootstrap: (
+    specifiedFormulaNumber: string,
+  ) => IncarnateResult<FarEndoBootstrap>;
+  incarnateWorker: () => IncarnateResult<EndoWorker>;
+  incarnatePetStore: () => IncarnateResult<PetStore>;
+  incarnatePetInspector: (
+    petStoreFormulaIdentifier: string,
+  ) => IncarnateResult<EndoInspector>;
+  incarnateHost: (
+    endoFormulaIdentifier: string,
+    leastAuthorityFormulaIdentifier: string,
+    specifiedWorkerFormulaIdentifier?: string | undefined,
+  ) => IncarnateResult<EndoHost>;
+  incarnateGuest: (
+    hostHandleFormulaIdenfitier: string,
+  ) => IncarnateResult<EndoGuest>;
+  incarnateReadableBlob: (
+    contentSha512: string,
+  ) => IncarnateResult<FarEndoReadable>;
+  incarnateEval: (
+    hostFormulaIdentifier: string,
+    source: string,
+    codeNames: string[],
+    endowmentFormulaIdsOrPaths: (string | string[])[],
+    hooks: EvalFormulaHook[],
+    specifiedWorkerFormulaIdentifier?: string,
+  ) => IncarnateResult<unknown>;
+  incarnateUnconfined: (
+    workerFormulaIdentifier: string,
+    powersFormulaIdentifier: string,
+    specifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateBundler: (
+    powersFormulaIdentifier: string,
+    workerFormulaIdentifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateBundle: (
+    powersFormulaIdentifier: string,
+    workerFormulaIdentifier: string,
+    bundleFormulaIdentifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateWebBundle: (
+    powersFormulaIdentifier: string,
+    bundleFormulaIdentifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateHandle: (
+    targetFormulaIdentifier: string,
+  ) => IncarnateResult<ExternalHandle>;
+  incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;
+  cancelValue: (formulaIdentifier: string, reason: Error) => Promise<void>;
+  storeReaderRef: (
+    readerRef: ERef<AsyncIterableIterator<string>>,
+  ) => Promise<string>;
+  makeMailbox: MakeMailbox;
+}
 
 export type Mutex = {
   lock: () => Promise<void>;
