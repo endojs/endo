@@ -517,15 +517,13 @@ export const makeHostMaker = ({
     const { has, remove, rename, list, follow, listEntries, followEntries } =
       petStore;
 
-    const followNames = () => makeIteratorRef(follow());
-
-    /** @type {import('@endo/far').FarRef<import('./types.js').EndoHost>} */
-    const host = Far('EndoHost', {
+    /** @type {import('./types.js').EndoHost} */
+    const host = {
       has,
       remove,
       rename,
       list,
-      followNames,
+      followNames: follow,
       listEntries,
       followEntries,
       lookup,
@@ -544,17 +542,22 @@ export const makeHostMaker = ({
       makeWorker,
       provideWorker,
       evaluate,
-      cancel,
       makeUnconfined,
       makeBundle,
       provideWebPage,
-    });
+      cancel,
+    };
 
+    const external = Far('EndoHost', {
+      ...host,
+      followNames: () => makeIteratorRef(host.followNames()),
+      followEntries: () => makeIteratorRef(host.followEntries()),
+    });
     const internal = harden({ receive, respond, petStore });
 
     await provideValueForFormulaIdentifier(mainWorkerFormulaIdentifier);
 
-    return harden({ external: host, internal });
+    return harden({ external, internal });
   };
 
   return makeIdentifiedHost;

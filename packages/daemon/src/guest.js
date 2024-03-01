@@ -78,36 +78,39 @@ export const makeGuestMaker = ({
     const { has, remove, rename, list, follow, listEntries, followEntries } =
       petStore;
 
-    const followNames = () => makeIteratorRef(follow());
-
-    /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */
-    const guest = Far('EndoGuest', {
+    /** @type {import('./types.js').EndoGuest} */
+    const guest = {
       has,
       remove,
       rename,
       list,
-      followNames,
+      followNames: follow,
       listEntries,
       followEntries,
       lookup,
       reverseLookup,
-      request,
-      send,
       listMessages,
       followMessages,
       resolve,
       reject,
-      dismiss,
       adopt,
-    });
+      dismiss,
+      request,
+      send,
+    };
 
+    const external = Far('EndoGuest', {
+      ...guest,
+      followNames: () => makeIteratorRef(guest.followNames()),
+      followEntries: () => makeIteratorRef(guest.followEntries()),
+    });
     const internal = harden({
       receive,
       respond,
       petStore,
     });
 
-    return harden({ external: guest, internal });
+    return harden({ external, internal });
   };
 
   return makeIdentifiedGuestController;

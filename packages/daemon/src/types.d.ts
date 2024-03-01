@@ -406,20 +406,43 @@ export type MakeHostOrGuestOptions = {
 };
 
 export interface EndoGuest {
-  request(what: string, responseName: string): Promise<unknown>;
+  has: PetStore['has'];
+  remove: PetStore['remove'];
+  rename: PetStore['rename'];
+  list: PetStore['list'];
+  followNames: PetStore['follow'];
+  listEntries: PetStore['listEntries'];
+  followEntries: PetStore['followEntries'];
+  lookup: Mail['lookup'];
+  reverseLookup: Mail['reverseLookup'];
+  listMessages: Mail['listMessages'];
+  followMessages: Mail['followMessages'];
+  resolve: Mail['resolve'];
+  reject: Mail['reject'];
+  adopt: Mail['adopt'];
+  dismiss: Mail['dismiss'];
+  request: Mail['request'];
+  send: Mail['send'];
 }
 
 export interface EndoHost {
-  listMessages(): Promise<Array<Message>>;
-  followMessages(): ERef<AsyncIterable<Message>>;
-  followNames(): FarRef<Reader<PetStoreNameDiff>>;
-  lookup(...petNamePath: string[]): Promise<unknown>;
-  resolve(requestNumber: number, petName: string);
-  reject(requestNumber: number, message: string);
-  reverseLookup(ref: object): Promise<Array<string>>;
-  remove(petName: string);
-  rename(fromPetName: string, toPetName: string);
-  list(): Array<string>; // pet names
+  has: PetStore['has'];
+  remove: PetStore['remove'];
+  rename: PetStore['rename'];
+  list: PetStore['list'];
+  followNames: PetStore['follow'];
+  listEntries: PetStore['listEntries'];
+  followEntries: PetStore['followEntries'];
+  lookup: Mail['lookup'];
+  reverseLookup: Mail['reverseLookup'];
+  listMessages: Mail['listMessages'];
+  followMessages: Mail['followMessages'];
+  resolve: Mail['resolve'];
+  reject: Mail['reject'];
+  adopt: Mail['adopt'];
+  dismiss: Mail['dismiss'];
+  request: Mail['request'];
+  send: Mail['send'];
   store(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
@@ -433,6 +456,7 @@ export interface EndoHost {
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
   makeWorker(petName: string): Promise<EndoWorker>;
+  provideWorker(petName: string): Promise<EndoWorker>;
   evaluate(
     workerPetName: string | undefined,
     source: string,
@@ -452,6 +476,12 @@ export interface EndoHost {
     powersName: string,
     resultName?: string,
   ): Promise<unknown>;
+  provideWebPage(
+    webPageName: string,
+    bundleName: string,
+    powersName: string,
+  ): Promise<unknown>;
+  cancel: Mail['cancel'];
 }
 
 export interface InternalEndoHost {
@@ -461,7 +491,7 @@ export interface InternalEndoHost {
 }
 
 export interface EndoHostController
-  extends Controller<EndoHost, InternalEndoHost> {}
+  extends Controller<FarRef<EndoHost>, InternalEndoHost> {}
 
 export type EndoInspector<Record = string> = {
   lookup: (petName: Record) => Promise<unknown>;
