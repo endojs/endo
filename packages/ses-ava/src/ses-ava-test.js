@@ -7,6 +7,19 @@ import {
   consoleOtherMethods,
 } from 'ses/console-tools.js';
 
+/**
+ * TODO For some reason, the following declaration (with "at-" as "@")
+ * doesn't work well for either TS or typedoc. For TS it seems to type
+ * `VirtualConsole` as `any` in a vscode hover. For typedoc it results in
+ * errors.
+ *
+ * at-typedef {import('ses/console-tools.js').VirtualConsole} VirtualConsole
+ *
+ * so instead, for now, we just declare it as `any`. TODO is to repair this.
+ *
+ * @typedef {any} VirtualConsole
+ */
+
 const { stringify } = JSON;
 const { defineProperty, freeze } = Object;
 const { apply } = Reflect;
@@ -50,7 +63,7 @@ const isPromise = maybePromise =>
  * @param {unknown[]} args
  * @param {string} source
  * @param {Logger} logger
- * @param {import('ses/console-tools.js').VirtualConsole} [optConsole]
+ * @param {VirtualConsole} [optConsole]
  */
 const logErrorFirst = (func, args, source, logger, optConsole = undefined) => {
   const originalConsole = globalThis.console;
@@ -98,7 +111,7 @@ const overrideList = [
  * are output in the right place.
  *
  * @param {Logger} tlogger
- * @returns {import('ses/console-tools.js').VirtualConsole}
+ * @returns {VirtualConsole}
  */
 const makeConsoleFromLogger = tlogger => {
   const baseConsole = {};
@@ -113,7 +126,10 @@ const makeConsoleFromLogger = tlogger => {
     baseConsole[name2] = (...args) => tlogger(name2, ...args);
   }
   harden(baseConsole);
-  return makeCausalConsole(baseConsole, loggedErrorHandler);
+  return makeCausalConsole(
+    /** @type {VirtualConsole} */ (baseConsole),
+    loggedErrorHandler,
+  );
 };
 
 /**
