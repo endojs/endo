@@ -261,6 +261,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
   /**
    * @param {string} id
    * @param {(name: string) => void} assertValidName
+   * @returns {Promise<import('./types.js').PetStore>}
    */
   const makeIdentifiedPetStore = (id, assertValidName) => {
     if (!validIdPattern.test(id)) {

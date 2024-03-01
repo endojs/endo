@@ -557,7 +557,7 @@ export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,
     assertValidName: AssertValidNameFn,
-  ) => Promise<FarRef<PetStore>>;
+  ) => Promise<PetStore>;
 };
 
 export type SocketPowers = {

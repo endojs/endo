@@ -28,6 +28,7 @@ export const makeDirectoryMaker = ({
       // eslint-disable-next-line no-use-before-define
       const value = provideValueForFormulaIdentifier(formulaIdentifier);
       return tailNames.reduce(
+        // @ts-expect-error We assume its a NameHub
         (directory, petName) => E(directory).lookup(petName),
         value,
       );
