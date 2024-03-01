@@ -161,6 +161,11 @@ type PetInspectorFormula = {
   petStore: string;
 };
 
+type DirectoryFormula = {
+  type: 'directory';
+  petStore: string;
+};
+
 export type Formula =
   | EndoFormula
   | WorkerFormula
@@ -175,7 +180,8 @@ export type Formula =
   | WebBundleFormula
   | HandleFormula
   | PetInspectorFormula
-  | PetStoreFormula;
+  | PetStoreFormula
+  | DirectoryFormula;
 
 export type Label = {
   number: number;
@@ -314,8 +320,8 @@ export interface PetStore {
   listEntries(): Array<[string, FormulaIdentifierRecord]>;
   followEntries(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
-  remove(petName: string);
-  rename(fromPetName: string, toPetName: string);
+  remove(petName: string): Promise<void>;
+  rename(fromPetName: string, toPetName: string): Promise<void>;
   /**
    * @param formulaIdentifier The formula identifier to look up.
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
@@ -323,12 +329,26 @@ export interface PetStore {
   reverseIdentify(formulaIdentifier: string): Array<string>;
 }
 
+export interface NameHub {
+  has(...petNamePath: string[]): Promise<boolean>;
+  identify(...petNamePath: string[]): Promise<string | undefined>;
+  lookup(...petNamePath: string[]): Promise<unknown>;
+  reverseLookup(value: unknown): Array<string>;
+  write(petNamePath: string[], formulaIdentifier): Promise<void>;
+  remove(...petNamePath: string[]): Promise<void>;
+  move(fromPetName: string[], toPetName: string[]): Promise<void>;
+  copy(fromPetName: string[], toPetName: string[]): Promise<void>;
+}
+
+export interface EndoDirectory extends NameHub {
+  makeDirectory(petName: string): Promise<EndoDirectory>;
+}
+
+export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
+
 export interface Mail {
   // Partial inheritance from PetStore:
   petStore: PetStore;
-  // Extended methods:
-  lookup(...petNamePath: string[]): Promise<unknown>;
-  reverseLookup(value: unknown): Array<string>;
   // Mail operations:
   listMessages(): Promise<Array<Message>>;
   followMessages(): Promise<FarRef<Reader<Message>>>;
@@ -404,16 +424,11 @@ export type MakeHostOrGuestOptions = {
   introducedNames?: Record<string, string>;
 };
 
-export interface EndoGuest {
-  has: PetStore['has'];
-  remove: PetStore['remove'];
-  rename: PetStore['rename'];
+export interface EndoGuest extends EndoDirectory {
   list: PetStore['list'];
   followNames: PetStore['follow'];
   listEntries: PetStore['listEntries'];
   followEntries: PetStore['followEntries'];
-  lookup: Mail['lookup'];
-  reverseLookup: Mail['reverseLookup'];
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
   resolve: Mail['resolve'];
@@ -424,16 +439,11 @@ export interface EndoGuest {
   send: Mail['send'];
 }
 
-export interface EndoHost {
-  has: PetStore['has'];
-  remove: PetStore['remove'];
-  rename: PetStore['rename'];
+export interface EndoHost extends EndoDirectory {
   list: PetStore['list'];
   followNames: PetStore['follow'];
   listEntries: PetStore['listEntries'];
   followEntries: PetStore['followEntries'];
-  lookup: Mail['lookup'];
-  reverseLookup: Mail['reverseLookup'];
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
   resolve: Mail['resolve'];
@@ -454,6 +464,7 @@ export interface EndoHost {
     petName?: string,
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
+  makeDirectory(petName: string): Promise<EndoDirectory>;
   makeWorker(petName: string): Promise<EndoWorker>;
   provideWorker(petName: string): Promise<EndoWorker>;
   evaluate(
@@ -668,6 +679,7 @@ export interface DaemonCore {
   ) => IncarnateResult<FarEndoBootstrap>;
   incarnateWorker: () => IncarnateResult<EndoWorker>;
   incarnatePetStore: () => IncarnateResult<PetStore>;
+  incarnateDirectory: () => IncarnateResult<EndoDirectory>;
   incarnatePetInspector: (
     petStoreFormulaIdentifier: string,
   ) => IncarnateResult<EndoInspector>;
@@ -717,6 +729,7 @@ export interface DaemonCore {
     readerRef: ERef<AsyncIterableIterator<string>>,
   ) => Promise<string>;
   makeMailbox: MakeMailbox;
+  makeDirectoryNode: MakeDirectoryNode;
 }
 
 export type Mutex = {

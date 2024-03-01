@@ -7,6 +7,7 @@ import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
+import { makeDirectoryMaker } from './directory.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
@@ -512,6 +513,13 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       const external = makePetStoreInspector(formula.petStore);
       return { external, internal: undefined };
+    } else if (formula.type === 'directory') {
+      // Behold, forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      return makeIdentifiedDirectory({
+        petStoreFormulaIdentifier: formula.petStore,
+        context,
+      });
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -545,6 +553,7 @@ const makeDaemonCore = async (
         'pet-inspector',
         'pet-store',
         'lookup',
+        'directory',
       ].includes(formulaType)
     ) {
       const formula = await persistencePowers.readFormula(
@@ -741,6 +750,23 @@ const makeDaemonCore = async (
       type: 'pet-store',
     };
     return /** @type {import('./types').IncarnateResult<import('./types').PetStore>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @type {import('./types.js').DaemonCore['incarnateDirectory']}
+   */
+  const incarnateDirectory = async () => {
+    const { formulaIdentifier: petStoreFormulaIdentifier } =
+      await incarnatePetStore();
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').DirectoryFormula} */
+    const formula = {
+      type: 'directory',
+      petStore: petStoreFormulaIdentifier,
+    };
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoDirectory>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
@@ -1052,8 +1078,13 @@ const makeDaemonCore = async (
     provideControllerForFormulaIdentifier,
   });
 
-  const makeMailbox = makeMailboxMaker({
+  const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
+    provideValueForFormulaIdentifier,
     getFormulaIdentifierForRef,
+    incarnateDirectory,
+  });
+
+  const makeMailbox = makeMailboxMaker({
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifierAndResolveHandle,
   });
@@ -1062,6 +1093,7 @@ const makeDaemonCore = async (
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifierAndResolveHandle,
     makeMailbox,
+    makeDirectoryNode,
   });
 
   const makeIdentifiedHost = makeHostMaker({
@@ -1078,6 +1110,7 @@ const makeDaemonCore = async (
     incarnateHandle,
     storeReaderRef,
     makeMailbox,
+    makeDirectoryNode,
   });
 
   /**
@@ -1210,10 +1243,12 @@ const makeDaemonCore = async (
     cancelValue,
     storeReaderRef,
     makeMailbox,
+    makeDirectoryNode,
     incarnateEndoBootstrap,
     incarnateLeastAuthority,
     incarnateHandle,
     incarnatePetStore,
+    incarnateDirectory,
     incarnateWorker,
     incarnateHost,
     incarnateGuest,

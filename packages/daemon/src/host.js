@@ -21,7 +21,8 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
- * @param {import('./types.js').DaemonCore['makeMailbox']} args.makeMailbox
+ * @param {import('./types.js').MakeMailbox} args.makeMailbox
+ * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
@@ -37,6 +38,7 @@ export const makeHostMaker = ({
   incarnateHandle,
   storeReaderRef,
   makeMailbox,
+  makeDirectoryNode,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -73,8 +75,6 @@ export const makeHostMaker = ({
 
     const {
       petStore,
-      lookup,
-      reverseLookup,
       listMessages,
       followMessages,
       resolve,
@@ -90,6 +90,8 @@ export const makeHostMaker = ({
       selfFormulaIdentifier: hostFormulaIdentifier,
       context,
     });
+
+    const directory = makeDirectoryNode(petStore);
 
     /**
      * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
@@ -524,20 +526,37 @@ export const makeHostMaker = ({
       return cancelValue(formulaIdentifier, reason);
     };
 
-    const { has, remove, rename, list, follow, listEntries, followEntries } =
-      petStore;
+    const { list, follow, listEntries, followEntries } = petStore;
+    const {
+      lookup,
+      reverseLookup,
+      has,
+      identify,
+      write,
+      remove,
+      move,
+      copy,
+      makeDirectory,
+    } = directory;
 
     /** @type {import('./types.js').EndoHost} */
     const host = {
-      has,
-      remove,
-      rename,
+      // PetStore
       list,
       followNames: follow,
       listEntries,
       followEntries,
+      // Directory
+      has,
+      identify,
       lookup,
       reverseLookup,
+      write,
+      remove,
+      move,
+      copy,
+      makeDirectory,
+      // Mail
       listMessages,
       followMessages,
       resolve,
@@ -546,6 +565,7 @@ export const makeHostMaker = ({
       dismiss,
       request,
       send,
+      // Host
       store,
       provideGuest,
       provideHost,

@@ -1,6 +1,5 @@
 // @ts-check
 
-import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { makeIteratorRef } from './reader-ref.js';
@@ -11,12 +10,10 @@ const { quote: q } = assert;
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
- * @param {import('./types.js').DaemonCore['getFormulaIdentifierForRef']} args.getFormulaIdentifierForRef
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
  * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
-  getFormulaIdentifierForRef,
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifierAndResolveHandle,
 }) => {
@@ -34,30 +31,6 @@ export const makeMailboxMaker = ({
     /** @type {import('./types.js').Topic<import('./types.js').InternalMessage>} */
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
-
-    /** @type {import('./types.js').Mail['lookup']} */
-    const lookup = async (...petNamePath) => {
-      const [headName, ...tailNames] = petNamePath;
-      const formulaIdentifier = petStore.identifyLocal(headName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(headName)}`);
-      }
-      // Behold, recursion:
-      return tailNames.reduce(
-        // @ts-expect-error calling lookup on an unknown object
-        (currentValue, petName) => E(currentValue).lookup(petName),
-        provideValueForFormulaIdentifier(formulaIdentifier),
-      );
-    };
-
-    /** @type {import('./types.js').Mail['reverseLookup']} */
-    const reverseLookup = async presence => {
-      const formulaIdentifier = getFormulaIdentifierForRef(await presence);
-      if (formulaIdentifier === undefined) {
-        return harden([]);
-      }
-      return petStore.reverseIdentify(formulaIdentifier);
-    };
 
     /**
      * @param {import('./types.js').InternalMessage} message
@@ -471,9 +444,6 @@ export const makeMailboxMaker = ({
 
     return harden({
       petStore: mailStore,
-      // NameHub
-      lookup,
-      reverseLookup,
       // Mail
       listMessages,
       followMessages,

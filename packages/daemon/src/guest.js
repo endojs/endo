@@ -8,12 +8,14 @@ import { makePetSitter } from './pet-sitter.js';
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
- * @param {import('./types.js').DaemonCore['makeMailbox']} args.makeMailbox
+ * @param {import('./types.js').MakeMailbox} args.makeMailbox
+ * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifierAndResolveHandle,
   makeMailbox,
+  makeDirectoryNode,
 }) => {
   /**
    * @param {string} guestFormulaIdentifier
@@ -57,8 +59,6 @@ export const makeGuestMaker = ({
 
     const {
       petStore,
-      lookup,
-      reverseLookup,
       followMessages,
       listMessages,
       resolve,
@@ -74,21 +74,39 @@ export const makeGuestMaker = ({
       selfFormulaIdentifier: guestFormulaIdentifier,
       context,
     });
+    const directory = makeDirectoryNode(petStore);
 
-    const { has, remove, rename, list, follow, listEntries, followEntries } =
-      petStore;
+    const { list, follow, listEntries, followEntries } = petStore;
+    const {
+      has,
+      identify,
+      lookup,
+      reverseLookup,
+      write,
+      move,
+      remove,
+      copy,
+      makeDirectory,
+    } = directory;
 
     /** @type {import('./types.js').EndoGuest} */
     const guest = {
-      has,
-      remove,
-      rename,
+      // PetStore
       list,
       followNames: follow,
       listEntries,
       followEntries,
+      // Directory
+      has,
+      identify,
       lookup,
       reverseLookup,
+      write,
+      move,
+      remove,
+      copy,
+      makeDirectory,
+      // Mail
       listMessages,
       followMessages,
       resolve,
