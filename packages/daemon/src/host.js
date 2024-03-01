@@ -11,6 +11,7 @@ const { quote: q } = assert;
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} args.provideControllerForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
  * @param {import('./types.js').DaemonCore['incarnateWorker']} args.incarnateWorker
  * @param {import('./types.js').DaemonCore['incarnateHost']} args.incarnateHost
  * @param {import('./types.js').DaemonCore['incarnateGuest']} args.incarnateGuest
@@ -25,6 +26,7 @@ const { quote: q } = assert;
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
+  cancelValue,
   incarnateWorker,
   incarnateHost,
   incarnateGuest,
@@ -83,7 +85,6 @@ export const makeHostMaker = ({
       send,
       dismiss,
       adopt,
-      cancel,
     } = makeMailbox({
       petStore: specialStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
@@ -512,6 +513,15 @@ export const makeHostMaker = ({
       }
 
       return value;
+    };
+
+    /** @type {import('./types.js').EndoHost['cancel']} */
+    const cancel = async (petName, reason = new Error('Cancelled')) => {
+      const formulaIdentifier = petStore.identifyLocal(petName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+      }
+      return cancelValue(formulaIdentifier, reason);
     };
 
     const { has, remove, rename, list, follow, listEntries, followEntries } =

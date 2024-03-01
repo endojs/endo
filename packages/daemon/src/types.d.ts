@@ -329,7 +329,6 @@ export interface Mail {
   // Extended methods:
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
-  cancel(petName: string, reason: Error): Promise<void>;
   // Mail operations:
   listMessages(): Promise<Array<Message>>;
   followMessages(): Promise<FarRef<Reader<Message>>>;
@@ -481,7 +480,7 @@ export interface EndoHost {
     bundleName: string,
     powersName: string,
   ): Promise<unknown>;
-  cancel: Mail['cancel'];
+  cancel(petName: string, reason: Error): Promise<void>;
 }
 
 export interface InternalEndoHost {

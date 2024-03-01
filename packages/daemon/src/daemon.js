@@ -1056,7 +1056,6 @@ const makeDaemonCore = async (
     getFormulaIdentifierForRef,
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifierAndResolveHandle,
-    cancelValue,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
@@ -1068,6 +1067,7 @@ const makeDaemonCore = async (
   const makeIdentifiedHost = makeHostMaker({
     provideValueForFormulaIdentifier,
     provideControllerForFormulaIdentifier,
+    cancelValue,
     incarnateWorker,
     incarnateHost,
     incarnateGuest,

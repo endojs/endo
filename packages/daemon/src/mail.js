@@ -13,14 +13,12 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').DaemonCore['getFormulaIdentifierForRef']} args.getFormulaIdentifierForRef
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
- * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
  * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
   getFormulaIdentifierForRef,
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifierAndResolveHandle,
-  cancelValue,
 }) => {
   /**
     @type {import('./types.js').MakeMailbox} */
@@ -50,15 +48,6 @@ export const makeMailboxMaker = ({
         (currentValue, petName) => E(currentValue).lookup(petName),
         provideValueForFormulaIdentifier(formulaIdentifier),
       );
-    };
-
-    /** @type {import('./types.js').Mail['cancel']} */
-    const cancel = async (petName, reason = new Error('Cancelled')) => {
-      const formulaIdentifier = petStore.identifyLocal(petName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
-      }
-      return cancelValue(formulaIdentifier, reason);
     };
 
     /** @type {import('./types.js').Mail['reverseLookup']} */
@@ -496,8 +485,6 @@ export const makeMailboxMaker = ({
       reject,
       dismiss,
       adopt,
-      // etc
-      cancel,
     });
   };
 
