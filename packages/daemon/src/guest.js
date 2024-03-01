@@ -1,6 +1,7 @@
 // @ts-check
 
 import { Far } from '@endo/far';
+import { makeIteratorRef } from './reader-ref.js';
 
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
@@ -66,9 +67,11 @@ export const makeGuestMaker = ({
       context,
     });
 
-    const { has, follow: followNames, listEntries, followEntries } = petStore;
+    const { has, follow, listEntries, followEntries } = petStore;
 
-    /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
+    const followNames = () => makeIteratorRef(follow());
+
+    /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
       has,
       lookup,

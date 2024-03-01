@@ -90,7 +90,7 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['reverseLookupFormulaIdentifier']} */
     const reverseLookupFormulaIdentifier = formulaIdentifier => {
-      const names = Array.from(petStore.reverseLookup(formulaIdentifier));
+      const names = Array.from(petStore.reverseIdentify(formulaIdentifier));
       for (const [specialName, specialFormulaIdentifier] of Object.entries(
         specialNames,
       )) {

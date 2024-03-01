@@ -1,6 +1,7 @@
 // @ts-check
 
 import { Far } from '@endo/far';
+import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 
 const { quote: q } = assert;
@@ -493,9 +494,11 @@ export const makeHostMaker = ({
       return value;
     };
 
-    const { has, follow: followNames, listEntries, followEntries } = petStore;
+    const { has, follow, listEntries, followEntries } = petStore;
 
-    /** @type {import('./types.js').EndoHost} */
+    const followNames = () => makeIteratorRef(follow());
+
+    /** @type {import('@endo/far').FarRef<import('./types.js').EndoHost>} */
     const host = Far('EndoHost', {
       has,
       lookup,

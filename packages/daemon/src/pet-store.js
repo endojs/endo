@@ -1,8 +1,6 @@
 // @ts-check
 
-import { Far } from '@endo/far';
 import { makeChangeTopic } from './pubsub.js';
-import { makeIteratorRef } from './reader-ref.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
 
 const { quote: q } = assert;
@@ -19,7 +17,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
   /**
    * @param {string} petNameDirectoryPath
    * @param {(name: string) => void} assertValidName
-   * @returns {Promise<import('@endo/far').FarRef<import('./types.js').PetStore>>}
+   * @returns {Promise<import('./types.js').PetStore>}
    */
   const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
     /** @type {Map<string, string>} */
@@ -125,21 +123,17 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const list = () => harden([...petNames.keys()].sort());
     // Returns in an object operations format ({ add, value } or { remove }).
     /** @type {import('./types.js').PetStore['follow']} */
-    const follow = async () =>
-      makeIteratorRef(
-        (async function* currentAndSubsequentNames() {
-          const changes = changesTopic.subscribe();
-          for (const name of [...petNames.keys()].sort()) {
-            const formulaIdentifierRecord =
-              formulaIdentifierRecordForName(name);
-            yield /** @type {{ add: string, value: import('./types.js').FormulaIdentifierRecord }} */ ({
-              add: name,
-              value: formulaIdentifierRecord,
-            });
-          }
-          yield* changes;
-        })(),
-      );
+    const follow = async function* currentAndSubsequentNames() {
+      const changes = changesTopic.subscribe();
+      for (const name of [...petNames.keys()].sort()) {
+        const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
+        yield /** @type {{ add: string, value: import('./types.js').FormulaIdentifierRecord }} */ ({
+          add: name,
+          value: formulaIdentifierRecord,
+        });
+      }
+      yield* changes;
+    };
 
     // Returns in Object.fromEntries format.
     /** @type {import('./types.js').PetStore['listEntries']} */
@@ -236,8 +230,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
       // TODO consider retaining a backlog of overwritten names for recovery
     };
 
-    /** @type {import('./types.js').PetStore['reverseLookup']} */
-    const reverseLookup = formulaIdentifier => {
+    /** @type {import('./types.js').PetStore['reverseIdentify']} */
+    const reverseIdentify = formulaIdentifier => {
       if (!validFormulaPattern.test(formulaIdentifier)) {
         throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
       }
@@ -251,7 +245,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const petStore = {
       has,
       identifyLocal,
-      reverseLookup,
+      reverseIdentify,
       list,
       follow,
       listEntries,
@@ -261,7 +255,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       rename,
     };
 
-    return Far('PetStore', petStore);
+    return petStore;
   };
 
   /**

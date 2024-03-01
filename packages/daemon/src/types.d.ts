@@ -323,25 +323,17 @@ export type ProvideValueForNumberedFormula = (
   formula: Formula,
 ) => Promise<{ formulaIdentifier: string; value: unknown }>;
 
+export type PetStoreNameDiff =
+  | { add: string; value: FormulaIdentifierRecord }
+  | { remove: string };
+
 export interface PetStore {
   has(petName: string): boolean;
   identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
-  follow(): Promise<
-    FarRef<
-      Reader<
-        { add: string; value: FormulaIdentifierRecord } | { remove: string }
-      >
-    >
-  >;
+  follow(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   listEntries(): Array<[string, FormulaIdentifierRecord]>;
-  followEntries(): Promise<
-    FarRef<
-      Reader<
-        { add: string; value: FormulaIdentifierRecord } | { remove: string }
-      >
-    >
-  >;
+  followEntries(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
@@ -349,7 +341,8 @@ export interface PetStore {
    * @param formulaIdentifier The formula identifier to look up.
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
    */
-  reverseLookup(formulaIdentifier: string): Array<string>;
+  reverseIdentify(formulaIdentifier: string): Array<string>;
+}
 }
 
 export interface Mail {
@@ -440,6 +433,7 @@ export interface EndoGuest {
 export interface EndoHost {
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
+  followNames(): FarRef<Reader<PetStoreNameDiff>>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   resolve(requestNumber: number, petName: string);
   reject(requestNumber: number, message: string);
