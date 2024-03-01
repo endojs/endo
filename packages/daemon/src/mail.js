@@ -25,16 +25,10 @@ export const makeMailboxMaker = ({
    * @param {object} args
    * @param {string} args.selfFormulaIdentifier
    * @param {import('./types.js').PetStore} args.petStore
-   * @param {Record<string, string>} args.specialNames
    * @param {import('./types.js').Context} args.context
    * @returns {import('./types.js').Mail}
    */
-  const makeMailbox = ({
-    selfFormulaIdentifier,
-    petStore,
-    specialNames,
-    context,
-  }) => {
+  const makeMailbox = ({ selfFormulaIdentifier, petStore, context }) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
     /** @type {Map<number, import('./types.js').InternalMessage>} */
@@ -47,23 +41,10 @@ export const makeMailboxMaker = ({
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
 
-    /** @type {import('./types.js').Mail['has']} */
-    const has = petName => {
-      return Object.hasOwn(specialNames, petName) || petStore.has(petName);
-    };
-
-    /** @type {import('./types.js').Mail['identifyLocal']} */
-    const identifyLocal = petName => {
-      if (Object.hasOwn(specialNames, petName)) {
-        return specialNames[petName];
-      }
-      return petStore.identifyLocal(petName);
-    };
-
     /** @type {import('./types.js').Mail['lookup']} */
     const lookup = async (...petNamePath) => {
       const [headName, ...tailNames] = petNamePath;
-      const formulaIdentifier = identifyLocal(headName);
+      const formulaIdentifier = petStore.identifyLocal(headName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
@@ -77,28 +58,11 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['cancel']} */
     const cancel = async (petName, reason = new Error('Cancelled')) => {
-      const formulaIdentifier = identifyLocal(petName);
+      const formulaIdentifier = petStore.identifyLocal(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
       return cancelValue(formulaIdentifier, reason);
-    };
-
-    /** @type {import('./types.js').Mail['list']} */
-    const list = () =>
-      harden([...Object.keys(specialNames).sort(), ...petStore.list()]);
-
-    /** @type {import('./types.js').Mail['reverseLookupFormulaIdentifier']} */
-    const reverseLookupFormulaIdentifier = formulaIdentifier => {
-      const names = Array.from(petStore.reverseIdentify(formulaIdentifier));
-      for (const [specialName, specialFormulaIdentifier] of Object.entries(
-        specialNames,
-      )) {
-        if (specialFormulaIdentifier === formulaIdentifier) {
-          names.push(specialName);
-        }
-      }
-      return harden(names);
     };
 
     /** @type {import('./types.js').Mail['reverseLookup']} */
@@ -107,7 +71,7 @@ export const makeMailboxMaker = ({
       if (formulaIdentifier === undefined) {
         return harden([]);
       }
-      return reverseLookupFormulaIdentifier(formulaIdentifier);
+      return petStore.reverseIdentify(formulaIdentifier);
     };
 
     /**
@@ -122,10 +86,8 @@ export const makeMailboxMaker = ({
           dest: recipientFormulaIdentifier,
           ...rest
         } = message;
-        const [senderName] = reverseLookupFormulaIdentifier(
-          senderFormulaIdentifier,
-        );
-        const [recipientName] = reverseLookupFormulaIdentifier(
+        const [senderName] = petStore.reverseIdentify(senderFormulaIdentifier);
+        const [recipientName] = petStore.reverseIdentify(
           recipientFormulaIdentifier,
         );
         if (senderName !== undefined) {
@@ -138,10 +100,8 @@ export const makeMailboxMaker = ({
           dest: recipientFormulaIdentifier,
           ...rest
         } = message;
-        const [senderName] = reverseLookupFormulaIdentifier(
-          senderFormulaIdentifier,
-        );
-        const [recipientName] = reverseLookupFormulaIdentifier(
+        const [senderName] = petStore.reverseIdentify(senderFormulaIdentifier);
+        const [recipientName] = petStore.reverseIdentify(
           recipientFormulaIdentifier,
         );
         if (senderName !== undefined) {
@@ -291,7 +251,7 @@ export const makeMailboxMaker = ({
       if (resolveRequest === undefined) {
         throw new Error(`No pending request for number ${messageNumber}`);
       }
-      const formulaIdentifier = identifyLocal(resolutionName);
+      const formulaIdentifier = petStore.identifyLocal(resolutionName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(
           `No formula exists for the pet name ${q(resolutionName)}`,
@@ -333,7 +293,7 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['send']} */
     const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipientFormulaIdentifier = identifyLocal(recipientName);
+      const recipientFormulaIdentifier = petStore.identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
@@ -367,7 +327,7 @@ export const makeMailboxMaker = ({
       }
 
       const formulaIdentifiers = petNames.map(petName => {
-        const formulaIdentifier = identifyLocal(petName);
+        const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier === undefined) {
           throw new Error(`Unknown pet name ${q(petName)}`);
         }
@@ -444,7 +404,7 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['request']} */
     const request = async (recipientName, what, responseName) => {
-      const recipientFormulaIdentifier = identifyLocal(recipientName);
+      const recipientFormulaIdentifier = petStore.identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
@@ -517,25 +477,31 @@ export const makeMailboxMaker = ({
       responses.delete(petName);
     };
 
+    const { has, list, identifyLocal, reverseIdentify } = petStore;
+
     return harden({
+      // PetStore
       has,
-      lookup,
-      reverseLookup,
-      reverseLookupFormulaIdentifier,
-      identifyLocal,
-      followMessages,
-      listMessages,
-      request,
-      respond,
-      resolve,
-      reject,
-      receive,
-      send,
-      dismiss,
-      adopt,
-      list,
       rename,
       remove,
+      list,
+      identifyLocal,
+      reverseIdentify,
+      // NameHub
+      lookup,
+      reverseLookup,
+      // Mail
+      listMessages,
+      followMessages,
+      request,
+      respond,
+      receive,
+      send,
+      resolve,
+      reject,
+      dismiss,
+      adopt,
+      // etc
       cancel,
     });
   };

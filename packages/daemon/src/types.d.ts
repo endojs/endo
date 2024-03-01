@@ -343,7 +343,6 @@ export interface PetStore {
    */
   reverseIdentify(formulaIdentifier: string): Array<string>;
 }
-}
 
 export interface Mail {
   // Partial inheritance from PetStore:
@@ -352,10 +351,10 @@ export interface Mail {
   remove: PetStore['remove'];
   list: PetStore['list'];
   identifyLocal: PetStore['identifyLocal'];
-  reverseLookup(value: unknown): Array<string>;
+  reverseIdentify(formulaIdentifier: string): Array<string>;
   // Extended methods:
   lookup(...petNamePath: string[]): Promise<unknown>;
-  reverseLookupFormulaIdentifier(formulaIdentifier: string): Array<string>;
+  reverseLookup(value: unknown): Array<string>;
   cancel(petName: string, reason: Error): Promise<void>;
   // Mail operations:
   listMessages(): Promise<Array<Message>>;

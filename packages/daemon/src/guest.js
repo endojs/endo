@@ -2,6 +2,7 @@
 
 import { Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
+import { makePetSitter } from './pet-sitter.js';
 
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
@@ -26,9 +27,13 @@ export const makeGuestMaker = ({
     context.thisDiesIfThatDies(petStoreFormulaIdentifier);
     context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
-    const petStore = /** @type {import('./types.js').PetStore} */ (
+    const basePetStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
+    const petStore = makePetSitter(basePetStore, {
+      SELF: guestFormulaIdentifier,
+      HOST: hostHandleFormulaIdentifier,
+    });
     const hostController =
       await provideControllerForFormulaIdentifierAndResolveHandle(
         hostHandleFormulaIdentifier,
@@ -60,10 +65,6 @@ export const makeGuestMaker = ({
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: guestFormulaIdentifier,
-      specialNames: {
-        SELF: guestFormulaIdentifier,
-        HOST: hostHandleFormulaIdentifier,
-      },
       context,
     });
 

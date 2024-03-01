@@ -3,6 +3,7 @@
 import { Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
+import { makePetSitter } from './pet-sitter.js';
 
 const { quote: q } = assert;
 
@@ -41,11 +42,17 @@ export const makeHostMaker = ({
     context.thisDiesIfThatDies(storeFormulaIdentifier);
     context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
-    const petStore = /** @type {import('./types.js').PetStore} */ (
+    const basePetStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       await provideValueForFormulaIdentifier(storeFormulaIdentifier)
     );
+    const petStore = makePetSitter(basePetStore, {
+      SELF: hostFormulaIdentifier,
+      ENDO: endoFormulaIdentifier,
+      INFO: inspectorFormulaIdentifier,
+      NONE: leastAuthorityFormulaIdentifier,
+    });
 
     const {
       lookup,
@@ -68,12 +75,6 @@ export const makeHostMaker = ({
     } = makeMailbox({
       petStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
-      specialNames: {
-        SELF: hostFormulaIdentifier,
-        ENDO: endoFormulaIdentifier,
-        INFO: inspectorFormulaIdentifier,
-        NONE: leastAuthorityFormulaIdentifier,
-      },
       context,
     });
 
