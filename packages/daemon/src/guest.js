@@ -1,11 +1,21 @@
 // @ts-check
 
 import { Far } from '@endo/far';
+import { makeIteratorRef } from './reader-ref.js';
+import { makePetSitter } from './pet-sitter.js';
 
+/**
+ * @param {object} args
+ * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
+ * @param {import('./types.js').MakeMailbox} args.makeMailbox
+ * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
+ */
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifierAndResolveHandle,
   makeMailbox,
+  makeDirectoryNode,
 }) => {
   /**
    * @param {string} guestFormulaIdentifier
@@ -25,12 +35,19 @@ export const makeGuestMaker = ({
     context.thisDiesIfThatDies(petStoreFormulaIdentifier);
     context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
-    const petStore = /** @type {import('./types.js').PetStore} */ (
+    const basePetStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
+    const specialStore = makePetSitter(basePetStore, {
+      SELF: guestFormulaIdentifier,
+      HOST: hostHandleFormulaIdentifier,
+    });
     const hostController =
-      await provideControllerForFormulaIdentifierAndResolveHandle(
-        hostHandleFormulaIdentifier,
+      /** @type {import('./types.js').EndoHostController} */
+      (
+        await provideControllerForFormulaIdentifierAndResolveHandle(
+          hostHandleFormulaIdentifier,
+        )
       );
     const hostPrivateFacet = await hostController.internal;
     const { respond: deliverToHost } = hostPrivateFacet;
@@ -40,62 +57,77 @@ export const makeGuestMaker = ({
       );
     }
 
+    const mailbox = makeMailbox({
+      petStore: specialStore,
+      selfFormulaIdentifier: guestFormulaIdentifier,
+      context,
+    });
+    const { petStore } = mailbox;
+    const directory = makeDirectoryNode(petStore);
+
     const {
+      has,
+      identify,
+      list,
+      followChanges,
       lookup,
       reverseLookup,
-      followMessages,
+      write,
+      move,
+      remove,
+      copy,
+      makeDirectory,
+    } = directory;
+    const {
       listMessages,
+      followMessages,
       resolve,
       reject,
-      dismiss,
       adopt,
+      dismiss,
+      request,
       send,
       receive,
       respond,
-      request,
-      rename,
-      remove,
-      list,
-    } = makeMailbox({
-      petStore,
-      selfFormulaIdentifier: guestFormulaIdentifier,
-      specialNames: {
-        SELF: guestFormulaIdentifier,
-        HOST: hostHandleFormulaIdentifier,
-      },
-      context,
-    });
+    } = mailbox;
 
-    const { has, follow: followNames, listEntries, followEntries } = petStore;
-
-    /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
-    const guest = Far('EndoGuest', {
+    /** @type {import('./types.js').EndoGuest} */
+    const guest = {
+      // Directory
       has,
+      identify,
+      list,
+      followChanges,
       lookup,
       reverseLookup,
-      request,
-      send,
-      list,
-      followNames,
+      write,
+      move,
+      remove,
+      copy,
+      makeDirectory,
+      // Mail
       listMessages,
       followMessages,
-      listEntries,
-      followEntries,
       resolve,
       reject,
-      dismiss,
       adopt,
-      remove,
-      rename,
-    });
+      dismiss,
+      request,
+      send,
+    };
 
+    const external = Far('EndoGuest', {
+      ...guest,
+      followChanges: () => makeIteratorRef(guest.followChanges()),
+      followMessages: () => makeIteratorRef(guest.followMessages()),
+    });
     const internal = harden({
       receive,
       respond,
       petStore,
     });
 
-    return harden({ external: guest, internal });
+    return harden({ external, internal });
   };
 
   return makeIdentifiedGuestController;

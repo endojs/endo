@@ -1,40 +1,24 @@
 // @ts-check
 
-import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
-import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
 
 /**
  * @param {object} args
- * @param {import('./types.js').ProvideValueForFormulaIdentifier} args.provideValueForFormulaIdentifier
- * @param {import('./types.js').GetFormulaIdentifierForRef} args.getFormulaIdentifierForRef
- * @param {import('./types.js').ProvideControllerForFormulaIdentifierAndResolveHandle} args.provideControllerForFormulaIdentifierAndResolveHandle
- * @param {import('./types.js').CancelValue} args.cancelValue
+ * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
+ * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
-  getFormulaIdentifierForRef,
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifierAndResolveHandle,
-  cancelValue,
 }) => {
   /**
-   * @param {object} args
-   * @param {string} args.selfFormulaIdentifier
-   * @param {import('./types.js').PetStore} args.petStore
-   * @param {Record<string, string>} args.specialNames
-   * @param {import('./types.js').Context} args.context
-   * @returns {import('./types.js').Mail}
-   */
-  const makeMailbox = ({
-    selfFormulaIdentifier,
-    petStore,
-    specialNames,
-    context,
-  }) => {
+    @type {import('./types.js').MakeMailbox} */
+  const makeMailbox = ({ selfFormulaIdentifier, petStore, context }) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
     /** @type {Map<number, import('./types.js').InternalMessage>} */
@@ -46,69 +30,6 @@ export const makeMailboxMaker = ({
     /** @type {import('./types.js').Topic<import('./types.js').InternalMessage>} */
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
-
-    /** @type {import('./types.js').Mail['has']} */
-    const has = petName => {
-      return Object.hasOwn(specialNames, petName) || petStore.has(petName);
-    };
-
-    /** @type {import('./types.js').Mail['identifyLocal']} */
-    const identifyLocal = petName => {
-      if (Object.hasOwn(specialNames, petName)) {
-        return specialNames[petName];
-      }
-      return petStore.identifyLocal(petName);
-    };
-
-    /** @type {import('./types.js').Mail['lookup']} */
-    const lookup = async (...petNamePath) => {
-      const [headName, ...tailNames] = petNamePath;
-      const formulaIdentifier = identifyLocal(headName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(headName)}`);
-      }
-      // Behold, recursion:
-      return tailNames.reduce(
-        // @ts-expect-error calling lookup on an unknown object
-        (currentValue, petName) => E(currentValue).lookup(petName),
-        provideValueForFormulaIdentifier(formulaIdentifier),
-      );
-    };
-
-    /** @type {import('./types.js').Mail['cancel']} */
-    const cancel = async (petName, reason = new Error('Cancelled')) => {
-      const formulaIdentifier = identifyLocal(petName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
-      }
-      return cancelValue(formulaIdentifier, reason);
-    };
-
-    /** @type {import('./types.js').Mail['list']} */
-    const list = () =>
-      harden([...Object.keys(specialNames).sort(), ...petStore.list()]);
-
-    /** @type {import('./types.js').Mail['reverseLookupFormulaIdentifier']} */
-    const reverseLookupFormulaIdentifier = formulaIdentifier => {
-      const names = Array.from(petStore.reverseLookup(formulaIdentifier));
-      for (const [specialName, specialFormulaIdentifier] of Object.entries(
-        specialNames,
-      )) {
-        if (specialFormulaIdentifier === formulaIdentifier) {
-          names.push(specialName);
-        }
-      }
-      return harden(names);
-    };
-
-    /** @type {import('./types.js').Mail['reverseLookup']} */
-    const reverseLookup = async presence => {
-      const formulaIdentifier = getFormulaIdentifierForRef(await presence);
-      if (formulaIdentifier === undefined) {
-        return harden([]);
-      }
-      return reverseLookupFormulaIdentifier(formulaIdentifier);
-    };
 
     /**
      * @param {import('./types.js').InternalMessage} message
@@ -122,10 +43,8 @@ export const makeMailboxMaker = ({
           dest: recipientFormulaIdentifier,
           ...rest
         } = message;
-        const [senderName] = reverseLookupFormulaIdentifier(
-          senderFormulaIdentifier,
-        );
-        const [recipientName] = reverseLookupFormulaIdentifier(
+        const [senderName] = petStore.reverseIdentify(senderFormulaIdentifier);
+        const [recipientName] = petStore.reverseIdentify(
           recipientFormulaIdentifier,
         );
         if (senderName !== undefined) {
@@ -138,10 +57,8 @@ export const makeMailboxMaker = ({
           dest: recipientFormulaIdentifier,
           ...rest
         } = message;
-        const [senderName] = reverseLookupFormulaIdentifier(
-          senderFormulaIdentifier,
-        );
-        const [recipientName] = reverseLookupFormulaIdentifier(
+        const [senderName] = petStore.reverseIdentify(senderFormulaIdentifier);
+        const [recipientName] = petStore.reverseIdentify(
           recipientFormulaIdentifier,
         );
         if (senderName !== undefined) {
@@ -170,24 +87,21 @@ export const makeMailboxMaker = ({
     const listMessages = async () => harden(Array.from(dubAndFilterMessages()));
 
     /** @type {import('./types.js').Mail['followMessages']} */
-    const followMessages = async () =>
-      makeIteratorRef(
-        (async function* currentAndSubsequentMessages() {
-          const subsequentRequests = messagesTopic.subscribe();
-          for (const message of messages.values()) {
-            const dubbedMessage = dubMessage(message);
-            if (dubbedMessage !== undefined) {
-              yield dubbedMessage;
-            }
-          }
-          for await (const message of subsequentRequests) {
-            const dubbedMessage = dubMessage(message);
-            if (dubbedMessage !== undefined) {
-              yield dubbedMessage;
-            }
-          }
-        })(),
-      );
+    const followMessages = async function* currentAndSubsequentMessages() {
+      const subsequentRequests = messagesTopic.subscribe();
+      for (const message of messages.values()) {
+        const dubbedMessage = dubMessage(message);
+        if (dubbedMessage !== undefined) {
+          yield dubbedMessage;
+        }
+      }
+      for await (const message of subsequentRequests) {
+        const dubbedMessage = dubMessage(message);
+        if (dubbedMessage !== undefined) {
+          yield dubbedMessage;
+        }
+      }
+    };
 
     /**
      * @param {object} partialMessage
@@ -291,7 +205,7 @@ export const makeMailboxMaker = ({
       if (resolveRequest === undefined) {
         throw new Error(`No pending request for number ${messageNumber}`);
       }
-      const formulaIdentifier = identifyLocal(resolutionName);
+      const formulaIdentifier = petStore.identifyLocal(resolutionName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(
           `No formula exists for the pet name ${q(resolutionName)}`,
@@ -333,7 +247,7 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['send']} */
     const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipientFormulaIdentifier = identifyLocal(recipientName);
+      const recipientFormulaIdentifier = petStore.identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
@@ -367,7 +281,7 @@ export const makeMailboxMaker = ({
       }
 
       const formulaIdentifiers = petNames.map(petName => {
-        const formulaIdentifier = identifyLocal(petName);
+        const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier === undefined) {
           throw new Error(`Unknown pet name ${q(petName)}`);
         }
@@ -444,7 +358,7 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['request']} */
     const request = async (recipientName, what, responseName) => {
-      const recipientFormulaIdentifier = identifyLocal(recipientName);
+      const recipientFormulaIdentifier = petStore.identifyLocal(recipientName);
       if (recipientFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
@@ -501,7 +415,7 @@ export const makeMailboxMaker = ({
       return newResponseP;
     };
 
-    /** @type {import('./types.js').Mail['rename']} */
+    /** @type {import('./types.js').PetStore['rename']} */
     const rename = async (fromName, toName) => {
       await petStore.rename(fromName, toName);
       const formulaIdentifier = responses.get(fromName);
@@ -511,32 +425,31 @@ export const makeMailboxMaker = ({
       }
     };
 
-    /** @type {import('./types.js').Mail['remove']} */
+    /** @type {import('./types.js').PetStore['remove']} */
     const remove = async petName => {
       await petStore.remove(petName);
       responses.delete(petName);
     };
 
-    return harden({
-      has,
-      lookup,
-      reverseLookup,
-      reverseLookupFormulaIdentifier,
-      identifyLocal,
-      followMessages,
-      listMessages,
-      request,
-      respond,
-      resolve,
-      reject,
-      receive,
-      send,
-      dismiss,
-      adopt,
-      list,
+    /** @type {import('./types.js').PetStore} */
+    const mailStore = {
+      ...petStore,
       rename,
       remove,
-      cancel,
+    };
+
+    return harden({
+      petStore: mailStore,
+      listMessages,
+      followMessages,
+      request,
+      respond,
+      receive,
+      send,
+      resolve,
+      reject,
+      dismiss,
+      adopt,
     });
   };
 

@@ -1,13 +1,33 @@
 // @ts-check
 
 import { Far } from '@endo/far';
+import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
+import { makePetSitter } from './pet-sitter.js';
 
 const { quote: q } = assert;
 
+/**
+ * @param {object} args
+ * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} args.provideControllerForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
+ * @param {import('./types.js').DaemonCore['incarnateWorker']} args.incarnateWorker
+ * @param {import('./types.js').DaemonCore['incarnateHost']} args.incarnateHost
+ * @param {import('./types.js').DaemonCore['incarnateGuest']} args.incarnateGuest
+ * @param {import('./types.js').DaemonCore['incarnateEval']} args.incarnateEval
+ * @param {import('./types.js').DaemonCore['incarnateUnconfined']} args.incarnateUnconfined
+ * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
+ * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
+ * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
+ * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
+ * @param {import('./types.js').MakeMailbox} args.makeMailbox
+ * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
+ */
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideControllerForFormulaIdentifier,
+  cancelValue,
   incarnateWorker,
   incarnateHost,
   incarnateGuest,
@@ -18,6 +38,7 @@ export const makeHostMaker = ({
   incarnateHandle,
   storeReaderRef,
   makeMailbox,
+  makeDirectoryNode,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -40,41 +61,25 @@ export const makeHostMaker = ({
     context.thisDiesIfThatDies(storeFormulaIdentifier);
     context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
-    const petStore = /** @type {import('./types.js').PetStore} */ (
+    const basePetStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       await provideValueForFormulaIdentifier(storeFormulaIdentifier)
     );
+    const specialStore = makePetSitter(basePetStore, {
+      SELF: hostFormulaIdentifier,
+      ENDO: endoFormulaIdentifier,
+      INFO: inspectorFormulaIdentifier,
+      NONE: leastAuthorityFormulaIdentifier,
+    });
 
-    const {
-      lookup,
-      reverseLookup,
-      identifyLocal,
-      listMessages,
-      followMessages,
-      resolve,
-      reject,
-      respond,
-      request,
-      receive,
-      send,
-      dismiss,
-      adopt,
-      list,
-      rename,
-      remove,
-      cancel,
-    } = makeMailbox({
-      petStore,
+    const mailbox = makeMailbox({
+      petStore: specialStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
-      specialNames: {
-        SELF: hostFormulaIdentifier,
-        ENDO: endoFormulaIdentifier,
-        INFO: inspectorFormulaIdentifier,
-        NONE: leastAuthorityFormulaIdentifier,
-      },
       context,
     });
+    const { petStore } = mailbox;
+    const directory = makeDirectoryNode(petStore);
 
     /**
      * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
@@ -95,7 +100,8 @@ export const makeHostMaker = ({
       const { petStore: newPetStore } = await newController.internal;
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
-          const introducedFormulaIdentifier = identifyLocal(parentName);
+          const introducedFormulaIdentifier =
+            petStore.identifyLocal(parentName);
           if (introducedFormulaIdentifier === undefined) {
             return;
           }
@@ -113,7 +119,7 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = identifyLocal(petName);
+        formulaIdentifier = petStore.identifyLocal(petName);
       }
 
       if (formulaIdentifier === undefined) {
@@ -128,7 +134,10 @@ export const makeHostMaker = ({
           await petStore.write(petName, guestFormulaIdentifier);
         }
 
-        return { value, formulaIdentifier: guestFormulaIdentifier };
+        return {
+          value: Promise.resolve(value),
+          formulaIdentifier: guestFormulaIdentifier,
+        };
       } else if (!formulaIdentifier.startsWith('guest:')) {
         throw new Error(
           `Existing pet name does not designate a guest powers capability: ${q(
@@ -181,7 +190,7 @@ export const makeHostMaker = ({
       if (typeof workerName !== 'string') {
         throw new Error('worker name must be string');
       }
-      let workerFormulaIdentifier = identifyLocal(workerName);
+      let workerFormulaIdentifier = petStore.identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         ({ formulaIdentifier: workerFormulaIdentifier } =
           await incarnateWorker());
@@ -210,7 +219,7 @@ export const makeHostMaker = ({
       }
 
       assertPetName(workerName);
-      let workerFormulaIdentifier = identifyLocal(workerName);
+      let workerFormulaIdentifier = petStore.identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         ({ formulaIdentifier: workerFormulaIdentifier } =
           await incarnateWorker());
@@ -233,7 +242,7 @@ export const makeHostMaker = ({
       }
 
       assertPetName(workerName);
-      const workerFormulaIdentifier = identifyLocal(workerName);
+      const workerFormulaIdentifier = petStore.identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
         addHook(identifiers =>
           petStore.write(workerName, identifiers.workerFormulaIdentifier),
@@ -248,7 +257,7 @@ export const makeHostMaker = ({
      * @returns {Promise<string>}
      */
     const providePowersFormulaIdentifier = async partyName => {
-      let guestFormulaIdentifier = identifyLocal(partyName);
+      let guestFormulaIdentifier = petStore.identifyLocal(partyName);
       if (guestFormulaIdentifier === undefined) {
         ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
           partyName,
@@ -304,7 +313,7 @@ export const makeHostMaker = ({
 
           const petNamePath = petNamePathFrom(petNameOrPath);
           if (petNamePath.length === 1) {
-            const formulaIdentifier = identifyLocal(petNamePath[0]);
+            const formulaIdentifier = petStore.identifyLocal(petNamePath[0]);
             if (formulaIdentifier === undefined) {
               throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
             }
@@ -376,7 +385,7 @@ export const makeHostMaker = ({
         workerName,
       );
 
-      const bundleFormulaIdentifier = identifyLocal(bundleName);
+      const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
@@ -423,7 +432,7 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = identifyLocal(petName);
+        formulaIdentifier = petStore.identifyLocal(petName);
       }
       if (formulaIdentifier === undefined) {
         const { formulaIdentifier: newFormulaIdentifier, value } =
@@ -435,7 +444,10 @@ export const makeHostMaker = ({
           assertPetName(petName);
           await petStore.write(petName, newFormulaIdentifier);
         }
-        return { formulaIdentifier: newFormulaIdentifier, value };
+        return {
+          formulaIdentifier: newFormulaIdentifier,
+          value: Promise.resolve(value),
+        };
       } else if (!formulaIdentifier.startsWith('host:')) {
         throw new Error(
           `Existing pet name does not designate a host powers capability: ${q(
@@ -470,7 +482,7 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
      */
     const provideWebPage = async (webPageName, bundleName, powersName) => {
-      const bundleFormulaIdentifier = identifyLocal(bundleName);
+      const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name: ${q(bundleName)}`);
       }
@@ -493,13 +505,29 @@ export const makeHostMaker = ({
       return value;
     };
 
-    const { has, follow: followNames, listEntries, followEntries } = petStore;
+    /** @type {import('./types.js').EndoHost['cancel']} */
+    const cancel = async (petName, reason = new Error('Cancelled')) => {
+      const formulaIdentifier = petStore.identifyLocal(petName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+      }
+      return cancelValue(formulaIdentifier, reason);
+    };
 
-    /** @type {import('./types.js').EndoHost} */
-    const host = Far('EndoHost', {
+    const {
       has,
+      identify,
+      list,
+      followChanges,
       lookup,
       reverseLookup,
+      write,
+      remove,
+      move,
+      copy,
+      makeDirectory,
+    } = directory;
+    const {
       listMessages,
       followMessages,
       resolve,
@@ -508,29 +536,56 @@ export const makeHostMaker = ({
       dismiss,
       request,
       send,
+      receive,
+      respond,
+    } = mailbox;
+
+    /** @type {import('./types.js').EndoHost} */
+    const host = {
+      // Directory
+      has,
+      identify,
       list,
-      followNames,
-      listEntries,
-      followEntries,
+      followChanges,
+      lookup,
+      reverseLookup,
+      write,
       remove,
-      rename,
+      move,
+      copy,
+      makeDirectory,
+      // Mail
+      listMessages,
+      followMessages,
+      resolve,
+      reject,
+      adopt,
+      dismiss,
+      request,
+      send,
+      // Host
       store,
       provideGuest,
       provideHost,
       makeWorker,
       provideWorker,
       evaluate,
-      cancel,
       makeUnconfined,
       makeBundle,
       provideWebPage,
-    });
+      cancel,
+    };
 
+    const external = Far('EndoHost', {
+      ...host,
+      followChanges: () => makeIteratorRef(host.followChanges()),
+      followMessages: () => makeIteratorRef(host.followMessages()),
+    });
     const internal = harden({ receive, respond, petStore });
 
     await provideValueForFormulaIdentifier(mainWorkerFormulaIdentifier);
 
-    return harden({ external: host, internal });
+    return harden({ external, internal });
   };
 
   return makeIdentifiedHost;

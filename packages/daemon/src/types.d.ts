@@ -161,6 +161,11 @@ type PetInspectorFormula = {
   petStore: string;
 };
 
+type DirectoryFormula = {
+  type: 'directory';
+  petStore: string;
+};
+
 export type Formula =
   | EndoFormula
   | WorkerFormula
@@ -175,7 +180,8 @@ export type Formula =
   | WebBundleFormula
   | HandleFormula
   | PetInspectorFormula
-  | PetStoreFormula;
+  | PetStoreFormula
+  | DirectoryFormula;
 
 export type Label = {
   number: number;
@@ -282,20 +288,6 @@ export interface Controller<External = unknown, Internal = unknown> {
   context: Context;
 }
 
-export type ProvideValueForFormulaIdentifier = (
-  formulaIdentifier: string,
-) => Promise<unknown>;
-export type ProvideControllerForFormulaIdentifier = (
-  formulaIdentifier: string,
-) => Controller;
-export type ProvideControllerForFormulaIdentifierAndResolveHandle = (
-  formulaIdentifier: string,
-) => Promise<Controller>;
-export type CancelValue = (
-  formulaIdentifier: string,
-  reason: Error,
-) => Promise<void>;
-
 /**
  * A handle is used to create a pointer to a formula without exposing it directly.
  * This is the external facet of the handle and is safe to expose. This is used to
@@ -314,64 +306,73 @@ export interface InternalHandle {
   targetFormulaIdentifier: string;
 }
 
-export type GetFormulaIdentifierForRef = (ref: unknown) => string | undefined;
 export type MakeSha512 = () => Sha512;
 
-export type ProvideValueForNumberedFormula = (
-  formulaType: string,
-  formulaNumber: string,
-  formula: Formula,
-) => Promise<{ formulaIdentifier: string; value: unknown }>;
+export type PetStoreNameDiff =
+  | { add: string; value: FormulaIdentifierRecord }
+  | { remove: string };
 
 export interface PetStore {
   has(petName: string): boolean;
   identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
-  follow(): Promise<
-    FarRef<
-      Reader<
-        { add: string; value: FormulaIdentifierRecord } | { remove: string }
-      >
-    >
-  >;
-  listEntries(): Array<[string, FormulaIdentifierRecord]>;
-  followEntries(): Promise<
-    FarRef<
-      Reader<
-        { add: string; value: FormulaIdentifierRecord } | { remove: string }
-      >
-    >
-  >;
+  follow(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
-  remove(petName: string);
-  rename(fromPetName: string, toPetName: string);
+  remove(petName: string): Promise<void>;
+  rename(fromPetName: string, toPetName: string): Promise<void>;
   /**
    * @param formulaIdentifier The formula identifier to look up.
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
    */
-  reverseLookup(formulaIdentifier: string): Array<string>;
+  reverseIdentify(formulaIdentifier: string): Array<string>;
 }
+
+export interface NameHub {
+  has(...petNamePath: string[]): Promise<boolean>;
+  identify(...petNamePath: string[]): Promise<string | undefined>;
+  list(...petNamePath: string[]): Promise<Array<string>>;
+  followChanges(
+    ...petNamePath: string[]
+  ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
+  lookup(...petNamePath: string[]): Promise<unknown>;
+  reverseLookup(value: unknown): Array<string>;
+  write(petNamePath: string[], formulaIdentifier): Promise<void>;
+  remove(...petNamePath: string[]): Promise<void>;
+  move(fromPetName: string[], toPetName: string[]): Promise<void>;
+  copy(fromPetName: string[], toPetName: string[]): Promise<void>;
+}
+
+export interface EndoDirectory extends NameHub {
+  makeDirectory(petName: string): Promise<EndoDirectory>;
+}
+
+export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
 
 export interface Mail {
   // Partial inheritance from PetStore:
-  has: PetStore['has'];
-  rename: PetStore['rename'];
-  remove: PetStore['remove'];
-  list: PetStore['list'];
-  identifyLocal: PetStore['identifyLocal'];
-  reverseLookup(value: unknown): Array<string>;
-  // Extended methods:
-  lookup(...petNamePath: string[]): Promise<unknown>;
-  reverseLookupFormulaIdentifier(formulaIdentifier: string): Array<string>;
-  cancel(petName: string, reason: Error): Promise<void>;
+  petStore: PetStore;
   // Mail operations:
   listMessages(): Promise<Array<Message>>;
-  followMessages(): Promise<FarRef<Reader<Message>>>;
+  followMessages(): AsyncGenerator<Message, undefined, undefined>;
+  resolve(messageNumber: number, resolutionName: string): Promise<void>;
+  reject(messageNumber: number, message?: string): Promise<void>;
+  adopt(
+    messageNumber: number,
+    edgeName: string,
+    petName: string,
+  ): Promise<void>;
+  dismiss(messageNumber: number): Promise<void>;
   request(
     recipientName: string,
     what: string,
     responseName: string,
   ): Promise<unknown>;
+  send(
+    recipientName: string,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNames: Array<string>,
+  ): Promise<void>;
   respond(
     what: string,
     responseName: string,
@@ -386,21 +387,13 @@ export interface Mail {
     formulaIdentifiers: Array<string>,
     receiverFormulaIdentifier: string,
   ): void;
-  send(
-    recipientName: string,
-    strings: Array<string>,
-    edgeNames: Array<string>,
-    petNames: Array<string>,
-  ): Promise<void>;
-  resolve(messageNumber: number, resolutionName: string): Promise<void>;
-  reject(messageNumber: number, message?: string): Promise<void>;
-  dismiss(messageNumber: number): Promise<void>;
-  adopt(
-    messageNumber: number,
-    edgeName: string,
-    petName: string,
-  ): Promise<void>;
 }
+
+export type MakeMailbox = (args: {
+  selfFormulaIdentifier: string;
+  petStore: PetStore;
+  context: Context;
+}) => Mail;
 
 export type RequestFn = (
   what: string,
@@ -433,20 +426,26 @@ export type MakeHostOrGuestOptions = {
   introducedNames?: Record<string, string>;
 };
 
-export interface EndoGuest {
-  request(what: string, responseName: string): Promise<unknown>;
+export interface EndoGuest extends EndoDirectory {
+  listMessages: Mail['listMessages'];
+  followMessages: Mail['followMessages'];
+  resolve: Mail['resolve'];
+  reject: Mail['reject'];
+  adopt: Mail['adopt'];
+  dismiss: Mail['dismiss'];
+  request: Mail['request'];
+  send: Mail['send'];
 }
 
-export interface EndoHost {
-  listMessages(): Promise<Array<Message>>;
-  followMessages(): ERef<AsyncIterable<Message>>;
-  lookup(...petNamePath: string[]): Promise<unknown>;
-  resolve(requestNumber: number, petName: string);
-  reject(requestNumber: number, message: string);
-  reverseLookup(ref: object): Promise<Array<string>>;
-  remove(petName: string);
-  rename(fromPetName: string, toPetName: string);
-  list(): Array<string>; // pet names
+export interface EndoHost extends EndoDirectory {
+  listMessages: Mail['listMessages'];
+  followMessages: Mail['followMessages'];
+  resolve: Mail['resolve'];
+  reject: Mail['reject'];
+  adopt: Mail['adopt'];
+  dismiss: Mail['dismiss'];
+  request: Mail['request'];
+  send: Mail['send'];
   store(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
@@ -459,7 +458,9 @@ export interface EndoHost {
     petName?: string,
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
+  makeDirectory(petName: string): Promise<EndoDirectory>;
   makeWorker(petName: string): Promise<EndoWorker>;
+  provideWorker(petName: string): Promise<EndoWorker>;
   evaluate(
     workerPetName: string | undefined,
     source: string,
@@ -479,7 +480,22 @@ export interface EndoHost {
     powersName: string,
     resultName?: string,
   ): Promise<unknown>;
+  provideWebPage(
+    webPageName: string,
+    bundleName: string,
+    powersName: string,
+  ): Promise<unknown>;
+  cancel(petName: string, reason: Error): Promise<void>;
 }
+
+export interface InternalEndoHost {
+  receive: Mail['receive'];
+  respond: Mail['respond'];
+  petStore: PetStore;
+}
+
+export interface EndoHostController
+  extends Controller<FarRef<EndoHost>, InternalEndoHost> {}
 
 export type EndoInspector<Record = string> = {
   lookup: (petName: Record) => Promise<unknown>;
@@ -535,7 +551,7 @@ export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,
     assertValidName: AssertValidNameFn,
-  ) => Promise<FarRef<PetStore>>;
+  ) => Promise<PetStore>;
 };
 
 export type SocketPowers = {
@@ -634,6 +650,81 @@ export type DaemonicPowers = {
   persistence: DaemonicPersistencePowers;
   control: DaemonicControlPowers;
 };
+
+type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
+export interface DaemonCore {
+  provideValueForFormulaIdentifier: (
+    formulaIdentifier: string,
+  ) => Promise<unknown>;
+  provideControllerForFormulaIdentifier: (
+    formulaIdentifier: string,
+  ) => Controller;
+  provideControllerForFormulaIdentifierAndResolveHandle: (
+    formulaIdentifier: string,
+  ) => Promise<Controller>;
+  provideValueForNumberedFormula: (
+    formulaType: string,
+    formulaNumber: string,
+    formula: Formula,
+  ) => Promise<{ formulaIdentifier: string; value: unknown }>;
+  getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
+  incarnateEndoBootstrap: (
+    specifiedFormulaNumber: string,
+  ) => IncarnateResult<FarEndoBootstrap>;
+  incarnateWorker: () => IncarnateResult<EndoWorker>;
+  incarnatePetStore: () => IncarnateResult<PetStore>;
+  incarnateDirectory: () => IncarnateResult<EndoDirectory>;
+  incarnatePetInspector: (
+    petStoreFormulaIdentifier: string,
+  ) => IncarnateResult<EndoInspector>;
+  incarnateHost: (
+    endoFormulaIdentifier: string,
+    leastAuthorityFormulaIdentifier: string,
+    specifiedWorkerFormulaIdentifier?: string | undefined,
+  ) => IncarnateResult<EndoHost>;
+  incarnateGuest: (
+    hostHandleFormulaIdenfitier: string,
+  ) => IncarnateResult<EndoGuest>;
+  incarnateReadableBlob: (
+    contentSha512: string,
+  ) => IncarnateResult<FarEndoReadable>;
+  incarnateEval: (
+    hostFormulaIdentifier: string,
+    source: string,
+    codeNames: string[],
+    endowmentFormulaIdsOrPaths: (string | string[])[],
+    hooks: EvalFormulaHook[],
+    specifiedWorkerFormulaIdentifier?: string,
+  ) => IncarnateResult<unknown>;
+  incarnateUnconfined: (
+    workerFormulaIdentifier: string,
+    powersFormulaIdentifier: string,
+    specifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateBundler: (
+    powersFormulaIdentifier: string,
+    workerFormulaIdentifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateBundle: (
+    powersFormulaIdentifier: string,
+    workerFormulaIdentifier: string,
+    bundleFormulaIdentifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateWebBundle: (
+    powersFormulaIdentifier: string,
+    bundleFormulaIdentifier: string,
+  ) => IncarnateResult<unknown>;
+  incarnateHandle: (
+    targetFormulaIdentifier: string,
+  ) => IncarnateResult<ExternalHandle>;
+  incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;
+  cancelValue: (formulaIdentifier: string, reason: Error) => Promise<void>;
+  storeReaderRef: (
+    readerRef: ERef<AsyncIterableIterator<string>>,
+  ) => Promise<string>;
+  makeMailbox: MakeMailbox;
+  makeDirectoryNode: MakeDirectoryNode;
+}
 
 export type Mutex = {
   lock: () => Promise<void>;
