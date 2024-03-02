@@ -76,10 +76,12 @@ export const makeGuestMaker = ({
     });
     const directory = makeDirectoryNode(petStore);
 
-    const { list, follow, listEntries, followEntries } = petStore;
+    const { listEntries, followEntries } = petStore;
     const {
       has,
       identify,
+      list,
+      followChanges,
       lookup,
       reverseLookup,
       write,
@@ -92,13 +94,13 @@ export const makeGuestMaker = ({
     /** @type {import('./types.js').EndoGuest} */
     const guest = {
       // PetStore
-      list,
-      followNames: follow,
       listEntries,
       followEntries,
       // Directory
       has,
       identify,
+      list,
+      followChanges,
       lookup,
       reverseLookup,
       write,
@@ -119,8 +121,8 @@ export const makeGuestMaker = ({
 
     const external = Far('EndoGuest', {
       ...guest,
-      followNames: () => makeIteratorRef(guest.followNames()),
       followEntries: () => makeIteratorRef(guest.followEntries()),
+      followChanges: () => makeIteratorRef(guest.followChanges()),
     });
     const internal = harden({
       receive,

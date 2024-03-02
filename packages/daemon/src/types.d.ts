@@ -332,6 +332,10 @@ export interface PetStore {
 export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
+  list(...petNamePath: string[]): Promise<Array<string>>;
+  followChanges(
+    ...petNamePath: string[]
+  ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
   write(petNamePath: string[], formulaIdentifier): Promise<void>;
@@ -425,8 +429,6 @@ export type MakeHostOrGuestOptions = {
 };
 
 export interface EndoGuest extends EndoDirectory {
-  list: PetStore['list'];
-  followNames: PetStore['follow'];
   listEntries: PetStore['listEntries'];
   followEntries: PetStore['followEntries'];
   listMessages: Mail['listMessages'];
@@ -440,8 +442,6 @@ export interface EndoGuest extends EndoDirectory {
 }
 
 export interface EndoHost extends EndoDirectory {
-  list: PetStore['list'];
-  followNames: PetStore['follow'];
   listEntries: PetStore['listEntries'];
   followEntries: PetStore['followEntries'];
   listMessages: Mail['listMessages'];

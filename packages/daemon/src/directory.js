@@ -83,6 +83,29 @@ export const makeDirectoryMaker = ({
       return hub.identify(name);
     };
 
+    /** @type {import('./types.js').EndoDirectory['list']} */
+    const list = async (...petNamePath) => {
+      if (petNamePath.length === 0) {
+        return petStore.list();
+      }
+      const hub = /** @type {import('./types.js').NameHub} */ (
+        await lookup(...petNamePath)
+      );
+      return hub.list();
+    };
+
+    /** @type {import('./types.js').EndoDirectory['followChanges']} */
+    const followChanges = async function* followChanges(...petNamePath) {
+      if (petNamePath.length === 0) {
+        yield* petStore.follow();
+        return;
+      }
+      const hub = /** @type {import('./types.js').NameHub} */ (
+        await lookup(...petNamePath)
+      );
+      yield* hub.followChanges();
+    };
+
     /** @type {import('./types.js').EndoDirectory['remove']} */
     const remove = async (...petNamePath) => {
       if (petNamePath.length === 1) {
@@ -154,6 +177,8 @@ export const makeDirectoryMaker = ({
     const directory = {
       has,
       identify,
+      list,
+      followChanges,
       lookup,
       reverseLookup,
       write,
