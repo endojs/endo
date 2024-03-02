@@ -1,6 +1,7 @@
 // @ts-check
 
 import { E, Far } from '@endo/far';
+import { makeIteratorRef } from './reader-ref.js';
 
 const { quote: q } = assert;
 
@@ -206,7 +207,10 @@ export const makeDirectoryMaker = ({
     );
     const directory = makeDirectoryNode(petStore);
 
-    const external = Far('EndoDirectory', directory);
+    const external = Far('EndoDirectory', {
+      ...directory,
+      followChanges: () => makeIteratorRef(directory.followChanges()),
+    });
     const internal = harden({});
 
     return harden({ external, internal });
