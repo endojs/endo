@@ -2,7 +2,6 @@
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
-import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
@@ -88,24 +87,21 @@ export const makeMailboxMaker = ({
     const listMessages = async () => harden(Array.from(dubAndFilterMessages()));
 
     /** @type {import('./types.js').Mail['followMessages']} */
-    const followMessages = async () =>
-      makeIteratorRef(
-        (async function* currentAndSubsequentMessages() {
-          const subsequentRequests = messagesTopic.subscribe();
-          for (const message of messages.values()) {
-            const dubbedMessage = dubMessage(message);
-            if (dubbedMessage !== undefined) {
-              yield dubbedMessage;
-            }
-          }
-          for await (const message of subsequentRequests) {
-            const dubbedMessage = dubMessage(message);
-            if (dubbedMessage !== undefined) {
-              yield dubbedMessage;
-            }
-          }
-        })(),
-      );
+    const followMessages = async function* currentAndSubsequentMessages() {
+      const subsequentRequests = messagesTopic.subscribe();
+      for (const message of messages.values()) {
+        const dubbedMessage = dubMessage(message);
+        if (dubbedMessage !== undefined) {
+          yield dubbedMessage;
+        }
+      }
+      for await (const message of subsequentRequests) {
+        const dubbedMessage = dubMessage(message);
+        if (dubbedMessage !== undefined) {
+          yield dubbedMessage;
+        }
+      }
+    };
 
     /**
      * @param {object} partialMessage
@@ -444,7 +440,6 @@ export const makeMailboxMaker = ({
 
     return harden({
       petStore: mailStore,
-      // Mail
       listMessages,
       followMessages,
       request,

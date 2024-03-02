@@ -579,6 +579,7 @@ export const makeHostMaker = ({
     const external = Far('EndoHost', {
       ...host,
       followChanges: () => makeIteratorRef(host.followChanges()),
+      followMessages: () => makeIteratorRef(host.followMessages()),
     });
     const internal = harden({ receive, respond, petStore });
 

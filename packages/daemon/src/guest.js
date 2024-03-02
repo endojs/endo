@@ -119,6 +119,7 @@ export const makeGuestMaker = ({
     const external = Far('EndoGuest', {
       ...guest,
       followChanges: () => makeIteratorRef(guest.followChanges()),
+      followMessages: () => makeIteratorRef(guest.followMessages()),
     });
     const internal = harden({
       receive,

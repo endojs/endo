@@ -353,7 +353,7 @@ export interface Mail {
   petStore: PetStore;
   // Mail operations:
   listMessages(): Promise<Array<Message>>;
-  followMessages(): Promise<FarRef<Reader<Message>>>;
+  followMessages(): AsyncGenerator<Message, undefined, undefined>;
   resolve(messageNumber: number, resolutionName: string): Promise<void>;
   reject(messageNumber: number, message?: string): Promise<void>;
   adopt(
