@@ -317,8 +317,6 @@ export interface PetStore {
   identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
   follow(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
-  listEntries(): Array<[string, FormulaIdentifierRecord]>;
-  followEntries(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   remove(petName: string): Promise<void>;
   rename(fromPetName: string, toPetName: string): Promise<void>;
@@ -429,8 +427,6 @@ export type MakeHostOrGuestOptions = {
 };
 
 export interface EndoGuest extends EndoDirectory {
-  listEntries: PetStore['listEntries'];
-  followEntries: PetStore['followEntries'];
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
   resolve: Mail['resolve'];
@@ -442,8 +438,6 @@ export interface EndoGuest extends EndoDirectory {
 }
 
 export interface EndoHost extends EndoDirectory {
-  listEntries: PetStore['listEntries'];
-  followEntries: PetStore['followEntries'];
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
   resolve: Mail['resolve'];

@@ -51,24 +51,6 @@ export const makePetSitter = (petStore, specialNames) => {
     yield* petStore.follow();
   };
 
-  // Provided as an alias for follow, with naming symmetry to listEntries.
-  /** @type {import('./types.js').PetStore['follow']} */
-  const followEntries = follow;
-
-  // Returns in Object.fromEntries format.
-  /** @type {import('./types.js').PetStore['listEntries']} */
-  const listEntries = () => {
-    const specialEntries = Object.keys(specialNames)
-      .sort()
-      .map(name => {
-        return /** @type {[string, import('./types.js').FormulaIdentifierRecord]} */ ([
-          name,
-          formulaIdentifierRecordForName(name),
-        ]);
-      });
-    return harden([...specialEntries, ...petStore.listEntries()]);
-  };
-
   /** @type {import('./types.js').PetStore['reverseIdentify']} */
   const reverseIdentify = formulaIdentifier => {
     const names = Array.from(petStore.reverseIdentify(formulaIdentifier));
@@ -90,8 +72,6 @@ export const makePetSitter = (petStore, specialNames) => {
     reverseIdentify,
     list,
     follow,
-    listEntries,
-    followEntries,
     write,
     remove,
     rename,

@@ -526,7 +526,6 @@ export const makeHostMaker = ({
       return cancelValue(formulaIdentifier, reason);
     };
 
-    const { listEntries, followEntries } = petStore;
     const {
       has,
       identify,
@@ -543,9 +542,6 @@ export const makeHostMaker = ({
 
     /** @type {import('./types.js').EndoHost} */
     const host = {
-      // PetStore
-      listEntries,
-      followEntries,
       // Directory
       has,
       identify,
@@ -582,7 +578,6 @@ export const makeHostMaker = ({
 
     const external = Far('EndoHost', {
       ...host,
-      followEntries: () => makeIteratorRef(host.followEntries()),
       followChanges: () => makeIteratorRef(host.followChanges()),
     });
     const internal = harden({ receive, respond, petStore });

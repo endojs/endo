@@ -135,18 +135,6 @@ export const makePetStoreMaker = (filePowers, locator) => {
       yield* changes;
     };
 
-    // Returns in Object.fromEntries format.
-    /** @type {import('./types.js').PetStore['listEntries']} */
-    const listEntries = () =>
-      harden(
-        [...petNames.keys()].sort().map(name => {
-          return [name, formulaIdentifierRecordForName(name)];
-        }),
-      );
-    // Provided as an alias for follow, with naming symmetry to listEntries.
-    /** @type {import('./types.js').PetStore['follow']} */
-    const followEntries = follow;
-
     /** @type {import('./types.js').PetStore['remove']} */
     const remove = async petName => {
       assertValidName(petName);
@@ -248,8 +236,6 @@ export const makePetStoreMaker = (filePowers, locator) => {
       reverseIdentify,
       list,
       follow,
-      listEntries,
-      followEntries,
       write,
       remove,
       rename,
