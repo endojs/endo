@@ -354,11 +354,25 @@ export interface Mail {
   // Mail operations:
   listMessages(): Promise<Array<Message>>;
   followMessages(): Promise<FarRef<Reader<Message>>>;
+  resolve(messageNumber: number, resolutionName: string): Promise<void>;
+  reject(messageNumber: number, message?: string): Promise<void>;
+  adopt(
+    messageNumber: number,
+    edgeName: string,
+    petName: string,
+  ): Promise<void>;
+  dismiss(messageNumber: number): Promise<void>;
   request(
     recipientName: string,
     what: string,
     responseName: string,
   ): Promise<unknown>;
+  send(
+    recipientName: string,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNames: Array<string>,
+  ): Promise<void>;
   respond(
     what: string,
     responseName: string,
@@ -373,20 +387,6 @@ export interface Mail {
     formulaIdentifiers: Array<string>,
     receiverFormulaIdentifier: string,
   ): void;
-  send(
-    recipientName: string,
-    strings: Array<string>,
-    edgeNames: Array<string>,
-    petNames: Array<string>,
-  ): Promise<void>;
-  resolve(messageNumber: number, resolutionName: string): Promise<void>;
-  reject(messageNumber: number, message?: string): Promise<void>;
-  dismiss(messageNumber: number): Promise<void>;
-  adopt(
-    messageNumber: number,
-    edgeName: string,
-    petName: string,
-  ): Promise<void>;
 }
 
 export type MakeMailbox = (args: {

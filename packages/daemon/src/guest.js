@@ -57,23 +57,12 @@ export const makeGuestMaker = ({
       );
     }
 
-    const {
-      petStore,
-      followMessages,
-      listMessages,
-      resolve,
-      reject,
-      dismiss,
-      adopt,
-      send,
-      receive,
-      respond,
-      request,
-    } = makeMailbox({
+    const mailbox = makeMailbox({
       petStore: specialStore,
       selfFormulaIdentifier: guestFormulaIdentifier,
       context,
     });
+    const { petStore } = mailbox;
     const directory = makeDirectoryNode(petStore);
 
     const {
@@ -89,6 +78,18 @@ export const makeGuestMaker = ({
       copy,
       makeDirectory,
     } = directory;
+    const {
+      listMessages,
+      followMessages,
+      resolve,
+      reject,
+      adopt,
+      dismiss,
+      request,
+      send,
+      receive,
+      respond,
+    } = mailbox;
 
     /** @type {import('./types.js').EndoGuest} */
     const guest = {

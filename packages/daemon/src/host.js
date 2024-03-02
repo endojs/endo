@@ -73,24 +73,12 @@ export const makeHostMaker = ({
       NONE: leastAuthorityFormulaIdentifier,
     });
 
-    const {
-      petStore,
-      listMessages,
-      followMessages,
-      resolve,
-      reject,
-      respond,
-      request,
-      receive,
-      send,
-      dismiss,
-      adopt,
-    } = makeMailbox({
+    const mailbox = makeMailbox({
       petStore: specialStore,
       selfFormulaIdentifier: hostFormulaIdentifier,
       context,
     });
-
+    const { petStore } = mailbox;
     const directory = makeDirectoryNode(petStore);
 
     /**
@@ -539,6 +527,18 @@ export const makeHostMaker = ({
       copy,
       makeDirectory,
     } = directory;
+    const {
+      listMessages,
+      followMessages,
+      resolve,
+      reject,
+      adopt,
+      dismiss,
+      request,
+      send,
+      receive,
+      respond,
+    } = mailbox;
 
     /** @type {import('./types.js').EndoHost} */
     const host = {
