@@ -495,12 +495,35 @@ const makeDaemonCore = async (
         internal: undefined,
       };
     } else if (formula.type === 'least-authority') {
-      /** @type {import('./types.js').EndoGuest} */
-      const leastAuthority = Far('EndoGuest', {
-        async request() {
-          throw new Error('declined');
-        },
-      });
+      const disallowedFn = async () => {
+        throw new Error('not allowed');
+      };
+      const leastAuthority =
+        /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */ (
+          /** @type {unknown} */ (
+            Far('EndoGuest', {
+              has: disallowedFn,
+              identify: disallowedFn,
+              list: disallowedFn,
+              followChanges: disallowedFn,
+              lookup: disallowedFn,
+              reverseLookup: disallowedFn,
+              write: disallowedFn,
+              remove: disallowedFn,
+              move: disallowedFn,
+              copy: disallowedFn,
+              listMessages: disallowedFn,
+              followMessages: disallowedFn,
+              resolve: disallowedFn,
+              reject: disallowedFn,
+              adopt: disallowedFn,
+              dismiss: disallowedFn,
+              request: disallowedFn,
+              send: disallowedFn,
+              makeDirectory: disallowedFn,
+            })
+          )
+        );
       return { external: leastAuthority, internal: undefined };
     } else if (formula.type === 'pet-store') {
       const external = petStorePowers.makeIdentifiedPetStore(
