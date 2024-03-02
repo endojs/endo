@@ -49,14 +49,19 @@ export async function bundleZipBase64(
     );
     writeSourceMap = async (
       sourceMap,
-      { sha512, compartment: packageLocation, module: moduleSpecifier },
+      {
+        sha512,
+        sourceSha512 = sha512,
+        compartment: packageLocation,
+        module: moduleSpecifier,
+      },
     ) => {
       const location = new URL(moduleSpecifier, packageLocation).href;
       const locationSha512 = computeSha512(location);
       const locationSha512Head = locationSha512.slice(0, 2);
       const locationSha512Tail = locationSha512.slice(2);
-      const sha512Head = sha512.slice(0, 2);
-      const sha512Tail = sha512.slice(2);
+      const sourceSha512Head = sourceSha512.slice(0, 2);
+      const sourceSha512Tail = sourceSha512.slice(2);
       const sourceMapTrackerDirectory = pathResolve(
         sourceMapsTrackerDirectory,
         locationSha512Head,
@@ -67,11 +72,11 @@ export async function bundleZipBase64(
       );
       const sourceMapDirectory = pathResolve(
         sourceMapsCacheDirectory,
-        sha512Head,
+        sourceSha512Head,
       );
       const sourceMapPath = pathResolve(
         sourceMapDirectory,
-        `${sha512Tail}.map.json`,
+        `${sourceSha512Tail}.map.json`,
       );
 
       await fs.promises

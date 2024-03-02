@@ -339,9 +339,11 @@ export const makeImportHookMaker = (
             importMeta: { url: moduleLocation },
           };
 
+          let sourceSha512;
           let sha512;
           if (computeSha512 !== undefined) {
             sha512 = computeSha512(transformedBytes);
+            sourceSha512 = computeSha512(moduleBytes);
 
             if (sourceMapHook !== undefined && sourceMap !== undefined) {
               sourceMapHook(sourceMap, {
@@ -349,6 +351,7 @@ export const makeImportHookMaker = (
                 module: candidateSpecifier,
                 location: moduleLocation,
                 sha512,
+                sourceSha512,
               });
             }
           }
@@ -363,6 +366,7 @@ export const makeImportHookMaker = (
             bytes: transformedBytes,
             record: concreteRecord,
             sha512,
+            sourceSha512,
           };
           if (!shouldDeferError(parser)) {
             for (const importSpecifier of getImportsFromRecord(record)) {

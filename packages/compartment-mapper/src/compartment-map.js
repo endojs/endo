@@ -143,7 +143,7 @@ const assertCompartmentModule = (allegedModule, path, url) => {
  * @param {string} url
  */
 const assertFileModule = (allegedModule, path, url) => {
-  const { location, parser, sha512, ...extra } = allegedModule;
+  const { location, parser, sha512, sourceSha512, ...extra } = allegedModule;
   assertEmptyObject(
     extra,
     `${path} must not have extra properties, got ${q(
@@ -172,6 +172,13 @@ const assertFileModule = (allegedModule, path, url) => {
       sha512,
       'string',
       `${path}.sha512 must be a string, got ${q(sha512)} in ${q(url)}`,
+    );
+  }
+  if (sourceSha512 !== undefined) {
+    assert.typeof(
+      sourceSha512,
+      'string',
+      `${path}.sourceSha512 must be a string, got ${q(sourceSha512)} in ${q(url)}`,
     );
   }
 };

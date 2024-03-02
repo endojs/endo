@@ -161,12 +161,20 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
       if (compartmentSources) {
         for (const name of keys(compartmentSources).sort()) {
           const source = compartmentSources[name];
-          const { location, parser, exit, sha512, deferredError } = source;
+          const {
+            location,
+            parser,
+            exit,
+            sha512,
+            sourceSha512,
+            deferredError,
+          } = source;
           if (location !== undefined) {
             modules[name] = {
               location,
               parser,
               sha512,
+              sourceSha512,
             };
           } else if (exit !== undefined) {
             modules[name] = {

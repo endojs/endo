@@ -189,6 +189,11 @@ const makeArchiveImportHookMaker = (
           location: sourceLocation,
           sha512: module.sha512,
         });
+      } else if (module.sourceSha512) {
+        const sha512 = module.sourceSha512;
+        const prefix = sha512.slice(0, 2);
+        const suffix = sha512.slice(2);
+        sourceMapUrl = `sourcemap:${prefix}/${suffix}.map.json`;
       }
 
       // eslint-disable-next-line no-await-in-loop

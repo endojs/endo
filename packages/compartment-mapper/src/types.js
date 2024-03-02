@@ -65,6 +65,7 @@ export {};
  * @property {string} [location]
  * @property {Language} [parser]
  * @property {string} [sha512] in base 16, hex
+ * @property {string} [sourceSha512] in base 16, hex
  * @property {string} [exit]
  * @property {string} [deferredError]
  */
@@ -220,6 +221,7 @@ export {};
  * @property {string} module
  * @property {string} location
  * @property {string} sha512
+ * @property {string} sourceSha512
  */
 
 /**
