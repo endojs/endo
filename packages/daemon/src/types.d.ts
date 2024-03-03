@@ -59,6 +59,7 @@ type FormulaIdentifierRecord = {
 
 type EndoFormula = {
   type: 'endo';
+  networks: string;
   host: string;
   leastAuthority: string;
   webPageJs?: string;
@@ -74,6 +75,7 @@ type HostFormula = {
   inspector: string;
   petStore: string;
   endo: string;
+  networks: string;
   leastAuthority: string;
 };
 
@@ -141,6 +143,13 @@ type MakeBundleFormula = {
   // TODO formula slots
 };
 
+type PeerFormula = {
+  type: 'peer';
+  networks: string;
+  powers: string;
+  addresses: Array<string>;
+};
+
 type WebBundleFormula = {
   type: 'web-bundle';
   bundle: string;
@@ -181,7 +190,8 @@ export type Formula =
   | HandleFormula
   | PetInspectorFormula
   | PetStoreFormula
-  | DirectoryFormula;
+  | DirectoryFormula
+  | PeerFormula;
 
 export type Label = {
   number: number;
@@ -212,6 +222,11 @@ export type InternalPayload = InternalRequest | InternalPackage;
 
 export type Message = Label & Payload;
 export type InternalMessage = InternalLabel & InternalPayload;
+
+export type Invitation = {
+  powers: string;
+  addresses: Array<string>;
+};
 
 export interface Topic<
   TRead,
@@ -282,9 +297,13 @@ export interface InternalExternal<External = unknown, Internal = unknown> {
   internal: Internal;
 }
 
-export interface Controller<External = unknown, Internal = unknown> {
+export interface ControllerPartial<External = unknown, Internal = unknown> {
   external: Promise<External>;
   internal: Promise<Internal>;
+}
+
+export interface Controller<External = unknown, Internal = unknown>
+  extends ControllerPartial<External, Internal> {
   context: Context;
 }
 
@@ -427,6 +446,22 @@ export type MakeHostOrGuestOptions = {
   introducedNames?: Record<string, string>;
 };
 
+export interface EndoPeer {}
+export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
+export type EndoPeerController = Controller<EndoPeer, undefined>;
+
+export interface EndoGateway {
+  provideValueForFormulaIdentifier: (
+    formulaIdentifier: string,
+  ) => Promise<unknown>;
+}
+
+export interface EndoNetwork {
+  supports: (network: string) => boolean;
+  addresses: () => Array<string>;
+  connect: (address: string, farContext: FarContext) => EndoGateway;
+}
+
 export interface EndoGuest extends EndoDirectory {
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
@@ -487,6 +522,8 @@ export interface EndoHost extends EndoDirectory {
     powersName: string,
   ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
+  invite(guestName: string): Promise<Invitation>;
+  accept(invitation: Invitation): Promise<EndoPeer>;
 }
 
 export interface InternalEndoHost {
@@ -526,6 +563,7 @@ export type FarEndoBootstrap = FarRef<{
   leastAuthority: () => Promise<EndoGuest>;
   webPageJs: () => Promise<unknown>;
   importAndEndowInWebPage: () => Promise<void>;
+  reviveNetworks: () => Promise<void>;
 }>;
 
 export type CryptoPowers = {
@@ -669,6 +707,9 @@ export interface DaemonCore {
     formula: Formula,
   ) => Promise<{ formulaIdentifier: string; value: unknown }>;
   getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
+  getAllNetworkAddresses: (
+    networksDirectoryFormulaIdentifier: string,
+  ) => Promise<string[]>;
   incarnateEndoBootstrap: (
     specifiedFormulaNumber: string,
   ) => IncarnateResult<FarEndoBootstrap>;
@@ -680,6 +721,7 @@ export interface DaemonCore {
   ) => IncarnateResult<EndoInspector>;
   incarnateHost: (
     endoFormulaIdentifier: string,
+    networksDirectoryFormulaIdentifier: string,
     leastAuthorityFormulaIdentifier: string,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
@@ -718,6 +760,11 @@ export interface DaemonCore {
   incarnateHandle: (
     targetFormulaIdentifier: string,
   ) => IncarnateResult<ExternalHandle>;
+  incarnatePeer: (
+    networksFormulaIdentifier: string,
+    powersFormulaIdentifier: string,
+    addresses: Array<string>,
+  ) => IncarnateResult<EndoPeer>;
   incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;
   cancelValue: (formulaIdentifier: string, reason: Error) => Promise<void>;
   storeReaderRef: (

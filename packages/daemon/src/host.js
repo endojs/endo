@@ -20,7 +20,9 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
  * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
+ * @param {import('./types.js').DaemonCore['incarnatePeer']} args.incarnatePeer
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
+ * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
@@ -36,25 +38,29 @@ export const makeHostMaker = ({
   incarnateBundle,
   incarnateWebBundle,
   incarnateHandle,
+  incarnatePeer,
   storeReaderRef,
+  getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
-   * @param {string} endoFormulaIdentifier
    * @param {string} storeFormulaIdentifier
    * @param {string} inspectorFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {string} endoFormulaIdentifier
+   * @param {string} networksDirectoryFormulaIdentifier
    * @param {string} leastAuthorityFormulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
-    endoFormulaIdentifier,
     storeFormulaIdentifier,
     inspectorFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    endoFormulaIdentifier,
+    networksDirectoryFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
     context,
   ) => {
@@ -69,6 +75,7 @@ export const makeHostMaker = ({
     const specialStore = makePetSitter(basePetStore, {
       SELF: hostFormulaIdentifier,
       ENDO: endoFormulaIdentifier,
+      NETS: networksDirectoryFormulaIdentifier,
       INFO: inspectorFormulaIdentifier,
       NONE: leastAuthorityFormulaIdentifier,
     });
@@ -438,6 +445,7 @@ export const makeHostMaker = ({
         const { formulaIdentifier: newFormulaIdentifier, value } =
           await incarnateHost(
             endoFormulaIdentifier,
+            networksDirectoryFormulaIdentifier,
             leastAuthorityFormulaIdentifier,
           );
         if (petName !== undefined) {
@@ -514,6 +522,38 @@ export const makeHostMaker = ({
       return cancelValue(formulaIdentifier, reason);
     };
 
+    // TODO expand guestName to guestPath
+    /** @type {import('./types.js').EndoHost['invite']} */
+    const invite = async guestName => {
+      assertPetName(guestName);
+      const { formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
+        guestName,
+      );
+      if (guestFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name: ${guestName}`);
+      }
+      const addresses = await getAllNetworkAddresses(
+        networksDirectoryFormulaIdentifier,
+      );
+      return harden({
+        powers: guestFormulaIdentifier,
+        addresses,
+      });
+    };
+
+    /** @type {import('./types.js').EndoHost['accept']} */
+    const accept = async (invitation, ...resultPath) => {
+      // TODO validate invitation
+      const { powers, addresses } = invitation;
+      const { formulaIdentifier, value: endoPeer } = await incarnatePeer(
+        networksDirectoryFormulaIdentifier,
+        powers,
+        addresses,
+      );
+      await directory.write(resultPath, formulaIdentifier);
+      return endoPeer;
+    };
+
     const {
       has,
       identify,
@@ -576,6 +616,8 @@ export const makeHostMaker = ({
       makeBundle,
       provideWebPage,
       cancel,
+      invite,
+      accept,
     };
 
     const external = Far('EndoHost', {

@@ -402,10 +402,11 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       return makeIdentifiedHost(
         formulaIdentifier,
-        formula.endo,
         formula.petStore,
         formula.inspector,
         formula.worker,
+        formula.endo,
+        formula.networks,
         formula.leastAuthority,
         context,
       );
@@ -489,6 +490,23 @@ const makeDaemonCore = async (
           const bundle = await E(bundleBlob).json();
           await E(webPageP).makeBundle(bundle, endowedPowers);
         },
+        reviveNetworks: async () => {
+          const networksDirectory =
+            /** @type {import('./types.js').EndoDirectory} */ (
+              // Behold, recursion:
+              // eslint-disable-next-line no-use-before-define
+              await provideValueForFormulaIdentifier(formula.networks)
+            );
+          const networkFormulaIdentifiers =
+            await networksDirectory.listIdentifiers();
+          await Promise.allSettled(
+            networkFormulaIdentifiers.map(
+              // Behold, recursion:
+              // eslint-disable-next-line no-use-before-define
+              provideValueForFormulaIdentifier,
+            ),
+          );
+        },
       });
       return {
         external: endoBootstrap,
@@ -543,6 +561,15 @@ const makeDaemonCore = async (
         petStoreFormulaIdentifier: formula.petStore,
         context,
       });
+    } else if (formula.type === 'peer') {
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      return makePeer(
+        formula.networks,
+        formula.powers,
+        formula.addresses,
+        context,
+      );
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -570,6 +597,7 @@ const makeDaemonCore = async (
         'host',
         'guest',
         'least-authority',
+        'peer',
         'web-bundle',
         'web-page-js',
         'handle',
@@ -828,6 +856,7 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['incarnateHost']} */
   const incarnateHost = async (
     endoFormulaIdentifier,
+    networksDirectoryFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
     specifiedWorkerFormulaIdentifier,
   ) => {
@@ -849,6 +878,7 @@ const makeDaemonCore = async (
       inspector: inspectorFormulaIdentifier,
       worker: workerFormulaIdentifier,
       endo: endoFormulaIdentifier,
+      networks: networksDirectoryFormulaIdentifier,
       leastAuthority: leastAuthorityFormulaIdentifier,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
@@ -1057,6 +1087,27 @@ const makeDaemonCore = async (
     );
   };
 
+  /** @type {import('./types.js').DaemonCore['incarnatePeer']} */
+  const incarnatePeer = async (
+    networksDirectoryFormulaIdentifier,
+    remotePowersFormulaIdentifier,
+    addresses,
+  ) => {
+    const formulaNumber = await randomHex512();
+    // TODO: validate addresses
+    // TODO: mutable state like addresses should not be stored in formula
+    /** @type {import('./types.js').PeerFormula} */
+    const formula = {
+      type: 'peer',
+      networks: networksDirectoryFormulaIdentifier,
+      powers: remotePowersFormulaIdentifier,
+      addresses,
+    };
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoPeer>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
   /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
@@ -1064,6 +1115,8 @@ const makeDaemonCore = async (
 
     const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
       await incarnateWorker();
+    const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
+      await incarnateDirectory();
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
       await incarnateLeastAuthority();
 
@@ -1071,6 +1124,7 @@ const makeDaemonCore = async (
     const { formulaIdentifier: defaultHostFormulaIdentifier } =
       await incarnateHost(
         endoFormulaIdentifier,
+        networksDirectoryFormulaIdentifier,
         leastAuthorityFormulaIdentifier,
         defaultHostWorkerFormulaIdentifier,
       );
@@ -1087,6 +1141,7 @@ const makeDaemonCore = async (
     /** @type {import('./types.js').EndoFormula} */
     const formula = {
       type: 'endo',
+      networks: networksDirectoryFormulaIdentifier,
       host: defaultHostFormulaIdentifier,
       leastAuthority: leastAuthorityFormulaIdentifier,
       webPageJs: webPageJsFormulaIdentifier,
@@ -1094,6 +1149,85 @@ const makeDaemonCore = async (
     return /** @type {import('./types').IncarnateResult<import('./types').FarEndoBootstrap>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
+  };
+
+  /**
+   * @param {string} networksDirectoryFormulaIdentifier
+   * @returns {Promise<import('./types').EndoNetwork[]>}
+   */
+  const getAllNetworks = async networksDirectoryFormulaIdentifier => {
+    const networksDirectory = /** @type {import('./types').EndoDirectory} */ (
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(networksDirectoryFormulaIdentifier)
+    );
+    const networkFormulaIdentifiers = await networksDirectory.listIdentifiers();
+    const networks = /** @type {import('./types').EndoNetwork[]} */ (
+      await Promise.all(
+        networkFormulaIdentifiers.map(provideValueForFormulaIdentifier),
+      )
+    );
+    return networks;
+  };
+
+  /** @type {import('./types.js').DaemonCore['getAllNetworkAddresses']} */
+  const getAllNetworkAddresses = async networksDirectoryFormulaIdentifier => {
+    const networks = await getAllNetworks(networksDirectoryFormulaIdentifier);
+    const addresses = (
+      await Promise.all(
+        networks.map(async network => {
+          return E(network).addresses();
+        }),
+      )
+    ).flat();
+    return addresses;
+  };
+
+  /**
+   * @param {string} networksDirectoryFormulaIdentifier
+   * @param {string} remotePowersFormulaIdentifier
+   * @param {string[]} addresses
+   * @param {import('./types.js').Context} context
+   * @returns {Promise<import('./types.js').EndoPeerControllerPartial>}
+   */
+  const makePeer = async (
+    networksDirectoryFormulaIdentifier,
+    remotePowersFormulaIdentifier,
+    addresses,
+    context,
+  ) => {
+    // TODO race networks that support protocol for connection
+    // TODO retry, exponential back-off, with full jitter
+    // TODO (in connect implementations) allow for the possibility of
+    // connection loss and invalidate the connection formula and its transitive
+    // dependees when this occurs.
+    const networks = await getAllNetworks(networksDirectoryFormulaIdentifier);
+    // Connect on first support address.
+    for (const address of addresses) {
+      const { protocol } = new URL(address);
+      for (const network of networks) {
+        // eslint-disable-next-line no-await-in-loop
+        if (await E(network).supports(protocol)) {
+          const remoteGateway = E(network).connect(
+            address,
+            makeFarContext(context),
+          );
+          const external =
+            /** @type {Promise<import('./types.js').EndoPeer>} */ (
+              E(remoteGateway).provideValueForFormulaIdentifier(
+                remotePowersFormulaIdentifier,
+              )
+            );
+          const internal = Promise.resolve(undefined);
+          // const internal = {
+          //   receive, // TODO
+          //   respond, // TODO
+          //   lookupPath, // TODO
+          // };
+          return harden({ internal, external });
+        }
+      }
+    }
+    throw new Error('Cannot connect to peer: no supported addresses');
   };
 
   const makeContext = makeContextMaker({
@@ -1131,9 +1265,11 @@ const makeDaemonCore = async (
     incarnateBundle,
     incarnateWebBundle,
     incarnateHandle,
+    incarnatePeer,
     storeReaderRef,
     makeMailbox,
     makeDirectoryNode,
+    getAllNetworkAddresses,
   });
 
   /**
@@ -1241,6 +1377,15 @@ const makeDaemonCore = async (
             powers: provideValueForFormulaIdentifier(formula.powers),
           }),
         );
+      } else if (formula.type === 'peer') {
+        return makeInspector(
+          formula.type,
+          formulaNumber,
+          harden({
+            POWERS: provideValueForFormulaIdentifier(formula.powers),
+            ADDRESSES: formula.addresses,
+          }),
+        );
       }
       return makeInspector(formula.type, formulaNumber, harden({}));
     };
@@ -1263,6 +1408,7 @@ const makeDaemonCore = async (
     provideValueForFormulaIdentifier,
     provideValueForNumberedFormula,
     getFormulaIdentifierForRef,
+    getAllNetworkAddresses,
     cancelValue,
     storeReaderRef,
     makeMailbox,
@@ -1275,6 +1421,7 @@ const makeDaemonCore = async (
     incarnateWorker,
     incarnateHost,
     incarnateGuest,
+    incarnatePeer,
     incarnateEval,
     incarnateUnconfined,
     incarnateReadableBlob,
@@ -1362,6 +1509,8 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
       gracePeriodElapsed,
     },
   );
+
+  await E(endoBootstrap).reviveNetworks();
 
   return { endoBootstrap, cancelGracePeriod, assignWebletPort };
 };
