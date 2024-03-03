@@ -331,6 +331,7 @@ export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
   list(...petNamePath: string[]): Promise<Array<string>>;
+  listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followChanges(
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;

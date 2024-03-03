@@ -95,6 +95,21 @@ export const makeDirectoryMaker = ({
       return hub.list();
     };
 
+    /** @type {import('./types.js').EndoDirectory['listIdentifiers']} */
+    const listIdentifiers = async (...petNamePath) => {
+      const names = await list(...petNamePath);
+      const identities = new Set();
+      await Promise.all(
+        names.map(async name => {
+          const formulaIdentifier = await identify(...petNamePath, name);
+          if (formulaIdentifier !== undefined) {
+            identities.add(formulaIdentifier);
+          }
+        }),
+      );
+      return Array.from(identities);
+    };
+
     /** @type {import('./types.js').EndoDirectory['followChanges']} */
     const followChanges = async function* followChanges(...petNamePath) {
       if (petNamePath.length === 0) {
@@ -179,6 +194,7 @@ export const makeDirectoryMaker = ({
       has,
       identify,
       list,
+      listIdentifiers,
       followChanges,
       lookup,
       reverseLookup,
