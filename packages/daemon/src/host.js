@@ -21,6 +21,7 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
  * @param {import('./types.js').DaemonCore['incarnatePeer']} args.incarnatePeer
+ * @param {import('./types.js').DaemonCore['incarnateRemote']} args.incarnateRemote
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
@@ -39,6 +40,7 @@ export const makeHostMaker = ({
   incarnateWebBundle,
   incarnateHandle,
   incarnatePeer,
+  incarnateRemote,
   storeReaderRef,
   getAllNetworkAddresses,
   makeMailbox,
@@ -544,14 +546,18 @@ export const makeHostMaker = ({
     /** @type {import('./types.js').EndoHost['accept']} */
     const accept = async (invitation, ...resultPath) => {
       // TODO validate invitation
-      const { powers, addresses } = invitation;
-      const { formulaIdentifier, value: endoPeer } = await incarnatePeer(
+      const { powers: remoteValueFormulaId, addresses } = invitation;
+      // TODO: Search for existing peer
+      const { formulaIdentifier: peerFormulaIdentifier } = await incarnatePeer(
         networksDirectoryFormulaIdentifier,
-        powers,
         addresses,
       );
+      const { formulaIdentifier, value: remoteValue } = await incarnateRemote(
+        peerFormulaIdentifier,
+        remoteValueFormulaId,
+      );
       await directory.write(resultPath, formulaIdentifier);
-      return endoPeer;
+      return /** @type {import('./types.js').FarEndoGuest} */ (remoteValue);
     };
 
     const {

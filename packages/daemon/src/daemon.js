@@ -575,12 +575,11 @@ const makeDaemonCore = async (
     } else if (formula.type === 'peer') {
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      return makePeer(
-        formula.networks,
-        formula.powers,
-        formula.addresses,
-        context,
-      );
+      return makePeer(formula.networks, formula.addresses, context);
+    } else if (formula.type === 'remote') {
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      return makeRemote(formula.peer, formula.value, context);
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -1102,7 +1101,6 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['incarnatePeer']} */
   const incarnatePeer = async (
     networksDirectoryFormulaIdentifier,
-    remotePowersFormulaIdentifier,
     addresses,
   ) => {
     const formulaNumber = await randomHex512();
@@ -1112,10 +1110,26 @@ const makeDaemonCore = async (
     const formula = {
       type: 'peer',
       networks: networksDirectoryFormulaIdentifier,
-      powers: remotePowersFormulaIdentifier,
       addresses,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoPeer>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /** @type {import('./types.js').DaemonCore['incarnateRemote']} */
+  const incarnateRemote = async (
+    peerFormulaIdentifier,
+    remoteValueFormulaIdentifier,
+  ) => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').RemoteFormula} */
+    const formula = {
+      type: 'remote',
+      peer: peerFormulaIdentifier,
+      value: remoteValueFormulaIdentifier,
+    };
+    return /** @type {import('./types').IncarnateResult<unknown>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
   };
@@ -1218,14 +1232,12 @@ const makeDaemonCore = async (
 
   /**
    * @param {string} networksDirectoryFormulaIdentifier
-   * @param {string} remotePowersFormulaIdentifier
    * @param {string[]} addresses
    * @param {import('./types.js').Context} context
    * @returns {Promise<import('./types.js').EndoPeerControllerPartial>}
    */
   const makePeer = async (
     networksDirectoryFormulaIdentifier,
-    remotePowersFormulaIdentifier,
     addresses,
     context,
   ) => {
@@ -1245,12 +1257,15 @@ const makeDaemonCore = async (
             address,
             makeFarContext(context),
           );
-          const external =
-            /** @type {Promise<import('./types.js').EndoPeer>} */ (
-              E(remoteGateway).provideValueForFormulaIdentifier(
-                remotePowersFormulaIdentifier,
-              )
-            );
+          const external = Promise.resolve({
+            provideValueForFormulaIdentifier: remoteFormulaIdentifier => {
+              return /** @type {Promise<unknown>} */ (
+                E(remoteGateway).provideValueForFormulaIdentifier(
+                  remoteFormulaIdentifier,
+                )
+              );
+            },
+          });
           const internal = Promise.resolve(undefined);
           // const internal = {
           //   receive, // TODO
@@ -1262,6 +1277,28 @@ const makeDaemonCore = async (
       }
     }
     throw new Error('Cannot connect to peer: no supported addresses');
+  };
+
+  /**
+   * @param {string} peerFormulaIdentifier
+   * @param {string} remoteFormulaIdentifier
+   * @param {import('./types.js').Context} context
+   * @returns {Promise<import('./types.js').ControllerPartial<unknown, undefined>>}
+   */
+  const makeRemote = async (
+    peerFormulaIdentifier,
+    remoteFormulaIdentifier,
+    context,
+  ) => {
+    const peer = /** @type {import('./types.js').EndoPeer} */ (
+      await provideValueForFormulaIdentifier(peerFormulaIdentifier)
+    );
+    const remoteValueP = peer.provideValueForFormulaIdentifier(
+      remoteFormulaIdentifier,
+    );
+    const external = remoteValueP;
+    const internal = Promise.resolve(undefined);
+    return harden({ internal, external });
   };
 
   const makeContext = makeContextMaker({
@@ -1300,6 +1337,7 @@ const makeDaemonCore = async (
     incarnateWebBundle,
     incarnateHandle,
     incarnatePeer,
+    incarnateRemote,
     storeReaderRef,
     makeMailbox,
     makeDirectoryNode,
@@ -1416,8 +1454,15 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            POWERS: provideValueForFormulaIdentifier(formula.powers),
             ADDRESSES: formula.addresses,
+          }),
+        );
+      } else if (formula.type === 'remote') {
+        return makeInspector(
+          formula.type,
+          formulaNumber,
+          harden({
+            PEER: provideValueForFormulaIdentifier(formula.peer),
           }),
         );
       }
@@ -1458,6 +1503,7 @@ const makeDaemonCore = async (
     incarnateHost,
     incarnateGuest,
     incarnatePeer,
+    incarnateRemote,
     incarnateEval,
     incarnateUnconfined,
     incarnateReadableBlob,

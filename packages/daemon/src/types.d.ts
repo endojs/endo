@@ -150,8 +150,13 @@ type MakeBundleFormula = {
 type PeerFormula = {
   type: 'peer';
   networks: string;
-  powers: string;
   addresses: Array<string>;
+};
+
+type RemoteFormula = {
+  type: 'remote';
+  peer: string;
+  value: string;
 };
 
 type WebBundleFormula = {
@@ -196,6 +201,7 @@ export type Formula =
   | PetInspectorFormula
   | PetStoreFormula
   | DirectoryFormula
+  | RemoteFormula
   | PeerFormula;
 
 export type Label = {
@@ -451,7 +457,11 @@ export type MakeHostOrGuestOptions = {
   introducedNames?: Record<string, string>;
 };
 
-export interface EndoPeer {}
+export interface EndoPeer {
+  provideValueForFormulaIdentifier: (
+    formulaIdentifier: string,
+  ) => Promise<unknown>;
+}
 export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
 export type EndoPeerController = Controller<EndoPeer, undefined>;
 
@@ -477,6 +487,7 @@ export interface EndoGuest extends EndoDirectory {
   request: Mail['request'];
   send: Mail['send'];
 }
+export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoDirectory {
   listMessages: Mail['listMessages'];
@@ -528,7 +539,7 @@ export interface EndoHost extends EndoDirectory {
   ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
-  accept(invitation: Invitation): Promise<EndoPeer>;
+  accept(invitation: Invitation): Promise<FarEndoGuest>;
 }
 
 export interface InternalEndoHost {
@@ -767,9 +778,9 @@ export interface DaemonCore {
   ) => IncarnateResult<ExternalHandle>;
   incarnatePeer: (
     networksFormulaIdentifier: string,
-    powersFormulaIdentifier: string,
     addresses: Array<string>,
   ) => IncarnateResult<EndoPeer>;
+  incarnateRemote: (peer: string, value: string) => IncarnateResult<unknown>;
   incarnateNetworksDirectory: () => IncarnateResult<EndoDirectory>;
   incarnateLoopbackNetwork: () => IncarnateResult<EndoNetwork>;
   incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;
