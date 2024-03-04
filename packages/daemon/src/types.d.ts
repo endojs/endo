@@ -65,6 +65,10 @@ type EndoFormula = {
   webPageJs?: string;
 };
 
+type LoopbackNetworkFormula = {
+  type: 'loopback-network';
+};
+
 type WorkerFormula = {
   type: 'worker';
 };
@@ -177,6 +181,7 @@ type DirectoryFormula = {
 
 export type Formula =
   | EndoFormula
+  | LoopbackNetworkFormula
   | WorkerFormula
   | HostFormula
   | GuestFormula
@@ -765,6 +770,8 @@ export interface DaemonCore {
     powersFormulaIdentifier: string,
     addresses: Array<string>,
   ) => IncarnateResult<EndoPeer>;
+  incarnateNetworksDirectory: () => IncarnateResult<EndoDirectory>;
+  incarnateLoopbackNetwork: () => IncarnateResult<EndoNetwork>;
   incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;
   cancelValue: (formulaIdentifier: string, reason: Error) => Promise<void>;
   storeReaderRef: (

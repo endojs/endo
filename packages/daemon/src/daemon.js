@@ -16,6 +16,7 @@ import { makeContextMaker } from './context.js';
 import { parseFormulaIdentifier } from './formula-identifier.js';
 import { makeMutex } from './mutex.js';
 import { makeWeakMultimap } from './weak-multimap.js';
+import { makeLoopbackNetwork } from './networks/loopback.js';
 
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -512,6 +513,16 @@ const makeDaemonCore = async (
         external: endoBootstrap,
         internal: undefined,
       };
+    } else if (formula.type === 'loopback-network') {
+      // Behold, forward-reference:
+      const loopbackNetwork = makeLoopbackNetwork({
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier,
+      });
+      return {
+        external: loopbackNetwork,
+        internal: undefined,
+      };
     } else if (formula.type === 'least-authority') {
       const disallowedFn = async () => {
         throw new Error('not allowed');
@@ -597,6 +608,7 @@ const makeDaemonCore = async (
         'host',
         'guest',
         'least-authority',
+        'loopback-network',
         'peer',
         'web-bundle',
         'web-page-js',
@@ -907,7 +919,7 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore['incarnateEval']} */
   const incarnateEval = async (
-    hostFormulaIdentifier,
+    nameHubFormulaIdentifier,
     source,
     codeNames,
     endowmentFormulaIdsOrPaths,
@@ -938,7 +950,7 @@ const makeDaemonCore = async (
               (
                 await incarnateNumberedLookup(
                   await randomHex512(),
-                  hostFormulaIdentifier,
+                  nameHubFormulaIdentifier,
                   formulaIdOrPath,
                 )
               ).formulaIdentifier
@@ -1108,6 +1120,28 @@ const makeDaemonCore = async (
     );
   };
 
+  /** @type {import('./types.js').DaemonCore['incarnateLoopbackNetwork']} */
+  const incarnateLoopbackNetwork = async () => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types').LoopbackNetworkFormula} */
+    const formula = {
+      type: 'loopback-network',
+    };
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoNetwork>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
+  /** @type {import('./types.js').DaemonCore['incarnateNetworksDirectory']} */
+  const incarnateNetworksDirectory = async () => {
+    const { formulaIdentifier, value } = await incarnateDirectory();
+    // Make default networks.
+    const { formulaIdentifier: loopbackNetworkFormulaIdentifier } =
+      await incarnateLoopbackNetwork();
+    await E(value).write(['loop'], loopbackNetworkFormulaIdentifier);
+    return { formulaIdentifier, value };
+  };
+
   /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
@@ -1116,7 +1150,7 @@ const makeDaemonCore = async (
     const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
       await incarnateWorker();
     const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
-      await incarnateDirectory();
+      await incarnateNetworksDirectory();
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
       await incarnateLeastAuthority();
 
@@ -1415,6 +1449,8 @@ const makeDaemonCore = async (
     makeDirectoryNode,
     incarnateEndoBootstrap,
     incarnateLeastAuthority,
+    incarnateNetworksDirectory,
+    incarnateLoopbackNetwork,
     incarnateHandle,
     incarnatePetStore,
     incarnateDirectory,
