@@ -10,7 +10,7 @@ export const makeLoopbackNetwork = ({ provideValueForFormulaIdentifier }) => {
   return Far(
     'Loopback Network',
     /** @type {import('../types.js').EndoNetwork} */ ({
-      addresses: () => ['loop:'],
+      addresses: () => [],
       supports: address => new URL(address).protocol === 'loop:',
       connect: address => {
         if (address !== 'loop:') {
