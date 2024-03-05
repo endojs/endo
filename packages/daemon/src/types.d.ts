@@ -668,7 +668,7 @@ export type DaemonicPersistencePowers = {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
     fetch: (sha512: string) => EndoReadable;
   };
-  readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
+  readFormula: (formulaNumber: string) => Promise<Formula>;
   writeFormula: (
     formula: Formula,
     formulaType: string,

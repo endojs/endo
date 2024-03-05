@@ -575,17 +575,12 @@ export const makeDaemonicPersistencePowers = (
   };
 
   /**
-   * @param {string} formulaType
    * @param {string} formulaNumber
    */
-  const makeFormulaPath = (formulaType, formulaNumber) => {
+  const makeFormulaPath = formulaNumber => {
     const { statePath } = locator;
     if (formulaNumber.length < 3) {
-      throw new TypeError(
-        `Invalid formula identifier ${q(formulaNumber)} for formula of type ${q(
-          formulaType,
-        )}`,
-      );
+      throw new TypeError(`Invalid formula number ${q(formulaNumber)}`);
     }
     const head = formulaNumber.slice(0, 2);
     const tail = formulaNumber.slice(2);
@@ -595,12 +590,11 @@ export const makeDaemonicPersistencePowers = (
   };
 
   /**
-   * @param {string} prefix
    * @param {string} formulaNumber
    * @returns {Promise<import('./types.js').Formula>}
    */
-  const readFormula = async (prefix, formulaNumber) => {
-    const { file: formulaPath } = makeFormulaPath(prefix, formulaNumber);
+  const readFormula = async formulaNumber => {
+    const { file: formulaPath } = makeFormulaPath(formulaNumber);
     const formulaText = await filePowers.maybeReadFileText(formulaPath);
     if (formulaText === undefined) {
       throw new ReferenceError(`No reference exists at path ${formulaPath}`);
@@ -619,7 +613,7 @@ export const makeDaemonicPersistencePowers = (
 
   // Persist instructions for revival (this can be collected)
   const writeFormula = async (formula, formulaType, formulaNumber) => {
-    const { directory, file } = makeFormulaPath(formulaType, formulaNumber);
+    const { directory, file } = makeFormulaPath(formulaNumber);
     // TODO Take care to write atomically with a rename here.
     await filePowers.makePath(directory);
     await filePowers.writeFileText(file, `${q(formula)}\n`);

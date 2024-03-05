@@ -708,10 +708,7 @@ const makeDaemonCore = async (
         'directory',
       ].includes(formulaType)
     ) {
-      const formula = await persistencePowers.readFormula(
-        formulaType,
-        formulaNumber,
-      );
+      const formula = await persistencePowers.readFormula(formulaNumber);
       // TODO validate
       return makeControllerForFormula(
         formulaIdentifier,
@@ -1649,10 +1646,7 @@ const makeDaemonCore = async (
       ) {
         return makeInspector(formulaType, formulaNumber, harden({}));
       }
-      const formula = await persistencePowers.readFormula(
-        formulaType,
-        formulaNumber,
-      );
+      const formula = await persistencePowers.readFormula(formulaNumber);
       if (formula.type === 'eval') {
         return makeInspector(
           formula.type,
