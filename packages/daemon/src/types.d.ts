@@ -55,6 +55,7 @@ export type MignonicPowers = {
 type FormulaIdentifierRecord = {
   type: string;
   number: string;
+  location: string;
 };
 
 type EndoFormula = {
@@ -106,7 +107,7 @@ type EvalFormula = {
 export type EvalFormulaHook = (
   identifiers: Readonly<{
     endowmentFormulaIdentifiers: string[];
-    evalFormulaNumber: string;
+    evalFormulaIdentifier: string;
     workerFormulaIdentifier: string;
   }>,
 ) => Promise<unknown>;

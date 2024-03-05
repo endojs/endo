@@ -13,7 +13,10 @@ import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
-import { parseFormulaIdentifier } from './formula-identifier.js';
+import {
+  parseFormulaIdentifier,
+  serializeFormulaIdentifier,
+} from './formula-identifier.js';
 import { makeMutex } from './mutex.js';
 import { makeWeakMultimap } from './weak-multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
@@ -64,6 +67,7 @@ const makeFarContext = context =>
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
+ * @param {string} locationId
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
@@ -72,6 +76,7 @@ const makeFarContext = context =>
 const makeDaemonCore = async (
   powers,
   webletPortP,
+  locationId,
   { cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   const {
@@ -586,16 +591,23 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} formulaType
-   * @param {string} formulaNumber
+   * @param {string} formulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeControllerForFormulaIdentifier = async (
-    formulaType,
-    formulaNumber,
+    formulaIdentifier,
     context,
   ) => {
-    const formulaIdentifier = `${formulaType}:${formulaNumber}`;
+    const {
+      type: formulaType,
+      number: formulaNumber,
+      location: formulaLocation,
+    } = parseFormulaIdentifier(formulaIdentifier);
+    if (formulaLocation !== locationId) {
+      throw new Error(
+        `Invalid formula identifier, not local: ${q(formulaIdentifier)}`,
+      );
+    }
     if (
       [
         'endo',
@@ -642,7 +654,11 @@ const makeDaemonCore = async (
     formulaNumber,
     formula,
   ) => {
-    const formulaIdentifier = `${formulaType}:${formulaNumber}`;
+    const formulaIdentifier = serializeFormulaIdentifier({
+      type: formulaType,
+      number: formulaNumber,
+      location: locationId,
+    });
 
     // Memoize for lookup.
     console.log(`Making ${formulaIdentifier}`);
@@ -693,9 +709,6 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} */
   const provideControllerForFormulaIdentifier = formulaIdentifier => {
-    const { type: formulaType, number: formulaNumber } =
-      parseFormulaIdentifier(formulaIdentifier);
-
     let controller = controllerForFormulaIdentifier.get(formulaIdentifier);
     if (controller !== undefined) {
       return controller;
@@ -718,9 +731,7 @@ const makeDaemonCore = async (
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
 
-    resolve(
-      makeControllerForFormulaIdentifier(formulaType, formulaNumber, context),
-    );
+    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, context));
 
     return controller;
   };
@@ -928,9 +939,14 @@ const makeDaemonCore = async (
     const {
       workerFormulaIdentifier,
       endowmentFormulaIdentifiers,
-      evalFormulaNumber,
+      evalFormulaIdentifier,
     } = await formulaGraphMutex.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
+      const ownFormulaIdentifier = serializeFormulaIdentifier({
+        type: 'eval',
+        number: ownFormulaNumber,
+        location: locationId,
+      });
       const workerFormulaNumber = await (specifiedWorkerFormulaIdentifier
         ? parseFormulaIdentifier(specifiedWorkerFormulaIdentifier).number
         : randomHex512());
@@ -957,13 +973,16 @@ const makeDaemonCore = async (
             );
           }),
         ),
-        evalFormulaNumber: ownFormulaNumber,
+        evalFormulaIdentifier: ownFormulaIdentifier,
       });
 
       await Promise.all(hooks.map(hook => hook(identifiers)));
       return identifiers;
     });
 
+    const { number: evalFormulaNumber } = parseFormulaIdentifier(
+      evalFormulaIdentifier,
+    );
     /** @type {import('./types.js').EvalFormula} */
     const formula = {
       type: 'eval',
@@ -1159,7 +1178,11 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
-    const endoFormulaIdentifier = `endo:${formulaNumber}`;
+    const endoFormulaIdentifier = serializeFormulaIdentifier({
+      type: 'endo',
+      number: formulaNumber,
+      location: locationId,
+    });
 
     const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
       await incarnateWorker();
@@ -1516,6 +1539,19 @@ const makeDaemonCore = async (
 };
 
 /**
+ *
+ * @param {string} rootNonce
+ * @param {import('./types.js').Sha512} digester
+ * @returns {string}
+ */
+const getLocationIdFromRootNonce = (rootNonce, digester) => {
+  digester.updateText(rootNonce);
+  digester.updateText('location');
+  const locationId = digester.digestHex();
+  return locationId;
+};
+
+/**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
  * @param {object} args
@@ -1529,19 +1565,25 @@ const provideEndoBootstrap = async (
   webletPortP,
   { cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
-  const { persistence: persistencePowers } = powers;
-
-  const daemonCore = await makeDaemonCore(powers, webletPortP, {
+  const { persistence: persistencePowers, crypto: cryptoPowers } = powers;
+  const { rootNonce: endoFormulaNumber, isNewlyCreated } =
+    await persistencePowers.provideRootNonce();
+  const locationId = getLocationIdFromRootNonce(
+    endoFormulaNumber,
+    cryptoPowers.makeSha512(),
+  );
+  const daemonCore = await makeDaemonCore(powers, webletPortP, locationId, {
     cancel,
     gracePeriodMs,
     gracePeriodElapsed,
   });
-
-  const { rootNonce: endoFormulaNumber, isNewlyCreated } =
-    await persistencePowers.provideRootNonce();
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
-    const endoFormulaIdentifier = `endo:${endoFormulaNumber}`;
+    const endoFormulaIdentifier = serializeFormulaIdentifier({
+      type: 'endo',
+      number: endoFormulaNumber,
+      location: locationId,
+    });
     return /** @type {Promise<import('./types.js').FarEndoBootstrap>} */ (
       daemonCore.provideValueForFormulaIdentifier(endoFormulaIdentifier)
     );

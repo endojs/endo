@@ -335,7 +335,7 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         addHook(identifiers =>
-          petStore.write(resultName, `eval:${identifiers.evalFormulaNumber}`),
+          petStore.write(resultName, identifiers.evalFormulaIdentifier),
         );
       }
 

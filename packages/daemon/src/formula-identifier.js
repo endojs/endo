@@ -12,7 +12,13 @@ export const parseFormulaIdentifier = formulaIdentifier => {
     );
   }
 
-  const type = formulaIdentifier.slice(0, delimiterIndex);
-  const number = formulaIdentifier.slice(delimiterIndex + 1);
-  return { type, number };
+  const [type, number, location] = formulaIdentifier.split(':');
+  return { type, number, location };
 };
+
+/**
+ * @param {import("./types").FormulaIdentifierRecord} formulaRecord
+ * @returns {string}
+ */
+export const serializeFormulaIdentifier = ({ type, number, location }) =>
+  `${type}:${number}:${location}`;
