@@ -9,6 +9,7 @@ import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 import url from 'url';
 import path from 'path';
+import crypto from 'crypto';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import bundleSource from '@endo/bundle-source';
@@ -21,6 +22,10 @@ import {
   makeEndoClient,
   makeReaderRef,
 } from '../index.js';
+import { makeCryptoPowers } from '../src/daemon-node-powers.js';
+import { serializeFormulaIdentifier } from '../src/formula-identifier.js';
+
+const cryptoPowers = makeCryptoPowers(crypto);
 
 const { raw } = String;
 
@@ -1258,6 +1263,41 @@ test('loopback network', async t => {
   t.deepEqual(guestNames, peerNames);
   t.assert(guestNames.includes('a'));
   t.assert(guestNames.includes('b'));
+
+  await stop(locator);
+});
+
+test('read unknown location', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'read unknown location');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+
+  // write a bogus value for a bogus location
+  const location = await cryptoPowers.randomHex512();
+  const number = await cryptoPowers.randomHex512();
+  const type = 'eval';
+  const formulaIdentifier = serializeFormulaIdentifier({
+    location,
+    number,
+    type,
+  });
+  await E(host).write(['abc'], formulaIdentifier);
+  // observe reification failure
+  t.throwsAsync(() => E(host).lookup('abc'), {
+    message: /Invalid formula identifier, not local: /u,
+  });
 
   await stop(locator);
 });
