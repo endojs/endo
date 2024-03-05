@@ -7,7 +7,21 @@ const { quote: q } = assert;
 
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:(?:readable-blob|worker|pet-store|pet-inspector|eval|lookup|make-unconfined|make-bundle|host|guest|handle|peer|remote|loopback-network):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
+
+/**
+ * @param {string} formulaIdentifier
+ * @param {string} [petName]
+ * @returns {void}
+ */
+export const assertValidFormulaIdentifier = (formulaIdentifier, petName) => {
+  if (!validFormulaPattern.test(formulaIdentifier)) {
+    let message = `Invalid formula identifier ${q(formulaIdentifier)}`;
+    if (petName !== undefined) {
+      message += ` for pet name ${q(petName)}`;
+    }
+    throw new Error(message);
+  }
+};
 
 /**
  * @param {import('./types.js').FilePowers} filePowers
@@ -32,13 +46,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = await filePowers.readFileText(petNamePath);
       const formulaIdentifier = petNameText.trim();
-      if (!validFormulaPattern.test(formulaIdentifier)) {
-        throw new Error(
-          `Invalid formula identifier ${q(formulaIdentifier)} for pet name ${q(
-            petName,
-          )}`,
-        );
-      }
+      assertValidFormulaIdentifier(formulaIdentifier, petName);
       return formulaIdentifier;
     };
 
@@ -74,9 +82,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore['write']} */
     const write = async (petName, formulaIdentifier) => {
       assertValidName(petName);
-      if (!validFormulaPattern.test(formulaIdentifier)) {
-        throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
-      }
+      assertValidFormulaIdentifier(formulaIdentifier, petName);
 
       if (petNames.has(petName)) {
         // Perform cleanup on the overwritten pet name.
@@ -144,9 +150,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
           `Formula does not exist for pet name ${JSON.stringify(petName)}`,
         );
       }
-      if (!validFormulaPattern.test(formulaIdentifier)) {
-        throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
-      }
+      assertValidFormulaIdentifier(formulaIdentifier, petName);
 
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       await filePowers.removePath(petNamePath);
@@ -174,16 +178,9 @@ export const makePetStoreMaker = (filePowers, locator) => {
           `Formula does not exist for pet name ${JSON.stringify(fromName)}`,
         );
       }
-      if (!validFormulaPattern.test(formulaIdentifier)) {
-        throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
-      }
-      if (
-        overwrittenFormulaIdentifier !== undefined &&
-        !validFormulaPattern.test(overwrittenFormulaIdentifier)
-      ) {
-        throw new Error(
-          `Invalid formula identifier ${q(overwrittenFormulaIdentifier)}`,
-        );
+      assertValidFormulaIdentifier(formulaIdentifier, fromName);
+      if (overwrittenFormulaIdentifier !== undefined) {
+        assertValidFormulaIdentifier(overwrittenFormulaIdentifier, toName);
       }
 
       const fromPath = filePowers.joinPath(petNameDirectoryPath, fromName);
@@ -220,9 +217,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
     /** @type {import('./types.js').PetStore['reverseIdentify']} */
     const reverseIdentify = formulaIdentifier => {
-      if (!validFormulaPattern.test(formulaIdentifier)) {
-        throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
-      }
+      assertValidFormulaIdentifier(formulaIdentifier);
       const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
       if (formulaPetNames === undefined) {
         return harden([]);
