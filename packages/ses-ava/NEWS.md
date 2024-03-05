@@ -1,4 +1,14 @@
-User-visible changes in SES-Ava:
+User-visible changes in `@endo/ses-ava`:
+
+# Next release
+
+- Ava's `t.log` buffers logged messages, so it can be output later with its
+  test case. But this uses Ava's own console emulation.
+  This loses all the redacted error information printed by SES's `console`.
+  Ses-ava's virtual `t.log` now combines these advantages,
+  using SES's console logic to show an error's hidden information,
+  while directing the output from that logic through Ava's original `t.log`,
+  so it appears at the right position.
 
 # 0.2.38 (2023-03-07)
 

@@ -1,57 +1,48 @@
 import 'ses';
 import rawTest from 'ava';
 import { wrapTest } from '../src/ses-ava-test.js';
+import { exampleProblem } from './example-problem.js';
 
 lockdown({
   // Comment or uncomment each of these switches to see variations of the
   // output shown below. When all the switches are commented, you should
   // see that output.
   //
-  // stackFiltering: 'verbose', // Include `assert` infrastructure
-  // consoleTaming: 'unsafe', // console without access to redacted info
-  // errorTaming: 'unsafe', // Disclose `error.stack` to ava
+  // Commenting out all settings for a given switch defaults to using
+  // the current relevant environment variable setting. To get results
+  // independent of that, always uncomment one setting for each switch.
+  //
+  // stackFiltering: 'concise', // Default. Hide infrastructure, shorten paths
+  stackFiltering: 'verbose', // Include `assert` infrastructure
+  consoleTaming: 'safe', // Default. Console with access to redacted info
+  // consoleTaming: 'unsafe', // Console without access to redacted info
+  errorTaming: 'safe', // Default. Hide redacted info on error
+  // errorTaming: 'unsafe', // Disclose redacted info on error
 });
 
-const test = wrapTest(rawTest);
+const test = wrapTest(rawTest, { tlog: true, pushConsole: true });
 
 test('ses-ava reject console output', t => {
   t.assert(true);
-  // Uncomment this to see something like the text in the extended comment below
 
-  /*
+  t.log('t.log1:', exampleProblem('t.log1'));
+  console.log('console.log2:', exampleProblem('console.log2'));
+
+  t.withConsole(() =>
+    console.log('console.log3:', exampleProblem('console.log3')),
+  );
+
   return Promise.resolve(null)
     .then(v => v)
     .then(v => v)
     .then(_ => {
-      assert.typeof(88, 'string', assert.details`msg ${'NOTICE ME'}`);
+      t.log('t.log4:', exampleProblem('t.log4'));
+      console.log('console.log5:', exampleProblem('console.log5'));
+      t.withConsole(() =>
+        console.log('console.log6:', exampleProblem('console.log6')),
+      );
+
+      // Uncomment to see something how this test case fails
+      // throw exampleProblem('throw7');
     });
-  */
 });
-
-/*
-Uncommenting the test code above should produce something like the following.
-Some of this output still comes from ava. The stack-like display comes from
-the SES `console`, which shows the detailed error message including the
-redacted `'NOTICE ME'` that ava has no access to.
-
-We will revisit this example in `@agoric/eventual-send` using `E.when` instead
-of `then` to show deep stacks across multiple turns.
-```
-REJECTED from ava test: (TypeError#1)
-TypeError#1: msg NOTICE ME
-
-  at packages/ses-ava/test/test-ses-ava-reject.js:26:20
-
-  ses-ava reject console output
-
-  Rejected promise returned by test. Reason:
-
-  TypeError {
-    message: 'msg (a string)',
-  }
-
-  ─
-
-  1 test failed
-```
-*/

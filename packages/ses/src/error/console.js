@@ -46,8 +46,17 @@ import './internal-types.js';
 
 /** @typedef {keyof VirtualConsole | 'profile' | 'profileEnd'} ConsoleProps */
 
-/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-const consoleLevelMethods = freeze([
+/**
+ * Those console methods whose actual parameters are `(fmt?, ...args)`
+ * even if their TypeScript types claim otherwise.
+ *
+ * Each is paired with what we consider to be their log severity level.
+ * This is the same as the log severity of these on other
+ * platform console implementations when they all agree.
+ *
+ * @type {readonly [ConsoleProps, LogSeverity | undefined][]}
+ */
+export const consoleLevelMethods = freeze([
   ['debug', 'debug'], // (fmt?, ...args) verbose level on Chrome
   ['log', 'log'], // (fmt?, ...args) info level on Chrome
   ['info', 'info'], // (fmt?, ...args)
@@ -55,13 +64,22 @@ const consoleLevelMethods = freeze([
   ['error', 'error'], // (fmt?, ...args)
 
   ['trace', 'log'], // (fmt?, ...args)
-  ['dirxml', 'log'], // (fmt?, ...args)
-  ['group', 'log'], // (fmt?, ...args)
-  ['groupCollapsed', 'log'], // (fmt?, ...args)
+  ['dirxml', 'log'], // (fmt?, ...args)          but TS typed (...data)
+  ['group', 'log'], // (fmt?, ...args)           but TS typed (...label)
+  ['groupCollapsed', 'log'], // (fmt?, ...args)  but TS typed (...label)
 ]);
 
-/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-const consoleOtherMethods = freeze([
+/**
+ * Those console methods other than those already enumerated by
+ * `consoleLevelMethods`.
+ *
+ * Each is paired with what we consider to be their log severity level.
+ * This is the same as the log severity of these on other
+ * platform console implementations when they all agree.
+ *
+ * @type {readonly [ConsoleProps, LogSeverity | undefined][]}
+ */
+export const consoleOtherMethods = freeze([
   ['assert', 'error'], // (value, fmt?, ...args)
   ['timeLog', 'log'], // (label?, ...args) no fmt string
 
@@ -85,7 +103,7 @@ const consoleOtherMethods = freeze([
 ]);
 
 /** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-export const consoleWhitelist = freeze([
+const consoleWhitelist = freeze([
   ...consoleLevelMethods,
   ...consoleOtherMethods,
 ]);
@@ -117,10 +135,10 @@ export const consoleWhitelist = freeze([
  * ]);
  */
 
-// /////////////////////////////////////////////////////////////////////////////
+// //////////////////////////// Logging Console ////////////////////////////////
 
 /** @type {MakeLoggingConsoleKit} */
-const makeLoggingConsoleKit = (
+export const makeLoggingConsoleKit = (
   loggedErrorHandler,
   { shouldResetForDebugging = false } = {},
 ) => {
@@ -161,9 +179,23 @@ const makeLoggingConsoleKit = (
   return freeze({ loggingConsole: typedLoggingConsole, takeLog });
 };
 freeze(makeLoggingConsoleKit);
-export { makeLoggingConsoleKit };
 
-// /////////////////////////////////////////////////////////////////////////////
+/**
+ * Makes the same calls on a `baseConsole` that were made on a
+ * `loggingConsole` to produce this `log`. It this way, a logging console
+ * can be used as a buffer to delay the application of these calls to a
+ * `baseConsole`.
+ *
+ * @param {LogRecord[]} log
+ * @param {VirtualConsole} baseConsole
+ */
+export const pumpLogToConsole = (log, baseConsole) => {
+  for (const [name, ...args] of log) {
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    baseConsole[name](...args);
+  }
+};
+// //////////////////////////// Causal Console /////////////////////////////////
 
 /** @type {ErrorInfo} */
 const ErrorInfo = {
@@ -175,7 +207,7 @@ const ErrorInfo = {
 freeze(ErrorInfo);
 
 /** @type {MakeCausalConsole} */
-const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
+export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   if (!baseConsole) {
     return undefined;
   }
@@ -362,12 +394,51 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   return /** @type {VirtualConsole} */ (freeze(causalConsole));
 };
 freeze(makeCausalConsole);
-export { makeCausalConsole };
 
-// /////////////////////////////////////////////////////////////////////////////
+/**
+ * @typedef {(...args: unknown[]) => void} Logger
+ */
+
+/**
+ * @param {LoggedErrorHandler} loggedErrorHandler
+ */
+export const defineCausalConsoleFromLogger = loggedErrorHandler => {
+  /**
+   * Implement the `VirtualConsole` API badly by turning all calls into
+   * calls on `tlogger`. We need to do this to have `console` logging
+   * turn into calls to Ava's `t.log`, so these console log messages
+   * are output in the right place.
+   *
+   * @param {Logger} tlogger
+   * @returns {VirtualConsole}
+   */
+  const makeCausalConsoleFromLogger = tlogger => {
+    const baseConsole = {};
+    for (const [name1, _] of consoleLevelMethods) {
+      baseConsole[name1] = tlogger;
+    }
+    for (const [name2, _] of [
+      ['group', 'log'],
+      ['groupCollapsed', 'log'],
+      ...consoleOtherMethods,
+    ]) {
+      baseConsole[name2] = (...args) => tlogger(name2, ...args);
+    }
+    harden(baseConsole);
+    const causalConsole = makeCausalConsole(
+      /** @type {VirtualConsole} */ (baseConsole),
+      loggedErrorHandler,
+    );
+    return /** @type {VirtualConsole} */ (causalConsole);
+  };
+  return freeze(makeCausalConsoleFromLogger);
+};
+freeze(defineCausalConsoleFromLogger);
+
+// ///////////////////////// Filter Console ////////////////////////////////////
 
 /** @type {FilterConsole} */
-const filterConsole = (baseConsole, filter, _topic = undefined) => {
+export const filterConsole = (baseConsole, filter, _topic = undefined) => {
   // TODO do something with optional topic string
   const whitelist = arrayFilter(
     consoleWhitelist,
@@ -391,4 +462,3 @@ const filterConsole = (baseConsole, filter, _topic = undefined) => {
   return /** @type {VirtualConsole} */ (freeze(filteringConsole));
 };
 freeze(filterConsole);
-export { filterConsole };
