@@ -676,7 +676,7 @@ const makeDaemonCore = async (
       );
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      return makeRemote(peerIdentifier, formulaIdentifier, context);
+      return provideRemoteValue(peerIdentifier, formulaIdentifier, context);
     }
     if (
       [
@@ -1389,20 +1389,22 @@ const makeDaemonCore = async (
   };
 
   /**
+   * This is used to provide a value for a formula identifier that is known to
+   * originate from the specified peer.
    * @param {string} peerFormulaIdentifier
-   * @param {string} remoteFormulaIdentifier
+   * @param {string} remoteValueFormulaIdentifier
    * @param {import('./types.js').Context} context
    * @returns {Promise<import('./types.js').ControllerPartial<unknown, undefined>>}
    */
-  const makeRemote = async (
+  const provideRemoteValue = async (
     peerFormulaIdentifier,
-    remoteFormulaIdentifier,
+    remoteValueFormulaIdentifier,
     context,
   ) => {
     const peer = /** @type {import('./types.js').EndoPeer} */ (
       await provideValueForFormulaIdentifier(peerFormulaIdentifier)
     );
-    const remoteValueP = peer.provide(remoteFormulaIdentifier);
+    const remoteValueP = peer.provide(remoteValueFormulaIdentifier);
     const external = remoteValueP;
     const internal = Promise.resolve(undefined);
     return harden({ internal, external });
