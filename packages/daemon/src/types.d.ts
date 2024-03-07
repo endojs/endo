@@ -741,9 +741,6 @@ export interface DaemonCore {
     specifiedFormulaNumber: string,
   ) => IncarnateResult<FarEndoBootstrap>;
   incarnateWorker: () => IncarnateResult<EndoWorker>;
-  incarnatePetStore: (
-    specifiedFormulaNumber?: string,
-  ) => IncarnateResult<PetStore>;
   incarnateDirectory: () => IncarnateResult<EndoDirectory>;
   incarnatePetInspector: (
     petStoreFormulaIdentifier: string,
@@ -754,9 +751,7 @@ export interface DaemonCore {
     leastAuthorityFormulaIdentifier: string,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
-  incarnateGuest: (
-    hostHandleFormulaIdenfitier: string,
-  ) => IncarnateResult<EndoGuest>;
+  incarnateGuest: (hostFormulaIdentifier: string) => IncarnateResult<EndoGuest>;
   incarnateReadableBlob: (
     contentSha512: string,
   ) => IncarnateResult<FarEndoReadable>;
@@ -786,9 +781,6 @@ export interface DaemonCore {
     powersFormulaIdentifier: string,
     bundleFormulaIdentifier: string,
   ) => IncarnateResult<unknown>;
-  incarnateHandle: (
-    targetFormulaIdentifier: string,
-  ) => IncarnateResult<ExternalHandle>;
   incarnatePeer: (
     networksFormulaIdentifier: string,
     addresses: Array<string>,

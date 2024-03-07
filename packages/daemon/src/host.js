@@ -9,6 +9,11 @@ import { makeAsyncHooks } from './async-hooks.js';
 const { quote: q } = assert;
 
 /**
+ * @template {Record<string, string | string[]>} T
+ * @typedef {import('./types.js').AsyncHooks<T>} AsyncHooks
+ */
+
+/**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} args.provideControllerForFormulaIdentifier
@@ -20,7 +25,6 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['incarnateUnconfined']} args.incarnateUnconfined
  * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
  * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
- * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
@@ -38,7 +42,6 @@ export const makeHostMaker = ({
   incarnateUnconfined,
   incarnateBundle,
   incarnateWebBundle,
-  incarnateHandle,
   storeReaderRef,
   getAllNetworkAddresses,
   makeMailbox,
@@ -99,13 +102,6 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
-     */
-    const makeNewHandleForSelf = () => {
-      return incarnateHandle(hostFormulaIdentifier);
-    };
-
-    /**
      * @param {import('./types.js').Controller} newController
      * @param {Record<string,string>} introducedNames
      * @returns {Promise<void>}
@@ -140,12 +136,11 @@ export const makeHostMaker = ({
       }
 
       if (formulaIdentifier === undefined) {
-        const { formulaIdentifier: hostHandleFormulaIdentifier } =
-          await makeNewHandleForSelf();
         const { value, formulaIdentifier: guestFormulaIdentifier } =
           // Behold, recursion:
           // eslint-disable-next-line no-use-before-define
-          await incarnateGuest(hostHandleFormulaIdentifier);
+          await incarnateGuest(hostFormulaIdentifier);
+        // TODO: move to hook
         if (petName !== undefined) {
           assertPetName(petName);
           await petStore.write(petName, guestFormulaIdentifier);
@@ -168,6 +163,8 @@ export const makeHostMaker = ({
           provideControllerForFormulaIdentifier(formulaIdentifier)
         );
       if (introducedNames !== undefined) {
+        // TODO: move to hook
+        // can use provideValueForFormulaIdentifier on the guest formula
         introduceNamesToNewHostOrGuest(newGuestController, introducedNames);
       }
       return {
@@ -247,9 +244,8 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @typedef {import('./types.js').AsyncHooks<import('./types.js').EvalFormulaHooks>} EvalAsyncHooks
      * @param {string | 'MAIN' | 'NEW'} workerName
-     * @param {EvalAsyncHooks['add']} addHook
+     * @param {AsyncHooks<{ workerFormulaIdentifier: string }>['add']} addHook
      * @returns {string | undefined}
      */
     const provideWorkerFormulaIdentifierSync = (workerName, addHook) => {
@@ -310,7 +306,7 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      /** @type {import('./types.js').AsyncHooks<import('./types.js').EvalFormulaHooks>} */
+      /** @type {AsyncHooks<import('./types.js').EvalFormulaHooks>} */
       const hooks = makeAsyncHooks();
 
       const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
