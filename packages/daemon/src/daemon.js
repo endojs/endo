@@ -1328,11 +1328,9 @@ const makeDaemonCore = async (
             makeFarContext(context),
           );
           const external = Promise.resolve({
-            provideValueForFormulaIdentifier: remoteFormulaIdentifier => {
+            provide: remoteFormulaIdentifier => {
               return /** @type {Promise<unknown>} */ (
-                E(remoteGateway).provideValueForFormulaIdentifier(
-                  remoteFormulaIdentifier,
-                )
+                E(remoteGateway).provide(remoteFormulaIdentifier)
               );
             },
           });
@@ -1363,9 +1361,7 @@ const makeDaemonCore = async (
     const peer = /** @type {import('./types.js').EndoPeer} */ (
       await provideValueForFormulaIdentifier(peerFormulaIdentifier)
     );
-    const remoteValueP = peer.provideValueForFormulaIdentifier(
-      remoteFormulaIdentifier,
-    );
+    const remoteValueP = peer.provide(remoteFormulaIdentifier);
     const external = remoteValueP;
     const internal = Promise.resolve(undefined);
     return harden({ internal, external });

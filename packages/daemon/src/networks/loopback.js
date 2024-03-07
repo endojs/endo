@@ -18,7 +18,7 @@ export const makeLoopbackNetwork = ({ provideValueForFormulaIdentifier }) => {
             'Failed invariant: loopback only supports loop: address',
           );
         }
-        return { provideValueForFormulaIdentifier };
+        return { provide: provideValueForFormulaIdentifier };
       },
     }),
   );

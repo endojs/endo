@@ -453,17 +453,13 @@ export type MakeHostOrGuestOptions = {
 };
 
 export interface EndoPeer {
-  provideValueForFormulaIdentifier: (
-    formulaIdentifier: string,
-  ) => Promise<unknown>;
+  provide: (formulaIdentifier: string) => Promise<unknown>;
 }
 export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
 export type EndoPeerController = Controller<EndoPeer, undefined>;
 
 export interface EndoGateway {
-  provideValueForFormulaIdentifier: (
-    formulaIdentifier: string,
-  ) => Promise<unknown>;
+  provide: (formulaIdentifier: string) => Promise<unknown>;
 }
 
 export interface PeerInfo {

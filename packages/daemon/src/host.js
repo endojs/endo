@@ -526,7 +526,7 @@ export const makeHostMaker = ({
     /** @type {import('./types.js').EndoHost['gateway']} */
     const gateway = async () => {
       // TODO: we should only materialize local objects this way
-      return Far('Gateway', { provideValueForFormulaIdentifier });
+      return Far('Gateway', { provide: provideValueForFormulaIdentifier });
     };
 
     /** @type {import('./types.js').EndoHost['addPeerInfo']} */
