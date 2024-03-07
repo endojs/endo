@@ -1291,7 +1291,7 @@ test('read remote location', async t => {
     const iteratorRef = E(hostA).followMessages();
     const { value: message } = await E(iteratorRef).next();
     const { number } = E.get(message);
-    await E(hostA).evaluate('MAIN', '`127.0.0.1:8920`', [], [], 'netport');
+    await E(hostA).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
     await E(hostA).resolve(await number, 'netport');
     // move test network to network dir
     await networkA;
@@ -1328,7 +1328,7 @@ test('read remote location', async t => {
     const iteratorRef = E(hostB).followMessages();
     const { value: message } = await E(iteratorRef).next();
     const { number } = E.get(message);
-    await E(hostB).evaluate('MAIN', '`127.0.0.1:8921`', [], [], 'netport');
+    await E(hostB).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
     await E(hostB).resolve(await number, 'netport');
     // move test network to network dir
     await networkB;
