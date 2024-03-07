@@ -7,7 +7,7 @@ const { quote: q } = assert;
 
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:(?:readable-blob|worker|pet-store|pet-inspector|eval|lookup|make-unconfined|make-bundle|host|guest|handle|peer|remote|loopback-network):[0-9a-f]{128}:[0-9a-f]{128}|web-bundle:[0-9a-f]{32}:[0-9a-f]{128})$/;
+  /^(?:(?:readable-blob|worker|pet-store|pet-inspector|eval|lookup|make-unconfined|make-bundle|host|guest|handle|peer|loopback-network):[0-9a-f]{128}:[0-9a-f]{128}|web-bundle:[0-9a-f]{32}:[0-9a-f]{128})$/;
 
 /**
  * @param {string} formulaIdentifier
