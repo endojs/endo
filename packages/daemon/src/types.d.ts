@@ -155,12 +155,6 @@ type PeerFormula = {
   addresses: Array<string>;
 };
 
-type RemoteFormula = {
-  type: 'remote';
-  peer: string;
-  value: string;
-};
-
 type WebBundleFormula = {
   type: 'web-bundle';
   bundle: string;
@@ -203,7 +197,6 @@ export type Formula =
   | PetInspectorFormula
   | PetStoreFormula
   | DirectoryFormula
-  | RemoteFormula
   | PeerFormula;
 
 export type Label = {
@@ -545,8 +538,6 @@ export interface EndoHost extends EndoDirectory {
     powersName: string,
   ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
-  invite(guestName: string): Promise<Invitation>;
-  accept(invitation: Invitation): Promise<FarEndoGuest>;
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
@@ -794,7 +785,6 @@ export interface DaemonCore {
     networksFormulaIdentifier: string,
     addresses: Array<string>,
   ) => IncarnateResult<EndoPeer>;
-  incarnateRemote: (peer: string, value: string) => IncarnateResult<unknown>;
   incarnateNetworksDirectory: () => IncarnateResult<EndoDirectory>;
   incarnateLoopbackNetwork: () => IncarnateResult<EndoNetwork>;
   incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;

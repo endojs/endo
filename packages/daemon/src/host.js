@@ -20,8 +20,6 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
  * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
- * @param {import('./types.js').DaemonCore['incarnatePeer']} args.incarnatePeer
- * @param {import('./types.js').DaemonCore['incarnateRemote']} args.incarnateRemote
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
@@ -40,8 +38,6 @@ export const makeHostMaker = ({
   incarnateBundle,
   incarnateWebBundle,
   incarnateHandle,
-  incarnatePeer,
-  incarnateRemote,
   storeReaderRef,
   getAllNetworkAddresses,
   makeMailbox,
@@ -527,42 +523,6 @@ export const makeHostMaker = ({
       return cancelValue(formulaIdentifier, reason);
     };
 
-    // TODO expand guestName to guestPath
-    /** @type {import('./types.js').EndoHost['invite']} */
-    const invite = async guestName => {
-      assertPetName(guestName);
-      const { formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
-        guestName,
-      );
-      if (guestFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name: ${guestName}`);
-      }
-      const addresses = await getAllNetworkAddresses(
-        networksDirectoryFormulaIdentifier,
-      );
-      return harden({
-        powers: guestFormulaIdentifier,
-        addresses,
-      });
-    };
-
-    /** @type {import('./types.js').EndoHost['accept']} */
-    const accept = async (invitation, ...resultPath) => {
-      // TODO validate invitation
-      const { powers: remoteValueFormulaId, addresses } = invitation;
-      // TODO: Search for existing peer
-      const { formulaIdentifier: peerFormulaIdentifier } = await incarnatePeer(
-        networksDirectoryFormulaIdentifier,
-        addresses,
-      );
-      const { formulaIdentifier, value: remoteValue } = await incarnateRemote(
-        peerFormulaIdentifier,
-        remoteValueFormulaId,
-      );
-      await directory.write(resultPath, formulaIdentifier);
-      return /** @type {import('./types.js').FarEndoGuest} */ (remoteValue);
-    };
-
     /** @type {import('./types.js').EndoHost['gateway']} */
     const gateway = async () => {
       // TODO: we should only materialize local objects this way
@@ -651,8 +611,6 @@ export const makeHostMaker = ({
       makeBundle,
       provideWebPage,
       cancel,
-      invite,
-      accept,
       gateway,
       getPeerInfo,
       addPeerInfo,

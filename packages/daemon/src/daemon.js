@@ -617,10 +617,6 @@ const makeDaemonCore = async (
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       return makePeer(formula.networks, formula.addresses, context);
-    } else if (formula.type === 'remote') {
-      // Behold, forward reference:
-      // eslint-disable-next-line no-use-before-define
-      return makeRemote(formula.peer, formula.value, context);
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -1196,23 +1192,6 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['incarnateRemote']} */
-  const incarnateRemote = async (
-    peerFormulaIdentifier,
-    remoteValueFormulaIdentifier,
-  ) => {
-    const formulaNumber = await randomHex512();
-    /** @type {import('./types.js').RemoteFormula} */
-    const formula = {
-      type: 'remote',
-      peer: peerFormulaIdentifier,
-      value: remoteValueFormulaIdentifier,
-    };
-    return /** @type {import('./types').IncarnateResult<unknown>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
-    );
-  };
-
   /** @type {import('./types.js').DaemonCore['incarnateLoopbackNetwork']} */
   const incarnateLoopbackNetwork = async () => {
     const formulaNumber = await randomHex512();
@@ -1427,8 +1406,6 @@ const makeDaemonCore = async (
     incarnateBundle,
     incarnateWebBundle,
     incarnateHandle,
-    incarnatePeer,
-    incarnateRemote,
     storeReaderRef,
     makeMailbox,
     makeDirectoryNode,
@@ -1549,14 +1526,6 @@ const makeDaemonCore = async (
             ADDRESSES: formula.addresses,
           }),
         );
-      } else if (formula.type === 'remote') {
-        return makeInspector(
-          formula.type,
-          formulaNumber,
-          harden({
-            PEER: provideValueForFormulaIdentifier(formula.peer),
-          }),
-        );
       }
       return makeInspector(formula.type, formulaNumber, harden({}));
     };
@@ -1596,7 +1565,6 @@ const makeDaemonCore = async (
     incarnateHost,
     incarnateGuest,
     incarnatePeer,
-    incarnateRemote,
     incarnateEval,
     incarnateUnconfined,
     incarnateReadableBlob,

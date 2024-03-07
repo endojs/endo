@@ -1221,52 +1221,6 @@ test('guest cannot access host methods', async t => {
   t.is(revealedTarget, undefined);
 });
 
-test('loopback network', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'loopback');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
-
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
-
-  // Creates a guest "guest" from the inviter side.
-  const { powers } = await E(host).invite('guest');
-  // We manually create the invitation to specify the network.
-  const invitation = {
-    addresses: ['loop:'],
-    powers,
-  };
-  // Stores the received value as "peer".
-  const peerFromAccept = await E(host).accept(invitation, 'peer');
-  const peerByName = await E(host).lookup('peer');
-  t.is(peerFromAccept, peerByName);
-
-  const guestId = await E(host).identify('guest');
-  const peerId = await E(host).identify('peer');
-  t.not(guestId, peerId);
-
-  const guest = await E(host).lookup('guest');
-  const peer = peerFromAccept;
-  await E(guest).copy(['SELF'], ['a']);
-  await E(peer).copy(['SELF'], ['b']);
-  const guestNames = await E(guest).list();
-  const peerNames = await E(peer).list();
-  t.deepEqual(guestNames, peerNames);
-  t.assert(guestNames.includes('a'));
-  t.assert(guestNames.includes('b'));
-
-  await stop(locator);
-});
-
 test('read unknown location', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
