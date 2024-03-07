@@ -1073,7 +1073,7 @@ const makeDaemonCore = async (
         evalFormulaIdentifier: ownFormulaIdentifier,
       });
 
-      await Promise.all(hooks.map(hook => hook(identifiers)));
+      await hooks.execute(identifiers);
       return identifiers;
     });
 

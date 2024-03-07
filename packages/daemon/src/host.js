@@ -4,6 +4,7 @@ import { E, Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
+import { makeAsyncHooks } from './async-hooks.js';
 
 const { quote: q } = assert;
 
@@ -246,8 +247,9 @@ export const makeHostMaker = ({
     };
 
     /**
+     * @typedef {import('./types.js').AsyncHooks<import('./types.js').EvalFormulaHooks>} EvalAsyncHooks
      * @param {string | 'MAIN' | 'NEW'} workerName
-     * @param {(hook: import('./types.js').EvalFormulaHook) => void} addHook
+     * @param {EvalAsyncHooks['add']} addHook
      * @returns {string | undefined}
      */
     const provideWorkerFormulaIdentifierSync = (workerName, addHook) => {
@@ -308,16 +310,12 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      /** @type {import('./types.js').EvalFormulaHook[]} */
-      const hooks = [];
-      /** @type {(hook: import('./types.js').EvalFormulaHook) => void} */
-      const addHook = hook => {
-        hooks.push(hook);
-      };
+      /** @type {import('./types.js').AsyncHooks<import('./types.js').EvalFormulaHooks>} */
+      const hooks = makeAsyncHooks();
 
       const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
         workerName,
-        addHook,
+        hooks.add,
       );
 
       /** @type {(string | string[])[]} */
@@ -341,7 +339,7 @@ export const makeHostMaker = ({
       );
 
       if (resultName !== undefined) {
-        addHook(identifiers =>
+        hooks.add(identifiers =>
           petStore.write(resultName, identifiers.evalFormulaIdentifier),
         );
       }

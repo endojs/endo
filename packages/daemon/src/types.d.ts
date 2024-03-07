@@ -105,13 +105,11 @@ type EvalFormula = {
   // TODO formula slots
 };
 
-export type EvalFormulaHook = (
-  identifiers: Readonly<{
-    endowmentFormulaIdentifiers: string[];
-    evalFormulaIdentifier: string;
-    workerFormulaIdentifier: string;
-  }>,
-) => Promise<unknown>;
+export type EvalFormulaHooks = {
+  endowmentFormulaIdentifiers: string[];
+  evalFormulaIdentifier: string;
+  workerFormulaIdentifier: string;
+};
 
 type ReadableBlobFormula = {
   type: 'readable-blob';
@@ -706,6 +704,19 @@ export type DaemonicPowers = {
 };
 
 type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
+
+export type AsyncHook<T extends Record<string, string | string[]>> = (
+  formulaIdentifiers: Readonly<T>,
+) => Promise<void>;
+
+/**
+ * A collection of async hooks that can be executed in parallel.
+ */
+export type AsyncHooks<T extends Record<string, string | string[]>> = {
+  add(value: AsyncHook<T>): void;
+  execute(identifiers: Readonly<T>): Promise<void>;
+};
+
 export interface DaemonCore {
   nodeIdentifier: string;
   provideValueForFormulaIdentifier: (
@@ -754,7 +765,7 @@ export interface DaemonCore {
     source: string,
     codeNames: string[],
     endowmentFormulaIdsOrPaths: (string | string[])[],
-    hooks: EvalFormulaHook[],
+    hooks: AsyncHooks<EvalFormulaHooks>,
     specifiedWorkerFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
   incarnateUnconfined: (
