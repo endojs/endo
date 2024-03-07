@@ -107,7 +107,7 @@ export const makeDirectoryMaker = ({
           }
         }),
       );
-      return Array.from(identities);
+      return harden(Array.from(identities).sort());
     };
 
     /** @type {import('./types.js').EndoDirectory['followChanges']} */
