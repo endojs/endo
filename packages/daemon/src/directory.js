@@ -1,6 +1,8 @@
 // @ts-check
 
-import { E, Far } from '@endo/far';
+import { E } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { formatLocator } from './locator.js';
 
@@ -234,10 +236,14 @@ export const makeDirectoryMaker = ({
     );
     const directory = makeDirectoryNode(petStore);
 
-    const external = Far('EndoDirectory', {
-      ...directory,
-      followChanges: () => makeIteratorRef(directory.followChanges()),
-    });
+    const external = makeExo(
+      'EndoDirectory',
+      M.interface('EndoDirectory', {}, { defaultGuards: 'passable' }),
+      {
+        ...directory,
+        followChanges: () => makeIteratorRef(directory.followChanges()),
+      },
+    );
     const internal = harden({});
 
     return harden({ external, internal });

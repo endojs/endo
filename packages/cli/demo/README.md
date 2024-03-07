@@ -20,16 +20,20 @@ dependencies using Yarn, and arrange for the Endo command to be available as
 This is a worker caplet, or worklet, that counts numbers.
 
 ```js
-import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
 
 export const make = () => {
   let counter = 0;
-  return Far('Counter', {
-    incr() {
-      counter += 1;
-      return counter;
-    },
-  });
+  return makeExo(
+    'Counter',
+    M.interface('Counter', {}, { defaultGuards: 'passable' }),
+    {
+      incr() {
+        counter += 1;
+        return counter;
+      },
+    }
+  );
 };
 ```
 
@@ -59,7 +63,7 @@ in this case, a `counter`.
 > that will appear in the compartment's global object (and global scope) as
 > well as the name of formula that produced the value.
 > These may be different.
-> 
+>
 > ```
 > > endo eval 'E(c).incr()' c:counter
 > 4
@@ -85,7 +89,7 @@ of how these values were made remains, but their memory is otherwise lost.
 > process these evaluations occur in.
 > The default is a worker called `MAIN`, whose formula number is 0.
 > Use the `-w` or `--worker` flag to specify a different worker.
-> 
+>
 > ```
 > > endo spawn greeter
 > > endo eval --worker greeter '"Hello, World!"' --name greeting
@@ -104,7 +108,9 @@ We can use the doubler to demonstrate how caplets can run as guests
 and request additional capabilities from the user.
 
 ```js
-import { E, Far } from '@endo/far';
+import { E } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 
 export const make = powers => {
   const counter = E(powers).request(
@@ -112,12 +118,16 @@ export const make = powers => {
     'a counter, suitable for doubling',
     'my-counter'
   );
-  return Far('Doubler', {
-    async incr() {
-      const n = await E(counter).incr();
-      return n * 2;
-    },
-  });
+  return makeExo(
+    'Doubler',
+    M.interface('Doubler', {}, { defaultGuards: 'passable' }),
+    {
+      async incr() {
+        const n = await E(counter).incr();
+        return n * 2;
+      },
+    }
+  );
 };
 ```
 

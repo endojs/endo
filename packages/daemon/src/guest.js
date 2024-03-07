@@ -1,6 +1,7 @@
 // @ts-check
 
-import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 
@@ -116,11 +117,15 @@ export const makeGuestMaker = ({
       send,
     };
 
-    const external = Far('EndoGuest', {
-      ...guest,
-      followChanges: () => makeIteratorRef(guest.followChanges()),
-      followMessages: () => makeIteratorRef(guest.followMessages()),
-    });
+    const external = makeExo(
+      'EndoGuest',
+      M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
+      {
+        ...guest,
+        followChanges: () => makeIteratorRef(guest.followChanges()),
+        followMessages: () => makeIteratorRef(guest.followMessages()),
+      },
+    );
     const internal = harden({
       receive,
       respond,

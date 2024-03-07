@@ -4,6 +4,8 @@
 import '@endo/init/debug.js';
 import { makeCapTP } from '@endo/captp';
 import { E, Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { importBundle } from '@endo/import-bundle';
 
 const getPrototypeChain = obj => {
@@ -55,6 +57,8 @@ const hardenedEndowments = harden({
   assert,
   E,
   Far,
+  makeExo,
+  M,
   TextEncoder,
   TextDecoder,
   URL,
@@ -77,24 +81,28 @@ const endowments = Object.freeze({
 const url = new URL(window.location.href);
 url.protocol = 'ws';
 
-const bootstrap = Far('WebFacet', {
-  ping() {
-    console.log('received ping');
-    return 'pong';
+const bootstrap = makeExo(
+  'WebFacet',
+  M.interface('WebFacet', {}, { defaultGuards: 'passable' }),
+  {
+    ping() {
+      console.log('received ping');
+      return 'pong';
+    },
+    async makeBundle(bundle, powers) {
+      const namespace = await importBundle(bundle, {
+        endowments,
+      });
+      return namespace.make(powers);
+    },
+    reject(message) {
+      document.body.innerHTML = '';
+      const $title = document.createElement('h1');
+      $title.innerText = `💔 ${message}`;
+      document.body.appendChild($title);
+    },
   },
-  async makeBundle(bundle, powers) {
-    const namespace = await importBundle(bundle, {
-      endowments,
-    });
-    return namespace.make(powers);
-  },
-  reject(message) {
-    document.body.innerHTML = '';
-    const $title = document.createElement('h1');
-    $title.innerText = `💔 ${message}`;
-    document.body.appendChild($title);
-  },
-});
+);
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

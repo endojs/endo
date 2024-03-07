@@ -3,6 +3,8 @@
 
 /* global setTimeout, clearTimeout */
 
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
@@ -40,15 +42,23 @@ const delay = async (ms, cancelled) => {
  * @returns {import('./types.js').EndoInspector} The inspector for the given formula.
  */
 const makeInspector = (type, number, record) =>
-  Far(`Inspector (${type} ${number})`, {
-    lookup: async petName => {
-      if (!Object.hasOwn(record, petName)) {
-        return undefined;
-      }
-      return record[petName];
+  makeExo(
+    `Inspector (${type} ${number})`,
+    M.interface(
+      `Inspector (${type} ${number})`,
+      {},
+      { defaultGuards: 'passable' },
+    ),
+    {
+      lookup: async petName => {
+        if (!Object.hasOwn(record, petName)) {
+          return undefined;
+        }
+        return record[petName];
+      },
+      list: () => Object.keys(record),
     },
-    list: () => Object.keys(record),
-  });
+  );
 
 /**
  * @param {import('./types.js').Context} context - The context to make far.
@@ -239,7 +249,15 @@ const makeDaemonCore = async (
    */
   const makeWorkerBootstrap = async workerId512 => {
     // TODO validate workerId512
-    return Far(`Endo for worker ${workerId512}`, {});
+    return makeExo(
+      `Endo for worker ${workerId512}`,
+      M.interface(
+        `Endo for worker ${workerId512}`,
+        {},
+        { defaultGuards: 'passable' },
+      ),
+      {},
+    );
   };
 
   /**
@@ -283,7 +301,11 @@ const makeDaemonCore = async (
 
     context.onCancel(gracefulCancel);
 
-    const worker = Far('EndoWorker', {});
+    const worker = makeExo(
+      'EndoWorker',
+      M.interface('EndoWorker', {}, { defaultGuards: 'passable' }),
+      {},
+    );
 
     return {
       external: worker,
@@ -634,27 +656,31 @@ const makeDaemonCore = async (
       const leastAuthority =
         /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */ (
           /** @type {unknown} */ (
-            Far('EndoGuest', {
-              has: disallowedFn,
-              identify: disallowedFn,
-              list: disallowedFn,
-              followChanges: disallowedFn,
-              lookup: disallowedFn,
-              reverseLookup: disallowedFn,
-              write: disallowedFn,
-              remove: disallowedFn,
-              move: disallowedFn,
-              copy: disallowedFn,
-              listMessages: disallowedFn,
-              followMessages: disallowedFn,
-              resolve: disallowedFn,
-              reject: disallowedFn,
-              adopt: disallowedFn,
-              dismiss: disallowedFn,
-              request: disallowedFn,
-              send: disallowedFn,
-              makeDirectory: disallowedFn,
-            })
+            makeExo(
+              'EndoGuest',
+              M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
+              {
+                has: disallowedFn,
+                identify: disallowedFn,
+                list: disallowedFn,
+                followChanges: disallowedFn,
+                lookup: disallowedFn,
+                reverseLookup: disallowedFn,
+                write: disallowedFn,
+                remove: disallowedFn,
+                move: disallowedFn,
+                copy: disallowedFn,
+                listMessages: disallowedFn,
+                followMessages: disallowedFn,
+                resolve: disallowedFn,
+                reject: disallowedFn,
+                adopt: disallowedFn,
+                dismiss: disallowedFn,
+                request: disallowedFn,
+                send: disallowedFn,
+                makeDirectory: disallowedFn,
+              },
+            )
           )
         );
       return { external: leastAuthority, internal: undefined };
@@ -1639,10 +1665,14 @@ const makeDaemonCore = async (
     /** @returns {string[]} The list of all names in the pet store. */
     const list = () => petStore.list();
 
-    const info = Far('Endo inspector facet', {
-      lookup,
-      list,
-    });
+    const info = makeExo(
+      'Endo inspector facet',
+      M.interface('Endo inspector facet', {}, { defaultGuards: 'passable' }),
+      {
+        lookup,
+        list,
+      },
+    );
 
     return info;
   };
