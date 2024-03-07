@@ -55,7 +55,7 @@ export type MignonicPowers = {
 type FormulaIdentifierRecord = {
   type: string;
   number: string;
-  location: string;
+  node: string;
 };
 
 type EndoFormula = {
@@ -463,7 +463,7 @@ export interface EndoGateway {
 }
 
 export interface PeerInfo {
-  location: string;
+  node: string;
   addresses: string[];
 }
 
@@ -707,7 +707,7 @@ export type DaemonicPowers = {
 
 type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
 export interface DaemonCore {
-  ownLocation: string;
+  nodeIdentifier: string;
   provideValueForFormulaIdentifier: (
     formulaIdentifier: string,
   ) => Promise<unknown>;

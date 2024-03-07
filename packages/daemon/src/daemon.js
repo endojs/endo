@@ -65,6 +65,20 @@ const makeFarContext = context =>
   });
 
 /**
+ *
+ * @param {string} path
+ * @param {string} rootNonce
+ * @param {import('./types.js').Sha512} digester
+ * @returns {string}
+ */
+const getDerivedId = (path, rootNonce, digester) => {
+  digester.updateText(rootNonce);
+  digester.updateText(path);
+  const nonce = digester.digestHex();
+  return nonce;
+};
+
+/**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
  * @param {string} rootEntropy
@@ -88,13 +102,13 @@ const makeDaemonCore = async (
   const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
   const formulaGraphMutex = makeMutex();
-  // eslint-disable-next-line no-use-before-define
-  const ownLocation = getDerivedId(
-    'location',
+  // This is the id of the node that is hosting the values.
+  // This will likely get replaced with a public key in the future.
+  const ownNodeIdentifier = getDerivedId(
+    'nodeId',
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
-  // eslint-disable-next-line no-use-before-define
   const peersFormulaNumber = getDerivedId(
     'peers',
     rootEntropy,
@@ -103,7 +117,7 @@ const makeDaemonCore = async (
   const peersFormulaIdentifier = serializeFormulaIdentifier({
     type: 'pet-store',
     number: peersFormulaNumber,
-    location: ownLocation,
+    node: ownNodeIdentifier,
   });
 
   /**
@@ -474,13 +488,11 @@ const makeDaemonCore = async (
       // a formula identifier to a remote client.
       const gateway = Far('Gateway', {
         provide: async requestedFormulaIdentifier => {
-          const { location } = parseFormulaIdentifier(
-            requestedFormulaIdentifier,
-          );
-          if (location !== ownLocation) {
+          const { node } = parseFormulaIdentifier(requestedFormulaIdentifier);
+          if (node !== ownNodeIdentifier) {
             throw new Error(
-              `Gateway can only provide local values. Got location ${q(
-                location,
+              `Gateway can only provide local values. Got request for node ${q(
+                node,
               )}`,
             );
           }
@@ -557,10 +569,10 @@ const makeDaemonCore = async (
             // Behold, recursion:
             // eslint-disable-next-line no-use-before-define
             (await provideValueForFormulaIdentifier(formula.peers));
-          const { location, addresses } = peerInfo;
+          const { node, addresses } = peerInfo;
           // eslint-disable-next-line no-use-before-define
-          const locationName = petStoreNameForLocation(location);
-          if (peerPetstore.has(locationName)) {
+          const nodeName = petStoreNameForNodeIdentifier(node);
+          if (peerPetstore.has(nodeName)) {
             // We already have this peer.
             // TODO: merge connection info
             return;
@@ -568,7 +580,7 @@ const makeDaemonCore = async (
           const { formulaIdentifier: peerFormulaIdentifier } =
             // eslint-disable-next-line no-use-before-define
             await incarnatePeer(formula.networks, addresses);
-          await peerPetstore.write(locationName, peerFormulaIdentifier);
+          await peerPetstore.write(nodeName, peerFormulaIdentifier);
         },
       });
       return {
@@ -654,13 +666,13 @@ const makeDaemonCore = async (
     const {
       type: formulaType,
       number: formulaNumber,
-      location: formulaLocation,
+      node: formulaNode,
     } = parseFormulaIdentifier(formulaIdentifier);
-    const isRemote = formulaLocation !== ownLocation;
+    const isRemote = formulaNode !== ownNodeIdentifier;
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
-      const peerIdentifier = await getPeerFormulaIdentifierForLocation(
-        formulaLocation,
+      const peerIdentifier = await getPeerFormulaIdentifierForNodeIdentifier(
+        formulaNode,
       );
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
@@ -715,7 +727,7 @@ const makeDaemonCore = async (
     const formulaIdentifier = serializeFormulaIdentifier({
       type: formulaType,
       number: formulaNumber,
-      location: ownLocation,
+      node: ownNodeIdentifier,
     });
 
     // Memoize for lookup.
@@ -794,21 +806,29 @@ const makeDaemonCore = async (
     return controller;
   };
 
-  // TODO: sorry, forcing location into a petstore name
-  const petStoreNameForLocation = location => {
-    const locationName = `p${location.slice(0, 126)}`;
-    return locationName;
+  // TODO: sorry, forcing nodeId into a petstore name
+  const petStoreNameForNodeIdentifier = nodeIdentifier => {
+    return `p${nodeIdentifier.slice(0, 126)}`;
   };
 
-  const getPeerFormulaIdentifierForLocation = async location => {
+  /**
+   * @param {string} nodeIdentifier
+   * @returns {Promise<string>}
+   */
+  const getPeerFormulaIdentifierForNodeIdentifier = async nodeIdentifier => {
+    if (nodeIdentifier === ownNodeIdentifier) {
+      throw new Error(`Cannot get peer formula identifier for self`);
+    }
     const peerStore = /** @type {import('./types.js').PetStore} */ (
       // eslint-disable-next-line no-use-before-define
       await provideValueForFormulaIdentifier(peersFormulaIdentifier)
     );
-    const locationName = petStoreNameForLocation(location);
-    const peerFormulaIdentifier = peerStore.identifyLocal(locationName);
+    const nodeName = petStoreNameForNodeIdentifier(nodeIdentifier);
+    const peerFormulaIdentifier = peerStore.identifyLocal(nodeName);
     if (peerFormulaIdentifier === undefined) {
-      throw new Error(`No peer found for location ${q(location)}.`);
+      throw new Error(
+        `No peer found for node identifier ${q(nodeIdentifier)}.`,
+      );
     }
     return peerFormulaIdentifier;
   };
@@ -1022,7 +1042,7 @@ const makeDaemonCore = async (
       const ownFormulaIdentifier = serializeFormulaIdentifier({
         type: 'eval',
         number: ownFormulaNumber,
-        location: ownLocation,
+        node: ownNodeIdentifier,
       });
       const workerFormulaNumber = await (specifiedWorkerFormulaIdentifier
         ? parseFormulaIdentifier(specifiedWorkerFormulaIdentifier).number
@@ -1241,7 +1261,7 @@ const makeDaemonCore = async (
     const endoFormulaIdentifier = serializeFormulaIdentifier({
       type: 'endo',
       number: formulaNumber,
-      location: ownLocation,
+      node: ownNodeIdentifier,
     });
 
     const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
@@ -1427,7 +1447,7 @@ const makeDaemonCore = async (
     makeMailbox,
     makeDirectoryNode,
     getAllNetworkAddresses,
-    ownLocation,
+    ownNodeIdentifier,
   });
 
   /**
@@ -1560,7 +1580,7 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore} */
   const daemonCore = {
-    ownLocation,
+    nodeIdentifier: ownNodeIdentifier,
     provideControllerForFormulaIdentifier,
     provideControllerForFormulaIdentifierAndResolveHandle,
     provideValueForFormulaIdentifier,
@@ -1591,20 +1611,6 @@ const makeDaemonCore = async (
     incarnatePetInspector,
   };
   return daemonCore;
-};
-
-/**
- *
- * @param {string} path
- * @param {string} rootNonce
- * @param {import('./types.js').Sha512} digester
- * @returns {string}
- */
-const getDerivedId = (path, rootNonce, digester) => {
-  digester.updateText(rootNonce);
-  digester.updateText(path);
-  const nonce = digester.digestHex();
-  return nonce;
 };
 
 /**
@@ -1639,7 +1645,7 @@ const provideEndoBootstrap = async (
     const endoFormulaIdentifier = serializeFormulaIdentifier({
       type: 'endo',
       number: endoFormulaNumber,
-      location: daemonCore.ownLocation,
+      node: daemonCore.nodeIdentifier,
     });
     return /** @type {Promise<import('./types.js').FarEndoBootstrap>} */ (
       daemonCore.provideValueForFormulaIdentifier(endoFormulaIdentifier)

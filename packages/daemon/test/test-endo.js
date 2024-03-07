@@ -1221,10 +1221,10 @@ test('guest cannot access host methods', async t => {
   t.is(revealedTarget, undefined);
 });
 
-test('read unknown location', async t => {
+test('read unknown nodeId', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'read unknown location');
+  const locator = makeLocator('tmp', 'read unknown nodeId');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1238,29 +1238,29 @@ test('read unknown location', async t => {
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
 
-  // write a bogus value for a bogus location
-  const location = await cryptoPowers.randomHex512();
+  // write a bogus value for a bogus nodeId
+  const node = await cryptoPowers.randomHex512();
   const number = await cryptoPowers.randomHex512();
   const type = 'eval';
   const formulaIdentifier = serializeFormulaIdentifier({
-    location,
+    node,
     number,
     type,
   });
   await E(host).write(['abc'], formulaIdentifier);
   // observe reification failure
   t.throwsAsync(() => E(host).lookup('abc'), {
-    message: /No peer found for location /u,
+    message: /No peer found for node identifier /u,
   });
 
   await stop(locator);
 });
 
-test('read remote location', async t => {
+test('read remote value', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locatorA = makeLocator('tmp', 'read remote location A');
-  const locatorB = makeLocator('tmp', 'read remote location B');
+  const locatorA = makeLocator('tmp', 'read remote value A');
+  const locatorB = makeLocator('tmp', 'read remote value B');
   let hostA;
   {
     await stop(locatorA).catch(() => {});

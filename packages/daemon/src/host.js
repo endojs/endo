@@ -24,7 +24,7 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
- * @param {string} args.ownLocation
+ * @param {string} args.ownNodeIdentifier
  */
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
@@ -42,7 +42,7 @@ export const makeHostMaker = ({
   getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
-  ownLocation,
+  ownNodeIdentifier,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -549,7 +549,7 @@ export const makeHostMaker = ({
         networksDirectoryFormulaIdentifier,
       );
       const peerInfo = {
-        location: ownLocation,
+        node: ownNodeIdentifier,
         addresses,
       };
       return peerInfo;
