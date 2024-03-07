@@ -55,13 +55,20 @@ export type MignonicPowers = {
 type FormulaIdentifierRecord = {
   type: string;
   number: string;
+  node: string;
 };
 
 type EndoFormula = {
   type: 'endo';
+  networks: string;
+  peers: string;
   host: string;
   leastAuthority: string;
   webPageJs?: string;
+};
+
+type LoopbackNetworkFormula = {
+  type: 'loopback-network';
 };
 
 type WorkerFormula = {
@@ -74,6 +81,7 @@ type HostFormula = {
   inspector: string;
   petStore: string;
   endo: string;
+  networks: string;
   leastAuthority: string;
 };
 
@@ -100,7 +108,7 @@ type EvalFormula = {
 export type EvalFormulaHook = (
   identifiers: Readonly<{
     endowmentFormulaIdentifiers: string[];
-    evalFormulaNumber: string;
+    evalFormulaIdentifier: string;
     workerFormulaIdentifier: string;
   }>,
 ) => Promise<unknown>;
@@ -141,6 +149,12 @@ type MakeBundleFormula = {
   // TODO formula slots
 };
 
+type PeerFormula = {
+  type: 'peer';
+  networks: string;
+  addresses: Array<string>;
+};
+
 type WebBundleFormula = {
   type: 'web-bundle';
   bundle: string;
@@ -168,6 +182,7 @@ type DirectoryFormula = {
 
 export type Formula =
   | EndoFormula
+  | LoopbackNetworkFormula
   | WorkerFormula
   | HostFormula
   | GuestFormula
@@ -181,7 +196,8 @@ export type Formula =
   | HandleFormula
   | PetInspectorFormula
   | PetStoreFormula
-  | DirectoryFormula;
+  | DirectoryFormula
+  | PeerFormula;
 
 export type Label = {
   number: number;
@@ -212,6 +228,11 @@ export type InternalPayload = InternalRequest | InternalPackage;
 
 export type Message = Label & Payload;
 export type InternalMessage = InternalLabel & InternalPayload;
+
+export type Invitation = {
+  powers: string;
+  addresses: Array<string>;
+};
 
 export interface Topic<
   TRead,
@@ -282,9 +303,13 @@ export interface InternalExternal<External = unknown, Internal = unknown> {
   internal: Internal;
 }
 
-export interface Controller<External = unknown, Internal = unknown> {
+export interface ControllerPartial<External = unknown, Internal = unknown> {
   external: Promise<External>;
   internal: Promise<Internal>;
+}
+
+export interface Controller<External = unknown, Internal = unknown>
+  extends ControllerPartial<External, Internal> {
   context: Context;
 }
 
@@ -331,6 +356,7 @@ export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
   list(...petNamePath: string[]): Promise<Array<string>>;
+  listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followChanges(
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
@@ -426,6 +452,27 @@ export type MakeHostOrGuestOptions = {
   introducedNames?: Record<string, string>;
 };
 
+export interface EndoPeer {
+  provide: (formulaIdentifier: string) => Promise<unknown>;
+}
+export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
+export type EndoPeerController = Controller<EndoPeer, undefined>;
+
+export interface EndoGateway {
+  provide: (formulaIdentifier: string) => Promise<unknown>;
+}
+
+export interface PeerInfo {
+  node: string;
+  addresses: string[];
+}
+
+export interface EndoNetwork {
+  supports: (network: string) => boolean;
+  addresses: () => Array<string>;
+  connect: (address: string, farContext: FarContext) => EndoGateway;
+}
+
 export interface EndoGuest extends EndoDirectory {
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
@@ -436,6 +483,7 @@ export interface EndoGuest extends EndoDirectory {
   request: Mail['request'];
   send: Mail['send'];
 }
+export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoDirectory {
   listMessages: Mail['listMessages'];
@@ -486,6 +534,9 @@ export interface EndoHost extends EndoDirectory {
     powersName: string,
   ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
+  gateway(): Promise<EndoGateway>;
+  getPeerInfo(): Promise<PeerInfo>;
+  addPeerInfo(peerInfo: PeerInfo): Promise<void>;
 }
 
 export interface InternalEndoHost {
@@ -525,6 +576,9 @@ export type FarEndoBootstrap = FarRef<{
   leastAuthority: () => Promise<EndoGuest>;
   webPageJs: () => Promise<unknown>;
   importAndEndowInWebPage: () => Promise<void>;
+  gateway: () => Promise<EndoGateway>;
+  reviveNetworks: () => Promise<void>;
+  addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
 }>;
 
 export type CryptoPowers = {
@@ -653,6 +707,7 @@ export type DaemonicPowers = {
 
 type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
 export interface DaemonCore {
+  nodeIdentifier: string;
   provideValueForFormulaIdentifier: (
     formulaIdentifier: string,
   ) => Promise<unknown>;
@@ -668,17 +723,23 @@ export interface DaemonCore {
     formula: Formula,
   ) => Promise<{ formulaIdentifier: string; value: unknown }>;
   getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
+  getAllNetworkAddresses: (
+    networksDirectoryFormulaIdentifier: string,
+  ) => Promise<string[]>;
   incarnateEndoBootstrap: (
     specifiedFormulaNumber: string,
   ) => IncarnateResult<FarEndoBootstrap>;
   incarnateWorker: () => IncarnateResult<EndoWorker>;
-  incarnatePetStore: () => IncarnateResult<PetStore>;
+  incarnatePetStore: (
+    specifiedFormulaNumber?: string,
+  ) => IncarnateResult<PetStore>;
   incarnateDirectory: () => IncarnateResult<EndoDirectory>;
   incarnatePetInspector: (
     petStoreFormulaIdentifier: string,
   ) => IncarnateResult<EndoInspector>;
   incarnateHost: (
     endoFormulaIdentifier: string,
+    networksDirectoryFormulaIdentifier: string,
     leastAuthorityFormulaIdentifier: string,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
@@ -717,6 +778,12 @@ export interface DaemonCore {
   incarnateHandle: (
     targetFormulaIdentifier: string,
   ) => IncarnateResult<ExternalHandle>;
+  incarnatePeer: (
+    networksFormulaIdentifier: string,
+    addresses: Array<string>,
+  ) => IncarnateResult<EndoPeer>;
+  incarnateNetworksDirectory: () => IncarnateResult<EndoDirectory>;
+  incarnateLoopbackNetwork: () => IncarnateResult<EndoNetwork>;
   incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;
   cancelValue: (formulaIdentifier: string, reason: Error) => Promise<void>;
   storeReaderRef: (

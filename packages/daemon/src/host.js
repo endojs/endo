@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Far } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
@@ -21,8 +21,10 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
+ * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
+ * @param {string} args.ownNodeIdentifier
  */
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
@@ -37,24 +39,28 @@ export const makeHostMaker = ({
   incarnateWebBundle,
   incarnateHandle,
   storeReaderRef,
+  getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
+  ownNodeIdentifier,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
-   * @param {string} endoFormulaIdentifier
    * @param {string} storeFormulaIdentifier
    * @param {string} inspectorFormulaIdentifier
    * @param {string} mainWorkerFormulaIdentifier
+   * @param {string} endoFormulaIdentifier
+   * @param {string} networksDirectoryFormulaIdentifier
    * @param {string} leastAuthorityFormulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
-    endoFormulaIdentifier,
     storeFormulaIdentifier,
     inspectorFormulaIdentifier,
     mainWorkerFormulaIdentifier,
+    endoFormulaIdentifier,
+    networksDirectoryFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
     context,
   ) => {
@@ -69,6 +75,7 @@ export const makeHostMaker = ({
     const specialStore = makePetSitter(basePetStore, {
       SELF: hostFormulaIdentifier,
       ENDO: endoFormulaIdentifier,
+      NETS: networksDirectoryFormulaIdentifier,
       INFO: inspectorFormulaIdentifier,
       NONE: leastAuthorityFormulaIdentifier,
     });
@@ -80,6 +87,15 @@ export const makeHostMaker = ({
     });
     const { petStore } = mailbox;
     const directory = makeDirectoryNode(petStore);
+    const { lookup } = directory;
+
+    const getEndoBootstrap = async () => {
+      const endoBootstrap =
+        /** @type {import('./types.js').FarEndoBootstrap} */ (
+          await provideValueForFormulaIdentifier(endoFormulaIdentifier)
+        );
+      return endoBootstrap;
+    };
 
     /**
      * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
@@ -326,7 +342,7 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         addHook(identifiers =>
-          petStore.write(resultName, `eval:${identifiers.evalFormulaNumber}`),
+          petStore.write(resultName, identifiers.evalFormulaIdentifier),
         );
       }
 
@@ -438,6 +454,7 @@ export const makeHostMaker = ({
         const { formulaIdentifier: newFormulaIdentifier, value } =
           await incarnateHost(
             endoFormulaIdentifier,
+            networksDirectoryFormulaIdentifier,
             leastAuthorityFormulaIdentifier,
           );
         if (petName !== undefined) {
@@ -514,12 +531,36 @@ export const makeHostMaker = ({
       return cancelValue(formulaIdentifier, reason);
     };
 
+    /** @type {import('./types.js').EndoHost['gateway']} */
+    const gateway = async () => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).gateway();
+    };
+
+    /** @type {import('./types.js').EndoHost['addPeerInfo']} */
+    const addPeerInfo = async peerInfo => {
+      const endoBootstrap = getEndoBootstrap();
+      await E(endoBootstrap).addPeerInfo(peerInfo);
+    };
+
+    /** @type {import('./types.js').EndoHost['getPeerInfo']} */
+    const getPeerInfo = async () => {
+      const addresses = await getAllNetworkAddresses(
+        networksDirectoryFormulaIdentifier,
+      );
+      const peerInfo = {
+        node: ownNodeIdentifier,
+        addresses,
+      };
+      return peerInfo;
+    };
+
     const {
       has,
       identify,
       list,
+      listIdentifiers,
       followChanges,
-      lookup,
       reverseLookup,
       write,
       remove,
@@ -546,6 +587,7 @@ export const makeHostMaker = ({
       has,
       identify,
       list,
+      listIdentifiers,
       followChanges,
       lookup,
       reverseLookup,
@@ -574,6 +616,9 @@ export const makeHostMaker = ({
       makeBundle,
       provideWebPage,
       cancel,
+      gateway,
+      getPeerInfo,
+      addPeerInfo,
     };
 
     const external = Far('EndoHost', {

@@ -9,6 +9,7 @@ import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 import url from 'url';
 import path from 'path';
+import crypto from 'crypto';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import bundleSource from '@endo/bundle-source';
@@ -21,6 +22,10 @@ import {
   makeEndoClient,
   makeReaderRef,
 } from '../index.js';
+import { makeCryptoPowers } from '../src/daemon-node-powers.js';
+import { serializeFormulaIdentifier } from '../src/formula-identifier.js';
+
+const cryptoPowers = makeCryptoPowers(crypto);
 
 const { raw } = String;
 
@@ -1214,4 +1219,136 @@ test('guest cannot access host methods', async t => {
   });
   const revealedTarget = await E.get(guestsHost).targetFormulaIdentifier;
   t.is(revealedTarget, undefined);
+});
+
+test('read unknown nodeId', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'read unknown nodeId');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+
+  // write a bogus value for a bogus nodeId
+  const node = await cryptoPowers.randomHex512();
+  const number = await cryptoPowers.randomHex512();
+  const type = 'eval';
+  const formulaIdentifier = serializeFormulaIdentifier({
+    node,
+    number,
+    type,
+  });
+  await E(host).write(['abc'], formulaIdentifier);
+  // observe reification failure
+  t.throwsAsync(() => E(host).lookup('abc'), {
+    message: /No peer found for node identifier /u,
+  });
+
+  await stop(locator);
+});
+
+test('read remote value', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locatorA = makeLocator('tmp', 'read remote value A');
+  const locatorB = makeLocator('tmp', 'read remote value B');
+  let hostA;
+  {
+    await stop(locatorA).catch(() => {});
+    await purge(locatorA);
+    await start(locatorA);
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locatorA.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    hostA = E(bootstrap).host();
+    // Install test network
+    const servicePath = path.join(
+      dirname,
+      'src',
+      'networks',
+      'tcp-netstring.js',
+    );
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    const networkA = E(hostA).makeUnconfined(
+      'MAIN',
+      serviceLocation,
+      'SELF',
+      'test-network',
+    );
+    // set address via request
+    const iteratorRef = E(hostA).followMessages();
+    const { value: message } = await E(iteratorRef).next();
+    const { number } = E.get(message);
+    await E(hostA).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
+    await E(hostA).resolve(await number, 'netport');
+    // move test network to network dir
+    await networkA;
+    await E(hostA).move(['test-network'], ['NETS', 'tcp']);
+  }
+
+  let hostB;
+  {
+    await stop(locatorB).catch(() => {});
+    await purge(locatorB);
+    await start(locatorB);
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locatorB.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    hostB = E(bootstrap).host();
+    // Install test network
+    const servicePath = path.join(
+      dirname,
+      'src',
+      'networks',
+      'tcp-netstring.js',
+    );
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    const networkB = E(hostB).makeUnconfined(
+      'MAIN',
+      serviceLocation,
+      'SELF',
+      'test-network',
+    );
+    // set address via requestcd
+    const iteratorRef = E(hostB).followMessages();
+    const { value: message } = await E(iteratorRef).next();
+    const { number } = E.get(message);
+    await E(hostB).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
+    await E(hostB).resolve(await number, 'netport');
+    // move test network to network dir
+    await networkB;
+    await E(hostB).move(['test-network'], ['NETS', 'tcp']);
+  }
+
+  // introduce nodes to each other
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+
+  // create value to share
+  await E(hostB).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+  const hostBValueIdentifier = await E(hostB).identify('salutations');
+
+  // insert in hostA out of band
+  await E(hostA).write(['greetings'], hostBValueIdentifier);
+  const hostAValue = await E(hostA).lookup('greetings');
+
+  t.is(hostAValue, 'haay wuurl');
+
+  await stop(locatorA);
+  await stop(locatorB);
 });
