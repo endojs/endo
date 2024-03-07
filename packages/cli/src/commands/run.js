@@ -2,6 +2,8 @@
 import url from 'url';
 import os from 'os';
 import { E, Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import bundleSource from '@endo/bundle-source';
 
 import { withEndoAgent } from '../context.js';
@@ -10,6 +12,8 @@ const endowments = harden({
   assert,
   E,
   Far,
+  makeExo,
+  M,
   TextEncoder,
   TextDecoder,
   URL,

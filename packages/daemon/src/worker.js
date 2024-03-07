@@ -2,6 +2,8 @@
 /// <reference types="ses"/>
 
 import { E, Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { makeNetstringCapTP } from './connection.js';
 
 const endowments = harden({
@@ -9,6 +11,8 @@ const endowments = harden({
   console,
   E,
   Far,
+  makeExo,
+  M,
   TextEncoder,
   TextDecoder,
   URL,
@@ -38,11 +42,14 @@ const normalizeFilePath = path => {
  * @param {(error: Error) => void} args.cancel
  */
 export const makeWorkerFacet = ({ cancel }) => {
-  return Far('EndoWorkerFacet', {
-    terminate: async () => {
-      console.error('Endo worker received terminate request');
-      cancel(Error('terminate'));
-    },
+  return makeExo(
+    'EndoWorkerFacet',
+    M.interface('EndoWorkerFacet', {}, { defaultGuards: 'passable' }),
+    {
+      terminate: async () => {
+        console.error('Endo worker received terminate request');
+        cancel(Error('terminate'));
+      },
 
     /**
      * @param {string} source
@@ -65,38 +72,39 @@ export const makeWorkerFacet = ({ cancel }) => {
       return compartment.evaluate(source);
     },
 
-    /**
-     * @param {string} specifier
-     * @param {Promise<unknown>} powersP
-     * @param {Promise<unknown>} contextP
-     */
-    makeUnconfined: async (specifier, powersP, contextP) => {
-      // Windows absolute path includes drive letter which is confused for
-      // protocol specifier. So, we reformat the specifier to include the
-      // file protocol.
-      const specifierUrl = normalizeFilePath(specifier);
-      const namespace = await import(specifierUrl);
-      return namespace.make(powersP, contextP);
-    },
+      /**
+       * @param {string} specifier
+       * @param {Promise<unknown>} powersP
+       * @param {Promise<unknown>} contextP
+       */
+      makeUnconfined: async (specifier, powersP, contextP) => {
+        // Windows absolute path includes drive letter which is confused for
+        // protocol specifier. So, we reformat the specifier to include the
+        // file protocol.
+        const specifierUrl = normalizeFilePath(specifier);
+        const namespace = await import(specifierUrl);
+        return namespace.make(powersP, contextP);
+      },
 
-    /**
-     * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoReadable>} readableP
-     * @param {Promise<unknown>} powersP
-     * @param {Promise<unknown>} contextP
-     */
-    makeBundle: async (readableP, powersP, contextP) => {
-      const bundleText = await E(readableP).text();
-      const bundle = JSON.parse(bundleText);
+      /**
+       * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoReadable>} readableP
+       * @param {Promise<unknown>} powersP
+       * @param {Promise<unknown>} contextP
+       */
+      makeBundle: async (readableP, powersP, contextP) => {
+        const bundleText = await E(readableP).text();
+        const bundle = JSON.parse(bundleText);
 
-      // We defer importing the import-bundle machinery to this in order to
-      // avoid an up-front cost for workers that never use importBundle.
-      const { importBundle } = await import('@endo/import-bundle');
-      const namespace = await importBundle(bundle, {
-        endowments,
-      });
-      return namespace.make(powersP, contextP);
+        // We defer importing the import-bundle machinery to this in order to
+        // avoid an up-front cost for workers that never use importBundle.
+        const { importBundle } = await import('@endo/import-bundle');
+        const namespace = await importBundle(bundle, {
+          endowments,
+        });
+        return namespace.make(powersP, contextP);
+      },
     },
-  });
+  );
 };
 
 /**

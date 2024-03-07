@@ -1,6 +1,8 @@
 // @ts-check
 
-import { E, Far } from '@endo/far';
+import { E } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
@@ -518,11 +520,15 @@ export const makeHostMaker = ({
       addPeerInfo,
     };
 
-    const external = Far('EndoHost', {
-      ...host,
-      followChanges: () => makeIteratorRef(host.followChanges()),
-      followMessages: () => makeIteratorRef(host.followMessages()),
-    });
+    const external = makeExo(
+      'EndoHost',
+      M.interface('EndoHost', {}, { defaultGuards: 'passable' }),
+      {
+        ...host,
+        followChanges: () => makeIteratorRef(host.followChanges()),
+        followMessages: () => makeIteratorRef(host.followMessages()),
+      },
+    );
     const internal = harden({ receive, respond, petStore });
 
     await provide(mainWorkerId);
