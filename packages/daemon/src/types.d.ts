@@ -61,6 +61,7 @@ type FormulaIdentifierRecord = {
 type EndoFormula = {
   type: 'endo';
   networks: string;
+  peers: string;
   host: string;
   leastAuthority: string;
   webPageJs?: string;
@@ -472,6 +473,11 @@ export interface EndoGateway {
   ) => Promise<unknown>;
 }
 
+export interface PeerInfo {
+  location: string;
+  addresses: string[];
+}
+
 export interface EndoNetwork {
   supports: (network: string) => boolean;
   addresses: () => Array<string>;
@@ -541,6 +547,9 @@ export interface EndoHost extends EndoDirectory {
   cancel(petName: string, reason: Error): Promise<void>;
   invite(guestName: string): Promise<Invitation>;
   accept(invitation: Invitation): Promise<FarEndoGuest>;
+  gateway(): Promise<EndoGateway>;
+  getPeerInfo(): Promise<PeerInfo>;
+  addPeerInfo(peerInfo: PeerInfo): Promise<void>;
 }
 
 export interface InternalEndoHost {
@@ -581,6 +590,7 @@ export type FarEndoBootstrap = FarRef<{
   webPageJs: () => Promise<unknown>;
   importAndEndowInWebPage: () => Promise<void>;
   reviveNetworks: () => Promise<void>;
+  addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
 }>;
 
 export type CryptoPowers = {
@@ -709,6 +719,7 @@ export type DaemonicPowers = {
 
 type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
 export interface DaemonCore {
+  ownLocation: string;
   provideValueForFormulaIdentifier: (
     formulaIdentifier: string,
   ) => Promise<unknown>;
@@ -731,7 +742,9 @@ export interface DaemonCore {
     specifiedFormulaNumber: string,
   ) => IncarnateResult<FarEndoBootstrap>;
   incarnateWorker: () => IncarnateResult<EndoWorker>;
-  incarnatePetStore: () => IncarnateResult<PetStore>;
+  incarnatePetStore: (
+    specifiedFormulaNumber?: string,
+  ) => IncarnateResult<PetStore>;
   incarnateDirectory: () => IncarnateResult<EndoDirectory>;
   incarnatePetInspector: (
     petStoreFormulaIdentifier: string,

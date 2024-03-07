@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Far } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
@@ -26,6 +26,7 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
+ * @param {string} args.ownLocation
  */
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
@@ -45,6 +46,7 @@ export const makeHostMaker = ({
   getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
+  ownLocation,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -89,6 +91,7 @@ export const makeHostMaker = ({
     });
     const { petStore } = mailbox;
     const directory = makeDirectoryNode(petStore);
+    const { lookup } = directory;
 
     /**
      * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
@@ -560,13 +563,39 @@ export const makeHostMaker = ({
       return /** @type {import('./types.js').FarEndoGuest} */ (remoteValue);
     };
 
+    /** @type {import('./types.js').EndoHost['gateway']} */
+    const gateway = async () => {
+      // TODO: we should only materialize local objects this way
+      return Far('Gateway', { provideValueForFormulaIdentifier });
+    };
+
+    /** @type {import('./types.js').EndoHost['addPeerInfo']} */
+    const addPeerInfo = async peerInfo => {
+      const endoBootstrap =
+        /** @type {import('./types.js').FarEndoBootstrap} */ (
+          await lookup('ENDO')
+        );
+      await E(endoBootstrap).addPeerInfo(peerInfo);
+    };
+
+    /** @type {import('./types.js').EndoHost['getPeerInfo']} */
+    const getPeerInfo = async () => {
+      const addresses = await getAllNetworkAddresses(
+        networksDirectoryFormulaIdentifier,
+      );
+      const peerInfo = {
+        location: ownLocation,
+        addresses,
+      };
+      return peerInfo;
+    };
+
     const {
       has,
       identify,
       list,
       listIdentifiers,
       followChanges,
-      lookup,
       reverseLookup,
       write,
       remove,
@@ -624,6 +653,9 @@ export const makeHostMaker = ({
       cancel,
       invite,
       accept,
+      gateway,
+      getPeerInfo,
+      addPeerInfo,
     };
 
     const external = Far('EndoHost', {

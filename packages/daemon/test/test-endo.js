@@ -1296,8 +1296,105 @@ test('read unknown location', async t => {
   await E(host).write(['abc'], formulaIdentifier);
   // observe reification failure
   t.throwsAsync(() => E(host).lookup('abc'), {
-    message: /Invalid formula identifier, not local: /u,
+    message: /No peer found for location /u,
   });
 
   await stop(locator);
+});
+
+test('read remote location', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locatorA = makeLocator('tmp', 'read remote location A');
+  const locatorB = makeLocator('tmp', 'read remote location B');
+  let hostA;
+  {
+    await stop(locatorA).catch(() => {});
+    await purge(locatorA);
+    await start(locatorA);
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locatorA.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    hostA = E(bootstrap).host();
+    // Install test network
+    const servicePath = path.join(
+      dirname,
+      'src',
+      'networks',
+      'tcp-netstring.js',
+    );
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    const networkA = E(hostA).makeUnconfined(
+      'MAIN',
+      serviceLocation,
+      'SELF',
+      'test-network',
+    );
+    // set address via request
+    const iteratorRef = E(hostA).followMessages();
+    const { value: message } = await E(iteratorRef).next();
+    const { number } = E.get(message);
+    await E(hostA).evaluate('MAIN', '`127.0.0.1:8920`', [], [], 'netport');
+    await E(hostA).resolve(await number, 'netport');
+    // move test network to network dir
+    await networkA;
+    await E(hostA).move(['test-network'], ['NETS', 'tcp']);
+  }
+
+  let hostB;
+  {
+    await stop(locatorB).catch(() => {});
+    await purge(locatorB);
+    await start(locatorB);
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locatorB.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    hostB = E(bootstrap).host();
+    // Install test network
+    const servicePath = path.join(
+      dirname,
+      'src',
+      'networks',
+      'tcp-netstring.js',
+    );
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    const networkB = E(hostB).makeUnconfined(
+      'MAIN',
+      serviceLocation,
+      'SELF',
+      'test-network',
+    );
+    // set address via requestcd
+    const iteratorRef = E(hostB).followMessages();
+    const { value: message } = await E(iteratorRef).next();
+    const { number } = E.get(message);
+    await E(hostB).evaluate('MAIN', '`127.0.0.1:8921`', [], [], 'netport');
+    await E(hostB).resolve(await number, 'netport');
+    // move test network to network dir
+    await networkB;
+    await E(hostB).move(['test-network'], ['NETS', 'tcp']);
+  }
+
+  // introduce nodes to each other
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+
+  // create value to share
+  await E(hostB).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+  const hostBValueIdentifier = await E(hostB).identify('salutations');
+
+  // insert in hostA out of band
+  await E(hostA).write(['greetings'], hostBValueIdentifier);
+  const hostAValue = await E(hostA).lookup('greetings');
+
+  t.is(hostAValue, 'haay wuurl');
+
+  await stop(locatorA);
+  await stop(locatorB);
 });
