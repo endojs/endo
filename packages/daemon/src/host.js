@@ -102,15 +102,18 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {import('./types.js').Controller} newController
-     * @param {Record<string,string>} introducedNames
+     * @param {string} formulaIdentifier - The guest or host formula identifier.
+     * @param {Record<string,string>} introducedNames - The names to introduce.
      * @returns {Promise<void>}
      */
-    const introduceNamesToNewHostOrGuest = async (
-      newController,
+    const introduceNamesToParty = async (
+      formulaIdentifier,
       introducedNames,
     ) => {
-      const { petStore: newPetStore } = await newController.internal;
+      /** @type {import('./types.js').Controller<any, any>} */
+      const controller =
+        provideControllerForFormulaIdentifier(formulaIdentifier);
+      const { petStore: newPetStore } = await controller.internal;
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
           const introducedFormulaIdentifier =
@@ -158,15 +161,14 @@ export const makeHostMaker = ({
         );
       }
 
-      const newGuestController =
-        /** @type {import('./types.js').Controller<>} */ (
-          provideControllerForFormulaIdentifier(formulaIdentifier)
-        );
       if (introducedNames !== undefined) {
         // TODO: move to hook
-        // can use provideValueForFormulaIdentifier on the guest formula
-        introduceNamesToNewHostOrGuest(newGuestController, introducedNames);
+        introduceNamesToParty(formulaIdentifier, introducedNames);
       }
+      const newGuestController =
+        /** @type {import('./types.js').Controller<any, any>} */ (
+          provideControllerForFormulaIdentifier(formulaIdentifier)
+        );
       return {
         formulaIdentifier,
         value: /** @type {Promise<import('./types.js').EndoGuest>} */ (
@@ -466,13 +468,14 @@ export const makeHostMaker = ({
           )}`,
         );
       }
+
+      if (introducedNames !== undefined) {
+        introduceNamesToParty(formulaIdentifier, introducedNames);
+      }
       const newHostController =
         /** @type {import('./types.js').Controller<>} */ (
           provideControllerForFormulaIdentifier(formulaIdentifier)
         );
-      if (introducedNames !== undefined) {
-        introduceNamesToNewHostOrGuest(newHostController, introducedNames);
-      }
       return {
         formulaIdentifier,
         value: /** @type {Promise<import('./types.js').EndoHost>} */ (

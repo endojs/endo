@@ -537,14 +537,14 @@ export interface EndoHost extends EndoDirectory {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
 }
 
-export interface InternalEndoHost {
+export interface InternalEndoParty {
   receive: Mail['receive'];
   respond: Mail['respond'];
   petStore: PetStore;
 }
 
 export interface EndoHostController
-  extends Controller<FarRef<EndoHost>, InternalEndoHost> {}
+  extends Controller<FarRef<EndoHost>, InternalEndoParty> {}
 
 export type EndoInspector<Record = string> = {
   lookup: (petName: Record) => Promise<unknown>;
