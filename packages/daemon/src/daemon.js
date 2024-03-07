@@ -472,10 +472,21 @@ const makeDaemonCore = async (
     } else if (formula.type === 'endo') {
       // Gateway is equivalent to E's "nonce locator". It provides a value for
       // a formula identifier to a remote client.
-      // TODO: we should only materialize local objects this way
       const gateway = Far('Gateway', {
-        // eslint-disable-next-line no-use-before-define
-        provide: provideValueForFormulaIdentifier,
+        provide: async requestedFormulaIdentifier => {
+          const { location } = parseFormulaIdentifier(
+            requestedFormulaIdentifier,
+          );
+          if (location !== ownLocation) {
+            throw new Error(
+              `Gateway can only provide local values. Got location ${q(
+                location,
+              )}`,
+            );
+          }
+          // eslint-disable-next-line no-use-before-define
+          return provideValueForFormulaIdentifier(requestedFormulaIdentifier);
+        },
       });
       /** @type {import('./types.js').FarEndoBootstrap} */
       const endoBootstrap = Far('Endo private facet', {
