@@ -15,7 +15,7 @@ export const makeLoopbackNetwork = ({ provideValueForFormulaIdentifier }) => {
       connect: address => {
         if (address !== 'loop:') {
           throw new Error(
-            'Failed invariant: loopback only supports loop: address',
+            'Failed invariant: loopback only supports "loop:" address',
           );
         }
         return { provide: provideValueForFormulaIdentifier };
