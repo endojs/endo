@@ -89,6 +89,14 @@ export const makeHostMaker = ({
     const directory = makeDirectoryNode(petStore);
     const { lookup } = directory;
 
+    const getEndoBootstrap = async () => {
+      const endoBootstrap =
+        /** @type {import('./types.js').FarEndoBootstrap} */ (
+          await provideValueForFormulaIdentifier(endoFormulaIdentifier)
+        );
+      return endoBootstrap;
+    };
+
     /**
      * @returns {Promise<{ formulaIdentifier: string, value: import('./types').ExternalHandle }>}
      */
@@ -525,16 +533,13 @@ export const makeHostMaker = ({
 
     /** @type {import('./types.js').EndoHost['gateway']} */
     const gateway = async () => {
-      // TODO: we should only materialize local objects this way
-      return Far('Gateway', { provide: provideValueForFormulaIdentifier });
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).gateway();
     };
 
     /** @type {import('./types.js').EndoHost['addPeerInfo']} */
     const addPeerInfo = async peerInfo => {
-      const endoBootstrap =
-        /** @type {import('./types.js').FarEndoBootstrap} */ (
-          await lookup('ENDO')
-        );
+      const endoBootstrap = getEndoBootstrap();
       await E(endoBootstrap).addPeerInfo(peerInfo);
     };
 

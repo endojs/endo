@@ -470,6 +470,13 @@ const makeDaemonCore = async (
         },
       };
     } else if (formula.type === 'endo') {
+      // Gateway is equivalent to E's "nonce locator". It provides a value for
+      // a formula identifier to a remote client.
+      // TODO: we should only materialize local objects this way
+      const gateway = Far('Gateway', {
+        // eslint-disable-next-line no-use-before-define
+        provide: provideValueForFormulaIdentifier,
+      });
       /** @type {import('./types.js').FarEndoBootstrap} */
       const endoBootstrap = Far('Endo private facet', {
         // TODO for user named
@@ -512,6 +519,9 @@ const makeDaemonCore = async (
             );
           const bundle = await E(bundleBlob).json();
           await E(webPageP).makeBundle(bundle, endowedPowers);
+        },
+        gateway: async () => {
+          return gateway;
         },
         reviveNetworks: async () => {
           const networksDirectory =

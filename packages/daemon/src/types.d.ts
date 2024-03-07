@@ -576,6 +576,7 @@ export type FarEndoBootstrap = FarRef<{
   leastAuthority: () => Promise<EndoGuest>;
   webPageJs: () => Promise<unknown>;
   importAndEndowInWebPage: () => Promise<void>;
+  gateway: () => Promise<EndoGateway>;
   reviveNetworks: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
 }>;
