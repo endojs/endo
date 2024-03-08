@@ -509,7 +509,6 @@ export interface EndoHost extends EndoDirectory {
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
   makeDirectory(petName: string): Promise<EndoDirectory>;
-  makeWorker(petName: string): Promise<EndoWorker>;
   provideWorker(petName: string): Promise<EndoWorker>;
   evaluate(
     workerPetName: string | undefined,

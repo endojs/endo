@@ -96,7 +96,7 @@ test('lifecycle', async t => {
   );
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
-  await E(host).makeWorker('worker');
+  await E(host).provideWorker('worker');
   await E(host).cancel('worker');
   cancel(new Error('Cancelled'));
   await closed.catch(() => {});
@@ -121,7 +121,7 @@ test('spawn and evaluate', async t => {
   );
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
-  await E(host).makeWorker('w1');
+  await E(host).provideWorker('w1');
   const ten = await E(host).evaluate('w1', '10', [], []);
   t.is(ten, 10);
 
@@ -150,6 +150,31 @@ test('anonymous spawn and evaluate', async t => {
   await stop(locator);
 });
 
+test('cannot spawn worker with existing non-worker name', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'spawn-eval-name-reuse');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  t.is(ten, 10);
+  await t.throwsAsync(() => E(host).provideWorker('ten'), {
+    message: 'Not a worker "ten"',
+  });
+
+  await stop(locator);
+});
+
 test('persist spawn and evaluation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
@@ -168,7 +193,7 @@ test('persist spawn and evaluation', async t => {
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
 
-    await E(host).makeWorker('w1');
+    await E(host).provideWorker('w1');
 
     const ten = await E(host).evaluate('w1', '10', [], [], 'ten');
     t.is(ten, 10);
@@ -261,7 +286,7 @@ test('closure state lost by restart', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    await E(host).makeWorker('w1');
+    await E(host).provideWorker('w1');
 
     await E(host).evaluate(
       'w1',
@@ -364,7 +389,7 @@ test('persist unconfined services and their requests', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    await E(host).makeWorker('user-worker');
+    await E(host).provideWorker('user-worker');
     await E(host).evaluate(
       'user-worker',
       `
@@ -391,13 +416,13 @@ test('persist unconfined services and their requests', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    await E(host).makeWorker('w1');
+    await E(host).provideWorker('w1');
     await E(host).provideGuest('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
     const serviceLocation = url.pathToFileURL(servicePath).href;
     await E(host).makeUnconfined('w1', serviceLocation, 'o1', 's1');
 
-    await E(host).makeWorker('w2');
+    await E(host).provideWorker('w2');
     const answer = await E(host).evaluate(
       'w2',
       'E(service).ask()',
@@ -449,7 +474,7 @@ test('persist confined services and their requests', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    await E(host).makeWorker('user-worker');
+    await E(host).provideWorker('user-worker');
     await E(host).evaluate(
       'user-worker',
       `
@@ -476,14 +501,14 @@ test('persist confined services and their requests', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    await E(host).makeWorker('w1');
+    await E(host).provideWorker('w1');
     await E(host).provideGuest('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
     await doMakeBundle(host, servicePath, bundleName =>
       E(host).makeBundle('w1', bundleName, 'o1', 's1'),
     );
 
-    await E(host).makeWorker('w2');
+    await E(host).provideWorker('w2');
     const answer = await E(host).evaluate(
       'w2',
       'E(service).ask()',
@@ -906,7 +931,7 @@ test('make a host', async t => {
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
   const host2 = E(host).provideHost('fellow-host');
-  await E(host2).makeWorker('w1');
+  await E(host2).provideWorker('w1');
   const ten = await E(host2).evaluate('w1', '10', [], []);
   t.is(ten, 10);
 

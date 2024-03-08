@@ -5,6 +5,7 @@ import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
+import { parseFormulaIdentifier } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -130,7 +131,7 @@ export const makeHostMaker = ({
       if (petName !== undefined) {
         const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier !== undefined) {
-          if (formulaIdentifier.startsWith('guest:')) {
+          if (parseFormulaIdentifier(formulaIdentifier).type !== 'guest') {
             throw new Error(
               `Existing pet name does not designate a guest powers capability: ${q(
                 petName,
@@ -418,20 +419,6 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} [petName]
-     * @returns {Promise<import('./types.js').EndoWorker>}
-     */
-    const makeWorker = async petName => {
-      // Behold, recursion:
-      const { formulaIdentifier, value } = await incarnateWorker();
-      if (petName !== undefined) {
-        assertPetName(petName);
-        await petStore.write(petName, formulaIdentifier);
-      }
-      return /** @type {import('./types.js').EndoWorker} */ (value);
-    };
-
-    /**
-     * @param {string} [petName]
      * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
      */
@@ -599,7 +586,6 @@ export const makeHostMaker = ({
       store,
       provideGuest,
       provideHost,
-      makeWorker,
       provideWorker,
       evaluate,
       makeUnconfined,
