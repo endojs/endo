@@ -6,5 +6,5 @@ import { withEndoParty } from '../context.js';
 
 export const spawn = async ({ petNames, partyNames }) =>
   withEndoParty(partyNames, { os, process }, async ({ party }) =>
-    Promise.all(petNames.map(petName => E(party).makeWorker(petName))),
+    Promise.all(petNames.map(petName => E(party).provideWorker(petName))),
   );
