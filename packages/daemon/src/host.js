@@ -132,48 +132,48 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
      */
     const makeGuest = async (petName, { introducedNames = {} } = {}) => {
-      /** @type {string | undefined} */
-      let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = petStore.identifyLocal(petName);
-      }
+        const formulaIdentifier = petStore.identifyLocal(petName);
+        if (formulaIdentifier !== undefined) {
+          if (formulaIdentifier.startsWith('guest:')) {
+            throw new Error(
+              `Existing pet name does not designate a guest powers capability: ${q(
+                petName,
+              )}`,
+            );
+          }
 
-      if (formulaIdentifier === undefined) {
-        const { value, formulaIdentifier: guestFormulaIdentifier } =
-          // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
-          await incarnateGuest(hostFormulaIdentifier);
-        // TODO: move to hook
-        if (petName !== undefined) {
-          assertPetName(petName);
-          await petStore.write(petName, guestFormulaIdentifier);
+          // TODO: Should this be awaited?
+          introduceNamesToParty(formulaIdentifier, introducedNames);
+          const guestController =
+            provideControllerForFormulaIdentifier(formulaIdentifier);
+          return {
+            formulaIdentifier,
+            value: /** @type {Promise<import('./types.js').EndoGuest>} */ (
+              guestController.external
+            ),
+          };
         }
+      }
 
-        return {
-          value: Promise.resolve(value),
-          formulaIdentifier: guestFormulaIdentifier,
-        };
-      } else if (!formulaIdentifier.startsWith('guest:')) {
-        throw new Error(
-          `Existing pet name does not designate a guest powers capability: ${q(
-            petName,
-          )}`,
+      /** @type {AsyncHooks<import('./types.js').GuestHookParams>} */
+      const hooks = makeAsyncHooks();
+      if (petName !== undefined) {
+        hooks.add(identifiers =>
+          petStore.write(petName, identifiers.guestFormulaIdentifier),
         );
       }
 
-      if (introducedNames !== undefined) {
-        // TODO: move to hook
-        introduceNamesToParty(formulaIdentifier, introducedNames);
-      }
-      const newGuestController =
-        /** @type {import('./types.js').Controller<any, any>} */ (
-          provideControllerForFormulaIdentifier(formulaIdentifier)
-        );
+      const { value, formulaIdentifier } =
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        await incarnateGuest(hostFormulaIdentifier, hooks);
+      // TODO: Should this be awaited?
+      introduceNamesToParty(formulaIdentifier, introducedNames);
+
       return {
+        value: Promise.resolve(value),
         formulaIdentifier,
-        value: /** @type {Promise<import('./types.js').EndoGuest>} */ (
-          newGuestController.external
-        ),
       };
     };
 
@@ -280,7 +280,7 @@ export const makeHostMaker = ({
         ));
         if (guestFormulaIdentifier === undefined) {
           throw new Error(
-            `panic: provideGuest must return an guest with a corresponding formula identifier`,
+            `panic: makeGuest must return a guest with a corresponding formula identifier`,
           );
         }
       }
@@ -308,7 +308,7 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      /** @type {AsyncHooks<import('./types.js').EvalFormulaHooks>} */
+      /** @type {AsyncHooks<import('./types.js').EvalHookParams>} */
       const hooks = makeAsyncHooks();
 
       const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
@@ -469,9 +469,7 @@ export const makeHostMaker = ({
         );
       }
 
-      if (introducedNames !== undefined) {
-        introduceNamesToParty(formulaIdentifier, introducedNames);
-      }
+      introduceNamesToParty(formulaIdentifier, introducedNames);
       const newHostController =
         /** @type {import('./types.js').Controller<>} */ (
           provideControllerForFormulaIdentifier(formulaIdentifier)

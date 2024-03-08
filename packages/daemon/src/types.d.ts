@@ -92,6 +92,10 @@ type GuestFormula = {
   worker: string;
 };
 
+export type GuestHookParams = {
+  guestFormulaIdentifier: string;
+};
+
 type LeastAuthorityFormula = {
   type: 'least-authority';
 };
@@ -105,7 +109,7 @@ type EvalFormula = {
   // TODO formula slots
 };
 
-export type EvalFormulaHooks = {
+export type EvalHookParams = {
   endowmentFormulaIdentifiers: string[];
   evalFormulaIdentifier: string;
   workerFormulaIdentifier: string;
@@ -751,7 +755,10 @@ export interface DaemonCore {
     leastAuthorityFormulaIdentifier: string,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
-  incarnateGuest: (hostFormulaIdentifier: string) => IncarnateResult<EndoGuest>;
+  incarnateGuest: (
+    hostFormulaIdentifier: string,
+    hooks: AsyncHooks<GuestHookParams>,
+  ) => IncarnateResult<EndoGuest>;
   incarnateReadableBlob: (
     contentSha512: string,
   ) => IncarnateResult<FarEndoReadable>;
@@ -760,7 +767,7 @@ export interface DaemonCore {
     source: string,
     codeNames: string[],
     endowmentFormulaIdsOrPaths: (string | string[])[],
-    hooks: AsyncHooks<EvalFormulaHooks>,
+    hooks: AsyncHooks<EvalHookParams>,
     specifiedWorkerFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
   incarnateUnconfined: (

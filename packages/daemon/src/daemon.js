@@ -1015,7 +1015,7 @@ const makeDaemonCore = async (
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateGuest']} */
-  const incarnateGuest = async hostFormulaIdentifier => {
+  const incarnateGuest = async (hostFormulaIdentifier, hooks) => {
     const {
       guestFormulaNumber,
       hostHandleFormulaIdentifier,
@@ -1040,6 +1040,14 @@ const makeDaemonCore = async (
           incarnateNumberedWorker(worker),
         ]),
       );
+
+      await hooks.execute({
+        guestFormulaIdentifier: serializeFormulaIdentifier({
+          type: 'guest',
+          number: ownFormulaNumber,
+          node: ownNodeIdentifier,
+        }),
+      });
 
       return harden({
         guestFormulaNumber: ownFormulaNumber,

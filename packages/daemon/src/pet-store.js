@@ -85,12 +85,14 @@ export const makePetStoreMaker = (filePowers, locator) => {
       assertValidName(petName);
       assertValidFormulaIdentifier(formulaIdentifier, petName);
 
+      // TODO: Return early if the formula identifier is the same.
       if (petNames.has(petName)) {
         // Perform cleanup on the overwritten pet name.
         const formulaPetNames = formulaIdentifiers.get(petName);
         if (formulaPetNames !== undefined) {
           formulaPetNames.delete(petName);
         }
+        // TODO: Should this only happen if something is actually deleted?
         changesTopic.publisher.next({ remove: petName });
       }
 
