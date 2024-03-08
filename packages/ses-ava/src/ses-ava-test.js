@@ -135,15 +135,6 @@ const makeVirtualExecutionContext = originalT => {
   const virtualT = {
     log: /** @type {import('ava').LogFn} */ (causalConsole.error),
     console: causalConsole,
-    withConsole: thunk => {
-      const originalConsole = globalThis.console;
-      globalThis.console = /** @type {Console} */ (causalConsole);
-      try {
-        thunk();
-      } finally {
-        globalThis.console = originalConsole;
-      }
-    },
   };
   const originalProto = getPrototypeOf(originalT);
   const descs = {

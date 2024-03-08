@@ -22,9 +22,9 @@ lockdown({
 test('raw ava throw console output', t => {
   t.assert(true);
 
-  t.log('t.log1:', exampleProblem('t.log1'));
-  console.log('console.log2:', exampleProblem('console.log2'));
+  t.log('t.logA:', exampleProblem('t.logA'));
+  console.log('console.logB:', exampleProblem('console.logB'));
 
   // Uncomment to see something how this test case fails
-  // throw exampleProblem('throw3');
+  // throw exampleProblem('throwC');
 });

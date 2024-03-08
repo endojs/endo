@@ -25,24 +25,17 @@ const test = wrapTest(rawTest, { tlog: true, pushConsole: true });
 test('ses-ava reject console output', t => {
   t.assert(true);
 
-  t.log('t.log1:', exampleProblem('t.log1'));
-  console.log('console.log2:', exampleProblem('console.log2'));
-
-  t.withConsole(() =>
-    console.log('console.log3:', exampleProblem('console.log3')),
-  );
+  t.log('t.logA:', exampleProblem('t.logA'));
+  console.log('console.logB:', exampleProblem('console.logB'));
 
   return Promise.resolve(null)
     .then(v => v)
     .then(v => v)
     .then(_ => {
-      t.log('t.log4:', exampleProblem('t.log4'));
-      console.log('console.log5:', exampleProblem('console.log5'));
-      t.withConsole(() =>
-        console.log('console.log6:', exampleProblem('console.log6')),
-      );
+      t.log('t.logC:', exampleProblem('t.logC'));
+      console.log('console.logD:', exampleProblem('console.logD'));
 
       // Uncomment to see something how this test case fails
-      // throw exampleProblem('throw7');
+      // throw exampleProblem('throwE');
     });
 });

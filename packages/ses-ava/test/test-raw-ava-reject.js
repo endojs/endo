@@ -22,17 +22,17 @@ lockdown({
 test('raw ava reject console output', t => {
   t.assert(true);
 
-  t.log('t.log1:', exampleProblem('t.log1'));
-  console.log('console.log2:', exampleProblem('console.log2'));
+  t.log('t.logA:', exampleProblem('t.logA'));
+  console.log('console.logB:', exampleProblem('console.logB'));
 
   return Promise.resolve(null)
     .then(v => v)
     .then(v => v)
     .then(_ => {
-      t.log('t.log3:', exampleProblem('t.log3'));
-      console.log('console.log4:', exampleProblem('console.log4'));
+      t.log('t.logC:', exampleProblem('t.logC'));
+      console.log('console.logD:', exampleProblem('console.logD'));
 
       // Uncomment to see something how this test case fails
-      // throw exampleProblem('throw5');
+      // throw exampleProblem('throwE');
     });
 });
