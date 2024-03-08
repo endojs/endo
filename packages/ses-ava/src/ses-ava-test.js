@@ -14,7 +14,7 @@ import 'ses';
  * and may change in the future. It is currently only intended for use by
  * `@endo/ses-ava`, with which it will be co-maintained.
  *
-* Thus, the SES console-shim.js makes `makeCausalConsoleFromLoggerForSesAva`
+ * Thus, the SES console-shim.js makes `makeCausalConsoleFromLoggerForSesAva`
  * available on `globalThis` which it *assumes* is the global of the start
  * compartment and is therefore allowed to hold powers that should not be
  * available in constructed compartments. It makes it available as the value of
