@@ -4,13 +4,13 @@ import { E, Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
-import { makeAsyncHooks } from './async-hooks.js';
+import { makeDeferredTasks } from './deferred-tasks.js';
 
 const { quote: q } = assert;
 
 /**
  * @template {Record<string, string | string[]>} T
- * @typedef {import('./types.js').AsyncHooks<T>} AsyncHooks
+ * @typedef {import('./types.js').DeferredTasks<T>} DeferredTasks
  */
 
 /**
@@ -156,10 +156,10 @@ export const makeHostMaker = ({
         }
       }
 
-      /** @type {AsyncHooks<import('./types.js').GuestHookParams>} */
-      const hooks = makeAsyncHooks();
+      /** @type {DeferredTasks<import('./types.js').GuestDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
       if (petName !== undefined) {
-        hooks.add(identifiers =>
+        tasks.push(identifiers =>
           petStore.write(petName, identifiers.guestFormulaIdentifier),
         );
       }
@@ -167,7 +167,7 @@ export const makeHostMaker = ({
       const { value, formulaIdentifier } =
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        await incarnateGuest(hostFormulaIdentifier, hooks);
+        await incarnateGuest(hostFormulaIdentifier, tasks);
       // TODO: Should this be awaited?
       introduceNamesToParty(formulaIdentifier, introducedNames);
 
@@ -247,10 +247,10 @@ export const makeHostMaker = ({
 
     /**
      * @param {string | 'MAIN' | 'NEW'} workerName
-     * @param {AsyncHooks<{ workerFormulaIdentifier: string }>['add']} addHook
+     * @param {DeferredTasks<{ workerFormulaIdentifier: string }>['push']} deferTask
      * @returns {string | undefined}
      */
-    const provideWorkerFormulaIdentifierSync = (workerName, addHook) => {
+    const provideWorkerFormulaIdentifierSync = (workerName, deferTask) => {
       if (workerName === 'MAIN') {
         return mainWorkerFormulaIdentifier;
       } else if (workerName === 'NEW') {
@@ -260,7 +260,7 @@ export const makeHostMaker = ({
       assertPetName(workerName);
       const workerFormulaIdentifier = petStore.identifyLocal(workerName);
       if (workerFormulaIdentifier === undefined) {
-        addHook(identifiers =>
+        deferTask(identifiers =>
           petStore.write(workerName, identifiers.workerFormulaIdentifier),
         );
         return undefined;
@@ -308,12 +308,12 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      /** @type {AsyncHooks<import('./types.js').EvalHookParams>} */
-      const hooks = makeAsyncHooks();
+      /** @type {DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
 
       const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
         workerName,
-        hooks.add,
+        tasks.push,
       );
 
       /** @type {(string | string[])[]} */
@@ -337,7 +337,7 @@ export const makeHostMaker = ({
       );
 
       if (resultName !== undefined) {
-        hooks.add(identifiers =>
+        tasks.push(identifiers =>
           petStore.write(resultName, identifiers.evalFormulaIdentifier),
         );
       }
@@ -347,7 +347,7 @@ export const makeHostMaker = ({
         source,
         codeNames,
         endowmentFormulaIdsOrPaths,
-        hooks,
+        tasks,
         workerFormulaIdentifier,
       );
       return value;

@@ -1,20 +1,20 @@
 import test from 'ava';
-import { makeAsyncHooks } from '../src/async-hooks.js';
+import { makeDeferredTasks } from '../src/deferred-tasks.js';
 
 test('execute', async t => {
-  const hooks = makeAsyncHooks();
+  const tasks = makeDeferredTasks();
   const results = [];
-  hooks.add(async () => {
+  tasks.push(async () => {
     results.push(1);
   });
-  hooks.add(async () => {
+  tasks.push(async () => {
     results.push(2);
   });
-  hooks.add(async () => {
+  tasks.push(async () => {
     results.push(3);
   });
 
-  await hooks.execute();
+  await tasks.execute();
 
   t.deepEqual(results.sort(), [1, 2, 3]);
 });

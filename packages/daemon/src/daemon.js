@@ -1015,7 +1015,7 @@ const makeDaemonCore = async (
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateGuest']} */
-  const incarnateGuest = async (hostFormulaIdentifier, hooks) => {
+  const incarnateGuest = async (hostFormulaIdentifier, deferredTasks) => {
     const {
       guestFormulaNumber,
       hostHandleFormulaIdentifier,
@@ -1041,7 +1041,7 @@ const makeDaemonCore = async (
         ]),
       );
 
-      await hooks.execute({
+      await deferredTasks.execute({
         guestFormulaIdentifier: serializeFormulaIdentifier({
           type: 'guest',
           number: ownFormulaNumber,
@@ -1075,7 +1075,7 @@ const makeDaemonCore = async (
     source,
     codeNames,
     endowmentFormulaIdsOrPaths,
-    hooks,
+    deferredTasks,
     specifiedWorkerFormulaIdentifier,
   ) => {
     const {
@@ -1118,7 +1118,7 @@ const makeDaemonCore = async (
         evalFormulaIdentifier: ownFormulaIdentifier,
       });
 
-      await hooks.execute(identifiers);
+      await deferredTasks.execute(identifiers);
       return identifiers;
     });
 

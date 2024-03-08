@@ -92,7 +92,7 @@ type GuestFormula = {
   worker: string;
 };
 
-export type GuestHookParams = {
+export type GuestDeferredTaskParams = {
   guestFormulaIdentifier: string;
 };
 
@@ -109,7 +109,7 @@ type EvalFormula = {
   // TODO formula slots
 };
 
-export type EvalHookParams = {
+export type EvalDeferredTaskParams = {
   endowmentFormulaIdentifiers: string[];
   evalFormulaIdentifier: string;
   workerFormulaIdentifier: string;
@@ -709,16 +709,17 @@ export type DaemonicPowers = {
 
 type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
 
-export type AsyncHook<T extends Record<string, string | string[]>> = (
+export type DeferredTask<T extends Record<string, string | string[]>> = (
   formulaIdentifiers: Readonly<T>,
 ) => Promise<void>;
 
 /**
- * A collection of async hooks that can be executed in parallel.
+ * A collection of deferred tasks (i.e. async functions) that can be executed in
+ * parallel.
  */
-export type AsyncHooks<T extends Record<string, string | string[]>> = {
-  add(value: AsyncHook<T>): void;
+export type DeferredTasks<T extends Record<string, string | string[]>> = {
   execute(identifiers: Readonly<T>): Promise<void>;
+  push(value: DeferredTask<T>): void;
 };
 
 export interface DaemonCore {
@@ -757,7 +758,7 @@ export interface DaemonCore {
   ) => IncarnateResult<EndoHost>;
   incarnateGuest: (
     hostFormulaIdentifier: string,
-    hooks: AsyncHooks<GuestHookParams>,
+    deferredTasks: DeferredTasks<GuestDeferredTaskParams>,
   ) => IncarnateResult<EndoGuest>;
   incarnateReadableBlob: (
     contentSha512: string,
@@ -767,7 +768,7 @@ export interface DaemonCore {
     source: string,
     codeNames: string[],
     endowmentFormulaIdsOrPaths: (string | string[])[],
-    hooks: AsyncHooks<EvalHookParams>,
+    deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
   incarnateUnconfined: (
