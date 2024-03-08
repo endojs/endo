@@ -119,6 +119,16 @@ const makeDaemonCore = async (
     number: peersFormulaNumber,
     node: ownNodeIdentifier,
   });
+  const networksDirectoryFormulaNumber = getDerivedId(
+    'networks-directory',
+    rootEntropy,
+    cryptoPowers.makeSha512(),
+  );
+  const networksDirectoryFormulaId = serializeFormulaIdentifier({
+    type: 'directory',
+    number: networksDirectoryFormulaNumber,
+    node: ownNodeIdentifier,
+  });
 
   /**
    * The two functions "provideValueForNumberedFormula" and "provideValueForFormulaIdentifier"
@@ -166,6 +176,126 @@ const makeDaemonCore = async (
     // eslint-disable-next-line no-use-before-define
     const { formulaIdentifier } = await incarnateReadableBlob(sha512Hex);
     return formulaIdentifier;
+  };
+
+  // TODO: sorry, forcing nodeId into a petstore name
+  const petStoreNameForNodeIdentifier = nodeIdentifier => {
+    return `p${nodeIdentifier.slice(0, 126)}`;
+  };
+
+  const getNetworksDirectory = async () => {
+    const networksDirectory =
+      /** @type {import('./types.js').EndoDirectory} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        await provideValueForFormulaIdentifier(networksDirectoryFormulaId)
+      );
+    return networksDirectory;
+  };
+
+  /**
+   * @returns {Promise<import('./types').EndoNetwork[]>}
+   */
+  const getAllNetworks = async () => {
+    const networksDirectory = await getNetworksDirectory();
+    const networkFormulaIdentifiers = await networksDirectory.listIdentifiers();
+    const networks = /** @type {import('./types').EndoNetwork[]} */ (
+      await Promise.all(
+        // eslint-disable-next-line no-use-before-define
+        networkFormulaIdentifiers.map(provideValueForFormulaIdentifier),
+      )
+    );
+    return networks;
+  };
+
+  /** @type {import('./types.js').DaemonCore['getAllNetworkAddresses']} */
+  const getAllNetworkAddresses = async () => {
+    const networks = await getAllNetworks();
+    const addresses = (
+      await Promise.all(
+        networks.map(async network => {
+          return E(network).addresses();
+        }),
+      )
+    ).flat();
+    return addresses;
+  };
+
+  /** @type {import('./types.js').DaemonCore['getOwnPeerInfo']} */
+  const getOwnPeerInfo = async () => {
+    const addresses = await getAllNetworkAddresses();
+    const peerInfo = {
+      node: ownNodeIdentifier,
+      addresses,
+    };
+    return peerInfo;
+  };
+
+  /** @type {import('./types.js').DaemonCore['getPeerStore']} */
+  const getPeerStore = async () => {
+    const petStore = /** @type {import('./types.js').PetStore} */ (
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(peersFormulaIdentifier)
+    );
+    const get = nodeIdentifier => {
+      const nodeName = petStoreNameForNodeIdentifier(nodeIdentifier);
+      return petStore.identifyLocal(nodeName);
+    };
+    const set = (nodeIdentifier, peerFormulaIdentifier) => {
+      const nodeName = petStoreNameForNodeIdentifier(nodeIdentifier);
+      return petStore.write(nodeName, peerFormulaIdentifier);
+    };
+    return { get, set };
+  };
+
+  /**
+   * @param {string} nodeIdentifier
+   * @returns {Promise<string>}
+   */
+  const getPeerFormulaIdentifierForNodeIdentifier = async nodeIdentifier => {
+    if (nodeIdentifier === ownNodeIdentifier) {
+      throw new Error(`Cannot get peer formula identifier for self`);
+    }
+    const peerStore = await getPeerStore();
+    const peerFormulaIdentifier = peerStore.get(nodeIdentifier);
+    if (peerFormulaIdentifier === undefined) {
+      throw new Error(
+        `No peer found for node identifier ${q(nodeIdentifier)}.`,
+      );
+    }
+    return peerFormulaIdentifier;
+  };
+
+  /**
+   * @param {string} nodeIdentifier
+   * @returns {Promise<import('./types.js').PeerInfo>}
+   */
+  const getPeerInfoForNodeIdentifier = async nodeIdentifier => {
+    if (nodeIdentifier === ownNodeIdentifier) {
+      // return own connection info
+      return getOwnPeerInfo();
+    }
+    const peerFormulaIdentifier =
+      await getPeerFormulaIdentifierForNodeIdentifier(nodeIdentifier);
+    const peer = /** @type {import('./types.js').EndoPeer} */ (
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(peerFormulaIdentifier)
+    );
+    return peer.getPeerInfo();
+  };
+
+  const addPeerInfo = async peerInfo => {
+    const peerStore = await getPeerStore();
+    const { node, addresses } = peerInfo;
+    if (peerStore.get(node) !== undefined) {
+      // We already have this peer.
+      // TODO: merge addresses
+      return;
+    }
+    const { formulaIdentifier: peerFormulaIdentifier } =
+      // eslint-disable-next-line no-use-before-define
+      await incarnatePeer(node, addresses);
+    await peerStore.set(node, peerFormulaIdentifier);
   };
 
   /**
@@ -547,12 +677,7 @@ const makeDaemonCore = async (
           return gateway;
         },
         reviveNetworks: async () => {
-          const networksDirectory =
-            /** @type {import('./types.js').EndoDirectory} */ (
-              // Behold, recursion:
-              // eslint-disable-next-line no-use-before-define
-              await provideValueForFormulaIdentifier(formula.networks)
-            );
+          const networksDirectory = await getNetworksDirectory();
           const networkFormulaIdentifiers =
             await networksDirectory.listIdentifiers();
           await Promise.allSettled(
@@ -564,23 +689,7 @@ const makeDaemonCore = async (
           );
         },
         addPeerInfo: async peerInfo => {
-          const peerPetstore =
-            /** @type {import('./types.js').PetStore} */
-            // Behold, recursion:
-            // eslint-disable-next-line no-use-before-define
-            (await provideValueForFormulaIdentifier(formula.peers));
-          const { node, addresses } = peerInfo;
-          // eslint-disable-next-line no-use-before-define
-          const nodeName = petStoreNameForNodeIdentifier(node);
-          if (peerPetstore.has(nodeName)) {
-            // We already have this peer.
-            // TODO: merge connection info
-            return;
-          }
-          const { formulaIdentifier: peerFormulaIdentifier } =
-            // eslint-disable-next-line no-use-before-define
-            await incarnatePeer(formula.networks, addresses);
-          await peerPetstore.write(nodeName, peerFormulaIdentifier);
+          return addPeerInfo(peerInfo);
         },
       });
       return {
@@ -649,7 +758,7 @@ const makeDaemonCore = async (
     } else if (formula.type === 'peer') {
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      return makePeer(formula.networks, formula.addresses, context);
+      return makePeer(formula.node, formula.addresses, context);
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -806,33 +915,6 @@ const makeDaemonCore = async (
     return controller;
   };
 
-  // TODO: sorry, forcing nodeId into a petstore name
-  const petStoreNameForNodeIdentifier = nodeIdentifier => {
-    return `p${nodeIdentifier.slice(0, 126)}`;
-  };
-
-  /**
-   * @param {string} nodeIdentifier
-   * @returns {Promise<string>}
-   */
-  const getPeerFormulaIdentifierForNodeIdentifier = async nodeIdentifier => {
-    if (nodeIdentifier === ownNodeIdentifier) {
-      throw new Error(`Cannot get peer formula identifier for self`);
-    }
-    const peerStore = /** @type {import('./types.js').PetStore} */ (
-      // eslint-disable-next-line no-use-before-define
-      await provideValueForFormulaIdentifier(peersFormulaIdentifier)
-    );
-    const nodeName = petStoreNameForNodeIdentifier(nodeIdentifier);
-    const peerFormulaIdentifier = peerStore.identifyLocal(nodeName);
-    if (peerFormulaIdentifier === undefined) {
-      throw new Error(
-        `No peer found for node identifier ${q(nodeIdentifier)}.`,
-      );
-    }
-    return peerFormulaIdentifier;
-  };
-
   /** @type {import('./types.js').DaemonCore['cancelValue']} */
   const cancelValue = async (formulaIdentifier, reason) => {
     await formulaGraphMutex.enqueue();
@@ -927,10 +1009,10 @@ const makeDaemonCore = async (
   /**
    * @type {import('./types.js').DaemonCore['incarnateDirectory']}
    */
-  const incarnateDirectory = async () => {
+  const incarnateDirectory = async specifiedFormulaNumber => {
     const { formulaIdentifier: petStoreFormulaIdentifier } =
       await incarnatePetStore();
-    const formulaNumber = await randomHex512();
+    const formulaNumber = specifiedFormulaNumber ?? (await randomHex512());
     /** @type {import('./types.js').DirectoryFormula} */
     const formula = {
       type: 'directory',
@@ -975,7 +1057,6 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['incarnateHost']} */
   const incarnateHost = async (
     endoFormulaIdentifier,
-    networksDirectoryFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
     specifiedWorkerFormulaIdentifier,
   ) => {
@@ -997,7 +1078,7 @@ const makeDaemonCore = async (
       inspector: inspectorFormulaIdentifier,
       worker: workerFormulaIdentifier,
       endo: endoFormulaIdentifier,
-      networks: networksDirectoryFormulaIdentifier,
+      networks: networksDirectoryFormulaId,
       leastAuthority: leastAuthorityFormulaIdentifier,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
@@ -1215,17 +1296,14 @@ const makeDaemonCore = async (
   };
 
   /** @type {import('./types.js').DaemonCore['incarnatePeer']} */
-  const incarnatePeer = async (
-    networksDirectoryFormulaIdentifier,
-    addresses,
-  ) => {
+  const incarnatePeer = async (nodeId, addresses) => {
     const formulaNumber = await randomHex512();
     // TODO: validate addresses
     // TODO: mutable state like addresses should not be stored in formula
     /** @type {import('./types.js').PeerFormula} */
     const formula = {
       type: 'peer',
-      networks: networksDirectoryFormulaIdentifier,
+      node: nodeId,
       addresses,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoPeer>} */ (
@@ -1247,7 +1325,9 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore['incarnateNetworksDirectory']} */
   const incarnateNetworksDirectory = async () => {
-    const { formulaIdentifier, value } = await incarnateDirectory();
+    const { formulaIdentifier, value } = await incarnateDirectory(
+      networksDirectoryFormulaNumber,
+    );
     // Make default networks.
     const { formulaIdentifier: loopbackNetworkFormulaIdentifier } =
       await incarnateLoopbackNetwork();
@@ -1266,8 +1346,13 @@ const makeDaemonCore = async (
 
     const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
       await incarnateWorker();
-    const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
+    const { formulaIdentifier: newNetworksDirectoryFormulaId } =
       await incarnateNetworksDirectory();
+    if (newNetworksDirectoryFormulaId !== networksDirectoryFormulaId) {
+      throw new Error(
+        `Networks Directory formula identifier did not match expected value.`,
+      );
+    }
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
       await incarnateLeastAuthority();
     const { formulaIdentifier: newPeersFormulaIdentifier } =
@@ -1282,7 +1367,6 @@ const makeDaemonCore = async (
     const { formulaIdentifier: defaultHostFormulaIdentifier } =
       await incarnateHost(
         endoFormulaIdentifier,
-        networksDirectoryFormulaIdentifier,
         leastAuthorityFormulaIdentifier,
         defaultHostWorkerFormulaIdentifier,
       );
@@ -1299,7 +1383,7 @@ const makeDaemonCore = async (
     /** @type {import('./types.js').EndoFormula} */
     const formula = {
       type: 'endo',
-      networks: networksDirectoryFormulaIdentifier,
+      networks: networksDirectoryFormulaId,
       peers: peersFormulaIdentifier,
       host: defaultHostFormulaIdentifier,
       leastAuthority: leastAuthorityFormulaIdentifier,
@@ -1311,53 +1395,19 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} networksDirectoryFormulaIdentifier
-   * @returns {Promise<import('./types').EndoNetwork[]>}
-   */
-  const getAllNetworks = async networksDirectoryFormulaIdentifier => {
-    const networksDirectory = /** @type {import('./types').EndoDirectory} */ (
-      // eslint-disable-next-line no-use-before-define
-      await provideValueForFormulaIdentifier(networksDirectoryFormulaIdentifier)
-    );
-    const networkFormulaIdentifiers = await networksDirectory.listIdentifiers();
-    const networks = /** @type {import('./types').EndoNetwork[]} */ (
-      await Promise.all(
-        networkFormulaIdentifiers.map(provideValueForFormulaIdentifier),
-      )
-    );
-    return networks;
-  };
-
-  /** @type {import('./types.js').DaemonCore['getAllNetworkAddresses']} */
-  const getAllNetworkAddresses = async networksDirectoryFormulaIdentifier => {
-    const networks = await getAllNetworks(networksDirectoryFormulaIdentifier);
-    const addresses = (
-      await Promise.all(
-        networks.map(async network => {
-          return E(network).addresses();
-        }),
-      )
-    ).flat();
-    return addresses;
-  };
-
-  /**
-   * @param {string} networksDirectoryFormulaIdentifier
+   * @param {string} nodeId
    * @param {string[]} addresses
    * @param {import('./types.js').Context} context
    * @returns {Promise<import('./types.js').EndoPeerControllerPartial>}
    */
-  const makePeer = async (
-    networksDirectoryFormulaIdentifier,
-    addresses,
-    context,
-  ) => {
+  const makePeer = async (nodeId, addresses, context) => {
+    const peerInfo = { node: nodeId, addresses };
     // TODO race networks that support protocol for connection
     // TODO retry, exponential back-off, with full jitter
     // TODO (in connect implementations) allow for the possibility of
     // connection loss and invalidate the connection formula and its transitive
     // dependees when this occurs.
-    const networks = await getAllNetworks(networksDirectoryFormulaIdentifier);
+    const networks = await getAllNetworks();
     // Connect on first support address.
     for (const address of addresses) {
       const { protocol } = new URL(address);
@@ -1368,13 +1418,18 @@ const makeDaemonCore = async (
             address,
             makeFarContext(context),
           );
-          const external = Promise.resolve({
-            provide: remoteFormulaIdentifier => {
-              return /** @type {Promise<unknown>} */ (
-                E(remoteGateway).provide(remoteFormulaIdentifier)
-              );
-            },
-          });
+          const external = Promise.resolve(
+            /** @type {import('./types.js').EndoPeer} */ ({
+              provide: remoteFormulaIdentifier => {
+                return /** @type {Promise<unknown>} */ (
+                  E(remoteGateway).provide(remoteFormulaIdentifier)
+                );
+              },
+              getPeerInfo: async () => {
+                return peerInfo;
+              },
+            }),
+          );
           const internal = Promise.resolve(undefined);
           // const internal = {
           //   receive, // TODO
@@ -1416,6 +1471,10 @@ const makeDaemonCore = async (
   });
 
   const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
+    ownNodeIdentifier,
+    getPeerStore,
+    getPeerInfoForNodeIdentifier,
+    addPeerInfo,
     provideValueForFormulaIdentifier,
     getFormulaIdentifierForRef,
     incarnateDirectory,
@@ -1448,8 +1507,7 @@ const makeDaemonCore = async (
     storeReaderRef,
     makeMailbox,
     makeDirectoryNode,
-    getAllNetworkAddresses,
-    ownNodeIdentifier,
+    getOwnPeerInfo,
   });
 
   /**
@@ -1589,6 +1647,10 @@ const makeDaemonCore = async (
     provideValueForNumberedFormula,
     getFormulaIdentifierForRef,
     getAllNetworkAddresses,
+    getOwnPeerInfo,
+    getPeerStore,
+    getPeerInfoForNodeIdentifier,
+    addPeerInfo,
     cancelValue,
     storeReaderRef,
     makeMailbox,

@@ -151,7 +151,7 @@ type MakeBundleFormula = {
 
 type PeerFormula = {
   type: 'peer';
-  networks: string;
+  node: string;
   addresses: Array<string>;
 };
 
@@ -352,9 +352,20 @@ export interface PetStore {
   reverseIdentify(formulaIdentifier: string): Array<string>;
 }
 
+export interface PeerInfo {
+  node: string;
+  addresses: string[];
+}
+
+export interface LocateRecord {
+  peerInfo: PeerInfo;
+  formulaIdentifier: string;
+}
+
 export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
+  locate(...petNamePath: string[]): Promise<LocateRecord>;
   list(...petNamePath: string[]): Promise<Array<string>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followChanges(
@@ -454,17 +465,13 @@ export type MakeHostOrGuestOptions = {
 
 export interface EndoPeer {
   provide: (formulaIdentifier: string) => Promise<unknown>;
+  getPeerInfo(): Promise<PeerInfo>;
 }
 export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
 export type EndoPeerController = Controller<EndoPeer, undefined>;
 
 export interface EndoGateway {
   provide: (formulaIdentifier: string) => Promise<unknown>;
-}
-
-export interface PeerInfo {
-  node: string;
-  addresses: string[];
 }
 
 export interface EndoNetwork {
@@ -705,6 +712,11 @@ export type DaemonicPowers = {
   control: DaemonicControlPowers;
 };
 
+export interface PeerStore {
+  get(nodeId: string): string | undefined;
+  set(nodeId: string, peerFormulaIdentifier: string): void;
+}
+
 type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
 export interface DaemonCore {
   nodeIdentifier: string;
@@ -723,9 +735,15 @@ export interface DaemonCore {
     formula: Formula,
   ) => Promise<{ formulaIdentifier: string; value: unknown }>;
   getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
-  getAllNetworkAddresses: (
-    networksDirectoryFormulaIdentifier: string,
-  ) => Promise<string[]>;
+  getAllNetworkAddresses: () => Promise<string[]>;
+  /**
+   * This is an interface on top of the petstore that translates the nodeId
+   * into a valid petstore name.
+   */
+  getPeerStore: () => Promise<PeerStore>;
+  getPeerInfoForNodeIdentifier: (nodeId: string) => Promise<PeerInfo>;
+  addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
+  getOwnPeerInfo: () => Promise<PeerInfo>;
   incarnateEndoBootstrap: (
     specifiedFormulaNumber: string,
   ) => IncarnateResult<FarEndoBootstrap>;
@@ -733,13 +751,14 @@ export interface DaemonCore {
   incarnatePetStore: (
     specifiedFormulaNumber?: string,
   ) => IncarnateResult<PetStore>;
-  incarnateDirectory: () => IncarnateResult<EndoDirectory>;
+  incarnateDirectory: (
+    specifiedFormulaNumber?: string,
+  ) => IncarnateResult<EndoDirectory>;
   incarnatePetInspector: (
     petStoreFormulaIdentifier: string,
   ) => IncarnateResult<EndoInspector>;
   incarnateHost: (
     endoFormulaIdentifier: string,
-    networksDirectoryFormulaIdentifier: string,
     leastAuthorityFormulaIdentifier: string,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
@@ -779,7 +798,7 @@ export interface DaemonCore {
     targetFormulaIdentifier: string,
   ) => IncarnateResult<ExternalHandle>;
   incarnatePeer: (
-    networksFormulaIdentifier: string,
+    nodeId: string,
     addresses: Array<string>,
   ) => IncarnateResult<EndoPeer>;
   incarnateNetworksDirectory: () => IncarnateResult<EndoDirectory>;

@@ -68,6 +68,7 @@ export const makeGuestMaker = ({
     const {
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,
@@ -97,6 +98,7 @@ export const makeGuestMaker = ({
       // Directory
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,

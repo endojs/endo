@@ -2,6 +2,7 @@
 
 import { E, Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
+import { parseFormulaIdentifier } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -10,11 +11,19 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').DaemonCore['getFormulaIdentifierForRef']} args.getFormulaIdentifierForRef
  * @param {import('./types.js').DaemonCore['incarnateDirectory']} args.incarnateDirectory
+ * @param {import('./types.js').DaemonCore['getPeerStore']} args.getPeerStore
+ * @param {import('./types.js').DaemonCore['getPeerInfoForNodeIdentifier']} args.getPeerInfoForNodeIdentifier
+ * @param {import('./types.js').DaemonCore['addPeerInfo']} args.addPeerInfo
+ * @param {string} args.ownNodeIdentifier
  */
 export const makeDirectoryMaker = ({
   provideValueForFormulaIdentifier,
   getFormulaIdentifierForRef,
   incarnateDirectory,
+  getPeerStore,
+  getPeerInfoForNodeIdentifier,
+  addPeerInfo,
+  ownNodeIdentifier,
 }) => {
   /** @type {import('./types.js').MakeDirectoryNode} */
   const makeDirectoryNode = petStore => {
@@ -28,11 +37,33 @@ export const makeDirectoryMaker = ({
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const value = provideValueForFormulaIdentifier(formulaIdentifier);
-      return tailNames.reduce(
-        // @ts-expect-error We assume its a NameHub
-        (directory, petName) => E(directory).lookup(petName),
-        value,
-      );
+      return tailNames.reduce(async (nameHub, petName) => {
+        const childFormulaIdentifier = await E(
+          /** @type {Promise<import('./types.js').NameHub>} */ (nameHub),
+        ).identify(petName);
+        if (childFormulaIdentifier === undefined) {
+          throw new TypeError(`Unknown pet name: ${q(petName)}`);
+        }
+        const { node } = parseFormulaIdentifier(childFormulaIdentifier);
+        if (node !== ownNodeIdentifier) {
+          // Ensure we have this peer in our peer store
+          const peerStore = await getPeerStore();
+          if (peerStore.get(node) === undefined) {
+            const { peerInfo } = await E(
+              /** @type {Promise<import('./types.js').NameHub>} */ (nameHub),
+            ).locate(petName);
+            if (peerInfo.node !== node) {
+              throw new Error(
+                `Expected to locate peer ${q(node)} but found ${q(
+                  peerInfo.node,
+                )}`,
+              );
+            }
+            await addPeerInfo(peerInfo);
+          }
+        }
+        return provideValueForFormulaIdentifier(childFormulaIdentifier);
+      }, value);
     };
 
     /** @type {import('./types.js').EndoDirectory['reverseLookup']} */
@@ -82,6 +113,22 @@ export const makeDirectoryMaker = ({
       }
       const { hub, name } = await lookupTailNameHub(petNamePath);
       return hub.identify(name);
+    };
+
+    /** @type {import('./types.js').EndoDirectory['locate']} */
+    const locate = async (...petNamePath) => {
+      if (petNamePath.length === 1) {
+        const petName = petNamePath[0];
+        const formulaIdentifier = petStore.identifyLocal(petName);
+        if (formulaIdentifier === undefined) {
+          throw new TypeError(`Unknown pet name: ${q(petName)}`);
+        }
+        const { node } = parseFormulaIdentifier(formulaIdentifier);
+        const peerInfo = await getPeerInfoForNodeIdentifier(node);
+        return { formulaIdentifier, peerInfo };
+      }
+      const { hub, name } = await lookupTailNameHub(petNamePath);
+      return hub.locate(name);
     };
 
     /** @type {import('./types.js').EndoDirectory['list']} */
@@ -193,6 +240,7 @@ export const makeDirectoryMaker = ({
     const directory = {
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,

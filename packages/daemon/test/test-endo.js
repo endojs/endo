@@ -1263,16 +1263,65 @@ test('read remote value', async t => {
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
-  // create value to share
-  await E(hostB).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
-  const hostBValueIdentifier = await E(hostB).identify('salutations');
+  // A creates a value
+  await E(hostA).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+  const hostAValueIdentifier = await E(hostA).identify('salutations');
 
-  // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueIdentifier);
-  const hostAValue = await E(hostA).lookup('greetings');
+  // insert in B out of band
+  await E(hostB).write(['greetings'], hostAValueIdentifier);
+  const hostBValue = await E(hostB).lookup('greetings');
 
-  t.is(hostAValue, 'haay wuurl');
+  // B is able to lookup value on A
+  t.is(hostBValue, 'haay wuurl');
 
   await stop(locatorA);
   await stop(locatorB);
+});
+
+test('three party handoff', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const { makeNode } = makeMultiplayerUtil({
+    testDir: 'three-party-handoff',
+    dirname,
+  });
+  // make two nodes
+  const { host: hostA, locator: locatorA } = await makeNode({
+    label: 'A',
+    cancelled,
+  });
+  const { host: hostB, locator: locatorB } = await makeNode({
+    label: 'B',
+    cancelled,
+  });
+  const { host: hostC, locator: locatorC } = await makeNode({
+    label: 'C',
+    cancelled,
+  });
+
+  // introduce A and B
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+  // introduce B and C (but C doesnt know A)
+  await E(hostC).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostC).getPeerInfo());
+
+  // A creates a value
+  await E(hostA).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+
+  // insert A in B out of band
+  const hostAFormulaIdentifier = await E(hostA).identify('SELF');
+  await E(hostB).write(['a'], hostAFormulaIdentifier);
+  // insert B in C out of band
+  const hostBFormulaIdentifier = await E(hostB).identify('SELF');
+  await E(hostC).write(['b'], hostBFormulaIdentifier);
+
+  const hostCValue = await E(hostC).lookup('b', 'a', 'salutations');
+
+  // C is able to lookup value on A, despite not being directly introduced to A
+  t.is(hostCValue, 'haay wuurl');
+
+  await stop(locatorA);
+  await stop(locatorB);
+  await stop(locatorC);
 });
