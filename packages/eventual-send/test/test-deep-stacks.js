@@ -6,13 +6,21 @@ import { test } from './prepare-test-env-ava.js';
 
 import { E } from './get-hp.js';
 
-test('deep-stacks when', t => {
-  let r;
-  const p = new Promise(res => (r = res));
-  const q = E.when(p, v1 => E.when(v1 + 1, v2 => assert.equal(v2, 22)));
-  r(33);
-  return q.catch(reason => {
-    t.assert(reason instanceof Error);
-    console.log('expected failure', reason);
-  });
+const testDeepStacksWhen = test.macro({
+  title: (title, loggerDescription, _getLogger) =>
+    `deep-stacks E.when with ${loggerDescription}${title ? ` (${title})` : ''}`,
+  exec: (t, _loggerDescription, getLogger) => {
+    let r;
+    const p = new Promise(res => (r = res));
+    const q = E.when(p, v1 => E.when(v1 + 1, v2 => assert.equal(v2, 22)));
+    r(33);
+    return q.catch(reason => {
+      t.assert(reason instanceof Error);
+      const log = getLogger(t);
+      log('expected failure', reason);
+    });
+  },
 });
+
+test(testDeepStacksWhen, 'console.log', _t => console.log.bind(console));
+test(testDeepStacksWhen, 'ses-ava t.log', t => t.log.bind(t));
