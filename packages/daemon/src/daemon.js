@@ -1015,35 +1015,28 @@ const makeDaemonCore = async (
       storeFormulaIdentifier,
       workerFormulaIdentifier,
     } = await formulaGraphMutex.enqueue(async () => {
-      const [
-        ownFormulaNumber,
-        hostHandle,
-        storeIncarnation,
-        workerIncarnation,
-      ] = await Promise.all([
-        randomHex512(),
-        randomHex512(),
-        randomHex512(),
-        randomHex512(),
-      ]).then(([own, handle, store, worker]) =>
-        Promise.all([
-          own,
-          incarnateNumberedHandle(handle, hostFormulaIdentifier),
-          incarnateNumberedPetStore(store),
-          incarnateNumberedWorker(worker),
-        ]),
+      const formulaNumber = await randomHex512();
+      const hostHandle = await incarnateNumberedHandle(
+        await randomHex512(),
+        hostFormulaIdentifier,
+      );
+      const storeIncarnation = await incarnateNumberedPetStore(
+        await randomHex512(),
+      );
+      const workerIncarnation = await incarnateNumberedWorker(
+        await randomHex512(),
       );
 
       await deferredTasks.execute({
         guestFormulaIdentifier: serializeFormulaIdentifier({
           type: 'guest',
-          number: ownFormulaNumber,
+          number: formulaNumber,
           node: ownNodeIdentifier,
         }),
       });
 
       return harden({
-        guestFormulaNumber: ownFormulaNumber,
+        guestFormulaNumber: formulaNumber,
         hostHandleFormulaIdentifier: hostHandle.formulaIdentifier,
         storeFormulaIdentifier: storeIncarnation.formulaIdentifier,
         workerFormulaIdentifier: workerIncarnation.formulaIdentifier,
