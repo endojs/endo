@@ -92,6 +92,10 @@ type GuestFormula = {
   worker: string;
 };
 
+export type GuestDeferredTaskParams = {
+  guestFormulaIdentifier: string;
+};
+
 type LeastAuthorityFormula = {
   type: 'least-authority';
 };
@@ -105,13 +109,11 @@ type EvalFormula = {
   // TODO formula slots
 };
 
-export type EvalFormulaHook = (
-  identifiers: Readonly<{
-    endowmentFormulaIdentifiers: string[];
-    evalFormulaIdentifier: string;
-    workerFormulaIdentifier: string;
-  }>,
-) => Promise<unknown>;
+export type EvalDeferredTaskParams = {
+  endowmentFormulaIdentifiers: string[];
+  evalFormulaIdentifier: string;
+  workerFormulaIdentifier: string;
+};
 
 type ReadableBlobFormula = {
   type: 'readable-blob';
@@ -539,14 +541,14 @@ export interface EndoHost extends EndoDirectory {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
 }
 
-export interface InternalEndoHost {
+export interface InternalEndoParty {
   receive: Mail['receive'];
   respond: Mail['respond'];
   petStore: PetStore;
 }
 
 export interface EndoHostController
-  extends Controller<FarRef<EndoHost>, InternalEndoHost> {}
+  extends Controller<FarRef<EndoHost>, InternalEndoParty> {}
 
 export type EndoInspector<Record = string> = {
   lookup: (petName: Record) => Promise<unknown>;
@@ -706,6 +708,20 @@ export type DaemonicPowers = {
 };
 
 type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
+
+export type DeferredTask<T extends Record<string, string | string[]>> = (
+  formulaIdentifiers: Readonly<T>,
+) => Promise<void>;
+
+/**
+ * A collection of deferred tasks (i.e. async functions) that can be executed in
+ * parallel.
+ */
+export type DeferredTasks<T extends Record<string, string | string[]>> = {
+  execute(identifiers: Readonly<T>): Promise<void>;
+  push(value: DeferredTask<T>): void;
+};
+
 export interface DaemonCore {
   nodeIdentifier: string;
   provideValueForFormulaIdentifier: (
@@ -730,9 +746,6 @@ export interface DaemonCore {
     specifiedFormulaNumber: string,
   ) => IncarnateResult<FarEndoBootstrap>;
   incarnateWorker: () => IncarnateResult<EndoWorker>;
-  incarnatePetStore: (
-    specifiedFormulaNumber?: string,
-  ) => IncarnateResult<PetStore>;
   incarnateDirectory: () => IncarnateResult<EndoDirectory>;
   incarnatePetInspector: (
     petStoreFormulaIdentifier: string,
@@ -744,7 +757,8 @@ export interface DaemonCore {
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
   incarnateGuest: (
-    hostHandleFormulaIdenfitier: string,
+    hostFormulaIdentifier: string,
+    deferredTasks: DeferredTasks<GuestDeferredTaskParams>,
   ) => IncarnateResult<EndoGuest>;
   incarnateReadableBlob: (
     contentSha512: string,
@@ -754,7 +768,7 @@ export interface DaemonCore {
     source: string,
     codeNames: string[],
     endowmentFormulaIdsOrPaths: (string | string[])[],
-    hooks: EvalFormulaHook[],
+    deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
   incarnateUnconfined: (
@@ -775,9 +789,6 @@ export interface DaemonCore {
     powersFormulaIdentifier: string,
     bundleFormulaIdentifier: string,
   ) => IncarnateResult<unknown>;
-  incarnateHandle: (
-    targetFormulaIdentifier: string,
-  ) => IncarnateResult<ExternalHandle>;
   incarnatePeer: (
     networksFormulaIdentifier: string,
     addresses: Array<string>,

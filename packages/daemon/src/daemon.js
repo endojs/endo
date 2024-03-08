@@ -896,10 +896,14 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @type {import('./types.js').DaemonCore['incarnateHandle']}
+   * Incarnates a `handle` formula and synchronously adds it to the formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   *
+   * @param {string} formulaNumber - The formula number of the handle to incarnate.
+   * @param {string} targetFormulaIdentifier - The formula identifier of the handle's target.
+   * @returns {import('./types.js').IncarnateResult<import('./types.js').ExternalHandle>} The incarnated handle.
    */
-  const incarnateHandle = async targetFormulaIdentifier => {
-    const formulaNumber = await randomHex512();
+  const incarnateNumberedHandle = (formulaNumber, targetFormulaIdentifier) => {
     /** @type {import('./types.js').HandleFormula} */
     const formula = {
       type: 'handle',
@@ -911,10 +915,13 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @type {import('./types.js').DaemonCore['incarnatePetStore']}
+   * Incarnates a `pet-store` formula and synchronously adds it to the formula graph.
+   * The returned promise is resolved after the formula is persisted.
+   *
+   * @param {string} formulaNumber - The formula number of the pet store to incarnate.
+   * @returns {import('./types.js').IncarnateResult<import('./types.js').PetStore>} The incarnated pet store.
    */
-  const incarnatePetStore = async specifiedFormulaNumber => {
-    const formulaNumber = specifiedFormulaNumber ?? (await randomHex512());
+  const incarnateNumberedPetStore = async formulaNumber => {
     /** @type {import('./types.js').PetStoreFormula} */
     const formula = {
       type: 'pet-store',
@@ -929,7 +936,7 @@ const makeDaemonCore = async (
    */
   const incarnateDirectory = async () => {
     const { formulaIdentifier: petStoreFormulaIdentifier } =
-      await incarnatePetStore();
+      await incarnateNumberedPetStore(await randomHex512());
     const formulaNumber = await randomHex512();
     /** @type {import('./types.js').DirectoryFormula} */
     const formula = {
@@ -942,24 +949,11 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @type {import('./types.js').DaemonCore['incarnateWorker']}
-   */
-  const incarnateWorker = async () => {
-    const formulaNumber = await randomHex512();
-    /** @type {import('./types.js').WorkerFormula} */
-    const formula = {
-      type: 'worker',
-    };
-    return /** @type {import('./types').IncarnateResult<import('./types').EndoWorker>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
-    );
-  };
-
-  /**
    * Incarnates a `worker` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
+   *
    * @param {string} formulaNumber - The worker formula number.
-   * @returns {Promise<{ formulaIdentifier: string, value: import('./types').EndoWorker }>}
+   * @returns {ReturnType<import('./types.js').DaemonCore['incarnateWorker']>}
    */
   const incarnateNumberedWorker = formulaNumber => {
     /** @type {import('./types.js').WorkerFormula} */
@@ -970,6 +964,14 @@ const makeDaemonCore = async (
     return /** @type {import('./types').IncarnateResult<import('./types').EndoWorker>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
+  };
+
+  /**
+   * @type {import('./types.js').DaemonCore['incarnateWorker']}
+   */
+  const incarnateWorker = async () => {
+    const formulaNumber = await formulaGraphMutex.enqueue(randomHex512);
+    return incarnateNumberedWorker(formulaNumber);
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateHost']} */
@@ -983,10 +985,10 @@ const makeDaemonCore = async (
     let workerFormulaIdentifier = specifiedWorkerFormulaIdentifier;
     if (workerFormulaIdentifier === undefined) {
       ({ formulaIdentifier: workerFormulaIdentifier } =
-        await incarnateWorker());
+        await incarnateNumberedWorker(await randomHex512()));
     }
     const { formulaIdentifier: storeFormulaIdentifier } =
-      await incarnatePetStore();
+      await incarnateNumberedPetStore(await randomHex512());
     const { formulaIdentifier: inspectorFormulaIdentifier } =
       // eslint-disable-next-line no-use-before-define
       await incarnatePetInspector(storeFormulaIdentifier);
@@ -1006,12 +1008,41 @@ const makeDaemonCore = async (
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateGuest']} */
-  const incarnateGuest = async hostHandleFormulaIdentifier => {
-    const formulaNumber = await randomHex512();
-    const { formulaIdentifier: storeFormulaIdentifier } =
-      await incarnatePetStore();
-    const { formulaIdentifier: workerFormulaIdentifier } =
-      await incarnateWorker();
+  const incarnateGuest = async (hostFormulaIdentifier, deferredTasks) => {
+    const {
+      guestFormulaNumber,
+      hostHandleFormulaIdentifier,
+      storeFormulaIdentifier,
+      workerFormulaIdentifier,
+    } = await formulaGraphMutex.enqueue(async () => {
+      const formulaNumber = await randomHex512();
+      const hostHandle = await incarnateNumberedHandle(
+        await randomHex512(),
+        hostFormulaIdentifier,
+      );
+      const storeIncarnation = await incarnateNumberedPetStore(
+        await randomHex512(),
+      );
+      const workerIncarnation = await incarnateNumberedWorker(
+        await randomHex512(),
+      );
+
+      await deferredTasks.execute({
+        guestFormulaIdentifier: serializeFormulaIdentifier({
+          type: 'guest',
+          number: formulaNumber,
+          node: ownNodeIdentifier,
+        }),
+      });
+
+      return harden({
+        guestFormulaNumber: formulaNumber,
+        hostHandleFormulaIdentifier: hostHandle.formulaIdentifier,
+        storeFormulaIdentifier: storeIncarnation.formulaIdentifier,
+        workerFormulaIdentifier: workerIncarnation.formulaIdentifier,
+      });
+    });
+
     /** @type {import('./types.js').GuestFormula} */
     const formula = {
       type: 'guest',
@@ -1020,7 +1051,7 @@ const makeDaemonCore = async (
       worker: workerFormulaIdentifier,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoGuest>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      provideValueForNumberedFormula(formula.type, guestFormulaNumber, formula)
     );
   };
 
@@ -1030,7 +1061,7 @@ const makeDaemonCore = async (
     source,
     codeNames,
     endowmentFormulaIdsOrPaths,
-    hooks,
+    deferredTasks,
     specifiedWorkerFormulaIdentifier,
   ) => {
     const {
@@ -1073,7 +1104,7 @@ const makeDaemonCore = async (
         evalFormulaIdentifier: ownFormulaIdentifier,
       });
 
-      await Promise.all(hooks.map(hook => hook(identifiers)));
+      await deferredTasks.execute(identifiers);
       return identifiers;
     });
 
@@ -1265,13 +1296,13 @@ const makeDaemonCore = async (
     });
 
     const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
-      await incarnateWorker();
+      await incarnateNumberedWorker(await randomHex512());
     const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
       await incarnateNetworksDirectory();
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
       await incarnateLeastAuthority();
     const { formulaIdentifier: newPeersFormulaIdentifier } =
-      await incarnatePetStore(peersFormulaNumber);
+      await incarnateNumberedPetStore(peersFormulaNumber);
     if (newPeersFormulaIdentifier !== peersFormulaIdentifier) {
       throw new Error(
         `Peers PetStore formula identifier did not match expected value.`,
@@ -1444,7 +1475,6 @@ const makeDaemonCore = async (
     incarnateUnconfined,
     incarnateBundle,
     incarnateWebBundle,
-    incarnateHandle,
     storeReaderRef,
     makeMailbox,
     makeDirectoryNode,
@@ -1597,8 +1627,6 @@ const makeDaemonCore = async (
     incarnateLeastAuthority,
     incarnateNetworksDirectory,
     incarnateLoopbackNetwork,
-    incarnateHandle,
-    incarnatePetStore,
     incarnateDirectory,
     incarnateWorker,
     incarnateHost,
