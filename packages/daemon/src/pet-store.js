@@ -1,28 +1,11 @@
 // @ts-check
 
 import { makeChangeTopic } from './pubsub.js';
-import { parseFormulaIdentifier } from './formula-identifier.js';
+import { parseId, assertValidId } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
-const validIdPattern = /^[0-9a-f]{128}$/;
-const validFormulaPattern =
-  /^(?:(?:readable-blob|worker|pet-store|pet-inspector|eval|lookup|make-unconfined|make-bundle|host|guest|handle|peer|loopback-network):[0-9a-f]{128}:[0-9a-f]{128}|web-bundle:[0-9a-f]{32}:[0-9a-f]{128})$/;
-
-/**
- * @param {string} formulaIdentifier
- * @param {string} [petName]
- * @returns {void}
- */
-export const assertValidFormulaIdentifier = (formulaIdentifier, petName) => {
-  if (!validFormulaPattern.test(formulaIdentifier)) {
-    let message = `Invalid formula identifier ${q(formulaIdentifier)}`;
-    if (petName !== undefined) {
-      message += ` for pet name ${q(petName)}`;
-    }
-    throw new Error(message);
-  }
-};
+const validNumberPattern = /^[0-9a-f]{128}$/;
 
 /**
  * @param {import('./types.js').FilePowers} filePowers
@@ -47,7 +30,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = await filePowers.readFileText(petNamePath);
       const formulaIdentifier = petNameText.trim();
-      assertValidFormulaIdentifier(formulaIdentifier, petName);
+      assertValidId(formulaIdentifier, petName);
       return formulaIdentifier;
     };
 
@@ -83,7 +66,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore['write']} */
     const write = async (petName, formulaIdentifier) => {
       assertValidName(petName);
-      assertValidFormulaIdentifier(formulaIdentifier, petName);
+      assertValidId(formulaIdentifier, petName);
 
       // TODO: Return early if the formula identifier is the same.
       if (petNames.has(petName)) {
@@ -108,7 +91,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = `${formulaIdentifier}\n`;
       await filePowers.writeFileText(petNamePath, petNameText);
-      const formulaIdentifierRecord = parseFormulaIdentifier(formulaIdentifier);
+      const formulaIdentifierRecord = parseId(formulaIdentifier);
       changesTopic.publisher.next({
         add: petName,
         value: formulaIdentifierRecord,
@@ -124,7 +107,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       if (formulaIdentifier === undefined) {
         throw new Error(`Formula does not exist for pet name ${q(petName)}`);
       }
-      return parseFormulaIdentifier(formulaIdentifier);
+      return parseId(formulaIdentifier);
     };
 
     // Returns in an Array format.
@@ -153,7 +136,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
           `Formula does not exist for pet name ${JSON.stringify(petName)}`,
         );
       }
-      assertValidFormulaIdentifier(formulaIdentifier, petName);
+      assertValidId(formulaIdentifier, petName);
 
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       await filePowers.removePath(petNamePath);
@@ -181,9 +164,9 @@ export const makePetStoreMaker = (filePowers, locator) => {
           `Formula does not exist for pet name ${JSON.stringify(fromName)}`,
         );
       }
-      assertValidFormulaIdentifier(formulaIdentifier, fromName);
+      assertValidId(formulaIdentifier, fromName);
       if (overwrittenFormulaIdentifier !== undefined) {
-        assertValidFormulaIdentifier(overwrittenFormulaIdentifier, toName);
+        assertValidId(overwrittenFormulaIdentifier, toName);
       }
 
       const fromPath = filePowers.joinPath(petNameDirectoryPath, fromName);
@@ -209,7 +192,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
         formulaPetNames.add(toName);
       }
 
-      const formulaIdentifierRecord = parseFormulaIdentifier(formulaIdentifier);
+      const formulaIdentifierRecord = parseId(formulaIdentifier);
       changesTopic.publisher.next({
         add: toName,
         value: formulaIdentifierRecord,
@@ -220,7 +203,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
     /** @type {import('./types.js').PetStore['reverseIdentify']} */
     const reverseIdentify = formulaIdentifier => {
-      assertValidFormulaIdentifier(formulaIdentifier);
+      assertValidId(formulaIdentifier);
       const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
       if (formulaPetNames === undefined) {
         return harden([]);
@@ -248,7 +231,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
    * @returns {Promise<import('./types.js').PetStore>}
    */
   const makeIdentifiedPetStore = (id, assertValidName) => {
-    if (!validIdPattern.test(id)) {
+    if (!validNumberPattern.test(id)) {
       throw new Error(`Invalid identifier for pet store ${q(id)}`);
     }
     const prefix = id.slice(0, 2);

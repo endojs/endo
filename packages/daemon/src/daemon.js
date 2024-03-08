@@ -13,10 +13,7 @@ import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
-import {
-  parseFormulaIdentifier,
-  serializeFormulaIdentifier,
-} from './formula-identifier.js';
+import { parseId, formatId } from './formula-identifier.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './weak-multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
@@ -71,7 +68,7 @@ const makeFarContext = context =>
  * @param {import('./types.js').Sha512} digester
  * @returns {string}
  */
-const getDerivedId = (path, rootNonce, digester) => {
+const deriveId = (path, rootNonce, digester) => {
   digester.updateText(rootNonce);
   digester.updateText(path);
   const nonce = digester.digestHex();
@@ -112,17 +109,17 @@ const makeDaemonCore = async (
   const formulaGraphJobs = makeSerialJobs();
   // This is the id of the node that is hosting the values.
   // This will likely get replaced with a public key in the future.
-  const ownNodeIdentifier = getDerivedId(
-    'nodeId',
+  const ownNodeIdentifier = deriveId(
+    'node-id',
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
-  const peersFormulaNumber = getDerivedId(
+  const peersFormulaNumber = deriveId(
     'peers',
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
-  const peersFormulaIdentifier = serializeFormulaIdentifier({
+  const peersFormulaIdentifier = formatId({
     type: 'pet-store',
     number: peersFormulaNumber,
     node: ownNodeIdentifier,
@@ -496,7 +493,7 @@ const makeDaemonCore = async (
       // a formula identifier to a remote client.
       const gateway = Far('Gateway', {
         provide: async requestedFormulaIdentifier => {
-          const { node } = parseFormulaIdentifier(requestedFormulaIdentifier);
+          const { node } = parseId(requestedFormulaIdentifier);
           if (node !== ownNodeIdentifier) {
             throw new Error(
               `Gateway can only provide local values. Got request for node ${q(
@@ -675,7 +672,7 @@ const makeDaemonCore = async (
       type: formulaType,
       number: formulaNumber,
       node: formulaNode,
-    } = parseFormulaIdentifier(formulaIdentifier);
+    } = parseId(formulaIdentifier);
     const isRemote = formulaNode !== ownNodeIdentifier;
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
@@ -729,7 +726,7 @@ const makeDaemonCore = async (
     formulaNumber,
     formula,
   ) => {
-    const formulaIdentifier = serializeFormulaIdentifier({
+    const formulaIdentifier = formatId({
       type: formulaType,
       number: formulaNumber,
       node: ownNodeIdentifier,
@@ -1079,7 +1076,7 @@ const makeDaemonCore = async (
         );
 
         await deferredTasks.execute({
-          guestFormulaIdentifier: serializeFormulaIdentifier({
+          guestFormulaIdentifier: formatId({
             type: 'guest',
             number: identifiers.guestFormulaNumber,
             node: ownNodeIdentifier,
@@ -1123,7 +1120,7 @@ const makeDaemonCore = async (
       evalFormulaNumber,
     } = await formulaGraphJobs.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
-      const ownFormulaIdentifier = serializeFormulaIdentifier({
+      const ownFormulaIdentifier = formatId({
         type: 'eval',
         number: ownFormulaNumber,
         node: ownNodeIdentifier,
@@ -1240,7 +1237,7 @@ const makeDaemonCore = async (
         hostFormulaIdentifier,
         specifiedPowersFormulaIdentifier,
       ),
-      capletFormulaIdentifier: serializeFormulaIdentifier({
+      capletFormulaIdentifier: formatId({
         type: formulaType,
         number: ownFormulaNumber,
         node: ownNodeIdentifier,
@@ -1415,7 +1412,7 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
-    const endoFormulaIdentifier = serializeFormulaIdentifier({
+    const endoFormulaIdentifier = formatId({
       type: 'endo',
       number: formulaNumber,
       node: ownNodeIdentifier,
@@ -1633,7 +1630,7 @@ const makeDaemonCore = async (
         throw new Error(`Unknown pet name ${petName}`);
       }
       const { type: formulaType, number: formulaNumber } =
-        parseFormulaIdentifier(formulaIdentifier);
+        parseId(formulaIdentifier);
       if (
         ![
           'eval',
@@ -1795,7 +1792,7 @@ const provideEndoBootstrap = async (
   );
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
-    const endoFormulaIdentifier = serializeFormulaIdentifier({
+    const endoFormulaIdentifier = formatId({
       type: 'endo',
       number: endoFormulaNumber,
       node: daemonCore.nodeIdentifier,
