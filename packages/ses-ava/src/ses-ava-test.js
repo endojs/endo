@@ -14,11 +14,11 @@ import 'ses';
  * and may change in the future. It is currently only intended for use by
  * `@endo/ses-ava`, with which it will be co-maintained.
  *
- * Thus, this `console-shim.js` makes `makeCausalConsoleFromLoggerForSesAva` for
- * on `globalThis` which it *assumes* is the global of the start compartment,
- * which is therefore allowed to hold powers that should not be available
- * in constructed compartments. It makes it available as the value of a
- * global property named by a registered symbol named
+* Thus, the SES console-shim.js makes `makeCausalConsoleFromLoggerForSesAva`
+ * available on `globalThis` which it *assumes* is the global of the start
+ * compartment and is therefore allowed to hold powers that should not be
+ * available in constructed compartments. It makes it available as the value of
+ * a global property named by a registered symbol named
  * `MAKE_CAUSAL_CONSOLE_FROM_LOGGER_KEY_FOR_SES_AVA`.
  *
  * Anyone accessing this, including `@endo/ses-ava`, should feature test for
@@ -136,8 +136,12 @@ const makeVirtualExecutionContext = originalT => {
     log: /** @type {import('ava').LogFn} */ (causalConsole.error),
     console: causalConsole,
   };
+  // Mirror properties from originalT and its prototype onto virtualT
+  // except for those already defined above.
   const originalProto = getPrototypeOf(originalT);
   const descs = {
+    // Spread from originalProto before originalT
+    // so we wrap properties of the latter in case of collision.
     ...getOwnPropertyDescriptors(originalProto),
     ...getOwnPropertyDescriptors(originalT),
   };

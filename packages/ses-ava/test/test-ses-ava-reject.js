@@ -1,3 +1,7 @@
+// This file is not really useful as an
+// automated test. Rather, its purpose is just to run it to see what
+// its console log looks like.
+
 import 'ses';
 import rawTest from 'ava';
 import { wrapTest } from '../src/ses-ava-test.js';
@@ -15,12 +19,12 @@ lockdown({
   // stackFiltering: 'concise', // Default. Hide infrastructure, shorten paths
   stackFiltering: 'verbose', // Include `assert` infrastructure
   consoleTaming: 'safe', // Default. Console with access to redacted info
-  // consoleTaming: 'unsafe', // Console without access to redacted info
+  // consoleTaming: 'unsafe', // Host console lacks access to redacted info
   errorTaming: 'safe', // Default. Hide redacted info on error
   // errorTaming: 'unsafe', // Disclose redacted info on error
 });
 
-const test = wrapTest(rawTest, { tlog: true, pushConsole: true });
+const test = wrapTest(rawTest);
 
 test('ses-ava reject console output', t => {
   t.assert(true);
