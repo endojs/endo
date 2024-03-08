@@ -182,7 +182,7 @@ freeze(makeLoggingConsoleKit);
 
 /**
  * Makes the same calls on a `baseConsole` that were made on a
- * `loggingConsole` to produce this `log`. It this way, a logging console
+ * `loggingConsole` to produce this `log`. In this way, a logging console
  * can be used as a buffer to delay the application of these calls to a
  * `baseConsole`.
  *
