@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 // Establish a perimeter:
 import 'ses';
@@ -24,28 +23,11 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { serializeFormulaIdentifier } from '../src/formula-identifier.js';
+import { makeLocator } from './util/basic.js';
+import { makeMultiplayerUtil } from './util/multiplayer.js';
 
 const cryptoPowers = makeCryptoPowers(crypto);
-
-const { raw } = String;
-
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
-
-/** @param {Array<string>} root */
-const makeLocator = (...root) => {
-  return {
-    httpPort: 0,
-    statePath: path.join(dirname, ...root, 'state'),
-    ephemeralStatePath: path.join(dirname, ...root, 'run'),
-    cachePath: path.join(dirname, ...root, 'cache'),
-    sockPath:
-      process.platform === 'win32'
-        ? raw`\\?\pipe\endo-${root.join('-')}-test.sock`
-        : path.join(dirname, ...root, 'endo.sock'),
-    pets: new Map(),
-    values: new Map(),
-  };
-};
 
 // The id of the next bundle to make.
 let bundleId = 0;
@@ -80,7 +62,7 @@ const doMakeBundle = async (host, filePath, callback) => {
 test('lifecycle', async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lifecycle');
+  const locator = makeLocator(dirname, 'tmp', 'lifecycle');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -108,7 +90,7 @@ test('lifecycle', async t => {
 test('spawn and evaluate', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'spawn-eval');
+  const locator = makeLocator(dirname, 'tmp', 'spawn-eval');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -131,7 +113,7 @@ test('spawn and evaluate', async t => {
 test('anonymous spawn and evaluate', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'spawn-eval-anon');
+  const locator = makeLocator(dirname, 'tmp', 'spawn-eval-anon');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -153,7 +135,7 @@ test('anonymous spawn and evaluate', async t => {
 test('persist spawn and evaluation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'persist-spawn-eval');
+  const locator = makeLocator(dirname, 'tmp', 'persist-spawn-eval');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -210,7 +192,7 @@ test('persist spawn and evaluation', async t => {
 test('store', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'store');
+  const locator = makeLocator(dirname, 'tmp', 'store');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -247,7 +229,7 @@ test('store', async t => {
 test('closure state lost by restart', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'restart-closures');
+  const locator = makeLocator(dirname, 'tmp', 'restart-closures');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -347,7 +329,7 @@ test('closure state lost by restart', async t => {
 test('persist unconfined services and their requests', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'make-unconfined');
+  const locator = makeLocator(dirname, 'tmp', 'make-unconfined');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -432,7 +414,7 @@ test('persist unconfined services and their requests', async t => {
 test('persist confined services and their requests', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'make-bundle');
+  const locator = makeLocator(dirname, 'tmp', 'make-bundle');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -519,7 +501,7 @@ test('guest facet receives a message for host', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'guest-sends-host');
+  const locator = makeLocator(dirname, 'tmp', 'guest-sends-host');
 
   await start(locator);
 
@@ -575,7 +557,7 @@ test('direct cancellation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'cancellation-direct');
+  const locator = makeLocator(dirname, 'tmp', 'cancellation-direct');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -655,7 +637,7 @@ test.failing('indirect cancellation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'cancellation-indirect');
+  const locator = makeLocator(dirname, 'tmp', 'cancellation-indirect');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -735,7 +717,7 @@ test('cancel because of requested capability', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'cancellation-via-request');
+  const locator = makeLocator(dirname, 'tmp', 'cancellation-via-request');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -823,7 +805,11 @@ test('unconfined service can respond to cancellation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'cancellation-unconfined-response');
+  const locator = makeLocator(
+    dirname,
+    'tmp',
+    'cancellation-unconfined-response',
+  );
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -860,7 +846,7 @@ test('confined service can respond to cancellation', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'cancellation-confined-response');
+  const locator = makeLocator(dirname, 'tmp', 'cancellation-confined-response');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -892,7 +878,7 @@ test('confined service can respond to cancellation', async t => {
 test('make a host', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'make-host');
+  const locator = makeLocator(dirname, 'tmp', 'make-host');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -916,7 +902,7 @@ test('make a host', async t => {
 test('name and reuse inspector', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'inspector-reuse');
+  const locator = makeLocator(dirname, 'tmp', 'inspector-reuse');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -958,7 +944,7 @@ test('name and reuse inspector', async t => {
 test('eval-mediated worker name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'eval-worker-name');
+  const locator = makeLocator(dirname, 'tmp', 'eval-worker-name');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1014,7 +1000,7 @@ test('eval-mediated worker name', async t => {
 test('lookup with single petname', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-single-petname');
+  const locator = makeLocator(dirname, 'tmp', 'lookup-single-petname');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1045,7 +1031,7 @@ test('lookup with single petname', async t => {
 test('lookup with petname path (inspector)', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-petname-path-inspector');
+  const locator = makeLocator(dirname, 'tmp', 'lookup-petname-path-inspector');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1074,7 +1060,7 @@ test('lookup with petname path (inspector)', async t => {
 test('lookup with petname path (caplet with lookup method)', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-petname-path-caplet');
+  const locator = makeLocator(dirname, 'tmp', 'lookup-petname-path-caplet');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1105,7 +1091,7 @@ test('lookup with petname path (caplet with lookup method)', async t => {
 test('lookup with petname path (value has no lookup method)', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-petname-path-no-method');
+  const locator = makeLocator(dirname, 'tmp', 'lookup-petname-path-no-method');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1136,7 +1122,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
 test('evaluate name resolved by lookup path', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'name-resolved-by-lookup-path');
+  const locator = makeLocator(dirname, 'tmp', 'name-resolved-by-lookup-path');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1166,7 +1152,7 @@ test('evaluate name resolved by lookup path', async t => {
 test('list special names', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'list-names');
+  const locator = makeLocator(dirname, 'tmp', 'list-names');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1200,7 +1186,7 @@ test('guest cannot access host methods', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'guest-cannot-host');
+  const locator = makeLocator(dirname, 'tmp', 'guest-cannot-host');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -1224,7 +1210,7 @@ test('guest cannot access host methods', async t => {
 test('read unknown nodeId', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'read unknown nodeId');
+  const locator = makeLocator(dirname, 'tmp', 'read-unknown-nodeId');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1259,96 +1245,83 @@ test('read unknown nodeId', async t => {
 test('read remote value', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locatorA = makeLocator('tmp', 'read remote value A');
-  const locatorB = makeLocator('tmp', 'read remote value B');
-  let hostA;
-  {
-    await stop(locatorA).catch(() => {});
-    await purge(locatorA);
-    await start(locatorA);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locatorA.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    hostA = E(bootstrap).host();
-    // Install test network
-    const servicePath = path.join(
-      dirname,
-      'src',
-      'networks',
-      'tcp-netstring.js',
-    );
-    const serviceLocation = url.pathToFileURL(servicePath).href;
-    const networkA = E(hostA).makeUnconfined(
-      'MAIN',
-      serviceLocation,
-      'SELF',
-      'test-network',
-    );
-    // set address via request
-    const iteratorRef = E(hostA).followMessages();
-    const { value: message } = await E(iteratorRef).next();
-    const { number } = E.get(message);
-    await E(hostA).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
-    await E(hostA).resolve(await number, 'netport');
-    // move test network to network dir
-    await networkA;
-    await E(hostA).move(['test-network'], ['NETS', 'tcp']);
-  }
-
-  let hostB;
-  {
-    await stop(locatorB).catch(() => {});
-    await purge(locatorB);
-    await start(locatorB);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locatorB.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    hostB = E(bootstrap).host();
-    // Install test network
-    const servicePath = path.join(
-      dirname,
-      'src',
-      'networks',
-      'tcp-netstring.js',
-    );
-    const serviceLocation = url.pathToFileURL(servicePath).href;
-    const networkB = E(hostB).makeUnconfined(
-      'MAIN',
-      serviceLocation,
-      'SELF',
-      'test-network',
-    );
-    // set address via requestcd
-    const iteratorRef = E(hostB).followMessages();
-    const { value: message } = await E(iteratorRef).next();
-    const { number } = E.get(message);
-    await E(hostB).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
-    await E(hostB).resolve(await number, 'netport');
-    // move test network to network dir
-    await networkB;
-    await E(hostB).move(['test-network'], ['NETS', 'tcp']);
-  }
+  const { makeNode } = makeMultiplayerUtil({
+    testDir: 'read-remote-value',
+    dirname,
+  });
+  // make two nodes
+  const { host: hostA, locator: locatorA } = await makeNode({
+    label: 'A',
+    cancelled,
+  });
+  const { host: hostB, locator: locatorB } = await makeNode({
+    label: 'B',
+    cancelled,
+  });
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
-  // create value to share
-  await E(hostB).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
-  const hostBValueIdentifier = await E(hostB).identify('salutations');
+  // A creates a value
+  await E(hostA).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+  const hostAValueIdentifier = await E(hostA).identify('salutations');
 
-  // insert in hostA out of band
-  await E(hostA).write(['greetings'], hostBValueIdentifier);
-  const hostAValue = await E(hostA).lookup('greetings');
+  // insert in B out of band
+  await E(hostB).write(['greetings'], hostAValueIdentifier);
+  const hostBValue = await E(hostB).lookup('greetings');
 
-  t.is(hostAValue, 'haay wuurl');
+  // B is able to lookup value on A
+  t.is(hostBValue, 'haay wuurl');
 
   await stop(locatorA);
   await stop(locatorB);
+});
+
+test('three party handoff', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const { makeNode } = makeMultiplayerUtil({
+    testDir: 'three-party-handoff',
+    dirname,
+  });
+  // make two nodes
+  const { host: hostA, locator: locatorA } = await makeNode({
+    label: 'A',
+    cancelled,
+  });
+  const { host: hostB, locator: locatorB } = await makeNode({
+    label: 'B',
+    cancelled,
+  });
+  const { host: hostC, locator: locatorC } = await makeNode({
+    label: 'C',
+    cancelled,
+  });
+
+  // introduce A and B
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+  // introduce B and C (but C doesnt know A)
+  await E(hostC).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostC).getPeerInfo());
+
+  // A creates a value
+  await E(hostA).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+
+  // insert A in B out of band
+  const hostAFormulaIdentifier = await E(hostA).identify('SELF');
+  await E(hostB).write(['a'], hostAFormulaIdentifier);
+  // insert B in C out of band
+  const hostBFormulaIdentifier = await E(hostB).identify('SELF');
+  await E(hostC).write(['b'], hostBFormulaIdentifier);
+
+  const hostCValue = await E(hostC).lookup('b', 'a', 'salutations');
+
+  // C is able to lookup value on A, despite not being directly introduced to A
+  t.is(hostCValue, 'haay wuurl');
+
+  await stop(locatorA);
+  await stop(locatorB);
+  await stop(locatorC);
 });

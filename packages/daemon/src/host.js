@@ -21,10 +21,9 @@ const { quote: q } = assert;
  * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['incarnateHandle']} args.incarnateHandle
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
- * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
- * @param {string} args.ownNodeIdentifier
+ * @param {import('./types.js').DaemonCore['getOwnPeerInfo']} args.getOwnPeerInfo
  */
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
@@ -39,10 +38,9 @@ export const makeHostMaker = ({
   incarnateWebBundle,
   incarnateHandle,
   storeReaderRef,
-  getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
-  ownNodeIdentifier,
+  getOwnPeerInfo,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -544,20 +542,14 @@ export const makeHostMaker = ({
     };
 
     /** @type {import('./types.js').EndoHost['getPeerInfo']} */
-    const getPeerInfo = async () => {
-      const addresses = await getAllNetworkAddresses(
-        networksDirectoryFormulaIdentifier,
-      );
-      const peerInfo = {
-        node: ownNodeIdentifier,
-        addresses,
-      };
-      return peerInfo;
+    const getPeerInfo = () => {
+      return getOwnPeerInfo();
     };
 
     const {
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,
@@ -586,6 +578,7 @@ export const makeHostMaker = ({
       // Directory
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,
