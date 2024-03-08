@@ -157,6 +157,12 @@ type MakeBundleFormula = {
   // TODO formula slots
 };
 
+export type MakeBundleDeferredTaskParams = {
+  powersFormulaIdentifier: string;
+  bundleFormulaIdentifier: string;
+  workerFormulaIdentifier: string;
+};
+
 type PeerFormula = {
   type: 'peer';
   networks: string;
@@ -783,14 +789,16 @@ export interface DaemonCore {
     specifiedWorkerFormulaIdentifier?: string,
     specifiedPowersFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
+  incarnateBundle: (
+    hostFormulaIdentifier: string,
+    bundleFormulaIdentifier: string,
+    deferredTasks: DeferredTasks<MakeBundleDeferredTaskParams>,
+    specifiedWorkerFormulaIdentifier?: string,
+    specifiedPowersFormulaIdentifier?: string,
+  ) => IncarnateResult<unknown>;
   incarnateBundler: (
     powersFormulaIdentifier: string,
     workerFormulaIdentifier: string,
-  ) => IncarnateResult<unknown>;
-  incarnateBundle: (
-    powersFormulaIdentifier: string,
-    workerFormulaIdentifier: string,
-    bundleFormulaIdentifier: string,
   ) => IncarnateResult<unknown>;
   incarnateWebBundle: (
     powersFormulaIdentifier: string,

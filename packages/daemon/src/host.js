@@ -225,33 +225,10 @@ export const makeHostMaker = ({
 
     /**
      * @param {string | 'MAIN' | 'NEW'} workerName
-     */
-    const provideWorkerFormulaIdentifier = async workerName => {
-      if (workerName === 'MAIN') {
-        return mainWorkerFormulaIdentifier;
-      } else if (workerName === 'NEW') {
-        const { formulaIdentifier: workerFormulaIdentifier } =
-          await incarnateWorker();
-        return workerFormulaIdentifier;
-      }
-
-      assertPetName(workerName);
-      let workerFormulaIdentifier = petStore.identifyLocal(workerName);
-      if (workerFormulaIdentifier === undefined) {
-        ({ formulaIdentifier: workerFormulaIdentifier } =
-          await incarnateWorker());
-        assertPetName(workerName);
-        await petStore.write(workerName, workerFormulaIdentifier);
-      }
-      return workerFormulaIdentifier;
-    };
-
-    /**
-     * @param {string | 'MAIN' | 'NEW'} workerName
      * @param {import('./types.js').DeferredTasks<{ workerFormulaIdentifier: string }>['push']} deferTask
      * @returns {string | undefined}
      */
-    const provideWorkerFormulaIdentifierSync = (workerName, deferTask) => {
+    const prepareWorkerFormulaIdentifier = (workerName, deferTask) => {
       if (workerName === 'MAIN') {
         return mainWorkerFormulaIdentifier;
       } else if (workerName === 'NEW') {
@@ -292,7 +269,7 @@ export const makeHostMaker = ({
      * @param {import('./types.js').DeferredTasks<{ powersFormulaIdentifier: string }>['push']} deferTask
      * @returns {string | undefined}
      */
-    const providePowersFormulaIdentifierSync = (partyName, deferTask) => {
+    const preparePowersFormulaIdentifier = (partyName, deferTask) => {
       const powersFormulaIdentifier = petStore.identifyLocal(partyName);
       if (powersFormulaIdentifier === undefined) {
         deferTask(identifiers =>
@@ -326,7 +303,7 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
+      const workerFormulaIdentifier = prepareWorkerFormulaIdentifier(
         workerName,
         tasks.push,
       );
@@ -380,12 +357,12 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeUnconfinedDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
+      const workerFormulaIdentifier = prepareWorkerFormulaIdentifier(
         workerName,
         tasks.push,
       );
 
-      const powersFormulaIdentifier = providePowersFormulaIdentifierSync(
+      const powersFormulaIdentifier = preparePowersFormulaIdentifier(
         powersName,
         tasks.push,
       );
@@ -420,31 +397,41 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
-      const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
-        workerName,
-      );
+      assertPowersName(powersName);
 
       const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
 
-      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
-        powersName,
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeBundleDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+
+      const workerFormulaIdentifier = prepareWorkerFormulaIdentifier(
+        workerName,
+        tasks.push,
       );
 
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const { value, formulaIdentifier } = await incarnateBundle(
-        powersFormulaIdentifier,
-        workerFormulaIdentifier,
-        bundleFormulaIdentifier,
+      const powersFormulaIdentifier = preparePowersFormulaIdentifier(
+        powersName,
+        tasks.push,
       );
 
       if (resultName !== undefined) {
-        await petStore.write(resultName, formulaIdentifier);
+        tasks.push(identifiers =>
+          petStore.write(resultName, identifiers.bundleFormulaIdentifier),
+        );
       }
 
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const { value } = await incarnateBundle(
+        hostFormulaIdentifier,
+        bundleFormulaIdentifier,
+        tasks,
+        workerFormulaIdentifier,
+        powersFormulaIdentifier,
+      );
       return value;
     };
 
