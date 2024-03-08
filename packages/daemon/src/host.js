@@ -9,11 +9,6 @@ import { makeDeferredTasks } from './deferred-tasks.js';
 const { quote: q } = assert;
 
 /**
- * @template {Record<string, string | string[]>} T
- * @typedef {import('./types.js').DeferredTasks<T>} DeferredTasks
- */
-
-/**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} args.provideControllerForFormulaIdentifier
@@ -156,7 +151,7 @@ export const makeHostMaker = ({
         }
       }
 
-      /** @type {DeferredTasks<import('./types.js').GuestDeferredTaskParams>} */
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').GuestDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       if (petName !== undefined) {
         tasks.push(identifiers =>
@@ -247,7 +242,7 @@ export const makeHostMaker = ({
 
     /**
      * @param {string | 'MAIN' | 'NEW'} workerName
-     * @param {DeferredTasks<{ workerFormulaIdentifier: string }>['push']} deferTask
+     * @param {import('./types.js').DeferredTasks<{ workerFormulaIdentifier: string }>['push']} deferTask
      * @returns {string | undefined}
      */
     const provideWorkerFormulaIdentifierSync = (workerName, deferTask) => {
@@ -308,7 +303,7 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      /** @type {DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
       const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(

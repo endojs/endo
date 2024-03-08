@@ -79,11 +79,6 @@ const getDerivedId = (path, rootNonce, digester) => {
 };
 
 /**
- * @template T
- * @typedef {import('./types.js').IncarnateResult<T>} IncarnateResult
- */
-
-/**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {Promise<number>} webletPortP
  * @param {string} rootEntropy
@@ -904,10 +899,9 @@ const makeDaemonCore = async (
    * Incarnates a `handle` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
    *
-   * @typedef {import('./types.js').ExternalHandle} ExternalHandle
    * @param {string} formulaNumber - The formula number of the handle to incarnate.
    * @param {string} targetFormulaIdentifier - The formula identifier of the handle's target.
-   * @returns {IncarnateResult<ExternalHandle>} The incarnated handle.
+   * @returns {import('./types.js').IncarnateResult<import('./types.js').ExternalHandle>} The incarnated handle.
    */
   const incarnateNumberedHandle = (formulaNumber, targetFormulaIdentifier) => {
     /** @type {import('./types.js').HandleFormula} */
@@ -924,9 +918,8 @@ const makeDaemonCore = async (
    * Incarnates a `pet-store` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
    *
-   * @typedef {import('./types.js').PetStore} PetStore
    * @param {string} formulaNumber - The formula number of the pet store to incarnate.
-   * @returns {IncarnateResult<PetStore>} The incarnated pet store.
+   * @returns {import('./types.js').IncarnateResult<import('./types.js').PetStore>} The incarnated pet store.
    */
   const incarnateNumberedPetStore = async formulaNumber => {
     /** @type {import('./types.js').PetStoreFormula} */
