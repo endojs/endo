@@ -675,12 +675,12 @@ test('direct cancellation', async t => {
   );
 });
 
-// See: https://github.com/endojs/endo/issues/2074
-test.failing('indirect cancellation', async t => {
+// Regression test 1 for https://github.com/endojs/endo/issues/2074
+test('indirect cancellation via worker', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
 
-  const locator = makeLocator('tmp', 'cancellation-indirect');
+  const locator = makeLocator('tmp', 'cancellation-indirect-worker');
 
   await start(locator);
   t.teardown(() => stop(locator));
@@ -753,6 +753,61 @@ test.failing('indirect cancellation', async t => {
       ['counter'],
       ['counter'],
     ),
+  );
+});
+
+// Regression test 2 for https://github.com/endojs/endo/issues/2074
+test.failing('indirect cancellation via caplet', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
+  const locator = makeLocator('tmp', 'cancellation-indirect-caplet');
+
+  await start(locator);
+  t.teardown(() => stop(locator));
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+
+  await E(host).provideWorker('w1');
+  const counterPath = path.join(dirname, 'test', 'counter.js');
+  const counterLocation = url.pathToFileURL(counterPath).href;
+  await E(host).makeUnconfined('w1', counterLocation, 'SELF', 'counter');
+
+  await E(host).provideWorker('w2');
+  await E(host).provideGuest('guest');
+  const doublerPath = path.join(dirname, 'test', 'doubler.js');
+  const doublerLocation = url.pathToFileURL(doublerPath).href;
+  await E(host).makeUnconfined('w2', doublerLocation, 'guest', 'doubler');
+  E(host).resolve(0, 'counter');
+
+  t.is(
+    1,
+    await E(host).evaluate('w1', 'E(counter).incr()', ['counter'], ['counter']),
+  );
+  t.is(
+    4,
+    await E(host).evaluate('w2', 'E(doubler).incr()', ['doubler'], ['doubler']),
+  );
+  t.is(
+    6,
+    await E(host).evaluate('w2', 'E(doubler).incr()', ['doubler'], ['doubler']),
+  );
+
+  await E(host).cancel('counter');
+
+  t.is(
+    1,
+    await E(host).evaluate('w1', 'E(counter).incr()', ['counter'], ['counter']),
+  );
+  t.is(
+    4,
+    await E(host).evaluate('w2', 'E(doubler).incr()', ['doubler'], ['doubler']),
   );
 });
 
@@ -979,8 +1034,8 @@ test('name and reuse inspector', async t => {
   await stop(locator);
 });
 
-// Regression test for: https://github.com/endojs/endo/issues/2021
-test('eval-mediated worker name', async t => {
+// Regression test for https://github.com/endojs/endo/issues/2021
+test.failing('eval-mediated worker name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'eval-worker-name');

@@ -143,6 +143,12 @@ type MakeUnconfinedFormula = {
   // TODO formula slots
 };
 
+export type MakeUnconfinedDeferredTaskParams = {
+  powersFormulaIdentifier: string;
+  unconfinedFormulaIdentifier: string;
+  workerFormulaIdentifier: string;
+};
+
 type MakeBundleFormula = {
   type: 'make-bundle';
   worker: string;
@@ -771,9 +777,11 @@ export interface DaemonCore {
     specifiedWorkerFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
   incarnateUnconfined: (
-    workerFormulaIdentifier: string,
-    powersFormulaIdentifier: string,
+    hostFormulaIdentifier: string,
     specifier: string,
+    deferredTasks: DeferredTasks<MakeUnconfinedDeferredTaskParams>,
+    specifiedWorkerFormulaIdentifier?: string,
+    specifiedPowersFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
   incarnateBundler: (
     powersFormulaIdentifier: string,
