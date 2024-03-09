@@ -225,33 +225,10 @@ export const makeHostMaker = ({
 
     /**
      * @param {string | 'MAIN' | 'NEW'} workerName
-     */
-    const provideWorkerFormulaIdentifier = async workerName => {
-      if (workerName === 'MAIN') {
-        return mainWorkerFormulaIdentifier;
-      } else if (workerName === 'NEW') {
-        const { formulaIdentifier: workerFormulaIdentifier } =
-          await incarnateWorker();
-        return workerFormulaIdentifier;
-      }
-
-      assertPetName(workerName);
-      let workerFormulaIdentifier = petStore.identifyLocal(workerName);
-      if (workerFormulaIdentifier === undefined) {
-        ({ formulaIdentifier: workerFormulaIdentifier } =
-          await incarnateWorker());
-        assertPetName(workerName);
-        await petStore.write(workerName, workerFormulaIdentifier);
-      }
-      return workerFormulaIdentifier;
-    };
-
-    /**
-     * @param {string | 'MAIN' | 'NEW'} workerName
      * @param {import('./types.js').DeferredTasks<{ workerFormulaIdentifier: string }>['push']} deferTask
      * @returns {string | undefined}
      */
-    const provideWorkerFormulaIdentifierSync = (workerName, deferTask) => {
+    const prepareWorkerFormulaIdentifier = (workerName, deferTask) => {
       if (workerName === 'MAIN') {
         return mainWorkerFormulaIdentifier;
       } else if (workerName === 'NEW') {
@@ -292,7 +269,7 @@ export const makeHostMaker = ({
      * @param {import('./types.js').DeferredTasks<{ powersFormulaIdentifier: string }>['push']} deferTask
      * @returns {string | undefined}
      */
-    const providePowersFormulaIdentifierSync = (partyName, deferTask) => {
+    const preparePowersFormulaIdentifier = (partyName, deferTask) => {
       const powersFormulaIdentifier = petStore.identifyLocal(partyName);
       if (powersFormulaIdentifier === undefined) {
         deferTask(identifiers =>
@@ -326,7 +303,7 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
+      const workerFormulaIdentifier = prepareWorkerFormulaIdentifier(
         workerName,
         tasks.push,
       );
@@ -368,6 +345,37 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /**
+     * Helper function for makeUnconfined and makeBundle.
+     * @param {string} powersName
+     * @param {string} workerName
+     * @param {string} [resultName]
+     */
+    const prepareMakeCaplet = (powersName, workerName, resultName) => {
+      assertPowersName(powersName);
+
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+
+      const workerFormulaIdentifier = prepareWorkerFormulaIdentifier(
+        workerName,
+        tasks.push,
+      );
+
+      const powersFormulaIdentifier = preparePowersFormulaIdentifier(
+        powersName,
+        tasks.push,
+      );
+
+      if (resultName !== undefined) {
+        tasks.push(identifiers =>
+          petStore.write(resultName, identifiers.capletFormulaIdentifier),
+        );
+      }
+
+      return { tasks, workerFormulaIdentifier, powersFormulaIdentifier };
+    };
+
     /** @type {import('./types.js').EndoHost['makeUnconfined']} */
     const makeUnconfined = async (
       workerName,
@@ -375,26 +383,8 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
-      assertPowersName(powersName);
-
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeUnconfinedDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-
-      const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
-        workerName,
-        tasks.push,
-      );
-
-      const powersFormulaIdentifier = providePowersFormulaIdentifierSync(
-        powersName,
-        tasks.push,
-      );
-
-      if (resultName !== undefined) {
-        tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.unconfinedFormulaIdentifier),
-        );
-      }
+      const { tasks, workerFormulaIdentifier, powersFormulaIdentifier } =
+        prepareMakeCaplet(powersName, workerName, resultName);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -420,31 +410,23 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
-      const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
-        workerName,
-      );
-
       const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
+        throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
-        powersName,
-      );
+      const { tasks, workerFormulaIdentifier, powersFormulaIdentifier } =
+        prepareMakeCaplet(powersName, workerName, resultName);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { value, formulaIdentifier } = await incarnateBundle(
-        powersFormulaIdentifier,
-        workerFormulaIdentifier,
+      const { value } = await incarnateBundle(
+        hostFormulaIdentifier,
         bundleFormulaIdentifier,
+        tasks,
+        workerFormulaIdentifier,
+        powersFormulaIdentifier,
       );
-
-      if (resultName !== undefined) {
-        await petStore.write(resultName, formulaIdentifier);
-      }
-
       return value;
     };
 

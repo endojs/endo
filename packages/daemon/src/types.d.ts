@@ -143,18 +143,18 @@ type MakeUnconfinedFormula = {
   // TODO formula slots
 };
 
-export type MakeUnconfinedDeferredTaskParams = {
-  powersFormulaIdentifier: string;
-  unconfinedFormulaIdentifier: string;
-  workerFormulaIdentifier: string;
-};
-
 type MakeBundleFormula = {
   type: 'make-bundle';
   worker: string;
   powers: string;
   bundle: string;
   // TODO formula slots
+};
+
+export type MakeCapletDeferredTaskParams = {
+  capletFormulaIdentifier: string;
+  powersFormulaIdentifier: string;
+  workerFormulaIdentifier: string;
 };
 
 type PeerFormula = {
@@ -779,18 +779,20 @@ export interface DaemonCore {
   incarnateUnconfined: (
     hostFormulaIdentifier: string,
     specifier: string,
-    deferredTasks: DeferredTasks<MakeUnconfinedDeferredTaskParams>,
+    deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
+    specifiedWorkerFormulaIdentifier?: string,
+    specifiedPowersFormulaIdentifier?: string,
+  ) => IncarnateResult<unknown>;
+  incarnateBundle: (
+    hostFormulaIdentifier: string,
+    bundleFormulaIdentifier: string,
+    deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string,
     specifiedPowersFormulaIdentifier?: string,
   ) => IncarnateResult<unknown>;
   incarnateBundler: (
     powersFormulaIdentifier: string,
     workerFormulaIdentifier: string,
-  ) => IncarnateResult<unknown>;
-  incarnateBundle: (
-    powersFormulaIdentifier: string,
-    workerFormulaIdentifier: string,
-    bundleFormulaIdentifier: string,
   ) => IncarnateResult<unknown>;
   incarnateWebBundle: (
     powersFormulaIdentifier: string,

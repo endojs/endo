@@ -895,6 +895,19 @@ const makeDaemonCore = async (
     );
   };
 
+  /** @type {import('./types.js').DaemonCore['incarnateReadableBlob']} */
+  const incarnateReadableBlob = async contentSha512 => {
+    const formulaNumber = await randomHex512();
+    /** @type {import('./types.js').ReadableBlobFormula} */
+    const formula = {
+      type: 'readable-blob',
+      content: contentSha512,
+    };
+    return /** @type {import('./types.js').IncarnateResult<import('./types.js').FarEndoReadable>} */ (
+      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    );
+  };
+
   /**
    * Incarnates a `handle` formula and synchronously adds it to the formula graph.
    * The returned promise is resolved after the formula is persisted.
@@ -1201,6 +1214,41 @@ const makeDaemonCore = async (
     return guestIncarnation.formulaIdentifier;
   };
 
+  /**
+   * Helper for `incarnateUnconfined` and `incarnateBundle`.
+   * @param {'make-bundle' | 'make-unconfined'} formulaType
+   * @param {string} hostFormulaIdentifier
+   * @param {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} deferredTasks
+   * @param {string} [specifiedWorkerFormulaIdentifier]
+   * @param {string} [specifiedPowersFormulaIdentifier]
+   */
+  const incarnateCapletDependencies = async (
+    formulaType,
+    hostFormulaIdentifier,
+    deferredTasks,
+    specifiedWorkerFormulaIdentifier,
+    specifiedPowersFormulaIdentifier,
+  ) => {
+    const ownFormulaNumber = await randomHex512();
+    const identifiers = harden({
+      powersFormulaIdentifier: await providePowersFormulaIdentifier(
+        hostFormulaIdentifier,
+        specifiedPowersFormulaIdentifier,
+      ),
+      capletFormulaIdentifier: serializeFormulaIdentifier({
+        type: formulaType,
+        number: ownFormulaNumber,
+        node: ownNodeIdentifier,
+      }),
+      capletFormulaNumber: ownFormulaNumber,
+      workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
+        specifiedWorkerFormulaIdentifier,
+      ),
+    });
+    await deferredTasks.execute(identifiers);
+    return identifiers;
+  };
+
   /** @type {import('./types.js').DaemonCore['incarnateUnconfined']} */
   const incarnateUnconfined = async (
     hostFormulaIdentifier,
@@ -1211,28 +1259,17 @@ const makeDaemonCore = async (
   ) => {
     const {
       powersFormulaIdentifier,
-      unconfinedFormulaNumber: formulaNumber,
+      capletFormulaNumber,
       workerFormulaIdentifier,
-    } = await formulaGraphMutex.enqueue(async () => {
-      const ownFormulaNumber = await randomHex512();
-      const identifiers = harden({
-        powersFormulaIdentifier: await providePowersFormulaIdentifier(
-          hostFormulaIdentifier,
-          specifiedPowersFormulaIdentifier,
-        ),
-        unconfinedFormulaIdentifier: serializeFormulaIdentifier({
-          type: 'make-unconfined',
-          number: ownFormulaNumber,
-          node: ownNodeIdentifier,
-        }),
-        unconfinedFormulaNumber: ownFormulaNumber,
-        workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
-          specifiedWorkerFormulaIdentifier,
-        ),
-      });
-      await deferredTasks.execute(identifiers);
-      return identifiers;
-    });
+    } = await formulaGraphMutex.enqueue(() =>
+      incarnateCapletDependencies(
+        'make-unconfined',
+        hostFormulaIdentifier,
+        deferredTasks,
+        specifiedWorkerFormulaIdentifier,
+        specifiedPowersFormulaIdentifier,
+      ),
+    );
 
     /** @type {import('./types.js').MakeUnconfinedFormula} */
     const formula = {
@@ -1241,21 +1278,46 @@ const makeDaemonCore = async (
       powers: powersFormulaIdentifier,
       specifier,
     };
-    return /** @type {import('./types.js').IncarnateResult<unknown>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    return provideValueForNumberedFormula(
+      formula.type,
+      capletFormulaNumber,
+      formula,
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['incarnateReadableBlob']} */
-  const incarnateReadableBlob = async contentSha512 => {
-    const formulaNumber = await randomHex512();
-    /** @type {import('./types.js').ReadableBlobFormula} */
+  /** @type {import('./types.js').DaemonCore['incarnateBundle']} */
+  const incarnateBundle = async (
+    hostFormulaIdentifier,
+    bundleFormulaIdentifier,
+    deferredTasks,
+    specifiedWorkerFormulaIdentifier,
+    specifiedPowersFormulaIdentifier,
+  ) => {
+    const {
+      powersFormulaIdentifier,
+      capletFormulaNumber,
+      workerFormulaIdentifier,
+    } = await formulaGraphMutex.enqueue(() =>
+      incarnateCapletDependencies(
+        'make-bundle',
+        hostFormulaIdentifier,
+        deferredTasks,
+        specifiedWorkerFormulaIdentifier,
+        specifiedPowersFormulaIdentifier,
+      ),
+    );
+
+    /** @type {import('./types.js').MakeBundleFormula} */
     const formula = {
-      type: 'readable-blob',
-      content: contentSha512,
+      type: 'make-bundle',
+      worker: workerFormulaIdentifier,
+      powers: powersFormulaIdentifier,
+      bundle: bundleFormulaIdentifier,
     };
-    return /** @type {import('./types.js').IncarnateResult<import('./types.js').FarEndoReadable>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    return provideValueForNumberedFormula(
+      formula.type,
+      capletFormulaNumber,
+      formula,
     );
   };
 
@@ -1272,23 +1334,6 @@ const makeDaemonCore = async (
       workerFormulaIdentifier,
       powersFormulaIdentifier,
     );
-    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
-  };
-
-  /** @type {import('./types.js').DaemonCore['incarnateBundle']} */
-  const incarnateBundle = async (
-    powersFormulaIdentifier,
-    workerFormulaIdentifier,
-    bundleFormulaIdentifier,
-  ) => {
-    const formulaNumber = await randomHex512();
-    /** @type {import('./types.js').MakeBundleFormula} */
-    const formula = {
-      type: 'make-bundle',
-      worker: workerFormulaIdentifier,
-      powers: powersFormulaIdentifier,
-      bundle: bundleFormulaIdentifier,
-    };
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };
 

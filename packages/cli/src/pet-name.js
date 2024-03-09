@@ -1,3 +1,5 @@
+const { quote: q } = assert;
+
 /**
  * Splits a dot-delimited pet name path into an array of pet names.
  * Throws if any of the path segments are empty.
@@ -10,7 +12,7 @@ export const parsePetNamePath = petNamePath => {
   for (const petName of petNames) {
     if (petName === '') {
       throw new Error(
-        `Pet name path "${petNamePath}" contains an empty segment.`,
+        `Pet name path ${q(petNamePath)} contains an empty segment.`,
       );
     }
   }
