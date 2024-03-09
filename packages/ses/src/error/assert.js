@@ -20,16 +20,14 @@ import {
   arrayPop,
   arrayPush,
   assign,
+  errorToString,
   freeze,
   defineProperty,
   globalThis,
   is,
   isError,
   regexpTest,
-  stringIndexOf,
   stringReplace,
-  stringSlice,
-  stringStartsWith,
   weakmapDelete,
   weakmapGet,
   weakmapHas,
@@ -355,14 +353,9 @@ freeze(note);
  */
 const defaultGetStackString = error => {
   if (!('stack' in error)) {
-    return '';
+    return errorToString(error);
   }
-  const stackString = `${error.stack}`;
-  const pos = stringIndexOf(stackString, '\n');
-  if (stringStartsWith(stackString, ' ') || pos === -1) {
-    return stackString;
-  }
-  return stringSlice(stackString, pos + 1); // exclude the initial newline
+  return `${error.stack}`;
 };
 
 /** @type {LoggedErrorHandler} */

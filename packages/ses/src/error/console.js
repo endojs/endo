@@ -15,6 +15,9 @@ import {
   fromEntries,
   isError,
   stringEndsWith,
+  stringSlice,
+  stringSplit,
+  stringStartsWith,
   weaksetAdd,
   weaksetHas,
 } from '../commons.js';
@@ -274,6 +277,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       return;
     }
     const errorTag = tagError(error);
+    const errorMessage = error.message;
     weaksetAdd(errorsLogged, error);
     const subErrors = [];
     const messageLogArgs = takeMessageLogArgs(error);
@@ -286,7 +290,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       // If there is no message log args, then just show the message that
       // the error itself carries.
       // eslint-disable-next-line @endo/no-polymorphic-call
-      baseConsole[severity](`${errorTag}:`, error.message);
+      baseConsole[severity](`${errorTag}:`, errorMessage);
     } else {
       // If there is one, we take it to be strictly more informative than the
       // message string carried by the error, so show it *instead*.
@@ -300,12 +304,19 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     }
     // After the message but before any other annotations, show the stack.
     let stackString = getStackString(error);
-    if (
-      typeof stackString === 'string' &&
-      stackString.length >= 1 &&
-      !stringEndsWith(stackString, '\n')
-    ) {
-      stackString += '\n';
+    if (typeof stackString === 'string' && stackString.length >= 1) {
+      const nameFromTag = stringSplit(errorTag, '#', 1)[0];
+      const stackDetailsLine = stringSplit(stackString, '\n', 1)[0];
+      // Remove the error details line if it matches error info we printed out
+      if (
+        stringStartsWith(stackDetailsLine, nameFromTag) &&
+        stringEndsWith(stackDetailsLine, errorMessage)
+      ) {
+        stackString = stringSlice(stackString, stackDetailsLine.length + 1);
+      }
+      if (!stringEndsWith(stackString, '\n')) {
+        stackString += '\n';
+      }
     }
     // eslint-disable-next-line @endo/no-polymorphic-call
     baseConsole[severity](stackString);

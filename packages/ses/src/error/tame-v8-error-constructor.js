@@ -8,6 +8,7 @@ import {
   arraySlice,
   create,
   defineProperties,
+  errorToString,
   fromEntries,
   reflectSet,
   regexpExec,
@@ -186,11 +187,11 @@ export const tameV8ErrorConstructor = (
     return `\n  at ${callSiteString}`;
   };
 
-  const stackStringFromSST = (_error, sst) =>
-    arrayJoin(
+  const stackStringFromSST = (error, sst) =>
+    `${errorToString(error)}${arrayJoin(
       arrayMap(arrayFilter(sst, callSiteFilter), callSiteStringifier),
       '',
-    );
+    )}`;
 
   /**
    * @typedef {object} StructuredStackInfo
@@ -260,7 +261,7 @@ export const tameV8ErrorConstructor = (
       if (errorTaming === 'unsafe') {
         const stackString = stackStringFromSST(error, sst);
         weakmapSet(stackInfos, error, { stackString });
-        return `${error}${stackString}`;
+        return stackString;
       } else {
         weakmapSet(stackInfos, error, { callSites: sst });
         return '';

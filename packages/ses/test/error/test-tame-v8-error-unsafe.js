@@ -94,7 +94,9 @@ test('SES compartment error compatibility - endow w Error power', t => {
   const c1 = new Compartment({ t, Error });
   const result = c1.evaluate(`
     const obj = {
-      toString: () => 'Pseudo Error',
+      name: 'PseudoError',
+      message: 'my message',
+      toString: () => 'OverridenError: not the message',
     };
     const limit = Error.stackTraceLimit;
     const newSTL = Math.max(10, limit);
@@ -106,7 +108,7 @@ test('SES compartment error compatibility - endow w Error power', t => {
     Error.stackTraceLimit = limit;
     obj.stack;
   `);
-  t.assert(result.startsWith('Pseudo Error\n  at '));
+  t.regex(result, /^PseudoError: my message\n +at /);
 });
 
 test('SES compartment error compatibility - endow w Error with locally configurable prepareStackTrace', t => {

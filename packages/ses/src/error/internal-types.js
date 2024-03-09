@@ -21,7 +21,7 @@
 /**
  * @callback GetStackString
  * @param {Error} error
- * @returns {string=}
+ * @returns {string | undefined}
  */
 
 /**

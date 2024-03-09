@@ -30,7 +30,7 @@ const wrapLogger = (logger, thisArg) =>
  * @param {"safe" | "unsafe"} consoleTaming
  * @param {"platform" | "exit" | "abort" | "report" | "none"} [errorTrapping]
  * @param {"report" | "none"} [unhandledRejectionTrapping]
- * @param {GetStackString=} optGetStackString
+ * @param {GetStackString} [optGetStackString]
  */
 export const tameConsole = (
   consoleTaming = 'safe',

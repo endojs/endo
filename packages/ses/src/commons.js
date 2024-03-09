@@ -153,6 +153,7 @@ export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no
 
 export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty);
 //
+export const arrayEvery = uncurryThis(arrayPrototype.every);
 export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);
@@ -214,6 +215,7 @@ export const weaksetAdd = uncurryThis(weaksetPrototype.add);
 export const weaksetHas = uncurryThis(weaksetPrototype.has);
 //
 export const functionToString = uncurryThis(functionPrototype.toString);
+export const errorToString = uncurryThis(Error.prototype.toString);
 //
 const { all } = Promise;
 export const promiseAll = promises => apply(all, Promise, [promises]);

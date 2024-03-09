@@ -7,6 +7,13 @@ import {
   setPrototypeOf,
   getOwnPropertyDescriptor,
   defineProperty,
+  errorToString,
+  stringSplit,
+  stringStartsWith,
+  stringEndsWith,
+  arrayEvery,
+  stringSlice,
+  stringReplace,
 } from '../commons.js';
 import { NativeErrors } from '../permits.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
@@ -18,17 +25,76 @@ const stackDesc = getOwnPropertyDescriptor(FERAL_ERROR.prototype, 'stack');
 const stackGetter = stackDesc && stackDesc.get;
 
 // Use concise methods to obtain named functions without constructors.
-const tamedMethods = {
+const basicGetStackString = {
   getStackString(error) {
+    // TODO: format stack properly
     if (typeof stackGetter === 'function') {
       return apply(stackGetter, error, []);
     } else if ('stack' in error) {
       // The fallback is to just use the de facto `error.stack` if present
       return `${error.stack}`;
     }
-    return '';
+    // Fallback to the error details if no stack info is available at all
+    return errorToString(error);
   },
+}.getStackString;
+
+const testBasicStackStringShape = () => {
+  const error = FERAL_ERROR('test message');
+  error.name = 'TestError';
+  const stackString = basicGetStackString(error);
+  const isString = typeof stackString === 'string';
+  const stackStringLines = stringSplit(isString ? stackString : '', '\n');
+  const includesErrorDetails =
+    stringStartsWith(stackStringLines[0], error.name) &&
+    stringEndsWith(stackStringLines[0], error.message);
+  const trailingNewLine = stackStringLines[stackStringLines.length - 1] === '';
+  const stackFrameLinesHaveSpaces = arrayEvery(
+    stackStringLines,
+    (line, idx) =>
+      (includesErrorDetails && idx === 0) ||
+      (trailingNewLine && idx === stackStringLines.length - 1) ||
+      stringStartsWith(line, ' '),
+  );
+  return {
+    isString,
+    includesErrorDetails,
+    trailingNewLine,
+    stackFrameLinesHaveSpaces,
+  };
 };
+
+const defaultGetStackString = (() => {
+  const {
+    isString,
+    includesErrorDetails,
+    trailingNewLine,
+    stackFrameLinesHaveSpaces,
+  } = testBasicStackStringShape();
+  if (
+    !isString ||
+    (includesErrorDetails && !trailingNewLine && stackFrameLinesHaveSpaces)
+  ) {
+    return basicGetStackString;
+  }
+  return {
+    getStackString(error) {
+      let stackString = basicGetStackString(error);
+      if (trailingNewLine) {
+        stackString = stringSlice(stackString, 0, -1);
+      }
+      if (!stackFrameLinesHaveSpaces) {
+        stackString = stringReplace(stackString, /\n/gm, '\n  ');
+      }
+      if (!includesErrorDetails) {
+        const details = errorToString(error);
+        stackString =
+          details + (stackFrameLinesHaveSpaces ? '\n' : '\n  ') + stackString;
+      }
+      return stackString;
+    },
+  }.getStackString;
+})();
 
 export default function tameErrorConstructor(
   errorTaming = 'safe',
@@ -171,7 +237,7 @@ export default function tameErrorConstructor(
     });
   }
 
-  let initialGetStackString = tamedMethods.getStackString;
+  let initialGetStackString = defaultGetStackString;
   if (platform === 'v8') {
     initialGetStackString = tameV8ErrorConstructor(
       FERAL_ERROR,
@@ -179,7 +245,7 @@ export default function tameErrorConstructor(
       errorTaming,
       stackFiltering,
     );
-  } else if (errorTaming === 'unsafe') {
+  } else if (errorTaming !== 'unsafe') {
     // v8 has too much magic around their 'stack' own property for it to
     // coexist cleanly with this accessor. So only install it on non-v8
 
@@ -198,13 +264,12 @@ export default function tameErrorConstructor(
     // much code in the world that assumes `error.stack` is a string. So
     // where the proposal accommodates secure operation by making the
     // property optional, we instead accommodate secure operation by
-    // having the secure form always return only the stable part, the
-    // stringified error instance, and omitting all the frame information
-    // rather than omitting the property.
+    // having the secure form always return an empty string.
     defineProperties(ErrorPrototype, {
       stack: {
         get() {
-          return initialGetStackString(this);
+          // In safe mode, the `stack` property is always empty by default
+          return '';
         },
         set(newValue) {
           defineProperties(this, {
@@ -221,13 +286,12 @@ export default function tameErrorConstructor(
   } else {
     // v8 has too much magic around their 'stack' own property for it to
     // coexist cleanly with this accessor. So only install it on non-v8
+
+    // In unsafe taming, we return the full stack string
     defineProperties(ErrorPrototype, {
       stack: {
         get() {
-          // https://github.com/tc39/proposal-error-stacks/issues/46
-          // allows this to not add an unpleasant newline. Otherwise
-          // we should fix this.
-          return `${this}`;
+          return initialGetStackString(this);
         },
         set(newValue) {
           defineProperties(this, {
