@@ -1,16 +1,59 @@
+/* global globalThis */
 import 'ses';
 
-const { stringify } = JSON;
-const { defineProperty, freeze } = Object;
-const { apply } = Reflect;
+/**
+ * Copied from the ses-shim's console-shim.js file, since the idea is that
+ * these communicate not by export import, but rather by convention plus
+ * feature testing. The following test is from there:
+ *
+ *`makeCausalConsoleFromLoggerForSesAva` is privileged because it exposes
+ * unredacted error info onto the `Logger` provided by the caller. It
+ * should not be made available to non-privileged code.
+ *
+ * Further, we consider this particular API choice to be experimental
+ * and may change in the future. It is currently only intended for use by
+ * `@endo/ses-ava`, with which it will be co-maintained.
+ *
+ * Thus, the SES console-shim.js makes `makeCausalConsoleFromLoggerForSesAva`
+ * available on `globalThis` which it *assumes* is the global of the start
+ * compartment and is therefore allowed to hold powers that should not be
+ * available in constructed compartments. It makes it available as the value of
+ * a global property named by a registered symbol named
+ * `MAKE_CAUSAL_CONSOLE_FROM_LOGGER_KEY_FOR_SES_AVA`.
+ *
+ * Anyone accessing this, including `@endo/ses-ava`, should feature test for
+ * this and be tolerant of its absence. It may indeed disappear from later
+ * versions of the ses-shim.
+ */
+const MAKE_CAUSAL_CONSOLE_FROM_LOGGER_KEY_FOR_SES_AVA = Symbol.for(
+  'MAKE_CAUSAL_CONSOLE_FROM_LOGGER_KEY_FOR_SES_AVA',
+);
+
+const optMakeCausalConsoleFromLoggerForSesAva =
+  globalThis[MAKE_CAUSAL_CONSOLE_FROM_LOGGER_KEY_FOR_SES_AVA];
 
 /**
- * @typedef {(...args: unknown[]) => void} Logger
+ * TODO For some reason, the following declaration (with "at-" as "@")
+ * doesn't work well for either TS or typedoc. For TS it seems to type
+ * `VirtualConsole` as `any` in a vscode hover. For typedoc it results in
+ * errors.
+ *
+ * at-typedef {import('ses/console-tools.js').VirtualConsole} VirtualConsole
+ *
+ * so instead, for now, we just declare it as `any`. TODO is to repair this.
+ *
+ * @typedef {any} VirtualConsole
  */
 
-const defaultLogger = (...args) => {
-  console.error(...args);
-};
+const { stringify } = JSON;
+const {
+  defineProperty,
+  freeze,
+  getPrototypeOf,
+  getOwnPropertyDescriptors,
+  entries,
+} = Object;
+const { apply } = Reflect;
 
 /**
  * Determine if the argument is a Promise.
@@ -23,12 +66,12 @@ const isPromise = maybePromise =>
   Promise.resolve(maybePromise) === maybePromise;
 
 /**
- * Calls `func(...args)` passing back approximately its outcome, but first
- * logging any erroneous outcome to the `logger`.
+ * Calls `func(virtualT, ...args)` passing back approximately its outcome,
+ * but first logging any erroneous outcome to the `virtualT.log`.
  *
- *    * If `func(...args)` returns a non-promise, silently return it.
- *    * If `func(...args)` throws, log what was thrown and then rethrow it.
- *    * If `func(...args)` returns a promise, immediately return a new
+ *    * If `func(...)` returns a non-promise, silently return it.
+ *    * If `func(...)` throws, log what was thrown and then rethrow it.
+ *    * If `func(...)` returns a promise, immediately return a new
  *      unresolved promise.
  *       * If the first promise fulfills, silently fulfill the returned promise
  *         even if the fulfillment was an error.
@@ -36,27 +79,30 @@ const isPromise = maybePromise =>
  *         reject the returned promise with the same reason.
  *
  * The delayed rejection of the returned promise is an observable difference
- * from directly calling `func(...args)` but will be equivalent enough for most
- * purposes.
+ * from directly calling `func(...)` but will be equivalent enough for most
+ * testing purposes.
  *
- * @param {(...unknown) => unknown} func
+ * @param {(
+ *   t: import('ava').ExecutionContext,
+ *   ...args: unknown[]
+ * ) => unknown} func
+ * @param {import('ava').ExecutionContext} virtualT
  * @param {unknown[]} args
  * @param {string} source
- * @param {Logger} logger
  */
-const logErrorFirst = (func, args, source, logger) => {
+const logErrorFirst = (func, virtualT, args, source) => {
   let result;
   try {
-    result = apply(func, undefined, args);
+    result = apply(func, undefined, [virtualT, ...args]);
   } catch (err) {
-    logger(`THROWN from ${source}:`, err);
+    virtualT.log(`THROWN from ${source}:`, err);
     throw err;
   }
   if (isPromise(result)) {
     return result.then(
       v => v,
       reason => {
-        logger(`REJECTED from ${source}:`, reason);
+        virtualT.log(`REJECTED from ${source}:`, reason);
         return result;
       },
     );
@@ -76,12 +122,65 @@ const overrideList = [
 ];
 
 /**
- * @template {import('ava').TestFn} T
+ * @param {import('ava').ExecutionContext} originalT
+ * @returns {import('ava').ExecutionContext}
+ */
+const makeVirtualExecutionContext = originalT => {
+  if (optMakeCausalConsoleFromLoggerForSesAva === undefined) {
+    // Must tolerate absence as a failure of the feature test. In this
+    // case, we fallback to `originalT` itself.
+    return originalT;
+  }
+  const causalConsole = optMakeCausalConsoleFromLoggerForSesAva(originalT.log);
+  const virtualT = {
+    log: /** @type {import('ava').LogFn} */ (causalConsole.error),
+    console: causalConsole,
+  };
+  // Mirror properties from originalT and its prototype onto virtualT
+  // except for those already defined above.
+  const originalProto = getPrototypeOf(originalT);
+  const descs = {
+    // Spread from originalProto before originalT
+    // so we wrap properties of the latter in case of collision.
+    ...getOwnPropertyDescriptors(originalProto),
+    ...getOwnPropertyDescriptors(originalT),
+  };
+  for (const [name, desc] of entries(descs)) {
+    if (!(name in virtualT)) {
+      if ('get' in desc) {
+        defineProperty(virtualT, name, {
+          ...desc,
+          get() {
+            return originalT[name];
+          },
+          set(newVal) {
+            originalT[name] = newVal;
+          },
+        });
+      } else if (typeof desc.value === 'function') {
+        defineProperty(virtualT, name, {
+          ...desc,
+          value(...args) {
+            return originalT[name](...args);
+          },
+        });
+      } else {
+        defineProperty(virtualT, name, desc);
+      }
+    }
+  }
+
+  // `harden` should be functional by the time a test callback is invoked.
+  // @ts-ignore has extra properties outside type
+  return harden(virtualT);
+};
+
+/**
+ * @template {import('ava').TestFn} [T=import('ava').TestFn]
  * @param {T} testerFunc
- * @param {Logger} logger
  * @returns {T} Not yet frozen!
  */
-const augmentLogging = (testerFunc, logger) => {
+const augmentLogging = testerFunc => {
   const testerFuncName = `ava ${testerFunc.name || 'test'}`;
   const augmented = (...args) => {
     // Align with ava argument parsing.
@@ -102,9 +201,11 @@ const augmentLogging = (testerFunc, logger) => {
       return freeze(wrappedBuildTitle);
     };
     const wrapImplFunc = fn => {
-      const wrappedFunc = t => {
-        // `harden` should be functional by the time a test callback is invoked.
-        harden(t);
+      /**
+       * @param {import('ava').ExecutionContext} originalT
+       */
+      const wrappedFunc = originalT => {
+        const virtualT = makeVirtualExecutionContext(originalT);
         // Format source like `test("$rawTitle") "$resolvedTitle"`.
         const quotedRawTitle = hasRawTitle ? stringify(rawTitle) : '';
         const quotedResolvedTitle =
@@ -112,7 +213,7 @@ const augmentLogging = (testerFunc, logger) => {
             ? ` ${stringify(resolvedTitle)}`
             : '';
         const source = `${testerFuncName}(${quotedRawTitle})${quotedResolvedTitle}`;
-        return logErrorFirst(fn, [t, ...args], source, logger);
+        return logErrorFirst(fn, virtualT, args, source);
       };
       const buildTitle = fn.title;
       if (buildTitle) {
@@ -177,16 +278,15 @@ const augmentLogging = (testerFunc, logger) => {
  * (which defaults to using the SES-aware `console.error`)
  * before propagating into `rawTest`.
  *
- * @template {import('ava').TestFn} T ava `test`
+ * @template {import('ava').TestFn} [T=import('ava').TestFn] ava `test`
  * @param {T} avaTest
- * @param {Logger} [logger]
  * @returns {T}
  */
-const wrapTest = (avaTest, logger = defaultLogger) => {
-  const sesAvaTest = augmentLogging(avaTest, logger);
+const wrapTest = avaTest => {
+  const sesAvaTest = augmentLogging(avaTest);
   for (const methodName of overrideList) {
     defineProperty(sesAvaTest, methodName, {
-      value: augmentLogging(avaTest[methodName], logger),
+      value: augmentLogging(avaTest[methodName]),
       writable: true,
       enumerable: true,
       configurable: true,

@@ -6,7 +6,15 @@ Summary
    * SES tames the global `console` and grants it the ability to reveal error annotations and stacks to the actual console.
    * Both `assert` and `console` are  powerful globals that SES does not implicitly carry into child compartments. When creating a child compartment, add `assert` to the compartment’s globals. Either add `console` too, or add a wrapper that annotates the console with a topic.
    * SES hides annotations and stack traces by default. To reveal them, SES uses mechanisms like `process.on("uncaughtException")` in Node.js to catch the error and log it back to the `console` tamed by `lockdown`.
-   * In the scope of the Agoric software ecosystem, this architecture will allow us to eventually introduce a more powerful distributed `console` that can meaningfully capture stack traces for a distributed debugger, based on the design of [Causeway](https://github.com/Agoric/agoric-sdk/issues/1318#issuecomment-662127549).
+
+We refer to the enhanced `console`, installed by default by the ses shim, as the *causal console*, because the annotations it reveals are often used to show causality information. For example, with the [`TRACK_TURNS=enabled`](https://github.com/Agoric/agoric-sdk/blob/master/docs/env.md#track_turns) and [`DEBUG=track-turns`](https://github.com/Agoric/agoric-sdk/blob/master/docs/env.md#debug) environment options set
+```sh
+# in bash syntax
+export DEBUG=track-turns
+export TRACK_TURNS=enabled
+```
+the @endo/eventual-send package will use annotations to show where previous `E` operations (either eventual sends or `E.when`) in previous turns *locally in the same vat* caused the turn with the current error. This is sometimes called "deep asynchronous stacks".
+   * In the scope of the Agoric software ecosystem, this architecture will allow us to eventually introduce a more powerful distributed causal `console` that can meaningfully capture stack traces for a distributed debugger, based on the design of [Causeway](https://github.com/Agoric/agoric-sdk/issues/1318#issuecomment-662127549).
 
 
 ## Goals, non-goals, and partial goals

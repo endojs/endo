@@ -8,13 +8,17 @@
 import {
   WeakSet,
   arrayFilter,
+  arrayFlatMap,
   arrayMap,
+  arrayPop,
   arrayPush,
   defineProperty,
   freeze,
   fromEntries,
   isError,
   stringEndsWith,
+  stringIncludes,
+  stringSplit,
   weaksetAdd,
   weaksetHas,
 } from '../commons.js';
@@ -46,8 +50,17 @@ import './internal-types.js';
 
 /** @typedef {keyof VirtualConsole | 'profile' | 'profileEnd'} ConsoleProps */
 
-/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-const consoleLevelMethods = freeze([
+/**
+ * Those console methods whose actual parameters are `(fmt?, ...args)`
+ * even if their TypeScript types claim otherwise.
+ *
+ * Each is paired with what we consider to be their log severity level.
+ * This is the same as the log severity of these on other
+ * platform console implementations when they all agree.
+ *
+ * @type {readonly [ConsoleProps, LogSeverity | undefined][]}
+ */
+export const consoleLevelMethods = freeze([
   ['debug', 'debug'], // (fmt?, ...args) verbose level on Chrome
   ['log', 'log'], // (fmt?, ...args) info level on Chrome
   ['info', 'info'], // (fmt?, ...args)
@@ -55,13 +68,22 @@ const consoleLevelMethods = freeze([
   ['error', 'error'], // (fmt?, ...args)
 
   ['trace', 'log'], // (fmt?, ...args)
-  ['dirxml', 'log'], // (fmt?, ...args)
-  ['group', 'log'], // (fmt?, ...args)
-  ['groupCollapsed', 'log'], // (fmt?, ...args)
+  ['dirxml', 'log'], // (fmt?, ...args)          but TS typed (...data)
+  ['group', 'log'], // (fmt?, ...args)           but TS typed (...label)
+  ['groupCollapsed', 'log'], // (fmt?, ...args)  but TS typed (...label)
 ]);
 
-/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-const consoleOtherMethods = freeze([
+/**
+ * Those console methods other than those already enumerated by
+ * `consoleLevelMethods`.
+ *
+ * Each is paired with what we consider to be their log severity level.
+ * This is the same as the log severity of these on other
+ * platform console implementations when they all agree.
+ *
+ * @type {readonly [ConsoleProps, LogSeverity | undefined][]}
+ */
+export const consoleOtherMethods = freeze([
   ['assert', 'error'], // (value, fmt?, ...args)
   ['timeLog', 'log'], // (label?, ...args) no fmt string
 
@@ -85,7 +107,7 @@ const consoleOtherMethods = freeze([
 ]);
 
 /** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-export const consoleWhitelist = freeze([
+const consoleWhitelist = freeze([
   ...consoleLevelMethods,
   ...consoleOtherMethods,
 ]);
@@ -117,10 +139,10 @@ export const consoleWhitelist = freeze([
  * ]);
  */
 
-// /////////////////////////////////////////////////////////////////////////////
+// //////////////////////////// Logging Console ////////////////////////////////
 
 /** @type {MakeLoggingConsoleKit} */
-const makeLoggingConsoleKit = (
+export const makeLoggingConsoleKit = (
   loggedErrorHandler,
   { shouldResetForDebugging = false } = {},
 ) => {
@@ -161,9 +183,23 @@ const makeLoggingConsoleKit = (
   return freeze({ loggingConsole: typedLoggingConsole, takeLog });
 };
 freeze(makeLoggingConsoleKit);
-export { makeLoggingConsoleKit };
 
-// /////////////////////////////////////////////////////////////////////////////
+/**
+ * Makes the same calls on a `baseConsole` that were made on a
+ * `loggingConsole` to produce this `log`. In this way, a logging console
+ * can be used as a buffer to delay the application of these calls to a
+ * `baseConsole`.
+ *
+ * @param {LogRecord[]} log
+ * @param {VirtualConsole} baseConsole
+ */
+export const pumpLogToConsole = (log, baseConsole) => {
+  for (const [name, ...args] of log) {
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    baseConsole[name](...args);
+  }
+};
+// //////////////////////////// Causal Console /////////////////////////////////
 
 /** @type {ErrorInfo} */
 const ErrorInfo = {
@@ -175,7 +211,7 @@ const ErrorInfo = {
 freeze(ErrorInfo);
 
 /** @type {MakeCausalConsole} */
-const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
+export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   if (!baseConsole) {
     return undefined;
   }
@@ -362,12 +398,106 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   return /** @type {VirtualConsole} */ (freeze(causalConsole));
 };
 freeze(makeCausalConsole);
-export { makeCausalConsole };
 
-// /////////////////////////////////////////////////////////////////////////////
+/**
+ * @typedef {(...args: unknown[]) => void} Logger
+ */
+
+/**
+ * This is a rather horrible kludge to indent the output to a logger in
+ * the case where some arguments are strings containing newlines. Part of
+ * the problem is that console-like loggers, including the one in ava,
+ * join the string arguments of the log message with a space.
+ * Because of this, there's an extra space at the beginning of each of
+ * the split lines. So this kludge compensated by putting an extra empty
+ * string at the beginning, so that the logger will add the same extra
+ * joiner.
+ * TODO: Fix this horrible kludge, and indent in a sane manner.
+ *
+ * @param {string} str
+ * @param {string} sep
+ * @param {string[]} indents
+ * @returns {string[]}
+ */
+const indentAfterAllSeps = (str, sep, indents) => {
+  const [firstLine, ...restLines] = stringSplit(str, sep);
+  const indentedRest = arrayFlatMap(restLines, line => [sep, ...indents, line]);
+  return ['', firstLine, ...indentedRest];
+};
+
+/**
+ * @param {LoggedErrorHandler} loggedErrorHandler
+ */
+export const defineCausalConsoleFromLogger = loggedErrorHandler => {
+  /**
+   * Implement the `VirtualConsole` API badly by turning all calls into
+   * calls on `tlogger`. We need to do this to have `console` logging
+   * turn into calls to Ava's `t.log`, so these console log messages
+   * are output in the right place.
+   *
+   * @param {Logger} tlogger
+   * @returns {VirtualConsole}
+   */
+  const makeCausalConsoleFromLogger = tlogger => {
+    const indents = [];
+    const logWithIndent = (...args) => {
+      if (indents.length > 0) {
+        args = arrayFlatMap(args, arg =>
+          typeof arg === 'string' && stringIncludes(arg, '\n')
+            ? indentAfterAllSeps(arg, '\n', indents)
+            : [arg],
+        );
+        args = [...indents, ...args];
+      }
+      return tlogger(...args);
+    };
+    const makeNamed = (name, fn) =>
+      ({ [name]: (...args) => fn(...args) })[name];
+
+    const baseConsole = fromEntries([
+      ...arrayMap(consoleLevelMethods, ([name]) => [
+        name,
+        makeNamed(name, logWithIndent),
+      ]),
+      ...arrayMap(consoleOtherMethods, ([name]) => [
+        name,
+        makeNamed(name, (...args) => logWithIndent(name, ...args)),
+      ]),
+    ]);
+    // https://console.spec.whatwg.org/#grouping
+    for (const name of ['group', 'groupCollapsed']) {
+      if (baseConsole[name]) {
+        baseConsole[name] = makeNamed(name, (...args) => {
+          if (args.length >= 1) {
+            // Prefix the logged data with "group" or "groupCollapsed".
+            logWithIndent(...args);
+          }
+          // A single space is enough;
+          // the host console will separate them with additional spaces.
+          arrayPush(indents, ' ');
+        });
+      }
+    }
+    if (baseConsole.groupEnd) {
+      baseConsole.groupEnd = makeNamed('groupEnd', (...args) => {
+        arrayPop(indents);
+      });
+    }
+    harden(baseConsole);
+    const causalConsole = makeCausalConsole(
+      /** @type {VirtualConsole} */ (baseConsole),
+      loggedErrorHandler,
+    );
+    return /** @type {VirtualConsole} */ (causalConsole);
+  };
+  return freeze(makeCausalConsoleFromLogger);
+};
+freeze(defineCausalConsoleFromLogger);
+
+// ///////////////////////// Filter Console ////////////////////////////////////
 
 /** @type {FilterConsole} */
-const filterConsole = (baseConsole, filter, _topic = undefined) => {
+export const filterConsole = (baseConsole, filter, _topic = undefined) => {
   // TODO do something with optional topic string
   const whitelist = arrayFilter(
     consoleWhitelist,
@@ -391,4 +521,3 @@ const filterConsole = (baseConsole, filter, _topic = undefined) => {
   return /** @type {VirtualConsole} */ (freeze(filteringConsole));
 };
 freeze(filterConsole);
-export { filterConsole };
