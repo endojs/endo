@@ -8,13 +8,19 @@
 import {
   WeakSet,
   arrayFilter,
+  arrayFlatMap,
+  arrayJoin,
   arrayMap,
+  arrayPop,
   arrayPush,
   defineProperty,
   freeze,
   fromEntries,
   isError,
   stringEndsWith,
+  stringIncludes,
+  stringReplaceAll,
+  stringSplit,
   weaksetAdd,
   weaksetHas,
 } from '../commons.js';
@@ -400,6 +406,28 @@ freeze(makeCausalConsole);
  */
 
 /**
+ * This is a rather horrible kludge to indent the output to a logger in
+ * the case where some arguments are strings containing newlines. Part of
+ * the problem is that console-like loggers, including the one in ava,
+ * join the string arguments of the log message with a space.
+ * Because of this, there's an extra space at the beginning of each of
+ * the split lines. So this kludge compensated by putting an extra empty
+ * string at the beginning, so that the logger will add the same extra
+ * joiner.
+ * TODO: Fix this horrible kludge, and indent in a sane manner.
+ *
+ * @param {string} str
+ * @param {string} sep
+ * @param {string[]} indents
+ * @returns {string[]}
+ */
+const indentAfterAllSeps = (str, sep, indents) => {
+  const [firstLine, ...restLines] = stringSplit(str, sep);
+  const indentedRest = arrayFlatMap(restLines, line => [sep, ...indents, line]);
+  return ['', firstLine, ...indentedRest];
+};
+
+/**
  * @param {LoggedErrorHandler} loggedErrorHandler
  */
 export const defineCausalConsoleFromLogger = loggedErrorHandler => {
@@ -413,16 +441,49 @@ export const defineCausalConsoleFromLogger = loggedErrorHandler => {
    * @returns {VirtualConsole}
    */
   const makeCausalConsoleFromLogger = tlogger => {
-    const baseConsole = {};
-    for (const [name1, _] of consoleLevelMethods) {
-      baseConsole[name1] = tlogger;
+    const indents = [];
+    const logWithIndent = (...args) => {
+      if (indents.length > 0) {
+        args = arrayFlatMap(args, arg =>
+          typeof arg === 'string' && stringIncludes(arg, '\n')
+            ? indentAfterAllSeps(arg, '\n', indents)
+            : [arg],
+        );
+        args = [...indents, ...args];
+      }
+      return tlogger(...args);
+    };
+    const makeNamed = (name, fn) =>
+      ({ [name]: (...args) => fn(...args) })[name];
+
+    const baseConsole = fromEntries([
+      ...arrayMap(consoleLevelMethods, ([name]) => [
+        name,
+        makeNamed(name, logWithIndent),
+      ]),
+      ...arrayMap(consoleOtherMethods, ([name]) => [
+        name,
+        makeNamed(name, (...args) => logWithIndent(name, ...args)),
+      ]),
+    ]);
+    // https://console.spec.whatwg.org/#grouping
+    for (const name of ['group', 'groupCollapsed']) {
+      if (baseConsole[name]) {
+        baseConsole[name] = makeNamed(name, (...args) => {
+          if (args.length >= 1) {
+            // Prefix the logged data with "group" or "groupCollapsed".
+            logWithIndent(...args);
+          }
+          // A single space is enough;
+          // the host console will separate them with additional spaces.
+          arrayPush(indents, ' ');
+        });
+      }
     }
-    for (const [name2, _] of [
-      ['group', 'log'],
-      ['groupCollapsed', 'log'],
-      ...consoleOtherMethods,
-    ]) {
-      baseConsole[name2] = (...args) => tlogger(name2, ...args);
+    if (baseConsole.groupEnd) {
+      baseConsole.groupEnd = makeNamed('groupEnd', (...args) => {
+        arrayPop(indents);
+      });
     }
     harden(baseConsole);
     const causalConsole = makeCausalConsole(

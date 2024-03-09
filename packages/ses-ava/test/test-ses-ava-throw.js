@@ -20,8 +20,8 @@ lockdown({
   // stackFiltering: 'verbose', // Include `assert` infrastructure
   consoleTaming: 'safe', // Default. Console with access to redacted info
   // consoleTaming: 'unsafe', // Host console lacks access to redacted info
-  errorTaming: 'safe', // Default. Hide redacted info on error
-  // errorTaming: 'unsafe', // Disclose redacted info on error
+  // errorTaming: 'safe', // Default. Hide redacted info on error
+  errorTaming: 'unsafe', // Disclose redacted info on error
 });
 
 const test = wrapTest(rawTest);

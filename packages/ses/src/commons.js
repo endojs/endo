@@ -159,6 +159,9 @@ export const arrayIncludes = uncurryThis(arrayPrototype.includes);
 export const arrayJoin = uncurryThis(arrayPrototype.join);
 /** @type {<T, U>(thisArg: readonly T[], callbackfn: (value: T, index: number, array: T[]) => U, cbThisArg?: any) => U[]} */
 export const arrayMap = /** @type {any} */ (uncurryThis(arrayPrototype.map));
+export const arrayFlatMap = /** @type {any} */ (
+  uncurryThis(arrayPrototype.flatMap)
+);
 export const arrayPop = uncurryThis(arrayPrototype.pop);
 /** @type {<T>(thisArg: T[], ...items: T[]) => number} */
 export const arrayPush = uncurryThis(arrayPrototype.push);
@@ -196,6 +199,9 @@ export const stringMatch = uncurryThis(stringPrototype.match);
  */
 export const stringReplace = /** @type {any} */ (
   uncurryThis(stringPrototype.replace)
+);
+export const stringReplaceAll = /** @type {any} */ (
+  uncurryThis(stringPrototype.replaceAll)
 );
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
