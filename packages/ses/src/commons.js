@@ -200,9 +200,6 @@ export const stringMatch = uncurryThis(stringPrototype.match);
 export const stringReplace = /** @type {any} */ (
   uncurryThis(stringPrototype.replace)
 );
-export const stringReplaceAll = /** @type {any} */ (
-  uncurryThis(stringPrototype.replaceAll)
-);
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
 /** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */
