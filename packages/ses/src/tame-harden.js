@@ -1,13 +1,19 @@
 /* eslint-disable no-restricted-globals */
 import { TypeError, freeze } from './commons.js';
 
-export const tameHarden = (safeHarden, hardenTaming) => {
+/**
+ *
+ * @param {import('./make-hardener.js').HardenerKit} safeHardenKit
+ * @param {string} hardenTaming
+ * @returns {import('./make-hardener.js').HardenerKit}
+ */
+export const tameHardenKit = (safeHardenKit, hardenTaming) => {
   if (hardenTaming !== 'safe' && hardenTaming !== 'unsafe') {
     throw TypeError(`unrecognized fakeHardenOption ${hardenTaming}`);
   }
 
   if (hardenTaming === 'safe') {
-    return safeHarden;
+    return safeHardenKit;
   }
 
   // In on the joke
@@ -16,14 +22,20 @@ export const tameHarden = (safeHarden, hardenTaming) => {
   Object.isSealed = () => true;
   Reflect.isExtensible = () => false;
 
-  if (safeHarden.isFake) {
-    // The "safe" hardener is already a fake hardener.
+  if (/** @type {any} */ (safeHardenKit.harden).isFake) {
+    // The "safe" hardener kit is already a fake hardener.
     // Just use it.
-    return safeHarden;
+    return safeHardenKit;
   }
 
   const fakeHarden = arg => arg;
+  const fakeIsHardened = () => true;
   fakeHarden.isFake = true;
-  return freeze(fakeHarden);
+  fakeIsHardened.isFake = true;
+  return freeze({
+    harden: fakeHarden,
+    isHardened: fakeIsHardened,
+    hardenIntrinsics: fakeHarden,
+  });
 };
-freeze(tameHarden);
+freeze(tameHardenKit);

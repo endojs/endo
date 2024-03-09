@@ -60,6 +60,7 @@ module.exports = {
     // ESNext
     lockdown: 'readonly',
     harden: 'readonly',
+    isHardened: 'readonly',
     HandledPromise: 'readonly',
     // https://github.com/endojs/endo/issues/550
     AggregateError: 'readonly',

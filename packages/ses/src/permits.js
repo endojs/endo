@@ -101,6 +101,7 @@ export const universalPropertyNames = {
 
   lockdown: 'lockdown',
   harden: 'harden',
+  isHardened: 'isHardened',
   HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
 };
 
@@ -1595,6 +1596,7 @@ export const permitted = {
 
   lockdown: fn,
   harden: { ...fn, isFake: 'boolean' },
+  isHardened: { ...fn, isFake: 'boolean' },
 
   '%InitialGetStackString%': fn,
 };

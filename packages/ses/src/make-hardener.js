@@ -27,7 +27,6 @@ import {
   TypeError,
   WeakMap,
   WeakSet,
-  globalThis,
   apply,
   arrayForEach,
   defineProperty,
@@ -49,12 +48,13 @@ import {
   weakmapSet,
   weaksetAdd,
   weaksetHas,
+  setDelete,
+  arrayPush,
+  setGetSize,
+  arrayJoin,
+  weakmapHas,
 } from './commons.js';
 import { assert } from './error/assert.js';
-
-/**
- * @typedef {import('../types.js').Harden} Harden
- */
 
 // Obtain the string tag accessor of of TypedArray so we can indirectly use the
 // TypedArray brand check it employs.
@@ -123,28 +123,41 @@ const freezeTypedArray = array => {
 };
 
 /**
- * Create a `harden` function.
- *
- * @returns {Harden}
+ * @typedef {object} HardenerKit
+ * @property {import('../types.js').Harden} harden
+ * @property {import('../types.js').IsHardened} isHardened
+ * @property {import('../types.js').Harden} hardenIntrinsics
  */
-export const makeHardener = () => {
-  // Use a native hardener if possible.
-  if (typeof globalThis.harden === 'function') {
-    const safeHarden = globalThis.harden;
-    return safeHarden;
+
+/**
+ * Create a HardenerKit.
+ *
+ * @returns {HardenerKit}
+ */
+export const makeHardenerKit = () => {
+  const hardened = new WeakSet();
+  const hardenedAtLockdown = new WeakSet();
+  let hardenedAtLockdownSize = 0;
+  let intrinsicsWereHardened = false;
+
+  /** @param {any} value */
+  function markHardened(value) {
+    weaksetAdd(hardened, value);
   }
 
-  const hardened = new WeakSet();
-
-  const { harden } = {
-    /**
-     * @template T
-     * @param {T} root
-     * @returns {T}
-     */
+  /** @type {HardenerKit} */
+  const { harden, isHardened, hardenIntrinsics } = {
+    isHardened(value) {
+      return weaksetHas(hardened, value);
+    },
+    hardenIntrinsics(root) {
+      intrinsicsWereHardened = true;
+      return harden(root);
+    },
     harden(root) {
       const toFreeze = new Set();
       const paths = new WeakMap();
+      const protosToCheck = new Set();
 
       // If val is something we should be freezing but aren't yet,
       // add it to toFreeze.
@@ -168,6 +181,28 @@ export const makeHardener = () => {
         }
         // console.warn(`adding ${val} to toFreeze`, val);
         setAdd(toFreeze, val);
+        const wasAProto = setDelete(protosToCheck, val);
+        if (!wasAProto) {
+          weakmapSet(paths, val, path);
+        }
+      }
+
+      /**
+       * @param {any} val
+       * @param {string} [path]
+       */
+      function enqueueProto(val, path = undefined) {
+        if (
+          val == null ||
+          weaksetHas(hardened, val) ||
+          (!intrinsicsWereHardened && weaksetHas(hardenedAtLockdown, val)) ||
+          weakmapHas(paths, val)
+        ) {
+          // Ignore if this is an exit, or we've already visited it
+          return;
+        }
+        // console.warn(`adding ${val} to protosToCheck`, val);
+        setAdd(protosToCheck, val);
         weakmapSet(paths, val, path);
       }
 
@@ -196,7 +231,7 @@ export const makeHardener = () => {
         const path = weakmapGet(paths, obj) || 'unknown';
         const descs = getOwnPropertyDescriptors(obj);
         const proto = getPrototypeOf(obj);
-        enqueue(proto, `${path}.__proto__`);
+        enqueueProto(proto, `${path}.__proto__`);
 
         arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
           const pathname = `${path}.${String(name)}`;
@@ -225,17 +260,59 @@ export const makeHardener = () => {
         setForEach(toFreeze, freezeAndTraverse);
       }
 
-      /** @param {any} value */
-      function markHardened(value) {
-        weaksetAdd(hardened, value);
+      function checkProtos() {
+        if (intrinsicsWereHardened) {
+          if (setGetSize(protosToCheck) > 0) {
+            const unhardenedProtoPaths = [];
+            setForEach(protosToCheck, proto => {
+              arrayPush(unhardenedProtoPaths, weakmapGet(paths, proto));
+            });
+            throw TypeError(
+              `Expected the following paths to be hardened: ${arrayJoin(
+                unhardenedProtoPaths,
+                ', ',
+              )}`,
+            );
+          }
+          if (hardenedAtLockdownSize > 0) {
+            const actuallyHardenedIntrinsics = new Set();
+
+            setForEach(toFreeze, value => {
+              if (weaksetHas(hardenedAtLockdown, value)) {
+                setAdd(actuallyHardenedIntrinsics, value);
+              }
+            });
+            const actuallyHardenedIntrinsicsSize = setGetSize(
+              actuallyHardenedIntrinsics,
+            );
+            if (actuallyHardenedIntrinsicsSize !== hardenedAtLockdownSize) {
+              throw TypeError(
+                `Not all expected prototypes were hardened (expected=${hardenedAtLockdownSize}, got=${actuallyHardenedIntrinsicsSize})`,
+              );
+            } else {
+              hardenedAtLockdownSize = 0;
+              setForEach(actuallyHardenedIntrinsics, value => {
+                setDelete(hardenedAtLockdown, value);
+              });
+            }
+          }
+        } else if (setGetSize(protosToCheck) > 0) {
+          setForEach(protosToCheck, proto => {
+            if (!weaksetHas(hardenedAtLockdown, proto)) {
+              weaksetAdd(hardenedAtLockdown, proto);
+              hardenedAtLockdownSize += 1;
+            }
+          });
+        }
       }
 
       function commit() {
         setForEach(toFreeze, markHardened);
       }
 
-      enqueue(root);
+      enqueue(root, '<root>');
       dequeue();
+      checkProtos();
       // console.warn("toFreeze set:", toFreeze);
       commit();
 
@@ -243,5 +320,5 @@ export const makeHardener = () => {
     },
   };
 
-  return harden;
+  return { harden, isHardened, hardenIntrinsics };
 };
