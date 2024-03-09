@@ -9,6 +9,11 @@ import { parseFormulaIdentifier } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
+/** @param {string} name */
+const assertPowersName = name => {
+  ['NONE', 'SELF', 'ENDO'].includes(name) || assertPetName(name);
+};
+
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
@@ -259,7 +264,6 @@ export const makeHostMaker = ({
         deferTask(identifiers =>
           petStore.write(workerName, identifiers.workerFormulaIdentifier),
         );
-        return undefined;
       }
       return workerFormulaIdentifier;
     };
@@ -281,6 +285,21 @@ export const makeHostMaker = ({
         }
       }
       return guestFormulaIdentifier;
+    };
+
+    /**
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
+     * @param {import('./types.js').DeferredTasks<{ powersFormulaIdentifier: string }>['push']} deferTask
+     * @returns {string | undefined}
+     */
+    const providePowersFormulaIdentifierSync = (partyName, deferTask) => {
+      const powersFormulaIdentifier = petStore.identifyLocal(partyName);
+      if (powersFormulaIdentifier === undefined) {
+        deferTask(identifiers =>
+          petStore.write(partyName, identifiers.powersFormulaIdentifier),
+        );
+      }
+      return powersFormulaIdentifier;
     };
 
     /**
@@ -356,24 +375,36 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
-      const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
+      assertPowersName(powersName);
+
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeUnconfinedDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+
+      const workerFormulaIdentifier = provideWorkerFormulaIdentifierSync(
         workerName,
+        tasks.push,
       );
 
-      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
+      const powersFormulaIdentifier = providePowersFormulaIdentifierSync(
         powersName,
+        tasks.push,
       );
+
+      if (resultName !== undefined) {
+        tasks.push(identifiers =>
+          petStore.write(resultName, identifiers.unconfinedFormulaIdentifier),
+        );
+      }
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { formulaIdentifier, value } = await incarnateUnconfined(
+      const { value } = await incarnateUnconfined(
+        hostFormulaIdentifier,
+        specifier,
+        tasks,
         workerFormulaIdentifier,
         powersFormulaIdentifier,
-        specifier,
       );
-      if (resultName !== undefined) {
-        await petStore.write(resultName, formulaIdentifier);
-      }
       return value;
     };
 

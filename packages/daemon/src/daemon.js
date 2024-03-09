@@ -1007,41 +1007,38 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['incarnateGuest']} */
-  const incarnateGuest = async (hostFormulaIdentifier, deferredTasks) => {
+  /**
+   * Helper for callers of `incarnateNumberedGuest`.
+   * @param {string} hostFormulaIdentifier - The formula identifier of the host.
+   */
+  const incarnateGuestDependencies = async hostFormulaIdentifier =>
+    harden({
+      guestFormulaNumber: await randomHex512(),
+      hostHandleFormulaIdentifier: (
+        await incarnateNumberedHandle(
+          await randomHex512(),
+          hostFormulaIdentifier,
+        )
+      ).formulaIdentifier,
+      storeFormulaIdentifier: (
+        await incarnateNumberedPetStore(await randomHex512())
+      ).formulaIdentifier,
+      workerFormulaIdentifier: (
+        await incarnateNumberedWorker(await randomHex512())
+      ).formulaIdentifier,
+    });
+
+  /**
+   *
+   * @param {ReturnType<any>} identifiers
+   */
+  const incarnateNumberedGuest = identifiers => {
     const {
       guestFormulaNumber,
       hostHandleFormulaIdentifier,
       storeFormulaIdentifier,
       workerFormulaIdentifier,
-    } = await formulaGraphMutex.enqueue(async () => {
-      const formulaNumber = await randomHex512();
-      const hostHandle = await incarnateNumberedHandle(
-        await randomHex512(),
-        hostFormulaIdentifier,
-      );
-      const storeIncarnation = await incarnateNumberedPetStore(
-        await randomHex512(),
-      );
-      const workerIncarnation = await incarnateNumberedWorker(
-        await randomHex512(),
-      );
-
-      await deferredTasks.execute({
-        guestFormulaIdentifier: serializeFormulaIdentifier({
-          type: 'guest',
-          number: formulaNumber,
-          node: ownNodeIdentifier,
-        }),
-      });
-
-      return harden({
-        guestFormulaNumber: formulaNumber,
-        hostHandleFormulaIdentifier: hostHandle.formulaIdentifier,
-        storeFormulaIdentifier: storeIncarnation.formulaIdentifier,
-        workerFormulaIdentifier: workerIncarnation.formulaIdentifier,
-      });
-    });
+    } = identifiers;
 
     /** @type {import('./types.js').GuestFormula} */
     const formula = {
@@ -1055,6 +1052,44 @@ const makeDaemonCore = async (
     );
   };
 
+  /** @type {import('./types.js').DaemonCore['incarnateGuest']} */
+  const incarnateGuest = async (hostFormulaIdentifier, deferredTasks) => {
+    return incarnateNumberedGuest(
+      await formulaGraphMutex.enqueue(async () => {
+        const identifiers = await incarnateGuestDependencies(
+          hostFormulaIdentifier,
+        );
+
+        await deferredTasks.execute({
+          guestFormulaIdentifier: serializeFormulaIdentifier({
+            type: 'guest',
+            number: identifiers.guestFormulaNumber,
+            node: ownNodeIdentifier,
+          }),
+        });
+
+        return identifiers;
+      }),
+    );
+  };
+
+  /**
+   * @param {string} [specifiedWorkerFormulaIdentifier]
+   */
+  const provideWorkerFormulaIdentifier =
+    async specifiedWorkerFormulaIdentifier => {
+      await null;
+      if (typeof specifiedWorkerFormulaIdentifier === 'string') {
+        return specifiedWorkerFormulaIdentifier;
+      }
+
+      const workerFormulaNumber = await randomHex512();
+      const workerIncarnation = await incarnateNumberedWorker(
+        workerFormulaNumber,
+      );
+      return workerIncarnation.formulaIdentifier;
+    };
+
   /** @type {import('./types.js').DaemonCore['incarnateEval']} */
   const incarnateEval = async (
     nameHubFormulaIdentifier,
@@ -1067,7 +1102,7 @@ const makeDaemonCore = async (
     const {
       workerFormulaIdentifier,
       endowmentFormulaIdentifiers,
-      evalFormulaIdentifier,
+      evalFormulaNumber,
     } = await formulaGraphMutex.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
       const ownFormulaIdentifier = serializeFormulaIdentifier({
@@ -1075,14 +1110,11 @@ const makeDaemonCore = async (
         number: ownFormulaNumber,
         node: ownNodeIdentifier,
       });
-      const workerFormulaNumber = await (specifiedWorkerFormulaIdentifier
-        ? parseFormulaIdentifier(specifiedWorkerFormulaIdentifier).number
-        : randomHex512());
 
       const identifiers = harden({
-        workerFormulaIdentifier: (
-          await incarnateNumberedWorker(workerFormulaNumber)
-        ).formulaIdentifier,
+        workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
+          specifiedWorkerFormulaIdentifier,
+        ),
         endowmentFormulaIdentifiers: await Promise.all(
           endowmentFormulaIdsOrPaths.map(async formulaIdOrPath => {
             if (typeof formulaIdOrPath === 'string') {
@@ -1102,15 +1134,13 @@ const makeDaemonCore = async (
           }),
         ),
         evalFormulaIdentifier: ownFormulaIdentifier,
+        evalFormulaNumber: ownFormulaNumber,
       });
 
       await deferredTasks.execute(identifiers);
       return identifiers;
     });
 
-    const { number: evalFormulaNumber } = parseFormulaIdentifier(
-      evalFormulaIdentifier,
-    );
     /** @type {import('./types.js').EvalFormula} */
     const formula = {
       type: 'eval',
@@ -1151,18 +1181,64 @@ const makeDaemonCore = async (
     );
   };
 
+  /**
+   * @param {string} hostFormulaIdentifier
+   * @param {string} [specifiedPowersFormulaIdentifier]
+   */
+  const providePowersFormulaIdentifier = async (
+    hostFormulaIdentifier,
+    specifiedPowersFormulaIdentifier,
+  ) => {
+    await null;
+    if (typeof specifiedPowersFormulaIdentifier === 'string') {
+      return specifiedPowersFormulaIdentifier;
+    }
+
+    const guestIncarnationData = await incarnateGuestDependencies(
+      hostFormulaIdentifier,
+    );
+    const guestIncarnation = await incarnateNumberedGuest(guestIncarnationData);
+    return guestIncarnation.formulaIdentifier;
+  };
+
   /** @type {import('./types.js').DaemonCore['incarnateUnconfined']} */
   const incarnateUnconfined = async (
-    workerFormulaIdentifier,
-    powersFormulaIdentifiers,
+    hostFormulaIdentifier,
     specifier,
+    deferredTasks,
+    specifiedWorkerFormulaIdentifier,
+    specifiedPowersFormulaIdentifier,
   ) => {
-    const formulaNumber = await randomHex512();
+    const {
+      powersFormulaIdentifier,
+      unconfinedFormulaNumber: formulaNumber,
+      workerFormulaIdentifier,
+    } = await formulaGraphMutex.enqueue(async () => {
+      const ownFormulaNumber = await randomHex512();
+      const identifiers = harden({
+        powersFormulaIdentifier: await providePowersFormulaIdentifier(
+          hostFormulaIdentifier,
+          specifiedPowersFormulaIdentifier,
+        ),
+        unconfinedFormulaIdentifier: serializeFormulaIdentifier({
+          type: 'make-unconfined',
+          number: ownFormulaNumber,
+          node: ownNodeIdentifier,
+        }),
+        unconfinedFormulaNumber: ownFormulaNumber,
+        workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
+          specifiedWorkerFormulaIdentifier,
+        ),
+      });
+      await deferredTasks.execute(identifiers);
+      return identifiers;
+    });
+
     /** @type {import('./types.js').MakeUnconfinedFormula} */
     const formula = {
       type: 'make-unconfined',
       worker: workerFormulaIdentifier,
-      powers: powersFormulaIdentifiers,
+      powers: powersFormulaIdentifier,
       specifier,
     };
     return /** @type {import('./types.js').IncarnateResult<unknown>} */ (
