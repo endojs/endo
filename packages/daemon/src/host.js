@@ -345,16 +345,16 @@ export const makeHostMaker = ({
       return value;
     };
 
-    /** @type {import('./types.js').EndoHost['makeUnconfined']} */
-    const makeUnconfined = async (
-      workerName,
-      specifier,
-      powersName,
-      resultName,
-    ) => {
+    /**
+     * Helper function for makeUnconfined and makeBundle.
+     * @param {string} powersName
+     * @param {string} workerName
+     * @param {string} [resultName]
+     */
+    const prepareMakeCaplet = (powersName, workerName, resultName) => {
       assertPowersName(powersName);
 
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeUnconfinedDeferredTaskParams>} */
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
       const workerFormulaIdentifier = prepareWorkerFormulaIdentifier(
@@ -369,9 +369,22 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.unconfinedFormulaIdentifier),
+          petStore.write(resultName, identifiers.capletFormulaIdentifier),
         );
       }
+
+      return { tasks, workerFormulaIdentifier, powersFormulaIdentifier };
+    };
+
+    /** @type {import('./types.js').EndoHost['makeUnconfined']} */
+    const makeUnconfined = async (
+      workerName,
+      specifier,
+      powersName,
+      resultName,
+    ) => {
+      const { tasks, workerFormulaIdentifier, powersFormulaIdentifier } =
+        prepareMakeCaplet(powersName, workerName, resultName);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
@@ -397,31 +410,13 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
-      assertPowersName(powersName);
-
       const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
 
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeBundleDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-
-      const workerFormulaIdentifier = prepareWorkerFormulaIdentifier(
-        workerName,
-        tasks.push,
-      );
-
-      const powersFormulaIdentifier = preparePowersFormulaIdentifier(
-        powersName,
-        tasks.push,
-      );
-
-      if (resultName !== undefined) {
-        tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.bundleFormulaIdentifier),
-        );
-      }
+      const { tasks, workerFormulaIdentifier, powersFormulaIdentifier } =
+        prepareMakeCaplet(powersName, workerName, resultName);
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define

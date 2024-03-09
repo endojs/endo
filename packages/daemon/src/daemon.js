@@ -1224,7 +1224,7 @@ const makeDaemonCore = async (
   ) => {
     const {
       powersFormulaIdentifier,
-      unconfinedFormulaNumber: formulaNumber,
+      capletFormulaNumber,
       workerFormulaIdentifier,
     } = await formulaGraphMutex.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
@@ -1233,12 +1233,12 @@ const makeDaemonCore = async (
           hostFormulaIdentifier,
           specifiedPowersFormulaIdentifier,
         ),
-        unconfinedFormulaIdentifier: serializeFormulaIdentifier({
+        capletFormulaIdentifier: serializeFormulaIdentifier({
           type: 'make-unconfined',
           number: ownFormulaNumber,
           node: ownNodeIdentifier,
         }),
-        unconfinedFormulaNumber: ownFormulaNumber,
+        capletFormulaNumber: ownFormulaNumber,
         workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
           specifiedWorkerFormulaIdentifier,
         ),
@@ -1254,8 +1254,10 @@ const makeDaemonCore = async (
       powers: powersFormulaIdentifier,
       specifier,
     };
-    return /** @type {import('./types.js').IncarnateResult<unknown>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+    return provideValueForNumberedFormula(
+      formula.type,
+      capletFormulaNumber,
+      formula,
     );
   };
 
@@ -1269,7 +1271,7 @@ const makeDaemonCore = async (
   ) => {
     const {
       powersFormulaIdentifier,
-      bundleFormulaNumber: formulaNumber,
+      capletFormulaNumber,
       workerFormulaIdentifier,
     } = await formulaGraphMutex.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
@@ -1278,12 +1280,12 @@ const makeDaemonCore = async (
           hostFormulaIdentifier,
           specifiedPowersFormulaIdentifier,
         ),
-        bundleFormulaIdentifier: serializeFormulaIdentifier({
+        capletFormulaIdentifier: serializeFormulaIdentifier({
           type: 'make-bundle',
           number: ownFormulaNumber,
           node: ownNodeIdentifier,
         }),
-        bundleFormulaNumber: ownFormulaNumber,
+        capletFormulaNumber: ownFormulaNumber,
         workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
           specifiedWorkerFormulaIdentifier,
         ),
@@ -1299,7 +1301,11 @@ const makeDaemonCore = async (
       powers: powersFormulaIdentifier,
       bundle: bundleFormulaIdentifier,
     };
-    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
+    return provideValueForNumberedFormula(
+      formula.type,
+      capletFormulaNumber,
+      formula,
+    );
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateBundler']} */
