@@ -1214,6 +1214,41 @@ const makeDaemonCore = async (
     return guestIncarnation.formulaIdentifier;
   };
 
+  /**
+   * Helper for `incarnateUnconfined` and `incarnateBundle`.
+   * @param {'make-bundle' | 'make-unconfined'} formulaType
+   * @param {string} hostFormulaIdentifier
+   * @param {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} deferredTasks
+   * @param {string} [specifiedWorkerFormulaIdentifier]
+   * @param {string} [specifiedPowersFormulaIdentifier]
+   */
+  const incarnateCapletDependencies = async (
+    formulaType,
+    hostFormulaIdentifier,
+    deferredTasks,
+    specifiedWorkerFormulaIdentifier,
+    specifiedPowersFormulaIdentifier,
+  ) => {
+    const ownFormulaNumber = await randomHex512();
+    const identifiers = harden({
+      powersFormulaIdentifier: await providePowersFormulaIdentifier(
+        hostFormulaIdentifier,
+        specifiedPowersFormulaIdentifier,
+      ),
+      capletFormulaIdentifier: serializeFormulaIdentifier({
+        type: formulaType,
+        number: ownFormulaNumber,
+        node: ownNodeIdentifier,
+      }),
+      capletFormulaNumber: ownFormulaNumber,
+      workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
+        specifiedWorkerFormulaIdentifier,
+      ),
+    });
+    await deferredTasks.execute(identifiers);
+    return identifiers;
+  };
+
   /** @type {import('./types.js').DaemonCore['incarnateUnconfined']} */
   const incarnateUnconfined = async (
     hostFormulaIdentifier,
@@ -1226,26 +1261,15 @@ const makeDaemonCore = async (
       powersFormulaIdentifier,
       capletFormulaNumber,
       workerFormulaIdentifier,
-    } = await formulaGraphMutex.enqueue(async () => {
-      const ownFormulaNumber = await randomHex512();
-      const identifiers = harden({
-        powersFormulaIdentifier: await providePowersFormulaIdentifier(
-          hostFormulaIdentifier,
-          specifiedPowersFormulaIdentifier,
-        ),
-        capletFormulaIdentifier: serializeFormulaIdentifier({
-          type: 'make-unconfined',
-          number: ownFormulaNumber,
-          node: ownNodeIdentifier,
-        }),
-        capletFormulaNumber: ownFormulaNumber,
-        workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
-          specifiedWorkerFormulaIdentifier,
-        ),
-      });
-      await deferredTasks.execute(identifiers);
-      return identifiers;
-    });
+    } = await formulaGraphMutex.enqueue(() =>
+      incarnateCapletDependencies(
+        'make-unconfined',
+        hostFormulaIdentifier,
+        deferredTasks,
+        specifiedWorkerFormulaIdentifier,
+        specifiedPowersFormulaIdentifier,
+      ),
+    );
 
     /** @type {import('./types.js').MakeUnconfinedFormula} */
     const formula = {
@@ -1273,26 +1297,15 @@ const makeDaemonCore = async (
       powersFormulaIdentifier,
       capletFormulaNumber,
       workerFormulaIdentifier,
-    } = await formulaGraphMutex.enqueue(async () => {
-      const ownFormulaNumber = await randomHex512();
-      const identifiers = harden({
-        powersFormulaIdentifier: await providePowersFormulaIdentifier(
-          hostFormulaIdentifier,
-          specifiedPowersFormulaIdentifier,
-        ),
-        capletFormulaIdentifier: serializeFormulaIdentifier({
-          type: 'make-bundle',
-          number: ownFormulaNumber,
-          node: ownNodeIdentifier,
-        }),
-        capletFormulaNumber: ownFormulaNumber,
-        workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
-          specifiedWorkerFormulaIdentifier,
-        ),
-      });
-      await deferredTasks.execute(identifiers);
-      return identifiers;
-    });
+    } = await formulaGraphMutex.enqueue(() =>
+      incarnateCapletDependencies(
+        'make-bundle',
+        hostFormulaIdentifier,
+        deferredTasks,
+        specifiedWorkerFormulaIdentifier,
+        specifiedPowersFormulaIdentifier,
+      ),
+    );
 
     /** @type {import('./types.js').MakeBundleFormula} */
     const formula = {

@@ -412,7 +412,7 @@ export const makeHostMaker = ({
     ) => {
       const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
       if (bundleFormulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
+        throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
       const { tasks, workerFormulaIdentifier, powersFormulaIdentifier } =
