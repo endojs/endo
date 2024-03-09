@@ -4,24 +4,24 @@ import '@endo/init/debug.js';
 import rawTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';
 
-import { makeMutex } from '../src/mutex.js';
+import { makeSerialJobs } from '../src/serial-jobs.js';
 
 const test = wrapTest(rawTest);
 
 const delay = () => new Promise(resolve => setTimeout(resolve, 1));
 
-test('releases lock in expected order (sync functions)', async t => {
-  const mutex = makeMutex();
+test('performs operations in expected order (sync functions)', async t => {
+  const serialJobs = makeSerialJobs();
   const results = [];
 
   await Promise.all([
-    mutex.enqueue(() => {
+    serialJobs.enqueue(() => {
       results.push(1);
     }),
-    mutex.enqueue(() => {
+    serialJobs.enqueue(() => {
       results.push(2);
     }),
-    mutex.enqueue(() => {
+    serialJobs.enqueue(() => {
       results.push(3);
     }),
   ]);
@@ -29,18 +29,18 @@ test('releases lock in expected order (sync functions)', async t => {
   t.deepEqual(results, [1, 2, 3]);
 });
 
-test('releases lock in expected order (async functions)', async t => {
-  const mutex = makeMutex();
+test('performs operations in expected order (async functions)', async t => {
+  const serialJobs = makeSerialJobs();
   const results = [];
 
   await Promise.all([
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       results.push(1);
     }),
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       results.push(2);
     }),
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       results.push(3);
     }),
   ]);
@@ -48,20 +48,20 @@ test('releases lock in expected order (async functions)', async t => {
   t.deepEqual(results, [1, 2, 3]);
 });
 
-test('releases lock in expected order (async functions with await)', async t => {
-  const mutex = makeMutex();
+test('performs operations in expected order (async functions with await)', async t => {
+  const serialJobs = makeSerialJobs();
   const results = [];
 
   await Promise.all([
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       await delay();
       results.push(1);
     }),
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       await delay();
       results.push(2);
     }),
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       await delay();
       results.push(3);
     }),
@@ -71,20 +71,20 @@ test('releases lock in expected order (async functions with await)', async t => 
 });
 
 test('immediately releases the lock to the awaiter', async t => {
-  const mutex = makeMutex();
+  const serialJobs = makeSerialJobs();
   const results = [];
 
   await Promise.all([
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       await delay();
       results.push(2);
     }),
     (async () => {
       results.push(1);
-      await mutex.enqueue(() => delay());
+      await serialJobs.enqueue(() => delay());
       results.push(3);
     })(),
-    mutex.enqueue(async () => {
+    serialJobs.enqueue(async () => {
       results.push(4);
     }),
   ]);

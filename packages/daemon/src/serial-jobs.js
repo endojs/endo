@@ -1,9 +1,9 @@
 import { makeQueue } from '@endo/stream';
 
 /**
- * @returns {import('./types.js').Mutex}
+ * @returns {import('./types.js').SerialJobs}
  */
-export const makeMutex = () => {
+export const makeSerialJobs = () => {
   /** @type {import('@endo/stream').AsyncQueue<void>} */
   const queue = makeQueue();
   const lock = () => {
@@ -15,8 +15,6 @@ export const makeMutex = () => {
   unlock();
 
   return {
-    lock,
-    unlock,
     enqueue: async (asyncFn = /** @type {any} */ (async () => {})) => {
       await lock();
       try {
