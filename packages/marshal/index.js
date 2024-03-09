@@ -29,6 +29,8 @@ export {
   unionRankCovers,
 } from './src/rankOrder.js';
 
+export { makeDotMembraneKit } from './src/dot-membrane.js';
+
 // eslint-disable-next-line import/export
 export * from './src/types.js';
 
