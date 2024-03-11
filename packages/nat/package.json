@@ -10,9 +10,11 @@
   },
   "scripts": {
     "build": "exit 0",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
     "test": "ava test/**/test-*.js",
     "lint-fix": "eslint --fix",
-    "lint-check": "eslint"
+    "lint": "tsc"
   },
   "repository": {
     "type": "git",
