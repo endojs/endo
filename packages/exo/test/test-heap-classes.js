@@ -1,8 +1,6 @@
 // @ts-check
-// eslint-disable-next-line import/order
 import test from '@endo/ses-ava';
 
-// eslint-disable-next-line import/order
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
   GET_INTERFACE_GUARD,

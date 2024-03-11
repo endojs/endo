@@ -1,5 +1,5 @@
 import test from '@endo/ses-ava';
-// eslint-disable-next-line import/order
+
 import { makeTagged, getTag, passStyleOf } from '@endo/marshal';
 import {
   isCopyBag,

@@ -5,7 +5,6 @@ import { StaticModuleRecord } from '@endo/static-module-record';
 import '../index.js';
 import './lockdown-safe.js';
 // Placing the ava import last demonstrates that ava itself is compatible with SES
-// eslint-disable-next-line import/order
 import test from 'ava';
 
 test('transforms apply to evaluated expressions', t => {

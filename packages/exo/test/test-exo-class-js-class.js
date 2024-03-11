@@ -1,6 +1,5 @@
 /* eslint-disable max-classes-per-file */
 /* eslint-disable class-methods-use-this */
-// eslint-disable-next-line import/order
 import test from '@endo/ses-ava';
 
 import { passStyleOf } from '@endo/pass-style';

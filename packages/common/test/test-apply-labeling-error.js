@@ -1,6 +1,5 @@
 import test from '@endo/ses-ava';
 
-// eslint-disable-next-line import/order
 import { Fail } from '@endo/errors';
 import { applyLabelingError } from '../apply-labeling-error.js';
 
