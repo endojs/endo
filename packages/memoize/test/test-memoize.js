@@ -1,4 +1,4 @@
-import { test } from './prepare-test-env-ava.js';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 import { memoize } from '../src/memoize.js';
 
 test('memoize', t => {

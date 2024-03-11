@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/order
-import { test } from './prepare-test-env-ava.js';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 import { encodeBase64 } from '@endo/base64';
 import fs from 'fs';
 import url from 'url';

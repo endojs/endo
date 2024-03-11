@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/order
-import { test } from './prepare-test-env-ava.js';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 
 import { Worker } from 'worker_threads';
 import url from 'url';

@@ -1,4 +1,5 @@
-import { test } from './prepare-test-env-ava.js';
+import '@endo/lockdown/commit-debug.js';
+import test from 'ava';
 
 import { E } from './get-hp.js';
 

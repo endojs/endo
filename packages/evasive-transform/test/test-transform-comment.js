@@ -1,4 +1,4 @@
-import { test } from './prepare-test-env-ava.js';
+import { test } from './prepare-test-env-ava-fixture.js';
 import { transformComment } from '../src/transform-comment.js';
 
 test('transformComment() - Node type becomes CommentBlock', async t => {
@@ -31,7 +31,7 @@ test('transformComment() - rewrite suspicious import(...)', async t => {
   const comment = /** @type {import('@babel/types').Comment} */ ({
     type: 'CommentBlock',
     value: `/**
- * @type {import('c:\\My Documents\\user.js')} 
+ * @type {import('c:\\My Documents\\user.js')}
  */`,
   });
   transformComment(comment);

@@ -1,6 +1,6 @@
 /* eslint-disable class-methods-use-this */
 /* eslint-disable max-classes-per-file */
-import { test } from './prepare-test-env-ava.js';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
 import { getMethodNames } from '@endo/eventual-send/utils.js';

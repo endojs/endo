@@ -30,7 +30,6 @@
   },
   "devDependencies": {
     "@endo/compartment-mapper": "^1.1.2",
-    "@endo/ses-ava": "^1.1.2",
     "ava": "^5.1.1"
   },
   "dependencies": {

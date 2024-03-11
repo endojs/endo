@@ -7,10 +7,7 @@ import { StaticModuleRecord } from '../src/static-module-record.js';
 import './lockdown.js';
 import url from 'url';
 import fs from 'fs';
-import avaTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
-
-const test = wrapTest(avaTest);
+import test from 'ava';
 
 /** @typedef {import('ava').ExecutionContext} TestContext */
 

@@ -1,5 +1,6 @@
 /* global setTimeout */
-import { test } from './prepare-test-env-ava.js';
+import '@endo/lockdown/commit-debug.js';
+import test from 'ava';
 
 import { HandledPromise } from './get-hp.js';
 

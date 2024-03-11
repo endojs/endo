@@ -1,6 +1,6 @@
 // @ts-check
 import url from 'url';
-import { test } from './prepare-test-env-ava.js';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
 
 test('bigint transform', async t => {

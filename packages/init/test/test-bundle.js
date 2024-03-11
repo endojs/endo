@@ -5,13 +5,10 @@ import url, { URL } from 'url';
 import crypto from 'crypto';
 
 import '../debug.js';
-import { wrapTest } from '@endo/ses-ava';
-import rawTest from 'ava';
+import test from 'ava';
 
 import { makeArchive } from '@endo/compartment-mapper';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
-
-const test = wrapTest(rawTest);
 
 test('Can be bundled', async t => {
   const powers = makeReadPowers({ fs, url, crypto });

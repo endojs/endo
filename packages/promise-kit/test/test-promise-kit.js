@@ -2,8 +2,7 @@
 
 import 'ses';
 import './lockdown.js';
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
+import test from 'ava';
 
 import v8 from 'node:v8';
 import vm from 'node:vm';
@@ -21,9 +20,6 @@ if (typeof globalThis.gc !== 'function') {
 } else {
   engineGC = globalThis.gc;
 }
-
-/** @type {typeof rawTest} */
-const test = wrapTest(rawTest);
 
 test('makePromiseKit', async t => {
   const { resolve, promise } = makePromiseKit();
