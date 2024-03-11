@@ -669,8 +669,8 @@ const makeDaemonCore = async (
     context,
   ) => {
     const {
-      type: formulaType,
       number: formulaNumber,
+      type: allegedFormulaType,
       node: formulaNode,
     } = parseId(formulaIdentifier);
     const isRemote = formulaNode !== ownNodeIdentifier;
@@ -683,8 +683,16 @@ const makeDaemonCore = async (
       // eslint-disable-next-line no-use-before-define
       return provideRemoteValue(peerIdentifier, formulaIdentifier, context);
     }
+    const formula = await persistencePowers.readFormula(formulaNumber);
     if (
-      [
+      allegedFormulaType !== undefined &&
+      formula.type !== allegedFormulaType
+    ) {
+      assert.Fail`Alleged formula type ${q(
+        allegedFormulaType,
+      )} is not the actual formula type {formula.type}`;
+    } else if (
+      ![
         'endo',
         'worker',
         'eval',
@@ -703,21 +711,19 @@ const makeDaemonCore = async (
         'pet-store',
         'lookup',
         'directory',
-      ].includes(formulaType)
+      ].includes(formula.type)
     ) {
-      const formula = await persistencePowers.readFormula(formulaNumber);
-      // TODO validate
-      return makeControllerForFormula(
+      assert.Fail`Invalid formula identifier, unrecognized type ${q(
         formulaIdentifier,
-        formulaNumber,
-        formula,
-        context,
-      );
-    } else {
-      throw new TypeError(
-        `Invalid formula identifier, unrecognized type ${q(formulaIdentifier)}`,
-      );
+      )}`;
     }
+    // TODO further validation
+    return makeControllerForFormula(
+      formulaIdentifier,
+      formulaNumber,
+      formula,
+      context,
+    );
   };
 
   /** @type {import('./types.js').DaemonCore['provideValueForNumberedFormula']} */
