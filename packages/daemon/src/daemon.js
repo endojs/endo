@@ -661,18 +661,23 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} formulaIdentifier
+   * @param {string} allegedFormulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeControllerForFormulaIdentifier = async (
-    formulaIdentifier,
+    allegedFormulaIdentifier,
     context,
   ) => {
+    // Drop alleged type from identifier.
     const {
       number: formulaNumber,
       type: allegedFormulaType,
       node: formulaNode,
-    } = parseId(formulaIdentifier);
+    } = parseId(allegedFormulaIdentifier);
+    const formulaIdentifier = formatId({
+      number: formulaNumber,
+      node: formulaNode,
+    });
     const isRemote = formulaNode !== ownNodeIdentifier;
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
@@ -714,7 +719,7 @@ const makeDaemonCore = async (
       ].includes(formula.type)
     ) {
       assert.Fail`Invalid formula identifier, unrecognized type ${q(
-        formulaIdentifier,
+        allegedFormulaIdentifier,
       )}`;
     }
     // TODO further validation
@@ -733,6 +738,10 @@ const makeDaemonCore = async (
     formula,
   ) => {
     const formulaIdentifier = formatId({
+      number: formulaNumber,
+      node: ownNodeIdentifier,
+    });
+    const typedFormulaIdentifier = formatId({
       type: formulaType,
       number: formulaNumber,
       node: ownNodeIdentifier,
@@ -781,12 +790,22 @@ const makeDaemonCore = async (
 
     return harden({
       formulaIdentifier,
+      typedFormulaIdentifier,
       value: controller.external,
     });
   };
 
   /** @type {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} */
-  const provideControllerForFormulaIdentifier = formulaIdentifier => {
+  const provideControllerForFormulaIdentifier = allegedFormulaIdentifier => {
+    // Remove alleged formula type.
+    const { number: formulaNumber, node: formulaNode } = parseId(
+      allegedFormulaIdentifier,
+    );
+    const formulaIdentifier = formatId({
+      number: formulaNumber,
+      node: formulaNode,
+    });
+
     let controller = controllerForFormulaIdentifier.get(formulaIdentifier);
     if (controller !== undefined) {
       return controller;
@@ -809,7 +828,9 @@ const makeDaemonCore = async (
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
 
-    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, context));
+    resolve(
+      makeControllerForFormulaIdentifier(allegedFormulaIdentifier, context),
+    );
 
     return controller;
   };
@@ -1407,12 +1428,13 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore['incarnateNetworksDirectory']} */
   const incarnateNetworksDirectory = async () => {
-    const { formulaIdentifier, value } = await incarnateDirectory();
+    const { formulaIdentifier, typedFormulaIdentifier, value } =
+      await incarnateDirectory();
     // Make default networks.
     const { formulaIdentifier: loopbackNetworkFormulaIdentifier } =
       await incarnateLoopbackNetwork();
     await E(value).write(['loop'], loopbackNetworkFormulaIdentifier);
-    return { formulaIdentifier, value };
+    return { formulaIdentifier, typedFormulaIdentifier, value };
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
@@ -1430,12 +1452,10 @@ const makeDaemonCore = async (
       await incarnateNetworksDirectory();
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
       await incarnateLeastAuthority();
-    const { formulaIdentifier: newPeersFormulaIdentifier } =
+    const { typedFormulaIdentifier: newPeersFormulaIdentifier } =
       await incarnateNumberedPetStore(peersFormulaNumber);
     if (newPeersFormulaIdentifier !== peersFormulaIdentifier) {
-      throw new Error(
-        `Peers PetStore formula identifier did not match expected value.`,
-      );
+      assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${peersFormulaIdentifier}, got ${newPeersFormulaIdentifier}`;
     }
 
     // Ensure the default host is incarnated and persisted.
@@ -1635,8 +1655,10 @@ const makeDaemonCore = async (
       if (formulaIdentifier === undefined) {
         throw new Error(`Unknown pet name ${petName}`);
       }
-      const { type: formulaType, number: formulaNumber } =
-        parseId(formulaIdentifier);
+      const { number: formulaNumber } = parseId(formulaIdentifier);
+      // TODO memoize formulas at the root of the
+      // id->formula->controller->incarnation tree.
+      const formula = await persistencePowers.readFormula(formulaNumber);
       if (
         ![
           'eval',
@@ -1645,11 +1667,10 @@ const makeDaemonCore = async (
           'make-bundle',
           'guest',
           'web-bundle',
-        ].includes(formulaType)
+        ].includes(formula.type)
       ) {
-        return makeInspector(formulaType, formulaNumber, harden({}));
+        return makeInspector(formula.type, formulaNumber, harden({}));
       }
-      const formula = await persistencePowers.readFormula(formulaNumber);
       if (formula.type === 'eval') {
         return makeInspector(
           formula.type,

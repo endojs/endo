@@ -1,7 +1,7 @@
 // @ts-check
 
 import { makeChangeTopic } from './pubsub.js';
-import { parseId, assertValidId } from './formula-identifier.js';
+import { parseId, formatId, assertValidId } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -64,9 +64,16 @@ export const makePetStoreMaker = (filePowers, locator) => {
     };
 
     /** @type {import('./types.js').PetStore['write']} */
-    const write = async (petName, formulaIdentifier) => {
+    const write = async (petName, allegedFormulaIdentifier) => {
       assertValidName(petName);
-      assertValidId(formulaIdentifier, petName);
+      // Drop alleged type if present.
+      const { number: formulaNumber, node: formulaNode } = parseId(
+        allegedFormulaIdentifier,
+      );
+      const formulaIdentifier = formatId({
+        number: formulaNumber,
+        node: formulaNode,
+      });
 
       // TODO: Return early if the formula identifier is the same.
       if (petNames.has(petName)) {
