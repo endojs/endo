@@ -13,4 +13,4 @@ if (!environmentOptionsListHas('DEBUG', 'label-instances')) {
   }
 }
 
-export * from '@endo/ses-ava/prepare-test-env-ava.js';
+export * from '@endo/ses-ava';

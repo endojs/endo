@@ -1,4 +1,4 @@
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';
 import {
   mustMatch,

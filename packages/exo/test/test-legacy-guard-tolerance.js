@@ -1,6 +1,6 @@
 // @ts-check
 // eslint-disable-next-line import/order
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 import { passStyleOf } from '@endo/pass-style';
 import {

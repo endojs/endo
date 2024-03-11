@@ -2,7 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import url from 'url';
 
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 /**
  * Path to fixture's bundled source code

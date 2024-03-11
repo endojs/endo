@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 // eslint-disable-next-line import/order
 import { wrapInescapableCompartment } from '../src/compartment-wrapper.js';
 

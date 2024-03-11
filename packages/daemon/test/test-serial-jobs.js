@@ -1,5 +1,5 @@
 /* global setTimeout */
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 import { makeSerialJobs } from '../src/serial-jobs.js';
 

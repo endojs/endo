@@ -1,5 +1,5 @@
 import url from 'url';
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 import bundleSource from '../src/index.js';
 
 function evaluate(src, endowments) {

@@ -1,4 +1,4 @@
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 import { identChecker } from '../ident-checker.js';
 
 test('test identChecker', async t => {

@@ -1,7 +1,7 @@
 // @ts-check
 /* global setTimeout */
 
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 import { fileURLToPath } from 'url';
 import { fork } from 'child_process';

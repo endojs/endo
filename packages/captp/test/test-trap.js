@@ -1,4 +1,4 @@
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 import { Worker } from 'worker_threads';
 import url from 'url';

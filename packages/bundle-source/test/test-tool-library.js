@@ -1,11 +1,8 @@
 /* global process */
-import '@endo/init';
-import url from 'url';
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
-import { makeNodeBundleCache } from '../cache.js';
+import test from '@endo/ses-ava';
 
-const test = wrapTest(rawTest);
+import url from 'url';
+import { makeNodeBundleCache } from '../cache.js';
 
 test('bundle-source library is concurrency safe', async t => {
   const dest = url.fileURLToPath(new URL('../bundles', import.meta.url));

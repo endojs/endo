@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/order
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 import { Fail } from '@endo/errors';
 import { makeTagged, getTag, passStyleOf } from '@endo/marshal';

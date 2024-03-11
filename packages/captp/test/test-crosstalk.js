@@ -1,4 +1,4 @@
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 import { Far } from '@endo/marshal';
 import { makeLoopback, E } from '../src/loopback.js';

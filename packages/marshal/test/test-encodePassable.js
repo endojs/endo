@@ -1,7 +1,7 @@
 // @ts-nocheck
 /* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
 // eslint-disable-next-line import/order
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 // eslint-disable-next-line import/order
 import { fc } from '@fast-check/ava';

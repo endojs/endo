@@ -1,10 +1,7 @@
-import '@endo/init';
-import url from 'url';
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
-import { execava } from './execava.js';
+import test from '@endo/ses-ava';
 
-const test = wrapTest(rawTest);
+import url from 'url';
+import { execava } from './execava.js';
 
 const cwd = url.fileURLToPath(new URL('..', import.meta.url));
 const opts = { cwd };

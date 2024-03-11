@@ -22,8 +22,7 @@
   "exports": {
     ".": "./index.js",
     "./exported.js": "./exported.js",
-    "./package.json": "./package.json",
-    "./prepare-test-env-ava.js": "./prepare-test-env-ava.js"
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",

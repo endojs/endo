@@ -1,6 +1,6 @@
 import './prepare-breakpoints.js';
 // eslint-disable-next-line import/order
-import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
+import test from '@endo/ses-ava';
 
 import { makeMessageBreakpointTester } from '@endo/eventual-send/utils.js';
 import { E } from '@endo/eventual-send';
