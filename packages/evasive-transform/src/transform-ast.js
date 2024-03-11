@@ -63,6 +63,7 @@ export async function transformAst(ast, { sourceMap, useLocationUnmap } = {}) {
   if (sourceMap && useLocationUnmap) {
     unmapLoc = await makeLocationUnmapper(sourceMap, ast);
   }
+  // @ts-expect-error XXX Babel types
   traverse(ast, {
     enter(p) {
       const { loc, leadingComments, innerComments, trailingComments, type } =

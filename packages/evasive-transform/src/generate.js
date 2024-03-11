@@ -66,6 +66,7 @@ export const generate =
       // TODO Use options?.sourceUrl when resolved:
       // https://github.com/Agoric/agoric-sdk/issues/8671
       const sourceUrl = options ? options.sourceUrl : undefined;
+      // @ts-expect-error XXX Babel types
       const result = generator(ast, {
         sourceFileName: sourceUrl,
         sourceMaps: Boolean(sourceUrl),
