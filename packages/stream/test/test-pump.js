@@ -1,12 +1,7 @@
 // @ts-check
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 
-import '@endo/init/debug.js';
-
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
 import { pump, prime } from '../index.js';
-
-const test = wrapTest(rawTest);
 
 test('pump happy path', async (/** @type {import('ava').ExecutionContext} */ t) => {
   t.plan(2);

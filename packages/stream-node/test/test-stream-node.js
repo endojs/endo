@@ -1,16 +1,11 @@
 // @ts-check
 /* global setTimeout */
 
-import '@endo/init/debug.js';
-
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 
 import { fileURLToPath } from 'url';
 import { fork } from 'child_process';
 import { makeNodeReader, makeNodeWriter } from '../index.js';
-
-const test = wrapTest(rawTest);
 
 const catPath = fileURLToPath(new URL('cat.js', import.meta.url).toString());
 

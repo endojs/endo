@@ -1,12 +1,7 @@
 // @ts-check
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 
-import '@endo/init/debug.js';
-
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
 import { makePipe } from '../index.js';
-
-const test = wrapTest(rawTest);
 
 test('stream', async (/** @type {import('ava').Assertions} */ t) => {
   const [consumeFrom, produceTo] = makePipe();

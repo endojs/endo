@@ -1,13 +1,7 @@
 // @ts-check
 /* eslint-disable require-yield, no-empty-function */
-
-import '@endo/init/debug.js';
-
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 import { prime } from '../index.js';
-
-const test = wrapTest(rawTest);
 
 test('prime single next', async (/** @type {import('ava').ExecutionContext} */ t) => {
   async function* single() {
