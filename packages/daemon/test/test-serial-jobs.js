@@ -1,12 +1,7 @@
 /* global setTimeout */
-import '@endo/init/debug.js';
-
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
+import { test } from '@endo/ses-ava/prepare-test-env-ava.js';
 
 import { makeSerialJobs } from '../src/serial-jobs.js';
-
-const test = wrapTest(rawTest);
 
 const delay = () => new Promise(resolve => setTimeout(resolve, 1));
 
