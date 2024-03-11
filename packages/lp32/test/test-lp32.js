@@ -1,6 +1,5 @@
 /* global setTimeout */
 // @ts-check
-
 import test from '@endo/ses-ava';
 
 import { makePipe } from '@endo/stream';

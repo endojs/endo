@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/order
 import test from '@endo/ses-ava';
 
 import { q } from '@endo/errors';

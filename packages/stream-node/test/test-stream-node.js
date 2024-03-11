@@ -1,6 +1,5 @@
 // @ts-check
 /* global setTimeout */
-
 import test from '@endo/ses-ava';
 
 import { fileURLToPath } from 'url';

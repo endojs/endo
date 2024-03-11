@@ -1,6 +1,5 @@
 import test from '@endo/ses-ava';
 
-// eslint-disable-next-line import/order
 import { makeMarshal } from '../src/marshal.js';
 
 test('toCapData', t => {

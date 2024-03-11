@@ -1,4 +1,5 @@
 import test from '@endo/ses-ava';
+
 import { memoize } from '../src/memoize.js';
 
 test('memoize', t => {

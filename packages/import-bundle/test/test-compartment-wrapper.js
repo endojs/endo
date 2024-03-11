@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
-
 import test from '@endo/ses-ava';
+
 import { wrapInescapableCompartment } from '../src/compartment-wrapper.js';
 
 const createChild = `() => new Compartment({console})`;

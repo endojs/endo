@@ -1,6 +1,5 @@
 import test from '@endo/ses-ava';
 
-// eslint-disable-next-line import/order
 import { getInterfaceOf, passStyleOf, Far } from '@endo/pass-style';
 
 const { freeze, setPrototypeOf } = Object;

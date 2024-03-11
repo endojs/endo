@@ -1,6 +1,7 @@
 // @ts-check
 /* eslint-disable require-yield, no-empty-function */
 import test from '@endo/ses-ava';
+
 import { prime } from '../index.js';
 
 test('prime single next', async (/** @type {import('ava').ExecutionContext} */ t) => {

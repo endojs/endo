@@ -1,6 +1,7 @@
 /* global globalThis */
 
 import { environmentOptionsListHas } from '@endo/env-options';
+import test from '@endo/ses-ava';
 
 // TODO consider adding env option setting APIs to @endo/env-options
 // TODO should set up globalThis.process.env if absent
@@ -13,4 +14,5 @@ if (!environmentOptionsListHas('DEBUG', 'label-instances')) {
   }
 }
 
-export * from '@endo/ses-ava';
+// eslint-disable-next-line no-restricted-exports
+export { test as default };
