@@ -1087,7 +1087,7 @@ const makeDaemonCore = async (
         });
 
         await deferredTasks.execute({
-          hostFormulaIdentifier: serializeFormulaIdentifier({
+          hostFormulaIdentifier: formatId({
             type: 'host',
             number: identifiers.hostFormulaNumber,
             node: ownNodeIdentifier,

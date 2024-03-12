@@ -103,88 +103,6 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string} formulaIdentifier - The guest or host formula identifier.
-     * @param {Record<string,string>} introducedNames - The names to introduce.
-     * @returns {Promise<void>}
-     */
-    const introduceNamesToParty = async (
-      formulaIdentifier,
-      introducedNames,
-    ) => {
-      /** @type {import('./types.js').Controller<any, any>} */
-      const controller =
-        provideControllerForFormulaIdentifier(formulaIdentifier);
-      const { petStore: newPetStore } = await controller.internal;
-      await Promise.all(
-        Object.entries(introducedNames).map(async ([parentName, childName]) => {
-          const introducedFormulaIdentifier =
-            petStore.identifyLocal(parentName);
-          if (introducedFormulaIdentifier === undefined) {
-            return;
-          }
-          await newPetStore.write(childName, introducedFormulaIdentifier);
-        }),
-      );
-    };
-
-    /**
-     * @param {string} [petName]
-     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
-     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
-     */
-    const makeGuest = async (petName, { introducedNames = {} } = {}) => {
-      if (petName !== undefined) {
-        const formulaIdentifier = petStore.identifyLocal(petName);
-        if (formulaIdentifier !== undefined) {
-          if (parseId(formulaIdentifier).type !== 'guest') {
-            throw new Error(
-              `Existing pet name does not designate a guest powers capability: ${q(
-                petName,
-              )}`,
-            );
-          }
-
-          // TODO: This should be awaited
-          introduceNamesToParty(formulaIdentifier, introducedNames);
-          const guestController =
-            provideControllerForFormulaIdentifier(formulaIdentifier);
-          return {
-            formulaIdentifier,
-            value: /** @type {Promise<import('./types.js').EndoGuest>} */ (
-              guestController.external
-            ),
-          };
-        }
-      }
-
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').GuestDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      if (petName !== undefined) {
-        tasks.push(identifiers =>
-          petStore.write(petName, identifiers.guestFormulaIdentifier),
-        );
-      }
-
-      const { value, formulaIdentifier } =
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        await incarnateGuest(hostFormulaIdentifier, tasks);
-      // TODO: This should be awaited
-      introduceNamesToParty(formulaIdentifier, introducedNames);
-
-      return {
-        value: Promise.resolve(value),
-        formulaIdentifier,
-      };
-    };
-
-    /** @type {import('./types.js').EndoHost['provideGuest']} */
-    const provideGuest = async (petName, opts) => {
-      const { value } = await makeGuest(petName, opts);
-      return value;
-    };
-
-    /**
      * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
      * @param {string} [petName]
      */
@@ -243,25 +161,6 @@ export const makeHostMaker = ({
         );
       }
       return workerFormulaIdentifier;
-    };
-
-    /**
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
-     * @returns {Promise<string>}
-     */
-    const providePowersFormulaIdentifier = async partyName => {
-      let guestFormulaIdentifier = petStore.identifyLocal(partyName);
-      if (guestFormulaIdentifier === undefined) {
-        ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
-          partyName,
-        ));
-        if (guestFormulaIdentifier === undefined) {
-          throw new Error(
-            `panic: makeGuest must return a guest with a corresponding formula identifier`,
-          );
-        }
-      }
-      return guestFormulaIdentifier;
     };
 
     /**
@@ -431,6 +330,31 @@ export const makeHostMaker = ({
     };
 
     /**
+     * @param {string} formulaIdentifier - The guest or host formula identifier.
+     * @param {Record<string,string>} introducedNames - The names to introduce.
+     * @returns {Promise<void>}
+     */
+    const introduceNamesToParty = async (
+      formulaIdentifier,
+      introducedNames,
+    ) => {
+      /** @type {import('./types.js').Controller<any, any>} */
+      const controller =
+        provideControllerForFormulaIdentifier(formulaIdentifier);
+      const { petStore: newPetStore } = await controller.internal;
+      await Promise.all(
+        Object.entries(introducedNames).map(async ([parentName, childName]) => {
+          const introducedFormulaIdentifier =
+            petStore.identifyLocal(parentName);
+          if (introducedFormulaIdentifier === undefined) {
+            return;
+          }
+          await newPetStore.write(childName, introducedFormulaIdentifier);
+        }),
+      );
+    };
+
+    /**
      * @param {string} [petName]
      * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
@@ -439,7 +363,7 @@ export const makeHostMaker = ({
       if (petName !== undefined) {
         const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier !== undefined) {
-          if (parseFormulaIdentifier(formulaIdentifier).type !== 'host') {
+          if (parseId(formulaIdentifier).type !== 'host') {
             throw new Error(
               `Existing pet name does not designate a host powers capability: ${q(
                 petName,
@@ -490,6 +414,82 @@ export const makeHostMaker = ({
     const provideHost = async (petName, opts) => {
       const { value } = await makeHost(petName, opts);
       return value;
+    };
+
+    /**
+     * @param {string} [petName]
+     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
+     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
+     */
+    const makeGuest = async (petName, { introducedNames = {} } = {}) => {
+      if (petName !== undefined) {
+        const formulaIdentifier = petStore.identifyLocal(petName);
+        if (formulaIdentifier !== undefined) {
+          if (parseId(formulaIdentifier).type !== 'guest') {
+            throw new Error(
+              `Existing pet name does not designate a guest powers capability: ${q(
+                petName,
+              )}`,
+            );
+          }
+
+          // TODO: This should be awaited
+          introduceNamesToParty(formulaIdentifier, introducedNames);
+          const guestController =
+            provideControllerForFormulaIdentifier(formulaIdentifier);
+          return {
+            formulaIdentifier,
+            value: /** @type {Promise<import('./types.js').EndoGuest>} */ (
+              guestController.external
+            ),
+          };
+        }
+      }
+
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').GuestDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      if (petName !== undefined) {
+        tasks.push(identifiers =>
+          petStore.write(petName, identifiers.guestFormulaIdentifier),
+        );
+      }
+
+      const { value, formulaIdentifier } =
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        await incarnateGuest(hostFormulaIdentifier, tasks);
+      // TODO: This should be awaited
+      introduceNamesToParty(formulaIdentifier, introducedNames);
+
+      return {
+        value: Promise.resolve(value),
+        formulaIdentifier,
+      };
+    };
+
+    /** @type {import('./types.js').EndoHost['provideGuest']} */
+    const provideGuest = async (petName, opts) => {
+      const { value } = await makeGuest(petName, opts);
+      return value;
+    };
+
+    /**
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
+     * @returns {Promise<string>}
+     */
+    const providePowersFormulaIdentifier = async partyName => {
+      let guestFormulaIdentifier = petStore.identifyLocal(partyName);
+      if (guestFormulaIdentifier === undefined) {
+        ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
+          partyName,
+        ));
+        if (guestFormulaIdentifier === undefined) {
+          throw new Error(
+            `panic: makeGuest must return a guest with a corresponding formula identifier`,
+          );
+        }
+      }
+      return guestFormulaIdentifier;
     };
 
     /**
