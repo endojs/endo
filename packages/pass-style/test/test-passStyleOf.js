@@ -1,5 +1,5 @@
 /* eslint-disable max-classes-per-file */
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { q } from '@endo/errors';
 

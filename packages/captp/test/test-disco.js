@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Far } from '@endo/marshal';
 import { E, makeCapTP } from '../src/captp.js';

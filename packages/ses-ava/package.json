@@ -22,6 +22,7 @@
   "exports": {
     ".": "./index.js",
     "./exported.js": "./exported.js",
+    "./prepare-endo.js": "./prepare-endo.js",
     "./package.json": "./package.json"
   },
   "scripts": {

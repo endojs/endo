@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { fc } from '@fast-check/ava';
 import { Remotable } from '@endo/pass-style';

@@ -1,5 +1,5 @@
 import './prepare-breakpoints.js';
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeMessageBreakpointTester } from '@endo/eventual-send/utils.js';
 import { E } from '@endo/eventual-send';

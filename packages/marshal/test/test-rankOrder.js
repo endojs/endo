@@ -1,5 +1,5 @@
 // @ts-nocheck
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { fc } from '@fast-check/ava';

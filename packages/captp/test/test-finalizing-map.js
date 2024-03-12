@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { detectEngineGC } from './engine-gc.js';
 import { makeGcAndFinalize } from './gc-and-finalize.js';

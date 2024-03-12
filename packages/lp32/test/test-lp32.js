@@ -1,6 +1,6 @@
 /* global setTimeout */
 // @ts-check
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makePipe } from '@endo/stream';
 import { makeLp32Reader } from '../reader.js';

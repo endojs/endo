@@ -1,5 +1,5 @@
 /* global setTimeout */
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Far } from '@endo/marshal';
 import { E, makeLoopback } from '../src/loopback.js';

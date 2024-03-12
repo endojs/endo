@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from '../src/pubsub.js';

@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeTagged, getTag, passStyleOf } from '@endo/marshal';
 import {

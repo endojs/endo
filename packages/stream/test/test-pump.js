@@ -1,5 +1,5 @@
 // @ts-check
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { pump, prime } from '../index.js';
 

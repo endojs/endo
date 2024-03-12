@@ -1,7 +1,7 @@
 /* global globalThis */
 
 import { environmentOptionsListHas } from '@endo/env-options';
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 // TODO consider adding env option setting APIs to @endo/env-options
 // TODO should set up globalThis.process.env if absent

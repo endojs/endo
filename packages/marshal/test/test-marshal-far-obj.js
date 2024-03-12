@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { q } from '@endo/errors';
 import { passStyleOf, Remotable, Far, getInterfaceOf } from '@endo/pass-style';

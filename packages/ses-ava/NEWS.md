@@ -5,9 +5,9 @@ User-visible changes in `@endo/ses-ava`:
 - Rather that writing your own `./prepare-test-env-ava.js` or similar
   to setup a ses-ava `test` function, you can now simply
   ```js
-  import test from '@endo/ses-ava';
+  import test from '@endo/ses-ava/prepare-endo.js';
   ```
-  This will set various options appropriately to help debug your tests.
+  This will set various options appropriately to help you debug your tests.
 - Ava's `t.log` buffers logged messages, so it can be output later with its
   test case. But this uses Ava's own console emulation.
   This loses all the redacted error information printed by SES's `console`.

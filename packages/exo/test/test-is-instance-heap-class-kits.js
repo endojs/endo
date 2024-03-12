@@ -1,6 +1,6 @@
 // modeled on test-heap-classes.js
 
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { M } from '@endo/patterns';
 import { defineExoClass, defineExoClassKit } from '../src/exo-makers.js';

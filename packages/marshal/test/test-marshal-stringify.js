@@ -1,4 +1,4 @@
-import test from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Far } from '@endo/pass-style';
 import { stringify, parse } from '../src/marshal-stringify.js';

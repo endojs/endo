@@ -1,4 +1,4 @@
-import { test } from '../src/prepare-test-env-ava.js';
+import test from '../prepare-endo.js';
 
 // eslint-disable-next-line import/order
 import { makeEnvironmentCaptor } from '@endo/env-options';
