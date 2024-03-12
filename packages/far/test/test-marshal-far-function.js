@@ -1,6 +1,6 @@
 // @ts-check
 
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Far, getInterfaceOf, passStyleOf } from '../src/index.js';
 

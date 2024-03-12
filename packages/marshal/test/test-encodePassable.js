@@ -1,15 +1,11 @@
 // @ts-nocheck
 /* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
-// eslint-disable-next-line import/order
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
-// eslint-disable-next-line import/order
 import { fc } from '@fast-check/ava';
 import { Remotable } from '@endo/pass-style';
 import { arbPassable } from '@endo/pass-style/tools.js';
 import { Fail, q } from '@endo/errors';
-
-// eslint-disable-next-line import/no-extraneous-dependencies
 
 import {
   makePassableKit,

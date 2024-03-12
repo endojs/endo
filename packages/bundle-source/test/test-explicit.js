@@ -2,7 +2,8 @@ import { rollup } from 'rollup';
 import { resolve as pathResolve } from 'path';
 import resolvePlugin from '@rollup/plugin-node-resolve';
 import url from 'url';
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
+
 import bundleSource from '../src/index.js';
 
 test('explicit authority', async t => {

@@ -1,4 +1,4 @@
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 import { fromUniqueEntries } from '../from-unique-entries.js';
 
 test('test fromUniqueEntries', async t => {

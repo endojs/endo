@@ -1,6 +1,5 @@
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
-// eslint-disable-next-line import/order
 import { passStyleOf, Far } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { roundTripPairs } from './marshal-test-data.js';

@@ -1,14 +1,8 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import url from 'url';
-import rawTest from 'ava';
 
-// eslint-disable-next-line import/no-extraneous-dependencies
-import '@endo/init/debug.js';
-
-// eslint-disable-next-line import/no-extraneous-dependencies
-// @ts-expect-error - no types
-import { wrapTest } from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 /**
  * Path to fixture's bundled source code
@@ -35,16 +29,6 @@ const fixtureSourceMapPath = path.resolve(
 );
 
 /**
- * @typedef TransformsTestContext
- * @property {string} source - Fixture source
- * @property {string} sourceMap - Fixture source map
- * @property {string} sourceUrl - Relative fixture source filepath
- */
-
-/** @type {import('ava').TestFn<TransformsTestContext>} */
-export const test = wrapTest(rawTest);
-
-/**
  * Put fixture into the test context
  */
 test.before(async t => {
@@ -61,3 +45,5 @@ test.before(async t => {
     'Absolute source URL will befoul snapshots',
   );
 });
+
+export { test };

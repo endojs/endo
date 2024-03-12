@@ -1,14 +1,10 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-import '@endo/init/debug.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from '../src/pubsub.js';
-
-const test = wrapTest(rawTest);
 
 test('change topic supports parallel subscriptions', async (/** @type {import('ava').Assertions} */ t) => {
   const { publisher, subscribe } = makeChangeTopic();

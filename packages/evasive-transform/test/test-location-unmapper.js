@@ -1,6 +1,6 @@
 import babelParser from '@babel/parser';
 import { makeLocationUnmapper } from '../src/location-unmapper.js';
-import { test } from './prepare-test-env-ava.js';
+import { test } from './prepare-test-env-ava-fixture.js';
 
 const { parse: parseBabel } = babelParser;
 

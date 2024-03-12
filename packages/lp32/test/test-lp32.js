@@ -1,10 +1,6 @@
 /* global setTimeout */
 // @ts-check
-
-import '@endo/init/debug.js';
-
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makePipe } from '@endo/stream';
 import { makeLp32Reader } from '../reader.js';
@@ -13,8 +9,6 @@ import { hostIsLittleEndian } from '../src/host-endian.js';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-
-const test = wrapTest(rawTest);
 
 /**
  * @param {import('@endo/stream').Stream<T, U, V>} reader

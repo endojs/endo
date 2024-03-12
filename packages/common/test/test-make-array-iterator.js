@@ -1,4 +1,4 @@
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 import { makeArrayIterator } from '../make-array-iterator.js';
 
 // Also serves as an adequate test of make-iterator.js

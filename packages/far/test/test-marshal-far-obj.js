@@ -1,7 +1,6 @@
 // @ts-check
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
-// eslint-disable-next-line import/order
 import { q } from '@endo/errors';
 
 import { Far, passStyleOf, getInterfaceOf } from '../src/index.js';

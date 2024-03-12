@@ -1,7 +1,6 @@
 import './prepare-breakpoints.js';
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
-// eslint-disable-next-line import/order
 import { E } from '@endo/eventual-send';
 import { Far } from '../src/make-far.js';
 

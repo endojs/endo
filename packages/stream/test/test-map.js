@@ -1,12 +1,7 @@
 // @ts-check
+import test from '@endo/ses-ava/prepare-endo.js';
 
-import '@endo/init/debug.js';
-
-import rawTest from 'ava';
-import { wrapTest } from '@endo/ses-ava';
 import { mapReader, mapWriter, makePipe } from '../index.js';
-
-const test = wrapTest(rawTest);
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

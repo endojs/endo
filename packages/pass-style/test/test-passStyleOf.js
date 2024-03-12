@@ -1,7 +1,6 @@
 /* eslint-disable max-classes-per-file */
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
-// eslint-disable-next-line import/order
 import { q } from '@endo/errors';
 
 import { passStyleOf } from '../src/passStyleOf.js';
