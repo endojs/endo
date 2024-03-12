@@ -55,6 +55,9 @@ const analyzeModule = makeModuleAnalyzer();
  * @property {SourceMapHook} [sourceMapHook]
  */
 
+// XXX implements import('ses').PrecompiledStaticModuleInterface but adding
+// `@implements` errors that this isn't a class and `@returns` errors that
+// there's no value returned.
 /**
  * StaticModuleRecord captures the effort of parsing and analyzing module text
  * so a cache of StaticModuleRecords may be shared by multiple Compartments.
@@ -62,7 +65,6 @@ const analyzeModule = makeModuleAnalyzer();
  * @class
  * @param {string} source
  * @param {string | Options} [opts]
- * @returns {import('ses').PrecompiledStaticModuleInterface}
  */
 export function StaticModuleRecord(source, opts = {}) {
   if (new.target === undefined) {
