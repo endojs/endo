@@ -1,6 +1,6 @@
 // @ts-check
 
-import { parseFormulaIdentifier } from './formula-identifier.js';
+import { parseId } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -32,7 +32,7 @@ export const makePetSitter = (petStore, specialNames) => {
     if (formulaIdentifier === undefined) {
       throw new Error(`Formula does not exist for pet name ${q(petName)}`);
     }
-    return parseFormulaIdentifier(formulaIdentifier);
+    return parseId(formulaIdentifier);
   };
 
   /** @type {import('./types.js').PetStore['list']} */

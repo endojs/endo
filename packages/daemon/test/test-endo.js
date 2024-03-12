@@ -23,7 +23,7 @@ import {
   makeReaderRef,
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
-import { serializeFormulaIdentifier } from '../src/formula-identifier.js';
+import { formatId } from '../src/formula-identifier.js';
 
 const cryptoPowers = makeCryptoPowers(crypto);
 
@@ -1322,7 +1322,7 @@ test('read unknown nodeId', async t => {
   const node = await cryptoPowers.randomHex512();
   const number = await cryptoPowers.randomHex512();
   const type = 'eval';
-  const formulaIdentifier = serializeFormulaIdentifier({
+  const formulaIdentifier = formatId({
     node,
     number,
     type,

@@ -5,7 +5,7 @@ import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
-import { parseFormulaIdentifier } from './formula-identifier.js';
+import { parseId } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -136,7 +136,7 @@ export const makeHostMaker = ({
       if (petName !== undefined) {
         const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier !== undefined) {
-          if (parseFormulaIdentifier(formulaIdentifier).type !== 'guest') {
+          if (parseId(formulaIdentifier).type !== 'guest') {
             throw new Error(
               `Existing pet name does not designate a guest powers capability: ${q(
                 petName,

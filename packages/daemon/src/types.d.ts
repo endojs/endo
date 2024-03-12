@@ -53,7 +53,7 @@ export type MignonicPowers = {
 };
 
 type FormulaIdentifierRecord = {
-  type: string;
+  type?: string;
   number: string;
   node: string;
 };
@@ -668,7 +668,7 @@ export type DaemonicPersistencePowers = {
     store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
     fetch: (sha512: string) => EndoReadable;
   };
-  readFormula: (prefix: string, formulaNumber: string) => Promise<Formula>;
+  readFormula: (formulaNumber: string) => Promise<Formula>;
   writeFormula: (
     formula: Formula,
     formulaType: string,
@@ -712,7 +712,11 @@ export type DaemonicPowers = {
   control: DaemonicControlPowers;
 };
 
-type IncarnateResult<T> = Promise<{ formulaIdentifier: string; value: T }>;
+type IncarnateResult<T> = Promise<{
+  formulaIdentifier: string;
+  typedFormulaIdentifier: string;
+  value: T;
+}>;
 
 export type DeferredTask<T extends Record<string, string | string[]>> = (
   formulaIdentifiers: Readonly<T>,
@@ -742,7 +746,11 @@ export interface DaemonCore {
     formulaType: string,
     formulaNumber: string,
     formula: Formula,
-  ) => Promise<{ formulaIdentifier: string; value: unknown }>;
+  ) => Promise<{
+    formulaIdentifier: string;
+    typedFormulaIdentifier: string;
+    value: unknown;
+  }>;
   getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
   getAllNetworkAddresses: (
     networksDirectoryFormulaIdentifier: string,
