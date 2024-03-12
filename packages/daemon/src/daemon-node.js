@@ -13,10 +13,6 @@ import fs from 'fs';
 import path from 'path';
 import popen from 'child_process';
 import url from 'url';
-import http from 'http';
-
-// @ts-ignore We cannot use a synthetic default export in practice here (circa Node.js 16)
-import * as ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';
@@ -38,8 +34,6 @@ if (process.argv.length < 5) {
 const [sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
 
-const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
-
 /** @type {import('../types.js').Locator} */
 const locator = {
   sockPath,
@@ -48,9 +42,9 @@ const locator = {
   cachePath,
 };
 
-const { pid, env, kill } = process;
+const { pid, kill } = process;
 
-const networkPowers = makeNetworkPowers({ http, ws, net });
+const networkPowers = makeNetworkPowers({ net });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
 const powers = makeDaemonicPowers({
@@ -100,15 +94,15 @@ const main = async () => {
   cancelled.catch(() => {
     console.log(`Endo daemon stopping on PID ${pid}`);
   });
-  const requestedWebletPortText = env.ENDO_HTTP_PORT;
-  const requestedWebletPort = requestedWebletPortText
-    ? Number(requestedWebletPortText)
-    : defaultHttpPort;
 
   await daemonicPersistencePowers.initializePersistence();
 
-  const { endoBootstrap, cancelGracePeriod, assignWebletPort } =
-    await makeDaemon(powers, daemonLabel, cancel, cancelled);
+  const { endoBootstrap, cancelGracePeriod } = await makeDaemon(
+    powers,
+    daemonLabel,
+    cancel,
+    cancelled,
+  );
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -123,14 +117,7 @@ const main = async () => {
     cancelled,
     exitWithError,
   );
-  const privateHttpService = networkPowers.makePrivateHttpService(
-    endoBootstrap,
-    requestedWebletPort,
-    assignWebletPort,
-    cancelled,
-    exitWithError,
-  );
-  const services = [privatePathService, privateHttpService];
+  const services = [privatePathService];
   await Promise.all(services.map(({ started }) => started)).then(
     () => {
       informParentWhenReady();

@@ -77,7 +77,6 @@ const deriveId = (path, rootNonce, digester) => {
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {Promise<number>} webletPortP
  * @param {string} rootEntropy
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
@@ -86,7 +85,6 @@ const deriveId = (path, rootNonce, digester) => {
  */
 const makeDaemonCore = async (
   powers,
-  webletPortP,
   rootEntropy,
   { cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
@@ -461,24 +459,6 @@ const makeDaemonCore = async (
         formula.worker,
         context,
       );
-    } else if (formula.type === 'web-bundle') {
-      // Behold, forward-reference:
-      // eslint-disable-next-line no-use-before-define
-      context.thisDiesIfThatDies(formula.bundle);
-      context.thisDiesIfThatDies(formula.powers);
-      return {
-        external: (async () =>
-          harden({
-            url: `http://${formulaNumber}.endo.localhost:${await webletPortP}`,
-            // Behold, recursion:
-            // eslint-disable-next-line no-use-before-define
-            bundle: provideValueForFormulaIdentifier(formula.bundle),
-            // Behold, recursion:
-            // eslint-disable-next-line no-use-before-define
-            powers: provideValueForFormulaIdentifier(formula.powers),
-          }))(),
-        internal: undefined,
-      };
     } else if (formula.type === 'handle') {
       context.thisDiesIfThatDies(formula.target);
       return {
@@ -524,28 +504,6 @@ const makeDaemonCore = async (
             // eslint-disable-next-line no-use-before-define
             provideValueForFormulaIdentifier(formula.leastAuthority)
           );
-        },
-        webPageJs: () => {
-          if (formula.webPageJs === undefined) {
-            throw new Error('No web-page-js formula provided.');
-          }
-          // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
-          return provideValueForFormulaIdentifier(formula.webPageJs);
-        },
-        importAndEndowInWebPage: async (webPageP, webPageNumber) => {
-          const { bundle: bundleBlob, powers: endowedPowers } =
-            /** @type {import('./types.js').EndoWebBundle} */ (
-              // Behold, recursion:
-              // eslint-disable-next-line no-use-before-define
-              await provideValueForFormulaIdentifier(
-                `web-bundle:${webPageNumber}`,
-              ).catch(() => {
-                throw new Error('Not found');
-              })
-            );
-          const bundle = await E(bundleBlob).json();
-          await E(webPageP).makeBundle(bundle, endowedPowers);
         },
         gateway: async () => {
           return gateway;
@@ -693,8 +651,6 @@ const makeDaemonCore = async (
         'least-authority',
         'loopback-network',
         'peer',
-        'web-bundle',
-        'web-page-js',
         'handle',
         'pet-inspector',
         'pet-store',
@@ -1355,38 +1311,6 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['incarnateBundler']} */
-  const incarnateBundler = async (
-    powersFormulaIdentifier,
-    workerFormulaIdentifier,
-  ) => {
-    if (persistencePowers.getWebPageBundlerFormula === undefined) {
-      throw Error('No web-page-js bundler formula provided.');
-    }
-    const formulaNumber = await randomHex512();
-    const formula = persistencePowers.getWebPageBundlerFormula(
-      workerFormulaIdentifier,
-      powersFormulaIdentifier,
-    );
-    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
-  };
-
-  /** @type {import('./types.js').DaemonCore['incarnateWebBundle']} */
-  const incarnateWebBundle = async (
-    powersFormulaIdentifier,
-    bundleFormulaIdentifier,
-  ) => {
-    // TODO use regular-length (512-bit) formula numbers for web bundles
-    const formulaNumber = (await randomHex512()).slice(32, 64);
-    /** @type {import('./types.js').WebBundleFormula} */
-    const formula = {
-      type: 'web-bundle',
-      powers: powersFormulaIdentifier,
-      bundle: bundleFormulaIdentifier,
-    };
-    return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
-  };
-
   /**
    * @param {string} formulaNumber
    * @param {string} petStoreFormulaIdentifier
@@ -1476,15 +1400,6 @@ const makeDaemonCore = async (
           specifiedWorkerFormulaIdentifier: defaultHostWorkerFormulaIdentifier,
         }),
       );
-    // If supported, ensure the web page bundler is incarnated and persisted.
-    let webPageJsFormulaIdentifier;
-    if (persistencePowers.getWebPageBundlerFormula !== undefined) {
-      ({ formulaIdentifier: webPageJsFormulaIdentifier } =
-        await incarnateBundler(
-          defaultHostFormulaIdentifier,
-          defaultHostWorkerFormulaIdentifier,
-        ));
-    }
 
     /** @type {import('./types.js').EndoFormula} */
     const formula = {
@@ -1493,7 +1408,6 @@ const makeDaemonCore = async (
       peers: peersFormulaIdentifier,
       host: defaultHostFormulaIdentifier,
       leastAuthority: leastAuthorityFormulaIdentifier,
-      webPageJs: webPageJsFormulaIdentifier,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').FarEndoBootstrap>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
@@ -1631,7 +1545,6 @@ const makeDaemonCore = async (
     incarnateEval,
     incarnateUnconfined,
     incarnateBundle,
-    incarnateWebBundle,
     storeReaderRef,
     makeMailbox,
     makeDirectoryNode,
@@ -1668,14 +1581,9 @@ const makeDaemonCore = async (
       // id->formula->controller->incarnation tree.
       const formula = await persistencePowers.readFormula(formulaNumber);
       if (
-        ![
-          'eval',
-          'lookup',
-          'make-unconfined',
-          'make-bundle',
-          'guest',
-          'web-bundle',
-        ].includes(formula.type)
+        !['eval', 'lookup', 'make-unconfined', 'make-bundle', 'guest'].includes(
+          formula.type,
+        )
       ) {
         return makeInspector(formula.type, formulaNumber, harden({}));
       }
@@ -1733,15 +1641,6 @@ const makeDaemonCore = async (
             worker: provideValueForFormulaIdentifier(formula.worker),
           }),
         );
-      } else if (formula.type === 'web-bundle') {
-        return makeInspector(
-          formula.type,
-          formulaNumber,
-          harden({
-            bundle: provideValueForFormulaIdentifier(formula.bundle),
-            powers: provideValueForFormulaIdentifier(formula.powers),
-          }),
-        );
       } else if (formula.type === 'peer') {
         return makeInspector(
           formula.type,
@@ -1789,16 +1688,13 @@ const makeDaemonCore = async (
     incarnateEval,
     incarnateUnconfined,
     incarnateReadableBlob,
-    incarnateBundler,
     incarnateBundle,
-    incarnateWebBundle,
   };
   return daemonCore;
 };
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
- * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
@@ -1807,22 +1703,16 @@ const makeDaemonCore = async (
  */
 const provideEndoBootstrap = async (
   powers,
-  webletPortP,
   { cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
     await persistencePowers.provideRootNonce();
-  const daemonCore = await makeDaemonCore(
-    powers,
-    webletPortP,
-    endoFormulaNumber,
-    {
-      cancel,
-      gracePeriodMs,
-      gracePeriodElapsed,
-    },
-  );
+  const daemonCore = await makeDaemonCore(powers, endoFormulaNumber, {
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+  });
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
     const endoFormulaIdentifier = formatId({
@@ -1864,22 +1754,13 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
     throw error;
   });
 
-  const { promise: assignedWebletPortP, resolve: assignWebletPort } =
-    /** @type {import('@endo/promise-kit').PromiseKit<number>} */ (
-      makePromiseKit()
-    );
-
-  const endoBootstrap = await provideEndoBootstrap(
-    powers,
-    assignedWebletPortP,
-    {
-      cancel,
-      gracePeriodMs,
-      gracePeriodElapsed,
-    },
-  );
+  const endoBootstrap = await provideEndoBootstrap(powers, {
+    cancel,
+    gracePeriodMs,
+    gracePeriodElapsed,
+  });
 
   await E(endoBootstrap).reviveNetworks();
 
-  return { endoBootstrap, cancelGracePeriod, assignWebletPort };
+  return { endoBootstrap, cancelGracePeriod };
 };

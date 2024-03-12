@@ -3,7 +3,6 @@ export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
 
 export type Locator = {
   statePath: string;
-  httpPort?: number;
   ephemeralStatePath: string;
   cachePath: string;
   sockPath: string;

@@ -34,7 +34,6 @@ const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 /** @param {Array<string>} root */
 const makeLocator = (...root) => {
   return {
-    httpPort: 0,
     statePath: path.join(dirname, ...root, 'state'),
     ephemeralStatePath: path.join(dirname, ...root, 'run'),
     cachePath: path.join(dirname, ...root, 'cache'),

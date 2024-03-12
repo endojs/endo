@@ -24,7 +24,6 @@ const assertPowersName = name => {
  * @param {import('./types.js').DaemonCore['incarnateEval']} args.incarnateEval
  * @param {import('./types.js').DaemonCore['incarnateUnconfined']} args.incarnateUnconfined
  * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
- * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
@@ -41,7 +40,6 @@ export const makeHostMaker = ({
   incarnateEval,
   incarnateUnconfined,
   incarnateBundle,
-  incarnateWebBundle,
   storeReaderRef,
   getAllNetworkAddresses,
   makeMailbox,
@@ -448,54 +446,6 @@ export const makeHostMaker = ({
       return value;
     };
 
-    /**
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} agentName
-     * @returns {Promise<string>}
-     */
-    const providePowersFormulaIdentifier = async agentName => {
-      let guestFormulaIdentifier = petStore.identifyLocal(agentName);
-      if (guestFormulaIdentifier === undefined) {
-        ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
-          agentName,
-        ));
-        if (guestFormulaIdentifier === undefined) {
-          throw new Error(
-            `panic: makeGuest must return a guest with a corresponding formula identifier`,
-          );
-        }
-      }
-      return guestFormulaIdentifier;
-    };
-
-    /**
-     * @param {string} webPageName
-     * @param {string} bundleName
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
-     */
-    const provideWebPage = async (webPageName, bundleName, powersName) => {
-      const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
-      if (bundleFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name: ${q(bundleName)}`);
-      }
-
-      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
-        powersName,
-      );
-
-      // Behold, recursion:
-      const { value, formulaIdentifier } = await incarnateWebBundle(
-        powersFormulaIdentifier,
-        bundleFormulaIdentifier,
-      );
-
-      if (webPageName !== undefined) {
-        assertPetName(webPageName);
-        await petStore.write(webPageName, formulaIdentifier);
-      }
-
-      return value;
-    };
-
     /** @type {import('./types.js').EndoHost['cancel']} */
     const cancel = async (petName, reason = new Error('Cancelled')) => {
       const formulaIdentifier = petStore.identifyLocal(petName);
@@ -587,7 +537,6 @@ export const makeHostMaker = ({
       evaluate,
       makeUnconfined,
       makeBundle,
-      provideWebPage,
       cancel,
       gateway,
       getPeerInfo,

@@ -9,7 +9,6 @@ export type SomehowAsyncIterable<T> =
 
 export type Locator = {
   statePath: string;
-  httpPort?: number;
   ephemeralStatePath: string;
   cachePath: string;
   sockPath: string;
@@ -63,7 +62,6 @@ type EndoFormula = {
   peers: string;
   host: string;
   leastAuthority: string;
-  webPageJs?: string;
 };
 
 type LoopbackNetworkFormula = {
@@ -537,11 +535,6 @@ export interface EndoHost extends EndoDirectory {
     powersName: string,
     resultName?: string,
   ): Promise<unknown>;
-  provideWebPage(
-    webPageName: string,
-    bundleName: string,
-    powersName: string,
-  ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
@@ -572,19 +565,11 @@ export type KnownEndoInspectors = {
   [formulaType: string]: EndoInspector<string>;
 };
 
-export type EndoWebBundle = {
-  url: string;
-  bundle: ERef<EndoReadable>;
-  powers: ERef<unknown>;
-};
-
 export type FarEndoBootstrap = FarRef<{
   ping: () => Promise<string>;
   terminate: () => Promise<void>;
   host: () => Promise<EndoHost>;
   leastAuthority: () => Promise<EndoGuest>;
-  webPageJs: () => Promise<unknown>;
-  importAndEndowInWebPage: () => Promise<void>;
   gateway: () => Promise<EndoGateway>;
   reviveNetworks: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
@@ -638,23 +623,9 @@ export type SocketPowers = {
 };
 
 export type NetworkPowers = SocketPowers & {
-  servePortHttp: (args: {
-    port: number;
-    host?: string;
-    respond?: HttpRespond;
-    connect?: HttpConnect;
-    cancelled: Promise<never>;
-  }) => Promise<number>;
   makePrivatePathService: (
     endoBootstrap: FarEndoBootstrap,
     sockPath: string,
-    cancelled: Promise<never>,
-    exitWithError: (error: Error) => void,
-  ) => { started: Promise<void>; stopped: Promise<void> };
-  makePrivateHttpService: (
-    endoBootstrap: FarEndoBootstrap,
-    port: number,
-    assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
   ) => { started: Promise<void>; stopped: Promise<void> };
@@ -676,10 +647,6 @@ export type DaemonicPersistencePowers = {
     formulaType: string,
     formulaNumber: string,
   ) => Promise<void>;
-  getWebPageBundlerFormula?: (
-    workerFormulaIdentifier: string,
-    powersFormulaIdentifier: string,
-  ) => MakeUnconfinedFormula;
 };
 
 export interface DaemonWorkerFacet {}
@@ -847,14 +814,6 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string,
     specifiedPowersFormulaIdentifier?: string,
-  ) => IncarnateResult<unknown>;
-  incarnateBundler: (
-    powersFormulaIdentifier: string,
-    workerFormulaIdentifier: string,
-  ) => IncarnateResult<unknown>;
-  incarnateWebBundle: (
-    powersFormulaIdentifier: string,
-    bundleFormulaIdentifier: string,
   ) => IncarnateResult<unknown>;
   incarnatePeer: (
     networksFormulaIdentifier: string,
