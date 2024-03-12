@@ -144,7 +144,7 @@ export const makeHostMaker = ({
             );
           }
 
-          // TODO: Should this be awaited?
+          // TODO: This should be awaited
           introduceNamesToParty(formulaIdentifier, introducedNames);
           const guestController =
             provideControllerForFormulaIdentifier(formulaIdentifier);
@@ -169,7 +169,7 @@ export const makeHostMaker = ({
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
         await incarnateGuest(hostFormulaIdentifier, tasks);
-      // TODO: Should this be awaited?
+      // TODO: This should be awaited
       introduceNamesToParty(formulaIdentifier, introducedNames);
 
       return {
@@ -436,44 +436,53 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
      */
     const makeHost = async (petName, { introducedNames = {} } = {}) => {
-      /** @type {string | undefined} */
-      let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = petStore.identifyLocal(petName);
-      }
-      if (formulaIdentifier === undefined) {
-        const { formulaIdentifier: newFormulaIdentifier, value } =
-          await incarnateHost(
-            endoFormulaIdentifier,
-            networksDirectoryFormulaIdentifier,
-            leastAuthorityFormulaIdentifier,
-          );
-        if (petName !== undefined) {
-          assertPetName(petName);
-          await petStore.write(petName, newFormulaIdentifier);
+        const formulaIdentifier = petStore.identifyLocal(petName);
+        if (formulaIdentifier !== undefined) {
+          if (parseFormulaIdentifier(formulaIdentifier).type !== 'host') {
+            throw new Error(
+              `Existing pet name does not designate a host powers capability: ${q(
+                petName,
+              )}`,
+            );
+          }
+
+          // TODO: This should be awaited
+          introduceNamesToParty(formulaIdentifier, introducedNames);
+          const hostController =
+            provideControllerForFormulaIdentifier(formulaIdentifier);
+          return {
+            formulaIdentifier,
+            value: /** @type {Promise<import('./types.js').EndoHost>} */ (
+              hostController.external
+            ),
+          };
         }
-        return {
-          formulaIdentifier: newFormulaIdentifier,
-          value: Promise.resolve(value),
-        };
-      } else if (!formulaIdentifier.startsWith('host:')) {
-        throw new Error(
-          `Existing pet name does not designate a host powers capability: ${q(
-            petName,
-          )}`,
+      }
+
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').HostDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      if (petName !== undefined) {
+        tasks.push(identifiers =>
+          petStore.write(petName, identifiers.hostFormulaIdentifier),
         );
       }
 
-      introduceNamesToParty(formulaIdentifier, introducedNames);
-      const newHostController =
-        /** @type {import('./types.js').Controller<>} */ (
-          provideControllerForFormulaIdentifier(formulaIdentifier)
+      const { value, formulaIdentifier } =
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        await incarnateHost(
+          endoFormulaIdentifier,
+          networksDirectoryFormulaIdentifier,
+          leastAuthorityFormulaIdentifier,
+          tasks,
         );
+      // TODO: This should be awaited
+      introduceNamesToParty(formulaIdentifier, introducedNames);
+
       return {
+        value: Promise.resolve(value),
         formulaIdentifier,
-        value: /** @type {Promise<import('./types.js').EndoHost>} */ (
-          newHostController.external
-        ),
       };
     };
 

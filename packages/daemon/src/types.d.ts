@@ -85,6 +85,10 @@ type HostFormula = {
   leastAuthority: string;
 };
 
+export type HostDeferredTaskParams = {
+  hostFormulaIdentifier: string;
+};
+
 type GuestFormula = {
   type: 'guest';
   host: string;
@@ -731,6 +735,55 @@ export type DeferredTasks<T extends Record<string, string | string[]>> = {
   push(value: DeferredTask<T>): void;
 };
 
+type IncarnateNumberedGuestParams = {
+  guestFormulaNumber: string;
+  hostHandleFormulaIdentifier: string;
+  storeFormulaIdentifier: string;
+  workerFormulaIdentifier: string;
+};
+
+type IncarnateHostDependenciesParams = {
+  endoFormulaIdentifier: string;
+  leastAuthorityFormulaIdentifier: string;
+  networksDirectoryFormulaIdentifier: string;
+  specifiedWorkerFormulaIdentifier?: string;
+};
+
+type IncarnateNumberedHostParams = {
+  hostFormulaNumber: string;
+  workerFormulaIdentifier: string;
+  storeFormulaIdentifier: string;
+  inspectorFormulaIdentifier: string;
+  endoFormulaIdentifier: string;
+  networksDirectoryFormulaIdentifier: string;
+  leastAuthorityFormulaIdentifier: string;
+};
+
+export interface PrivateDaemonCore {
+  /**
+   * Helper for callers of {@link incarnateNumberedGuest}.
+   * @param hostFormulaIdentifier - The formula identifier of the host to incarnate a guest for.
+   * @returns The formula identifiers for the guest incarnation's dependencies.
+   */
+  incarnateGuestDependencies: (
+    hostFormulaIdentifier: string,
+  ) => Promise<Readonly<IncarnateNumberedGuestParams>>;
+  incarnateNumberedGuest: (
+    identifiers: IncarnateNumberedGuestParams,
+  ) => IncarnateResult<EndoGuest>;
+  /**
+   * Helper for callers of {@link incarnateNumberedHost}.
+   * @param specifiedIdentifiers - The existing formula identifiers specified to the host incarnation.
+   * @returns The formula identifiers for all of the host incarnation's dependencies.
+   */
+  incarnateHostDependencies: (
+    specifiedIdentifiers: IncarnateHostDependenciesParams,
+  ) => Promise<Readonly<IncarnateNumberedHostParams>>;
+  incarnateNumberedHost: (
+    identifiers: IncarnateNumberedHostParams,
+  ) => IncarnateResult<EndoHost>;
+}
+
 export interface DaemonCore {
   nodeIdentifier: string;
   provideValueForFormulaIdentifier: (
@@ -760,13 +813,11 @@ export interface DaemonCore {
   ) => IncarnateResult<FarEndoBootstrap>;
   incarnateWorker: () => IncarnateResult<EndoWorker>;
   incarnateDirectory: () => IncarnateResult<EndoDirectory>;
-  incarnatePetInspector: (
-    petStoreFormulaIdentifier: string,
-  ) => IncarnateResult<EndoInspector>;
   incarnateHost: (
     endoFormulaIdentifier: string,
     networksDirectoryFormulaIdentifier: string,
     leastAuthorityFormulaIdentifier: string,
+    deferredTasks: DeferredTasks<HostDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
   incarnateGuest: (
