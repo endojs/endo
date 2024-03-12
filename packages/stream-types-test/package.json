@@ -22,7 +22,7 @@
     "lint": "yarn lint:types && yarn lint:ts",
     "lint-fix": "eslint --fix . --ext .ts",
     "lint:ts": "eslint . --ext .ts",
-    "lint:types": "tsc -p tsconfig.json",
+    "lint:types": "tsc",
     "test": "yarn lint:types"
   },
   "dependencies": {
