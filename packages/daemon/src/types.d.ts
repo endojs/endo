@@ -813,9 +813,7 @@ export interface DaemonCore {
   makeDirectoryNode: MakeDirectoryNode;
 }
 
-export type Mutex = {
-  lock: () => Promise<void>;
-  unlock: () => void;
+export type SerialJobs = {
   enqueue: <T>(asyncFn?: () => Promise<T>) => Promise<T>;
 };
 

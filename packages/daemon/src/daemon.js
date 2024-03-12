@@ -17,7 +17,7 @@ import {
   parseFormulaIdentifier,
   serializeFormulaIdentifier,
 } from './formula-identifier.js';
-import { makeMutex } from './mutex.js';
+import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './weak-multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 
@@ -101,7 +101,15 @@ const makeDaemonCore = async (
   } = powers;
   const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
-  const formulaGraphMutex = makeMutex();
+  /**
+   * Mutations of the formula graph must be serialized through this queue.
+   * "Mutations" include:
+   * - Creation
+   * - Removal
+   * - Incarnation
+   * - Cancellation
+   */
+  const formulaGraphJobs = makeSerialJobs();
   // This is the id of the node that is hosting the values.
   // This will likely get replaced with a public key in the future.
   const ownNodeIdentifier = getDerivedId(
@@ -835,7 +843,7 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore['cancelValue']} */
   const cancelValue = async (formulaIdentifier, reason) => {
-    await formulaGraphMutex.enqueue();
+    await formulaGraphJobs.enqueue();
     const controller = provideControllerForFormulaIdentifier(formulaIdentifier);
     console.log('Cancelled:');
     return controller.context.cancel(reason);
@@ -983,7 +991,7 @@ const makeDaemonCore = async (
    * @type {import('./types.js').DaemonCore['incarnateWorker']}
    */
   const incarnateWorker = async () => {
-    const formulaNumber = await formulaGraphMutex.enqueue(randomHex512);
+    const formulaNumber = await formulaGraphJobs.enqueue(randomHex512);
     return incarnateNumberedWorker(formulaNumber);
   };
 
@@ -1068,7 +1076,7 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['incarnateGuest']} */
   const incarnateGuest = async (hostFormulaIdentifier, deferredTasks) => {
     return incarnateNumberedGuest(
-      await formulaGraphMutex.enqueue(async () => {
+      await formulaGraphJobs.enqueue(async () => {
         const identifiers = await incarnateGuestDependencies(
           hostFormulaIdentifier,
         );
@@ -1116,7 +1124,7 @@ const makeDaemonCore = async (
       workerFormulaIdentifier,
       endowmentFormulaIdentifiers,
       evalFormulaNumber,
-    } = await formulaGraphMutex.enqueue(async () => {
+    } = await formulaGraphJobs.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
       const ownFormulaIdentifier = serializeFormulaIdentifier({
         type: 'eval',
@@ -1261,7 +1269,7 @@ const makeDaemonCore = async (
       powersFormulaIdentifier,
       capletFormulaNumber,
       workerFormulaIdentifier,
-    } = await formulaGraphMutex.enqueue(() =>
+    } = await formulaGraphJobs.enqueue(() =>
       incarnateCapletDependencies(
         'make-unconfined',
         hostFormulaIdentifier,
@@ -1297,7 +1305,7 @@ const makeDaemonCore = async (
       powersFormulaIdentifier,
       capletFormulaNumber,
       workerFormulaIdentifier,
-    } = await formulaGraphMutex.enqueue(() =>
+    } = await formulaGraphJobs.enqueue(() =>
       incarnateCapletDependencies(
         'make-bundle',
         hostFormulaIdentifier,

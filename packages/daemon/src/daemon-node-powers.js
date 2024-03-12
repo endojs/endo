@@ -9,7 +9,7 @@ import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePortHttp } from './serve-private-port-http.js';
 import { servePrivatePath } from './serve-private-path.js';
-import { makeMutex } from './mutex.js';
+import { makeSerialJobs } from './serial-jobs.js';
 
 const { quote: q } = assert;
 
@@ -355,7 +355,7 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
 };
 
 export const makeFilePowers = ({ fs, path: fspath }) => {
-  const writeLock = makeMutex();
+  const writeJobs = makeSerialJobs();
 
   /**
    * @param {string} path
@@ -379,7 +379,7 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
    * @param {string} text
    */
   const writeFileText = async (path, text) => {
-    await writeLock.enqueue(async () => {
+    await writeJobs.enqueue(async () => {
       await fs.promises.writeFile(path, text);
     });
   };
@@ -423,13 +423,13 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
    * @param {string} path
    */
   const removePath = async path => {
-    await writeLock.enqueue(async () => {
+    await writeJobs.enqueue(async () => {
       return fs.promises.rm(path);
     });
   };
 
   const renamePath = async (source, target) => {
-    await writeLock.enqueue(async () => {
+    await writeJobs.enqueue(async () => {
       return fs.promises.rename(source, target);
     });
   };
