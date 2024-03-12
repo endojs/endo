@@ -1,3 +1,4 @@
+// @ts-nocheck XXX Babel types
 import { makeTransformSource } from './transformSource.js';
 import makeModulePlugins from './babelPlugin.js';
 
