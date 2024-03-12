@@ -120,7 +120,6 @@ const makeDaemonCore = async (
     cryptoPowers.makeSha512(),
   );
   const peersFormulaIdentifier = formatId({
-    type: 'pet-store',
     number: peersFormulaNumber,
     node: ownNodeIdentifier,
   });
@@ -661,23 +660,15 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @param {string} allegedFormulaIdentifier
+   * @param {string} formulaIdentifier
    * @param {import('./types.js').Context} context
    */
   const makeControllerForFormulaIdentifier = async (
-    allegedFormulaIdentifier,
+    formulaIdentifier,
     context,
   ) => {
-    // Drop alleged type from identifier.
-    const {
-      number: formulaNumber,
-      type: allegedFormulaType,
-      node: formulaNode,
-    } = parseId(allegedFormulaIdentifier);
-    const formulaIdentifier = formatId({
-      number: formulaNumber,
-      node: formulaNode,
-    });
+    const { number: formulaNumber, node: formulaNode } =
+      parseId(formulaIdentifier);
     const isRemote = formulaNode !== ownNodeIdentifier;
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
@@ -690,13 +681,6 @@ const makeDaemonCore = async (
     }
     const formula = await persistencePowers.readFormula(formulaNumber);
     if (
-      allegedFormulaType !== undefined &&
-      formula.type !== allegedFormulaType
-    ) {
-      assert.Fail`Alleged formula type ${q(
-        allegedFormulaType,
-      )} is not the actual formula type {formula.type}`;
-    } else if (
       ![
         'endo',
         'worker',
@@ -719,7 +703,7 @@ const makeDaemonCore = async (
       ].includes(formula.type)
     ) {
       assert.Fail`Invalid formula identifier, unrecognized type ${q(
-        allegedFormulaIdentifier,
+        formulaIdentifier,
       )}`;
     }
     // TODO further validation
@@ -738,11 +722,6 @@ const makeDaemonCore = async (
     formula,
   ) => {
     const formulaIdentifier = formatId({
-      number: formulaNumber,
-      node: ownNodeIdentifier,
-    });
-    const typedFormulaIdentifier = formatId({
-      type: formulaType,
       number: formulaNumber,
       node: ownNodeIdentifier,
     });
@@ -790,22 +769,12 @@ const makeDaemonCore = async (
 
     return harden({
       formulaIdentifier,
-      typedFormulaIdentifier,
       value: controller.external,
     });
   };
 
   /** @type {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} */
-  const provideControllerForFormulaIdentifier = allegedFormulaIdentifier => {
-    // Remove alleged formula type.
-    const { number: formulaNumber, node: formulaNode } = parseId(
-      allegedFormulaIdentifier,
-    );
-    const formulaIdentifier = formatId({
-      number: formulaNumber,
-      node: formulaNode,
-    });
-
+  const provideControllerForFormulaIdentifier = formulaIdentifier => {
     let controller = controllerForFormulaIdentifier.get(formulaIdentifier);
     if (controller !== undefined) {
       return controller;
@@ -828,9 +797,7 @@ const makeDaemonCore = async (
     });
     controllerForFormulaIdentifier.set(formulaIdentifier, controller);
 
-    resolve(
-      makeControllerForFormulaIdentifier(allegedFormulaIdentifier, context),
-    );
+    resolve(makeControllerForFormulaIdentifier(formulaIdentifier, context));
 
     return controller;
   };
@@ -1088,7 +1055,6 @@ const makeDaemonCore = async (
 
         await deferredTasks.execute({
           agentFormulaIdentifier: formatId({
-            type: 'host',
             number: identifiers.hostFormulaNumber,
             node: ownNodeIdentifier,
           }),
@@ -1146,7 +1112,6 @@ const makeDaemonCore = async (
 
         await deferredTasks.execute({
           agentFormulaIdentifier: formatId({
-            type: 'guest',
             number: identifiers.guestFormulaNumber,
             node: ownNodeIdentifier,
           }),
@@ -1190,7 +1155,6 @@ const makeDaemonCore = async (
     } = await formulaGraphJobs.enqueue(async () => {
       const ownFormulaNumber = await randomHex512();
       const ownFormulaIdentifier = formatId({
-        type: 'eval',
         number: ownFormulaNumber,
         node: ownNodeIdentifier,
       });
@@ -1307,7 +1271,6 @@ const makeDaemonCore = async (
         specifiedPowersFormulaIdentifier,
       ),
       capletFormulaIdentifier: formatId({
-        type: formulaType,
         number: ownFormulaNumber,
         node: ownNodeIdentifier,
       }),
@@ -1475,20 +1438,18 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore['incarnateNetworksDirectory']} */
   const incarnateNetworksDirectory = async () => {
-    const { formulaIdentifier, typedFormulaIdentifier, value } =
-      await incarnateDirectory();
+    const { formulaIdentifier, value } = await incarnateDirectory();
     // Make default networks.
     const { formulaIdentifier: loopbackNetworkFormulaIdentifier } =
       await incarnateLoopbackNetwork();
     await E(value).write(['loop'], loopbackNetworkFormulaIdentifier);
-    return { formulaIdentifier, typedFormulaIdentifier, value };
+    return { formulaIdentifier, value };
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
     const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
     const endoFormulaIdentifier = formatId({
-      type: 'endo',
       number: formulaNumber,
       node: ownNodeIdentifier,
     });
@@ -1499,7 +1460,7 @@ const makeDaemonCore = async (
       await incarnateNetworksDirectory();
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
       await incarnateNumberedLeastAuthority(await randomHex512());
-    const { typedFormulaIdentifier: newPeersFormulaIdentifier } =
+    const { formulaIdentifier: newPeersFormulaIdentifier } =
       await incarnateNumberedPetStore(peersFormulaNumber);
     if (newPeersFormulaIdentifier !== peersFormulaIdentifier) {
       assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${peersFormulaIdentifier}, got ${newPeersFormulaIdentifier}`;
@@ -1865,7 +1826,6 @@ const provideEndoBootstrap = async (
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
     const endoFormulaIdentifier = formatId({
-      type: 'endo',
       number: endoFormulaNumber,
       node: daemonCore.nodeIdentifier,
     });

@@ -5,7 +5,6 @@ import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
-import { parseId } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -358,21 +357,12 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {'guest' | 'host'} formulaType - The agent's formula type.
      * @param {string} [petName] - The agent's potential pet name.
      */
-    const getNamedAgent = (formulaType, petName) => {
+    const getNamedAgent = petName => {
       if (petName !== undefined) {
         const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier !== undefined) {
-          if (parseId(formulaIdentifier).type !== formulaType) {
-            throw new Error(
-              `Existing pet name does not designate a ${formulaType} powers capability: ${q(
-                petName,
-              )}`,
-            );
-          }
-
           return {
             formulaIdentifier,
             value: /** @type {Promise<any>} */ (
@@ -404,7 +394,7 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
      */
     const makeHost = async (petName, { introducedNames = {} } = {}) => {
-      let host = getNamedAgent('host', petName);
+      let host = await getNamedAgent(petName);
       if (host === undefined) {
         const { value, formulaIdentifier } =
           // Behold, recursion:
@@ -435,7 +425,7 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
      */
     const makeGuest = async (petName, { introducedNames = {} } = {}) => {
-      let guest = getNamedAgent('guest', petName);
+      let guest = await getNamedAgent(petName);
       if (guest === undefined) {
         const { value, formulaIdentifier } =
           // Behold, recursion:

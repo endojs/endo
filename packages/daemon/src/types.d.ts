@@ -53,7 +53,6 @@ export type MignonicPowers = {
 };
 
 type FormulaIdentifierRecord = {
-  type?: string;
   number: string;
   node: string;
 };
@@ -717,7 +716,6 @@ export type DaemonicPowers = {
 
 type IncarnateResult<T> = Promise<{
   formulaIdentifier: string;
-  typedFormulaIdentifier: string;
   value: T;
 }>;
 
@@ -803,7 +801,6 @@ export interface DaemonCore {
     formula: Formula,
   ) => Promise<{
     formulaIdentifier: string;
-    typedFormulaIdentifier: string;
     value: unknown;
   }>;
   getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
