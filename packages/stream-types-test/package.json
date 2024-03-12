@@ -41,7 +41,7 @@
   },
   "files": [],
   "publishConfig": {
-    "access": "private"
+    "access": "restricted"
   },
   "eslintConfig": {
     "extends": [
