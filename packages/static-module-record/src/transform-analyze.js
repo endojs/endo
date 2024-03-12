@@ -7,6 +7,11 @@ import * as h from './hidden.js';
 const { freeze } = Object;
 
 const makeCreateStaticRecord = transformSource =>
+  /**
+   *
+   * @param {string} moduleSource
+   * @param {import('./static-module-record.js').Options} options
+   */
   function createStaticRecord(
     moduleSource,
     { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook } = {},
