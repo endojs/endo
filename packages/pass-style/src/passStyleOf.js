@@ -24,6 +24,7 @@ import { RemotableHelper } from './remotable.js';
 
 import { assertPassableSymbol } from './symbol.js';
 import { assertSafePromise } from './safe-promise.js';
+import { assertPassableString } from './string.js';
 
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').Passable} Passable */
@@ -134,11 +135,14 @@ const makePassStyleOf = passStyleHelpers => {
       const typestr = typeof inner;
       switch (typestr) {
         case 'undefined':
-        case 'string':
         case 'boolean':
         case 'number':
         case 'bigint': {
           return typestr;
+        }
+        case 'string': {
+          assertPassableString(inner);
+          return 'string';
         }
         case 'symbol': {
           assertPassableSymbol(inner);

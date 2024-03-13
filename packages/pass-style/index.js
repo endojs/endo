@@ -19,6 +19,12 @@ export {
 } from './src/symbol.js';
 
 export {
+  isWellFormedString,
+  assertWellFormedString,
+  assertPassableString,
+} from './src/string.js';
+
+export {
   passStyleOf,
   isPassable,
   assertPassable,
