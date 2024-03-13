@@ -231,10 +231,34 @@ test('persist spawn and evaluation', async t => {
   await stop(locator);
 });
 
-test('store', async t => {
+test('store without name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'store');
+  const locator = makeLocator('tmp', 'store-without-name');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readable = await E(host).store(readerRef);
+  const actualText = await E(readable).text();
+  t.is(actualText, 'hello\n');
+
+  await stop(locator);
+});
+
+test('store with name', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'store-with-name');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -249,7 +273,9 @@ test('store', async t => {
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
     const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-    await E(host).store(readerRef, 'hello-text');
+    const readable = await E(host).store(readerRef, 'hello-text');
+    const actualText = await E(readable).text();
+    t.is(actualText, 'hello\n');
   }
 
   {
@@ -1320,11 +1346,9 @@ test('read unknown nodeId', async t => {
   // write a bogus value for a bogus nodeId
   const node = await cryptoPowers.randomHex512();
   const number = await cryptoPowers.randomHex512();
-  const type = 'eval';
   const formulaIdentifier = formatId({
     node,
     number,
-    type,
   });
   await E(host).write(['abc'], formulaIdentifier);
   // observe reification failure
