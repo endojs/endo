@@ -1,11 +1,9 @@
 /* eslint-disable no-useless-concat */
+import './prepare-only-well-formed-strings-passable.js';
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import {
-  passStyleOf,
-  isWellFormedString,
-  assertWellFormedString,
-} from '../src/passStyleOf.js';
+import { isWellFormedString, assertWellFormedString } from '../src/string.js';
+import { passStyleOf } from '../src/passStyleOf.js';
 
 test('test string well formedness behaviors', t => {
   const gcleff1 = '\u{1D11E}';

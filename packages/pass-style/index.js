@@ -19,14 +19,18 @@ export {
 } from './src/symbol.js';
 
 export {
+  isWellFormedString,
+  assertWellFormedString,
+  assertPassableString,
+} from './src/string.js';
+
+export {
   passStyleOf,
   isPassable,
   assertPassable,
   isPassableError,
   assertPassableError,
   toPassableError,
-  isWellFormedString,
-  assertWellFormedString,
 } from './src/passStyleOf.js';
 
 export { makeTagged } from './src/makeTagged.js';
