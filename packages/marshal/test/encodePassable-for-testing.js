@@ -54,12 +54,23 @@ const encodePassableInternal = makeEncodePassable({
   encodeError: er => encodeThing('!', er),
 });
 
+export const encodePassableInternal2 = makeEncodePassable({
+  encodeRemotable: r => encodeThing('r', r),
+  encodePromise: p => encodeThing('?', p),
+  encodeError: er => encodeThing('!', er),
+  format: 'compactOrdered',
+});
+
 export const encodePassable = passable => {
   resetBuffers();
   return encodePassableInternal(passable);
 };
 
-const decodePassableInternal = makeDecodePassable({
+export const encodePassable2 = passable => {
+  resetBuffers();
+  return encodePassableInternal2(passable);
+};
+export const decodePassableInternal = makeDecodePassable({
   decodeRemotable: e => decodeThing('r', e),
   decodePromise: e => decodeThing('?', e),
   decodeError: e => decodeThing('!', e),

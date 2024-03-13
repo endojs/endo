@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
 import test from '@endo/ses-ava/prepare-endo.js';
 
@@ -6,16 +7,60 @@ import { Remotable } from '@endo/pass-style';
 import { arbPassable } from '@endo/pass-style/tools.js';
 import { Fail } from '@endo/errors';
 
-// eslint-disable-next-line import/no-extraneous-dependencies
-
+import { makePassableKit, makeEncodePassable } from '../src/encodePassable.js';
 import { compareRank } from '../src/rankOrder.js';
-import { sample } from './test-rankOrder.js';
+import { unsortedSample } from './marshal-test-data.js';
 
 import {
   encodePassable,
+  encodePassable2,
+  encodePassableInternal2,
   decodePassable,
+  decodePassableInternal,
   compareFull,
 } from './encodePassable-for-testing.js';
+
+test('makePassableKit output shape', t => {
+  const kit = makePassableKit();
+  t.deepEqual(Reflect.ownKeys(kit).sort(), [
+    'decodePassable',
+    'encodePassable',
+  ]);
+  t.deepEqual(
+    Object.fromEntries(
+      Object.entries(kit).map(([key, value]) => [key, typeof value]),
+    ),
+    { encodePassable: 'function', decodePassable: 'function' },
+  );
+});
+
+const verifyEncodeOptions = test.macro({
+  title: label => `${label} encode options validation`,
+  // eslint-disable-next-line no-shadow
+  exec: (t, makeEncodePassable) => {
+    t.notThrows(() => makeEncodePassable(), 'must accept zero arguments');
+    t.notThrows(() => makeEncodePassable({}), 'must accept empty options');
+    t.notThrows(
+      () => makeEncodePassable({ format: 'legacyOrdered' }),
+      'must accept format: "legacyOrdered"',
+    );
+    t.notThrows(
+      () => makeEncodePassable({ format: 'compactOrdered' }),
+      'must accept format: "compactOrdered"',
+    );
+    t.throws(
+      () => makeEncodePassable({ format: 'newHotness' }),
+      { message: /^Unrecognized format\b/ },
+      'must reject unknown format',
+    );
+  },
+});
+test('makeEncodePassable', verifyEncodeOptions, makeEncodePassable);
+test(
+  'makePassableKit',
+  verifyEncodeOptions,
+  (...args) => makePassableKit(...args).encodePassable,
+);
 
 const asNumber = new Float64Array(1);
 const asBits = new BigUint64Array(asNumber.buffer);
@@ -31,7 +76,7 @@ const getNaN = (hexEncoding = '0008000000000000') => {
 
 const NegativeNaN = getNaN('ffffffffffffffff');
 
-/** @type {[number | bigint, string][]} */
+/** @type {[Key, string][]} */
 const goldenPairs = harden([
   [1, 'fbff0000000000000'],
   [-1, 'f400fffffffffffff'],
