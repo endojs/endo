@@ -75,6 +75,13 @@ type WorkerFormula = {
   type: 'worker';
 };
 
+/**
+ * Deferred tasks parameters for `host` and `guest` formulas.
+ */
+export type PartyDeferredTaskParams = {
+  partyFormulaIdentifier: string;
+};
+
 type HostFormula = {
   type: 'host';
   worker: string;
@@ -85,19 +92,11 @@ type HostFormula = {
   leastAuthority: string;
 };
 
-export type HostDeferredTaskParams = {
-  hostFormulaIdentifier: string;
-};
-
 type GuestFormula = {
   type: 'guest';
   host: string;
   petStore: string;
   worker: string;
-};
-
-export type GuestDeferredTaskParams = {
-  guestFormulaIdentifier: string;
 };
 
 type LeastAuthorityFormula = {
@@ -817,12 +816,12 @@ export interface DaemonCore {
     endoFormulaIdentifier: string,
     networksDirectoryFormulaIdentifier: string,
     leastAuthorityFormulaIdentifier: string,
-    deferredTasks: DeferredTasks<HostDeferredTaskParams>,
+    deferredTasks: DeferredTasks<PartyDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
   incarnateGuest: (
     hostFormulaIdentifier: string,
-    deferredTasks: DeferredTasks<GuestDeferredTaskParams>,
+    deferredTasks: DeferredTasks<PartyDeferredTaskParams>,
   ) => IncarnateResult<EndoGuest>;
   incarnateReadableBlob: (
     contentSha512: string,

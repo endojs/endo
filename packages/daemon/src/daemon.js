@@ -686,7 +686,7 @@ const makeDaemonCore = async (
       );
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      return provideRemoteValue(peerIdentifier, formulaIdentifier, context);
+      return provideRemoteValue(peerIdentifier, formulaIdentifier);
     }
     const formula = await persistencePowers.readFormula(formulaNumber);
     if (
@@ -1048,22 +1048,22 @@ const makeDaemonCore = async (
   };
 
   /** @type {import('./types.js').PrivateDaemonCore['incarnateNumberedHost']} */
-  const incarnateNumberedHost = identfiers => {
+  const incarnateNumberedHost = identifiers => {
     /** @type {import('./types.js').HostFormula} */
     const formula = {
       type: 'host',
-      petStore: identfiers.storeFormulaIdentifier,
-      inspector: identfiers.inspectorFormulaIdentifier,
-      worker: identfiers.workerFormulaIdentifier,
-      endo: identfiers.endoFormulaIdentifier,
-      networks: identfiers.networksDirectoryFormulaIdentifier,
-      leastAuthority: identfiers.leastAuthorityFormulaIdentifier,
+      petStore: identifiers.storeFormulaIdentifier,
+      inspector: identifiers.inspectorFormulaIdentifier,
+      worker: identifiers.workerFormulaIdentifier,
+      endo: identifiers.endoFormulaIdentifier,
+      networks: identifiers.networksDirectoryFormulaIdentifier,
+      leastAuthority: identifiers.leastAuthorityFormulaIdentifier,
     };
 
     return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
       provideValueForNumberedFormula(
         'host',
-        identfiers.hostFormulaNumber,
+        identifiers.hostFormulaNumber,
         formula,
       )
     );
@@ -1087,7 +1087,7 @@ const makeDaemonCore = async (
         });
 
         await deferredTasks.execute({
-          hostFormulaIdentifier: formatId({
+          partyFormulaIdentifier: formatId({
             type: 'host',
             number: identifiers.hostFormulaNumber,
             node: ownNodeIdentifier,
@@ -1145,7 +1145,7 @@ const makeDaemonCore = async (
         );
 
         await deferredTasks.execute({
-          guestFormulaIdentifier: formatId({
+          partyFormulaIdentifier: formatId({
             type: 'guest',
             number: identifiers.guestFormulaNumber,
             node: ownNodeIdentifier,
@@ -1622,13 +1622,11 @@ const makeDaemonCore = async (
    * originate from the specified peer.
    * @param {string} peerFormulaIdentifier
    * @param {string} remoteValueFormulaIdentifier
-   * @param {import('./types.js').Context} context
    * @returns {Promise<import('./types.js').ControllerPartial<unknown, undefined>>}
    */
   const provideRemoteValue = async (
     peerFormulaIdentifier,
     remoteValueFormulaIdentifier,
-    context,
   ) => {
     const peer = /** @type {import('./types.js').EndoPeer} */ (
       await provideValueForFormulaIdentifier(peerFormulaIdentifier)

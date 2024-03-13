@@ -330,7 +330,10 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string} formulaIdentifier - The guest or host formula identifier.
+     * Attempts to introduce the given names to the specified party. The party in question
+     * must be incarnated before this function is called.
+     *
+     * @param {string} formulaIdentifier - The party's formula identifier.
      * @param {Record<string,string>} introducedNames - The names to introduce.
      * @returns {Promise<void>}
      */
@@ -355,59 +358,69 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string} [petName]
-     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
-     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
+     * @param {'guest' | 'host'} formulaType - The party's formula type.
+     * @param {string} [petName] - The party's potential pet name.
      */
-    const makeHost = async (petName, { introducedNames = {} } = {}) => {
+    const getNamedParty = (formulaType, petName) => {
       if (petName !== undefined) {
         const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier !== undefined) {
-          if (parseId(formulaIdentifier).type !== 'host') {
+          if (parseId(formulaIdentifier).type !== formulaType) {
             throw new Error(
-              `Existing pet name does not designate a host powers capability: ${q(
+              `Existing pet name does not designate a ${formulaType} powers capability: ${q(
                 petName,
               )}`,
             );
           }
 
-          // TODO: This should be awaited
-          introduceNamesToParty(formulaIdentifier, introducedNames);
-          const hostController =
-            provideControllerForFormulaIdentifier(formulaIdentifier);
           return {
             formulaIdentifier,
-            value: /** @type {Promise<import('./types.js').EndoHost>} */ (
-              hostController.external
+            value: /** @type {Promise<any>} */ (
+              provideControllerForFormulaIdentifier(formulaIdentifier).external
             ),
           };
         }
       }
+      return undefined;
+    };
 
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').HostDeferredTaskParams>} */
+    /**
+     * @param {string} [petName] - The pet name of the party.
+     */
+    const getDeferredTasksForParty = petName => {
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').PartyDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       if (petName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(petName, identifiers.hostFormulaIdentifier),
+          petStore.write(petName, identifiers.partyFormulaIdentifier),
         );
       }
+      return tasks;
+    };
 
-      const { value, formulaIdentifier } =
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        await incarnateHost(
-          endoFormulaIdentifier,
-          networksDirectoryFormulaIdentifier,
-          leastAuthorityFormulaIdentifier,
-          tasks,
-        );
-      // TODO: This should be awaited
-      introduceNamesToParty(formulaIdentifier, introducedNames);
+    /**
+     * @param {string} [petName]
+     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
+     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
+     */
+    const makeHost = async (petName, { introducedNames = {} } = {}) => {
+      let host = getNamedParty('host', petName);
+      if (host === undefined) {
+        const { value, formulaIdentifier } =
+          // Behold, recursion:
+          await incarnateHost(
+            endoFormulaIdentifier,
+            networksDirectoryFormulaIdentifier,
+            leastAuthorityFormulaIdentifier,
+            getDeferredTasksForParty(petName),
+          );
+        host = { value: Promise.resolve(value), formulaIdentifier };
+      }
 
-      return {
-        value: Promise.resolve(value),
-        formulaIdentifier,
-      };
+      await introduceNamesToParty(host.formulaIdentifier, introducedNames);
+
+      /** @type {{ formulaIdentifier: string, value: Promise<import('./types.js').EndoHost> }} */
+      return host;
     };
 
     /** @type {import('./types.js').EndoHost['provideHost']} */
@@ -422,49 +435,21 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
      */
     const makeGuest = async (petName, { introducedNames = {} } = {}) => {
-      if (petName !== undefined) {
-        const formulaIdentifier = petStore.identifyLocal(petName);
-        if (formulaIdentifier !== undefined) {
-          if (parseId(formulaIdentifier).type !== 'guest') {
-            throw new Error(
-              `Existing pet name does not designate a guest powers capability: ${q(
-                petName,
-              )}`,
-            );
-          }
-
-          // TODO: This should be awaited
-          introduceNamesToParty(formulaIdentifier, introducedNames);
-          const guestController =
-            provideControllerForFormulaIdentifier(formulaIdentifier);
-          return {
-            formulaIdentifier,
-            value: /** @type {Promise<import('./types.js').EndoGuest>} */ (
-              guestController.external
-            ),
-          };
-        }
+      let guest = getNamedParty('guest', petName);
+      if (guest === undefined) {
+        const { value, formulaIdentifier } =
+          // Behold, recursion:
+          await incarnateGuest(
+            hostFormulaIdentifier,
+            getDeferredTasksForParty(petName),
+          );
+        guest = { value: Promise.resolve(value), formulaIdentifier };
       }
 
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').GuestDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      if (petName !== undefined) {
-        tasks.push(identifiers =>
-          petStore.write(petName, identifiers.guestFormulaIdentifier),
-        );
-      }
+      await introduceNamesToParty(guest.formulaIdentifier, introducedNames);
 
-      const { value, formulaIdentifier } =
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        await incarnateGuest(hostFormulaIdentifier, tasks);
-      // TODO: This should be awaited
-      introduceNamesToParty(formulaIdentifier, introducedNames);
-
-      return {
-        value: Promise.resolve(value),
-        formulaIdentifier,
-      };
+      /** @type {{ formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest> }} */
+      return guest;
     };
 
     /** @type {import('./types.js').EndoHost['provideGuest']} */
