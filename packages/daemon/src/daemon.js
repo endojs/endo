@@ -911,14 +911,14 @@ const makeDaemonCore = async (
     };
 
   /**
-   * @type {import('./types.js').DaemonCore['incarnateLeastAuthority']}
+   * @type {import('./types.js').DaemonCoreInternal['incarnateNumberedLeastAuthority']}
    */
-  const incarnateLeastAuthority = async () => {
-    const formulaNumber = await randomHex512();
+  const incarnateNumberedLeastAuthority = async formulaNumber => {
     /** @type {import('./types.js').LeastAuthorityFormula} */
     const formula = {
       type: 'least-authority',
     };
+
     return /** @type {import('./types').IncarnateResult<import('./types').EndoGuest>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
@@ -1017,7 +1017,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @type {import('./types.js').PrivateDaemonCore['incarnateHostDependencies']}
+   * @type {import('./types.js').DaemonCoreInternal['incarnateHostDependencies']}
    */
   const incarnateHostDependencies = async specifiedIdentifiers => {
     const {
@@ -1047,7 +1047,7 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').PrivateDaemonCore['incarnateNumberedHost']} */
+  /** @type {import('./types.js').DaemonCoreInternal['incarnateNumberedHost']} */
   const incarnateNumberedHost = identifiers => {
     /** @type {import('./types.js').HostFormula} */
     const formula = {
@@ -1099,7 +1099,7 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').PrivateDaemonCore['incarnateGuestDependencies']} */
+  /** @type {import('./types.js').DaemonCoreInternal['incarnateGuestDependencies']} */
   const incarnateGuestDependencies = async hostFormulaIdentifier =>
     harden({
       guestFormulaNumber: await randomHex512(),
@@ -1117,7 +1117,7 @@ const makeDaemonCore = async (
       ).formulaIdentifier,
     });
 
-  /** @type {import('./types.js').PrivateDaemonCore['incarnateNumberedGuest']} */
+  /** @type {import('./types.js').DaemonCoreInternal['incarnateNumberedGuest']} */
   const incarnateNumberedGuest = identifiers => {
     /** @type {import('./types.js').GuestFormula} */
     const formula = {
@@ -1498,7 +1498,7 @@ const makeDaemonCore = async (
     const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
       await incarnateNetworksDirectory();
     const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
-      await incarnateLeastAuthority();
+      await incarnateNumberedLeastAuthority(await randomHex512());
     const { typedFormulaIdentifier: newPeersFormulaIdentifier } =
       await incarnateNumberedPetStore(peersFormulaNumber);
     if (newPeersFormulaIdentifier !== peersFormulaIdentifier) {
@@ -1818,7 +1818,6 @@ const makeDaemonCore = async (
     makeMailbox,
     makeDirectoryNode,
     incarnateEndoBootstrap,
-    incarnateLeastAuthority,
     incarnateNetworksDirectory,
     incarnateLoopbackNetwork,
     incarnateDirectory,
