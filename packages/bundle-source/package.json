@@ -14,6 +14,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
+    "postinstall": "patch-package",
     "build": "exit 0",
     "build:types": "tsc --build tsconfig.build.json",
     "clean:types": "git clean -f '*.d.ts*'",
