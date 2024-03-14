@@ -11,16 +11,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: ['16.x']
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: 'true'
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 18.x
       - name: Install graphviz
         run: sudo apt install -y graphviz
 

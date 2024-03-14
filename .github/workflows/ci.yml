@@ -119,9 +119,9 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
-          - '16.1' # last version before some significant promise hooks changes
-          - '16.5' # last version before unconditional promise fast-path
-          - '16.6' # first version after unconditional promise fast-path
+          # - '16.1' # last version before some significant promise hooks changes
+          # - '16.5' # last version before unconditional promise fast-path
+          # - '16.6' # first version after unconditional promise fast-path
           - '18' # Active LTS
           # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
           # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
