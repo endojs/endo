@@ -686,7 +686,7 @@ const makeDaemonCore = async (
       );
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      return provideRemoteValue(peerIdentifier, formulaIdentifier, context);
+      return provideRemoteValue(peerIdentifier, formulaIdentifier);
     }
     const formula = await persistencePowers.readFormula(formulaNumber);
     if (
@@ -1016,43 +1016,90 @@ const makeDaemonCore = async (
     return incarnateNumberedWorker(formulaNumber);
   };
 
+  /**
+   * @type {import('./types.js').PrivateDaemonCore['incarnateHostDependencies']}
+   */
+  const incarnateHostDependencies = async specifiedIdentifiers => {
+    const {
+      specifiedWorkerFormulaIdentifier,
+      ...remainingSpecifiedIdentifiers
+    } = specifiedIdentifiers;
+
+    const storeFormulaIdentifier = (
+      await incarnateNumberedPetStore(await randomHex512())
+    ).formulaIdentifier;
+
+    return harden({
+      ...remainingSpecifiedIdentifiers,
+      hostFormulaNumber: await randomHex512(),
+      storeFormulaIdentifier,
+      /* eslint-disable no-use-before-define */
+      inspectorFormulaIdentifier: (
+        await incarnateNumberedPetInspector(
+          await randomHex512(),
+          storeFormulaIdentifier,
+        )
+      ).formulaIdentifier,
+      workerFormulaIdentifier: await provideWorkerFormulaIdentifier(
+        specifiedWorkerFormulaIdentifier,
+      ),
+      /* eslint-enable no-use-before-define */
+    });
+  };
+
+  /** @type {import('./types.js').PrivateDaemonCore['incarnateNumberedHost']} */
+  const incarnateNumberedHost = identifiers => {
+    /** @type {import('./types.js').HostFormula} */
+    const formula = {
+      type: 'host',
+      petStore: identifiers.storeFormulaIdentifier,
+      inspector: identifiers.inspectorFormulaIdentifier,
+      worker: identifiers.workerFormulaIdentifier,
+      endo: identifiers.endoFormulaIdentifier,
+      networks: identifiers.networksDirectoryFormulaIdentifier,
+      leastAuthority: identifiers.leastAuthorityFormulaIdentifier,
+    };
+
+    return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
+      provideValueForNumberedFormula(
+        'host',
+        identifiers.hostFormulaNumber,
+        formula,
+      )
+    );
+  };
+
   /** @type {import('./types.js').DaemonCore['incarnateHost']} */
   const incarnateHost = async (
     endoFormulaIdentifier,
     networksDirectoryFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
+    deferredTasks,
     specifiedWorkerFormulaIdentifier,
   ) => {
-    const formulaNumber = await randomHex512();
-    let workerFormulaIdentifier = specifiedWorkerFormulaIdentifier;
-    if (workerFormulaIdentifier === undefined) {
-      ({ formulaIdentifier: workerFormulaIdentifier } =
-        await incarnateNumberedWorker(await randomHex512()));
-    }
-    const { formulaIdentifier: storeFormulaIdentifier } =
-      await incarnateNumberedPetStore(await randomHex512());
-    const { formulaIdentifier: inspectorFormulaIdentifier } =
-      // eslint-disable-next-line no-use-before-define
-      await incarnatePetInspector(storeFormulaIdentifier);
-    /** @type {import('./types.js').HostFormula} */
-    const formula = {
-      type: 'host',
-      petStore: storeFormulaIdentifier,
-      inspector: inspectorFormulaIdentifier,
-      worker: workerFormulaIdentifier,
-      endo: endoFormulaIdentifier,
-      networks: networksDirectoryFormulaIdentifier,
-      leastAuthority: leastAuthorityFormulaIdentifier,
-    };
-    return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
-      provideValueForNumberedFormula('host', formulaNumber, formula)
+    return incarnateNumberedHost(
+      await formulaGraphJobs.enqueue(async () => {
+        const identifiers = await incarnateHostDependencies({
+          endoFormulaIdentifier,
+          leastAuthorityFormulaIdentifier,
+          networksDirectoryFormulaIdentifier,
+          specifiedWorkerFormulaIdentifier,
+        });
+
+        await deferredTasks.execute({
+          agentFormulaIdentifier: formatId({
+            type: 'host',
+            number: identifiers.hostFormulaNumber,
+            node: ownNodeIdentifier,
+          }),
+        });
+
+        return identifiers;
+      }),
     );
   };
 
-  /**
-   * Helper for callers of `incarnateNumberedGuest`.
-   * @param {string} hostFormulaIdentifier - The formula identifier of the host.
-   */
+  /** @type {import('./types.js').PrivateDaemonCore['incarnateGuestDependencies']} */
   const incarnateGuestDependencies = async hostFormulaIdentifier =>
     harden({
       guestFormulaNumber: await randomHex512(),
@@ -1070,27 +1117,22 @@ const makeDaemonCore = async (
       ).formulaIdentifier,
     });
 
-  /**
-   *
-   * @param {ReturnType<any>} identifiers
-   */
+  /** @type {import('./types.js').PrivateDaemonCore['incarnateNumberedGuest']} */
   const incarnateNumberedGuest = identifiers => {
-    const {
-      guestFormulaNumber,
-      hostHandleFormulaIdentifier,
-      storeFormulaIdentifier,
-      workerFormulaIdentifier,
-    } = identifiers;
-
     /** @type {import('./types.js').GuestFormula} */
     const formula = {
       type: 'guest',
-      host: hostHandleFormulaIdentifier,
-      petStore: storeFormulaIdentifier,
-      worker: workerFormulaIdentifier,
+      host: identifiers.hostHandleFormulaIdentifier,
+      petStore: identifiers.storeFormulaIdentifier,
+      worker: identifiers.workerFormulaIdentifier,
     };
+
     return /** @type {import('./types').IncarnateResult<import('./types').EndoGuest>} */ (
-      provideValueForNumberedFormula(formula.type, guestFormulaNumber, formula)
+      provideValueForNumberedFormula(
+        formula.type,
+        identifiers.guestFormulaNumber,
+        formula,
+      )
     );
   };
 
@@ -1103,7 +1145,7 @@ const makeDaemonCore = async (
         );
 
         await deferredTasks.execute({
-          guestFormulaIdentifier: formatId({
+          agentFormulaIdentifier: formatId({
             type: 'guest',
             number: identifiers.guestFormulaNumber,
             node: ownNodeIdentifier,
@@ -1382,9 +1424,14 @@ const makeDaemonCore = async (
     return provideValueForNumberedFormula(formula.type, formulaNumber, formula);
   };
 
-  /** @type {import('./types.js').DaemonCore['incarnatePetInspector']} */
-  const incarnatePetInspector = async petStoreFormulaIdentifier => {
-    const formulaNumber = await randomHex512();
+  /**
+   * @param {string} formulaNumber
+   * @param {string} petStoreFormulaIdentifier
+   */
+  const incarnateNumberedPetInspector = (
+    formulaNumber,
+    petStoreFormulaIdentifier,
+  ) => {
     /** @type {import('./types.js').PetInspectorFormula} */
     const formula = {
       type: 'pet-inspector',
@@ -1460,11 +1507,13 @@ const makeDaemonCore = async (
 
     // Ensure the default host is incarnated and persisted.
     const { formulaIdentifier: defaultHostFormulaIdentifier } =
-      await incarnateHost(
-        endoFormulaIdentifier,
-        networksDirectoryFormulaIdentifier,
-        leastAuthorityFormulaIdentifier,
-        defaultHostWorkerFormulaIdentifier,
+      await incarnateNumberedHost(
+        await incarnateHostDependencies({
+          endoFormulaIdentifier,
+          networksDirectoryFormulaIdentifier,
+          leastAuthorityFormulaIdentifier,
+          specifiedWorkerFormulaIdentifier: defaultHostWorkerFormulaIdentifier,
+        }),
       );
     // If supported, ensure the web page bundler is incarnated and persisted.
     let webPageJsFormulaIdentifier;
@@ -1573,13 +1622,11 @@ const makeDaemonCore = async (
    * originate from the specified peer.
    * @param {string} peerFormulaIdentifier
    * @param {string} remoteValueFormulaIdentifier
-   * @param {import('./types.js').Context} context
    * @returns {Promise<import('./types.js').ControllerPartial<unknown, undefined>>}
    */
   const provideRemoteValue = async (
     peerFormulaIdentifier,
     remoteValueFormulaIdentifier,
-    context,
   ) => {
     const peer = /** @type {import('./types.js').EndoPeer} */ (
       await provideValueForFormulaIdentifier(peerFormulaIdentifier)
@@ -1632,7 +1679,7 @@ const makeDaemonCore = async (
   });
 
   /**
-   * Creates an inspector for the current party's pet store, used to create
+   * Creates an inspector for the current agent's pet store, used to create
    * inspectors for values therein. Notably, can provide references to otherwise
    * un-nameable values such as the `MAIN` worker. See `KnownEndoInspectors` for
    * more details.
@@ -1785,7 +1832,6 @@ const makeDaemonCore = async (
     incarnateBundler,
     incarnateBundle,
     incarnateWebBundle,
-    incarnatePetInspector,
   };
   return daemonCore;
 };
