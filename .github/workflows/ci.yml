@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x]
+        node-version: [18.x, 20.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -73,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x]
+        node-version: [18.x, 20.x]
         platform: [ubuntu-latest, windows-latest]
 
     steps:
@@ -119,13 +119,15 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
-          # - '16.1' # last version before some significant promise hooks changes
-          # - '16.5' # last version before unconditional promise fast-path
-          # - '16.6' # first version after unconditional promise fast-path
-          - '18' # Active LTS
+          # '16.1' last version before some significant promise hooks changes
+          # '16.5' last version before unconditional promise fast-path
+          # '16.6' first version after unconditional promise fast-path
+          - '18'
           # '20.6' not viable due to https://github.com/nodejs/node/issues/49497
           # '20.3' to '20.6' not viable due to https://github.com/nodejs/node/pull/49211
-          - '20.7' # Future LTS
+          # '20.7' first SES-viable version
+          # '20.9' first LTS of 20
+          - '20'
         platform:
           - ubuntu-latest
 
@@ -175,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x]
+        node-version: [18.x, 20.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -221,7 +223,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x]
+        node-version: [18.x, 20.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -267,7 +269,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x]
+        node-version: [18.x, 20.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -321,7 +323,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x]
+        node-version: [18.x, 20.x]
         platform: [ubuntu-latest]
 
     steps:
