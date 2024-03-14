@@ -164,15 +164,15 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} agentName
      * @param {import('./types.js').DeferredTasks<{ powersFormulaIdentifier: string }>['push']} deferTask
      * @returns {string | undefined}
      */
-    const preparePowersFormulaIdentifier = (partyName, deferTask) => {
-      const powersFormulaIdentifier = petStore.identifyLocal(partyName);
+    const preparePowersFormulaIdentifier = (agentName, deferTask) => {
+      const powersFormulaIdentifier = petStore.identifyLocal(agentName);
       if (powersFormulaIdentifier === undefined) {
         deferTask(identifiers =>
-          petStore.write(partyName, identifiers.powersFormulaIdentifier),
+          petStore.write(agentName, identifiers.powersFormulaIdentifier),
         );
       }
       return powersFormulaIdentifier;
@@ -330,14 +330,14 @@ export const makeHostMaker = ({
     };
 
     /**
-     * Attempts to introduce the given names to the specified party. The party in question
+     * Attempts to introduce the given names to the specified agent. The agent in question
      * must be incarnated before this function is called.
      *
-     * @param {string} formulaIdentifier - The party's formula identifier.
+     * @param {string} formulaIdentifier - The agent's formula identifier.
      * @param {Record<string,string>} introducedNames - The names to introduce.
      * @returns {Promise<void>}
      */
-    const introduceNamesToParty = async (
+    const introduceNamesToAgent = async (
       formulaIdentifier,
       introducedNames,
     ) => {
@@ -358,10 +358,10 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {'guest' | 'host'} formulaType - The party's formula type.
-     * @param {string} [petName] - The party's potential pet name.
+     * @param {'guest' | 'host'} formulaType - The agent's formula type.
+     * @param {string} [petName] - The agent's potential pet name.
      */
-    const getNamedParty = (formulaType, petName) => {
+    const getNamedAgent = (formulaType, petName) => {
       if (petName !== undefined) {
         const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier !== undefined) {
@@ -385,14 +385,14 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string} [petName] - The pet name of the party.
+     * @param {string} [petName] - The pet name of the agent.
      */
-    const getDeferredTasksForParty = petName => {
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').PartyDeferredTaskParams>} */
+    const getDeferredTasksForAgent = petName => {
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       if (petName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(petName, identifiers.partyFormulaIdentifier),
+          petStore.write(petName, identifiers.agentFormulaIdentifier),
         );
       }
       return tasks;
@@ -404,7 +404,7 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
      */
     const makeHost = async (petName, { introducedNames = {} } = {}) => {
-      let host = getNamedParty('host', petName);
+      let host = getNamedAgent('host', petName);
       if (host === undefined) {
         const { value, formulaIdentifier } =
           // Behold, recursion:
@@ -412,12 +412,12 @@ export const makeHostMaker = ({
             endoFormulaIdentifier,
             networksDirectoryFormulaIdentifier,
             leastAuthorityFormulaIdentifier,
-            getDeferredTasksForParty(petName),
+            getDeferredTasksForAgent(petName),
           );
         host = { value: Promise.resolve(value), formulaIdentifier };
       }
 
-      await introduceNamesToParty(host.formulaIdentifier, introducedNames);
+      await introduceNamesToAgent(host.formulaIdentifier, introducedNames);
 
       /** @type {{ formulaIdentifier: string, value: Promise<import('./types.js').EndoHost> }} */
       return host;
@@ -435,18 +435,18 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
      */
     const makeGuest = async (petName, { introducedNames = {} } = {}) => {
-      let guest = getNamedParty('guest', petName);
+      let guest = getNamedAgent('guest', petName);
       if (guest === undefined) {
         const { value, formulaIdentifier } =
           // Behold, recursion:
           await incarnateGuest(
             hostFormulaIdentifier,
-            getDeferredTasksForParty(petName),
+            getDeferredTasksForAgent(petName),
           );
         guest = { value: Promise.resolve(value), formulaIdentifier };
       }
 
-      await introduceNamesToParty(guest.formulaIdentifier, introducedNames);
+      await introduceNamesToAgent(guest.formulaIdentifier, introducedNames);
 
       /** @type {{ formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest> }} */
       return guest;
@@ -459,14 +459,14 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} partyName
+     * @param {string | 'NONE' | 'SELF' | 'ENDO'} agentName
      * @returns {Promise<string>}
      */
-    const providePowersFormulaIdentifier = async partyName => {
-      let guestFormulaIdentifier = petStore.identifyLocal(partyName);
+    const providePowersFormulaIdentifier = async agentName => {
+      let guestFormulaIdentifier = petStore.identifyLocal(agentName);
       if (guestFormulaIdentifier === undefined) {
         ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
-          partyName,
+          agentName,
         ));
         if (guestFormulaIdentifier === undefined) {
           throw new Error(

@@ -1087,7 +1087,7 @@ const makeDaemonCore = async (
         });
 
         await deferredTasks.execute({
-          partyFormulaIdentifier: formatId({
+          agentFormulaIdentifier: formatId({
             type: 'host',
             number: identifiers.hostFormulaNumber,
             node: ownNodeIdentifier,
@@ -1145,7 +1145,7 @@ const makeDaemonCore = async (
         );
 
         await deferredTasks.execute({
-          partyFormulaIdentifier: formatId({
+          agentFormulaIdentifier: formatId({
             type: 'guest',
             number: identifiers.guestFormulaNumber,
             node: ownNodeIdentifier,
@@ -1679,7 +1679,7 @@ const makeDaemonCore = async (
   });
 
   /**
-   * Creates an inspector for the current party's pet store, used to create
+   * Creates an inspector for the current agent's pet store, used to create
    * inspectors for values therein. Notably, can provide references to otherwise
    * un-nameable values such as the `MAIN` worker. See `KnownEndoInspectors` for
    * more details.

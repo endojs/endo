@@ -78,8 +78,8 @@ type WorkerFormula = {
 /**
  * Deferred tasks parameters for `host` and `guest` formulas.
  */
-export type PartyDeferredTaskParams = {
-  partyFormulaIdentifier: string;
+export type AgentDeferredTaskParams = {
+  agentFormulaIdentifier: string;
 };
 
 type HostFormula = {
@@ -549,14 +549,14 @@ export interface EndoHost extends EndoDirectory {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
 }
 
-export interface InternalEndoParty {
+export interface InternalEndoAgent {
   receive: Mail['receive'];
   respond: Mail['respond'];
   petStore: PetStore;
 }
 
 export interface EndoHostController
-  extends Controller<FarRef<EndoHost>, InternalEndoParty> {}
+  extends Controller<FarRef<EndoHost>, InternalEndoAgent> {}
 
 export type EndoInspector<Record = string> = {
   lookup: (petName: Record) => Promise<unknown>;
@@ -816,12 +816,12 @@ export interface DaemonCore {
     endoFormulaIdentifier: string,
     networksDirectoryFormulaIdentifier: string,
     leastAuthorityFormulaIdentifier: string,
-    deferredTasks: DeferredTasks<PartyDeferredTaskParams>,
+    deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
   incarnateGuest: (
     hostFormulaIdentifier: string,
-    deferredTasks: DeferredTasks<PartyDeferredTaskParams>,
+    deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
   ) => IncarnateResult<EndoGuest>;
   incarnateReadableBlob: (
     contentSha512: string,
