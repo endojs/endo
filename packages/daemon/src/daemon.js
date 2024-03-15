@@ -1011,7 +1011,6 @@ const makeDaemonCore = async (
 
         await deferredTasks.execute({
           workerFormulaIdentifier: formatId({
-            type: 'worker',
             number: formulaNumber,
             node: ownNodeIdentifier,
           }),
