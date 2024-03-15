@@ -108,7 +108,7 @@ const makeDaemonCore = async (
   // This is the id of the node that is hosting the values.
   // This will likely get replaced with a public key in the future.
   const ownNodeIdentifier = deriveId(
-    'node-id',
+    'node',
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
