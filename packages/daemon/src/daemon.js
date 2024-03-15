@@ -112,6 +112,8 @@ const makeDaemonCore = async (
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
+  console.log('Node', ownNodeIdentifier);
+
   const peersFormulaNumber = deriveId(
     'peers',
     rootEntropy,
