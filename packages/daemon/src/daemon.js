@@ -55,6 +55,7 @@ const makeInspector = (type, number, record) =>
  */
 const makeFarContext = context =>
   Far('Context', {
+    id: () => context.id,
     cancel: context.cancel,
     whenCancelled: () => context.cancelled,
     whenDisposed: () => context.disposed,
@@ -339,6 +340,7 @@ const makeDaemonCore = async (
       source,
       codeNames,
       endowmentValues,
+      context.id,
       context.cancelled,
     );
 

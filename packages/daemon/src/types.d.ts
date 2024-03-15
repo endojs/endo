@@ -265,6 +265,10 @@ export interface Topic<
  */
 export interface Context {
   /**
+   * The identifier for the associated formula.
+   */
+  id: string;
+  /**
    * Cancel the value, preparing it for garbage collection. Cancellation
    * propagates to all values that depend on this value.
    *
@@ -308,6 +312,7 @@ export interface Context {
 }
 
 export interface FarContext {
+  id: () => string;
   cancel: (reason: Error) => Promise<void>;
   whenCancelled: () => Promise<never>;
   whenDisposed: () => Promise<void>;
