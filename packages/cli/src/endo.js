@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* global process */
-/* eslint-disable no-await-in-loop */
+/* eslint-disable no-await-in-loop, no-bitwise, no-throw-literal */
 
 // Establish a perimeter:
 import 'ses';
@@ -22,6 +22,10 @@ const commonOptions = {
   name: [
     '-n,--name <name>',
     'Assigns a name to the result for future reference',
+  ],
+  requiredName: [
+    '-n,--name <name>',
+    'Assigns a name to the result for future reference (required)',
   ],
 };
 
@@ -48,26 +52,49 @@ export const main = async rawArgs => {
   program.name('endo').version(packageDescriptor.version);
 
   program
-    .command('install <name> [filePath]')
+    .command('install [filePath]')
     .description('installs a web page (weblet)')
     .option(...commonOptions.as)
+    .option(
+      '-l,--listen,--port <number>',
+      'Port assignment (required)',
+      (arg, previous) => {
+        if (previous !== undefined) {
+          throw `-l,--listen,--port can only be specified once`;
+        }
+        const port = parseInt(arg, 10);
+        if (Number.isNaN(port) || (port & ~0xffff) !== 0) {
+          throw `-l,--listen,--port flag must be a valid port number, got ${JSON.stringify(
+            arg,
+          )}`;
+        }
+        return port;
+      },
+    )
     .option('-b,--bundle <bundle>', 'Bundle for a web page (weblet)')
     .option(
       '-p,--powers <endowment>',
       'Endowment to give the weblet (a name, NONE, SELF, or ENDO)',
     )
+    .option(...commonOptions.requiredName)
     .option('-o,--open', 'Open the new web page immediately (weblet)')
-    .action(async (webPageName, programPath, cmd) => {
+    .action(async (programPath, cmd) => {
       const {
+        name: webletName,
         bundle: bundleName,
         powers: powersName = 'NONE',
+        listen: requestedPort,
         as: partyNames,
         open: doOpen,
       } = cmd.opts();
+      if (requestedPort === undefined) {
+        throw 'The -l, --listen, or --port <number> flag is required';
+      }
       const { install } = await import('./commands/install.js');
       return install({
         doOpen,
-        webPageName,
+        webletName,
+        requestedPort,
         programPath,
         bundleName,
         powersName,
@@ -79,11 +106,11 @@ export const main = async rawArgs => {
     .command('open <name>')
     .description('opens a web page (weblet)')
     .option(...commonOptions.as)
-    .action(async (webPageName, cmd) => {
+    .action(async (webletName, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { open } = await import('./commands/open.js');
       return open({
-        webPageName,
+        webletName,
         partyNames,
       });
     });

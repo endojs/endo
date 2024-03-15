@@ -248,16 +248,16 @@ messages from your various guests.
 Weblets are web page caplets.
 These are programs, like the counter and doubler above, except that
 they run in a web page.
-The pet daemon can host any number of fully independent web applications on
-subdomains of `endo.localhost:8920`.
 Each of these applications is connected to the pet daemon and can make
 the same kinds of requests for data and powers.
+Each weblet runs on a separate local HTTP port so they have independent
+origins, so they own their local storage.
 
 _Familiar Chat_ is an example application that provides a web app for
 interacting with your pet daemon.
 
 ```
-> endo install familiar-chat cat.js --powers SELF
+> endo install cat.js --listen 8920 --powers SELF --name familiar-chat
 ```
 
 This command creates a web page named familiar-chat and endows it with the
