@@ -640,6 +640,7 @@ const makeDaemonCore = async (
       return provideRemoteValue(peerIdentifier, formulaIdentifier);
     }
     const formula = await persistencePowers.readFormula(formulaNumber);
+    console.log(`Making ${formula.type} ${formulaNumber}`);
     if (
       ![
         'endo',
@@ -738,7 +739,6 @@ const makeDaemonCore = async (
       return controller;
     }
 
-    console.log(`Making ${formulaIdentifier}`);
     const { promise: partial, resolve } =
       /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
         makePromiseKit()
