@@ -522,7 +522,7 @@ export interface EndoHost extends EndoDirectory {
     codeNames: Array<string>,
     petNames: Array<string>,
     resultName?: string,
-  );
+  ): Promise<unknown>;
   makeUnconfined(
     workerName: string | 'NEW' | 'MAIN',
     specifier: string,
