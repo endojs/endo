@@ -81,12 +81,13 @@ const deriveId = (path, rootNonce, digester) => {
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
+ * @param {import('./types.js').Specials} args.specials
  * @param {Promise<never>} args.gracePeriodElapsed
  */
 const makeDaemonCore = async (
   powers,
   rootEntropy,
-  { cancel, gracePeriodMs, gracePeriodElapsed },
+  { cancel, gracePeriodMs, gracePeriodElapsed, specials },
 ) => {
   const {
     crypto: cryptoPowers,
@@ -123,6 +124,72 @@ const makeDaemonCore = async (
     number: peersFormulaNumber,
     node: ownNodeIdentifier,
   });
+
+  // Prime least authority formula (without incarnation)
+  const leastAuthorityFormulaNumber = deriveId(
+    'none',
+    rootEntropy,
+    cryptoPowers.makeSha512(),
+  );
+  const leastAuthorityFormulaIdentifier = formatId({
+    number: leastAuthorityFormulaNumber,
+    node: ownNodeIdentifier,
+  });
+  await persistencePowers.writeFormula(
+    {
+      type: 'least-authority',
+    },
+    'least-authority',
+    leastAuthorityFormulaNumber,
+  );
+
+  // Prime main worker formula (without incarnation)
+  const mainWorkerFormulaNumber = deriveId(
+    'main',
+    rootEntropy,
+    cryptoPowers.makeSha512(),
+  );
+  const mainWorkerFormulaIdentifier = formatId({
+    number: mainWorkerFormulaNumber,
+    node: ownNodeIdentifier,
+  });
+  await persistencePowers.writeFormula(
+    {
+      type: 'worker',
+    },
+    'worker',
+    mainWorkerFormulaNumber,
+  );
+
+  /** @type {import('./types.js').Builtins} */
+  const builtins = {
+    NONE: leastAuthorityFormulaIdentifier,
+    MAIN: mainWorkerFormulaIdentifier,
+  };
+
+  // Generate platform formulas (without incarnation)
+  const platformNames = Object.fromEntries(
+    await Promise.all(
+      Object.entries(specials).map(async ([specialName, makeFormula]) => {
+        const formula = makeFormula(builtins);
+        const formulaNumber = deriveId(
+          specialName,
+          rootEntropy,
+          cryptoPowers.makeSha512(),
+        );
+        const formulaIdentifier = formatId({
+          number: formulaNumber,
+          node: ownNodeIdentifier,
+        });
+        await persistencePowers.writeFormula(
+          formula,
+          formula.type,
+          formulaNumber,
+        );
+        return [specialName, formulaIdentifier];
+      }),
+    ),
+  );
 
   /**
    * The two functions "provideValueForNumberedFormula" and "provideValueForFormulaIdentifier"
@@ -448,7 +515,8 @@ const makeDaemonCore = async (
         formula.worker,
         formula.endo,
         formula.networks,
-        formula.leastAuthority,
+        leastAuthorityFormulaIdentifier,
+        platformNames,
         context,
       );
     } else if (formula.type === 'guest') {
@@ -504,7 +572,7 @@ const makeDaemonCore = async (
           // Behold, recursion:
           return /** @type {Promise<import('./types.js').EndoGuest>} */ (
             // eslint-disable-next-line no-use-before-define
-            provideValueForFormulaIdentifier(formula.leastAuthority)
+            provideValueForFormulaIdentifier(leastAuthorityFormulaIdentifier)
           );
         },
         gateway: async () => {
@@ -835,20 +903,6 @@ const makeDaemonCore = async (
       }
     };
 
-  /**
-   * @type {import('./types.js').DaemonCoreInternal['incarnateNumberedLeastAuthority']}
-   */
-  const incarnateNumberedLeastAuthority = async formulaNumber => {
-    /** @type {import('./types.js').LeastAuthorityFormula} */
-    const formula = {
-      type: 'least-authority',
-    };
-
-    return /** @type {import('./types').IncarnateResult<import('./types').EndoGuest>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
-    );
-  };
-
   /** @type {import('./types.js').DaemonCore['incarnateReadableBlob']} */
   const incarnateReadableBlob = async contentSha512 => {
     const formulaNumber = await randomHex512();
@@ -982,7 +1036,6 @@ const makeDaemonCore = async (
       worker: identifiers.workerFormulaIdentifier,
       endo: identifiers.endoFormulaIdentifier,
       networks: identifiers.networksDirectoryFormulaIdentifier,
-      leastAuthority: identifiers.leastAuthorityFormulaIdentifier,
     };
 
     return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
@@ -998,7 +1051,6 @@ const makeDaemonCore = async (
   const incarnateHost = async (
     endoFormulaIdentifier,
     networksDirectoryFormulaIdentifier,
-    leastAuthorityFormulaIdentifier,
     deferredTasks,
     specifiedWorkerFormulaIdentifier,
   ) => {
@@ -1006,7 +1058,6 @@ const makeDaemonCore = async (
       await formulaGraphJobs.enqueue(async () => {
         const identifiers = await incarnateHostDependencies({
           endoFormulaIdentifier,
-          leastAuthorityFormulaIdentifier,
           networksDirectoryFormulaIdentifier,
           specifiedWorkerFormulaIdentifier,
         });
@@ -1384,8 +1435,6 @@ const makeDaemonCore = async (
       await incarnateNumberedWorker(await randomHex512());
     const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
       await incarnateNetworksDirectory();
-    const { formulaIdentifier: leastAuthorityFormulaIdentifier } =
-      await incarnateNumberedLeastAuthority(await randomHex512());
     const { formulaIdentifier: newPeersFormulaIdentifier } =
       await incarnateNumberedPetStore(peersFormulaNumber);
     if (newPeersFormulaIdentifier !== peersFormulaIdentifier) {
@@ -1398,7 +1447,6 @@ const makeDaemonCore = async (
         await incarnateHostDependencies({
           endoFormulaIdentifier,
           networksDirectoryFormulaIdentifier,
-          leastAuthorityFormulaIdentifier,
           specifiedWorkerFormulaIdentifier: defaultHostWorkerFormulaIdentifier,
         }),
       );
@@ -1701,11 +1749,12 @@ const makeDaemonCore = async (
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
+ * @param {import('./types.js').Specials} args.specials
  * @returns {Promise<import('./types.js').FarEndoBootstrap>}
  */
 const provideEndoBootstrap = async (
   powers,
-  { cancel, gracePeriodMs, gracePeriodElapsed },
+  { cancel, gracePeriodMs, gracePeriodElapsed, specials },
 ) => {
   const { persistence: persistencePowers } = powers;
   const { rootNonce: endoFormulaNumber, isNewlyCreated } =
@@ -1714,6 +1763,7 @@ const provideEndoBootstrap = async (
     cancel,
     gracePeriodMs,
     gracePeriodElapsed,
+    specials,
   });
   const isInitialized = !isNewlyCreated;
   if (isInitialized) {
@@ -1737,8 +1787,15 @@ const provideEndoBootstrap = async (
  * @param {string} daemonLabel
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
+ * @param {import('./types.js').Specials} [specials]
  */
-export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
+export const makeDaemon = async (
+  powers,
+  daemonLabel,
+  cancel,
+  cancelled,
+  specials = {},
+) => {
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
       makePromiseKit()
@@ -1760,6 +1817,7 @@ export const makeDaemon = async (powers, daemonLabel, cancel, cancelled) => {
     cancel,
     gracePeriodMs,
     gracePeriodElapsed,
+    specials,
   });
 
   await E(endoBootstrap).reviveNetworks();

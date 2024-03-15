@@ -86,7 +86,6 @@ type HostFormula = {
   petStore: string;
   endo: string;
   networks: string;
-  leastAuthority: string;
 };
 
 type GuestFormula = {
@@ -206,6 +205,15 @@ export type Formula =
   | PetStoreFormula
   | DirectoryFormula
   | PeerFormula;
+
+export type Builtins = {
+  NONE: string;
+  MAIN: string;
+};
+
+export type Specials = {
+  [specialName: string]: (builtins: Builtins) => Formula;
+};
 
 export type Label = {
   number: number;
@@ -708,7 +716,6 @@ type IncarnateNumberedGuestParams = {
 
 type IncarnateHostDependenciesParams = {
   endoFormulaIdentifier: string;
-  leastAuthorityFormulaIdentifier: string;
   networksDirectoryFormulaIdentifier: string;
   specifiedWorkerFormulaIdentifier?: string;
 };
@@ -720,7 +727,6 @@ type IncarnateNumberedHostParams = {
   inspectorFormulaIdentifier: string;
   endoFormulaIdentifier: string;
   networksDirectoryFormulaIdentifier: string;
-  leastAuthorityFormulaIdentifier: string;
 };
 
 export interface DaemonCoreInternal {
@@ -746,9 +752,6 @@ export interface DaemonCoreInternal {
   incarnateNumberedHost: (
     identifiers: IncarnateNumberedHostParams,
   ) => IncarnateResult<EndoHost>;
-  incarnateNumberedLeastAuthority: (
-    formulaNumber: string,
-  ) => IncarnateResult<EndoGuest>;
 }
 
 export interface DaemonCore {
@@ -782,7 +785,6 @@ export interface DaemonCore {
   incarnateHost: (
     endoFormulaIdentifier: string,
     networksDirectoryFormulaIdentifier: string,
-    leastAuthorityFormulaIdentifier: string,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;

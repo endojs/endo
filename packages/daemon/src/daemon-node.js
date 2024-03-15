@@ -102,6 +102,15 @@ const main = async () => {
     daemonLabel,
     cancel,
     cancelled,
+    {
+      /** @param {import('./types.js').Builtins} builtins */
+      APPS: ({ MAIN, NONE }) => ({
+        type: /** @type {const} */ ('make-unconfined'),
+        worker: MAIN,
+        powers: NONE,
+        specifier: new URL('web-server-node.js', import.meta.url).href,
+      }),
+    },
   );
 
   /** @param {Error} error */

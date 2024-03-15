@@ -54,6 +54,7 @@ export const makeHostMaker = ({
    * @param {string} endoFormulaIdentifier
    * @param {string} networksDirectoryFormulaIdentifier
    * @param {string} leastAuthorityFormulaIdentifier
+   * @param {{[name: string]: string}} platformNames
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
@@ -64,6 +65,7 @@ export const makeHostMaker = ({
     endoFormulaIdentifier,
     networksDirectoryFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
+    platformNames,
     context,
   ) => {
     context.thisDiesIfThatDies(storeFormulaIdentifier);
@@ -75,6 +77,7 @@ export const makeHostMaker = ({
       await provideValueForFormulaIdentifier(storeFormulaIdentifier)
     );
     const specialStore = makePetSitter(basePetStore, {
+      ...platformNames,
       SELF: hostFormulaIdentifier,
       ENDO: endoFormulaIdentifier,
       NETS: networksDirectoryFormulaIdentifier,
@@ -399,7 +402,6 @@ export const makeHostMaker = ({
           await incarnateHost(
             endoFormulaIdentifier,
             networksDirectoryFormulaIdentifier,
-            leastAuthorityFormulaIdentifier,
             getDeferredTasksForAgent(petName),
           );
         host = { value: Promise.resolve(value), formulaIdentifier };
