@@ -758,7 +758,7 @@ type IncarnateNumberedHostParams = {
   leastAuthorityFormulaIdentifier: string;
 };
 
-export interface PrivateDaemonCore {
+export interface DaemonCoreInternal {
   /**
    * Helper for callers of {@link incarnateNumberedGuest}.
    * @param hostFormulaIdentifier - The formula identifier of the host to incarnate a guest for.
@@ -781,6 +781,9 @@ export interface PrivateDaemonCore {
   incarnateNumberedHost: (
     identifiers: IncarnateNumberedHostParams,
   ) => IncarnateResult<EndoHost>;
+  incarnateNumberedLeastAuthority: (
+    formulaNumber: string,
+  ) => IncarnateResult<EndoGuest>;
 }
 
 export interface DaemonCore {
@@ -862,7 +865,6 @@ export interface DaemonCore {
   ) => IncarnateResult<EndoPeer>;
   incarnateNetworksDirectory: () => IncarnateResult<EndoDirectory>;
   incarnateLoopbackNetwork: () => IncarnateResult<EndoNetwork>;
-  incarnateLeastAuthority: () => IncarnateResult<EndoGuest>;
   cancelValue: (formulaIdentifier: string, reason: Error) => Promise<void>;
   storeReaderRef: (
     readerRef: ERef<AsyncIterableIterator<string>>,
