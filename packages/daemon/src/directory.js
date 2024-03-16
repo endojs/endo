@@ -7,12 +7,12 @@ const { quote: q } = assert;
 
 /**
  * @param {object} args
- * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provide']} args.provide
  * @param {import('./types.js').DaemonCore['getFormulaIdentifierForRef']} args.getFormulaIdentifierForRef
  * @param {import('./types.js').DaemonCore['incarnateDirectory']} args.incarnateDirectory
  */
 export const makeDirectoryMaker = ({
-  provideValueForFormulaIdentifier,
+  provide,
   getFormulaIdentifierForRef,
   incarnateDirectory,
 }) => {
@@ -27,7 +27,7 @@ export const makeDirectoryMaker = ({
       }
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const value = provideValueForFormulaIdentifier(formulaIdentifier);
+      const value = provide(formulaIdentifier);
       return tailNames.reduce(
         // @ts-expect-error We assume its a NameHub
         (directory, petName) => E(directory).lookup(petName),
@@ -219,7 +219,7 @@ export const makeDirectoryMaker = ({
     // TODO thread context
 
     const petStore = /** @type {import('./types.js').PetStore} */ (
-      await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
+      await provide(petStoreFormulaIdentifier)
     );
     const directory = makeDirectoryNode(petStore);
 
