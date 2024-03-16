@@ -136,13 +136,9 @@ const makeDaemonCore = async (
     number: leastAuthorityFormulaNumber,
     node: ownNodeIdentifier,
   });
-  await persistencePowers.writeFormula(
-    {
-      type: 'least-authority',
-    },
-    'least-authority',
-    leastAuthorityFormulaNumber,
-  );
+  await persistencePowers.writeFormula(leastAuthorityFormulaNumber, {
+    type: 'least-authority',
+  });
 
   // Prime main worker formula (without incarnation)
   const mainWorkerFormulaNumber = deriveId(
@@ -154,13 +150,9 @@ const makeDaemonCore = async (
     number: mainWorkerFormulaNumber,
     node: ownNodeIdentifier,
   });
-  await persistencePowers.writeFormula(
-    {
-      type: 'worker',
-    },
-    'worker',
-    mainWorkerFormulaNumber,
-  );
+  await persistencePowers.writeFormula(mainWorkerFormulaNumber, {
+    type: 'worker',
+  });
 
   /** @type {import('./types.js').Builtins} */
   const builtins = {
@@ -182,23 +174,18 @@ const makeDaemonCore = async (
           number: formulaNumber,
           node: ownNodeIdentifier,
         });
-        await persistencePowers.writeFormula(
-          formula,
-          formula.type,
-          formulaNumber,
-        );
+        await persistencePowers.writeFormula(formulaNumber, formula);
         return [specialName, formulaIdentifier];
       }),
     ),
   );
 
   /**
-   * The two functions "provideValueForNumberedFormula" and "provideValueForFormulaIdentifier"
-   * share a responsibility for maintaining the memoization tables
-   * "controllerForFormulaIdentifier" and "formulaIdentifierForRef".
-   * "provideValueForNumberedFormula" is used for incarnating and persisting
-   * new formulas, whereas "provideValueForFormulaIdentifier" is used for
-   * reincarnating stored formulas.
+   * The two functions "formulate" and "provide" share a responsibility for
+   * maintaining the memoization tables "controllerForFormulaIdentifier" and
+   * "formulaIdentifierForRef".
+   * "formulate" is used for incarnating and persisting new formulas, whereas
+   * "provide" is used for reincarnating stored formulas.
    */
 
   /**
@@ -327,7 +314,7 @@ const makeDaemonCore = async (
       formulaIdentifiers.map(formulaIdentifier =>
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        provideValueForFormulaIdentifier(formulaIdentifier),
+        provide(formulaIdentifier),
       ),
     );
 
@@ -367,7 +354,7 @@ const makeDaemonCore = async (
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const hub = provideValueForFormulaIdentifier(hubFormulaIdentifier);
+    const hub = provide(hubFormulaIdentifier);
     // @ts-expect-error calling lookup on an unknown object
     const external = E(hub).lookup(...path);
     return { external, internal: undefined };
@@ -402,7 +389,7 @@ const makeDaemonCore = async (
     const guestP = /** @type {Promise<import('./types.js').EndoGuest>} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      provideValueForFormulaIdentifier(guestFormulaIdentifier)
+      provide(guestFormulaIdentifier)
     );
     const external = E(workerDaemonFacet).makeUnconfined(
       specifier,
@@ -445,12 +432,12 @@ const makeDaemonCore = async (
       /** @type {Promise<import('./types.js').EndoReadable>} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        provideValueForFormulaIdentifier(bundleFormulaIdentifier)
+        provide(bundleFormulaIdentifier)
       );
     const guestP = /** @type {Promise<import('./types.js').EndoGuest>} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      provideValueForFormulaIdentifier(guestFormulaIdentifier)
+      provide(guestFormulaIdentifier)
     );
     const external = E(workerDaemonFacet).makeBundle(
       readableBundleP,
@@ -547,7 +534,7 @@ const makeDaemonCore = async (
             );
           }
           // eslint-disable-next-line no-use-before-define
-          return provideValueForFormulaIdentifier(requestedFormulaIdentifier);
+          return provide(requestedFormulaIdentifier);
         },
       });
       /** @type {import('./types.js').FarEndoBootstrap} */
@@ -561,14 +548,14 @@ const makeDaemonCore = async (
           // Behold, recursion:
           return /** @type {Promise<import('./types.js').EndoHost>} */ (
             // eslint-disable-next-line no-use-before-define
-            provideValueForFormulaIdentifier(formula.host)
+            provide(formula.host)
           );
         },
         leastAuthority: () => {
           // Behold, recursion:
           return /** @type {Promise<import('./types.js').EndoGuest>} */ (
             // eslint-disable-next-line no-use-before-define
-            provideValueForFormulaIdentifier(leastAuthorityFormulaIdentifier)
+            provide(leastAuthorityFormulaIdentifier)
           );
         },
         gateway: async () => {
@@ -579,7 +566,7 @@ const makeDaemonCore = async (
             /** @type {import('./types.js').EndoDirectory} */ (
               // Behold, recursion:
               // eslint-disable-next-line no-use-before-define
-              await provideValueForFormulaIdentifier(formula.networks)
+              await provide(formula.networks)
             );
           const networkFormulaIdentifiers =
             await networksDirectory.listIdentifiers();
@@ -587,7 +574,7 @@ const makeDaemonCore = async (
             networkFormulaIdentifiers.map(
               // Behold, recursion:
               // eslint-disable-next-line no-use-before-define
-              provideValueForFormulaIdentifier,
+              provide,
             ),
           );
         },
@@ -596,7 +583,7 @@ const makeDaemonCore = async (
             /** @type {import('./types.js').PetStore} */
             // Behold, recursion:
             // eslint-disable-next-line no-use-before-define
-            (await provideValueForFormulaIdentifier(formula.peers));
+            (await provide(formula.peers));
           const { node, addresses } = peerInfo;
           // eslint-disable-next-line no-use-before-define
           const nodeName = petStoreNameForNodeIdentifier(node);
@@ -619,7 +606,7 @@ const makeDaemonCore = async (
       // Behold, forward-reference:
       const loopbackNetwork = makeLoopbackNetwork({
         // eslint-disable-next-line no-use-before-define
-        provideValueForFormulaIdentifier,
+        provide,
       });
       return {
         external: loopbackNetwork,
@@ -738,12 +725,8 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['provideValueForNumberedFormula']} */
-  const provideValueForNumberedFormula = async (
-    formulaType,
-    formulaNumber,
-    formula,
-  ) => {
+  /** @type {import('./types.js').DaemonCore['formulate']} */
+  const formulate = async (formulaNumber, formula) => {
     const formulaIdentifier = formatId({
       number: formulaNumber,
       node: ownNodeIdentifier,
@@ -782,11 +765,7 @@ const makeDaemonCore = async (
 
     // Ensure that failure to flush the formula to storage
     // causes a rejection for both the controller and the incarnation value.
-    const written = persistencePowers.writeFormula(
-      formula,
-      formulaType,
-      formulaNumber,
-    );
+    const written = persistencePowers.writeFormula(formulaNumber, formula);
     resolvePartial(written.then(() => /** @type {any} */ (controllerValue)));
     await written;
 
@@ -839,7 +818,7 @@ const makeDaemonCore = async (
     }
     const peerStore = /** @type {import('./types.js').PetStore} */ (
       // eslint-disable-next-line no-use-before-define
-      await provideValueForFormulaIdentifier(peersFormulaIdentifier)
+      await provide(peersFormulaIdentifier)
     );
     const nodeName = petStoreNameForNodeIdentifier(nodeIdentifier);
     const peerFormulaIdentifier = peerStore.identifyLocal(nodeName);
@@ -859,8 +838,8 @@ const makeDaemonCore = async (
     return controller.context.cancel(reason);
   };
 
-  /** @type {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} */
-  const provideValueForFormulaIdentifier = formulaIdentifier => {
+  /** @type {import('./types.js').DaemonCore['provide']} */
+  const provide = formulaIdentifier => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
       provideControllerForFormulaIdentifier(formulaIdentifier)
     );
@@ -926,7 +905,7 @@ const makeDaemonCore = async (
     };
 
     return /** @type {import('./types.js').IncarnateResult<import('./types.js').FarEndoReadable>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -945,7 +924,7 @@ const makeDaemonCore = async (
       target: targetFormulaIdentifier,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').ExternalHandle>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -962,7 +941,7 @@ const makeDaemonCore = async (
       type: 'pet-store',
     };
     return /** @type {import('./types').IncarnateResult<import('./types').PetStore>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -979,7 +958,7 @@ const makeDaemonCore = async (
       petStore: petStoreFormulaIdentifier,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoDirectory>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -997,7 +976,7 @@ const makeDaemonCore = async (
     };
 
     return /** @type {import('./types').IncarnateResult<import('./types').EndoWorker>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -1065,11 +1044,7 @@ const makeDaemonCore = async (
     };
 
     return /** @type {import('./types').IncarnateResult<import('./types').EndoHost>} */ (
-      provideValueForNumberedFormula(
-        'host',
-        identifiers.hostFormulaNumber,
-        formula,
-      )
+      formulate(identifiers.hostFormulaNumber, formula)
     );
   };
 
@@ -1129,11 +1104,7 @@ const makeDaemonCore = async (
     };
 
     return /** @type {import('./types').IncarnateResult<import('./types').EndoGuest>} */ (
-      provideValueForNumberedFormula(
-        formula.type,
-        identifiers.guestFormulaNumber,
-        formula,
-      )
+      formulate(identifiers.guestFormulaNumber, formula)
     );
   };
 
@@ -1233,7 +1204,7 @@ const makeDaemonCore = async (
       values: endowmentFormulaIdentifiers,
     };
     return /** @type {import('./types.js').IncarnateResult<unknown>} */ (
-      provideValueForNumberedFormula(formula.type, evalFormulaNumber, formula)
+      formulate(evalFormulaNumber, formula)
     );
   };
 
@@ -1260,7 +1231,7 @@ const makeDaemonCore = async (
     };
 
     return /** @type {import('./types.js').IncarnateResult<import('./types.js').EndoWorker>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -1347,11 +1318,7 @@ const makeDaemonCore = async (
       powers: powersFormulaIdentifier,
       specifier,
     };
-    return provideValueForNumberedFormula(
-      formula.type,
-      capletFormulaNumber,
-      formula,
-    );
+    return formulate(capletFormulaNumber, formula);
   };
 
   /** @type {import('./types.js').DaemonCore['incarnateBundle']} */
@@ -1383,11 +1350,7 @@ const makeDaemonCore = async (
       powers: powersFormulaIdentifier,
       bundle: bundleFormulaIdentifier,
     };
-    return provideValueForNumberedFormula(
-      formula.type,
-      capletFormulaNumber,
-      formula,
-    );
+    return formulate(capletFormulaNumber, formula);
   };
 
   /**
@@ -1404,7 +1367,7 @@ const makeDaemonCore = async (
       petStore: petStoreFormulaIdentifier,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoInspector>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -1423,7 +1386,7 @@ const makeDaemonCore = async (
       addresses,
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoPeer>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -1435,7 +1398,7 @@ const makeDaemonCore = async (
       type: 'loopback-network',
     };
     return /** @type {import('./types').IncarnateResult<import('./types').EndoNetwork>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      formulate(formulaNumber, formula)
     );
   };
 
@@ -1496,11 +1459,7 @@ const makeDaemonCore = async (
     };
 
     return /** @type {import('./types').IncarnateResult<import('./types').FarEndoBootstrap>} */ (
-      provideValueForNumberedFormula(
-        formula.type,
-        identifiers.formulaNumber,
-        formula,
-      )
+      formulate(identifiers.formulaNumber, formula)
     );
   };
 
@@ -1511,13 +1470,11 @@ const makeDaemonCore = async (
   const getAllNetworks = async networksDirectoryFormulaIdentifier => {
     const networksDirectory = /** @type {import('./types').EndoDirectory} */ (
       // eslint-disable-next-line no-use-before-define
-      await provideValueForFormulaIdentifier(networksDirectoryFormulaIdentifier)
+      await provide(networksDirectoryFormulaIdentifier)
     );
     const networkFormulaIdentifiers = await networksDirectory.listIdentifiers();
     const networks = /** @type {import('./types').EndoNetwork[]} */ (
-      await Promise.all(
-        networkFormulaIdentifiers.map(provideValueForFormulaIdentifier),
-      )
+      await Promise.all(networkFormulaIdentifiers.map(provide))
     );
     return networks;
   };
@@ -1594,7 +1551,7 @@ const makeDaemonCore = async (
     remoteValueFormulaIdentifier,
   ) => {
     const peer = /** @type {import('./types.js').EndoPeer} */ (
-      await provideValueForFormulaIdentifier(peerFormulaIdentifier)
+      await provide(peerFormulaIdentifier)
     );
     const remoteValueP = peer.provide(remoteValueFormulaIdentifier);
     const external = remoteValueP;
@@ -1608,25 +1565,25 @@ const makeDaemonCore = async (
   });
 
   const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
-    provideValueForFormulaIdentifier,
+    provide,
     getFormulaIdentifierForRef,
     incarnateDirectory,
   });
 
   const makeMailbox = makeMailboxMaker({
-    provideValueForFormulaIdentifier,
+    provide,
     provideControllerForFormulaIdentifierAndResolveHandle,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
-    provideValueForFormulaIdentifier,
+    provide,
     provideControllerForFormulaIdentifierAndResolveHandle,
     makeMailbox,
     makeDirectoryNode,
   });
 
   const makeIdentifiedHost = makeHostMaker({
-    provideValueForFormulaIdentifier,
+    provide,
     provideControllerForFormulaIdentifier,
     cancelValue,
     incarnateWorker,
@@ -1653,7 +1610,7 @@ const makeDaemonCore = async (
    */
   const makePetStoreInspector = async petStoreFormulaIdentifier => {
     const petStore = /** @type {import('./types').PetStore} */ (
-      await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
+      await provide(petStoreFormulaIdentifier)
     );
 
     /**
@@ -1684,14 +1641,11 @@ const makeDaemonCore = async (
           harden({
             endowments: Object.fromEntries(
               formula.names.map((name, index) => {
-                return [
-                  name,
-                  provideValueForFormulaIdentifier(formula.values[index]),
-                ];
+                return [name, provide(formula.values[index])];
               }),
             ),
             source: formula.source,
-            worker: provideValueForFormulaIdentifier(formula.worker),
+            worker: provide(formula.worker),
           }),
         );
       } else if (formula.type === 'lookup') {
@@ -1699,7 +1653,7 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            hub: provideValueForFormulaIdentifier(formula.hub),
+            hub: provide(formula.hub),
             path: formula.path,
           }),
         );
@@ -1708,7 +1662,7 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            host: provideValueForFormulaIdentifier(formula.host),
+            host: provide(formula.host),
           }),
         );
       } else if (formula.type === 'make-bundle') {
@@ -1716,9 +1670,9 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            bundle: provideValueForFormulaIdentifier(formula.bundle),
-            powers: provideValueForFormulaIdentifier(formula.powers),
-            worker: provideValueForFormulaIdentifier(formula.worker),
+            bundle: provide(formula.bundle),
+            powers: provide(formula.powers),
+            worker: provide(formula.worker),
           }),
         );
       } else if (formula.type === 'make-unconfined') {
@@ -1726,9 +1680,9 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            powers: provideValueForFormulaIdentifier(formula.powers),
+            powers: provide(formula.powers),
             specifier: formula.type,
-            worker: provideValueForFormulaIdentifier(formula.worker),
+            worker: provide(formula.worker),
           }),
         );
       } else if (formula.type === 'peer') {
@@ -1759,8 +1713,8 @@ const makeDaemonCore = async (
     nodeIdentifier: ownNodeIdentifier,
     provideControllerForFormulaIdentifier,
     provideControllerForFormulaIdentifierAndResolveHandle,
-    provideValueForFormulaIdentifier,
-    provideValueForNumberedFormula,
+    provide,
+    formulate,
     getFormulaIdentifierForRef,
     getAllNetworkAddresses,
     cancelValue,
@@ -1811,7 +1765,7 @@ const provideEndoBootstrap = async (
       node: daemonCore.nodeIdentifier,
     });
     return /** @type {Promise<import('./types.js').FarEndoBootstrap>} */ (
-      daemonCore.provideValueForFormulaIdentifier(endoFormulaIdentifier)
+      daemonCore.provide(endoFormulaIdentifier)
     );
   } else {
     const { value: endoBootstrap } = await daemonCore.incarnateEndoBootstrap(

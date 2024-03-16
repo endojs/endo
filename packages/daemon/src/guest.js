@@ -6,13 +6,13 @@ import { makePetSitter } from './pet-sitter.js';
 
 /**
  * @param {object} args
- * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provide']} args.provide
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
 export const makeGuestMaker = ({
-  provideValueForFormulaIdentifier,
+  provide,
   provideControllerForFormulaIdentifierAndResolveHandle,
   makeMailbox,
   makeDirectoryNode,
@@ -36,7 +36,7 @@ export const makeGuestMaker = ({
     context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
 
     const basePetStore = /** @type {import('./types.js').PetStore} */ (
-      await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
+      await provide(petStoreFormulaIdentifier)
     );
     const specialStore = makePetSitter(basePetStore, {
       SELF: guestFormulaIdentifier,

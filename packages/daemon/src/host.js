@@ -15,7 +15,7 @@ const assertPowersName = name => {
 
 /**
  * @param {object} args
- * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provide']} args.provide
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} args.provideControllerForFormulaIdentifier
  * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
  * @param {import('./types.js').DaemonCore['incarnateWorker']} args.incarnateWorker
@@ -31,7 +31,7 @@ const assertPowersName = name => {
  * @param {string} args.ownNodeIdentifier
  */
 export const makeHostMaker = ({
-  provideValueForFormulaIdentifier,
+  provide,
   provideControllerForFormulaIdentifier,
   cancelValue,
   incarnateWorker,
@@ -74,7 +74,7 @@ export const makeHostMaker = ({
     const basePetStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      await provideValueForFormulaIdentifier(storeFormulaIdentifier)
+      await provide(storeFormulaIdentifier)
     );
     const specialStore = makePetSitter(basePetStore, {
       ...platformNames,
@@ -97,7 +97,7 @@ export const makeHostMaker = ({
     const getEndoBootstrap = async () => {
       const endoBootstrap =
         /** @type {import('./types.js').FarEndoBootstrap} */ (
-          await provideValueForFormulaIdentifier(endoFormulaIdentifier)
+          await provide(endoFormulaIdentifier)
         );
       return endoBootstrap;
     };
@@ -135,7 +135,7 @@ export const makeHostMaker = ({
       if (workerFormulaIdentifier !== undefined) {
         return /** @type {Promise<import('./types.js').EndoWorker>} */ (
           // Behold, recursion:
-          provideValueForFormulaIdentifier(workerFormulaIdentifier)
+          provide(workerFormulaIdentifier)
         );
       }
 
@@ -545,7 +545,7 @@ export const makeHostMaker = ({
     });
     const internal = harden({ receive, respond, petStore });
 
-    await provideValueForFormulaIdentifier(mainWorkerFormulaIdentifier);
+    await provide(mainWorkerFormulaIdentifier);
 
     return harden({ external, internal });
   };

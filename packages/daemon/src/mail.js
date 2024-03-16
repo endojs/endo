@@ -8,12 +8,12 @@ const { quote: q } = assert;
 
 /**
  * @param {object} args
- * @param {import('./types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provide']} args.provide
  * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
  * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
-  provideValueForFormulaIdentifier,
+  provide,
   provideControllerForFormulaIdentifierAndResolveHandle,
 }) => {
   /**
@@ -176,7 +176,7 @@ export const makeMailboxMaker = ({
         }
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return provideValueForFormulaIdentifier(formulaIdentifier);
+        return provide(formulaIdentifier);
       }
       // The reference is not named nor to be named.
       const formulaIdentifier = await requestFormulaIdentifier(
@@ -188,7 +188,7 @@ export const makeMailboxMaker = ({
       // context.thisDiesIfThatDies(formulaIdentifier);
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      return provideValueForFormulaIdentifier(formulaIdentifier);
+      return provide(formulaIdentifier);
     };
 
     /** @type {import('./types.js').Mail['resolve']} */

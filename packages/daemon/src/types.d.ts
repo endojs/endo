@@ -663,11 +663,7 @@ export type DaemonicPersistencePowers = {
     fetch: (sha512: string) => EndoReadable;
   };
   readFormula: (formulaNumber: string) => Promise<Formula>;
-  writeFormula: (
-    formula: Formula,
-    formulaType: string,
-    formulaNumber: string,
-  ) => Promise<void>;
+  writeFormula: (formulaNumber: string, formula: Formula) => Promise<void>;
 };
 
 export interface DaemonWorkerFacet {}
@@ -769,17 +765,14 @@ export interface DaemonCoreInternal {
 
 export interface DaemonCore {
   nodeIdentifier: string;
-  provideValueForFormulaIdentifier: (
-    formulaIdentifier: string,
-  ) => Promise<unknown>;
+  provide: (formulaIdentifier: string) => Promise<unknown>;
   provideControllerForFormulaIdentifier: (
     formulaIdentifier: string,
   ) => Controller;
   provideControllerForFormulaIdentifierAndResolveHandle: (
     formulaIdentifier: string,
   ) => Promise<Controller>;
-  provideValueForNumberedFormula: (
-    formulaType: string,
+  formulate: (
     formulaNumber: string,
     formula: Formula,
   ) => Promise<{

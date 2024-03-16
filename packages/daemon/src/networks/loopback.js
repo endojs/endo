@@ -3,10 +3,10 @@ import { Far } from '@endo/far';
 
 /**
  * @param {object} args
- * @param {import('../types.js').DaemonCore['provideValueForFormulaIdentifier']} args.provideValueForFormulaIdentifier
+ * @param {import('../types.js').DaemonCore['provide']} args.provide
  * @returns {import('@endo/far').FarRef<import('../types.js').EndoNetwork>}
  */
-export const makeLoopbackNetwork = ({ provideValueForFormulaIdentifier }) => {
+export const makeLoopbackNetwork = ({ provide }) => {
   return Far(
     'Loopback Network',
     /** @type {import('../types.js').EndoNetwork} */ ({
@@ -18,7 +18,7 @@ export const makeLoopbackNetwork = ({ provideValueForFormulaIdentifier }) => {
             'Failed invariant: loopback only supports "loop:" address',
           );
         }
-        return { provide: provideValueForFormulaIdentifier };
+        return { provide };
       },
     }),
   );
