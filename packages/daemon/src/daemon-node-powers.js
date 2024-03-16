@@ -416,7 +416,8 @@ export const makeDaemonicPersistencePowers = (
   };
 
   // Persist instructions for revival (this can be collected)
-  const writeFormula = async (formula, formulaType, formulaNumber) => {
+  /** @type {import('./types.js').DaemonicPersistencePowers['writeFormula']} */
+  const writeFormula = async (formulaNumber, formula) => {
     const { directory, file } = makeFormulaPath(formulaNumber);
     // TODO Take care to write atomically with a rename here.
     await filePowers.makePath(directory);
