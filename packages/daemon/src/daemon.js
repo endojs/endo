@@ -219,28 +219,6 @@ const makeDaemonCore = async (
   const getFormulaIdentifierForRef = ref => formulaIdentifierForRef.get(ref);
 
   /**
-   * @param {string} sha512
-   * @returns {import('./types.js').FarEndoReadable}
-   */
-  const makeReadableBlob = sha512 => {
-    const { text, json, streamBase64 } = contentStore.fetch(sha512);
-    return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
-      sha512: () => sha512,
-      streamBase64,
-      text,
-      json,
-    });
-  };
-
-  /** @type {import('./types.js').DaemonCore['storeReaderRef']} */
-  const storeReaderRef = async readerRef => {
-    const sha512Hex = await contentStore.store(makeRefReader(readerRef));
-    // eslint-disable-next-line no-use-before-define
-    const { formulaIdentifier } = await incarnateReadableBlob(sha512Hex);
-    return formulaIdentifier;
-  };
-
-  /**
    * @param {string} workerId512
    */
   const makeWorkerBootstrap = async workerId512 => {
@@ -294,6 +272,23 @@ const makeDaemonCore = async (
     return {
       external: worker,
       internal: workerDaemonFacet,
+    };
+  };
+
+  /**
+   * @param {string} sha512
+   */
+  const makeControllerForReadableBlob = sha512 => {
+    const { text, json, streamBase64 } = contentStore.fetch(sha512);
+    return {
+      /** @type {import('./types.js').FarEndoReadable} */
+      external: Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
+        sha512: () => sha512,
+        streamBase64,
+        text,
+        json,
+      }),
+      internal: undefined,
     };
   };
 
@@ -487,8 +482,7 @@ const makeDaemonCore = async (
         context,
       );
     } else if (formula.type === 'readable-blob') {
-      const external = makeReadableBlob(formula.content);
-      return { external, internal: undefined };
+      return makeControllerForReadableBlob(formula.content);
     } else if (formula.type === 'lookup') {
       return makeControllerForLookup(formula.hub, formula.path, context);
     } else if (formula.type === 'worker') {
@@ -906,13 +900,31 @@ const makeDaemonCore = async (
     };
 
   /** @type {import('./types.js').DaemonCore['incarnateReadableBlob']} */
-  const incarnateReadableBlob = async contentSha512 => {
-    const formulaNumber = await randomHex512();
+  const incarnateReadableBlob = async (readerRef, deferredTasks) => {
+    const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
+      async () => {
+        const values = {
+          formulaNumber: await randomHex512(),
+          contentSha512: await contentStore.store(makeRefReader(readerRef)),
+        };
+
+        await deferredTasks.execute({
+          readableBlobFormulaIdentifier: formatId({
+            number: values.formulaNumber,
+            node: ownNodeIdentifier,
+          }),
+        });
+
+        return values;
+      },
+    );
+
     /** @type {import('./types.js').ReadableBlobFormula} */
     const formula = {
       type: 'readable-blob',
       content: contentSha512,
     };
+
     return /** @type {import('./types.js').IncarnateResult<import('./types.js').FarEndoReadable>} */ (
       provideValueForNumberedFormula(formula.type, formulaNumber, formula)
     );
@@ -1597,7 +1609,7 @@ const makeDaemonCore = async (
     incarnateEval,
     incarnateUnconfined,
     incarnateBundle,
-    storeReaderRef,
+    incarnateReadableBlob,
     makeMailbox,
     makeDirectoryNode,
     getAllNetworkAddresses,
@@ -1726,7 +1738,6 @@ const makeDaemonCore = async (
     getFormulaIdentifierForRef,
     getAllNetworkAddresses,
     cancelValue,
-    storeReaderRef,
     makeMailbox,
     makeDirectoryNode,
     incarnateEndoBootstrap,

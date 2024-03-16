@@ -24,7 +24,7 @@ const assertPowersName = name => {
  * @param {import('./types.js').DaemonCore['incarnateEval']} args.incarnateEval
  * @param {import('./types.js').DaemonCore['incarnateUnconfined']} args.incarnateUnconfined
  * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
- * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
+ * @param {import('./types.js').DaemonCore['incarnateReadableBlob']} args.incarnateReadableBlob
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
@@ -40,7 +40,7 @@ export const makeHostMaker = ({
   incarnateEval,
   incarnateUnconfined,
   incarnateBundle,
-  storeReaderRef,
+  incarnateReadableBlob,
   getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
@@ -107,15 +107,18 @@ export const makeHostMaker = ({
      * @param {string} [petName]
      */
     const store = async (readerRef, petName) => {
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').ReadableBlobDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+
       if (petName !== undefined) {
         assertPetName(petName);
+        tasks.push(identifiers =>
+          petStore.write(petName, identifiers.readableBlobFormulaIdentifier),
+        );
       }
 
-      const formulaIdentifier = await storeReaderRef(readerRef);
-
-      if (petName !== undefined) {
-        await petStore.write(petName, formulaIdentifier);
-      }
+      const { value } = await incarnateReadableBlob(readerRef, tasks);
+      return value;
     };
 
     /**
