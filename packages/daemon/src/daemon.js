@@ -1004,9 +1004,21 @@ const makeDaemonCore = async (
   /**
    * @type {import('./types.js').DaemonCore['incarnateWorker']}
    */
-  const incarnateWorker = async () => {
-    const formulaNumber = await formulaGraphJobs.enqueue(randomHex512);
-    return incarnateNumberedWorker(formulaNumber);
+  const incarnateWorker = async deferredTasks => {
+    return incarnateNumberedWorker(
+      await formulaGraphJobs.enqueue(async () => {
+        const formulaNumber = await randomHex512();
+
+        await deferredTasks.execute({
+          workerFormulaIdentifier: formatId({
+            number: formulaNumber,
+            node: ownNodeIdentifier,
+          }),
+        });
+
+        return formulaNumber;
+      }),
+    );
   };
 
   /**

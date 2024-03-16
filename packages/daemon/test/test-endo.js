@@ -149,7 +149,8 @@ test('anonymous spawn and evaluate', async t => {
   await stop(locator);
 });
 
-test('cannot spawn worker with existing non-worker name', async t => {
+// Regression test for https://github.com/endojs/endo/issues/2147
+test('spawning a worker does not overwrite existing non-worker name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'spawn-eval-name-reuse');
@@ -165,10 +166,15 @@ test('cannot spawn worker with existing non-worker name', async t => {
   );
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
-  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
-  t.is(ten, 10);
-  await t.throwsAsync(() => E(host).provideWorker('ten'), {
-    message: 'Not a worker "ten"',
+  const foo = await E(host).evaluate('MAIN', '10', [], [], 'foo');
+  t.is(foo, 10);
+
+  // This resolves with the existing value of 'foo' rather than overwriting it
+  // with a new worker.
+  await E(host).provideWorker('foo');
+  await t.throwsAsync(() => E(host).evaluate('foo', '20', [], [], 'bar'), {
+    message:
+      'Cannot deliver "evaluate" to target; typeof target is "undefined"',
   });
 
   await stop(locator);
