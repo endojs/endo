@@ -6,7 +6,7 @@
  * @param {Function} safeEvaluate
  */
 export const makeEvalFunction = safeEvaluate => {
-  // We use the the concise method syntax to create an eval without a
+  // We use the concise method syntax to create an eval without a
   // [[Construct]] behavior (such that the invocation "new eval()" throws
   // TypeError: eval is not a constructor"), but which still accepts a
   // 'this' binding.
