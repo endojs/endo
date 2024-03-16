@@ -16,7 +16,8 @@ export const install = async ({
   bundleName,
   partyNames,
   powersName,
-  webPageName,
+  webletName,
+  requestedPort,
   programPath,
   doOpen,
 }) => {
@@ -45,21 +46,19 @@ export const install = async ({
     }
 
     try {
-      /** @type {string | undefined} */
-      let webPageUrl;
-      if (bundleName !== undefined) {
-        ({ url: webPageUrl } = await E(party).provideWebPage(
-          webPageName,
-          bundleName,
-          powersName,
-        ));
-      } else {
-        ({ url: webPageUrl } = await E(party).lookup(webPageName));
-      }
-      assert(webPageUrl !== undefined);
-      process.stdout.write(`${webPageUrl}\n`);
+      const weblet = E(party).evaluate(
+        'MAIN',
+        `E(apps).makeWeblet(bundle, powers, ${JSON.stringify(
+          requestedPort,
+        )}, $id, $cancelled)`,
+        ['apps', 'bundle', 'powers'],
+        ['APPS', bundleName, powersName],
+        webletName,
+      );
+      const webletLocation = await E(weblet).getLocation();
+      process.stdout.write(`${webletLocation}\n`);
       if (doOpen) {
-        openWebPage(webPageUrl);
+        openWebPage(webletLocation);
       }
     } finally {
       if (temporaryBundleName) {

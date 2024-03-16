@@ -80,9 +80,6 @@ export const start = async (locator = defaultLocator) => {
   const output = fs.openSync(logPath, 'a');
 
   const env = { ...process.env };
-  if (locator.httpPort !== undefined) {
-    env.ENDO_HTTP_PORT = `${locator.httpPort}`;
-  }
 
   const child = popen.fork(
     endoDaemonPath,

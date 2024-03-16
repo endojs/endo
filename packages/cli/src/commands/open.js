@@ -7,10 +7,11 @@ import { E } from '@endo/far';
 
 import { withEndoParty } from '../context.js';
 
-export const open = async ({ webPageName, partyNames }) => {
+export const open = async ({ webletName, partyNames }) => {
   await withEndoParty(partyNames, { os, process }, async ({ party }) => {
-    const { url: webPageUrl } = await E(party).lookup(webPageName);
-    process.stdout.write(`${webPageUrl}\n`);
-    openWebPage(webPageUrl);
+    const weblet = E(party).lookup(webletName);
+    const webletLocation = await E(weblet).getLocation();
+    process.stdout.write(`${webletLocation}\n`);
+    openWebPage(webletLocation);
   });
 };

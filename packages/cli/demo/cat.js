@@ -30,7 +30,7 @@ const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   timeStyle: 'long',
 });
 
-const followMessagesComponent = async ($parent, $end, powers) => {
+const inboxComponent = async ($parent, $end, powers) => {
   for await (const message of makeRefIterator(E(powers).followMessages())) {
     const { number, who, when, dismissed } = message;
 
@@ -183,7 +183,7 @@ const followMessagesComponent = async ($parent, $end, powers) => {
   }
 };
 
-const followNamesComponent = async ($parent, $end, powers) => {
+const inventoryComponent = async ($parent, $end, powers) => {
   const $title = document.createElement('h2');
   $title.innerText = 'Inventory';
   $parent.insertBefore($title, $end);
@@ -192,7 +192,7 @@ const followNamesComponent = async ($parent, $end, powers) => {
   $parent.insertBefore($ul, $end);
 
   const $names = new Map();
-  for await (const change of makeRefIterator(E(powers).followNames())) {
+  for await (const change of makeRefIterator(E(powers).followChanges())) {
     if ('add' in change) {
       const name = change.add;
 
@@ -226,13 +226,11 @@ const bodyComponent = ($parent, powers) => {
 
   const $endOfMessages = document.createTextNode('');
   $parent.appendChild($endOfMessages);
-  followMessagesComponent($parent, $endOfMessages, powers).catch(
-    window.reportError,
-  );
+  inboxComponent($parent, $endOfMessages, powers).catch(window.reportError);
 
   const $endOfNames = document.createTextNode('');
   $parent.appendChild($endOfNames);
-  followNamesComponent($parent, $endOfNames, powers).catch(window.reportError);
+  inventoryComponent($parent, $endOfNames, powers).catch(window.reportError);
 };
 
 export const make = async powers => {

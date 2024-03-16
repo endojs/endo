@@ -5,7 +5,6 @@ import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
-import { parseId } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -25,7 +24,6 @@ const assertPowersName = name => {
  * @param {import('./types.js').DaemonCore['incarnateEval']} args.incarnateEval
  * @param {import('./types.js').DaemonCore['incarnateUnconfined']} args.incarnateUnconfined
  * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
- * @param {import('./types.js').DaemonCore['incarnateWebBundle']} args.incarnateWebBundle
  * @param {import('./types.js').DaemonCore['storeReaderRef']} args.storeReaderRef
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
@@ -42,7 +40,6 @@ export const makeHostMaker = ({
   incarnateEval,
   incarnateUnconfined,
   incarnateBundle,
-  incarnateWebBundle,
   storeReaderRef,
   getAllNetworkAddresses,
   makeMailbox,
@@ -57,6 +54,7 @@ export const makeHostMaker = ({
    * @param {string} endoFormulaIdentifier
    * @param {string} networksDirectoryFormulaIdentifier
    * @param {string} leastAuthorityFormulaIdentifier
+   * @param {{[name: string]: string}} platformNames
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
@@ -67,6 +65,7 @@ export const makeHostMaker = ({
     endoFormulaIdentifier,
     networksDirectoryFormulaIdentifier,
     leastAuthorityFormulaIdentifier,
+    platformNames,
     context,
   ) => {
     context.thisDiesIfThatDies(storeFormulaIdentifier);
@@ -78,6 +77,7 @@ export const makeHostMaker = ({
       await provideValueForFormulaIdentifier(storeFormulaIdentifier)
     );
     const specialStore = makePetSitter(basePetStore, {
+      ...platformNames,
       SELF: hostFormulaIdentifier,
       ENDO: endoFormulaIdentifier,
       NETS: networksDirectoryFormulaIdentifier,
@@ -358,21 +358,12 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {'guest' | 'host'} formulaType - The agent's formula type.
      * @param {string} [petName] - The agent's potential pet name.
      */
-    const getNamedAgent = (formulaType, petName) => {
+    const getNamedAgent = petName => {
       if (petName !== undefined) {
         const formulaIdentifier = petStore.identifyLocal(petName);
         if (formulaIdentifier !== undefined) {
-          if (parseId(formulaIdentifier).type !== formulaType) {
-            throw new Error(
-              `Existing pet name does not designate a ${formulaType} powers capability: ${q(
-                petName,
-              )}`,
-            );
-          }
-
           return {
             formulaIdentifier,
             value: /** @type {Promise<any>} */ (
@@ -404,14 +395,13 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
      */
     const makeHost = async (petName, { introducedNames = {} } = {}) => {
-      let host = getNamedAgent('host', petName);
+      let host = await getNamedAgent(petName);
       if (host === undefined) {
         const { value, formulaIdentifier } =
           // Behold, recursion:
           await incarnateHost(
             endoFormulaIdentifier,
             networksDirectoryFormulaIdentifier,
-            leastAuthorityFormulaIdentifier,
             getDeferredTasksForAgent(petName),
           );
         host = { value: Promise.resolve(value), formulaIdentifier };
@@ -435,7 +425,7 @@ export const makeHostMaker = ({
      * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
      */
     const makeGuest = async (petName, { introducedNames = {} } = {}) => {
-      let guest = getNamedAgent('guest', petName);
+      let guest = await getNamedAgent(petName);
       if (guest === undefined) {
         const { value, formulaIdentifier } =
           // Behold, recursion:
@@ -455,54 +445,6 @@ export const makeHostMaker = ({
     /** @type {import('./types.js').EndoHost['provideGuest']} */
     const provideGuest = async (petName, opts) => {
       const { value } = await makeGuest(petName, opts);
-      return value;
-    };
-
-    /**
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} agentName
-     * @returns {Promise<string>}
-     */
-    const providePowersFormulaIdentifier = async agentName => {
-      let guestFormulaIdentifier = petStore.identifyLocal(agentName);
-      if (guestFormulaIdentifier === undefined) {
-        ({ formulaIdentifier: guestFormulaIdentifier } = await makeGuest(
-          agentName,
-        ));
-        if (guestFormulaIdentifier === undefined) {
-          throw new Error(
-            `panic: makeGuest must return a guest with a corresponding formula identifier`,
-          );
-        }
-      }
-      return guestFormulaIdentifier;
-    };
-
-    /**
-     * @param {string} webPageName
-     * @param {string} bundleName
-     * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
-     */
-    const provideWebPage = async (webPageName, bundleName, powersName) => {
-      const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
-      if (bundleFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name: ${q(bundleName)}`);
-      }
-
-      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
-        powersName,
-      );
-
-      // Behold, recursion:
-      const { value, formulaIdentifier } = await incarnateWebBundle(
-        powersFormulaIdentifier,
-        bundleFormulaIdentifier,
-      );
-
-      if (webPageName !== undefined) {
-        assertPetName(webPageName);
-        await petStore.write(webPageName, formulaIdentifier);
-      }
-
       return value;
     };
 
@@ -597,7 +539,6 @@ export const makeHostMaker = ({
       evaluate,
       makeUnconfined,
       makeBundle,
-      provideWebPage,
       cancel,
       gateway,
       getPeerInfo,

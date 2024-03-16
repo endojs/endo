@@ -67,6 +67,7 @@ export const makeContextMaker = ({
     };
 
     return {
+      id: formulaIdentifier,
       cancel,
       cancelled,
       disposed,

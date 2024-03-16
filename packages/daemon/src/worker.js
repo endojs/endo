@@ -48,13 +48,15 @@ export const makeWorkerFacet = ({ cancel }) => {
      * @param {string} source
      * @param {Array<string>} names
      * @param {Array<unknown>} values
-     * @param {Promise<never>} cancelled
+     * @param {string} $id
+     * @param {Promise<never>} $cancelled
      */
-    evaluate: async (source, names, values, cancelled) => {
+    evaluate: async (source, names, values, $id, $cancelled) => {
       const compartment = new Compartment(
         harden({
           ...endowments,
-          cancelled,
+          $id,
+          $cancelled,
           ...Object.fromEntries(
             names.map((name, index) => [name, values[index]]),
           ),

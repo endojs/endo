@@ -9,7 +9,6 @@ export type SomehowAsyncIterable<T> =
 
 export type Locator = {
   statePath: string;
-  httpPort?: number;
   ephemeralStatePath: string;
   cachePath: string;
   sockPath: string;
@@ -53,7 +52,6 @@ export type MignonicPowers = {
 };
 
 type FormulaIdentifierRecord = {
-  type?: string;
   number: string;
   node: string;
 };
@@ -64,7 +62,6 @@ type EndoFormula = {
   peers: string;
   host: string;
   leastAuthority: string;
-  webPageJs?: string;
 };
 
 type LoopbackNetworkFormula = {
@@ -89,7 +86,6 @@ type HostFormula = {
   petStore: string;
   endo: string;
   networks: string;
-  leastAuthority: string;
 };
 
 type GuestFormula = {
@@ -210,6 +206,15 @@ export type Formula =
   | DirectoryFormula
   | PeerFormula;
 
+export type Builtins = {
+  NONE: string;
+  MAIN: string;
+};
+
+export type Specials = {
+  [specialName: string]: (builtins: Builtins) => Formula;
+};
+
 export type Label = {
   number: number;
   who: string;
@@ -260,6 +265,10 @@ export interface Topic<
  */
 export interface Context {
   /**
+   * The identifier for the associated formula.
+   */
+  id: string;
+  /**
    * Cancel the value, preparing it for garbage collection. Cancellation
    * propagates to all values that depend on this value.
    *
@@ -303,6 +312,7 @@ export interface Context {
 }
 
 export interface FarContext {
+  id: () => string;
   cancel: (reason: Error) => Promise<void>;
   whenCancelled: () => Promise<never>;
   whenDisposed: () => Promise<void>;
@@ -525,7 +535,7 @@ export interface EndoHost extends EndoDirectory {
     codeNames: Array<string>,
     petNames: Array<string>,
     resultName?: string,
-  );
+  ): Promise<unknown>;
   makeUnconfined(
     workerName: string | 'NEW' | 'MAIN',
     specifier: string,
@@ -537,11 +547,6 @@ export interface EndoHost extends EndoDirectory {
     bundleName: string,
     powersName: string,
     resultName?: string,
-  ): Promise<unknown>;
-  provideWebPage(
-    webPageName: string,
-    bundleName: string,
-    powersName: string,
   ): Promise<unknown>;
   cancel(petName: string, reason: Error): Promise<void>;
   gateway(): Promise<EndoGateway>;
@@ -573,19 +578,11 @@ export type KnownEndoInspectors = {
   [formulaType: string]: EndoInspector<string>;
 };
 
-export type EndoWebBundle = {
-  url: string;
-  bundle: ERef<EndoReadable>;
-  powers: ERef<unknown>;
-};
-
 export type FarEndoBootstrap = FarRef<{
   ping: () => Promise<string>;
   terminate: () => Promise<void>;
   host: () => Promise<EndoHost>;
   leastAuthority: () => Promise<EndoGuest>;
-  webPageJs: () => Promise<unknown>;
-  importAndEndowInWebPage: () => Promise<void>;
   gateway: () => Promise<EndoGateway>;
   reviveNetworks: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
@@ -639,23 +636,9 @@ export type SocketPowers = {
 };
 
 export type NetworkPowers = SocketPowers & {
-  servePortHttp: (args: {
-    port: number;
-    host?: string;
-    respond?: HttpRespond;
-    connect?: HttpConnect;
-    cancelled: Promise<never>;
-  }) => Promise<number>;
   makePrivatePathService: (
     endoBootstrap: FarEndoBootstrap,
     sockPath: string,
-    cancelled: Promise<never>,
-    exitWithError: (error: Error) => void,
-  ) => { started: Promise<void>; stopped: Promise<void> };
-  makePrivateHttpService: (
-    endoBootstrap: FarEndoBootstrap,
-    port: number,
-    assignWebletPort: (portP: Promise<number>) => void,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
   ) => { started: Promise<void>; stopped: Promise<void> };
@@ -677,10 +660,6 @@ export type DaemonicPersistencePowers = {
     formulaType: string,
     formulaNumber: string,
   ) => Promise<void>;
-  getWebPageBundlerFormula?: (
-    workerFormulaIdentifier: string,
-    powersFormulaIdentifier: string,
-  ) => MakeUnconfinedFormula;
 };
 
 export interface DaemonWorkerFacet {}
@@ -717,7 +696,6 @@ export type DaemonicPowers = {
 
 type IncarnateResult<T> = Promise<{
   formulaIdentifier: string;
-  typedFormulaIdentifier: string;
   value: T;
 }>;
 
@@ -743,7 +721,6 @@ type IncarnateNumberedGuestParams = {
 
 type IncarnateHostDependenciesParams = {
   endoFormulaIdentifier: string;
-  leastAuthorityFormulaIdentifier: string;
   networksDirectoryFormulaIdentifier: string;
   specifiedWorkerFormulaIdentifier?: string;
 };
@@ -755,7 +732,6 @@ type IncarnateNumberedHostParams = {
   inspectorFormulaIdentifier: string;
   endoFormulaIdentifier: string;
   networksDirectoryFormulaIdentifier: string;
-  leastAuthorityFormulaIdentifier: string;
 };
 
 export interface DaemonCoreInternal {
@@ -781,9 +757,6 @@ export interface DaemonCoreInternal {
   incarnateNumberedHost: (
     identifiers: IncarnateNumberedHostParams,
   ) => IncarnateResult<EndoHost>;
-  incarnateNumberedLeastAuthority: (
-    formulaNumber: string,
-  ) => IncarnateResult<EndoGuest>;
 }
 
 export interface DaemonCore {
@@ -803,7 +776,6 @@ export interface DaemonCore {
     formula: Formula,
   ) => Promise<{
     formulaIdentifier: string;
-    typedFormulaIdentifier: string;
     value: unknown;
   }>;
   getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
@@ -818,7 +790,6 @@ export interface DaemonCore {
   incarnateHost: (
     endoFormulaIdentifier: string,
     networksDirectoryFormulaIdentifier: string,
-    leastAuthorityFormulaIdentifier: string,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string | undefined,
   ) => IncarnateResult<EndoHost>;
@@ -850,14 +821,6 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerFormulaIdentifier?: string,
     specifiedPowersFormulaIdentifier?: string,
-  ) => IncarnateResult<unknown>;
-  incarnateBundler: (
-    powersFormulaIdentifier: string,
-    workerFormulaIdentifier: string,
-  ) => IncarnateResult<unknown>;
-  incarnateWebBundle: (
-    powersFormulaIdentifier: string,
-    bundleFormulaIdentifier: string,
   ) => IncarnateResult<unknown>;
   incarnatePeer: (
     networksFormulaIdentifier: string,

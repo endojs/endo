@@ -7,174 +7,12 @@ import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
-import { servePrivatePortHttp } from './serve-private-port-http.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
 
 const { quote: q } = assert;
 
 const textEncoder = new TextEncoder();
-const medialIterationResult = harden({ done: false });
-const finalIterationResult = harden({ done: false });
-
-/**
- * @param {object} modules
- * @param {typeof import('ws')} modules.ws
- * @param {typeof import('http')} modules.http
- */
-export const makeHttpPowers = ({ http, ws }) => {
-  // @ts-ignore Not sure why TypeScript gets this wrong.
-  const { WebSocketServer } = ws;
-  const { createServer } = http;
-
-  /**
-   * @param {object} args
-   * @param {number} args.port
-   * @param {string} args.host
-   * @param {import('./types.js').HttpRespond} [args.respond]
-   * @param {import('./types.js').HttpConnect} [args.connect]
-   * @param {Promise<never>} args.cancelled
-   */
-  const servePortHttp = async ({
-    port,
-    host = '0.0.0.0',
-    respond,
-    connect,
-    cancelled,
-  }) => {
-    const server = createServer();
-
-    server.on('error', error => {
-      console.error(error);
-    });
-
-    if (respond) {
-      server.on('request', (req, res) => {
-        (async () => {
-          if (req.method === undefined) {
-            return;
-          }
-          if (req.url === undefined) {
-            return;
-          }
-          const response = await respond(
-            harden({
-              method: req.method,
-              url: req.url,
-              // TODO Node.js headers are a far more detailed type.
-              headers: harden(
-                /** @type {Record<string, string | Array<string> | undefined>} */ (
-                  req.headers
-                ),
-              ),
-            }),
-          );
-          res.writeHead(response.status, response.headers);
-          if (response.content === undefined) {
-            res.end();
-          } else if (
-            typeof response.content === 'string' ||
-            response.content instanceof Uint8Array
-          ) {
-            res.end(response.content);
-          } else {
-            for await (const chunk of response.content) {
-              res.write(chunk);
-            }
-            res.end();
-          }
-        })();
-      });
-    }
-
-    if (connect) {
-      const wss = new WebSocketServer({ server });
-      wss.on('connection', (socket, req) => {
-        if (req.method === undefined) {
-          throw Error('expected method in request');
-        }
-        if (req.url === undefined) {
-          throw Error('expected url in request');
-        }
-
-        const {
-          promise: closed,
-          resolve: close,
-          reject: abort,
-        } = makePromiseKit();
-
-        closed.finally(() => socket.close());
-
-        const [reader, sink] = makePipe();
-
-        socket.on('message', (bytes, isBinary) => {
-          if (!isBinary) {
-            abort(new Error('expected binary'));
-            return;
-          }
-          // TODO Ignoring back-pressure signal:
-          // Unclear whether WebSocketServer accounts for this possibility.
-          sink.next(bytes);
-        });
-        socket.on('close', () => {
-          sink.return(undefined);
-          socket.close();
-          close(finalIterationResult);
-        });
-
-        const writer = {
-          async next(bytes) {
-            socket.send(bytes, { binary: true });
-            return Promise.race([closed, medialIterationResult]);
-          },
-          async return() {
-            socket.close();
-            return Promise.race([closed, medialIterationResult]);
-          },
-          async throw(error) {
-            socket.close();
-            abort(error);
-            return Promise.race([closed, medialIterationResult]);
-          },
-          [Symbol.asyncIterator]() {
-            return this;
-          },
-        };
-
-        connect(
-          harden({
-            reader,
-            writer,
-            closed: closed.then(() => {}),
-          }),
-          harden({
-            method: req.method,
-            url: req.url,
-            headers: req.headers,
-          }),
-        );
-      });
-    }
-
-    return new Promise((resolve, reject) => {
-      server.listen(port, host, error => {
-        if (error) {
-          reject(error);
-        } else {
-          cancelled.catch(() => server.close());
-          const address = server.address();
-          if (address === null || typeof address === 'string') {
-            reject(new Error('expected listener to be assigned a port'));
-          } else {
-            resolve(address.port);
-          }
-        }
-      });
-    });
-  };
-
-  return harden({ servePortHttp });
-};
 
 /**
  * @param {object} modules
@@ -279,12 +117,9 @@ export const makeSocketPowers = ({ net }) => {
 /**
  * @param {object} modules
  * @param {typeof import('net')} modules.net
- * @param {typeof import('http')} modules.http
- * @param {typeof import('ws')} modules.ws
  * @returns {import('./types.js').NetworkPowers}
  */
-export const makeNetworkPowers = ({ http, ws, net }) => {
-  const { servePortHttp } = makeHttpPowers({ http, ws });
+export const makeNetworkPowers = ({ net }) => {
   const { servePort, servePath, connectPort } = makeSocketPowers({ net });
 
   const connectionNumbers = (function* generateNumbers() {
@@ -317,40 +152,11 @@ export const makeNetworkPowers = ({ http, ws, net }) => {
     return privatePathService;
   };
 
-  /**
-   * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
-   * @param {number} port
-   * @param {(port: Promise<number>) => void} assignWebletPort
-   * @param {Promise<never>} cancelled
-   * @param {(error: Error) => void} exitWithError
-   * @returns {{ started: Promise<void>, stopped: Promise<void> }}
-   */
-  const makePrivateHttpService = (
-    endoBootstrap,
-    port,
-    assignWebletPort,
-    cancelled,
-    exitWithError,
-  ) => {
-    const privateHttpService = servePrivatePortHttp(port, endoBootstrap, {
-      servePortHttp,
-      connectionNumbers,
-      cancelled,
-      exitWithError,
-    });
-
-    assignWebletPort(privateHttpService.started);
-
-    return privateHttpService;
-  };
-
   return harden({
-    servePortHttp,
     servePort,
     servePath,
     connectPort,
     makePrivatePathService,
-    makePrivateHttpService,
   });
 };
 
@@ -619,22 +425,12 @@ export const makeDaemonicPersistencePowers = (
     await filePowers.writeFileText(file, `${q(formula)}\n`);
   };
 
-  const getWebPageBundlerFormula = includeWebPageBundler
-    ? (workerFormulaIdentifier, powersFormulaIdentifier) => ({
-        type: /** @type {'make-unconfined'} */ ('make-unconfined'),
-        worker: workerFormulaIdentifier,
-        powers: powersFormulaIdentifier,
-        specifier: new URL('web-page-bundler.js', import.meta.url).href,
-      })
-    : undefined;
-
   return harden({
     initializePersistence,
     provideRootNonce,
     makeContentSha512Store,
     readFormula,
     writeFormula,
-    getWebPageBundlerFormula,
   });
 };
 
