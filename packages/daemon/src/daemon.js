@@ -1451,42 +1451,56 @@ const makeDaemonCore = async (
 
   /** @type {import('./types.js').DaemonCore['incarnateEndoBootstrap']} */
   const incarnateEndoBootstrap = async specifiedFormulaNumber => {
-    const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
-    const endoFormulaIdentifier = formatId({
-      number: formulaNumber,
-      node: ownNodeIdentifier,
+    const identifiers = await formulaGraphJobs.enqueue(async () => {
+      const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
+      const endoFormulaIdentifier = formatId({
+        number: formulaNumber,
+        node: ownNodeIdentifier,
+      });
+
+      const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
+        await incarnateNumberedWorker(await randomHex512());
+      const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
+        await incarnateNetworksDirectory();
+      const { formulaIdentifier: newPeersFormulaIdentifier } =
+        await incarnateNumberedPetStore(peersFormulaNumber);
+      if (newPeersFormulaIdentifier !== peersFormulaIdentifier) {
+        assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${peersFormulaIdentifier}, got ${newPeersFormulaIdentifier}`;
+      }
+
+      // Ensure the default host is incarnated and persisted.
+      const { formulaIdentifier: defaultHostFormulaIdentifier } =
+        await incarnateNumberedHost(
+          await incarnateHostDependencies({
+            endoFormulaIdentifier,
+            networksDirectoryFormulaIdentifier,
+            specifiedWorkerFormulaIdentifier:
+              defaultHostWorkerFormulaIdentifier,
+          }),
+        );
+
+      return {
+        formulaNumber,
+        defaultHostFormulaIdentifier,
+        networksDirectoryFormulaIdentifier,
+      };
     });
-
-    const { formulaIdentifier: defaultHostWorkerFormulaIdentifier } =
-      await incarnateNumberedWorker(await randomHex512());
-    const { formulaIdentifier: networksDirectoryFormulaIdentifier } =
-      await incarnateNetworksDirectory();
-    const { formulaIdentifier: newPeersFormulaIdentifier } =
-      await incarnateNumberedPetStore(peersFormulaNumber);
-    if (newPeersFormulaIdentifier !== peersFormulaIdentifier) {
-      assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${peersFormulaIdentifier}, got ${newPeersFormulaIdentifier}`;
-    }
-
-    // Ensure the default host is incarnated and persisted.
-    const { formulaIdentifier: defaultHostFormulaIdentifier } =
-      await incarnateNumberedHost(
-        await incarnateHostDependencies({
-          endoFormulaIdentifier,
-          networksDirectoryFormulaIdentifier,
-          specifiedWorkerFormulaIdentifier: defaultHostWorkerFormulaIdentifier,
-        }),
-      );
 
     /** @type {import('./types.js').EndoFormula} */
     const formula = {
       type: 'endo',
-      networks: networksDirectoryFormulaIdentifier,
+      networks: identifiers.networksDirectoryFormulaIdentifier,
       peers: peersFormulaIdentifier,
-      host: defaultHostFormulaIdentifier,
+      host: identifiers.defaultHostFormulaIdentifier,
       leastAuthority: leastAuthorityFormulaIdentifier,
     };
+
     return /** @type {import('./types').IncarnateResult<import('./types').FarEndoBootstrap>} */ (
-      provideValueForNumberedFormula(formula.type, formulaNumber, formula)
+      provideValueForNumberedFormula(
+        formula.type,
+        identifiers.formulaNumber,
+        formula,
+      )
     );
   };
 
