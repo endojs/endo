@@ -7,48 +7,44 @@ import { makePetSitter } from './pet-sitter.js';
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
+ * @param {import('./types.js').DaemonCore['provideControllerForIdAndResolveHandle']} args.provideControllerForIdAndResolveHandle
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
 export const makeGuestMaker = ({
   provide,
-  provideControllerForFormulaIdentifierAndResolveHandle,
+  provideControllerForIdAndResolveHandle,
   makeMailbox,
   makeDirectoryNode,
 }) => {
   /**
-   * @param {string} guestFormulaIdentifier
-   * @param {string} hostHandleFormulaIdentifier
-   * @param {string} petStoreFormulaIdentifier
-   * @param {string} mainWorkerFormulaIdentifier
+   * @param {string} guestId
+   * @param {string} hostHandleId
+   * @param {string} petStoreId
+   * @param {string} mainWorkerId
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedGuestController = async (
-    guestFormulaIdentifier,
-    hostHandleFormulaIdentifier,
-    petStoreFormulaIdentifier,
-    mainWorkerFormulaIdentifier,
+    guestId,
+    hostHandleId,
+    petStoreId,
+    mainWorkerId,
     context,
   ) => {
-    context.thisDiesIfThatDies(hostHandleFormulaIdentifier);
-    context.thisDiesIfThatDies(petStoreFormulaIdentifier);
-    context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+    context.thisDiesIfThatDies(hostHandleId);
+    context.thisDiesIfThatDies(petStoreId);
+    context.thisDiesIfThatDies(mainWorkerId);
 
     const basePetStore = /** @type {import('./types.js').PetStore} */ (
-      await provide(petStoreFormulaIdentifier)
+      await provide(petStoreId)
     );
     const specialStore = makePetSitter(basePetStore, {
-      SELF: guestFormulaIdentifier,
-      HOST: hostHandleFormulaIdentifier,
+      SELF: guestId,
+      HOST: hostHandleId,
     });
     const hostController =
       /** @type {import('./types.js').EndoHostController} */
-      (
-        await provideControllerForFormulaIdentifierAndResolveHandle(
-          hostHandleFormulaIdentifier,
-        )
-      );
+      (await provideControllerForIdAndResolveHandle(hostHandleId));
     const hostPrivateFacet = await hostController.internal;
     const { respond: deliverToHost } = hostPrivateFacet;
     if (deliverToHost === undefined) {
@@ -59,7 +55,7 @@ export const makeGuestMaker = ({
 
     const mailbox = makeMailbox({
       petStore: specialStore,
-      selfFormulaIdentifier: guestFormulaIdentifier,
+      selfId: guestId,
       context,
     });
     const { petStore } = mailbox;

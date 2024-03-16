@@ -1328,7 +1328,7 @@ test('guest cannot access host methods', async t => {
   await t.throwsAsync(() => E(guestsHost).lookup('SELF'), {
     message: /target has no method "lookup"/u,
   });
-  const revealedTarget = await E.get(guestsHost).targetFormulaIdentifier;
+  const revealedTarget = await E.get(guestsHost).targetId;
   t.is(revealedTarget, undefined);
 });
 
@@ -1352,11 +1352,11 @@ test('read unknown nodeId', async t => {
   // write a bogus value for a bogus nodeId
   const node = await cryptoPowers.randomHex512();
   const number = await cryptoPowers.randomHex512();
-  const formulaIdentifier = formatId({
+  const id = formatId({
     node,
     number,
   });
-  await E(host).write(['abc'], formulaIdentifier);
+  await E(host).write(['abc'], id);
   // observe reification failure
   t.throwsAsync(() => E(host).lookup('abc'), {
     message: /No peer found for node identifier /u,

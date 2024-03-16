@@ -3,13 +3,13 @@
 import { makePromiseKit } from '@endo/promise-kit';
 
 export const makeContextMaker = ({
-  controllerForFormulaIdentifier,
-  provideControllerForFormulaIdentifier,
+  controllerForId,
+  provideControllerForId,
 }) => {
   /**
-   * @param {string} formulaIdentifier
+   * @param {string} id
    */
-  const makeContext = formulaIdentifier => {
+  const makeContext = id => {
     let done = false;
     const { promise: cancelled, reject: rejectCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
@@ -25,14 +25,17 @@ export const makeContextMaker = ({
     /** @type {Array<() => void>} */
     const hooks = [];
 
+    /**
+     * @param {unknown} reason
+     */
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
       done = true;
       rejectCancelled(reason || harden(new Error('Cancelled')));
 
-      console.log(`${prefix} ${formulaIdentifier}`);
+      console.log(`${prefix} ${id}`);
 
-      controllerForFormulaIdentifier.delete(formulaIdentifier);
+      controllerForId.delete(id);
       for (const dependentContext of dependents.values()) {
         dependentContext.cancel(reason, ` ${prefix}`);
       }
@@ -44,18 +47,21 @@ export const makeContextMaker = ({
       return disposed;
     };
 
-    const thatDiesIfThisDies = dependentFormulaIdentifier => {
+    /**
+     * @param {string} dependentId
+     */
+    const thatDiesIfThisDies = dependentId => {
       assert(!done);
-      const dependentController = provideControllerForFormulaIdentifier(
-        dependentFormulaIdentifier,
-      );
-      dependents.set(dependentFormulaIdentifier, dependentController.context);
+      const dependentController = provideControllerForId(dependentId);
+      dependents.set(dependentId, dependentController.context);
     };
 
-    const thisDiesIfThatDies = dependencyIdentifier => {
-      const dependencyController =
-        provideControllerForFormulaIdentifier(dependencyIdentifier);
-      dependencyController.context.thatDiesIfThisDies(formulaIdentifier);
+    /**
+     * @param {string} dependencyId
+     */
+    const thisDiesIfThatDies = dependencyId => {
+      const dependencyController = provideControllerForId(dependencyId);
+      dependencyController.context.thatDiesIfThisDies(id);
     };
 
     /**
@@ -67,7 +73,7 @@ export const makeContextMaker = ({
     };
 
     return {
-      id: formulaIdentifier,
+      id,
       cancel,
       cancelled,
       disposed,

@@ -16,7 +16,7 @@ const assertPowersName = name => {
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifier']} args.provideControllerForFormulaIdentifier
+ * @param {import('./types.js').DaemonCore['provideControllerForId']} args.provideControllerForId
  * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
  * @param {import('./types.js').DaemonCore['incarnateWorker']} args.incarnateWorker
  * @param {import('./types.js').DaemonCore['incarnateHost']} args.incarnateHost
@@ -32,7 +32,7 @@ const assertPowersName = name => {
  */
 export const makeHostMaker = ({
   provide,
-  provideControllerForFormulaIdentifier,
+  provideControllerForId,
   cancelValue,
   incarnateWorker,
   incarnateHost,
@@ -47,47 +47,47 @@ export const makeHostMaker = ({
   ownNodeIdentifier,
 }) => {
   /**
-   * @param {string} hostFormulaIdentifier
-   * @param {string} storeFormulaIdentifier
-   * @param {string} inspectorFormulaIdentifier
-   * @param {string} mainWorkerFormulaIdentifier
-   * @param {string} endoFormulaIdentifier
-   * @param {string} networksDirectoryFormulaIdentifier
-   * @param {string} leastAuthorityFormulaIdentifier
+   * @param {string} hostId
+   * @param {string} storeId
+   * @param {string} inspectorId
+   * @param {string} mainWorkerId
+   * @param {string} endoId
+   * @param {string} networksDirectoryId
+   * @param {string} leastAuthorityId
    * @param {{[name: string]: string}} platformNames
    * @param {import('./types.js').Context} context
    */
   const makeIdentifiedHost = async (
-    hostFormulaIdentifier,
-    storeFormulaIdentifier,
-    inspectorFormulaIdentifier,
-    mainWorkerFormulaIdentifier,
-    endoFormulaIdentifier,
-    networksDirectoryFormulaIdentifier,
-    leastAuthorityFormulaIdentifier,
+    hostId,
+    storeId,
+    inspectorId,
+    mainWorkerId,
+    endoId,
+    networksDirectoryId,
+    leastAuthorityId,
     platformNames,
     context,
   ) => {
-    context.thisDiesIfThatDies(storeFormulaIdentifier);
-    context.thisDiesIfThatDies(mainWorkerFormulaIdentifier);
+    context.thisDiesIfThatDies(storeId);
+    context.thisDiesIfThatDies(mainWorkerId);
 
     const basePetStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      await provide(storeFormulaIdentifier)
+      await provide(storeId)
     );
     const specialStore = makePetSitter(basePetStore, {
       ...platformNames,
-      SELF: hostFormulaIdentifier,
-      ENDO: endoFormulaIdentifier,
-      NETS: networksDirectoryFormulaIdentifier,
-      INFO: inspectorFormulaIdentifier,
-      NONE: leastAuthorityFormulaIdentifier,
+      SELF: hostId,
+      ENDO: endoId,
+      NETS: networksDirectoryId,
+      INFO: inspectorId,
+      NONE: leastAuthorityId,
     });
 
     const mailbox = makeMailbox({
       petStore: specialStore,
-      selfFormulaIdentifier: hostFormulaIdentifier,
+      selfId: hostId,
       context,
     });
     const { petStore } = mailbox;
@@ -97,7 +97,7 @@ export const makeHostMaker = ({
     const getEndoBootstrap = async () => {
       const endoBootstrap =
         /** @type {import('./types.js').FarEndoBootstrap} */ (
-          await provide(endoFormulaIdentifier)
+          await provide(endoId)
         );
       return endoBootstrap;
     };
@@ -113,7 +113,7 @@ export const makeHostMaker = ({
       if (petName !== undefined) {
         assertPetName(petName);
         tasks.push(identifiers =>
-          petStore.write(petName, identifiers.readableBlobFormulaIdentifier),
+          petStore.write(petName, identifiers.readableBlobId),
         );
       }
 
@@ -128,14 +128,14 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').WorkerDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       // eslint-disable-next-line no-use-before-define
-      const workerFormulaIdentifier = tryGetWorkerFormulaIdentifier(workerName);
+      const workerId = tryGetWorkerId(workerName);
       // eslint-disable-next-line no-use-before-define
-      prepareWorkerIncarnation(workerName, workerFormulaIdentifier, tasks.push);
+      prepareWorkerIncarnation(workerName, workerId, tasks.push);
 
-      if (workerFormulaIdentifier !== undefined) {
+      if (workerId !== undefined) {
         return /** @type {Promise<import('./types.js').EndoWorker>} */ (
           // Behold, recursion:
-          provide(workerFormulaIdentifier)
+          provide(workerId)
         );
       }
 
@@ -147,9 +147,9 @@ export const makeHostMaker = ({
      * @param {string} workerName
      * @returns {string | undefined}
      */
-    const tryGetWorkerFormulaIdentifier = workerName => {
+    const tryGetWorkerId = workerName => {
       if (workerName === 'MAIN') {
-        return mainWorkerFormulaIdentifier;
+        return mainWorkerId;
       } else if (workerName === 'NEW') {
         return undefined;
       }
@@ -158,17 +158,13 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} workerName
-     * @param {string | undefined} workerFormulaIdentifier
-     * @param {import('./types.js').DeferredTasks<{ workerFormulaIdentifier: string }>['push']} deferTask
+     * @param {string | undefined} workerId
+     * @param {import('./types.js').DeferredTasks<{ workerId: string }>['push']} deferTask
      */
-    const prepareWorkerIncarnation = (
-      workerName,
-      workerFormulaIdentifier,
-      deferTask,
-    ) => {
-      if (workerFormulaIdentifier === undefined) {
+    const prepareWorkerIncarnation = (workerName, workerId, deferTask) => {
+      if (workerId === undefined) {
         deferTask(identifiers =>
-          petStore.write(workerName, identifiers.workerFormulaIdentifier),
+          petStore.write(workerName, identifiers.workerId),
         );
       }
     };
@@ -197,8 +193,8 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerFormulaIdentifier = tryGetWorkerFormulaIdentifier(workerName);
-      prepareWorkerIncarnation(workerName, workerFormulaIdentifier, tasks.push);
+      const workerId = tryGetWorkerId(workerName);
+      prepareWorkerIncarnation(workerName, workerId, tasks.push);
 
       /** @type {(string | string[])[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(
@@ -209,11 +205,11 @@ export const makeHostMaker = ({
 
           const petNamePath = petNamePathFrom(petNameOrPath);
           if (petNamePath.length === 1) {
-            const formulaIdentifier = petStore.identifyLocal(petNamePath[0]);
-            if (formulaIdentifier === undefined) {
+            const id = petStore.identifyLocal(petNamePath[0]);
+            if (id === undefined) {
               throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
             }
-            return formulaIdentifier;
+            return id;
           }
 
           return petNamePath;
@@ -222,17 +218,17 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.evalFormulaIdentifier),
+          petStore.write(resultName, identifiers.evalId),
         );
       }
 
       const { value } = await incarnateEval(
-        hostFormulaIdentifier,
+        hostId,
         source,
         codeNames,
         endowmentFormulaIdsOrPaths,
         tasks,
-        workerFormulaIdentifier,
+        workerId,
       );
       return value;
     };
@@ -249,23 +245,23 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerFormulaIdentifier = tryGetWorkerFormulaIdentifier(workerName);
-      prepareWorkerIncarnation(workerName, workerFormulaIdentifier, tasks.push);
+      const workerId = tryGetWorkerId(workerName);
+      prepareWorkerIncarnation(workerName, workerId, tasks.push);
 
-      const powersFormulaIdentifier = petStore.identifyLocal(powersName);
-      if (powersFormulaIdentifier === undefined) {
+      const powersId = petStore.identifyLocal(powersName);
+      if (powersId === undefined) {
         tasks.push(identifiers =>
-          petStore.write(powersName, identifiers.powersFormulaIdentifier),
+          petStore.write(powersName, identifiers.powersId),
         );
       }
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.capletFormulaIdentifier),
+          petStore.write(resultName, identifiers.capletId),
         );
       }
 
-      return { tasks, workerFormulaIdentifier, powersFormulaIdentifier };
+      return { tasks, workerId, powersId };
     };
 
     /** @type {import('./types.js').EndoHost['makeUnconfined']} */
@@ -275,17 +271,20 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
-      const { tasks, workerFormulaIdentifier, powersFormulaIdentifier } =
-        prepareMakeCaplet(powersName, workerName, resultName);
+      const { tasks, workerId, powersId } = prepareMakeCaplet(
+        powersName,
+        workerName,
+        resultName,
+      );
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const { value } = await incarnateUnconfined(
-        hostFormulaIdentifier,
+        hostId,
         specifier,
         tasks,
-        workerFormulaIdentifier,
-        powersFormulaIdentifier,
+        workerId,
+        powersId,
       );
       return value;
     };
@@ -302,22 +301,25 @@ export const makeHostMaker = ({
       powersName,
       resultName,
     ) => {
-      const bundleFormulaIdentifier = petStore.identifyLocal(bundleName);
-      if (bundleFormulaIdentifier === undefined) {
+      const bundleId = petStore.identifyLocal(bundleName);
+      if (bundleId === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
-      const { tasks, workerFormulaIdentifier, powersFormulaIdentifier } =
-        prepareMakeCaplet(powersName, workerName, resultName);
+      const { tasks, workerId, powersId } = prepareMakeCaplet(
+        powersName,
+        workerName,
+        resultName,
+      );
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const { value } = await incarnateBundle(
-        hostFormulaIdentifier,
-        bundleFormulaIdentifier,
+        hostId,
+        bundleId,
         tasks,
-        workerFormulaIdentifier,
-        powersFormulaIdentifier,
+        workerId,
+        powersId,
       );
       return value;
     };
@@ -326,26 +328,21 @@ export const makeHostMaker = ({
      * Attempts to introduce the given names to the specified agent. The agent in question
      * must be incarnated before this function is called.
      *
-     * @param {string} formulaIdentifier - The agent's formula identifier.
+     * @param {string} id - The agent's formula identifier.
      * @param {Record<string,string>} introducedNames - The names to introduce.
      * @returns {Promise<void>}
      */
-    const introduceNamesToAgent = async (
-      formulaIdentifier,
-      introducedNames,
-    ) => {
+    const introduceNamesToAgent = async (id, introducedNames) => {
       /** @type {import('./types.js').Controller<any, any>} */
-      const controller =
-        provideControllerForFormulaIdentifier(formulaIdentifier);
+      const controller = provideControllerForId(id);
       const { petStore: newPetStore } = await controller.internal;
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
-          const introducedFormulaIdentifier =
-            petStore.identifyLocal(parentName);
-          if (introducedFormulaIdentifier === undefined) {
+          const introducedId = petStore.identifyLocal(parentName);
+          if (introducedId === undefined) {
             return;
           }
-          await newPetStore.write(childName, introducedFormulaIdentifier);
+          await newPetStore.write(childName, introducedId);
         }),
       );
     };
@@ -355,12 +352,12 @@ export const makeHostMaker = ({
      */
     const getNamedAgent = petName => {
       if (petName !== undefined) {
-        const formulaIdentifier = petStore.identifyLocal(petName);
-        if (formulaIdentifier !== undefined) {
+        const id = petStore.identifyLocal(petName);
+        if (id !== undefined) {
           return {
-            formulaIdentifier,
+            id,
             value: /** @type {Promise<any>} */ (
-              provideControllerForFormulaIdentifier(formulaIdentifier).external
+              provideControllerForId(id).external
             ),
           };
         }
@@ -375,9 +372,7 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       if (petName !== undefined) {
-        tasks.push(identifiers =>
-          petStore.write(petName, identifiers.agentFormulaIdentifier),
-        );
+        tasks.push(identifiers => petStore.write(petName, identifiers.agentId));
       }
       return tasks;
     };
@@ -385,24 +380,24 @@ export const makeHostMaker = ({
     /**
      * @param {string} [petName]
      * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
-     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoHost>}>}
+     * @returns {Promise<{id: string, value: Promise<import('./types.js').EndoHost>}>}
      */
     const makeHost = async (petName, { introducedNames = {} } = {}) => {
       let host = getNamedAgent(petName);
       if (host === undefined) {
-        const { value, formulaIdentifier } =
+        const { value, id } =
           // Behold, recursion:
           await incarnateHost(
-            endoFormulaIdentifier,
-            networksDirectoryFormulaIdentifier,
+            endoId,
+            networksDirectoryId,
             getDeferredTasksForAgent(petName),
           );
-        host = { value: Promise.resolve(value), formulaIdentifier };
+        host = { value: Promise.resolve(value), id };
       }
 
-      await introduceNamesToAgent(host.formulaIdentifier, introducedNames);
+      await introduceNamesToAgent(host.id, introducedNames);
 
-      /** @type {{ formulaIdentifier: string, value: Promise<import('./types.js').EndoHost> }} */
+      /** @type {{ id: string, value: Promise<import('./types.js').EndoHost> }} */
       return host;
     };
 
@@ -415,23 +410,20 @@ export const makeHostMaker = ({
     /**
      * @param {string} [petName]
      * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
-     * @returns {Promise<{formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest>}>}
+     * @returns {Promise<{id: string, value: Promise<import('./types.js').EndoGuest>}>}
      */
     const makeGuest = async (petName, { introducedNames = {} } = {}) => {
       let guest = getNamedAgent(petName);
       if (guest === undefined) {
-        const { value, formulaIdentifier } =
+        const { value, id } =
           // Behold, recursion:
-          await incarnateGuest(
-            hostFormulaIdentifier,
-            getDeferredTasksForAgent(petName),
-          );
-        guest = { value: Promise.resolve(value), formulaIdentifier };
+          await incarnateGuest(hostId, getDeferredTasksForAgent(petName));
+        guest = { value: Promise.resolve(value), id };
       }
 
-      await introduceNamesToAgent(guest.formulaIdentifier, introducedNames);
+      await introduceNamesToAgent(guest.id, introducedNames);
 
-      /** @type {{ formulaIdentifier: string, value: Promise<import('./types.js').EndoGuest> }} */
+      /** @type {{ id: string, value: Promise<import('./types.js').EndoGuest> }} */
       return guest;
     };
 
@@ -443,11 +435,11 @@ export const makeHostMaker = ({
 
     /** @type {import('./types.js').EndoHost['cancel']} */
     const cancel = async (petName, reason = new Error('Cancelled')) => {
-      const formulaIdentifier = petStore.identifyLocal(petName);
-      if (formulaIdentifier === undefined) {
+      const id = petStore.identifyLocal(petName);
+      if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
-      return cancelValue(formulaIdentifier, reason);
+      return cancelValue(id, reason);
     };
 
     /** @type {import('./types.js').EndoHost['gateway']} */
@@ -464,9 +456,7 @@ export const makeHostMaker = ({
 
     /** @type {import('./types.js').EndoHost['getPeerInfo']} */
     const getPeerInfo = async () => {
-      const addresses = await getAllNetworkAddresses(
-        networksDirectoryFormulaIdentifier,
-      );
+      const addresses = await getAllNetworkAddresses(networksDirectoryId);
       const peerInfo = {
         node: ownNodeIdentifier,
         addresses,
@@ -545,7 +535,7 @@ export const makeHostMaker = ({
     });
     const internal = harden({ receive, respond, petStore });
 
-    await provide(mainWorkerFormulaIdentifier);
+    await provide(mainWorkerId);
 
     return harden({ external, internal });
   };

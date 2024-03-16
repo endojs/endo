@@ -5,31 +5,31 @@ export const makeWeakMultimap = () => {
   /** @type {WeakMap<WeakKey, Set<unknown>>} */
   const map = new WeakMap();
   return {
-    add: (ref, formulaIdentifier) => {
-      let set = map.get(ref);
+    add: (key, value) => {
+      let set = map.get(key);
       if (set === undefined) {
         set = new Set();
-        map.set(ref, set);
+        map.set(key, set);
       }
-      set.add(formulaIdentifier);
+      set.add(value);
     },
 
-    delete: (ref, formulaIdentifier) => {
-      const set = map.get(ref);
+    delete: (key, value) => {
+      const set = map.get(key);
       if (set !== undefined) {
-        const result = set.delete(formulaIdentifier);
+        const result = set.delete(value);
         if (set.size === 0) {
-          map.delete(ref);
+          map.delete(key);
         }
         return result;
       }
       return false;
     },
 
-    deleteAll: ref => map.delete(ref),
+    deleteAll: key => map.delete(key),
 
-    get: ref => map.get(ref)?.keys().next().value,
+    get: key => map.get(key)?.keys().next().value,
 
-    getAll: ref => Array.from(map.get(ref) ?? []),
+    getAll: key => Array.from(map.get(key) ?? []),
   };
 };

@@ -25,14 +25,14 @@ export const makePetSitter = (petStore, specialNames) => {
 
   /**
    * @param {string} petName
-   * @returns {import('./types.js').FormulaIdentifierRecord}
+   * @returns {import('./types.js').IdRecord}
    */
-  const formulaIdentifierRecordForName = petName => {
-    const formulaIdentifier = identifyLocal(petName);
-    if (formulaIdentifier === undefined) {
+  const idRecordForName = petName => {
+    const id = identifyLocal(petName);
+    if (id === undefined) {
       throw new Error(`Formula does not exist for pet name ${q(petName)}`);
     }
-    return parseId(formulaIdentifier);
+    return parseId(id);
   };
 
   /** @type {import('./types.js').PetStore['list']} */
@@ -42,22 +42,20 @@ export const makePetSitter = (petStore, specialNames) => {
   /** @type {import('./types.js').PetStore['follow']} */
   const follow = async function* currentAndSubsequentNames() {
     for (const name of Object.keys(specialNames).sort()) {
-      const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
-      yield /** @type {{ add: string, value: import('./types.js').FormulaIdentifierRecord }} */ ({
+      const idRecord = idRecordForName(name);
+      yield /** @type {{ add: string, value: import('./types.js').IdRecord }} */ ({
         add: name,
-        value: formulaIdentifierRecord,
+        value: idRecord,
       });
     }
     yield* petStore.follow();
   };
 
   /** @type {import('./types.js').PetStore['reverseIdentify']} */
-  const reverseIdentify = formulaIdentifier => {
-    const names = Array.from(petStore.reverseIdentify(formulaIdentifier));
-    for (const [specialName, specialFormulaIdentifier] of Object.entries(
-      specialNames,
-    )) {
-      if (specialFormulaIdentifier === formulaIdentifier) {
+  const reverseIdentify = id => {
+    const names = Array.from(petStore.reverseIdentify(id));
+    for (const [specialName, specialId] of Object.entries(specialNames)) {
+      if (specialId === id) {
         names.push(specialName);
       }
     }

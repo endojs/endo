@@ -21,8 +21,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {Map<string, string>} */
     const petNames = new Map();
     /** @type {Map<string, Set<string>>} */
-    const formulaIdentifiers = new Map();
-    /** @type {import('./types.js').Topic<({ add: string, value: import('./types.js').FormulaIdentifierRecord } | { remove: string })>} */
+    const ids = new Map();
+    /** @type {import('./types.js').Topic<({ add: string, value: import('./types.js').IdRecord } | { remove: string })>} */
     const changesTopic = makeChangeTopic();
 
     /** @param {string} petName */
@@ -42,11 +42,11 @@ export const makePetStoreMaker = (filePowers, locator) => {
         assertValidName(petName);
         const formulaIdentifier = await read(petName);
         petNames.set(petName, formulaIdentifier);
-        const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
+        const formulaPetNames = ids.get(formulaIdentifier);
         if (formulaPetNames !== undefined) {
           formulaPetNames.add(petName);
         } else {
-          formulaIdentifiers.set(formulaIdentifier, new Set([petName]));
+          ids.set(formulaIdentifier, new Set([petName]));
         }
       }),
     );
@@ -71,7 +71,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       // TODO: Return early if the formula identifier is the same.
       if (petNames.has(petName)) {
         // Perform cleanup on the overwritten pet name.
-        const formulaPetNames = formulaIdentifiers.get(petName);
+        const formulaPetNames = ids.get(petName);
         if (formulaPetNames !== undefined) {
           formulaPetNames.delete(petName);
         }
@@ -81,9 +81,9 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
       petNames.set(petName, formulaIdentifier);
 
-      const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
+      const formulaPetNames = ids.get(formulaIdentifier);
       if (formulaPetNames === undefined) {
-        formulaIdentifiers.set(formulaIdentifier, new Set([petName]));
+        ids.set(formulaIdentifier, new Set([petName]));
       } else {
         formulaPetNames.add(petName);
       }
@@ -100,7 +100,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
 
     /**
      * @param {string} petName
-     * @returns {import('./types.js').FormulaIdentifierRecord}
+     * @returns {import('./types.js').IdRecord}
      */
     const formulaIdentifierRecordForName = petName => {
       const formulaIdentifier = petNames.get(petName);
@@ -119,7 +119,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const changes = changesTopic.subscribe();
       for (const name of [...petNames.keys()].sort()) {
         const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
-        yield /** @type {{ add: string, value: import('./types.js').FormulaIdentifierRecord }} */ ({
+        yield /** @type {{ add: string, value: import('./types.js').IdRecord }} */ ({
           add: name,
           value: formulaIdentifierRecord,
         });
@@ -141,7 +141,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       await filePowers.removePath(petNamePath);
       petNames.delete(petName);
-      const formulaPetNames = formulaIdentifiers.get(petName);
+      const formulaPetNames = ids.get(petName);
       if (formulaPetNames !== undefined) {
         formulaPetNames.delete(petName);
       }
@@ -158,15 +158,15 @@ export const makePetStoreMaker = (filePowers, locator) => {
         return;
       }
       const formulaIdentifier = petNames.get(fromName);
-      const overwrittenFormulaIdentifier = petNames.get(toName);
+      const overwrittenId = petNames.get(toName);
       if (formulaIdentifier === undefined) {
         throw new Error(
           `Formula does not exist for pet name ${JSON.stringify(fromName)}`,
         );
       }
       assertValidId(formulaIdentifier, fromName);
-      if (overwrittenFormulaIdentifier !== undefined) {
-        assertValidId(overwrittenFormulaIdentifier, toName);
+      if (overwrittenId !== undefined) {
+        assertValidId(overwrittenId, toName);
       }
 
       const fromPath = filePowers.joinPath(petNameDirectoryPath, fromName);
@@ -176,17 +176,15 @@ export const makePetStoreMaker = (filePowers, locator) => {
       petNames.delete(fromName);
 
       // Delete the back-reference for the overwritten pet name if it existed.
-      if (overwrittenFormulaIdentifier !== undefined) {
-        const overwrittenFormulaPetNames = formulaIdentifiers.get(
-          overwrittenFormulaIdentifier,
-        );
+      if (overwrittenId !== undefined) {
+        const overwrittenFormulaPetNames = ids.get(overwrittenId);
         if (overwrittenFormulaPetNames !== undefined) {
           overwrittenFormulaPetNames.delete(toName);
         }
       }
 
       // Change the back-reference for the old pet name.
-      const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
+      const formulaPetNames = ids.get(formulaIdentifier);
       if (formulaPetNames !== undefined) {
         formulaPetNames.delete(fromName);
         formulaPetNames.add(toName);
@@ -204,7 +202,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore['reverseIdentify']} */
     const reverseIdentify = formulaIdentifier => {
       assertValidId(formulaIdentifier);
-      const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
+      const formulaPetNames = ids.get(formulaIdentifier);
       if (formulaPetNames === undefined) {
         return harden([]);
       }
