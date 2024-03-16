@@ -16,7 +16,7 @@ const assertPowersName = name => {
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerForId']} args.provideControllerForId
+ * @param {import('./types.js').DaemonCore['provideController']} args.provideController
  * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
  * @param {import('./types.js').DaemonCore['incarnateWorker']} args.incarnateWorker
  * @param {import('./types.js').DaemonCore['incarnateHost']} args.incarnateHost
@@ -32,7 +32,7 @@ const assertPowersName = name => {
  */
 export const makeHostMaker = ({
   provide,
-  provideControllerForId,
+  provideController,
   cancelValue,
   incarnateWorker,
   incarnateHost,
@@ -334,7 +334,7 @@ export const makeHostMaker = ({
      */
     const introduceNamesToAgent = async (id, introducedNames) => {
       /** @type {import('./types.js').Controller<any, any>} */
-      const controller = provideControllerForId(id);
+      const controller = provideController(id);
       const { petStore: newPetStore } = await controller.internal;
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
@@ -356,9 +356,7 @@ export const makeHostMaker = ({
         if (id !== undefined) {
           return {
             id,
-            value: /** @type {Promise<any>} */ (
-              provideControllerForId(id).external
-            ),
+            value: /** @type {Promise<any>} */ (provideController(id).external),
           };
         }
       }

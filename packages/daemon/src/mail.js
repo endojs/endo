@@ -9,12 +9,12 @@ const { quote: q } = assert;
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerForIdAndResolveHandle']} args.provideControllerForIdAndResolveHandle
+ * @param {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} args.provideControllerAndResolveHandle
  * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
   provide,
-  provideControllerForIdAndResolveHandle,
+  provideControllerAndResolveHandle,
 }) => {
   /**
     @type {import('./types.js').MakeMailbox} */
@@ -231,7 +231,7 @@ export const makeMailboxMaker = ({
       if (recipientId === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipientController = await provideControllerForIdAndResolveHandle(
+      const recipientController = await provideControllerAndResolveHandle(
         recipientId,
       );
       const recipientInternal = await recipientController.internal;
@@ -336,7 +336,7 @@ export const makeMailboxMaker = ({
       if (recipientId === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipientController = await provideControllerForIdAndResolveHandle(
+      const recipientController = await provideControllerAndResolveHandle(
         recipientId,
       );
       const recipientInternal = await recipientController.internal;

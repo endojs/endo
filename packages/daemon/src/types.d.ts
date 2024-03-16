@@ -766,8 +766,8 @@ export interface DaemonCoreInternal {
 export interface DaemonCore {
   nodeIdentifier: string;
   provide: (id: string) => Promise<unknown>;
-  provideControllerForId: (id: string) => Controller;
-  provideControllerForIdAndResolveHandle: (id: string) => Promise<Controller>;
+  provideController: (id: string) => Controller;
+  provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
   formulate: (
     formulaNumber: string,
     formula: Formula,

@@ -2,10 +2,7 @@
 
 import { makePromiseKit } from '@endo/promise-kit';
 
-export const makeContextMaker = ({
-  controllerForId,
-  provideControllerForId,
-}) => {
+export const makeContextMaker = ({ controllerForId, provideController }) => {
   /**
    * @param {string} id
    */
@@ -26,7 +23,8 @@ export const makeContextMaker = ({
     const hooks = [];
 
     /**
-     * @param {unknown} reason
+     * @param {Error} reason
+     * @param {string} [prefix]
      */
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
@@ -52,7 +50,7 @@ export const makeContextMaker = ({
      */
     const thatDiesIfThisDies = dependentId => {
       assert(!done);
-      const dependentController = provideControllerForId(dependentId);
+      const dependentController = provideController(dependentId);
       dependents.set(dependentId, dependentController.context);
     };
 
@@ -60,7 +58,7 @@ export const makeContextMaker = ({
      * @param {string} dependencyId
      */
     const thisDiesIfThatDies = dependencyId => {
-      const dependencyController = provideControllerForId(dependencyId);
+      const dependencyController = provideController(dependencyId);
       dependencyController.context.thatDiesIfThisDies(id);
     };
 

@@ -302,7 +302,7 @@ const makeDaemonCore = async (
       /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        provideControllerForId(workerId)
+        provideController(workerId)
       );
     const workerDaemonFacet = workerController.internal;
     assert(
@@ -375,7 +375,7 @@ const makeDaemonCore = async (
       /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        provideControllerForId(workerId)
+        provideController(workerId)
       );
     const workerDaemonFacet = workerController.internal;
     assert(
@@ -415,7 +415,7 @@ const makeDaemonCore = async (
       /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        provideControllerForId(workerId)
+        provideController(workerId)
       );
     const workerDaemonFacet = workerController.internal;
     assert(
@@ -752,8 +752,8 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCore['provideControllerForId']} */
-  const provideControllerForId = id => {
+  /** @type {import('./types.js').DaemonCore['provideController']} */
+  const provideController = id => {
     let controller = controllerForId.get(id);
     if (controller !== undefined) {
       return controller;
@@ -810,7 +810,7 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['cancelValue']} */
   const cancelValue = async (id, reason) => {
     await formulaGraphJobs.enqueue();
-    const controller = provideControllerForId(id);
+    const controller = provideController(id);
     console.log('Cancelled:');
     return controller.context.cancel(reason);
   };
@@ -818,7 +818,7 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore['provide']} */
   const provide = id => {
     const controller = /** @type {import('./types.js').Controller<>} */ (
-      provideControllerForId(id)
+      provideController(id)
     );
     return controller.external.then(value => {
       // Release the value to the public only after ensuring
@@ -830,12 +830,12 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCore['provideControllerForIdAndResolveHandle']} */
-  const provideControllerForIdAndResolveHandle = async id => {
+  /** @type {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} */
+  const provideControllerAndResolveHandle = async id => {
     let currentId = id;
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const controller = provideControllerForId(currentId);
+      const controller = provideController(currentId);
       // eslint-disable-next-line no-await-in-loop
       const internalFacet = await controller.internal;
       if (internalFacet === undefined || internalFacet === null) {
@@ -1477,7 +1477,7 @@ const makeDaemonCore = async (
 
   const makeContext = makeContextMaker({
     controllerForId,
-    provideControllerForId,
+    provideController,
   });
 
   const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
@@ -1488,19 +1488,19 @@ const makeDaemonCore = async (
 
   const makeMailbox = makeMailboxMaker({
     provide,
-    provideControllerForIdAndResolveHandle,
+    provideControllerAndResolveHandle,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
     provide,
-    provideControllerForIdAndResolveHandle,
+    provideControllerAndResolveHandle,
     makeMailbox,
     makeDirectoryNode,
   });
 
   const makeIdentifiedHost = makeHostMaker({
     provide,
-    provideControllerForId,
+    provideController,
     cancelValue,
     incarnateWorker,
     incarnateHost,
@@ -1627,8 +1627,8 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').DaemonCore} */
   const daemonCore = {
     nodeIdentifier: ownNodeIdentifier,
-    provideControllerForId,
-    provideControllerForIdAndResolveHandle,
+    provideController,
+    provideControllerAndResolveHandle,
     provide,
     formulate,
     getIdForRef,

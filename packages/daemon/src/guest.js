@@ -7,13 +7,13 @@ import { makePetSitter } from './pet-sitter.js';
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerForIdAndResolveHandle']} args.provideControllerForIdAndResolveHandle
+ * @param {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} args.provideControllerAndResolveHandle
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
 export const makeGuestMaker = ({
   provide,
-  provideControllerForIdAndResolveHandle,
+  provideControllerAndResolveHandle,
   makeMailbox,
   makeDirectoryNode,
 }) => {
@@ -44,7 +44,7 @@ export const makeGuestMaker = ({
     });
     const hostController =
       /** @type {import('./types.js').EndoHostController} */
-      (await provideControllerForIdAndResolveHandle(hostHandleId));
+      (await provideControllerAndResolveHandle(hostHandleId));
     const hostPrivateFacet = await hostController.internal;
     const { respond: deliverToHost } = hostPrivateFacet;
     if (deliverToHost === undefined) {
