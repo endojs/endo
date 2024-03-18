@@ -18,13 +18,13 @@ const assertPowersName = name => {
  * @param {import('./types.js').DaemonCore['provide']} args.provide
  * @param {import('./types.js').DaemonCore['provideController']} args.provideController
  * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
- * @param {import('./types.js').DaemonCore['incarnateWorker']} args.incarnateWorker
- * @param {import('./types.js').DaemonCore['incarnateHost']} args.incarnateHost
- * @param {import('./types.js').DaemonCore['incarnateGuest']} args.incarnateGuest
- * @param {import('./types.js').DaemonCore['incarnateEval']} args.incarnateEval
- * @param {import('./types.js').DaemonCore['incarnateUnconfined']} args.incarnateUnconfined
- * @param {import('./types.js').DaemonCore['incarnateBundle']} args.incarnateBundle
- * @param {import('./types.js').DaemonCore['incarnateReadableBlob']} args.incarnateReadableBlob
+ * @param {import('./types.js').DaemonCore['formulateWorker']} args.formulateWorker
+ * @param {import('./types.js').DaemonCore['formulateHost']} args.formulateHost
+ * @param {import('./types.js').DaemonCore['formulateGuest']} args.formulateGuest
+ * @param {import('./types.js').DaemonCore['formulateEval']} args.formulateEval
+ * @param {import('./types.js').DaemonCore['formulateUnconfined']} args.formulateUnconfined
+ * @param {import('./types.js').DaemonCore['formulateBundle']} args.formulateBundle
+ * @param {import('./types.js').DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
@@ -34,13 +34,13 @@ export const makeHostMaker = ({
   provide,
   provideController,
   cancelValue,
-  incarnateWorker,
-  incarnateHost,
-  incarnateGuest,
-  incarnateEval,
-  incarnateUnconfined,
-  incarnateBundle,
-  incarnateReadableBlob,
+  formulateWorker,
+  formulateHost,
+  formulateGuest,
+  formulateEval,
+  formulateUnconfined,
+  formulateBundle,
+  formulateReadableBlob,
   getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
@@ -117,7 +117,7 @@ export const makeHostMaker = ({
         );
       }
 
-      const { value } = await incarnateReadableBlob(readerRef, tasks);
+      const { value } = await formulateReadableBlob(readerRef, tasks);
       return value;
     };
 
@@ -130,7 +130,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const workerId = tryGetWorkerId(workerName);
       // eslint-disable-next-line no-use-before-define
-      prepareWorkerIncarnation(workerName, workerId, tasks.push);
+      prepareWorkerFormulation(workerName, workerId, tasks.push);
 
       if (workerId !== undefined) {
         return /** @type {Promise<import('./types.js').EndoWorker>} */ (
@@ -139,7 +139,7 @@ export const makeHostMaker = ({
         );
       }
 
-      const { value } = await incarnateWorker(tasks);
+      const { value } = await formulateWorker(tasks);
       return value;
     };
 
@@ -161,7 +161,7 @@ export const makeHostMaker = ({
      * @param {string | undefined} workerId
      * @param {import('./types.js').DeferredTasks<{ workerId: string }>['push']} deferTask
      */
-    const prepareWorkerIncarnation = (workerName, workerId, deferTask) => {
+    const prepareWorkerFormulation = (workerName, workerId, deferTask) => {
       if (workerId === undefined) {
         deferTask(identifiers =>
           petStore.write(workerName, identifiers.workerId),
@@ -194,7 +194,7 @@ export const makeHostMaker = ({
       const tasks = makeDeferredTasks();
 
       const workerId = tryGetWorkerId(workerName);
-      prepareWorkerIncarnation(workerName, workerId, tasks.push);
+      prepareWorkerFormulation(workerName, workerId, tasks.push);
 
       /** @type {(string | string[])[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(
@@ -222,7 +222,7 @@ export const makeHostMaker = ({
         );
       }
 
-      const { value } = await incarnateEval(
+      const { value } = await formulateEval(
         hostId,
         source,
         codeNames,
@@ -246,7 +246,7 @@ export const makeHostMaker = ({
       const tasks = makeDeferredTasks();
 
       const workerId = tryGetWorkerId(workerName);
-      prepareWorkerIncarnation(workerName, workerId, tasks.push);
+      prepareWorkerFormulation(workerName, workerId, tasks.push);
 
       const powersId = petStore.identifyLocal(powersName);
       if (powersId === undefined) {
@@ -279,7 +279,7 @@ export const makeHostMaker = ({
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { value } = await incarnateUnconfined(
+      const { value } = await formulateUnconfined(
         hostId,
         specifier,
         tasks,
@@ -314,7 +314,7 @@ export const makeHostMaker = ({
 
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const { value } = await incarnateBundle(
+      const { value } = await formulateBundle(
         hostId,
         bundleId,
         tasks,
@@ -326,7 +326,7 @@ export const makeHostMaker = ({
 
     /**
      * Attempts to introduce the given names to the specified agent. The agent in question
-     * must be incarnated before this function is called.
+     * must be formulated before this function is called.
      *
      * @param {string} id - The agent's formula identifier.
      * @param {Record<string,string>} introducedNames - The names to introduce.
@@ -385,7 +385,7 @@ export const makeHostMaker = ({
       if (host === undefined) {
         const { value, id } =
           // Behold, recursion:
-          await incarnateHost(
+          await formulateHost(
             endoId,
             networksDirectoryId,
             getDeferredTasksForAgent(petName),
@@ -415,7 +415,7 @@ export const makeHostMaker = ({
       if (guest === undefined) {
         const { value, id } =
           // Behold, recursion:
-          await incarnateGuest(hostId, getDeferredTasksForAgent(petName));
+          await formulateGuest(hostId, getDeferredTasksForAgent(petName));
         guest = { value: Promise.resolve(value), id };
       }
 
