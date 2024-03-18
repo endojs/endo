@@ -248,7 +248,7 @@ const augmentLogging = testerFunc => {
   // https://github.com/endojs/endo/issues/647#issuecomment-809010961
   Object.assign(augmented, testerFunc);
   // @ts-expect-error cast
-  return /** @type {import('ava').TestFn} */ augmented;
+  return /** @type {T} */ augmented;
 };
 
 /**
@@ -278,7 +278,7 @@ const augmentLogging = testerFunc => {
  * (which defaults to using the SES-aware `console.error`)
  * before propagating into `rawTest`.
  *
- * @template {import('ava').TestFn} [T=import('ava').TestFn] ava `test`
+ * @template {import('ava').TestFn} T ava `test`
  * @param {T} avaTest
  * @returns {T}
  */
