@@ -36,39 +36,56 @@ export const makeHttpPowers = ({ http, ws }) => {
     });
 
     if (respond) {
+      const sendResponse = async (req, res) => {
+        const response = await respond(
+          harden({
+            method: req.method,
+            url: req.url,
+            // TODO Node.js headers are a far more detailed type.
+            headers: harden(
+              /** @type {Record<string, string | Array<string> | undefined>} */ (
+                req.headers
+              ),
+            ),
+          }),
+        );
+        res.writeHead(response.status, response.headers);
+
+        if (response.content === undefined) {
+          res.end();
+        } else if (
+          typeof response.content === 'string' ||
+          response.content instanceof Uint8Array
+        ) {
+          res.end(response.content);
+        } else {
+          for await (const chunk of response.content) {
+            res.write(chunk);
+          }
+          res.end();
+        }
+      };
+
+      const tryRespondWithError = res => {
+        try {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+          res.end('Internal Server Error');
+        } catch (error) {
+          console.error(error);
+        }
+      };
+
       server.on('request', (req, res) => {
         (async () => {
-          if (req.method === undefined) {
+          if (req.method === undefined || req.url === undefined) {
             return;
           }
-          if (req.url === undefined) {
-            return;
-          }
-          const response = await respond(
-            harden({
-              method: req.method,
-              url: req.url,
-              // TODO Node.js headers are a far more detailed type.
-              headers: harden(
-                /** @type {Record<string, string | Array<string> | undefined>} */ (
-                  req.headers
-                ),
-              ),
-            }),
-          );
-          res.writeHead(response.status, response.headers);
-          if (response.content === undefined) {
-            res.end();
-          } else if (
-            typeof response.content === 'string' ||
-            response.content instanceof Uint8Array
-          ) {
-            res.end(response.content);
-          } else {
-            for await (const chunk of response.content) {
-              res.write(chunk);
-            }
-            res.end();
+
+          try {
+            await sendResponse(req, res);
+          } catch (_error) {
+            // TODO: Log this error locally.
+            tryRespondWithError(res);
           }
         })();
       });
