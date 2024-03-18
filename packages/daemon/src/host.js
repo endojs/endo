@@ -128,9 +128,7 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').WorkerDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       // eslint-disable-next-line no-use-before-define
-      const workerId = tryGetWorkerId(workerName);
-      // eslint-disable-next-line no-use-before-define
-      prepareWorkerFormulation(workerName, workerId, tasks.push);
+      const workerId = prepareWorkerFormulation(workerName, tasks.push);
 
       if (workerId !== undefined) {
         return /** @type {Promise<import('./types.js').EndoWorker>} */ (
@@ -145,28 +143,22 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} workerName
-     * @returns {string | undefined}
+     * @param {import('./types.js').DeferredTasks<{ workerId: string }>['push']} deferTask
      */
-    const tryGetWorkerId = workerName => {
+    const prepareWorkerFormulation = (workerName, deferTask) => {
       if (workerName === 'MAIN') {
         return mainWorkerId;
       } else if (workerName === 'NEW') {
         return undefined;
       }
-      return petStore.identifyLocal(workerName);
-    };
 
-    /**
-     * @param {string} workerName
-     * @param {string | undefined} workerId
-     * @param {import('./types.js').DeferredTasks<{ workerId: string }>['push']} deferTask
-     */
-    const prepareWorkerFormulation = (workerName, workerId, deferTask) => {
+      const workerId = petStore.identifyLocal(workerName);
       if (workerId === undefined) {
         deferTask(identifiers =>
           petStore.write(workerName, identifiers.workerId),
         );
       }
+      return workerId;
     };
 
     /**
@@ -193,8 +185,7 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerId = tryGetWorkerId(workerName);
-      prepareWorkerFormulation(workerName, workerId, tasks.push);
+      const workerId = prepareWorkerFormulation(workerName, tasks.push);
 
       /** @type {(string | string[])[]} */
       const endowmentFormulaIdsOrPaths = petNamePaths.map(
@@ -245,8 +236,7 @@ export const makeHostMaker = ({
       /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerId = tryGetWorkerId(workerName);
-      prepareWorkerFormulation(workerName, workerId, tasks.push);
+      const workerId = prepareWorkerFormulation(workerName, tasks.push);
 
       const powersId = petStore.identifyLocal(powersName);
       if (powersId === undefined) {
