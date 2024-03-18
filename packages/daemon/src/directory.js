@@ -9,12 +9,12 @@ const { quote: q } = assert;
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
  * @param {import('./types.js').DaemonCore['getIdForRef']} args.getIdForRef
- * @param {import('./types.js').DaemonCore['incarnateDirectory']} args.incarnateDirectory
+ * @param {import('./types.js').DaemonCore['formulateDirectory']} args.formulateDirectory
  */
 export const makeDirectoryMaker = ({
   provide,
   getIdForRef,
-  incarnateDirectory,
+  formulateDirectory,
 }) => {
   /** @type {import('./types.js').MakeDirectoryNode} */
   const makeDirectoryNode = petStore => {
@@ -172,7 +172,7 @@ export const makeDirectoryMaker = ({
 
     /** @type {import('./types.js').EndoDirectory['makeDirectory']} */
     const makeDirectory = async directoryPetName => {
-      const { value: directory, id } = await incarnateDirectory();
+      const { value: directory, id } = await formulateDirectory();
       await petStore.write(directoryPetName, id);
       return directory;
     };
