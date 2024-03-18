@@ -1,16 +1,16 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 
 export const adoptCommand = async ({
   messageNumberText,
   edgeName,
   name,
-  partyNames,
+  agentNames,
 }) =>
-  withEndoParty(partyNames, { os, process }, async ({ party }) => {
+  withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     // TODO less bad number parsing.
     const messageNumber = Number(messageNumberText);
-    await E(party).adopt(messageNumber, edgeName, name);
+    await E(agent).adopt(messageNumber, edgeName, name);
   });

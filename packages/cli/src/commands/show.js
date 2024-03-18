@@ -1,10 +1,10 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 
-export const show = async ({ name, partyNames }) =>
-  withEndoParty(partyNames, { os, process }, async ({ party }) => {
-    const pet = await E(party).lookup(name);
+export const show = async ({ name, agentNames }) =>
+  withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
+    const pet = await E(agent).lookup(name);
     console.log(pet);
   });

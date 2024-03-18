@@ -1,7 +1,7 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 
 export const evalCommand = async ({
@@ -9,9 +9,9 @@ export const evalCommand = async ({
   names,
   resultName,
   workerName,
-  partyNames,
+  agentNames,
 }) =>
-  withEndoParty(partyNames, { os, process }, async ({ party }) => {
+  withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const pairs = names.map(name => {
       /** @type {Array<string>} */
       const pair = name.split(':');
@@ -30,7 +30,7 @@ export const evalCommand = async ({
     const codeNames = pairs.map(pair => pair[0]);
     const petNames = pairs.map(pair => parsePetNamePath(pair[1]));
 
-    const result = await E(party).evaluate(
+    const result = await E(agent).evaluate(
       workerName,
       source,
       codeNames,

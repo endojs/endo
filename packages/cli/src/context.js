@@ -62,20 +62,20 @@ export const withEndoHost = ({ os, process }, callback) =>
     },
   );
 
-export const withEndoParty = (partyNamePath, { os, process }, callback) =>
+export const withEndoAgent = (agentNamePath, { os, process }, callback) =>
   withEndoHost(
     { os, process },
     async ({ cancel, cancelled, bootstrap, host }) => {
-      const party =
-        partyNamePath === undefined
+      const agent =
+        agentNamePath === undefined
           ? host
-          : E(host).lookup(...parsePetNamePath(partyNamePath));
+          : E(host).lookup(...parsePetNamePath(agentNamePath));
       await callback({
         cancel,
         cancelled,
         bootstrap,
         host,
-        party,
+        agent,
       });
     },
   );

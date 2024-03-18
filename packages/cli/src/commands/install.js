@@ -7,14 +7,14 @@ import { E } from '@endo/far';
 import { makeReaderRef } from '@endo/daemon';
 import bundleSource from '@endo/bundle-source';
 
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 import { randomHex16 } from '../random.js';
 
 const textEncoder = new TextEncoder();
 
 export const install = async ({
   bundleName,
-  partyNames,
+  agentNames,
   powersName,
   webletName,
   requestedPort,
@@ -39,14 +39,14 @@ export const install = async ({
     bundleReaderRef = makeReaderRef([bundleBytes]);
   }
 
-  await withEndoParty(partyNames, { os, process }, async ({ party }) => {
+  await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     // Prepare a bundle, with the given name.
     if (bundleReaderRef !== undefined) {
-      await E(party).store(bundleReaderRef, bundleName);
+      await E(agent).store(bundleReaderRef, bundleName);
     }
 
     try {
-      const weblet = E(party).evaluate(
+      const weblet = E(agent).evaluate(
         'MAIN',
         `E(apps).makeWeblet(bundle, powers, ${JSON.stringify(
           requestedPort,
@@ -62,7 +62,7 @@ export const install = async ({
       }
     } finally {
       if (temporaryBundleName) {
-        await E(party).remove(temporaryBundleName);
+        await E(agent).remove(temporaryBundleName);
       }
     }
   });
