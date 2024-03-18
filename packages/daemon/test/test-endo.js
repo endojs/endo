@@ -149,6 +149,28 @@ test('anonymous spawn and evaluate', async t => {
   await stop(locator);
 });
 
+test('anonymous spawn and evaluate with new worker', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'spawn-eval-anon-new-worker');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const ten = await E(host).evaluate('NEW', '10', [], []);
+  t.is(ten, 10);
+
+  await stop(locator);
+});
+
 // Regression test for https://github.com/endojs/endo/issues/2147
 test('spawning a worker does not overwrite existing non-worker name', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
