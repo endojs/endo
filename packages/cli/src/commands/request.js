@@ -1,16 +1,16 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 
 export const request = async ({
   description,
   toName,
   resultName,
-  partyNames,
+  agentNames,
 }) => {
-  await withEndoParty(partyNames, { os, process }, async ({ party }) => {
-    const result = await E(party).request(toName, description, resultName);
+  await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
+    const result = await E(agent).request(toName, description, resultName);
     console.log(result);
   });
 };

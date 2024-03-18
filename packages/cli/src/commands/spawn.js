@@ -2,9 +2,9 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 
-export const spawn = async ({ petNames, partyNames }) =>
-  withEndoParty(partyNames, { os, process }, async ({ party }) =>
-    Promise.all(petNames.map(petName => E(party).provideWorker(petName))),
+export const spawn = async ({ petNames, agentNames }) =>
+  withEndoAgent(agentNames, { os, process }, async ({ agent }) =>
+    Promise.all(petNames.map(petName => E(agent).provideWorker(petName))),
   );

@@ -1,9 +1,9 @@
 /* global process */
 import os from 'os';
 import { E } from '@endo/far';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 
-export const cancelCommand = async ({ name, partyNames, reason }) =>
-  withEndoParty(partyNames, { os, process }, async ({ party }) => {
-    await E(party).cancel(name, reason);
+export const cancelCommand = async ({ name, agentNames, reason }) =>
+  withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
+    await E(agent).cancel(name, reason);
   });

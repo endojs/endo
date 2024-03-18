@@ -3,14 +3,14 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 import { formatMessage } from '../message-format.js';
 
-export const inbox = async ({ follow, partyNames }) =>
-  withEndoParty(partyNames, { os, process }, async ({ party }) => {
+export const inbox = async ({ follow, agentNames }) =>
+  withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     const messages = follow
-      ? makeRefIterator(E(party).followMessages())
-      : await E(party).listMessages();
+      ? makeRefIterator(E(agent).followMessages())
+      : await E(agent).listMessages();
     for await (const message of messages) {
       const { number, who, when } = message;
       if (message.type === 'request') {

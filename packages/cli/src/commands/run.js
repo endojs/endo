@@ -4,7 +4,7 @@ import os from 'os';
 import { E, Far } from '@endo/far';
 import bundleSource from '@endo/bundle-source';
 
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 
 const endowments = harden({
   assert,
@@ -22,7 +22,7 @@ export const run = async ({
   bundleName,
   importPath,
   powersName,
-  partyNames,
+  agentNames,
 }) => {
   if (
     filePath === undefined &&
@@ -34,19 +34,19 @@ export const run = async ({
     return;
   }
 
-  await withEndoParty(
-    partyNames,
+  await withEndoAgent(
+    agentNames,
     { os, process },
-    async ({ bootstrap, party }) => {
+    async ({ bootstrap, agent }) => {
       let powersP;
       if (powersName === 'NONE') {
         powersP = E(bootstrap).leastAuthority();
       } else if (powersName === 'HOST') {
-        powersP = party;
+        powersP = agent;
       } else if (powersName === 'ENDO') {
         powersP = bootstrap;
       } else {
-        powersP = E(party).provideGuest(powersName);
+        powersP = E(agent).provideGuest(powersName);
       }
 
       if (importPath !== undefined) {
@@ -82,7 +82,7 @@ export const run = async ({
             args.unshift(filePath);
           }
 
-          const readableP = E(party).lookup(bundleName);
+          const readableP = E(agent).lookup(bundleName);
           const bundleText = await E(readableP).text();
           bundle = JSON.parse(bundleText);
         } else {

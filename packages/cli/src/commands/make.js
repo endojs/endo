@@ -7,7 +7,7 @@ import url from 'url';
 import bundleSource from '@endo/bundle-source';
 import { makeReaderRef } from '@endo/daemon';
 import { E } from '@endo/far';
-import { withEndoParty } from '../context.js';
+import { withEndoAgent } from '../context.js';
 import { randomHex16 } from '../random.js';
 
 const textEncoder = new TextEncoder();
@@ -18,7 +18,7 @@ export const makeCommand = async ({
   resultName,
   bundleName,
   workerName,
-  partyNames,
+  agentNames,
   powersName,
 }) => {
   if (filePath !== undefined && importPath !== undefined) {
@@ -56,26 +56,26 @@ export const makeCommand = async ({
     bundleReaderRef = makeReaderRef([bundleBytes]);
   }
 
-  await withEndoParty(partyNames, { os, process }, async ({ party }) => {
+  await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     // Prepare a bundle, with the given name.
     if (bundleReaderRef !== undefined) {
-      await E(party).store(bundleReaderRef, bundleName);
+      await E(agent).store(bundleReaderRef, bundleName);
     }
 
     const resultP =
       importPath !== undefined
-        ? E(party).makeUnconfined(
+        ? E(agent).makeUnconfined(
             workerName,
             url.pathToFileURL(path.resolve(importPath)).href,
             powersName,
             resultName,
           )
-        : E(party).makeBundle(workerName, bundleName, powersName, resultName);
+        : E(agent).makeBundle(workerName, bundleName, powersName, resultName);
     const result = await resultP;
     console.log(result);
 
     if (temporaryBundleName) {
-      await E(party).remove(temporaryBundleName);
+      await E(agent).remove(temporaryBundleName);
     }
   });
 };

@@ -5,12 +5,12 @@ import { makeRefIterator } from '@endo/daemon';
 import { withEndoHost } from '../context.js';
 
 export const list = async ({ directoryPath, follow, json }) =>
-  withEndoHost({ os, process }, async ({ host: party }) => {
+  withEndoHost({ os, process }, async ({ host: agent }) => {
     if (directoryPath !== undefined) {
-      party = E(party).lookup(...directoryPath.split('.'));
+      agent = E(agent).lookup(...directoryPath.split('.'));
     }
     if (follow) {
-      const topic = await E(party).followNames();
+      const topic = await E(agent).followNames();
       const iterator = makeRefIterator(topic);
       if (json) {
         for await (const change of iterator) {
@@ -26,7 +26,7 @@ export const list = async ({ directoryPath, follow, json }) =>
         }
       }
     } else {
-      const petNames = await E(party).list();
+      const petNames = await E(agent).list();
       for await (const petName of petNames) {
         console.log(petName);
       }

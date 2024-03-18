@@ -229,7 +229,7 @@ export const makeMailboxMaker = ({
     const send = async (recipientName, strings, edgeNames, petNames) => {
       const recipientId = petStore.identifyLocal(recipientName);
       if (recipientId === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
+        throw new Error(`Unknown pet name for agent: ${recipientName}`);
       }
       const recipientController = await provideControllerAndResolveHandle(
         recipientId,
@@ -239,8 +239,8 @@ export const makeMailboxMaker = ({
         throw new Error(`Recipient cannot receive messages: ${recipientName}`);
       }
       // @ts-expect-error We check if its undefined immediately after
-      const { receive: partyReceive } = recipientInternal;
-      if (partyReceive === undefined) {
+      const { receive: agentReceive } = recipientInternal;
+      if (agentReceive === undefined) {
         throw new Error(`Recipient cannot receive messages: ${recipientName}`);
       }
 
@@ -267,7 +267,7 @@ export const makeMailboxMaker = ({
         return id;
       });
       // add to recipient mailbox
-      partyReceive(selfId, strings, edgeNames, ids);
+      agentReceive(selfId, strings, edgeNames, ids);
       // add to own mailbox
       receive(
         selfId,
@@ -334,7 +334,7 @@ export const makeMailboxMaker = ({
     const request = async (recipientName, what, responseName) => {
       const recipientId = petStore.identifyLocal(recipientName);
       if (recipientId === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
+        throw new Error(`Unknown pet name for agent: ${recipientName}`);
       }
       const recipientController = await provideControllerAndResolveHandle(
         recipientId,
@@ -342,7 +342,7 @@ export const makeMailboxMaker = ({
       const recipientInternal = await recipientController.internal;
       if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(
-          `panic: a receive request function must exist for every party`,
+          `panic: a receive request function must exist for every agent`,
         );
       }
 
@@ -350,7 +350,7 @@ export const makeMailboxMaker = ({
       const { respond: deliverToRecipient } = recipientInternal;
       if (deliverToRecipient === undefined) {
         throw new Error(
-          `panic: a receive request function must exist for every party`,
+          `panic: a receive request function must exist for every agent`,
         );
       }
 

@@ -863,7 +863,7 @@ test('cancel because of requested capability', async t => {
 
   const messages = E(host).followMessages();
 
-  const counterPath = path.join(dirname, 'test', 'counter-party.js');
+  const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
   E(host).makeUnconfined('worker', counterLocation, 'guest', 'counter');
 
