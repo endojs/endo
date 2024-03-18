@@ -17,12 +17,9 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const readPowers = makeReadPowers({ fs, url, crypto });
 
-/**
- * @type {import('./types').BundleSourceWithOptions}
- */
 export async function bundleZipBase64(
   startFilename,
-  options,
+  options = {},
   grantedPowers = {},
 ) {
   const { dev = false, cacheSourceMaps = false, commonDependencies } = options;
