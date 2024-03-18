@@ -9,16 +9,16 @@ const { quote: q } = assert;
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerForFormulaIdentifierAndResolveHandle']} args.provideControllerForFormulaIdentifierAndResolveHandle
+ * @param {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} args.provideControllerAndResolveHandle
  * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
   provide,
-  provideControllerForFormulaIdentifierAndResolveHandle,
+  provideControllerAndResolveHandle,
 }) => {
   /**
     @type {import('./types.js').MakeMailbox} */
-  const makeMailbox = ({ selfFormulaIdentifier, petStore, context }) => {
+  const makeMailbox = ({ selfId, petStore, context }) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
     /** @type {Map<number, import('./types.js').InternalMessage>} */
@@ -38,29 +38,17 @@ export const makeMailboxMaker = ({
     const dubMessage = message => {
       const { type } = message;
       if (type === 'request') {
-        const {
-          who: senderFormulaIdentifier,
-          dest: recipientFormulaIdentifier,
-          ...rest
-        } = message;
-        const [senderName] = petStore.reverseIdentify(senderFormulaIdentifier);
-        const [recipientName] = petStore.reverseIdentify(
-          recipientFormulaIdentifier,
-        );
+        const { who: senderId, dest: recipientId, ...rest } = message;
+        const [senderName] = petStore.reverseIdentify(senderId);
+        const [recipientName] = petStore.reverseIdentify(recipientId);
         if (senderName !== undefined) {
           return { who: senderName, dest: recipientName, ...rest };
         }
         return undefined;
       } else if (type === 'package') {
-        const {
-          who: senderFormulaIdentifier,
-          dest: recipientFormulaIdentifier,
-          ...rest
-        } = message;
-        const [senderName] = petStore.reverseIdentify(senderFormulaIdentifier);
-        const [recipientName] = petStore.reverseIdentify(
-          recipientFormulaIdentifier,
-        );
+        const { who: senderId, dest: recipientId, ...rest } = message;
+        const [senderName] = petStore.reverseIdentify(senderId);
+        const [recipientName] = petStore.reverseIdentify(recipientId);
         if (senderName !== undefined) {
           return { who: senderName, dest: recipientName, ...rest };
         }
@@ -137,7 +125,7 @@ export const makeMailboxMaker = ({
      * @param {string} dest
      * @returns {Promise<string>}
      */
-    const requestFormulaIdentifier = async (what, who, dest) => {
+    const requestId = async (what, who, dest) => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
       const { promise, resolve } = makePromiseKit();
       const settled = promise.then(
@@ -159,36 +147,28 @@ export const makeMailboxMaker = ({
     const respond = async (
       what,
       responseName,
-      senderFormulaIdentifier,
+      senderId,
       senderPetStore,
-      recipientFormulaIdentifier = selfFormulaIdentifier,
+      recipientId = selfId,
     ) => {
       if (responseName !== undefined) {
         /** @type {string | undefined} */
-        let formulaIdentifier = senderPetStore.identifyLocal(responseName);
-        if (formulaIdentifier === undefined) {
-          formulaIdentifier = await requestFormulaIdentifier(
-            what,
-            senderFormulaIdentifier,
-            recipientFormulaIdentifier,
-          );
-          await senderPetStore.write(responseName, formulaIdentifier);
+        let id = senderPetStore.identifyLocal(responseName);
+        if (id === undefined) {
+          id = await requestId(what, senderId, recipientId);
+          await senderPetStore.write(responseName, id);
         }
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return provide(formulaIdentifier);
+        return provide(id);
       }
       // The reference is not named nor to be named.
-      const formulaIdentifier = await requestFormulaIdentifier(
-        what,
-        senderFormulaIdentifier,
-        recipientFormulaIdentifier,
-      );
+      const id = await requestId(what, senderId, recipientId);
       // TODO:
-      // context.thisDiesIfThatDies(formulaIdentifier);
+      // context.thisDiesIfThatDies(id);
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      return provide(formulaIdentifier);
+      return provide(id);
     };
 
     /** @type {import('./types.js').Mail['resolve']} */
@@ -205,13 +185,13 @@ export const makeMailboxMaker = ({
       if (resolveRequest === undefined) {
         throw new Error(`No pending request for number ${messageNumber}`);
       }
-      const formulaIdentifier = petStore.identifyLocal(resolutionName);
-      if (formulaIdentifier === undefined) {
+      const id = petStore.identifyLocal(resolutionName);
+      if (id === undefined) {
         throw new TypeError(
           `No formula exists for the pet name ${q(resolutionName)}`,
         );
       }
-      resolveRequest(formulaIdentifier);
+      resolveRequest(id);
     };
 
     // TODO test reject
@@ -229,32 +209,31 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['receive']} */
     const receive = (
-      senderFormulaIdentifier,
+      senderId,
       strings,
       edgeNames,
-      formulaIdentifiers,
-      receiverFormulaIdentifier = selfFormulaIdentifier,
+      ids,
+      receiverId = selfId,
     ) => {
       deliver({
         type: /** @type {const} */ ('package'),
         strings,
         names: edgeNames,
-        formulas: formulaIdentifiers,
-        who: senderFormulaIdentifier,
-        dest: receiverFormulaIdentifier,
+        formulas: ids,
+        who: senderId,
+        dest: receiverId,
       });
     };
 
     /** @type {import('./types.js').Mail['send']} */
     const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipientFormulaIdentifier = petStore.identifyLocal(recipientName);
-      if (recipientFormulaIdentifier === undefined) {
+      const recipientId = petStore.identifyLocal(recipientName);
+      if (recipientId === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipientController =
-        await provideControllerForFormulaIdentifierAndResolveHandle(
-          recipientFormulaIdentifier,
-        );
+      const recipientController = await provideControllerAndResolveHandle(
+        recipientId,
+      );
       const recipientInternal = await recipientController.internal;
       if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(`Recipient cannot receive messages: ${recipientName}`);
@@ -280,28 +259,23 @@ export const makeMailboxMaker = ({
         );
       }
 
-      const formulaIdentifiers = petNames.map(petName => {
-        const formulaIdentifier = petStore.identifyLocal(petName);
-        if (formulaIdentifier === undefined) {
+      const ids = petNames.map(petName => {
+        const id = petStore.identifyLocal(petName);
+        if (id === undefined) {
           throw new Error(`Unknown pet name ${q(petName)}`);
         }
-        return formulaIdentifier;
+        return id;
       });
       // add to recipient mailbox
-      partyReceive(
-        selfFormulaIdentifier,
-        strings,
-        edgeNames,
-        formulaIdentifiers,
-      );
+      partyReceive(selfId, strings, edgeNames, ids);
       // add to own mailbox
       receive(
-        selfFormulaIdentifier,
+        selfId,
         strings,
         edgeNames,
-        formulaIdentifiers,
+        ids,
         // Sender expects the handle formula identifier.
-        recipientFormulaIdentifier,
+        recipientId,
       );
     };
 
@@ -344,28 +318,27 @@ export const makeMailboxMaker = ({
           `No reference named ${q(edgeName)} in message ${q(messageNumber)}`,
         );
       }
-      const formulaIdentifier = message.formulas[index];
-      if (formulaIdentifier === undefined) {
+      const id = message.formulas[index];
+      if (id === undefined) {
         throw new Error(
           `panic: message must contain a formula for every name, including the name ${q(
             edgeName,
           )} at ${q(index)}`,
         );
       }
-      context.thisDiesIfThatDies(formulaIdentifier);
-      await petStore.write(petName, formulaIdentifier);
+      context.thisDiesIfThatDies(id);
+      await petStore.write(petName, id);
     };
 
     /** @type {import('./types.js').Mail['request']} */
     const request = async (recipientName, what, responseName) => {
-      const recipientFormulaIdentifier = petStore.identifyLocal(recipientName);
-      if (recipientFormulaIdentifier === undefined) {
+      const recipientId = petStore.identifyLocal(recipientName);
+      if (recipientId === undefined) {
         throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
-      const recipientController =
-        await provideControllerForFormulaIdentifierAndResolveHandle(
-          recipientFormulaIdentifier,
-        );
+      const recipientController = await provideControllerAndResolveHandle(
+        recipientId,
+      );
       const recipientInternal = await recipientController.internal;
       if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(
@@ -394,17 +367,17 @@ export const makeMailboxMaker = ({
       const recipientResponseP = deliverToRecipient(
         what,
         responseName,
-        selfFormulaIdentifier,
+        selfId,
         petStore,
       );
       // Send to own inbox.
       const selfResponseP = respond(
         what,
         responseName,
-        selfFormulaIdentifier,
+        selfId,
         petStore,
         // Sender expects the handle formula identifier.
-        recipientFormulaIdentifier,
+        recipientId,
       );
       const newResponseP = Promise.race([recipientResponseP, selfResponseP]);
 
@@ -418,9 +391,9 @@ export const makeMailboxMaker = ({
     /** @type {import('./types.js').PetStore['rename']} */
     const rename = async (fromName, toName) => {
       await petStore.rename(fromName, toName);
-      const formulaIdentifier = responses.get(fromName);
-      if (formulaIdentifier !== undefined) {
-        responses.set(toName, formulaIdentifier);
+      const id = responses.get(fromName);
+      if (id !== undefined) {
+        responses.set(toName, id);
         responses.delete(fromName);
       }
     };

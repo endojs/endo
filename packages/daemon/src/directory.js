@@ -8,12 +8,12 @@ const { quote: q } = assert;
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['getFormulaIdentifierForRef']} args.getFormulaIdentifierForRef
+ * @param {import('./types.js').DaemonCore['getIdForRef']} args.getIdForRef
  * @param {import('./types.js').DaemonCore['incarnateDirectory']} args.incarnateDirectory
  */
 export const makeDirectoryMaker = ({
   provide,
-  getFormulaIdentifierForRef,
+  getIdForRef,
   incarnateDirectory,
 }) => {
   /** @type {import('./types.js').MakeDirectoryNode} */
@@ -21,13 +21,13 @@ export const makeDirectoryMaker = ({
     /** @type {import('./types.js').EndoDirectory['lookup']} */
     const lookup = (...petNamePath) => {
       const [headName, ...tailNames] = petNamePath;
-      const formulaIdentifier = petStore.identifyLocal(headName);
-      if (formulaIdentifier === undefined) {
+      const id = petStore.identifyLocal(headName);
+      if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const value = provide(formulaIdentifier);
+      const value = provide(id);
       return tailNames.reduce(
         // @ts-expect-error We assume its a NameHub
         (directory, petName) => E(directory).lookup(petName),
@@ -37,11 +37,11 @@ export const makeDirectoryMaker = ({
 
     /** @type {import('./types.js').EndoDirectory['reverseLookup']} */
     const reverseLookup = async presence => {
-      const formulaIdentifier = getFormulaIdentifierForRef(await presence);
-      if (formulaIdentifier === undefined) {
+      const id = getIdForRef(await presence);
+      if (id === undefined) {
         return harden([]);
       }
-      return petStore.reverseIdentify(formulaIdentifier);
+      return petStore.reverseIdentify(id);
     };
 
     /**
@@ -101,9 +101,9 @@ export const makeDirectoryMaker = ({
       const identities = new Set();
       await Promise.all(
         names.map(async name => {
-          const formulaIdentifier = await identify(...petNamePath, name);
-          if (formulaIdentifier !== undefined) {
-            identities.add(formulaIdentifier);
+          const id = await identify(...petNamePath, name);
+          if (id !== undefined) {
+            identities.add(id);
           }
         }),
       );
@@ -148,12 +148,12 @@ export const makeDirectoryMaker = ({
         }
         return;
       }
-      const formulaIdentifier = await fromHub.identify(fromName);
-      if (formulaIdentifier === undefined) {
+      const id = await fromHub.identify(fromName);
+      if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
       const removeP = fromHub.remove(fromName);
-      const addP = toHub.write([toName], formulaIdentifier);
+      const addP = toHub.write([toName], id);
       await Promise.all([addP, removeP]);
     };
 
@@ -163,30 +163,29 @@ export const makeDirectoryMaker = ({
         fromPath,
       );
       const { hub: toHub, name: toName } = await lookupTailNameHub(toPath);
-      const formulaIdentifier = await fromHub.identify(fromName);
-      if (formulaIdentifier === undefined) {
+      const id = await fromHub.identify(fromName);
+      if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
-      await toHub.write([toName], formulaIdentifier);
+      await toHub.write([toName], id);
     };
 
     /** @type {import('./types.js').EndoDirectory['makeDirectory']} */
     const makeDirectory = async directoryPetName => {
-      const { value: directory, formulaIdentifier } =
-        await incarnateDirectory();
-      await petStore.write(directoryPetName, formulaIdentifier);
+      const { value: directory, id } = await incarnateDirectory();
+      await petStore.write(directoryPetName, id);
       return directory;
     };
 
     /** @type {import('./types.js').EndoDirectory['write']} */
-    const write = async (petNamePath, formulaIdentifier) => {
+    const write = async (petNamePath, id) => {
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
-        await petStore.write(petName, formulaIdentifier);
+        await petStore.write(petName, id);
         return;
       }
       const { hub, name } = await lookupTailNameHub(petNamePath);
-      await hub.write([name], formulaIdentifier);
+      await hub.write([name], id);
     };
 
     /** @type {import('./types.js').EndoDirectory} */
@@ -209,17 +208,14 @@ export const makeDirectoryMaker = ({
 
   /**
    * @param {object} args
-   * @param {string} args.petStoreFormulaIdentifier
+   * @param {string} args.petStoreId
    * @param {import('./types.js').Context} args.context
    */
-  const makeIdentifiedDirectory = async ({
-    petStoreFormulaIdentifier,
-    context,
-  }) => {
+  const makeIdentifiedDirectory = async ({ petStoreId, context }) => {
     // TODO thread context
 
     const petStore = /** @type {import('./types.js').PetStore} */ (
-      await provide(petStoreFormulaIdentifier)
+      await provide(petStoreId)
     );
     const directory = makeDirectoryNode(petStore);
 

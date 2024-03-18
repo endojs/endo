@@ -51,7 +51,7 @@ export type MignonicPowers = {
   };
 };
 
-type FormulaIdentifierRecord = {
+type IdRecord = {
   number: string;
   node: string;
 };
@@ -73,14 +73,14 @@ type WorkerFormula = {
 };
 
 export type WorkerDeferredTaskParams = {
-  workerFormulaIdentifier: string;
+  workerId: string;
 };
 
 /**
  * Deferred tasks parameters for `host` and `guest` formulas.
  */
 export type AgentDeferredTaskParams = {
-  agentFormulaIdentifier: string;
+  agentId: string;
 };
 
 type HostFormula = {
@@ -113,9 +113,9 @@ type EvalFormula = {
 };
 
 export type EvalDeferredTaskParams = {
-  endowmentFormulaIdentifiers: string[];
-  evalFormulaIdentifier: string;
-  workerFormulaIdentifier: string;
+  endowmentIds: string[];
+  evalId: string;
+  workerId: string;
 };
 
 type ReadableBlobFormula = {
@@ -124,7 +124,7 @@ type ReadableBlobFormula = {
 };
 
 export type ReadableBlobDeferredTaskParams = {
-  readableBlobFormulaIdentifier: string;
+  readableBlobId: string;
 };
 
 type LookupFormula = {
@@ -159,9 +159,9 @@ type MakeBundleFormula = {
 };
 
 export type MakeCapletDeferredTaskParams = {
-  capletFormulaIdentifier: string;
-  powersFormulaIdentifier: string;
-  workerFormulaIdentifier: string;
+  capletId: string;
+  powersId: string;
+  workerId: string;
 };
 
 type PeerFormula = {
@@ -302,16 +302,16 @@ export interface Context {
   disposed: Promise<void>;
 
   /**
-   * @param formulaIdentifier - The formula identifier of the value whose
+   * @param id - The formula identifier of the value whose
    * cancellation should cause this value to be cancelled.
    */
-  thisDiesIfThatDies: (formulaIdentifier: string) => void;
+  thisDiesIfThatDies: (id: string) => void;
 
   /**
-   * @param formulaIdentifier - The formula identifier of the value that should
+   * @param id - The formula identifier of the value that should
    * be cancelled if this value is cancelled.
    */
-  thatDiesIfThisDies: (formulaIdentifier: string) => void;
+  thatDiesIfThisDies: (id: string) => void;
 
   /**
    * @param hook - A hook to run when the value is cancelled.
@@ -357,13 +357,13 @@ export interface ExternalHandle {}
  * handle points to. This should not be exposed outside of the endo daemon.
  */
 export interface InternalHandle {
-  targetFormulaIdentifier: string;
+  targetId: string;
 }
 
 export type MakeSha512 = () => Sha512;
 
 export type PetStoreNameDiff =
-  | { add: string; value: FormulaIdentifierRecord }
+  | { add: string; value: IdRecord }
   | { remove: string };
 
 export interface PetStore {
@@ -371,14 +371,14 @@ export interface PetStore {
   identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
   follow(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
-  write(petName: string, formulaIdentifier: string): Promise<void>;
+  write(petName: string, id: string): Promise<void>;
   remove(petName: string): Promise<void>;
   rename(fromPetName: string, toPetName: string): Promise<void>;
   /**
-   * @param formulaIdentifier The formula identifier to look up.
+   * @param id The formula identifier to look up.
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
    */
-  reverseIdentify(formulaIdentifier: string): Array<string>;
+  reverseIdentify(id: string): Array<string>;
 }
 
 export interface NameHub {
@@ -391,7 +391,7 @@ export interface NameHub {
   ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
-  write(petNamePath: string[], formulaIdentifier): Promise<void>;
+  write(petNamePath: string[], id): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
   copy(fromPetName: string[], toPetName: string[]): Promise<void>;
@@ -431,21 +431,21 @@ export interface Mail {
   respond(
     what: string,
     responseName: string,
-    senderFormulaIdentifier: string,
+    senderId: string,
     senderPetStore: PetStore,
-    recipientFormulaIdentifier?: string,
+    recipientId?: string,
   ): Promise<unknown>;
   receive(
-    senderFormulaIdentifier: string,
+    senderId: string,
     strings: Array<string>,
     edgeNames: Array<string>,
-    formulaIdentifiers: Array<string>,
-    receiverFormulaIdentifier: string,
+    ids: Array<string>,
+    receiverId: string,
   ): void;
 }
 
 export type MakeMailbox = (args: {
-  selfFormulaIdentifier: string;
+  selfId: string;
   petStore: PetStore;
   context: Context;
 }) => Mail;
@@ -453,15 +453,15 @@ export type MakeMailbox = (args: {
 export type RequestFn = (
   what: string,
   responseName: string,
-  guestFormulaIdentifier: string,
+  guestId: string,
   guestPetStore: PetStore,
 ) => Promise<unknown>;
 
 export type ReceiveFn = (
-  senderFormulaIdentifier: string,
+  senderId: string,
   strings: Array<string>,
   edgeNames: Array<string>,
-  formulaIdentifiers: Array<string>,
+  ids: Array<string>,
 ) => void;
 
 export interface EndoReadable {
@@ -482,13 +482,13 @@ export type MakeHostOrGuestOptions = {
 };
 
 export interface EndoPeer {
-  provide: (formulaIdentifier: string) => Promise<unknown>;
+  provide: (id: string) => Promise<unknown>;
 }
 export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
 export type EndoPeerController = Controller<EndoPeer, undefined>;
 
 export interface EndoGateway {
-  provide: (formulaIdentifier: string) => Promise<unknown>;
+  provide: (id: string) => Promise<unknown>;
 }
 
 export interface PeerInfo {
@@ -699,12 +699,12 @@ export type DaemonicPowers = {
 };
 
 type IncarnateResult<T> = Promise<{
-  formulaIdentifier: string;
+  id: string;
   value: T;
 }>;
 
 export type DeferredTask<T extends Record<string, string | string[]>> = (
-  formulaIdentifiers: Readonly<T>,
+  ids: Readonly<T>,
 ) => Promise<void>;
 
 /**
@@ -718,34 +718,34 @@ export type DeferredTasks<T extends Record<string, string | string[]>> = {
 
 type IncarnateNumberedGuestParams = {
   guestFormulaNumber: string;
-  hostHandleFormulaIdentifier: string;
-  storeFormulaIdentifier: string;
-  workerFormulaIdentifier: string;
+  hostHandleId: string;
+  storeId: string;
+  workerId: string;
 };
 
 type IncarnateHostDependenciesParams = {
-  endoFormulaIdentifier: string;
-  networksDirectoryFormulaIdentifier: string;
-  specifiedWorkerFormulaIdentifier?: string;
+  endoId: string;
+  networksDirectoryId: string;
+  specifiedWorkerId?: string;
 };
 
 type IncarnateNumberedHostParams = {
   hostFormulaNumber: string;
-  workerFormulaIdentifier: string;
-  storeFormulaIdentifier: string;
-  inspectorFormulaIdentifier: string;
-  endoFormulaIdentifier: string;
-  networksDirectoryFormulaIdentifier: string;
+  workerId: string;
+  storeId: string;
+  inspectorId: string;
+  endoId: string;
+  networksDirectoryId: string;
 };
 
 export interface DaemonCoreInternal {
   /**
    * Helper for callers of {@link incarnateNumberedGuest}.
-   * @param hostFormulaIdentifier - The formula identifier of the host to incarnate a guest for.
+   * @param hostId - The formula identifier of the host to incarnate a guest for.
    * @returns The formula identifiers for the guest incarnation's dependencies.
    */
   incarnateGuestDependencies: (
-    hostFormulaIdentifier: string,
+    hostId: string,
   ) => Promise<Readonly<IncarnateNumberedGuestParams>>;
   incarnateNumberedGuest: (
     identifiers: IncarnateNumberedGuestParams,
@@ -765,24 +765,18 @@ export interface DaemonCoreInternal {
 
 export interface DaemonCore {
   nodeIdentifier: string;
-  provide: (formulaIdentifier: string) => Promise<unknown>;
-  provideControllerForFormulaIdentifier: (
-    formulaIdentifier: string,
-  ) => Controller;
-  provideControllerForFormulaIdentifierAndResolveHandle: (
-    formulaIdentifier: string,
-  ) => Promise<Controller>;
+  provide: (id: string) => Promise<unknown>;
+  provideController: (id: string) => Controller;
+  provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
   formulate: (
     formulaNumber: string,
     formula: Formula,
   ) => Promise<{
-    formulaIdentifier: string;
+    id: string;
     value: unknown;
   }>;
-  getFormulaIdentifierForRef: (ref: unknown) => string | undefined;
-  getAllNetworkAddresses: (
-    networksDirectoryFormulaIdentifier: string,
-  ) => Promise<string[]>;
+  getIdForRef: (ref: unknown) => string | undefined;
+  getAllNetworkAddresses: (networksDirectoryId: string) => Promise<string[]>;
   incarnateEndoBootstrap: (
     specifiedFormulaNumber: string,
   ) => IncarnateResult<FarEndoBootstrap>;
@@ -791,13 +785,13 @@ export interface DaemonCore {
   ) => IncarnateResult<EndoWorker>;
   incarnateDirectory: () => IncarnateResult<EndoDirectory>;
   incarnateHost: (
-    endoFormulaIdentifier: string,
-    networksDirectoryFormulaIdentifier: string,
+    endoId: string,
+    networksDirectoryId: string,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
-    specifiedWorkerFormulaIdentifier?: string | undefined,
+    specifiedWorkerId?: string | undefined,
   ) => IncarnateResult<EndoHost>;
   incarnateGuest: (
-    hostFormulaIdentifier: string,
+    hostId: string,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
   ) => IncarnateResult<EndoGuest>;
   incarnateReadableBlob: (
@@ -805,34 +799,34 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
   ) => IncarnateResult<FarEndoReadable>;
   incarnateEval: (
-    hostFormulaIdentifier: string,
+    hostId: string,
     source: string,
     codeNames: string[],
-    endowmentFormulaIdsOrPaths: (string | string[])[],
+    endowmentIdsOrPaths: (string | string[])[],
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
-    specifiedWorkerFormulaIdentifier?: string,
+    specifiedWorkerId?: string,
   ) => IncarnateResult<unknown>;
   incarnateUnconfined: (
-    hostFormulaIdentifier: string,
+    hostId: string,
     specifier: string,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
-    specifiedWorkerFormulaIdentifier?: string,
-    specifiedPowersFormulaIdentifier?: string,
+    specifiedWorkerId?: string,
+    specifiedPowersId?: string,
   ) => IncarnateResult<unknown>;
   incarnateBundle: (
-    hostFormulaIdentifier: string,
-    bundleFormulaIdentifier: string,
+    hostId: string,
+    bundleId: string,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
-    specifiedWorkerFormulaIdentifier?: string,
-    specifiedPowersFormulaIdentifier?: string,
+    specifiedWorkerId?: string,
+    specifiedPowersId?: string,
   ) => IncarnateResult<unknown>;
   incarnatePeer: (
-    networksFormulaIdentifier: string,
+    networksId: string,
     addresses: Array<string>,
   ) => IncarnateResult<EndoPeer>;
   incarnateNetworksDirectory: () => IncarnateResult<EndoDirectory>;
   incarnateLoopbackNetwork: () => IncarnateResult<EndoNetwork>;
-  cancelValue: (formulaIdentifier: string, reason: Error) => Promise<void>;
+  cancelValue: (id: string, reason: Error) => Promise<void>;
   makeMailbox: MakeMailbox;
   makeDirectoryNode: MakeDirectoryNode;
 }
