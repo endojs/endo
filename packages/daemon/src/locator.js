@@ -1,4 +1,6 @@
-import { parseId, nodeOrIdPattern } from './formula-identifier.js';
+/// <ref types="ses">
+
+import { parseId, isValidNumber } from './formula-identifier.js';
 import { assertValidFormulaType, isValidFormulaType } from './formula-type.js';
 
 const { quote: q } = assert;
@@ -25,7 +27,7 @@ export const parseLocator = allegedLocator => {
   }
 
   const node = url.host;
-  if (!nodeOrIdPattern.test(node)) {
+  if (!isValidNumber(node)) {
     assert.Fail`${errorPrefix} Invalid node identifier.`;
   }
 
@@ -38,7 +40,7 @@ export const parseLocator = allegedLocator => {
   }
 
   const id = url.searchParams.get('id');
-  if (id === null || !nodeOrIdPattern.test(id)) {
+  if (id === null || !isValidNumber(id)) {
     assert.Fail`${errorPrefix} Invalid id.`;
   }
 

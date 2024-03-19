@@ -2,8 +2,14 @@
 
 const { quote: q } = assert;
 
-export const nodeOrIdPattern = /^[0-9a-f]{128}$/;
+const numberPattern = /^[0-9a-f]{128}$/;
 const idPattern = /^(?<number>[0-9a-f]{128}):(?<node>[0-9a-f]{128})$/;
+
+/**
+ * @param {string} allegedNumber - The formula number or node identifier to test.
+ */
+export const isValidNumber = allegedNumber =>
+  typeof allegedNumber === 'string' && numberPattern.test(allegedNumber);
 
 /**
  * @param {string} id
@@ -11,7 +17,7 @@ const idPattern = /^(?<number>[0-9a-f]{128}):(?<node>[0-9a-f]{128})$/;
  * @returns {void}
  */
 export const assertValidId = (id, petName) => {
-  if (!idPattern.test(id)) {
+  if (typeof id !== 'string' || !idPattern.test(id)) {
     let message = `Invalid formula identifier ${q(id)}`;
     if (petName !== undefined) {
       message += ` for pet name ${q(petName)}`;
