@@ -2,9 +2,8 @@
 const DEFAULT_MODULE_FORMAT = 'endoZipBase64';
 const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate', 'endoZipBase64'];
 
-/**
- * @type {import('./types').BundleSourceGeneral}
- */
+/** @type {import('./types').BundleSource} */
+// @ts-ignore cast
 const bundleSource = async (
   startFilename,
   options = {},
@@ -14,6 +13,8 @@ const bundleSource = async (
   if (typeof options === 'string') {
     options = { format: options };
   }
+  /** @type {{ format: import('./types').ModuleFormat }} */
+  // @ts-expect-error cast (xxx params)
   const { format: moduleFormat = DEFAULT_MODULE_FORMAT } = options;
 
   switch (moduleFormat) {
@@ -51,6 +52,4 @@ const bundleSource = async (
   }
 };
 
-export default /** @satisfies {import('./types').BundleSource} */ (
-  bundleSource
-);
+export default bundleSource;
