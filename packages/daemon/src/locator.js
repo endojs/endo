@@ -15,7 +15,9 @@ const { quote: q } = assert;
 export const parseLocator = allegedLocator => {
   const errorPrefix = `Invalid locator ${q(allegedLocator)}:`;
 
-  if (!URL.canParse(allegedLocator)) assert.Fail`${errorPrefix} Invalid URL.`;
+  if (!URL.canParse(allegedLocator)) {
+    assert.Fail`${errorPrefix} Invalid URL.`;
+  }
   const url = new URL(allegedLocator);
 
   if (!allegedLocator.startsWith('endo://')) {
@@ -35,15 +37,13 @@ export const parseLocator = allegedLocator => {
     assert.Fail`${errorPrefix} Invalid search params.`;
   }
 
-  /** @type {string} */
   const id = url.searchParams.get('id');
-  if (!nodeOrIdPattern.test(id)) {
+  if (id === null || !nodeOrIdPattern.test(id)) {
     assert.Fail`${errorPrefix} Invalid id.`;
   }
 
-  /** @type {string} */
   const formulaType = url.searchParams.get('type');
-  if (!isValidFormulaType(formulaType)) {
+  if (formulaType === null || !isValidFormulaType(formulaType)) {
     assert.Fail`${errorPrefix} Invalid type.`;
   }
 

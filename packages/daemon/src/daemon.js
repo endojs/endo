@@ -956,7 +956,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @type {import('./types.js').DaemonCoreInternal['formulateHostDependencies']}
+   * @type {import('./types.js').DaemonCore['formulateHostDependencies']}
    */
   const formulateHostDependencies = async specifiedIdentifiers => {
     const { specifiedWorkerId, ...remainingSpecifiedIdentifiers } =
@@ -977,7 +977,7 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCoreInternal['formulateNumberedHost']} */
+  /** @type {import('./types.js').DaemonCore['formulateNumberedHost']} */
   const formulateNumberedHost = identifiers => {
     /** @type {import('./types.js').HostFormula} */
     const formula = {
@@ -1021,7 +1021,7 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').DaemonCoreInternal['formulateGuestDependencies']} */
+  /** @type {import('./types.js').DaemonCore['formulateGuestDependencies']} */
   const formulateGuestDependencies = async hostId =>
     harden({
       guestFormulaNumber: await randomHex512(),
@@ -1032,7 +1032,7 @@ const makeDaemonCore = async (
       workerId: (await formulateNumberedWorker(await randomHex512())).id,
     });
 
-  /** @type {import('./types.js').DaemonCoreInternal['formulateNumberedGuest']} */
+  /** @type {import('./types.js').DaemonCore['formulateNumberedGuest']} */
   const formulateNumberedGuest = identifiers => {
     /** @type {import('./types.js').GuestFormula} */
     const formula = {
@@ -1600,32 +1600,12 @@ const makeDaemonCore = async (
     return info;
   };
 
-  /** @type {import('./types.js').DaemonCore} */
-  const daemonCore = {
-    nodeIdentifier: ownNodeIdentifier,
-    provideController,
-    provideControllerAndResolveHandle,
-    provide,
-    formulate,
-    getIdForRef,
-    getAllNetworkAddresses,
-    cancelValue,
-    makeMailbox,
-    makeDirectoryNode,
+  /** @type {import('./types.js').DaemonCoreExternal} */
+  return {
     formulateEndoBootstrap,
-    formulateNetworksDirectory,
-    formulateLoopbackNetwork,
-    formulateDirectory,
-    formulateWorker,
-    formulateHost,
-    formulateGuest,
-    formulatePeer,
-    formulateEval,
-    formulateUnconfined,
-    formulateReadableBlob,
-    formulateBundle,
+    provide,
+    nodeIdentifier: ownNodeIdentifier,
   };
-  return daemonCore;
 };
 
 /**
