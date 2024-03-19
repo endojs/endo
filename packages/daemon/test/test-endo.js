@@ -1357,7 +1357,7 @@ test('guest cannot access host methods', async t => {
 test('read unknown nodeId', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'read unknown nodeId');
+  const locator = makeLocator('tmp', 'read-unknown-nodeid');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1390,8 +1390,8 @@ test('read unknown nodeId', async t => {
 test('read remote value', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locatorA = makeLocator('tmp', 'read remote value A');
-  const locatorB = makeLocator('tmp', 'read remote value B');
+  const locatorA = makeLocator('tmp', 'read-remote-value-a');
+  const locatorB = makeLocator('tmp', 'read-remote-value-b');
   let hostA;
   {
     await stop(locatorA).catch(() => {});

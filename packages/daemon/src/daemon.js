@@ -122,7 +122,7 @@ const makeDaemonCore = async (
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
-  const peersId = formatId({
+  const ownPeersId = formatId({
     number: peersFormulaNumber,
     node: ownNodeIdentifier,
   });
@@ -570,15 +570,11 @@ const makeDaemonCore = async (
           );
         },
         addPeerInfo: async peerInfo => {
-          const peerPetstore =
-            /** @type {import('./types.js').PetStore} */
-            // Behold, recursion:
-            // eslint-disable-next-line no-use-before-define
-            (await provide(formula.peers));
-          const { node, addresses } = peerInfo;
           // eslint-disable-next-line no-use-before-define
-          const nodeName = petStoreNameForNodeIdentifier(node);
-          if (peerPetstore.has(nodeName)) {
+          const knownPeers = await provideKnownPeers(formula.peers);
+          const { node: nodeIdentifier, addresses } = peerInfo;
+          // eslint-disable-next-line no-use-before-define
+          if (knownPeers.has(nodeIdentifier)) {
             // We already have this peer.
             // TODO: merge connection info
             return;
@@ -586,7 +582,7 @@ const makeDaemonCore = async (
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(formula.networks, addresses);
-          await peerPetstore.write(nodeName, peerId);
+          await knownPeers.write(nodeIdentifier, peerId);
         },
       });
       return {
@@ -760,11 +756,6 @@ const makeDaemonCore = async (
     return controller;
   };
 
-  // TODO: sorry, forcing nodeId into a petstore name
-  const petStoreNameForNodeIdentifier = nodeIdentifier => {
-    return `p${nodeIdentifier.slice(0, 126)}`;
-  };
-
   /**
    * @param {string} nodeIdentifier
    * @returns {Promise<string>}
@@ -773,12 +764,9 @@ const makeDaemonCore = async (
     if (nodeIdentifier === ownNodeIdentifier) {
       throw new Error(`Cannot get peer formula identifier for self`);
     }
-    const peerStore = /** @type {import('./types.js').PetStore} */ (
-      // eslint-disable-next-line no-use-before-define
-      await provide(peersId)
-    );
-    const nodeName = petStoreNameForNodeIdentifier(nodeIdentifier);
-    const peerId = peerStore.identifyLocal(nodeName);
+    // eslint-disable-next-line no-use-before-define
+    const knownPeers = await provideKnownPeers(ownPeersId);
+    const peerId = knownPeers.identify(nodeIdentifier);
     if (peerId === undefined) {
       throw new Error(
         `No peer found for node identifier ${q(nodeIdentifier)}.`,
@@ -1328,8 +1316,8 @@ const makeDaemonCore = async (
       const { id: newPeersId } = await formulateNumberedPetStore(
         peersFormulaNumber,
       );
-      if (newPeersId !== peersId) {
-        assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${peersId}, got ${newPeersId}`;
+      if (newPeersId !== ownPeersId) {
+        assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${ownPeersId}, got ${newPeersId}`;
       }
 
       // Ensure the default host is formulated and persisted.
@@ -1352,7 +1340,7 @@ const makeDaemonCore = async (
     const formula = {
       type: 'endo',
       networks: identifiers.networksDirectoryId,
-      peers: peersId,
+      peers: ownPeersId,
       host: identifiers.defaultHostId,
       leastAuthority: leastAuthorityId,
     };
@@ -1432,6 +1420,33 @@ const makeDaemonCore = async (
       }
     }
     throw new Error('Cannot connect to peer: no supported addresses');
+  };
+
+  /**
+   * The "known peers store" is like a pet store, but maps node identifiers to
+   * full peer ids.
+   *
+   * @type {import('./types.js').DaemonCore['provideKnownPeers']}
+   */
+  const provideKnownPeers = async peersFormulaId => {
+    // "Known peers" is just a pet store with an adapter over it.
+    const petStore = /** @type {import('./types.js').PetStore} */ (
+      await provide(peersFormulaId)
+    );
+
+    // Pet stores do not accept full ids as names.
+    /** @param {string} nodeIdentifier */
+    const getNameFor = nodeIdentifier => {
+      return `p${nodeIdentifier.slice(0, 126)}`;
+    };
+
+    return harden({
+      has: nodeIdentifier => petStore.has(getNameFor(nodeIdentifier)),
+      identify: nodeIdentifier =>
+        petStore.identifyLocal(getNameFor(nodeIdentifier)),
+      write: (nodeIdentifier, peerId) =>
+        petStore.write(getNameFor(nodeIdentifier), peerId),
+    });
   };
 
   /**

@@ -391,7 +391,7 @@ export interface NameHub {
   ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
-  write(petNamePath: string[], id): Promise<void>;
+  write(petNamePath: string[], id: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
   copy(fromPetName: string[], toPetName: string[]): Promise<void>;
@@ -486,6 +486,12 @@ export interface EndoPeer {
 }
 export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
 export type EndoPeerController = Controller<EndoPeer, undefined>;
+
+export interface EndoKnownPeers {
+  has: (nodeIdentifier: string) => boolean;
+  identify: (nodeIdentifier: string) => string | undefined;
+  write: (nodeIdentifier: string, peerId: string) => Promise<void>;
+}
 
 export interface EndoGateway {
   provide: (id: string) => Promise<unknown>;
@@ -849,6 +855,8 @@ export interface DaemonCore {
   provideController: (id: string) => Controller;
 
   provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
+
+  provideKnownPeers: (peersFormulaId: string) => Promise<EndoKnownPeers>;
 }
 
 export interface DaemonCoreExternal {

@@ -1,4 +1,4 @@
-/// <ref types="ses">
+// @ts-check
 
 import { parseId, isValidNumber } from './formula-identifier.js';
 import { assertValidFormulaType, isValidFormulaType } from './formula-type.js';
