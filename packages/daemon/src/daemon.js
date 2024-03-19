@@ -17,6 +17,7 @@ import { parseId, formatId } from './formula-identifier.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './weak-multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
+import { assertValidFormulaType } from './formula-type.js';
 
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -676,28 +677,7 @@ const makeDaemonCore = async (
     }
     const formula = await persistencePowers.readFormula(formulaNumber);
     console.log(`Making ${formula.type} ${formulaNumber}`);
-    if (
-      ![
-        'endo',
-        'worker',
-        'eval',
-        'readable-blob',
-        'make-unconfined',
-        'make-bundle',
-        'host',
-        'guest',
-        'least-authority',
-        'loopback-network',
-        'peer',
-        'handle',
-        'pet-inspector',
-        'pet-store',
-        'lookup',
-        'directory',
-      ].includes(formula.type)
-    ) {
-      assert.Fail`Invalid formula identifier, unrecognized type ${q(id)}`;
-    }
+    assertValidFormulaType(formula.type);
     // TODO further validation
     return makeControllerForFormula(id, formulaNumber, formula, context);
   };

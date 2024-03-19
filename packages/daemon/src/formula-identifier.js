@@ -2,6 +2,7 @@
 
 const { quote: q } = assert;
 
+export const nodeOrIdPattern = /^[0-9a-f]{128}$/;
 const idPattern = /^(?<number>[0-9a-f]{128}):(?<node>[0-9a-f]{128})$/;
 
 /**
