@@ -384,6 +384,7 @@ export interface PetStore {
 export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
+  locate(...petNamePath: string[]): Promise<string | undefined>;
   list(...petNamePath: string[]): Promise<Array<string>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followChanges(
@@ -845,6 +846,8 @@ export interface DaemonCore {
   getAllNetworkAddresses: (networksDirectoryId: string) => Promise<string[]>;
 
   getIdForRef: (ref: unknown) => string | undefined;
+
+  getTypeForId: (id: string) => Promise<string>;
 
   makeDirectoryNode: MakeDirectoryNode;
 

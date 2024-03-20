@@ -183,18 +183,36 @@ const makeDaemonCore = async (
 
   /**
    * The two functions "formulate" and "provide" share a responsibility for
-   * maintaining the memoization tables "controllerForId" and
+   * maintaining the memoization tables "controllerForId", "typeForId", and
    * "idForRef".
    * "formulate" is used for creating and persisting new formulas, whereas
    * "provide" is used for "reincarnating" the values of stored formulas.
    */
 
   /**
-   * Reverse look-up, for answering "what is my name for this near or far
-   * reference", and not for "what is my name for this promise".
+   * Forward look-up, for answering "what is the value of this id".
    * @type {Map<string, import('./types.js').Controller>}
    */
   const controllerForId = new Map();
+
+  /**
+   * Forward look-up, for answering "what is the formula type of this id".
+   * @type {Map<string, string>}
+   */
+  const typeForId = new Map();
+
+  /** @param {string} id */
+  const getTypeForId = async id => {
+    await null;
+
+    const formulaType = typeForId.get(id);
+    if (formulaType !== undefined) {
+      return formulaType;
+    }
+
+    const formula = await persistencePowers.readFormula(parseId(id).number);
+    return formula.type;
+  };
 
   /**
    * Reverse look-up, for answering "what is my name for this near or far
@@ -667,14 +685,18 @@ const makeDaemonCore = async (
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
       const peerIdentifier = await getPeerIdForNodeIdentifier(formulaNode);
+      typeForId.set(id, 'remote');
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       return provideRemoteValue(peerIdentifier, id);
     }
+
     const formula = await persistencePowers.readFormula(formulaNumber);
     console.log(`Making ${formula.type} ${formulaNumber}`);
     assertValidFormulaType(formula.type);
     // TODO further validation
+    typeForId.set(id, formula.type);
+
     return makeControllerForFormula(id, formulaNumber, formula, context);
   };
 
@@ -707,6 +729,7 @@ const makeDaemonCore = async (
       internal: E.get(partial).internal,
     });
     controllerForId.set(id, controller);
+    typeForId.set(id, formula.type);
 
     // The controller _must_ be constructed in the synchronous prelude of this function.
     const controllerValue = makeControllerForFormula(
@@ -1474,6 +1497,7 @@ const makeDaemonCore = async (
   const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
     provide,
     getIdForRef,
+    getTypeForId,
     formulateDirectory,
   });
 

@@ -1,7 +1,7 @@
 // @ts-check
 
 import { parseId, isValidNumber } from './formula-identifier.js';
-import { assertValidFormulaType, isValidFormulaType } from './formula-type.js';
+import { isValidFormulaType } from './formula-type.js';
 
 const { quote: q } = assert;
 
@@ -12,6 +12,25 @@ const { quote: q } = assert;
  * ```
  * Note that the `id` query param is just the formula number.
  */
+
+/**
+ * In addition to all valid formula types, the locator `type` query parameter
+ * also supports `remote` for remote values, since their actual formula type
+ * cannot be known.
+ *
+ * @param {string} allegedType
+ */
+const isValidLocatorType = allegedType =>
+  isValidFormulaType(allegedType) || allegedType === 'remote';
+
+/**
+ * @param {string} allegedType
+ */
+const assertValidLocatorType = allegedType => {
+  if (!isValidLocatorType(allegedType)) {
+    assert.Fail`Unrecognized locator type ${q(allegedType)}`;
+  }
+};
 
 /** @param {string} allegedLocator */
 export const parseLocator = allegedLocator => {
@@ -45,7 +64,7 @@ export const parseLocator = allegedLocator => {
   }
 
   const formulaType = url.searchParams.get('type');
-  if (formulaType === null || !isValidFormulaType(formulaType)) {
+  if (formulaType === null || !isValidLocatorType(formulaType)) {
     assert.Fail`${errorPrefix} Invalid type.`;
   }
 
@@ -70,7 +89,7 @@ export const formatLocator = (id, formulaType) => {
   // The id query param is just the number
   url.searchParams.set('id', number);
 
-  assertValidFormulaType(formulaType);
+  assertValidLocatorType(formulaType);
   url.searchParams.set('type', formulaType);
 
   return url.toString();

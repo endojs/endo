@@ -24,6 +24,7 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
+import { parseLocator } from '../src/locator.js';
 
 const cryptoPowers = makeCryptoPowers(crypto);
 
@@ -1482,4 +1483,69 @@ test('read remote value', async t => {
 
   await stop(locatorA);
   await stop(locatorB);
+});
+
+test('locate local value', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'locate-local-value');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  t.is(ten, 10);
+
+  const tenLocator = await E(host).locate('ten');
+  const parsedLocator = parseLocator(tenLocator);
+  t.is(parsedLocator.formulaType, 'eval');
+
+  await stop(locator);
+});
+
+test('locate local persisted value', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'locate-local-persisted-value');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const host = E(bootstrap).host();
+    const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
+    t.is(ten, 10);
+  }
+
+  await restart(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const host = E(bootstrap).host();
+    const tenLocator = await E(host).locate('ten');
+    const parsedLocator = parseLocator(tenLocator);
+    t.is(parsedLocator.formulaType, 'eval');
+  }
+
+  await stop(locator);
 });
