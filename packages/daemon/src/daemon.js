@@ -210,7 +210,13 @@ const makeDaemonCore = async (
       return formulaType;
     }
 
+    if (parseId(id).node !== ownNodeIdentifier) {
+      typeForId.set(id, 'remote');
+      return 'remote';
+    }
+
     const formula = await persistencePowers.readFormula(parseId(id).number);
+    typeForId.set(id, formula.type);
     return formula.type;
   };
 

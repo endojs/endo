@@ -1442,14 +1442,14 @@ test('read remote value', async t => {
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
   const hostBValueIdentifier = await E(hostB).identify('salutations');
 
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueIdentifier);
-  const hostAValue = await E(hostA).lookup('greetings');
 
-  t.is(hostAValue, 'haay wuurl');
+  const hostAValue = await E(hostA).lookup('greetings');
+  t.is(hostAValue, 'hello, world!');
 
   await stop(locatorA);
   await stop(locatorB);
@@ -1518,4 +1518,31 @@ test('locate local persisted value', async t => {
   }
 
   await stop(locator);
+});
+
+test('locate remote value', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locatorA = makeLocator('tmp', 'locate-remote-value-a');
+  const locatorB = makeLocator('tmp', 'locate-remote-value-b');
+  const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
+  const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
+
+  // introduce nodes to each other
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+
+  // create value to share
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  const hostBValueIdentifier = await E(hostB).identify('salutations');
+
+  // insert in hostA out of band
+  await E(hostA).write(['greetings'], hostBValueIdentifier);
+
+  const greetingsLocator = await E(hostA).locate('greetings');
+  const parsedGreetingsLocator = parseLocator(greetingsLocator);
+  t.is(parsedGreetingsLocator.formulaType, 'remote');
+
+  await stop(locatorA);
+  await stop(locatorB);
 });
