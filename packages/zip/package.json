@@ -1,6 +1,6 @@
 {
   "name": "@endo/zip",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A minimal, synchronous Zip reader and writer",
   "keywords": [
     "zip",

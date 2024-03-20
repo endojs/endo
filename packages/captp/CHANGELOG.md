@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.0](https://github.com/endojs/endo/compare/@endo/captp@4.0.4...@endo/captp@4.1.0) (2024-03-20)
+
+
+### Features
+
+* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+
+
+### Bug Fixes
+
+* **captp:** Teardown worker test ([63a75f7](https://github.com/endojs/endo/commit/63a75f75dc31328b35b7c63e7cd3628fcc465842))
+
+
+
 ### [4.0.4](https://github.com/endojs/endo/compare/@endo/captp@4.0.3...@endo/captp@4.0.4) (2024-02-23)
 
 **Note:** Version bump only for package @endo/captp
