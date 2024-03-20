@@ -3,6 +3,50 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.1.0](https://github.com/endojs/endo/compare/@endo/daemon@2.0.0...@endo/daemon@2.1.0) (2024-03-20)
+
+
+### Features
+
+* **daemon:** add directory ([ad171f1](https://github.com/endojs/endo/commit/ad171f12359614f47f41d25ea090fea7fdefca6c))
+* **daemon:** add empty networks dir + peer formula + invite/accept ([b9c8872](https://github.com/endojs/endo/commit/b9c88720dab64694a1e51b4de271e4c80790d5bf))
+* **daemon:** add list and followChanges to NameHub ([9024a5b](https://github.com/endojs/endo/commit/9024a5bb6f856d0ffdc3c98e5b82cd2b05a7d3ca))
+* **daemon:** add loopback network ([53d4120](https://github.com/endojs/endo/commit/53d41206291bc3ddd1216a4117e8591bb6da944c))
+* **daemon:** Create weblet worklet for Node.js ([9b17973](https://github.com/endojs/endo/commit/9b1797376c6a58ded62701c311f34fba7e18c7d8))
+* **daemon:** enhance types for DaemonCore and consumers ([15529d7](https://github.com/endojs/endo/commit/15529d727bdaa3e174467647b83a8ef40c8a9b10))
+* **daemon:** Expose own id to evaluate and make behaviors ([66dbbcf](https://github.com/endojs/endo/commit/66dbbcffb3c13851cba329273c369184f3833162))
+* **daemon:** improve types for Host and Guest ([8ae0178](https://github.com/endojs/endo/commit/8ae01784ef6c1398763ad4be5869463f395554a0))
+* **daemon:** include locationId in formulaId ([cb3e2c5](https://github.com/endojs/endo/commit/cb3e2c54ea52086facd5b00ed079c4f27dd0adde))
+* **daemon:** Inject platform capabilities as formulas ([f0d17a6](https://github.com/endojs/endo/commit/f0d17a6962484e24e5a49d46ad5198c7fcad9b4a))
+* **daemon:** Log node identifier ([05d1566](https://github.com/endojs/endo/commit/05d1566f821873db3845539fa986620b5a18b3cd))
+* **daemon:** NameHubs expose listIdentifiers method ([375c3e9](https://github.com/endojs/endo/commit/375c3e968cc3de0769aaf6ad9f4d2ed3954b0aa0))
+* **daemon:** only provide local values over gateway ([622da83](https://github.com/endojs/endo/commit/622da83c7254ee4890160d806c8368bf35be645c))
+* **daemon:** peer info exchange methods + remote lookup ([b850b6c](https://github.com/endojs/endo/commit/b850b6c864ee4c3db6a4fd35a726d9a1e018dd39))
+* **daemon:** remove listEntries and followEntries in PetStore/Host/Guest ([5512bf6](https://github.com/endojs/endo/commit/5512bf6d530aeef6b929dbdf0f33987972613a3b))
+* **daemon:** rename "location" to "node" ([793adef](https://github.com/endojs/endo/commit/793adefb2eeed5f49443fa841df96239f097dbc3))
+* **daemon:** separate peer and remote formulas ([a1abc36](https://github.com/endojs/endo/commit/a1abc3610cd3facccaa91223e2c5583965cc4d90))
+* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+
+
+### Bug Fixes
+
+* **daemon:** Catch up init dev dependency to adjacent workspace ([1fd5182](https://github.com/endojs/endo/commit/1fd518251895445ff87ad7fcc1121c2b66d45f9b))
+* **daemon:** directory.listIdentifiers is sorted ([d4e4701](https://github.com/endojs/endo/commit/d4e47012a0d70a06eec40fec4f2908ed7563b549))
+* **daemon:** fix identifiedDirectory far interface ([70e5eac](https://github.com/endojs/endo/commit/70e5eac85462b069214c7809fbd67654f8e60222))
+* **daemon:** fix leastAuthority type issue ([c2cdd7f](https://github.com/endojs/endo/commit/c2cdd7f208c479f880fa639c6d4a1e574b31d864))
+* **daemon:** fix loopback network error message format ([01812a2](https://github.com/endojs/endo/commit/01812a282ad1820bbe985ef63845ee1a28dfe6ad))
+* **daemon:** Fix provision of new, unnamed workers ([fb2c255](https://github.com/endojs/endo/commit/fb2c2557464711b95766797ebfbc4531624ee766)), closes [#2139](https://github.com/endojs/endo/issues/2139)
+* **daemon:** fix some type issues ([184dc61](https://github.com/endojs/endo/commit/184dc6138a6e3f5ad8f0a871af048d3ed7e23ae3))
+* **daemon:** Handle server response error ([ac44064](https://github.com/endojs/endo/commit/ac440640fb15d15ac1722db7b22d882bd056201e))
+* **daemon:** loopback network should not advertise its address ([cb55c2d](https://github.com/endojs/endo/commit/cb55c2de043930517e03e0dc638bc01f6bb294c9))
+* **daemon:** remove invite/accept and RemoteFormula ([3173724](https://github.com/endojs/endo/commit/31737240e51ffce8a1dbe94b7c31446763ae6b45))
+* **daemon:** remove orphaned remote formula type check ([e08f03e](https://github.com/endojs/endo/commit/e08f03ef11b27d435daaac1e4c5e683e0c3aac37))
+* **daemon:** rename "makeRemote" to "provideRemoteValue" ([f0451bd](https://github.com/endojs/endo/commit/f0451bd3722c74956cfad93c8891a8eb7ec88a7e))
+* **daemon:** rename Gateway and Peer method to "provide" ([9ad0e3c](https://github.com/endojs/endo/commit/9ad0e3cbc5efa3f89cb67703b96fad35062b098d))
+* **daemon:** Specify return type of evaluate ([6026b73](https://github.com/endojs/endo/commit/6026b73b099a4ebcbd6477d3d2fdf2749f738293))
+
+
+
 ## [2.0.0](https://github.com/endojs/endo/compare/@endo/daemon@1.0.3...@endo/daemon@2.0.0) (2024-02-23)
 
 

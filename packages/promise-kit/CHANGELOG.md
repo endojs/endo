@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.4...@endo/promise-kit@1.1.0) (2024-03-20)
+
+
+### Features
+
+* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+
+
+
 ### [1.0.4](https://github.com/endojs/endo/compare/@endo/promise-kit@1.0.3...@endo/promise-kit@1.0.4) (2024-02-23)
 
 **Note:** Version bump only for package @endo/promise-kit

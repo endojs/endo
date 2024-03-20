@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/endojs/endo/compare/@endo/ses-ava@1.1.2...@endo/ses-ava@1.2.0) (2024-03-20)
+
+
+### Features
+
+* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+
+
+### Bug Fixes
+
+* **ses-ava:** Move ava dep to peer dependencies ([a1a3c3a](https://github.com/endojs/endo/commit/a1a3c3aad63772c26004060ad0e076f9ab302e80))
+
+
+
 ### [1.1.2](https://github.com/endojs/endo/compare/@endo/ses-ava@1.1.1...@endo/ses-ava@1.1.2) (2024-02-23)
 
 **Note:** Version bump only for package @endo/ses-ava

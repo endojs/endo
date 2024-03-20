@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.1.0](https://github.com/endojs/endo/compare/@endo/cli@2.0.0...@endo/cli@2.1.0) (2024-03-20)
+
+
+### Features
+
+* **cli:** Follow list changes ([c5eb0f1](https://github.com/endojs/endo/commit/c5eb0f113dbd8cc54d067eab97d836f701cbc927))
+
+
+### Bug Fixes
+
+* **cli:** Chat demo needs followChanges rename ([3fa3d9b](https://github.com/endojs/endo/commit/3fa3d9b02ec029c3e26ae946dbbe6cf689be4be0))
+
+
+
 ## [2.0.0](https://github.com/endojs/endo/compare/@endo/cli@1.0.3...@endo/cli@2.0.0) (2024-02-23)
 
 

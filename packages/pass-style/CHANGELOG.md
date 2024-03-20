@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.2.0...@endo/pass-style@1.3.0) (2024-03-20)
+
+
+### Features
+
+* **pass-style:** feature flag: only well-formed strings are passable ([#2002](https://github.com/endojs/endo/issues/2002)) ([bca1e3f](https://github.com/endojs/endo/commit/bca1e3f92d4a37f1b9927c7e6045968beb925964))
+* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+
+
+
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.1.1...@endo/pass-style@1.2.0) (2024-02-23)
 
 

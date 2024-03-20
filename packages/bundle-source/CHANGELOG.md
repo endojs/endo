@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.2.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.1.0...@endo/bundle-source@3.2.0) (2024-03-20)
+
+
+### Features
+
+* **ses-ava:** import test from @endo/ses-ava/prepare-endo.js ([#2133](https://github.com/endojs/endo/issues/2133)) ([9d3a7ce](https://github.com/endojs/endo/commit/9d3a7ce150b6fd6fe7c8c4cc43da411e981731ac))
+
+
+### Bug Fixes
+
+* **bundle-source:** cacheSourceMaps option is optional ([c180049](https://github.com/endojs/endo/commit/c1800491ea20b34c2f073b371f4941c247db7de6))
+* **bundle-source:** Export types properly ([50518da](https://github.com/endojs/endo/commit/50518dafc9e875277161827ae6d74fd627b6acf8))
+* **bundle-source:** Revert breaking export types change ([58e82f0](https://github.com/endojs/endo/commit/58e82f09373464ddcc28dc060813628e7ea5c9d5))
+
+
+
 ## [3.1.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.0.3...@endo/bundle-source@3.1.0) (2024-02-23)
 
 
