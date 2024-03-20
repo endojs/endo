@@ -1,9 +1,0 @@
-{
-  "sourceMapPathOverrides": {
-    "type": "object",
-    "description": "%chrome.sourceMapPathOverrides.description%",
-    "default": {
-      "sourcemap:///./*": "/Users/kris/*"
-    }
-  }
-}
