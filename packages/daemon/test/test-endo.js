@@ -47,6 +47,47 @@ const makeLocator = (...root) => {
   };
 };
 
+/**
+ * @param {ReturnType<makeLocator>} locator
+ * @param {Promise<void>} cancelled
+ */
+const makeHostWithTestNetwork = async (locator, cancelled) => {
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+
+  const host = E(bootstrap).host();
+  // Install test network
+  const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
+  const serviceLocation = url.pathToFileURL(servicePath).href;
+  const network = E(host).makeUnconfined(
+    'MAIN',
+    serviceLocation,
+    'SELF',
+    'test-network',
+  );
+
+  // set address via request
+  const iteratorRef = E(host).followMessages();
+  const { value: message } = await E(iteratorRef).next();
+  const { number } = E.get(message);
+  await E(host).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
+  await E(host).resolve(await number, 'netport');
+
+  // move test network to network dir
+  await network;
+  await E(host).move(['test-network'], ['NETS', 'tcp']);
+
+  return host;
+};
+
 // The id of the next bundle to make.
 let bundleId = 0;
 const textEncoder = new TextEncoder();
@@ -1393,79 +1434,8 @@ test('read remote value', async t => {
   t.teardown(() => cancel(Error('teardown')));
   const locatorA = makeLocator('tmp', 'read-remote-value-a');
   const locatorB = makeLocator('tmp', 'read-remote-value-b');
-  let hostA;
-  {
-    await stop(locatorA).catch(() => {});
-    await purge(locatorA);
-    await start(locatorA);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locatorA.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    hostA = E(bootstrap).host();
-    // Install test network
-    const servicePath = path.join(
-      dirname,
-      'src',
-      'networks',
-      'tcp-netstring.js',
-    );
-    const serviceLocation = url.pathToFileURL(servicePath).href;
-    const networkA = E(hostA).makeUnconfined(
-      'MAIN',
-      serviceLocation,
-      'SELF',
-      'test-network',
-    );
-    // set address via request
-    const iteratorRef = E(hostA).followMessages();
-    const { value: message } = await E(iteratorRef).next();
-    const { number } = E.get(message);
-    await E(hostA).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
-    await E(hostA).resolve(await number, 'netport');
-    // move test network to network dir
-    await networkA;
-    await E(hostA).move(['test-network'], ['NETS', 'tcp']);
-  }
-
-  let hostB;
-  {
-    await stop(locatorB).catch(() => {});
-    await purge(locatorB);
-    await start(locatorB);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locatorB.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    hostB = E(bootstrap).host();
-    // Install test network
-    const servicePath = path.join(
-      dirname,
-      'src',
-      'networks',
-      'tcp-netstring.js',
-    );
-    const serviceLocation = url.pathToFileURL(servicePath).href;
-    const networkB = E(hostB).makeUnconfined(
-      'MAIN',
-      serviceLocation,
-      'SELF',
-      'test-network',
-    );
-    // set address via requestcd
-    const iteratorRef = E(hostB).followMessages();
-    const { value: message } = await E(iteratorRef).next();
-    const { number } = E.get(message);
-    await E(hostB).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
-    await E(hostB).resolve(await number, 'netport');
-    // move test network to network dir
-    await networkB;
-    await E(hostB).move(['test-network'], ['NETS', 'tcp']);
-  }
+  const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
+  const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
