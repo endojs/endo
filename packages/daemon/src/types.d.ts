@@ -384,6 +384,7 @@ export interface PetStore {
 export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
+  locate(...petNamePath: string[]): Promise<string | undefined>;
   list(...petNamePath: string[]): Promise<Array<string>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followChanges(
@@ -391,7 +392,7 @@ export interface NameHub {
   ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
-  write(petNamePath: string[], id): Promise<void>;
+  write(petNamePath: string[], id: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
   copy(fromPetName: string[], toPetName: string[]): Promise<void>;
@@ -486,6 +487,12 @@ export interface EndoPeer {
 }
 export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
 export type EndoPeerController = Controller<EndoPeer, undefined>;
+
+export interface EndoKnownPeers {
+  has: (nodeIdentifier: string) => boolean;
+  identify: (nodeIdentifier: string) => string | undefined;
+  write: (nodeIdentifier: string, peerId: string) => Promise<void>;
+}
 
 export interface EndoGateway {
   provide: (id: string) => Promise<unknown>;
@@ -738,36 +745,9 @@ type FormulateNumberedHostParams = {
   networksDirectoryId: string;
 };
 
-export interface DaemonCoreInternal {
-  /**
-   * Helper for callers of {@link formulateNumberedGuest}.
-   * @param hostId - The formula identifier of the host to formulate a guest for.
-   * @returns The formula identifiers for the guest formulation's dependencies.
-   */
-  formulateGuestDependencies: (
-    hostId: string,
-  ) => Promise<Readonly<FormulateNumberedGuestParams>>;
-  formulateNumberedGuest: (
-    identifiers: FormulateNumberedGuestParams,
-  ) => FormulateResult<EndoGuest>;
-  /**
-   * Helper for callers of {@link formulateNumberedHost}.
-   * @param specifiedIdentifiers - The existing formula identifiers specified to the host formulation.
-   * @returns The formula identifiers for all of the host formulation's dependencies.
-   */
-  formulateHostDependencies: (
-    specifiedIdentifiers: FormulateHostDependenciesParams,
-  ) => Promise<Readonly<FormulateNumberedHostParams>>;
-  formulateNumberedHost: (
-    identifiers: FormulateNumberedHostParams,
-  ) => FormulateResult<EndoHost>;
-}
-
 export interface DaemonCore {
-  nodeIdentifier: string;
-  provide: (id: string) => Promise<unknown>;
-  provideController: (id: string) => Controller;
-  provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
+  cancelValue: (id: string, reason: Error) => Promise<void>;
+
   formulate: (
     formulaNumber: string,
     formula: Formula,
@@ -775,29 +755,21 @@ export interface DaemonCore {
     id: string;
     value: unknown;
   }>;
-  getIdForRef: (ref: unknown) => string | undefined;
-  getAllNetworkAddresses: (networksDirectoryId: string) => Promise<string[]>;
+
+  formulateBundle: (
+    hostId: string,
+    bundleId: string,
+    deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
+    specifiedWorkerId?: string,
+    specifiedPowersId?: string,
+  ) => FormulateResult<unknown>;
+
+  formulateDirectory: () => FormulateResult<EndoDirectory>;
+
   formulateEndoBootstrap: (
     specifiedFormulaNumber: string,
   ) => FormulateResult<FarEndoBootstrap>;
-  formulateWorker: (
-    deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
-  ) => FormulateResult<EndoWorker>;
-  formulateDirectory: () => FormulateResult<EndoDirectory>;
-  formulateHost: (
-    endoId: string,
-    networksDirectoryId: string,
-    deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
-    specifiedWorkerId?: string | undefined,
-  ) => FormulateResult<EndoHost>;
-  formulateGuest: (
-    hostId: string,
-    deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
-  ) => FormulateResult<EndoGuest>;
-  formulateReadableBlob: (
-    readerRef: ERef<AsyncIterableIterator<string>>,
-    deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
-  ) => FormulateResult<FarEndoReadable>;
+
   formulateEval: (
     hostId: string,
     source: string,
@@ -806,6 +778,59 @@ export interface DaemonCore {
     deferredTasks: DeferredTasks<EvalDeferredTaskParams>,
     specifiedWorkerId?: string,
   ) => FormulateResult<unknown>;
+
+  formulateGuest: (
+    hostId: string,
+    deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
+  ) => FormulateResult<EndoGuest>;
+
+  /**
+   * Helper for callers of {@link formulateNumberedGuest}.
+   * @param hostId - The formula identifier of the host to formulate a guest for.
+   * @returns The formula identifiers for the guest formulation's dependencies.
+   */
+  formulateGuestDependencies: (
+    hostId: string,
+  ) => Promise<Readonly<FormulateNumberedGuestParams>>;
+
+  formulateHost: (
+    endoId: string,
+    networksDirectoryId: string,
+    deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
+    specifiedWorkerId?: string | undefined,
+  ) => FormulateResult<EndoHost>;
+
+  /**
+   * Helper for callers of {@link formulateNumberedHost}.
+   * @param specifiedIdentifiers - The existing formula identifiers specified to the host formulation.
+   * @returns The formula identifiers for all of the host formulation's dependencies.
+   */
+  formulateHostDependencies: (
+    specifiedIdentifiers: FormulateHostDependenciesParams,
+  ) => Promise<Readonly<FormulateNumberedHostParams>>;
+
+  formulateLoopbackNetwork: () => FormulateResult<EndoNetwork>;
+
+  formulateNetworksDirectory: () => FormulateResult<EndoDirectory>;
+
+  formulateNumberedGuest: (
+    identifiers: FormulateNumberedGuestParams,
+  ) => FormulateResult<EndoGuest>;
+
+  formulateNumberedHost: (
+    identifiers: FormulateNumberedHostParams,
+  ) => FormulateResult<EndoHost>;
+
+  formulatePeer: (
+    networksId: string,
+    addresses: Array<string>,
+  ) => FormulateResult<EndoPeer>;
+
+  formulateReadableBlob: (
+    readerRef: ERef<AsyncIterableIterator<string>>,
+    deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
+  ) => FormulateResult<FarEndoReadable>;
+
   formulateUnconfined: (
     hostId: string,
     specifier: string,
@@ -813,22 +838,34 @@ export interface DaemonCore {
     specifiedWorkerId?: string,
     specifiedPowersId?: string,
   ) => FormulateResult<unknown>;
-  formulateBundle: (
-    hostId: string,
-    bundleId: string,
-    deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
-    specifiedWorkerId?: string,
-    specifiedPowersId?: string,
-  ) => FormulateResult<unknown>;
-  formulatePeer: (
-    networksId: string,
-    addresses: Array<string>,
-  ) => FormulateResult<EndoPeer>;
-  formulateNetworksDirectory: () => FormulateResult<EndoDirectory>;
-  formulateLoopbackNetwork: () => FormulateResult<EndoNetwork>;
-  cancelValue: (id: string, reason: Error) => Promise<void>;
-  makeMailbox: MakeMailbox;
+
+  formulateWorker: (
+    deferredTasks: DeferredTasks<WorkerDeferredTaskParams>,
+  ) => FormulateResult<EndoWorker>;
+
+  getAllNetworkAddresses: (networksDirectoryId: string) => Promise<string[]>;
+
+  getIdForRef: (ref: unknown) => string | undefined;
+
+  getTypeForId: (id: string) => Promise<string>;
+
   makeDirectoryNode: MakeDirectoryNode;
+
+  makeMailbox: MakeMailbox;
+
+  provide: (id: string) => Promise<unknown>;
+
+  provideController: (id: string) => Controller;
+
+  provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
+
+  provideKnownPeers: (peersFormulaId: string) => Promise<EndoKnownPeers>;
+}
+
+export interface DaemonCoreExternal {
+  formulateEndoBootstrap: DaemonCore['formulateEndoBootstrap'];
+  nodeIdentifier: string;
+  provide: DaemonCore['provide'];
 }
 
 export type SerialJobs = {

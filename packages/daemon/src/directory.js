@@ -2,6 +2,7 @@
 
 import { E, Far } from '@endo/far';
 import { makeIteratorRef } from './reader-ref.js';
+import { formatLocator } from './locator.js';
 
 const { quote: q } = assert;
 
@@ -9,11 +10,13 @@ const { quote: q } = assert;
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
  * @param {import('./types.js').DaemonCore['getIdForRef']} args.getIdForRef
+ * @param {import('./types.js').DaemonCore['getTypeForId']} args.getTypeForId
  * @param {import('./types.js').DaemonCore['formulateDirectory']} args.formulateDirectory
  */
 export const makeDirectoryMaker = ({
   provide,
   getIdForRef,
+  getTypeForId,
   formulateDirectory,
 }) => {
   /** @type {import('./types.js').MakeDirectoryNode} */
@@ -82,6 +85,17 @@ export const makeDirectoryMaker = ({
       }
       const { hub, name } = await lookupTailNameHub(petNamePath);
       return hub.identify(name);
+    };
+
+    /** @type {import('./types.js').EndoDirectory['locate']} */
+    const locate = async (...petNamePath) => {
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+
+      const formulaType = await getTypeForId(id);
+      return formatLocator(id, formulaType);
     };
 
     /** @type {import('./types.js').EndoDirectory['list']} */
@@ -192,6 +206,7 @@ export const makeDirectoryMaker = ({
     const directory = {
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,

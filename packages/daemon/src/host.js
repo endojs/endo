@@ -455,6 +455,7 @@ export const makeHostMaker = ({
     const {
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,
@@ -483,6 +484,7 @@ export const makeHostMaker = ({
       // Directory
       has,
       identify,
+      locate,
       list,
       listIdentifiers,
       followChanges,

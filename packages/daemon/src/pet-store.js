@@ -1,11 +1,9 @@
 // @ts-check
 
 import { makeChangeTopic } from './pubsub.js';
-import { parseId, assertValidId } from './formula-identifier.js';
+import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 
 const { quote: q } = assert;
-
-const validNumberPattern = /^[0-9a-f]{128}$/;
 
 /**
  * @param {import('./types.js').FilePowers} filePowers
@@ -224,16 +222,18 @@ export const makePetStoreMaker = (filePowers, locator) => {
   };
 
   /**
-   * @param {string} id
+   * @param {string} formulaNumber
    * @param {(name: string) => void} assertValidName
    * @returns {Promise<import('./types.js').PetStore>}
    */
-  const makeIdentifiedPetStore = (id, assertValidName) => {
-    if (!validNumberPattern.test(id)) {
-      throw new Error(`Invalid identifier for pet store ${q(id)}`);
+  const makeIdentifiedPetStore = (formulaNumber, assertValidName) => {
+    if (!isValidNumber(formulaNumber)) {
+      throw new Error(
+        `Invalid formula number for pet store ${q(formulaNumber)}`,
+      );
     }
-    const prefix = id.slice(0, 2);
-    const suffix = id.slice(2);
+    const prefix = formulaNumber.slice(0, 2);
+    const suffix = formulaNumber.slice(2);
     const petNameDirectoryPath = filePowers.joinPath(
       locator.statePath,
       'pet-store',

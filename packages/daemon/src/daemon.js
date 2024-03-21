@@ -17,6 +17,7 @@ import { parseId, formatId } from './formula-identifier.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './weak-multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
+import { assertValidFormulaType } from './formula-type.js';
 
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
@@ -121,7 +122,7 @@ const makeDaemonCore = async (
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
-  const peersId = formatId({
+  const ownPeersId = formatId({
     number: peersFormulaNumber,
     node: ownNodeIdentifier,
   });
@@ -182,18 +183,42 @@ const makeDaemonCore = async (
 
   /**
    * The two functions "formulate" and "provide" share a responsibility for
-   * maintaining the memoization tables "controllerForId" and
+   * maintaining the memoization tables "controllerForId", "typeForId", and
    * "idForRef".
    * "formulate" is used for creating and persisting new formulas, whereas
    * "provide" is used for "reincarnating" the values of stored formulas.
    */
 
   /**
-   * Reverse look-up, for answering "what is my name for this near or far
-   * reference", and not for "what is my name for this promise".
+   * Forward look-up, for answering "what is the value of this id".
    * @type {Map<string, import('./types.js').Controller>}
    */
   const controllerForId = new Map();
+
+  /**
+   * Forward look-up, for answering "what is the formula type of this id".
+   * @type {Map<string, string>}
+   */
+  const typeForId = new Map();
+
+  /** @param {string} id */
+  const getTypeForId = async id => {
+    await null;
+
+    const formulaType = typeForId.get(id);
+    if (formulaType !== undefined) {
+      return formulaType;
+    }
+
+    if (parseId(id).node !== ownNodeIdentifier) {
+      typeForId.set(id, 'remote');
+      return 'remote';
+    }
+
+    const formula = await persistencePowers.readFormula(parseId(id).number);
+    typeForId.set(id, formula.type);
+    return formula.type;
+  };
 
   /**
    * Reverse look-up, for answering "what is my name for this near or far
@@ -569,15 +594,11 @@ const makeDaemonCore = async (
           );
         },
         addPeerInfo: async peerInfo => {
-          const peerPetstore =
-            /** @type {import('./types.js').PetStore} */
-            // Behold, recursion:
-            // eslint-disable-next-line no-use-before-define
-            (await provide(formula.peers));
-          const { node, addresses } = peerInfo;
           // eslint-disable-next-line no-use-before-define
-          const nodeName = petStoreNameForNodeIdentifier(node);
-          if (peerPetstore.has(nodeName)) {
+          const knownPeers = await provideKnownPeers(formula.peers);
+          const { node: nodeIdentifier, addresses } = peerInfo;
+          // eslint-disable-next-line no-use-before-define
+          if (knownPeers.has(nodeIdentifier)) {
             // We already have this peer.
             // TODO: merge connection info
             return;
@@ -585,7 +606,7 @@ const makeDaemonCore = async (
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
             await formulatePeer(formula.networks, addresses);
-          await peerPetstore.write(nodeName, peerId);
+          await knownPeers.write(nodeIdentifier, peerId);
         },
       });
       return {
@@ -670,35 +691,18 @@ const makeDaemonCore = async (
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
       const peerIdentifier = await getPeerIdForNodeIdentifier(formulaNode);
+      typeForId.set(id, 'remote');
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       return provideRemoteValue(peerIdentifier, id);
     }
+
     const formula = await persistencePowers.readFormula(formulaNumber);
     console.log(`Making ${formula.type} ${formulaNumber}`);
-    if (
-      ![
-        'endo',
-        'worker',
-        'eval',
-        'readable-blob',
-        'make-unconfined',
-        'make-bundle',
-        'host',
-        'guest',
-        'least-authority',
-        'loopback-network',
-        'peer',
-        'handle',
-        'pet-inspector',
-        'pet-store',
-        'lookup',
-        'directory',
-      ].includes(formula.type)
-    ) {
-      assert.Fail`Invalid formula identifier, unrecognized type ${q(id)}`;
-    }
+    assertValidFormulaType(formula.type);
     // TODO further validation
+    typeForId.set(id, formula.type);
+
     return makeControllerForFormula(id, formulaNumber, formula, context);
   };
 
@@ -731,6 +735,7 @@ const makeDaemonCore = async (
       internal: E.get(partial).internal,
     });
     controllerForId.set(id, controller);
+    typeForId.set(id, formula.type);
 
     // The controller _must_ be constructed in the synchronous prelude of this function.
     const controllerValue = makeControllerForFormula(
@@ -780,11 +785,6 @@ const makeDaemonCore = async (
     return controller;
   };
 
-  // TODO: sorry, forcing nodeId into a petstore name
-  const petStoreNameForNodeIdentifier = nodeIdentifier => {
-    return `p${nodeIdentifier.slice(0, 126)}`;
-  };
-
   /**
    * @param {string} nodeIdentifier
    * @returns {Promise<string>}
@@ -793,12 +793,9 @@ const makeDaemonCore = async (
     if (nodeIdentifier === ownNodeIdentifier) {
       throw new Error(`Cannot get peer formula identifier for self`);
     }
-    const peerStore = /** @type {import('./types.js').PetStore} */ (
-      // eslint-disable-next-line no-use-before-define
-      await provide(peersId)
-    );
-    const nodeName = petStoreNameForNodeIdentifier(nodeIdentifier);
-    const peerId = peerStore.identifyLocal(nodeName);
+    // eslint-disable-next-line no-use-before-define
+    const knownPeers = await provideKnownPeers(ownPeersId);
+    const peerId = knownPeers.identify(nodeIdentifier);
     if (peerId === undefined) {
       throw new Error(
         `No peer found for node identifier ${q(nodeIdentifier)}.`,
@@ -976,7 +973,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @type {import('./types.js').DaemonCoreInternal['formulateHostDependencies']}
+   * @type {import('./types.js').DaemonCore['formulateHostDependencies']}
    */
   const formulateHostDependencies = async specifiedIdentifiers => {
     const { specifiedWorkerId, ...remainingSpecifiedIdentifiers } =
@@ -997,7 +994,7 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCoreInternal['formulateNumberedHost']} */
+  /** @type {import('./types.js').DaemonCore['formulateNumberedHost']} */
   const formulateNumberedHost = identifiers => {
     /** @type {import('./types.js').HostFormula} */
     const formula = {
@@ -1041,7 +1038,7 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').DaemonCoreInternal['formulateGuestDependencies']} */
+  /** @type {import('./types.js').DaemonCore['formulateGuestDependencies']} */
   const formulateGuestDependencies = async hostId =>
     harden({
       guestFormulaNumber: await randomHex512(),
@@ -1052,7 +1049,7 @@ const makeDaemonCore = async (
       workerId: (await formulateNumberedWorker(await randomHex512())).id,
     });
 
-  /** @type {import('./types.js').DaemonCoreInternal['formulateNumberedGuest']} */
+  /** @type {import('./types.js').DaemonCore['formulateNumberedGuest']} */
   const formulateNumberedGuest = identifiers => {
     /** @type {import('./types.js').GuestFormula} */
     const formula = {
@@ -1348,8 +1345,8 @@ const makeDaemonCore = async (
       const { id: newPeersId } = await formulateNumberedPetStore(
         peersFormulaNumber,
       );
-      if (newPeersId !== peersId) {
-        assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${peersId}, got ${newPeersId}`;
+      if (newPeersId !== ownPeersId) {
+        assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${ownPeersId}, got ${newPeersId}`;
       }
 
       // Ensure the default host is formulated and persisted.
@@ -1372,7 +1369,7 @@ const makeDaemonCore = async (
     const formula = {
       type: 'endo',
       networks: identifiers.networksDirectoryId,
-      peers: peersId,
+      peers: ownPeersId,
       host: identifiers.defaultHostId,
       leastAuthority: leastAuthorityId,
     };
@@ -1455,6 +1452,33 @@ const makeDaemonCore = async (
   };
 
   /**
+   * The "known peers store" is like a pet store, but maps node identifiers to
+   * full peer ids.
+   *
+   * @type {import('./types.js').DaemonCore['provideKnownPeers']}
+   */
+  const provideKnownPeers = async peersFormulaId => {
+    // "Known peers" is just a pet store with an adapter over it.
+    const petStore = /** @type {import('./types.js').PetStore} */ (
+      await provide(peersFormulaId)
+    );
+
+    // Pet stores do not accept full ids as names.
+    /** @param {string} nodeIdentifier */
+    const getNameFor = nodeIdentifier => {
+      return `p${nodeIdentifier.slice(0, 126)}`;
+    };
+
+    return harden({
+      has: nodeIdentifier => petStore.has(getNameFor(nodeIdentifier)),
+      identify: nodeIdentifier =>
+        petStore.identifyLocal(getNameFor(nodeIdentifier)),
+      write: (nodeIdentifier, peerId) =>
+        petStore.write(getNameFor(nodeIdentifier), peerId),
+    });
+  };
+
+  /**
    * This is used to provide a value for a formula identifier that is known to
    * originate from the specified peer.
    * @param {string} peerId
@@ -1479,6 +1503,7 @@ const makeDaemonCore = async (
   const { makeIdentifiedDirectory, makeDirectoryNode } = makeDirectoryMaker({
     provide,
     getIdForRef,
+    getTypeForId,
     formulateDirectory,
   });
 
@@ -1620,32 +1645,12 @@ const makeDaemonCore = async (
     return info;
   };
 
-  /** @type {import('./types.js').DaemonCore} */
-  const daemonCore = {
-    nodeIdentifier: ownNodeIdentifier,
-    provideController,
-    provideControllerAndResolveHandle,
-    provide,
-    formulate,
-    getIdForRef,
-    getAllNetworkAddresses,
-    cancelValue,
-    makeMailbox,
-    makeDirectoryNode,
+  /** @type {import('./types.js').DaemonCoreExternal} */
+  return {
     formulateEndoBootstrap,
-    formulateNetworksDirectory,
-    formulateLoopbackNetwork,
-    formulateDirectory,
-    formulateWorker,
-    formulateHost,
-    formulateGuest,
-    formulatePeer,
-    formulateEval,
-    formulateUnconfined,
-    formulateReadableBlob,
-    formulateBundle,
+    provide,
+    nodeIdentifier: ownNodeIdentifier,
   };
-  return daemonCore;
 };
 
 /**

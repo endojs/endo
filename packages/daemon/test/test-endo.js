@@ -24,6 +24,7 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
+import { parseLocator } from '../src/locator.js';
 
 const cryptoPowers = makeCryptoPowers(crypto);
 
@@ -44,6 +45,47 @@ const makeLocator = (...root) => {
     pets: new Map(),
     values: new Map(),
   };
+};
+
+/**
+ * @param {ReturnType<makeLocator>} locator
+ * @param {Promise<void>} cancelled
+ */
+const makeHostWithTestNetwork = async (locator, cancelled) => {
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+
+  const host = E(bootstrap).host();
+  // Install test network
+  const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
+  const serviceLocation = url.pathToFileURL(servicePath).href;
+  const network = E(host).makeUnconfined(
+    'MAIN',
+    serviceLocation,
+    'SELF',
+    'test-network',
+  );
+
+  // set address via request
+  const iteratorRef = E(host).followMessages();
+  const { value: message } = await E(iteratorRef).next();
+  const { number } = E.get(message);
+  await E(host).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
+  await E(host).resolve(await number, 'netport');
+
+  // move test network to network dir
+  await network;
+  await E(host).move(['test-network'], ['NETS', 'tcp']);
+
+  return host;
 };
 
 // The id of the next bundle to make.
@@ -1357,7 +1399,7 @@ test('guest cannot access host methods', async t => {
 test('read unknown nodeId', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'read unknown nodeId');
+  const locator = makeLocator('tmp', 'read-unknown-nodeid');
 
   await stop(locator).catch(() => {});
   await purge(locator);
@@ -1390,95 +1432,116 @@ test('read unknown nodeId', async t => {
 test('read remote value', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   t.teardown(() => cancel(Error('teardown')));
-  const locatorA = makeLocator('tmp', 'read remote value A');
-  const locatorB = makeLocator('tmp', 'read remote value B');
-  let hostA;
-  {
-    await stop(locatorA).catch(() => {});
-    await purge(locatorA);
-    await start(locatorA);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locatorA.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    hostA = E(bootstrap).host();
-    // Install test network
-    const servicePath = path.join(
-      dirname,
-      'src',
-      'networks',
-      'tcp-netstring.js',
-    );
-    const serviceLocation = url.pathToFileURL(servicePath).href;
-    const networkA = E(hostA).makeUnconfined(
-      'MAIN',
-      serviceLocation,
-      'SELF',
-      'test-network',
-    );
-    // set address via request
-    const iteratorRef = E(hostA).followMessages();
-    const { value: message } = await E(iteratorRef).next();
-    const { number } = E.get(message);
-    await E(hostA).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
-    await E(hostA).resolve(await number, 'netport');
-    // move test network to network dir
-    await networkA;
-    await E(hostA).move(['test-network'], ['NETS', 'tcp']);
-  }
-
-  let hostB;
-  {
-    await stop(locatorB).catch(() => {});
-    await purge(locatorB);
-    await start(locatorB);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locatorB.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    hostB = E(bootstrap).host();
-    // Install test network
-    const servicePath = path.join(
-      dirname,
-      'src',
-      'networks',
-      'tcp-netstring.js',
-    );
-    const serviceLocation = url.pathToFileURL(servicePath).href;
-    const networkB = E(hostB).makeUnconfined(
-      'MAIN',
-      serviceLocation,
-      'SELF',
-      'test-network',
-    );
-    // set address via requestcd
-    const iteratorRef = E(hostB).followMessages();
-    const { value: message } = await E(iteratorRef).next();
-    const { number } = E.get(message);
-    await E(hostB).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
-    await E(hostB).resolve(await number, 'netport');
-    // move test network to network dir
-    await networkB;
-    await E(hostB).move(['test-network'], ['NETS', 'tcp']);
-  }
+  const locatorA = makeLocator('tmp', 'read-remote-value-a');
+  const locatorB = makeLocator('tmp', 'read-remote-value-b');
+  const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
+  const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '`haay wuurl`', [], [], 'salutations');
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
   const hostBValueIdentifier = await E(hostB).identify('salutations');
 
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueIdentifier);
-  const hostAValue = await E(hostA).lookup('greetings');
 
-  t.is(hostAValue, 'haay wuurl');
+  const hostAValue = await E(hostA).lookup('greetings');
+  t.is(hostAValue, 'hello, world!');
+
+  await stop(locatorA);
+  await stop(locatorB);
+});
+
+test('locate local value', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'locate-local-value');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  t.is(ten, 10);
+
+  const tenLocator = await E(host).locate('ten');
+  const parsedLocator = parseLocator(tenLocator);
+  t.is(parsedLocator.formulaType, 'eval');
+
+  await stop(locator);
+});
+
+test('locate local persisted value', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locator = makeLocator('tmp', 'locate-local-persisted-value');
+
+  await stop(locator).catch(() => {});
+  await purge(locator);
+  await start(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const host = E(bootstrap).host();
+    const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
+    t.is(ten, 10);
+  }
+
+  await restart(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const host = E(bootstrap).host();
+    const tenLocator = await E(host).locate('ten');
+    const parsedLocator = parseLocator(tenLocator);
+    t.is(parsedLocator.formulaType, 'eval');
+  }
+
+  await stop(locator);
+});
+
+test('locate remote value', async t => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+  const locatorA = makeLocator('tmp', 'locate-remote-value-a');
+  const locatorB = makeLocator('tmp', 'locate-remote-value-b');
+  const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
+  const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
+
+  // introduce nodes to each other
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+
+  // create value to share
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  const hostBValueIdentifier = await E(hostB).identify('salutations');
+
+  // insert in hostA out of band
+  await E(hostA).write(['greetings'], hostBValueIdentifier);
+
+  const greetingsLocator = await E(hostA).locate('greetings');
+  const parsedGreetingsLocator = parseLocator(greetingsLocator);
+  t.is(parsedGreetingsLocator.formulaType, 'remote');
 
   await stop(locatorA);
   await stop(locatorB);
