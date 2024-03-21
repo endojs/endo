@@ -1,4 +1,8 @@
 
+# v3.2.1 (2024-03-20)
+
+- Fixes an install-time bug introduced in 3.2.0.
+
 # v2.8.0 (2023-09-11)
 
 - The `@endo/bundle-source/cache.js` maker now accepts additional optional

@@ -1,6 +1,6 @@
 {
   "name": "@endo/bundle-source",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",
@@ -14,7 +14,6 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "postinstall": "patch-package",
     "build": "exit 0",
     "build:types": "tsc --build tsconfig.build.json",
     "clean:types": "git clean -f '*.d.ts*'",
@@ -43,8 +42,7 @@
     "@endo/lockdown": "^1.0.5",
     "@endo/ses-ava": "^1.2.0",
     "ava": "^6.1.2",
-    "c8": "^7.14.0",
-    "execa": "^8.0.1"
+    "c8": "^7.14.0"
   },
   "keywords": [],
   "files": [
