@@ -42,7 +42,7 @@
     "ses": "^1.4.0"
   },
   "peerDependencies": {
-    "ava": "^5.3.0|^6.1.2"
+    "ava": "^5.3.0 || ^6.1.2"
   },
   "devDependencies": {
     "ava": "^6.1.2",
