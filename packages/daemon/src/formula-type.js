@@ -1,3 +1,5 @@
+// @ts-check
+
 const { quote: q } = assert;
 
 // Note: Alphabetically sorted

@@ -17,7 +17,6 @@ import {
   start,
   stop,
   restart,
-  clean,
   purge,
   makeEndoClient,
   makeReaderRef,
@@ -118,15 +117,54 @@ const doMakeBundle = async (host, filePath, callback) => {
   return result;
 };
 
-test('lifecycle', async t => {
+let locatorPathId = 0;
+
+/** @param {string} testTitle */
+const getLocatorSubDirectory = testTitle => {
+  const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
+
+  if (defaultPath.length <= 30) {
+    return defaultPath;
+  }
+
+  // Truncate the subdirectory name to 30 characters in an attempt to respect
+  // the maximum Unix domain socket path length.
+  // With our apologies to John Jacob Jingleheimerschmidt, for whom this may
+  // not be enough.
+  const locatorSubDirectory = `${defaultPath.slice(0, 25)}$${String(
+    locatorPathId,
+  ).padStart(4, '0')}`;
+
+  locatorPathId += 1;
+
+  return locatorSubDirectory;
+};
+
+/** @param {import('ava').ExecutionContext} t */
+const prepareLocator = async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lifecycle');
+  const locator = makeLocator('tmp', getLocatorSubDirectory(t.title));
 
   await stop(locator).catch(() => {});
   await purge(locator);
-  await clean(locator);
   await start(locator);
+
+  const context = { cancel, cancelled, locator };
+  t.context = context;
+  return { ...context };
+};
+
+test.afterEach.always(async t => {
+  const { locator, cancel, cancelled } =
+    /** @type {Awaited<ReturnType<prepareLocator>>} */ (t.context);
+
+  cancel(Error('teardown'));
+  await Promise.allSettled([cancelled, stop(locator)]);
+});
+
+test('lifecycle', async t => {
+  const { cancel, cancelled, locator } = await prepareLocator(t);
+
   await stop(locator);
   await restart(locator);
 
@@ -142,18 +180,11 @@ test('lifecycle', async t => {
   cancel(new Error('Cancelled'));
   await closed.catch(() => {});
 
-  await stop(locator);
   t.pass();
 });
 
 test('spawn and evaluate', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'spawn-eval');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -165,18 +196,10 @@ test('spawn and evaluate', async t => {
   await E(host).provideWorker('w1');
   const ten = await E(host).evaluate('w1', '10', [], []);
   t.is(ten, 10);
-
-  await stop(locator);
 });
 
 test('anonymous spawn and evaluate', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'spawn-eval-anon');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -187,18 +210,10 @@ test('anonymous spawn and evaluate', async t => {
   const host = E(bootstrap).host();
   const ten = await E(host).evaluate('MAIN', '10', [], []);
   t.is(ten, 10);
-
-  await stop(locator);
 });
 
 test('anonymous spawn and evaluate with new worker', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'spawn-eval-anon-new-worker');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -209,19 +224,11 @@ test('anonymous spawn and evaluate with new worker', async t => {
   const host = E(bootstrap).host();
   const ten = await E(host).evaluate('NEW', '10', [], []);
   t.is(ten, 10);
-
-  await stop(locator);
 });
 
 // Regression test for https://github.com/endojs/endo/issues/2147
 test('spawning a worker does not overwrite existing non-worker name', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'spawn-eval-name-reuse');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -240,18 +247,10 @@ test('spawning a worker does not overwrite existing non-worker name', async t =>
     message:
       'Cannot deliver "evaluate" to target; typeof target is "undefined"',
   });
-
-  await stop(locator);
 });
 
 test('persist spawn and evaluation', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'persist-spawn-eval');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   {
     const { getBootstrap } = await makeEndoClient(
@@ -297,18 +296,10 @@ test('persist spawn and evaluation', async t => {
     const retwenty = await E(host).lookup('twenty');
     t.is(20, retwenty);
   }
-
-  await stop(locator);
 });
 
 test('store without name', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'store-without-name');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -321,18 +312,10 @@ test('store without name', async t => {
   const readable = await E(host).store(readerRef);
   const actualText = await E(readable).text();
   t.is(actualText, 'hello\n');
-
-  await stop(locator);
 });
 
 test('store with name', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'store-with-name');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   {
     const { getBootstrap } = await makeEndoClient(
@@ -360,18 +343,10 @@ test('store with name', async t => {
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
-
-  await stop(locator);
 });
 
 test('closure state lost by restart', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'restart-closures');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   {
     const { getBootstrap } = await makeEndoClient(
@@ -460,18 +435,10 @@ test('closure state lost by restart', async t => {
     t.is(two, 2);
     t.is(three, 3);
   }
-
-  await stop(locator);
 });
 
 test('persist unconfined services and their requests', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'make-unconfined');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const responderFinished = (async () => {
     const { promise: followerCancelled, reject: cancelFollower } =
@@ -545,18 +512,10 @@ test('persist unconfined services and their requests', async t => {
     const number = await E(answer).value();
     t.is(number, 42);
   }
-
-  await stop(locator);
 });
 
 test('persist confined services and their requests', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'make-bundle');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const responderFinished = (async () => {
     const { promise: followerCancelled, reject: cancelFollower } =
@@ -631,17 +590,10 @@ test('persist confined services and their requests', async t => {
     const number = await E(answer).value();
     t.is(number, 42);
   }
-
-  await stop(locator);
 });
 
 test('guest facet receives a message for host', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'guest-sends-host');
-
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -687,18 +639,10 @@ test('guest facet receives a message for host', async t => {
       { type: 'package', who: 'SELF', dest: 'HOST' },
     ],
   );
-
-  await stop(locator);
 });
 
 test('direct cancellation', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'cancellation-direct');
-
-  await start(locator);
-  t.teardown(() => stop(locator));
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -772,13 +716,7 @@ test('direct cancellation', async t => {
 
 // Regression test 1 for https://github.com/endojs/endo/issues/2074
 test('indirect cancellation via worker', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'cancellation-indirect-worker');
-
-  await start(locator);
-  t.teardown(() => stop(locator));
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -853,13 +791,7 @@ test('indirect cancellation via worker', async t => {
 
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
 test.failing('indirect cancellation via caplet', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'cancellation-indirect-caplet');
-
-  await start(locator);
-  t.teardown(() => stop(locator));
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -907,13 +839,7 @@ test.failing('indirect cancellation via caplet', async t => {
 });
 
 test('cancel because of requested capability', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'cancellation-via-request');
-
-  await start(locator);
-  t.teardown(() => stop(locator));
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -995,13 +921,7 @@ test('cancel because of requested capability', async t => {
 });
 
 test('unconfined service can respond to cancellation', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'cancellation-unconfined-response');
-
-  await start(locator);
-  t.teardown(() => stop(locator));
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1032,13 +952,7 @@ test('unconfined service can respond to cancellation', async t => {
 });
 
 test('confined service can respond to cancellation', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'cancellation-confined-response');
-
-  await start(locator);
-  t.teardown(() => stop(locator));
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1065,13 +979,7 @@ test('confined service can respond to cancellation', async t => {
 });
 
 test('make a host', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'make-host');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1084,18 +992,10 @@ test('make a host', async t => {
   await E(host2).provideWorker('w1');
   const ten = await E(host2).evaluate('w1', '10', [], []);
   t.is(ten, 10);
-
-  await stop(locator);
 });
 
 test('name and reuse inspector', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'inspector-reuse');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1125,19 +1025,11 @@ test('name and reuse inspector', async t => {
     ['inspector'],
   );
   t.regex(String(worker), /Alleged: EndoWorker/u);
-
-  await stop(locator);
 });
 
 // Regression test for https://github.com/endojs/endo/issues/2021
 test.failing('eval-mediated worker name', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'eval-worker-name');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1182,18 +1074,10 @@ test.failing('eval-mediated worker name', async t => {
     ),
     2,
   );
-
-  await stop(locator);
 });
 
 test('lookup with single petname', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-single-petname');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1213,18 +1097,10 @@ test('lookup with single petname', async t => {
     ['SELF'],
   );
   t.is(resolvedValue, 10);
-
-  await stop(locator);
 });
 
 test('lookup with petname path (inspector)', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-petname-path-inspector');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1242,18 +1118,10 @@ test('lookup with petname path (inspector)', async t => {
     ['SELF'],
   );
   t.is(resolvedValue, '10');
-
-  await stop(locator);
 });
 
 test('lookup with petname path (caplet with lookup method)', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-petname-path-caplet');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1273,18 +1141,10 @@ test('lookup with petname path (caplet with lookup method)', async t => {
     ['SELF'],
   );
   t.is(resolvedValue, 'Looked up: name');
-
-  await stop(locator);
 });
 
 test('lookup with petname path (value has no lookup method)', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'lookup-petname-path-no-method');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1304,18 +1164,10 @@ test('lookup with petname path (value has no lookup method)', async t => {
     ),
     { message: 'target has no method "lookup", has []' },
   );
-
-  await stop(locator);
 });
 
 test('evaluate name resolved by lookup path', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'name-resolved-by-lookup-path');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1334,18 +1186,10 @@ test('evaluate name resolved by lookup path', async t => {
     [['INFO', 'ten', 'source']],
   );
   t.is(resolvedValue, '10');
-
-  await stop(locator);
 });
 
 test('list special names', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'list-names');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1372,13 +1216,7 @@ test('list special names', async t => {
 });
 
 test('guest cannot access host methods', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-
-  const locator = makeLocator('tmp', 'guest-cannot-host');
-
-  await start(locator);
-  t.teardown(() => stop(locator));
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1396,14 +1234,8 @@ test('guest cannot access host methods', async t => {
   t.is(revealedTarget, undefined);
 });
 
-test('read unknown nodeId', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'read-unknown-nodeid');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+test('read unknown node id', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1421,21 +1253,26 @@ test('read unknown nodeId', async t => {
     number,
   });
   await E(host).write(['abc'], id);
+
   // observe reification failure
-  t.throwsAsync(() => E(host).lookup('abc'), {
+  await t.throwsAsync(() => E(host).lookup('abc'), {
     message: /No peer found for node identifier /u,
   });
-
-  await stop(locator);
 });
 
 test('read remote value', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locatorA = makeLocator('tmp', 'read-remote-value-a');
   const locatorB = makeLocator('tmp', 'read-remote-value-b');
   const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
   const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
+
+  // Set up custom teardown due to multiple locators
+  t.context = { cancel, cancelled, locator: {} };
+  t.teardown(async () => {
+    cancel(new Error('teardown'));
+    await Promise.allSettled([cancelled, stop(locatorA), stop(locatorB)]);
+  });
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
@@ -1450,19 +1287,10 @@ test('read remote value', async t => {
 
   const hostAValue = await E(hostA).lookup('greetings');
   t.is(hostAValue, 'hello, world!');
-
-  await stop(locatorA);
-  await stop(locatorB);
 });
 
 test('locate local value', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'locate-local-value');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   const { getBootstrap } = await makeEndoClient(
     'client',
@@ -1477,18 +1305,10 @@ test('locate local value', async t => {
   const tenLocator = await E(host).locate('ten');
   const parsedLocator = parseLocator(tenLocator);
   t.is(parsedLocator.formulaType, 'eval');
-
-  await stop(locator);
 });
 
 test('locate local persisted value', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
-  const locator = makeLocator('tmp', 'locate-local-persisted-value');
-
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
+  const { cancelled, locator } = await prepareLocator(t);
 
   {
     const { getBootstrap } = await makeEndoClient(
@@ -1516,17 +1336,21 @@ test('locate local persisted value', async t => {
     const parsedLocator = parseLocator(tenLocator);
     t.is(parsedLocator.formulaType, 'eval');
   }
-
-  await stop(locator);
 });
 
 test('locate remote value', async t => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
-  t.teardown(() => cancel(Error('teardown')));
   const locatorA = makeLocator('tmp', 'locate-remote-value-a');
   const locatorB = makeLocator('tmp', 'locate-remote-value-b');
   const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
   const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
+
+  // Set up custom teardown due to multiple locators
+  t.context = { cancel, cancelled, locator: {} };
+  t.teardown(async () => {
+    cancel(new Error('teardown'));
+    await Promise.allSettled([cancelled, stop(locatorA), stop(locatorB)]);
+  });
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
@@ -1542,7 +1366,4 @@ test('locate remote value', async t => {
   const greetingsLocator = await E(hostA).locate('greetings');
   const parsedGreetingsLocator = parseLocator(greetingsLocator);
   t.is(parsedGreetingsLocator.formulaType, 'remote');
-
-  await stop(locatorA);
-  await stop(locatorB);
 });

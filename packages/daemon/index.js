@@ -149,15 +149,14 @@ export const clean = async (locator = defaultLocator) => {
   }
 };
 
-export const restart = async (locator = defaultLocator) => {
-  await terminate(locator).catch(() => {});
-  await clean(locator);
-  return start(locator);
-};
-
 export const stop = async (locator = defaultLocator) => {
   await terminate(locator).catch(() => {});
   await clean(locator);
+};
+
+export const restart = async (locator = defaultLocator) => {
+  await stop(locator);
+  return start(locator);
 };
 
 export const purge = async (locator = defaultLocator) => {
