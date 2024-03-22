@@ -50,19 +50,23 @@ const makeLocator = (...root) => {
  * @param {ReturnType<makeLocator>} locator
  * @param {Promise<void>} cancelled
  */
-const makeHostWithTestNetwork = async (locator, cancelled) => {
-  await stop(locator).catch(() => {});
-  await purge(locator);
-  await start(locator);
-
+const makeHost = async (locator, cancelled) => {
   const { getBootstrap } = await makeEndoClient(
     'client',
     locator.sockPath,
     cancelled,
   );
   const bootstrap = getBootstrap();
+  return { host: E(bootstrap).host() };
+};
 
-  const host = E(bootstrap).host();
+/**
+ * @param {ReturnType<makeLocator>} locator
+ * @param {Promise<void>} cancelled
+ */
+const makeHostWithTestNetwork = async (locator, cancelled) => {
+  const { host } = await makeHost(locator, cancelled);
+
   // Install test network
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
   const serviceLocation = url.pathToFileURL(servicePath).href;
@@ -124,7 +128,7 @@ let locatorPathId = 0;
  * @param {number} locatorNumber - The number of the current locator. If this
  * is the n:th locator created for the current test, the locator number is n.
  */
-const getLocatorSubDirectory = (testTitle, locatorNumber) => {
+const getLocatorDirectoryName = (testTitle, locatorNumber) => {
   const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
 
   // We truncate the subdirectory name to 30 characters in an attempt to respect
@@ -147,7 +151,7 @@ const prepareLocator = async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   const locator = makeLocator(
     'tmp',
-    getLocatorSubDirectory(t.title, t.context.length),
+    getLocatorDirectoryName(t.title, t.context.length),
   );
 
   await stop(locator).catch(() => {});
@@ -197,14 +201,8 @@ test('lifecycle', async t => {
 
 test('spawn and evaluate', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('w1');
   const ten = await E(host).evaluate('w1', '10', [], []);
   t.is(ten, 10);
@@ -212,28 +210,16 @@ test('spawn and evaluate', async t => {
 
 test('anonymous spawn and evaluate', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const ten = await E(host).evaluate('MAIN', '10', [], []);
   t.is(ten, 10);
 });
 
 test('anonymous spawn and evaluate with new worker', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const ten = await E(host).evaluate('NEW', '10', [], []);
   t.is(ten, 10);
 });
@@ -241,14 +227,8 @@ test('anonymous spawn and evaluate with new worker', async t => {
 // Regression test for https://github.com/endojs/endo/issues/2147
 test('spawning a worker does not overwrite existing non-worker name', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const foo = await E(host).evaluate('MAIN', '10', [], [], 'foo');
   t.is(foo, 10);
 
@@ -265,13 +245,7 @@ test('persist spawn and evaluation', async t => {
   const { cancelled, locator } = await prepareLocator(t);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
 
     await E(host).provideWorker('w1');
 
@@ -296,14 +270,7 @@ test('persist spawn and evaluation', async t => {
   await restart(locator);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
 
     const retwenty = await E(host).lookup('twenty');
     t.is(20, retwenty);
@@ -312,14 +279,8 @@ test('persist spawn and evaluation', async t => {
 
 test('store without name', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
   const readable = await E(host).store(readerRef);
   const actualText = await E(readable).text();
@@ -330,13 +291,7 @@ test('store with name', async t => {
   const { cancelled, locator } = await prepareLocator(t);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
     const readable = await E(host).store(readerRef, 'hello-text');
     const actualText = await E(readable).text();
@@ -344,13 +299,7 @@ test('store with name', async t => {
   }
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     const readable = await E(host).lookup('hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
@@ -361,13 +310,7 @@ test('closure state lost by restart', async t => {
   const { cancelled, locator } = await prepareLocator(t);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     await E(host).provideWorker('w1');
 
     await E(host).evaluate(
@@ -417,13 +360,7 @@ test('closure state lost by restart', async t => {
   await restart(locator);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     await E(host).lookup('w1');
     const one = await E(host).evaluate(
       'w1',
@@ -456,14 +393,9 @@ test('persist unconfined services and their requests', async t => {
     const { promise: followerCancelled, reject: cancelFollower } =
       makePromiseKit();
     cancelled.catch(cancelFollower);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      followerCancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, followerCancelled);
     await E(host).provideWorker('user-worker');
+
     await E(host).evaluate(
       'user-worker',
       `
@@ -483,15 +415,10 @@ test('persist unconfined services and their requests', async t => {
   })();
 
   const requesterFinished = (async () => {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     await E(host).provideWorker('w1');
     await E(host).provideGuest('o1');
+
     const servicePath = path.join(dirname, 'test', 'service.js');
     const serviceLocation = url.pathToFileURL(servicePath).href;
     await E(host).makeUnconfined('w1', serviceLocation, 'o1', 's1');
@@ -513,13 +440,7 @@ test('persist unconfined services and their requests', async t => {
   await restart(locator);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     const answer = await E(host).lookup('answer');
     const number = await E(answer).value();
     t.is(number, 42);
@@ -533,14 +454,9 @@ test('persist confined services and their requests', async t => {
     const { promise: followerCancelled, reject: cancelFollower } =
       makePromiseKit();
     cancelled.catch(cancelFollower);
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      followerCancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, followerCancelled);
     await E(host).provideWorker('user-worker');
+
     await E(host).evaluate(
       'user-worker',
       `
@@ -560,15 +476,10 @@ test('persist confined services and their requests', async t => {
   })();
 
   const requesterFinished = (async () => {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     await E(host).provideWorker('w1');
     await E(host).provideGuest('o1');
+
     const servicePath = path.join(dirname, 'test', 'service.js');
     await doMakeBundle(host, servicePath, bundleName =>
       E(host).makeBundle('w1', bundleName, 'o1', 's1'),
@@ -591,13 +502,7 @@ test('persist confined services and their requests', async t => {
   await restart(locator);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     const answer = await E(host).lookup('answer');
     const number = await E(answer).value();
     t.is(number, 42);
@@ -606,14 +511,8 @@ test('persist confined services and their requests', async t => {
 
 test('guest facet receives a message for host', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const guest = E(host).provideGuest('guest');
   await E(host).provideWorker('worker');
   await E(host).evaluate('worker', '10', [], [], 'ten1');
@@ -655,14 +554,8 @@ test('guest facet receives a message for host', async t => {
 
 test('direct cancellation', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -729,14 +622,8 @@ test('direct cancellation', async t => {
 // Regression test 1 for https://github.com/endojs/endo/issues/2074
 test('indirect cancellation via worker', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -804,14 +691,7 @@ test('indirect cancellation via worker', async t => {
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
 test.failing('indirect cancellation via caplet', async t => {
   const { cancelled, locator } = await prepareLocator(t);
-
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
+  const { host } = await makeHost(locator, cancelled);
 
   await E(host).provideWorker('w1');
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -852,14 +732,8 @@ test.failing('indirect cancellation via caplet', async t => {
 
 test('cancel because of requested capability', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('worker');
   await E(host).provideGuest('guest');
 
@@ -934,14 +808,8 @@ test('cancel because of requested capability', async t => {
 
 test('unconfined service can respond to cancellation', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('worker');
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
@@ -965,14 +833,8 @@ test('unconfined service can respond to cancellation', async t => {
 
 test('confined service can respond to cancellation', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('worker');
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
@@ -992,14 +854,8 @@ test('confined service can respond to cancellation', async t => {
 
 test('make a host', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const host2 = E(host).provideHost('fellow-host');
   await E(host2).provideWorker('w1');
   const ten = await E(host2).evaluate('w1', '10', [], []);
@@ -1008,14 +864,8 @@ test('make a host', async t => {
 
 test('name and reuse inspector', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1042,14 +892,8 @@ test('name and reuse inspector', async t => {
 // Regression test for https://github.com/endojs/endo/issues/2021
 test.failing('eval-mediated worker name', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideWorker('worker');
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1090,14 +934,8 @@ test.failing('eval-mediated worker name', async t => {
 
 test('lookup with single petname', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).provideGuest('guest');
   const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
   t.is(ten, 10);
@@ -1113,14 +951,8 @@ test('lookup with single petname', async t => {
 
 test('lookup with petname path (inspector)', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
   const resolvedValue = await E(host).evaluate(
@@ -1134,14 +966,7 @@ test('lookup with petname path (inspector)', async t => {
 
 test('lookup with petname path (caplet with lookup method)', async t => {
   const { cancelled, locator } = await prepareLocator(t);
-
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
+  const { host } = await makeHost(locator, cancelled);
 
   const lookupPath = path.join(dirname, 'test', 'lookup.js');
   await E(host).makeUnconfined('MAIN', lookupPath, 'NONE', 'lookup');
@@ -1157,14 +982,7 @@ test('lookup with petname path (caplet with lookup method)', async t => {
 
 test('lookup with petname path (value has no lookup method)', async t => {
   const { cancelled, locator } = await prepareLocator(t);
-
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
+  const { host } = await makeHost(locator, cancelled);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
   await t.throwsAsync(
@@ -1180,14 +998,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
 
 test('evaluate name resolved by lookup path', async t => {
   const { cancelled, locator } = await prepareLocator(t);
-
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
+  const { host } = await makeHost(locator, cancelled);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -1202,14 +1013,7 @@ test('evaluate name resolved by lookup path', async t => {
 
 test('list special names', async t => {
   const { cancelled, locator } = await prepareLocator(t);
-
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
+  const { host } = await makeHost(locator, cancelled);
 
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
   await E(host).store(readerRef, 'hello-text');
@@ -1229,14 +1033,8 @@ test('list special names', async t => {
 
 test('guest cannot access host methods', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const guest = E(host).provideGuest('guest');
   const guestsHost = E(guest).lookup('HOST');
   await t.throwsAsync(() => E(guestsHost).lookup('SELF'), {
@@ -1248,14 +1046,7 @@ test('guest cannot access host methods', async t => {
 
 test('read unknown node id', async t => {
   const { cancelled, locator } = await prepareLocator(t);
-
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
+  const { host } = await makeHost(locator, cancelled);
 
   // write a bogus value for a bogus nodeId
   const node = await cryptoPowers.randomHex512();
@@ -1295,14 +1086,8 @@ test('read remote value', async t => {
 
 test('locate local value', async t => {
   const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-  const { getBootstrap } = await makeEndoClient(
-    'client',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  const host = E(bootstrap).host();
   const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
   t.is(ten, 10);
 
@@ -1315,13 +1100,7 @@ test('locate local persisted value', async t => {
   const { cancelled, locator } = await prepareLocator(t);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
     t.is(ten, 10);
   }
@@ -1329,13 +1108,7 @@ test('locate local persisted value', async t => {
   await restart(locator);
 
   {
-    const { getBootstrap } = await makeEndoClient(
-      'client',
-      locator.sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    const host = E(bootstrap).host();
+    const { host } = await makeHost(locator, cancelled);
     const tenLocator = await E(host).locate('ten');
     const parsedLocator = parseLocator(tenLocator);
     t.is(parsedLocator.formulaType, 'eval');
