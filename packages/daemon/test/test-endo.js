@@ -119,47 +119,59 @@ const doMakeBundle = async (host, filePath, callback) => {
 
 let locatorPathId = 0;
 
-/** @param {string} testTitle */
-const getLocatorSubDirectory = testTitle => {
+/**
+ * @param {string} testTitle - The title of the current test.
+ * @param {number} locatorNumber - The number of the current locator. If this
+ * is the n:th locator created for the current test, the locator number is n.
+ */
+const getLocatorSubDirectory = (testTitle, locatorNumber) => {
   const defaultPath = testTitle.replace(/\s/giu, '-').replace(/[^\w-]/giu, '');
 
-  if (defaultPath.length <= 30) {
-    return defaultPath;
-  }
-
-  // Truncate the subdirectory name to 30 characters in an attempt to respect
+  // We truncate the subdirectory name to 30 characters in an attempt to respect
   // the maximum Unix domain socket path length.
   // With our apologies to John Jacob Jingleheimerschmidt, for whom this may
   // not be enough.
-  const locatorSubDirectory = `${defaultPath.slice(0, 25)}$${String(
-    locatorPathId,
-  ).padStart(4, '0')}`;
+  const basePath =
+    defaultPath.length <= 22 ? defaultPath : defaultPath.slice(0, 22);
+  const testId = String(locatorPathId).padStart(4, '0');
+  const locatorId = String(locatorNumber).padStart(2, '0');
+  const locatorSubDirectory = `${basePath}#${testId}-${locatorId}`;
 
   locatorPathId += 1;
 
   return locatorSubDirectory;
 };
 
-/** @param {import('ava').ExecutionContext} t */
+/** @param {import('ava').ExecutionContext<any>} t */
 const prepareLocator = async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
-  const locator = makeLocator('tmp', getLocatorSubDirectory(t.title));
+  const locator = makeLocator(
+    'tmp',
+    getLocatorSubDirectory(t.title, t.context.length),
+  );
 
   await stop(locator).catch(() => {});
   await purge(locator);
   await start(locator);
 
-  const context = { cancel, cancelled, locator };
-  t.context = context;
-  return { ...context };
+  const contextObj = { cancel, cancelled, locator };
+  t.context.push(contextObj);
+  return { ...contextObj };
 };
 
-test.afterEach.always(async t => {
-  const { locator, cancel, cancelled } =
-    /** @type {Awaited<ReturnType<prepareLocator>>} */ (t.context);
+test.beforeEach(t => {
+  t.context = [];
+});
 
-  cancel(Error('teardown'));
-  await Promise.allSettled([cancelled, stop(locator)]);
+test.afterEach.always(async t => {
+  await Promise.allSettled(
+    /** @type {Awaited<ReturnType<prepareLocator>>[]} */ (t.context).flatMap(
+      ({ cancel, cancelled, locator }) => {
+        cancel(Error('teardown'));
+        return [cancelled, stop(locator)];
+      },
+    ),
+  );
 });
 
 test('lifecycle', async t => {
@@ -1261,18 +1273,10 @@ test('read unknown node id', async t => {
 });
 
 test('read remote value', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  const locatorA = makeLocator('tmp', 'read-remote-value-a');
-  const locatorB = makeLocator('tmp', 'read-remote-value-b');
-  const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
-  const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
-
-  // Set up custom teardown due to multiple locators
-  t.context = { cancel, cancelled, locator: {} };
-  t.teardown(async () => {
-    cancel(new Error('teardown'));
-    await Promise.allSettled([cancelled, stop(locatorA), stop(locatorB)]);
-  });
+  const { locator: locatorA, cancelled: cancelledA } = await prepareLocator(t);
+  const { locator: locatorB, cancelled: cancelledB } = await prepareLocator(t);
+  const hostA = await makeHostWithTestNetwork(locatorA, cancelledA);
+  const hostB = await makeHostWithTestNetwork(locatorB, cancelledB);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
@@ -1339,18 +1343,10 @@ test('locate local persisted value', async t => {
 });
 
 test('locate remote value', async t => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  const locatorA = makeLocator('tmp', 'locate-remote-value-a');
-  const locatorB = makeLocator('tmp', 'locate-remote-value-b');
-  const hostA = await makeHostWithTestNetwork(locatorA, cancelled);
-  const hostB = await makeHostWithTestNetwork(locatorB, cancelled);
-
-  // Set up custom teardown due to multiple locators
-  t.context = { cancel, cancelled, locator: {} };
-  t.teardown(async () => {
-    cancel(new Error('teardown'));
-    await Promise.allSettled([cancelled, stop(locatorA), stop(locatorB)]);
-  });
+  const { locator: locatorA, cancelled: cancelledA } = await prepareLocator(t);
+  const { locator: locatorB, cancelled: cancelledB } = await prepareLocator(t);
+  const hostA = await makeHostWithTestNetwork(locatorA, cancelledA);
+  const hostB = await makeHostWithTestNetwork(locatorB, cancelledB);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
