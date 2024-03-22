@@ -196,28 +196,32 @@ const makeDaemonCore = async (
   const controllerForId = new Map();
 
   /**
-   * Forward look-up, for answering "what is the formula type of this id".
-   * @type {Map<string, string>}
+   * Forward look-up, for answering "what is the formula for this id".
+   * @type {Map<string, import('./types.js').Formula>}
    */
-  const typeForId = new Map();
+  const formulaForId = new Map();
+
+  /** @param {string} id */
+  const getFormulaForId = async id => {
+    await null;
+
+    let formula = formulaForId.get(id);
+    if (formula !== undefined) {
+      return formula;
+    }
+
+    formula = await persistencePowers.readFormula(parseId(id).number);
+    formulaForId.set(id, formula);
+    return formula;
+  };
 
   /** @param {string} id */
   const getTypeForId = async id => {
-    await null;
-
-    const formulaType = typeForId.get(id);
-    if (formulaType !== undefined) {
-      return formulaType;
-    }
-
     if (parseId(id).node !== ownNodeIdentifier) {
-      typeForId.set(id, 'remote');
       return 'remote';
     }
-
-    const formula = await persistencePowers.readFormula(parseId(id).number);
-    typeForId.set(id, formula.type);
-    return formula.type;
+    const { type } = await getFormulaForId(id);
+    return type;
   };
 
   /**
@@ -691,17 +695,15 @@ const makeDaemonCore = async (
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
       const peerIdentifier = await getPeerIdForNodeIdentifier(formulaNode);
-      typeForId.set(id, 'remote');
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       return provideRemoteValue(peerIdentifier, id);
     }
 
-    const formula = await persistencePowers.readFormula(formulaNumber);
-    console.log(`Making ${formula.type} ${formulaNumber}`);
+    const formula = await getFormulaForId(id);
+    console.log(`Reincarnating ${formula.type} ${id}`);
     assertValidFormulaType(formula.type);
     // TODO further validation
-    typeForId.set(id, formula.type);
 
     return makeControllerForFormula(id, formulaNumber, formula, context);
   };
@@ -712,6 +714,9 @@ const makeDaemonCore = async (
       number: formulaNumber,
       node: ownNodeIdentifier,
     });
+
+    formulaForId.has(id) && assert.Fail`Formula already exists for id ${id}`;
+    formulaForId.set(id, formula);
 
     // Memoize for lookup.
     console.log(`Making ${id}`);
@@ -735,7 +740,6 @@ const makeDaemonCore = async (
       internal: E.get(partial).internal,
     });
     controllerForId.set(id, controller);
-    typeForId.set(id, formula.type);
 
     // The controller _must_ be constructed in the synchronous prelude of this function.
     const controllerValue = makeControllerForFormula(
@@ -1561,9 +1565,7 @@ const makeDaemonCore = async (
         throw new Error(`Unknown pet name ${petName}`);
       }
       const { number: formulaNumber } = parseId(id);
-      // TODO memoize formulas at the root of the
-      // id->formula->controller->value tree.
-      const formula = await persistencePowers.readFormula(formulaNumber);
+      const formula = await getFormulaForId(id);
       if (
         !['eval', 'lookup', 'make-unconfined', 'make-bundle', 'guest'].includes(
           formula.type,
