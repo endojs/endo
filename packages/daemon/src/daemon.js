@@ -558,11 +558,11 @@ const makeDaemonCore = async (
         context,
       );
     } else if (formula.type === 'handle') {
-      context.thisDiesIfThatDies(formula.target);
+      context.thisDiesIfThatDies(formula.agent);
       return {
         external: {},
         internal: {
-          targetId: formula.target,
+          agentId: formula.agent,
         },
       };
     } else if (formula.type === 'endo') {
@@ -885,13 +885,13 @@ const makeDaemonCore = async (
         return controller;
       }
       // @ts-expect-error We can't know the type of the internal facet.
-      if (internalFacet.targetId === undefined) {
+      if (internalFacet.agentId === undefined) {
         return controller;
       }
       const handle = /** @type {import('./types.js').InternalHandle} */ (
         internalFacet
       );
-      currentId = handle.targetId;
+      currentId = handle.agentId;
     }
   };
 
@@ -931,14 +931,14 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {string} formulaNumber - The formula number of the handle to formulate.
-   * @param {string} targetId - The formula identifier of the handle's target.
+   * @param {string} agentId - The formula identifier of the handle's agent.
    * @returns {import('./types.js').FormulateResult<import('./types.js').ExternalHandle>} The formulated handle.
    */
-  const formulateNumberedHandle = (formulaNumber, targetId) => {
+  const formulateNumberedHandle = (formulaNumber, agentId) => {
     /** @type {import('./types.js').HandleFormula} */
     const formula = {
       type: 'handle',
-      target: targetId,
+      agent: agentId,
     };
     return /** @type {import('./types').FormulateResult<import('./types').ExternalHandle>} */ (
       formulate(formulaNumber, formula)
