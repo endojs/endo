@@ -178,7 +178,7 @@ type WebBundleFormula = {
 
 type HandleFormula = {
   type: 'handle';
-  target: string;
+  agent: string;
 };
 
 type KnownPeersStoreFormula = {
@@ -353,7 +353,7 @@ export interface Controller<External = unknown, Internal = unknown>
  * provide an EndoGuest with a reference to its creator EndoHost. By using a handle
  * that points to the host instead of giving a direct reference to the host, the
  * guest does not get access to the functions of the host. This is the external
- * facet of a handle. It directly exposes nothing. The handle's target is only
+ * facet of a handle. It directly exposes nothing. The handle's agent is only
  * exposed on the internal facet.
  */
 export interface ExternalHandle {}
@@ -362,7 +362,7 @@ export interface ExternalHandle {}
  * handle points to. This should not be exposed outside of the endo daemon.
  */
 export interface InternalHandle {
-  targetId: string;
+  agentId: string;
 }
 
 export type MakeSha512 = () => Sha512;
