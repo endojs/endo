@@ -11,8 +11,6 @@
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
-    "@typescript-eslint/eslint-plugin": "^6.18.1",
-    "@typescript-eslint/parser": "^6.18.1",
     "ava": "^6.1.2",
     "eslint": "^8.57.0",
     "eslint-config-airbnb-base": "^15.0.0",
@@ -25,7 +23,8 @@
     "ts-api-utils": "~1.0.1",
     "type-coverage": "^2.26.3",
     "typedoc": "^0.25.12",
-    "typescript": "~5.4.3"
+    "typescript": "~5.4.3",
+    "typescript-eslint": "^7.3.1"
   },
   "scripts": {
     "clean": "lerna clean",
