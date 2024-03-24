@@ -51,26 +51,26 @@ export const makeWorkerFacet = ({ cancel }) => {
         cancel(Error('terminate'));
       },
 
-    /**
-     * @param {string} source
-     * @param {Array<string>} names
-     * @param {Array<unknown>} values
-     * @param {string} $id
-     * @param {Promise<never>} $cancelled
-     */
-    evaluate: async (source, names, values, $id, $cancelled) => {
-      const compartment = new Compartment(
-        harden({
-          ...endowments,
-          $id,
-          $cancelled,
-          ...Object.fromEntries(
-            names.map((name, index) => [name, values[index]]),
-          ),
-        }),
-      );
-      return compartment.evaluate(source);
-    },
+      /**
+       * @param {string} source
+       * @param {Array<string>} names
+       * @param {Array<unknown>} values
+       * @param {string} $id
+       * @param {Promise<never>} $cancelled
+       */
+      evaluate: async (source, names, values, $id, $cancelled) => {
+        const compartment = new Compartment(
+          harden({
+            ...endowments,
+            $id,
+            $cancelled,
+            ...Object.fromEntries(
+              names.map((name, index) => [name, values[index]]),
+            ),
+          }),
+        );
+        return compartment.evaluate(source);
+      },
 
       /**
        * @param {string} specifier
