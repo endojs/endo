@@ -25,7 +25,7 @@
     "ts-api-utils": "~1.0.1",
     "type-coverage": "^2.26.3",
     "typedoc": "^0.25.12",
-    "typescript": "~5.4.2"
+    "typescript": "~5.4.3"
   },
   "scripts": {
     "clean": "lerna clean",
