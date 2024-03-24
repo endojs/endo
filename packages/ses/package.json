@@ -85,7 +85,7 @@
     "sinon": "^15.1.0",
     "terser": "^5.16.6",
     "tsd": "^0.28.1",
-    "typescript": "~5.4.2"
+    "typescript": "~5.4.3"
   },
   "files": [
     "LICENSE*",
