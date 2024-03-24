@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "conventional-changelog-conventionalcommits": "^4.6.0",
-    "patch-package": "^6.2.2"
+    "patch-package": "^8.0.0"
   },
   "prettier": {
     "arrowParens": "avoid",
