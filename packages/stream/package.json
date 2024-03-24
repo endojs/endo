@@ -63,7 +63,7 @@
     "eslint-plugin-jsdoc": "^46.4.3",
     "prettier": "^3.0.0",
     "ts-api-utils": "~1.0.1",
-    "typescript": "~5.4.2"
+    "typescript": "~5.4.3"
   },
   "files": [
     "LICENSE*",
