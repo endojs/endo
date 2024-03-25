@@ -48,18 +48,6 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * @template [S = any]
- * @template {Methods} [M = any]
- * @typedef {import('./exo-tools.js').ClassContext} ClassContext
- */
-
-/**
- * @template [S = any]
- * @template {Record<FacetName, Methods>} [F = any]
- * @typedef {import('./exo-tools.js').KitContext} KitContext
- */
-
-/**
  * @typedef {{[name: string]: import('@endo/patterns').Pattern}} StateShape
  * It looks like a copyRecord pattern, but the interpretation is different.
  * Each property is distinct, is checked and changed separately.
@@ -118,8 +106,8 @@ export const initEmpty = () => emptyRecord;
  * as well as exo class kits. However, we may split these into distinct types
  * in the future, as not all options make sense for both uses.
  *
- * @template {any} C
- * @template {any} [F=any]
+ * @template C
+ * @template [F=any]
  * @typedef {object} FarClassOptions
  * @property {(context: C) => void} [finish]
  * If provided, the `finish` function is called after the instance has been
@@ -180,7 +168,7 @@ export const initEmpty = () => emptyRecord;
  * }> | undefined} interfaceGuard
  * @param {I} init
  * @param {M & ThisType<{ self: Guarded<M>, state: ReturnType<I> }>} methods
- * @param {FarClassOptions<ClassContext<ReturnType<I>, M>>} [options]
+ * @param {FarClassOptions<import('./exo-tools.js').ClassContext<ReturnType<I>, M>>} [options]
  * @returns {(...args: Parameters<I>) => Guarded<M>}
  */
 export const defineExoClass = (
@@ -199,7 +187,7 @@ export const defineExoClass = (
   receiveAmplifier === undefined ||
     Fail`Only facets of an exo class kit can be amplified ${q(tag)}`;
 
-  /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
+  /** @type {WeakMap<M, import('./exo-tools.js').ClassContext<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
   const proto = defendPrototype(
     tag,
@@ -219,7 +207,7 @@ export const defineExoClass = (
     const self = makeSelf(proto, instanceCount);
 
     // Be careful not to freeze the state record
-    /** @type {ClassContext<ReturnType<I>,M>} */
+    /** @type {import('./exo-tools.js').ClassContext<ReturnType<I>,M>} */
     const context = freeze({ state, self });
     contextMap.set(self, context);
     if (finish) {
@@ -229,6 +217,7 @@ export const defineExoClass = (
   };
 
   if (receiveInstanceTester) {
+    /** @type {IsInstance} */
     const isInstance = (exo, facetName = undefined) => {
       facetName === undefined ||
         Fail`facetName can only be used with an exo class kit: ${q(
@@ -254,7 +243,7 @@ harden(defineExoClass);
  * @param {I} init
  * @param {F & { [K in keyof F]: ThisType<{ facets: GuardedKit<F>, state: ReturnType<I> }> }} methodsKit
  * @param {FarClassOptions<
- *   KitContext<ReturnType<I>, GuardedKit<F>>,
+ *   import('./exo-tools.js').KitContext<ReturnType<I>, GuardedKit<F>>,
  *   GuardedKit<F>
  * >} [options]
  * @returns {(...args: Parameters<I>) => GuardedKit<F>}
@@ -292,7 +281,7 @@ export const defineExoClassKit = (
     // Be careful not to freeze the state record
     const state = seal(init(...args));
     // Don't freeze context until we add facets
-    /** @type {{ state: ReturnType<I>, facets: unknown }} */
+    /** @type {{ state: ReturnType<I>, facets: any }} */
     const context = { state, facets: null };
     instanceCount += 1;
     const facets = objectMap(prototypeKit, (proto, facetName) => {
@@ -310,6 +299,7 @@ export const defineExoClassKit = (
   };
 
   if (receiveAmplifier) {
+    /** @type {Amplify} */
     const amplify = exoFacet => {
       for (const contextMap of values(contextMapKit)) {
         if (contextMap.has(exoFacet)) {
@@ -324,6 +314,7 @@ export const defineExoClassKit = (
   }
 
   if (receiveInstanceTester) {
+    /** @type {IsInstance} */
     const isInstance = (exoFacet, facetName = undefined) => {
       if (facetName === undefined) {
         return values(contextMapKit).some(contextMap =>
@@ -351,7 +342,7 @@ harden(defineExoClassKit);
  *   [M in keyof T]: import('@endo/patterns').MethodGuard
  * }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
- * @param {FarClassOptions<ClassContext<{},T>>} [options]
+ * @param {FarClassOptions<import('./exo-tools.js').ClassContext<{},T>>} [options]
  * @returns {Guarded<T>}
  */
 export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {

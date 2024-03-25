@@ -316,12 +316,20 @@ test('closure state lost by restart', async t => {
     await E(host).evaluate(
       'w1',
       `
-      Far('Counter Maker', {
-        makeCounter: (value = 0) => Far('Counter', {
-          incr: () => value += 1,
-          decr: () => value -= 1,
-        }),
-      })
+      makeExo(
+        'Counter Maker',
+        M.interface('Counter Maker', {}, { defaultGuards: 'passable' }),
+        {
+          makeCounter: (value = 0) => makeExo(
+            'Counter',
+            M.interface('Counter', {}, { defaultGuards: 'passable' }),
+            {
+              incr: () => value += 1,
+              decr: () => value -= 1,
+            }
+          ),
+        }
+      )
     `,
       [],
       [],
@@ -399,7 +407,7 @@ test('persist unconfined services and their requests', async t => {
     await E(host).evaluate(
       'user-worker',
       `
-      Far('Answer', {
+      makeExo('Answer', M.interface('Answer', {}, { defaultGuards: 'passable' }), {
         value: () => 42,
       })
     `,
@@ -460,7 +468,7 @@ test('persist confined services and their requests', async t => {
     await E(host).evaluate(
       'user-worker',
       `
-      Far('Answer', {
+      makeExo('Answer', M.interface('Answer', {}, { defaultGuards: 'passable' }), {
         value: () => 42,
       })
     `,

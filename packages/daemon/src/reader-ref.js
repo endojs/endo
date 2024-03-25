@@ -2,7 +2,8 @@
 
 import { encodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
-import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 
 /**
  * Returns the iterator for the given iterable object.
@@ -31,32 +32,37 @@ export const asyncIterate = iterable => {
  */
 export const makeIteratorRef = iterable => {
   const iterator = asyncIterate(iterable);
-  return Far('AsyncIterator', {
-    async next() {
-      return iterator.next(undefined);
+  // @ts-ignore while switching from Far
+  return makeExo(
+    'AsyncIterator',
+    M.interface('AsyncIterator', {}, { defaultGuards: 'passable' }),
+    {
+      async next() {
+        return iterator.next(undefined);
+      },
+      /**
+       * @param {any} value
+       */
+      async return(value) {
+        if (iterator.return !== undefined) {
+          return iterator.return(value);
+        }
+        return harden({ done: true, value: undefined });
+      },
+      /**
+       * @param {any} error
+       */
+      async throw(error) {
+        if (iterator.throw !== undefined) {
+          return iterator.throw(error);
+        }
+        return harden({ done: true, value: undefined });
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
     },
-    /**
-     * @param {any} value
-     */
-    async return(value) {
-      if (iterator.return !== undefined) {
-        return iterator.return(value);
-      }
-      return harden({ done: true, value: undefined });
-    },
-    /**
-     * @param {any} error
-     */
-    async throw(error) {
-      if (iterator.throw !== undefined) {
-        return iterator.throw(error);
-      }
-      return harden({ done: true, value: undefined });
-    },
-    [Symbol.asyncIterator]() {
-      return this;
-    },
-  });
+  );
 };
 
 /**
