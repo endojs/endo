@@ -12,6 +12,15 @@ export const isValidNumber = allegedNumber =>
   typeof allegedNumber === 'string' && numberPattern.test(allegedNumber);
 
 /**
+ * @param {string} allegedNumber - The formula number or node identifier to test.
+ */
+export const assertValidNumber = allegedNumber => {
+  if (!isValidNumber(allegedNumber)) {
+    throw assert.error(`Invalid number ${q(allegedNumber)}`);
+  }
+};
+
+/**
  * @param {string} id
  * @param {string} [petName]
  * @returns {void}

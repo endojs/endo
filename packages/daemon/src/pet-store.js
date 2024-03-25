@@ -222,11 +222,13 @@ export const makePetStoreMaker = (filePowers, locator) => {
   };
 
   /**
-   * @param {string} formulaNumber
-   * @param {(name: string) => void} assertValidName
-   * @returns {Promise<import('./types.js').PetStore>}
+   * @type {import('./types.js').PetStorePowers['makeIdentifiedPetStore']}
    */
-  const makeIdentifiedPetStore = (formulaNumber, assertValidName) => {
+  const makeIdentifiedPetStore = (
+    formulaNumber,
+    formulaType,
+    assertValidName,
+  ) => {
     if (!isValidNumber(formulaNumber)) {
       throw new Error(
         `Invalid formula number for pet store ${q(formulaNumber)}`,
@@ -236,7 +238,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const suffix = formulaNumber.slice(2);
     const petNameDirectoryPath = filePowers.joinPath(
       locator.statePath,
-      'pet-store',
+      formulaType,
       prefix,
       suffix,
     );

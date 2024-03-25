@@ -15,7 +15,7 @@ import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
-import { parseId, formatId } from './formula-identifier.js';
+import { assertValidNumber, parseId, formatId } from './formula-identifier.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './weak-multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
@@ -127,14 +127,17 @@ const makeDaemonCore = async (
   );
   console.log('Node', ownNodeIdentifier);
 
-  const peersFormulaNumber = deriveId(
+  const knownPeersFormulaNumber = deriveId(
     'peers',
     rootEntropy,
     cryptoPowers.makeSha512(),
   );
-  const ownPeersId = formatId({
-    number: peersFormulaNumber,
+  const knownPeersId = formatId({
+    number: knownPeersFormulaNumber,
     node: ownNodeIdentifier,
+  });
+  await persistencePowers.writeFormula(knownPeersFormulaNumber, {
+    type: 'known-peers-store',
   });
 
   // Prepare least authority formula
@@ -620,10 +623,11 @@ const makeDaemonCore = async (
           );
         },
         addPeerInfo: async peerInfo => {
-          // eslint-disable-next-line no-use-before-define
-          const knownPeers = await provideKnownPeers(formula.peers);
+          const knownPeers = /** @type {import('./types.js').PetStore} */ (
+            // eslint-disable-next-line no-use-before-define
+            await provide(formula.peers)
+          );
           const { node: nodeIdentifier, addresses } = peerInfo;
-          // eslint-disable-next-line no-use-before-define
           if (knownPeers.has(nodeIdentifier)) {
             // We already have this peer.
             // TODO: merge connection info
@@ -687,7 +691,17 @@ const makeDaemonCore = async (
     } else if (formula.type === 'pet-store') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
+        'pet-store',
         assertPetName,
+      );
+      return { external, internal: undefined };
+    } else if (formula.type === 'known-peers-store') {
+      const external = petStorePowers.makeIdentifiedPetStore(
+        formulaNumber,
+        'known-peers-store',
+        // The known peers store is just a pet store that only accepts node identifiers
+        // (i.e. formula numbers) as "names".
+        assertValidNumber,
       );
       return { external, internal: undefined };
     } else if (formula.type === 'pet-inspector') {
@@ -823,9 +837,11 @@ const makeDaemonCore = async (
     if (nodeIdentifier === ownNodeIdentifier) {
       throw new Error(`Cannot get peer formula identifier for self`);
     }
-    // eslint-disable-next-line no-use-before-define
-    const knownPeers = await provideKnownPeers(ownPeersId);
-    const peerId = knownPeers.identify(nodeIdentifier);
+    const knownPeers = /** @type {import('./types.js').PetStore} */ (
+      // eslint-disable-next-line no-use-before-define
+      await provide(knownPeersId)
+    );
+    const peerId = knownPeers.identifyLocal(nodeIdentifier);
     if (peerId === undefined) {
       throw new Error(
         `No peer found for node identifier ${q(nodeIdentifier)}.`,
@@ -1372,12 +1388,6 @@ const makeDaemonCore = async (
         await randomHex512(),
       );
       const { id: networksDirectoryId } = await formulateNetworksDirectory();
-      const { id: newPeersId } = await formulateNumberedPetStore(
-        peersFormulaNumber,
-      );
-      if (newPeersId !== ownPeersId) {
-        assert.Fail`Peers PetStore formula identifier did not match expected value, expected ${ownPeersId}, got ${newPeersId}`;
-      }
 
       // Ensure the default host is formulated and persisted.
       const { id: defaultHostId } = await formulateNumberedHost(
@@ -1399,7 +1409,7 @@ const makeDaemonCore = async (
     const formula = {
       type: 'endo',
       networks: identifiers.networksDirectoryId,
-      peers: ownPeersId,
+      peers: knownPeersId,
       host: identifiers.defaultHostId,
       leastAuthority: leastAuthorityId,
     };
@@ -1479,33 +1489,6 @@ const makeDaemonCore = async (
       }
     }
     throw new Error('Cannot connect to peer: no supported addresses');
-  };
-
-  /**
-   * The "known peers store" is like a pet store, but maps node identifiers to
-   * full peer ids.
-   *
-   * @type {import('./types.js').DaemonCore['provideKnownPeers']}
-   */
-  const provideKnownPeers = async peersFormulaId => {
-    // "Known peers" is just a pet store with an adapter over it.
-    const petStore = /** @type {import('./types.js').PetStore} */ (
-      await provide(peersFormulaId)
-    );
-
-    // Pet stores do not accept full ids as names.
-    /** @param {string} nodeIdentifier */
-    const getNameFor = nodeIdentifier => {
-      return `p${nodeIdentifier.slice(0, 126)}`;
-    };
-
-    return harden({
-      has: nodeIdentifier => petStore.has(getNameFor(nodeIdentifier)),
-      identify: nodeIdentifier =>
-        petStore.identifyLocal(getNameFor(nodeIdentifier)),
-      write: (nodeIdentifier, peerId) =>
-        petStore.write(getNameFor(nodeIdentifier), peerId),
-    });
   };
 
   /**
