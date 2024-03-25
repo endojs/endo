@@ -181,6 +181,10 @@ type HandleFormula = {
   target: string;
 };
 
+type KnownPeersStoreFormula = {
+  type: 'known-peers-store';
+};
+
 type PetStoreFormula = {
   type: 'pet-store';
 };
@@ -210,6 +214,7 @@ export type Formula =
   | WebBundleFormula
   | HandleFormula
   | PetInspectorFormula
+  | KnownPeersStoreFormula
   | PetStoreFormula
   | DirectoryFormula
   | PeerFormula;
@@ -488,12 +493,6 @@ export interface EndoPeer {
 export type EndoPeerControllerPartial = ControllerPartial<EndoPeer, undefined>;
 export type EndoPeerController = Controller<EndoPeer, undefined>;
 
-export interface EndoKnownPeers {
-  has: (nodeIdentifier: string) => boolean;
-  identify: (nodeIdentifier: string) => string | undefined;
-  write: (nodeIdentifier: string, peerId: string) => Promise<void>;
-}
-
 export interface EndoGateway {
   provide: (id: string) => Promise<unknown>;
 }
@@ -626,6 +625,7 @@ export type AssertValidNameFn = (name: string) => void;
 export type PetStorePowers = {
   makeIdentifiedPetStore: (
     id: string,
+    formulaType: 'pet-store' | 'known-peers-store',
     assertValidName: AssertValidNameFn,
   ) => Promise<PetStore>;
 };
@@ -858,8 +858,6 @@ export interface DaemonCore {
   provideController: (id: string) => Controller;
 
   provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
-
-  provideKnownPeers: (peersFormulaId: string) => Promise<EndoKnownPeers>;
 }
 
 export interface DaemonCoreExternal {

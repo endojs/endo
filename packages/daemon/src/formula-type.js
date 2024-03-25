@@ -10,6 +10,7 @@ const formulaTypes = new Set([
   'guest',
   'handle',
   'host',
+  'known-peers-store',
   'least-authority',
   'lookup',
   'loopback-network',
