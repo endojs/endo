@@ -250,6 +250,7 @@ const makeFauxModuleExportsNamespace = Compartment => {
  * @param {CompartmentConstructor} [options.Compartment]
  * @param {import('./types.js').ComputeSourceLocationHook} [options.computeSourceLocation]
  * @param {import('./types.js').ComputeSourceMapLocationHook} [options.computeSourceMapLocation]
+ * @param {Record<string, import('./types.js').Language>} [options.extraParsers]
  * @returns {Promise<import('./types.js').Application>}
  */
 export const parseArchive = async (
@@ -265,6 +266,7 @@ export const parseArchive = async (
     Compartment = DefaultCompartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
+    extraParsers = {},
   } = options;
 
   const compartmentExitModuleImportHook = exitModuleImportHookMaker({
@@ -345,6 +347,7 @@ export const parseArchive = async (
         }),
       ),
       Compartment,
+      extraParsers,
     });
 
     await pendingJobsPromise;
@@ -365,6 +368,7 @@ export const parseArchive = async (
       __shimTransforms__,
       Compartment,
       importHook: exitModuleImportHook,
+      extraParsers = {},
     } = options || {};
 
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
@@ -388,6 +392,7 @@ export const parseArchive = async (
       transforms,
       __shimTransforms__,
       Compartment,
+      extraParsers,
     });
 
     await pendingJobsPromise;

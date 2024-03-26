@@ -147,6 +147,7 @@ export const mapParsers = (
   parserForLanguage,
   moduleTransforms = {},
 ) => {
+  /** @type {[string, string][]} */
   const languageForExtensionEntries = [];
   const problems = [];
   for (const [extension, language] of entries(languageForExtension)) {
@@ -340,6 +341,7 @@ export const link = (
     __shimTransforms__ = [],
     archiveOnly = false,
     Compartment = defaultCompartment,
+    extraParsers = {},
   },
 ) => {
   const { compartment: entryCompartmentName } = entry;
@@ -374,7 +376,7 @@ export const link = (
     compartmentDescriptor.modules = modules;
 
     const parse = mapParsers(
-      languageForExtension,
+      { ...languageForExtension, ...extraParsers },
       languageForModuleSpecifier,
       parserForLanguage,
       moduleTransforms,

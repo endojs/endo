@@ -168,6 +168,7 @@ function getBundlerKitForModule(module) {
  * @param {object} [options.commonDependencies]
  * @param {Array<string>} [options.searchSuffixes]
  * @param {import('./types.js').SourceMapHook} [options.sourceMapHook]
+ * @param {Record<string, import('./types.js').Language>} [options.extraParsers]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -178,6 +179,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     searchSuffixes,
     commonDependencies,
     sourceMapHook = undefined,
+    extraParsers = {},
   } = options || {};
   const tags = new Set(tagsOption);
 
@@ -223,6 +225,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
+    extraParsers,
   });
   await compartment.load(entryModuleSpecifier);
 

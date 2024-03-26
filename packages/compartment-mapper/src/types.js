@@ -301,6 +301,7 @@ export {};
  * @property {ExitModuleImportHook} [importHook]
  * @property {Record<string, object>} [attenuations]
  * @property {typeof Compartment} [Compartment]
+ * @property {Record<string, Language>} [extraParsers]
  */
 
 /**
@@ -385,6 +386,7 @@ export {};
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  * @property {SourceMapHook} [sourceMapHook]
+ * @property {Record<string, Language>} [extraParsers] Additional mapping of file extension to parser
  */
 
 // /////////////////////////////////////////////////////////////////////////////

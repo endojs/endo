@@ -301,6 +301,7 @@ export const loadCompartmentForArchive = async ({
   importHook: exitModuleImportHook = undefined,
   policy = undefined,
   sourceMapHook = undefined,
+  extraParsers = {},
 }) => {
   const { read, computeSha512 } = unpackReadPowers(readPowers);
   const {
@@ -357,6 +358,7 @@ export const loadCompartmentForArchive = async ({
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
+    extraParsers,
     archiveOnly: true,
   });
   await compartment.load(entryModuleSpecifier);
