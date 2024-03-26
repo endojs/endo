@@ -38,9 +38,10 @@ const fakePathToFileURL = path => {
  * but `makeReadPowers` presents a type that requires `url`.
  *
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} [args.url]
- * @param {typeof import('crypto')} [args.crypto]
+ * @param {import('./types.js').FsAPI} args.fs
+ * @param {import('./types.js').UrlAPI} [args.url]
+ * @param {import('./types.js').CryptoAPI} [args.crypto]
+ * @returns {import('./types.js').MaybeReadPowers}
  */
 const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   const fileURLToPath =
