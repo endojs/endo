@@ -253,6 +253,7 @@ const makeFauxModuleExportsNamespace = Compartment => {
  * @param {CompartmentConstructor} [options.Compartment]
  * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
  * @param {ComputeSourceMapLocationHook} [options.computeSourceMapLocation]
+ * @param {Record<string, import('./types.js').Language>} [options.fallbackLanguageForExtension]
  * @returns {Promise<Application>}
  */
 export const parseArchive = async (
@@ -268,6 +269,7 @@ export const parseArchive = async (
     Compartment = DefaultCompartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
+    fallbackLanguageForExtension = {},
   } = options;
 
   const compartmentExitModuleImportHook = exitModuleImportHookMaker({
@@ -348,6 +350,7 @@ export const parseArchive = async (
         }),
       ),
       Compartment,
+      fallbackLanguageForExtension,
     });
 
     await pendingJobsPromise;
@@ -368,6 +371,7 @@ export const parseArchive = async (
       __shimTransforms__,
       Compartment,
       importHook: exitModuleImportHook,
+      fallbackLanguageForExtension = {},
     } = options || {};
 
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
@@ -391,6 +395,7 @@ export const parseArchive = async (
       transforms,
       __shimTransforms__,
       Compartment,
+      fallbackLanguageForExtension,
     });
 
     await pendingJobsPromise;
