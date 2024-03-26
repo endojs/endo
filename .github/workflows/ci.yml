@@ -64,6 +64,10 @@ jobs:
       - name: build API docs
         run: yarn docs
 
+      # build the API docs with typedoc-plugin-markdown to verify it works
+      - name: build API docs in markdown
+        run: yarn typedoc-markdown
+
   test:
     name: test
 
