@@ -103,7 +103,7 @@ const makeHostWithTestNetwork = async (locator, cancelled) => {
   const network = E(host).makeUnconfined(
     'MAIN',
     serviceLocation,
-    'SELF',
+    'AGENT',
     'test-network',
   );
 
@@ -448,18 +448,20 @@ test('persist unconfined services and their requests', async t => {
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
     const { number, who } = E.get(message);
-    t.is(await who, 'o1');
+    t.is(await who, 'h1');
     await E(host).resolve(await number, 'grant');
   })();
 
   const requesterFinished = (async () => {
     const { host } = await makeHost(locator, cancelled);
     await E(host).provideWorker('w1');
-    await E(host).provideGuest('o1');
+    await E(host).provideGuest('h1', {
+      agentName: 'a1',
+    });
 
     const servicePath = path.join(dirname, 'test', 'service.js');
     const serviceLocation = url.pathToFileURL(servicePath).href;
-    await E(host).makeUnconfined('w1', serviceLocation, 'o1', 's1');
+    await E(host).makeUnconfined('w1', serviceLocation, 'a1', 's1');
 
     await E(host).provideWorker('w2');
     const answer = await E(host).evaluate(
@@ -509,18 +511,18 @@ test('persist confined services and their requests', async t => {
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
     const { number, who } = E.get(message);
-    t.is(await who, 'o1');
+    t.is(await who, 'h1');
     await E(host).resolve(await number, 'grant');
   })();
 
   const requesterFinished = (async () => {
     const { host } = await makeHost(locator, cancelled);
     await E(host).provideWorker('w1');
-    await E(host).provideGuest('o1');
+    await E(host).provideGuest('h1', { agentName: 'a1' });
 
     const servicePath = path.join(dirname, 'test', 'service.js');
     await doMakeBundle(host, servicePath, bundleName =>
-      E(host).makeBundle('w1', bundleName, 'o1', 's1'),
+      E(host).makeBundle('w1', bundleName, 'a1', 's1'),
     );
 
     await E(host).provideWorker('w2');
@@ -739,7 +741,7 @@ test('indirect cancellation via worker', async t => {
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('worker', counterLocation, 'SELF', 'counter');
+  await E(host).makeUnconfined('worker', counterLocation, 'AGENT', 'counter');
   t.is(
     1,
     await E(host).evaluate(
@@ -807,13 +809,13 @@ test.failing('indirect cancellation via caplet', async t => {
   await E(host).provideWorker('w1');
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  await E(host).makeUnconfined('w1', counterLocation, 'SELF', 'counter');
+  await E(host).makeUnconfined('w1', counterLocation, 'AGENT', 'counter');
 
   await E(host).provideWorker('w2');
-  await E(host).provideGuest('guest');
+  await E(host).provideGuest('guest', { agentName: 'guest-agent' });
   const doublerPath = path.join(dirname, 'test', 'doubler.js');
   const doublerLocation = url.pathToFileURL(doublerPath).href;
-  await E(host).makeUnconfined('w2', doublerLocation, 'guest', 'doubler');
+  await E(host).makeUnconfined('w2', doublerLocation, 'guest-agent', 'doubler');
   E(host).resolve(0, 'counter');
 
   t.is(
@@ -846,13 +848,13 @@ test('cancel because of requested capability', async t => {
   const { host } = await makeHost(locator, cancelled);
 
   await E(host).provideWorker('worker');
-  await E(host).provideGuest('guest');
+  await E(host).provideGuest('guest', { agentName: 'guest-agent' });
 
   const messages = E(host).followMessages();
 
   const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
-  E(host).makeUnconfined('worker', counterLocation, 'guest', 'counter');
+  E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
 
   await E(host).evaluate('worker', '0', [], [], 'zero');
   await E(messages).next();
@@ -886,7 +888,7 @@ test('cancel because of requested capability', async t => {
     ),
   );
 
-  await E(host).cancel('guest');
+  await E(host).cancel('guest-agent');
 
   t.is(
     1,
@@ -1053,9 +1055,9 @@ test('lookup with single petname', async t => {
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
-    'E(SELF).lookup("ten")',
-    ['SELF'],
-    ['SELF'],
+    'E(AGENT).lookup("ten")',
+    ['AGENT'],
+    ['AGENT'],
   );
   t.is(resolvedValue, 10);
 });
@@ -1068,9 +1070,9 @@ test('lookup with petname path (inspector)', async t => {
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
-    'E(SELF).lookup("INFO", "ten", "source")',
-    ['SELF'],
-    ['SELF'],
+    'E(AGENT).lookup("INFO", "ten", "source")',
+    ['AGENT'],
+    ['AGENT'],
   );
   t.is(resolvedValue, '10');
 });
@@ -1084,9 +1086,9 @@ test('lookup with petname path (caplet with lookup method)', async t => {
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
-    'E(SELF).lookup("lookup", "name")',
-    ['SELF'],
-    ['SELF'],
+    'E(AGENT).lookup("lookup", "name")',
+    ['AGENT'],
+    ['AGENT'],
   );
   t.is(resolvedValue, 'Looked up: name');
 });
@@ -1099,9 +1101,9 @@ test('lookup with petname path (value has no lookup method)', async t => {
   await t.throwsAsync(
     E(host).evaluate(
       'MAIN',
-      'E(SELF).lookup("ten", "someName")',
-      ['SELF'],
-      ['SELF'],
+      'E(AGENT).lookup("ten", "someName")',
+      ['AGENT'],
+      ['AGENT'],
     ),
     { message: 'target has no method "lookup", has []' },
   );
@@ -1148,7 +1150,7 @@ test('guest cannot access host methods', async t => {
 
   const guest = E(host).provideGuest('guest');
   const guestsHost = E(guest).lookup('HOST');
-  await t.throwsAsync(() => E(guestsHost).lookup('SELF'), {
+  await t.throwsAsync(() => E(guestsHost).lookup('ANY'), {
     message: /target has no method "lookup"/u,
   });
   const revealedTarget = await E.get(guestsHost).targetId;
