@@ -870,10 +870,7 @@ export type SerialJobs = {
   enqueue: <T>(asyncFn?: () => Promise<T>) => Promise<T>;
 };
 
-/**
- * A multimap backed by a WeakMap. Keys must be objects.
- */
-export type WeakMultimap<K extends WeakKey, V> = {
+export type Multimap<K, V> = {
   /**
    * @param key - The key to add a value for.
    * @param value - The value to add.
@@ -905,3 +902,8 @@ export type WeakMultimap<K extends WeakKey, V> = {
    */
   getAll(key: K): V[];
 };
+
+/**
+ * A multimap backed by a WeakMap.
+ */
+export type WeakMultimap<K extends WeakKey, V> = Multimap<K, V>;
