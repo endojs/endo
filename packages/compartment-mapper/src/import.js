@@ -80,6 +80,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       __shimTransforms__,
       Compartment,
       importHook: exitModuleImportHook,
+      fallbackLanguageForExtension = {},
     } = options;
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
       modules,
@@ -101,6 +102,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       moduleTransforms,
       __shimTransforms__,
       Compartment,
+      fallbackLanguageForExtension,
     });
 
     await pendingJobsPromise;
