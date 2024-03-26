@@ -1,9 +1,11 @@
+// @ts-check
+
 /**
- * @returns {import('./types.js').WeakMultimap<WeakKey, any>}
+ * @param {Map | WeakMap} internalMap
+ * @returns {import('./types.js').Multimap<any, any>}
  */
-export const makeWeakMultimap = () => {
-  /** @type {WeakMap<WeakKey, Set<unknown>>} */
-  const map = new WeakMap();
+const internalMakeMultimap = internalMap => {
+  const map = internalMap;
   return {
     add: (key, value) => {
       let set = map.get(key);
@@ -32,4 +34,18 @@ export const makeWeakMultimap = () => {
 
     getAll: key => Array.from(map.get(key) ?? []),
   };
+};
+
+/**
+ * @returns {import('./types.js').Multimap<any, any>}
+ */
+export const makeMultimap = () => {
+  return internalMakeMultimap(new Map());
+};
+
+/**
+ * @returns {import('./types.js').WeakMultimap<WeakKey, any>}
+ */
+export const makeWeakMultimap = () => {
+  return internalMakeMultimap(new WeakMap());
 };
