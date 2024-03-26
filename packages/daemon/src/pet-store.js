@@ -21,7 +21,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {Map<string, Set<string>>} */
     const ids = new Map();
     /** @type {import('./types.js').Topic<({ add: string, value: import('./types.js').IdRecord } | { remove: string })>} */
-    const changesTopic = makeChangeTopic();
+    const nameChangesTopic = makeChangeTopic();
 
     /** @param {string} petName */
     const read = async petName => {
@@ -74,7 +74,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
           formulaPetNames.delete(petName);
         }
         // TODO: Should this only happen if something is actually deleted?
-        changesTopic.publisher.next({ remove: petName });
+        nameChangesTopic.publisher.next({ remove: petName });
       }
 
       petNames.set(petName, formulaIdentifier);
@@ -90,7 +90,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       const petNameText = `${formulaIdentifier}\n`;
       await filePowers.writeFileText(petNamePath, petNameText);
       const formulaIdentifierRecord = parseId(formulaIdentifier);
-      changesTopic.publisher.next({
+      nameChangesTopic.publisher.next({
         add: petName,
         value: formulaIdentifierRecord,
       });
@@ -114,7 +114,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     // Returns in an object operations format ({ add, value } or { remove }).
     /** @type {import('./types.js').PetStore['follow']} */
     const follow = async function* currentAndSubsequentNames() {
-      const changes = changesTopic.subscribe();
+      const changes = nameChangesTopic.subscribe();
       for (const name of [...petNames.keys()].sort()) {
         const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
         yield /** @type {{ add: string, value: import('./types.js').IdRecord }} */ ({
@@ -143,7 +143,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       if (formulaPetNames !== undefined) {
         formulaPetNames.delete(petName);
       }
-      changesTopic.publisher.next({ remove: petName });
+      nameChangesTopic.publisher.next({ remove: petName });
       // TODO consider retaining a backlog of deleted names for recovery
       // TODO consider tracking historical pet names for formulas
     };
@@ -189,11 +189,11 @@ export const makePetStoreMaker = (filePowers, locator) => {
       }
 
       const formulaIdentifierRecord = parseId(formulaIdentifier);
-      changesTopic.publisher.next({
+      nameChangesTopic.publisher.next({
         add: toName,
         value: formulaIdentifierRecord,
       });
-      changesTopic.publisher.next({ remove: fromName });
+      nameChangesTopic.publisher.next({ remove: fromName });
       // TODO consider retaining a backlog of overwritten names for recovery
     };
 
