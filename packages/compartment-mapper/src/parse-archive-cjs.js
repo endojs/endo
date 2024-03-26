@@ -16,7 +16,7 @@ const noopExecute = () => {};
 freeze(noopExecute);
 
 /** @type {import('./types.js').ParseFn} */
-export const parseArchiveCjs = async (
+export const parseArchiveCjs = (
   bytes,
   specifier,
   location,
@@ -66,4 +66,5 @@ export const parseArchiveCjs = async (
 export default {
   parse: parseArchiveCjs,
   heuristicImports: true,
+  synchronous: true,
 };

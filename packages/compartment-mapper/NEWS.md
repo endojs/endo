@@ -1,5 +1,12 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next release
+
+- Adds support for dynamic requires in CommonJS modules. This requires specific
+  configuration to be passed in (including new read powers), and is _not_
+  enabled by default. See the signature of `loadFromMap()` in `import-lite.js`
+  for details.
+
 # v1.2.0 (2024-07-30)
 
 - Fixes incompatible behavior with Node.js package conditional exports #2276.

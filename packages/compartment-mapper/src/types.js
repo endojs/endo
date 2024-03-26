@@ -4,6 +4,7 @@ export {};
 
 /** @import {FinalStaticModuleType} from 'ses' */
 /** @import {ImportHook} from 'ses' */
+/** @import {ImportNowHook} from 'ses' */
 /** @import {StaticModuleType} from 'ses' */
 /** @import {ThirdPartyStaticModuleInterface} from 'ses' */
 /** @import {Transform} from 'ses' */
@@ -34,7 +35,7 @@ export {};
 /**
  * A compartment descriptor corresponds to a single Compartment
  * of an assembled Application and describes how to construct
- * one for a given library or application package.json.
+ * one for a given library or application `package.json`.
  *
  * @typedef {object} CompartmentDescriptor
  * @property {string} label
@@ -52,11 +53,12 @@ export {};
  * @property {LanguageForExtension} parsers - language for extension
  * @property {LanguageForModuleSpecifier} types - language for module specifier
  * @property {SomePackagePolicy} policy - policy specific to compartment
+ * @property {Set<string>} compartments - List of compartment names this Compartment depends upon
  */
 
 /**
  * For every module explicitly mentioned in an `exports` field of a
- * package.json, there is a corresponding module descriptor.
+ * `package.json`, there is a corresponding module descriptor.
  *
  * @typedef {object} ModuleDescriptor
  * @property {string=} [compartment]
@@ -72,7 +74,7 @@ export {};
  * Scope descriptors link all names under a prefix to modules in another
  * compartment, like a wildcard.
  * These are employed to link any module not explicitly mentioned
- * in a package.json file, when that package.json file does not have
+ * in a `package.json` file, when that `package.json` file does not have
  * an explicit `exports` map.
  *
  * @typedef {object} ScopeDescriptor
@@ -121,11 +123,25 @@ export {};
  */
 
 /**
+ * @callback ReadNowFn
+ * @param {string} location
+ * @returns {Uint8Array} bytes
+ */
+
+/**
  * A resolution of `undefined` indicates `ENOENT` or the equivalent.
  *
  * @callback MaybeReadFn
  * @param {string} location
  * @returns {Promise<Uint8Array | undefined>} bytes
+ */
+
+/**
+ * A resolution of `undefined` indicates `ENOENT` or the equivalent.
+ *
+ * @callback MaybeReadNowFn
+ * @param {string} location
+ * @returns {Uint8Array | undefined} bytes
  */
 
 /**
@@ -162,18 +178,79 @@ export {};
  */
 
 /**
- * @typedef {object} ReadPowers
- * @property {ReadFn} read
- * @property {CanonicalFn} canonical
- * @property {HashFn} [computeSha512]
- * @property {Function} [fileURLToPath]
- * @property {Function} [pathToFileURL]
- * @property {Function} [requireResolve]
+ * @callback FileURLToPathFn
+ * @param {string|URL} location
+ * @returns {string}
  */
 
 /**
- * @typedef {ReadPowers | object} MaybeReadPowers
- * @property {MaybeReadFn} maybeRead
+ * @callback IsAbsoluteFn
+ * @param {string} location
+ * @returns {boolean}
+ */
+
+/**
+ * Node.js' `url.pathToFileURL` only returns a {@link URL}.
+ * @callback PathToFileURLFn
+ * @param {string} location
+ * @returns {URL|string}
+ */
+
+/**
+ * @callback RequireResolveFn
+ * @param {string} fromLocation
+ * @param {string} specifier
+ * @param {{paths?: string[]}} [options]
+ */
+
+/**
+ * @typedef {object} ReadPowers
+ * @property {ReadFn} read
+ * @property {CanonicalFn} canonical
+ * @property {MaybeReadNowFn} [maybeReadNow]
+ * @property {HashFn} [computeSha512]
+ * @property {FileURLToPathFn} [fileURLToPath]
+ * @property {PathToFileURLFn} [pathToFileURL]
+ * @property {RequireResolveFn} [requireResolve]
+ * @property {IsAbsoluteFn} [isAbsolute]
+ */
+
+/**
+ * These properties are necessary for dynamic require support
+ *
+ * @typedef {'fileURLToPath' | 'isAbsolute' | 'maybeReadNow'} ReadNowPowersProp
+ * @see {@link ReadNowPowers}
+ */
+
+/**
+ * The extension of {@link ReadPowers} necessary for dynamic require support
+ *
+ * For a `ReadPowers` to be a `ReadNowPowers`:
+ *
+ * 1. It must be an object (not a {@link ReadFn})
+ * 2. Prop `maybeReadNow` is a function
+ * 3. Prop `fileURLToPath` is a function
+ * 4. Prop `isAbsolute` is a function
+ *
+ * @typedef {Omit<ReadPowers, ReadNowPowersProp> & Required<Pick<ReadPowers, ReadNowPowersProp>>} ReadNowPowers
+ */
+
+/**
+ * @typedef MakeImportNowHookMakerOptions
+ * @property {Sources} [sources]
+ * @property {Record<string, CompartmentDescriptor>} [compartmentDescriptors]
+ * @property {HashFn} [computeSha512]
+ * @property {string[]} [searchSuffixes] Suffixes to search if the unmodified
+ * specifier is not found. Pass `[]` to emulate Node.js' strict behavior. The
+ * default handles Node.js' CommonJS behavior. Unlike Node.js, the Compartment
+ * Mapper lifts CommonJS up, more like a bundler, and does not attempt to vary
+ * the behavior of resolution depending on the language of the importing module.
+ * @property {SourceMapHook} [sourceMapHook]
+ * @property {ExitModuleImportNowHook} [exitModuleImportNowHook]
+ */
+
+/**
+ * @typedef {ReadPowers & {maybeRead: MaybeReadFn}} MaybeReadPowers
  */
 
 /**
@@ -210,7 +287,7 @@ export {};
  * @property {string} packageLocation
  * @property {string} packageName
  * @property {DeferredAttenuatorsProvider} attenuators
- * @property {ParseFn} parse
+ * @property {ParseFn|ParseFnAsync} parse
  * @property {ShouldDeferError} shouldDeferError
  * @property {Record<string, Compartment>} compartments
  */
@@ -219,6 +296,20 @@ export {};
  * @callback ImportHookMaker
  * @param {ImportHookMakerOptions} options
  * @returns {ImportHook}
+ */
+
+/**
+ * @typedef {object} ImportNowHookMakerParams
+ * @property {string} packageLocation
+ * @property {string} packageName
+ * @property {ParseFn|ParseFnAsync} parse
+ * @property {Record<string, Compartment>} compartments
+ */
+
+/**
+ * @callback ImportNowHookMaker
+ * @param {ImportNowHookMakerParams} params
+ * @returns {ImportNowHook}
  */
 
 /**
@@ -250,7 +341,17 @@ export {};
  */
 
 /**
- * @callback ParseFn
+ * Result of a {@link ParseFn}
+ *
+ * @typedef ParseResult
+ * @property {Uint8Array} bytes
+ * @property {Language} parser
+ * @property {FinalStaticModuleType} record
+ * @property {string} [sourceMap]
+ */
+
+/**
+ * @callback ParseFn_
  * @param {Uint8Array} bytes
  * @param {string} specifier
  * @param {string} location
@@ -261,12 +362,25 @@ export {};
  * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
  * @param {CompartmentDescriptor} [options.compartmentDescriptor]
- * @returns {Promise<{
- *   bytes: Uint8Array,
- *   parser: Language,
- *   record: FinalStaticModuleType,
- *   sourceMap?: string,
- * }>}
+ * @returns {ParseResult}
+ */
+
+/**
+ * @typedef {ParseFn_ & {isSyncParser?: true}} ParseFn
+ */
+
+/**
+ * @callback ParseFnAsync
+ * @param {Uint8Array} bytes
+ * @param {string} specifier
+ * @param {string} location
+ * @param {string} packageLocation
+ * @param {object} [options]
+ * @param {string} [options.sourceMap]
+ * @param {SourceMapHook} [options.sourceMapHook]
+ * @param {string} [options.sourceMapUrl]
+ * @param {ReadFn | ReadPowers} [options.readPowers]
+ * @returns {Promise<ParseResult>}
  */
 
 /**
@@ -275,6 +389,7 @@ export {};
  *
  * @typedef {object} ParserImplementation
  * @property {boolean} heuristicImports
+ * @property {boolean} [synchronous]
  * @property {ParseFn} parse
  */
 
@@ -289,6 +404,13 @@ export {};
  * @callback ExitModuleImportHook
  * @param {string} specifier
  * @returns {Promise<ThirdPartyStaticModuleInterface|undefined>} module namespace
+ */
+
+/**
+ * @callback ExitModuleImportNowHook
+ * @param {string} specifier
+ * @param {string} referrer
+ * @returns {ThirdPartyStaticModuleInterface|undefined} module namespace
  */
 
 /**
@@ -345,7 +467,7 @@ export {};
 /**
  * Options for `loadLocation()`
  *
- * @typedef {ArchiveOptions} LoadLocationOptions
+ * @typedef {ArchiveOptions|SyncArchiveOptions} LoadLocationOptions
  */
 
 /**
@@ -353,10 +475,20 @@ export {};
  * @typedef {object} ExtraLinkOptions
  * @property {ResolveHook} [resolve]
  * @property {ImportHookMaker} makeImportHook
+ * @property {ImportNowHookMaker} [makeImportNowHook]
  * @property {ParserForLanguage} [parserForLanguage]
  * @property {LanguageForExtension} [languageForExtension]
  * @property {ModuleTransforms} [moduleTransforms]
+ * @property {SyncModuleTransforms} [syncModuleTransforms]
  * @property {boolean} [archiveOnly]
+ */
+
+/**
+ * @typedef LinkResult
+ * @property {Compartment} compartment,
+ * @property {Record<string, Compartment>} compartments
+ * @property {Compartment} attenuatorsCompartment
+ * @property {Promise<void>} pendingJobsPromise
  */
 
 /**
@@ -370,14 +502,29 @@ export {};
  */
 
 /**
+ * @typedef {Record<string, SyncModuleTransform>} SyncModuleTransforms
+ */
+
+/**
  * @callback ModuleTransform
  * @param {Uint8Array} bytes
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
- * @param {object} [options]
- * @param {string} [options.sourceMap]
+ * @param {object} [params]
+ * @param {string} [params.sourceMap]
  * @returns {Promise<{bytes: Uint8Array, parser: Language, sourceMap?: string}>}
+ */
+
+/**
+ * @callback SyncModuleTransform
+ * @param {Uint8Array} bytes
+ * @param {string} specifier
+ * @param {string} location
+ * @param {string} packageLocation
+ * @param {object} [params]
+ * @param {string} [params.sourceMap]
+ * @returns {{bytes: Uint8Array, parser: Language, sourceMap?: string}}
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -421,6 +568,7 @@ export {};
 /**
  * @typedef {object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
+ * @property {SyncModuleTransforms} [syncModuleTransforms]
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {SomePolicy} [policy]
@@ -431,6 +579,23 @@ export {};
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  * @property {SourceMapHook} [sourceMapHook]
+ * @property {Record<string, ParserImplementation>} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
+ */
+
+/**
+ * @typedef SyncArchiveOptions
+ * @property {SyncModuleTransforms} [syncModuleTransforms]
+ * @property {Record<string, any>} [modules]
+ * @property {boolean} [dev]
+ * @property {object} [policy]
+ * @property {Set<string>} [tags]
+ * @property {CaptureSourceLocationHook} [captureSourceLocation]
+ * @property {ExitModuleImportHook} [importHook]
+ * @property {Array<string>} [searchSuffixes]
+ * @property {Record<string, string>} [commonDependencies]
+ * @property {SourceMapHook} [sourceMapHook]
+ * @property {ExitModuleImportNowHook} [importNowHook]
  * @property {Record<string, ParserImplementation>} [parserForLanguage]
  * @property {LanguageForExtension} [languageForExtension]
  */
@@ -490,7 +655,7 @@ export {};
 
 /**
  * @template {[any, ...any[]]} [Params=[any, ...any[]]]
- * @template [T=unknown]
+ * @template [T=SomeObject]
  * @template [U=T]
  * @callback ModuleAttenuatorFn
  * @param {Params} params
@@ -509,7 +674,7 @@ export {};
  */
 
 /**
- * A type representing a property policy, which is a record of string keys and boolean values.
+ * A type representing a property policy, which is a record of string keys and boolean values
  * @typedef {Record<string, boolean>} PropertyPolicy
  */
 
@@ -537,6 +702,7 @@ export {};
  * @property {PolicyItem<GlobalsPolicyItem>|AttenuationDefinition} [globals] - The policy item or full attenuation definition for globals.
  * @property {PolicyItem<BuiltinsPolicyItem>|NestedAttenuationDefinition} [builtins] - The policy item or nested attenuation definition for builtins.
  * @property {boolean} [noGlobalFreeze] - Whether to disable global freeze.
+ * @property {boolean} [dynamic] - Whether to allow dynamic imports
  * @property {ExtraOptions} [options] - Any additional user-defined options can be added to the policy here
  */
 
@@ -559,9 +725,81 @@ export {};
  */
 
 /**
+ * Function in {@link CryptoInterface}
+ *
+ * @callback CreateHashFn
+ * @param {'sha512'} algorithm
+ * @returns {Hash}
+ */
+
+/**
+ * Object returned by function in {@link CryptoInterface}
+ *
+ * @typedef Hash
+ * @property {(data: Uint8Array|string) => Hash} update
+ * @property {() => Buffer} digest
+ * @see {@link https://nodejs.org/api/crypto.html#class-hash}
+ */
+
+/**
+ * Function in {@link FsPromisesInterface}
+ *
+ * @callback RealpathFn
+ * @param {string} filepath
+ * @returns {Promise<string>}
+ */
+
+/**
+ * Object within {@link FsPromisesInterface}
+ *
+ * @typedef FsPromisesInterface
+ * @property {RealpathFn} realpath
+ * @property {WriteFn} writeFile
+ * @property {ReadFn} readFile
+ * @see {@link https://nodejs.org/api/fs.html#promises-api}
+ */
+
+/**
+ * For creating {@link ReadPowers}
+ *
+ * @typedef FsInterface
+ * @property {FsPromisesInterface} promises
+ * @property {ReadNowFn} readFileSync
+ * @see {@link https://nodejs.org/api/fs.html}
+ */
+
+/**
+ * For creating {@link ReadPowers}
+ *
+ * @typedef UrlInterface
+ * @property {FileURLToPathFn} fileURLToPath
+ * @property {PathToFileURLFn} pathToFileURL
+ * @see {@link https://nodejs.org/api/url.html}
+ */
+
+/**
+ * For creating {@link ReadPowers}
+ * @typedef CryptoInterface
+ * @property {CreateHashFn} createHash
+ * @see {@link https://nodejs.org/api/crypto.html}
+ */
+
+/**
+ * @typedef PathInterface
+ * @property {IsAbsoluteFn} isAbsolute
+ * @see {@link https://nodejs.org/api/path.html}
+ */
+
+/**
+ * Options for `compartmentMapForNodeModules`
+ *
+ * @typedef {Pick<ArchiveOptions, 'dev' | 'commonDependencies' | 'policy'>} CompartmentMapForNodeModulesOptions
+ */
+
+/**
  * Any {@link PackagePolicy}
  *
- * @typedef {PackagePolicy<any, any, any, any>} SomePackagePolicy
+ * @typedef {PackagePolicy<PolicyItem, PolicyItem, PolicyItem, unknown>} SomePackagePolicy
  */
 
 /**
@@ -621,10 +859,18 @@ export {};
  */
 
 /**
+ * Options for `importLocation()` necessary (but not sufficient--see
+ * {@link ReadNowPowers}) for dynamic require support
+ *
+ * @typedef {ExecuteOptions & SyncArchiveOptions} SyncImportLocationOptions
+ */
+
+/**
  * Options for `captureFromMap()`
  *
  * @typedef CaptureOptions
  * @property {ModuleTransforms} [moduleTransforms]
+ * @property {SyncModuleTransforms} [syncModuleTransforms]
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {SomePolicy} [policy]
@@ -636,6 +882,7 @@ export {};
  * @property {SourceMapHook} [sourceMapHook]
  * @property {Record<string, ParserImplementation>} [parserForLanguage]
  * @property {LanguageForExtension} [languageForExtension]
+ * @property {ExitModuleImportNowHook} [importNowHook]
  */
 
 /**
@@ -645,4 +892,104 @@ export {};
  * @property {CompartmentMapDescriptor} captureCompartmentMap
  * @property {Sources} captureSources
  * @property {Record<string, string>} compartmentRenames
+ */
+
+/**
+ * Options object for `chooseModuleDescriptor`.
+ *
+ * @typedef ChooseModuleDescriptorOptions
+ * @property {string[]} candidates List of `moduleSpecifier` with search
+ * suffixes appended
+ * @property {CompartmentDescriptor} compartmentDescriptor Compartment
+ * descriptor
+ * @property {Record<string, CompartmentDescriptor>} compartmentDescriptors All
+ * compartment descriptors
+ * @property {Record<string, Compartment>} compartments All compartments
+ * @property {HashFn} [computeSha512] Function to compute SHA-512 hash
+ * @property {Record<string, ModuleDescriptor>} moduleDescriptors All module
+ * descriptors
+ * @property {string} moduleSpecifier Module specifier
+ * @property {string} packageLocation Package location
+ * @property {CompartmentSources} packageSources Sources
+ * @property {ReadPowers|ReadFn} readPowers Powers
+ * @property {SourceMapHook} [sourceMapHook] Source map hook
+ * @property {(compartmentName: string) => Set<string>} strictlyRequiredForCompartment Function
+ *   returning a set of module names (scoped to the compartment) whose parser is not using
+ *   heuristics to determine imports.
+ */
+
+/**
+ * Operators for `chooseModuleDescriptor` representing synchronous operation.
+ *
+ * @typedef SyncChooseModuleDescriptorOperators
+ * @property {MaybeReadNowFn} maybeRead A function that reads a file, returning
+ * its binary contents _or_ `undefined` if the file is not found
+ * @property {ParseFn} parse A function which parses the (defined) binary
+ * contents from `maybeRead` into a `ParseResult`
+ * @property {never} [shouldDeferError] Should be omitted.
+ */
+
+/**
+ * Operators for `chooseModuleDescriptor` representing asynchronous operation.
+ *
+ * @typedef AsyncChooseModuleDescriptorOperators
+ * @property {MaybeReadFn} maybeRead A function that reads a file, resolving w/
+ * its binary contents _or_ `undefined` if the file is not found
+ * @property {ParseFnAsync|ParseFn} parse A function which parses the (defined)
+ * binary contents from `maybeRead` into a `ParseResult`
+ * @property {(language: Language) => boolean} shouldDeferError A function that
+ * returns `true` if the language returned by `parse` should defer errors.
+ */
+
+/**
+ * Either synchronous or asynchronous operators for `chooseModuleDescriptor`.
+ *
+ * @typedef {AsyncChooseModuleDescriptorOperators | SyncChooseModuleDescriptorOperators} ChooseModuleDescriptorOperators
+ */
+
+/**
+ * The agglomeration of things that the `chooseModuleDescriptor` generator can
+ * yield.
+ *
+ * The generator does not necessarily yield _all_ of these; it depends on
+ * whether the operators are {@link AsyncChooseModuleDescriptorOperators} or
+ * {@link SyncChooseModuleDescriptorOperators}.
+ *
+ * @typedef {ReturnType<ChooseModuleDescriptorOperators['maybeRead']> |
+ * ReturnType<ChooseModuleDescriptorOperators['parse']>} ChooseModuleDescriptorYieldables
+ */
+
+/**
+ * Parameters for `findRedirect()`.
+ *
+ * @typedef FindRedirectParams
+ * @property {CompartmentDescriptor} compartmentDescriptor
+ * @property {Record<string, CompartmentDescriptor>} compartmentDescriptors
+ * @property {Record<string, Compartment>} compartments
+ * @property {string} absoluteModuleSpecifier A module specifier which is an absolute path. NOT a file:// URL.
+ * @property {string} packageLocation Location of the compartment descriptor's package
+ */
+
+/**
+ * Options for `makeMapParsers()`
+ *
+ * @typedef MakeMapParsersOptions
+ * @property {ParserForLanguage} parserForLanguage Mapping of language to
+ * {@link ParserImplementation}
+ * @property {ModuleTransforms} [moduleTransforms] Async or sync module
+ *   transforms. If non-empty, dynamic requires are unsupported.
+ * @property {SyncModuleTransforms} [syncModuleTransforms] Sync module
+ *   transforms
+ */
+
+/**
+ * The value returned by `makeMapParsers()`
+ *
+ * @template {ParseFn|ParseFnAsync} [T=ParseFn|ParseFnAsync]
+ * @callback MapParsersFn
+ * @param {LanguageForExtension} languageForExtension Mapping of file extension
+ *   to {@link Language}
+ * @param {LanguageForModuleSpecifier} languageForModuleSpecifier Mapping of
+ *   module specifier to {@link Language}
+ * @returns {T} Parser function
  */
