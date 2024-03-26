@@ -165,8 +165,7 @@ export {};
  */
 
 /**
- * @typedef {ReadPowers | object} MaybeReadPowers
- * @property {MaybeReadFn} maybeRead
+ * @typedef {ReadPowers & {maybeRead: MaybeReadFn}} MaybeReadPowers
  */
 
 /**
@@ -531,4 +530,26 @@ export {};
  * @property {CompartmentMapDescriptor} archiveCompartmentMap
  * @property {Sources} archiveSources
  * @property {Record<string, string>} compartmentRenames
+ */
+
+/**
+ * @typedef FsPromisesApi
+ * @property {(filepath: string) => Promise<string>} realpath
+ * @property {ReadFn} readFile
+ */
+
+/**
+ * @typedef FsAPI
+ * @property {FsPromisesApi} promises
+ */
+
+/**
+ * @typedef UrlAPI
+ * @property {(location: string | URL) => string} fileURLToPath
+ * @property {(path: string) => URL} pathToFileURL
+ */
+
+/**
+ * @typedef CryptoAPI
+ * @property {typeof import('crypto').createHash} createHash
  */
