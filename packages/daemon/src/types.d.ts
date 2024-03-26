@@ -81,10 +81,12 @@ export type WorkerDeferredTaskParams = {
  */
 export type AgentDeferredTaskParams = {
   agentId: string;
+  handleId: string;
 };
 
 type HostFormula = {
   type: 'host';
+  handle: string;
   worker: string;
   inspector: string;
   petStore: string;
@@ -94,7 +96,9 @@ type HostFormula = {
 
 type GuestFormula = {
   type: 'guest';
-  host: string;
+  handle: string;
+  hostHandle: string;
+  hostAgent: string;
   petStore: string;
   worker: string;
 };
@@ -484,6 +488,7 @@ export interface EndoWorker {
 }
 
 export type MakeHostOrGuestOptions = {
+  agentName?: string;
   introducedNames?: Record<string, string>;
 };
 
@@ -508,7 +513,8 @@ export interface EndoNetwork {
   connect: (address: string, farContext: FarContext) => EndoGateway;
 }
 
-export interface EndoGuest extends EndoDirectory {
+export interface EndoAgent extends EndoDirectory {
+  handle: () => {};
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
   resolve: Mail['resolve'];
@@ -518,17 +524,12 @@ export interface EndoGuest extends EndoDirectory {
   request: Mail['request'];
   send: Mail['send'];
 }
+
+export interface EndoGuest extends EndoAgent {}
+
 export type FarEndoGuest = FarRef<EndoGuest>;
 
-export interface EndoHost extends EndoDirectory {
-  listMessages: Mail['listMessages'];
-  followMessages: Mail['followMessages'];
-  resolve: Mail['resolve'];
-  reject: Mail['reject'];
-  adopt: Mail['adopt'];
-  dismiss: Mail['dismiss'];
-  request: Mail['request'];
-  send: Mail['send'];
+export interface EndoHost extends EndoAgent {
   store(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
@@ -725,6 +726,9 @@ export type DeferredTasks<T extends Record<string, string | string[]>> = {
 
 type FormulateNumberedGuestParams = {
   guestFormulaNumber: string;
+  handleId: string;
+  guestId: string;
+  hostAgentId: string;
   hostHandleId: string;
   storeId: string;
   workerId: string;
@@ -738,6 +742,8 @@ type FormulateHostDependenciesParams = {
 
 type FormulateNumberedHostParams = {
   hostFormulaNumber: string;
+  hostId: string;
+  handleId: string;
   workerId: string;
   storeId: string;
   inspectorId: string;
@@ -757,7 +763,8 @@ export interface DaemonCore {
   }>;
 
   formulateBundle: (
-    hostId: string,
+    hostAgentId: string,
+    hostHandleId: string,
     bundleId: string,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerId?: string,
@@ -771,7 +778,7 @@ export interface DaemonCore {
   ) => FormulateResult<FarEndoBootstrap>;
 
   formulateEval: (
-    hostId: string,
+    nameHubId: string,
     source: string,
     codeNames: string[],
     endowmentIdsOrPaths: (string | string[])[],
@@ -781,6 +788,7 @@ export interface DaemonCore {
 
   formulateGuest: (
     hostId: string,
+    hostHandleId: string,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
   ) => FormulateResult<EndoGuest>;
 
@@ -790,7 +798,8 @@ export interface DaemonCore {
    * @returns The formula identifiers for the guest formulation's dependencies.
    */
   formulateGuestDependencies: (
-    hostId: string,
+    hostAgentId: string,
+    hostHandleId: string,
   ) => Promise<Readonly<FormulateNumberedGuestParams>>;
 
   formulateHost: (
@@ -832,7 +841,8 @@ export interface DaemonCore {
   ) => FormulateResult<FarEndoReadable>;
 
   formulateUnconfined: (
-    hostId: string,
+    hostAgentId: string,
+    hostHandleId: string,
     specifier: string,
     deferredTasks: DeferredTasks<MakeCapletDeferredTaskParams>,
     specifiedWorkerId?: string,

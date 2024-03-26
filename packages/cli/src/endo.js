@@ -415,7 +415,7 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('mkhost <name>')
+    .command('mkhost <handle-name> [agent-name]')
     .option(...commonOptions.as)
     .option(
       '--introduce <name>',
@@ -424,14 +424,14 @@ export const main = async rawArgs => {
       {},
     )
     .description('makes a separate mailbox and storage for you')
-    .action(async (name, cmd) => {
+    .action(async (handleName, agentName, cmd) => {
       const { as: agentNames, introduce: introducedNames } = cmd.opts();
       const { mkhost } = await import('./commands/mkhost.js');
-      return mkhost({ name, agentNames, introducedNames });
+      return mkhost({ handleName, agentName, agentNames, introducedNames });
     });
 
   program
-    .command('mkguest <name>')
+    .command('mkguest <handle-name> [agent-name]')
     .option(...commonOptions.as)
     .option(
       '--introduce <name>',
@@ -440,10 +440,10 @@ export const main = async rawArgs => {
       {},
     )
     .description('makes a mailbox and storage for a guest (peer or program)')
-    .action(async (name, cmd) => {
+    .action(async (handleName, agentName, cmd) => {
       const { as: agentNames, introduce: introducedNames } = cmd.opts();
       const { mkguest } = await import('./commands/mkguest.js');
-      return mkguest({ name, agentNames, introducedNames });
+      return mkguest({ agentName, handleName, agentNames, introducedNames });
     });
 
   program
