@@ -32,7 +32,7 @@
     "cover": "lerna run cover",
     "depcheck": "node scripts/check-mismatched-dependencies.js",
     "docs": "typedoc",
-    "typedoc-markdown": "typedoc --plugin typedoc-plugin-markdown",
+    "typedoc-markdown": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.build.json",
     "update": "lernaupdate --dedupe",
     "format": "yarn prettier --write .github packages",
     "lint": "yarn prettier --check .github packages && lerna run lint",
