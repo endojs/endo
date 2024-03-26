@@ -108,10 +108,9 @@ export const makePetStoreMaker = (filePowers, locator) => {
       return parseId(formulaIdentifier);
     };
 
-    // Returns in an Array format.
     /** @type {import('./types.js').PetStore['list']} */
     const list = () => harden([...petNames.keys()].sort());
-    // Returns in an object operations format ({ add, value } or { remove }).
+
     /** @type {import('./types.js').PetStore['follow']} */
     const follow = async function* currentAndSubsequentNames() {
       const changes = changesTopic.subscribe();

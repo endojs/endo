@@ -1,6 +1,6 @@
 // @ts-check
 
-import { parseId, isValidNumber } from './formula-identifier.js';
+import { formatId, isValidNumber, parseId } from './formula-identifier.js';
 import { isValidFormulaType } from './formula-type.js';
 
 const { quote: q } = assert;
@@ -28,26 +28,29 @@ const isValidLocatorType = allegedType =>
  */
 const assertValidLocatorType = allegedType => {
   if (!isValidLocatorType(allegedType)) {
-    assert.Fail`Unrecognized locator type ${q(allegedType)}`;
+    throw assert.error(`Unrecognized locator type ${q(allegedType)}`);
   }
 };
 
-/** @param {string} allegedLocator */
+/**
+ * @param {string} allegedLocator
+ * @returns {{ formulaType: string, node: string, number: string }}
+ */
 export const parseLocator = allegedLocator => {
   const errorPrefix = `Invalid locator ${q(allegedLocator)}:`;
 
   if (!URL.canParse(allegedLocator)) {
-    assert.Fail`${errorPrefix} Invalid URL.`;
+    throw assert.error(`${errorPrefix} Invalid URL.`);
   }
   const url = new URL(allegedLocator);
 
   if (!allegedLocator.startsWith('endo://')) {
-    assert.Fail`${errorPrefix} Invalid protocol.`;
+    throw assert.error(`${errorPrefix} Invalid protocol.`);
   }
 
   const node = url.host;
   if (!isValidNumber(node)) {
-    assert.Fail`${errorPrefix} Invalid node identifier.`;
+    throw assert.error(`${errorPrefix} Invalid node identifier.`);
   }
 
   if (
@@ -55,21 +58,20 @@ export const parseLocator = allegedLocator => {
     !url.searchParams.has('id') ||
     !url.searchParams.has('type')
   ) {
-    assert.Fail`${errorPrefix} Invalid search params.`;
+    throw assert.error(`${errorPrefix} Invalid search params.`);
   }
 
-  const id = url.searchParams.get('id');
-  if (id === null || !isValidNumber(id)) {
-    assert.Fail`${errorPrefix} Invalid id.`;
+  const number = url.searchParams.get('id');
+  if (number === null || !isValidNumber(number)) {
+    throw assert.error(`${errorPrefix} Invalid id.`);
   }
 
   const formulaType = url.searchParams.get('type');
   if (formulaType === null || !isValidLocatorType(formulaType)) {
-    assert.Fail`${errorPrefix} Invalid type.`;
+    throw assert.error(`${errorPrefix} Invalid type.`);
   }
 
-  /** @type {{ formulaType: string, node: string, id: string }} */
-  return { formulaType, node, id };
+  return { formulaType, node, number };
 };
 
 /** @param {string} allegedLocator */
@@ -93,4 +95,12 @@ export const formatLocator = (id, formulaType) => {
   url.searchParams.set('type', formulaType);
 
   return url.toString();
+};
+
+/**
+ * @param {string} locator
+ */
+export const idFromLocator = locator => {
+  const { number, node } = parseLocator(locator);
+  return formatId({ number, node });
 };
