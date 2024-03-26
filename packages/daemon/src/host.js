@@ -97,7 +97,6 @@ export const makeHostMaker = ({
     });
     const { petStore } = mailbox;
     const directory = makeDirectoryNode(petStore);
-    const { lookup } = directory;
 
     const getEndoBootstrap = async () => {
       const endoBootstrap =
@@ -477,9 +476,11 @@ export const makeHostMaker = ({
       return peerInfo;
     };
 
+    const { reverseIdentify } = specialStore;
     const {
       has,
       identify,
+      lookup,
       locate,
       list,
       listIdentifiers,
@@ -517,6 +518,7 @@ export const makeHostMaker = ({
       // Directory
       has,
       identify,
+      reverseIdentify,
       locate,
       list,
       listIdentifiers,

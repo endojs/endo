@@ -234,33 +234,33 @@ export type Specials = {
 
 export type Label = {
   number: number;
-  who: string;
-  dest: string;
-  when: string;
+  from: string;
+  to: string;
+  date: string;
   dismissed: Promise<void>;
 };
-export type InternalLabel = Label;
+
+export interface Responder {
+  respondId(id: string): void;
+}
 
 export type Request = {
   type: 'request';
-  what: string;
+  description: string;
+  responder: ERef<Responder>;
   settled: Promise<'fulfilled' | 'rejected'>;
 };
-export type InternalRequest = Request;
 
 export type Package = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<string>; // edge names
-  formulas: Array<string>; // formula identifiers
+  ids: Array<string>; // formula identifiers
 };
-export type InternalPackage = Package;
 
 export type Payload = Request | Package;
-export type InternalPayload = InternalRequest | InternalPackage;
 
 export type Message = Label & Payload;
-export type InternalMessage = InternalLabel & InternalPayload;
 
 export type Invitation = {
   powers: string;
@@ -530,6 +530,11 @@ export interface EndoGuest extends EndoAgent {}
 export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoAgent {
+  /**
+   * @param id The formula identifier to look up.
+   * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
+   */
+  reverseIdentify(id: string): Array<string>;
   store(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
