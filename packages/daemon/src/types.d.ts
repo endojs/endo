@@ -383,6 +383,7 @@ export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
   locate(...petNamePath: string[]): Promise<string | undefined>;
+  reverseLocate(locator: string): Promise<string[]>;
   list(...petNamePath: string[]): Promise<Array<string>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followChanges(

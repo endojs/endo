@@ -4,7 +4,7 @@ import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
-import { formatLocator } from './locator.js';
+import { formatLocator, idFromLocator } from './locator.js';
 
 const { quote: q } = assert;
 
@@ -95,6 +95,12 @@ export const makeDirectoryMaker = ({
 
       const formulaType = await getTypeForId(id);
       return formatLocator(id, formulaType);
+    };
+
+    /** @type {import('./types.js').EndoDirectory['reverseLocate']} */
+    const reverseLocate = async locator => {
+      const id = idFromLocator(locator);
+      return petStore.reverseIdentify(id);
     };
 
     /** @type {import('./types.js').EndoDirectory['list']} */
@@ -206,6 +212,7 @@ export const makeDirectoryMaker = ({
       has,
       identify,
       locate,
+      reverseLocate,
       list,
       listIdentifiers,
       followChanges,

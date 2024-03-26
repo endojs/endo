@@ -3,6 +3,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import {
   assertValidLocator,
   formatLocator,
+  idFromLocator,
   parseLocator,
 } from '../src/locator.js';
 import { formatId } from '../src/formula-identifier.js';
@@ -58,7 +59,7 @@ test('assertValidLocator - invalid', t => {
 
 test('parseLocator', t => {
   t.deepEqual(parseLocator(makeLocator()), {
-    id: validId,
+    number: validId,
     node: validNode,
     formulaType: validType,
   });
@@ -68,5 +69,12 @@ test('formatLocator', t => {
   t.is(
     formatLocator(formatId({ number: validId, node: validNode }), validType),
     makeLocator(),
+  );
+});
+
+test('idFromLocator', t => {
+  t.is(
+    idFromLocator(makeLocator()),
+    formatId({ number: validId, node: validNode }),
   );
 });

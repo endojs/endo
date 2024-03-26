@@ -1256,3 +1256,56 @@ test('locate remote value', async t => {
   const parsedGreetingsLocator = parseLocator(greetingsLocator);
   t.is(parsedGreetingsLocator.formulaType, 'remote');
 });
+
+test('reverse locate local value', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  t.is(ten, 10);
+
+  const tenLocator = await E(host).locate('ten');
+  const [reverseLocatedName] = await E(host).reverseLocate(tenLocator);
+  t.is(reverseLocatedName, 'ten');
+});
+
+test('reverse locate local persisted value', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+
+  {
+    const { host } = await makeHost(locator, cancelled);
+    const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
+    t.is(ten, 10);
+  }
+
+  await restart(locator);
+
+  {
+    const { host } = await makeHost(locator, cancelled);
+    const tenLocator = await E(host).locate('ten');
+    const [reverseLocatedName] = await E(host).reverseLocate(tenLocator);
+    t.is(reverseLocatedName, 'ten');
+  }
+});
+
+test('reverse locate remote value', async t => {
+  const { locator: locatorA, cancelled: cancelledA } = await prepareLocator(t);
+  const { locator: locatorB, cancelled: cancelledB } = await prepareLocator(t);
+  const hostA = await makeHostWithTestNetwork(locatorA, cancelledA);
+  const hostB = await makeHostWithTestNetwork(locatorB, cancelledB);
+
+  // introduce nodes to each other
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+
+  // create value to share
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  const hostBValueIdentifier = await E(hostB).identify('salutations');
+
+  // insert in hostA out of band
+  await E(hostA).write(['greetings'], hostBValueIdentifier);
+
+  const greetingsLocator = await E(hostA).locate('greetings');
+  const [reverseLocatedName] = await E(hostA).reverseLocate(greetingsLocator);
+  t.is(reverseLocatedName, 'greetings');
+});
