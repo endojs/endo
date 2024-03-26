@@ -12,9 +12,11 @@
     "build": "exit 0",
     "build:types": "tsc --build tsconfig.build.json",
     "clean:types": "git clean -f '*.d.ts*'",
-    "test": "ava test/**/test-*.js",
-    "lint-fix": "eslint --fix",
-    "lint": "tsc"
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "eslint --fix .",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "test": "ava"
   },
   "repository": {
     "type": "git",
