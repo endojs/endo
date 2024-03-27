@@ -8,16 +8,10 @@ import { makePetSitter } from './pet-sitter.js';
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideAgentControllerForHandleId']} args.provideAgentControllerForHandleId
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
-export const makeGuestMaker = ({
-  provide,
-  provideAgentControllerForHandleId,
-  makeMailbox,
-  makeDirectoryNode,
-}) => {
+export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
   /**
    * @param {string} guestId
    * @param {string} handleId
@@ -49,16 +43,6 @@ export const makeGuestMaker = ({
       SELF: handleId,
       HOST: hostHandleId,
     });
-    const hostController =
-      /** @type {import('./types.js').EndoHostController} */
-      (await provideAgentControllerForHandleId(hostHandleId));
-    const hostPrivateFacet = await hostController.internal;
-    const { respond: deliverToHost } = hostPrivateFacet;
-    if (deliverToHost === undefined) {
-      throw new Error(
-        `panic: a host request function must exist for every host`,
-      );
-    }
 
     const mailbox = makeMailbox({
       petStore: specialStore,

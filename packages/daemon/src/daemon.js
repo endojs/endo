@@ -1585,7 +1585,6 @@ const makeDaemonCore = async (
 
   const makeIdentifiedGuestController = makeGuestMaker({
     provide,
-    provideAgentControllerForHandleId,
     makeMailbox,
     makeDirectoryNode,
   });
