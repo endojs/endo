@@ -523,6 +523,11 @@ export interface EndoAgent extends EndoDirectory {
   dismiss: Mail['dismiss'];
   request: Mail['request'];
   send: Mail['send'];
+  /**
+   * @param id The formula identifier to look up.
+   * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
+   */
+  reverseIdentify(id: string): Array<string>;
 }
 
 export interface EndoGuest extends EndoAgent {}
@@ -530,11 +535,6 @@ export interface EndoGuest extends EndoAgent {}
 export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoAgent {
-  /**
-   * @param id The formula identifier to look up.
-   * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
-   */
-  reverseIdentify(id: string): Array<string>;
   store(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,

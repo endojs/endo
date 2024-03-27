@@ -68,6 +68,7 @@ export const makeGuestMaker = ({
     const { petStore } = mailbox;
     const directory = makeDirectoryNode(petStore);
 
+    const { reverseIdentify } = specialStore;
     const {
       has,
       identify,
@@ -109,6 +110,7 @@ export const makeGuestMaker = ({
       // Directory
       has,
       identify,
+      reverseIdentify,
       locate,
       list,
       listIdentifiers,
