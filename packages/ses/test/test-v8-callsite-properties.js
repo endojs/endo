@@ -8,10 +8,14 @@ test('callSite properties', t => {
     let sst;
     const orig = Error.prepareStackTrace;
     try {
-      const pst = (_err, sst0) => sst0;
+      const pst = (_err, sst0) => {
+        sst = sst0;
+        return '';
+      };
       Error.prepareStackTrace = pst;
       const e = Error();
-      sst = e.stack;
+      // eslint-disable-next-line no-void
+      void e.stack;
     } finally {
       Error.prepareStackTrace = orig;
     }

@@ -94,7 +94,7 @@ test('SES compartment error compatibility - endow w Error power', t => {
   const c1 = new Compartment({ t, Error });
   const result = c1.evaluate(`
     const obj = {
-      toString: () => 'Pseudo Error',
+      name: 'Pseudo Error',
     };
     const limit = Error.stackTraceLimit;
     const newSTL = Math.max(10, limit);
