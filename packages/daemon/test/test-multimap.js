@@ -104,7 +104,7 @@ test('bimap: add and getValue', t => {
   t.is(bimap.getValue(key), value);
 });
 
-test('bimap: getAllValues', t => {
+test('bimap: getAllValuesFor', t => {
   const bimap = makeBidirectionalMultimap();
   const key = 'foo';
   const value1 = {};
@@ -112,12 +112,31 @@ test('bimap: getAllValues', t => {
 
   bimap.add(key, value1);
   bimap.add(key, value2);
-  t.deepEqual(bimap.getAllValues(key), [value1, value2]);
+  t.deepEqual(bimap.getAllValuesFor(key), [value1, value2]);
 
   // Adding a value for the same key should be idempotent.
   bimap.add(key, value1);
   bimap.add(key, value2);
-  t.deepEqual(bimap.getAllValues(key), [value1, value2]);
+  t.deepEqual(bimap.getAllValuesFor(key), [value1, value2]);
+});
+
+test('bimap: hasValue', t => {
+  const bimap = makeBidirectionalMultimap();
+  const key1 = 'foo';
+  const key2 = 'bar';
+  const value1 = {};
+  const value2 = {};
+  const value3 = {};
+  const value4 = {};
+
+  bimap.add(key1, value1);
+  bimap.add(key1, value2);
+  bimap.add(key2, value3);
+
+  t.is(bimap.hasValue(value1), true);
+  t.is(bimap.hasValue(value2), true);
+  t.is(bimap.hasValue(value3), true);
+  t.is(bimap.hasValue(value4), false);
 });
 
 test('bimap: add and get', t => {
@@ -194,7 +213,7 @@ test('bimap: deleteAll', t => {
   bimap.add(key, value1);
   bimap.add(key, value2);
 
-  t.deepEqual(bimap.getAllValues(key), [value1, value2]);
+  t.deepEqual(bimap.getAllValuesFor(key), [value1, value2]);
   t.is(bimap.deleteAll(key), true);
   t.is(bimap.getValue(key), undefined);
 

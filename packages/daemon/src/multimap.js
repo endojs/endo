@@ -95,10 +95,18 @@ export const makeBidirectionalMultimap = () => {
       return keyForValues.deleteAll(key);
     },
 
+    hasValue: value => {
+      return valueForKey.has(value);
+    },
+
     get: value => valueForKey.get(value),
 
     getValue: key => keyForValues.get(key),
 
-    getAllValues: key => keyForValues.getAll(key),
+    getAllValues: () => {
+      return [...valueForKey.keys()];
+    },
+
+    getAllValuesFor: key => keyForValues.getAll(key),
   };
 };

@@ -644,27 +644,24 @@ test('name changes subscription publishes renamed names', async t => {
   t.is(value.remove, 'ten');
 });
 
-test.failing(
-  'name changes subscription does not notify of redundant pet store writes',
-  async t => {
-    const { cancelled, locator } = await prepareLocator(t);
-    const { host } = await makeHost(locator, cancelled);
+test('name changes subscription does not notify of redundant pet store writes', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
 
-    const changesIterator = await prepareFollowChangesIterator(host);
+  const changesIterator = await prepareFollowChangesIterator(host);
 
-    await E(host).evaluate('MAIN', '10', [], [], 'ten');
-    await changesIterator.next();
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await changesIterator.next();
 
-    const tenId = await E(host).identify('ten');
-    await E(host).write(['ten'], tenId);
+  const tenId = await E(host).identify('ten');
+  await E(host).write(['ten'], tenId);
 
-    // Create a new value and observe its publication, proving that nothing was
-    // published as as result of the redundant write.
-    await E(host).evaluate('MAIN', '11', [], [], 'eleven');
-    const { value } = await changesIterator.next();
-    t.is(value.add, 'eleven');
-  },
-);
+  // Create a new value and observe its publication, proving that nothing was
+  // published as as result of the redundant write.
+  await E(host).evaluate('MAIN', '11', [], [], 'eleven');
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'eleven');
+});
 
 test('direct cancellation', async t => {
   const { cancelled, locator } = await prepareLocator(t);
