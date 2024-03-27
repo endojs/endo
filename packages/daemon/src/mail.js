@@ -26,8 +26,6 @@ export const makeMailboxMaker = ({
     const responses = new Map();
     /** @type {Map<number, import('./types.js').StampedMessage>} */
     const messages = new Map();
-    /** @type {WeakMap<object, () => void>} */
-    const dismissers = new WeakMap();
     /** @type {import('./types.js').Topic<import('./types.js').StampedMessage>} */
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
@@ -51,16 +49,29 @@ export const makeMailboxMaker = ({
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1;
 
+      const dismisser = makeExo(
+        'Dismisser',
+        M.interface(
+          'Dismisser',
+          {},
+          {
+            defaultGuards: 'passable',
+          },
+        ),
+        {
+          dismiss() {
+            messages.delete(messageNumber);
+            dismissal.resolve();
+          },
+        },
+      );
+
       const message = harden({
         ...envelope,
         number: messageNumber,
         date: new Date().toISOString(),
         dismissed: dismissal.promise,
-      });
-
-      dismissers.set(message, () => {
-        messages.delete(messageNumber);
-        dismissal.resolve();
+        dismisser,
       });
 
       messages.set(messageNumber, message);
@@ -152,8 +163,8 @@ export const makeMailboxMaker = ({
         );
       }
       // TODO validate shape of request
-      const request = /** @type {import('./types.js').Request} */ (message);
-      const { responder } = E.get(request);
+      const req = /** @type {import('./types.js').Request} */ (message);
+      const { responder } = E.get(req);
       E.sendOnly(responder).respondId(id);
     };
 
@@ -241,14 +252,14 @@ export const makeMailboxMaker = ({
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
       ) {
-        throw new Error(`Invalid request number ${q(messageNumber)}`);
+        throw new Error(`Invalid request number ${messageNumber}`);
       }
       const message = messages.get(messageNumber);
-      const dismissMessage = dismissers.get(message);
-      if (dismissMessage === undefined) {
-        throw new Error(`No dismissable message for number ${messageNumber}`);
+      if (message === undefined) {
+        throw new Error(`Invalid request number ${messageNumber}`);
       }
-      dismissMessage();
+      const { dismisser } = E.get(message);
+      return E(dismisser).dismiss();
     };
 
     /** @type {import('./types.js').Mail['adopt']} */
