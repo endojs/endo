@@ -257,11 +257,16 @@ export type EnvelopedMessage = Message & {
   from: string;
 };
 
+export interface Dismisser {
+  dismiss(): void;
+}
+
 export type StampedMessage = EnvelopedMessage & {
   number: number;
   date: string;
   dismissed: Promise<void>;
-}
+  dismisser: ERef<Dismisser>;
+};
 
 export type Invitation = {
   powers: string;
