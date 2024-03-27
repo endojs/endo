@@ -930,6 +930,12 @@ export type BidirectionalMultimap<K, V> = {
   deleteAll(key: K): boolean;
 
   /**
+   * @param value - The value whose existence to check for.
+   * @returns `true` if the value was found and `false` otherwise.
+   */
+  hasValue(value: V): boolean;
+
+  /**
    * @param value - The value whose key to retrieve
    * @returns The key associated with the value.
    */
@@ -942,8 +948,13 @@ export type BidirectionalMultimap<K, V> = {
   getValue(key: K): V | undefined;
 
   /**
+   * @returns An array of all values, for all keys.
+   */
+  getAllValues(): V[];
+
+  /**
    * @param key - The key whose values to retrieve.
    * @returns An array of all values associated with the key.
    */
-  getAllValues(key: K): V[];
+  getAllValuesFor(key: K): V[];
 };
