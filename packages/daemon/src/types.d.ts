@@ -907,3 +907,43 @@ export type Multimap<K, V> = {
  * A multimap backed by a WeakMap.
  */
 export type WeakMultimap<K extends WeakKey, V> = Multimap<K, V>;
+
+export type BidirectionalMultimap<K, V> = {
+  /**
+   * @param key - The key to add a value for.
+   * @param value - The value to add.
+   * @throws If the value has already been added for a different key.
+   */
+  add(key: K, value: V): void;
+
+  /**
+   * @param key - The key whose value to delete.
+   * @param value - The value to delete.
+   * @returns `true` if the key was found and the value was deleted, `false` otherwise.
+   */
+  delete(key: K, value: V): boolean;
+
+  /**
+   * @param key - The key whose values to delete
+   * @returns `true` if the key was found and its values were deleted, `false` otherwise.
+   */
+  deleteAll(key: K): boolean;
+
+  /**
+   * @param value - The value whose key to retrieve
+   * @returns The key associated with the value.
+   */
+  get(value: V): K | undefined;
+
+  /**
+   * @param key - The key whose first value to retrieve
+   * @returns The first value associated with the key.
+   */
+  getValue(key: K): V | undefined;
+
+  /**
+   * @param key - The key whose values to retrieve.
+   * @returns An array of all values associated with the key.
+   */
+  getAllValues(key: K): V[];
+};

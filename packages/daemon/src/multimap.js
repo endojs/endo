@@ -1,11 +1,14 @@
 // @ts-check
 
+const { quote: q } = assert;
+
 /**
- * @param {Map | WeakMap} internalMap
+ * @param {new () => (Map | WeakMap)} mapConstructor
  * @returns {import('./types.js').Multimap<any, any>}
  */
-const internalMakeMultimap = internalMap => {
-  const map = internalMap;
+const internalMakeMultimap = mapConstructor => {
+  // eslint-disable-next-line new-cap
+  const map = new mapConstructor();
   return {
     add: (key, value) => {
       let set = map.get(key);
@@ -40,12 +43,62 @@ const internalMakeMultimap = internalMap => {
  * @returns {import('./types.js').Multimap<any, any>}
  */
 export const makeMultimap = () => {
-  return internalMakeMultimap(new Map());
+  return internalMakeMultimap(Map);
 };
 
 /**
  * @returns {import('./types.js').WeakMultimap<WeakKey, any>}
  */
 export const makeWeakMultimap = () => {
-  return internalMakeMultimap(new WeakMap());
+  return internalMakeMultimap(WeakMap);
+};
+
+/**
+ * @returns {import('./types.js').BidirectionalMultimap<any, any>}
+ */
+export const makeBidirectionalMultimap = () => {
+  /**
+   * @type {import('./types.js').Multimap<any, any>}
+   */
+  const keyForValues = internalMakeMultimap(Map);
+  /**
+   * @type {Map<any, any>}
+   */
+  const valueForKey = new Map();
+
+  return {
+    add: (key, value) => {
+      const hasExistingMapping = valueForKey.has(value);
+      const existingKey = valueForKey.get(value);
+
+      if (hasExistingMapping && existingKey !== key) {
+        throw new Error(
+          `May not remap key ${q(existingKey)} of existing value to new key ${q(
+            key,
+          )}. Delete the original mapping first.`,
+        );
+      }
+
+      valueForKey.set(value, key);
+      keyForValues.add(key, value);
+    },
+
+    delete: (key, value) => {
+      valueForKey.delete(value);
+      return keyForValues.delete(key, value);
+    },
+
+    deleteAll: key => {
+      for (const value of keyForValues.getAll(key)) {
+        valueForKey.delete(value);
+      }
+      return keyForValues.deleteAll(key);
+    },
+
+    get: value => valueForKey.get(value),
+
+    getValue: key => keyForValues.get(key),
+
+    getAllValues: key => keyForValues.getAll(key),
+  };
 };
