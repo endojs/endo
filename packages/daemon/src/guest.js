@@ -77,8 +77,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       dismiss,
       request,
       send,
-      receive,
-      respond,
+      deliver,
     } = mailbox;
 
     const handle = makeExo(
@@ -115,6 +114,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       dismiss,
       request,
       send,
+      deliver,
     };
 
     const external = makeExo(
@@ -127,8 +127,6 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       },
     );
     const internal = harden({
-      receive,
-      respond,
       petStore,
     });
 

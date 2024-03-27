@@ -444,20 +444,7 @@ export interface Mail {
     edgeNames: Array<string>,
     petNames: Array<string>,
   ): Promise<void>;
-  respond(
-    what: string,
-    responseName: string,
-    senderId: string,
-    senderPetStore: PetStore,
-    recipientId?: string,
-  ): Promise<unknown>;
-  receive(
-    senderId: string,
-    strings: Array<string>,
-    edgeNames: Array<string>,
-    ids: Array<string>,
-    receiverId: string,
-  ): void;
+  deliver(message: EnvelopedMessage): void;
 }
 
 export type MakeMailbox = (args: {
@@ -472,13 +459,6 @@ export type RequestFn = (
   guestId: string,
   guestPetStore: PetStore,
 ) => Promise<unknown>;
-
-export type ReceiveFn = (
-  senderId: string,
-  strings: Array<string>,
-  edgeNames: Array<string>,
-  ids: Array<string>,
-) => void;
 
 export interface EndoReadable {
   sha512(): string;
@@ -529,6 +509,7 @@ export interface EndoAgent extends EndoDirectory {
   dismiss: Mail['dismiss'];
   request: Mail['request'];
   send: Mail['send'];
+  deliver: Mail['deliver'];
   /**
    * @param id The formula identifier to look up.
    * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
@@ -581,8 +562,6 @@ export interface EndoHost extends EndoAgent {
 }
 
 export interface InternalEndoAgent {
-  receive: Mail['receive'];
-  respond: Mail['respond'];
   petStore: PetStore;
 }
 
@@ -878,7 +857,7 @@ export interface DaemonCore {
 
   provideController: (id: string) => Controller;
 
-  provideAgentControllerForHandleId: (id: string) => Promise<Controller>;
+  provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
 }
 
 export interface DaemonCoreExternal {

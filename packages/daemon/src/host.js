@@ -501,8 +501,7 @@ export const makeHostMaker = ({
       dismiss,
       request,
       send,
-      receive,
-      respond,
+      deliver,
     } = mailbox;
 
     const handle = makeExo(
@@ -551,6 +550,7 @@ export const makeHostMaker = ({
       gateway,
       getPeerInfo,
       addPeerInfo,
+      deliver,
     };
 
     const external = makeExo(
@@ -562,7 +562,7 @@ export const makeHostMaker = ({
         followMessages: () => makeIteratorRef(host.followMessages()),
       },
     );
-    const internal = harden({ receive, respond, petStore });
+    const internal = harden({ petStore });
 
     await provide(mainWorkerId);
 

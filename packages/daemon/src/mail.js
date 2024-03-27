@@ -10,20 +10,51 @@ import { assertPetName } from './pet-name.js';
 const { quote: q } = assert;
 
 /**
+ * @param {string} description
+ * @param {string} fromId
+ * @param {string} toId
+ */
+const makeRequest = (description, fromId, toId) => {
+  /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
+  const { promise, resolve } = makePromiseKit();
+  const settled = promise.then(
+    () => /** @type {const} */ ('fulfilled'),
+    () => /** @type {const} */ ('rejected'),
+  );
+  const responder = makeExo(
+    'Responder',
+    M.interface(
+      'Responder',
+      {},
+      {
+        defaultGuards: 'passable',
+      },
+    ),
+    {
+      respondId: resolve,
+    },
+  );
+  const request = harden({
+    type: /** @type {const} */ ('request'),
+    from: fromId,
+    to: toId,
+    description,
+    settled,
+    responder,
+  });
+  return harden({ request, response: promise });
+};
+
+/**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideAgentControllerForHandleId']} args.provideAgentControllerForHandleId
+ * @param {import('./types.js').DaemonCore['provideAgentForHandle']} args.provideAgentForHandle
  * @returns {import('./types.js').MakeMailbox}
  */
-export const makeMailboxMaker = ({
-  provide,
-  provideAgentControllerForHandleId,
-}) => {
+export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
   /**
     @type {import('./types.js').MakeMailbox} */
   const makeMailbox = ({ selfId, petStore, context }) => {
-    /** @type {Map<string, Promise<unknown>>} */
-    const responses = new Map();
     /** @type {Map<number, import('./types.js').StampedMessage>} */
     const messages = new Map();
     /** @type {import('./types.js').Topic<import('./types.js').StampedMessage>} */
@@ -78,71 +109,6 @@ export const makeMailboxMaker = ({
       messagesTopic.publisher.next(message);
     };
 
-    /**
-     * @param {string} description
-     * @param {string} fromId
-     * @param {string} toId
-     * @returns {Promise<string>}
-     */
-    const requestId = async (description, fromId, toId) => {
-      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
-      const { promise, resolve } = makePromiseKit();
-      const settled = promise.then(
-        () => /** @type {const} */ ('fulfilled'),
-        () => /** @type {const} */ ('rejected'),
-      );
-      const responder = makeExo(
-        'Responder',
-        M.interface(
-          'Responder',
-          {},
-          {
-            defaultGuards: 'passable',
-          },
-        ),
-        {
-          respondId: resolve,
-        },
-      );
-      deliver({
-        type: /** @type {const} */ ('request'),
-        from: fromId,
-        to: toId,
-        description,
-        settled,
-        responder,
-      });
-      return promise;
-    };
-
-    /** @type {import('./types.js').Mail['respond']} */
-    const respond = async (
-      description,
-      responseName,
-      fromId,
-      senderPetStore,
-      toId = selfId,
-    ) => {
-      if (responseName !== undefined) {
-        /** @type {string | undefined} */
-        let id = senderPetStore.identifyLocal(responseName);
-        if (id === undefined) {
-          id = await requestId(description, fromId, toId);
-          await senderPetStore.write(responseName, id);
-        }
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return provide(id);
-      }
-      // The reference is not named nor to be named.
-      const id = await requestId(description, fromId, toId);
-      // TODO:
-      // context.thisDiesIfThatDies(id);
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return provide(id);
-    };
-
     /** @type {import('./types.js').Mail['resolve']} */
     const resolve = async (messageNumber, resolutionName) => {
       assertPetName(resolutionName);
@@ -182,34 +148,13 @@ export const makeMailboxMaker = ({
       }
     };
 
-    /** @type {import('./types.js').Mail['receive']} */
-    const receive = (fromId, strings, names, ids, toId = selfId) => {
-      deliver({
-        type: /** @type {const} */ ('package'),
-        strings,
-        names,
-        ids,
-        from: fromId,
-        to: toId,
-      });
-    };
-
     /** @type {import('./types.js').Mail['send']} */
     const send = async (toName, strings, edgeNames, petNames) => {
       const toId = petStore.identifyLocal(toName);
       if (toId === undefined) {
-        throw new Error(`Unknown pet name for agent: ${toName}`);
+        throw new Error(`Unknown recipient ${toName}`);
       }
-      const recipientController = await provideAgentControllerForHandleId(toId);
-      const recipientInternal = await recipientController.internal;
-      if (recipientInternal === undefined || recipientInternal === null) {
-        throw new Error(`Recipient cannot receive messages: ${toName}`);
-      }
-      // @ts-expect-error We check if its undefined immediately after
-      const { receive: recipientReceive } = recipientInternal;
-      if (recipientReceive === undefined) {
-        throw new Error(`Recipient cannot receive messages: ${toName}`);
-      }
+      const to = await provideAgentForHandle(toId);
 
       petNames.forEach(assertPetName);
       edgeNames.forEach(assertPetName);
@@ -223,27 +168,30 @@ export const makeMailboxMaker = ({
       if (strings.length < petNames.length) {
         throw new Error(
           `Message must have one string before every value delivered`,
-        );
+      const message = harden({
       }
 
       const ids = petNames.map(petName => {
         const id = petStore.identifyLocal(petName);
         if (id === undefined) {
           throw new Error(`Unknown pet name ${q(petName)}`);
-        }
+      });
         return id;
       });
-      // add to recipient mailbox
-      recipientReceive(selfId, strings, edgeNames, ids);
-      // add to own mailbox
-      receive(
-        selfId,
+
+      const message = {
+        type: /** @type {const} */ ('package'),
         strings,
-        edgeNames,
+        names: edgeNames,
         ids,
-        // Sender expects the handle formula identifier.
-        toId,
-      );
+        from: selfId,
+        to: toId,
+      };
+
+      // add to recipient mailbox
+      E.sendOnly(to).deliver(message);
+      // add to own mailbox
+      deliver(message);
     };
 
     /** @type {import('./types.js').Mail['dismiss']} */
@@ -299,90 +247,46 @@ export const makeMailboxMaker = ({
 
     /** @type {import('./types.js').Mail['request']} */
     const request = async (toName, description, responseName) => {
-      const toId = petStore.identifyLocal(toName);
-      if (toId === undefined) {
-        throw new Error(`Unknown pet name for agent: ${toName}`);
-      }
-      const recipientController = await provideAgentControllerForHandleId(toId);
-      const recipientInternal = await recipientController.internal;
-      if (recipientInternal === undefined || recipientInternal === null) {
-        throw new Error(
-          `panic: a receive request function must exist for every agent`,
-        );
-      }
-
-      // @ts-expect-error We sufficiently check if recipientInternal or deliverToRecipient is undefined
-      const { respond: deliverToRecipient } = recipientInternal;
-      if (deliverToRecipient === undefined) {
-        throw new Error(
-          `panic: a receive request function must exist for every agent`,
-        );
-      }
-
       if (responseName !== undefined) {
-        const responseP = responses.get(responseName);
-        if (responseP !== undefined) {
-          return responseP;
+        const responseId = petStore.identifyLocal(responseName);
+        if (responseId !== undefined) {
+          return provide(responseId);
         }
       }
 
-      // Note: consider sending to each mailbox with different powers.
-      // Behold, recursion:
-      // eslint-disable-next-line
-      const recipientResponseP = deliverToRecipient(
+      const toId = petStore.identifyLocal(toName);
+      if (toId === undefined) {
+        throw new Error(`Unknown recipient ${toName}`);
+      }
+      const to = await provideAgentForHandle(toId);
+
+      const { request: req, response: responseIdP } = makeRequest(
         description,
-        responseName,
         selfId,
-        petStore,
-      );
-      // Send to own inbox.
-      const selfResponseP = respond(
-        description,
-        responseName,
-        selfId,
-        petStore,
-        // Sender expects the handle formula identifier.
         toId,
       );
-      const newResponseP = Promise.race([recipientResponseP, selfResponseP]);
+
+      // Note: consider sending to each mailbox with different powers.
+      E(to).deliver(req);
+      // Send to own inbox.
+      deliver(req);
+
+      const responseId = await responseIdP;
+      const responseP = provide(responseId);
 
       if (responseName !== undefined) {
-        responses.set(responseName, newResponseP);
+        await petStore.write(responseName, responseId);
       }
 
-      return newResponseP;
-    };
-
-    /** @type {import('./types.js').PetStore['rename']} */
-    const rename = async (fromName, toName) => {
-      await petStore.rename(fromName, toName);
-      const id = responses.get(fromName);
-      if (id !== undefined) {
-        responses.set(toName, id);
-        responses.delete(fromName);
-      }
-    };
-
-    /** @type {import('./types.js').PetStore['remove']} */
-    const remove = async petName => {
-      await petStore.remove(petName);
-      responses.delete(petName);
-    };
-
-    /** @type {import('./types.js').PetStore} */
-    const mailStore = {
-      ...petStore,
-      rename,
-      remove,
+      return responseP;
     };
 
     return harden({
-      petStore: mailStore,
+      deliver,
+      petStore,
       listMessages,
       followMessages,
       request,
-      respond,
-      receive,
       send,
       resolve,
       reject,
