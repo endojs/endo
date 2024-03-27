@@ -872,7 +872,7 @@ export interface DaemonCore {
 
   provideController: (id: string) => Controller;
 
-  provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
+  provideAgentControllerForHandleId: (id: string) => Promise<Controller>;
 }
 
 export interface DaemonCoreExternal {
