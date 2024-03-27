@@ -20,6 +20,7 @@ import {
   purge,
   makeEndoClient,
   makeReaderRef,
+  makeRefIterator,
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
@@ -30,6 +31,35 @@ const cryptoPowers = makeCryptoPowers(crypto);
 const { raw } = String;
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
+
+/**
+ * @param {ReturnType<makeRefIterator>} refIterator - The iterator to drain.
+ * @param {number} iterations - The number of values to retrieve.
+ */
+const drainAsyncIterator = async (refIterator, iterations) => {
+  const values = [];
+
+  // eslint-disable-next-line no-plusplus
+  for (let i = 0; i < iterations; i++) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await refIterator.next();
+    values.push(result.value);
+  }
+  return values;
+};
+
+/**
+ * Calls `followChanges()` and drains the resulting iterator of all already-existing
+ * names.
+ *
+ * @param {any} host - A Far endo host.
+ */
+const prepareChangesIterator = async host => {
+  const existingNames = await E(host).list();
+  const changesIterator = makeRefIterator(await E(host).followChanges());
+  await drainAsyncIterator(changesIterator, existingNames.length);
+  return changesIterator;
+};
 
 /** @param {Array<string>} root */
 const makeLocator = (...root) => {
@@ -559,6 +589,42 @@ test('guest facet receives a message for host', async t => {
     ],
   );
 });
+
+test('following name changes first returns existing names', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const existingNames = await E(host).list();
+  const changesIterator = makeRefIterator(await E(host).followChanges());
+  const values = await drainAsyncIterator(changesIterator, existingNames.length);
+
+  t.deepEqual(values.map(value => value.add).sort(), existingNames.sort());
+})
+
+test('follow new name changes', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const changesIterator = await prepareChangesIterator(host);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'ten');
+});
+
+// test('follow name changes', async t => {
+//   const { cancelled, locator } = await prepareLocator(t);
+//   const { host } = await makeHost(locator, cancelled);
+
+//   const existingNames = await E(host).list();
+//   const changes = makeRefIterator(await E(host).followChanges());
+
+//   await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+//   const values = await drainAsyncIterator(changes, existingNames.length + 1);
+//   t.is(values[values.length - 1].add, 'ten');
+// });
 
 test('direct cancellation', async t => {
   const { cancelled, locator } = await prepareLocator(t);
