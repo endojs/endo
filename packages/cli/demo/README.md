@@ -136,11 +136,15 @@ through which it obtains all of its authority.
 In this example, the doubler requests another counter from the user.
 
 We make a doubler mostly the same way we made the counter.
-However, we must give a name to the agent running the doubler, which we will
-later use to recognize requests coming from the doubler.
+However, we must create a guest profile for the doubler.
+The guest has two facets: its handle and its agent powers.
+The handle appears in the "to" and "from" fields of messages exchanged with the
+guest and provides no other capabilities.
+The agent is a permission management broker that the doubler
+can use to request other capabilities, like the counter.
 
 ```
-> endo mkguest doubler-agent
+> endo mkguest doubler-handle doubler-agent
 > endo make doubler.js --name doubler --powers doubler-agent
 ```
 
@@ -149,7 +153,7 @@ resolve its request for a counter.
 
 ```
 > endo inbox
-0. "doubler-agent" requested "please give me a counter"
+0. "doubler-handle" requested "please give me a counter"
 > endo resolve 0 counter
 ```
 
