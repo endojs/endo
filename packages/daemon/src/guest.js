@@ -8,16 +8,10 @@ import { makePetSitter } from './pet-sitter.js';
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} args.provideControllerAndResolveHandle
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
  */
-export const makeGuestMaker = ({
-  provide,
-  provideControllerAndResolveHandle,
-  makeMailbox,
-  makeDirectoryNode,
-}) => {
+export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
   /**
    * @param {string} guestId
    * @param {string} handleId
@@ -49,16 +43,6 @@ export const makeGuestMaker = ({
       SELF: handleId,
       HOST: hostHandleId,
     });
-    const hostController =
-      /** @type {import('./types.js').EndoHostController} */
-      (await provideControllerAndResolveHandle(hostHandleId));
-    const hostPrivateFacet = await hostController.internal;
-    const { respond: deliverToHost } = hostPrivateFacet;
-    if (deliverToHost === undefined) {
-      throw new Error(
-        `panic: a host request function must exist for every host`,
-      );
-    }
 
     const mailbox = makeMailbox({
       petStore: specialStore,
@@ -68,6 +52,7 @@ export const makeGuestMaker = ({
     const { petStore } = mailbox;
     const directory = makeDirectoryNode(petStore);
 
+    const { reverseIdentify } = specialStore;
     const {
       has,
       identify,
@@ -92,8 +77,7 @@ export const makeGuestMaker = ({
       dismiss,
       request,
       send,
-      receive,
-      respond,
+      deliver,
     } = mailbox;
 
     const handle = makeExo(
@@ -109,6 +93,7 @@ export const makeGuestMaker = ({
       // Directory
       has,
       identify,
+      reverseIdentify,
       locate,
       list,
       listIdentifiers,
@@ -129,6 +114,7 @@ export const makeGuestMaker = ({
       dismiss,
       request,
       send,
+      deliver,
     };
 
     const external = makeExo(
@@ -141,8 +127,6 @@ export const makeGuestMaker = ({
       },
     );
     const internal = harden({
-      receive,
-      respond,
       petStore,
     });
 
