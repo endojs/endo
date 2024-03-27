@@ -647,7 +647,7 @@ test('name changes subscription publishes renamed names', async t => {
   t.is(value.remove, 'ten');
 });
 
-test.failing(
+test(
   'name changes subscription does not notify of redundant pet store writes',
   async t => {
     const { cancelled, locator } = await prepareLocator(t);
