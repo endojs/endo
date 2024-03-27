@@ -890,8 +890,8 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} */
-  const provideControllerAndResolveHandle = async id => {
+  /** @type {import('./types.js').DaemonCore['provideAgentControllerForHandleId']} */
+  const provideAgentControllerForHandleId = async id => {
     const handle = /** @type {{}} */ (await provide(id));
     const agentId = agentIdForHandle.get(handle);
     if (agentId === undefined) {
@@ -1580,12 +1580,12 @@ const makeDaemonCore = async (
 
   const makeMailbox = makeMailboxMaker({
     provide,
-    provideControllerAndResolveHandle,
+    provideAgentControllerForHandleId,
   });
 
   const makeIdentifiedGuestController = makeGuestMaker({
     provide,
-    provideControllerAndResolveHandle,
+    provideAgentControllerForHandleId,
     makeMailbox,
     makeDirectoryNode,
   });

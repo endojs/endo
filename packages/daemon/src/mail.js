@@ -9,12 +9,12 @@ const { quote: q } = assert;
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} args.provideControllerAndResolveHandle
+ * @param {import('./types.js').DaemonCore['provideAgentControllerForHandleId']} args.provideAgentControllerForHandleId
  * @returns {import('./types.js').MakeMailbox}
  */
 export const makeMailboxMaker = ({
   provide,
-  provideControllerAndResolveHandle,
+  provideAgentControllerForHandleId,
 }) => {
   /**
     @type {import('./types.js').MakeMailbox} */
@@ -175,7 +175,7 @@ export const makeMailboxMaker = ({
       if (toId === undefined) {
         throw new Error(`Unknown pet name for agent: ${toName}`);
       }
-      const recipientController = await provideControllerAndResolveHandle(toId);
+      const recipientController = await provideAgentControllerForHandleId(toId);
       const recipientInternal = await recipientController.internal;
       if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(`Recipient cannot receive messages: ${toName}`);
@@ -278,7 +278,7 @@ export const makeMailboxMaker = ({
       if (toId === undefined) {
         throw new Error(`Unknown pet name for agent: ${toName}`);
       }
-      const recipientController = await provideControllerAndResolveHandle(toId);
+      const recipientController = await provideAgentControllerForHandleId(toId);
       const recipientInternal = await recipientController.internal;
       if (recipientInternal === undefined || recipientInternal === null) {
         throw new Error(
