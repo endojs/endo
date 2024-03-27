@@ -232,16 +232,8 @@ export type Specials = {
   [specialName: string]: (builtins: Builtins) => Formula;
 };
 
-export type Label = {
-  number: number;
-  from: string;
-  to: string;
-  date: string;
-  dismissed: Promise<void>;
-};
-
 export interface Responder {
-  respondId(id: string): void;
+  respondId(id: string | Promise<string>): void;
 }
 
 export type Request = {
@@ -258,9 +250,18 @@ export type Package = {
   ids: Array<string>; // formula identifiers
 };
 
-export type Payload = Request | Package;
+export type Message = Request | Package;
 
-export type Message = Label & Payload;
+export type EnvelopedMessage = Message & {
+  to: string;
+  from: string;
+};
+
+export type StampedMessage = EnvelopedMessage & {
+  number: number;
+  date: string;
+  dismissed: Promise<void>;
+}
 
 export type Invitation = {
   powers: string;
@@ -417,8 +418,8 @@ export interface Mail {
   // Partial inheritance from PetStore:
   petStore: PetStore;
   // Mail operations:
-  listMessages(): Promise<Array<Message>>;
-  followMessages(): AsyncGenerator<Message, undefined, undefined>;
+  listMessages(): Promise<Array<StampedMessage>>;
+  followMessages(): AsyncGenerator<StampedMessage, undefined, undefined>;
   resolve(messageNumber: number, resolutionName: string): Promise<void>;
   reject(messageNumber: number, message?: string): Promise<void>;
   adopt(
