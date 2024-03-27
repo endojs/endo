@@ -449,7 +449,7 @@ export {};
  *
  * @property {(subPatt: Pattern) => Pattern} eref
  * Matches any Passable that is either matched by `subPatt` or is a promise object.
- * Note that validation is immediate, so (unlike the TypeScript ERef<T>
+ * Note that validation is immediate, so (unlike the TypeScript `ERef<T>`
  * type) `M.eref` matches a promise object whose fulfillment value is
  * _not_ matched by `subPatt`.
  * For describing a top-level parameter,

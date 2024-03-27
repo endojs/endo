@@ -64,6 +64,10 @@ jobs:
       - name: build API docs
         run: yarn docs
 
+      # build the API docs in markdown for agoric/documentation repo to verify it works
+      - name: build API docs in markdown
+        run: yarn docs:markdown-for-agoric-documentation-repo
+
   test:
     name: test
 
