@@ -38,6 +38,7 @@ export {};
  */
 /** @typedef {import('../types.js').MethodGuardMaker} MethodGuardMaker */
 
+/** @typedef {import('../types.js').Kind} Kind */
 /** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
 /** @typedef {import('../types').Key} Key */
 /** @typedef {import('../types').Pattern} Pattern */
@@ -46,23 +47,19 @@ export {};
 /** @typedef {import('../types').AllLimits} AllLimits */
 /** @typedef {import('../types').GetRankCover} GetRankCover */
 
-/**
- * @typedef {Exclude<PassStyle, 'tagged'> |
- *   'copySet' | 'copyBag' | 'copyMap' |
- *   `match:${any}` | `guard:${any}`
- * } Kind
- * It is either a PassStyle other than 'tagged', or, if the underlying
- * PassStyle is 'tagged', then the `getTag` value for tags that are
- * recognized at the @endo/patterns level of abstraction. For each of those
- * tags, a tagged record only has that kind if it satisfies the invariants
- * that the @endo/patterns level associates with that kind.
- */
+/** @typedef {import('../types.js').CompressedRecord} CompressedRecord */
+/** @typedef {import('../types.js').Compress} Compress */
+/** @typedef {import('../types.js').MustCompress} MustCompress */
+/** @typedef {import('../types.js').Decompress} Decompress */
+/** @typedef {import('../types.js').MustDecompress} MustDecompress */
 
 /**
  * @typedef {object} MatchHelper
  * This factors out only the parts specific to each kind of Matcher. It is
  * encapsulated, and its methods can make the stated unchecked assumptions
  * enforced by the common calling logic.
+ *
+ * @property {string} tag
  *
  * @property {(allegedPayload: Passable,
  *             check: Checker
@@ -76,6 +73,27 @@ export {};
  * ) => boolean} checkMatches
  * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
  * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
+ *
+ * @property {(specimen: Passable,
+ *             matcherPayload: Passable,
+ *             compress: Compress
+ * ) => (CompressedRecord | undefined)} [compress]
+ * Assuming a valid Matcher of this type with `matcherPayload` as its
+ * payload, if this specimen matches this matcher, then return a
+ * CompressedRecord that represents this specimen,
+ * perhaps more compactly, given the knowledge that it matches this matcher.
+ * If the specimen does not match the matcher, return undefined.
+ * If this matcher has a `compress` method, then it must have a matching
+ * `decompress` method.
+ *
+ * @property {(compressed: Passable,
+ *             matcherPayload: Passable,
+ *             decompress: Decompress
+ * ) => Passable} [decompress]
+ * If `compressed` is the result of a successful `compress` with this matcher,
+ * then `decompress` must return a Passable equivalent to the original specimen.
+ * If this matcher has an `decompress` method, then it must have a matching
+ * `compress` method.
  *
  * @property {import('../types').GetRankCover} getRankCover
  * Assumes this is the payload of a CopyTagged with the corresponding
@@ -98,6 +116,7 @@ export {};
  * @property {(patt: Pattern) => void} assertPattern
  * @property {(patt: Passable) => boolean} isPattern
  * @property {GetRankCover} getRankCover
+ * @property {(tag: string) => (MatchHelper | undefined)} maybeMatchHelper
  * @property {MatcherNamespace} M
  * @property {(specimen: Passable, check?: Checker) => Kind | undefined} kindOf
  */
