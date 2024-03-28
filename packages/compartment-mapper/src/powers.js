@@ -18,7 +18,8 @@ export const unpackReadPowers = powers => {
   if (typeof powers === 'function') {
     read = powers;
   } else {
-    ({ read, maybeRead, canonical } = powers);
+    ({ read, maybeRead, canonical } =
+      /** @type {import('./types.js').MaybeReadPowers} */ (powers));
   }
 
   if (canonical === undefined) {
