@@ -525,3 +525,29 @@ export {};
  * @typedef CryptoAPI
  * @property {typeof import('crypto').createHash} createHash
  */
+
+/**
+ * @typedef LoadCompartmentForArchiveOptions
+ * @property {ReadFn | ReadPowers} readPowers
+ * @property {string} moduleLocation
+ */
+
+/**
+ * Return value of `loadCompartmentForArchive`.
+ *
+ * @typedef LoadCompartmentForArchiveResult
+ * @property {CompartmentMapDescriptor} archiveCompartmentMap
+ * @property {Sources} archiveSources
+ * @property {Record<string, string>} compartmentRenames
+ * @property {string} [compartmentMapSha512]
+ * @property {HashFn} [computeSha512]
+ */
+
+/**
+ * Return value of `makeArchiveCompartmentMap`
+ *
+ * @typedef MakeArchiveCompartmentMapResult
+ * @property {CompartmentMapDescriptor} archiveCompartmentMap
+ * @property {Sources} archiveSources
+ * @property {Record<string, string>} compartmentRenames
+ */
