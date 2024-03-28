@@ -204,6 +204,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
           return '#-Infinity';
         }
         // Pass through everything else, replacing -0 with 0.
+        // TODO https://github.com/endojs/endo/issues/1602
         return is(passable, -0) ? 0 : passable;
       }
       case 'bigint': {
