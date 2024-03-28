@@ -4,11 +4,11 @@ import { throwsAndLogs } from './throws-and-logs.js';
 
 lockdown();
 
-test('aggregate error console', t => {
-  if (typeof AggregateError === 'undefined') {
-    t.pass('skip test on platforms prior to AggregateError');
-    return;
-  }
+// TODO: Remove after dropping support for pre-AggregateError implementations.
+const testIfAggregateError =
+  typeof AggregateError !== 'undefined' ? test : test.skip;
+
+testIfAggregateError('aggregate error console', t => {
   const e3 = Error('e3');
   const e2 = Error('e2', { cause: e3 });
   const u4 = URIError('u4', { cause: e2 });
