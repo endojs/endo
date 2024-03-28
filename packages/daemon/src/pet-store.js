@@ -99,8 +99,8 @@ export const makePetStoreMaker = (filePowers, config) => {
     /** @type {import('./types.js').PetStore['list']} */
     const list = () => harden(idsToPetNames.getAll().sort());
 
-    /** @type {import('./types.js').PetStore['follow']} */
-    const follow = async function* currentAndSubsequentNames() {
+    /** @type {import('./types.js').PetStore['followNameChanges']} */
+    const followNameChanges = async function* currentAndSubsequentNames() {
       const changes = nameChangesTopic.subscribe();
       for (const name of idsToPetNames.getAll().sort()) {
         const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
@@ -186,7 +186,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       identifyLocal,
       reverseIdentify,
       list,
-      follow,
+      followNameChanges,
       write,
       remove,
       rename,

@@ -233,7 +233,7 @@ const inventoryComponent = async ($parent, $end, powers) => {
   $parent.insertBefore($ul, $end);
 
   const $names = new Map();
-  for await (const change of makeRefIterator(E(powers).followChanges())) {
+  for await (const change of makeRefIterator(E(powers).followNameChanges())) {
     if ('add' in change) {
       const name = change.add;
 

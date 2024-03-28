@@ -581,7 +581,7 @@ const makeDaemonCore = async (
               has: disallowedFn,
               identify: disallowedFn,
               list: disallowedFn,
-              followChanges: disallowedFn,
+              followNameChanges: disallowedFn,
               lookup: disallowedFn,
               reverseLookup: disallowedFn,
               write: disallowedFn,

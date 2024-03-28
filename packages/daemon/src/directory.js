@@ -129,16 +129,18 @@ export const makeDirectoryMaker = ({
       return harden(Array.from(identities).sort());
     };
 
-    /** @type {import('./types.js').EndoDirectory['followChanges']} */
-    const followChanges = async function* followChanges(...petNamePath) {
+    /** @type {import('./types.js').EndoDirectory['followNameChanges']} */
+    const followNameChanges = async function* followNameChanges(
+      ...petNamePath
+    ) {
       if (petNamePath.length === 0) {
-        yield* petStore.follow();
+        yield* petStore.followNameChanges();
         return;
       }
       const hub = /** @type {import('./types.js').NameHub} */ (
         await lookup(...petNamePath)
       );
-      yield* hub.followChanges();
+      yield* hub.followNameChanges();
     };
 
     /** @type {import('./types.js').EndoDirectory['remove']} */
@@ -215,7 +217,7 @@ export const makeDirectoryMaker = ({
       reverseLocate,
       list,
       listIdentifiers,
-      followChanges,
+      followNameChanges,
       lookup,
       reverseLookup,
       write,
@@ -243,7 +245,7 @@ export const makeDirectoryMaker = ({
       M.interface('EndoDirectory', {}, { defaultGuards: 'passable' }),
       {
         ...directory,
-        followChanges: () => makeIteratorRef(directory.followChanges()),
+        followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
       },
     );
   };

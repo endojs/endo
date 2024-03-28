@@ -10,7 +10,7 @@ export const list = async ({ directoryPath, follow, json }) =>
       agent = E(agent).lookup(...directoryPath.split('.'));
     }
     if (follow) {
-      const topic = await E(agent).followNames();
+      const topic = await E(agent).followNameChanges();
       const iterator = makeRefIterator(topic);
       if (json) {
         for await (const change of iterator) {

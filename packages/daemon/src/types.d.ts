@@ -368,7 +368,7 @@ export interface PetStore {
   has(petName: string): boolean;
   identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
-  follow(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
+  followNameChanges(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   write(petName: string, id: string): Promise<void>;
   remove(petName: string): Promise<void>;
   rename(fromPetName: string, toPetName: string): Promise<void>;
@@ -386,7 +386,7 @@ export interface NameHub {
   reverseLocate(locator: string): Promise<string[]>;
   list(...petNamePath: string[]): Promise<Array<string>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
-  followChanges(
+  followNameChanges(
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;

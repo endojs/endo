@@ -49,14 +49,14 @@ const takeCount = async (asyncIterator, count) => {
 };
 
 /**
- * Calls `followChanges()`, takes all already-existing names from the iterator,
+ * Calls `followNameChanges()`, takes all already-existing names from the iterator,
  * and then returns the iterator in order to observe new changes.
  *
  * @param {any} host - A Far endo host.
  */
 const prepareFollowChangesIterator = async host => {
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followChanges());
+  const changesIterator = makeRefIterator(await E(host).followNameChanges());
   await takeCount(changesIterator, existingNames.length);
   return changesIterator;
 };
@@ -604,7 +604,7 @@ test('name changes subscription first publishes existing names', async t => {
   const { host } = await makeHost(config, cancelled);
 
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followChanges());
+  const changesIterator = makeRefIterator(await E(host).followNameChanges());
   const values = await takeCount(changesIterator, existingNames.length);
 
   t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());

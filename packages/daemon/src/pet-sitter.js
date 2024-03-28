@@ -47,8 +47,8 @@ export const makePetSitter = (petStore, specialNames) => {
   const list = () =>
     harden([...Object.keys(specialNames).sort(), ...petStore.list()]);
 
-  /** @type {import('./types.js').PetStore['follow']} */
-  const follow = async function* currentAndSubsequentNames() {
+  /** @type {import('./types.js').PetStore['followNameChanges']} */
+  const followNameChanges = async function* currentAndSubsequentNames() {
     for (const name of Object.keys(specialNames).sort()) {
       const idRecord = idRecordForName(name);
       yield /** @type {{ add: string, value: import('./types.js').IdRecord }} */ ({
@@ -56,7 +56,7 @@ export const makePetSitter = (petStore, specialNames) => {
         value: idRecord,
       });
     }
-    yield* petStore.follow();
+    yield* petStore.followNameChanges();
   };
 
   /** @type {import('./types.js').PetStore['reverseIdentify']} */
@@ -77,7 +77,7 @@ export const makePetSitter = (petStore, specialNames) => {
     identifyLocal,
     reverseIdentify,
     list,
-    follow,
+    followNameChanges,
     write,
     remove,
     rename,
