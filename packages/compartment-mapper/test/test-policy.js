@@ -20,6 +20,10 @@ const fixtureAttack = new URL(
   'fixtures-policy/node_modules/app/attack.js',
   import.meta.url,
 ).toString();
+const nameConfusionAttack = new URL(
+  'fixtures-policy/node_modules/app/attack-name.js',
+  import.meta.url,
+).toString();
 
 const globals = {
   redPill: 42,
@@ -84,6 +88,15 @@ const anyPolicy = {
     'alice>carol': ANY,
   },
 };
+const evePolicy = {
+  entry: { ...policy.entry, packages: 'any' },
+  resources: {
+    ...policy.resources,
+    eve: {
+      packages: 'any',
+    },
+  },
+};
 
 const defaultExpectations = {
   namespace: moduleify({
@@ -110,6 +123,34 @@ const anyExpectations = {
     carol: { bluePill: 'number', redPill: 'number', purplePill: 'number' },
   }),
 };
+const nameConfusionExpectations = {
+  namespace: {
+    alice: {
+      bluePill: 'undefined',
+      purplePill: 'undefined',
+      redPill: 'number',
+    },
+    bob: {
+      bluePill: 'number',
+      purplePill: 'undefined',
+      redPill: 'undefined',
+    },
+    carol: {
+      bluePill: 'undefined',
+      purplePill: 'number',
+      redPill: 'undefined',
+    },
+    evilAlice: {
+      bluePill: 'undefined',
+      purplePill: 'undefined',
+      redPill: 'undefined',
+    },
+    scopedBob: {
+      scoped: 1,
+    },
+  },
+};
+
 const powerlessCarolExpectations = {
   namespace: moduleify({
     ...defaultExpectations.namespace,
@@ -222,6 +263,18 @@ scaffold(
     policy,
     // This turns alice malicious - attempting to redirect alice.js to an outside module
     tags: new Set(['browser']),
+  },
+);
+
+scaffold(
+  'policy - attack - duplicated name via bundled dep',
+  test,
+  nameConfusionAttack,
+  makeResultAssertions(nameConfusionExpectations),
+  1, // expected number of assertions
+  {
+    addGlobals: globals,
+    policy: evePolicy,
   },
 );
 

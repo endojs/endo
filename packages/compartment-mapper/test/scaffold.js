@@ -291,13 +291,15 @@ export function scaffold(
       };
 
       const sourceMaps = new Set();
+      const sourceMapLog = [];
       const sourceMapHook = (sourceMap, { sha512 }) => {
         sourceMaps.add(sha512);
-        t.log(sha512, sourceMap);
+        sourceMapLog.push(['+', sha512, sourceMap]);
       };
 
       const computeSourceMapLocation = ({ sha512 }) => {
         sourceMaps.delete(sha512);
+        sourceMapLog.push(['-', sha512]);
         return `${sha512}.map.json`;
       };
 
@@ -324,8 +326,10 @@ export function scaffold(
       // in a way that is difficult to generalize since not all test paths
       // reach here.
       if (sourceMaps.size !== 0) {
+        sourceMapLog.forEach(l => t.log(...l));
+        t.log('left-over', sourceMaps);
         throw new Error(
-          'The bundler and importer should agree on source map count',
+          `The bundler and importer should agree on source map count but they differ by ${sourceMaps.size}`,
         );
       }
 
