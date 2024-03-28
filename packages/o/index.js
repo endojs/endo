@@ -41,8 +41,8 @@ const harden = globalThis.harden || (x => x);
 
 const sink = harden(() => {});
 
-const promiseMethods = ['then', 'catch', 'finally'];
-harden(promiseMethods);
+const DEFAULT_PROMISE_METHODS = ['then'];
+harden(DEFAULT_PROMISE_METHODS);
 
 /**
  * @typedef {(...args: any[]) => any} T
@@ -57,14 +57,13 @@ export const stripFunction = target => {
   return target;
 };
 
-const makeTarget = getThisArg => {
+const makeTarget = (getThisArg, shadowMethodEntries) => {
   const target = stripFunction(() => {});
-  const promiseMethodEntries = promiseMethods.map(key => [
-    key,
-    Promise.prototype[key],
-  ]);
-  for (const [key, fn] of promiseMethodEntries) {
-    target[key] = (...args) => Reflect.apply(fn, getThisArg(), args);
+  for (const [key, fn] of shadowMethodEntries) {
+    Object.defineProperty(target, key, {
+      enumerable: true,
+      value: (...args) => Reflect.apply(fn, getThisArg(), args),
+    });
   }
   harden(target);
   return target;
@@ -79,8 +78,14 @@ const makeTarget = getThisArg => {
  *   get: (x: unknown, prop: PropertyKey) => Promise<unknown>
  * }} [powers.HandledPromise]
  * @param {(specimen: unknown) => Promise<any>} [powers.when]
+ * @param {object} [opts]
+ * @param {string[]} [opts.promiseMethods]
  */
-export const prepareOTools = (_zone, powers) => {
+export const prepareOTools = (
+  _zone,
+  powers,
+  { promiseMethods = DEFAULT_PROMISE_METHODS } = {},
+) => {
   const {
     when = x => {
       const p = Promise.resolve(x);
@@ -89,6 +94,11 @@ export const prepareOTools = (_zone, powers) => {
     },
     HandledPromise = globalThis.HandledPromise,
   } = powers || {};
+
+  const promiseMethodEntries = promiseMethods.map(key => [
+    key,
+    Promise.prototype[key],
+  ]);
 
   const hpGet = HandledPromise
     ? HandledPromise.get
@@ -118,7 +128,7 @@ export const prepareOTools = (_zone, powers) => {
       return cachedThisArg;
     };
 
-    const target = makeTarget(getThisArg);
+    const target = makeTarget(getThisArg, promiseMethodEntries);
 
     const spaceName = boundName ? ` ${JSON.stringify(String(boundName))}` : '';
     const cell = new Proxy(target, {
