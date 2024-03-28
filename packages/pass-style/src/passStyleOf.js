@@ -4,12 +4,7 @@
 
 import { isPromise } from '@endo/promise-kit';
 import { X, Fail, q, annotateError, makeError } from '@endo/errors';
-import {
-  assertChecker,
-  isObject,
-  isTypedArray,
-  PASS_STYLE,
-} from './passStyle-helpers.js';
+import { isObject, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
 import { CopyRecordHelper } from './copyRecord.js';
@@ -270,46 +265,19 @@ harden(isPassable);
  */
 const isPassableErrorPropertyDesc = (name, desc) =>
   checkRecursivelyPassableErrorPropertyDesc(name, desc, passStyleOf);
-harden(isPassableErrorPropertyDesc);
 
 /**
- * @param {string} name
- * @param {PropertyDescriptor} desc
- */
-const assertPassableErrorPropertyDesc = (name, desc) => {
-  checkRecursivelyPassableErrorPropertyDesc(
-    name,
-    desc,
-    passStyleOf,
-    assertChecker,
-  );
-};
-harden(assertPassableErrorPropertyDesc);
-
-/**
- * @param {unknown} err
- * @returns {err is Error}
- */
-export const isPassableError = err =>
-  checkRecursivelyPassableError(err, passStyleOf);
-
-/**
- * @param {unknown} err
- * @returns {asserts err is Error}
- */
-export const assertPassableError = err => {
-  checkRecursivelyPassableError(err, passStyleOf, assertChecker);
-};
-
-/**
- * Return a new passable error that propagates the diagnostic info of the
+ * Return a passable error that propagates the diagnostic info of the
  * original, and is linked to the original as a note.
+ * `toPassableError` hardens the argument before checking if it is already
+ * a passable error. If it is, then `toPassableError` returns the argument.
  *
  * @param {Error} err
  * @returns {Error}
  */
 export const toPassableError = err => {
-  if (isPassableError(err)) {
+  harden(err);
+  if (checkRecursivelyPassableError(err, passStyleOf)) {
     return err;
   }
   const { name, message } = err;
@@ -318,11 +286,9 @@ export const toPassableError = err => {
   let cause;
   let errors;
   if (causeDesc && isPassableErrorPropertyDesc('cause', causeDesc)) {
-    // @ts-expect-error data descriptors have "value" property
     cause = causeDesc.value;
   }
   if (errorsDesc && isPassableErrorPropertyDesc('errors', errorsDesc)) {
-    // @ts-expect-error data descriptors have "value" property
     errors = errorsDesc.value;
   }
 
@@ -337,7 +303,8 @@ export const toPassableError = err => {
   // cause hidden diagnostic information of the original error
   // to be logged.
   annotateError(newError, X`copied from error ${err}`);
-  assertPassableError(newError);
+  passStyleOf(newError) === 'error' ||
+    Fail`Expected ${newError} to be a passable error`;
   return newError;
 };
 harden(toPassableError);

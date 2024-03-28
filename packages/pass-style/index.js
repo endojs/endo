@@ -28,8 +28,6 @@ export {
   passStyleOf,
   isPassable,
   assertPassable,
-  isPassableError,
-  assertPassableError,
   toPassableError,
 } from './src/passStyleOf.js';
 
