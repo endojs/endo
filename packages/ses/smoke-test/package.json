@@ -1,0 +1,11 @@
+{
+  "name": "ses-smoke-test",
+  "version": "1.0.1",
+  "description": "Browser smoke test for SES lockdown",
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "puppeteer-core": "^21.7.0"
+  },
+  "private": true
+}

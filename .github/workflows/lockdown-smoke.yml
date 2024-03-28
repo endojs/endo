@@ -1,0 +1,44 @@
+name: Lockdown Canary
+## detects lockdown issues on latest chrome
+
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight
+
+jobs:
+  chrome-dev:
+    runs-on: ubuntu-latest
+    # runs-on: macos-latest
+    ## chrome-canary is not supported on linux o_O
+    ## but canary on mac won't connect
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Use Node.js stable
+        uses: actions/setup-node@v3
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+        with:
+          chrome-version: 'dev'
+
+      - name: build ses
+        run: |
+          cd ./packages/ses/
+          yarn
+
+      - name: install dependencies
+        run: |
+          cd ./packages/ses/smoke-test/
+          yarn install
+
+      - name: Run tests
+        run: |
+          ${{ steps.setup-chrome.outputs.chrome-path }} --version
+          node ./packages/ses/smoke-test/index.js ${{ steps.setup-chrome.outputs.chrome-path }}
