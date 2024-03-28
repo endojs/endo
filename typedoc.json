@@ -3,6 +3,19 @@
         "packages/*"
     ],
     "exclude": [
+        "packages/cjs-module-analyzer",
+        "packages/compartment-mapper",
+        "packages/cli",
+        "packages/daemon",
+        "packages/evasive-transform",
+        "packages/lp32",
+        "packages/memoize",
+        "packages/netstring",
+        "packages/syrup",
+        "packages/skel",
+        "packages/static-module-record",
+        "packages/stream-types-test",
+        "packages/where",
         "packages/test262-runner/"
     ],
     "name": "Endo API documentation",
