@@ -4,10 +4,10 @@
 import { arrayPush } from './commons.js';
 
 /**
- * @file Exports {@code whitelist}, a recursively defined
- * JSON record enumerating all intrinsics and their properties
- * according to ECMA specs.
+ * Exports {@link permitted}, a recursively defined JSON record enumerating all
+ * intrinsics and their properties according to ECMA specs.
  *
+ * @module
  * @author JF Paradis
  * @author Mark S. Miller
  */
