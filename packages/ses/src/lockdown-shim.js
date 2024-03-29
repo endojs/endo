@@ -7,8 +7,10 @@ import './assert-sloppy-mode.js';
 import { globalThis } from './commons.js';
 import { repairIntrinsics } from './lockdown.js';
 
+/** @import {LockdownOptions} from '../types.js' */
+
 /**
- * @param {import('./lockdown.js').LockdownOptions} options
+ * @param {LockdownOptions} options
  */
 globalThis.lockdown = options => {
   const hardenIntrinsics = repairIntrinsics(options);
@@ -16,7 +18,7 @@ globalThis.lockdown = options => {
 };
 
 /**
- * @param {import('./lockdown.js').LockdownOptions} options
+ * @param {LockdownOptions} options
  */
 globalThis.repairIntrinsics = options => {
   const hardenIntrinsics = repairIntrinsics(options);

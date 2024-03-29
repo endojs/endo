@@ -12,11 +12,11 @@ import {
 
 import { X } from '@endo/errors';
 
-/** @template {Key} [K=Key] @typedef {import('../types').CopySet<K>} CopySet */
-/** @import {Key} from '../types' */
-/** @import {FullCompare} from '../types' */
-/** @import {Checker} from '@endo/marshal' */
-/** @import {Passable} from '@endo/pass-style' */
+/**
+ * @import {CopySet, FullCompare} from '../types'
+ * @import {Checker} from '@endo/marshal'
+ * @import {Passable} from '@endo/pass-style'
+ */
 
 /**
  * @template T

@@ -29,7 +29,7 @@ import {
 /** @import {Passable} from '@endo/pass-style' */
 /** @import {InterfaceSpec} from '@endo/pass-style' */
 /** @import {Encoding} from './types.js' */
-/** @import {RemotableObject} from '@endo/pass-style' */
+/** @import {RemotableObject as Remotable} from '@endo/pass-style' */
 
 const { defineProperties } = Object;
 const { isArray } = Array;
