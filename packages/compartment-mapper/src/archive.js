@@ -1,18 +1,18 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
-/** @typedef {import('./types.js').ArchiveWriter} ArchiveWriter */
-/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
-/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
-/** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
-/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
-/** @typedef {import('./types.js').ReadFn} ReadFn */
-/** @typedef {import('./types.js').CaptureSourceLocationHook} CaptureSourceLocationHook */
-/** @typedef {import('./types.js').ReadPowers} ReadPowers */
-/** @typedef {import('./types.js').HashPowers} HashPowers */
-/** @typedef {import('./types.js').Sources} Sources */
-/** @typedef {import('./types.js').WriteFn} WriteFn */
+/** @import {ArchiveOptions} from './types.js' */
+/** @import {ArchiveWriter} from './types.js' */
+/** @import {CompartmentDescriptor} from './types.js' */
+/** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {ModuleDescriptor} from './types.js' */
+/** @import {ParserImplementation} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {CaptureSourceLocationHook} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {HashPowers} from './types.js' */
+/** @import {Sources} from './types.js' */
+/** @import {WriteFn} from './types.js' */
 
 import { writeZip } from '@endo/zip';
 import { resolve } from './node-module-specifier.js';

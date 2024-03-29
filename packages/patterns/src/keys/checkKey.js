@@ -20,15 +20,15 @@ import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 
 const { ownKeys } = Reflect;
 
-/** @typedef {import('@endo/marshal').Checker} Checker */
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('../types').KeyComparison} KeyComparison */
-/** @typedef {import('../types').Key} Key */
+/** @import {Checker} from '@endo/marshal' */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {KeyComparison} from '../types' */
+/** @import {Key} from '../types' */
 /** @template {Key} [K=Key] @typedef {import('../types').CopyBag<K>} CopyBag */
 /** @template {Key} [K=Key] @typedef {import('../types').CopySet<K>} CopySet */
 /** @template {Key} [K=Key] @template {Passable} [V=Passable] @typedef {import('../types').CopyMap<K, V>} CopyMap */
-/** @typedef {import('../types').KeyCompare} KeyCompare */
-/** @typedef {import('../types').FullCompare} FullCompare */
+/** @import {KeyCompare} from '../types' */
+/** @import {FullCompare} from '../types' */
 
 // ////////////////// Primitive and Scalar keys ////////////////////////////////
 

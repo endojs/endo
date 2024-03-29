@@ -1,18 +1,18 @@
 // @ts-check
 
-/** @typedef {import('ses').ImportHook} ImportHook */
-/** @typedef {import('ses').StaticModuleType} StaticModuleType */
-/** @typedef {import('ses').RedirectStaticModuleInterface} RedirectStaticModuleInterface */
-/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
-/** @typedef {import('./types.js').ReadFn} ReadFn */
-/** @typedef {import('./types.js').ReadPowers} ReadPowers */
-/** @typedef {import('./types.js').HashFn} HashFn */
-/** @typedef {import('./types.js').Sources} Sources */
-/** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
-/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
-/** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
-/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
-/** @typedef {import('./types.js').ExitModuleImportHook} ExitModuleImportHook */
+/** @import {ImportHook} from 'ses' */
+/** @import {StaticModuleType} from 'ses' */
+/** @import {RedirectStaticModuleInterface} from 'ses' */
+/** @import {ThirdPartyStaticModuleInterface} from 'ses' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {HashFn} from './types.js' */
+/** @import {Sources} from './types.js' */
+/** @import {CompartmentSources} from './types.js' */
+/** @import {CompartmentDescriptor} from './types.js' */
+/** @import {ImportHookMaker} from './types.js' */
+/** @import {DeferredAttenuatorsProvider} from './types.js' */
+/** @import {ExitModuleImportHook} from './types.js' */
 
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 import { resolve } from './node-module-specifier.js';

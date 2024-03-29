@@ -6,12 +6,12 @@ import {
   recordValues,
 } from './encodePassable.js';
 
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
-/** @typedef {import('./types.js').RankCover} RankCover */
-/** @typedef {import('./types.js').RankComparison} RankComparison */
-/** @typedef {import('./types.js').RankCompare} RankCompare */
-/** @typedef {import('./types.js').FullCompare} FullCompare */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {PassStyle} from '@endo/pass-style' */
+/** @import {RankCover} from './types.js' */
+/** @import {RankComparison} from './types.js' */
+/** @import {RankCompare} from './types.js' */
+/** @import {FullCompare} from './types.js' */
 
 const { entries, fromEntries, setPrototypeOf, is } = Object;
 

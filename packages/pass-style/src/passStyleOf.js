@@ -26,11 +26,11 @@ import { assertPassableSymbol } from './symbol.js';
 import { assertSafePromise } from './safe-promise.js';
 import { assertPassableString } from './string.js';
 
-/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
-/** @typedef {import('./types.js').Passable} Passable */
-/** @typedef {import('./types.js').PassStyle} PassStyle */
-/** @typedef {import('./types.js').PassStyleOf} PassStyleOf */
-/** @typedef {import('./types.js').PrimitiveStyle} PrimitiveStyle */
+/** @import {PassStyleHelper} from './internal-types.js' */
+/** @import {Passable} from './types.js' */
+/** @import {PassStyle} from './types.js' */
+/** @import {PassStyleOf} from './types.js' */
+/** @import {PrimitiveStyle} from './types.js' */
 
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 

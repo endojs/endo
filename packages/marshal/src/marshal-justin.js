@@ -9,7 +9,7 @@ import {
 import { q, X, Fail } from '@endo/errors';
 import { QCLASS } from './encodeToCapData.js';
 
-/** @typedef {import('./types.js').Encoding} Encoding */
+/** @import {Encoding} from './types.js' */
 /** @template T @typedef {import('./types.js').CapData<T>} CapData */
 
 const { ownKeys } = Reflect;

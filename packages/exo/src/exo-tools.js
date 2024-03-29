@@ -16,9 +16,9 @@ import { objectMap } from '@endo/common/object-map.js';
 import { q, Fail } from '@endo/errors';
 import { GET_INTERFACE_GUARD } from './get-interface.js';
 
-/** @typedef {import('@endo/patterns').Method} Method */
-/** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
-/** @typedef {import('@endo/patterns').MethodGuardPayload} MethodGuardPayload */
+/** @import {Method} from '@endo/patterns' */
+/** @import {MethodGuard} from '@endo/patterns' */
+/** @import {MethodGuardPayload} from '@endo/patterns' */
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard

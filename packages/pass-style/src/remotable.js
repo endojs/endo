@@ -12,11 +12,11 @@ import {
   getTag,
 } from './passStyle-helpers.js';
 
-/** @typedef {import('./types.js').Checker} Checker */
-/** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
-/** @typedef {import('./types.js').MarshalGetInterfaceOf} MarshalGetInterfaceOf */
-/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
-/** @typedef {import('./types.js').RemotableObject} Remotable */
+/** @import {Checker} from './types.js' */
+/** @import {InterfaceSpec} from './types.js' */
+/** @import {MarshalGetInterfaceOf} from './types.js' */
+/** @import {PassStyleHelper} from './internal-types.js' */
+/** @import {RemotableObject} from './types.js' */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;

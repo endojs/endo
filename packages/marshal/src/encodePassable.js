@@ -9,14 +9,14 @@ import {
   passableSymbolForName,
 } from '@endo/pass-style';
 
-/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
+/** @import {PassStyle} from '@endo/pass-style' */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {RemotableObject} from '@endo/pass-style' */
 /**
  * @template {Passable} [T=Passable]
  * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
  */
-/** @typedef {import('./types.js').RankCover} RankCover */
+/** @import {RankCover} from './types.js' */
 
 import { b, q, Fail } from '@endo/errors';
 
