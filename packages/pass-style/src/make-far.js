@@ -5,7 +5,7 @@ import { q, Fail } from '@endo/errors';
 import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
-/** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
+/** @import {InterfaceSpec} from './types.js' */
 /** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
 
 const { prototype: functionPrototype } = Function;

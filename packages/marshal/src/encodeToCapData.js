@@ -19,10 +19,10 @@ import {
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('./types.js').Encoding} Encoding */
-/** @typedef {import('@endo/pass-style').Remotable} Remotable */
-/** @typedef {import('./types.js').EncodingUnion} EncodingUnion */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {Encoding} from './types.js' */
+/** @import {Remotable} from '@endo/pass-style' */
+/** @import {EncodingUnion} from './types.js' */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;

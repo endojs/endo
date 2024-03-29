@@ -21,15 +21,15 @@ import {
   makeEncodeToSmallcaps,
 } from './encodeToSmallcaps.js';
 
-/** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
+/** @import {MakeMarshalOptions} from './types.js' */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
 /** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
 /** @template Slot @typedef {import('./types.js').ToCapData<Slot>} ToCapData */
 /** @template Slot @typedef {import('./types.js').FromCapData<Slot>} FromCapData */
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').InterfaceSpec} InterfaceSpec */
-/** @typedef {import('./types.js').Encoding} Encoding */
-/** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {InterfaceSpec} from '@endo/pass-style' */
+/** @import {Encoding} from './types.js' */
+/** @import {RemotableObject} from '@endo/pass-style' */
 
 const { defineProperties } = Object;
 const { isArray } = Array;

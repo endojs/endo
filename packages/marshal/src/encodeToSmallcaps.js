@@ -18,8 +18,8 @@ import {
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').Remotable} Remotable */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {Remotable} from '@endo/pass-style' */
 // @typedef {import('./types.js').SmallcapsEncoding} SmallcapsEncoding */
 // @typedef {import('./types.js').SmallcapsEncodingUnion} SmallcapsEncodingUnion */
 /** @typedef {any} SmallcapsEncoding */

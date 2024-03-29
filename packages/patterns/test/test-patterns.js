@@ -12,7 +12,7 @@ import {
 import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 import '../src/types.js';
 
-/** @typedef {import('ava').ExecutionContext} TestContext */
+/** @import {ExecutionContext} from 'ava' */
 
 // TODO The desired semantics for CopyMap comparison have not yet been decided.
 // See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411

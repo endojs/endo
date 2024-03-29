@@ -66,7 +66,7 @@ dependents to parse `.js` files in their `node_modules`.
 
 In order to use the types from `@endo/marshal` you now need to import them
 explicitly. For example, to make them available in scope, use the following:
-- JSDoc: `/** @typedef {import('@endo/marshal').PassStyle} PassStyle */`
+- JSDoc: `/** @import {PassStyle} from '@endo/marshal' */`
 - TypeScript: `import type { PassStyle } from '@endo/marshal'`
 
 

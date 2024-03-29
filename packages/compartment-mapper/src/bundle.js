@@ -1,16 +1,16 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @typedef {import('ses').ResolveHook} ResolveHook */
-/** @typedef {import('ses').PrecompiledStaticModuleInterface} PrecompiledStaticModuleInterface */
-/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
-/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
-/** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
-/** @typedef {import('./types.js').ReadFn} ReadFn */
-/** @typedef {import('./types.js').ModuleTransforms} ModuleTransforms */
-/** @typedef {import('./types.js').Sources} Sources */
-/** @typedef {import('./types.js').WriteFn} WriteFn */
-/** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
+/** @import {ResolveHook} from 'ses' */
+/** @import {PrecompiledStaticModuleInterface} from 'ses' */
+/** @import {ParserImplementation} from './types.js' */
+/** @import {CompartmentDescriptor} from './types.js' */
+/** @import {CompartmentSources} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ModuleTransforms} from './types.js' */
+/** @import {Sources} from './types.js' */
+/** @import {WriteFn} from './types.js' */
+/** @import {ArchiveOptions} from './types.js' */
 
 import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';

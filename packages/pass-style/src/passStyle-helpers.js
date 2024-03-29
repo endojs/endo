@@ -1,7 +1,7 @@
 /// <reference types="ses"/>
 
-/** @typedef {import('./types.js').Checker} Checker */
-/** @typedef {import('./types.js').PassStyle} PassStyle */
+/** @import {Checker} from './types.js' */
+/** @import {PassStyle} from './types.js' */
 
 import { X, q } from '@endo/errors';
 

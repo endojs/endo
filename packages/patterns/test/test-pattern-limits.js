@@ -8,8 +8,8 @@ import {
   defaultLimits,
 } from '../src/patterns/patternMatchers.js';
 
-/** @typedef {import('@endo/marshal').Passable} Passable */
-/** @typedef {import('../src/types.js').Pattern} Pattern */
+/** @import {Passable} from '@endo/marshal' */
+/** @import {Pattern} from '../src/types.js' */
 
 /**
  * @typedef MatchTest

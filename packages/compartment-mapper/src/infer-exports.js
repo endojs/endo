@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @typedef {import('./types.js').Language} Language */
+/** @import {Language} from './types.js' */
 
 import { join, relativize } from './node-module-specifier.js';
 

@@ -1,17 +1,17 @@
 // @ts-check
 
-/** @typedef {import('ses').ModuleMapHook} ModuleMapHook */
-/** @typedef {import('ses').ResolveHook} ResolveHook */
-/** @typedef {import('./types.js').ParseFn} ParseFn */
-/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
-/** @typedef {import('./types.js').ShouldDeferError} ShouldDeferError */
-/** @typedef {import('./types.js').ModuleTransforms} ModuleTransforms */
-/** @typedef {import('./types.js').Language} Language */
-/** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
-/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
-/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
-/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
-/** @typedef {import('./types.js').LinkOptions} LinkOptions */
+/** @import {ModuleMapHook} from 'ses' */
+/** @import {ResolveHook} from 'ses' */
+/** @import {ParseFn} from './types.js' */
+/** @import {ParserImplementation} from './types.js' */
+/** @import {ShouldDeferError} from './types.js' */
+/** @import {ModuleTransforms} from './types.js' */
+/** @import {Language} from './types.js' */
+/** @import {ModuleDescriptor} from './types.js' */
+/** @import {CompartmentDescriptor} from './types.js' */
+/** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {DeferredAttenuatorsProvider} from './types.js' */
+/** @import {LinkOptions} from './types.js' */
 /** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
 
 import { resolve as resolveFallback } from './node-module-specifier.js';

@@ -8,11 +8,11 @@ import {
 import { makeIterator } from '@endo/common/make-iterator.js';
 import { makeArrayIterator } from '@endo/common/make-array-iterator.js';
 
-/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
-/** @typedef {import('../types').KeyComparison} KeyComparison */
-/** @typedef {import('../types').KeyCompare} KeyCompare */
-/** @typedef {import('../types').FullCompare} FullCompare */
-/** @typedef {import('../types').KeyCollection} KeyCollection */
+/** @import {RankCompare} from '@endo/marshal' */
+/** @import {KeyComparison} from '../types' */
+/** @import {KeyCompare} from '../types' */
+/** @import {FullCompare} from '../types' */
+/** @import {KeyCollection} from '../types' */
 
 import { q, Fail } from '@endo/errors';
 

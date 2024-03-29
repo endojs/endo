@@ -7,9 +7,9 @@ import {
 import { q, Fail } from '@endo/errors';
 import { assertNoDuplicates, makeSetOfElements } from './copySet.js';
 
-/** @typedef {import('../types').KeyComparison} KeyComparison */
-/** @typedef {import('../types').FullCompare} FullCompare */
-/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
+/** @import {KeyComparison} from '../types' */
+/** @import {FullCompare} from '../types' */
+/** @import {RankCompare} from '@endo/marshal' */
 
 // TODO share more code with keycollection-operators.js.
 

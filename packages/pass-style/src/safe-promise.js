@@ -4,7 +4,7 @@ import { isPromise } from '@endo/promise-kit';
 import { X, q } from '@endo/errors';
 import { assertChecker, hasOwnPropertyOf } from './passStyle-helpers.js';
 
-/** @typedef {import('./types.js').Checker} Checker */
+/** @import {Checker} from './types.js' */
 
 const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor } = Object;
 const { ownKeys } = Reflect;
