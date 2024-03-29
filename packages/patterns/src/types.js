@@ -546,7 +546,7 @@ export {};
 
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
- * @typedef {CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>}InterfaceGuard
+ * @typedef {CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>} InterfaceGuard
  */
 
 /**

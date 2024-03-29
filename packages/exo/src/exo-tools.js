@@ -16,12 +16,9 @@ import { objectMap } from '@endo/common/object-map.js';
 import { q, Fail } from '@endo/errors';
 import { GET_INTERFACE_GUARD } from './get-interface.js';
 
-/** @import {Method} from '@endo/patterns' */
-/** @import {MethodGuard} from '@endo/patterns' */
-/** @import {MethodGuardPayload} from '@endo/patterns' */
 /**
- * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
- * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard
+ * @import {InterfaceGuard, Method, MethodGuard, MethodGuardPayload} from '@endo/patterns'
+ * @import {ContextProvider, FacetName, KitContextProvider, MatchConfig, Methods} from './types.js'
  */
 
 const { apply, ownKeys } = Reflect;
@@ -43,15 +40,6 @@ const REDACTED_RAW_ARG = '<redacted raw arg>';
  * non-raw method guards.
  */
 const PassableMethodGuard = M.call().rest(M.any()).returns(M.any());
-
-/**
- * @typedef {object} MatchConfig
- * @property {number} declaredLen
- * @property {boolean} hasRestArgGuard
- * @property {boolean} restArgGuardIsRaw
- * @property {import('@endo/patterns').Pattern} paramsPattern
- * @property {number[]} redactedIndices
- */
 
 /**
  * @param {import('@endo/pass-style').Passable[]} syncArgs
@@ -275,40 +263,6 @@ const defendMethod = (method, methodGuard, label) => {
     return defendAsyncMethod(method, methodGuardPayload, label);
   }
 };
-
-/**
- * @typedef {string} FacetName
- */
-
-/**
- * @typedef {Record<PropertyKey, CallableFunction>} Methods
- */
-
-/**
- * @template [S = any]
- * @template {Methods} [M = any]
- * @typedef {{ state: S, self: M }} ClassContext
- */
-
-/**
- * @template [S = any]
- * @template {Record<FacetName, Methods>} [F = any]
- * @typedef {{ state: S, facets: F }} KitContext
- */
-
-/**
- * @typedef {(
- *   representative: any
- * ) => ClassContext | undefined} ClassContextProvider
- */
-
-/**
- * @typedef {(facet: any) => KitContext | undefined} KitContextProvider
- */
-
-/**
- * @typedef { ClassContextProvider | KitContextProvider } ContextProvider
- */
 
 /**
  * @param {string} methodTag
