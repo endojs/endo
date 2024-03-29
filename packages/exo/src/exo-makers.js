@@ -5,6 +5,10 @@ import { objectMap } from '@endo/common/object-map.js';
 import { Fail, q } from '@endo/errors';
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
+/**
+ * @import * as et from './exo-tools.js';
+ */
+
 const { create, seal, freeze, defineProperty, values } = Object;
 
 // Turn on to give each exo instance its own toStringTag value.
@@ -41,11 +45,6 @@ const emptyRecord = harden({});
  * @returns {{}}
  */
 export const initEmpty = () => emptyRecord;
-
-/**
- * @typedef {import('./exo-tools.js').FacetName} FacetName
- * @typedef {import('./exo-tools.js').Methods} Methods
- */
 
 /**
  * @typedef {{[name: string]: import('@endo/patterns').Pattern}} StateShape
