@@ -17,7 +17,7 @@ import { assertPetName } from './pet-name.js';
 import { makeContextMaker } from './context.js';
 import { assertValidNumber, parseId, formatId } from './formula-identifier.js';
 import { makeSerialJobs } from './serial-jobs.js';
-import { makeWeakMultimap } from './weak-multimap.js';
+import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
 

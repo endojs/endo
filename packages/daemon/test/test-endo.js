@@ -20,6 +20,7 @@ import {
   purge,
   makeEndoClient,
   makeReaderRef,
+  makeRefIterator,
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
@@ -30,6 +31,35 @@ const cryptoPowers = makeCryptoPowers(crypto);
 const { raw } = String;
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
+
+/**
+ * @param {ReturnType<makeRefIterator>} asyncIterator - The iterator to take from.
+ * @param {number} count - The number of values to retrieve.
+ */
+const takeCount = async (asyncIterator, count) => {
+  const values = [];
+
+  // eslint-disable-next-line no-plusplus
+  for (let i = 0; i < count; i++) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await asyncIterator.next();
+    values.push(result.value);
+  }
+  return values;
+};
+
+/**
+ * Calls `followChanges()`, takes all already-existing names from the iterator,
+ * and then returns the iterator in order to observe new changes.
+ *
+ * @param {any} host - A Far endo host.
+ */
+const prepareFollowChangesIterator = async host => {
+  const existingNames = await E(host).list();
+  const changesIterator = makeRefIterator(await E(host).followChanges());
+  await takeCount(changesIterator, existingNames.length);
+  return changesIterator;
+};
 
 /** @param {Array<string>} root */
 const makeLocator = (...root) => {
@@ -558,6 +588,79 @@ test('guest facet receives a message for host', async t => {
       { type: 'package', who: 'SELF', dest: 'HOST' },
     ],
   );
+});
+
+test('name changes subscription first publishes existing names', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const existingNames = await E(host).list();
+  const changesIterator = makeRefIterator(await E(host).followChanges());
+  const values = await takeCount(changesIterator, existingNames.length);
+
+  t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());
+});
+
+test('name changes subscription publishes new names', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const changesIterator = await prepareFollowChangesIterator(host);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'ten');
+});
+
+test('name changes subscription publishes removed names', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const changesIterator = await prepareFollowChangesIterator(host);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await changesIterator.next();
+
+  await E(host).remove('ten');
+  const { value } = await changesIterator.next();
+  t.is(value.remove, 'ten');
+});
+
+test('name changes subscription publishes renamed names', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const changesIterator = await prepareFollowChangesIterator(host);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await changesIterator.next();
+
+  await E(host).move(['ten'], ['zehn']);
+
+  let { value } = await changesIterator.next();
+  t.is(value.add, 'zehn');
+  value = (await changesIterator.next()).value;
+  t.is(value.remove, 'ten');
+});
+
+test('name changes subscription does not notify of redundant pet store writes', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const changesIterator = await prepareFollowChangesIterator(host);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await changesIterator.next();
+
+  const tenId = await E(host).identify('ten');
+  await E(host).write(['ten'], tenId);
+
+  // Create a new value and observe its publication, proving that nothing was
+  // published as as result of the redundant write.
+  await E(host).evaluate('MAIN', '11', [], [], 'eleven');
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'eleven');
 });
 
 test('direct cancellation', async t => {
