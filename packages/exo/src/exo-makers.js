@@ -6,8 +6,7 @@ import { Fail, q } from '@endo/errors';
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
 /**
- * @import {InterfaceGuard, MethodGuard} from '@endo/patterns';
- * @import {Amplify, ExoClassKitMethods, ExoClassMethods, FarClassOptions, Guarded, GuardedKit, ExoClassInterfaceGuardKit, IsInstance, KitContext, ExoClassInterfaceGuard, Methods} from './types.js';
+ * @import {Amplify, ExoClassKitMethods, ExoClassMethods, FarClassOptions, Guarded, GuardedKit, ExoClassInterfaceGuardKit, IsInstance, KitContext, ExoClassInterfaceGuard, Methods, FacetName} from './types.js';
  */
 
 const { create, seal, freeze, defineProperty, values } = Object;
@@ -51,9 +50,7 @@ export const initEmpty = () => emptyRecord;
  * @template {(...args: any[]) => any} I init function
  * @template {Methods} M methods
  * @param {string} tag
- * @param {InterfaceGuard<{
- *   [K in keyof M]: MethodGuard
- * }> | undefined} interfaceGuard
+ * @param {ExoClassInterfaceGuard<M> | undefined} interfaceGuard
  * @param {I} init
  * @param {ExoClassMethods<M, I>} methods
  * @param {FarClassOptions<import('./types.js').ClassContext<ReturnType<I>, M>>} [options]
@@ -125,13 +122,11 @@ harden(defineExoClass);
  * @template {(...args: any[]) => any} I init function
  * @template {Record<FacetName, Methods>} F facet methods
  * @param {string} tag
- * @param ]:InterfaceGuard
- *   import('@endo/patterns').InterfaceGuard<{[M in keyof F[K]]: MethodGuard; }>
- * } | undefined} interfaceGuardKit
+ * @param {ExoClassInterfaceGuardKit<F> | undefined } interfaceGuardKit
  * @param {I} init
- * @param {F & { [K in keyof F]: ThisType<{ facets: GuardedKit<F>, state: ReturnType<I> }> }} methodsKit
+ * @param {ExoClassKitMethods<F, I>} methodsKit
  * @param {FarClassOptions<
- *   import('./exo-tools.js').KitContext<ReturnType<I>, GuardedKit<F>>,
+ *   KitContext<ReturnType<I>, GuardedKit<F>>,
  *   GuardedKit<F>
  * >} [options]
  * @returns {(...args: Parameters<I>) => GuardedKit<F>}
