@@ -53,7 +53,7 @@ import {
 import { assert } from './error/assert.js';
 
 /**
- * @typedef {import('../types.js').Harden} Harden
+ * @import {Harden} from '../types.js'
  */
 
 // Obtain the string tag accessor of of TypedArray so we can indirectly use the
