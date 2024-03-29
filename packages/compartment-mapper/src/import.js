@@ -1,13 +1,13 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-/** @typedef {import('./types.js').Application} Application */
-/** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
-/** @typedef {import('./types.js').ExecuteFn} ExecuteFn */
-/** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
-/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
-/** @typedef {import('./types.js').ReadFn} ReadFn */
-/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+/** @import {Application} from './types.js' */
+/** @import {ArchiveOptions} from './types.js' */
+/** @import {ExecuteFn} from './types.js' */
+/** @import {ExecuteOptions} from './types.js' */
+/** @import {ParserImplementation} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
 
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';

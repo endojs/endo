@@ -1,7 +1,7 @@
 // @ts-check
 
-/** @typedef {import('./types.js').ReadFn} ReadFn */
-/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
 
 const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;

@@ -1,16 +1,16 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @typedef {import('./types.js').Language} Language */
-/** @typedef {import('./types.js').ReadFn} ReadFn */
-/** @typedef {import('./types.js').MaybeReadFn} MaybeReadFn */
-/** @typedef {import('./types.js').CanonicalFn} CanonicalFn */
-/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
-/** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
-/** @typedef {import('./types.js').ScopeDescriptor} ScopeDescriptor */
-/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
-/** @typedef {import('./types.js').ReadPowers} ReadPowers */
-/** @typedef {import('./types.js').MaybeReadPowers} MaybeReadPowers */
+/** @import {Language} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
+/** @import {CanonicalFn} from './types.js' */
+/** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {ModuleDescriptor} from './types.js' */
+/** @import {ScopeDescriptor} from './types.js' */
+/** @import {CompartmentDescriptor} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {MaybeReadPowers} from './types.js' */
 
 /**
  * The graph is an intermediate object model that the functions of this module

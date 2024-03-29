@@ -9,7 +9,7 @@ import url from 'url';
 import fs from 'fs';
 import test from 'ava';
 
-/** @typedef {import('ava').ExecutionContext} TestContext */
+/** @import {ExecutionContext} from 'ava' */
 
 /**
  * @callback Updater

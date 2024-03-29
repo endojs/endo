@@ -3,8 +3,8 @@
 import { X, q } from '@endo/errors';
 import { assertChecker } from './passStyle-helpers.js';
 
-/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
-/** @typedef {import('./types.js').Checker} Checker */
+/** @import {PassStyleHelper} from './internal-types.js' */
+/** @import {Checker} from './types.js' */
 
 const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
 

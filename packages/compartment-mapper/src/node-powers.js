@@ -1,8 +1,8 @@
 // @ts-check
 
-/** @typedef {import('./types.js').ReadPowers} ReadPowers */
-/** @typedef {import('./types.js').HashFn} HashFn */
-/** @typedef {import('./types.js').WritePowers} WritePowers */
+/** @import {ReadPowers} from './types.js' */
+/** @import {HashFn} from './types.js' */
+/** @import {WritePowers} from './types.js' */
 
 import { createRequire } from 'module';
 

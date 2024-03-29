@@ -56,7 +56,7 @@ import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 
-/** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
+/** @import {LockdownOptions} from '../types.js' */
 
 const { Fail, details: d, quote: q } = assert;
 

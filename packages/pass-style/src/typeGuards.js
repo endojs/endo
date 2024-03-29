@@ -1,7 +1,7 @@
 import { Fail, q } from '@endo/errors';
 import { passStyleOf } from './passStyleOf.js';
 
-/** @typedef {import('./types.js').Passable} Passable */
+/** @import {Passable} from './types.js' */
 /**
  * @template {Passable} [T=Passable]
  * @typedef {import('./types.js').CopyArray<T>} CopyArray
@@ -10,7 +10,7 @@ import { passStyleOf } from './passStyleOf.js';
  * @template {Passable} [T=Passable]
  * @typedef {import('./types.js').CopyRecord<T>} CopyRecord
  */
-/** @typedef {import('./types.js').RemotableObject} Remotable */
+/** @import {RemotableObject} from './types.js' */
 
 /**
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
