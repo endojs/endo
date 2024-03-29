@@ -20,7 +20,7 @@
     "requireindex": "~1.1.0",
     "ts-api-utils": "~1.0.1",
     "tsutils": "~3.21.0",
-    "typescript": "~5.4.3",
+    "typescript": "~5.5.0-dev.20240327",
     "typescript-eslint": "^7.3.1"
   },
   "devDependencies": {
