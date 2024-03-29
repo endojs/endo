@@ -2,10 +2,10 @@
 /* eslint no-bitwise: ["off"], max-lines: ["off"] */
 
 /**
- * @typedef {import('./types.js').ArchiveHeaders} ArchiveHeaders
- * @typedef {import('./types.js').CompressedFile} CompressedFile
- * @typedef {import('./types.js').UncompressedFile} UncompressedFile
- * @typedef {import('./types.js').ArchivedFile} ArchivedFile
+ * @import {ArchiveHeaders} from './types.js'
+ * @import {CompressedFile} from './types.js'
+ * @import {UncompressedFile} from './types.js'
+ * @import {ArchivedFile} from './types.js'
  *
  * @typedef {{
  *   name: Uint8Array,
