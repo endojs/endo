@@ -901,6 +901,12 @@ export type Multimap<K, V> = {
    * @returns An array of all values associated with the key.
    */
   getAll(key: K): V[];
+
+  /**
+   * @param key - The key whose presence to check for.
+   * @returns `true` if the key is present and `false` otherwise.
+   */
+  has(key: K): boolean;
 };
 
 /**
@@ -908,13 +914,12 @@ export type Multimap<K, V> = {
  */
 export type WeakMultimap<K extends WeakKey, V> = Multimap<K, V>;
 
-export type BidirectionalMultimap<K, V> = {
+export type BidirectionalMap<K, V> = {
   /**
-   * @param key - The key to add a value for.
-   * @param value - The value to add.
-   * @throws If the value has already been added for a different key.
+   * @param key - The key to set a value for.
+   * @param value - The value to set.
    */
-  add(key: K, value: V): void;
+  set(key: K, value: V): void;
 
   /**
    * @param key - The key whose value to delete.
@@ -924,37 +929,61 @@ export type BidirectionalMultimap<K, V> = {
   delete(key: K, value: V): boolean;
 
   /**
-   * @param key - The key whose values to delete
+   * @param key - The key whose presence to check for.
+   * @returns `true` if the key is present and `false` otherwise.
+   */
+  has(key: K): boolean;
+
+  /**
+   * @param value - The value whose presence to check for.
+   * @returns `true` if the value is present and `false` otherwise.
+   */
+  hasValue(value: V): boolean;
+
+  /**
+   * @param key - The key whose value to retrieve.
+   * @returns The value associated with the key.
+   */
+  get(key: K): V | undefined;
+
+  /**
+   * @param value - The value whose key to retrieve.
+   * @returns The key associated with the value.
+   */
+  getKey(value: V): K | undefined;
+
+  /**
+   * @returns An array of all values, for all keys.
+   */
+  getAll(): V[];
+};
+
+export type BidirectionalMultimap<K, V> = Omit<
+  BidirectionalMap<K, V>,
+  'get' | 'set'
+> & {
+  /**
+   * @param key - The key to add a value for.
+   * @param value - The value to add.
+   * @throws If the value has already been added for a different key.
+   */
+  add(key: K, value: V): void;
+
+  /**
+   * @param key - The key whose first value to retrieve.
+   * @returns The first value associated with the key.
+   */
+  get(key: K): V | undefined;
+
+  /**
+   * @param key - The key whose values to delete.
    * @returns `true` if the key was found and its values were deleted, `false` otherwise.
    */
   deleteAll(key: K): boolean;
 
   /**
-   * @param value - The value whose existence to check for.
-   * @returns `true` if the value was found and `false` otherwise.
-   */
-  hasValue(value: V): boolean;
-
-  /**
-   * @param value - The value whose key to retrieve
-   * @returns The key associated with the value.
-   */
-  get(value: V): K | undefined;
-
-  /**
-   * @param key - The key whose first value to retrieve
-   * @returns The first value associated with the key.
-   */
-  getValue(key: K): V | undefined;
-
-  /**
-   * @returns An array of all values, for all keys.
-   */
-  getAllValues(): V[];
-
-  /**
    * @param key - The key whose values to retrieve.
    * @returns An array of all values associated with the key.
    */
-  getAllValuesFor(key: K): V[];
+  getAllFor(key: K): V[];
 };

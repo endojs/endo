@@ -36,6 +36,8 @@ const internalMakeMultimap = mapConstructor => {
     get: key => map.get(key)?.keys().next().value,
 
     getAll: key => Array.from(map.get(key) ?? []),
+
+    has: key => map.has(key),
   };
 };
 
@@ -54,19 +56,59 @@ export const makeWeakMultimap = () => {
 };
 
 /**
+ * @param {Map<unknown, unknown> | import('./types.js').Multimap<unknown, unknown>} keyForValue
+ * @param {Map<unknown, unknown>} valueForKey
+ * @returns {Omit<import('./types.js').BidirectionalMap<unknown, unknown>, 'set'>}
+ */
+const makeSharedBimapMethods = (keyForValue, valueForKey) => {
+  return {
+    delete: (key, value) => {
+      valueForKey.delete(value);
+      return keyForValue.delete(key, value);
+    },
+
+    has: key => keyForValue.has(key),
+
+    hasValue: value => valueForKey.has(value),
+
+    get: key => keyForValue.get(key),
+
+    getKey: value => valueForKey.get(value),
+
+    getAll: () => [...valueForKey.keys()],
+  };
+};
+
+/**
+ * @returns {import('./types.js').BidirectionalMap<any, any>}
+ */
+export const makeBidirectionalMap = () => {
+  const keyForValue = new Map();
+  const valueForKey = new Map();
+
+  return {
+    ...makeSharedBimapMethods(keyForValue, valueForKey),
+
+    set: (key, value) => {
+      keyForValue.set(key, value);
+      valueForKey.set(value, key);
+    },
+  };
+};
+
+/**
  * @returns {import('./types.js').BidirectionalMultimap<any, any>}
  */
 export const makeBidirectionalMultimap = () => {
   /**
-   * @type {import('./types.js').Multimap<any, any>}
+   * @type {import('./types.js').Multimap<unknown, unknown>}
    */
   const keyForValues = internalMakeMultimap(Map);
-  /**
-   * @type {Map<any, any>}
-   */
   const valueForKey = new Map();
 
   return {
+    ...makeSharedBimapMethods(keyForValues, valueForKey),
+
     add: (key, value) => {
       const hasExistingMapping = valueForKey.has(value);
       const existingKey = valueForKey.get(value);
@@ -79,13 +121,8 @@ export const makeBidirectionalMultimap = () => {
         );
       }
 
-      valueForKey.set(value, key);
       keyForValues.add(key, value);
-    },
-
-    delete: (key, value) => {
-      valueForKey.delete(value);
-      return keyForValues.delete(key, value);
+      valueForKey.set(value, key);
     },
 
     deleteAll: key => {
@@ -95,18 +132,6 @@ export const makeBidirectionalMultimap = () => {
       return keyForValues.deleteAll(key);
     },
 
-    hasValue: value => {
-      return valueForKey.has(value);
-    },
-
-    get: value => valueForKey.get(value),
-
-    getValue: key => keyForValues.get(key),
-
-    getAllValues: () => {
-      return [...valueForKey.keys()];
-    },
-
-    getAllValuesFor: key => keyForValues.getAll(key),
+    getAllFor: key => keyForValues.getAll(key),
   };
 };
