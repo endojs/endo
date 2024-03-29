@@ -164,16 +164,24 @@ const getMethodNamesDescriptor = harden({
 });
 
 /**
- * A concise convenience for the most common `Remotable` use.
+ * Mark an object to be exposed for remote interaction
+ * and give it a suggestive interface name for debugging.
  *
- * For far objects (as opposed to far functions), also adds a miranda
- * `GET_METHOD_NAMES` method that returns an array of all the method names,
- * if there is not yet any method named `GET_METHOD_NAMES`. (Hence "miranda")
+ * All properties of the object have to be methods, not data.
  *
+ * The object must not be hardened before it is marked.
+ * It will be hardened after marking.
+ *
+ * For far objects (as opposed to far functions), also adds
+ * `__getMethodNames__` method that returns an array of all the method names,
+ * if there is not yet any method named `__getMethodNames__`.
+ *
+ * @example
+ * Far('Employee', { getManager })
  * @template {{}} T
  * @param {string} farName This name will be prepended with `Alleged: `
  * for now to form the `Remotable` `iface` argument.
- * @param {T} [remotable] The object used as the remotable
+ * @param {T} [remotable] The object to be marked as remotable
  */
 export const Far = (farName, remotable = undefined) => {
   const r = remotable === undefined ? /** @type {T} */ ({}) : remotable;
