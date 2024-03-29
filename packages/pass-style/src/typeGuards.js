@@ -36,7 +36,7 @@ harden(isRecord);
  * Check whether the argument is a remotable.
  *
  * @param {Passable} remotable
- * @returns {remotable is Remotable}
+ * @returns {remotable is RemotableObject}
  */
 const isRemotable = remotable => passStyleOf(remotable) === 'remotable';
 harden(isRemotable);
@@ -79,7 +79,7 @@ harden(assertRecord);
  * @callback AssertRemotable
  * @param {Passable} remotable
  * @param {string=} optNameOfRemotable
- * @returns {asserts remotable is Remotable}
+ * @returns {asserts remotable is RemotableObject}
  */
 
 /** @type {AssertRemotable} */

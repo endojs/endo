@@ -6,7 +6,7 @@ import { Fail, q } from '@endo/errors';
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
 /**
- * @import * as et from './exo-tools.js';
+ * @import {FacetName, Methods} from './exo-tools.js';
  */
 
 const { create, seal, freeze, defineProperty, values } = Object;

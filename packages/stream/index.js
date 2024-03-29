@@ -14,15 +14,6 @@
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 
-/**
- * @template T
- * @typedef {{
- *   resolve(value?: T | Promise<T>): void,
- *   reject(error: Error): void,
- *   promise: Promise<T>
- * }} PromiseKit
- */
-
 // TypeScript ReadOnly semantics are not sufficiently expressive to distinguish
 // a value one promises not to alter from a value one must not alter,
 // making it useless.

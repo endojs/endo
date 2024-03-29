@@ -12,7 +12,7 @@ import {
 import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 import '../src/types.js';
 
-/** @import {ExecutionContext} from 'ava' */
+/** @import * as ava from 'ava' */
 
 // TODO The desired semantics for CopyMap comparison have not yet been decided.
 // See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
@@ -706,7 +706,7 @@ const runTests = (t, successCase, failCase) => {
 };
 
 /**
- * @param {TestContext} t
+ * @param {ava.ExecutionContext} t
  * @param {any} specimen
  * @param {any} pattern
  * @param {string} [label]
@@ -718,7 +718,7 @@ const assertMatch = (t, specimen, pattern, label) => {
 };
 
 /**
- * @param {TestContext} t
+ * @param {ava.ExecutionContext} t
  * @param {any} specimen
  * @param {any} pattern
  * @param {string} message
