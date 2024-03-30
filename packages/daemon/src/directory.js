@@ -103,6 +103,24 @@ export const makeDirectoryMaker = ({
       return petStore.reverseIdentify(id);
     };
 
+    /** @type {import('./types.js').EndoDirectory['followLocatorNameChanges']} */
+    const followLocatorNameChanges = async function* followLocatorNameChanges(
+      locator,
+    ) {
+      const id = idFromLocator(locator);
+      for await (const idDiff of petStore.followIdNameChanges(id)) {
+        /** @type {any} */
+        const locatorDiff = {
+          ...idDiff,
+          ...(Object.hasOwn(idDiff, 'add')
+            ? { add: locator }
+            : { remove: locator }),
+        };
+
+        yield /** @type {import('./types.js').LocatorDiff} */ locatorDiff;
+      }
+    };
+
     /** @type {import('./types.js').EndoDirectory['list']} */
     const list = async (...petNamePath) => {
       if (petNamePath.length === 0) {
@@ -215,6 +233,7 @@ export const makeDirectoryMaker = ({
       identify,
       locate,
       reverseLocate,
+      followLocatorNameChanges,
       list,
       listIdentifiers,
       followNameChanges,
@@ -245,6 +264,9 @@ export const makeDirectoryMaker = ({
       M.interface('EndoDirectory', {}, { defaultGuards: 'passable' }),
       {
         ...directory,
+        /** @param {string} locator */
+        followLocatorNameChanges: locator =>
+          makeIteratorRef(directory.followLocatorNameChanges(locator)),
         followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
       },
     );

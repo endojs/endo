@@ -59,6 +59,25 @@ export const makePetSitter = (petStore, specialNames) => {
     yield* petStore.followNameChanges();
   };
 
+  /** @type {import('./types.js').PetStore['followIdNameChanges']} */
+  const followIdNameChanges = async function* currentAndSubsequentIds(id) {
+    const subscription = petStore.followIdNameChanges(id);
+
+    const [idSpecialName] = Object.entries(specialNames)
+      .filter(([_, specialId]) => specialId === id)
+      .map(([specialName, _]) => specialName);
+
+    if (typeof idSpecialName === 'string') {
+      // The first published event contains the existing names for the id, if any.
+      const { value: existingNames } = await subscription.next();
+      existingNames?.names?.unshift(idSpecialName);
+      existingNames?.names?.sort();
+      yield /** @type {import('./types.js').PetStoreIdDiff} */ (existingNames);
+    }
+
+    yield* subscription;
+  };
+
   /** @type {import('./types.js').PetStore['reverseIdentify']} */
   const reverseIdentify = id => {
     const names = Array.from(petStore.reverseIdentify(id));
@@ -77,6 +96,7 @@ export const makePetSitter = (petStore, specialNames) => {
     identifyLocal,
     reverseIdentify,
     list,
+    followIdNameChanges,
     followNameChanges,
     write,
     remove,

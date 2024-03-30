@@ -19,8 +19,13 @@ export const makePetStoreMaker = (filePowers, config) => {
   const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
     /** @type {import('./types.js').BidirectionalMultimap<string, string>} */
     const idsToPetNames = makeBidirectionalMultimap();
-    /** @type {import('./types.js').Topic<({ add: string, value: import('./types.js').IdRecord } | { remove: string })>} */
+    /** @type {import('./types.js').NameChangesTopic} */
     const nameChangesTopic = makeChangeTopic();
+
+    /** @returns {import('./types.js').IdChangesTopic} */
+    const makeIdChangeTopic = () => makeChangeTopic();
+    /** @type {Map<string, ReturnType<typeof makeIdChangeTopic>>} */
+    const idsToTopics = new Map();
 
     /** @param {string} petName */
     const read = async petName => {
@@ -77,10 +82,9 @@ export const makePetStoreMaker = (filePowers, config) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = `${formulaIdentifier}\n`;
       await filePowers.writeFileText(petNamePath, petNameText);
-      const formulaIdentifierRecord = parseId(formulaIdentifier);
       nameChangesTopic.publisher.next({
         add: petName,
-        value: formulaIdentifierRecord,
+        value: parseId(formulaIdentifier),
       });
     };
 
@@ -88,7 +92,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * @param {string} petName
      * @returns {import('./types.js').IdRecord}
      */
-    const formulaIdentifierRecordForName = petName => {
+    const idRecordForName = petName => {
       const formulaIdentifier = idsToPetNames.getKey(petName);
       if (formulaIdentifier === undefined) {
         throw new Error(`Formula does not exist for pet name ${q(petName)}`);
@@ -101,15 +105,33 @@ export const makePetStoreMaker = (filePowers, config) => {
 
     /** @type {import('./types.js').PetStore['followNameChanges']} */
     const followNameChanges = async function* currentAndSubsequentNames() {
-      const changes = nameChangesTopic.subscribe();
+      const subscription = nameChangesTopic.subscribe();
       for (const name of idsToPetNames.getAll().sort()) {
-        const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
-        yield /** @type {{ add: string, value: import('./types.js').IdRecord }} */ ({
+        yield /** @type {import('./types.js').PetStoreNameDiff} */ ({
           add: name,
-          value: formulaIdentifierRecord,
+          value: idRecordForName(name),
         });
       }
-      yield* changes;
+      yield* subscription;
+    };
+
+    /** @type {import('./types.js').PetStore['followIdNameChanges']} */
+    const followIdNameChanges = async function* currentAndSubsequentIds(id) {
+      if (!idsToTopics.has(id)) {
+        idsToTopics.set(id, makeIdChangeTopic());
+      }
+      const idTopic = /** @type {import('./types.js').IdChangesTopic} */ (
+        idsToTopics.get(id)
+      );
+      const subscription = idTopic.subscribe();
+
+      const existingNames = idsToPetNames.getAllFor(id).sort();
+      yield /** @type {import('./types.js').PetStoreIdDiff} */ ({
+        add: parseId(id),
+        names: existingNames,
+      });
+
+      yield* subscription;
     };
 
     /** @type {import('./types.js').PetStore['remove']} */
@@ -162,10 +184,9 @@ export const makePetStoreMaker = (filePowers, config) => {
       // Update the mapping for the pet name.
       idsToPetNames.add(formulaIdentifier, toName);
 
-      const formulaIdentifierRecord = parseId(formulaIdentifier);
       nameChangesTopic.publisher.next({
         add: toName,
-        value: formulaIdentifierRecord,
+        value: parseId(formulaIdentifier),
       });
       nameChangesTopic.publisher.next({ remove: fromName });
       // TODO consider retaining a backlog of overwritten names for recovery
@@ -186,6 +207,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       identifyLocal,
       reverseIdentify,
       list,
+      followIdNameChanges,
       followNameChanges,
       write,
       remove,

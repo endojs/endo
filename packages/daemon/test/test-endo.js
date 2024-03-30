@@ -33,7 +33,7 @@ const { raw } = String;
 const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 
 /**
- * @param {ReturnType<makeRefIterator>} asyncIterator - The iterator to take from.
+ * @param {AsyncIterator} asyncIterator - The iterator to take from.
  * @param {number} count - The number of values to retrieve.
  */
 const takeCount = async (asyncIterator, count) => {
@@ -599,7 +599,7 @@ test('guest facet receives a message for host', async t => {
   );
 });
 
-test('name changes subscription first publishes existing names', async t => {
+test('followNames first publishes existing names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
@@ -610,7 +610,7 @@ test('name changes subscription first publishes existing names', async t => {
   t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());
 });
 
-test('name changes subscription publishes new names', async t => {
+test('followNames publishes new names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
@@ -622,7 +622,7 @@ test('name changes subscription publishes new names', async t => {
   t.is(value.add, 'ten');
 });
 
-test('name changes subscription publishes removed names', async t => {
+test('followNames publishes removed names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
@@ -636,7 +636,7 @@ test('name changes subscription publishes removed names', async t => {
   t.is(value.remove, 'ten');
 });
 
-test('name changes subscription publishes renamed names', async t => {
+test('followNames publishes renamed names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
@@ -653,7 +653,7 @@ test('name changes subscription publishes renamed names', async t => {
   t.is(value.remove, 'ten');
 });
 
-test('name changes subscription does not notify of redundant pet store writes', async t => {
+test('followNames does not notify of redundant pet store writes', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
@@ -670,6 +670,48 @@ test('name changes subscription does not notify of redundant pet store writes', 
   await E(host).evaluate('MAIN', '11', [], [], 'eleven');
   const { value } = await changesIterator.next();
   t.is(value.add, 'eleven');
+});
+
+test('followLocatorNameChanges first publishes existing pet name', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const tenLocator = await E(host).locate('ten');
+  const tenLocatorSub = makeRefIterator(
+    await E(host).followLocatorNameChanges(tenLocator),
+  );
+  const { value } = await tenLocatorSub.next();
+  t.deepEqual(value, { add: tenLocator, names: ['ten'] });
+});
+
+test('followLocatorNameChanges first publishes existing special name', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  const selfLocator = await E(host).locate('SELF');
+  const selfLocatorSub = makeRefIterator(
+    await E(host).followLocatorNameChanges(selfLocator),
+  );
+  const { value } = await selfLocatorSub.next();
+  t.deepEqual(value, { add: selfLocator, names: ['SELF'] });
+});
+
+test('followLocatorNameChanges first publishes existing pet and special names', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  const selfId = await E(host).identify('SELF');
+  await E(host).write(['self1'], selfId);
+  await E(host).write(['self2'], selfId);
+
+  const selfLocator = await E(host).locate('SELF');
+  const selfLocatorSub = makeRefIterator(
+    await E(host).followLocatorNameChanges(selfLocator),
+  );
+  const { value } = await selfLocatorSub.next();
+  t.deepEqual(value, { add: selfLocator, names: ['SELF', 'self1', 'self2'] });
 });
 
 test('direct cancellation', async t => {
@@ -1258,8 +1300,8 @@ test('locate remote value', async t => {
 });
 
 test('reverse locate local value', async t => {
-  const { cancelled, locator } = await prepareLocator(t);
-  const { host } = await makeHost(locator, cancelled);
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
 
   const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
   t.is(ten, 10);
@@ -1270,18 +1312,18 @@ test('reverse locate local value', async t => {
 });
 
 test('reverse locate local persisted value', async t => {
-  const { cancelled, locator } = await prepareLocator(t);
+  const { cancelled, config } = await prepareConfig(t);
 
   {
-    const { host } = await makeHost(locator, cancelled);
+    const { host } = await makeHost(config, cancelled);
     const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
     t.is(ten, 10);
   }
 
-  await restart(locator);
+  await restart(config);
 
   {
-    const { host } = await makeHost(locator, cancelled);
+    const { host } = await makeHost(config, cancelled);
     const tenLocator = await E(host).locate('ten');
     const [reverseLocatedName] = await E(host).reverseLocate(tenLocator);
     t.is(reverseLocatedName, 'ten');
@@ -1289,10 +1331,10 @@ test('reverse locate local persisted value', async t => {
 });
 
 test('reverse locate remote value', async t => {
-  const { locator: locatorA, cancelled: cancelledA } = await prepareLocator(t);
-  const { locator: locatorB, cancelled: cancelledB } = await prepareLocator(t);
-  const hostA = await makeHostWithTestNetwork(locatorA, cancelledA);
-  const hostB = await makeHostWithTestNetwork(locatorB, cancelledB);
+  const { config: configA, cancelled: cancelledA } = await prepareConfig(t);
+  const { config: configB, cancelled: cancelledB } = await prepareConfig(t);
+  const hostA = await makeHostWithTestNetwork(configA, cancelledA);
+  const hostB = await makeHostWithTestNetwork(configB, cancelledB);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());

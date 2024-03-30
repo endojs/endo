@@ -473,6 +473,7 @@ export const makeHostMaker = ({
       list,
       listIdentifiers,
       followNameChanges,
+      followLocatorNameChanges,
       reverseLookup,
       write,
       remove,
@@ -502,6 +503,7 @@ export const makeHostMaker = ({
       reverseLocate,
       list,
       listIdentifiers,
+      followLocatorNameChanges,
       followNameChanges,
       lookup,
       reverseLookup,
@@ -540,8 +542,11 @@ export const makeHostMaker = ({
       M.interface('EndoHost', {}, { defaultGuards: 'passable' }),
       {
         ...host,
-        followNameChanges: () => makeIteratorRef(host.followNameChanges()),
+        /** @param {string} locator */
+        followLocatorNameChanges: locator =>
+          makeIteratorRef(host.followLocatorNameChanges(locator)),
         followMessages: () => makeIteratorRef(host.followMessages()),
+        followNameChanges: () => makeIteratorRef(host.followNameChanges()),
       },
     );
 
