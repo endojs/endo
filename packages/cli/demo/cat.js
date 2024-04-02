@@ -21,6 +21,7 @@
 // the request will exit with the number 42.
 
 /* global window document */
+/* eslint-disable no-continue */
 
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
@@ -31,16 +32,27 @@ const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
 });
 
 const inboxComponent = async ($parent, $end, powers) => {
+  const selfId = await E(powers).identify('SELF');
   for await (const message of makeRefIterator(E(powers).followMessages())) {
-    const { number, who, when, dismissed } = message;
+    const { number, type, from: fromId, to: toId, date, dismissed } = message;
+
+    let verb = '';
+    if (type === 'request') {
+      verb = 'requested';
+    } else if (type === 'package') {
+      verb = 'sent';
+    } else {
+      verb = 'sent an unrecognizable message';
+    }
+    const $verb = document.createElement('em');
+    $verb.innerText = verb;
+
+    const $message = document.createElement('div');
 
     const $error = document.createElement('span');
     $error.style.color = 'red';
     $error.innerText = '';
-    // To be inserted later, but declared here for reference.
-
-    const $message = document.createElement('div');
-    $parent.insertBefore($message, $end);
+    $message.appendChild($error);
 
     dismissed.then(() => {
       $message.remove();
@@ -50,20 +62,49 @@ const inboxComponent = async ($parent, $end, powers) => {
     $number.innerText = `${number}. `;
     $message.appendChild($number);
 
-    const $who = document.createElement('b');
-    $who.innerText = `${who}:`;
-    $message.appendChild($who);
+    if (fromId === selfId && toId === selfId) {
+      $message.appendChild(verb);
+    } else if (fromId === selfId) {
+      const toName = await E(powers).reverseIdentify(toId);
+      if (toName === undefined) {
+        continue;
+      }
+      const $to = document.createElement('strong');
+      $to.innerText = ` ${toName} `;
+      $message.appendChild($verb);
+      $message.appendChild($to);
+    } else if (toId === selfId) {
+      const fromName = await E(powers).reverseIdentify(fromId);
+      if (fromName === undefined) {
+        continue;
+      }
+      const $from = document.createElement('strong');
+      $from.innerText = ` ${fromName} `;
+      $message.appendChild($from);
+      $message.appendChild($verb);
+    } else {
+      const [fromName, toName] = await Promise.all(
+        [fromId, toId].map(id => E(powers).reverseIdentify(id)),
+      );
+      const $from = document.createElement('strong');
+      $from.innerText = ` ${fromName} `;
+      const $to = document.createElement('strong');
+      $to.innerText = ` ${toName} `;
+      $message.appendChild($from);
+      $message.appendChild($verb);
+      $message.appendChild($to);
+    }
 
     if (message.type === 'request') {
-      const { what, settled } = message;
+      const { description, settled } = message;
 
-      const $what = document.createElement('span');
-      $what.innerText = ` ${what} `;
-      $message.appendChild($what);
+      const $description = document.createElement('span');
+      $description.innerText = ` ${JSON.stringify(description)} `;
+      $message.appendChild($description);
 
-      const $when = document.createElement('i');
-      $when.innerText = dateFormatter.format(Date.parse(when));
-      $message.appendChild($when);
+      const $date = document.createElement('i');
+      $date.innerText = dateFormatter.format(Date.parse(date));
+      $message.appendChild($date);
 
       const $input = document.createElement('span');
       $message.appendChild($input);
@@ -124,9 +165,9 @@ const inboxComponent = async ($parent, $end, powers) => {
 
       $message.appendChild(document.createTextNode('" '));
 
-      const $when = document.createElement('i');
-      $when.innerText = dateFormatter.format(Date.parse(when));
-      $message.appendChild($when);
+      const $date = document.createElement('i');
+      $date.innerText = dateFormatter.format(Date.parse(date));
+      $message.appendChild($date);
 
       $message.appendChild(document.createTextNode(' '));
 
@@ -179,7 +220,7 @@ const inboxComponent = async ($parent, $end, powers) => {
         });
     };
 
-    $message.appendChild($error);
+    $parent.insertBefore($message, $end);
   }
 };
 
