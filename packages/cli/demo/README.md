@@ -201,14 +201,14 @@ Then, assuming the guise of "alice", we find the message in our inbox
 and adopt the "doubler" object into our own store.
 
 ```
-> endo mkguest alice
+> endo mkguest alice alice-agent
 > endo send alice 'Please enjoy this @doubler.'
-> endo inbox --as alice
+> endo inbox --as alice-agent
 0. "HOST" sent "Please enjoy this @doubler."
-> endo adopt --as alice 0 doubler
-> endo list --as alice
+> endo adopt --as alice-agent 0 doubler
+> endo list --as alice-agent
 doubler
-> endo dismiss --as alice 0
+> endo dismiss --as alice-agent 0
 ```
 
 # Names in transit are no-one's names
@@ -227,12 +227,12 @@ Then, alice adopts "counter", giving it their own name, "redoubler".
 
 ```
 > endo send alice 'Please enjoy this @counter:doubler.'
-> endo inbox --as alice
+> endo inbox --as alice-agent
 1. "HOST" sent "Please enjoy this @counter."
-> endo adopt --as alice 1 counter --name redoubler
-> endo list --as alice
+> endo adopt --as alice-agent 1 counter --name redoubler
+> endo list --as alice-agent
 redoubler
-> endo dismiss --as alice 1
+> endo dismiss --as alice-agent 1
 ```
 
 # Mailboxes are symmetric
@@ -241,7 +241,7 @@ Guests can also send their host messages.
 In this example, "alice" send the doubler back to us, their host.
 
 ```
-> endo send HOST --as alice 'This is the @doubler you sent me.'
+> endo send HOST --as alice-agent 'This is the @doubler you sent me.'
 > endo inbox
 0. "alice" sent "This is the @doubler you sent me."
 > endo adopt 0 doubler doubler-from-alice
@@ -271,7 +271,7 @@ _Familiar Chat_ is an example application that provides a web app for
 interacting with your pet daemon.
 
 ```
-> endo install cat.js --listen 8920 --powers SELF --name familiar-chat
+> endo install cat.js --listen 8920 --powers AGENT --name familiar-chat
 ```
 
 This command creates a web page named familiar-chat and endows it with the
@@ -285,8 +285,8 @@ You can then open that page.
 So, if you were to simulate a request from your cat:
 
 ```
-> endo mkguest cat
-> endo request 'pet me' --as cat
+> endo mkguest cat cat-agent
+> endo request HOST 'pet me' --as cat-agent
 ```
 
 This will appear in your Familiar Chat web page, where you can resolve
