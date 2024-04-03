@@ -1,1 +1,1 @@
-export { defendPrototype, defendPrototypeKit } from './src/exo-tools.js';
+export * from './src/exo-tools.js';
