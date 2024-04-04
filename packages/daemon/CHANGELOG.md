@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.2.0](https://github.com/endojs/endo/compare/@endo/daemon@2.1.0...@endo/daemon@2.2.0) (2024-04-04)
+
+
+### Features
+
+* **daemon:** Add bidirectional multimap ([9819fca](https://github.com/endojs/endo/commit/9819fca32a8cf244d91b839e1a86a2995f337ff8))
+* **daemon:** Add daemon locator strings ([2cfb7f7](https://github.com/endojs/endo/commit/2cfb7f7f4abdf8f0cba2e36ce9cb89414d2432fe))
+* **daemon:** Add directory `locate()` method ([8977958](https://github.com/endojs/endo/commit/89779589db009b3f7919af5759ee659aff933bc1))
+* **daemon:** Add makeMultimap() ([aaef687](https://github.com/endojs/endo/commit/aaef6875ccdf33fb83008f4a0ac9556ecc59ce0b))
+
+
+### Bug Fixes
+
+* **daemon:** Do not publish changes for redundant pet store writes ([a96b8af](https://github.com/endojs/endo/commit/a96b8afa0327e9e4a160cad5bcb3cfb123b79c47))
+* **daemon:** Enable `locate()` of remote values ([11198d0](https://github.com/endojs/endo/commit/11198d09b8ff2e3e11aae365b83cc402ce98a811))
+
+
+
 ## [2.1.0](https://github.com/endojs/endo/compare/@endo/daemon@2.0.0...@endo/daemon@2.1.0) (2024-03-20)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@endo/common",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "common low level utilities",
   "keywords": [],
   "author": "Endo contributors",
@@ -41,13 +41,13 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "@endo/errors": "^1.2.0",
-    "@endo/eventual-send": "^1.2.0",
-    "@endo/promise-kit": "^1.1.0"
+    "@endo/errors": "^1.2.1",
+    "@endo/eventual-send": "^1.2.1",
+    "@endo/promise-kit": "^1.1.1"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.5",
-    "@endo/ses-ava": "^1.2.0",
+    "@endo/lockdown": "^1.0.6",
+    "@endo/ses-ava": "^1.2.1",
     "ava": "^6.1.2",
     "c8": "^7.14.0",
     "tsd": "^0.30.7"
