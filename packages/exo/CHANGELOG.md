@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/endojs/endo/compare/@endo/exo@1.3.0...@endo/exo@1.4.0) (2024-04-04)
+
+
+### Features
+
+* **types:** Exo param helpers ([b708d48](https://github.com/endojs/endo/commit/b708d48b3b7f5ed7035866760d622021fb65e02c))
+
+
+### Bug Fixes
+
+* **types:** export all makers and tools ([c5ba502](https://github.com/endojs/endo/commit/c5ba50247ece8c07196e9854294ccd83788c1126))
+
+
+
 ## [1.3.0](https://github.com/endojs/endo/compare/@endo/exo@1.2.1...@endo/exo@1.3.0) (2024-03-20)
 
 

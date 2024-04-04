@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.1.1](https://github.com/endojs/endo/compare/@endo/skel@1.1.0...@endo/skel@1.1.1) (2024-04-04)
+
+**Note:** Version bump only for package @endo/skel
+
+
+
+
+
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/skel@1.0.4...@endo/skel@1.1.0) (2024-03-20)
 
 

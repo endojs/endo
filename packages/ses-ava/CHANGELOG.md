@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.2.1](https://github.com/endojs/endo/compare/@endo/ses-ava@1.2.0...@endo/ses-ava@1.2.1) (2024-04-04)
+
+
+### Bug Fixes
+
+* **ses-ava:** Fix peer dependency on ava semver range syntax ([da3cdfc](https://github.com/endojs/endo/commit/da3cdfc40c16d2066c1b5b8e113c2313f403d2a8))
+
+
+
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/ses-ava@1.1.2...@endo/ses-ava@1.2.0) (2024-03-20)
 
 

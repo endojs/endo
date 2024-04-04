@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.3.1](https://github.com/endojs/endo/compare/@endo/patterns@1.3.0...@endo/patterns@1.3.1) (2024-04-04)
+
+
+### Bug Fixes
+
+* wrap a raw <T> tag in `` so it won't confuse vitepress ([0bc9430](https://github.com/endojs/endo/commit/0bc9430a20cd7bf308ca26976bbd8ef0e3a54889))
+
+
+
 ## [1.3.0](https://github.com/endojs/endo/compare/@endo/patterns@1.2.0...@endo/patterns@1.3.0) (2024-03-20)
 
 
