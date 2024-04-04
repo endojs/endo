@@ -1,2 +1,0 @@
-export function objectMetaMap<O extends Record<PropertyKey, any>>(original: O, metaMapFn: (desc: TypedPropertyDescriptor<O[keyof O]>, key: keyof O) => (PropertyDescriptor | undefined), proto?: any): any;
-//# sourceMappingURL=object-meta-map.d.ts.map
