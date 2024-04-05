@@ -525,3 +525,46 @@ test('export name as default from CommonJS module', async t => {
 
   await compartment.import('./main.js');
 });
+
+
+test('synchronous loading via importNowHook', async t => {
+  t.plan(1);
+
+  const importNowHook = specifier => {
+    if (specifier === './meaning.cjs') {
+      return CjsStaticModuleRecord(
+        `
+        exports.meaning = 42;
+      `,
+        'https://example.com/meaning.cjs',
+      );
+    }
+    if (specifier === './meaning.mjs') {
+      return new StaticModuleRecord(`
+        export { meaning as default } from './meaning.cjs';
+      `);
+    }
+    if (specifier === './main.js') {
+      return new StaticModuleRecord(
+        `
+        import meaning from './meaning.mjs';
+        t.is(meaning, 42);
+      `,
+        'https://example.com/main.js',
+      );
+    }
+    throw Error(`Cannot load module for specifier ${specifier}`);
+  };
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: async ()=>{},
+      importNowHook,
+    },
+  );
+
+  await compartment.importNow('./main.js');
+});
