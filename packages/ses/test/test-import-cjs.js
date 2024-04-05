@@ -566,5 +566,57 @@ test('synchronous loading via importNowHook', async t => {
     },
   );
 
-  await compartment.importNow('./main.js');
+  compartment.importNow('./main.js');
+});
+
+test('importNowHook only called if specifier was not imported before', async t => {
+  t.plan(1);
+
+  const importNowHook = specifier => {
+    if (specifier === './meaning.cjs') {
+      throw Error(`importNowHook should not be called to get ./meaning.cjs`);
+    }
+    if (specifier === './meaning.mjs') {
+      return new StaticModuleRecord(`
+        export { meaning as default } from './meaning.cjs';
+      `);
+    }
+    if (specifier === './main.js') {
+      return new StaticModuleRecord(
+        `
+        import meaning from './meaning.mjs';
+        t.is(meaning, 42);
+      `,
+        'https://example.com/main.js',
+      );
+    }
+    throw Error(`Cannot load module for specifier ${specifier}`);
+  };
+  const importHook = async specifier => {
+    if (specifier === './meaning.cjs') {
+      return CjsStaticModuleRecord(
+        `
+        exports.meaning = 42;
+      `,
+        'https://example.com/meaning.cjs',
+      );
+    }
+    throw Error(`Cannot load module for specifier ${specifier}`);
+  };
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook,
+      importNowHook,
+    },
+  );
+
+  // compartment.import would be the more natural here, but all prerequisites
+  // to synchronously finding the module before calling importNowHook should
+  // be put in place by the load function, so the test flow is more specific.
+  await compartment.load('./meaning.cjs');
+  compartment.importNow('./main.js');
 });
