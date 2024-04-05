@@ -298,6 +298,7 @@ export const toPassableError = err => {
     cause,
     errors,
   });
+  // Still needed, because `makeError` only does a shallow freeze.
   harden(newError);
   // Even the cleaned up error copy, if sent to the console, should
   // cause hidden diagnostic information of the original error

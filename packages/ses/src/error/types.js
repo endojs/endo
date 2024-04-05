@@ -27,9 +27,24 @@
 /**
  * @typedef {object} AssertMakeErrorOptions
  * @property {string} [errorName]
+ *   Does not affect the error.name property. That remains determined by
+ *   the constructor. Rather, the `errorName` determines how this error is
+ *   identified in the causal console log's output.
  * @property {Error} [cause]
+ *   Discloses the error that caused this one, typically from a lower
+ *   layer of abstraction. This is represented by a public `cause` data property
+ *   on the error, not a hidden annotation.
  * @property {Error[]} [errors]
- *   Normally only used when the ErrorConstuctor is `AggregateError`
+ *   Normally only used when the ErrorConstuctor is `AggregateError`, to
+ *   represent the set of prior errors aggregated together in this error,
+ *   typically by `Promise.any`. But `makeError` allows it on any error.
+ *   This is represented by a public `errors` data property on the error,
+ *   not a hidden annotation.
+ * @property {boolean} [sanitize]
+ *   Defaults to true. If true, `makeError` will apply `sanitizeError`
+ *   to the error before returning it. See the comments on `sanitizeError`.
+ *   (TODO what is the proper jsdoc manner to link to another function's
+ *   doc-comment?)
  */
 
 /**
