@@ -35,6 +35,11 @@ import {
   weakmapHas,
   weakmapSet,
   AggregateError,
+  getOwnPropertyDescriptors,
+  ownKeys,
+  create,
+  objectPrototype,
+  objectHasOwnProperty,
 } from '../commons.js';
 import { an, bestEffortStringify } from './stringify-utils.js';
 import './types.js';
@@ -255,12 +260,79 @@ const tagError = (err, optErrorName = err.name) => {
 };
 
 /**
+ * Make reasonable best efforts to make a `Passable` error.
+ *   - `sanitizeError` will remove any "extraneous" own properties already added
+ *     by the host,
+ *     such as `fileName`,`lineNumber` on FireFox or `line` on Safari.
+ *   - If any such "extraneous" properties were removed, `sanitizeError` will
+ *     annotate
+ *     the error with them, so they still appear on the causal console
+ *     log output for diagnostic purposes, but not be otherwise visible.
+ *   - `sanitizeError` will ensure that any expected properties already
+ *     added by the host are data
+ *     properties, converting accessor properties to data properties as needed,
+ *     such as `stack` on v8 (Chrome, Brave, Edge?)
+ *   - `sanitizeError` will freeze the error, preventing any correct engine from
+ *     adding or
+ *     altering any of the error's own properties `sanitizeError` is done.
+ *
+ * However, `sanitizeError` will not, for example, `harden`
+ * (i.e., deeply freeze)
+ * or ensure that the `cause` or `errors` property satisfy the `Passable`
+ * constraints. The purpose of `sanitizeError` is only to protect against
+ * mischief the host may have already added to the error as created,
+ * not to ensure that the error is actually Passable. For that,
+ * see `toPassableError` in `@endo/pass-style`.
+ *
+ * @param {Error} error
+ */
+const sanitizeError = error => {
+  const descs = getOwnPropertyDescriptors(error);
+  const {
+    name: _nameDesc,
+    message: _messageDesc,
+    errors: _errorsDesc = undefined,
+    cause: _causeDesc = undefined,
+    stack: _stackDesc = undefined,
+    ...restDescs
+  } = descs;
+
+  const restNames = ownKeys(restDescs);
+  if (restNames.length >= 1) {
+    for (const name of restNames) {
+      delete error[name];
+    }
+    const droppedNote = create(objectPrototype, restDescs);
+    // eslint-disable-next-line no-use-before-define
+    note(
+      error,
+      redactedDetails`originally with properties ${quote(droppedNote)}`,
+    );
+  }
+  for (const name of ownKeys(error)) {
+    // @ts-expect-error TS still confused by symbols as property names
+    const desc = descs[name];
+    if (desc && objectHasOwnProperty(desc, 'get')) {
+      defineProperty(error, name, {
+        value: error[name], // invoke the getter to convert to data property
+      });
+    }
+  }
+  freeze(error);
+};
+
+/**
  * @type {AssertMakeError}
  */
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
   errConstructor = globalThis.Error,
-  { errorName = undefined, cause = undefined, errors = undefined } = {},
+  {
+    errorName = undefined,
+    cause = undefined,
+    errors = undefined,
+    sanitize = true,
+  } = {},
 ) => {
   if (typeof optDetails === 'string') {
     // If it is a string, use it as the literal part of the template so
@@ -298,6 +370,9 @@ const makeError = (
   weakmapSet(hiddenMessageLogArgs, error, getLogArgs(hiddenDetails));
   if (errorName !== undefined) {
     tagError(error, errorName);
+  }
+  if (sanitize) {
+    sanitizeError(error);
   }
   // The next line is a particularly fruitful place to put a breakpoint.
   return error;

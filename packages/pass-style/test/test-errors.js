@@ -30,9 +30,14 @@ test('style of extended errors', t => {
 });
 
 test('toPassableError rejects unfrozen errors', t => {
-  const e = makeError('test error');
+  const e = makeError('test error', undefined, {
+    sanitize: false,
+  });
   // I include this test because I was recently surprised that the errors
-  // make by `makeError` are not frozen, and therefore not passable.
+  // made by `makeError` are not frozen, and therefore not passable.
+  // Since then, we changed `makeError` to make reasonable effort
+  // to return a passable error by default. But also added the
+  // `sanitize: false` option to suppress that.
   t.false(Object.isFrozen(e));
   t.false(isPassable(e));
 
@@ -40,7 +45,12 @@ test('toPassableError rejects unfrozen errors', t => {
   // is a passable error.
   const e2 = toPassableError(e);
 
+  t.true(Object.isFrozen(e2));
+  t.true(isPassable(e2));
+
+  // May not be true on all platforms, depending on what "extraneous"
+  // properties the host added to the error before `makeError` returned it.
+  // If this fails, please let us know. See the doccomment on the
+  // `sanitizeError` function is the ses-shim's `assert.js`.
   t.is(e, e2);
-  t.true(Object.isFrozen(e));
-  t.true(isPassable(e));
 });

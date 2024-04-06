@@ -296,6 +296,7 @@ export const makeMarshal = (
           : `Remote${errConstructor.name}(${dErrorId})`;
       const options = {
         errorName,
+        sanitize: false,
       };
       if (cause) {
         options.cause = decodeRecur(cause);

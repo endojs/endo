@@ -121,6 +121,7 @@ export interface AssertMakeErrorOptions {
   errorName?: string;
   cause?: Error;
   errors?: Error[];
+  sanitize?: boolean;
 }
 
 type AssertTypeofBigint = (
