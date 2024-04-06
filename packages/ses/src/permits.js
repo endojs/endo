@@ -3,6 +3,8 @@
 
 import { arrayPush } from './commons.js';
 
+/** @import {GenericErrorConstructor} from '../types.js' */
+
 /**
  * @file Exports {@code whitelist}, a recursively defined
  * JSON record enumerating all intrinsics and their properties
