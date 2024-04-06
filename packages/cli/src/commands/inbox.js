@@ -12,6 +12,9 @@ export const inbox = async ({ follow, agentNames }) =>
       ? makeRefIterator(E(agent).followMessages())
       : await E(agent).listMessages();
     for await (const message of messages) {
+      if (message === undefined) {
+        continue;
+      }
       const { number, who, when } = message;
       if (message.type === 'request') {
         const { what } = message;
