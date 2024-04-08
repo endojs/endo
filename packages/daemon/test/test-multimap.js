@@ -8,9 +8,9 @@ import {
 
 [
   [makeMultimap, 'multimap'],
-  [makeWeakMultimap, 'weakMultimap'],
+  [makeWeakMultimap, 'weak multimap'],
 ].forEach(([multimapConstructor, mapName]) => {
-  test(`${mapName}: add and get`, t => {
+  test(`${mapName}: add`, t => {
     const multimap = multimapConstructor();
     const key = {};
     const value = 'foo';
@@ -23,7 +23,7 @@ import {
     t.is(multimap.get(key), value);
   });
 
-  test(`${mapName}: add and get with multiple keys`, t => {
+  test(`${mapName}: get`, t => {
     const multimap = multimapConstructor();
     const key1 = {};
     const key2 = {};
@@ -35,25 +35,28 @@ import {
     multimap.add(key2, value1);
 
     t.is(multimap.get(key1), value1);
-    t.deepEqual(multimap.getAll(key1), [value1, value2]);
+    t.deepEqual(multimap.getAllFor(key1), [value1, value2]);
     t.is(multimap.get(key2), value1);
-    t.deepEqual(multimap.getAll(key2), [value1]);
+    t.deepEqual(multimap.getAllFor(key2), [value1]);
   });
 
   test(`${mapName}: getAll`, t => {
     const multimap = multimapConstructor();
-    const key = {};
+    const key1 = {};
+    const key2 = {};
     const value1 = 'foo';
     const value2 = 'bar';
 
-    multimap.add(key, value1);
-    multimap.add(key, value2);
-    t.deepEqual(multimap.getAll(key), [value1, value2]);
+    multimap.add(key1, value1);
+    multimap.add(key1, value2);
+    t.deepEqual(multimap.getAllFor(key1), [value1, value2]);
+    t.deepEqual(multimap.getAllFor(key2), []);
 
     // Adding a value for a key should be idempotent.
-    multimap.add(key, value1);
-    multimap.add(key, value2);
-    t.deepEqual(multimap.getAll(key), [value1, value2]);
+    multimap.add(key1, value1);
+    multimap.add(key1, value2);
+    t.deepEqual(multimap.getAllFor(key1), [value1, value2]);
+    t.deepEqual(multimap.getAllFor(key2), []);
   });
 
   test(`${mapName}: delete`, t => {
@@ -81,7 +84,7 @@ import {
     multimap.add(key, value1);
     multimap.add(key, value2);
 
-    t.deepEqual(multimap.getAll(key), [value1, value2]);
+    t.deepEqual(multimap.getAllFor(key), [value1, value2]);
     t.is(multimap.deleteAll(key), true);
     t.is(multimap.get(key), undefined);
 
@@ -91,81 +94,69 @@ import {
   });
 });
 
-test('bimap: add and getValue', t => {
+test('multi-bimap: add', t => {
   const bimap = makeBidirectionalMultimap();
   const key = 'foo';
   const value = {};
 
   bimap.add(key, value);
-  t.is(bimap.getValue(key), value);
+  t.is(bimap.get(key), value);
+  t.is(bimap.getKey(value), key);
 
   // Adding a value for the same key should be idempotent.
   bimap.add(key, value);
-  t.is(bimap.getValue(key), value);
+  t.is(bimap.get(key), value);
+  t.is(bimap.getKey(value), key);
 });
 
-test('bimap: getAllValuesFor', t => {
+test('multi-bimap: get', t => {
   const bimap = makeBidirectionalMultimap();
-  const key = 'foo';
+  const key1 = 'foo';
+  const key2 = 'bar';
+  const key3 = 'baz';
   const value1 = {};
   const value2 = {};
 
-  bimap.add(key, value1);
-  bimap.add(key, value2);
-  t.deepEqual(bimap.getAllValuesFor(key), [value1, value2]);
+  bimap.add(key1, value1);
+  bimap.add(key2, value2);
 
-  // Adding a value for the same key should be idempotent.
-  bimap.add(key, value1);
-  bimap.add(key, value2);
-  t.deepEqual(bimap.getAllValuesFor(key), [value1, value2]);
+  t.is(bimap.get(key1), value1);
+  t.is(bimap.get(key2), value2);
+  t.is(bimap.get(key3), undefined);
 });
 
-test('bimap: hasValue', t => {
+test('multi-bimap: get (multiple values per key)', t => {
   const bimap = makeBidirectionalMultimap();
   const key1 = 'foo';
   const key2 = 'bar';
   const value1 = {};
   const value2 = {};
   const value3 = {};
-  const value4 = {};
 
   bimap.add(key1, value1);
   bimap.add(key1, value2);
   bimap.add(key2, value3);
 
-  t.is(bimap.hasValue(value1), true);
+  t.is(bimap.get(key1), value1);
+  t.is(bimap.get(key2), value3);
   t.is(bimap.hasValue(value2), true);
-  t.is(bimap.hasValue(value3), true);
-  t.is(bimap.hasValue(value4), false);
 });
 
-test('bimap: add and get', t => {
-  const bimap = makeBidirectionalMultimap();
-  const key = 'foo';
-  const value = {};
-
-  bimap.add(key, value);
-  t.is(bimap.get(value), key);
-
-  // Adding a value for the same key should be idempotent.
-  bimap.add(key, value);
-  t.is(bimap.get(value), key);
-});
-
-test('bimap: add and get with multiple values', t => {
+test('multi-bimap: getAll', t => {
   const bimap = makeBidirectionalMultimap();
   const key1 = 'foo';
   const value1 = {};
   const value2 = {};
 
+  t.deepEqual(bimap.getAll(), []);
+
   bimap.add(key1, value1);
   bimap.add(key1, value2);
 
-  t.is(bimap.get(value1), key1);
-  t.is(bimap.get(value2), key1);
+  t.deepEqual(bimap.getAll(), [value1, value2]);
 });
 
-test('bimap: key remapping', t => {
+test('multi-bimap: getAllFor', t => {
   const bimap = makeBidirectionalMultimap();
   const key1 = 'foo';
   const key2 = 'bar';
@@ -174,8 +165,92 @@ test('bimap: key remapping', t => {
 
   bimap.add(key1, value1);
   bimap.add(key1, value2);
-  t.is(bimap.get(value1), key1);
-  t.is(bimap.get(value2), key1);
+  t.deepEqual(bimap.getAllFor(key1), [value1, value2]);
+  t.deepEqual(bimap.getAllFor(key2), []);
+
+  // Adding a value for the same key should be idempotent.
+  bimap.add(key1, value1);
+  bimap.add(key1, value2);
+  t.deepEqual(bimap.getAllFor(key1), [value1, value2]);
+  t.deepEqual(bimap.getAllFor(key2), []);
+});
+
+test('multi-bimap: getKey', t => {
+  const bimap = makeBidirectionalMultimap();
+  const key1 = 'foo';
+  const value1 = {};
+  const value2 = {};
+  const value3 = {};
+
+  bimap.add(key1, value1);
+  bimap.add(key1, value2);
+
+  t.is(bimap.getKey(value1), key1);
+  t.is(bimap.getKey(value2), key1);
+  t.is(bimap.getKey(value3), undefined);
+});
+
+test('multi-bimap: hasValue', t => {
+  const bimap = makeBidirectionalMultimap();
+  const key1 = 'foo';
+  const key2 = 'bar';
+  const value1 = {};
+  const value2 = {};
+  const value3 = {};
+
+  bimap.add(key1, value1);
+  bimap.add(key2, value2);
+
+  t.is(bimap.hasValue(value1), true);
+  t.is(bimap.hasValue(value2), true);
+  t.is(bimap.hasValue(value3), false);
+});
+
+test('multi-bimap: delete', t => {
+  const bimap = makeBidirectionalMultimap();
+  const key = 'foo';
+  const value = {};
+
+  bimap.add(key, value);
+
+  t.is(bimap.get(key), value);
+  t.is(bimap.delete(key, value), true);
+  t.is(bimap.get(key), undefined);
+
+  // Deleting should be idempotent.
+  t.is(bimap.delete(key, value), false);
+  t.is(bimap.get(key), undefined);
+});
+
+test('multi-bimap: deleteAll', t => {
+  const bimap = makeBidirectionalMultimap();
+  const key = 'foo';
+  const value1 = {};
+  const value2 = {};
+
+  bimap.add(key, value1);
+  bimap.add(key, value2);
+
+  t.deepEqual(bimap.getAllFor(key), [value1, value2]);
+  t.is(bimap.deleteAll(key), true);
+  t.is(bimap.get(key), undefined);
+
+  // Deleting should be idempotent.
+  t.is(bimap.deleteAll(key), false);
+  t.is(bimap.get(key), undefined);
+});
+
+test('multi-bimap: key remapping', t => {
+  const bimap = makeBidirectionalMultimap();
+  const key1 = 'foo';
+  const key2 = 'bar';
+  const value1 = {};
+  const value2 = {};
+
+  bimap.add(key1, value1);
+  bimap.add(key1, value2);
+  t.is(bimap.getKey(value1), key1);
+  t.is(bimap.getKey(value2), key1);
 
   t.throws(() => bimap.add(key2, value1), {
     message: `May not remap key "foo" of existing value to new key "bar". Delete the original mapping first.`,
@@ -184,40 +259,6 @@ test('bimap: key remapping', t => {
   bimap.delete(key1, value2);
   bimap.add(key2, value2);
 
-  t.is(bimap.get(value1), key1);
-  t.is(bimap.get(value2), key2);
-});
-
-test('bimap: delete', t => {
-  const bimap = makeBidirectionalMultimap();
-  const key = 'foo';
-  const value = {};
-
-  bimap.add(key, value);
-
-  t.is(bimap.getValue(key), value);
-  t.is(bimap.delete(key, value), true);
-  t.is(bimap.getValue(key), undefined);
-
-  // Deleting should be idempotent.
-  t.is(bimap.delete(key, value), false);
-  t.is(bimap.getValue(key), undefined);
-});
-
-test('bimap: deleteAll', t => {
-  const bimap = makeBidirectionalMultimap();
-  const key = 'foo';
-  const value1 = {};
-  const value2 = {};
-
-  bimap.add(key, value1);
-  bimap.add(key, value2);
-
-  t.deepEqual(bimap.getAllValuesFor(key), [value1, value2]);
-  t.is(bimap.deleteAll(key), true);
-  t.is(bimap.getValue(key), undefined);
-
-  // Deleting should be idempotent.
-  t.is(bimap.deleteAll(key), false);
-  t.is(bimap.getValue(key), undefined);
+  t.is(bimap.getKey(value1), key1);
+  t.is(bimap.getKey(value2), key2);
 });

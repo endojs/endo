@@ -51,7 +51,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore['identifyLocal']} */
     const identifyLocal = petName => {
       assertValidName(petName);
-      return idsToPetNames.get(petName);
+      return idsToPetNames.getKey(petName);
     };
 
     /** @type {import('./types.js').PetStore['write']} */
@@ -60,7 +60,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
       assertValidId(formulaIdentifier);
 
       if (idsToPetNames.hasValue(petName)) {
-        const oldFormulaIdentifier = idsToPetNames.get(petName);
+        const oldFormulaIdentifier = idsToPetNames.getKey(petName);
         if (oldFormulaIdentifier === formulaIdentifier) {
           return;
         }
@@ -89,7 +89,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
      * @returns {import('./types.js').IdRecord}
      */
     const formulaIdentifierRecordForName = petName => {
-      const formulaIdentifier = idsToPetNames.get(petName);
+      const formulaIdentifier = idsToPetNames.getKey(petName);
       if (formulaIdentifier === undefined) {
         throw new Error(`Formula does not exist for pet name ${q(petName)}`);
       }
@@ -97,12 +97,12 @@ export const makePetStoreMaker = (filePowers, locator) => {
     };
 
     /** @type {import('./types.js').PetStore['list']} */
-    const list = () => harden(idsToPetNames.getAllValues().sort());
+    const list = () => harden(idsToPetNames.getAll().sort());
 
     /** @type {import('./types.js').PetStore['follow']} */
     const follow = async function* currentAndSubsequentNames() {
       const changes = nameChangesTopic.subscribe();
-      for (const name of idsToPetNames.getAllValues().sort()) {
+      for (const name of idsToPetNames.getAll().sort()) {
         const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
         yield /** @type {{ add: string, value: import('./types.js').IdRecord }} */ ({
           add: name,
@@ -115,7 +115,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore['remove']} */
     const remove = async petName => {
       assertValidName(petName);
-      const formulaIdentifier = idsToPetNames.get(petName);
+      const formulaIdentifier = idsToPetNames.getKey(petName);
       if (formulaIdentifier === undefined) {
         throw new Error(
           `Formula does not exist for pet name ${JSON.stringify(petName)}`,
@@ -138,8 +138,8 @@ export const makePetStoreMaker = (filePowers, locator) => {
       if (fromName === toName) {
         return;
       }
-      const formulaIdentifier = idsToPetNames.get(fromName);
-      const overwrittenId = idsToPetNames.get(toName);
+      const formulaIdentifier = idsToPetNames.getKey(fromName);
+      const overwrittenId = idsToPetNames.getKey(toName);
       if (formulaIdentifier === undefined) {
         throw new Error(
           `Formula does not exist for pet name ${JSON.stringify(fromName)}`,
@@ -174,7 +174,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     /** @type {import('./types.js').PetStore['reverseIdentify']} */
     const reverseIdentify = formulaIdentifier => {
       assertValidId(formulaIdentifier);
-      const formulaPetNames = idsToPetNames.getAllValuesFor(formulaIdentifier);
+      const formulaPetNames = idsToPetNames.getAllFor(formulaIdentifier);
       if (formulaPetNames === undefined) {
         return harden([]);
       }

@@ -35,7 +35,7 @@ const internalMakeMultimap = mapConstructor => {
 
     get: key => map.get(key)?.keys().next().value,
 
-    getAll: key => Array.from(map.get(key) ?? []),
+    getAllFor: key => Array.from(map.get(key) ?? []),
   };
 };
 
@@ -58,12 +58,9 @@ export const makeWeakMultimap = () => {
  */
 export const makeBidirectionalMultimap = () => {
   /**
-   * @type {import('./types.js').Multimap<any, any>}
+   * @type {import('./types.js').Multimap<unknown, unknown>}
    */
   const keyForValues = internalMakeMultimap(Map);
-  /**
-   * @type {Map<any, any>}
-   */
   const valueForKey = new Map();
 
   return {
@@ -79,8 +76,8 @@ export const makeBidirectionalMultimap = () => {
         );
       }
 
-      valueForKey.set(value, key);
       keyForValues.add(key, value);
+      valueForKey.set(value, key);
     },
 
     delete: (key, value) => {
@@ -89,24 +86,20 @@ export const makeBidirectionalMultimap = () => {
     },
 
     deleteAll: key => {
-      for (const value of keyForValues.getAll(key)) {
+      for (const value of keyForValues.getAllFor(key)) {
         valueForKey.delete(value);
       }
       return keyForValues.deleteAll(key);
     },
 
-    hasValue: value => {
-      return valueForKey.has(value);
-    },
+    hasValue: value => valueForKey.has(value),
 
-    get: value => valueForKey.get(value),
+    get: key => keyForValues.get(key),
 
-    getValue: key => keyForValues.get(key),
+    getKey: value => valueForKey.get(value),
 
-    getAllValues: () => {
-      return [...valueForKey.keys()];
-    },
+    getAll: () => [...valueForKey.keys()],
 
-    getAllValuesFor: key => keyForValues.getAll(key),
+    getAllFor: key => keyForValues.getAllFor(key),
   };
 };

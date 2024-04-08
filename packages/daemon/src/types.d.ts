@@ -900,7 +900,7 @@ export type Multimap<K, V> = {
    * @param key - The key whose values to retrieve.
    * @returns An array of all values associated with the key.
    */
-  getAll(key: K): V[];
+  getAllFor(key: K): V[];
 };
 
 /**
@@ -924,37 +924,37 @@ export type BidirectionalMultimap<K, V> = {
   delete(key: K, value: V): boolean;
 
   /**
-   * @param key - The key whose values to delete
+   * @param key - The key whose values to delete.
    * @returns `true` if the key was found and its values were deleted, `false` otherwise.
    */
   deleteAll(key: K): boolean;
 
   /**
-   * @param value - The value whose existence to check for.
-   * @returns `true` if the value was found and `false` otherwise.
+   * @param value - The value whose presence to check for.
+   * @returns `true` if the value is present and `false` otherwise.
    */
   hasValue(value: V): boolean;
 
   /**
-   * @param value - The value whose key to retrieve
-   * @returns The key associated with the value.
-   */
-  get(value: V): K | undefined;
-
-  /**
-   * @param key - The key whose first value to retrieve
+   * @param key - The key whose first value to retrieve.
    * @returns The first value associated with the key.
    */
-  getValue(key: K): V | undefined;
+  get(key: K): V | undefined;
+
+  /**
+   * @param value - The value whose key to retrieve.
+   * @returns The key associated with the value.
+   */
+  getKey(value: V): K | undefined;
 
   /**
    * @returns An array of all values, for all keys.
    */
-  getAllValues(): V[];
+  getAll(): V[];
 
   /**
    * @param key - The key whose values to retrieve.
    * @returns An array of all values associated with the key.
    */
-  getAllValuesFor(key: K): V[];
+  getAllFor(key: K): V[];
 };
