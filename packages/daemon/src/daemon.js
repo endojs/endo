@@ -890,18 +890,6 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCore['provideAgentForHandle']} */
-  const provideAgentForHandle = async id => {
-    const handle = /** @type {{}} */ (await provide(id));
-    const agentId = agentIdForHandle.get(handle);
-    if (agentId === undefined) {
-      throw assert.error(assert.details`No agent for handle ${id}`);
-    }
-    return /** @type {Promise<import('./types.js').EndoAgent>} */ (
-      provide(agentId)
-    );
-  };
-
   /** @type {import('./types.js').DaemonCore['formulateReadableBlob']} */
   const formulateReadableBlob = async (readerRef, deferredTasks) => {
     const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
@@ -1580,10 +1568,7 @@ const makeDaemonCore = async (
     formulateDirectory,
   });
 
-  const makeMailbox = makeMailboxMaker({
-    provide,
-    provideAgentForHandle,
-  });
+  const makeMailbox = makeMailboxMaker({ provide });
 
   const makeIdentifiedGuestController = makeGuestMaker({
     provide,

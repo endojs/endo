@@ -49,7 +49,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       selfId: handleId,
       context,
     });
-    const { petStore } = mailbox;
+    const { petStore, handle } = mailbox;
     const directory = makeDirectoryNode(petStore);
 
     const { reverseIdentify } = specialStore;
@@ -80,16 +80,8 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       deliver,
     } = mailbox;
 
-    const handle = makeExo(
-      'EndoGuestHandle',
-      M.interface('EndoGuestHandle', {}),
-      {},
-    );
-
     /** @type {import('./types.js').EndoGuest} */
     const guest = {
-      // Agent
-      handle: () => handle,
       // Directory
       has,
       identify,
@@ -106,6 +98,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       copy,
       makeDirectory,
       // Mail
+      handle,
       listMessages,
       followMessages,
       resolve,

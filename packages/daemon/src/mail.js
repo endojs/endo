@@ -45,18 +45,24 @@ const makeRequest = (description, fromId, toId) => {
   return harden({ request, response: promise });
 };
 
+const EnvelopeShape = M.interface('Envelope', {});
+const makeEnvelope = () => makeExo('Envelope', EnvelopeShape, {});
+
 /**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideAgentForHandle']} args.provideAgentForHandle
  * @returns {import('./types.js').MakeMailbox}
  */
-export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
+export const makeMailboxMaker = ({ provide }) => {
   /**
     @type {import('./types.js').MakeMailbox} */
   const makeMailbox = ({ selfId, petStore, context }) => {
     /** @type {Map<number, import('./types.js').StampedMessage>} */
     const messages = new Map();
+
+    /** @type {WeakMap<{}, import('./types.js').EnvelopedMessage>} */
+    const outbox = new WeakMap();
+
     /** @type {import('./types.js').Topic<import('./types.js').StampedMessage>} */
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
@@ -74,7 +80,7 @@ export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
     /**
      * @param {import('./types.js').EnvelopedMessage} envelope
      */
-    const deliver = envelope => {
+    const deliver = async envelope => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
       const dismissal = makePromiseKit();
       const messageNumber = nextMessageNumber;
@@ -107,6 +113,21 @@ export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
 
       messages.set(messageNumber, message);
       messagesTopic.publisher.next(message);
+    };
+
+    /**
+     * @param {import('./types.js').Handle} recipient
+     * @param {import('./types.js').EnvelopedMessage} message
+     */
+    const post = (recipient, message) => {
+      /** @param {object} allegedRecipient */
+      const envelope = makeEnvelope();
+      outbox.set(envelope, message);
+      E.sendOnly(recipient).receive(envelope, selfId);
+      if (message.from !== message.to) {
+        // echo to own mailbox
+        deliver(message);
+      }
     };
 
     /** @type {import('./types.js').Mail['resolve']} */
@@ -154,7 +175,9 @@ export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${toName}`);
       }
-      const to = await provideAgentForHandle(toId);
+      const to = /** @type {import('./types.js').Handle} */ (
+        await provide(toId)
+      );
 
       petNames.forEach(assertPetName);
       edgeNames.forEach(assertPetName);
@@ -168,30 +191,28 @@ export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
       if (strings.length < petNames.length) {
         throw new Error(
           `Message must have one string before every value delivered`,
-      const message = harden({
+        );
       }
 
       const ids = petNames.map(petName => {
         const id = petStore.identifyLocal(petName);
         if (id === undefined) {
           throw new Error(`Unknown pet name ${q(petName)}`);
-      });
+        }
         return id;
       });
 
-      const message = {
+      const message = harden({
         type: /** @type {const} */ ('package'),
         strings,
         names: edgeNames,
         ids,
         from: selfId,
         to: toId,
-      };
+      });
 
       // add to recipient mailbox
-      E.sendOnly(to).deliver(message);
-      // add to own mailbox
-      deliver(message);
+      post(to, message);
     };
 
     /** @type {import('./types.js').Mail['dismiss']} */
@@ -258,7 +279,9 @@ export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
       if (toId === undefined) {
         throw new Error(`Unknown recipient ${toName}`);
       }
-      const to = await provideAgentForHandle(toId);
+      const to = /** @type {import('./types.js').Handle} */ (
+        await provide(toId)
+      );
 
       const { request: req, response: responseIdP } = makeRequest(
         description,
@@ -267,9 +290,7 @@ export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
       );
 
       // Note: consider sending to each mailbox with different powers.
-      E(to).deliver(req);
-      // Send to own inbox.
-      deliver(req);
+      post(to, req);
 
       const responseId = await responseIdP;
       const responseP = provide(responseId);
@@ -281,7 +302,51 @@ export const makeMailboxMaker = ({ provide, provideAgentForHandle }) => {
       return responseP;
     };
 
+    /**
+     * @param {import('./types.js').Envelope} envelope
+     */
+    const open = envelope => {
+      const message = outbox.get(envelope);
+      if (message === undefined) {
+        throw new Error('Mail fraud: unrecognized parcel');
+      }
+      return message;
+    };
+
+    // When receiving an envelope, we can assume we are the intended recipient
+    // but we cannot assume the alleged sender.
+    /**
+     * @param {import('@endo/eventual-send').ERef<import('./types.js').Envelope>} envelope
+     * @param {string} allegedFromId
+     */
+    const receive = async (envelope, allegedFromId) => {
+      const sender = /** @type {Promise<import('./types.js').Handle>} */ (
+        provide(allegedFromId)
+      );
+      const message = await E(sender).open(envelope);
+      if (allegedFromId !== message.from) {
+        throw new Error('Mail fraud: alleged sender does not recognize parcel');
+      }
+      deliver(message);
+    };
+
+    const handle = makeExo(
+      'Handle',
+      M.interface(
+        'Handle',
+        {},
+        {
+          defaultGuards: 'passable',
+        },
+      ),
+      {
+        receive,
+        open,
+      },
+    );
+
     return harden({
+      handle: () => handle,
       deliver,
       petStore,
       listMessages,

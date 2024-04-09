@@ -357,22 +357,11 @@ export interface Controller<External = unknown, Internal = unknown>
   context: Context;
 }
 
-/**
- * A handle is used to create a pointer to a formula without exposing it directly.
- * This is the external facet of the handle and is safe to expose. This is used to
- * provide an EndoGuest with a reference to its creator EndoHost. By using a handle
- * that points to the host instead of giving a direct reference to the host, the
- * guest does not get access to the functions of the host. This is the external
- * facet of a handle. It directly exposes nothing. The handle's agent is only
- * exposed on the internal facet.
- */
-export interface ExternalHandle {}
-/**
- * This is the internal facet of a handle. It exposes the formula id that the
- * handle points to. This should not be exposed outside of the endo daemon.
- */
-export interface InternalHandle {
-  agentId: string;
+export interface Envelope {}
+
+export interface Handle {
+  receive(envelope: Envelope, allegedFromId: string): void;
+  open(envelope: Envelope): EnvelopedMessage;
 }
 
 export type MakeSha512 = () => Sha512;
@@ -420,6 +409,7 @@ export interface EndoDirectory extends NameHub {
 export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
 
 export interface Mail {
+  handle: () => Handle;
   // Partial inheritance from PetStore:
   petStore: PetStore;
   // Mail operations:

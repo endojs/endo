@@ -95,7 +95,7 @@ export const makeHostMaker = ({
       selfId: handleId,
       context,
     });
-    const { petStore } = mailbox;
+    const { petStore, handle } = mailbox;
     const directory = makeDirectoryNode(petStore);
 
     const getEndoBootstrap = async () => {
@@ -504,16 +504,8 @@ export const makeHostMaker = ({
       deliver,
     } = mailbox;
 
-    const handle = makeExo(
-      'EndoHostHandle',
-      M.interface('EndoHostHandle', {}),
-      {},
-    );
-
     /** @type {import('./types.js').EndoHost} */
     const host = {
-      // Agent
-      handle: () => handle,
       // Directory
       has,
       identify,
@@ -530,6 +522,7 @@ export const makeHostMaker = ({
       copy,
       makeDirectory,
       // Mail
+      handle,
       listMessages,
       followMessages,
       resolve,
