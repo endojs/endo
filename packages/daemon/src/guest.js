@@ -20,6 +20,8 @@ export const makeGuestMaker = ({
 }) => {
   /**
    * @param {string} guestId
+   * @param {string} handleId
+   * @param {string} hostAgentId
    * @param {string} hostHandleId
    * @param {string} petStoreId
    * @param {string} mainWorkerId
@@ -27,12 +29,15 @@ export const makeGuestMaker = ({
    */
   const makeIdentifiedGuestController = async (
     guestId,
+    handleId,
+    hostAgentId,
     hostHandleId,
     petStoreId,
     mainWorkerId,
     context,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
+    context.thisDiesIfThatDies(hostAgentId);
     context.thisDiesIfThatDies(petStoreId);
     context.thisDiesIfThatDies(mainWorkerId);
 
@@ -40,7 +45,8 @@ export const makeGuestMaker = ({
       await provide(petStoreId)
     );
     const specialStore = makePetSitter(basePetStore, {
-      SELF: guestId,
+      AGENT: guestId,
+      SELF: handleId,
       HOST: hostHandleId,
     });
     const hostController =
@@ -56,7 +62,7 @@ export const makeGuestMaker = ({
 
     const mailbox = makeMailbox({
       petStore: specialStore,
-      selfId: guestId,
+      selfId: handleId,
       context,
     });
     const { petStore } = mailbox;
@@ -90,8 +96,16 @@ export const makeGuestMaker = ({
       respond,
     } = mailbox;
 
+    const handle = makeExo(
+      'EndoGuestHandle',
+      M.interface('EndoGuestHandle', {}),
+      {},
+    );
+
     /** @type {import('./types.js').EndoGuest} */
     const guest = {
+      // Agent
+      handle: () => handle,
       // Directory
       has,
       identify,

@@ -1,5 +1,6 @@
 // @ts-check
 
+import { isPetName } from './pet-name.js';
 import { parseId } from './formula-identifier.js';
 
 const { quote: q } = assert;
@@ -19,6 +20,13 @@ export const makePetSitter = (petStore, specialNames) => {
   const identifyLocal = petName => {
     if (Object.hasOwn(specialNames, petName)) {
       return specialNames[petName];
+    }
+    if (!isPetName(petName)) {
+      throw new Error(
+        `Invalid pet name ${q(petName)} and not one of ${Object.keys(
+          specialNames,
+        ).join(', ')}`,
+      );
     }
     return petStore.identifyLocal(petName);
   };

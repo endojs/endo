@@ -12,7 +12,7 @@ const { quote: q } = assert;
 
 /** @param {string} name */
 const assertPowersName = name => {
-  ['NONE', 'SELF', 'ENDO'].includes(name) || assertPetName(name);
+  ['NONE', 'AGENT', 'ENDO'].includes(name) || assertPetName(name);
 };
 
 /**
@@ -50,6 +50,7 @@ export const makeHostMaker = ({
 }) => {
   /**
    * @param {string} hostId
+   * @param {string} handleId
    * @param {string} storeId
    * @param {string} inspectorId
    * @param {string} mainWorkerId
@@ -61,6 +62,7 @@ export const makeHostMaker = ({
    */
   const makeIdentifiedHost = async (
     hostId,
+    handleId,
     storeId,
     inspectorId,
     mainWorkerId,
@@ -80,7 +82,8 @@ export const makeHostMaker = ({
     );
     const specialStore = makePetSitter(basePetStore, {
       ...platformNames,
-      SELF: hostId,
+      AGENT: hostId,
+      SELF: handleId,
       ENDO: endoId,
       NETS: networksDirectoryId,
       INFO: inspectorId,
@@ -89,7 +92,7 @@ export const makeHostMaker = ({
 
     const mailbox = makeMailbox({
       petStore: specialStore,
-      selfId: hostId,
+      selfId: handleId,
       context,
     });
     const { petStore } = mailbox;
@@ -273,6 +276,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { value } = await formulateUnconfined(
         hostId,
+        handleId,
         specifier,
         tasks,
         workerId,
@@ -308,6 +312,7 @@ export const makeHostMaker = ({
       // eslint-disable-next-line no-use-before-define
       const { value } = await formulateBundle(
         hostId,
+        handleId,
         bundleId,
         tasks,
         workerId,
@@ -348,7 +353,7 @@ export const makeHostMaker = ({
         if (id !== undefined) {
           return {
             id,
-            value: /** @type {Promise<any>} */ (provideController(id).external),
+            value: /** @type {Promise<any>} */ (provide(id)),
           };
         }
       }
@@ -356,13 +361,21 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string} [petName] - The pet name of the agent.
+     * @param {string} [handleName] - The pet name of the handle.
+     * @param {string} [agentName] - The pet name of the agent.
      */
-    const getDeferredTasksForAgent = petName => {
+    const getDeferredTasksForAgent = (handleName, agentName) => {
       /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      if (petName !== undefined) {
-        tasks.push(identifiers => petStore.write(petName, identifiers.agentId));
+      if (handleName !== undefined) {
+        tasks.push(identifiers =>
+          petStore.write(handleName, identifiers.handleId),
+        );
+      }
+      if (agentName !== undefined) {
+        tasks.push(identifiers =>
+          petStore.write(agentName, identifiers.agentId),
+        );
       }
       return tasks;
     };
@@ -372,7 +385,10 @@ export const makeHostMaker = ({
      * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
      * @returns {Promise<{id: string, value: Promise<import('./types.js').EndoHost>}>}
      */
-    const makeHost = async (petName, { introducedNames = {} } = {}) => {
+    const makeHost = async (
+      petName,
+      { introducedNames = {}, agentName = undefined } = {},
+    ) => {
       let host = getNamedAgent(petName);
       if (host === undefined) {
         const { value, id } =
@@ -380,7 +396,7 @@ export const makeHostMaker = ({
           await formulateHost(
             endoId,
             networksDirectoryId,
-            getDeferredTasksForAgent(petName),
+            getDeferredTasksForAgent(petName, agentName),
           );
         host = { value: Promise.resolve(value), id };
       }
@@ -398,16 +414,23 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string} [petName]
+     * @param {string} [handleName]
      * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
      * @returns {Promise<{id: string, value: Promise<import('./types.js').EndoGuest>}>}
      */
-    const makeGuest = async (petName, { introducedNames = {} } = {}) => {
-      let guest = getNamedAgent(petName);
+    const makeGuest = async (
+      handleName,
+      { introducedNames = {}, agentName = undefined } = {},
+    ) => {
+      let guest = getNamedAgent(handleName);
       if (guest === undefined) {
         const { value, id } =
           // Behold, recursion:
-          await formulateGuest(hostId, getDeferredTasksForAgent(petName));
+          await formulateGuest(
+            hostId,
+            handleId,
+            getDeferredTasksForAgent(handleName, agentName),
+          );
         guest = { value: Promise.resolve(value), id };
       }
 
@@ -481,8 +504,16 @@ export const makeHostMaker = ({
       respond,
     } = mailbox;
 
+    const handle = makeExo(
+      'EndoHostHandle',
+      M.interface('EndoHostHandle', {}),
+      {},
+    );
+
     /** @type {import('./types.js').EndoHost} */
     const host = {
+      // Agent
+      handle: () => handle,
       // Directory
       has,
       identify,
