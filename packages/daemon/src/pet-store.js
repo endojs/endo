@@ -179,16 +179,17 @@ export const makePetStoreMaker = (filePowers, config) => {
       // Delete the back-reference for the overwritten pet name if it existed.
       if (overwrittenId !== undefined) {
         idsToPetNames.delete(overwrittenId, toName);
+        nameChangesTopic.publisher.next({ remove: toName });
       }
 
       // Update the mapping for the pet name.
       idsToPetNames.add(formulaIdentifier, toName);
 
+      nameChangesTopic.publisher.next({ remove: fromName });
       nameChangesTopic.publisher.next({
         add: toName,
         value: parseId(formulaIdentifier),
       });
-      nameChangesTopic.publisher.next({ remove: fromName });
       // TODO consider retaining a backlog of overwritten names for recovery
     };
 

@@ -648,9 +648,30 @@ test('followNames publishes renamed names', async t => {
   await E(host).move(['ten'], ['zehn']);
 
   let { value } = await changesIterator.next();
+  t.is(value.remove, 'ten');
+  value = (await changesIterator.next()).value;
   t.is(value.add, 'zehn');
+});
+
+test('followNames publishes renamed names (existing mappings for both names)', async t => {
+  const { cancelled, locator } = await prepareLocator(t);
+  const { host } = await makeHost(locator, cancelled);
+
+  const changesIterator = await prepareFollowChangesIterator(host);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await changesIterator.next();
+  await E(host).evaluate('MAIN', '"german 10"', [], [], 'zehn');
+  await changesIterator.next();
+
+  await E(host).move(['ten'], ['zehn']);
+
+  let { value } = await changesIterator.next();
+  t.is(value.remove, 'zehn');
   value = (await changesIterator.next()).value;
   t.is(value.remove, 'ten');
+  value = (await changesIterator.next()).value;
+  t.is(value.add, 'zehn');
 });
 
 test('followNames does not notify of redundant pet store writes', async t => {
