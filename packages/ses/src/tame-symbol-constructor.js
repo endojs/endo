@@ -50,14 +50,20 @@ export const tameSymbolConstructor = () => {
     },
   });
 
+  const sharedSymbolDescs = getOwnPropertyDescriptors(SharedSymbol);
   const originalDescsEntries = entries(
     getOwnPropertyDescriptors(OriginalSymbol),
   );
   const descs = fromEntries(
-    arrayMap(originalDescsEntries, ([name, desc]) => [
-      name,
-      { ...desc, configurable: true },
-    ]),
+    arrayMap(originalDescsEntries, ([name, desc]) => {
+      if (
+        sharedSymbolDescs[name] &&
+        sharedSymbolDescs[name].configurable === false
+      ) {
+        return [name, desc];
+      }
+      return [name, { ...desc, configurable: true }];
+    }),
   );
   defineProperties(SharedSymbol, descs);
 
