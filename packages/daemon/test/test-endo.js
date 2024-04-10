@@ -1159,7 +1159,7 @@ test('guest cannot access host methods', async t => {
 
   const guest = E(host).provideGuest('guest');
   const guestsHost = E(guest).lookup('HOST');
-  await t.throwsAsync(() => E(guestsHost).lookup('ANY'), {
+  await t.throwsAsync(() => E(guestsHost).lookup(), {
     message: /target has no method "lookup"/u,
   });
   const revealedTarget = await E.get(guestsHost).targetId;
