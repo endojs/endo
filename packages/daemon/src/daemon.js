@@ -109,6 +109,8 @@ const makeDaemonCore = async (
   } = powers;
   const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
+  /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
+  const workerDaemonFacets = new WeakMap();
   /**
    * Mutations of the formula graph must be serialized through this queue.
    * "Mutations" include:
@@ -313,9 +315,12 @@ const makeDaemonCore = async (
       {},
     );
 
+    // @ts-expect-error Evidently not specific enough.
+    workerDaemonFacets.set(worker, workerDaemonFacet);
+
     return {
       external: worker,
-      internal: workerDaemonFacet,
+      internal: undefined,
     };
   };
 
@@ -355,17 +360,13 @@ const makeDaemonCore = async (
       context.thisDiesIfThatDies(id);
     }
 
-    const workerController =
-      /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provideController(workerId)
-      );
-    const workerDaemonFacet = workerController.internal;
-    assert(
-      workerDaemonFacet,
-      `panic: No internal bootstrap for worker ${workerId}`,
+    const worker = /** @type {import('./worker.js').WorkerBootstrap} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provide(workerId)
     );
+    const workerDaemonFacet = workerDaemonFacets.get(worker);
+    assert(workerDaemonFacet, `Cannot evaluate using non-worker`);
 
     const endowmentValues = await Promise.all(
       ids.map(id =>
@@ -428,17 +429,13 @@ const makeDaemonCore = async (
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
-    const workerController =
-      /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provideController(workerId)
-      );
-    const workerDaemonFacet = workerController.internal;
-    assert(
-      workerDaemonFacet,
-      `panic: No internal bootstrap for worker ${workerId}`,
+    const worker = /** @type {import('./worker.js').WorkerBootstrap} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provide(workerId)
     );
+    const workerDaemonFacet = workerDaemonFacets.get(worker);
+    assert(workerDaemonFacet, 'Cannot make unconfined plugin with non-worker');
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const powersP = provide(powersId);
@@ -466,17 +463,13 @@ const makeDaemonCore = async (
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
-    const workerController =
-      /** @type {import('./types.js').Controller<unknown, import('./worker.js').WorkerBootstrap>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provideController(workerId)
-      );
-    const workerDaemonFacet = workerController.internal;
-    assert(
-      workerDaemonFacet,
-      `panic: No internal bootstrap for worker ${workerId}`,
+    const worker = /** @type {import('./worker.js').WorkerBootstrap} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provide(workerId)
     );
+    const workerDaemonFacet = workerDaemonFacets.get(worker);
+    assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
     const readableBundleP =
       /** @type {Promise<import('./types.js').EndoReadable>} */ (
         // Behold, recursion:

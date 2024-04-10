@@ -266,8 +266,7 @@ test('spawning a worker does not overwrite existing non-worker name', async t =>
   // with a new worker.
   await E(host).provideWorker('foo');
   await t.throwsAsync(() => E(host).evaluate('foo', '20', [], [], 'bar'), {
-    message:
-      'Cannot deliver "evaluate" to target; typeof target is "undefined"',
+    message: 'Cannot evaluate using non-worker',
   });
 });
 
