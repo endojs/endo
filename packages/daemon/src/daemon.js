@@ -320,7 +320,6 @@ const makeDaemonCore = async (
 
     return {
       external: worker,
-      internal: undefined,
     };
   };
 
@@ -337,7 +336,6 @@ const makeDaemonCore = async (
         text,
         json,
       }),
-      internal: undefined,
     };
   };
 
@@ -392,7 +390,7 @@ const makeDaemonCore = async (
     // That might mean racing two formulas and terminating the evaluator
     // if it turns out the value can be captured.
 
-    return { external, internal: undefined };
+    return { external };
   };
 
   /**
@@ -411,7 +409,7 @@ const makeDaemonCore = async (
     const hub = provide(hubId);
     // @ts-expect-error calling lookup on an unknown object
     const external = E(hub).lookup(...path);
-    return { external, internal: undefined };
+    return { external };
   };
 
   /**
@@ -445,7 +443,7 @@ const makeDaemonCore = async (
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
     );
-    return { external, internal: undefined };
+    return { external };
   };
 
   /**
@@ -485,7 +483,7 @@ const makeDaemonCore = async (
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
     );
-    return { external, internal: undefined };
+    return { external };
   };
 
   /**
@@ -571,10 +569,7 @@ const makeDaemonCore = async (
       );
       const handle = agent.handle();
       agentIdForHandle.set(handle, formula.agent);
-      return {
-        external: handle,
-        internal: undefined,
-      };
+      return { external: handle };
     } else if (formula.type === 'endo') {
       // Gateway is equivalent to E's "nonce locator". It provides a value for
       // a formula identifier to a remote client.
@@ -649,20 +644,14 @@ const makeDaemonCore = async (
           await knownPeers.write(nodeIdentifier, peerId);
         },
       });
-      return {
-        external: endoBootstrap,
-        internal: undefined,
-      };
+      return { external: endoBootstrap };
     } else if (formula.type === 'loopback-network') {
       // Behold, forward-reference:
       const loopbackNetwork = makeLoopbackNetwork({
         // eslint-disable-next-line no-use-before-define
         provide,
       });
-      return {
-        external: loopbackNetwork,
-        internal: undefined,
-      };
+      return { external: loopbackNetwork };
     } else if (formula.type === 'least-authority') {
       const disallowedFn = async () => {
         throw new Error('not allowed');
@@ -697,14 +686,14 @@ const makeDaemonCore = async (
             )
           )
         );
-      return { external: leastAuthority, internal: undefined };
+      return { external: leastAuthority };
     } else if (formula.type === 'pet-store') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'pet-store',
         assertPetName,
       );
-      return { external, internal: undefined };
+      return { external };
     } else if (formula.type === 'known-peers-store') {
       const external = petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
@@ -713,12 +702,12 @@ const makeDaemonCore = async (
         // (i.e. formula numbers) as "names".
         assertValidNumber,
       );
-      return { external, internal: undefined };
+      return { external };
     } else if (formula.type === 'pet-inspector') {
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
       const external = makePetStoreInspector(formula.petStore);
-      return { external, internal: undefined };
+      return { external };
     } else if (formula.type === 'directory') {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
@@ -787,7 +776,6 @@ const makeDaemonCore = async (
         }
         return value;
       }),
-      internal: E.get(partial).internal,
     });
     controllerForId.set(id, controller);
 
@@ -830,7 +818,6 @@ const makeDaemonCore = async (
     controller = harden({
       context,
       external: E.get(partial).external,
-      internal: E.get(partial).internal,
     });
     controllerForId.set(id, controller);
 

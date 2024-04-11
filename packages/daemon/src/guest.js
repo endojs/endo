@@ -119,11 +119,8 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
         followMessages: () => makeIteratorRef(guest.followMessages()),
       },
     );
-    const internal = harden({
-      petStore,
-    });
 
-    return harden({ external, internal });
+    return harden({ external });
   };
 
   return makeIdentifiedGuestController;
