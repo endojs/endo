@@ -266,8 +266,7 @@ test('spawning a worker does not overwrite existing non-worker name', async t =>
   // with a new worker.
   await E(host).provideWorker('foo');
   await t.throwsAsync(() => E(host).evaluate('foo', '20', [], [], 'bar'), {
-    message:
-      'Cannot deliver "evaluate" to target; typeof target is "undefined"',
+    message: 'Cannot evaluate using non-worker',
   });
 });
 
@@ -1012,7 +1011,7 @@ test('name and reuse inspector', async t => {
 });
 
 // Regression test for https://github.com/endojs/endo/issues/2021
-test.failing('eval-mediated worker name', async t => {
+test('eval-mediated worker name', async t => {
   const { cancelled, locator } = await prepareLocator(t);
   const { host } = await makeHost(locator, cancelled);
 

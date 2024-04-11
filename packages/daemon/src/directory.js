@@ -236,7 +236,7 @@ export const makeDirectoryMaker = ({
     );
     const directory = makeDirectoryNode(petStore);
 
-    const external = makeExo(
+    return makeExo(
       'EndoDirectory',
       M.interface('EndoDirectory', {}, { defaultGuards: 'passable' }),
       {
@@ -244,9 +244,6 @@ export const makeDirectoryMaker = ({
         followChanges: () => makeIteratorRef(directory.followChanges()),
       },
     );
-    const internal = harden({});
-
-    return harden({ external, internal });
   };
 
   return { makeIdentifiedDirectory, makeDirectoryNode };

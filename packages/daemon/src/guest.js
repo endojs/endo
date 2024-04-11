@@ -21,7 +21,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
    * @param {string} mainWorkerId
    * @param {import('./types.js').Context} context
    */
-  const makeIdentifiedGuestController = async (
+  const makeGuest = async (
     guestId,
     handleId,
     hostAgentId,
@@ -110,7 +110,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       deliver,
     };
 
-    const external = makeExo(
+    return makeExo(
       'EndoGuest',
       M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
       {
@@ -119,12 +119,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
         followMessages: () => makeIteratorRef(guest.followMessages()),
       },
     );
-    const internal = harden({
-      petStore,
-    });
-
-    return harden({ external, internal });
   };
 
-  return makeIdentifiedGuestController;
+  return makeGuest;
 };

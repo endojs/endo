@@ -60,7 +60,7 @@ export const makeHostMaker = ({
    * @param {{[name: string]: string}} platformNames
    * @param {import('./types.js').Context} context
    */
-  const makeIdentifiedHost = async (
+  const makeHost = async (
     hostId,
     handleId,
     storeId,
@@ -324,21 +324,21 @@ export const makeHostMaker = ({
      * Attempts to introduce the given names to the specified agent. The agent in question
      * must be formulated before this function is called.
      *
-     * @param {string} id - The agent's formula identifier.
+     * @param {string} agentId - The agent's formula identifier.
      * @param {Record<string,string>} introducedNames - The names to introduce.
      * @returns {Promise<void>}
      */
-    const introduceNamesToAgent = async (id, introducedNames) => {
-      /** @type {import('./types.js').Controller<any, any>} */
-      const controller = provideController(id);
-      const { petStore: newPetStore } = await controller.internal;
+    const introduceNamesToAgent = async (agentId, introducedNames) => {
+      const agent = /** @type {import('./types.js').EndoAgent} */ (
+        await provide(agentId)
+      );
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
           const introducedId = petStore.identifyLocal(parentName);
           if (introducedId === undefined) {
             return;
           }
-          await newPetStore.write(childName, introducedId);
+          await agent.write([childName], introducedId);
         }),
       );
     };
@@ -384,7 +384,7 @@ export const makeHostMaker = ({
      * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
      * @returns {Promise<{id: string, value: Promise<import('./types.js').EndoHost>}>}
      */
-    const makeHost = async (
+    const makeChildHost = async (
       petName,
       { introducedNames = {}, agentName = undefined } = {},
     ) => {
@@ -408,7 +408,7 @@ export const makeHostMaker = ({
 
     /** @type {import('./types.js').EndoHost['provideHost']} */
     const provideHost = async (petName, opts) => {
-      const { value } = await makeHost(petName, opts);
+      const { value } = await makeChildHost(petName, opts);
       return value;
     };
 
@@ -546,7 +546,7 @@ export const makeHostMaker = ({
       deliver,
     };
 
-    const external = makeExo(
+    const hostExo = makeExo(
       'EndoHost',
       M.interface('EndoHost', {}, { defaultGuards: 'passable' }),
       {
@@ -555,12 +555,11 @@ export const makeHostMaker = ({
         followMessages: () => makeIteratorRef(host.followMessages()),
       },
     );
-    const internal = harden({ petStore });
 
     await provide(mainWorkerId);
 
-    return harden({ external, internal });
+    return hostExo;
   };
 
-  return makeIdentifiedHost;
+  return makeHost;
 };
