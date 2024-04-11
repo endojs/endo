@@ -382,8 +382,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * Creates a controller for a `lookup` formula. The external facet is the
-   * resolved value of the lookup.
+   * Creates a controller for a `lookup` formula.
    *
    * @param {string} hubId
    * @param {string[]} path
@@ -688,24 +687,25 @@ const makeDaemonCore = async (
    * @param {string} id
    * @param {import('./types.js').Context} context
    */
-  const makeControllerForId = async (id, context) => {
+  const evaluateFormulaForId = async (id, context) => {
     const { number: formulaNumber, node: formulaNode } = parseId(id);
     const isRemote = formulaNode !== ownNodeIdentifier;
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
-      const peerIdentifier = await getPeerIdForNodeIdentifier(formulaNode);
-      // Behold, forward reference:
-      // eslint-disable-next-line no-use-before-define
-      return provideRemoteValue(peerIdentifier, id);
+      const peerId = await getPeerIdForNodeIdentifier(formulaNode);
+      const peer = /** @type {Promise<import('./types.js').EndoGateway>} */ (
+        // Behold, forward reference:
+        // eslint-disable-next-line no-use-before-define
+        provide(peerId)
+      );
+      return E(peer).provide(id);
     }
 
     const formula = await getFormulaForId(id);
     console.log(`Reincarnating ${formula.type} ${id}`);
     assertValidFormulaType(formula.type);
-    // TODO further validation
 
-    const value = evaluateFormula(id, formulaNumber, formula, context);
-    return { external: value };
+    return evaluateFormula(id, formulaNumber, formula, context);
   };
 
   /** @type {import('./types.js').DaemonCore['formulate']} */
@@ -720,39 +720,42 @@ const makeDaemonCore = async (
 
     // Memoize for lookup.
     console.log(`Making ${formula.type} ${id}`);
-    const { promise: partial, resolve: resolvePartial } =
-      /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
+    const { promise, resolve } =
+      /** @type {import('@endo/promise-kit').PromiseKit<unknown>} */ (
         makePromiseKit()
       );
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const context = makeContext(id);
-    partial.catch(context.cancel);
+    promise.catch(context.cancel);
     const controller = harden({
       context,
-      external: E.get(partial).external.then(value => {
-        if (typeof value === 'object' && value !== null) {
-          idForRef.add(value, id);
-        }
-        return value;
-      }),
+      value: promise,
     });
     controllerForId.set(id, controller);
-
-    // The controller _must_ be constructed in the synchronous prelude of this function.
-    const value = evaluateFormula(id, formulaNumber, formula, context);
-    const controllerValue = { external: value };
 
     // Ensure that failure to flush the formula to storage
     // causes a rejection for both the controller and the value.
     const written = persistencePowers.writeFormula(formulaNumber, formula);
-    resolvePartial(written.then(() => /** @type {any} */ (controllerValue)));
+    // The controller _must_ be constructed in the synchronous prelude of this function.
+    const valuePromise = evaluateFormula(
+      id,
+      formulaNumber,
+      formula,
+      context,
+    ).then(value => {
+      if (typeof value === 'object' && value !== null) {
+        idForRef.add(value, id);
+      }
+      return value;
+    });
+    resolve(written.then(() => valuePromise));
     await written;
 
     return harden({
       id,
-      value: controller.external,
+      value: controller.value,
     });
   };
 
@@ -763,22 +766,23 @@ const makeDaemonCore = async (
       return controller;
     }
 
-    const { promise: partial, resolve } =
-      /** @type {import('@endo/promise-kit').PromiseKit<import('./types.js').InternalExternal<>>} */ (
+    const { promise, resolve } =
+      /** @type {import('@endo/promise-kit').PromiseKit<unknown>} */ (
         makePromiseKit()
       );
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const context = makeContext(id);
-    partial.catch(context.cancel);
+    promise.catch(context.cancel);
     controller = harden({
       context,
-      external: E.get(partial).external,
+      value: promise,
     });
     controllerForId.set(id, controller);
 
-    resolve(makeControllerForId(id, context));
+    // The controller must be in place before we evaluate the formula.
+    resolve(evaluateFormulaForId(id, context));
 
     return controller;
   };
@@ -817,7 +821,7 @@ const makeDaemonCore = async (
     const controller = /** @type {import('./types.js').Controller<>} */ (
       provideController(id)
     );
-    return controller.external.then(value => {
+    return controller.value.then(value => {
       // Release the value to the public only after ensuring
       // we can reverse-lookup its nonce.
       if (typeof value === 'object' && value !== null) {
@@ -1467,23 +1471,6 @@ const makeDaemonCore = async (
       }
     }
     throw new Error('Cannot connect to peer: no supported addresses');
-  };
-
-  /**
-   * This is used to provide a value for a formula identifier that is known to
-   * originate from the specified peer.
-   * @param {string} peerId
-   * @param {string} remoteValueId
-   * @returns {Promise<import('./types.js').ControllerPartial<unknown, undefined>>}
-   */
-  const provideRemoteValue = async (peerId, remoteValueId) => {
-    const peer = /** @type {import('./types.js').EndoPeer} */ (
-      await provide(peerId)
-    );
-    const remoteValueP = peer.provide(remoteValueId);
-    const external = remoteValueP;
-    const internal = Promise.resolve(undefined);
-    return harden({ internal, external });
   };
 
   const makeContext = makeContextMaker({

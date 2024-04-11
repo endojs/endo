@@ -342,16 +342,8 @@ export interface FarContext {
   addDisposalHook: Context['onCancel'];
 }
 
-export interface InternalExternal<External = unknown> {
-  external: External;
-}
-
-export interface ControllerPartial<External = unknown> {
-  external: Promise<External>;
-}
-
-export interface Controller<External = unknown>
-  extends ControllerPartial<External> {
+export interface Controller<Value = unknown> {
+  value: Promise<Value>;
   context: Context;
 }
 
@@ -469,8 +461,6 @@ export type MakeHostOrGuestOptions = {
 export interface EndoPeer {
   provide: (id: string) => Promise<unknown>;
 }
-export type EndoPeerControllerPartial = ControllerPartial<EndoPeer>;
-export type EndoPeerController = Controller<EndoPeer>;
 
 export interface EndoGateway {
   provide: (id: string) => Promise<unknown>;
@@ -650,11 +640,12 @@ export type DaemonicPersistencePowers = {
 export interface DaemonWorkerFacet {}
 
 export interface WorkerDaemonFacet {
-  terminate(): void;
+  terminate(): Promise<void>;
   evaluate(
     source: string,
     names: Array<string>,
     values: Array<unknown>,
+    id: string,
     cancelled: Promise<never>,
   ): Promise<unknown>;
   makeBundle(bundle: ERef<EndoReadable>, powers: ERef<unknown>);
