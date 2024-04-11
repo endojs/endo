@@ -95,9 +95,8 @@ export const makeHostMaker = ({
       selfId: handleId,
       context,
     });
-    const { petStore } = mailbox;
+    const { petStore, handle } = mailbox;
     const directory = makeDirectoryNode(petStore);
-    const { lookup } = directory;
 
     const getEndoBootstrap = async () => {
       const endoBootstrap =
@@ -477,9 +476,11 @@ export const makeHostMaker = ({
       return peerInfo;
     };
 
+    const { reverseIdentify } = specialStore;
     const {
       has,
       identify,
+      lookup,
       locate,
       list,
       listIdentifiers,
@@ -500,23 +501,15 @@ export const makeHostMaker = ({
       dismiss,
       request,
       send,
-      receive,
-      respond,
+      deliver,
     } = mailbox;
-
-    const handle = makeExo(
-      'EndoHostHandle',
-      M.interface('EndoHostHandle', {}),
-      {},
-    );
 
     /** @type {import('./types.js').EndoHost} */
     const host = {
-      // Agent
-      handle: () => handle,
       // Directory
       has,
       identify,
+      reverseIdentify,
       locate,
       list,
       listIdentifiers,
@@ -529,6 +522,7 @@ export const makeHostMaker = ({
       copy,
       makeDirectory,
       // Mail
+      handle,
       listMessages,
       followMessages,
       resolve,
@@ -549,6 +543,7 @@ export const makeHostMaker = ({
       gateway,
       getPeerInfo,
       addPeerInfo,
+      deliver,
     };
 
     const external = makeExo(
@@ -560,7 +555,7 @@ export const makeHostMaker = ({
         followMessages: () => makeIteratorRef(host.followMessages()),
       },
     );
-    const internal = harden({ receive, respond, petStore });
+    const internal = harden({ petStore });
 
     await provide(mainWorkerId);
 

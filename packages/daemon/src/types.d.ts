@@ -232,35 +232,41 @@ export type Specials = {
   [specialName: string]: (builtins: Builtins) => Formula;
 };
 
-export type Label = {
-  number: number;
-  who: string;
-  dest: string;
-  when: string;
-  dismissed: Promise<void>;
-};
-export type InternalLabel = Label;
+export interface Responder {
+  respondId(id: string | Promise<string>): void;
+}
 
 export type Request = {
   type: 'request';
-  what: string;
+  description: string;
+  responder: ERef<Responder>;
   settled: Promise<'fulfilled' | 'rejected'>;
 };
-export type InternalRequest = Request;
 
 export type Package = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<string>; // edge names
-  formulas: Array<string>; // formula identifiers
+  ids: Array<string>; // formula identifiers
 };
-export type InternalPackage = Package;
 
-export type Payload = Request | Package;
-export type InternalPayload = InternalRequest | InternalPackage;
+export type Message = Request | Package;
 
-export type Message = Label & Payload;
-export type InternalMessage = InternalLabel & InternalPayload;
+export type EnvelopedMessage = Message & {
+  to: string;
+  from: string;
+};
+
+export interface Dismisser {
+  dismiss(): void;
+}
+
+export type StampedMessage = EnvelopedMessage & {
+  number: number;
+  date: string;
+  dismissed: Promise<void>;
+  dismisser: ERef<Dismisser>;
+};
 
 export type Invitation = {
   powers: string;
@@ -351,22 +357,11 @@ export interface Controller<External = unknown, Internal = unknown>
   context: Context;
 }
 
-/**
- * A handle is used to create a pointer to a formula without exposing it directly.
- * This is the external facet of the handle and is safe to expose. This is used to
- * provide an EndoGuest with a reference to its creator EndoHost. By using a handle
- * that points to the host instead of giving a direct reference to the host, the
- * guest does not get access to the functions of the host. This is the external
- * facet of a handle. It directly exposes nothing. The handle's agent is only
- * exposed on the internal facet.
- */
-export interface ExternalHandle {}
-/**
- * This is the internal facet of a handle. It exposes the formula id that the
- * handle points to. This should not be exposed outside of the endo daemon.
- */
-export interface InternalHandle {
-  agentId: string;
+export interface Envelope {}
+
+export interface Handle {
+  receive(envelope: Envelope, allegedFromId: string): void;
+  open(envelope: Envelope): EnvelopedMessage;
 }
 
 export type MakeSha512 = () => Sha512;
@@ -414,11 +409,12 @@ export interface EndoDirectory extends NameHub {
 export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
 
 export interface Mail {
+  handle: () => Handle;
   // Partial inheritance from PetStore:
   petStore: PetStore;
   // Mail operations:
-  listMessages(): Promise<Array<Message>>;
-  followMessages(): AsyncGenerator<Message, undefined, undefined>;
+  listMessages(): Promise<Array<StampedMessage>>;
+  followMessages(): AsyncGenerator<StampedMessage, undefined, undefined>;
   resolve(messageNumber: number, resolutionName: string): Promise<void>;
   reject(messageNumber: number, message?: string): Promise<void>;
   adopt(
@@ -438,20 +434,7 @@ export interface Mail {
     edgeNames: Array<string>,
     petNames: Array<string>,
   ): Promise<void>;
-  respond(
-    what: string,
-    responseName: string,
-    senderId: string,
-    senderPetStore: PetStore,
-    recipientId?: string,
-  ): Promise<unknown>;
-  receive(
-    senderId: string,
-    strings: Array<string>,
-    edgeNames: Array<string>,
-    ids: Array<string>,
-    receiverId: string,
-  ): void;
+  deliver(message: EnvelopedMessage): void;
 }
 
 export type MakeMailbox = (args: {
@@ -466,13 +449,6 @@ export type RequestFn = (
   guestId: string,
   guestPetStore: PetStore,
 ) => Promise<unknown>;
-
-export type ReceiveFn = (
-  senderId: string,
-  strings: Array<string>,
-  edgeNames: Array<string>,
-  ids: Array<string>,
-) => void;
 
 export interface EndoReadable {
   sha512(): string;
@@ -523,6 +499,12 @@ export interface EndoAgent extends EndoDirectory {
   dismiss: Mail['dismiss'];
   request: Mail['request'];
   send: Mail['send'];
+  deliver: Mail['deliver'];
+  /**
+   * @param id The formula identifier to look up.
+   * @returns The formula identifier for the given pet name, or `undefined` if the pet name is not found.
+   */
+  reverseIdentify(id: string): Array<string>;
 }
 
 export interface EndoGuest extends EndoAgent {}
@@ -570,8 +552,6 @@ export interface EndoHost extends EndoAgent {
 }
 
 export interface InternalEndoAgent {
-  receive: Mail['receive'];
-  respond: Mail['respond'];
   petStore: PetStore;
 }
 
@@ -867,7 +847,7 @@ export interface DaemonCore {
 
   provideController: (id: string) => Controller;
 
-  provideControllerAndResolveHandle: (id: string) => Promise<Controller>;
+  provideAgentForHandle: (id: string) => Promise<ERef<EndoAgent>>;
 }
 
 export interface DaemonCoreExternal {

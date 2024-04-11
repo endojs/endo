@@ -13,7 +13,7 @@ export const isPetName = petName => validNamePattern.test(petName);
  * @param {string} petName
  */
 export const assertPetName = petName => {
-  if (typeof petName !== 'string' || !validNamePattern.test(petName)) {
+  if (typeof petName !== 'string' || !isPetName(petName)) {
     throw new Error(`Invalid pet name ${q(petName)}`);
   }
 };

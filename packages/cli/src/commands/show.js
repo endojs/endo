@@ -5,6 +5,6 @@ import { withEndoAgent } from '../context.js';
 
 export const show = async ({ name, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    const pet = await E(agent).lookup(name);
+    const pet = await E(agent).lookup(...name.split('.'));
     console.log(pet);
   });

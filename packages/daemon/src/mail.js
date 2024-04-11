@@ -1,5 +1,8 @@
 // @ts-check
 
+import { E } from '@endo/eventual-send';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { assertPetName } from './pet-name.js';
@@ -7,168 +10,124 @@ import { assertPetName } from './pet-name.js';
 const { quote: q } = assert;
 
 /**
+ * @param {string} description
+ * @param {string} fromId
+ * @param {string} toId
+ */
+const makeRequest = (description, fromId, toId) => {
+  /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
+  const { promise, resolve } = makePromiseKit();
+  const settled = promise.then(
+    () => /** @type {const} */ ('fulfilled'),
+    () => /** @type {const} */ ('rejected'),
+  );
+  const responder = makeExo(
+    'Responder',
+    M.interface(
+      'Responder',
+      {},
+      {
+        defaultGuards: 'passable',
+      },
+    ),
+    {
+      respondId: resolve,
+    },
+  );
+  const request = harden({
+    type: /** @type {const} */ ('request'),
+    from: fromId,
+    to: toId,
+    description,
+    settled,
+    responder,
+  });
+  return harden({ request, response: promise });
+};
+
+const EnvelopeShape = M.interface('Envelope', {});
+const makeEnvelope = () => makeExo('Envelope', EnvelopeShape, {});
+
+/**
  * @param {object} args
  * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideControllerAndResolveHandle']} args.provideControllerAndResolveHandle
  * @returns {import('./types.js').MakeMailbox}
  */
-export const makeMailboxMaker = ({
-  provide,
-  provideControllerAndResolveHandle,
-}) => {
+export const makeMailboxMaker = ({ provide }) => {
   /**
     @type {import('./types.js').MakeMailbox} */
   const makeMailbox = ({ selfId, petStore, context }) => {
-    /** @type {Map<string, Promise<unknown>>} */
-    const responses = new Map();
-    /** @type {Map<number, import('./types.js').InternalMessage>} */
+    /** @type {Map<number, import('./types.js').StampedMessage>} */
     const messages = new Map();
-    /** @type {WeakMap<object, (value: unknown) => void>} */
-    const resolvers = new WeakMap();
-    /** @type {WeakMap<object, () => void>} */
-    const dismissers = new WeakMap();
-    /** @type {import('./types.js').Topic<import('./types.js').InternalMessage>} */
+
+    /** @type {WeakMap<{}, import('./types.js').EnvelopedMessage>} */
+    const outbox = new WeakMap();
+
+    /** @type {import('./types.js').Topic<import('./types.js').StampedMessage>} */
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
 
-    /**
-     * @param {import('./types.js').InternalMessage} message
-     * @returns {import('./types.js').Message | undefined}
-     */
-    const dubMessage = message => {
-      const { type } = message;
-      if (type === 'request') {
-        const { who: senderId, dest: recipientId, ...rest } = message;
-        const [senderName] = petStore.reverseIdentify(senderId);
-        const [recipientName] = petStore.reverseIdentify(recipientId);
-        if (senderName !== undefined) {
-          return { who: senderName, dest: recipientName, ...rest };
-        }
-        return undefined;
-      } else if (type === 'package') {
-        const { who: senderId, dest: recipientId, ...rest } = message;
-        const [senderName] = petStore.reverseIdentify(senderId);
-        const [recipientName] = petStore.reverseIdentify(recipientId);
-        if (senderName !== undefined) {
-          return { who: senderName, dest: recipientName, ...rest };
-        }
-        return undefined;
-      }
-      throw new Error(
-        `panic: Unknown message type ${/** @type {any} */ (message).type}`,
-      );
-    };
-
-    /**
-     * @returns {Generator<import('./types.js').Message>}
-     */
-    const dubAndFilterMessages = function* dubAndFilterMessages() {
-      for (const message of messages.values()) {
-        const dubbedMessage = dubMessage(message);
-        if (dubbedMessage !== undefined) {
-          yield dubbedMessage;
-        }
-      }
-    };
-
     /** @type {import('./types.js').Mail['listMessages']} */
-    const listMessages = async () => harden(Array.from(dubAndFilterMessages()));
+    const listMessages = async () => harden(Array.from(messages.values()));
 
     /** @type {import('./types.js').Mail['followMessages']} */
     const followMessages = async function* currentAndSubsequentMessages() {
       const subsequentRequests = messagesTopic.subscribe();
-      for (const message of messages.values()) {
-        const dubbedMessage = dubMessage(message);
-        if (dubbedMessage !== undefined) {
-          yield dubbedMessage;
-        }
-      }
-      for await (const message of subsequentRequests) {
-        const dubbedMessage = dubMessage(message);
-        if (dubbedMessage !== undefined) {
-          yield dubbedMessage;
-        }
-      }
+      yield* messages.values();
+      yield* subsequentRequests;
     };
 
     /**
-     * @param {object} partialMessage
-     * @returns {import('./types.js').InternalMessage}
+     * @param {import('./types.js').EnvelopedMessage} envelope
      */
-    const deliver = partialMessage => {
+    const deliver = async envelope => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
       const dismissal = makePromiseKit();
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1;
 
-      const message = harden({
-        number: messageNumber,
-        when: new Date().toISOString(),
-        dismissed: dismissal.promise,
-        ...partialMessage,
-      });
+      const dismisser = makeExo(
+        'Dismisser',
+        M.interface(
+          'Dismisser',
+          {},
+          {
+            defaultGuards: 'passable',
+          },
+        ),
+        {
+          dismiss() {
+            messages.delete(messageNumber);
+            dismissal.resolve();
+          },
+        },
+      );
 
-      dismissers.set(message, () => {
-        messages.delete(messageNumber);
-        dismissal.resolve();
+      const message = harden({
+        ...envelope,
+        number: messageNumber,
+        date: new Date().toISOString(),
+        dismissed: dismissal.promise,
+        dismisser,
       });
 
       messages.set(messageNumber, message);
       messagesTopic.publisher.next(message);
-
-      return message;
     };
 
     /**
-     * @param {string} what - user visible description of the desired value
-     * @param {string} who
-     * @param {string} dest
-     * @returns {Promise<string>}
+     * @param {import('./types.js').Handle} recipient
+     * @param {import('./types.js').EnvelopedMessage} message
      */
-    const requestId = async (what, who, dest) => {
-      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
-      const { promise, resolve } = makePromiseKit();
-      const settled = promise.then(
-        () => 'fulfilled',
-        () => 'rejected',
-      );
-      const message = deliver({
-        type: /** @type {const} */ ('request'),
-        who,
-        dest,
-        what,
-        settled,
-      });
-      resolvers.set(message, resolve);
-      return promise;
-    };
-
-    /** @type {import('./types.js').Mail['respond']} */
-    const respond = async (
-      what,
-      responseName,
-      senderId,
-      senderPetStore,
-      recipientId = selfId,
-    ) => {
-      if (responseName !== undefined) {
-        /** @type {string | undefined} */
-        let id = senderPetStore.identifyLocal(responseName);
-        if (id === undefined) {
-          id = await requestId(what, senderId, recipientId);
-          await senderPetStore.write(responseName, id);
-        }
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return provide(id);
+    const post = (recipient, message) => {
+      /** @param {object} allegedRecipient */
+      const envelope = makeEnvelope();
+      outbox.set(envelope, message);
+      E.sendOnly(recipient).receive(envelope, selfId);
+      if (message.from !== message.to) {
+        // echo to own mailbox
+        deliver(message);
       }
-      // The reference is not named nor to be named.
-      const id = await requestId(what, senderId, recipientId);
-      // TODO:
-      // context.thisDiesIfThatDies(id);
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return provide(id);
     };
 
     /** @type {import('./types.js').Mail['resolve']} */
@@ -180,10 +139,9 @@ export const makeMailboxMaker = ({
       ) {
         throw new Error(`Invalid request number ${q(messageNumber)}`);
       }
-      const req = messages.get(messageNumber);
-      const resolveRequest = resolvers.get(req);
-      if (resolveRequest === undefined) {
-        throw new Error(`No pending request for number ${messageNumber}`);
+      const message = messages.get(messageNumber);
+      if (message === undefined) {
+        throw new Error(`Invalid request, ${q(messageNumber)}`);
       }
       const id = petStore.identifyLocal(resolutionName);
       if (id === undefined) {
@@ -191,58 +149,35 @@ export const makeMailboxMaker = ({
           `No formula exists for the pet name ${q(resolutionName)}`,
         );
       }
-      resolveRequest(id);
+      // TODO validate shape of request
+      const req = /** @type {import('./types.js').Request} */ (message);
+      const { responder } = E.get(req);
+      E.sendOnly(responder).respondId(id);
     };
 
     // TODO test reject
     /** @type {import('./types.js').Mail['reject']} */
-    const reject = async (messageNumber, message = 'Declined') => {
-      const req = messages.get(messageNumber);
-      if (req !== undefined) {
-        const resolveRequest = resolvers.get(req);
-        if (resolveRequest === undefined) {
-          throw new Error(`panic: a resolver must exist for every request`);
-        }
-        resolveRequest(harden(Promise.reject(harden(new Error(message)))));
+    const reject = async (messageNumber, reason = 'Declined') => {
+      const message = messages.get(messageNumber);
+      if (message !== undefined) {
+        // TODO verify that the message is a request.
+        const req = /** @type {import('./types.js').Request} */ (message);
+        const { responder } = E.get(req);
+        E.sendOnly(responder).respondId(
+          harden(Promise.reject(harden(new Error(reason)))),
+        );
       }
-    };
-
-    /** @type {import('./types.js').Mail['receive']} */
-    const receive = (
-      senderId,
-      strings,
-      edgeNames,
-      ids,
-      receiverId = selfId,
-    ) => {
-      deliver({
-        type: /** @type {const} */ ('package'),
-        strings,
-        names: edgeNames,
-        formulas: ids,
-        who: senderId,
-        dest: receiverId,
-      });
     };
 
     /** @type {import('./types.js').Mail['send']} */
-    const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipientId = petStore.identifyLocal(recipientName);
-      if (recipientId === undefined) {
-        throw new Error(`Unknown pet name for agent: ${recipientName}`);
+    const send = async (toName, strings, edgeNames, petNames) => {
+      const toId = petStore.identifyLocal(toName);
+      if (toId === undefined) {
+        throw new Error(`Unknown recipient ${toName}`);
       }
-      const recipientController = await provideControllerAndResolveHandle(
-        recipientId,
+      const to = /** @type {import('./types.js').Handle} */ (
+        await provide(toId)
       );
-      const recipientInternal = await recipientController.internal;
-      if (recipientInternal === undefined || recipientInternal === null) {
-        throw new Error(`Recipient cannot receive messages: ${recipientName}`);
-      }
-      // @ts-expect-error We check if its undefined immediately after
-      const { receive: agentReceive } = recipientInternal;
-      if (agentReceive === undefined) {
-        throw new Error(`Recipient cannot receive messages: ${recipientName}`);
-      }
 
       petNames.forEach(assertPetName);
       edgeNames.forEach(assertPetName);
@@ -266,17 +201,18 @@ export const makeMailboxMaker = ({
         }
         return id;
       });
-      // add to recipient mailbox
-      agentReceive(selfId, strings, edgeNames, ids);
-      // add to own mailbox
-      receive(
-        selfId,
+
+      const message = harden({
+        type: /** @type {const} */ ('package'),
         strings,
-        edgeNames,
+        names: edgeNames,
         ids,
-        // Sender expects the handle formula identifier.
-        recipientId,
-      );
+        from: selfId,
+        to: toId,
+      });
+
+      // add to recipient mailbox
+      post(to, message);
     };
 
     /** @type {import('./types.js').Mail['dismiss']} */
@@ -285,14 +221,14 @@ export const makeMailboxMaker = ({
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
       ) {
-        throw new Error(`Invalid request number ${q(messageNumber)}`);
+        throw new Error(`Invalid request number ${messageNumber}`);
       }
       const message = messages.get(messageNumber);
-      const dismissMessage = dismissers.get(message);
-      if (dismissMessage === undefined) {
-        throw new Error(`No dismissable message for number ${messageNumber}`);
+      if (message === undefined) {
+        throw new Error(`Invalid request number ${messageNumber}`);
       }
-      dismissMessage();
+      const { dismisser } = E.get(message);
+      return E(dismisser).dismiss();
     };
 
     /** @type {import('./types.js').Mail['adopt']} */
@@ -318,7 +254,7 @@ export const makeMailboxMaker = ({
           `No reference named ${q(edgeName)} in message ${q(messageNumber)}`,
         );
       }
-      const id = message.formulas[index];
+      const id = message.ids[index];
       if (id === undefined) {
         throw new Error(
           `panic: message must contain a formula for every name, including the name ${q(
@@ -331,93 +267,91 @@ export const makeMailboxMaker = ({
     };
 
     /** @type {import('./types.js').Mail['request']} */
-    const request = async (recipientName, what, responseName) => {
-      const recipientId = petStore.identifyLocal(recipientName);
-      if (recipientId === undefined) {
-        throw new Error(`Unknown pet name for agent: ${recipientName}`);
-      }
-      const recipientController = await provideControllerAndResolveHandle(
-        recipientId,
-      );
-      const recipientInternal = await recipientController.internal;
-      if (recipientInternal === undefined || recipientInternal === null) {
-        throw new Error(
-          `panic: a receive request function must exist for every agent`,
-        );
-      }
-
-      // @ts-expect-error We sufficiently check if recipientInternal or deliverToRecipient is undefined
-      const { respond: deliverToRecipient } = recipientInternal;
-      if (deliverToRecipient === undefined) {
-        throw new Error(
-          `panic: a receive request function must exist for every agent`,
-        );
-      }
-
+    const request = async (toName, description, responseName) => {
       if (responseName !== undefined) {
-        const responseP = responses.get(responseName);
-        if (responseP !== undefined) {
-          return responseP;
+        const responseId = petStore.identifyLocal(responseName);
+        if (responseId !== undefined) {
+          return provide(responseId);
         }
       }
 
+      const toId = petStore.identifyLocal(toName);
+      if (toId === undefined) {
+        throw new Error(`Unknown recipient ${toName}`);
+      }
+      const to = /** @type {import('./types.js').Handle} */ (
+        await provide(toId)
+      );
+
+      const { request: req, response: responseIdP } = makeRequest(
+        description,
+        selfId,
+        toId,
+      );
+
       // Note: consider sending to each mailbox with different powers.
-      // Behold, recursion:
-      // eslint-disable-next-line
-      const recipientResponseP = deliverToRecipient(
-        what,
-        responseName,
-        selfId,
-        petStore,
-      );
-      // Send to own inbox.
-      const selfResponseP = respond(
-        what,
-        responseName,
-        selfId,
-        petStore,
-        // Sender expects the handle formula identifier.
-        recipientId,
-      );
-      const newResponseP = Promise.race([recipientResponseP, selfResponseP]);
+      post(to, req);
+
+      const responseId = await responseIdP;
+      const responseP = provide(responseId);
 
       if (responseName !== undefined) {
-        responses.set(responseName, newResponseP);
+        await petStore.write(responseName, responseId);
       }
 
-      return newResponseP;
+      return responseP;
     };
 
-    /** @type {import('./types.js').PetStore['rename']} */
-    const rename = async (fromName, toName) => {
-      await petStore.rename(fromName, toName);
-      const id = responses.get(fromName);
-      if (id !== undefined) {
-        responses.set(toName, id);
-        responses.delete(fromName);
+    /**
+     * @param {import('./types.js').Envelope} envelope
+     */
+    const open = envelope => {
+      const message = outbox.get(envelope);
+      if (message === undefined) {
+        throw new Error('Mail fraud: unrecognized parcel');
       }
+      return message;
     };
 
-    /** @type {import('./types.js').PetStore['remove']} */
-    const remove = async petName => {
-      await petStore.remove(petName);
-      responses.delete(petName);
+    // When receiving an envelope, we can assume we are the intended recipient
+    // but we cannot assume the alleged sender.
+    /**
+     * @param {import('@endo/eventual-send').ERef<import('./types.js').Envelope>} envelope
+     * @param {string} allegedFromId
+     */
+    const receive = async (envelope, allegedFromId) => {
+      const sender = /** @type {Promise<import('./types.js').Handle>} */ (
+        provide(allegedFromId)
+      );
+      const message = await E(sender).open(envelope);
+      if (allegedFromId !== message.from) {
+        throw new Error('Mail fraud: alleged sender does not recognize parcel');
+      }
+      deliver(message);
     };
 
-    /** @type {import('./types.js').PetStore} */
-    const mailStore = {
-      ...petStore,
-      rename,
-      remove,
-    };
+    const handle = makeExo(
+      'Handle',
+      M.interface(
+        'Handle',
+        {},
+        {
+          defaultGuards: 'passable',
+        },
+      ),
+      {
+        receive,
+        open,
+      },
+    );
 
     return harden({
-      petStore: mailStore,
+      handle: () => handle,
+      deliver,
+      petStore,
       listMessages,
       followMessages,
       request,
-      respond,
-      receive,
       send,
       resolve,
       reject,

@@ -447,8 +447,9 @@ test('persist unconfined services and their requests', async t => {
     );
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
-    const { number, who } = E.get(message);
-    t.is(await who, 'h1');
+    const { number, from: fromId } = E.get(message);
+    const [fromName] = await E(host).reverseIdentify(await fromId);
+    t.is(await fromName, 'h1');
     await E(host).resolve(await number, 'grant');
   })();
 
@@ -510,8 +511,9 @@ test('persist confined services and their requests', async t => {
     );
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
-    const { number, who } = E.get(message);
-    t.is(await who, 'h1');
+    const { number, from: fromId } = E.get(message);
+    const [fromName] = await E(host).reverseIdentify(await fromId);
+    t.is(await fromName, 'h1');
     await E(host).resolve(await number, 'grant');
   })();
 
@@ -571,23 +573,30 @@ test('guest facet receives a message for host', async t => {
   const ten = await E(host).lookup('ten2');
   t.is(ten, 10);
 
+  const guestId = await E(host).identify('guest');
+  const hostId = await E(host).identify('SELF');
+
   // Host should have received messages.
   const hostInbox = await E(host).listMessages();
   t.deepEqual(
-    hostInbox.map(({ type, who, dest }) => ({ type, who, dest })),
+    hostInbox.map(({ type, from, to }) => ({
+      type,
+      from,
+      to,
+    })),
     [
-      { type: 'request', who: 'guest', dest: 'SELF' },
-      { type: 'package', who: 'guest', dest: 'SELF' },
+      { type: 'request', from: guestId, to: hostId },
+      { type: 'package', from: guestId, to: hostId },
     ],
   );
 
   // Guest should have own sent messages.
   const guestInbox = await E(guest).listMessages();
   t.deepEqual(
-    guestInbox.map(({ type, who, dest }) => ({ type, who, dest })),
+    guestInbox.map(({ type, from, to }) => ({ type, from, to })),
     [
-      { type: 'request', who: 'SELF', dest: 'HOST' },
-      { type: 'package', who: 'SELF', dest: 'HOST' },
+      { type: 'request', from: guestId, to: hostId },
+      { type: 'package', from: guestId, to: hostId },
     ],
   );
 });
@@ -1150,7 +1159,7 @@ test('guest cannot access host methods', async t => {
 
   const guest = E(host).provideGuest('guest');
   const guestsHost = E(guest).lookup('HOST');
-  await t.throwsAsync(() => E(guestsHost).lookup('ANY'), {
+  await t.throwsAsync(() => E(guestsHost).lookup(), {
     message: /target has no method "lookup"/u,
   });
   const revealedTarget = await E.get(guestsHost).targetId;
