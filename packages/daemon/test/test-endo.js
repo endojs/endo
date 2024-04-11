@@ -1011,7 +1011,7 @@ test('name and reuse inspector', async t => {
 });
 
 // Regression test for https://github.com/endojs/endo/issues/2021
-test.failing('eval-mediated worker name', async t => {
+test('eval-mediated worker name', async t => {
   const { cancelled, locator } = await prepareLocator(t);
   const { host } = await makeHost(locator, cancelled);
 

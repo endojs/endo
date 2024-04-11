@@ -272,7 +272,7 @@ const makeDaemonCore = async (
    * @param {string} workerId512
    * @param {import('./types.js').Context} context
    */
-  const makeIdentifiedWorkerController = async (workerId512, context) => {
+  const makeIdentifiedWorker = async (workerId512, context) => {
     // TODO validate workerId512
     const daemonWorkerFacet = makeWorkerBootstrap(workerId512);
 
@@ -318,25 +318,21 @@ const makeDaemonCore = async (
     // @ts-expect-error Evidently not specific enough.
     workerDaemonFacets.set(worker, workerDaemonFacet);
 
-    return {
-      external: worker,
-    };
+    return worker;
   };
 
   /**
    * @param {string} sha512
    */
-  const makeControllerForReadableBlob = sha512 => {
+  const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
-    return {
-      /** @type {import('./types.js').FarEndoReadable} */
-      external: Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
-        sha512: () => sha512,
-        streamBase64,
-        text,
-        json,
-      }),
-    };
+    /** @type {import('./types.js').FarEndoReadable} */
+    return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
+      sha512: () => sha512,
+      streamBase64,
+      text,
+      json,
+    });
   };
 
   /**
@@ -346,13 +342,7 @@ const makeDaemonCore = async (
    * @param {Array<string>} ids
    * @param {import('./types.js').Context} context
    */
-  const makeControllerForEval = async (
-    workerId,
-    source,
-    codeNames,
-    ids,
-    context,
-  ) => {
+  const makeEval = async (workerId, source, codeNames, ids, context) => {
     context.thisDiesIfThatDies(workerId);
     for (const id of ids) {
       context.thisDiesIfThatDies(id);
@@ -374,7 +364,7 @@ const makeDaemonCore = async (
       ),
     );
 
-    const external = E(workerDaemonFacet).evaluate(
+    return E(workerDaemonFacet).evaluate(
       source,
       codeNames,
       endowmentValues,
@@ -389,8 +379,6 @@ const makeDaemonCore = async (
     // the indirect formula resolves.
     // That might mean racing two formulas and terminating the evaluator
     // if it turns out the value can be captured.
-
-    return { external };
   };
 
   /**
@@ -401,15 +389,14 @@ const makeDaemonCore = async (
    * @param {string[]} path
    * @param {import('./types.js').Context} context
    */
-  const makeControllerForLookup = async (hubId, path, context) => {
+  const makeLookup = async (hubId, path, context) => {
     context.thisDiesIfThatDies(hubId);
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const hub = provide(hubId);
     // @ts-expect-error calling lookup on an unknown object
-    const external = E(hub).lookup(...path);
-    return { external };
+    return E(hub).lookup(...path);
   };
 
   /**
@@ -418,12 +405,7 @@ const makeDaemonCore = async (
    * @param {string} specifier
    * @param {import('./types.js').Context} context
    */
-  const makeControllerForUnconfinedPlugin = async (
-    workerId,
-    powersId,
-    specifier,
-    context,
-  ) => {
+  const makeUnconfined = async (workerId, powersId, specifier, context) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
@@ -437,13 +419,12 @@ const makeDaemonCore = async (
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const powersP = provide(powersId);
-    const external = E(workerDaemonFacet).makeUnconfined(
+    return E(workerDaemonFacet).makeUnconfined(
       specifier,
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
     );
-    return { external };
   };
 
   /**
@@ -452,12 +433,7 @@ const makeDaemonCore = async (
    * @param {string} bundleId
    * @param {import('./types.js').Context} context
    */
-  const makeControllerForSafeBundle = async (
-    workerId,
-    powersId,
-    bundleId,
-    context,
-  ) => {
+  const makeBundle = async (workerId, powersId, bundleId, context) => {
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
@@ -477,13 +453,12 @@ const makeDaemonCore = async (
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const powersP = provide(powersId);
-    const external = E(workerDaemonFacet).makeBundle(
+    return E(workerDaemonFacet).makeBundle(
       readableBundleP,
       // TODO fix type
       /** @type {any} */ (powersP),
       /** @type {any} */ (makeFarContext(context)),
     );
-    return { external };
   };
 
   /**
@@ -492,14 +467,9 @@ const makeDaemonCore = async (
    * @param {import('./types.js').Formula} formula
    * @param {import('./types.js').Context} context
    */
-  const makeControllerForFormula = async (
-    id,
-    formulaNumber,
-    formula,
-    context,
-  ) => {
+  const evaluateFormula = async (id, formulaNumber, formula, context) => {
     if (formula.type === 'eval') {
-      return makeControllerForEval(
+      return makeEval(
         formula.worker,
         formula.source,
         formula.names,
@@ -507,20 +477,20 @@ const makeDaemonCore = async (
         context,
       );
     } else if (formula.type === 'readable-blob') {
-      return makeControllerForReadableBlob(formula.content);
+      return makeReadableBlob(formula.content);
     } else if (formula.type === 'lookup') {
-      return makeControllerForLookup(formula.hub, formula.path, context);
+      return makeLookup(formula.hub, formula.path, context);
     } else if (formula.type === 'worker') {
-      return makeIdentifiedWorkerController(formulaNumber, context);
+      return makeIdentifiedWorker(formulaNumber, context);
     } else if (formula.type === 'make-unconfined') {
-      return makeControllerForUnconfinedPlugin(
+      return makeUnconfined(
         formula.worker,
         formula.powers,
         formula.specifier,
         context,
       );
     } else if (formula.type === 'make-bundle') {
-      return makeControllerForSafeBundle(
+      return makeBundle(
         formula.worker,
         formula.powers,
         formula.bundle,
@@ -529,7 +499,7 @@ const makeDaemonCore = async (
     } else if (formula.type === 'host') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const controller = await makeIdentifiedHost(
+      const agent = await makeHost(
         id,
         formula.handle,
         formula.petStore,
@@ -541,14 +511,13 @@ const makeDaemonCore = async (
         platformNames,
         context,
       );
-      const { external: agent } = controller;
       const handle = agent.handle();
       agentIdForHandle.set(handle, id);
-      return controller;
+      return agent;
     } else if (formula.type === 'guest') {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      const controller = await makeIdentifiedGuestController(
+      const agent = await makeGuest(
         id,
         formula.handle,
         formula.hostAgent,
@@ -557,10 +526,9 @@ const makeDaemonCore = async (
         formula.worker,
         context,
       );
-      const { external: agent } = controller;
       const handle = agent.handle();
       agentIdForHandle.set(handle, id);
-      return controller;
+      return agent;
     } else if (formula.type === 'handle') {
       const agent = /** @type {import('./types.js').EndoAgent} */ (
         // Behold, recursion:
@@ -569,7 +537,7 @@ const makeDaemonCore = async (
       );
       const handle = agent.handle();
       agentIdForHandle.set(handle, formula.agent);
-      return { external: handle };
+      return handle;
     } else if (formula.type === 'endo') {
       // Gateway is equivalent to E's "nonce locator". It provides a value for
       // a formula identifier to a remote client.
@@ -644,70 +612,62 @@ const makeDaemonCore = async (
           await knownPeers.write(nodeIdentifier, peerId);
         },
       });
-      return { external: endoBootstrap };
+      return endoBootstrap;
     } else if (formula.type === 'loopback-network') {
       // Behold, forward-reference:
-      const loopbackNetwork = makeLoopbackNetwork({
-        // eslint-disable-next-line no-use-before-define
-        provide,
-      });
-      return { external: loopbackNetwork };
+      // eslint-disable-next-line no-use-before-define
+      return makeLoopbackNetwork({ provide });
     } else if (formula.type === 'least-authority') {
       const disallowedFn = async () => {
         throw new Error('not allowed');
       };
-      const leastAuthority =
-        /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */ (
-          /** @type {unknown} */ (
-            makeExo(
-              'EndoGuest',
-              M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
-              {
-                has: disallowedFn,
-                identify: disallowedFn,
-                list: disallowedFn,
-                followChanges: disallowedFn,
-                lookup: disallowedFn,
-                reverseLookup: disallowedFn,
-                write: disallowedFn,
-                remove: disallowedFn,
-                move: disallowedFn,
-                copy: disallowedFn,
-                listMessages: disallowedFn,
-                followMessages: disallowedFn,
-                resolve: disallowedFn,
-                reject: disallowedFn,
-                adopt: disallowedFn,
-                dismiss: disallowedFn,
-                request: disallowedFn,
-                send: disallowedFn,
-                makeDirectory: disallowedFn,
-              },
-            )
+      return /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */ (
+        /** @type {unknown} */ (
+          makeExo(
+            'EndoGuest',
+            M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
+            {
+              has: disallowedFn,
+              identify: disallowedFn,
+              list: disallowedFn,
+              followChanges: disallowedFn,
+              lookup: disallowedFn,
+              reverseLookup: disallowedFn,
+              write: disallowedFn,
+              remove: disallowedFn,
+              move: disallowedFn,
+              copy: disallowedFn,
+              listMessages: disallowedFn,
+              followMessages: disallowedFn,
+              resolve: disallowedFn,
+              reject: disallowedFn,
+              adopt: disallowedFn,
+              dismiss: disallowedFn,
+              request: disallowedFn,
+              send: disallowedFn,
+              makeDirectory: disallowedFn,
+            },
           )
-        );
-      return { external: leastAuthority };
+        )
+      );
     } else if (formula.type === 'pet-store') {
-      const external = petStorePowers.makeIdentifiedPetStore(
+      return petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'pet-store',
         assertPetName,
       );
-      return { external };
     } else if (formula.type === 'known-peers-store') {
-      const external = petStorePowers.makeIdentifiedPetStore(
+      return petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'known-peers-store',
         // The known peers store is just a pet store that only accepts node identifiers
         // (i.e. formula numbers) as "names".
         assertValidNumber,
       );
-      return { external };
     } else if (formula.type === 'pet-inspector') {
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
-      const external = makePetStoreInspector(formula.petStore);
-      return { external };
+      return makePetStoreInspector(formula.petStore);
     } else if (formula.type === 'directory') {
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
@@ -744,7 +704,8 @@ const makeDaemonCore = async (
     assertValidFormulaType(formula.type);
     // TODO further validation
 
-    return makeControllerForFormula(id, formulaNumber, formula, context);
+    const value = evaluateFormula(id, formulaNumber, formula, context);
+    return { external: value };
   };
 
   /** @type {import('./types.js').DaemonCore['formulate']} */
@@ -780,12 +741,8 @@ const makeDaemonCore = async (
     controllerForId.set(id, controller);
 
     // The controller _must_ be constructed in the synchronous prelude of this function.
-    const controllerValue = makeControllerForFormula(
-      id,
-      formulaNumber,
-      formula,
-      context,
-    );
+    const value = evaluateFormula(id, formulaNumber, formula, context);
+    const controllerValue = { external: value };
 
     // Ensure that failure to flush the formula to storage
     // causes a rejection for both the controller and the value.
@@ -1480,7 +1437,6 @@ const makeDaemonCore = async (
    * @param {string} networksDirectoryId
    * @param {string[]} addresses
    * @param {import('./types.js').Context} context
-   * @returns {Promise<import('./types.js').EndoPeerControllerPartial>}
    */
   const makePeer = async (networksDirectoryId, addresses, context) => {
     // TODO race networks that support protocol for connection
@@ -1499,20 +1455,14 @@ const makeDaemonCore = async (
             address,
             makeFarContext(context),
           );
-          const external = Promise.resolve({
+          return {
+            /** @param {string} remoteId */
             provide: remoteId => {
               return /** @type {Promise<unknown>} */ (
                 E(remoteGateway).provide(remoteId)
               );
             },
-          });
-          const internal = Promise.resolve(undefined);
-          // const internal = {
-          //   receive, // TODO
-          //   respond, // TODO
-          //   lookupPath, // TODO
-          // };
-          return harden({ internal, external });
+          };
         }
       }
     }
@@ -1550,13 +1500,13 @@ const makeDaemonCore = async (
 
   const makeMailbox = makeMailboxMaker({ provide });
 
-  const makeIdentifiedGuestController = makeGuestMaker({
+  const makeGuest = makeGuestMaker({
     provide,
     makeMailbox,
     makeDirectoryNode,
   });
 
-  const makeIdentifiedHost = makeHostMaker({
+  const makeHost = makeHostMaker({
     provide,
     provideController,
     cancelValue,
