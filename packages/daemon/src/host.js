@@ -324,21 +324,21 @@ export const makeHostMaker = ({
      * Attempts to introduce the given names to the specified agent. The agent in question
      * must be formulated before this function is called.
      *
-     * @param {string} id - The agent's formula identifier.
+     * @param {string} agentId - The agent's formula identifier.
      * @param {Record<string,string>} introducedNames - The names to introduce.
      * @returns {Promise<void>}
      */
-    const introduceNamesToAgent = async (id, introducedNames) => {
-      /** @type {import('./types.js').Controller<any, any>} */
-      const controller = provideController(id);
-      const { petStore: newPetStore } = await controller.internal;
+    const introduceNamesToAgent = async (agentId, introducedNames) => {
+      const agent = /** @type {import('./types.js').EndoAgent} */ (
+        await provide(agentId)
+      );
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
           const introducedId = petStore.identifyLocal(parentName);
           if (introducedId === undefined) {
             return;
           }
-          await newPetStore.write(childName, introducedId);
+          await agent.write([childName], introducedId);
         }),
       );
     };
