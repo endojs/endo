@@ -20,7 +20,6 @@ import {
   mapHas,
   mapSet,
   setAdd,
-  promiseCatch,
   promiseThen,
   values,
   weakmapGet,
@@ -31,6 +30,34 @@ const { Fail, details: d, quote: q } = assert;
 
 const noop = () => {};
 
+async function asyncTrampoline(generatorFunc, args, errorWrapper) {
+  // TODO: add iterator prototype methods to commons
+  const iterator = generatorFunc(...args);
+  let result = iterator.next();
+  while (!result.done) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const val = await result.value;
+      result = iterator.next(val);
+    } catch (error) {
+      result = iterator.throw(errorWrapper(error));
+    }
+  }
+  return result.value;
+}
+
+function syncTrampoline(generatorFunc, args) {
+  let iterator = generatorFunc(...args);
+  let result = iterator.next();
+  while (!result.done) {
+    try {
+      result = iterator.next(result.value);
+    } catch (error) {
+      result = iterator.throw(error); 
+    }
+  }
+  return result.value;
+}
 // `makeAlias` constructs compartment specifier tuples for the `aliases`
 // private field of compartments.
 // These aliases allow a compartment to alias an internal module specifier to a
@@ -60,9 +87,9 @@ const loadRecord = (
   compartment,
   moduleSpecifier,
   staticModuleRecord,
-  pendingJobs,
+  enqueueJob,
+  selectImplementation,
   moduleLoads,
-  errors,
   importMeta,
 ) => {
   const { resolveHook, moduleRecords } = weakmapGet(
@@ -88,21 +115,15 @@ const loadRecord = (
   for (const fullSpecifier of values(resolvedImports)) {
     // Behold: recursion.
     // eslint-disable-next-line no-use-before-define
-    const dependencyLoaded = memoizedLoadWithErrorAnnotation(
+    enqueueJob(memoizedLoadWithErrorAnnotation, [
       compartmentPrivateFields,
       moduleAliases,
       compartment,
       fullSpecifier,
-      pendingJobs,
+      enqueueJob,
+      selectImplementation,
       moduleLoads,
-      errors,
-    );
-    setAdd(
-      pendingJobs,
-      promiseThen(dependencyLoaded, noop, error => {
-        arrayPush(errors, error);
-      }),
-    );
+    ]);
   }
 
   // Memoize.
@@ -110,19 +131,17 @@ const loadRecord = (
   return moduleRecord;
 };
 
-const loadWithoutErrorAnnotation = async (
+function* loadWithoutErrorAnnotation(
   compartmentPrivateFields,
   moduleAliases,
   compartment,
   moduleSpecifier,
-  pendingJobs,
+  enqueueJob,
+  selectImplementation,
   moduleLoads,
-  errors,
-) => {
-  const { importHook, moduleMap, moduleMapHook, moduleRecords } = weakmapGet(
-    compartmentPrivateFields,
-    compartment,
-  );
+) {
+  const { importHook, importNowHook, moduleMap, moduleMapHook, moduleRecords } =
+    weakmapGet(compartmentPrivateFields, compartment);
 
   // Follow moduleMap, or moduleMapHook if present.
   let aliasNamespace = moduleMap[moduleSpecifier];
@@ -150,14 +169,14 @@ const loadWithoutErrorAnnotation = async (
     }
     // Behold: recursion.
     // eslint-disable-next-line no-use-before-define
-    const aliasRecord = await memoizedLoadWithErrorAnnotation(
+    const aliasRecord = yield memoizedLoadWithErrorAnnotation(
       compartmentPrivateFields,
       moduleAliases,
       alias.compartment,
       alias.specifier,
-      pendingJobs,
+      enqueueJob,
+      selectImplementation,
       moduleLoads,
-      errors,
     );
     mapSet(moduleRecords, moduleSpecifier, aliasRecord);
     return aliasRecord;
@@ -167,7 +186,10 @@ const loadWithoutErrorAnnotation = async (
     return mapGet(moduleRecords, moduleSpecifier);
   }
 
-  const staticModuleRecord = await importHook(moduleSpecifier);
+  const staticModuleRecord = yield selectImplementation(
+    importHook,
+    importNowHook,
+  )(moduleSpecifier);
 
   if (staticModuleRecord === null || typeof staticModuleRecord !== 'object') {
     Fail`importHook must return a promise for an object, for module ${q(
@@ -198,9 +220,9 @@ const loadWithoutErrorAnnotation = async (
         aliasCompartment,
         aliasSpecifier,
         aliasModuleRecord,
-        pendingJobs,
+        enqueueJob,
+        selectImplementation,
         moduleLoads,
-        errors,
         importMeta,
       );
       mapSet(moduleRecords, moduleSpecifier, aliasRecord);
@@ -217,14 +239,14 @@ const loadWithoutErrorAnnotation = async (
       }
       // Behold: recursion.
       // eslint-disable-next-line no-use-before-define
-      const aliasRecord = await memoizedLoadWithErrorAnnotation(
+      const aliasRecord = yield memoizedLoadWithErrorAnnotation(
         compartmentPrivateFields,
         moduleAliases,
         staticModuleRecord.compartment,
         staticModuleRecord.specifier,
-        pendingJobs,
+        enqueueJob,
+        selectImplementation,
         moduleLoads,
-        errors,
       );
       mapSet(moduleRecords, moduleSpecifier, aliasRecord);
       return aliasRecord;
@@ -239,20 +261,20 @@ const loadWithoutErrorAnnotation = async (
     compartment,
     moduleSpecifier,
     staticModuleRecord,
-    pendingJobs,
+    enqueueJob,
+    selectImplementation,
     moduleLoads,
-    errors,
   );
-};
+}
 
-const memoizedLoadWithErrorAnnotation = async (
+const memoizedLoadWithErrorAnnotation = (
   compartmentPrivateFields,
   moduleAliases,
   compartment,
   moduleSpecifier,
-  pendingJobs,
+  enqueueJob,
+  selectImplementation,
   moduleLoads,
-  errors,
 ) => {
   const { name: compartmentName } = weakmapGet(
     compartmentPrivateFields,
@@ -270,16 +292,17 @@ const memoizedLoadWithErrorAnnotation = async (
     return moduleLoading;
   }
 
-  moduleLoading = promiseCatch(
-    loadWithoutErrorAnnotation(
+  moduleLoading = selectImplementation(asyncTrampoline, syncTrampoline)(
+    loadWithoutErrorAnnotation,
+    [
       compartmentPrivateFields,
       moduleAliases,
       compartment,
       moduleSpecifier,
-      pendingJobs,
+      enqueueJob,
+      selectImplementation,
       moduleLoads,
-      errors,
-    ),
+    ],
     error => {
       // eslint-disable-next-line @endo/no-polymorphic-call
       assert.note(
@@ -296,6 +319,50 @@ const memoizedLoadWithErrorAnnotation = async (
 
   return moduleLoading;
 };
+
+function asyncOverseer() {
+  /** @type {Set<Promise<undefined>>} */
+  const pendingJobs = new Set(); // TODO: why is this a Set? Order seems to matter and duplicates don't seem possible
+  /** @type {Array<Error>} */
+  const errors = [];
+
+  const enqueueJob = (func, args) => {
+    setAdd(
+      pendingJobs,
+      // WARNING: synchronously thrown errors will not be captured. That's
+      // deliberate - synchronous errors are not loading errors that are
+      // worth aggregating, they're implementation errors we want them
+      // thrown immedaitely.
+      promiseThen(func(...args), noop, error => {
+        // TODO: wrapping func instead of passing noop to then might be more performant for ensuring nothing usable is returned
+        arrayPush(errors, error);
+      }),
+    );
+  };
+  const drainQueue = async () => {
+    // Each job is a promise for undefined, regardless of success or failure.
+    // Before we add a job to the queue, we catch any error and push it into the
+    // `errors` accumulator.
+    for (const job of pendingJobs) {
+      // eslint-disable-next-line no-await-in-loop
+      await job;
+    }
+    return errors;
+  };
+  return { enqueueJob, drainQueue };
+}
+
+function throwAggregateError({ errors, errorPrefix, debug = false }) {
+  // Throw an aggregate error if there were any errors.
+  if (errors.length > 0) {
+    throw TypeError(
+      `${errorPrefix} (${errors.length} underlying failures: ${arrayJoin(
+        arrayMap(errors, error => (debug ? error.stack : error.message)),
+        ', ',
+      )}`,
+    );
+  }
+}
 
 /*
  * `load` asynchronously gathers the `StaticModuleRecord`s for a module and its
@@ -315,47 +382,80 @@ export const load = async (
     compartment,
   );
 
-  /** @type {Set<Promise<undefined>>} */
-  const pendingJobs = new Set();
   /** @type {Map<object, Map<string, Promise<Record<any, any>>>>} */
   const moduleLoads = new Map();
-  /** @type {Array<Error>} */
-  const errors = [];
 
-  const dependencyLoaded = memoizedLoadWithErrorAnnotation(
+  const { enqueueJob, drainQueue } = asyncOverseer();
+
+  enqueueJob(memoizedLoadWithErrorAnnotation, [
     compartmentPrivateFields,
     moduleAliases,
     compartment,
     moduleSpecifier,
-    pendingJobs,
+    enqueueJob,
+    (asyncImpl, _syncImpl) => asyncImpl,
     moduleLoads,
+  ]);
+
+  // Drain pending jobs queue and throw an aggregate error
+  const errors = await drainQueue();
+
+  throwAggregateError({
     errors,
+    errorPrefix: `Failed to load ${q(moduleSpecifier)} in compartment ${q(
+      compartmentName,
+    )}`,
+    debug: true,
+  });
+};
+
+/*
+ * `loadSync` synchronously gathers the `StaticModuleRecord`s for a module and its
+ * transitive dependencies.
+ * The module records refer to each other by a reference to the dependency's
+ * compartment and the specifier of the module within its own compartment.
+ * This graph is then ready to be synchronously linked and executed.
+ */
+export const loadSync = (
+  compartmentPrivateFields,
+  moduleAliases,
+  compartment,
+  moduleSpecifier,
+) => {
+  const { name: compartmentName } = weakmapGet(
+    compartmentPrivateFields,
+    compartment,
   );
-  setAdd(
-    pendingJobs,
-    promiseThen(dependencyLoaded, noop, error => {
+
+  /** @type {Map<object, Map<string, Promise<Record<any, any>>>>} */
+  const moduleLoads = new Map();
+
+  /** @type {Array<Error>} */
+  const errors = [];
+
+  const enqueueJob = (func, args) => {
+    try {
+      func(...args);
+    } catch (error) {
       arrayPush(errors, error);
-    }),
-  );
+    }
+  };
 
-  // Drain pending jobs queue.
-  // Each job is a promise for undefined, regardless of success or failure.
-  // Before we add a job to the queue, we catch any error and push it into the
-  // `errors` accumulator.
-  for (const job of pendingJobs) {
-    // eslint-disable-next-line no-await-in-loop
-    await job;
-  }
+  enqueueJob(memoizedLoadWithErrorAnnotation, [
+    compartmentPrivateFields,
+    moduleAliases,
+    compartment,
+    moduleSpecifier,
+    enqueueJob,
+    (_asyncImpl, syncImpl) => syncImpl,
+    moduleLoads,
+  ]);
 
-  // Throw an aggregate error if there were any errors.
-  if (errors.length > 0) {
-    throw TypeError(
-      `Failed to load module ${q(moduleSpecifier)} in package ${q(
-        compartmentName,
-      )} (${errors.length} underlying failures: ${arrayJoin(
-        arrayMap(errors, error => error.message),
-        ', ',
-      )}`,
-    );
-  }
+  throwAggregateError({
+    errors,
+    errorPrefix: `Failed to load ${q(moduleSpecifier)} in compartment ${q(
+      compartmentName,
+    )}`,
+    debug: true,
+  });
 };
