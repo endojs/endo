@@ -75,11 +75,7 @@ export const makeHostMaker = ({
     context.thisDiesIfThatDies(storeId);
     context.thisDiesIfThatDies(mainWorkerId);
 
-    const basePetStore = /** @type {import('./types.js').PetStore} */ (
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      await provide(storeId)
-    );
+    const basePetStore = await provide(storeId, 'pet-store');
     const specialStore = makePetSitter(basePetStore, {
       ...platformNames,
       AGENT: hostId,
@@ -98,13 +94,7 @@ export const makeHostMaker = ({
     const { petStore, handle } = mailbox;
     const directory = makeDirectoryNode(petStore);
 
-    const getEndoBootstrap = async () => {
-      const endoBootstrap =
-        /** @type {import('./types.js').FarEndoBootstrap} */ (
-          await provide(endoId)
-        );
-      return endoBootstrap;
-    };
+    const getEndoBootstrap = async () => provide(endoId, 'endo');
 
     /**
      * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
@@ -135,10 +125,7 @@ export const makeHostMaker = ({
       const workerId = prepareWorkerFormulation(workerName, tasks.push);
 
       if (workerId !== undefined) {
-        return /** @type {Promise<import('./types.js').EndoWorker>} */ (
-          // Behold, recursion:
-          provide(workerId)
-        );
+        return provide(workerId, 'worker');
       }
 
       const { value } = await formulateWorker(tasks);
@@ -329,9 +316,7 @@ export const makeHostMaker = ({
      * @returns {Promise<void>}
      */
     const introduceNamesToAgent = async (agentId, introducedNames) => {
-      const agent = /** @type {import('./types.js').EndoAgent} */ (
-        await provide(agentId)
-      );
+      const agent = await provide(agentId, 'agent');
       await Promise.all(
         Object.entries(introducedNames).map(async ([parentName, childName]) => {
           const introducedId = petStore.identifyLocal(parentName);
@@ -344,15 +329,17 @@ export const makeHostMaker = ({
     };
 
     /**
+     * @template {'host' | 'guest' | 'agent'} T
      * @param {string} [petName] - The agent's potential pet name.
+     * @param {T} [type]
      */
-    const getNamedAgent = petName => {
+    const getNamedAgent = (petName, type) => {
       if (petName !== undefined) {
         const id = petStore.identifyLocal(petName);
         if (id !== undefined) {
           return {
             id,
-            value: /** @type {Promise<any>} */ (provide(id)),
+            value: provide(id, type),
           };
         }
       }
@@ -388,7 +375,7 @@ export const makeHostMaker = ({
       petName,
       { introducedNames = {}, agentName = undefined } = {},
     ) => {
-      let host = getNamedAgent(petName);
+      let host = getNamedAgent(petName, 'host');
       if (host === undefined) {
         const { value, id } =
           // Behold, recursion:
@@ -421,7 +408,7 @@ export const makeHostMaker = ({
       handleName,
       { introducedNames = {}, agentName = undefined } = {},
     ) => {
-      let guest = getNamedAgent(handleName);
+      let guest = getNamedAgent(handleName, 'guest');
       if (guest === undefined) {
         const { value, id } =
           // Behold, recursion:
@@ -556,7 +543,7 @@ export const makeHostMaker = ({
       },
     );
 
-    await provide(mainWorkerId);
+    await provide(mainWorkerId, 'worker');
 
     return hostExo;
   };

@@ -35,9 +35,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
     context.thisDiesIfThatDies(petStoreId);
     context.thisDiesIfThatDies(mainWorkerId);
 
-    const basePetStore = /** @type {import('./types.js').PetStore} */ (
-      await provide(petStoreId)
-    );
+    const basePetStore = await provide(petStoreId, 'pet-store');
     const specialStore = makePetSitter(basePetStore, {
       AGENT: guestId,
       SELF: handleId,

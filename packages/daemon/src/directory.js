@@ -30,11 +30,8 @@ export const makeDirectoryMaker = ({
       if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
       }
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const value = provide(id);
+      const value = provide(id, 'hub');
       return tailNames.reduce(
-        // @ts-expect-error We assume its a NameHub
         (directory, petName) => E(directory).lookup(petName),
         value,
       );
@@ -231,9 +228,7 @@ export const makeDirectoryMaker = ({
   const makeIdentifiedDirectory = async ({ petStoreId, context }) => {
     // TODO thread context
 
-    const petStore = /** @type {import('./types.js').PetStore} */ (
-      await provide(petStoreId)
-    );
+    const petStore = await provide(petStoreId, 'pet-store');
     const directory = makeDirectoryNode(petStore);
 
     return makeExo(
