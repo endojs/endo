@@ -174,12 +174,6 @@ type PeerFormula = {
   addresses: Array<string>;
 };
 
-type WebBundleFormula = {
-  type: 'web-bundle';
-  bundle: string;
-  powers: string;
-};
-
 type HandleFormula = {
   type: 'handle';
   agent: string;
@@ -215,7 +209,6 @@ export type Formula =
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeBundleFormula
-  | WebBundleFormula
   | HandleFormula
   | PetInspectorFormula
   | KnownPeersStoreFormula
@@ -346,6 +339,17 @@ export interface Controller<Value = unknown> {
   value: Promise<Value>;
   context: Context;
 }
+
+export type FormulaMaker<F extends Formula> = (
+  formula: F,
+  context: Context,
+  id: string,
+  number: string,
+) => unknown;
+
+export type FormulaMakerTable = {
+  [T in Formula['type']]: FormulaMaker<{ type: T } & Formula>;
+};
 
 export interface Envelope {}
 
@@ -551,7 +555,6 @@ export type KnownEndoInspectors = {
   'make-unconfined': EndoInspector<'host'>;
   'make-bundle': EndoInspector<'bundle' | 'powers' | 'worker'>;
   guest: EndoInspector<'bundle' | 'powers'>;
-  'web-bundle': EndoInspector<'powers' | 'specifier' | 'worker'>;
   // This is an "empty" inspector, in that there is nothing to `lookup()` or `list()`.
   [formulaType: string]: EndoInspector<string>;
 };
