@@ -198,6 +198,17 @@ type DirectoryFormula = {
   petStore: string;
 };
 
+type InvitationFormula = {
+  type: 'invitation';
+  hostAgent: string; // identifier
+  hostHandle: string; // identifier
+  guestName: string;
+};
+
+export type InvitationDeferredTaskParams = {
+  invitationId: string;
+};
+
 export type Formula =
   | EndoFormula
   | LoopbackNetworkFormula
@@ -215,7 +226,8 @@ export type Formula =
   | KnownPeersStoreFormula
   | PetStoreFormula
   | DirectoryFormula
-  | PeerFormula;
+  | PeerFormula
+  | InvitationFormula;
 
 export type Builtins = {
   NONE: string;
@@ -262,10 +274,9 @@ export type StampedMessage = EnvelopedMessage & {
   dismisser: ERef<Dismisser>;
 };
 
-export type Invitation = {
-  powers: string;
-  addresses: Array<string>;
-};
+export interface Invitation {
+  accept(guestHandleId: string): Promise<void>;
+}
 
 export interface Topic<
   TRead,
@@ -580,6 +591,12 @@ export interface EndoHost extends EndoAgent {
   gateway(): Promise<EndoGateway>;
   getPeerInfo(): Promise<PeerInfo>;
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
+  invite(guestName: string): Promise<Invitation>;
+  accept(
+    invitationId: string,
+    guestHandleId: string,
+    guestName: string,
+  ): Promise<void>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
@@ -873,6 +890,13 @@ export interface DaemonCore {
     readerRef: ERef<AsyncIterableIterator<string>>,
     deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
   ) => FormulateResult<FarEndoReadable>;
+
+  formulateInvitation: (
+    hostAgentId: string,
+    hostHandleId: string,
+    guestName: string,
+    deferredTasks: DeferredTasks<InvitationDeferredTaskParams>,
+  ) => FormulateResult<Invitation>;
 
   formulateUnconfined: (
     hostAgentId: string,
