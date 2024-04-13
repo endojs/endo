@@ -24,7 +24,7 @@ import {
 } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
-import { parseLocator } from '../src/locator.js';
+import { idFromLocator, parseLocator } from '../src/locator.js';
 
 const cryptoPowers = makeCryptoPowers(crypto);
 
@@ -49,15 +49,30 @@ const takeCount = async (asyncIterator, count) => {
 };
 
 /**
- * Calls `followNameChanges()`, takes all already-existing names from the iterator,
- * and then returns the iterator in order to observe new changes.
+ * Calls `host.followNameChanges()`, takes all already-existing names from the iterator,
+ * and returns the iterator.
  *
- * @param {any} host - A Far endo host.
+ * @param {any} host - An endo host.
  */
-const prepareFollowChangesIterator = async host => {
+const prepareFollowNameChangesIterator = async host => {
   const existingNames = await E(host).list();
   const changesIterator = makeRefIterator(await E(host).followNameChanges());
   await takeCount(changesIterator, existingNames.length);
+  return changesIterator;
+};
+
+/**
+ * Calls `host.followLocatorNameChanges()` for the specified locator, takes the first
+ * value (i.e. the array of all existing names) from the iterator, and returns the iterator.
+ *
+ * @param {any} host - An endo host.
+ * @param {string} locator
+ */
+const prepareFollowLocatorNameChangesIterator = async (host, locator) => {
+  const changesIterator = makeRefIterator(
+    await E(host).followLocatorNameChanges(locator),
+  );
+  await takeCount(changesIterator, 1);
   return changesIterator;
 };
 
@@ -599,7 +614,7 @@ test('guest facet receives a message for host', async t => {
   );
 });
 
-test('followNames first publishes existing names', async t => {
+test('followNamehanges first publishes existing names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
@@ -610,11 +625,11 @@ test('followNames first publishes existing names', async t => {
   t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());
 });
 
-test('followNames publishes new names', async t => {
+test('followNameChanges publishes new names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
-  const changesIterator = await prepareFollowChangesIterator(host);
+  const changesIterator = await prepareFollowNameChangesIterator(host);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -622,11 +637,11 @@ test('followNames publishes new names', async t => {
   t.is(value.add, 'ten');
 });
 
-test('followNames publishes removed names', async t => {
+test('followNameChanges publishes removed names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
-  const changesIterator = await prepareFollowChangesIterator(host);
+  const changesIterator = await prepareFollowNameChangesIterator(host);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
   await changesIterator.next();
@@ -636,11 +651,11 @@ test('followNames publishes removed names', async t => {
   t.is(value.remove, 'ten');
 });
 
-test('followNames publishes renamed names', async t => {
+test('followNameChanges publishes renamed names', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
-  const changesIterator = await prepareFollowChangesIterator(host);
+  const changesIterator = await prepareFollowNameChangesIterator(host);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
   await changesIterator.next();
@@ -653,11 +668,11 @@ test('followNames publishes renamed names', async t => {
   t.is(value.add, 'zehn');
 });
 
-test('followNames publishes renamed names (existing mappings for both names)', async t => {
-  const { cancelled, locator } = await prepareLocator(t);
-  const { host } = await makeHost(locator, cancelled);
+test('followNameChanges publishes renamed names (existing mappings for both names)', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
 
-  const changesIterator = await prepareFollowChangesIterator(host);
+  const changesIterator = await prepareFollowNameChangesIterator(host);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
   await changesIterator.next();
@@ -674,11 +689,11 @@ test('followNames publishes renamed names (existing mappings for both names)', a
   t.is(value.add, 'zehn');
 });
 
-test('followNames does not notify of redundant pet store writes', async t => {
+test('followNameChanges does not notify of redundant pet store writes', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
-  const changesIterator = await prepareFollowChangesIterator(host);
+  const changesIterator = await prepareFollowNameChangesIterator(host);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
   await changesIterator.next();
@@ -733,6 +748,116 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
   );
   const { value } = await selfLocatorSub.next();
   t.deepEqual(value, { add: selfLocator, names: ['SELF', 'self1', 'self2'] });
+});
+
+test('followLocatorNameChanges publishes added names', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const tenLocator = await E(host).locate('ten');
+  const changesIterator = await prepareFollowLocatorNameChangesIterator(
+    host,
+    tenLocator,
+  );
+
+  await E(host).write(['zehn'], idFromLocator(tenLocator));
+
+  const { value } = await changesIterator.next();
+  t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
+});
+
+test('followLocatorNameChanges publishes removed names', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const tenLocator = await E(host).locate('ten');
+  await E(host).write(['zehn'], idFromLocator(tenLocator));
+  const changesIterator = await prepareFollowLocatorNameChangesIterator(
+    host,
+    tenLocator,
+  );
+
+  await E(host).remove('zehn');
+
+  const { value } = await changesIterator.next();
+  t.deepEqual(value, { remove: tenLocator, names: ['zehn'] });
+});
+
+test('followLocatorNameChanges publishes renamed names', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const tenLocator = await E(host).locate('ten');
+  const changesIterator = await prepareFollowLocatorNameChangesIterator(
+    host,
+    tenLocator,
+  );
+
+  await E(host).move(['ten'], ['zehn']);
+
+  let { value } = await changesIterator.next();
+  t.deepEqual(value, { remove: tenLocator, names: ['ten'] });
+  value = (await changesIterator.next()).value;
+  t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
+});
+
+test('followLocatorNameChanges publishes renamed names (existing mappings for both names)', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).evaluate('MAIN', '"german 10"', [], [], 'zehn');
+
+  const tenLocator = await E(host).locate('ten');
+  const zehnLocator = await E(host).locate('zehn');
+  const tenChangesIterator = await prepareFollowLocatorNameChangesIterator(
+    host,
+    tenLocator,
+  );
+  const zehnChangesIterator = await prepareFollowLocatorNameChangesIterator(
+    host,
+    zehnLocator,
+  );
+
+  await E(host).move(['ten'], ['zehn']);
+
+  // First, changes for "zehn"
+  let { value } = await zehnChangesIterator.next();
+  t.deepEqual(value, { remove: zehnLocator, names: ['zehn'] });
+
+  // Then, changes for "ten"
+  value = (await tenChangesIterator.next()).value;
+  t.deepEqual(value, { remove: tenLocator, names: ['ten'] });
+  value = (await tenChangesIterator.next()).value;
+  t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
+});
+
+test('followLocatorNameChanges does not notify of redundant pet store writes', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const tenLocator = await E(host).locate('ten');
+  const changesIterator = await prepareFollowLocatorNameChangesIterator(
+    host,
+    tenLocator,
+  );
+
+  // Rewrite the value's existing name.
+  await E(host).write(['ten'], idFromLocator(tenLocator));
+  // Write an actually different name for the value.
+  await E(host).write(['zehn'], idFromLocator(tenLocator));
+
+  // Confirm that the redundant write is not observed.
+  const { value } = await changesIterator.next();
+  t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
 });
 
 test('direct cancellation', async t => {
