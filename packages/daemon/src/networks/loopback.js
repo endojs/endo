@@ -2,11 +2,10 @@
 import { Far } from '@endo/far';
 
 /**
- * @param {object} args
- * @param {import('../types.js').DaemonCore['provide']} args.provide
+ * @param {Promise<import('../types.js').EndoGateway>} gateway
  * @returns {import('@endo/far').FarRef<import('../types.js').EndoNetwork>}
  */
-export const makeLoopbackNetwork = ({ provide }) => {
+export const makeLoopbackNetwork = gateway => {
   return Far(
     'Loopback Network',
     /** @type {import('../types.js').EndoNetwork} */ ({
@@ -18,7 +17,7 @@ export const makeLoopbackNetwork = ({ provide }) => {
             'Failed invariant: loopback only supports "loop:" address',
           );
         }
-        return { provide };
+        return gateway;
       },
     }),
   );

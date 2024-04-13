@@ -17,12 +17,14 @@ export const make = async (powers, context) => {
   const { servePort, connectPort } = makeSocketPowers({ net });
 
   const cancelled = E(context).whenCancelled();
-  const cancel = error => E(context).cancel(error);
+  const cancelServer = error => E(context).cancel(error);
 
   /** @type {Array<string>} */
   const addresses = [];
 
-  const gateway = E(powers).gateway();
+  const { node: localNodeId } = await E(powers).getPeerInfo();
+  const localGreeter = E(powers).greeter();
+  const localGateway = E(powers).gateway();
 
   // TODO
   // const port = await E(powers).request('port to listen for public web socket connections', 'port', {
@@ -95,7 +97,7 @@ export const make = async (powers, context) => {
           messageWriter,
           messageReader,
           cancelled,
-          gateway,
+          localGreeter,
         );
 
         const closed = Promise.race([connectionClosed, capTpClosed]);
@@ -106,7 +108,7 @@ export const make = async (powers, context) => {
             `Endo daemon closed connection ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
           );
         });
-      })().catch(cancel);
+      })().catch(cancelServer);
     }
 
     await Promise.all(Array.from(connectionClosedPromises));
@@ -121,6 +123,7 @@ export const make = async (powers, context) => {
     const port = Number(portname);
 
     const connectionCancelled = E(connectionContext).whenCancelled();
+    const cancelConnection = () => E(connectionContext).cancel();
 
     const {
       reader: bytesReader,
@@ -151,20 +154,25 @@ export const make = async (powers, context) => {
       messageWriter,
       messageReader,
       cancelled,
-      gateway,
+      localGateway,
     );
 
     const closed = Promise.race([connectionClosed, capTpClosed]);
     connectionClosedPromises.add(closed);
     closed.finally(() => {
-      E(context).cancel();
       connectionClosedPromises.delete(closed);
       console.log(
         `Endo daemon closed connection ${connectionNumber} over ${protocol}at ${new Date().toISOString()}`,
       );
     });
 
-    return getBootstrap();
+    const remoteGreeter = getBootstrap();
+    return E(remoteGreeter).hello(
+      localNodeId,
+      localGateway,
+      Far('Canceller', cancelConnection),
+      connectionCancelled,
+    );
   };
 
   await started;

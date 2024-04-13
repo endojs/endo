@@ -1393,7 +1393,7 @@ test('round-trip remotable identity', async t => {
   t.assert(survivedEcho);
 });
 
-test.failing('hello from afar', async t => {
+test('hello from afar', async t => {
   // Also called grant matching.
   const hostA = await prepareHostWithTestNetwork(t);
   const hostB = await prepareHostWithTestNetwork(t);

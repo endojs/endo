@@ -30,7 +30,7 @@ const assertPowersName = name => {
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
- * @param {string} args.ownNodeIdentifier
+ * @param {string} args.localNodeId
  */
 export const makeHostMaker = ({
   provide,
@@ -46,7 +46,7 @@ export const makeHostMaker = ({
   getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
-  ownNodeIdentifier,
+  localNodeId,
 }) => {
   /**
    * @param {string} hostId
@@ -447,6 +447,12 @@ export const makeHostMaker = ({
       return E(endoBootstrap).gateway();
     };
 
+    /** @type {import('./types.js').EndoHost['greeter']} */
+    const greeter = async () => {
+      const endoBootstrap = getEndoBootstrap();
+      return E(endoBootstrap).greeter();
+    };
+
     /** @type {import('./types.js').EndoHost['addPeerInfo']} */
     const addPeerInfo = async peerInfo => {
       const endoBootstrap = getEndoBootstrap();
@@ -457,7 +463,7 @@ export const makeHostMaker = ({
     const getPeerInfo = async () => {
       const addresses = await getAllNetworkAddresses(networksDirectoryId);
       const peerInfo = {
-        node: ownNodeIdentifier,
+        node: localNodeId,
         addresses,
       };
       return peerInfo;
@@ -532,6 +538,7 @@ export const makeHostMaker = ({
       makeBundle,
       cancel,
       gateway,
+      greeter,
       getPeerInfo,
       addPeerInfo,
       deliver,
