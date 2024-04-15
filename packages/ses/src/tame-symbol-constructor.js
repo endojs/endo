@@ -38,6 +38,8 @@ export const tameSymbolConstructor = () => {
   const OriginalSymbol = Symbol;
   const SymbolPrototype = OriginalSymbol.prototype;
 
+  // Bypass Hermes bug, fixed in: https://github.com/facebook/hermes/commit/00f18c89c720e1c34592bb85a1a8d311e6e99599
+  // Increase JS spec fidelity by no longer defining SharedSymbol as an object literal short-hand method
   const SharedSymbol = functionBind(Symbol, undefined);
 
   defineProperties(SymbolPrototype, {
