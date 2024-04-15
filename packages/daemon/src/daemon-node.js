@@ -34,8 +34,8 @@ if (process.argv.length < 5) {
 const [sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
 
-/** @type {import('../types.js').Locator} */
-const locator = {
+/** @type {import('./types.js').Config} */
+const config = {
   sockPath,
   statePath,
   ephemeralStatePath,
@@ -48,7 +48,7 @@ const networkPowers = makeNetworkPowers({ net });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
 const powers = makeDaemonicPowers({
-  locator,
+  config,
   fs,
   popen,
   url,

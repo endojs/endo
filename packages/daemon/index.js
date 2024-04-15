@@ -41,7 +41,7 @@ const info = {
   temp,
 };
 
-const defaultLocator = {
+const defaultConfig = {
   statePath: whereEndoState(process.platform, process.env, info),
   ephemeralStatePath: whereEndoEphemeralState(
     process.platform,
@@ -56,11 +56,11 @@ const endoDaemonPath = url.fileURLToPath(
   new URL('src/daemon-node.js', import.meta.url),
 );
 
-export const terminate = async (locator = defaultLocator) => {
+export const terminate = async (config = defaultConfig) => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();
   const { getBootstrap, closed } = await makeEndoClient(
     'harbinger',
-    locator.sockPath,
+    config.sockPath,
     cancelled,
   );
   const bootstrap = getBootstrap();
@@ -72,11 +72,11 @@ export const terminate = async (locator = defaultLocator) => {
   await closed.catch(() => {});
 };
 
-export const start = async (locator = defaultLocator) => {
-  await fs.promises.mkdir(locator.statePath, {
+export const start = async (config = defaultConfig) => {
+  await fs.promises.mkdir(config.statePath, {
     recursive: true,
   });
-  const logPath = path.join(locator.statePath, 'endo.log');
+  const logPath = path.join(config.statePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
 
   const env = { ...process.env };
@@ -84,10 +84,10 @@ export const start = async (locator = defaultLocator) => {
   const child = popen.fork(
     endoDaemonPath,
     [
-      locator.sockPath,
-      locator.statePath,
-      locator.ephemeralStatePath,
-      locator.cachePath,
+      config.sockPath,
+      config.statePath,
+      config.ephemeralStatePath,
+      config.cachePath,
     ],
     {
       detached: true,
@@ -143,31 +143,31 @@ const enoentOk = error => {
   throw error;
 };
 
-export const clean = async (locator = defaultLocator) => {
+export const clean = async (config = defaultConfig) => {
   if (process.platform !== 'win32') {
-    await removePath(locator.sockPath).catch(enoentOk);
+    await removePath(config.sockPath).catch(enoentOk);
   }
 };
 
-export const stop = async (locator = defaultLocator) => {
-  await terminate(locator).catch(() => {});
-  await clean(locator);
+export const stop = async (config = defaultConfig) => {
+  await terminate(config).catch(() => {});
+  await clean(config);
 };
 
-export const restart = async (locator = defaultLocator) => {
-  await stop(locator);
-  return start(locator);
+export const restart = async (config = defaultConfig) => {
+  await stop(config);
+  return start(config);
 };
 
-export const purge = async (locator = defaultLocator) => {
-  await terminate(locator).catch(() => {});
+export const purge = async (config = defaultConfig) => {
+  await terminate(config).catch(() => {});
 
-  const cleanedUp = clean(locator);
-  const removedState = removePath(locator.statePath).catch(enoentOk);
-  const removedEphemeralState = removePath(locator.ephemeralStatePath).catch(
+  const cleanedUp = clean(config);
+  const removedState = removePath(config.statePath).catch(enoentOk);
+  const removedEphemeralState = removePath(config.ephemeralStatePath).catch(
     enoentOk,
   );
-  const removedCache = removePath(locator.cachePath).catch(enoentOk);
+  const removedCache = removePath(config.cachePath).catch(enoentOk);
   await Promise.all([
     cleanedUp,
     removedState,

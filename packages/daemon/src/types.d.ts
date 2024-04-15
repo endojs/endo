@@ -7,7 +7,7 @@ export type SomehowAsyncIterable<T> =
   | Iterable<T>
   | { next: () => IteratorResult<T> };
 
-export type Locator = {
+export type Config = {
   statePath: string;
   ephemeralStatePath: string;
   cachePath: string;

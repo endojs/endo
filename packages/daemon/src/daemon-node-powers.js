@@ -290,18 +290,16 @@ export const makeCryptoPowers = crypto => {
 /**
  * @param {import('./types.js').FilePowers} filePowers
  * @param {import('./types.js').CryptoPowers} cryptoPowers
- * @param {import('./types.js').Locator} locator
- * @param {boolean} [includeWebPageBundler]
+ * @param {import('./types.js').Config} config
  * @returns {import('./types.js').DaemonicPersistencePowers}
  */
 export const makeDaemonicPersistencePowers = (
   filePowers,
   cryptoPowers,
-  locator,
-  includeWebPageBundler = true,
+  config,
 ) => {
   const initializePersistence = async () => {
-    const { statePath, ephemeralStatePath, cachePath } = locator;
+    const { statePath, ephemeralStatePath, cachePath } = config;
     const statePathP = filePowers.makePath(statePath);
     const ephemeralStatePathP = filePowers.makePath(ephemeralStatePath);
     const cachePathP = filePowers.makePath(cachePath);
@@ -309,7 +307,7 @@ export const makeDaemonicPersistencePowers = (
   };
 
   const provideRootNonce = async () => {
-    const noncePath = filePowers.joinPath(locator.statePath, 'nonce');
+    const noncePath = filePowers.joinPath(config.statePath, 'nonce');
     let nonce = await filePowers.maybeReadFileText(noncePath);
     const isNewlyCreated = nonce === undefined;
     if (nonce === undefined) {
@@ -320,7 +318,7 @@ export const makeDaemonicPersistencePowers = (
   };
 
   const makeContentSha512Store = () => {
-    const { statePath } = locator;
+    const { statePath } = config;
     const storageDirectoryPath = filePowers.joinPath(statePath, 'store-sha512');
 
     return harden({
@@ -382,7 +380,7 @@ export const makeDaemonicPersistencePowers = (
    * @param {string} formulaNumber
    */
   const makeFormulaPath = formulaNumber => {
-    const { statePath } = locator;
+    const { statePath } = config;
     if (formulaNumber.length < 3) {
       throw new TypeError(`Invalid formula number ${q(formulaNumber)}`);
     }
@@ -433,8 +431,15 @@ export const makeDaemonicPersistencePowers = (
   });
 };
 
+/**
+ * @param {import('./types.js').Config} config
+ * @param {import('url').fileURLToPath} fileURLToPath
+ * @param {import('./types.js').FilePowers} filePowers
+ * @param {typeof import('fs')} fs
+ * @param {typeof import('child_process')} popen
+ */
 export const makeDaemonicControlPowers = (
-  locator,
+  config,
   fileURLToPath,
   filePowers,
   fs,
@@ -450,7 +455,7 @@ export const makeDaemonicControlPowers = (
    * @param {Promise<never>} cancelled
    */
   const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
-    const { cachePath, statePath, ephemeralStatePath, sockPath } = locator;
+    const { cachePath, statePath, ephemeralStatePath, sockPath } = config;
 
     const workerCachePath = filePowers.joinPath(cachePath, 'worker', workerId);
     const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
@@ -544,7 +549,7 @@ export const makeDaemonicControlPowers = (
 
 /**
  * @param {object} opts
- * @param {import('./types.js').Locator} opts.locator
+ * @param {import('./types.js').Config} opts.config
  * @param {typeof import('fs')} opts.fs
  * @param {typeof import('child_process')} opts.popen
  * @param {typeof import('url')} opts.url
@@ -553,7 +558,7 @@ export const makeDaemonicControlPowers = (
  * @returns {import('./types.js').DaemonicPowers}
  */
 export const makeDaemonicPowers = ({
-  locator,
+  config,
   fs,
   popen,
   url,
@@ -562,14 +567,14 @@ export const makeDaemonicPowers = ({
 }) => {
   const { fileURLToPath } = url;
 
-  const petStorePowers = makePetStoreMaker(filePowers, locator);
+  const petStorePowers = makePetStoreMaker(filePowers, config);
   const daemonicPersistencePowers = makeDaemonicPersistencePowers(
     filePowers,
     cryptoPowers,
-    locator,
+    config,
   );
   const daemonicControlPowers = makeDaemonicControlPowers(
-    locator,
+    config,
     fileURLToPath,
     filePowers,
     fs,
