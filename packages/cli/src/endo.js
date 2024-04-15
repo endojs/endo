@@ -535,7 +535,7 @@ export const main = async rawArgs => {
   program
     .command('purge')
     .option('-f, --force', 'skip the confirmation prompt')
-    .description('erases persistent state and restarts if running')
+    .description('erases persistent state and stops if running')
     .action(async cmd => {
       const { force } = cmd.opts();
       const doPurge =

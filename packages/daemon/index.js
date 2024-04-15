@@ -160,12 +160,7 @@ export const restart = async (locator = defaultLocator) => {
 };
 
 export const purge = async (locator = defaultLocator) => {
-  // Attempt to restore to a running state if currently running, based on
-  // whether we manage to terminate it.
-  const needsRestart = await terminate(locator).then(
-    () => true,
-    () => false,
-  );
+  await terminate(locator).catch(() => {});
 
   const cleanedUp = clean(locator);
   const removedState = removePath(locator.statePath).catch(enoentOk);
@@ -179,8 +174,4 @@ export const purge = async (locator = defaultLocator) => {
     removedEphemeralState,
     removedCache,
   ]);
-
-  if (needsRestart) {
-    await start(locator);
-  }
 };

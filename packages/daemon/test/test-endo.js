@@ -184,7 +184,6 @@ const prepareLocator = async t => {
     getLocatorDirectoryName(t.title, t.context.length),
   );
 
-  await stop(locator).catch(() => {});
   await purge(locator);
   await start(locator);
 
