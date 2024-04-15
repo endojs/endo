@@ -14,25 +14,6 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { main } from './worker.js';
 import { makePowers } from './worker-node-powers.js';
 
-if (process.argv.length < 7) {
-  throw new Error(
-    `worker.js requires arguments workerUuid, daemonSockPath, workerStatePath, workerEphemeralStatePath, workerCachePath, got ${process.argv.join(
-      ', ',
-    )}`,
-  );
-}
-
-const [workerUuid, sockPath, statePath, ephemeralStatePath, cachePath] =
-  process.argv.slice(2);
-
-/** @type {import('./types.js').Config} */
-const config = {
-  sockPath,
-  statePath,
-  ephemeralStatePath,
-  cachePath,
-};
-
 const powers = makePowers({ fs, url });
 
 const { promise: cancelled, reject: cancel } =
@@ -44,7 +25,7 @@ process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
 // @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;
-main(powers, config, workerUuid, process.pid, cancel, cancelled).then(
+main(powers, process.pid, cancel, cancelled).then(
   () => {
     process.exitCode = 0;
   },

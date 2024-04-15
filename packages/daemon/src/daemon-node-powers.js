@@ -455,9 +455,8 @@ export const makeDaemonicControlPowers = (
    * @param {Promise<never>} cancelled
    */
   const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
-    const { cachePath, statePath, ephemeralStatePath, sockPath } = config;
+    const { statePath, ephemeralStatePath } = config;
 
-    const workerCachePath = filePowers.joinPath(cachePath, 'worker', workerId);
     const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
     const workerEphemeralStatePath = filePowers.joinPath(
       ephemeralStatePath,
@@ -474,21 +473,11 @@ export const makeDaemonicControlPowers = (
     const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
 
     const log = fs.openSync(logPath, 'a');
-    const child = popen.fork(
-      endoWorkerPath,
-      [
-        workerId,
-        sockPath,
-        workerStatePath,
-        workerEphemeralStatePath,
-        workerCachePath,
-      ],
-      {
-        stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
-        // @ts-ignore Stale Node.js type definition.
-        windowsHide: true,
-      },
-    );
+    const child = popen.fork(endoWorkerPath, [], {
+      stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
+      // @ts-ignore Stale Node.js type definition.
+      windowsHide: true,
+    });
     const workerPid = child.pid;
     const nodeWriter = /** @type {import('stream').Writable} */ (
       child.stdio[3]
