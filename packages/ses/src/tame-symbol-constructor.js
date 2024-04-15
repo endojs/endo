@@ -39,7 +39,7 @@ export const tameSymbolConstructor = () => {
   const SymbolPrototype = OriginalSymbol.prototype;
 
   // Bypass Hermes bug, fixed in: https://github.com/facebook/hermes/commit/00f18c89c720e1c34592bb85a1a8d311e6e99599
-  // Increase JS spec fidelity by no longer defining SharedSymbol as an object literal short-hand method
+  // Make a "copy" of the primordial [Symbol "constructor"](https://tc39.es/ecma262/#sec-symbol-description) which maintains all observable behavior. The primordial explicitly throws on `[[Construct]]` and has a `[[Call]]` which ignores the receiver. Binding also maintains the `toString` source as a native function. The `name` is restored below when copying own properties.
   const SharedSymbol = functionBind(Symbol, undefined);
 
   defineProperties(SymbolPrototype, {
