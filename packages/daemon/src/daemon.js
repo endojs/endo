@@ -252,6 +252,14 @@ const makeDaemonCore = async (
   /** @type {import('./types.js').WeakMultimap<Record<string | symbol, unknown>, string>['get']} */
   const getIdForRef = ref => idForRef.get(ref);
 
+  /** @type {import('./types.js').Provide} */
+  const provide = (id, _expectedType) =>
+    /** @type {any} */ (
+      // Behold, unavoidable forward-reference:
+      // eslint-disable-next-line no-use-before-define
+      provideController(id).value
+    );
+
   /**
    * @param {string} workerId512
    */
@@ -348,21 +356,11 @@ const makeDaemonCore = async (
       context.thisDiesIfThatDies(id);
     }
 
-    const worker = /** @type {import('./worker.js').WorkerBootstrap} */ (
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      await provide(workerId)
-    );
+    const worker = await provide(workerId, 'worker');
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, `Cannot evaluate using non-worker`);
 
-    const endowmentValues = await Promise.all(
-      ids.map(id =>
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provide(id),
-      ),
-    );
+    const endowmentValues = await Promise.all(ids.map(id => provide(id)));
 
     return E(workerDaemonFacet).evaluate(
       source,
@@ -391,10 +389,7 @@ const makeDaemonCore = async (
   const makeLookup = async (hubId, path, context) => {
     context.thisDiesIfThatDies(hubId);
 
-    // Behold, recursion:
-    // eslint-disable-next-line no-use-before-define
-    const hub = provide(hubId);
-    // @ts-expect-error calling lookup on an unknown object
+    const hub = provide(hubId, 'hub');
     return E(hub).lookup(...path);
   };
 
@@ -408,15 +403,9 @@ const makeDaemonCore = async (
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
-    const worker = /** @type {import('./worker.js').WorkerBootstrap} */ (
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      await provide(workerId)
-    );
+    const worker = await provide(workerId, 'worker');
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make unconfined plugin with non-worker');
-    // Behold, recursion:
-    // eslint-disable-next-line no-use-before-define
     const powersP = provide(powersId);
     return E(workerDaemonFacet).makeUnconfined(
       specifier,
@@ -436,21 +425,10 @@ const makeDaemonCore = async (
     context.thisDiesIfThatDies(workerId);
     context.thisDiesIfThatDies(powersId);
 
-    const worker = /** @type {import('./worker.js').WorkerBootstrap} */ (
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      await provide(workerId)
-    );
+    const worker = await provide(workerId, 'worker');
     const workerDaemonFacet = workerDaemonFacets.get(worker);
     assert(workerDaemonFacet, 'Cannot make caplet with non-worker');
-    const readableBundleP =
-      /** @type {Promise<import('./types.js').EndoReadable>} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        provide(bundleId)
-      );
-    // Behold, recursion:
-    // eslint-disable-next-line no-use-before-define
+    const readableBundleP = provide(bundleId, 'readable-blob');
     const powersP = provide(powersId);
     return E(workerDaemonFacet).makeBundle(
       readableBundleP,
@@ -488,7 +466,7 @@ const makeDaemonCore = async (
       context,
       id,
     ) => {
-      // Behold, recursion:
+      // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeHost(
         id,
@@ -517,7 +495,7 @@ const makeDaemonCore = async (
       context,
       id,
     ) => {
-      // Behold, recursion:
+      // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeGuest(
         id,
@@ -533,11 +511,7 @@ const makeDaemonCore = async (
       return agent;
     },
     handle: async ({ agent: agentId }) => {
-      const agent = /** @type {import('./types.js').EndoAgent} */ (
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        await provide(agentId)
-      );
+      const agent = await provide(agentId, 'agent');
       const handle = agent.handle();
       agentIdForHandle.set(handle, agentId);
       return handle;
@@ -556,7 +530,6 @@ const makeDaemonCore = async (
               )}`,
             );
           }
-          // eslint-disable-next-line no-use-before-define
           return provide(requestedId);
         },
       });
@@ -567,44 +540,16 @@ const makeDaemonCore = async (
         terminate: async () => {
           cancel(new Error('Termination requested'));
         },
-        host: () => {
-          return /** @type {Promise<import('./types.js').EndoHost>} */ (
-            // Behold, recursion:
-            // eslint-disable-next-line no-use-before-define
-            provide(hostId)
-          );
-        },
-        leastAuthority: () => {
-          return /** @type {Promise<import('./types.js').EndoGuest>} */ (
-            // Behold, recursion:
-            // eslint-disable-next-line no-use-before-define
-            provide(leastAuthorityId)
-          );
-        },
-        gateway: async () => {
-          return gateway;
-        },
+        host: () => provide(hostId, 'host'),
+        leastAuthority: () => provide(leastAuthorityId, 'guest'),
+        gateway: async () => gateway,
         reviveNetworks: async () => {
-          const networksDirectory =
-            /** @type {import('./types.js').EndoDirectory} */ (
-              // Behold, recursion:
-              // eslint-disable-next-line no-use-before-define
-              await provide(networksId)
-            );
+          const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
-          await Promise.allSettled(
-            networkIds.map(
-              // Behold, recursion:
-              // eslint-disable-next-line no-use-before-define
-              provide,
-            ),
-          );
+          await Promise.allSettled(networkIds.map(id => provide(id)));
         },
         addPeerInfo: async peerInfo => {
-          const knownPeers = /** @type {import('./types.js').PetStore} */ (
-            // eslint-disable-next-line no-use-before-define
-            await provide(peersId)
-          );
+          const knownPeers = await provide(peersId, 'pet-store');
           const { node: nodeIdentifier, addresses } = peerInfo;
           if (knownPeers.has(nodeIdentifier)) {
             // We already have this peer.
@@ -621,8 +566,6 @@ const makeDaemonCore = async (
     },
     'loopback-network': () =>
       makeLoopbackNetwork({
-        // Behold, forward-reference:
-        // eslint-disable-next-line no-use-before-define
         provide,
       }),
     'least-authority': () => {
@@ -716,11 +659,7 @@ const makeDaemonCore = async (
     if (isRemote) {
       // eslint-disable-next-line no-use-before-define
       const peerId = await getPeerIdForNodeIdentifier(formulaNode);
-      const peer = /** @type {Promise<import('./types.js').EndoGateway>} */ (
-        // Behold, forward reference:
-        // eslint-disable-next-line no-use-before-define
-        provide(peerId)
-      );
+      const peer = provide(peerId, 'peer');
       return E(peer).provide(id);
     }
 
@@ -811,9 +750,6 @@ const makeDaemonCore = async (
     return controller;
   };
 
-  /** @type {import('./types.js').DaemonCore['provide']} */
-  const provide = id => provideController(id).value;
-
   /**
    * @param {string} nodeIdentifier
    * @returns {Promise<string>}
@@ -822,10 +758,7 @@ const makeDaemonCore = async (
     if (nodeIdentifier === ownNodeIdentifier) {
       throw new Error(`Cannot get peer formula identifier for self`);
     }
-    const knownPeers = /** @type {import('./types.js').PetStore} */ (
-      // eslint-disable-next-line no-use-before-define
-      await provide(knownPeersId)
-    );
+    const knownPeers = await provide(knownPeersId, 'pet-store');
     const peerId = knownPeers.identifyLocal(nodeIdentifier);
     if (peerId === undefined) {
       throw new Error(
@@ -1425,13 +1358,10 @@ const makeDaemonCore = async (
    * @returns {Promise<import('./types').EndoNetwork[]>}
    */
   const getAllNetworks = async networksDirectoryId => {
-    const networksDirectory = /** @type {import('./types').EndoDirectory} */ (
-      // eslint-disable-next-line no-use-before-define
-      await provide(networksDirectoryId)
-    );
+    const networksDirectory = await provide(networksDirectoryId, 'directory');
     const networkIds = await networksDirectory.listIdentifiers();
-    const networks = /** @type {import('./types').EndoNetwork[]} */ (
-      await Promise.all(networkIds.map(provide))
+    const networks = await Promise.all(
+      networkIds.map(id => provide(id, 'network')),
     );
     return networks;
   };
@@ -1473,11 +1403,7 @@ const makeDaemonCore = async (
           );
           return {
             /** @param {string} remoteId */
-            provide: remoteId => {
-              return /** @type {Promise<unknown>} */ (
-                E(remoteGateway).provide(remoteId)
-              );
-            },
+            provide: remoteId => E(remoteGateway).provide(remoteId),
           };
         }
       }
@@ -1532,9 +1458,7 @@ const makeDaemonCore = async (
    * @returns {Promise<import('./types').EndoInspector>}
    */
   const makePetStoreInspector = async petStoreId => {
-    const petStore = /** @type {import('./types').PetStore} */ (
-      await provide(petStoreId)
-    );
+    const petStore = await provide(petStoreId, 'pet-store');
 
     /**
      * @param {string} petName - The pet name to inspect.
@@ -1566,7 +1490,7 @@ const makeDaemonCore = async (
               }),
             ),
             source: formula.source,
-            worker: provide(formula.worker),
+            worker: provide(formula.worker, 'worker'),
           }),
         );
       } else if (formula.type === 'lookup') {
@@ -1574,7 +1498,7 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            hub: provide(formula.hub),
+            hub: provide(formula.hub, 'hub'),
             path: formula.path,
           }),
         );
@@ -1583,8 +1507,8 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            hostAgent: provide(formula.hostAgent),
-            hostHandle: provide(formula.hostHandle),
+            hostAgent: provide(formula.hostAgent, 'host'),
+            hostHandle: provide(formula.hostHandle, 'handle'),
           }),
         );
       } else if (formula.type === 'make-bundle') {
@@ -1592,9 +1516,9 @@ const makeDaemonCore = async (
           formula.type,
           formulaNumber,
           harden({
-            bundle: provide(formula.bundle),
+            bundle: provide(formula.bundle, 'readable-blob'),
             powers: provide(formula.powers),
-            worker: provide(formula.worker),
+            worker: provide(formula.worker, 'worker'),
           }),
         );
       } else if (formula.type === 'make-unconfined') {
@@ -1604,7 +1528,7 @@ const makeDaemonCore = async (
           harden({
             powers: provide(formula.powers),
             specifier: formula.type,
-            worker: provide(formula.worker),
+            worker: provide(formula.worker, 'worker'),
           }),
         );
       } else if (formula.type === 'peer') {

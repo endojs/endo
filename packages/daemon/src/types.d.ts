@@ -452,10 +452,7 @@ export interface EndoReadable {
 }
 export type FarEndoReadable = FarRef<EndoReadable>;
 
-export interface EndoWorker {
-  terminate(): void;
-  whenTerminated(): Promise<void>;
-}
+export interface EndoWorker {}
 
 export type MakeHostOrGuestOptions = {
   agentName?: string;
@@ -559,7 +556,7 @@ export type KnownEndoInspectors = {
   [formulaType: string]: EndoInspector<string>;
 };
 
-export type FarEndoBootstrap = FarRef<{
+export type EndoBootstrap = {
   ping: () => Promise<string>;
   terminate: () => Promise<void>;
   host: () => Promise<EndoHost>;
@@ -567,7 +564,9 @@ export type FarEndoBootstrap = FarRef<{
   gateway: () => Promise<EndoGateway>;
   reviveNetworks: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
-}>;
+};
+
+export type FarEndoBootstrap = FarRef<EndoBootstrap>;
 
 export type CryptoPowers = {
   makeSha512: () => Sha512;
@@ -718,6 +717,30 @@ type FormulateNumberedHostParams = {
   networksDirectoryId: string;
 };
 
+export type FormulaValueTypes = {
+  directory: EndoDirectory;
+  network: EndoNetwork;
+  peer: EndoGateway;
+  'pet-store': PetStore;
+  'readable-blob': EndoReadable;
+  endo: EndoBootstrap;
+  guest: EndoGuest;
+  handle: Handle;
+  host: EndoHost;
+  invitation: Invitation;
+  worker: EndoWorker;
+};
+
+export type ProvideTypes = FormulaValueTypes & {
+  agent: EndoAgent;
+  hub: NameHub;
+};
+
+export type Provide = <T extends keyof ProvideTypes, U extends ProvideTypes[T]>(
+  id: string,
+  expectedType?: T,
+) => Promise<U>;
+
 export interface DaemonCore {
   cancelValue: (id: string, reason: Error) => Promise<void>;
 
@@ -830,7 +853,7 @@ export interface DaemonCore {
 
   makeMailbox: MakeMailbox;
 
-  provide: (id: string) => Promise<unknown>;
+  provide: Provide;
 
   provideController: (id: string) => Controller;
 
