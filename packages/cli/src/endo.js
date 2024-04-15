@@ -464,7 +464,7 @@ export const main = async rawArgs => {
     .command('state')
     .description('prints the state directory path')
     .action(async _cmd => {
-      const { statePath } = await import('./locator.js');
+      const { statePath } = await import('./config.js');
       process.stdout.write(`${statePath}\n`);
     });
 
@@ -472,7 +472,7 @@ export const main = async rawArgs => {
     .command('run')
     .description('prints the daemon PID file path')
     .action(async _cmd => {
-      const { ephemeralStatePath } = await import('./locator.js');
+      const { ephemeralStatePath } = await import('./config.js');
       process.stdout.write(`${ephemeralStatePath}\n`);
     });
 
@@ -480,7 +480,7 @@ export const main = async rawArgs => {
     .command('sock')
     .description('prints the UNIX domain socket or Windows named pipe path')
     .action(async _cmd => {
-      const { sockPath } = await import('./locator.js');
+      const { sockPath } = await import('./config.js');
       process.stdout.write(`${sockPath}\n`);
     });
 
@@ -488,7 +488,7 @@ export const main = async rawArgs => {
     .command('log')
     .description('prints the log file path')
     .action(async _cmd => {
-      const { logPath } = await import('./locator.js');
+      const { logPath } = await import('./config.js');
       process.stdout.write(`${logPath}\n`);
     });
 
@@ -496,7 +496,7 @@ export const main = async rawArgs => {
     .command('cache')
     .description('prints the cache directory path')
     .action(async _cmd => {
-      const { cachePath } = await import('./locator.js');
+      const { cachePath } = await import('./config.js');
       process.stdout.write(`${cachePath}\n`);
     });
 
