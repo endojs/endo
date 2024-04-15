@@ -460,52 +460,44 @@ const makeDaemonCore = async (
     );
   };
 
-  /**
-   * @param {string} id
-   * @param {string} formulaNumber
-   * @param {import('./types.js').Formula} formula
-   * @param {import('./types.js').Context} context
-   */
-  const evaluateFormula = async (id, formulaNumber, formula, context) => {
-    if (formula.type === 'eval') {
-      return makeEval(
-        formula.worker,
-        formula.source,
-        formula.names,
-        formula.values,
-        context,
-      );
-    } else if (formula.type === 'readable-blob') {
-      return makeReadableBlob(formula.content);
-    } else if (formula.type === 'lookup') {
-      return makeLookup(formula.hub, formula.path, context);
-    } else if (formula.type === 'worker') {
-      return makeIdentifiedWorker(formulaNumber, context);
-    } else if (formula.type === 'make-unconfined') {
-      return makeUnconfined(
-        formula.worker,
-        formula.powers,
-        formula.specifier,
-        context,
-      );
-    } else if (formula.type === 'make-bundle') {
-      return makeBundle(
-        formula.worker,
-        formula.powers,
-        formula.bundle,
-        context,
-      );
-    } else if (formula.type === 'host') {
+  /** @type {import('./types.js').FormulaMakerTable} */
+  const makers = {
+    eval: ({ worker, source, names, values }, context) =>
+      makeEval(worker, source, names, values, context),
+    'readable-blob': ({ content }) => makeReadableBlob(content),
+    lookup: ({ hub, path }, context) => makeLookup(hub, path, context),
+    worker: (_formula, context, _id, formulaNumber) =>
+      makeIdentifiedWorker(formulaNumber, context),
+    'make-unconfined': (
+      { worker: workerId, powers: powersId, specifier },
+      context,
+    ) => makeUnconfined(workerId, powersId, specifier, context),
+    'make-bundle': (
+      { worker: workerId, powers: powersId, bundle: bundleId },
+      context,
+    ) => makeBundle(workerId, powersId, bundleId, context),
+    host: async (
+      {
+        handle: handleId,
+        petStore: petStoreId,
+        inspector: inspectorId,
+        worker: workerId,
+        endo: endoId,
+        networks: networksId,
+      },
+      context,
+      id,
+    ) => {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeHost(
         id,
-        formula.handle,
-        formula.petStore,
-        formula.inspector,
-        formula.worker,
-        formula.endo,
-        formula.networks,
+        handleId,
+        petStoreId,
+        inspectorId,
+        workerId,
+        endoId,
+        networksId,
         leastAuthorityId,
         platformNames,
         context,
@@ -513,34 +505,48 @@ const makeDaemonCore = async (
       const handle = agent.handle();
       agentIdForHandle.set(handle, id);
       return agent;
-    } else if (formula.type === 'guest') {
+    },
+    guest: async (
+      {
+        handle: handleId,
+        hostAgent: hostAgentId,
+        hostHandle: hostHandleId,
+        petStore: petStoreId,
+        worker: workerId,
+      },
+      context,
+      id,
+    ) => {
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       const agent = await makeGuest(
         id,
-        formula.handle,
-        formula.hostAgent,
-        formula.hostHandle,
-        formula.petStore,
-        formula.worker,
+        handleId,
+        hostAgentId,
+        hostHandleId,
+        petStoreId,
+        workerId,
         context,
       );
       const handle = agent.handle();
       agentIdForHandle.set(handle, id);
       return agent;
-    } else if (formula.type === 'handle') {
+    },
+    handle: async ({ agent: agentId }) => {
       const agent = /** @type {import('./types.js').EndoAgent} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        await provide(formula.agent)
+        await provide(agentId)
       );
       const handle = agent.handle();
-      agentIdForHandle.set(handle, formula.agent);
+      agentIdForHandle.set(handle, agentId);
       return handle;
-    } else if (formula.type === 'endo') {
+    },
+    endo: async ({ host: hostId, networks: networksId, peers: peersId }) => {
       // Gateway is equivalent to E's "nonce locator". It provides a value for
       // a formula identifier to a remote client.
       const gateway = Far('Gateway', {
+        /** @param {string} requestedId */
         provide: async requestedId => {
           const { node } = parseId(requestedId);
           if (node !== ownNodeIdentifier) {
@@ -565,7 +571,7 @@ const makeDaemonCore = async (
           return /** @type {Promise<import('./types.js').EndoHost>} */ (
             // Behold, recursion:
             // eslint-disable-next-line no-use-before-define
-            provide(formula.host)
+            provide(hostId)
           );
         },
         leastAuthority: () => {
@@ -583,7 +589,7 @@ const makeDaemonCore = async (
             /** @type {import('./types.js').EndoDirectory} */ (
               // Behold, recursion:
               // eslint-disable-next-line no-use-before-define
-              await provide(formula.networks)
+              await provide(networksId)
             );
           const networkIds = await networksDirectory.listIdentifiers();
           await Promise.allSettled(
@@ -597,7 +603,7 @@ const makeDaemonCore = async (
         addPeerInfo: async peerInfo => {
           const knownPeers = /** @type {import('./types.js').PetStore} */ (
             // eslint-disable-next-line no-use-before-define
-            await provide(formula.peers)
+            await provide(peersId)
           );
           const { node: nodeIdentifier, addresses } = peerInfo;
           if (knownPeers.has(nodeIdentifier)) {
@@ -607,16 +613,19 @@ const makeDaemonCore = async (
           }
           const { id: peerId } =
             // eslint-disable-next-line no-use-before-define
-            await formulatePeer(formula.networks, addresses);
+            await formulatePeer(networksId, addresses);
           await knownPeers.write(nodeIdentifier, peerId);
         },
       });
       return endoBootstrap;
-    } else if (formula.type === 'loopback-network') {
-      // Behold, forward-reference:
-      // eslint-disable-next-line no-use-before-define
-      return makeLoopbackNetwork({ provide });
-    } else if (formula.type === 'least-authority') {
+    },
+    'loopback-network': () =>
+      makeLoopbackNetwork({
+        // Behold, forward-reference:
+        // eslint-disable-next-line no-use-before-define
+        provide,
+      }),
+    'least-authority': () => {
       const disallowedFn = async () => {
         throw new Error('not allowed');
       };
@@ -649,35 +658,49 @@ const makeDaemonCore = async (
           )
         )
       );
-    } else if (formula.type === 'pet-store') {
-      return petStorePowers.makeIdentifiedPetStore(
+    },
+    'pet-store': (_formula, _context, _id, formulaNumber) =>
+      petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'pet-store',
         assertPetName,
-      );
-    } else if (formula.type === 'known-peers-store') {
-      return petStorePowers.makeIdentifiedPetStore(
+      ),
+    'known-peers-store': (_formula, _context, _id, formulaNumber) =>
+      petStorePowers.makeIdentifiedPetStore(
         formulaNumber,
         'known-peers-store',
         // The known peers store is just a pet store that only accepts node identifiers
         // (i.e. formula numbers) as "names".
         assertValidNumber,
-      );
-    } else if (formula.type === 'pet-inspector') {
+      ),
+    'pet-inspector': ({ petStore: petStoreId }) =>
       // Behold, unavoidable forward-reference:
       // eslint-disable-next-line no-use-before-define
-      return makePetStoreInspector(formula.petStore);
-    } else if (formula.type === 'directory') {
+      makePetStoreInspector(petStoreId),
+    directory: ({ petStore: petStoreId }, context) =>
       // Behold, forward-reference:
       // eslint-disable-next-line no-use-before-define
-      return makeIdentifiedDirectory({
-        petStoreId: formula.petStore,
+      makeIdentifiedDirectory({
+        petStoreId,
         context,
-      });
-    } else if (formula.type === 'peer') {
+      }),
+    peer: ({ networks: networksId, addresses: addressesId }, context) =>
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
-      return makePeer(formula.networks, formula.addresses, context);
+      makePeer(networksId, addressesId, context),
+  };
+
+  /**
+   * @param {string} id
+   * @param {string} formulaNumber
+   * @param {import('./types.js').Formula} formula
+   * @param {import('./types.js').Context} context
+   */
+  const evaluateFormula = async (id, formulaNumber, formula, context) => {
+    if (Object.hasOwn(makers, formula.type)) {
+      const make = makers[formula.type];
+      // @ts-expect-error TypeScript is trying too hard to infer the unknown.
+      return /** @type {unknown} */ (make(formula, context, id, formulaNumber));
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -746,6 +769,7 @@ const makeDaemonCore = async (
       context,
     ).then(value => {
       if (typeof value === 'object' && value !== null) {
+        // @ts-expect-error TypeScript seems to believe the value might be a string here.
         idForRef.add(value, id);
       }
       return value;
@@ -787,6 +811,9 @@ const makeDaemonCore = async (
     return controller;
   };
 
+  /** @type {import('./types.js').DaemonCore['provide']} */
+  const provide = id => provideController(id).value;
+
   /**
    * @param {string} nodeIdentifier
    * @returns {Promise<string>}
@@ -814,21 +841,6 @@ const makeDaemonCore = async (
     const controller = provideController(id);
     console.log('Cancelled:');
     return controller.context.cancel(reason);
-  };
-
-  /** @type {import('./types.js').DaemonCore['provide']} */
-  const provide = id => {
-    const controller = /** @type {import('./types.js').Controller<>} */ (
-      provideController(id)
-    );
-    return controller.value.then(value => {
-      // Release the value to the public only after ensuring
-      // we can reverse-lookup its nonce.
-      if (typeof value === 'object' && value !== null) {
-        idForRef.add(value, id);
-      }
-      return value;
-    });
   };
 
   /** @type {import('./types.js').DaemonCore['formulateReadableBlob']} */

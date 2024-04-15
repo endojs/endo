@@ -80,7 +80,7 @@ export const makeMailboxMaker = ({ provide }) => {
     /**
      * @param {import('./types.js').EnvelopedMessage} envelope
      */
-    const deliver = async envelope => {
+    const deliver = envelope => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
       const dismissal = makePromiseKit();
       const messageNumber = nextMessageNumber;
@@ -119,13 +119,13 @@ export const makeMailboxMaker = ({ provide }) => {
      * @param {import('./types.js').Handle} recipient
      * @param {import('./types.js').EnvelopedMessage} message
      */
-    const post = (recipient, message) => {
+    const post = async (recipient, message) => {
       /** @param {object} allegedRecipient */
       const envelope = makeEnvelope();
       outbox.set(envelope, message);
-      E.sendOnly(recipient).receive(envelope, selfId);
+      await E(recipient).receive(envelope, selfId);
+      // Send to own inbox.
       if (message.from !== message.to) {
-        // echo to own mailbox
         deliver(message);
       }
     };
@@ -212,7 +212,7 @@ export const makeMailboxMaker = ({ provide }) => {
       });
 
       // add to recipient mailbox
-      post(to, message);
+      await post(to, message);
     };
 
     /** @type {import('./types.js').Mail['dismiss']} */
@@ -290,7 +290,7 @@ export const makeMailboxMaker = ({ provide }) => {
       );
 
       // Note: consider sending to each mailbox with different powers.
-      post(to, req);
+      await post(to, req);
 
       const responseId = await responseIdP;
       const responseP = provide(responseId);
