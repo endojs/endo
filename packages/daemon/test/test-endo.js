@@ -106,11 +106,21 @@ const makeHost = async (config, cancelled) => {
 };
 
 /**
- * @param {ReturnType<makeConfig>} config
- * @param {Promise<void>} cancelled
+ * @param {import('ava').ExecutionContext<any>} t
+ * @returns {Promise<ReturnType<prepareConfig> & ReturnType<makeHost>>}
  */
-const makeHostWithTestNetwork = async (config, cancelled) => {
+const prepareHost = async t => {
+  // eslint-disable-next-line no-use-before-define
+  const { cancel, cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
+  return { cancel, cancelled, config, host };
+};
+
+/**
+ * @param {import('ava').ExecutionContext<any>} t
+ */
+const prepareHostWithTestNetwork = async t => {
+  const { host } = await prepareHost(t);
 
   // Install test network
   const servicePath = path.join(dirname, 'src', 'networks', 'tcp-netstring.js');
@@ -244,8 +254,7 @@ test('lifecycle', async t => {
 });
 
 test('spawn and evaluate', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('w1');
   const ten = await E(host).evaluate('w1', '10', [], []);
@@ -253,16 +262,14 @@ test('spawn and evaluate', async t => {
 });
 
 test('anonymous spawn and evaluate', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const ten = await E(host).evaluate('MAIN', '10', [], []);
   t.is(ten, 10);
 });
 
 test('anonymous spawn and evaluate with new worker', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const ten = await E(host).evaluate('NEW', '10', [], []);
   t.is(ten, 10);
@@ -270,8 +277,7 @@ test('anonymous spawn and evaluate with new worker', async t => {
 
 // Regression test for https://github.com/endojs/endo/issues/2147
 test('spawning a worker does not overwrite existing non-worker name', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const foo = await E(host).evaluate('MAIN', '10', [], [], 'foo');
   t.is(foo, 10);
@@ -321,8 +327,7 @@ test('persist spawn and evaluation', async t => {
 });
 
 test('store without name', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
   const readable = await E(host).store(readerRef);
@@ -565,8 +570,7 @@ test('persist confined services and their requests', async t => {
 });
 
 test('guest facet receives a message for host', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
   await E(host).provideWorker('worker');
@@ -615,8 +619,7 @@ test('guest facet receives a message for host', async t => {
 });
 
 test('followNamehanges first publishes existing names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const existingNames = await E(host).list();
   const changesIterator = makeRefIterator(await E(host).followNameChanges());
@@ -626,8 +629,7 @@ test('followNamehanges first publishes existing names', async t => {
 });
 
 test('followNameChanges publishes new names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
@@ -638,8 +640,7 @@ test('followNameChanges publishes new names', async t => {
 });
 
 test('followNameChanges publishes removed names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
@@ -652,8 +653,7 @@ test('followNameChanges publishes removed names', async t => {
 });
 
 test('followNameChanges publishes renamed names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
@@ -669,8 +669,7 @@ test('followNameChanges publishes renamed names', async t => {
 });
 
 test('followNameChanges publishes renamed names (existing mappings for both names)', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
@@ -690,8 +689,7 @@ test('followNameChanges publishes renamed names (existing mappings for both name
 });
 
 test('followNameChanges does not notify of redundant pet store writes', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
@@ -709,8 +707,7 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
 });
 
 test('followLocatorNameChanges first publishes existing pet name', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -723,8 +720,7 @@ test('followLocatorNameChanges first publishes existing pet name', async t => {
 });
 
 test('followLocatorNameChanges first publishes existing special name', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const selfLocator = await E(host).locate('SELF');
   const selfLocatorSub = makeRefIterator(
@@ -735,8 +731,7 @@ test('followLocatorNameChanges first publishes existing special name', async t =
 });
 
 test('followLocatorNameChanges first publishes existing pet and special names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const selfId = await E(host).identify('SELF');
   await E(host).write(['self1'], selfId);
@@ -751,8 +746,7 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
 });
 
 test('followLocatorNameChanges publishes added names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -769,8 +763,7 @@ test('followLocatorNameChanges publishes added names', async t => {
 });
 
 test('followLocatorNameChanges publishes removed names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -788,8 +781,7 @@ test('followLocatorNameChanges publishes removed names', async t => {
 });
 
 test('followLocatorNameChanges publishes renamed names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -808,8 +800,7 @@ test('followLocatorNameChanges publishes renamed names', async t => {
 });
 
 test('followLocatorNameChanges publishes renamed names (existing mappings for both names)', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
   await E(host).evaluate('MAIN', '"german 10"', [], [], 'zehn');
@@ -839,8 +830,7 @@ test('followLocatorNameChanges publishes renamed names (existing mappings for bo
 });
 
 test('followLocatorNameChanges does not notify of redundant pet store writes', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -861,8 +851,7 @@ test('followLocatorNameChanges does not notify of redundant pet store writes', a
 });
 
 test('direct cancellation', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('worker');
 
@@ -929,8 +918,7 @@ test('direct cancellation', async t => {
 
 // Regression test 1 for https://github.com/endojs/endo/issues/2074
 test('indirect cancellation via worker', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('worker');
 
@@ -998,8 +986,7 @@ test('indirect cancellation via worker', async t => {
 
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
 test.failing('indirect cancellation via caplet', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('w1');
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -1039,8 +1026,7 @@ test.failing('indirect cancellation via caplet', async t => {
 });
 
 test('cancel because of requested capability', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('worker');
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
@@ -1115,8 +1101,7 @@ test('cancel because of requested capability', async t => {
 });
 
 test('unconfined service can respond to cancellation', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('worker');
 
@@ -1140,8 +1125,7 @@ test('unconfined service can respond to cancellation', async t => {
 });
 
 test('confined service can respond to cancellation', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('worker');
 
@@ -1161,8 +1145,7 @@ test('confined service can respond to cancellation', async t => {
 });
 
 test('make a host', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const host2 = E(host).provideHost('fellow-host');
   await E(host2).provideWorker('w1');
@@ -1171,8 +1154,7 @@ test('make a host', async t => {
 });
 
 test('name and reuse inspector', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('worker');
 
@@ -1199,8 +1181,7 @@ test('name and reuse inspector', async t => {
 
 // Regression test for https://github.com/endojs/endo/issues/2021
 test('eval-mediated worker name', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideWorker('worker');
 
@@ -1241,8 +1222,7 @@ test('eval-mediated worker name', async t => {
 });
 
 test('lookup with single petname', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).provideGuest('guest');
   const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
@@ -1258,8 +1238,7 @@ test('lookup with single petname', async t => {
 });
 
 test('lookup with petname path (inspector)', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -1273,8 +1252,7 @@ test('lookup with petname path (inspector)', async t => {
 });
 
 test('lookup with petname path (caplet with lookup method)', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const lookupPath = path.join(dirname, 'test', 'lookup.js');
   await E(host).makeUnconfined('MAIN', lookupPath, 'NONE', 'lookup');
@@ -1289,8 +1267,7 @@ test('lookup with petname path (caplet with lookup method)', async t => {
 });
 
 test('lookup with petname path (value has no lookup method)', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
   await t.throwsAsync(
@@ -1305,8 +1282,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
 });
 
 test('evaluate name resolved by lookup path', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   await E(host).evaluate('MAIN', '10', [], [], 'ten');
 
@@ -1320,8 +1296,7 @@ test('evaluate name resolved by lookup path', async t => {
 });
 
 test('list special names', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
   await E(host).store(readerRef, 'hello-text');
@@ -1340,8 +1315,7 @@ test('list special names', async t => {
 });
 
 test('guest cannot access host methods', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
   const guestsHost = E(guest).lookup('HOST');
@@ -1353,8 +1327,7 @@ test('guest cannot access host methods', async t => {
 });
 
 test('read unknown node id', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   // write a bogus value for a bogus nodeId
   const node = await cryptoPowers.randomHex512();
@@ -1372,10 +1345,8 @@ test('read unknown node id', async t => {
 });
 
 test('read remote value', async t => {
-  const { config: configA, cancelled: cancelledA } = await prepareConfig(t);
-  const { config: configB, cancelled: cancelledB } = await prepareConfig(t);
-  const hostA = await makeHostWithTestNetwork(configA, cancelledA);
-  const hostB = await makeHostWithTestNetwork(configB, cancelledB);
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
@@ -1393,8 +1364,7 @@ test('read remote value', async t => {
 });
 
 test('locate local value', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
   t.is(ten, 10);
@@ -1424,10 +1394,8 @@ test('locate local persisted value', async t => {
 });
 
 test('locate remote value', async t => {
-  const { config: configA, cancelled: cancelledA } = await prepareConfig(t);
-  const { config: configB, cancelled: cancelledB } = await prepareConfig(t);
-  const hostA = await makeHostWithTestNetwork(configA, cancelledA);
-  const hostB = await makeHostWithTestNetwork(configB, cancelledB);
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
@@ -1446,8 +1414,7 @@ test('locate remote value', async t => {
 });
 
 test('reverse locate local value', async t => {
-  const { cancelled, config } = await prepareConfig(t);
-  const { host } = await makeHost(config, cancelled);
+  const { host } = await prepareHost(t);
 
   const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
   t.is(ten, 10);
@@ -1477,10 +1444,8 @@ test('reverse locate local persisted value', async t => {
 });
 
 test('reverse locate remote value', async t => {
-  const { config: configA, cancelled: cancelledA } = await prepareConfig(t);
-  const { config: configB, cancelled: cancelledB } = await prepareConfig(t);
-  const hostA = await makeHostWithTestNetwork(configA, cancelledA);
-  const hostB = await makeHostWithTestNetwork(configB, cancelledB);
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
 
   // introduce nodes to each other
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
