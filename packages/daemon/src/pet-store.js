@@ -8,9 +8,9 @@ const { quote: q } = assert;
 
 /**
  * @param {import('./types.js').FilePowers} filePowers
- * @param {import('./types.js').Locator} locator
+ * @param {import('./types.js').Config} config
  */
-export const makePetStoreMaker = (filePowers, locator) => {
+export const makePetStoreMaker = (filePowers, config) => {
   /**
    * @param {string} petNameDirectoryPath
    * @param {(name: string) => void} assertValidName
@@ -211,7 +211,7 @@ export const makePetStoreMaker = (filePowers, locator) => {
     const prefix = formulaNumber.slice(0, 2);
     const suffix = formulaNumber.slice(2);
     const petNameDirectoryPath = filePowers.joinPath(
-      locator.statePath,
+      config.statePath,
       formulaType,
       prefix,
       suffix,

@@ -109,13 +109,13 @@ export const makeWorkerFacet = ({ cancel }) => {
 
 /**
  * @param {import('./types.js').MignonicPowers} powers
- * @param {import('./types.js').Locator} locator
- * @param {string} uuid
+ * @param {import('./types.js').Config} _config
+ * @param {string} _uuid
  * @param {number | undefined} pid
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
  */
-export const main = async (powers, locator, uuid, pid, cancel, cancelled) => {
+export const main = async (powers, _config, _uuid, pid, cancel, cancelled) => {
   console.error(`Endo worker started on pid ${pid}`);
   cancelled.catch(() => {
     console.error(`Endo worker exiting on pid ${pid}`);

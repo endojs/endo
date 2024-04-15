@@ -25,8 +25,8 @@ if (process.argv.length < 7) {
 const [workerUuid, sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
 
-/** @type {import('./types.js').Locator} */
-const locator = {
+/** @type {import('./types.js').Config} */
+const config = {
   sockPath,
   statePath,
   ephemeralStatePath,
@@ -44,7 +44,7 @@ process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
 // @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;
-main(powers, locator, workerUuid, process.pid, cancel, cancelled).then(
+main(powers, config, workerUuid, process.pid, cancel, cancelled).then(
   () => {
     process.exitCode = 0;
   },
