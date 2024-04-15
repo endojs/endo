@@ -5,6 +5,7 @@ import {
   getOwnPropertyDescriptors,
   defineProperties,
   arrayMap,
+  functionBind,
 } from './commons.js';
 
 /**
@@ -37,11 +38,7 @@ export const tameSymbolConstructor = () => {
   const OriginalSymbol = Symbol;
   const SymbolPrototype = OriginalSymbol.prototype;
 
-  const SharedSymbol = {
-    Symbol(description) {
-      return OriginalSymbol(description);
-    },
-  }.Symbol;
+  const SharedSymbol = functionBind(Symbol, undefined);
 
   defineProperties(SymbolPrototype, {
     constructor: {
