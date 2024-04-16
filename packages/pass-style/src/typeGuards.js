@@ -1,7 +1,7 @@
 import { Fail, q } from '@endo/errors';
 import { passStyleOf } from './passStyleOf.js';
 
-/** @import {Passable} from './types.js' */
+/** @import {CopyArray, CopyRecord, Passable, RemotableObject} from './types.js' */
 
 /**
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
