@@ -2,8 +2,8 @@
 
 export {};
 
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {PassStyle} from '@endo/pass-style' */
 /**
  * @template {string} [Tag=string]
  * @template {Passable} [Payload=Passable]
@@ -17,9 +17,9 @@ export {};
  * @template {Passable} [T=Passable]
  * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
  */
-/** @typedef {import('@endo/pass-style').Checker} Checker */
-/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
-/** @typedef {import('@endo/marshal').RankCover} RankCover */
+/** @import {Checker} from '@endo/pass-style' */
+/** @import {RankCompare} from '@endo/marshal' */
+/** @import {RankCover} from '@endo/marshal' */
 
 /**
  * @typedef {Passable} Key
