@@ -4,46 +4,11 @@ export {};
 
 /** @import {Passable} from '@endo/pass-style' */
 /** @import {PassStyle} from '@endo/pass-style' */
-/**
- * @template {string} [Tag=string]
- * @template {Passable} [Payload=Passable]
- * @typedef {import('@endo/pass-style').CopyTagged<Tag,Payload>} CopyTagged
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
- */
 /** @import {Checker} from '@endo/pass-style' */
-/** @import {RankCompare} from '@endo/marshal' */
-/** @import {RankCover} from '@endo/marshal' */
-
-/** @import {AwaitArgGuardPayload} from '../types.js' */
-/** @import {AwaitArgGuard} from '../types.js' */
-/** @import {RawGuard} from '../types.js' */
-/** @import {ArgGuard} from '../types.js' */
-/** @import {MethodGuardPayload} from '../types.js' */
-/** @import {SyncValueGuard} from '../types.js' */
 /** @import {MethodGuard} from '../types.js' */
-/**
- * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
- * @typedef {import('../types.js').InterfaceGuardPayload<T>} InterfaceGuardPayload
- */
-/**
- * @template {Record<PropertyKey, MethodGuard>} [T = Record<PropertyKey, MethodGuard>]
- * @typedef {import('../types.js').InterfaceGuard<T>} InterfaceGuard
- */
-/** @import {MethodGuardMaker} from '../types.js' */
 
 /** @import {MatcherNamespace} from '../types' */
-/** @import {Key} from '../types' */
 /** @import {Pattern} from '../types' */
-/** @import {CheckPattern} from '../types' */
-/** @import {Limits} from '../types' */
-/** @import {AllLimits} from '../types' */
 /** @import {GetRankCover} from '../types' */
 
 /**

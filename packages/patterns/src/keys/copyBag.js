@@ -12,8 +12,7 @@ import {
 
 import { X } from '@endo/errors';
 
-/** @template {Key} [K=Key] @typedef {import('../types').CopyBag<K>} CopyBag */
-/** @import {Key} from '../types' */
+/** @import {CopyBag} from '../types' */
 /** @import {FullCompare} from '../types' */
 /** @import {Checker} from '@endo/marshal' */
 /** @import {Passable} from '@endo/pass-style' */

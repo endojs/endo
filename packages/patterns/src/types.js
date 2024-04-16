@@ -2,24 +2,9 @@
 
 export {};
 
-/** @import {Passable} from '@endo/pass-style' */
+/** @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style' */
 /** @import {PassStyle} from '@endo/pass-style' */
-/**
- * @template {string} [Tag=string]
- * @template {Passable} [Payload=Passable]
- * @typedef {import('@endo/pass-style').CopyTagged<Tag,Payload>} CopyTagged
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
- */
-/** @import {Checker} from '@endo/pass-style' */
-/** @import {RankCompare} from '@endo/marshal' */
-/** @import {RankCover} from '@endo/marshal' */
+/** @import {RankCompare, RankCover} from '@endo/marshal' */
 
 /**
  * @typedef {Passable} Key

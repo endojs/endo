@@ -16,7 +16,7 @@ import {
 } from './patternMatchers.js';
 import { getCopyMapKeys, makeCopyMap } from '../keys/checkKey.js';
 
-/** @import {AwaitArgGuard, AwaitArgGuardPayload, MethodGuard, MethodGuardPayload} from '../types.js' */
+/** @import {AwaitArgGuard, AwaitArgGuardPayload, InterfaceGuard, InterfaceGuardPayload, MethodGuard, MethodGuardPayload} from '../types.js' */
 
 // The get*GuardPayload functions exist to adapt to the worlds both
 // before and after https://github.com/endojs/endo/pull/1712 . When
@@ -237,8 +237,8 @@ const adaptMethodGuard = methodGuard => {
  * both be meaningful.
  *
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
- * @param {import('./types.js').InterfaceGuard<T>} interfaceGuard
- * @returns {import('./types.js').InterfaceGuardPayload<T>}
+ * @param {InterfaceGuard<T>} interfaceGuard
+ * @returns {InterfaceGuardPayload<T>}
  */
 export const getInterfaceGuardPayload = interfaceGuard => {
   if (matches(interfaceGuard, InterfaceGuardShape)) {
@@ -266,7 +266,7 @@ harden(getInterfaceGuardPayload);
 const emptyCopyMap = makeCopyMap([]);
 
 /**
- * @param {import('./types.js').InterfaceGuard} interfaceGuard
+ * @param {InterfaceGuard} interfaceGuard
  * @returns {(string | symbol)[]}
  */
 export const getInterfaceMethodKeys = interfaceGuard => {

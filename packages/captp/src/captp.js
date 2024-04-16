@@ -1,8 +1,6 @@
 /// <reference types="ses"/>
 
-/** @template [R=unknown] @typedef {import('@endo/eventual-send').Settler<R>} Settler */
-/** @template [R=unknown] @typedef {import('@endo/eventual-send').HandledExecutor<R>} HandledExecutor */
-/** @template [R=unknown] @typedef {import('@endo/eventual-send').RemoteKit<R>} RemoteKit */
+/** @import {RemoteKit, Settler} from '@endo/eventual-send' */
 
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 

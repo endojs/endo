@@ -21,11 +21,7 @@ import {
   makeEncodeToSmallcaps,
 } from './encodeToSmallcaps.js';
 
-/** @import {MakeMarshalOptions} from './types.js' */
-/** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
-/** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
-/** @template Slot @typedef {import('./types.js').ToCapData<Slot>} ToCapData */
-/** @template Slot @typedef {import('./types.js').FromCapData<Slot>} FromCapData */
+/** @import {ConvertSlotToVal, ConvertValToSlot, FromCapData, MakeMarshalOptions, ToCapData} from './types.js' */
 /** @import {Passable} from '@endo/pass-style' */
 /** @import {InterfaceSpec} from '@endo/pass-style' */
 /** @import {Encoding} from './types.js' */
