@@ -18,10 +18,8 @@ import {
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
-/** @import {Passable} from '@endo/pass-style' */
-/** @import {Remotable} from '@endo/pass-style' */
-// @typedef {import('./types.js').SmallcapsEncoding} SmallcapsEncoding */
-// @typedef {import('./types.js').SmallcapsEncodingUnion} SmallcapsEncodingUnion */
+/** @import {Passable, Remotable} from '@endo/pass-style' */
+// FIXME define actual types
 /** @typedef {any} SmallcapsEncoding */
 /** @typedef {any} SmallcapsEncodingUnion */
 

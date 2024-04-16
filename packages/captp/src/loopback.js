@@ -5,10 +5,7 @@ import { makeFinalizingMap } from './finalize.js';
 
 export { E };
 
-/**
- * @template T
- * @typedef {import('@endo/eventual-send').ERef<T>} ERef
- */
+/** @import {ERef} from '@endo/eventual-send' */
 
 /**
  * Create an async-isolated channel to an object.

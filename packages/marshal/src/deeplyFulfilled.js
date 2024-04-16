@@ -5,7 +5,6 @@ import { isPromise } from '@endo/promise-kit';
 import { getTag, isObject, makeTagged, passStyleOf } from '@endo/pass-style';
 
 /** @import {Passable} from '@endo/pass-style' */
-/** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
 
 import { X, q } from '@endo/errors';
 
