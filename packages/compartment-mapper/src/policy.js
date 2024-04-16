@@ -1,5 +1,17 @@
 // @ts-check
 
+/**
+ * @import {
+ *  Policy,
+ *  PackagePolicy,
+ *  AttenuationDefinition,
+ *  PackageNamingKit,
+ *  DeferredAttenuatorsProvider,
+ *  CompartmentDescriptor,
+ *  Attenuator
+ * } from './types.js'
+ */
+
 import {
   getAttenuatorFromDefinition,
   isAllowingEverything,
@@ -41,7 +53,7 @@ const selectiveCopy = (from, to, list) => {
  *
  * Note: this function is recursive
  * @param {string[]} attenuators - List of attenuator names; may be mutated
- * @param {import('./types.js').AttenuationDefinition|import('./types.js').Policy} policyFragment
+ * @param {AttenuationDefinition|Policy} policyFragment
  */
 const collectAttenuators = (attenuators, policyFragment) => {
   if ('attenuate' in policyFragment) {
@@ -60,7 +72,7 @@ const attenuatorsCache = new WeakMap();
  * Goes through policy and lists all attenuator specifiers used.
  * Memoization keyed on policy object reference
  *
- * @param {import('./types.js').Policy} [policy]
+ * @param {Policy} [policy]
  * @returns {Array<string>} attenuators
  */
 export const detectAttenuators = policy => {
@@ -81,7 +93,7 @@ export const detectAttenuators = policy => {
 /**
  * Generates a string identifying a package for policy lookup purposes.
  *
- * @param {import('./types.js').PackageNamingKit} namingKit
+ * @param {PackageNamingKit} namingKit
  * @returns {string}
  */
 const generateCanonicalName = ({ isEntry = false, name, path }) => {
@@ -98,8 +110,8 @@ const generateCanonicalName = ({ isEntry = false, name, path }) => {
  * Verifies if a module identified by `namingKit` can be a dependency of a package per `packagePolicy`.
  * `packagePolicy` is required, when policy is not set, skipping needs to be handled by the caller.
  *
- * @param {import('./types.js').PackageNamingKit} namingKit
- * @param {import('./types.js').PackagePolicy} packagePolicy
+ * @param {PackageNamingKit} namingKit
+ * @param {PackagePolicy} packagePolicy
  * @returns {boolean}
  */
 export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
@@ -114,26 +126,35 @@ export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
 /**
  * Returns the policy applicable to the canonicalName of the package
  *
+ * @template [PackagePolicyItem=void]
+ * @template [GlobalsPolicyItem=void]
+ * @template [BuiltinsPolicyItem=void]
  * @overload
- * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
- * @param {import('./types.js').Policy} policy - user supplied policy
- * @returns {import('./types.js').PackagePolicy} packagePolicy if policy was specified
+ * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {Policy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>} policy - user supplied policy
+ * @returns {PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>} packagePolicy if policy was specified
  */
 
 /**
  * Returns `undefined`
  *
+ * @template [PackagePolicyItem=void]
+ * @template [GlobalsPolicyItem=void]
+ * @template [BuiltinsPolicyItem=void]
  * @overload
- * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
- * @param {import('./types.js').Policy} [policy] - user supplied policy
- * @returns {import('./types.js').PackagePolicy|undefined} packagePolicy if policy was specified
+ * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {Policy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>} [policy] - user supplied policy
+ * @returns {PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>|undefined} packagePolicy if policy was specified
  */
 
 /**
  * Returns the policy applicable to the canonicalName of the package
  *
- * @param {import('./types.js').PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
- * @param {import('./types.js').Policy} [policy] - user supplied policy
+ * @template [PackagePolicyItem=void]
+ * @template [GlobalsPolicyItem=void]
+ * @template [BuiltinsPolicyItem=void]
+ * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived from these
+ * @param {Policy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>} [policy] - user supplied policy
  */
 export const getPolicyForPackage = (namingKit, policy) => {
   if (!policy) {
@@ -159,7 +180,7 @@ export const getPolicyForPackage = (namingKit, policy) => {
 
 /**
  * Get list of globals from package policy
- * @param {import('./types.js').PackagePolicy} [packagePolicy]
+ * @param {PackagePolicy} [packagePolicy]
  * @returns {Array<string>}
  */
 const getGlobalsList = packagePolicy => {
@@ -176,8 +197,8 @@ const MODULE_ATTENUATOR = 'attenuateModule';
 
 /**
  * Imports attenuator per its definition and provider
- * @param {import('./types.js').AttenuationDefinition} attenuationDefinition
- * @param {import('./types.js').DeferredAttenuatorsProvider} attenuatorsProvider
+ * @param {AttenuationDefinition} attenuationDefinition
+ * @param {DeferredAttenuatorsProvider} attenuatorsProvider
  * @param {string} attenuatorExportName
  * @returns {Promise<Function>}
  */
@@ -206,8 +227,8 @@ const importAttenuatorForDefinition = async (
 /**
  * Makes an async provider for attenuators
  * @param {Record<string, Compartment>} compartments
- * @param {Record<string, import('./types.js').CompartmentDescriptor>} compartmentDescriptors
- * @returns {import('./types.js').DeferredAttenuatorsProvider}
+ * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
+ * @returns {DeferredAttenuatorsProvider}
  */
 export const makeDeferredAttenuatorsProvider = (
   compartments,
@@ -231,7 +252,7 @@ export const makeDeferredAttenuatorsProvider = (
     /**
      *
      * @param {string} attenuatorSpecifier
-     * @returns {Promise<import('./types.js').Attenuator>}
+     * @returns {Promise<Attenuator>}
      */
     importAttenuator = async attenuatorSpecifier => {
       if (!attenuatorSpecifier) {
@@ -255,8 +276,8 @@ export const makeDeferredAttenuatorsProvider = (
  * Attenuates the `globalThis` object
  *
  * @param {object} options
- * @param {import('./types.js').DeferredAttenuatorsProvider} options.attenuators
- * @param {import('./types.js').AttenuationDefinition} options.attenuationDefinition
+ * @param {DeferredAttenuatorsProvider} options.attenuators
+ * @param {AttenuationDefinition} options.attenuationDefinition
  * @param {object} options.globalThis
  * @param {object} options.globals
  */
@@ -295,8 +316,8 @@ async function attenuateGlobalThis({
  *
  * @param {object} globalThis
  * @param {object} globals
- * @param {import('./types.js').PackagePolicy} packagePolicy
- * @param {import('./types.js').DeferredAttenuatorsProvider} attenuators
+ * @param {PackagePolicy} packagePolicy
+ * @param {DeferredAttenuatorsProvider} attenuators
  * @param {Array<Promise>} pendingJobs
  * @param {string} name
  * @returns {void}
@@ -371,7 +392,7 @@ const diagnoseModulePolicy = errorHint => {
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier
- * @param {import('./types.js').CompartmentDescriptor} compartmentDescriptor
+ * @param {CompartmentDescriptor} compartmentDescriptor
  * @param {EnforceModulePolicyOptions} [options]
  */
 export const enforceModulePolicy = (
@@ -409,8 +430,8 @@ export const enforceModulePolicy = (
 /**
  * Attenuates a module
  * @param {object} options
- * @param {import('./types.js').DeferredAttenuatorsProvider} options.attenuators
- * @param {import('./types.js').AttenuationDefinition} options.attenuationDefinition
+ * @param {DeferredAttenuatorsProvider} options.attenuators
+ * @param {AttenuationDefinition} options.attenuationDefinition
  * @param {import('ses').ThirdPartyStaticModuleInterface} options.originalModuleRecord
  * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>}
  */
@@ -448,8 +469,8 @@ async function attenuateModule({
  *
  * @param {string} specifier - exit module name
  * @param {import('ses').ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
- * @param {import('./types.js').PackagePolicy} policy - local compartment policy
- * @param {import('./types.js').DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
+ * @param {PackagePolicy} policy - local compartment policy
+ * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
  * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>} - the attenuated module
  */
 export const attenuateModuleHook = async (

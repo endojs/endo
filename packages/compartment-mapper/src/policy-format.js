@@ -7,6 +7,7 @@ const q = JSON.stringify;
 const ATTENUATOR_KEY = 'attenuate';
 const ATTENUATOR_PARAMS_KEY = 'params';
 const WILDCARD_POLICY_VALUE = 'any';
+export const DYNAMIC_POLICY_VALUE = 'dynamic';
 const POLICY_FIELDS_LOOKUP = /** @type {const} */ ([
   'builtins',
   'globals',
@@ -124,7 +125,8 @@ const predicateOr =
 const isPolicyItem = item =>
   item === undefined ||
   item === WILDCARD_POLICY_VALUE ||
-  isRecordOf(item, isBoolean);
+  isRecordOf(item, isBoolean) ||
+  isRecordOf(item, value => value === DYNAMIC_POLICY_VALUE);
 
 /**
  * This asserts (i.e., throws) that `allegedPackagePolicy` is a valid `PackagePolicy`.

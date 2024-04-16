@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {Language} from './types.js' */
+/** @import {Language, CompartmentMapForNodeModulesOptions, Policy} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {MaybeReadFn} from './types.js' */
 /** @import {CanonicalFn} from './types.js' */
@@ -566,7 +566,7 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {import('./types.js').Policy} [policy]
+ * @param {Policy} [policy]
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -647,6 +647,8 @@ const translateGraph = (
           };
         }
       }
+      // HERE we could take the "dynamic" items from policy and force them into the moduleDescriptors
+
       // if the exports field is not present, then all modules must be accessible
       if (!explicitExports) {
         scopes[dependencyName] = {
@@ -704,10 +706,7 @@ const translateGraph = (
  * @param {Set<string>} tags
  * @param {object} packageDescriptor
  * @param {string} moduleSpecifier
- * @param {object} [options]
- * @param {boolean} [options.dev]
- * @param {object} [options.commonDependencies]
- * @param {object} [options.policy]
+ * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (

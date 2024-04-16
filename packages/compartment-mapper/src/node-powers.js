@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @import {ReadPowers} from './types.js' */
+/** @import {ReadFn, ReadPowers, ReadSyncFn, FsAPI, CryptoAPI, UrlAPI, MaybeReadPowers, MaybeReadFn, RequireResolveFn, CanonicalFn, SyncReadPowers} from './types.js' */
 /** @import {HashFn} from './types.js' */
 /** @import {WritePowers} from './types.js' */
 
@@ -30,10 +30,10 @@ const fakePathToFileURL = path => {
  * but `makeReadPowers` presents a type that requires `url`.
  *
  * @param {object} args
- * @param {import('./types.js').FsAPI} args.fs
- * @param {import('./types.js').UrlAPI} [args.url]
- * @param {import('./types.js').CryptoAPI} [args.crypto]
- * @returns {import('./types.js').MaybeReadPowers}
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} [args.url]
+ * @param {CryptoAPI} [args.crypto]
+ * @returns {MaybeReadPowers & SyncReadPowers}
  */
 const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   const fileURLToPath =
@@ -44,7 +44,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   let readMutex = Promise.resolve(undefined);
 
   /**
-   * @param {string} location
+   * @type {ReadFn}
    */
   const read = async location => {
     const promise = readMutex;
@@ -65,7 +65,15 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   };
 
   /**
-   * @param {string} location
+   * @type {ReadSyncFn}
+   */
+  const readSync = location => {
+    const path = fileURLToPath(location);
+    return fs.readFileSync(path);
+  };
+
+  /**
+   * @type {MaybeReadFn}
    */
   const maybeRead = location =>
     read(location).catch(error => {
@@ -78,6 +86,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
       throw error;
     });
 
+  /** @type {RequireResolveFn} */
   const requireResolve = (from, specifier, options) =>
     createRequire(from).resolve(specifier, options);
 
@@ -94,7 +103,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
    * non-existent directory on the next step after canonicalizing the package
    * location.
    *
-   * @param {string} location
+   * @type {CanonicalFn}
    */
   const canonical = async location => {
     try {
@@ -129,6 +138,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     canonical,
     computeSha512,
     requireResolve,
+    readSync,
   };
 };
 
@@ -138,8 +148,8 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
  * but `makeWritePowers` presents a type that requires `url`.
  *
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} [args.url]
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} [args.url]
  */
 const makeWritePowersSloppy = ({ fs, url = undefined }) => {
   const fileURLToPath =
@@ -162,16 +172,16 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
 
 /**
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} args.url
- * @param {typeof import('crypto')} [args.crypto]
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} args.url
+ * @param {CryptoAPI} [args.crypto]
  */
 export const makeReadPowers = makeReadPowersSloppy;
 
 /**
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} args.url
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} args.url
  */
 export const makeWritePowers = makeWritePowersSloppy;
 
@@ -180,8 +190,8 @@ export const makeWritePowers = makeWritePowersSloppy;
  * It transpires that positional arguments needed to become an arguments bag to
  * reasonably expand to multiple optional dependencies.
  *
- * @param {typeof import('fs')} fs
- * @param {typeof import('crypto')} [crypto]
+ * @param {FsAPI} fs
+ * @param {CryptoAPI} [crypto]
  * @returns {ReadPowers}
  */
 export const makeNodeReadPowers = (fs, crypto = undefined) => {
@@ -193,7 +203,7 @@ export const makeNodeReadPowers = (fs, crypto = undefined) => {
  * It transpires that positional arguments needed to become an arguments bag to
  * reasonably expand to multiple optional dependencies.
  *
- * @param {typeof import('fs')} fs
+ * @param {FsAPI} fs
  * @returns {WritePowers}
  */
 export const makeNodeWritePowers = fs => {

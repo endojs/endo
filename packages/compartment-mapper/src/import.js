@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-/** @import {Application} from './types.js' */
+/** @import {Application, DynamicImportHook, ImportNowHookMaker, ModuleTransforms, SomeObject, SyncArchiveOptions, SyncReadPowers} from './types.js' */
 /** @import {ArchiveOptions} from './types.js' */
 /** @import {ExecuteFn} from './types.js' */
 /** @import {ExecuteOptions} from './types.js' */
@@ -15,6 +15,7 @@ import { link } from './link.js';
 import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
+  makeImportNowHookMaker,
 } from './import-hook.js';
 import parserJson from './parse-json.js';
 import parserText from './parse-text.js';
@@ -34,20 +35,59 @@ export const parserForLanguage = {
 };
 
 /**
+ * @overload
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {ArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadLocation = async (readPowers, moduleLocation, options) => {
+
+/**
+ * @overload
+ * @param {SyncReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {SyncArchiveOptions} options
+ * @returns {Promise<Application>}
+ */
+
+/**
+ * @param {ReadFn | ReadPowers|SyncReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {ArchiveOptions|SyncArchiveOptions} [options]
+ * @returns {Promise<Application>}
+ */
+export const loadLocation = async (
+  readPowers,
+  moduleLocation,
+  options = {},
+) => {
   const {
-    moduleTransforms = {},
+    syncModuleTransforms = {},
     dev = false,
     tags = new Set(),
     searchSuffixes = undefined,
     commonDependencies = undefined,
     policy,
-  } = options || {};
+  } = options;
+
+  /**
+   * This type guard determines which of the two paths through the code is taken.
+   *
+   * If `options` is `SyncArchiveOptions`, we will permit dynamic requires. By definition, this must not include async module transforms, and must have a non-empty `dynamicHook`
+   *
+   * If `options` isn't `SyncArchiveOptions`, then no.
+   *
+   * @param {ArchiveOptions|SyncArchiveOptions} value
+   * @returns {value is SyncArchiveOptions}
+   */
+  const isSyncOptions = value => 'dynamicHook' in value;
+
+  const moduleTransforms = isSyncOptions(options)
+    ? undefined
+    : /** @type {ModuleTransforms} */ ({
+        ...syncModuleTransforms,
+        ...(options.moduleTransforms || {}),
+      });
 
   const { read } = unpackReadPowers(readPowers);
 
@@ -94,16 +134,50 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       entryModuleSpecifier: moduleSpecifier,
       exitModuleImportHook: compartmentExitModuleImportHook,
     });
-    const { compartment, pendingJobsPromise } = link(compartmentMap, {
-      makeImportHook,
-      parserForLanguage,
-      globals,
-      transforms,
-      moduleTransforms,
-      __shimTransforms__,
-      Compartment,
-      fallbackLanguageForExtension,
-    });
+
+    /** @type {ImportNowHookMaker | undefined} */
+    let makeImportNowHook;
+
+    /** @type {Compartment} */
+    let compartment;
+    /** @type {Promise<void>} */
+    let pendingJobsPromise;
+
+    // only if we are in "sync mode" do we create an ImportNowHookMaker
+    if (isSyncOptions(options)) {
+      makeImportNowHook = makeImportNowHookMaker(
+        /** @type {SyncReadPowers} */ (readPowers),
+        packageLocation,
+        {
+          compartmentDescriptors: compartmentMap.compartments,
+          searchSuffixes,
+          // type assertion is required here
+          dynamicHook: options.dynamicHook,
+        },
+      );
+      ({ compartment, pendingJobsPromise } = link(compartmentMap, {
+        makeImportHook,
+        makeImportNowHook,
+        parserForLanguage,
+        globals,
+        transforms,
+        syncModuleTransforms,
+        __shimTransforms__,
+        Compartment,
+        fallbackLanguageForExtension,
+      }));
+    } else {
+      ({ compartment, pendingJobsPromise } = link(compartmentMap, {
+        makeImportHook,
+        parserForLanguage,
+        globals,
+        transforms,
+        moduleTransforms,
+        __shimTransforms__,
+        Compartment,
+        fallbackLanguageForExtension,
+      }));
+    }
 
     await pendingJobsPromise;
 
@@ -114,10 +188,32 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
 };
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * Disallows dynamic requires
+ *
+ * @overload
+ * @param {ReadPowers|ReadFn} readPowers
  * @param {string} moduleLocation
  * @param {ExecuteOptions & ArchiveOptions} [options]
- * @returns {Promise<import('./types.js').SomeObject>} the object of the imported modules exported
+ * @returns {Promise<SomeObject>} the object of the imported modules exported
+ * names.
+ */
+
+/**
+ * Allows dynamic requires
+ *
+ * @overload
+ * @param {SyncReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {ExecuteOptions & SyncArchiveOptions} options
+ * @returns {Promise<SomeObject>} the object of the imported modules exported
+ * names.
+ */
+
+/**
+ * @param {ReadPowers|ReadFn|SyncReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {ExecuteOptions & (SyncArchiveOptions | ArchiveOptions)} [options]
+ * @returns {Promise<SomeObject>} the object of the imported modules exported
  * names.
  */
 export const importLocation = async (

@@ -1,10 +1,11 @@
 // @ts-check
 
 /** @import {ImportHook} from 'ses' */
+/** @import {ImportNowHook} from 'ses' */
 /** @import {StaticModuleType} from 'ses' */
 /** @import {RedirectStaticModuleInterface} from 'ses' */
 /** @import {ThirdPartyStaticModuleInterface} from 'ses' */
-/** @import {ReadFn} from './types.js' */
+/** @import {DynamicImportHook, MakeImportNowHookMakerOptions, ReadFn, NullImportNowHookMaker as NullImportNowHookMaker, ReadSyncFn, FileURLToPathFn, SyncReadPowers} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 /** @import {HashFn} from './types.js' */
 /** @import {Sources} from './types.js' */
@@ -13,10 +14,13 @@
 /** @import {ImportHookMaker} from './types.js' */
 /** @import {DeferredAttenuatorsProvider} from './types.js' */
 /** @import {ExitModuleImportHook} from './types.js' */
+/** @import {SourceMapHook} from './types.js' */
+/** @import {ImportNowHookMaker} from './types.js' */
 
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 import { resolve } from './node-module-specifier.js';
 import { unpackReadPowers } from './powers.js';
+import { DYNAMIC_POLICY_VALUE } from './policy-format.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -30,6 +34,8 @@ const { apply } = Reflect;
  * @type {import('ses').Harden}
  */
 const freeze = Object.freeze;
+
+const entries = Object.entries;
 
 const { hasOwnProperty } = Object.prototype;
 /**
@@ -66,7 +72,7 @@ const nodejsConventionSearchSuffixes = [
 /**
  * @param {object} params
  * @param {Record<string, any>=} params.modules
- * @param {ExitModuleImportHook=} params.exitModuleImportHook
+ * @param {ExitModuleImportHook} [params.exitModuleImportHook]
  * @returns {ExitModuleImportHook|undefined}
  */
 export const exitModuleImportHookMaker = ({
@@ -113,7 +119,7 @@ export const exitModuleImportHookMaker = ({
  * @param {string} options.entryCompartmentName
  * @param {string} options.entryModuleSpecifier
  * @param {ExitModuleImportHook} [options.exitModuleImportHook]
- * @param {import('./types.js').SourceMapHook} [options.sourceMapHook]
+ * @param {SourceMapHook} [options.sourceMapHook]
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -392,3 +398,228 @@ export const makeImportHookMaker = (
   };
   return makeImportHook;
 };
+
+/**
+ * Synchronous import for dynamic requires.
+ *
+ * @param {SyncReadPowers} readPowers
+ * @param {string} baseLocation
+ * @param {MakeImportNowHookMakerOptions} options
+ * @returns {ImportNowHookMaker|undefined}
+ */
+export function makeImportNowHookMaker(
+  readPowers,
+  baseLocation,
+  {
+    sources = Object.create(null),
+    compartmentDescriptors = Object.create(null),
+    computeSha512 = undefined,
+    searchSuffixes = nodejsConventionSearchSuffixes,
+    sourceMapHook = undefined,
+    dynamicHook,
+  },
+) {
+  // Set of specifiers for modules (scoped to compartment) whose parser is not
+  // using heuristics to determine imports.
+  /** @type {Map<string, Set<string>>} compartment name ->* module specifier */
+  const strictlyRequired = new Map();
+
+  /**
+   * @param {string} compartmentName
+   */
+  const strictlyRequiredForCompartment = compartmentName => {
+    let compartmentStrictlyRequired = strictlyRequired.get(compartmentName);
+    if (compartmentStrictlyRequired !== undefined) {
+      return compartmentStrictlyRequired;
+    }
+    compartmentStrictlyRequired = new Set();
+    strictlyRequired.set(compartmentName, compartmentStrictlyRequired);
+    return compartmentStrictlyRequired;
+  };
+
+  /**
+   * @type {ImportNowHookMaker}
+   */
+  const makeImportNowHook = ({
+    packageLocation,
+    packageName: _packageName,
+    entryCompartmentDescriptor,
+    parse,
+    compartments,
+  }) => {
+    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
+
+    // this is necessary, because there's nothing that prevents someone from calling this function with the entry compartment.
+    assert(
+      compartmentDescriptor !== entryCompartmentDescriptor,
+      'Cannot create an ImportNowHook for the entry compartment',
+    );
+
+    // this is not strictly necessary, since the types should handle it.
+    assert(
+      parse[Symbol.toStringTag] !== 'AsyncFunction',
+      'async parsers are unsupported',
+    );
+
+    packageLocation = resolveLocation(packageLocation, baseLocation);
+    const packageSources = sources[packageLocation] || Object.create(null);
+    sources[packageLocation] = packageSources;
+    const { modules: moduleDescriptors = Object.create(null) } =
+      compartmentDescriptor;
+    compartmentDescriptor.modules = moduleDescriptors;
+
+    const { policy } = compartmentDescriptor;
+
+    // associates modules with compartment descriptors based on policy
+    // which wouldn't otherwise be there
+    if ('packages' in policy && typeof policy.packages === 'object') {
+      for (const [pkgName, policyItem] of entries(policy.packages)) {
+        if (
+          policyItem === true ||
+          (policyItem === DYNAMIC_POLICY_VALUE &&
+            !(pkgName in compartmentDescriptor.modules))
+        ) {
+          compartmentDescriptor.modules[pkgName] =
+            compartmentDescriptor.scopes[pkgName];
+        }
+      }
+    }
+
+    const { readSync } = readPowers;
+
+    /** @type {ImportNowHook} */
+    const importNowHook = moduleSpecifier => {
+      // Collate candidate locations for the moduleSpecifier,
+      // to support Node.js conventions and similar.
+      const candidates = [moduleSpecifier];
+      for (const candidateSuffix of searchSuffixes) {
+        candidates.push(`${moduleSpecifier}${candidateSuffix}`);
+      }
+
+      for (const candidateSpecifier of candidates) {
+        const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
+        if (candidateModuleDescriptor !== undefined) {
+          const { compartment: candidateCompartmentName = packageLocation } =
+            candidateModuleDescriptor;
+          const candidateCompartment = compartments[candidateCompartmentName];
+          if (candidateCompartment === undefined) {
+            throw Error(
+              `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          // modify compartmentMap to include this redirect
+          const candidateCompartmentDescriptor =
+            compartmentDescriptors[candidateCompartmentName];
+          if (candidateCompartmentDescriptor === undefined) {
+            throw Error(
+              `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          candidateCompartmentDescriptor.modules[moduleSpecifier] =
+            candidateModuleDescriptor;
+          // return a redirect
+          /** @type {RedirectStaticModuleInterface} */
+          const record = {
+            specifier: candidateSpecifier,
+            compartment: candidateCompartment,
+          };
+          return record;
+        }
+
+        // Using a specifier as a location.
+        // This is not always valid.
+        // But, for Node.js, when the specifier is relative and not a directory
+        // name, they are usable as URL's.
+        const moduleLocation = resolveLocation(
+          candidateSpecifier,
+          packageLocation,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        const moduleBytes = readSync(moduleLocation);
+        if (moduleBytes !== undefined) {
+          /** @type {string | undefined} */
+          let sourceMap;
+          // eslint-disable-next-line no-await-in-loop
+          const envelope = parse(
+            moduleBytes,
+            candidateSpecifier,
+            moduleLocation,
+            packageLocation,
+            {
+              readPowers,
+              sourceMapHook:
+                sourceMapHook &&
+                (nextSourceMapObject => {
+                  sourceMap = JSON.stringify(nextSourceMapObject);
+                }),
+            },
+          );
+          const {
+            parser,
+            bytes: transformedBytes,
+            record: concreteRecord,
+          } = envelope;
+
+          // Facilitate a redirect if the returned record has a different
+          // module specifier than the requested one.
+          if (candidateSpecifier !== moduleSpecifier) {
+            moduleDescriptors[moduleSpecifier] = {
+              module: candidateSpecifier,
+              compartment: packageLocation,
+            };
+          }
+          /** @type {StaticModuleType} */
+          const record = {
+            record: concreteRecord,
+            specifier: candidateSpecifier,
+            importMeta: { url: moduleLocation },
+          };
+
+          let sha512;
+          if (computeSha512 !== undefined) {
+            sha512 = computeSha512(transformedBytes);
+
+            if (sourceMapHook !== undefined && sourceMap !== undefined) {
+              sourceMapHook(sourceMap, {
+                compartment: packageLocation,
+                module: candidateSpecifier,
+                location: moduleLocation,
+                sha512,
+              });
+            }
+          }
+
+          const packageRelativeLocation = moduleLocation.slice(
+            packageLocation.length,
+          );
+          packageSources[candidateSpecifier] = {
+            location: packageRelativeLocation,
+            sourceLocation: moduleLocation,
+            parser,
+            bytes: transformedBytes,
+            record: concreteRecord,
+            sha512,
+          };
+          for (const importSpecifier of getImportsFromRecord(record)) {
+            strictlyRequiredForCompartment(packageLocation).add(
+              resolve(importSpecifier, moduleSpecifier),
+            );
+          }
+
+          return record;
+        }
+      }
+
+      const record = dynamicHook(moduleSpecifier, packageLocation);
+
+      if (!record) {
+        throw new Error(`Could not import module: ${moduleSpecifier}`);
+      }
+
+      return record;
+    };
+
+    return importNowHook;
+  };
+  return makeImportNowHook;
+}
