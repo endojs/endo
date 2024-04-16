@@ -804,7 +804,7 @@ export const makeCapTP = (
     serialize,
     unserialize,
     makeTrapHandler,
-    Trap: /** @type {import('./types.js').Trap | undefined} */ (undefined),
+    Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
   };
 
   if (trapGuest) {

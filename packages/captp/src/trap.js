@@ -58,7 +58,7 @@ const TrapProxyHandler = (x, trapImpl) => {
 
 /**
  * @param {import('./types.js').TrapImpl} trapImpl
- * @returns {Trap}
+ * @returns {import('./ts-types.js').Trap}
  */
 export const makeTrap = trapImpl => {
   const Trap = x => {
