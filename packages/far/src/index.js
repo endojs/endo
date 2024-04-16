@@ -1,6 +1,7 @@
 export { E } from '@endo/eventual-send';
 export { Far, getInterfaceOf, passStyleOf } from '@endo/pass-style';
 
+// TODO re-export from eventual-send, may require .d.ts
 /**
  * @template Primary
  * @template [Local=import('@endo/eventual-send').DataOnly<Primary>]
