@@ -3,11 +3,11 @@
 
 export {};
 
-/** @typedef {import('ses').FinalStaticModuleType} FinalStaticModuleType */
-/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
-/** @typedef {import('ses').ImportHook} ImportHook */
-/** @typedef {import('ses').StaticModuleType} StaticModuleType */
-/** @typedef {import('ses').Transform} Transform */
+/** @import {FinalStaticModuleType} from 'ses' */
+/** @import {ThirdPartyStaticModuleInterface} from 'ses' */
+/** @import {ImportHook} from 'ses' */
+/** @import {StaticModuleType} from 'ses' */
+/** @import {Transform} from 'ses' */
 
 // /////////////////////////////////////////////////////////////////////////////
 

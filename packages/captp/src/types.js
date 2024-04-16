@@ -48,7 +48,7 @@ export {};
  * returned, it will satisfy a future guest IterationObserver.
  */
 
-/** @typedef {import('./ts-types.js').Trap} Trap */
+/** @import {Trap} from './ts-types.js' */
 
 /**
  * @template T
