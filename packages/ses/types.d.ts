@@ -95,12 +95,14 @@ export type ModuleMapHook = (
   moduleSpecifier: string,
 ) => string | ModuleExportsNamespace | void;
 export type ImportHook = (moduleSpecifier: string) => Promise<StaticModuleType>;
+export type ImportNowHook = (moduleSpecifier: string) => StaticModuleType;
 
 export interface CompartmentOptions {
   name?: string;
   transforms?: Array<Transform>;
   moduleMapHook?: ModuleMapHook;
   importHook?: ImportHook;
+  importNowHook?: ImportNowHook;
   resolveHook?: ResolveHook;
   __shimTransforms__?: Array<Transform>;
 }
