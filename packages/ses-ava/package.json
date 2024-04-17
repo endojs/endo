@@ -37,8 +37,8 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/env-options": "^1.1.3",
-    "@endo/init": "^1.1.1",
+    "@endo/env-options": "workspace:*",
+    "@endo/init": "workspace:*",
     "ses": "^1.4.1"
   },
   "peerDependencies": {

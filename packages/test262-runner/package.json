@@ -31,7 +31,7 @@
     "test262:node": "test262-harness --host-type node --host-path node --test262-dir test262  --prelude prelude/node.js 'test262/test/**/*.js' --features-include ses-xs-parity"
   },
   "dependencies": {
-    "@endo/compartment-mapper": "^1.1.4",
+    "@endo/compartment-mapper": "workspace:*",
     "ses": "^1.4.1",
     "test262-harness": "^10.0.0"
   },

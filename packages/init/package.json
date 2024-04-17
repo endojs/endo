@@ -29,14 +29,14 @@
     "lint:types": "tsc"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^1.1.4",
+    "@endo/compartment-mapper": "workspace:*",
     "ava": "^6.1.2"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.4",
-    "@endo/eventual-send": "^1.2.1",
-    "@endo/lockdown": "^1.0.6",
-    "@endo/promise-kit": "^1.1.1"
+    "@endo/base64": "workspace:*",
+    "@endo/eventual-send": "workspace:*",
+    "@endo/lockdown": "workspace:*",
+    "@endo/promise-kit": "workspace:*"
   },
   "files": [
     "LICENSE*",

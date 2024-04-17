@@ -172,7 +172,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@endo/base64@npm:^1.0.4, @endo/base64@workspace:packages/base64":
+"@endo/base64@workspace:*, @endo/base64@workspace:packages/base64":
   version: 0.0.0-use.local
   resolution: "@endo/base64@workspace:packages/base64"
   dependencies:
@@ -189,18 +189,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/bundle-source@npm:^3.2.2, @endo/bundle-source@workspace:packages/bundle-source":
+"@endo/bundle-source@workspace:*, @endo/bundle-source@workspace:packages/bundle-source":
   version: 0.0.0-use.local
   resolution: "@endo/bundle-source@workspace:packages/bundle-source"
   dependencies:
-    "@endo/base64": "npm:^1.0.4"
-    "@endo/compartment-mapper": "npm:^1.1.4"
-    "@endo/evasive-transform": "npm:^1.1.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
-    "@endo/where": "npm:^1.0.4"
+    "@endo/base64": "workspace:*"
+    "@endo/compartment-mapper": "workspace:*"
+    "@endo/evasive-transform": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/lockdown": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
+    "@endo/where": "workspace:*"
     "@rollup/plugin-commonjs": "npm:^19.0.0"
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     acorn: "npm:^8.2.4"
@@ -212,17 +212,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/captp@npm:^4.1.1, @endo/captp@workspace:packages/captp":
+"@endo/captp@workspace:*, @endo/captp@workspace:packages/captp":
   version: 0.0.0-use.local
   resolution: "@endo/captp@workspace:packages/captp"
   dependencies:
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/marshal": "npm:^1.4.1"
-    "@endo/nat": "npm:^5.0.6"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/marshal": "workspace:*"
+    "@endo/nat": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
   languageName: unknown
@@ -232,12 +232,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/check-bundle@workspace:packages/check-bundle"
   dependencies:
-    "@endo/base64": "npm:^1.0.4"
-    "@endo/bundle-source": "npm:^3.2.2"
-    "@endo/compartment-mapper": "npm:^1.1.4"
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/zip": "npm:^1.0.4"
+    "@endo/base64": "workspace:*"
+    "@endo/bundle-source": "workspace:*"
+    "@endo/compartment-mapper": "workspace:*"
+    "@endo/errors": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/zip": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -251,7 +251,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/cjs-module-analyzer@npm:^1.0.4, @endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer":
+"@endo/cjs-module-analyzer@workspace:*, @endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer":
   version: 0.0.0-use.local
   resolution: "@endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer"
   dependencies:
@@ -272,18 +272,18 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/cli@workspace:packages/cli"
   dependencies:
-    "@endo/bundle-source": "npm:^3.2.2"
-    "@endo/compartment-mapper": "npm:^1.1.4"
-    "@endo/daemon": "npm:^2.2.0"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/exo": "npm:^1.4.0"
-    "@endo/far": "npm:^1.1.1"
-    "@endo/import-bundle": "npm:^1.1.1"
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/patterns": "npm:^1.3.1"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/stream-node": "npm:^1.1.1"
-    "@endo/where": "npm:^1.0.4"
+    "@endo/bundle-source": "workspace:*"
+    "@endo/compartment-mapper": "workspace:*"
+    "@endo/daemon": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/exo": "workspace:*"
+    "@endo/far": "workspace:*"
+    "@endo/import-bundle": "workspace:*"
+    "@endo/lockdown": "workspace:*"
+    "@endo/patterns": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/stream-node": "workspace:*"
+    "@endo/where": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     commander: "npm:^5.0.0"
@@ -301,28 +301,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/common@npm:^1.2.1, @endo/common@workspace:packages/common":
+"@endo/common@workspace:*, @endo/common@workspace:packages/common":
   version: 0.0.0-use.local
   resolution: "@endo/common@workspace:packages/common"
   dependencies:
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/lockdown": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
   languageName: unknown
   linkType: soft
 
-"@endo/compartment-mapper@npm:^1.1.4, @endo/compartment-mapper@workspace:packages/compartment-mapper":
+"@endo/compartment-mapper@workspace:*, @endo/compartment-mapper@workspace:packages/compartment-mapper":
   version: 0.0.0-use.local
   resolution: "@endo/compartment-mapper@workspace:packages/compartment-mapper"
   dependencies:
-    "@endo/cjs-module-analyzer": "npm:^1.0.4"
-    "@endo/static-module-record": "npm:^1.1.1"
-    "@endo/zip": "npm:^1.0.4"
+    "@endo/cjs-module-analyzer": "workspace:*"
+    "@endo/static-module-record": "workspace:*"
+    "@endo/zip": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -337,28 +337,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/daemon@npm:^2.2.0, @endo/daemon@workspace:packages/daemon":
+"@endo/daemon@workspace:*, @endo/daemon@workspace:packages/daemon":
   version: 0.0.0-use.local
   resolution: "@endo/daemon@workspace:packages/daemon"
   dependencies:
-    "@endo/base64": "npm:^1.0.4"
-    "@endo/bundle-source": "npm:^3.2.2"
-    "@endo/captp": "npm:^4.1.1"
-    "@endo/compartment-mapper": "npm:^1.1.4"
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/exo": "npm:^1.4.0"
-    "@endo/far": "npm:^1.1.1"
-    "@endo/import-bundle": "npm:^1.1.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/netstring": "npm:^1.0.6"
-    "@endo/patterns": "npm:^1.3.1"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
-    "@endo/stream": "npm:^1.2.1"
-    "@endo/stream-node": "npm:^1.1.1"
-    "@endo/where": "npm:^1.0.4"
+    "@endo/base64": "workspace:*"
+    "@endo/bundle-source": "workspace:*"
+    "@endo/captp": "workspace:*"
+    "@endo/compartment-mapper": "workspace:*"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/exo": "workspace:*"
+    "@endo/far": "workspace:*"
+    "@endo/import-bundle": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/lockdown": "workspace:*"
+    "@endo/netstring": "workspace:*"
+    "@endo/patterns": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
+    "@endo/stream": "workspace:*"
+    "@endo/stream-node": "workspace:*"
+    "@endo/where": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -374,7 +374,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/env-options@npm:^1.1.3, @endo/env-options@workspace:packages/env-options":
+"@endo/env-options@workspace:*, @endo/env-options@workspace:packages/env-options":
   version: 0.0.0-use.local
   resolution: "@endo/env-options@workspace:packages/env-options"
   dependencies:
@@ -390,12 +390,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/errors@npm:^1.2.1, @endo/errors@workspace:packages/errors":
+"@endo/errors@workspace:*, @endo/errors@workspace:packages/errors":
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/lockdown": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     ses: "npm:^1.4.1"
@@ -417,7 +417,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/evasive-transform@npm:^1.1.1, @endo/evasive-transform@workspace:packages/evasive-transform":
+"@endo/evasive-transform@workspace:*, @endo/evasive-transform@workspace:packages/evasive-transform":
   version: 0.0.0-use.local
   resolution: "@endo/evasive-transform@workspace:packages/evasive-transform"
   dependencies:
@@ -425,7 +425,7 @@ __metadata:
     "@babel/parser": "npm:^7.23.6"
     "@babel/traverse": "npm:^7.23.6"
     "@babel/types": "npm:^7.23.6"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/ses-ava": "workspace:*"
     "@rollup/plugin-commonjs": "npm:^19.0.0"
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     "@types/babel__generator": "npm:^7.6.7"
@@ -438,31 +438,31 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/eventual-send@npm:^1.2.1, @endo/eventual-send@workspace:packages/eventual-send":
+"@endo/eventual-send@workspace:*, @endo/eventual-send@workspace:packages/eventual-send":
   version: 0.0.0-use.local
   resolution: "@endo/eventual-send@workspace:packages/eventual-send"
   dependencies:
-    "@endo/env-options": "npm:^1.1.3"
-    "@endo/lockdown": "npm:^1.0.6"
+    "@endo/env-options": "workspace:*"
+    "@endo/lockdown": "workspace:*"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
   languageName: unknown
   linkType: soft
 
-"@endo/exo@npm:^1.4.0, @endo/exo@workspace:packages/exo":
+"@endo/exo@workspace:*, @endo/exo@workspace:packages/exo":
   version: 0.0.0-use.local
   resolution: "@endo/exo@workspace:packages/exo"
   dependencies:
-    "@endo/common": "npm:^1.2.1"
-    "@endo/env-options": "npm:^1.1.3"
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/far": "npm:^1.1.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/pass-style": "npm:^1.3.1"
-    "@endo/patterns": "npm:^1.3.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/common": "workspace:*"
+    "@endo/env-options": "workspace:*"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/far": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/pass-style": "workspace:*"
+    "@endo/patterns": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
@@ -475,51 +475,51 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/far@npm:^1.1.1, @endo/far@workspace:packages/far":
+"@endo/far@workspace:*, @endo/far@workspace:packages/far":
   version: 0.0.0-use.local
   resolution: "@endo/far@workspace:packages/far"
   dependencies:
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/pass-style": "npm:^1.3.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/pass-style": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
   languageName: unknown
   linkType: soft
 
-"@endo/import-bundle@npm:^1.1.1, @endo/import-bundle@workspace:packages/import-bundle":
+"@endo/import-bundle@workspace:*, @endo/import-bundle@workspace:packages/import-bundle":
   version: 0.0.0-use.local
   resolution: "@endo/import-bundle@workspace:packages/import-bundle"
   dependencies:
-    "@endo/base64": "npm:^1.0.4"
-    "@endo/bundle-source": "npm:^3.2.2"
-    "@endo/compartment-mapper": "npm:^1.1.4"
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
-    "@endo/where": "npm:^1.0.4"
+    "@endo/base64": "workspace:*"
+    "@endo/bundle-source": "workspace:*"
+    "@endo/compartment-mapper": "workspace:*"
+    "@endo/errors": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
+    "@endo/where": "workspace:*"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     ses: "npm:^1.4.1"
   languageName: unknown
   linkType: soft
 
-"@endo/init@npm:^1.1.1, @endo/init@workspace:packages/init":
+"@endo/init@workspace:*, @endo/init@workspace:packages/init":
   version: 0.0.0-use.local
   resolution: "@endo/init@workspace:packages/init"
   dependencies:
-    "@endo/base64": "npm:^1.0.4"
-    "@endo/compartment-mapper": "npm:^1.1.4"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/promise-kit": "npm:^1.1.1"
+    "@endo/base64": "workspace:*"
+    "@endo/compartment-mapper": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/lockdown": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
     ava: "npm:^6.1.2"
   languageName: unknown
   linkType: soft
 
-"@endo/lockdown@npm:^1.0.6, @endo/lockdown@workspace:packages/lockdown":
+"@endo/lockdown@workspace:*, @endo/lockdown@workspace:packages/lockdown":
   version: 0.0.0-use.local
   resolution: "@endo/lockdown@workspace:packages/lockdown"
   dependencies:
@@ -531,10 +531,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/lp32@workspace:packages/lp32"
   dependencies:
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
-    "@endo/stream": "npm:^1.2.1"
+    "@endo/errors": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
+    "@endo/stream": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -549,19 +549,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/marshal@npm:^1.4.1, @endo/marshal@workspace:packages/marshal":
+"@endo/marshal@workspace:*, @endo/marshal@workspace:packages/marshal":
   version: 0.0.0-use.local
   resolution: "@endo/marshal@workspace:packages/marshal"
   dependencies:
-    "@endo/common": "npm:^1.2.1"
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/nat": "npm:^5.0.6"
-    "@endo/pass-style": "npm:^1.3.1"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/common": "workspace:*"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/lockdown": "workspace:*"
+    "@endo/nat": "workspace:*"
+    "@endo/pass-style": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     "@fast-check/ava": "npm:^1.1.5"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
@@ -572,8 +572,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/memoize@workspace:packages/memoize"
   dependencies:
-    "@endo/init": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/init": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
@@ -587,11 +587,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/nat@npm:^5.0.6, @endo/nat@workspace:packages/nat":
+"@endo/nat@workspace:*, @endo/nat@workspace:packages/nat":
   version: 0.0.0-use.local
   resolution: "@endo/nat@workspace:packages/nat"
   dependencies:
-    "@endo/compartment-mapper": "npm:^1.1.4"
+    "@endo/compartment-mapper": "workspace:*"
     ava: "npm:^6.1.2"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -602,13 +602,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/netstring@npm:^1.0.6, @endo/netstring@workspace:packages/netstring":
+"@endo/netstring@workspace:*, @endo/netstring@workspace:packages/netstring":
   version: 0.0.0-use.local
   resolution: "@endo/netstring@workspace:packages/netstring"
   dependencies:
-    "@endo/init": "npm:^1.1.1"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/stream": "npm:^1.2.1"
+    "@endo/init": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/stream": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -623,16 +623,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/pass-style@npm:^1.3.1, @endo/pass-style@workspace:packages/pass-style":
+"@endo/pass-style@workspace:*, @endo/pass-style@workspace:packages/pass-style":
   version: 0.0.0-use.local
   resolution: "@endo/pass-style@workspace:packages/pass-style"
   dependencies:
-    "@endo/env-options": "npm:^1.1.3"
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/env-options": "workspace:*"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     "@fast-check/ava": "npm:^1.1.5"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
@@ -646,17 +646,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/patterns@npm:^1.3.1, @endo/patterns@workspace:packages/patterns":
+"@endo/patterns@workspace:*, @endo/patterns@workspace:packages/patterns":
   version: 0.0.0-use.local
   resolution: "@endo/patterns@workspace:packages/patterns"
   dependencies:
-    "@endo/common": "npm:^1.2.1"
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/marshal": "npm:^1.4.1"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/common": "workspace:*"
+    "@endo/errors": "workspace:*"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/marshal": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
@@ -669,7 +669,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/promise-kit@npm:^1.1.1, @endo/promise-kit@workspace:packages/promise-kit":
+"@endo/promise-kit@workspace:*, @endo/promise-kit@workspace:packages/promise-kit":
   version: 0.0.0-use.local
   resolution: "@endo/promise-kit@workspace:packages/promise-kit"
   dependencies:
@@ -688,12 +688,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/ses-ava@npm:^1.2.1, @endo/ses-ava@workspace:packages/ses-ava":
+"@endo/ses-ava@workspace:*, @endo/ses-ava@workspace:packages/ses-ava":
   version: 0.0.0-use.local
   resolution: "@endo/ses-ava@workspace:packages/ses-ava"
   dependencies:
-    "@endo/env-options": "npm:^1.1.3"
-    "@endo/init": "npm:^1.1.1"
+    "@endo/env-options": "workspace:*"
+    "@endo/init": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -714,15 +714,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/skel@workspace:packages/skel"
   dependencies:
-    "@endo/lockdown": "npm:^1.0.6"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/lockdown": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
   languageName: unknown
   linkType: soft
 
-"@endo/static-module-record@npm:^1.1.1, @endo/static-module-record@workspace:packages/static-module-record":
+"@endo/static-module-record@workspace:*, @endo/static-module-record@workspace:packages/static-module-record":
   version: 0.0.0-use.local
   resolution: "@endo/static-module-record@workspace:packages/static-module-record"
   dependencies:
@@ -745,14 +745,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/stream-node@npm:^1.1.1, @endo/stream-node@workspace:packages/stream-node":
+"@endo/stream-node@workspace:*, @endo/stream-node@workspace:packages/stream-node":
   version: 0.0.0-use.local
   resolution: "@endo/stream-node@workspace:packages/stream-node"
   dependencies:
-    "@endo/errors": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
-    "@endo/stream": "npm:^1.2.1"
+    "@endo/errors": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
+    "@endo/stream": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -772,7 +772,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/stream-types-test@workspace:packages/stream-types-test"
   dependencies:
-    "@endo/stream": "npm:^1.2.1"
+    "@endo/stream": "workspace:*"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -785,14 +785,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/stream@npm:^1.2.1, @endo/stream@workspace:packages/stream":
+"@endo/stream@workspace:*, @endo/stream@workspace:packages/stream":
   version: 0.0.0-use.local
   resolution: "@endo/stream@workspace:packages/stream"
   dependencies:
-    "@endo/eventual-send": "npm:^1.2.1"
-    "@endo/init": "npm:^1.1.1"
-    "@endo/promise-kit": "npm:^1.1.1"
-    "@endo/ses-ava": "npm:^1.2.1"
+    "@endo/eventual-send": "workspace:*"
+    "@endo/init": "workspace:*"
+    "@endo/promise-kit": "workspace:*"
+    "@endo/ses-ava": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -825,11 +825,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/test262-runner@npm:^0.1.36, @endo/test262-runner@workspace:packages/test262-runner":
+"@endo/test262-runner@workspace:*, @endo/test262-runner@workspace:packages/test262-runner":
   version: 0.0.0-use.local
   resolution: "@endo/test262-runner@workspace:packages/test262-runner"
   dependencies:
-    "@endo/compartment-mapper": "npm:^1.1.4"
+    "@endo/compartment-mapper": "workspace:*"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -843,7 +843,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/where@npm:^1.0.4, @endo/where@workspace:packages/where":
+"@endo/where@workspace:*, @endo/where@workspace:packages/where":
   version: 0.0.0-use.local
   resolution: "@endo/where@workspace:packages/where"
   dependencies:
@@ -860,7 +860,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/zip@npm:^1.0.4, @endo/zip@workspace:packages/zip":
+"@endo/zip@workspace:*, @endo/zip@workspace:packages/zip":
   version: 0.0.0-use.local
   resolution: "@endo/zip@workspace:packages/zip"
   dependencies:
@@ -10320,10 +10320,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ses@workspace:packages/ses"
   dependencies:
-    "@endo/compartment-mapper": "npm:^1.1.4"
-    "@endo/env-options": "npm:^1.1.3"
-    "@endo/static-module-record": "npm:^1.1.1"
-    "@endo/test262-runner": "npm:^0.1.36"
+    "@endo/compartment-mapper": "workspace:*"
+    "@endo/env-options": "workspace:*"
+    "@endo/static-module-record": "workspace:*"
+    "@endo/test262-runner": "workspace:*"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
