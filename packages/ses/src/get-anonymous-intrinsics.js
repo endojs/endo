@@ -105,9 +105,18 @@ export const getAnonymousIntrinsics = () => {
 
   // 25.3.2.2 AsyncGeneratorFunction.prototype
   const AsyncGenerator = AsyncGeneratorFunction.prototype;
+
+  const asyncIterable = {
+    // eslint-disable-next-line no-restricted-globals, no-empty-function
+    async *[Symbol.asyncIterator]() {},
+  };
+
+  // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
+  const asyncIterator = asyncIterable[Symbol.asyncIterator]();
+
   // 25.5.1 Properties of the AsyncGenerator Prototype Object
-  const AsyncGeneratorPrototype = AsyncGenerator.prototype;
-  const AsyncIteratorPrototype = getPrototypeOf(AsyncGeneratorPrototype);
+  const AsyncGeneratorPrototype = AsyncGenerator.prototype; // undefined on Hermes
+  const AsyncIteratorPrototype = getPrototypeOf(asyncIterator);
 
   // 25.7.1 The AsyncFunction Constructor
 
