@@ -10125,6 +10125,7 @@ __metadata:
     eslint-plugin-jsdoc: "npm:^48.2.2"
     lerna: "npm:^5.6.2"
     lerna-update-wizard: "npm:^0.17.5"
+    prettier: "npm:^3.0.0"
     ts-api-utils: "npm:~1.0.1"
     type-coverage: "npm:^2.26.3"
     typedoc: "npm:^0.25.12"
