@@ -1248,6 +1248,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lerna/conventional-commits@patch:@lerna/conventional-commits@npm%3A5.6.2#~/.yarn/patches/@lerna-conventional-commits-npm-5.6.2-a373ba4bc0.patch":
+  version: 5.6.2
+  resolution: "@lerna/conventional-commits@patch:@lerna/conventional-commits@npm%3A5.6.2#~/.yarn/patches/@lerna-conventional-commits-npm-5.6.2-a373ba4bc0.patch::version=5.6.2&hash=2c8ff3"
+  dependencies:
+    "@lerna/validation-error": "npm:5.6.2"
+    conventional-changelog-angular: "npm:^5.0.12"
+    conventional-changelog-core: "npm:^4.2.4"
+    conventional-recommended-bump: "npm:^6.1.0"
+    fs-extra: "npm:^9.1.0"
+    get-stream: "npm:^6.0.0"
+    npm-package-arg: "npm:8.1.1"
+    npmlog: "npm:^6.0.2"
+    pify: "npm:^5.0.0"
+    semver: "npm:^7.3.4"
+  checksum: 10c0/d72060ef3e9bdb8dbf2d163ae4e6bc66b6a6c9b0b91d30570edc635d3d3280e91f3ef969854b68811b9a64d718a4e39416d7433148a13989f7830eb6e70f16a0
+  languageName: node
+  linkType: hard
+
 "@lerna/create-symlink@npm:5.6.2":
   version: 5.6.2
   resolution: "@lerna/create-symlink@npm:5.6.2"
@@ -1869,6 +1887,41 @@ __metadata:
     slash: "npm:^3.0.0"
     write-json-file: "npm:^4.3.0"
   checksum: 10c0/6443fc436494a1ac8551809083e0bf646183f0cd83746cbf74bf02f95cb24c7e70ad4d0c1118a57dad1811653d20bd3a109e7b1e4fbdbd8f0726e61be62413bc
+  languageName: node
+  linkType: hard
+
+"@lerna/version@patch:@lerna/version@npm%3A5.6.2#~/.yarn/patches/@lerna-version-npm-5.6.2-ce2d9cb2f5.patch":
+  version: 5.6.2
+  resolution: "@lerna/version@patch:@lerna/version@npm%3A5.6.2#~/.yarn/patches/@lerna-version-npm-5.6.2-ce2d9cb2f5.patch::version=5.6.2&hash=b04c7c"
+  dependencies:
+    "@lerna/check-working-tree": "npm:5.6.2"
+    "@lerna/child-process": "npm:5.6.2"
+    "@lerna/collect-updates": "npm:5.6.2"
+    "@lerna/command": "npm:5.6.2"
+    "@lerna/conventional-commits": "npm:5.6.2"
+    "@lerna/github-client": "npm:5.6.2"
+    "@lerna/gitlab-client": "npm:5.6.2"
+    "@lerna/output": "npm:5.6.2"
+    "@lerna/prerelease-id-from-version": "npm:5.6.2"
+    "@lerna/prompt": "npm:5.6.2"
+    "@lerna/run-lifecycle": "npm:5.6.2"
+    "@lerna/run-topologically": "npm:5.6.2"
+    "@lerna/temp-write": "npm:5.6.2"
+    "@lerna/validation-error": "npm:5.6.2"
+    "@nrwl/devkit": "npm:>=14.8.1 < 16"
+    chalk: "npm:^4.1.0"
+    dedent: "npm:^0.7.0"
+    load-json-file: "npm:^6.2.0"
+    minimatch: "npm:^3.0.4"
+    npmlog: "npm:^6.0.2"
+    p-map: "npm:^4.0.0"
+    p-pipe: "npm:^3.1.0"
+    p-reduce: "npm:^2.1.0"
+    p-waterfall: "npm:^2.1.1"
+    semver: "npm:^7.3.4"
+    slash: "npm:^3.0.0"
+    write-json-file: "npm:^4.3.0"
+  checksum: 10c0/4467fe9196e8c2c0a15f358b4bc49ee57d9d5a3ed9e483f274054eb5d39d48425ae2d29160f4fd7aad8ada85b6ee5dddc5f61971c7ea2d613083a98375c1f114
   languageName: node
   linkType: hard
 
@@ -3864,7 +3917,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:^4.0.0, chalk@npm:^4.0.2, chalk@npm:^4.1.0, chalk@npm:^4.1.1, chalk@npm:^4.1.2":
+"chalk@npm:^4.0.0, chalk@npm:^4.0.2, chalk@npm:^4.1.0, chalk@npm:^4.1.1":
   version: 4.1.2
   resolution: "chalk@npm:4.1.2"
   dependencies:
@@ -3925,13 +3978,6 @@ __metadata:
   version: 2.0.0
   resolution: "ci-info@npm:2.0.0"
   checksum: 10c0/8c5fa3830a2bcee2b53c2e5018226f0141db9ec9f7b1e27a5c57db5512332cde8a0beb769bcbaf0d8775a78afbf2bb841928feca4ea6219638a5b088f9884b46
-  languageName: node
-  linkType: hard
-
-"ci-info@npm:^3.7.0":
-  version: 3.9.0
-  resolution: "ci-info@npm:3.9.0"
-  checksum: 10c0/6f0109e36e111684291d46123d491bc4e7b7a1934c3a20dea28cba89f1d4a03acd892f5f6a81ed3855c38647e285a150e3c9ba062e38943bef57fee6c1554c3a
   languageName: node
   linkType: hard
 
@@ -5721,15 +5767,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"find-yarn-workspace-root@npm:^2.0.0":
-  version: 2.0.0
-  resolution: "find-yarn-workspace-root@npm:2.0.0"
-  dependencies:
-    micromatch: "npm:^4.0.2"
-  checksum: 10c0/b0d3843013fbdaf4e57140e0165889d09fa61745c9e85da2af86e54974f4cc9f1967e40f0d8fc36a79d53091f0829c651d06607d552582e53976f3cd8f4e5689
-  languageName: node
-  linkType: hard
-
 "flat-cache@npm:^3.0.4":
   version: 3.0.4
   resolution: "flat-cache@npm:3.0.4"
@@ -5851,7 +5888,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fs-extra@npm:^9.0.0, fs-extra@npm:^9.1.0":
+"fs-extra@npm:^9.1.0":
   version: 9.1.0
   resolution: "fs-extra@npm:9.1.0"
   dependencies:
@@ -7302,7 +7339,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"is-wsl@npm:^2.1.1, is-wsl@npm:^2.2.0":
+"is-wsl@npm:^2.2.0":
   version: 2.2.0
   resolution: "is-wsl@npm:2.2.0"
   dependencies:
@@ -7531,18 +7568,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"json-stable-stringify@npm:^1.0.2":
-  version: 1.1.1
-  resolution: "json-stable-stringify@npm:1.1.1"
-  dependencies:
-    call-bind: "npm:^1.0.5"
-    isarray: "npm:^2.0.5"
-    jsonify: "npm:^0.0.1"
-    object-keys: "npm:^1.1.1"
-  checksum: 10c0/3801e3eeccbd030afb970f54bea690a079cfea7d9ed206a1b17ca9367f4b7772c764bf77a48f03e56b50e5f7ee7d11c52339fe20d8d7ccead003e4ca69e4cfde
-  languageName: node
-  linkType: hard
-
 "json-stringify-nice@npm:^1.1.4":
   version: 1.1.4
   resolution: "json-stringify-nice@npm:1.1.4"
@@ -7604,13 +7629,6 @@ __metadata:
     graceful-fs:
       optional: true
   checksum: 10c0/4f95b5e8a5622b1e9e8f33c96b7ef3158122f595998114d1e7f03985649ea99cb3cd99ce1ed1831ae94c8c8543ab45ebd044207612f31a56fd08462140e46865
-  languageName: node
-  linkType: hard
-
-"jsonify@npm:^0.0.1":
-  version: 0.0.1
-  resolution: "jsonify@npm:0.0.1"
-  checksum: 10c0/7f5499cdd59a0967ed35bda48b7cec43d850bbc8fb955cdd3a1717bb0efadbe300724d5646de765bb7a99fc1c3ab06eb80d93503c6faaf99b4ff50a3326692f6
   languageName: node
   linkType: hard
 
@@ -7683,15 +7701,6 @@ __metadata:
   version: 6.0.3
   resolution: "kind-of@npm:6.0.3"
   checksum: 10c0/61cdff9623dabf3568b6445e93e31376bee1cdb93f8ba7033d86022c2a9b1791a1d9510e026e6465ebd701a6dd2f7b0808483ad8838341ac52f003f512e0b4c4
-  languageName: node
-  linkType: hard
-
-"klaw-sync@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "klaw-sync@npm:6.0.0"
-  dependencies:
-    graceful-fs: "npm:^4.1.11"
-  checksum: 10c0/00d8e4c48d0d699b743b3b028e807295ea0b225caf6179f51029e19783a93ad8bb9bccde617d169659fbe99559d73fb35f796214de031d0023c26b906cecd70a
   languageName: node
   linkType: hard
 
@@ -9070,16 +9079,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"open@npm:^7.4.2":
-  version: 7.4.2
-  resolution: "open@npm:7.4.2"
-  dependencies:
-    is-docker: "npm:^2.0.0"
-    is-wsl: "npm:^2.1.1"
-  checksum: 10c0/77573a6a68f7364f3a19a4c80492712720746b63680ee304555112605ead196afe91052bd3c3d165efdf4e9d04d255e87de0d0a77acec11ef47fd5261251813f
-  languageName: node
-  linkType: hard
-
 "open@npm:^8.4.0":
   version: 8.4.0
   resolution: "open@npm:8.4.0"
@@ -9423,31 +9422,6 @@ __metadata:
   version: 0.1.1
   resolution: "pascalcase@npm:0.1.1"
   checksum: 10c0/48dfe90618e33810bf58211d8f39ad2c0262f19ad6354da1ba563935b5f429f36409a1fb9187c220328f7a4dc5969917f8e3e01ee089b5f1627b02aefe39567b
-  languageName: node
-  linkType: hard
-
-"patch-package@npm:^8.0.0":
-  version: 8.0.0
-  resolution: "patch-package@npm:8.0.0"
-  dependencies:
-    "@yarnpkg/lockfile": "npm:^1.1.0"
-    chalk: "npm:^4.1.2"
-    ci-info: "npm:^3.7.0"
-    cross-spawn: "npm:^7.0.3"
-    find-yarn-workspace-root: "npm:^2.0.0"
-    fs-extra: "npm:^9.0.0"
-    json-stable-stringify: "npm:^1.0.2"
-    klaw-sync: "npm:^6.0.0"
-    minimist: "npm:^1.2.6"
-    open: "npm:^7.4.2"
-    rimraf: "npm:^2.6.3"
-    semver: "npm:^7.5.3"
-    slash: "npm:^2.0.0"
-    tmp: "npm:^0.0.33"
-    yaml: "npm:^2.2.2"
-  bin:
-    patch-package: index.js
-  checksum: 10c0/690eab0537e953a3fd7d32bb23f0e82f97cd448f8244c3227ed55933611a126f9476397325c06ad2c11d881a19b427a02bd1881bee78d89f1731373fc4fe0fee
   languageName: node
   linkType: hard
 
@@ -10110,17 +10084,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rimraf@npm:^2.6.3":
-  version: 2.7.1
-  resolution: "rimraf@npm:2.7.1"
-  dependencies:
-    glob: "npm:^7.1.3"
-  bin:
-    rimraf: ./bin.js
-  checksum: 10c0/4eef73d406c6940927479a3a9dee551e14a54faf54b31ef861250ac815172bade86cc6f7d64a4dc5e98b65e4b18a2e1c9ff3b68d296be0c748413f092bb0dd40
-  languageName: node
-  linkType: hard
-
 "rimraf@npm:^3.0.0, rimraf@npm:^3.0.2":
   version: 3.0.2
   resolution: "rimraf@npm:3.0.2"
@@ -10162,7 +10125,6 @@ __metadata:
     eslint-plugin-jsdoc: "npm:^48.2.2"
     lerna: "npm:^5.6.2"
     lerna-update-wizard: "npm:^0.17.5"
-    patch-package: "npm:^8.0.0"
     ts-api-utils: "npm:~1.0.1"
     type-coverage: "npm:^2.26.3"
     typedoc: "npm:^0.25.12"
@@ -10319,7 +10281,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.5.3, semver@npm:^7.6.0":
+"semver@npm:^7.6.0":
   version: 7.6.0
   resolution: "semver@npm:7.6.0"
   dependencies:
@@ -10508,13 +10470,6 @@ __metadata:
   version: 1.0.0
   resolution: "slash@npm:1.0.0"
   checksum: 10c0/3944659885d905480f98810542fd314f3e1006eaad25ec78227a7835a469d9ed66fc3dd90abc7377dd2e71f4b5473e8f766bd08198fdd25152a80792e9ed464c
-  languageName: node
-  linkType: hard
-
-"slash@npm:^2.0.0":
-  version: 2.0.0
-  resolution: "slash@npm:2.0.0"
-  checksum: 10c0/f83dbd3cb62c41bb8fcbbc6bf5473f3234b97fa1d008f571710a9d3757a28c7169e1811cad1554ccb1cc531460b3d221c9a7b37f549398d9a30707f0a5af9193
   languageName: node
   linkType: hard
 
@@ -12203,15 +12158,6 @@ __metadata:
   version: 1.10.2
   resolution: "yaml@npm:1.10.2"
   checksum: 10c0/5c28b9eb7adc46544f28d9a8d20c5b3cb1215a886609a2fd41f51628d8aaa5878ccd628b755dbcd29f6bb4921bd04ffbc6dcc370689bb96e594e2f9813d2605f
-  languageName: node
-  linkType: hard
-
-"yaml@npm:^2.2.2":
-  version: 2.4.1
-  resolution: "yaml@npm:2.4.1"
-  bin:
-    yaml: bin.mjs
-  checksum: 10c0/816057dbaea16a7dfb0b868ace930f143dece96bbb4c4fbb6f38aa389166f897240d9fa535dbfd6b1b0d9442416f4abcc698e63f82394d0c67b329aa6c2be576
   languageName: node
   linkType: hard
 
