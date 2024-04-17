@@ -111,8 +111,8 @@ export const getAnonymousIntrinsics = () => {
 
   // 25.7.1 The AsyncFunction Constructor
 
-  // eslint-disable-next-line no-empty-function
-  async function AsyncFunctionInstance() {}
+  // eslint-disable-next-line no-empty-function, no-restricted-globals, no-eval
+  const AsyncFunctionInstance = (0, eval)('(async function () { })');
   const AsyncFunction = getConstructorOf(AsyncFunctionInstance);
 
   const intrinsics = {
