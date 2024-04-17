@@ -1,8 +1,8 @@
 export {};
 
-/** @typedef {import('./types.js').Checker} Checker */
-/** @typedef {import('./types.js').PassStyle} PassStyle */
-/** @typedef {import('./types.js').PassStyleOf} PassStyleOf */
+/** @import {Checker} from './types.js' */
+/** @import {PassStyle} from './types.js' */
+/** @import {PassStyleOf} from './types.js' */
 
 /**
  * The PassStyleHelper are only used to make a `passStyleOf` function.

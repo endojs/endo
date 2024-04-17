@@ -47,10 +47,3 @@ export {};
  * @returns {AsyncIterator<void, void, any> | undefined} If an AsyncIterator is
  * returned, it will satisfy a future guest IterationObserver.
  */
-
-/** @typedef {import('./ts-types.js').Trap} Trap */
-
-/**
- * @template T
- * @typedef {import('./ts-types').TrapHandler<T>} TrapHandler
- */

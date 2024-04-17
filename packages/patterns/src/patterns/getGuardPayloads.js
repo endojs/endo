@@ -16,6 +16,8 @@ import {
 } from './patternMatchers.js';
 import { getCopyMapKeys, makeCopyMap } from '../keys/checkKey.js';
 
+/** @import {AwaitArgGuard, AwaitArgGuardPayload, InterfaceGuard, InterfaceGuardPayload, MethodGuard, MethodGuardPayload} from '../types.js' */
+
 // The get*GuardPayload functions exist to adapt to the worlds both
 // before and after https://github.com/endojs/endo/pull/1712 . When
 // given something that would be the expected guard in either world,
@@ -58,8 +60,8 @@ const LegacyAwaitArgGuardShape = harden({
  * an argument that matches that pattern, i.e., a copyRecord argument that
  * at least contains a `klass: 'awaitArgGuard'` property.
  *
- * @param {import('./types.js').AwaitArgGuard} awaitArgGuard
- * @returns {import('./types.js').AwaitArgGuardPayload}
+ * @param {AwaitArgGuard} awaitArgGuard
+ * @returns {AwaitArgGuardPayload}
  */
 export const getAwaitArgGuardPayload = awaitArgGuard => {
   if (matches(awaitArgGuard, LegacyAwaitArgGuardShape)) {
@@ -142,8 +144,8 @@ const adaptLegacyArgGuard = argGuard =>
  * currently any context where either a methodGuard or a copyRecord would
  * both be meaningful.
  *
- * @param {import('./types.js').MethodGuard} methodGuard
- * @returns {import('./types.js').MethodGuardPayload}
+ * @param {MethodGuard} methodGuard
+ * @returns {MethodGuardPayload}
  */
 export const getMethodGuardPayload = methodGuard => {
   if (matches(methodGuard, MethodGuardShape)) {
@@ -234,9 +236,9 @@ const adaptMethodGuard = methodGuard => {
  * currently any context where either an interfaceGuard or a copyRecord would
  * both be meaningful.
  *
- * @template {Record<PropertyKey, import('./types.js').MethodGuard>} [T=Record<PropertyKey, import('./types.js').MethodGuard>]
- * @param {import('./types.js').InterfaceGuard<T>} interfaceGuard
- * @returns {import('./types.js').InterfaceGuardPayload<T>}
+ * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
+ * @param {InterfaceGuard<T>} interfaceGuard
+ * @returns {InterfaceGuardPayload<T>}
  */
 export const getInterfaceGuardPayload = interfaceGuard => {
   if (matches(interfaceGuard, InterfaceGuardShape)) {
@@ -264,7 +266,7 @@ harden(getInterfaceGuardPayload);
 const emptyCopyMap = makeCopyMap([]);
 
 /**
- * @param {import('./types.js').InterfaceGuard} interfaceGuard
+ * @param {InterfaceGuard} interfaceGuard
  * @returns {(string | symbol)[]}
  */
 export const getInterfaceMethodKeys = interfaceGuard => {

@@ -10,9 +10,8 @@
 /** @import {ModuleDescriptor} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {DeferredAttenuatorsProvider} from './types.js' */
 /** @import {LinkOptions} from './types.js' */
-/** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
+/** @import {ERef} from '@endo/eventual-send' */
 
 import { resolve as resolveFallback } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';

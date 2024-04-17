@@ -2,49 +2,14 @@
 
 export {};
 
-/** @typedef {import('@endo/pass-style').Passable} Passable */
-/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
-/**
- * @template {string} [Tag=string]
- * @template {Passable} [Payload=Passable]
- * @typedef {import('@endo/pass-style').CopyTagged<Tag,Payload>} CopyTagged
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord
- */
-/**
- * @template {Passable} [T=Passable]
- * @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray
- */
-/** @typedef {import('@endo/pass-style').Checker} Checker */
-/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
-/** @typedef {import('@endo/marshal').RankCover} RankCover */
+/** @import {Passable} from '@endo/pass-style' */
+/** @import {PassStyle} from '@endo/pass-style' */
+/** @import {Checker} from '@endo/pass-style' */
+/** @import {MethodGuard} from '../types.js' */
 
-/** @typedef {import('../types.js').AwaitArgGuardPayload} AwaitArgGuardPayload */
-/** @typedef {import('../types.js').AwaitArgGuard} AwaitArgGuard */
-/** @typedef {import('../types.js').RawGuard} RawGuard */
-/** @typedef {import('../types.js').ArgGuard} ArgGuard */
-/** @typedef {import('../types.js').MethodGuardPayload} MethodGuardPayload */
-/** @typedef {import('../types.js').SyncValueGuard} SyncValueGuard */
-/** @typedef {import('../types.js').MethodGuard} MethodGuard */
-/**
- * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
- * @typedef {import('../types.js').InterfaceGuardPayload<T>} InterfaceGuardPayload
- */
-/**
- * @template {Record<PropertyKey, MethodGuard>} [T = Record<PropertyKey, MethodGuard>]
- * @typedef {import('../types.js').InterfaceGuard<T>} InterfaceGuard
- */
-/** @typedef {import('../types.js').MethodGuardMaker} MethodGuardMaker */
-
-/** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
-/** @typedef {import('../types').Key} Key */
-/** @typedef {import('../types').Pattern} Pattern */
-/** @typedef {import('../types').CheckPattern} CheckPattern */
-/** @typedef {import('../types').Limits} Limits */
-/** @typedef {import('../types').AllLimits} AllLimits */
-/** @typedef {import('../types').GetRankCover} GetRankCover */
+/** @import {MatcherNamespace} from '../types' */
+/** @import {Pattern} from '../types' */
+/** @import {GetRankCover} from '../types' */
 
 /**
  * @typedef {Exclude<PassStyle, 'tagged'> |

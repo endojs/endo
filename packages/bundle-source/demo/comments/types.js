@@ -1,1 +1,1 @@
-/** @typedef {import('./types.js').Bogus} Bogus */
+/** @import {Bogus} from './types.js' */

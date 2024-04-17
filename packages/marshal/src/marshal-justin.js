@@ -10,7 +10,6 @@ import { q, X, Fail } from '@endo/errors';
 import { QCLASS } from './encodeToCapData.js';
 
 /** @import {Encoding} from './types.js' */
-/** @template T @typedef {import('./types.js').CapData<T>} CapData */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;

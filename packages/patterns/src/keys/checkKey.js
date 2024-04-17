@@ -22,13 +22,7 @@ const { ownKeys } = Reflect;
 
 /** @import {Checker} from '@endo/marshal' */
 /** @import {Passable} from '@endo/pass-style' */
-/** @import {KeyComparison} from '../types' */
-/** @import {Key} from '../types' */
-/** @template {Key} [K=Key] @typedef {import('../types').CopyBag<K>} CopyBag */
-/** @template {Key} [K=Key] @typedef {import('../types').CopySet<K>} CopySet */
-/** @template {Key} [K=Key] @template {Passable} [V=Passable] @typedef {import('../types').CopyMap<K, V>} CopyMap */
-/** @import {KeyCompare} from '../types' */
-/** @import {FullCompare} from '../types' */
+/** @import {CopyBag, CopyMap, CopySet, Key} from '../types' */
 
 // ////////////////// Primitive and Scalar keys ////////////////////////////////
 
