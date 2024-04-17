@@ -360,17 +360,17 @@ export interface Handle {
 
 export type MakeSha512 = () => Sha512;
 
-export type PetStoreNameDiff =
+export type PetStoreNameChange =
   | { add: string; value: IdRecord }
   | { remove: string };
 
-export type PetStoreIdDiff =
+export type PetStoreIdNameChange =
   | { add: IdRecord; names: string[] }
   | { remove: IdRecord; names?: string[] };
 
-export type NameChangesTopic = Topic<PetStoreNameDiff>;
+export type NameChangesTopic = Topic<PetStoreNameChange>;
 
-export type IdChangesTopic = Topic<PetStoreIdDiff>;
+export type IdChangesTopic = Topic<PetStoreIdNameChange>;
 
 export interface PetStore {
   has(petName: string): boolean;
@@ -380,7 +380,7 @@ export interface PetStore {
    * Subscribe to all name changes. First publishes all existing names in alphabetical order.
    * Then publishes diffs as names are added and removed.
    */
-  followNameChanges(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
+  followNameChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   /**
    * Subscribe to name changes for the specified id. First publishes the existing names for the id.
    * Then publishes diffs as names are added and removed, or if the id is itself removed.
@@ -388,7 +388,7 @@ export interface PetStore {
    */
   followIdNameChanges(
     id: string,
-  ): AsyncGenerator<PetStoreIdDiff, undefined, undefined>;
+  ): AsyncGenerator<PetStoreIdNameChange, undefined, undefined>;
   write(petName: string, id: string): Promise<void>;
   remove(petName: string): Promise<void>;
   rename(fromPetName: string, toPetName: string): Promise<void>;
@@ -402,7 +402,7 @@ export interface PetStore {
 /**
  * `add` and `remove` are locators.
  */
-export type LocatorDiff =
+export type LocatorNameChange =
   | { add: string; names: string[] }
   | { remove: string; names?: string[] };
 
@@ -413,12 +413,12 @@ export interface NameHub {
   reverseLocate(locator: string): Promise<string[]>;
   followLocatorNameChanges(
     locator: string,
-  ): AsyncGenerator<LocatorDiff, undefined, undefined>;
+  ): AsyncGenerator<LocatorNameChange, undefined, undefined>;
   list(...petNamePath: string[]): Promise<Array<string>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
   followNameChanges(
     ...petNamePath: string[]
-  ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
+  ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
   write(petNamePath: string[], id: string): Promise<void>;

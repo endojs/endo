@@ -63,17 +63,17 @@ export const makePetSitter = (petStore, specialNames) => {
   const followIdNameChanges = async function* currentAndSubsequentIds(id) {
     const subscription = petStore.followIdNameChanges(id);
 
-    const [idSpecialName] = Object.entries(specialNames)
+    const idSpecialNames = Object.entries(specialNames)
       .filter(([_, specialId]) => specialId === id)
       .map(([specialName, _]) => specialName);
 
-    if (typeof idSpecialName === 'string') {
-      // The first published event contains the existing names for the id, if any.
-      const { value: existingNames } = await subscription.next();
-      existingNames?.names?.unshift(idSpecialName);
-      existingNames?.names?.sort();
-      yield /** @type {import('./types.js').PetStoreIdDiff} */ (existingNames);
-    }
+    // The first published event contains the existing names for the id, if any.
+    const { value: existingNames } = await subscription.next();
+    existingNames?.names?.unshift(...idSpecialNames);
+    existingNames?.names?.sort();
+    yield /** @type {import('./types.js').PetStoreIdNameChange} */ (
+      existingNames
+    );
 
     yield* subscription;
   };

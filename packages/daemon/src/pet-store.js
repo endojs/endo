@@ -31,7 +31,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * Publishes an id change to its subscribers, if any.
      *
      * @param {string} id - The id to publish a change for.
-     * @param {import('./types.js').PetStoreIdDiff} payload - The payload to publish.
+     * @param {import('./types.js').PetStoreIdNameChange} payload - The payload to publish.
      */
     const publishIdChangeToSubscribers = (id, payload) => {
       const idTopic = idsToTopics.get(id);
@@ -133,7 +133,7 @@ export const makePetStoreMaker = (filePowers, config) => {
           /** @type {string} */ (idsToPetNames.getKey(name)),
         );
 
-        yield /** @type {import('./types.js').PetStoreNameDiff} */ ({
+        yield /** @type {import('./types.js').PetStoreNameChange} */ ({
           add: name,
           value: idRecord,
         });
@@ -152,7 +152,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       const subscription = idTopic.subscribe();
 
       const existingNames = idsToPetNames.getAllFor(id).sort();
-      yield /** @type {import('./types.js').PetStoreIdDiff} */ ({
+      yield /** @type {import('./types.js').PetStoreIdNameChange} */ ({
         add: parseId(id),
         names: existingNames,
       });

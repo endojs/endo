@@ -108,16 +108,16 @@ export const makeDirectoryMaker = ({
       locator,
     ) {
       const id = idFromLocator(locator);
-      for await (const idDiff of petStore.followIdNameChanges(id)) {
+      for await (const idNameChange of petStore.followIdNameChanges(id)) {
         /** @type {any} */
-        const locatorDiff = {
-          ...idDiff,
-          ...(Object.hasOwn(idDiff, 'add')
+        const locatorNameChange = {
+          ...idNameChange,
+          ...(Object.hasOwn(idNameChange, 'add')
             ? { add: locator }
             : { remove: locator }),
         };
 
-        yield /** @type {import('./types.js').LocatorDiff} */ locatorDiff;
+        yield /** @type {import('./types.js').LocatorNameChange} */ locatorNameChange;
       }
     };
 
