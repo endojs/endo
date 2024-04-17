@@ -56,7 +56,6 @@
     "*.js",
     "*.ts"
   ],
-  "private": false,
   "publishConfig": {
     "access": "public"
   },

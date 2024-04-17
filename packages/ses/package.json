@@ -97,7 +97,6 @@
     "tools.js",
     "src"
   ],
-  "private": false,
   "publishConfig": {
     "access": "public"
   },
