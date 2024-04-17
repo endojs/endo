@@ -360,15 +360,35 @@ export interface Handle {
 
 export type MakeSha512 = () => Sha512;
 
-export type PetStoreNameDiff =
+export type PetStoreNameChange =
   | { add: string; value: IdRecord }
   | { remove: string };
+
+export type PetStoreIdNameChange =
+  | { add: IdRecord; names: string[] }
+  | { remove: IdRecord; names?: string[] };
+
+export type NameChangesTopic = Topic<PetStoreNameChange>;
+
+export type IdChangesTopic = Topic<PetStoreIdNameChange>;
 
 export interface PetStore {
   has(petName: string): boolean;
   identifyLocal(petName: string): string | undefined;
   list(): Array<string>;
-  follow(): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
+  /**
+   * Subscribe to all name changes. First publishes all existing names in alphabetical order.
+   * Then publishes diffs as names are added and removed.
+   */
+  followNameChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
+  /**
+   * Subscribe to name changes for the specified id. First publishes the existing names for the id.
+   * Then publishes diffs as names are added and removed, or if the id is itself removed.
+   * @throws If attempting to follow an id with no names.
+   */
+  followIdNameChanges(
+    id: string,
+  ): AsyncGenerator<PetStoreIdNameChange, undefined, undefined>;
   write(petName: string, id: string): Promise<void>;
   remove(petName: string): Promise<void>;
   rename(fromPetName: string, toPetName: string): Promise<void>;
@@ -379,15 +399,26 @@ export interface PetStore {
   reverseIdentify(id: string): Array<string>;
 }
 
+/**
+ * `add` and `remove` are locators.
+ */
+export type LocatorNameChange =
+  | { add: string; names: string[] }
+  | { remove: string; names?: string[] };
+
 export interface NameHub {
   has(...petNamePath: string[]): Promise<boolean>;
   identify(...petNamePath: string[]): Promise<string | undefined>;
   locate(...petNamePath: string[]): Promise<string | undefined>;
+  reverseLocate(locator: string): Promise<string[]>;
+  followLocatorNameChanges(
+    locator: string,
+  ): AsyncGenerator<LocatorNameChange, undefined, undefined>;
   list(...petNamePath: string[]): Promise<Array<string>>;
   listIdentifiers(...petNamePath: string[]): Promise<Array<string>>;
-  followChanges(
+  followNameChanges(
     ...petNamePath: string[]
-  ): AsyncGenerator<PetStoreNameDiff, undefined, undefined>;
+  ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
   write(petNamePath: string[], id: string): Promise<void>;
@@ -901,6 +932,12 @@ export type Multimap<K, V> = {
    * @returns An array of all values associated with the key.
    */
   getAllFor(key: K): V[];
+
+  /**
+   * @param key - The key whose presence to check for.
+   * @returns `true` if the key is present and `false` otherwise.
+   */
+  has(key: K): boolean;
 };
 
 /**
@@ -928,6 +965,12 @@ export type BidirectionalMultimap<K, V> = {
    * @returns `true` if the key was found and its values were deleted, `false` otherwise.
    */
   deleteAll(key: K): boolean;
+
+  /**
+   * @param key - The key whose presence to check for.
+   * @returns `true` if the key is present and `false` otherwise.
+   */
+  has(key: K): boolean;
 
   /**
    * @param value - The value whose presence to check for.

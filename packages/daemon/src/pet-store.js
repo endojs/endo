@@ -19,8 +19,50 @@ export const makePetStoreMaker = (filePowers, config) => {
   const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
     /** @type {import('./types.js').BidirectionalMultimap<string, string>} */
     const idsToPetNames = makeBidirectionalMultimap();
-    /** @type {import('./types.js').Topic<({ add: string, value: import('./types.js').IdRecord } | { remove: string })>} */
+    /** @type {import('./types.js').NameChangesTopic} */
     const nameChangesTopic = makeChangeTopic();
+
+    /** @returns {import('./types.js').IdChangesTopic} */
+    const makeIdChangeTopic = () => makeChangeTopic();
+    /** @type {Map<string, ReturnType<typeof makeIdChangeTopic>>} */
+    const idsToTopics = new Map();
+
+    /**
+     * Publishes an id change to its subscribers, if any.
+     *
+     * @param {string} id - The id to publish a change for.
+     * @param {import('./types.js').PetStoreIdNameChange} payload - The payload to publish.
+     */
+    const publishIdChangeToSubscribers = (id, payload) => {
+      const idTopic = idsToTopics.get(id);
+      if (idTopic !== undefined) {
+        idTopic.publisher.next(payload);
+      }
+    };
+
+    /**
+     * @param {string} id - The id receiving a name new name.
+     * @param {string} petName - The new name.
+     */
+    const publishNameAddition = (id, petName) => {
+      const idRecord = parseId(id);
+      nameChangesTopic.publisher.next({ add: petName, value: idRecord });
+      publishIdChangeToSubscribers(id, { add: idRecord, names: [petName] });
+    };
+
+    /**
+     * @param {string} id - The id from which a name is being removed.
+     * @param {string} petName - The removed name.
+     */
+    const publishNameRemoval = (id, petName) => {
+      nameChangesTopic.publisher.next({ remove: petName });
+      if (id !== undefined) {
+        publishIdChangeToSubscribers(id, {
+          remove: parseId(id),
+          names: [petName],
+        });
+      }
+    };
 
     /** @param {string} petName */
     const read = async petName => {
@@ -68,7 +110,7 @@ export const makePetStoreMaker = (filePowers, config) => {
         if (oldFormulaIdentifier !== undefined) {
           // Perform cleanup on the overwritten pet name.
           idsToPetNames.delete(oldFormulaIdentifier, petName);
-          nameChangesTopic.publisher.next({ remove: petName });
+          publishNameRemoval(oldFormulaIdentifier, petName);
         }
       }
 
@@ -77,39 +119,45 @@ export const makePetStoreMaker = (filePowers, config) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = `${formulaIdentifier}\n`;
       await filePowers.writeFileText(petNamePath, petNameText);
-      const formulaIdentifierRecord = parseId(formulaIdentifier);
-      nameChangesTopic.publisher.next({
-        add: petName,
-        value: formulaIdentifierRecord,
-      });
-    };
-
-    /**
-     * @param {string} petName
-     * @returns {import('./types.js').IdRecord}
-     */
-    const formulaIdentifierRecordForName = petName => {
-      const formulaIdentifier = idsToPetNames.getKey(petName);
-      if (formulaIdentifier === undefined) {
-        throw new Error(`Formula does not exist for pet name ${q(petName)}`);
-      }
-      return parseId(formulaIdentifier);
+      publishNameAddition(formulaIdentifier, petName);
     };
 
     /** @type {import('./types.js').PetStore['list']} */
     const list = () => harden(idsToPetNames.getAll().sort());
 
-    /** @type {import('./types.js').PetStore['follow']} */
-    const follow = async function* currentAndSubsequentNames() {
-      const changes = nameChangesTopic.subscribe();
+    /** @type {import('./types.js').PetStore['followNameChanges']} */
+    const followNameChanges = async function* currentAndSubsequentNames() {
+      const subscription = nameChangesTopic.subscribe();
       for (const name of idsToPetNames.getAll().sort()) {
-        const formulaIdentifierRecord = formulaIdentifierRecordForName(name);
-        yield /** @type {{ add: string, value: import('./types.js').IdRecord }} */ ({
+        const idRecord = parseId(
+          /** @type {string} */ (idsToPetNames.getKey(name)),
+        );
+
+        yield /** @type {import('./types.js').PetStoreNameChange} */ ({
           add: name,
-          value: formulaIdentifierRecord,
+          value: idRecord,
         });
       }
-      yield* changes;
+      yield* subscription;
+    };
+
+    /** @type {import('./types.js').PetStore['followIdNameChanges']} */
+    const followIdNameChanges = async function* currentAndSubsequentIds(id) {
+      if (!idsToTopics.has(id)) {
+        idsToTopics.set(id, makeIdChangeTopic());
+      }
+      const idTopic = /** @type {import('./types.js').IdChangesTopic} */ (
+        idsToTopics.get(id)
+      );
+      const subscription = idTopic.subscribe();
+
+      const existingNames = idsToPetNames.getAllFor(id).sort();
+      yield /** @type {import('./types.js').PetStoreIdNameChange} */ ({
+        add: parseId(id),
+        names: existingNames,
+      });
+
+      yield* subscription;
     };
 
     /** @type {import('./types.js').PetStore['remove']} */
@@ -126,7 +174,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       await filePowers.removePath(petNamePath);
       idsToPetNames.delete(formulaIdentifier, petName);
-      nameChangesTopic.publisher.next({ remove: petName });
+      publishNameRemoval(formulaIdentifier, petName);
       // TODO consider retaining a backlog of deleted names for recovery
       // TODO consider tracking historical pet names for formulas
     };
@@ -146,9 +194,6 @@ export const makePetStoreMaker = (filePowers, config) => {
         );
       }
       assertValidId(formulaIdentifier, fromName);
-      if (overwrittenId !== undefined) {
-        assertValidId(overwrittenId, toName);
-      }
 
       const fromPath = filePowers.joinPath(petNameDirectoryPath, fromName);
       const toPath = filePowers.joinPath(petNameDirectoryPath, toName);
@@ -157,17 +202,14 @@ export const makePetStoreMaker = (filePowers, config) => {
       // Delete the back-reference for the overwritten pet name if it existed.
       if (overwrittenId !== undefined) {
         idsToPetNames.delete(overwrittenId, toName);
+        publishNameRemoval(overwrittenId, toName);
       }
 
       // Update the mapping for the pet name.
       idsToPetNames.add(formulaIdentifier, toName);
 
-      const formulaIdentifierRecord = parseId(formulaIdentifier);
-      nameChangesTopic.publisher.next({
-        add: toName,
-        value: formulaIdentifierRecord,
-      });
-      nameChangesTopic.publisher.next({ remove: fromName });
+      publishNameRemoval(formulaIdentifier, fromName);
+      publishNameAddition(formulaIdentifier, toName);
       // TODO consider retaining a backlog of overwritten names for recovery
     };
 
@@ -186,7 +228,8 @@ export const makePetStoreMaker = (filePowers, config) => {
       identifyLocal,
       reverseIdentify,
       list,
-      follow,
+      followIdNameChanges,
+      followNameChanges,
       write,
       remove,
       rename,

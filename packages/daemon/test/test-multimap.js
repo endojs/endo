@@ -59,6 +59,23 @@ import {
     t.deepEqual(multimap.getAllFor(key2), []);
   });
 
+  test(`${mapName}: has`, t => {
+    const multimap = multimapConstructor();
+    const key1 = {};
+    const key2 = {};
+    const key3 = {};
+    const value1 = 'foo';
+    const value2 = 'bar';
+
+    multimap.add(key1, value1);
+    multimap.add(key1, value2);
+    multimap.add(key2, value1);
+
+    t.is(multimap.has(key1), true);
+    t.is(multimap.has(key2), true);
+    t.is(multimap.has(key3), false);
+  });
+
   test(`${mapName}: delete`, t => {
     const multimap = multimapConstructor();
     const key = {};
@@ -188,6 +205,22 @@ test('multi-bimap: getKey', t => {
   t.is(bimap.getKey(value1), key1);
   t.is(bimap.getKey(value2), key1);
   t.is(bimap.getKey(value3), undefined);
+});
+
+test('multi-bimap: has', t => {
+  const bimap = makeBidirectionalMultimap();
+  const key1 = 'foo';
+  const key2 = 'bar';
+  const key3 = 'baz';
+  const value1 = {};
+  const value2 = {};
+
+  bimap.add(key1, value1);
+  bimap.add(key2, value2);
+
+  t.is(bimap.has(key1), true);
+  t.is(bimap.has(key2), true);
+  t.is(bimap.has(key3), false);
 });
 
 test('multi-bimap: hasValue', t => {

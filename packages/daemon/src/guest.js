@@ -55,9 +55,11 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       has,
       identify,
       locate,
+      reverseLocate,
       list,
       listIdentifiers,
-      followChanges,
+      followNameChanges,
+      followLocatorNameChanges,
       lookup,
       reverseLookup,
       write,
@@ -85,9 +87,11 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       identify,
       reverseIdentify,
       locate,
+      reverseLocate,
       list,
       listIdentifiers,
-      followChanges,
+      followLocatorNameChanges,
+      followNameChanges,
       lookup,
       reverseLookup,
       write,
@@ -113,8 +117,11 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
       {
         ...guest,
-        followChanges: () => makeIteratorRef(guest.followChanges()),
+        /** @param {string} locator */
+        followLocatorNameChanges: locator =>
+          makeIteratorRef(guest.followLocatorNameChanges(locator)),
         followMessages: () => makeIteratorRef(guest.followMessages()),
+        followNameChanges: () => makeIteratorRef(guest.followNameChanges()),
       },
     );
   };

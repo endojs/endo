@@ -36,6 +36,8 @@ const internalMakeMultimap = mapConstructor => {
     get: key => map.get(key)?.keys().next().value,
 
     getAllFor: key => Array.from(map.get(key) ?? []),
+
+    has: key => map.has(key),
   };
 };
 
@@ -91,6 +93,8 @@ export const makeBidirectionalMultimap = () => {
       }
       return keyForValues.deleteAll(key);
     },
+
+    has: key => keyForValues.has(key),
 
     hasValue: value => valueForKey.has(value),
 
