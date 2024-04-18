@@ -4,17 +4,18 @@
 // This command will set up the cat page, create a URL,
 // and open it.
 //
-// > endo install familiar-chat cat.js --powers SELF
+// > endo install cat.js --powers AGENT --listen 8920 --name cat
 //
 // Thereafter,
 //
-// > endo open familiar-chat
+// > endo open cat
 //
 // To interact with the permission manager, you can mock requests from a fake
 // guest.
 //
 // > endo eval 42 --name ft
-// > endo request --as cat 'pet me'
+// > endo mkguest feline
+// > endo request --as feline 'pet me'
 //
 // At this point, the command will pause, waiting for a response.
 // In the Familiar Chat window, resolve the request with the pet name "ft" and
