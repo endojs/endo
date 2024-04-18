@@ -31,7 +31,6 @@
   "scripts": {
     "clean": "lerna clean",
     "cover": "lerna run cover",
-    "depcheck": "node scripts/check-mismatched-dependencies.js",
     "docs": "typedoc",
     "docs:markdown-for-agoric-documentation-repo": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.build.json",
     "update": "lernaupdate --dedupe",
