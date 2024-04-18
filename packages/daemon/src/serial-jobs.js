@@ -1,10 +1,13 @@
 import { makeQueue } from '@endo/stream';
 
+/** @import { AsyncQueue } from '@endo/stream' */
+/** @import { SerialJobs } from './types.js' */
+
 /**
- * @returns {import('./types.js').SerialJobs}
+ * @returns {SerialJobs}
  */
 export const makeSerialJobs = () => {
-  /** @type {import('@endo/stream').AsyncQueue<void>} */
+  /** @type {AsyncQueue<void>} */
   const queue = makeQueue();
   const lock = () => {
     return queue.get();

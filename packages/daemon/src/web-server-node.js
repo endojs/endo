@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import http from 'node:http';
 import { fileURLToPath } from 'url';
 
+/** @import { HttpRespond, FarContext } from './types.js' */
+
 // @ts-ignore We cannot use a synthetic default export in practice here (circa Node.js 16)
 import * as ws from 'ws';
 
@@ -26,7 +28,7 @@ const read = async location => fs.promises.readFile(fileURLToPath(location));
 
 /**
  * @param {unknown} _powers
- * @param {import('./types.js').FarContext} context
+ * @param {FarContext} context
  */
 export const make = async (_powers, context) => {
   const script = await makeBundle(
@@ -69,7 +71,7 @@ export const make = async (_powers, context) => {
 
     const cancelled = Promise.race([webletCancelled, serverCancelled]);
 
-    /** @type {import('./types.js').HttpRespond} */
+    /** @type {HttpRespond} */
     const respond = async request => {
       if (request.method === 'GET') {
         if (request.url === `/${accessToken}/`) {

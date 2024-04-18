@@ -23,6 +23,9 @@ import {
   makeCryptoPowers,
 } from './daemon-node-powers.js';
 
+/** @import { PromiseKit } from '@endo/promise-kit' */
+/** @import { Config, Builtins } from './types.js' */
+
 if (process.argv.length < 5) {
   throw new Error(
     `daemon.js requires arguments [sockPath] [statePath] [ephemeralStatePath] [cachePath], got ${process.argv.join(
@@ -34,7 +37,7 @@ if (process.argv.length < 5) {
 const [sockPath, statePath, ephemeralStatePath, cachePath] =
   process.argv.slice(2);
 
-/** @type {import('./types.js').Config} */
+/** @type {Config} */
 const config = {
   sockPath,
   statePath,
@@ -70,9 +73,7 @@ const reportErrorToParent = message => {
 };
 
 const { promise: cancelled, reject: cancel } =
-  /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
-    makePromiseKit()
-  );
+  /** @type {PromiseKit<never>} */ (makePromiseKit());
 
 const updateRecordedPid = async () => {
   const pidPath = filePowers.joinPath(ephemeralStatePath, 'endo.pid');
@@ -103,7 +104,7 @@ const main = async () => {
     cancel,
     cancelled,
     {
-      /** @param {import('./types.js').Builtins} builtins */
+      /** @param {Builtins} builtins */
       APPS: ({ MAIN, NONE }) => ({
         type: /** @type {const} */ ('make-unconfined'),
         worker: MAIN,

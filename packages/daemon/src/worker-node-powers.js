@@ -2,11 +2,13 @@
 
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 
+/** @import { MignonicPowers } from './types.js' } */
+
 /**
  * @param {object} modules
  * @param {typeof import('fs')} modules.fs
  * @param {typeof import('url')} modules.url
- * @returns {import('./types.js').MignonicPowers}
+ * @returns {MignonicPowers}
  */
 export const makePowers = ({ fs, url }) => {
   // @ts-ignore This is in fact how you open a file descriptor.

@@ -1,6 +1,9 @@
 // @ts-check
 /// <reference types="ses"/>
 
+/** @import { ERef } from '@endo/eventual-send' */
+/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, PeerInfo, ReadableBlobDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -19,20 +22,20 @@ const assertPowersName = name => {
 
 /**
  * @param {object} args
- * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['provideController']} args.provideController
- * @param {import('./types.js').DaemonCore['cancelValue']} args.cancelValue
- * @param {import('./types.js').DaemonCore['formulateWorker']} args.formulateWorker
- * @param {import('./types.js').DaemonCore['formulateHost']} args.formulateHost
- * @param {import('./types.js').DaemonCore['formulateGuest']} args.formulateGuest
- * @param {import('./types.js').DaemonCore['formulateEval']} args.formulateEval
- * @param {import('./types.js').DaemonCore['formulateUnconfined']} args.formulateUnconfined
- * @param {import('./types.js').DaemonCore['formulateBundle']} args.formulateBundle
- * @param {import('./types.js').DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
- * @param {import('./types.js').DaemonCore['formulateInvitation']} args.formulateInvitation
- * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
- * @param {import('./types.js').MakeMailbox} args.makeMailbox
- * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
+ * @param {DaemonCore['provide']} args.provide
+ * @param {DaemonCore['provideController']} args.provideController
+ * @param {DaemonCore['cancelValue']} args.cancelValue
+ * @param {DaemonCore['formulateWorker']} args.formulateWorker
+ * @param {DaemonCore['formulateHost']} args.formulateHost
+ * @param {DaemonCore['formulateGuest']} args.formulateGuest
+ * @param {DaemonCore['formulateEval']} args.formulateEval
+ * @param {DaemonCore['formulateUnconfined']} args.formulateUnconfined
+ * @param {DaemonCore['formulateBundle']} args.formulateBundle
+ * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
+ * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
+ * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
+ * @param {MakeMailbox} args.makeMailbox
+ * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {string} args.localNodeId
  */
 export const makeHostMaker = ({
@@ -62,7 +65,7 @@ export const makeHostMaker = ({
    * @param {string} networksDirectoryId
    * @param {string} leastAuthorityId
    * @param {{[name: string]: string}} platformNames
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makeHost = async (
     hostId,
@@ -101,11 +104,11 @@ export const makeHostMaker = ({
     const getEndoBootstrap = async () => provide(endoId, 'endo');
 
     /**
-     * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
+     * @param {ERef<AsyncIterableIterator<string>>} readerRef
      * @param {string} [petName]
      */
     const store = async (readerRef, petName) => {
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').ReadableBlobDeferredTaskParams>} */
+      /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
       if (petName !== undefined) {
@@ -123,7 +126,7 @@ export const makeHostMaker = ({
      * @param {string} workerName
      */
     const provideWorker = async workerName => {
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').WorkerDeferredTaskParams>} */
+      /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       // eslint-disable-next-line no-use-before-define
       const workerId = prepareWorkerFormulation(workerName, tasks.push);
@@ -138,7 +141,7 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} workerName
-     * @param {import('./types.js').DeferredTasks<{ workerId: string }>['push']} deferTask
+     * @param {DeferredTasks<{ workerId: string }>['push']} deferTask
      */
     const prepareWorkerFormulation = (workerName, deferTask) => {
       if (workerName === 'MAIN') {
@@ -177,7 +180,7 @@ export const makeHostMaker = ({
         throw new Error('Evaluator requires one pet name for each code name');
       }
 
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').EvalDeferredTaskParams>} */
+      /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
       const workerId = prepareWorkerFormulation(workerName, tasks.push);
@@ -228,7 +231,7 @@ export const makeHostMaker = ({
     const prepareMakeCaplet = (powersName, workerName, resultName) => {
       assertPowersName(powersName);
 
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} */
+      /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
       const workerId = prepareWorkerFormulation(workerName, tasks.push);
@@ -249,7 +252,7 @@ export const makeHostMaker = ({
       return { tasks, workerId, powersId };
     };
 
-    /** @type {import('./types.js').EndoHost['makeUnconfined']} */
+    /** @type {EndoHost['makeUnconfined']} */
     const makeUnconfined = async (
       workerName,
       specifier,
@@ -355,7 +358,7 @@ export const makeHostMaker = ({
      * @param {string} [agentName] - The pet name of the agent.
      */
     const getDeferredTasksForAgent = (handleName, agentName) => {
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').AgentDeferredTaskParams>} */
+      /** @type {DeferredTasks<AgentDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       if (handleName !== undefined) {
         tasks.push(identifiers =>
@@ -372,8 +375,8 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} [petName]
-     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
-     * @returns {Promise<{id: string, value: Promise<import('./types.js').EndoHost>}>}
+     * @param {MakeHostOrGuestOptions} [opts]
+     * @returns {Promise<{id: string, value: Promise<EndoHost>}>}
      */
     const makeChildHost = async (
       petName,
@@ -393,11 +396,11 @@ export const makeHostMaker = ({
 
       await introduceNamesToAgent(host.id, introducedNames);
 
-      /** @type {{ id: string, value: Promise<import('./types.js').EndoHost> }} */
+      /** @type {{ id: string, value: Promise<EndoHost> }} */
       return host;
     };
 
-    /** @type {import('./types.js').EndoHost['provideHost']} */
+    /** @type {EndoHost['provideHost']} */
     const provideHost = async (petName, opts) => {
       const { value } = await makeChildHost(petName, opts);
       return value;
@@ -405,8 +408,8 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} [handleName]
-     * @param {import('./types.js').MakeHostOrGuestOptions} [opts]
-     * @returns {Promise<{id: string, value: Promise<import('./types.js').EndoGuest>}>}
+     * @param {MakeHostOrGuestOptions} [opts]
+     * @returns {Promise<{id: string, value: Promise<EndoGuest>}>}
      */
     const makeGuest = async (
       handleName,
@@ -426,11 +429,11 @@ export const makeHostMaker = ({
 
       await introduceNamesToAgent(guest.id, introducedNames);
 
-      /** @type {{ id: string, value: Promise<import('./types.js').EndoGuest> }} */
+      /** @type {{ id: string, value: Promise<EndoGuest> }} */
       return guest;
     };
 
-    /** @type {import('./types.js').EndoHost['provideGuest']} */
+    /** @type {EndoHost['provideGuest']} */
     const provideGuest = async (petName, opts) => {
       const { value } = await makeGuest(petName, opts);
       return value;
@@ -448,7 +451,7 @@ export const makeHostMaker = ({
       // Overwriting the guestName must cancel the pending invitation (consume
       // once) so that the invitation can no longer modify the petStore entry
       // for the guestName.
-      /** @type {import('./types.js').DeferredTasks<import('./types.js').InvitationDeferredTaskParams>} */
+      /** @type {DeferredTasks<InvitationDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
         petStore.write(guestName, identifiers.invitationId),
@@ -481,7 +484,7 @@ export const makeHostMaker = ({
         throw assert.error(`Invitation must have an "id" parameter`);
       }
 
-      /** @type {import('./types.js').PeerInfo} */
+      /** @type {PeerInfo} */
       const peerInfo = {
         node: nodeNumber,
         addresses,
@@ -514,7 +517,7 @@ export const makeHostMaker = ({
       await petStore.write(guestName, guestHandleId);
     };
 
-    /** @type {import('./types.js').EndoHost['cancel']} */
+    /** @type {EndoHost['cancel']} */
     const cancel = async (petName, reason = new Error('Cancelled')) => {
       const id = petStore.identifyLocal(petName);
       if (id === undefined) {
@@ -523,25 +526,25 @@ export const makeHostMaker = ({
       return cancelValue(id, reason);
     };
 
-    /** @type {import('./types.js').EndoHost['gateway']} */
+    /** @type {EndoHost['gateway']} */
     const gateway = async () => {
       const endoBootstrap = getEndoBootstrap();
       return E(endoBootstrap).gateway();
     };
 
-    /** @type {import('./types.js').EndoHost['greeter']} */
+    /** @type {EndoHost['greeter']} */
     const greeter = async () => {
       const endoBootstrap = getEndoBootstrap();
       return E(endoBootstrap).greeter();
     };
 
-    /** @type {import('./types.js').EndoHost['addPeerInfo']} */
+    /** @type {EndoHost['addPeerInfo']} */
     const addPeerInfo = async peerInfo => {
       const endoBootstrap = getEndoBootstrap();
       await E(endoBootstrap).addPeerInfo(peerInfo);
     };
 
-    /** @type {import('./types.js').EndoHost['getPeerInfo']} */
+    /** @type {EndoHost['getPeerInfo']} */
     const getPeerInfo = async () => {
       const addresses = await getAllNetworkAddresses(networksDirectoryId);
       const peerInfo = {
@@ -581,7 +584,7 @@ export const makeHostMaker = ({
       deliver,
     } = mailbox;
 
-    /** @type {import('./types.js').EndoHost} */
+    /** @type {EndoHost} */
     const host = {
       // Directory
       has,

@@ -5,11 +5,13 @@ import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 
+/** @import { Context, EndoGuest, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
+
 /**
  * @param {object} args
- * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').MakeMailbox} args.makeMailbox
- * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
+ * @param {Provide} args.provide
+ * @param {MakeMailbox} args.makeMailbox
+ * @param {MakeDirectoryNode} args.makeDirectoryNode
  */
 export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
   /**
@@ -19,7 +21,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
    * @param {string} hostHandleId
    * @param {string} petStoreId
    * @param {string} mainWorkerId
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makeGuest = async (
     guestId,
@@ -80,7 +82,7 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       deliver,
     } = mailbox;
 
-    /** @type {import('./types.js').EndoGuest} */
+    /** @type {EndoGuest} */
     const guest = {
       // Directory
       has,

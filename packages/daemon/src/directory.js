@@ -8,12 +8,14 @@ import { formatLocator, idFromLocator } from './locator.js';
 
 const { quote: q } = assert;
 
+/** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context } from './types.js' */
+
 /**
  * @param {object} args
- * @param {import('./types.js').DaemonCore['provide']} args.provide
- * @param {import('./types.js').DaemonCore['getIdForRef']} args.getIdForRef
- * @param {import('./types.js').DaemonCore['getTypeForId']} args.getTypeForId
- * @param {import('./types.js').DaemonCore['formulateDirectory']} args.formulateDirectory
+ * @param {DaemonCore['provide']} args.provide
+ * @param {DaemonCore['getIdForRef']} args.getIdForRef
+ * @param {DaemonCore['getTypeForId']} args.getTypeForId
+ * @param {DaemonCore['formulateDirectory']} args.formulateDirectory
  */
 export const makeDirectoryMaker = ({
   provide,
@@ -21,9 +23,9 @@ export const makeDirectoryMaker = ({
   getTypeForId,
   formulateDirectory,
 }) => {
-  /** @type {import('./types.js').MakeDirectoryNode} */
+  /** @type {MakeDirectoryNode} */
   const makeDirectoryNode = petStore => {
-    /** @type {import('./types.js').EndoDirectory['lookup']} */
+    /** @type {EndoDirectory['lookup']} */
     const lookup = (...petNamePath) => {
       const [headName, ...tailNames] = petNamePath;
       const id = petStore.identifyLocal(headName);
@@ -37,7 +39,7 @@ export const makeDirectoryMaker = ({
       );
     };
 
-    /** @type {import('./types.js').EndoDirectory['reverseLookup']} */
+    /** @type {EndoDirectory['reverseLookup']} */
     const reverseLookup = async presence => {
       const id = getIdForRef(await presence);
       if (id === undefined) {
@@ -48,7 +50,7 @@ export const makeDirectoryMaker = ({
 
     /**
      * @param {Array<string>} petNamePath
-     * @returns {Promise<{ hub: import('./types.js').NameHub, name: string }>}
+     * @returns {Promise<{ hub: NameHub, name: string }>}
      */
     const lookupTailNameHub = async petNamePath => {
       if (petNamePath.length === 0) {
@@ -60,13 +62,11 @@ export const makeDirectoryMaker = ({
         // eslint-disable-next-line no-use-before-define
         return { hub: directory, name: tailName };
       }
-      const nameHub = /** @type {import('./types.js').NameHub} */ (
-        await lookup(...headPath)
-      );
+      const nameHub = /** @type {NameHub} */ (await lookup(...headPath));
       return { hub: nameHub, name: tailName };
     };
 
-    /** @type {import('./types.js').EndoDirectory['has']} */
+    /** @type {EndoDirectory['has']} */
     const has = async (...petNamePath) => {
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
@@ -76,7 +76,7 @@ export const makeDirectoryMaker = ({
       return hub.has(name);
     };
 
-    /** @type {import('./types.js').EndoDirectory['identify']} */
+    /** @type {EndoDirectory['identify']} */
     const identify = async (...petNamePath) => {
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
@@ -86,7 +86,7 @@ export const makeDirectoryMaker = ({
       return hub.identify(name);
     };
 
-    /** @type {import('./types.js').EndoDirectory['locate']} */
+    /** @type {EndoDirectory['locate']} */
     const locate = async (...petNamePath) => {
       const id = await identify(...petNamePath);
       if (id === undefined) {
@@ -97,13 +97,13 @@ export const makeDirectoryMaker = ({
       return formatLocator(id, formulaType);
     };
 
-    /** @type {import('./types.js').EndoDirectory['reverseLocate']} */
+    /** @type {EndoDirectory['reverseLocate']} */
     const reverseLocate = async locator => {
       const id = idFromLocator(locator);
       return petStore.reverseIdentify(id);
     };
 
-    /** @type {import('./types.js').EndoDirectory['followLocatorNameChanges']} */
+    /** @type {EndoDirectory['followLocatorNameChanges']} */
     const followLocatorNameChanges = async function* followLocatorNameChanges(
       locator,
     ) {
@@ -117,22 +117,20 @@ export const makeDirectoryMaker = ({
             : { remove: locator }),
         };
 
-        yield /** @type {import('./types.js').LocatorNameChange} */ locatorNameChange;
+        yield /** @type {LocatorNameChange} */ (locatorNameChange);
       }
     };
 
-    /** @type {import('./types.js').EndoDirectory['list']} */
+    /** @type {EndoDirectory['list']} */
     const list = async (...petNamePath) => {
       if (petNamePath.length === 0) {
         return petStore.list();
       }
-      const hub = /** @type {import('./types.js').NameHub} */ (
-        await lookup(...petNamePath)
-      );
+      const hub = /** @type {NameHub} */ (await lookup(...petNamePath));
       return hub.list();
     };
 
-    /** @type {import('./types.js').EndoDirectory['listIdentifiers']} */
+    /** @type {EndoDirectory['listIdentifiers']} */
     const listIdentifiers = async (...petNamePath) => {
       const names = await list(...petNamePath);
       const identities = new Set();
@@ -147,7 +145,7 @@ export const makeDirectoryMaker = ({
       return harden(Array.from(identities).sort());
     };
 
-    /** @type {import('./types.js').EndoDirectory['followNameChanges']} */
+    /** @type {EndoDirectory['followNameChanges']} */
     const followNameChanges = async function* followNameChanges(
       ...petNamePath
     ) {
@@ -155,13 +153,11 @@ export const makeDirectoryMaker = ({
         yield* petStore.followNameChanges();
         return;
       }
-      const hub = /** @type {import('./types.js').NameHub} */ (
-        await lookup(...petNamePath)
-      );
+      const hub = /** @type {NameHub} */ (await lookup(...petNamePath));
       yield* hub.followNameChanges();
     };
 
-    /** @type {import('./types.js').EndoDirectory['remove']} */
+    /** @type {EndoDirectory['remove']} */
     const remove = async (...petNamePath) => {
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
@@ -172,7 +168,7 @@ export const makeDirectoryMaker = ({
       await hub.remove(name);
     };
 
-    /** @type {import('./types.js').EndoDirectory['move']} */
+    /** @type {EndoDirectory['move']} */
     const move = async (fromPath, toPath) => {
       const { hub: fromHub, name: fromName } = await lookupTailNameHub(
         fromPath,
@@ -196,7 +192,7 @@ export const makeDirectoryMaker = ({
       await Promise.all([addP, removeP]);
     };
 
-    /** @type {import('./types.js').EndoDirectory['copy']} */
+    /** @type {EndoDirectory['copy']} */
     const copy = async (fromPath, toPath) => {
       const { hub: fromHub, name: fromName } = await lookupTailNameHub(
         fromPath,
@@ -209,14 +205,14 @@ export const makeDirectoryMaker = ({
       await toHub.write([toName], id);
     };
 
-    /** @type {import('./types.js').EndoDirectory['makeDirectory']} */
+    /** @type {EndoDirectory['makeDirectory']} */
     const makeDirectory = async directoryPetName => {
       const { value: directory, id } = await formulateDirectory();
       await petStore.write(directoryPetName, id);
       return directory;
     };
 
-    /** @type {import('./types.js').EndoDirectory['write']} */
+    /** @type {EndoDirectory['write']} */
     const write = async (petNamePath, id) => {
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
@@ -227,7 +223,7 @@ export const makeDirectoryMaker = ({
       await hub.write([name], id);
     };
 
-    /** @type {import('./types.js').EndoDirectory} */
+    /** @type {EndoDirectory} */
     const directory = {
       has,
       identify,
@@ -251,7 +247,7 @@ export const makeDirectoryMaker = ({
   /**
    * @param {object} args
    * @param {string} args.petStoreId
-   * @param {import('./types.js').Context} args.context
+   * @param {Context} args.context
    */
   const makeIdentifiedDirectory = async ({ petStoreId, context }) => {
     // TODO thread context

@@ -1,15 +1,17 @@
 // @ts-check
 
+/** @import { RemoteControl, RemoteControlState, EndoGateway } from './types.js' */
+
 /**
  * @param {string} localNodeId
  */
 export const makeRemoteControlProvider = localNodeId => {
-  /** @type {Map<string, import('./types.js').RemoteControl>} */
+  /** @type {Map<string, RemoteControl>} */
   const remoteControls = new Map();
 
   /** @param {string} remoteNodeId */
   const makeRemoteControl = remoteNodeId => {
-    /** @type {import('./types.js').RemoteControlState} */
+    /** @type {RemoteControlState} */
     let state;
 
     // In this state, we have received a remoteGateway from an ingress
@@ -17,10 +19,10 @@ export const makeRemoteControlProvider = localNodeId => {
     // We do not have a pending outbound connection attempt.
     /**
      * @type {(
-     *   remoteGateway: Promise<import('./types.js').EndoGateway>,
+     *   remoteGateway: Promise<EndoGateway>,
      *   cancel: (error: Error) => void | Promise<void>,
      *   cancelled: Promise<never>,
-     * ) => import('./types.js').RemoteControlState}
+     * ) => RemoteControlState}
      */
     const accepted = (remoteGateway, cancelCurrent, currentCancelled) => {
       return {
@@ -71,10 +73,10 @@ export const makeRemoteControlProvider = localNodeId => {
     // We have an active outbound connection.
     /**
      * @type {(
-     *   remoteGateway: Promise<import('./types.js').EndoGateway>,
+     *   remoteGateway: Promise<EndoGateway>,
      *   cancel: (error: Error) => void,
      *   cancelled: Promise<never>,
-     * ) => import('./types.js').RemoteControlState}
+     * ) => RemoteControlState}
      */
     const connected =
       localNodeId > remoteNodeId
@@ -190,7 +192,7 @@ export const makeRemoteControlProvider = localNodeId => {
             return connectedState;
           };
 
-    /** @type {() => import('./types.js').RemoteControlState} */
+    /** @type {() => RemoteControlState} */
     const start = () => {
       /** @type {import('./types.js').RemoteControlState} */
       const startState = {
@@ -247,7 +249,7 @@ export const makeRemoteControlProvider = localNodeId => {
     state = start();
 
     /**
-     * @param {Promise<import('./types.js').EndoGateway>} proposedRemoteGateway
+     * @param {Promise<EndoGateway>} proposedRemoteGateway
      * @param {(error: Error) => void} cancelConnection
      * @param {Promise<never>} connectionCancelled
      * @param {() => void} connectionDispose
@@ -266,7 +268,7 @@ export const makeRemoteControlProvider = localNodeId => {
       );
     };
     /**
-     * @param {() => Promise<import('./types.js').EndoGateway>} getRemoteGateway
+     * @param {() => Promise<EndoGateway>} getRemoteGateway
      * @param {(error: Error) => void} cancelIncarnation
      * @param {Promise<never>} incarnationCancelled
      * @param {() => void} disposeIncarnation

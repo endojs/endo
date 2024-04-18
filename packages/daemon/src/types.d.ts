@@ -493,8 +493,6 @@ export interface EndoReadable {
   text(): Promise<string>;
   json(): Promise<unknown>;
 }
-export type FarEndoReadable = FarRef<EndoReadable>;
-
 export interface EndoWorker {}
 
 export type MakeHostOrGuestOptions = {
@@ -556,7 +554,7 @@ export interface EndoHost extends EndoAgent {
   store(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
-  ): Promise<FarEndoReadable>;
+  ): Promise<FarRef<EndoReadable>>;
   provideGuest(
     petName?: string,
     opts?: MakeHostOrGuestOptions,
@@ -626,8 +624,6 @@ export type EndoBootstrap = {
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
 };
 
-export type FarEndoBootstrap = FarRef<EndoBootstrap>;
-
 export type CryptoPowers = {
   makeSha512: () => Sha512;
   randomHex512: () => Promise<string>;
@@ -678,7 +674,7 @@ export type SocketPowers = {
 
 export type NetworkPowers = SocketPowers & {
   makePrivatePathService: (
-    endoBootstrap: FarEndoBootstrap,
+    endoBootstrap: FarRef<EndoBootstrap>,
     sockPath: string,
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
@@ -710,8 +706,16 @@ export interface WorkerDaemonFacet {
     id: string,
     cancelled: Promise<never>,
   ): Promise<unknown>;
-  makeBundle(bundle: ERef<EndoReadable>, powers: ERef<unknown>);
-  makeUnconfined(path: string, powers: ERef<unknown>);
+  makeBundle(
+    bundle: ERef<EndoReadable>,
+    powers: ERef<unknown>,
+    context: ERef<FarContext>,
+  ): Promise<unknown>;
+  makeUnconfined(
+    path: string,
+    powers: ERef<unknown>,
+    context: ERef<FarContext>,
+  ): Promise<unknown>;
 }
 
 export type DaemonicControlPowers = {
@@ -825,7 +829,7 @@ export interface DaemonCore {
 
   formulateEndoBootstrap: (
     specifiedFormulaNumber: string,
-  ) => FormulateResult<FarEndoBootstrap>;
+  ) => FormulateResult<FarRef<EndoBootstrap>>;
 
   formulateEval: (
     nameHubId: string,
@@ -889,7 +893,7 @@ export interface DaemonCore {
   formulateReadableBlob: (
     readerRef: ERef<AsyncIterableIterator<string>>,
     deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
-  ) => FormulateResult<FarEndoReadable>;
+  ) => FormulateResult<FarRef<EndoReadable>>;
 
   formulateInvitation: (
     hostAgentId: string,

@@ -4,25 +4,27 @@ import { makeChangeTopic } from './pubsub.js';
 import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
 
+/** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, NameChangesTopic, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
+
 const { quote: q } = assert;
 
 /**
- * @param {import('./types.js').FilePowers} filePowers
- * @param {import('./types.js').Config} config
+ * @param {FilePowers} filePowers
+ * @param {Config} config
  */
 export const makePetStoreMaker = (filePowers, config) => {
   /**
    * @param {string} petNameDirectoryPath
    * @param {(name: string) => void} assertValidName
-   * @returns {Promise<import('./types.js').PetStore>}
+   * @returns {Promise<PetStore>}
    */
   const makePetStoreAtPath = async (petNameDirectoryPath, assertValidName) => {
-    /** @type {import('./types.js').BidirectionalMultimap<string, string>} */
+    /** @type {BidirectionalMultimap<string, string>} */
     const idsToPetNames = makeBidirectionalMultimap();
-    /** @type {import('./types.js').NameChangesTopic} */
+    /** @type {NameChangesTopic} */
     const nameChangesTopic = makeChangeTopic();
 
-    /** @returns {import('./types.js').IdChangesTopic} */
+    /** @returns {IdChangesTopic} */
     const makeIdChangeTopic = () => makeChangeTopic();
     /** @type {Map<string, ReturnType<typeof makeIdChangeTopic>>} */
     const idsToTopics = new Map();
@@ -31,7 +33,7 @@ export const makePetStoreMaker = (filePowers, config) => {
      * Publishes an id change to its subscribers, if any.
      *
      * @param {string} id - The id to publish a change for.
-     * @param {import('./types.js').PetStoreIdNameChange} payload - The payload to publish.
+     * @param {PetStoreIdNameChange} payload - The payload to publish.
      */
     const publishIdChangeToSubscribers = (id, payload) => {
       const idTopic = idsToTopics.get(id);
@@ -84,19 +86,19 @@ export const makePetStoreMaker = (filePowers, config) => {
       }),
     );
 
-    /** @type {import('./types.js').PetStore['has']} */
+    /** @type {PetStore['has']} */
     const has = petName => {
       assertValidName(petName);
       return idsToPetNames.hasValue(petName);
     };
 
-    /** @type {import('./types.js').PetStore['identifyLocal']} */
+    /** @type {PetStore['identifyLocal']} */
     const identifyLocal = petName => {
       assertValidName(petName);
       return idsToPetNames.getKey(petName);
     };
 
-    /** @type {import('./types.js').PetStore['write']} */
+    /** @type {PetStore['write']} */
     const write = async (petName, formulaIdentifier) => {
       assertValidName(petName);
       assertValidId(formulaIdentifier);
@@ -122,10 +124,10 @@ export const makePetStoreMaker = (filePowers, config) => {
       publishNameAddition(formulaIdentifier, petName);
     };
 
-    /** @type {import('./types.js').PetStore['list']} */
+    /** @type {PetStore['list']} */
     const list = () => harden(idsToPetNames.getAll().sort());
 
-    /** @type {import('./types.js').PetStore['followNameChanges']} */
+    /** @type {PetStore['followNameChanges']} */
     const followNameChanges = async function* currentAndSubsequentNames() {
       const subscription = nameChangesTopic.subscribe();
       for (const name of idsToPetNames.getAll().sort()) {
@@ -133,7 +135,7 @@ export const makePetStoreMaker = (filePowers, config) => {
           /** @type {string} */ (idsToPetNames.getKey(name)),
         );
 
-        yield /** @type {import('./types.js').PetStoreNameChange} */ ({
+        yield /** @type {PetStoreNameChange} */ ({
           add: name,
           value: idRecord,
         });
@@ -141,18 +143,16 @@ export const makePetStoreMaker = (filePowers, config) => {
       yield* subscription;
     };
 
-    /** @type {import('./types.js').PetStore['followIdNameChanges']} */
+    /** @type {PetStore['followIdNameChanges']} */
     const followIdNameChanges = async function* currentAndSubsequentIds(id) {
       if (!idsToTopics.has(id)) {
         idsToTopics.set(id, makeIdChangeTopic());
       }
-      const idTopic = /** @type {import('./types.js').IdChangesTopic} */ (
-        idsToTopics.get(id)
-      );
+      const idTopic = /** @type {IdChangesTopic} */ (idsToTopics.get(id));
       const subscription = idTopic.subscribe();
 
       const existingNames = idsToPetNames.getAllFor(id).sort();
-      yield /** @type {import('./types.js').PetStoreIdNameChange} */ ({
+      yield /** @type {PetStoreIdNameChange} */ ({
         add: parseId(id),
         names: existingNames,
       });
@@ -160,7 +160,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       yield* subscription;
     };
 
-    /** @type {import('./types.js').PetStore['remove']} */
+    /** @type {PetStore['remove']} */
     const remove = async petName => {
       assertValidName(petName);
       const formulaIdentifier = idsToPetNames.getKey(petName);
@@ -179,7 +179,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       // TODO consider tracking historical pet names for formulas
     };
 
-    /** @type {import('./types.js').PetStore['rename']} */
+    /** @type {PetStore['rename']} */
     const rename = async (fromName, toName) => {
       assertValidName(fromName);
       assertValidName(toName);
@@ -213,7 +213,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       // TODO consider retaining a backlog of overwritten names for recovery
     };
 
-    /** @type {import('./types.js').PetStore['reverseIdentify']} */
+    /** @type {PetStore['reverseIdentify']} */
     const reverseIdentify = formulaIdentifier => {
       assertValidId(formulaIdentifier);
       const formulaPetNames = idsToPetNames.getAllFor(formulaIdentifier);
@@ -239,7 +239,7 @@ export const makePetStoreMaker = (filePowers, config) => {
   };
 
   /**
-   * @type {import('./types.js').PetStorePowers['makeIdentifiedPetStore']}
+   * @type {PetStorePowers['makeIdentifiedPetStore']}
    */
   const makeIdentifiedPetStore = (
     formulaNumber,

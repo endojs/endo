@@ -2,6 +2,9 @@
 
 import { makePromiseKit } from '@endo/promise-kit';
 
+/** @import { PromiseKit } from '@endo/promise-kit' */
+/** @import { Context } from './types.js' */
+
 export const makeContextMaker = ({ controllerForId, provideController }) => {
   /**
    * @param {string} id
@@ -9,15 +12,11 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
   const makeContext = id => {
     let done = false;
     const { promise: cancelled, reject: rejectCancelled } =
-      /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
-        makePromiseKit()
-      );
+      /** @type {PromiseKit<never>} */ (makePromiseKit());
     const { promise: disposed, resolve: resolveDisposed } =
-      /** @type {import('@endo/promise-kit').PromiseKit<void>} */ (
-        makePromiseKit()
-      );
+      /** @type {PromiseKit<void>} */ (makePromiseKit());
 
-    /** @type {Map<string, import('./types.js').Context>} */
+    /** @type {Map<string, Context>} */
     const dependents = new Map();
     /** @type {Array<() => void>} */
     const hooks = [];
