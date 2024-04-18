@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, PeerInfo, ReadableBlobDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGuest, EndoHost, EvalDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, PeerInfo, ReadableBlobDeferredTaskParams, MarshalDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -29,6 +29,7 @@ const assertPowersName = name => {
  * @param {DaemonCore['formulateWorker']} args.formulateWorker
  * @param {DaemonCore['formulateHost']} args.formulateHost
  * @param {DaemonCore['formulateGuest']} args.formulateGuest
+ * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {DaemonCore['formulateEval']} args.formulateEval
  * @param {DaemonCore['formulateUnconfined']} args.formulateUnconfined
  * @param {DaemonCore['formulateBundle']} args.formulateBundle
@@ -46,6 +47,7 @@ export const makeHostMaker = ({
   formulateWorker,
   formulateHost,
   formulateGuest,
+  formulateMarshalValue,
   formulateEval,
   formulateUnconfined,
   formulateBundle,
@@ -121,6 +123,21 @@ export const makeHostMaker = ({
 
       const { value } = await formulateReadableBlob(readerRef, tasks);
       return value;
+    };
+
+    /** @type {EndoHost['storeValue']} */
+    const storeValue = async (value, petName) => {
+      /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+
+      if (petName !== undefined) {
+        assertPetName(petName);
+        tasks.push(identifiers =>
+          petStore.write(petName, identifiers.marshalId),
+        );
+      }
+
+      await formulateMarshalValue(value, tasks);
     };
 
     /**
@@ -616,6 +633,7 @@ export const makeHostMaker = ({
       send,
       // Host
       store,
+      storeValue,
       provideGuest,
       provideHost,
       provideWorker,

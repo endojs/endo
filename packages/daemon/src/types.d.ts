@@ -1,3 +1,4 @@
+import type { Passable } from '@endo/pass-style';
 import type { ERef } from '@endo/eventual-send';
 import type { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
@@ -107,6 +108,12 @@ type LeastAuthorityFormula = {
   type: 'least-authority';
 };
 
+type MarshalFormula = {
+  type: 'marshal';
+  body: any;
+  slots: Array<string>;
+};
+
 type EvalFormula = {
   type: 'eval';
   worker: string;
@@ -114,6 +121,11 @@ type EvalFormula = {
   names: Array<string>; // lexical names
   values: Array<string>; // formula identifiers
   // TODO formula slots
+};
+
+export type MarshalDeferredTaskParams = {
+  marshalFormulaNumber: string;
+  marshalId: string;
 };
 
 export type EvalDeferredTaskParams = {
@@ -216,6 +228,7 @@ export type Formula =
   | HostFormula
   | GuestFormula
   | LeastAuthorityFormula
+  | MarshalFormula
   | EvalFormula
   | ReadableBlobFormula
   | LookupFormula
@@ -555,6 +568,7 @@ export interface EndoHost extends EndoAgent {
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
   ): Promise<FarRef<EndoReadable>>;
+  storeValue<T>(value: T, petName: string): Promise<void>;
   provideGuest(
     petName?: string,
     opts?: MakeHostOrGuestOptions,
@@ -830,6 +844,11 @@ export interface DaemonCore {
   formulateEndo: (
     specifiedFormulaNumber: string,
   ) => FormulateResult<FarRef<EndoBootstrap>>;
+
+  formulateMarshalValue: (
+    value: Passable,
+    deferredTasks: DeferredTasks<MarshalDeferredTaskParams>,
+  ) => FormulateResult<void>;
 
   formulateEval: (
     nameHubId: string,

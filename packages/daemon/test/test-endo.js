@@ -11,6 +11,8 @@ import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
 import { E } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import bundleSource from '@endo/bundle-source';
 import {
@@ -251,6 +253,89 @@ test('lifecycle', async t => {
   await closed.catch(() => {});
 
   t.pass();
+});
+
+test('store pass-copy values', async t => {
+  const storedValue = harden({
+    array: [BigInt(1), 2, '🧙', true, false],
+    integer: BigInt(1),
+    float: 2,
+    string: '🐈‍⬛',
+    true: true,
+    false: false,
+  });
+
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    await E(host).storeValue(storedValue, 'value');
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const restoredValue = await E(host).lookup('value');
+    t.deepEqual(restoredValue, storedValue);
+  }
+});
+
+test('store formula values', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    await E(host).provideWorker('w1');
+    const counter = await E(host).evaluate(
+      'w1',
+      `
+        (() => {
+          let value = 0;
+          return makeExo(
+            'Counter',
+            M.interface('Counter', {}, { defaultGuards: 'passable' }),
+            {
+              incr: () => value += 1,
+              decr: () => value -= 1,
+            }
+          );
+        })();
+      `,
+      [],
+      [],
+      'temporary-retainer',
+    );
+    await E(host).storeValue(counter, 'counter');
+    await E(host).remove('temporary-retainer');
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const counter = await E(host).lookup('counter');
+    t.is(1, await E(counter).incr());
+    t.is(2, await E(counter).incr());
+  }
+
+  await restart(config);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const counter = await E(host).lookup('counter');
+    t.is(1, await E(counter).incr());
+    t.is(2, await E(counter).incr());
+  }
+});
+
+test('fail to store non-formula exos', async t => {
+  const noFormulaExo = makeExo('Exo', M.interface('Exo', {}), {});
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+  await t.throwsAsync(() => E(host).storeValue(noFormulaExo, 'exo'), {
+    message: 'No corresponding formula for (an object)',
+  });
 });
 
 test('spawn and evaluate', async t => {

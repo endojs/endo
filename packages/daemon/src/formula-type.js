@@ -17,6 +17,7 @@ const formulaTypes = new Set([
   'loopback-network',
   'make-bundle',
   'make-unconfined',
+  'marshal',
   'peer',
   'pet-inspector',
   'pet-store',
