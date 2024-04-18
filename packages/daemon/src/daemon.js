@@ -134,46 +134,31 @@ const makeDaemonCore = async (
   const localNodeId = deriveId('node', rootEntropy, cryptoPowers.makeSha512());
   console.log('Node', localNodeId);
 
-  const knownPeersFormulaNumber = deriveId(
-    'peers',
-    rootEntropy,
-    cryptoPowers.makeSha512(),
-  );
-  const knownPeersId = formatId({
-    number: knownPeersFormulaNumber,
-    node: localNodeId,
-  });
-  await persistencePowers.writeFormula(knownPeersFormulaNumber, {
+  /**
+   * @param {string} derivation
+   * @param {Formula} formula
+   */
+  const preformulate = async (derivation, formula) => {
+    const formulaId = deriveId(
+      derivation,
+      rootEntropy,
+      cryptoPowers.makeSha512(),
+    );
+    const id = formatId({
+      number: formulaId,
+      node: localNodeId,
+    });
+    await persistencePowers.writeFormula(formulaId, formula);
+    return { id, formulaId };
+  };
+
+  const { id: knownPeersId } = await preformulate('peers', {
     type: 'known-peers-store',
   });
-
-  // Prepare least authority formula
-  const leastAuthorityFormulaNumber = deriveId(
-    'none',
-    rootEntropy,
-    cryptoPowers.makeSha512(),
-  );
-  const leastAuthorityId = formatId({
-    number: leastAuthorityFormulaNumber,
-    node: localNodeId,
-  });
-  await persistencePowers.writeFormula(leastAuthorityFormulaNumber, {
+  const { id: leastAuthorityId } = await preformulate('least-authority', {
     type: 'least-authority',
   });
-
-  // Prepare main worker formula
-  const mainWorkerFormulaNumber = deriveId(
-    'main',
-    rootEntropy,
-    cryptoPowers.makeSha512(),
-  );
-  const mainWorkerId = formatId({
-    number: mainWorkerFormulaNumber,
-    node: localNodeId,
-  });
-  await persistencePowers.writeFormula(mainWorkerFormulaNumber, {
-    type: 'worker',
-  });
+  const { id: mainWorkerId } = await preformulate('main', { type: 'worker' });
 
   /** @type {Builtins} */
   const builtins = {
@@ -186,16 +171,7 @@ const makeDaemonCore = async (
     await Promise.all(
       Object.entries(specials).map(async ([specialName, makeFormula]) => {
         const formula = makeFormula(builtins);
-        const formulaNumber = deriveId(
-          specialName,
-          rootEntropy,
-          cryptoPowers.makeSha512(),
-        );
-        const id = formatId({
-          number: formulaNumber,
-          node: localNodeId,
-        });
-        await persistencePowers.writeFormula(formulaNumber, formula);
+        const { id } = await preformulate(specialName, formula);
         return [specialName, id];
       }),
     ),
