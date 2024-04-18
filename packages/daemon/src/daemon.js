@@ -137,6 +137,9 @@ const makeDaemonCore = async (
   const localNodeId = deriveId('node', rootEntropy, cryptoPowers.makeSha512());
   console.log('Node', localNodeId);
 
+  // We generate formulas for some entities that are presumed to exist
+  // because they are parts of the daemon's root object.
+
   /**
    * @param {string} derivation
    * @param {Formula} formula
@@ -180,9 +183,11 @@ const makeDaemonCore = async (
     ),
   );
 
+  // The following are the root state tables for the daemon.
+
   /**
    * The two functions "formulate" and "provide" share a responsibility for
-   * maintaining the memoization tables "controllerForId", "typeForId", and
+   * maintaining the memoization tables "controllerForId", "formulaForId", and
    * "idForRef".
    * "formulate" is used for creating and persisting new formulas, whereas
    * "provide" is used for "reincarnating" the values of stored formulas.
@@ -203,8 +208,11 @@ const makeDaemonCore = async (
   /** @type {WeakMap<{}, string>} */
   const agentIdForHandle = new WeakMap();
 
+  // The following are functions that manage that state.
+
   /** @param {string} id */
   const getFormulaForId = async id => {
+    // No synchronous preamble.
     await null;
 
     let formula = formulaForId.get(id);
@@ -244,6 +252,8 @@ const makeDaemonCore = async (
       provideController(id).value
     );
 
+  // The following concern connections to other daemons.
+
   const provideRemoteControl = makeRemoteControlProvider(localNodeId);
 
   /**
@@ -264,8 +274,8 @@ const makeDaemonCore = async (
     );
   };
 
-  // Gateway is equivalent to E's "nonce locator". It provides a value for
-  // a formula identifier to a remote client.
+  // Gateway is equivalent to E's "nonce locator".
+  // It provides a value for a formula identifier to a remote client.
   const localGateway = Far('Gateway', {
     /** @param {string} requestedId */
     provide: async requestedId => {
