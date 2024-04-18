@@ -40,7 +40,7 @@
     "@agoric/babel-generator": "^7.17.6",
     "@babel/parser": "^7.23.6",
     "@babel/traverse": "^7.23.6",
-    "@babel/types": "^7.23.6",
+    "@babel/types": "^7.24.0",
     "ses": "^1.4.1"
   },
   "devDependencies": {
