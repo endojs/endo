@@ -6,12 +6,13 @@
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { parseId, formatId } from './formula-identifier.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
+
+import { HostInterface } from './interfaces.js';
 
 const { quote: q } = assert;
 
@@ -631,18 +632,14 @@ export const makeHostMaker = ({
       accept,
     };
 
-    const hostExo = makeExo(
-      'EndoHost',
-      M.interface('EndoHost', {}, { defaultGuards: 'passable' }),
-      {
-        ...host,
-        /** @param {string} locator */
-        followLocatorNameChanges: locator =>
-          makeIteratorRef(host.followLocatorNameChanges(locator)),
-        followMessages: () => makeIteratorRef(host.followMessages()),
-        followNameChanges: () => makeIteratorRef(host.followNameChanges()),
-      },
-    );
+    const hostExo = makeExo('EndoHost', HostInterface, {
+      ...host,
+      /** @param {string} locator */
+      followLocatorNameChanges: locator =>
+        makeIteratorRef(host.followLocatorNameChanges(locator)),
+      followMessages: () => makeIteratorRef(host.followMessages()),
+      followNameChanges: () => makeIteratorRef(host.followNameChanges()),
+    });
 
     await provide(mainWorkerId, 'worker');
 

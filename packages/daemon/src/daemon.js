@@ -4,7 +4,6 @@
 /* global setTimeout, clearTimeout */
 
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
@@ -21,6 +20,18 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
+
+// Sorted:
+import {
+  DaemonFacetForWorkerInterface,
+  GuestInterface,
+  InspectorHubInterface,
+  InspectorInterface,
+  InvitationInterface,
+  WorkerInterface,
+  BlobInterface,
+  EndoInterface,
+} from './interfaces.js';
 
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
@@ -51,23 +62,15 @@ const delay = async (ms, cancelled) => {
  * @returns {EndoInspector} The inspector for the given formula.
  */
 const makeInspector = (type, number, record) =>
-  makeExo(
-    `Inspector (${type} ${number})`,
-    M.interface(
-      `Inspector (${type} ${number})`,
-      {},
-      { defaultGuards: 'passable' },
-    ),
-    {
-      lookup: async petName => {
-        if (!Object.hasOwn(record, petName)) {
-          return undefined;
-        }
-        return record[petName];
-      },
-      list: () => Object.keys(record),
+  makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
+    lookup: async petName => {
+      if (!Object.hasOwn(record, petName)) {
+        return undefined;
+      }
+      return record[petName];
     },
-  );
+    list: () => Object.keys(record),
+  });
 
 /**
  * @param {Context} context - The context to make far.
@@ -303,15 +306,10 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    */
-  const makeWorkerBootstrap = async workerId512 => {
-    // TODO validate workerId512
+  const makeDaemonFacetForWorker = async workerId512 => {
     return makeExo(
-      `Endo for worker ${workerId512}`,
-      M.interface(
-        `Endo for worker ${workerId512}`,
-        {},
-        { defaultGuards: 'passable' },
-      ),
+      `Endo facet for worker ${workerId512}`,
+      DaemonFacetForWorkerInterface,
       {},
     );
   };
@@ -321,8 +319,7 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makeIdentifiedWorker = async (workerId512, context) => {
-    // TODO validate workerId512
-    const daemonWorkerFacet = makeWorkerBootstrap(workerId512);
+    const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
       /** @type {PromiseKit<never>} */ (makePromiseKit());
@@ -355,11 +352,7 @@ const makeDaemonCore = async (
 
     context.onCancel(gracefulCancel);
 
-    const worker = makeExo(
-      'EndoWorker',
-      M.interface('EndoWorker', {}, { defaultGuards: 'passable' }),
-      {},
-    );
+    const worker = makeExo('EndoWorker', WorkerInterface, {});
 
     workerDaemonFacets.set(worker, workerDaemonFacet);
 
@@ -372,12 +365,16 @@ const makeDaemonCore = async (
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
     /** @type {FarRef<EndoReadable>} */
-    return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
-      sha512: () => sha512,
-      streamBase64,
-      text,
-      json,
-    });
+    return makeExo(
+      `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
+      BlobInterface,
+      {
+        sha512: () => sha512,
+        streamBase64,
+        text,
+        json,
+      },
+    );
   };
 
   /**
@@ -555,8 +552,7 @@ const makeDaemonCore = async (
     },
     endo: async ({ host: hostId, networks: networksId, peers: peersId }) => {
       /** @type {FarRef<EndoBootstrap>} */
-      const endoBootstrap = Far('Endo private facet', {
-        // TODO for user named
+      const endoBootstrap = makeExo('Endo', EndoInterface, {
         ping: async () => 'pong',
         terminate: async () => {
           cancel(new Error('Termination requested'));
@@ -595,31 +591,27 @@ const makeDaemonCore = async (
       };
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
-          makeExo(
-            'EndoGuest',
-            M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
-            {
-              has: disallowedFn,
-              identify: disallowedFn,
-              list: disallowedFn,
-              followNameChanges: disallowedFn,
-              lookup: disallowedFn,
-              reverseLookup: disallowedFn,
-              write: disallowedFn,
-              remove: disallowedFn,
-              move: disallowedFn,
-              copy: disallowedFn,
-              listMessages: disallowedFn,
-              followMessages: disallowedFn,
-              resolve: disallowedFn,
-              reject: disallowedFn,
-              adopt: disallowedFn,
-              dismiss: disallowedFn,
-              request: disallowedFn,
-              send: disallowedFn,
-              makeDirectory: disallowedFn,
-            },
-          )
+          makeExo('EndoGuest', GuestInterface, {
+            has: disallowedFn,
+            identify: disallowedFn,
+            list: disallowedFn,
+            followNameChanges: disallowedFn,
+            lookup: disallowedFn,
+            reverseLookup: disallowedFn,
+            write: disallowedFn,
+            remove: disallowedFn,
+            move: disallowedFn,
+            copy: disallowedFn,
+            listMessages: disallowedFn,
+            followMessages: disallowedFn,
+            resolve: disallowedFn,
+            reject: disallowedFn,
+            adopt: disallowedFn,
+            dismiss: disallowedFn,
+            request: disallowedFn,
+            send: disallowedFn,
+            makeDirectory: disallowedFn,
+          })
         )
       );
     },
@@ -1373,8 +1365,8 @@ const makeDaemonCore = async (
     return { id, value };
   };
 
-  /** @type {DaemonCore['formulateEndoBootstrap']} */
-  const formulateEndoBootstrap = async specifiedFormulaNumber => {
+  /** @type {DaemonCore['formulateEndo']} */
+  const formulateEndo = async specifiedFormulaNumber => {
     const identifiers = await formulaGraphJobs.enqueue(async () => {
       const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
       const endoId = formatId({
@@ -1537,11 +1529,7 @@ const makeDaemonCore = async (
       return provide(guestHandleId);
     };
 
-    return makeExo(
-      'Invitation',
-      M.interface('Invitation', {}, { defaultGuards: 'passable' }),
-      { accept, locate },
-    );
+    return makeExo('Invitation', InvitationInterface, { accept, locate });
   };
 
   const makeContext = makeContextMaker({
@@ -1681,21 +1669,17 @@ const makeDaemonCore = async (
     /** @returns {string[]} The list of all names in the pet store. */
     const list = () => petStore.list();
 
-    const info = makeExo(
-      'Endo inspector facet',
-      M.interface('Endo inspector facet', {}, { defaultGuards: 'passable' }),
-      {
-        lookup,
-        list,
-      },
-    );
+    const info = makeExo('EndoInspectorHub', InspectorHubInterface, {
+      lookup,
+      list,
+    });
 
     return info;
   };
 
   /** @type {DaemonCoreExternal} */
   return {
-    formulateEndoBootstrap,
+    formulateEndo,
     provide,
     nodeId: localNodeId,
   };
@@ -1733,7 +1717,7 @@ const provideEndoBootstrap = async (
       daemonCore.provide(endoId)
     );
   } else {
-    const { value: endoBootstrap } = await daemonCore.formulateEndoBootstrap(
+    const { value: endoBootstrap } = await daemonCore.formulateEndo(
       endoFormulaNumber,
     );
     return endoBootstrap;

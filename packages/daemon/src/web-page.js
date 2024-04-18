@@ -4,9 +4,11 @@
 import '@endo/init/debug.js';
 import { makeCapTP } from '@endo/captp';
 import { E, Far } from '@endo/far';
-import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
+import { makeExo } from '@endo/exo';
 import { importBundle } from '@endo/import-bundle';
+
+import { WebPageControllerInterface } from './interfaces/web.js';
 
 const getPrototypeChain = obj => {
   const chain = [];
@@ -81,28 +83,24 @@ const endowments = Object.freeze({
 const url = new URL(window.location.href);
 url.protocol = 'ws';
 
-const bootstrap = makeExo(
-  'WebFacet',
-  M.interface('WebFacet', {}, { defaultGuards: 'passable' }),
-  {
-    ping() {
-      console.log('received ping');
-      return 'pong';
-    },
-    async makeBundle(bundle, powers) {
-      const namespace = await importBundle(bundle, {
-        endowments,
-      });
-      return namespace.make(powers);
-    },
-    reject(message) {
-      document.body.innerHTML = '';
-      const $title = document.createElement('h1');
-      $title.innerText = `💔 ${message}`;
-      document.body.appendChild($title);
-    },
+const bootstrap = makeExo('EndoWebPageForServer', WebPageControllerInterface, {
+  ping() {
+    console.log('received ping');
+    return 'pong';
   },
-);
+  async makeBundle(bundle, powers) {
+    const namespace = await importBundle(bundle, {
+      endowments,
+    });
+    return namespace.make(powers);
+  },
+  reject(message) {
+    document.body.innerHTML = '';
+    const $title = document.createElement('h1');
+    $title.innerText = `💔 ${message}`;
+    document.body.appendChild($title);
+  },
+});
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

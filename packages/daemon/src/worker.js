@@ -6,6 +6,8 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeNetstringCapTP } from './connection.js';
 
+import { WorkerFacetForDaemonInterface } from './interfaces.js';
+
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoReadable, MignonicPowers } from './types.js' */
 
@@ -45,69 +47,65 @@ const normalizeFilePath = path => {
  * @param {(error: Error) => void} args.cancel
  */
 export const makeWorkerFacet = ({ cancel }) => {
-  return makeExo(
-    'EndoWorkerFacet',
-    M.interface('EndoWorkerFacet', {}, { defaultGuards: 'passable' }),
-    {
-      terminate: async () => {
-        console.error('Endo worker received terminate request');
-        cancel(Error('terminate'));
-      },
-
-      /**
-       * @param {string} source
-       * @param {Array<string>} names
-       * @param {Array<unknown>} values
-       * @param {string} $id
-       * @param {Promise<never>} $cancelled
-       */
-      evaluate: async (source, names, values, $id, $cancelled) => {
-        const compartment = new Compartment(
-          harden({
-            ...endowments,
-            $id,
-            $cancelled,
-            ...Object.fromEntries(
-              names.map((name, index) => [name, values[index]]),
-            ),
-          }),
-        );
-        return compartment.evaluate(source);
-      },
-
-      /**
-       * @param {string} specifier
-       * @param {Promise<unknown>} powersP
-       * @param {Promise<unknown>} contextP
-       */
-      makeUnconfined: async (specifier, powersP, contextP) => {
-        // Windows absolute path includes drive letter which is confused for
-        // protocol specifier. So, we reformat the specifier to include the
-        // file protocol.
-        const specifierUrl = normalizeFilePath(specifier);
-        const namespace = await import(specifierUrl);
-        return namespace.make(powersP, contextP);
-      },
-
-      /**
-       * @param {ERef<EndoReadable>} readableP
-       * @param {Promise<unknown>} powersP
-       * @param {Promise<unknown>} contextP
-       */
-      makeBundle: async (readableP, powersP, contextP) => {
-        const bundleText = await E(readableP).text();
-        const bundle = JSON.parse(bundleText);
-
-        // We defer importing the import-bundle machinery to this in order to
-        // avoid an up-front cost for workers that never use importBundle.
-        const { importBundle } = await import('@endo/import-bundle');
-        const namespace = await importBundle(bundle, {
-          endowments,
-        });
-        return namespace.make(powersP, contextP);
-      },
+  return makeExo('EndoWorkerFacetForDaemon', WorkerFacetForDaemonInterface, {
+    terminate: async () => {
+      console.error('Endo worker received terminate request');
+      cancel(Error('terminate'));
     },
-  );
+
+    /**
+     * @param {string} source
+     * @param {Array<string>} names
+     * @param {Array<unknown>} values
+     * @param {string} $id
+     * @param {Promise<never>} $cancelled
+     */
+    evaluate: async (source, names, values, $id, $cancelled) => {
+      const compartment = new Compartment(
+        harden({
+          ...endowments,
+          $id,
+          $cancelled,
+          ...Object.fromEntries(
+            names.map((name, index) => [name, values[index]]),
+          ),
+        }),
+      );
+      return compartment.evaluate(source);
+    },
+
+    /**
+     * @param {string} specifier
+     * @param {Promise<unknown>} powersP
+     * @param {Promise<unknown>} contextP
+     */
+    makeUnconfined: async (specifier, powersP, contextP) => {
+      // Windows absolute path includes drive letter which is confused for
+      // protocol specifier. So, we reformat the specifier to include the
+      // file protocol.
+      const specifierUrl = normalizeFilePath(specifier);
+      const namespace = await import(specifierUrl);
+      return namespace.make(powersP, contextP);
+    },
+
+    /**
+     * @param {ERef<EndoReadable>} readableP
+     * @param {Promise<unknown>} powersP
+     * @param {Promise<unknown>} contextP
+     */
+    makeBundle: async (readableP, powersP, contextP) => {
+      const bundleText = await E(readableP).text();
+      const bundle = JSON.parse(bundleText);
+
+      // We defer importing the import-bundle machinery to this in order to
+      // avoid an up-front cost for workers that never use importBundle.
+      const { importBundle } = await import('@endo/import-bundle');
+      const namespace = await importBundle(bundle, {
+        endowments,
+      });
+      return namespace.make(powersP, contextP);
+    },
+  });
 };
 
 /**

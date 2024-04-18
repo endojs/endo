@@ -2,9 +2,10 @@
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { formatLocator, idFromLocator } from './locator.js';
+
+import { DirectoryInterface } from './interfaces.js';
 
 const { quote: q } = assert;
 
@@ -255,17 +256,13 @@ export const makeDirectoryMaker = ({
     const petStore = await provide(petStoreId, 'pet-store');
     const directory = makeDirectoryNode(petStore);
 
-    return makeExo(
-      'EndoDirectory',
-      M.interface('EndoDirectory', {}, { defaultGuards: 'passable' }),
-      {
-        ...directory,
-        /** @param {string} locator */
-        followLocatorNameChanges: locator =>
-          makeIteratorRef(directory.followLocatorNameChanges(locator)),
-        followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
-      },
-    );
+    return makeExo('EndoDirectory', DirectoryInterface, {
+      ...directory,
+      /** @param {string} locator */
+      followLocatorNameChanges: locator =>
+        makeIteratorRef(directory.followLocatorNameChanges(locator)),
+      followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+    });
   };
 
   return { makeIdentifiedDirectory, makeDirectoryNode };
