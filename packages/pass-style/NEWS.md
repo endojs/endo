@@ -1,5 +1,11 @@
 User-visible changes in `@endo/pass-style`:
 
+# Next release
+
+- At https://chromium-review.googlesource.com/c/v8/v8/+/4459251 v8 changed their error `stack` property into an own accessor property with per-instance getters and setters. Because these getters and setters are fresh per error instance, on seeing such a property, we have no way to know whether the getter and setter is the platform-provided one, or one provided by an attacker. Thus, raw platform-created errors cannot be judged `Passable` until such problems are sanitized away. Either
+  - use `toPassableError` to coerce the error to a similar one that is passable
+  - use `makeError` from `@endo/errors` to directly make a passable error
+
 # v1.3.0 (2024-03-19)
 
 - Exports `isWellFormedString` and `assertWellFormedString`. Unfortunately the [standard `String.prototype.isWellFormed`](https://tc39.es/proposal-is-usv-string/) first coerces its input to string, leading it to claim that some non-strings are well-formed strings. By contrast, `isWellFormedString` and `assertWellFormedString` will not judge any non-strings to be well-formed strings.
