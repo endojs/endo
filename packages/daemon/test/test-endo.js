@@ -439,6 +439,21 @@ test('store with name', async t => {
   }
 });
 
+test('move renames value', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+
+  const originalNames = await E(host).list();
+  t.assert(originalNames.includes('ten'));
+
+  await E(host).move(['ten'], ['zehn']);
+
+  const newNames = await E(host).list();
+  t.assert(!newNames.includes('ten'));
+  t.assert(newNames.includes('zehn'));
+});
+
 test('closure state lost by restart', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
