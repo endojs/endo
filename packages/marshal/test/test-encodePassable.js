@@ -3,7 +3,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { fc } from '@fast-check/ava';
-import { Remotable } from '@endo/pass-style';
+import { Remotable, toPassableError } from '@endo/pass-style';
 import { arbPassable } from '@endo/pass-style/tools.js';
 import { Fail, q } from '@endo/errors';
 
@@ -199,7 +199,11 @@ test('capability encoding', t => {
     encodeError: (_err, encodeRecur) => forceSigil(encodeRecur(allAscii), '!'),
   };
 
-  const data = harden([Remotable(), new Promise(() => {}), Error('Foo')]);
+  const data = harden([
+    Remotable(),
+    new Promise(() => {}),
+    toPassableError(Error('Foo')),
+  ]);
   const decoders = Object.fromEntries(
     Object.keys(encoders).map((encoderName, i) => {
       const decoderName = encoderName.replace('encode', 'decode');

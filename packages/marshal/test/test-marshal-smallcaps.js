@@ -11,6 +11,7 @@ const {
   create,
   prototype: objectPrototype,
   getPrototypeOf,
+  defineProperty,
 } = Object;
 
 const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
@@ -425,6 +426,9 @@ test('smallcaps encoding examples', t => {
   const nonPassableErr = Error('foo');
   // @ts-expect-error this type error is what we're testing
   nonPassableErr.extraProperty = 'something bad';
+  // Ensure that `stack` is a data property even on v8, so it does not
+  // first cause a different error than we're trying to test here.
+  defineProperty(nonPassableErr, 'stack', { value: nonPassableErr.stack });
   harden(nonPassableErr);
   t.throws(() => passStyleOf(nonPassableErr), {
     message:

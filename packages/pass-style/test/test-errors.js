@@ -8,23 +8,43 @@ import {
   toPassableError,
 } from '../src/passStyleOf.js';
 
-test('style of extended errors', t => {
-  const e1 = Error('e1');
-  t.throws(() => passStyleOf(e1), {
-    message: 'Cannot pass non-frozen objects like "[Error: e1]". Use harden()',
+test('style of extended toPassableError errors', t => {
+  const e1a = Error('e1a');
+  t.throws(() => passStyleOf(e1a), {
+    message: 'Cannot pass non-frozen objects like "[Error: e1a]". Use harden()',
   });
-  harden(e1);
-  t.is(passStyleOf(e1), 'error');
+  const e1b = toPassableError(e1a);
+  t.is(passStyleOf(e1b), 'error');
 
-  const e2 = harden(Error('e2', { cause: e1 }));
+  const e2 = toPassableError(Error('e2', { cause: e1a }));
   t.is(passStyleOf(e2), 'error');
 
-  const u3 = harden(URIError('u3', { cause: e1 }));
+  const u3 = toPassableError(URIError('u3', { cause: e1a }));
   t.is(passStyleOf(u3), 'error');
 
   if (typeof AggregateError !== 'undefined') {
     // Conditional, to accommodate platforms prior to AggregateError
-    const a4 = harden(AggregateError([e2, u3], 'a4', { cause: e1 }));
+    const a4 = toPassableError(AggregateError([e2, u3], 'a4', { cause: e1a }));
+    t.is(passStyleOf(a4), 'error');
+  }
+});
+
+test('style of extended makeError errors', t => {
+  const e1 = makeError('e1c');
+  t.is(passStyleOf(e1), 'error');
+
+  const e2 = makeError('e2', Error, { cause: e1 });
+  t.is(passStyleOf(e2), 'error');
+
+  const u3 = makeError('u3', URIError, { cause: e1 });
+  t.is(passStyleOf(u3), 'error');
+
+  if (typeof AggregateError !== 'undefined') {
+    // Conditional, to accommodate platforms prior to AggregateError
+    const a4 = toPassableError('a4', AggregateError, {
+      cause: e1,
+      errors: [e2, u3],
+    });
     t.is(passStyleOf(a4), 'error');
   }
 });
@@ -47,10 +67,4 @@ test('toPassableError rejects unfrozen errors', t => {
 
   t.true(Object.isFrozen(e2));
   t.true(isPassable(e2));
-
-  // May not be true on all platforms, depending on what "extraneous"
-  // properties the host added to the error before `makeError` returned it.
-  // If this fails, please let us know. See the doccomment on the
-  // `sanitizeError` function is the ses-shim's `assert.js`.
-  t.is(e, e2);
 });

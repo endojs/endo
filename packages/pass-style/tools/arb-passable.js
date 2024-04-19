@@ -1,4 +1,5 @@
 // @ts-check
+import { makeError } from '@endo/errors';
 import '../src/types.js';
 import { fc } from '@fast-check/ava';
 import { Far } from '../src/make-far.js';
@@ -31,7 +32,7 @@ export const arbLeaf = fc.oneof(
   fc.constantFrom(-0, NaN, Infinity, -Infinity),
   fc.record({}),
   fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
-  arbString.map(s => Error(s)),
+  arbString.map(s => makeError(s)),
   // unresolved promise
   fc.constant(new Promise(() => {})),
 );

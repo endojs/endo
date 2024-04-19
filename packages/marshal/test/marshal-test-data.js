@@ -1,4 +1,4 @@
-import { makeTagged } from '@endo/pass-style';
+import { makeTagged, toPassableError } from '@endo/pass-style';
 import {
   exampleAlice,
   exampleBob,
@@ -80,7 +80,7 @@ export const roundTripPairs = harden([
 
   // errors
   [
-    Error(),
+    toPassableError(Error()),
     {
       '@qclass': 'error',
       message: '',
@@ -88,7 +88,7 @@ export const roundTripPairs = harden([
     },
   ],
   [
-    ReferenceError('msg'),
+    toPassableError(ReferenceError('msg')),
     {
       '@qclass': 'error',
       message: 'msg',
@@ -96,7 +96,7 @@ export const roundTripPairs = harden([
     },
   ],
   [
-    ReferenceError('#msg'),
+    toPassableError(ReferenceError('#msg')),
     {
       '@qclass': 'error',
       message: '#msg',
@@ -265,7 +265,7 @@ export const unsortedSample = harden([
   exampleAlice,
   [],
   Symbol.for('foo'),
-  Error('not erroneous'),
+  toPassableError(Error('not erroneous')),
   Symbol.for('@@foo'),
   [5, { bar: 5 }],
   Symbol.for(''),
@@ -300,7 +300,7 @@ export const unsortedSample = harden([
   [Promise.resolve(null)],
 ]);
 
-const rejectedP = Promise.reject(Error('broken'));
+const rejectedP = Promise.reject(toPassableError(Error('broken')));
 rejectedP.catch(() => {}); // Suppress unhandled rejection warning/error
 
 /**
@@ -308,7 +308,7 @@ rejectedP.catch(() => {}); // Suppress unhandled rejection warning/error
  */
 export const sortedSample = harden([
   // All errors are tied.
-  Error('different'),
+  toPassableError(Error('different')),
 
   {},
 

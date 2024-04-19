@@ -1,9 +1,9 @@
 /* eslint-disable max-classes-per-file */
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import { q } from '@endo/errors';
+import { q, makeError } from '@endo/errors';
 
-import { passStyleOf } from '../src/passStyleOf.js';
+import { passStyleOf, toPassableError } from '../src/passStyleOf.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
@@ -28,7 +28,8 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
   t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
-  t.is(passStyleOf(harden(Error('ok'))), 'error');
+  t.is(passStyleOf(makeError('ok')), 'error');
+  t.is(passStyleOf(toPassableError(Error('ok'))), 'error');
 });
 
 test('some passStyleOf rejections', t => {
@@ -415,7 +416,10 @@ test('Unexpected stack on errors', t => {
   }
 
   const carrierStack = {};
-  err.stack = carrierStack;
+  // Don't use assignment by itself, because on v8 that might leave
+  // stack as an accessor property, which would first cause a different
+  // that we're not testing here because it is platform dependent.
+  defineProperty(err, 'stack', { value: carrierStack });
   Object.freeze(err);
 
   t.throws(() => passStyleOf(err), {
