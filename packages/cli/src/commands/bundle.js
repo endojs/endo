@@ -27,6 +27,6 @@ export const bundleCommand = async ({
   const bundleBytes = textEncoder.encode(bundleText);
   const readerRef = makeReaderRef([bundleBytes]);
   return withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    await E(agent).store(readerRef, bundleName);
+    await E(agent).storeBlob(readerRef, bundleName);
   });
 };

@@ -59,7 +59,7 @@ export const makeCommand = async ({
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     // Prepare a bundle, with the given name.
     if (bundleReaderRef !== undefined) {
-      await E(agent).store(bundleReaderRef, bundleName);
+      await E(agent).storeBlob(bundleReaderRef, bundleName);
     }
 
     const resultP =

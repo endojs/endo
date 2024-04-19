@@ -172,7 +172,7 @@ const doMakeBundle = async (host, filePath, callback) => {
   const bundleBytes = textEncoder.encode(bundleText);
   const bundleReaderRef = makeReaderRef([bundleBytes]);
 
-  await E(host).store(bundleReaderRef, bundleName);
+  await E(host).storeBlob(bundleReaderRef, bundleName);
   const result = await callback(bundleName);
   await E(host).remove(bundleName);
   return result;
@@ -415,7 +415,7 @@ test('store without name', async t => {
   const { host } = await prepareHost(t);
 
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-  const readable = await E(host).store(readerRef);
+  const readable = await E(host).storeBlob(readerRef);
   const actualText = await E(readable).text();
   t.is(actualText, 'hello\n');
 });
@@ -426,7 +426,7 @@ test('store with name', async t => {
   {
     const { host } = await makeHost(config, cancelled);
     const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-    const readable = await E(host).store(readerRef, 'hello-text');
+    const readable = await E(host).storeBlob(readerRef, 'hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
@@ -1384,7 +1384,7 @@ test('list special names', async t => {
   const { host } = await prepareHost(t);
 
   const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-  await E(host).store(readerRef, 'hello-text');
+  await E(host).storeBlob(readerRef, 'hello-text');
 
   /** @type {string[]} */
   const names = await E(host).list();

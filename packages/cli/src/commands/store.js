@@ -13,6 +13,6 @@ export const store = async ({ storablePath, name, agentNames }) => {
   const reader = makeNodeReader(nodeReadStream);
   const readerRef = makeReaderRef(reader);
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    await E(agent).store(readerRef, name);
+    await E(agent).storeBlob(readerRef, name);
   });
 };

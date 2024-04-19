@@ -564,7 +564,7 @@ export interface EndoGuest extends EndoAgent {}
 export type FarEndoGuest = FarRef<EndoGuest>;
 
 export interface EndoHost extends EndoAgent {
-  store(
+  storeBlob(
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
   ): Promise<FarRef<EndoReadable>>;
