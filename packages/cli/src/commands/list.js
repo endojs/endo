@@ -2,10 +2,10 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';
-import { withEndoHost } from '../context.js';
+import { withEndoAgent } from '../context.js';
 
-export const list = async ({ directoryPath, follow, json }) =>
-  withEndoHost({ os, process }, async ({ host: agent }) => {
+export const list = async ({ directoryPath, follow, json, agentNames }) =>
+  withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     if (directoryPath !== undefined) {
       agent = E(agent).lookup(...directoryPath.split('.'));
     }
