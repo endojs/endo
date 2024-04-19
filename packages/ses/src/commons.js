@@ -133,7 +133,7 @@ export const { prototype: weakmapPrototype } = WeakMap;
 export const { prototype: weaksetPrototype } = WeakSet;
 export const { prototype: functionPrototype } = Function;
 export const { prototype: promisePrototype } = Promise;
-// eslint-disable-next-line no-empty-function
+// eslint-disable-next-line no-empty-function, func-names
 export const { prototype: iteratorPrototype } = getPrototypeOf(function* () {});
 
 export const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
