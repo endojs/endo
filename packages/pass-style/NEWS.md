@@ -2,7 +2,7 @@ User-visible changes in `@endo/pass-style`:
 
 # Next release
 
-- At https://chromium-review.googlesource.com/c/v8/v8/+/4459251 v8 changed their error `stack` property into an own accessor property with per-instance getters and setters. Because these getters and setters are fresh per error instance, on seeing such a property, we have no way to know whether the getter and setter is the platform-provided one, or one provided by an attacker. Thus, raw platform-created errors cannot be judged `Passable` until such problems are sanitized away. Either
+- At https://chromium-review.googlesource.com/c/v8/v8/+/4459251 v8 changed their error `stack` property into an own accessor property with per-instance getters and setters. Thus, raw platform-created errors cannot be judged `Passable` until such problems are sanitized away. Either
   - use `toPassableError` to coerce the error to a similar one that is passable
   - use `makeError` from `@endo/errors` to directly make a passable error
 
