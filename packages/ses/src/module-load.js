@@ -6,6 +6,7 @@
 // module's "imports" with the more specific "resolvedImports" as inferred from
 // the particular compartment's "resolveHook".
 
+import { getEnvironmentOption as getenv } from '@endo/env-options';
 import {
   ReferenceError,
   TypeError,
@@ -362,14 +363,15 @@ function asyncOverseer() {
  * @param {object} options
  * @param {Array<Error>} options.errors
  * @param {string} options.errorPrefix
- * @param {boolean} [options.debug]
  */
-function throwAggregateError({ errors, errorPrefix, debug = false }) {
+function throwAggregateError({ errors, errorPrefix }) {
   // Throw an aggregate error if there were any errors.
   if (errors.length > 0) {
+    const verbose =
+      getenv('COMPARTMENT_LOAD_ERRORS', '', ['verbose']) === 'verbose';
     throw TypeError(
       `${errorPrefix} (${errors.length} underlying failures: ${arrayJoin(
-        arrayMap(errors, error => (debug ? error.stack : error.message)),
+        arrayMap(errors, error => error.message + (verbose ? error.stack : '')),
         ', ',
       )}`,
     );
@@ -420,7 +422,6 @@ export const load = async (
     errorPrefix: `Failed to load ${q(moduleSpecifier)} in compartment ${q(
       compartmentName,
     )}`,
-    debug: true,
   });
 };
 
@@ -471,6 +472,5 @@ export const loadNow = (
     errorPrefix: `Failed to load ${q(moduleSpecifier)} in compartment ${q(
       compartmentName,
     )}`,
-    debug: true,
   });
 };
