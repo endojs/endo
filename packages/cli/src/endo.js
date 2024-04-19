@@ -297,13 +297,14 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('rename <from> <to>')
+    .command('move <from> <to>')
+    .alias('mv')
     .description('change the name for a value')
     .option(...commonOptions.as)
-    .action(async (fromName, toName, cmd) => {
+    .action(async (fromPath, toPath, cmd) => {
       const { as: agentNames } = cmd.opts();
-      const { rename } = await import('./commands/rename.js');
-      return rename({ fromName, toName, agentNames });
+      const { move } = await import('./commands/move.js');
+      return move({ fromPath, toPath, agentNames });
     });
 
   program
