@@ -23,6 +23,8 @@ import {
   promiseThen,
   values,
   weakmapGet,
+  iteratorNext,
+  iteratorThrow,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -33,27 +35,27 @@ const noop = () => {};
 async function asyncTrampoline(generatorFunc, args, errorWrapper) {
   // TODO: add iterator prototype methods to commons
   const iterator = generatorFunc(...args);
-  let result = iterator.next();
+  let result = iteratorNext(iterator);
   while (!result.done) {
     try {
       // eslint-disable-next-line no-await-in-loop
       const val = await result.value;
-      result = iterator.next(val);
+      result = iteratorNext(iterator, val);
     } catch (error) {
-      result = iterator.throw(errorWrapper(error));
+      result = iteratorThrow(iterator, errorWrapper(error));
     }
   }
   return result.value;
 }
 
 function syncTrampoline(generatorFunc, args) {
-  let iterator = generatorFunc(...args);
-  let result = iterator.next();
+  const iterator = generatorFunc(...args);
+  let result = iteratorNext(iterator);
   while (!result.done) {
     try {
-      result = iterator.next(result.value);
+      result = iteratorNext(iterator, result.value);
     } catch (error) {
-      result = iterator.throw(error); 
+      result = iteratorThrow(iterator, error);
     }
   }
   return result.value;
@@ -322,27 +324,31 @@ const memoizedLoadWithErrorAnnotation = (
 
 function asyncOverseer() {
   /** @type {Set<Promise<undefined>>} */
-  const pendingJobs = new Set(); // TODO: why is this a Set? Order seems to matter and duplicates don't seem possible
+  const pendingJobs = new Set();
   /** @type {Array<Error>} */
   const errors = [];
 
+  /**
+   * Enqueues a job that starts immediately but won't be awaited until drainQueue is called.
+   *
+   * @template {any[]} T
+   * @param {(...args: T)=>Promise<*>} func
+   * @param {T} args
+   */
   const enqueueJob = (func, args) => {
     setAdd(
       pendingJobs,
-      // WARNING: synchronously thrown errors will not be captured. That's
-      // deliberate - synchronous errors are not loading errors that are
-      // worth aggregating, they're implementation errors we want them
-      // thrown immedaitely.
       promiseThen(func(...args), noop, error => {
-        // TODO: wrapping func instead of passing noop to then might be more performant for ensuring nothing usable is returned
         arrayPush(errors, error);
       }),
     );
   };
+  /**
+   * Sequentially awaits pending jobs and returns an array of errors
+   *
+   * @returns {Promise<Array<Error>>}
+   */
   const drainQueue = async () => {
-    // Each job is a promise for undefined, regardless of success or failure.
-    // Before we add a job to the queue, we catch any error and push it into the
-    // `errors` accumulator.
     for (const job of pendingJobs) {
       // eslint-disable-next-line no-await-in-loop
       await job;
@@ -352,6 +358,12 @@ function asyncOverseer() {
   return { enqueueJob, drainQueue };
 }
 
+/**
+ * @param {object} options
+ * @param {Array<Error>} options.errors
+ * @param {string} options.errorPrefix
+ * @param {boolean} [options.debug]
+ */
 function throwAggregateError({ errors, errorPrefix, debug = false }) {
   // Throw an aggregate error if there were any errors.
   if (errors.length > 0) {
@@ -363,6 +375,9 @@ function throwAggregateError({ errors, errorPrefix, debug = false }) {
     );
   }
 }
+
+const preferSync = (_asyncImpl, syncImpl) => syncImpl;
+const preferAsync = (asyncImpl, _syncImpl) => asyncImpl;
 
 /*
  * `load` asynchronously gathers the `StaticModuleRecord`s for a module and its
@@ -393,7 +408,7 @@ export const load = async (
     compartment,
     moduleSpecifier,
     enqueueJob,
-    (asyncImpl, _syncImpl) => asyncImpl,
+    preferAsync,
     moduleLoads,
   ]);
 
@@ -410,13 +425,13 @@ export const load = async (
 };
 
 /*
- * `loadSync` synchronously gathers the `StaticModuleRecord`s for a module and its
+ * `loadNow` synchronously gathers the `StaticModuleRecord`s for a module and its
  * transitive dependencies.
  * The module records refer to each other by a reference to the dependency's
  * compartment and the specifier of the module within its own compartment.
  * This graph is then ready to be synchronously linked and executed.
  */
-export const loadSync = (
+export const loadNow = (
   compartmentPrivateFields,
   moduleAliases,
   compartment,
@@ -447,7 +462,7 @@ export const loadSync = (
     compartment,
     moduleSpecifier,
     enqueueJob,
-    (_asyncImpl, syncImpl) => syncImpl,
+    preferSync,
     moduleLoads,
   ]);
 

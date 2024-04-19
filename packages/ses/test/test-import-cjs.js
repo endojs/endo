@@ -526,7 +526,6 @@ test('export name as default from CommonJS module', async t => {
   await compartment.import('./main.js');
 });
 
-
 test('synchronous loading via importNowHook', async t => {
   t.plan(1);
 
@@ -561,7 +560,7 @@ test('synchronous loading via importNowHook', async t => {
     {},
     {
       resolveHook: resolveNode,
-      importHook: async ()=>{},
+      importHook: async () => {},
       importNowHook,
     },
   );
