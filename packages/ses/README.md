@@ -387,7 +387,7 @@ const odd = new Compartment({}, {}, {
 ### importNowHook
 
 Additionally, an `importNowHook` may be provided that the compartment will use as means to synchronously load modules not seen before in situations where calling out to asynchronous `importHook` is not possible.
-Specifically, when `compartmentInstance.importNow('specifier')` is called, the compartment will first look up module records it's already aware of and call `moduleMapHook` and if none of that is successful in finding a module record matching the specifier, it will call `importNowHook` expecting to synchronously receive the same record type as from `importHook`
+Specifically, when `compartmentInstance.importNow('specifier')` is called, the compartment will first look up module records it's already aware of and call `moduleMapHook` and if none of that is successful in finding a module record matching the specifier, it will call `importNowHook` expecting to synchronously receive the same record type as from `importHook` or throw if it cannot.
 
 ```js
 import 'ses';

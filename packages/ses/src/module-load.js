@@ -24,8 +24,8 @@ import {
   promiseThen,
   values,
   weakmapGet,
-  iteratorNext,
-  iteratorThrow,
+  generatorNext,
+  generatorThrow,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -34,16 +34,15 @@ const { Fail, details: d, quote: q } = assert;
 const noop = () => {};
 
 async function asyncTrampoline(generatorFunc, args, errorWrapper) {
-  // TODO: add iterator prototype methods to commons
   const iterator = generatorFunc(...args);
-  let result = iteratorNext(iterator);
+  let result = generatorNext(iterator);
   while (!result.done) {
     try {
       // eslint-disable-next-line no-await-in-loop
       const val = await result.value;
-      result = iteratorNext(iterator, val);
+      result = generatorNext(iterator, val);
     } catch (error) {
-      result = iteratorThrow(iterator, errorWrapper(error));
+      result = generatorThrow(iterator, errorWrapper(error));
     }
   }
   return result.value;
@@ -51,12 +50,12 @@ async function asyncTrampoline(generatorFunc, args, errorWrapper) {
 
 function syncTrampoline(generatorFunc, args) {
   const iterator = generatorFunc(...args);
-  let result = iteratorNext(iterator);
+  let result = generatorNext(iterator);
   while (!result.done) {
     try {
-      result = iteratorNext(iterator, result.value);
+      result = generatorNext(iterator, result.value);
     } catch (error) {
-      result = iteratorThrow(iterator, error);
+      result = generatorThrow(iterator, error);
     }
   }
   return result.value;
@@ -323,7 +322,7 @@ const memoizedLoadWithErrorAnnotation = (
   return moduleLoading;
 };
 
-function asyncOverseer() {
+function asyncJobQueue() {
   /** @type {Set<Promise<undefined>>} */
   const pendingJobs = new Set();
   /** @type {Array<Error>} */
@@ -402,7 +401,7 @@ export const load = async (
   /** @type {Map<object, Map<string, Promise<Record<any, any>>>>} */
   const moduleLoads = new Map();
 
-  const { enqueueJob, drainQueue } = asyncOverseer();
+  const { enqueueJob, drainQueue } = asyncJobQueue();
 
   enqueueJob(memoizedLoadWithErrorAnnotation, [
     compartmentPrivateFields,
@@ -419,7 +418,7 @@ export const load = async (
 
   throwAggregateError({
     errors,
-    errorPrefix: `Failed to load ${q(moduleSpecifier)} in compartment ${q(
+    errorPrefix: `Failed to load module ${q(moduleSpecifier)} in package ${q(
       compartmentName,
     )}`,
   });
@@ -469,7 +468,7 @@ export const loadNow = (
 
   throwAggregateError({
     errors,
-    errorPrefix: `Failed to load ${q(moduleSpecifier)} in compartment ${q(
+    errorPrefix: `Failed to load module ${q(moduleSpecifier)} in package ${q(
       compartmentName,
     )}`,
   });

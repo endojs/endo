@@ -133,8 +133,10 @@ export const { prototype: weakmapPrototype } = WeakMap;
 export const { prototype: weaksetPrototype } = WeakSet;
 export const { prototype: functionPrototype } = Function;
 export const { prototype: promisePrototype } = Promise;
-// eslint-disable-next-line no-empty-function, func-names
-export const { prototype: iteratorPrototype } = getPrototypeOf(function* () {});
+export const { prototype: generatorPrototype } = getPrototypeOf(
+  // eslint-disable-next-line no-empty-function, func-names
+  function* () {},
+);
 
 export const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
 
@@ -193,9 +195,8 @@ export const stringEndsWith = uncurryThis(stringPrototype.endsWith);
 export const stringIncludes = uncurryThis(stringPrototype.includes);
 export const stringIndexOf = uncurryThis(stringPrototype.indexOf);
 export const stringMatch = uncurryThis(stringPrototype.match);
-//
-export const iteratorNext = uncurryThis(iteratorPrototype.next);
-export const iteratorThrow = uncurryThis(iteratorPrototype.throw);
+export const generatorNext = uncurryThis(generatorPrototype.next);
+export const generatorThrow = uncurryThis(generatorPrototype.throw);
 
 /**
  * @type { &
