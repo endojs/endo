@@ -384,6 +384,41 @@ const odd = new Compartment({}, {}, {
 });
 ```
 
+### importNowHook
+
+Additionally, an `importNowHook` may be provided that the compartment will use as means to synchronously load modules not seen before in situations where calling out to asynchronous `importHook` is not possible.
+Specifically, when `compartmentInstance.importNow('specifier')` is called, the compartment will first look up module records it's already aware of and call `moduleMapHook` and if none of that is successful in finding a module record matching the specifier, it will call `importNowHook` expecting to synchronously receive the same record type as from `importHook`
+
+```js
+import 'ses';
+import { StaticModuleRecord } from '@endo/static-module-record';
+
+const c1 = new Compartment({}, {
+  'c2': c2.module('./main.js'),
+}, {
+  name: "first compartment",
+  resolveHook: (moduleSpecifier, moduleReferrer) => {
+    return resolve(moduleSpecifier, moduleReferrer);
+  },
+  importHook: async moduleSpecifier => {
+    const moduleLocation = locate(moduleSpecifier);
+    const moduleText = await retrieve(moduleLocation);
+    return new StaticModuleRecord(moduleText, moduleLocation);
+  },
+  importNowHook: moduleSpecifier => {
+    const moduleLocation = locate(moduleSpecifier);
+    // Platform specific synchronous read API can be used
+    const moduleText = fs.readFileSync(moduleLocation);
+    return new StaticModuleRecord(moduleText, moduleLocation);
+  },
+});
+//...                   | importHook | importNowHook
+await c1.import('a'); //| called     | not called
+c1.importNow('b');    //| not called | called
+c1.importNow('a');    //| not called | not called
+c1.importNow('c2');   //| not called | not called
+```
+
 ### Third-party modules
 
 To incorporate modules not implemented as JavaScript modules, third-parties may
