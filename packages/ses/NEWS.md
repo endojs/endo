@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+# Next release
+
+- `importNowHook` has been added to the `Compartment` options. The hook will be invoked whenever a yet not loaded module is attempted to be synchronously imported via `compartmentInstance.importNow(specifier)`
+
 # v1.3.0 (2024-02-22)
 
 - Now supports `Promise.any`, `AggegateError`, `error.errors`,
