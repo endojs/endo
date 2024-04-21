@@ -416,12 +416,11 @@ test('Unexpected stack on errors', t => {
 
   const carrierStack = {};
   err.stack = carrierStack;
-  Object.freeze(err);
+  harden(err);
 
   t.throws(() => passStyleOf(err), {
     message: 'Passable Error "stack" own property must be a string: {}',
   });
-  err.stack.foo = 42;
 });
 
 test('Allow toStringTag overrides', t => {
