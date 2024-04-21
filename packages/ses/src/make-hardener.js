@@ -49,6 +49,8 @@ import {
   weakmapSet,
   weaksetAdd,
   weaksetHas,
+  FERAL_STACK_GETTER,
+  isError,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -174,7 +176,7 @@ export const makeHardener = () => {
       /**
        * @param {any} obj
        */
-      function freezeAndTraverse(obj) {
+      const baseFreezeAndTraverse = obj => {
         // Now freeze the object to ensure reactive
         // objects such as proxies won't add properties
         // during traversal, before they get frozen.
@@ -218,21 +220,53 @@ export const makeHardener = () => {
             enqueue(desc.set, `${pathname}(set)`);
           }
         });
-      }
+      };
 
-      function dequeue() {
+      const freezeAndTraverse =
+        FERAL_STACK_GETTER === undefined
+          ? // On platforms without v8's error own stack accessor problem,
+            // don't pay for any extra overhead.
+            baseFreezeAndTraverse
+          : obj => {
+              if (isError(obj)) {
+                // Only pay the overhead if it first passes this cheap isError
+                // check. Otherwise, it will be unrepaired, but won't be judged
+                // to be a passable error anyway, so will not be unsafe.
+                const stackDesc = getOwnPropertyDescriptor(obj, 'stack');
+                if (
+                  stackDesc &&
+                  stackDesc.get === FERAL_STACK_GETTER &&
+                  stackDesc.configurable
+                ) {
+                  // Can only repair if it is configurable. Otherwise, leave
+                  // unrepaired, in which case it will not be judged passable,
+                  // avoiding a safety problem.
+                  defineProperty(obj, 'stack', {
+                    // NOTE: Calls getter during harden, which seems dangerous.
+                    // But we're only calling the problematic getter whose
+                    // hazards we think we understand.
+                    // @ts-expect-error TS should know FERAL_STACK_GETTER
+                    // cannot be `undefined` here.
+                    value: apply(FERAL_STACK_GETTER, obj, []),
+                  });
+                }
+              }
+              return baseFreezeAndTraverse(obj);
+            };
+
+      const dequeue = () => {
         // New values added before forEach() has finished will be visited.
         setForEach(toFreeze, freezeAndTraverse);
-      }
+      };
 
       /** @param {any} value */
-      function markHardened(value) {
+      const markHardened = value => {
         weaksetAdd(hardened, value);
-      }
+      };
 
-      function commit() {
+      const commit = () => {
         setForEach(toFreeze, markHardened);
-      }
+      };
 
       enqueue(root);
       dequeue();
