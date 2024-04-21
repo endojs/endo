@@ -25,7 +25,6 @@ import {
   Set,
   String,
   TypeError,
-  WeakMap,
   WeakSet,
   globalThis,
   apply,
@@ -45,8 +44,6 @@ import {
   setHas,
   toStringTagSymbol,
   typedArrayPrototype,
-  weakmapGet,
-  weakmapSet,
   weaksetAdd,
   weaksetHas,
   FERAL_STACK_GETTER,
@@ -147,15 +144,13 @@ export const makeHardener = () => {
      */
     harden(root) {
       const toFreeze = new Set();
-      const paths = new WeakMap();
 
       // If val is something we should be freezing but aren't yet,
       // add it to toFreeze.
       /**
        * @param {any} val
-       * @param {string} [path]
        */
-      function enqueue(val, path = undefined) {
+      function enqueue(val) {
         if (!isObject(val)) {
           // ignore primitives
           return;
@@ -171,7 +166,6 @@ export const makeHardener = () => {
         }
         // console.warn(`adding ${val} to toFreeze`, val);
         setAdd(toFreeze, val);
-        weakmapSet(paths, val, path);
       }
 
       /**
@@ -196,13 +190,11 @@ export const makeHardener = () => {
 
         // get stable/immutable outbound links before a Proxy has a chance to do
         // something sneaky.
-        const path = weakmapGet(paths, obj) || 'unknown';
         const descs = getOwnPropertyDescriptors(obj);
         const proto = getPrototypeOf(obj);
-        enqueue(proto, `${path}.__proto__`);
+        enqueue(proto);
 
         arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
-          const pathname = `${path}.${String(name)}`;
           // The 'name' may be a symbol, and TypeScript doesn't like us to
           // index arbitrary symbols on objects, so we pretend they're just
           // strings.
@@ -215,10 +207,10 @@ export const makeHardener = () => {
           // whether 'value' is present or not, which tells us for sure that
           // this is a data property.
           if (objectHasOwnProperty(desc, 'value')) {
-            enqueue(desc.value, `${pathname}`);
+            enqueue(desc.value);
           } else {
-            enqueue(desc.get, `${pathname}(get)`);
-            enqueue(desc.set, `${pathname}(set)`);
+            enqueue(desc.get);
+            enqueue(desc.set);
           }
         });
       };
