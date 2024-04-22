@@ -154,9 +154,7 @@ export interface AssertMakeErrorOptions {
   sanitize?: boolean;
 }
 
-// Type all the overloads of the assertTypeof function.
-// There may eventually be a better way to do this, but
-// thems the breaks with Typescript 4.0.
+// TODO inline overloading
 
 type AssertTypeofBigint = (
   specimen: any,
