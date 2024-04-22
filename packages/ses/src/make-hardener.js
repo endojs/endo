@@ -247,6 +247,7 @@ export const makeHardener = () => {
                     // hazards we think we understand.
                     // @ts-expect-error TS should know FERAL_STACK_GETTER
                     // cannot be `undefined` here.
+                    // See https://github.com/endojs/endo/pull/2232#discussion_r1575179471
                     value: apply(FERAL_STACK_GETTER, obj, []),
                   });
                 }
