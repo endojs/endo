@@ -224,7 +224,7 @@ export const makeHardener = () => {
       };
 
       const freezeAndTraverse =
-        (FERAL_STACK_GETTER === undefined && FERAL_STACK_SETTER === undefined)
+        FERAL_STACK_GETTER === undefined && FERAL_STACK_SETTER === undefined
           ? // On platforms without v8's error own stack accessor problem,
             // don't pay for any extra overhead.
             baseFreezeAndTraverse
