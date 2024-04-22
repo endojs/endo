@@ -321,8 +321,8 @@ if (er1StackDesc && er2StackDesc && er1StackDesc.get) {
     // Otherwise, we have own stack accessor properties that are outside
     // our expectations, that therefore need to be understood better
     // before we know how to repair them.
-    feralStackGetter = er1StackDesc.get;
-    feralStackSetter = er1StackDesc.set;
+    feralStackGetter = freeze(er1StackDesc.get);
+    feralStackSetter = freeze(er1StackDesc.set);
   } else {
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR.md
     throw TypeError(
