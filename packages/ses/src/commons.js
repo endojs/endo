@@ -324,7 +324,10 @@ if (er1StackDesc && er2StackDesc && er1StackDesc.get) {
     feralStackGetter = er1StackDesc.get;
     feralStackSetter = er1StackDesc.set;
   } else {
-    throw TypeError('Error own stack accessor functions not as expected');
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR.md
+    throw TypeError(
+      'Unexpected Error own stack accessor functions (SES_UNEXPECTED_ERROR_OWN_STACK_ACCESSOR)',
+    );
   }
 }
 
