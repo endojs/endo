@@ -15,7 +15,7 @@ import { X } from '@endo/errors';
 /**
  * @import {Passable} from '@endo/pass-style'
  * @import {Checker} from '@endo/marshal'
- * @import {CopySet, FullCompare} from '../types.js'
+ * @import {CopySet, FullCompare, Key} from '../types.js'
  */
 
 /**
@@ -89,7 +89,7 @@ export const assertElements = elements => {
 harden(assertElements);
 
 /**
- * @template {import('../types.js').Key} K
+ * @template {Key} K
  * @param {Iterable<K>} elementsList
  */
 export const coerceToElements = elementsList => {
@@ -100,7 +100,7 @@ export const coerceToElements = elementsList => {
 harden(coerceToElements);
 
 /**
- * @template {import('../types.js').Key} K
+ * @template {Key} K
  * @param {Iterable<K>} elementIter
  * @returns {CopySet<K>}
  */

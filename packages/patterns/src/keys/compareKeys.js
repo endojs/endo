@@ -17,7 +17,7 @@ import {
 } from './checkKey.js';
 import { makeCompareCollection } from './keycollection-operators.js';
 
-/** @import {CopySet, KeyCompare} from '../types.js' */
+/** @import {CopySet, Key, KeyCompare} from '../types.js' */
 
 /**
  * CopySet X is smaller than CopySet Y iff all of these conditions hold:
@@ -27,7 +27,7 @@ import { makeCompareCollection } from './keycollection-operators.js';
  * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
  */
 export const setCompare = makeCompareCollection(
-  /** @type {<K extends import('../types.js').Key>(s: CopySet<K>) => Array<[K, 1]>} */ (
+  /** @type {<K extends Key>(s: CopySet<K>) => Array<[K, 1]>} */ (
     s => harden(getCopySetKeys(s).map(key => [key, 1]))
   ),
   0,

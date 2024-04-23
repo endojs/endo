@@ -6,7 +6,7 @@ import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
 /** @import {RemotableBrand} from '@endo/eventual-send' */
-/** @import {InterfaceSpec} from './types.js' */
+/** @import {InterfaceSpec, RemotableObject} from './types.js' */
 
 const { prototype: functionPrototype } = Function;
 const {
@@ -75,7 +75,7 @@ const assertCanBeRemotable = candidate =>
  * @param {undefined} [props] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
  * @param {T} [remotable] The object used as the remotable
- * @returns {T & import('./types.js').RemotableObject<I> & RemotableBrand<{}, T>}} remotable, modified for debuggability
+ * @returns {T & RemotableObject<I> & RemotableBrand<{}, T>}} remotable, modified for debuggability
  */
 export const Remotable = (
   // @ts-expect-error I could have different subtype than string
