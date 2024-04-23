@@ -78,6 +78,9 @@
     "@agoric/babel-generator": "^7.17.6",
     "@babel/parser": "^7.23.6",
     "@babel/traverse": "^7.23.6",
-    "source-map": "0.7.4"
+    "source-map-js": "^1.2.0"
+  },
+  "resolutions": {
+    "@babel/types": "7.23.0"
   }
 }
