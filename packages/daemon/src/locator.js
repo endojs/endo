@@ -8,7 +8,7 @@ const { quote: q } = assert;
 /**
  * The endo locator format:
  * ```
- * endo://{nodeIdentifier}/?id={formulaNumber}&type={formulaType}
+ * endo://{nodeNumber}/?id={formulaNumber}&type={formulaType}
  * ```
  * Note that the `id` query param is just the formula number.
  */

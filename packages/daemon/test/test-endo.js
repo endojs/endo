@@ -1348,9 +1348,8 @@ test('read remote value', async t => {
   const hostA = await prepareHostWithTestNetwork(t);
   const hostB = await prepareHostWithTestNetwork(t);
 
-  // introduce nodes to each other
+  // Introduce A to B (such that B becomes connected to A consequently.)
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
-  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // create value to share
   await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
@@ -1361,6 +1360,75 @@ test('read remote value', async t => {
 
   const hostAValue = await E(hostA).lookup('greetings');
   t.is(hostAValue, 'hello, world!');
+});
+
+test('round-trip remotable identity', async t => {
+  // Also called grant matching.
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  // Introduce A to B (allow B to infer A)
+  await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
+
+  await E(hostB).evaluate(
+    'MAIN',
+    'Far("Echoer", { echo: value => value })',
+    [],
+    [],
+    'echoer',
+  );
+  const echoerId = await E(hostB).identify('echoer');
+  await E(hostA).write(['echoer'], echoerId);
+  const survivedEcho = await E(hostA).evaluate(
+    'MAIN',
+    `
+      const token = Far('Token', {});
+      E(echoer).echo(token).then(allegedlyIdenticalToken =>
+        token === allegedlyIdenticalToken
+      );
+    `,
+    ['echoer'],
+    ['echoer'],
+  );
+  t.assert(survivedEcho);
+});
+
+test('hello from afar', async t => {
+  // Also called grant matching.
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  // Introduce B to A
+  await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
+
+  // Induce B to connect to A
+  await E(hostA).evaluate('MAIN', '42', [], [], 'ft');
+  const ftId = await E(hostA).identify('ft');
+  await E(hostB).write(['ft'], ftId);
+  const ft = await E(hostB).lookup('ft');
+  t.is(ft, 42);
+
+  await E(hostB).evaluate(
+    'MAIN',
+    'Far("Echoer", { echo: value => value })',
+    [],
+    [],
+    'echoer',
+  );
+  const echoerId = await E(hostB).identify('echoer');
+  await E(hostA).write(['echoer'], echoerId);
+  const survivedEcho = await E(hostA).evaluate(
+    'MAIN',
+    `
+      const token = Far('Token', {});
+      E(echoer).echo(token).then(allegedlyIdenticalToken =>
+        token === allegedlyIdenticalToken
+      );
+    `,
+    ['echoer'],
+    ['echoer'],
+  );
+  t.assert(survivedEcho);
 });
 
 test('locate local value', async t => {
