@@ -115,7 +115,7 @@ export const assertBagEntries = bagEntries => {
 harden(assertBagEntries);
 
 /**
- * @template {import('../types.js').Key} K
+ * @template {Key} K
  * @param {Iterable<[K, bigint]>} bagEntriesList
  */
 export const coerceToBagEntries = bagEntriesList => {
@@ -126,7 +126,7 @@ export const coerceToBagEntries = bagEntriesList => {
 harden(coerceToBagEntries);
 
 /**
- * @template {import('../types.js').Key} K
+ * @template {Key} K
  * @param {Iterable<[K, bigint]>} bagEntryIter
  * @returns {CopyBag<K>}
  */

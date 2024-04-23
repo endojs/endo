@@ -303,7 +303,7 @@ const makePatternKit = () => {
 
   /**
    * @param {Passable} specimen
-   * @param {import('../types.js').Key} keyAsPattern
+   * @param {Key} keyAsPattern
    * @param {Checker} check
    * @returns {boolean}
    */
