@@ -30,8 +30,8 @@
   },
   "scripts": {
     "build": "exit 0",
-    "build:types": "tsc --build tsconfig.build.json",
-    "clean:types": "git clean -f '*.d.ts*'",
+    "prepack": "tsc --build tsconfig.build.json",
+    "postpack": "git clean -f '*.d.ts*'",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",

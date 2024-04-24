@@ -318,12 +318,6 @@ jobs:
       - name: build
         run: yarn run build
 
-      - name: build:types
-        run: yarn lerna run build:types
-
       - name: pack
         # Cannot use yarn lerna run pack
         run: yarn lerna exec yarn pack
-
-      - name: clean:types
-        run: yarn lerna run clean:types
