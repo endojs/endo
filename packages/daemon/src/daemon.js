@@ -674,6 +674,14 @@ const makeDaemonCore = async (
       // Behold, forward reference:
       // eslint-disable-next-line no-use-before-define
       makePeer(networksId, nodeId, addressesId, context),
+    invitation: (
+      { hostAgent: hostAgentId, hostHandle: hostHandleId, guestName },
+      _context,
+      id,
+    ) =>
+      // Behold, forward reference:
+      // eslint-disable-next-line no-use-before-define
+      makeInvitation(id, hostAgentId, hostHandleId, guestName),
   };
 
   /**
@@ -843,6 +851,43 @@ const makeDaemonCore = async (
 
     return /** @type {import('./types.js').FormulateResult<import('./types.js').FarEndoReadable>} */ (
       formulate(formulaNumber, formula)
+    );
+  };
+
+  /**
+   * @param {string} hostAgentId
+   * @param {string} hostHandleId
+   * @param {string} guestName
+   * @param {import('./types.js').DeferredTasks<import('./types.js').InvitationDeferredTaskParams>} deferredTasks
+   */
+  const formulateInvitation = async (
+    hostAgentId,
+    hostHandleId,
+    guestName,
+    deferredTasks,
+  ) => {
+    const identifiers = await formulaGraphJobs.enqueue(async () => {
+      const invitationNumber = await randomHex512();
+      const invitationId = formatId({
+        number: invitationNumber,
+        node: localNodeId,
+      });
+      await deferredTasks.execute({
+        invitationId,
+      });
+      return { invitationNumber };
+    });
+
+    /** @type {import('./types.js').InvitationFormula} */
+    const formula = {
+      type: 'invitation',
+      hostAgent: hostAgentId,
+      hostHandle: hostHandleId,
+      guestName,
+    };
+
+    return /** @type {import('./types.js').FormulateResult<import('./types.js').Invitation>} */ (
+      formulate(identifiers.invitationNumber, formula)
     );
   };
 
@@ -1452,6 +1497,76 @@ const makeDaemonCore = async (
     );
   };
 
+  /**
+   * @param {string} id
+   * @param {string} hostAgentId
+   * @param {string} hostHandleId
+   * @param {string} guestName
+   */
+  const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
+    const hostAgent = /** @type {import('./types.js').EndoHost} */ (
+      await provide(hostAgentId)
+    );
+
+    const locate = async () => {
+      const { node, addresses } = await hostAgent.getPeerInfo();
+      const { number: hostHandleNumber } = parseId(hostHandleId);
+      const { number } = parseId(id);
+      const url = new URL('endo://');
+      url.hostname = node;
+      url.searchParams.set('id', number);
+      url.searchParams.set('from', hostHandleNumber);
+      for (const address of addresses) {
+        url.searchParams.append('at', address);
+      }
+      return url.href;
+    };
+
+    /**
+     * @param {string} guestHandleLocator
+     */
+    const accept = async guestHandleLocator => {
+      const url = new URL(guestHandleLocator);
+      const guestHandleNumber = url.searchParams.get('id');
+      const addresses = url.searchParams.getAll('at');
+      const guestNodeNumber = url.hostname;
+
+      if (!guestHandleNumber) {
+        throw assert.error('Handle locator must have an "id" parameter');
+      }
+
+      const guestHandleId = formatId({
+        node: guestNodeNumber,
+        number: guestHandleNumber,
+      });
+
+      /** @type {import('./types.js').PeerInfo} */
+      const peerInfo = {
+        node: guestNodeNumber,
+        addresses,
+      };
+      await hostAgent.addPeerInfo(peerInfo);
+
+      // TODO ensure that this is sufficient to cancel the previous
+      // incarnation, this invitation, such that it can no longer be redeemed,
+      // and such that overwriting the invitation also revokes the invitation.
+      await formulaGraphJobs.enqueue();
+      const controller = provideController(id);
+      console.log('Cancelled:');
+      await controller.context.cancel(new Error('Invitation accepted'));
+
+      await E(hostAgent).write([guestName], guestHandleId);
+
+      return provide(guestHandleId);
+    };
+
+    return makeExo(
+      'Invitation',
+      M.interface('Invitation', {}, { defaultGuards: 'passable' }),
+      { accept, locate },
+    );
+  };
+
   const makeContext = makeContextMaker({
     controllerForId,
     provideController,
@@ -1483,6 +1598,7 @@ const makeDaemonCore = async (
     formulateUnconfined,
     formulateBundle,
     formulateReadableBlob,
+    formulateInvitation,
     makeMailbox,
     makeDirectoryNode,
     getAllNetworkAddresses,

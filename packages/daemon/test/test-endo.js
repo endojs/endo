@@ -1481,6 +1481,30 @@ test('locate remote value', async t => {
   t.is(parsedGreetingsLocator.formulaType, 'remote');
 });
 
+test('invite, accept, and send mail', async t => {
+  const hostA = await prepareHostWithTestNetwork(t);
+  const hostB = await prepareHostWithTestNetwork(t);
+
+  const invitation = await E(hostA).invite('bob');
+  const invitationLocator = await E(invitation).locate();
+  await E(hostB).accept(invitationLocator, 'alice');
+
+  // create value to share
+  await E(hostA).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  const expectedSalutationsId = await E(hostA).identify('salutations');
+  await E(hostA).send('bob', ['Hello'], ['salutations'], ['salutations']);
+
+  const messages = await E(hostB).listMessages();
+  const {
+    strings: [hi],
+    names: [salutationsName],
+    ids: [salutationsId],
+  } = messages.find(({ number }) => number === 1);
+  t.is(hi, 'Hello');
+  t.is(salutationsName, 'salutations');
+  t.is(salutationsId, expectedSalutationsId);
+});
+
 test('reverse locate local value', async t => {
   const { host } = await prepareHost(t);
 

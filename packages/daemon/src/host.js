@@ -1,10 +1,12 @@
 // @ts-check
+/// <reference types="ses"/>
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
+import { parseId, formatId } from './formula-identifier.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
@@ -27,6 +29,7 @@ const assertPowersName = name => {
  * @param {import('./types.js').DaemonCore['formulateUnconfined']} args.formulateUnconfined
  * @param {import('./types.js').DaemonCore['formulateBundle']} args.formulateBundle
  * @param {import('./types.js').DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
+ * @param {import('./types.js').DaemonCore['formulateInvitation']} args.formulateInvitation
  * @param {import('./types.js').DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {import('./types.js').MakeMailbox} args.makeMailbox
  * @param {import('./types.js').MakeDirectoryNode} args.makeDirectoryNode
@@ -43,6 +46,7 @@ export const makeHostMaker = ({
   formulateUnconfined,
   formulateBundle,
   formulateReadableBlob,
+  formulateInvitation,
   getAllNetworkAddresses,
   makeMailbox,
   makeDirectoryNode,
@@ -432,6 +436,84 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /**
+     * @param {string} guestName
+     */
+    const invite = async guestName => {
+      // We must immediately retain a formula under guestName so that we
+      // preserve the invitation across restarts, but we must replace the
+      // guestName with the handle of the guest that accepts the invitation.
+      // We need to return the locator for the invitation regardless of what
+      // we store.
+      // Overwriting the guestName must cancel the pending invitation (consume
+      // once) so that the invitation can no longer modify the petStore entry
+      // for the guestName.
+      /** @type {import('./types.js').DeferredTasks<import('./types.js').InvitationDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        petStore.write(guestName, identifiers.invitationId),
+      );
+      const { value } = await formulateInvitation(
+        hostId,
+        handleId,
+        guestName,
+        tasks,
+      );
+      return value;
+    };
+
+    /**
+     * @param {string} invitationLocator
+     * @param {string} guestName
+     */
+    const accept = async (invitationLocator, guestName) => {
+      const url = new URL(invitationLocator);
+      const nodeNumber = url.hostname;
+      const invitationNumber = url.searchParams.get('id');
+      const remoteHandleNumber = url.searchParams.get('from');
+      const addresses = url.searchParams.getAll('at');
+
+      nodeNumber || assert.Fail`Invitation must have a hostname`;
+      if (!remoteHandleNumber) {
+        throw assert.error(`Invitation must have a "from" parameter`);
+      }
+      if (invitationNumber === null) {
+        throw assert.error(`Invitation must have an "id" parameter`);
+      }
+
+      /** @type {import('./types.js').PeerInfo} */
+      const peerInfo = {
+        node: nodeNumber,
+        addresses,
+      };
+      // eslint-disable-next-line no-use-before-define
+      await addPeerInfo(peerInfo);
+
+      const guestHandleId = formatId({
+        number: remoteHandleNumber,
+        node: nodeNumber,
+      });
+      const invitationId = formatId({
+        number: invitationNumber,
+        node: nodeNumber,
+      });
+
+      const { number: handleNumber } = parseId(handleId);
+      // eslint-disable-next-line no-use-before-define
+      const { addresses: hostAddresses } = await getPeerInfo();
+      const handleUrl = new URL('endo://');
+      handleUrl.hostname = localNodeId;
+      handleUrl.searchParams.set('id', handleNumber);
+      for (const address of hostAddresses) {
+        handleUrl.searchParams.append('at', address);
+      }
+      const handleLocator = handleUrl.href;
+
+      const invitation = await provide(invitationId, 'invitation');
+      await E(invitation).accept(handleLocator);
+      await petStore.write(guestName, guestHandleId);
+    };
+
     /** @type {import('./types.js').EndoHost['cancel']} */
     const cancel = async (petName, reason = new Error('Cancelled')) => {
       const id = petStore.identifyLocal(petName);
@@ -542,6 +624,8 @@ export const makeHostMaker = ({
       getPeerInfo,
       addPeerInfo,
       deliver,
+      invite,
+      accept,
     };
 
     const hostExo = makeExo(
