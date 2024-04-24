@@ -24,7 +24,9 @@ const noTrailingSlash = path => {
 };
 
 /**
- * Generates values for __filename and __dirname from location
+ * Generates values for __filename and __dirname from location _if and only if_
+ * `readPowers` is of type {@link ReadPowers} containing a
+ * {@link ReadPowers.fileURLToPath} method.
  *
  * @param {ReadPowers | ReadFn | undefined} readPowers
  * @param {string} location

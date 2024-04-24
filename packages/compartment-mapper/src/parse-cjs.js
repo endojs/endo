@@ -12,7 +12,7 @@ const textDecoder = new TextDecoder();
 const { freeze } = Object;
 
 /** @type {import('./types.js').ParseFn} */
-export const parseCjs = async (
+export const parseCjs = (
   bytes,
   _specifier,
   location,
@@ -31,7 +31,7 @@ export const parseCjs = async (
     exports.push('default');
   }
 
-  const { filename, dirname } = await getModulePaths(readPowers, location);
+  const { filename, dirname } = getModulePaths(readPowers, location);
 
   /**
    * @param {object} moduleEnvironmentRecord
