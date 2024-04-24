@@ -104,9 +104,9 @@ const makePassStyleOf = passStyleHelpers => {
     const passStyleOfRecur = inner => {
       const innerIsObject = isObject(inner);
       if (innerIsObject) {
-        const innerMemo = passStyleMemo.get(inner);
-        if (innerMemo) {
-          return innerMemo;
+        const innerStyle = passStyleMemo.get(inner);
+        if (innerStyle) {
+          return innerStyle;
         }
         !inProgress.has(inner) ||
           Fail`Pass-by-copy data cannot be cyclic ${inner}`;
