@@ -4,15 +4,28 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight
 jobs:
   browser-tests:
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    container:
+      image: selenium/standalone-chrome:nightly
+      options: --user root # reintroducing a GH Actions default expectation
+      ## https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
+      ## the Selenium image is configured to not run as root, so we have to undo some of it
+    env:
+      HOME: /root # Firefox complains otherwise
     steps:
+      - name: Put unstable chrome where playwright would look for it
+        run: mv /opt/google/chrome /opt/google/chrome-unstable
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: 18
+      - name: Provide yarn # yarn is missing in the Selenium image
+        run: npm install -g yarn@legacy ## get yarn v1.x in the container
       - name: Install dependencies
         run: yarn install
       - name: Build artifacts
