@@ -249,6 +249,16 @@ export {};
  */
 
 /**
+ * Result of a {@link ParseFn}
+ *
+ * @typedef ParseResult
+ * @property {Uint8Array} bytes
+ * @property {Language} parser
+ * @property {FinalStaticModuleType} record
+ * @property {string} [sourceMap]
+ */
+
+/**
  * @callback ParseFn
  * @param {Uint8Array} bytes
  * @param {string} specifier
@@ -260,12 +270,7 @@ export {};
  * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
  * @param {CompartmentDescriptor} [options.compartmentDescriptor]
- * @returns {Promise<{
- *   bytes: Uint8Array,
- *   parser: Language,
- *   record: FinalStaticModuleType,
- *   sourceMap?: string,
- * }>}
+ * @returns {ParseResult}
  */
 
 /**
