@@ -22,6 +22,14 @@ import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
 
+/** @import { ERef, FarRef } from '@endo/eventual-send' */
+/** @import { PromiseKit } from '@endo/promise-kit' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, LookupFormula, LoopbackNetworkFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, Provide, ReadableBlobFormula, Sha512, Specials, WeakMultimap, WorkerDaemonFacet, WorkerFormula, } from './types.js' */
+
+/**
+ * @param {number} ms
+ * @param {Promise<never>} cancelled
+ */
 const delay = async (ms, cancelled) => {
   // Do not attempt to set up a timer if already cancelled.
   await Promise.race([cancelled, undefined]);
@@ -40,7 +48,7 @@ const delay = async (ms, cancelled) => {
  * @param {string} type - The formula type.
  * @param {string} number - The formula number.
  * @param {Record<string, unknown>} record - A mapping from special names to formula values.
- * @returns {import('./types.js').EndoInspector} The inspector for the given formula.
+ * @returns {EndoInspector} The inspector for the given formula.
  */
 const makeInspector = (type, number, record) =>
   makeExo(
@@ -62,8 +70,8 @@ const makeInspector = (type, number, record) =>
   );
 
 /**
- * @param {import('./types.js').Context} context - The context to make far.
- * @returns {import('./types.js').FarContext} The far context.
+ * @param {Context} context - The context to make far.
+ * @returns {FarContext} The far context.
  */
 const makeFarContext = context =>
   Far('Context', {
@@ -78,7 +86,7 @@ const makeFarContext = context =>
  *
  * @param {string} path
  * @param {string} rootNonce
- * @param {import('./types.js').Sha512} digester
+ * @param {Sha512} digester
  * @returns {string}
  */
 const deriveId = (path, rootNonce, digester) => {
@@ -89,12 +97,12 @@ const deriveId = (path, rootNonce, digester) => {
 };
 
 /**
- * @param {import('./types.js').DaemonicPowers} powers
+ * @param {DaemonicPowers} powers
  * @param {string} rootEntropy
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
- * @param {import('./types.js').Specials} args.specials
+ * @param {Specials} args.specials
  * @param {Promise<never>} args.gracePeriodElapsed
  */
 const makeDaemonCore = async (
@@ -110,7 +118,7 @@ const makeDaemonCore = async (
   } = powers;
   const { randomHex512 } = cryptoPowers;
   const contentStore = persistencePowers.makeContentSha512Store();
-  /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
+  /** @type {WeakMap<object, ERef<WorkerDaemonFacet>>} */
   const workerDaemonFacets = new WeakMap();
   /**
    * Mutations of the formula graph must be serialized through this queue.
@@ -167,7 +175,7 @@ const makeDaemonCore = async (
     type: 'worker',
   });
 
-  /** @type {import('./types.js').Builtins} */
+  /** @type {Builtins} */
   const builtins = {
     NONE: leastAuthorityId,
     MAIN: mainWorkerId,
@@ -203,13 +211,13 @@ const makeDaemonCore = async (
 
   /**
    * Forward look-up, for answering "what is the value of this id".
-   * @type {Map<string, import('./types.js').Controller>}
+   * @type {Map<string, Controller>}
    */
   const controllerForId = new Map();
 
   /**
    * Forward look-up, for answering "what is the formula for this id".
-   * @type {Map<string, import('./types.js').Formula>}
+   * @type {Map<string, Formula>}
    */
   const formulaForId = new Map();
 
@@ -242,14 +250,14 @@ const makeDaemonCore = async (
   /**
    * Reverse look-up, for answering "what is my name for this near or far
    * reference", and not for "what is my name for this promise".
-   * @type {import('./types.js').WeakMultimap<Record<string | symbol, unknown>, string>}
+   * @type {WeakMultimap<Record<string | symbol, unknown>, string>}
    */
   const idForRef = makeWeakMultimap();
 
-  /** @type {import('./types.js').WeakMultimap<Record<string | symbol, unknown>, string>['get']} */
+  /** @type {WeakMultimap<Record<string | symbol, unknown>, string>['get']} */
   const getIdForRef = ref => idForRef.get(ref);
 
-  /** @type {import('./types.js').Provide} */
+  /** @type {Provide} */
   const provide = (id, _expectedType) =>
     /** @type {any} */ (
       // Behold, unavoidable forward-reference:
@@ -294,12 +302,12 @@ const makeDaemonCore = async (
     },
   });
 
-  /** @type {import('./types.js').EndoGreeter} */
+  /** @type {EndoGreeter} */
   const localGreeter = Far('Greeter', {
     /**
      * @param {string} remoteNodeId
-     * @param {Promise<import('./types.js').EndoGateway>} remoteGateway
-     * @param {import('@endo/eventual-send').ERef<(error: Error) => void>} cancelConnection
+     * @param {Promise<EndoGateway>} remoteGateway
+     * @param {ERef<(error: Error) => void>} cancelConnection
      * @param {Promise<never>} connectionCancelled
      */
     hello: async (
@@ -334,16 +342,14 @@ const makeDaemonCore = async (
 
   /**
    * @param {string} workerId512
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makeIdentifiedWorker = async (workerId512, context) => {
     // TODO validate workerId512
     const daemonWorkerFacet = makeWorkerBootstrap(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
-      /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
-        makePromiseKit()
-      );
+      /** @type {PromiseKit<never>} */ (makePromiseKit());
 
     const { workerTerminated, workerDaemonFacet } =
       await controlPowers.makeWorker(
@@ -379,7 +385,6 @@ const makeDaemonCore = async (
       {},
     );
 
-    // @ts-expect-error Evidently not specific enough.
     workerDaemonFacets.set(worker, workerDaemonFacet);
 
     return worker;
@@ -390,7 +395,7 @@ const makeDaemonCore = async (
    */
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
-    /** @type {import('./types.js').FarEndoReadable} */
+    /** @type {FarRef<EndoReadable>} */
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       streamBase64,
@@ -404,7 +409,7 @@ const makeDaemonCore = async (
    * @param {string} source
    * @param {Array<string>} codeNames
    * @param {Array<string>} ids
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makeEval = async (workerId, source, codeNames, ids, context) => {
     context.thisDiesIfThatDies(workerId);
@@ -440,7 +445,7 @@ const makeDaemonCore = async (
    *
    * @param {string} hubId
    * @param {string[]} path
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makeLookup = async (hubId, path, context) => {
     context.thisDiesIfThatDies(hubId);
@@ -453,7 +458,7 @@ const makeDaemonCore = async (
    * @param {string} workerId
    * @param {string} powersId
    * @param {string} specifier
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makeUnconfined = async (workerId, powersId, specifier, context) => {
     context.thisDiesIfThatDies(workerId);
@@ -475,7 +480,7 @@ const makeDaemonCore = async (
    * @param {string} workerId
    * @param {string} powersId
    * @param {string} bundleId
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makeBundle = async (workerId, powersId, bundleId, context) => {
     context.thisDiesIfThatDies(workerId);
@@ -494,7 +499,7 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').FormulaMakerTable} */
+  /** @type {FormulaMakerTable} */
   const makers = {
     eval: ({ worker, source, names, values }, context) =>
       makeEval(worker, source, names, values, context),
@@ -573,7 +578,7 @@ const makeDaemonCore = async (
       return handle;
     },
     endo: async ({ host: hostId, networks: networksId, peers: peersId }) => {
-      /** @type {import('./types.js').FarEndoBootstrap} */
+      /** @type {FarRef<EndoBootstrap>} */
       const endoBootstrap = Far('Endo private facet', {
         // TODO for user named
         ping: async () => 'pong',
@@ -612,7 +617,7 @@ const makeDaemonCore = async (
       const disallowedFn = async () => {
         throw new Error('not allowed');
       };
-      return /** @type {import('@endo/far').FarRef<import('./types.js').EndoGuest>} */ (
+      return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
           makeExo(
             'EndoGuest',
@@ -687,8 +692,8 @@ const makeDaemonCore = async (
   /**
    * @param {string} id
    * @param {string} formulaNumber
-   * @param {import('./types.js').Formula} formula
-   * @param {import('./types.js').Context} context
+   * @param {Formula} formula
+   * @param {Context} context
    */
   const evaluateFormula = async (id, formulaNumber, formula, context) => {
     if (Object.hasOwn(makers, formula.type)) {
@@ -702,7 +707,7 @@ const makeDaemonCore = async (
 
   /**
    * @param {string} id
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const evaluateFormulaForId = async (id, context) => {
     const { number: formulaNumber, node: formulaNode } = parseId(id);
@@ -719,7 +724,7 @@ const makeDaemonCore = async (
     return evaluateFormula(id, formulaNumber, formula, context);
   };
 
-  /** @type {import('./types.js').DaemonCore['formulate']} */
+  /** @type {DaemonCore['formulate']} */
   const formulate = async (formulaNumber, formula) => {
     const id = formatId({
       number: formulaNumber,
@@ -731,10 +736,9 @@ const makeDaemonCore = async (
 
     // Memoize for lookup.
     console.log(`Making ${formula.type} ${id}`);
-    const { promise, resolve } =
-      /** @type {import('@endo/promise-kit').PromiseKit<unknown>} */ (
-        makePromiseKit()
-      );
+    const { promise, resolve } = /** @type {PromiseKit<unknown>} */ (
+      makePromiseKit()
+    );
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
@@ -771,17 +775,16 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCore['provideController']} */
+  /** @type {DaemonCore['provideController']} */
   const provideController = id => {
     let controller = controllerForId.get(id);
     if (controller !== undefined) {
       return controller;
     }
 
-    const { promise, resolve } =
-      /** @type {import('@endo/promise-kit').PromiseKit<unknown>} */ (
-        makePromiseKit()
-      );
+    const { promise, resolve } = /** @type {PromiseKit<unknown>} */ (
+      makePromiseKit()
+    );
 
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
@@ -815,7 +818,7 @@ const makeDaemonCore = async (
     return peerId;
   };
 
-  /** @type {import('./types.js').DaemonCore['cancelValue']} */
+  /** @type {DaemonCore['cancelValue']} */
   const cancelValue = async (id, reason) => {
     await formulaGraphJobs.enqueue();
     const controller = provideController(id);
@@ -823,7 +826,7 @@ const makeDaemonCore = async (
     return controller.context.cancel(reason);
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateReadableBlob']} */
+  /** @type {DaemonCore['formulateReadableBlob']} */
   const formulateReadableBlob = async (readerRef, deferredTasks) => {
     const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
       async () => {
@@ -843,13 +846,13 @@ const makeDaemonCore = async (
       },
     );
 
-    /** @type {import('./types.js').ReadableBlobFormula} */
+    /** @type {ReadableBlobFormula} */
     const formula = {
       type: 'readable-blob',
       content: contentSha512,
     };
 
-    return /** @type {import('./types.js').FormulateResult<import('./types.js').FarEndoReadable>} */ (
+    return /** @type {FormulateResult<FarRef<EndoReadable>>} */ (
       formulate(formulaNumber, formula)
     );
   };
@@ -858,7 +861,7 @@ const makeDaemonCore = async (
    * @param {string} hostAgentId
    * @param {string} hostHandleId
    * @param {string} guestName
-   * @param {import('./types.js').DeferredTasks<import('./types.js').InvitationDeferredTaskParams>} deferredTasks
+   * @param {DeferredTasks<InvitationDeferredTaskParams>} deferredTasks
    */
   const formulateInvitation = async (
     hostAgentId,
@@ -878,7 +881,7 @@ const makeDaemonCore = async (
       return { invitationNumber };
     });
 
-    /** @type {import('./types.js').InvitationFormula} */
+    /** @type {InvitationFormula} */
     const formula = {
       type: 'invitation',
       hostAgent: hostAgentId,
@@ -886,7 +889,7 @@ const makeDaemonCore = async (
       guestName,
     };
 
-    return /** @type {import('./types.js').FormulateResult<import('./types.js').Invitation>} */ (
+    return /** @type {FormulateResult<Invitation>} */ (
       formulate(identifiers.invitationNumber, formula)
     );
   };
@@ -905,7 +908,7 @@ const makeDaemonCore = async (
    * @returns {Promise<string>}
    */
   const formulateNumberedHandle = async (formulaNumber, agentId) => {
-    /** @type {import('./types.js').HandleFormula} */
+    /** @type {HandleFormula} */
     const formula = {
       type: 'handle',
       agent: agentId,
@@ -924,32 +927,32 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {string} formulaNumber - The formula number of the pet store to formulate.
-   * @returns {import('./types.js').FormulateResult<import('./types.js').PetStore>} The formulated pet store.
+   * @returns {FormulateResult<PetStore>} The formulated pet store.
    */
   const formulateNumberedPetStore = async formulaNumber => {
-    /** @type {import('./types.js').PetStoreFormula} */
+    /** @type {PetStoreFormula} */
     const formula = {
       type: 'pet-store',
     };
-    return /** @type {import('./types').FormulateResult<import('./types').PetStore>} */ (
+    return /** @type {FormulateResult<PetStore>} */ (
       formulate(formulaNumber, formula)
     );
   };
 
   /**
-   * @type {import('./types.js').DaemonCore['formulateDirectory']}
+   * @type {DaemonCore['formulateDirectory']}
    */
   const formulateDirectory = async () => {
     const { id: petStoreId } = await formulateNumberedPetStore(
       await randomHex512(),
     );
     const formulaNumber = await randomHex512();
-    /** @type {import('./types.js').DirectoryFormula} */
+    /** @type {DirectoryFormula} */
     const formula = {
       type: 'directory',
       petStore: petStoreId,
     };
-    return /** @type {import('./types').FormulateResult<import('./types').EndoDirectory>} */ (
+    return /** @type {FormulateResult<EndoDirectory>} */ (
       formulate(formulaNumber, formula)
     );
   };
@@ -959,21 +962,21 @@ const makeDaemonCore = async (
    * The returned promise is resolved after the formula is persisted.
    *
    * @param {string} formulaNumber - The worker formula number.
-   * @returns {ReturnType<import('./types.js').DaemonCore['formulateWorker']>}
+   * @returns {ReturnType<DaemonCore['formulateWorker']>}
    */
   const formulateNumberedWorker = formulaNumber => {
-    /** @type {import('./types.js').WorkerFormula} */
+    /** @type {WorkerFormula} */
     const formula = {
       type: 'worker',
     };
 
-    return /** @type {import('./types').FormulateResult<import('./types').EndoWorker>} */ (
+    return /** @type {FormulateResult<EndoWorker>} */ (
       formulate(formulaNumber, formula)
     );
   };
 
   /**
-   * @type {import('./types.js').DaemonCore['formulateWorker']}
+   * @type {DaemonCore['formulateWorker']}
    */
   const formulateWorker = async deferredTasks => {
     return formulateNumberedWorker(
@@ -993,7 +996,7 @@ const makeDaemonCore = async (
   };
 
   /**
-   * @type {import('./types.js').DaemonCore['formulateHostDependencies']}
+   * @type {DaemonCore['formulateHostDependencies']}
    */
   const formulateHostDependencies = async specifiedIdentifiers => {
     const { specifiedWorkerId, ...remainingSpecifiedIdentifiers } =
@@ -1027,9 +1030,9 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateNumberedHost']} */
+  /** @type {DaemonCore['formulateNumberedHost']} */
   const formulateNumberedHost = identifiers => {
-    /** @type {import('./types.js').HostFormula} */
+    /** @type {HostFormula} */
     const formula = {
       type: 'host',
       handle: identifiers.handleId,
@@ -1040,12 +1043,12 @@ const makeDaemonCore = async (
       networks: identifiers.networksDirectoryId,
     };
 
-    return /** @type {import('./types').FormulateResult<import('./types').EndoHost>} */ (
+    return /** @type {FormulateResult<EndoHost>} */ (
       formulate(identifiers.hostFormulaNumber, formula)
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateHost']} */
+  /** @type {DaemonCore['formulateHost']} */
   const formulateHost = async (
     endoId,
     networksDirectoryId,
@@ -1070,7 +1073,7 @@ const makeDaemonCore = async (
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateGuestDependencies']} */
+  /** @type {DaemonCore['formulateGuestDependencies']} */
   const formulateGuestDependencies = async (hostAgentId, hostHandleId) => {
     const guestFormulaNumber = await randomHex512();
     const guestId = formatId({
@@ -1092,9 +1095,9 @@ const makeDaemonCore = async (
     });
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateNumberedGuest']} */
+  /** @type {DaemonCore['formulateNumberedGuest']} */
   const formulateNumberedGuest = identifiers => {
-    /** @type {import('./types.js').GuestFormula} */
+    /** @type {GuestFormula} */
     const formula = {
       type: 'guest',
       handle: identifiers.handleId,
@@ -1104,12 +1107,12 @@ const makeDaemonCore = async (
       worker: identifiers.workerId,
     };
 
-    return /** @type {import('./types').FormulateResult<import('./types').EndoGuest>} */ (
+    return /** @type {FormulateResult<EndoGuest>} */ (
       formulate(identifiers.guestFormulaNumber, formula)
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateGuest']} */
+  /** @type {DaemonCore['formulateGuest']} */
   const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks) => {
     return formulateNumberedGuest(
       await formulaGraphJobs.enqueue(async () => {
@@ -1144,7 +1147,7 @@ const makeDaemonCore = async (
     return workerFormulation.id;
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateEval']} */
+  /** @type {DaemonCore['formulateEval']} */
   const formulateEval = async (
     nameHubId,
     source,
@@ -1189,7 +1192,7 @@ const makeDaemonCore = async (
         return identifiers;
       });
 
-    /** @type {import('./types.js').EvalFormula} */
+    /** @type {EvalFormula} */
     const formula = {
       type: 'eval',
       worker: workerId,
@@ -1197,7 +1200,7 @@ const makeDaemonCore = async (
       names: codeNames,
       values: endowmentIds,
     };
-    return /** @type {import('./types.js').FormulateResult<unknown>} */ (
+    return /** @type {FormulateResult<unknown>} */ (
       formulate(evalFormulaNumber, formula)
     );
   };
@@ -1210,17 +1213,17 @@ const makeDaemonCore = async (
    * hub to call `lookup` on. A "naming hub" is an objected with a variadic
    * lookup method. It includes objects such as guests and hosts.
    * @param {string[]} petNamePath - The pet name path to look up.
-   * @returns {Promise<{ id: string, value: import('./types').EndoWorker }>}
+   * @returns {Promise<{ id: string, value: EndoWorker }>}
    */
   const formulateNumberedLookup = (formulaNumber, hubId, petNamePath) => {
-    /** @type {import('./types.js').LookupFormula} */
+    /** @type {LookupFormula} */
     const formula = {
       type: 'lookup',
       hub: hubId,
       path: petNamePath,
     };
 
-    return /** @type {import('./types.js').FormulateResult<import('./types.js').EndoWorker>} */ (
+    return /** @type {FormulateResult<EndoWorker>} */ (
       formulate(formulaNumber, formula)
     );
   };
@@ -1252,7 +1255,7 @@ const makeDaemonCore = async (
    * Helper for `formulateUnconfined` and `formulateBundle`.
    * @param {string} hostAgentId
    * @param {string} hostHandleId
-   * @param {import('./types.js').DeferredTasks<import('./types.js').MakeCapletDeferredTaskParams>} deferredTasks
+   * @param {DeferredTasks<MakeCapletDeferredTaskParams>} deferredTasks
    * @param {string} [specifiedWorkerId]
    * @param {string} [specifiedPowersId]
    */
@@ -1281,7 +1284,7 @@ const makeDaemonCore = async (
     return identifiers;
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateUnconfined']} */
+  /** @type {DaemonCore['formulateUnconfined']} */
   const formulateUnconfined = async (
     hostAgentId,
     hostHandleId,
@@ -1301,7 +1304,7 @@ const makeDaemonCore = async (
         ),
       );
 
-    /** @type {import('./types.js').MakeUnconfinedFormula} */
+    /** @type {MakeUnconfinedFormula} */
     const formula = {
       type: 'make-unconfined',
       worker: workerId,
@@ -1311,7 +1314,7 @@ const makeDaemonCore = async (
     return formulate(capletFormulaNumber, formula);
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateBundle']} */
+  /** @type {DaemonCore['formulateBundle']} */
   const formulateBundle = async (
     hostAgentId,
     hostHandleId,
@@ -1331,7 +1334,7 @@ const makeDaemonCore = async (
         ),
       );
 
-    /** @type {import('./types.js').MakeBundleFormula} */
+    /** @type {MakeBundleFormula} */
     const formula = {
       type: 'make-bundle',
       worker: workerId,
@@ -1346,46 +1349,46 @@ const makeDaemonCore = async (
    * @param {string} petStoreId
    */
   const formulateNumberedPetInspector = (formulaNumber, petStoreId) => {
-    /** @type {import('./types.js').PetInspectorFormula} */
+    /** @type {PetInspectorFormula} */
     const formula = {
       type: 'pet-inspector',
       petStore: petStoreId,
     };
-    return /** @type {import('./types').FormulateResult<import('./types').EndoInspector>} */ (
+    return /** @type {FormulateResult<EndoInspector>} */ (
       formulate(formulaNumber, formula)
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['formulatePeer']} */
+  /** @type {DaemonCore['formulatePeer']} */
   const formulatePeer = async (networksDirectoryId, nodeId, addresses) => {
     const formulaNumber = await randomHex512();
     // TODO: validate addresses
     // TODO: mutable state like addresses should not be stored in formula
-    /** @type {import('./types.js').PeerFormula} */
+    /** @type {PeerFormula} */
     const formula = {
       type: 'peer',
       networks: networksDirectoryId,
       node: nodeId,
       addresses,
     };
-    return /** @type {import('./types').FormulateResult<import('./types').EndoPeer>} */ (
+    return /** @type {FormulateResult<EndoPeer>} */ (
       formulate(formulaNumber, formula)
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateLoopbackNetwork']} */
+  /** @type {DaemonCore['formulateLoopbackNetwork']} */
   const formulateLoopbackNetwork = async () => {
     const formulaNumber = await randomHex512();
-    /** @type {import('./types').LoopbackNetworkFormula} */
+    /** @type {LoopbackNetworkFormula} */
     const formula = {
       type: 'loopback-network',
     };
-    return /** @type {import('./types').FormulateResult<import('./types').EndoNetwork>} */ (
+    return /** @type {FormulateResult<EndoNetwork>} */ (
       formulate(formulaNumber, formula)
     );
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateNetworksDirectory']} */
+  /** @type {DaemonCore['formulateNetworksDirectory']} */
   const formulateNetworksDirectory = async () => {
     const { id, value } = await formulateDirectory();
     // Make default networks.
@@ -1394,7 +1397,7 @@ const makeDaemonCore = async (
     return { id, value };
   };
 
-  /** @type {import('./types.js').DaemonCore['formulateEndoBootstrap']} */
+  /** @type {DaemonCore['formulateEndoBootstrap']} */
   const formulateEndoBootstrap = async specifiedFormulaNumber => {
     const identifiers = await formulaGraphJobs.enqueue(async () => {
       const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
@@ -1424,7 +1427,7 @@ const makeDaemonCore = async (
       };
     });
 
-    /** @type {import('./types.js').EndoFormula} */
+    /** @type {EndoFormula} */
     const formula = {
       type: 'endo',
       networks: identifiers.networksDirectoryId,
@@ -1433,14 +1436,14 @@ const makeDaemonCore = async (
       leastAuthority: leastAuthorityId,
     };
 
-    return /** @type {import('./types').FormulateResult<import('./types').FarEndoBootstrap>} */ (
+    return /** @type {FormulateResult<FarRef<EndoBootstrap>>} */ (
       formulate(identifiers.formulaNumber, formula)
     );
   };
 
   /**
    * @param {string} networksDirectoryId
-   * @returns {Promise<import('./types').EndoNetwork[]>}
+   * @returns {Promise<EndoNetwork[]>}
    */
   const getAllNetworks = async networksDirectoryId => {
     const networksDirectory = await provide(networksDirectoryId, 'directory');
@@ -1451,7 +1454,7 @@ const makeDaemonCore = async (
     return networks;
   };
 
-  /** @type {import('./types.js').DaemonCore['getAllNetworkAddresses']} */
+  /** @type {DaemonCore['getAllNetworkAddresses']} */
   const getAllNetworkAddresses = async networksDirectoryId => {
     const networks = await getAllNetworks(networksDirectoryId);
     const addresses = (
@@ -1468,7 +1471,7 @@ const makeDaemonCore = async (
    * @param {string} networksDirectoryId
    * @param {string} nodeId
    * @param {string[]} addresses
-   * @param {import('./types.js').Context} context
+   * @param {Context} context
    */
   const makePeer = async (networksDirectoryId, nodeId, addresses, context) => {
     const remoteControl = provideRemoteControl(nodeId);
@@ -1504,9 +1507,7 @@ const makeDaemonCore = async (
    * @param {string} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
-    const hostAgent = /** @type {import('./types.js').EndoHost} */ (
-      await provide(hostAgentId)
-    );
+    const hostAgent = /** @type {EndoHost} */ (await provide(hostAgentId));
 
     const locate = async () => {
       const { node, addresses } = await hostAgent.getPeerInfo();
@@ -1540,7 +1541,7 @@ const makeDaemonCore = async (
         number: guestHandleNumber,
       });
 
-      /** @type {import('./types.js').PeerInfo} */
+      /** @type {PeerInfo} */
       const peerInfo = {
         node: guestNodeNumber,
         addresses,
@@ -1612,14 +1613,14 @@ const makeDaemonCore = async (
    * more details.
    *
    * @param {string} petStoreId
-   * @returns {Promise<import('./types').EndoInspector>}
+   * @returns {Promise<EndoInspector>}
    */
   const makePetStoreInspector = async petStoreId => {
     const petStore = await provide(petStoreId, 'pet-store');
 
     /**
      * @param {string} petName - The pet name to inspect.
-     * @returns {Promise<import('./types').KnownEndoInspectors[string]>} An
+     * @returns {Promise<KnownEndoInspectors[string]>} An
      * inspector for the value of the given pet name.
      */
     const lookup = async petName => {
@@ -1716,7 +1717,7 @@ const makeDaemonCore = async (
     return info;
   };
 
-  /** @type {import('./types.js').DaemonCoreExternal} */
+  /** @type {DaemonCoreExternal} */
   return {
     formulateEndoBootstrap,
     provide,
@@ -1725,13 +1726,13 @@ const makeDaemonCore = async (
 };
 
 /**
- * @param {import('./types.js').DaemonicPowers} powers
+ * @param {DaemonicPowers} powers
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
  * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
- * @param {import('./types.js').Specials} args.specials
- * @returns {Promise<import('./types.js').FarEndoBootstrap>}
+ * @param {Specials} args.specials
+ * @returns {Promise<FarRef<EndoBootstrap>>}
  */
 const provideEndoBootstrap = async (
   powers,
@@ -1752,7 +1753,7 @@ const provideEndoBootstrap = async (
       number: endoFormulaNumber,
       node: daemonCore.nodeId,
     });
-    return /** @type {Promise<import('./types.js').FarEndoBootstrap>} */ (
+    return /** @type {Promise<FarRef<EndoBootstrap>>} */ (
       daemonCore.provide(endoId)
     );
   } else {
@@ -1764,11 +1765,11 @@ const provideEndoBootstrap = async (
 };
 
 /**
- * @param {import('./types.js').DaemonicPowers} powers
+ * @param {DaemonicPowers} powers
  * @param {string} daemonLabel
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
- * @param {import('./types.js').Specials} [specials]
+ * @param {Specials} [specials]
  */
 export const makeDaemon = async (
   powers,
@@ -1778,9 +1779,7 @@ export const makeDaemon = async (
   specials = {},
 ) => {
   const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
-    /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
-      makePromiseKit()
-    );
+    /** @type {PromiseKit<never>} */ (makePromiseKit());
 
   // TODO thread through command arguments.
   const gracePeriodMs = 100;

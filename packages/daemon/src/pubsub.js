@@ -3,6 +3,9 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeStream } from '@endo/stream';
 
+/** @import { AsyncQueue } from '@endo/stream' */
+/** @import { Topic } from './types.js' */
+
 // TypeScript ReadOnly semantics are not sufficiently expressive to distinguish
 // a value one promises not to alter from a value one must not alter,
 // making it useless.
@@ -11,7 +14,7 @@ const freeze = /** @type {<T>(v: T | Readonly<T>) => T} */ (Object.freeze);
 /**
  * @template TValue TValue
  * @param {TValue} value
- * @returns {import('@endo/stream').AsyncQueue<TValue, unknown>}
+ * @returns {AsyncQueue<TValue, unknown>}
  */
 export const makeNullQueue = value =>
   harden({
@@ -61,7 +64,7 @@ harden(makeChangePubSub);
 
 /**
  * @template TValue
- * @returns {import('./types.js').Topic<TValue>}
+ * @returns {Topic<TValue>}
  */
 export const makeChangeTopic = () => {
   /** @type {ReturnType<makeChangePubSub<TValue>>} */

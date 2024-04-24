@@ -1,10 +1,12 @@
 // @ts-check
 
+/** @import { Multimap, WeakMultimap, BidirectionalMultimap } from './types.js' */
+
 const { quote: q } = assert;
 
 /**
  * @param {new () => (Map | WeakMap)} mapConstructor
- * @returns {import('./types.js').Multimap<any, any>}
+ * @returns {Multimap<any, any>}
  */
 const internalMakeMultimap = mapConstructor => {
   // eslint-disable-next-line new-cap
@@ -42,25 +44,25 @@ const internalMakeMultimap = mapConstructor => {
 };
 
 /**
- * @returns {import('./types.js').Multimap<any, any>}
+ * @returns {Multimap<any, any>}
  */
 export const makeMultimap = () => {
   return internalMakeMultimap(Map);
 };
 
 /**
- * @returns {import('./types.js').WeakMultimap<WeakKey, any>}
+ * @returns {WeakMultimap<WeakKey, any>}
  */
 export const makeWeakMultimap = () => {
   return internalMakeMultimap(WeakMap);
 };
 
 /**
- * @returns {import('./types.js').BidirectionalMultimap<any, any>}
+ * @returns {BidirectionalMultimap<any, any>}
  */
 export const makeBidirectionalMultimap = () => {
   /**
-   * @type {import('./types.js').Multimap<unknown, unknown>}
+   * @type {Multimap<unknown, unknown>}
    */
   const keyForValues = internalMakeMultimap(Map);
   const valueForKey = new Map();

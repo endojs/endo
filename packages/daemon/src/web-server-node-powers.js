@@ -1,6 +1,8 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 
+/** @import { HttpRespond, HttpConnect } from './types.js' */
+
 const medialIterationResult = harden({ done: false });
 const finalIterationResult = harden({ done: false });
 
@@ -18,8 +20,8 @@ export const makeHttpPowers = ({ http, ws }) => {
    * @param {object} args
    * @param {number} args.port
    * @param {string} args.host
-   * @param {import('./types.js').HttpRespond} [args.respond]
-   * @param {import('./types.js').HttpConnect} [args.connect]
+   * @param {HttpRespond} [args.respond]
+   * @param {HttpConnect} [args.connect]
    * @param {Promise<never>} args.cancelled
    */
   const servePortHttp = async ({

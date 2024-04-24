@@ -1,8 +1,13 @@
+// @ts-check
+
+/** @import { DeferredTasks, DeferredTask } from './types.js' */
+
 /**
- * @returns {import('./types.js').DeferredTasks<any>}
+ * @template {Record<string, string | string[]>} T
+ * @returns {DeferredTasks<T>}
  */
 export const makeDeferredTasks = () => {
-  /** @type {import('./types.js').DeferredTask<any>[]} */
+  /** @type {DeferredTask<T>[]} */
   const tasks = [];
 
   return {

@@ -1,4 +1,7 @@
+// @ts-check
 /// <ref types="ses">
+
+/** @import { IdRecord } from './types.js' */
 
 const { quote: q } = assert;
 
@@ -37,7 +40,7 @@ export const assertValidId = (id, petName) => {
 
 /**
  * @param {string} id
- * @returns {import("./types").IdRecord}
+ * @returns {IdRecord}
  */
 export const parseId = id => {
   const match = idPattern.exec(id);
@@ -58,7 +61,7 @@ export const parseId = id => {
 };
 
 /**
- * @param {import("./types").IdRecord} formulaRecord
+ * @param {IdRecord} formulaRecord
  * @returns {string}
  */
 export const formatId = ({ number, node }) => {

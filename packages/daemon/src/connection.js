@@ -4,14 +4,16 @@ import { makeCapTP } from '@endo/captp';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';
 
+/** @import { Stream, Reader, Writer } from '@endo/stream' */
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 /**
  * @template TBootstrap
  * @param {string} name
- * @param {import('@endo/stream').Stream<unknown, any, unknown, unknown>} writer
- * @param {import('@endo/stream').Stream<any, undefined, undefined, undefined>} reader
+ * @param {Stream<unknown, any, unknown, unknown>} writer
+ * @param {Stream<any, undefined, undefined, undefined>} reader
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
  */
@@ -65,8 +67,8 @@ export const bytesToMessage = bytes => {
 /**
  * @template TBootstrap
  * @param {string} name
- * @param {import('@endo/stream').Writer<Uint8Array>} bytesWriter
- * @param {import('@endo/stream').Reader<Uint8Array>} bytesReader
+ * @param {Writer<Uint8Array>} bytesWriter
+ * @param {Reader<Uint8Array>} bytesReader
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
  */

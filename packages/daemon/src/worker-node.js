@@ -14,12 +14,12 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { main } from './worker.js';
 import { makePowers } from './worker-node-powers.js';
 
+/** @import { PromiseKit } from '@endo/promise-kit' */
+
 const powers = makePowers({ fs, url });
 
 const { promise: cancelled, reject: cancel } =
-  /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
-    makePromiseKit()
-  );
+  /** @type {PromiseKit<never>} */ (makePromiseKit());
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 

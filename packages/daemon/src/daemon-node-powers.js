@@ -10,6 +10,10 @@ import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
 
+/** @import { Reader, Writer } from '@endo/stream' */
+/** @import { ERef, FarRef } from '@endo/eventual-send' */
+/** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+
 const { quote: q } = assert;
 
 const textEncoder = new TextEncoder();
@@ -17,13 +21,13 @@ const textEncoder = new TextEncoder();
 /**
  * @param {object} modules
  * @param {typeof import('net')} modules.net
- * @returns {import('./types.js').SocketPowers}
+ * @returns {SocketPowers}
  */
 export const makeSocketPowers = ({ net }) => {
   const serveListener = async (listen, cancelled) => {
     const [
-      /** @type {Reader<import('./types.js').Connection>} */ readFrom,
-      /** @type {Writer<import('./types.js').Connection} */ writeTo,
+      /** @type {Reader<Connection>} */ readFrom,
+      /** @type {Writer<Connection} */ writeTo,
     ] = makePipe();
 
     const server = net.createServer();
@@ -61,7 +65,7 @@ export const makeSocketPowers = ({ net }) => {
     });
   };
 
-  /** @type {import('./types.js').SocketPowers['servePort']} */
+  /** @type {SocketPowers['servePort']} */
   const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
     serveListener(
       server =>
@@ -71,7 +75,7 @@ export const makeSocketPowers = ({ net }) => {
       cancelled,
     );
 
-  /** @type {import('./types.js').SocketPowers['connectPort']} */
+  /** @type {SocketPowers['connectPort']} */
   const connectPort = ({ port, host }) =>
     new Promise((resolve, reject) => {
       const conn = net.connect(port, host, err => {
@@ -90,7 +94,7 @@ export const makeSocketPowers = ({ net }) => {
       });
     });
 
-  /** @type {import('./types.js').SocketPowers['servePath']} */
+  /** @type {SocketPowers['servePath']} */
   const servePath = async ({ path, cancelled }) => {
     const { connections } = await serveListener(server => {
       return new Promise((resolve, reject) =>
@@ -117,7 +121,7 @@ export const makeSocketPowers = ({ net }) => {
 /**
  * @param {object} modules
  * @param {typeof import('net')} modules.net
- * @returns {import('./types.js').NetworkPowers}
+ * @returns {NetworkPowers}
  */
 export const makeNetworkPowers = ({ net }) => {
   const { servePort, servePath, connectPort } = makeSocketPowers({ net });
@@ -131,7 +135,7 @@ export const makeNetworkPowers = ({ net }) => {
   })();
 
   /**
-   * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
+   * @param {FarRef<unknown>} endoBootstrap
    * @param {string} sockPath
    * @param {Promise<never>} cancelled
    * @param {(error: Error) => void} exitWithError
@@ -173,7 +177,7 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
 
   /**
    * @param {string} path
-   * @returns {import('@endo/stream').Writer<Uint8Array>}
+   * @returns {Writer<Uint8Array>}
    */
   const makeFileWriter = path => {
     const nodeWriteStream = fs.createWriteStream(path);
@@ -258,7 +262,7 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
 
 /**
  * @param {typeof import('crypto')} crypto
- * @returns {import('./types.js').CryptoPowers}
+ * @returns {CryptoPowers}
  */
 export const makeCryptoPowers = crypto => {
   const makeSha512 = () => {
@@ -288,10 +292,10 @@ export const makeCryptoPowers = crypto => {
 };
 
 /**
- * @param {import('./types.js').FilePowers} filePowers
- * @param {import('./types.js').CryptoPowers} cryptoPowers
- * @param {import('./types.js').Config} config
- * @returns {import('./types.js').DaemonicPersistencePowers}
+ * @param {FilePowers} filePowers
+ * @param {CryptoPowers} cryptoPowers
+ * @param {Config} config
+ * @returns {DaemonicPersistencePowers}
  */
 export const makeDaemonicPersistencePowers = (
   filePowers,
@@ -352,7 +356,7 @@ export const makeDaemonicPersistencePowers = (
       },
       /**
        * @param {string} sha512
-       * @returns {import('./types.js').EndoReadable}
+       * @returns {EndoReadable}
        */
       fetch(sha512) {
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha512);
@@ -393,7 +397,7 @@ export const makeDaemonicPersistencePowers = (
 
   /**
    * @param {string} formulaNumber
-   * @returns {Promise<import('./types.js').Formula>}
+   * @returns {Promise<Formula>}
    */
   const readFormula = async formulaNumber => {
     const { file: formulaPath } = makeFormulaPath(formulaNumber);
@@ -414,7 +418,7 @@ export const makeDaemonicPersistencePowers = (
   };
 
   // Persist instructions for revival (this can be collected)
-  /** @type {import('./types.js').DaemonicPersistencePowers['writeFormula']} */
+  /** @type {DaemonicPersistencePowers['writeFormula']} */
   const writeFormula = async (formulaNumber, formula) => {
     const { directory, file } = makeFormulaPath(formulaNumber);
     // TODO Take care to write atomically with a rename here.
@@ -432,9 +436,9 @@ export const makeDaemonicPersistencePowers = (
 };
 
 /**
- * @param {import('./types.js').Config} config
+ * @param {Config} config
  * @param {import('url').fileURLToPath} fileURLToPath
- * @param {import('./types.js').FilePowers} filePowers
+ * @param {FilePowers} filePowers
  * @param {typeof import('fs')} fs
  * @param {typeof import('child_process')} popen
  */
@@ -451,7 +455,7 @@ export const makeDaemonicControlPowers = (
 
   /**
    * @param {string} workerId
-   * @param {import('./types.js').DaemonWorkerFacet} daemonWorkerFacet
+   * @param {DaemonWorkerFacet} daemonWorkerFacet
    * @param {Promise<never>} cancelled
    */
   const makeWorker = async (workerId, daemonWorkerFacet, cancelled) => {
@@ -525,7 +529,7 @@ export const makeDaemonicControlPowers = (
 
     const workerTerminated = Promise.race([workerClosed, capTpClosed]);
 
-    /** @type {import('@endo/eventual-send').ERef<import('./types.js').WorkerDaemonFacet>} */
+    /** @type {ERef<WorkerDaemonFacet>} */
     const workerDaemonFacet = getBootstrap();
 
     return { workerTerminated, workerDaemonFacet };
@@ -538,13 +542,13 @@ export const makeDaemonicControlPowers = (
 
 /**
  * @param {object} opts
- * @param {import('./types.js').Config} opts.config
+ * @param {Config} opts.config
  * @param {typeof import('fs')} opts.fs
  * @param {typeof import('child_process')} opts.popen
  * @param {typeof import('url')} opts.url
- * @param {import('./types.js').FilePowers} opts.filePowers
- * @param {import('./types.js').CryptoPowers} opts.cryptoPowers
- * @returns {import('./types.js').DaemonicPowers}
+ * @param {FilePowers} opts.filePowers
+ * @param {CryptoPowers} opts.cryptoPowers
+ * @returns {DaemonicPowers}
  */
 export const makeDaemonicPowers = ({
   config,

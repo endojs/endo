@@ -6,6 +6,9 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeNetstringCapTP } from './connection.js';
 
+/** @import { ERef } from '@endo/eventual-send' */
+/** @import { EndoReadable, MignonicPowers } from './types.js' */
+
 const endowments = harden({
   assert,
   console,
@@ -87,7 +90,7 @@ export const makeWorkerFacet = ({ cancel }) => {
       },
 
       /**
-       * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoReadable>} readableP
+       * @param {ERef<EndoReadable>} readableP
        * @param {Promise<unknown>} powersP
        * @param {Promise<unknown>} contextP
        */
@@ -108,7 +111,7 @@ export const makeWorkerFacet = ({ cancel }) => {
 };
 
 /**
- * @param {import('./types.js').MignonicPowers} powers
+ * @param {MignonicPowers} powers
  * @param {number | undefined} pid
  * @param {(error: Error) => void} cancel
  * @param {Promise<never>} cancelled
