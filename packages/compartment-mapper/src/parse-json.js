@@ -12,13 +12,8 @@ const freeze = Object.freeze;
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
-export const parseJson = async (
-  bytes,
-  _specifier,
-  location,
-  _packageLocation,
-) => {
+/** @type {import('./types.js').SyncParseFn} */
+export const parseJson = (bytes, _specifier, location, _packageLocation) => {
   const source = textDecoder.decode(bytes);
   const imports = freeze([]);
 

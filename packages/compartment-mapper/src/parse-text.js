@@ -11,12 +11,7 @@ const freeze = Object.freeze;
 const textDecoder = new TextDecoder();
 
 /** @type {import('./types.js').ParseFn} */
-export const parseText = async (
-  bytes,
-  _specifier,
-  _location,
-  _packageLocation,
-) => {
+export const parseText = (bytes, _specifier, _location, _packageLocation) => {
   const text = textDecoder.decode(bytes);
 
   /** @type {Array<string>} */

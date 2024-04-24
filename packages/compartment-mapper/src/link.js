@@ -76,7 +76,7 @@ const makeExtensionParser = (
   parserForLanguage,
   moduleTransforms,
 ) => {
-  return async (bytes, specifier, location, packageLocation, options) => {
+  return (bytes, specifier, location, packageLocation, options) => {
     let language;
     const extension = parseExtension(location);
 
@@ -97,7 +97,7 @@ const makeExtensionParser = (
           bytes,
           parser: language,
           sourceMap,
-        } = await moduleTransforms[language](
+        } = moduleTransforms[language](
           bytes,
           specifier,
           location,

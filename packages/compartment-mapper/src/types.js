@@ -242,6 +242,16 @@ export {};
  */
 
 /**
+ * Result of a {@link ParseFn}
+ *
+ * @typedef ParseResult
+ * @property {Uint8Array} bytes
+ * @property {Language} parser
+ * @property {FinalStaticModuleType} record
+ * @property {string} [sourceMap]
+ */
+
+/**
  * @callback ParseFn
  * @param {Uint8Array} bytes
  * @param {string} specifier
@@ -252,12 +262,7 @@ export {};
  * @param {SourceMapHook} [options.sourceMapHook]
  * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
- * @returns {Promise<{
- *   bytes: Uint8Array,
- *   parser: Language,
- *   record: FinalStaticModuleType,
- *   sourceMap?: string,
- * }>}
+ * @returns {ParseResult}
  */
 
 /**
@@ -330,9 +335,9 @@ export {};
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
- * @param {object} [options]
- * @param {string} [options.sourceMap]
- * @returns {Promise<{bytes: Uint8Array, parser: Language, sourceMap?: string}>}
+ * @param {object} [params]
+ * @param {string} [params.sourceMap]
+ * @returns {{bytes: Uint8Array, parser: Language, sourceMap?: string}}
  */
 
 // /////////////////////////////////////////////////////////////////////////////

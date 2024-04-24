@@ -6,7 +6,7 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 /** @type {import('./types.js').ParseFn} */
-export const parseArchiveMjs = async (
+export const parseArchiveMjs = (
   bytes,
   specifier,
   sourceUrl,
