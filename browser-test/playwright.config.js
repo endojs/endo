@@ -38,7 +38,6 @@ module.exports = defineConfig({
         ...devices['Desktop Chrome'],
         defaultBrowserType: 'chromium',
         channel: 'chrome-dev',
-        headless: false,
       },
     },
     {

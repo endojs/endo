@@ -6,14 +6,16 @@ test('bundled-ses lockdown runs to completion', async ({
   browser,
   browserName,
 }) => {
-  page.on('pageerror', error => {
-    console.error(`________________
-> Error in page: ${error.message}
-${error.stack}`);
-  });
   console.log(browserName, browser.version());
+
+  page.on('console', msg => console.log('> Log in page:', msg.text()));
+  page.on('pageerror', error => {
+    console.error(`> Error in page: ${error.message}\n${error.stack}`);
+  });
+
   await page.goto(`http://127.0.0.1:3000/`);
   const result = await page.evaluate(() => {
+    "use strict";
     lockdown();
     return 'Pass';
   });
