@@ -132,8 +132,10 @@ export const checkKey = (val, check) => {
 harden(checkKey);
 
 /**
- * @param {Passable} val
- * @returns {val is Key}
+ * @type {{
+ *   (val: Passable): val is Key;
+ *   (val: any): boolean;
+ * }}
  */
 export const isKey = val => checkKey(val, identChecker);
 harden(isKey);

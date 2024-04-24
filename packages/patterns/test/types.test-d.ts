@@ -18,3 +18,19 @@ M.arrayOf(M.any());
     expectNotType<Key>(maybeKey);
   }
 }
+{
+  const str = 'some string';
+  if (isKey(str)) {
+    // doesn't widen
+    expectType<string>(str);
+  }
+}
+
+{
+  const someAny: any = null;
+  someAny.foo;
+  if (isKey(someAny)) {
+    // still any
+    someAny.foo;
+  }
+}
