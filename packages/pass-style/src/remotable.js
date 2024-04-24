@@ -140,9 +140,9 @@ const checkRemotableProtoOf = (original, check) => {
 const confirmedRemotables = new WeakSet();
 
 /**
- * @param {Remotable} val
+ * @param {any} val
  * @param {Checker} [check]
- * @returns {boolean}
+ * @returns {val is Remotable}
  */
 const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
@@ -180,6 +180,7 @@ export const getInterfaceOf = val => {
     // @ts-expect-error narrowed
     return undefined;
   }
+  // @ts-expect-error narrowed
   return getTag(val);
 };
 harden(getInterfaceOf);

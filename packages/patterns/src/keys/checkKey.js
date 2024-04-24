@@ -47,7 +47,7 @@ const checkPrimitiveKey = (val, check) => {
 };
 
 /**
- * @param {Passable} val
+ * @param {any} val
  * @returns {boolean}
  */
 export const isPrimitiveKey = val => checkPrimitiveKey(val, identChecker);
@@ -79,7 +79,7 @@ export const checkScalarKey = (val, check) => {
 };
 
 /**
- * @param {Passable} val
+ * @param {any} val
  * @returns {boolean}
  */
 export const isScalarKey = val => checkScalarKey(val, identChecker);
@@ -179,7 +179,7 @@ export const checkCopySet = (s, check) => {
 harden(checkCopySet);
 
 /**
- * @param {Passable} s
+ * @param {any} s
  * @returns {s is CopySet}
  */
 export const isCopySet = s => checkCopySet(s, identChecker);
@@ -260,7 +260,7 @@ export const checkCopyBag = (b, check) => {
 harden(checkCopyBag);
 
 /**
- * @param {Passable} b
+ * @param {any} b
  * @returns {b is CopyBag}
  */
 export const isCopyBag = b => checkCopyBag(b, identChecker);
@@ -384,7 +384,7 @@ export const checkCopyMap = (m, check) => {
 harden(checkCopyMap);
 
 /**
- * @param {Passable} m
+ * @param {any} m
  * @returns {m is CopyMap<Key, Passable>}
  */
 export const isCopyMap = m => checkCopyMap(m, identChecker);
