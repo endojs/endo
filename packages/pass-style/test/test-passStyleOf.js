@@ -4,7 +4,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { q } from '@endo/errors';
 
 import { passStyleOf } from '../src/passStyleOf.js';
-import { Far } from '../src/make-far.js';
+import { Far, ToFarFunction } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
 
@@ -34,6 +34,11 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
   t.is(passStyleOf(harden(Error('ok'))), 'error');
+});
+
+test('ToFarFunction', t => {
+  const ff = ToFarFunction('far', () => {});
+  t.is(passStyleOf(ff), 'remotable');
 });
 
 test('some passStyleOf rejections', t => {

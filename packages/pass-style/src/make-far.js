@@ -209,14 +209,18 @@ harden(Far);
  * when the function comes from elsewhere under less control. For functions
  * you author in place, better to use `Far` on their function literal directly.
  *
+ * @template {(...args: any[]) => any} F
  * @param {string} farName to be used only if `func` is not already a
  * far function.
- * @param {(...args: any[]) => any} func
+ * @param {F} func
+ * @returns {F & RemotableObject & RemotableBrand<{}, F>}
  */
 export const ToFarFunction = (farName, func) => {
   if (getInterfaceOf(func) !== undefined) {
+    // @ts-expect-error checked cast
     return func;
   }
+  // @ts-expect-error could be different subtype
   return Far(farName, (...args) => func(...args));
 };
 harden(ToFarFunction);
