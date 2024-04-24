@@ -177,12 +177,9 @@ export const checkCopySet = (s, check) => {
 harden(checkCopySet);
 
 /**
- * @callback IsCopySet
  * @param {Passable} s
  * @returns {s is CopySet}
  */
-
-/** @type {IsCopySet} */
 export const isCopySet = s => checkCopySet(s, identChecker);
 harden(isCopySet);
 
@@ -261,12 +258,9 @@ export const checkCopyBag = (b, check) => {
 harden(checkCopyBag);
 
 /**
- * @callback IsCopyBag
  * @param {Passable} b
  * @returns {b is CopyBag}
  */
-
-/** @type {IsCopyBag} */
 export const isCopyBag = b => checkCopyBag(b, identChecker);
 harden(isCopyBag);
 
@@ -388,22 +382,16 @@ export const checkCopyMap = (m, check) => {
 harden(checkCopyMap);
 
 /**
- * @callback IsCopyMap
  * @param {Passable} m
  * @returns {m is CopyMap<Key, Passable>}
  */
-
-/** @type {IsCopyMap} */
 export const isCopyMap = m => checkCopyMap(m, identChecker);
 harden(isCopyMap);
 
 /**
- * @callback AssertCopyMap
  * @param {Passable} m
  * @returns {asserts m is CopyMap<Key, Passable>}
  */
-
-/** @type {AssertCopyMap} */
 export const assertCopyMap = m => {
   checkCopyMap(m, assertChecker);
 };
