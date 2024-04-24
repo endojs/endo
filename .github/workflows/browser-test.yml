@@ -19,7 +19,7 @@ jobs:
         run: yarn build
       - name: Install browser test dependencies
         working-directory: browser-test
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Install Playwright Browsers
         working-directory: browser-test
         run: npx playwright install --with-deps
