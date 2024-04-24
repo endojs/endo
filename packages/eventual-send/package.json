@@ -10,7 +10,7 @@
     "test:xs": "exit 0",
     "build": "exit 0",
     "clean": "git clean -f '*.d.ts*'",
-    "build:types": "tsc --build tsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "clean:types": "git clean -f '*.d.ts*'",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint-check": "yarn lint",

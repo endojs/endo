@@ -29,7 +29,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "build:types": "tsc --build tsconfig.build.json",
+    "prepack": "tsc --build tsconfig.build.json",
     "clean:types": "git clean -f '*.d.ts*'",
     "test": "exit 0"
   },

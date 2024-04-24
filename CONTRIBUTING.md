@@ -99,23 +99,6 @@ https://github.com/endojs/endo/labels/next-release
   yarn build
   ```
 
-* Generate types.
-
-  ```sh
-  yarn lerna run build:types
-  ```
-
-  We generate types from the bottom up before publishing because this allows
-  each package to rely on the generated types of its dependencies in the
-  workspace.
-
-* Commit the generated types.
-
-  ```sh
-  git add .
-  git commit -m 'chore: Add generated types'
-  ```
-
 * Recreate the changelogs with the current date *and* generate tags for the new
   versions. This is the effect of removing the `--no-git-tag-version` flag.
 
