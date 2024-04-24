@@ -1,11 +1,11 @@
 // @ts-check
 
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { makeIteratorRef } from './reader-ref.js';
 import { makePetSitter } from './pet-sitter.js';
 
 /** @import { Context, EndoGuest, MakeDirectoryNode, MakeMailbox, Provide } from './types.js' */
+import { GuestInterface } from './interfaces.js';
 
 /**
  * @param {object} args
@@ -114,18 +114,14 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       deliver,
     };
 
-    return makeExo(
-      'EndoGuest',
-      M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
-      {
-        ...guest,
-        /** @param {string} locator */
-        followLocatorNameChanges: locator =>
-          makeIteratorRef(guest.followLocatorNameChanges(locator)),
-        followMessages: () => makeIteratorRef(guest.followMessages()),
-        followNameChanges: () => makeIteratorRef(guest.followNameChanges()),
-      },
-    );
+    return makeExo('EndoGuest', GuestInterface, {
+      ...guest,
+      /** @param {string} locator */
+      followLocatorNameChanges: locator =>
+        makeIteratorRef(guest.followLocatorNameChanges(locator)),
+      followMessages: () => makeIteratorRef(guest.followMessages()),
+      followNameChanges: () => makeIteratorRef(guest.followNameChanges()),
+    });
   };
 
   return makeGuest;

@@ -1,5 +1,5 @@
 import type { ERef } from '@endo/eventual-send';
-import { FarRef } from '@endo/far';
+import type { FarRef } from '@endo/far';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
 export type SomehowAsyncIterable<T> =
@@ -827,7 +827,7 @@ export interface DaemonCore {
 
   formulateDirectory: () => FormulateResult<EndoDirectory>;
 
-  formulateEndoBootstrap: (
+  formulateEndo: (
     specifiedFormulaNumber: string,
   ) => FormulateResult<FarRef<EndoBootstrap>>;
 
@@ -933,7 +933,7 @@ export interface DaemonCore {
 }
 
 export interface DaemonCoreExternal {
-  formulateEndoBootstrap: DaemonCore['formulateEndoBootstrap'];
+  formulateEndo: DaemonCore['formulateEndo'];
   nodeId: string;
   provide: DaemonCore['provide'];
 }

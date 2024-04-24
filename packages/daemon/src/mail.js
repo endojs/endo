@@ -2,10 +2,16 @@
 
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from './pubsub.js';
 import { assertPetName } from './pet-name.js';
+
+import {
+  ResponderInterface,
+  EnvelopeInterface,
+  DismisserInterface,
+  HandleInterface,
+} from './interfaces.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
@@ -25,19 +31,9 @@ const makeRequest = (description, fromId, toId) => {
     () => /** @type {const} */ ('fulfilled'),
     () => /** @type {const} */ ('rejected'),
   );
-  const responder = makeExo(
-    'Responder',
-    M.interface(
-      'Responder',
-      {},
-      {
-        defaultGuards: 'passable',
-      },
-    ),
-    {
-      respondId: resolve,
-    },
-  );
+  const responder = makeExo('EndoResponder', ResponderInterface, {
+    respondId: resolve,
+  });
   const request = harden({
     type: /** @type {const} */ ('request'),
     from: fromId,
@@ -49,8 +45,7 @@ const makeRequest = (description, fromId, toId) => {
   return harden({ request, response: promise });
 };
 
-const EnvelopeShape = M.interface('Envelope', {});
-const makeEnvelope = () => makeExo('Envelope', EnvelopeShape, {});
+const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
 
 /**
  * @param {object} args
@@ -90,22 +85,12 @@ export const makeMailboxMaker = ({ provide }) => {
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1;
 
-      const dismisser = makeExo(
-        'Dismisser',
-        M.interface(
-          'Dismisser',
-          {},
-          {
-            defaultGuards: 'passable',
-          },
-        ),
-        {
-          dismiss() {
-            messages.delete(messageNumber);
-            dismissal.resolve();
-          },
+      const dismisser = makeExo('Dismisser', DismisserInterface, {
+        dismiss() {
+          messages.delete(messageNumber);
+          dismissal.resolve();
         },
-      );
+      });
 
       const message = harden({
         ...envelope,
@@ -328,20 +313,10 @@ export const makeMailboxMaker = ({ provide }) => {
       deliver(message);
     };
 
-    const handle = makeExo(
-      'Handle',
-      M.interface(
-        'Handle',
-        {},
-        {
-          defaultGuards: 'passable',
-        },
-      ),
-      {
-        receive,
-        open,
-      },
-    );
+    const handle = makeExo('Handle', HandleInterface, {
+      receive,
+      open,
+    });
 
     return harden({
       handle: () => handle,

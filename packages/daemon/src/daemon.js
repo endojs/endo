@@ -4,7 +4,6 @@
 /* global setTimeout, clearTimeout */
 
 import { makeExo } from '@endo/exo';
-import { M } from '@endo/patterns';
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
@@ -21,6 +20,18 @@ import { makeSerialJobs } from './serial-jobs.js';
 import { makeWeakMultimap } from './multimap.js';
 import { makeLoopbackNetwork } from './networks/loopback.js';
 import { assertValidFormulaType } from './formula-type.js';
+
+// Sorted:
+import {
+  DaemonFacetForWorkerInterface,
+  GuestInterface,
+  InspectorHubInterface,
+  InspectorInterface,
+  InvitationInterface,
+  WorkerInterface,
+  BlobInterface,
+  EndoInterface,
+} from './interfaces.js';
 
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
@@ -51,23 +62,15 @@ const delay = async (ms, cancelled) => {
  * @returns {EndoInspector} The inspector for the given formula.
  */
 const makeInspector = (type, number, record) =>
-  makeExo(
-    `Inspector (${type} ${number})`,
-    M.interface(
-      `Inspector (${type} ${number})`,
-      {},
-      { defaultGuards: 'passable' },
-    ),
-    {
-      lookup: async petName => {
-        if (!Object.hasOwn(record, petName)) {
-          return undefined;
-        }
-        return record[petName];
-      },
-      list: () => Object.keys(record),
+  makeExo(`Inspector (${type} ${number})`, InspectorInterface, {
+    lookup: async petName => {
+      if (!Object.hasOwn(record, petName)) {
+        return undefined;
+      }
+      return record[petName];
     },
-  );
+    list: () => Object.keys(record),
+  });
 
 /**
  * @param {Context} context - The context to make far.
@@ -134,46 +137,34 @@ const makeDaemonCore = async (
   const localNodeId = deriveId('node', rootEntropy, cryptoPowers.makeSha512());
   console.log('Node', localNodeId);
 
-  const knownPeersFormulaNumber = deriveId(
-    'peers',
-    rootEntropy,
-    cryptoPowers.makeSha512(),
-  );
-  const knownPeersId = formatId({
-    number: knownPeersFormulaNumber,
-    node: localNodeId,
-  });
-  await persistencePowers.writeFormula(knownPeersFormulaNumber, {
+  // We generate formulas for some entities that are presumed to exist
+  // because they are parts of the daemon's root object.
+
+  /**
+   * @param {string} derivation
+   * @param {Formula} formula
+   */
+  const preformulate = async (derivation, formula) => {
+    const formulaId = deriveId(
+      derivation,
+      rootEntropy,
+      cryptoPowers.makeSha512(),
+    );
+    const id = formatId({
+      number: formulaId,
+      node: localNodeId,
+    });
+    await persistencePowers.writeFormula(formulaId, formula);
+    return { id, formulaId };
+  };
+
+  const { id: knownPeersId } = await preformulate('peers', {
     type: 'known-peers-store',
   });
-
-  // Prepare least authority formula
-  const leastAuthorityFormulaNumber = deriveId(
-    'none',
-    rootEntropy,
-    cryptoPowers.makeSha512(),
-  );
-  const leastAuthorityId = formatId({
-    number: leastAuthorityFormulaNumber,
-    node: localNodeId,
-  });
-  await persistencePowers.writeFormula(leastAuthorityFormulaNumber, {
+  const { id: leastAuthorityId } = await preformulate('least-authority', {
     type: 'least-authority',
   });
-
-  // Prepare main worker formula
-  const mainWorkerFormulaNumber = deriveId(
-    'main',
-    rootEntropy,
-    cryptoPowers.makeSha512(),
-  );
-  const mainWorkerId = formatId({
-    number: mainWorkerFormulaNumber,
-    node: localNodeId,
-  });
-  await persistencePowers.writeFormula(mainWorkerFormulaNumber, {
-    type: 'worker',
-  });
+  const { id: mainWorkerId } = await preformulate('main', { type: 'worker' });
 
   /** @type {Builtins} */
   const builtins = {
@@ -186,24 +177,17 @@ const makeDaemonCore = async (
     await Promise.all(
       Object.entries(specials).map(async ([specialName, makeFormula]) => {
         const formula = makeFormula(builtins);
-        const formulaNumber = deriveId(
-          specialName,
-          rootEntropy,
-          cryptoPowers.makeSha512(),
-        );
-        const id = formatId({
-          number: formulaNumber,
-          node: localNodeId,
-        });
-        await persistencePowers.writeFormula(formulaNumber, formula);
+        const { id } = await preformulate(specialName, formula);
         return [specialName, id];
       }),
     ),
   );
 
+  // The following are the root state tables for the daemon.
+
   /**
    * The two functions "formulate" and "provide" share a responsibility for
-   * maintaining the memoization tables "controllerForId", "typeForId", and
+   * maintaining the memoization tables "controllerForId", "formulaForId", and
    * "idForRef".
    * "formulate" is used for creating and persisting new formulas, whereas
    * "provide" is used for "reincarnating" the values of stored formulas.
@@ -224,8 +208,11 @@ const makeDaemonCore = async (
   /** @type {WeakMap<{}, string>} */
   const agentIdForHandle = new WeakMap();
 
+  // The following are functions that manage that state.
+
   /** @param {string} id */
   const getFormulaForId = async id => {
+    // No synchronous preamble.
     await null;
 
     let formula = formulaForId.get(id);
@@ -265,6 +252,8 @@ const makeDaemonCore = async (
       provideController(id).value
     );
 
+  // The following concern connections to other daemons.
+
   const provideRemoteControl = makeRemoteControlProvider(localNodeId);
 
   /**
@@ -285,8 +274,8 @@ const makeDaemonCore = async (
     );
   };
 
-  // Gateway is equivalent to E's "nonce locator". It provides a value for
-  // a formula identifier to a remote client.
+  // Gateway is equivalent to E's "nonce locator".
+  // It provides a value for a formula identifier to a remote client.
   const localGateway = Far('Gateway', {
     /** @param {string} requestedId */
     provide: async requestedId => {
@@ -327,15 +316,10 @@ const makeDaemonCore = async (
   /**
    * @param {string} workerId512
    */
-  const makeWorkerBootstrap = async workerId512 => {
-    // TODO validate workerId512
+  const makeDaemonFacetForWorker = async workerId512 => {
     return makeExo(
-      `Endo for worker ${workerId512}`,
-      M.interface(
-        `Endo for worker ${workerId512}`,
-        {},
-        { defaultGuards: 'passable' },
-      ),
+      `Endo facet for worker ${workerId512}`,
+      DaemonFacetForWorkerInterface,
       {},
     );
   };
@@ -345,8 +329,7 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const makeIdentifiedWorker = async (workerId512, context) => {
-    // TODO validate workerId512
-    const daemonWorkerFacet = makeWorkerBootstrap(workerId512);
+    const daemonWorkerFacet = makeDaemonFacetForWorker(workerId512);
 
     const { promise: forceCancelled, reject: forceCancel } =
       /** @type {PromiseKit<never>} */ (makePromiseKit());
@@ -379,11 +362,7 @@ const makeDaemonCore = async (
 
     context.onCancel(gracefulCancel);
 
-    const worker = makeExo(
-      'EndoWorker',
-      M.interface('EndoWorker', {}, { defaultGuards: 'passable' }),
-      {},
-    );
+    const worker = makeExo('EndoWorker', WorkerInterface, {});
 
     workerDaemonFacets.set(worker, workerDaemonFacet);
 
@@ -396,12 +375,16 @@ const makeDaemonCore = async (
   const makeReadableBlob = sha512 => {
     const { text, json, streamBase64 } = contentStore.fetch(sha512);
     /** @type {FarRef<EndoReadable>} */
-    return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
-      sha512: () => sha512,
-      streamBase64,
-      text,
-      json,
-    });
+    return makeExo(
+      `Readable file with SHA-512 ${sha512.slice(0, 8)}...`,
+      BlobInterface,
+      {
+        sha512: () => sha512,
+        streamBase64,
+        text,
+        json,
+      },
+    );
   };
 
   /**
@@ -579,8 +562,7 @@ const makeDaemonCore = async (
     },
     endo: async ({ host: hostId, networks: networksId, peers: peersId }) => {
       /** @type {FarRef<EndoBootstrap>} */
-      const endoBootstrap = Far('Endo private facet', {
-        // TODO for user named
+      const endoBootstrap = makeExo('Endo', EndoInterface, {
         ping: async () => 'pong',
         terminate: async () => {
           cancel(new Error('Termination requested'));
@@ -619,31 +601,27 @@ const makeDaemonCore = async (
       };
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
-          makeExo(
-            'EndoGuest',
-            M.interface('EndoGuest', {}, { defaultGuards: 'passable' }),
-            {
-              has: disallowedFn,
-              identify: disallowedFn,
-              list: disallowedFn,
-              followNameChanges: disallowedFn,
-              lookup: disallowedFn,
-              reverseLookup: disallowedFn,
-              write: disallowedFn,
-              remove: disallowedFn,
-              move: disallowedFn,
-              copy: disallowedFn,
-              listMessages: disallowedFn,
-              followMessages: disallowedFn,
-              resolve: disallowedFn,
-              reject: disallowedFn,
-              adopt: disallowedFn,
-              dismiss: disallowedFn,
-              request: disallowedFn,
-              send: disallowedFn,
-              makeDirectory: disallowedFn,
-            },
-          )
+          makeExo('EndoGuest', GuestInterface, {
+            has: disallowedFn,
+            identify: disallowedFn,
+            list: disallowedFn,
+            followNameChanges: disallowedFn,
+            lookup: disallowedFn,
+            reverseLookup: disallowedFn,
+            write: disallowedFn,
+            remove: disallowedFn,
+            move: disallowedFn,
+            copy: disallowedFn,
+            listMessages: disallowedFn,
+            followMessages: disallowedFn,
+            resolve: disallowedFn,
+            reject: disallowedFn,
+            adopt: disallowedFn,
+            dismiss: disallowedFn,
+            request: disallowedFn,
+            send: disallowedFn,
+            makeDirectory: disallowedFn,
+          })
         )
       );
     },
@@ -1397,8 +1375,8 @@ const makeDaemonCore = async (
     return { id, value };
   };
 
-  /** @type {DaemonCore['formulateEndoBootstrap']} */
-  const formulateEndoBootstrap = async specifiedFormulaNumber => {
+  /** @type {DaemonCore['formulateEndo']} */
+  const formulateEndo = async specifiedFormulaNumber => {
     const identifiers = await formulaGraphJobs.enqueue(async () => {
       const formulaNumber = await (specifiedFormulaNumber ?? randomHex512());
       const endoId = formatId({
@@ -1561,11 +1539,7 @@ const makeDaemonCore = async (
       return provide(guestHandleId);
     };
 
-    return makeExo(
-      'Invitation',
-      M.interface('Invitation', {}, { defaultGuards: 'passable' }),
-      { accept, locate },
-    );
+    return makeExo('Invitation', InvitationInterface, { accept, locate });
   };
 
   const makeContext = makeContextMaker({
@@ -1705,21 +1679,17 @@ const makeDaemonCore = async (
     /** @returns {string[]} The list of all names in the pet store. */
     const list = () => petStore.list();
 
-    const info = makeExo(
-      'Endo inspector facet',
-      M.interface('Endo inspector facet', {}, { defaultGuards: 'passable' }),
-      {
-        lookup,
-        list,
-      },
-    );
+    const info = makeExo('EndoInspectorHub', InspectorHubInterface, {
+      lookup,
+      list,
+    });
 
     return info;
   };
 
   /** @type {DaemonCoreExternal} */
   return {
-    formulateEndoBootstrap,
+    formulateEndo,
     provide,
     nodeId: localNodeId,
   };
@@ -1757,7 +1727,7 @@ const provideEndoBootstrap = async (
       daemonCore.provide(endoId)
     );
   } else {
-    const { value: endoBootstrap } = await daemonCore.formulateEndoBootstrap(
+    const { value: endoBootstrap } = await daemonCore.formulateEndo(
       endoFormulaNumber,
     );
     return endoBootstrap;
