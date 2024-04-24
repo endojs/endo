@@ -19,7 +19,6 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./src/types.js": "./src/types.js",
     "./tools.js": "./tools.js",
     "./endow.js": "./endow.js",
     "./package.json": "./package.json"
