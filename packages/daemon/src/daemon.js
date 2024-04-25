@@ -5,6 +5,7 @@
 
 import { makeExo } from '@endo/exo';
 import { E, Far } from '@endo/far';
+import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
@@ -33,9 +34,10 @@ import {
   EndoInterface,
 } from './interfaces.js';
 
+/** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, LookupFormula, LoopbackNetworkFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, Provide, ReadableBlobFormula, Sha512, Specials, WeakMultimap, WorkerDaemonFacet, WorkerFormula, } from './types.js' */
+/** @import { Builtins, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, LookupFormula, LoopbackNetworkFormula, MakeBundleFormula, MakeCapletDeferredTaskParams, MakeUnconfinedFormula, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, Provide, ReadableBlobFormula, Sha512, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula } from './types.js' */
 
 /**
  * @param {number} ms
@@ -240,6 +242,9 @@ const makeDaemonCore = async (
    * @type {WeakMultimap<Record<string | symbol, unknown>, string>}
    */
   const idForRef = makeWeakMultimap();
+
+  /** @type {Map<string, object>} */
+  const refForId = new Map();
 
   /** @type {WeakMultimap<Record<string | symbol, unknown>, string>['get']} */
   const getIdForRef = ref => idForRef.get(ref);
@@ -482,8 +487,39 @@ const makeDaemonCore = async (
     );
   };
 
+  /** @param {object} ref */
+  const mustGetIdForRef = ref => {
+    const id = idForRef.get(ref);
+    if (id === undefined) {
+      throw assert.error(assert.details`No corresponding formula for ${ref}`);
+    }
+    return id;
+  };
+
+  /** @param {string} id */
+  const mustGetRefForId = id => {
+    const ref = refForId.get(id);
+    if (ref === undefined) {
+      if (formulaForId.get(id) !== undefined) {
+        throw assert.error(
+          assert.details`Formula has not produced a ref ${id}`,
+        );
+      }
+      throw assert.error(assert.details`Unknown identifier ${id}`);
+    }
+    return ref;
+  };
+
+  const marshaller = makeMarshal(mustGetIdForRef, mustGetRefForId, {
+    serializeBodyFormat: 'smallcaps',
+  });
+
   /** @type {FormulaMakerTable} */
   const makers = {
+    marshal: async ({ body, slots }) => {
+      await Promise.all(slots.map(id => provide(id)));
+      return marshaller.fromCapData({ body, slots });
+    },
     eval: ({ worker, source, names, values }, context) =>
       makeEval(worker, source, names, values, context),
     'readable-blob': ({ content }) => makeReadableBlob(content),
@@ -676,8 +712,16 @@ const makeDaemonCore = async (
   const evaluateFormula = async (id, formulaNumber, formula, context) => {
     if (Object.hasOwn(makers, formula.type)) {
       const make = makers[formula.type];
-      // @ts-expect-error TypeScript is trying too hard to infer the unknown.
-      return /** @type {unknown} */ (make(formula, context, id, formulaNumber));
+      const value = await /** @type {unknown} */ (
+        // @ts-expect-error TypeScript is trying too hard to infer the unknown.
+        make(formula, context, id, formulaNumber)
+      );
+      if (typeof value === 'object' && value !== null) {
+        // @ts-expect-error TypeScript seems to believe the value might be a string here.
+        idForRef.add(value, id);
+        refForId.set(id, value);
+      }
+      return value;
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -732,18 +776,7 @@ const makeDaemonCore = async (
     // causes a rejection for both the controller and the value.
     const written = persistencePowers.writeFormula(formulaNumber, formula);
     // The controller _must_ be constructed in the synchronous prelude of this function.
-    const valuePromise = evaluateFormula(
-      id,
-      formulaNumber,
-      formula,
-      context,
-    ).then(value => {
-      if (typeof value === 'object' && value !== null) {
-        // @ts-expect-error TypeScript seems to believe the value might be a string here.
-        idForRef.add(value, id);
-      }
-      return value;
-    });
+    const valuePromise = evaluateFormula(id, formulaNumber, formula, context);
     resolve(written.then(() => valuePromise));
     await written;
 
@@ -1123,6 +1156,39 @@ const makeDaemonCore = async (
       workerFormulaNumber,
     );
     return workerFormulation.id;
+  };
+
+  /** @type {DaemonCore['formulateMarshalValue']} */
+  const formulateMarshalValue = async (value, deferredTasks) => {
+    const { marshalFormulaNumber } = await formulaGraphJobs.enqueue(
+      async () => {
+        const ownFormulaNumber = await randomHex512();
+        const ownId = formatId({
+          number: ownFormulaNumber,
+          node: localNodeId,
+        });
+
+        const identifiers = harden({
+          marshalId: ownId,
+          marshalFormulaNumber: ownFormulaNumber,
+        });
+
+        await deferredTasks.execute(identifiers);
+        return identifiers;
+      },
+    );
+
+    const { body, slots } = marshaller.toCapData(value);
+
+    /** @type {MarshalFormula} */
+    const formula = {
+      type: 'marshal',
+      body,
+      slots,
+    };
+    return /** @type {FormulateResult<void>} */ (
+      formulate(marshalFormulaNumber, formula)
+    );
   };
 
   /** @type {DaemonCore['formulateEval']} */
@@ -1569,6 +1635,7 @@ const makeDaemonCore = async (
     formulateWorker,
     formulateHost,
     formulateGuest,
+    formulateMarshalValue,
     formulateEval,
     formulateUnconfined,
     formulateBundle,
