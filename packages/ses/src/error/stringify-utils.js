@@ -21,6 +21,8 @@ import {
   toStringTagSymbol,
 } from '../commons.js';
 
+/** @import {StringablePayload} from '../../types.js' */
+
 /**
  * Joins English terms with commas and an optional conjunction.
  *

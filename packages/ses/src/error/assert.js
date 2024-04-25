@@ -46,6 +46,17 @@ import './types.js';
 import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
+/**
+ * @import {BaseAssert,
+ *          Assert,
+ *          AssertionFunctions,
+ *          AssertionUtilities,
+ *          StringablePayload,
+ *          DetailsToken,
+ *          MakeAssert,
+ * } from '../../types.js'
+ */
+
 // For our internal debugging purposes, uncomment
 // const internalDebugConsole = console;
 
@@ -54,7 +65,7 @@ import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 /** @type {WeakMap<StringablePayload, any>} */
 const declassifiers = new WeakMap();
 
-/** @type {AssertQuote} */
+/** @type {AssertionUtilities['quote']} */
 const quote = (payload, spaces = undefined) => {
   const result = freeze({
     toString: freeze(() => bestEffortStringify(payload, spaces)),
@@ -67,19 +78,7 @@ freeze(quote);
 const canBeBare = freeze(/^[\w:-]( ?[\w:-])*$/);
 
 /**
- * Embed a string directly into error details without wrapping punctuation.
- * To avoid injection attacks that exploit quoting confusion, this must NEVER
- * be used with data that is possibly attacker-controlled.
- * As a further safeguard, we fall back to quoting any input that is not a
- * string of sufficiently word-like parts separated by isolated spaces (rather
- * than throwing an exception, which could hide the original problem for which
- * explanatory details are being constructed---i.e., ``` assert.details`...` ```
- * should never be the source of a new exception, nor should an attempt to
- * render its output, although we _could_ instead decide to handle the latter
- * by inline replacement similar to that of `bestEffortStringify` for producing
- * rendered messages like `(an object) was tagged "[Unsafe bare string]"`).
- *
- * @type {AssertQuote}
+ * @type {AssertionUtilities['bare']}
  */
 const bare = (payload, spaces = undefined) => {
   if (typeof payload !== 'string' || !regexpTest(canBeBare, payload)) {
@@ -165,7 +164,7 @@ freeze(DetailsTokenProto.toString);
  * of them should be uses where the template literal has no redacted
  * substitution values. In those cases, the two are equivalent.
  *
- * @type {DetailsTag}
+ * @type {AssertionUtilities['details']}
  */
 const redactedDetails = (template, ...args) => {
   // Keep in mind that the vast majority of calls to `details` creates
@@ -174,7 +173,7 @@ const redactedDetails = (template, ...args) => {
   // all the work to happen only if needed, for example, if an assertion fails.
   const detailsToken = freeze({ __proto__: DetailsTokenProto });
   weakmapSet(hiddenDetailsMap, detailsToken, { template, args });
-  return detailsToken;
+  return /** @type {DetailsToken} */ (/** @type {unknown} */ (detailsToken));
 };
 freeze(redactedDetails);
 
@@ -189,7 +188,7 @@ freeze(redactedDetails);
  * of safety. `unredactedDetails` also sacrifices the speed of `details`,
  * which is usually fine in debugging and testing.
  *
- * @type {DetailsTag}
+ * @type {AssertionUtilities['details']}
  */
 const unredactedDetails = (template, ...args) => {
   args = arrayMap(args, arg =>
@@ -286,7 +285,7 @@ const tagError = (err, optErrorName = err.name) => {
  *
  * @param {Error} error
  */
-const sanitizeError = error => {
+export const sanitizeError = error => {
   const descs = getOwnPropertyDescriptors(error);
   const {
     name: _nameDesc,
@@ -322,7 +321,7 @@ const sanitizeError = error => {
 };
 
 /**
- * @type {AssertMakeError}
+ * @type {AssertionUtilities['error']}
  */
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
@@ -397,7 +396,7 @@ const { addLogArgs, takeLogArgsArray } = makeNoteLogArgsArrayKit();
  */
 const hiddenNoteCallbackArrays = new WeakMap();
 
-/** @type {AssertNote} */
+/** @type {AssertionUtilities['note']} */
 const note = (error, detailsNote) => {
   if (typeof detailsNote === 'string') {
     // If it is a string, use it as the literal part of the template so
@@ -478,7 +477,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   const details = unredacted ? unredactedDetails : redactedDetails;
   const assertFailedDetails = details`Check failed`;
 
-  /** @type {AssertFail} */
+  /** @type {AssertionFunctions['fail']} */
   const fail = (
     optDetails = assertFailedDetails,
     errConstructor = undefined,
@@ -486,13 +485,14 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   ) => {
     const reason = makeError(optDetails, errConstructor, options);
     if (optRaise !== undefined) {
+      // @ts-ignore returns `never` doesn't mean it isn't callable
       optRaise(reason);
     }
     throw reason;
   };
   freeze(fail);
 
-  /** @type {FailTag} */
+  /** @type {AssertionUtilities['Fail']} */
   const Fail = (template, ...args) => fail(details(template, ...args));
 
   // Don't freeze or export `baseAssert` until we add methods.
@@ -508,7 +508,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     flag || fail(optDetails, errConstructor, options);
   }
 
-  /** @type {AssertEqual} */
+  /** @type {AssertionFunctions['equal']} */
   const equal = (
     actual,
     expected,
@@ -525,7 +525,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   };
   freeze(equal);
 
-  /** @type {AssertTypeof} */
+  /** @type {AssertionFunctions['typeof']} */
   const assertTypeof = (specimen, typename, optDetails) => {
     // This will safely fall through if typename is not a string,
     // which is what we want.
@@ -544,7 +544,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   };
   freeze(assertTypeof);
 
-  /** @type {AssertString} */
+  /** @type {AssertionFunctions['string']} */
   const assertString = (specimen, optDetails = undefined) =>
     assertTypeof(specimen, 'string', optDetails);
 
