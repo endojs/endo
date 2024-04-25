@@ -110,7 +110,7 @@ export const makeHostMaker = ({
      * @param {ERef<AsyncIterableIterator<string>>} readerRef
      * @param {string} [petName]
      */
-    const store = async (readerRef, petName) => {
+    const storeBlob = async (readerRef, petName) => {
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
@@ -632,7 +632,7 @@ export const makeHostMaker = ({
       request,
       send,
       // Host
-      store,
+      storeBlob,
       storeValue,
       provideGuest,
       provideHost,

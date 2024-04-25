@@ -337,15 +337,38 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('store <path>')
-    .description('stores a blob')
+    .command('store')
+    .description('stores a blob or structured value')
     .option(...commonOptions.as)
     .option(...commonOptions.name)
-    .action(async (storablePath, cmd) => {
-      const { name, as: agentNames } = cmd.opts();
+    .option('-p,--path <path>', 'store a file as a blob')
+    .option('--stdin', 'store stdin as a blob')
+    .option('--text <text>', 'store a string of UTF-8 text')
+    .option('--text-stdin', 'store STDIN as UTF-8 text')
+    .option('--json <json>', 'store JSON')
+    .option('--json-stdin', 'store STDIN JSON')
+    .option('--bigint <bigint>', 'store a bigint')
+    .action(async cmd => {
+      const {
+        name,
+        as: agentNames,
+        path: storePath,
+        stdin: storeStdin,
+        text: storeText,
+        textStdin: storeTextStdin,
+        json: storeJson,
+        jsonStdin: storeJsonStdin,
+        bigint: storeBigInt,
+      } = cmd.opts();
       const { store } = await import('./commands/store.js');
       return store({
-        storablePath,
+        storePath,
+        storeStdin,
+        storeText,
+        storeTextStdin,
+        storeJson,
+        storeJsonStdin,
+        storeBigInt,
         name,
         agentNames,
       });
