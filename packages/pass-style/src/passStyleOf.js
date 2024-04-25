@@ -168,12 +168,10 @@ const makePassStyleOf = passStyleHelpers => {
           }
           for (const helper of passStyleHelpers) {
             if (helper.canBeValid(inner)) {
-              // @ts-expect-error XXX
               helper.assertValid(inner, passStyleOfRecur);
               return helper.styleName;
             }
           }
-          // @ts-expect-error XXX
           remotableHelper.assertValid(inner, passStyleOfRecur);
           return 'remotable';
         }
@@ -182,7 +180,6 @@ const makePassStyleOf = passStyleHelpers => {
             Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
-          // @ts-expect-error XXX
           remotableHelper.assertValid(inner, passStyleOfRecur);
           return 'remotable';
         }

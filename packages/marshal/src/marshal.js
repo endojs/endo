@@ -234,12 +234,12 @@ export const makeMarshal = (
   };
 
   const makeFullRevive = slots => {
-    /** @type {Map<number, RemotableObject | Promise>} */
+    /** @type {Map<number>} */
     const valMap = new Map();
 
     /**
      * @param {{iface?: string, index: number}} slotData
-     * @returns {RemotableObject | Promise}
+     * @returns {PassableCap}
      */
     const decodeSlotCommon = slotData => {
       const { iface = undefined, index, ...rest } = slotData;
@@ -346,7 +346,7 @@ export const makeMarshal = (
     const makeDecodeSlotFromSmallcaps = prefix => {
       /**
        * @param {string} stringEncoding
-       * @param {(e: unknown) => Passable} _decodeRecur
+       * @param {(e: unknown) => PassableCap} _decodeRecur
        * @returns {RemotableObject | Promise}
        */
       return (stringEncoding, _decodeRecur) => {
@@ -404,7 +404,7 @@ export const makeMarshal = (
     // which should be considered fixed once we've completed the switch
     // to smallcaps.
     assertPassable(result);
-    return result;
+    return /** @type {PassableCap} */ (result);
   };
 
   return harden({

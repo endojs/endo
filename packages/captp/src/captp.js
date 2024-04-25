@@ -410,6 +410,7 @@ export const makeCapTP = (
           epoch,
           questionID,
           target,
+          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
           method: serialize(harden([null, args])),
         });
         return promise;
@@ -425,6 +426,7 @@ export const makeCapTP = (
           epoch,
           questionID,
           target,
+          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
           method: serialize(harden([prop, args])),
         });
         return promise;
@@ -493,7 +495,6 @@ export const makeCapTP = (
     }
 
     // If we imported this slot, mark it as one our peer exported.
-    // @ts-expect-error map lacks value type
     return slotToImported.get(recvSlot.add(slot));
   }
 
