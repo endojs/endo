@@ -11,6 +11,7 @@ import { X, q } from '@endo/errors';
 const { ownKeys } = Reflect;
 const { fromEntries } = Object;
 
+// TODO return a type contingent on the parameter as deeplyFullfilledObject from agoric-sdk does
 /**
  * Given a Passable `val` whose pass-by-copy structure may contain leaf
  * promises, return a promise for a replacement Passable,
