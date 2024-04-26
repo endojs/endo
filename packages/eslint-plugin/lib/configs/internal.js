@@ -12,6 +12,7 @@ const dynamicConfig = {
 const rootTsProjectGlob = './tsconfig.eslint-full.json';
 const parserOptions = {
   tsconfigRootDir: path.join(__dirname, '../../../..'),
+  EXPERIMENTAL_useProjectService: true,
   project: [rootTsProjectGlob],
 };
 
