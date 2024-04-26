@@ -410,6 +410,7 @@ const main = async argv => {
   })();
   const scriptAsFn = async (
     { awaitSnippets, budget, args, scalingArg, setup, snippets, r },
+    init,
     globals,
     // Bindings whose names should have been keywords.
     [undefined, Infinity, NaN] = [void 0, 1 / 0, +'NaN'],
@@ -496,6 +497,8 @@ const main = async argv => {
         arr[i] = arr[j];
         arr[j] = v;
       });
+
+    init();
 
     const nonScalingArgs = assignEntries(
       filter(entries(args), ([name, _arr]) => name !== scalingArg),
@@ -681,16 +684,21 @@ const main = async argv => {
     }
   };
   const scriptFnSource = mustReplace(dedent(['  ' + scriptAsFn.toString()]), [
-    [/=>\s*\{/, s => `${s}\n// --init\n${inits.join(';\n')};\n`],
     [
       /const dedent = [^;]*/,
       () => `const dedent = ${dedent(['  ' + dedent.toString()])}`,
     ],
   ]);
-  const script = `(${scriptFnSource})(\n${toSource(
-    config,
-    2,
-  )},\n{ print, Array, Function, RegExp })`;
+  const script = dedent`
+    (${scriptFnSource})(
+    // config
+    ${toSource(config, 2)},
+    function init() {\n${inits.join(';\n')}\n},
+
+    // infrastructure
+    { print, Array, Function, RegExp },
+    )
+  `;
 
   // Dump the script if so requested.
   if (dump) {
