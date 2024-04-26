@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 18
       - name: Provide yarn # yarn is missing in the Selenium image
-        run: npm install -g yarn@legacy ## get yarn v1.x in the container
+        run: corepack enable
       - name: Install dependencies
         run: yarn install
       - name: Build artifacts

@@ -15,6 +15,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: 'true'
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - uses: actions/setup-node@v3
         with:
           node-version: 18.x
@@ -23,5 +27,9 @@ jobs:
 
       - name: Check for cycles
         run: scripts/check-dependency-cycles.sh 0
-      - name: check mismatched dependencies
-        run: yarn depcheck
+
+        # Under Yarn "classic" this job also checked for mismatchedWorkspaceDependencies
+        # (https://github.com/yarnpkg/yarn/blob/158d96dce95313d9a00218302631cd263877d164/src/cli/commands/workspaces.js#L49)
+        # but it's not supported in Berry and it's better solved by the "workspace:*" protocol.
+        # If we do want more workspace constraint enforcement, we can define arbitrarily with:
+        #    https://yarnpkg.com/features/constraints

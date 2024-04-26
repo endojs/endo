@@ -4,9 +4,7 @@
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",
-  "bin": {
-    "bundle-source": "./src/tool.js"
-  },
+  "bin": "./src/tool.js",
   "exports": {
     ".": "./src/index.js",
     "./exported.js": "./exported.js",

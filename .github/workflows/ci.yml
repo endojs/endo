@@ -30,27 +30,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
 
       - name: Echo node version
         run: node --version
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
       - name: Install dependencies
-        run: yarn --frozen-lockfile
+        run: yarn install --immutable
 
       # end macro
 
@@ -87,28 +80,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
 
       - name: Echo node version
         run: node --version
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
       - name: Install dependencies
-        run: yarn --frozen-lockfile
+        run: yarn install --immutable
 
       # end macro
 
@@ -144,29 +129,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
 
       - name: Echo node version
         run: node --version
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
       # end macro
 
       - name: Install dependencies
-        run: yarn --frozen-lockfile --ignore-engines
+        run: yarn install --immutable
 
       - name: Run yarn build
         run: yarn build
@@ -191,27 +169,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
 
       - name: Echo node version
         run: node --version
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
       - name: Install dependencies
-        run: yarn --frozen-lockfile
+        run: yarn install --immutable
 
       # end macro
 
@@ -237,27 +208,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
 
       - name: Echo node version
         run: node --version
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
       - name: Install dependencies
-        run: yarn --frozen-lockfile
+        run: yarn install --immutable
 
       # end macro
 
@@ -283,32 +247,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
 
       - name: Echo node version
         run: node --version
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
       - name: Install dependencies
-        run: yarn --frozen-lockfile
+        run: yarn install --immutable
 
       # end macro
 
       - name: 'build'
         run: yarn run build
+
+      # fails under Node v12
+      - run: corepack disable
 
       - name: 'switch to node v12'
         uses: actions/setup-node@v3
@@ -318,8 +278,9 @@ jobs:
       - name: Echo node version
         run: node --version
 
-      - name: Run yarn test:platform-compatibility
-        run: cd packages/ses && yarn test:platform-compatibility
+      - name: Run test:platform-compatibility
+        # npm b/c Yarn 4 doesn't work in Node 12
+        run: cd packages/ses && npm run test:platform-compatibility
 
   viable-release:
     name: viable-release
@@ -337,27 +298,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
 
       - name: Echo node version
         run: node --version
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache npm modules
-        uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
       - name: Install dependencies
-        run: yarn --frozen-lockfile
+        run: yarn install --immutable
 
       # end macro
 

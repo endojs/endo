@@ -60,7 +60,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "prepare": "yarn run clean && yarn build",
+    "prepare": "npm run clean && npm run build",
     "qt": "ava",
     "test": "tsd && ava",
     "test:platform-compatibility": "node test/package/test.cjs"
@@ -97,7 +97,6 @@
     "tools.js",
     "src"
   ],
-  "private": false,
   "publishConfig": {
     "access": "public"
   },

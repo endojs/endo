@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=16"
   },
-  "packageManager": "yarn@1.22.21",
+  "packageManager": "yarn@4.1.1",
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
@@ -20,6 +20,7 @@
     "eslint-plugin-jsdoc": "^48.2.2",
     "lerna": "^5.6.2",
     "lerna-update-wizard": "^0.17.5",
+    "prettier": "^3.0.0",
     "ts-api-utils": "~1.0.1",
     "type-coverage": "^2.26.3",
     "typedoc": "^0.25.12",
@@ -30,23 +31,19 @@
   "scripts": {
     "clean": "lerna clean",
     "cover": "lerna run cover",
-    "depcheck": "node scripts/check-mismatched-dependencies.js",
     "docs": "typedoc",
     "docs:markdown-for-agoric-documentation-repo": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.build.json",
     "update": "lernaupdate --dedupe",
-    "format": "yarn prettier --write .github packages",
-    "lint": "yarn prettier --check .github packages && lerna run lint",
+    "format": "prettier --write .github packages",
+    "lint": "prettier --check .github packages && lerna run lint",
     "lint-fix": "lerna run --no-bail lint-fix",
     "test": "lerna run --ignore @endo/skel test",
     "test262": "lerna run test262",
-    "postinstall": "patch-package",
-    "patch-package": "patch-package",
     "build": "lerna run build",
     "build-ts": "tsc --build tsconfig.build.json"
   },
   "dependencies": {
-    "conventional-changelog-conventionalcommits": "^4.6.0",
-    "patch-package": "^8.0.0"
+    "conventional-changelog-conventionalcommits": "^4.6.0"
   },
   "prettier": {
     "arrowParens": "avoid",
@@ -54,5 +51,10 @@
   },
   "typeCoverage": {
     "atLeast": 0
+  },
+  "resolutions": {
+    "@babel/types": "7.24.0",
+    "@lerna/version@npm:5.6.2": "patch:@lerna/version@npm%3A5.6.2#~/.yarn/patches/@lerna-version-npm-5.6.2-ce2d9cb2f5.patch",
+    "@lerna/conventional-commits@npm:5.6.2": "patch:@lerna/conventional-commits@npm%3A5.6.2#~/.yarn/patches/@lerna-conventional-commits-npm-5.6.2-a373ba4bc0.patch"
   }
 }
