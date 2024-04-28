@@ -401,7 +401,7 @@ export const defendPrototype = (
     const originalMethod = behaviorMethods[prop];
     const { shiftedMethod } = {
       shiftedMethod(...args) {
-        return originalMethod([this, ...args]);
+        return originalMethod(this, ...args);
       },
     };
     const behaviorMethod = thisfulMethods ? originalMethod : shiftedMethod;
