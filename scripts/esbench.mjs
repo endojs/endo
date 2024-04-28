@@ -96,19 +96,6 @@ const makePromiseKit = () => {
   return { promise, resolve, reject };
 };
 
-const mustReplace = (src, pairs) => {
-  let ret = src;
-  for (const [pattern, replacer] of pairs) {
-    let n = 0;
-    ret = ret.replace(pattern, (...args) => {
-      n += 1;
-      return replacer(...args);
-    });
-    if (n === 0) throw Error(`no match when replacing ${pattern}`);
-  }
-  return ret;
-};
-
 const parseNumber = str => (/[0-9]/.test(str || '') ? Number(str) : NaN);
 
 const q = str => JSON.stringify(str);
@@ -369,10 +356,8 @@ const main = async argv => {
     snippets,
     r: randomBytes(16).toString('hex'),
   };
-  // Create a dedent suitable for both producing the script and in the script
-  // itself by using identical freed methods.
-  // Note that the nested scope here warrants dedenting `dedent` itself.
-  const dedent = (() => {
+  // makeDedent robustly makes a dedent function from primordials.
+  function makeDedent() {
     const { call } = Function.prototype;
     const join = call.bind(Array.prototype.join);
     const push = call.bind(Array.prototype.push);
@@ -407,17 +392,17 @@ const main = async argv => {
       return join(parts, '');
     };
     return dedent;
-  })();
+  }
+  const dedent = makeDedent();
   const scriptAsFn = async (
-    { awaitSnippets, budget, args, scalingArg, setup, snippets, r },
-    init,
-    globals,
+    { awaitSnippets, budget, init, args, scalingArg, setup, snippets, r },
+    infrastructure,
     // Bindings whose names should have been keywords.
     [undefined, Infinity, NaN] = [void 0, 1 / 0, +'NaN'],
   ) => {
     // Capture primordials to be robust against manipulation in init/setup/etc.
     // This is probably paranoid, but we *do* want to benchmark shims/polyfills/etc.
-    const { print, Array, Function, RegExp } = globals;
+    const { print, Array, Function, RegExp } = infrastructure;
     const AsyncFunction = Function(
       'try { return (async () => {}).constructor; } catch (_err) {}',
     )();
@@ -464,6 +449,11 @@ const main = async argv => {
 
     // dummy is an object with no extractable properties.
     const dummy = Object.freeze(Object.create(null));
+    // dedent with String.raw is safe but incorrect.
+    const {
+      dedent = (strings, ...subs) =>
+        apply(raw, undefined, prepended(subs, { raw: strings })),
+    } = infrastructure;
     // prepended(arr, ...items) returns [...items, ...arr].
     const prepended = (arr, ...items) => {
       const arr2 = slice(arr);
@@ -475,10 +465,6 @@ const main = async argv => {
       for (let i = 0; i < items.length; i += 1) push(arr2, items[i]);
       return arr2;
     };
-    // dedent with String.raw is safe but incorrect.
-    // It should be replaced by the outer scope.
-    const dedent = (strings, ...subs) =>
-      apply(raw, undefined, prepended(subs, { raw: strings }));
     // ifEmpty maps a nonempty array to itself and an empty array to a substitute.
     const ifEmpty = (arr, sub) => (arr.length === 0 ? sub : arr);
     // crossJoin returns the Cartesian product of input arrays (replacing an empty
@@ -683,20 +669,22 @@ const main = async argv => {
       if (C <= 0) break;
     }
   };
-  const scriptFnSource = mustReplace(dedent(['  ' + scriptAsFn.toString()]), [
-    [
-      /const dedent = [^;]*/,
-      () => `const dedent = ${dedent(['  ' + dedent.toString()])}`,
-    ],
-  ]);
+  const scriptFnSource = dedent(['  ' + scriptAsFn.toString()]);
   const script = dedent`
     (${scriptFnSource})(
+
     // config
-    ${toSource(config, 2)},
-    function init() {\n${inits.join(';\n')}\n},
+    {
+    ...${toSource(config, 2)},
+    init() {\n${inits.join(';\n')}\n},
+    },
 
     // infrastructure
-    { print, Array, Function, RegExp },
+    {
+      ...{ print, Array, Function, RegExp },
+      dedent: (${makeDedent})(),
+    },
+
     )
   `;
 
