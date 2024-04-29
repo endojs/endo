@@ -9,7 +9,7 @@ import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
 
 /**
  * @import {RankCompare} from '@endo/marshal'
- * @import {FullCompare} from '../types'
+ * @import {FullCompare} from '../types.js'
  */
 
 // Based on merge-set-operators.js, but altered for the bag representation.

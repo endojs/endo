@@ -23,7 +23,7 @@ const { ownKeys } = Reflect;
 /**
  * @import {Passable} from '@endo/pass-style'
  * @import {Checker} from '@endo/marshal'
- * @import {CopyBag, CopyMap, CopySet, Key} from '../types'
+ * @import {CopyBag, CopyMap, CopySet, Key} from '../types.js'
  */
 
 // ////////////////// Primitive and Scalar keys ////////////////////////////////

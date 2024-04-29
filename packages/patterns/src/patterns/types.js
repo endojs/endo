@@ -4,7 +4,7 @@ export {};
 
 /**
  * @import {Passable, Checker} from '@endo/pass-style'
- * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types'
+ * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types.js'
  */
 
 /**

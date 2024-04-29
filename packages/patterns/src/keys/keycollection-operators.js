@@ -10,7 +10,7 @@ import { makeArrayIterator } from '@endo/common/make-array-iterator.js';
 
 /**
  * @import {RankCompare} from '@endo/marshal'
- * @import {Key, KeyCompare, FullCompare, KeyComparison, KeyCollection} from '../types'
+ * @import {Key, KeyCompare, FullCompare, KeyComparison, KeyCollection} from '../types.js'
  */
 
 import { q, Fail } from '@endo/errors';
