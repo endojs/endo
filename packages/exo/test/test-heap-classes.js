@@ -1,3 +1,4 @@
+/* eslint-disable @endo/no-optional-chaining */
 // @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';
 
@@ -77,7 +78,7 @@ test('test defineExoClass', t => {
     message:
       'In "incr" method of (UpCounter): arg 0?: string "foo" - Must be a number',
   });
-  t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
+  t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
 
   const symbolic = Symbol.for('symbolic');
@@ -91,7 +92,7 @@ test('test defineExoClass', t => {
     [symbolic]() {},
   });
   const foo = makeFoo();
-  t.deepEqual(foo[GET_INTERFACE_GUARD](), FooI);
+  t.deepEqual(foo[GET_INTERFACE_GUARD]?.(), FooI);
   // @ts-expect-error intentional for test
   t.throws(() => foo[symbolic]('invalid arg'), {
     message:
@@ -143,8 +144,8 @@ test('test defineExoClassKit', t => {
   t.throws(() => upCounter.decr(3), {
     message: 'upCounter.decr is not a function',
   });
-  t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
-  t.deepEqual(downCounter[GET_INTERFACE_GUARD](), DownCounterI);
+  t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
+  t.deepEqual(downCounter[GET_INTERFACE_GUARD]?.(), DownCounterI);
 });
 
 test('test makeExo', t => {
@@ -165,7 +166,7 @@ test('test makeExo', t => {
     message:
       'In "incr" method of (upCounter): arg 0?: string "foo" - Must be a number',
   });
-  t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
+  t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
 });
 
 // For code sharing with defineKind which does not support an interface
@@ -186,7 +187,7 @@ test('missing interface', t => {
     message:
       'In "makeSayHello" method of (greeterMaker): result: "[Symbol(passStyle)]" property expected: "[Function <anon>]"',
   });
-  t.is(greeterMaker[GET_INTERFACE_GUARD](), undefined);
+  t.is(greeterMaker[GET_INTERFACE_GUARD]?.(), undefined);
 });
 
 const SloppyGreeterI = M.interface('greeter', {}, { sloppy: true });
@@ -199,7 +200,7 @@ test('sloppy option', t => {
     },
   });
   t.is(greeter.sayHello(), 'hello');
-  t.deepEqual(greeter[GET_INTERFACE_GUARD](), SloppyGreeterI);
+  t.deepEqual(greeter[GET_INTERFACE_GUARD]?.(), SloppyGreeterI);
 
   t.throws(
     () =>
@@ -262,7 +263,7 @@ test('raw guards', t => {
       return 'hello';
     },
   });
-  t.deepEqual(greeter[GET_INTERFACE_GUARD](), RawGreeterI);
+  t.deepEqual(greeter[GET_INTERFACE_GUARD]?.(), RawGreeterI);
   testGreeter(t, greeter, 'raw defaultGuards');
 
   const Greeter2I = M.interface('greeter2', {
@@ -302,7 +303,7 @@ test('raw guards', t => {
       return {};
     },
   });
-  t.deepEqual(greeter2[GET_INTERFACE_GUARD](), Greeter2I);
+  t.deepEqual(greeter2[GET_INTERFACE_GUARD]?.(), Greeter2I);
   testGreeter(t, greeter, 'explicit raw');
 
   t.is(Object.isFrozen(greeter2.rawIn({})), true);
@@ -340,15 +341,15 @@ test('naked function call', t => {
   const { sayHello, [GET_INTERFACE_GUARD]: gigm } = greeter;
   t.throws(() => sayHello(), {
     message:
-      'thisful method "In \\"sayHello\\" method of (greeter)" called without \'this\' object',
+      'Method "In \\"sayHello\\" method of (greeter)" called without \'this\' object',
   });
   t.is(sayHello.bind(greeter)(), 'hello');
 
-  t.throws(() => gigm(), {
+  t.throws(() => gigm?.(), {
     message:
-      'thisful method "In \\"__getInterfaceGuard__\\" method of (greeter)" called without \'this\' object',
+      'Method "In \\"__getInterfaceGuard__\\" method of (greeter)" called without \'this\' object',
   });
-  t.deepEqual(gigm.bind(greeter)(), GreeterI);
+  t.deepEqual(gigm?.bind(greeter)(), GreeterI);
 });
 
 // needn't run. we just don't have a better place to write these.

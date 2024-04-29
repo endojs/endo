@@ -18,7 +18,7 @@ import { GET_INTERFACE_GUARD } from './get-interface.js';
 
 /**
  * @import {InterfaceGuard, Method, MethodGuard, MethodGuardPayload} from '@endo/patterns'
- * @import {ContextProvider, FacetName, KitContextProvider, MatchConfig, Methods} from './types.js'
+ * @import {ClassContext, ContextProvider, FacetName, KitContext, KitContextProvider, MatchConfig, Methods} from './types.js'
  */
 
 const { apply, ownKeys } = Reflect;
@@ -146,21 +146,28 @@ const buildMatchConfig = methodGuardPayload => {
 };
 
 /**
- * @param {Method} method
+ * @param {(representative: any) => ClassContext | KitContext} getContext
+ * @param {CallableFunction} behaviorMethod
  * @param {MethodGuardPayload} methodGuardPayload
  * @param {string} label
  * @returns {Method}
  */
-const defendSyncMethod = (method, methodGuardPayload, label) => {
+const defendSyncMethod = (
+  getContext,
+  behaviorMethod,
+  methodGuardPayload,
+  label,
+) => {
   const { returnGuard } = methodGuardPayload;
   const isRawReturn = isRawGuard(returnGuard);
   const matchConfig = buildMatchConfig(methodGuardPayload);
   const { syncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     syncMethod(...syncArgs) {
+      const context = getContext(this);
       // Only harden args and return value if not dealing with a raw value guard.
       const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
-      const result = apply(method, this, realArgs);
+      const result = apply(behaviorMethod, context, realArgs);
       if (!isRawReturn) {
         mustMatch(harden(result), returnGuard, `${label}: result`);
       }
@@ -202,11 +209,17 @@ const desync = methodGuardPayload => {
 };
 
 /**
- * @param {(...args: unknown[]) => any} method
+ * @param {(representative: any) => ClassContext | KitContext} getContext
+ * @param {CallableFunction} behaviorMethod
  * @param {MethodGuardPayload} methodGuardPayload
  * @param {string} label
  */
-const defendAsyncMethod = (method, methodGuardPayload, label) => {
+const defendAsyncMethod = (
+  getContext,
+  behaviorMethod,
+  methodGuardPayload,
+  label,
+) => {
   const { returnGuard } = methodGuardPayload;
   const isRawReturn = isRawGuard(returnGuard);
 
@@ -231,8 +244,11 @@ const defendAsyncMethod = (method, methodGuardPayload, label) => {
           for (let j = 0; j < awaitedArgs.length; j += 1) {
             syncArgs[awaitIndexes[j]] = awaitedArgs[j];
           }
+          // Get the context after all waiting in case we ever do revocation
+          // by removing the context entry. Avoid TOCTTOU!
+          const context = getContext(this);
           const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
-          return apply(method, this, realArgs);
+          return apply(behaviorMethod, context, realArgs);
         },
       );
       if (isRawReturn) {
@@ -249,18 +265,29 @@ const defendAsyncMethod = (method, methodGuardPayload, label) => {
 
 /**
  *
- * @param {Method} method
+ * @param {(representative: any) => ClassContext | KitContext} getContext
+ * @param {CallableFunction} behaviorMethod
  * @param {MethodGuard} methodGuard
  * @param {string} label
  */
-const defendMethod = (method, methodGuard, label) => {
+const defendMethod = (getContext, behaviorMethod, methodGuard, label) => {
   const methodGuardPayload = getMethodGuardPayload(methodGuard);
   const { callKind } = methodGuardPayload;
   if (callKind === 'sync') {
-    return defendSyncMethod(method, methodGuardPayload, label);
+    return defendSyncMethod(
+      getContext,
+      behaviorMethod,
+      methodGuardPayload,
+      label,
+    );
   } else {
     assert(callKind === 'async');
-    return defendAsyncMethod(method, methodGuardPayload, label);
+    return defendAsyncMethod(
+      getContext,
+      behaviorMethod,
+      methodGuardPayload,
+      label,
+    );
   }
 };
 
@@ -268,74 +295,43 @@ const defendMethod = (method, methodGuard, label) => {
  * @param {string} methodTag
  * @param {ContextProvider} contextProvider
  * @param {CallableFunction} behaviorMethod
- * @param {boolean} [thisfulMethods]
- * @param {MethodGuard} [methodGuard]
- * @param {import('@endo/patterns').DefaultGuardType} [defaultGuards]
+ * @param {MethodGuard} methodGuard
  */
 const bindMethod = (
   methodTag,
   contextProvider,
   behaviorMethod,
-  thisfulMethods = false,
-  methodGuard = undefined,
-  defaultGuards = undefined,
+  methodGuard,
 ) => {
   assert.typeof(behaviorMethod, 'function');
 
-  const getContext = self => {
-    const context = contextProvider(self);
-    context ||
-      Fail`${q(methodTag)} may only be applied to a valid instance: ${self}`;
+  /**
+   * @param {any} representative
+   * @returns {ClassContext | KitContext}
+   */
+  const getContext = representative => {
+    representative ||
+      // separate line to ease breakpointing
+      Fail`Method ${methodTag} called without 'this' object`;
+    const context = contextProvider(representative);
+    if (context === undefined) {
+      throw Fail`${q(
+        methodTag,
+      )} may only be applied to a valid instance: ${representative}`;
+    }
     return context;
   };
 
-  // Violating all Jessie rules to create representatives that inherit
-  // methods from a shared prototype. The bound method therefore needs
-  // to mention `this`. We define it using concise method syntax
-  // so that it will be `this` sensitive but not constructable.
-  //
-  // We normally consider `this` unsafe because of the hazard of a
-  // method of one abstraction being applied to an instance of
-  // another abstraction. To prevent that attack, the bound method
-  // checks that its `this` is in the map in which its representatives
-  // are registered.
-  let { method } = thisfulMethods
-    ? {
-        method(...args) {
-          this ||
-            Fail`thisful method ${methodTag} called without 'this' object`;
-          const context = getContext(this);
-          return apply(behaviorMethod, context, args);
-        },
-      }
-    : {
-        method(...args) {
-          const context = getContext(this);
-          return apply(behaviorMethod, null, [context, ...args]);
-        },
-      };
-  if (!methodGuard && thisfulMethods) {
-    switch (defaultGuards) {
-      case undefined:
-      case 'passable':
-        methodGuard = PassableMethodGuard;
-        break;
-      case 'raw':
-        methodGuard = RawMethodGuard;
-        break;
-      default:
-        throw Fail`Unrecognized defaultGuards ${q(defaultGuards)}`;
-    }
-  }
-  if (methodGuard) {
-    method = defendMethod(method, methodGuard, methodTag);
-  }
+  const method = defendMethod(
+    getContext,
+    behaviorMethod,
+    methodGuard,
+    methodTag,
+  );
 
   defineProperties(method, {
     name: { value: methodTag },
-    length: {
-      value: thisfulMethods ? behaviorMethod.length : behaviorMethod.length - 1,
-    },
+    length: { value: behaviorMethod.length },
   });
   return method;
 };
@@ -402,14 +398,44 @@ export const defendPrototype = (
   }
 
   for (const prop of methodNames) {
+    const originalMethod = behaviorMethods[prop];
+    const { shiftedMethod } = {
+      shiftedMethod(...args) {
+        return originalMethod(this, ...args);
+      },
+    };
+    const behaviorMethod = thisfulMethods ? originalMethod : shiftedMethod;
+    // TODO some tool does not yet understand the `?.[` syntax
+    // See https://github.com/endojs/endo/pull/2247#discussion_r1583724424
+    let methodGuard = methodGuards && methodGuards[prop];
+    if (!methodGuard) {
+      switch (defaultGuards) {
+        case undefined: {
+          if (thisfulMethods) {
+            methodGuard = PassableMethodGuard;
+          } else {
+            methodGuard = RawMethodGuard;
+          }
+          break;
+        }
+        case 'passable': {
+          methodGuard = PassableMethodGuard;
+          break;
+        }
+        case 'raw': {
+          methodGuard = RawMethodGuard;
+          break;
+        }
+        default: {
+          throw Fail`Unrecognized defaultGuards ${q(defaultGuards)}`;
+        }
+      }
+    }
     prototype[prop] = bindMethod(
       `In ${q(prop)} method of (${tag})`,
       contextProvider,
-      behaviorMethods[prop],
-      thisfulMethods,
-      // TODO some tool does not yet understand the `?.[` syntax
-      methodGuards && methodGuards[prop],
-      defaultGuards,
+      behaviorMethod,
+      methodGuard,
     );
   }
 
@@ -424,8 +450,7 @@ export const defendPrototype = (
       `In ${q(GET_INTERFACE_GUARD)} method of (${tag})`,
       contextProvider,
       getInterfaceGuardMethod,
-      thisfulMethods,
-      undefined,
+      PassableMethodGuard,
     );
   }
 
