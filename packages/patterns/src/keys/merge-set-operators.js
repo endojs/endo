@@ -7,9 +7,10 @@ import {
 import { q, Fail } from '@endo/errors';
 import { assertNoDuplicates, makeSetOfElements } from './copySet.js';
 
-/** @import {KeyComparison} from '../types' */
-/** @import {FullCompare} from '../types' */
-/** @import {RankCompare} from '@endo/marshal' */
+/**
+ * @import {RankCompare} from '@endo/marshal'
+ * @import {FullCompare, KeyComparison} from '../types.js'
+ */
 
 // TODO share more code with keycollection-operators.js.
 

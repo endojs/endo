@@ -20,9 +20,11 @@ import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 
 const { ownKeys } = Reflect;
 
-/** @import {Checker} from '@endo/marshal' */
-/** @import {Passable} from '@endo/pass-style' */
-/** @import {CopyBag, CopyMap, CopySet, Key} from '../types' */
+/**
+ * @import {Passable} from '@endo/pass-style'
+ * @import {Checker} from '@endo/marshal'
+ * @import {CopyBag, CopyMap, CopySet, Key} from '../types.js'
+ */
 
 // ////////////////// Primitive and Scalar keys ////////////////////////////////
 

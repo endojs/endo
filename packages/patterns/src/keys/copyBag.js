@@ -12,10 +12,11 @@ import {
 
 import { X } from '@endo/errors';
 
-/** @import {CopyBag} from '../types' */
-/** @import {FullCompare} from '../types' */
-/** @import {Checker} from '@endo/marshal' */
-/** @import {Passable} from '@endo/pass-style' */
+/**
+ * @import {Passable} from '@endo/pass-style'
+ * @import {Checker} from '@endo/marshal'
+ * @import {CopyBag, FullCompare} from '../types.js'
+ */
 
 /**
  * @template T

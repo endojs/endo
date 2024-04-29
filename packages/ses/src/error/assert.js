@@ -47,14 +47,7 @@ import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
- * @import {BaseAssert,
- *          Assert,
- *          AssertionFunctions,
- *          AssertionUtilities,
- *          StringablePayload,
- *          DetailsToken,
- *          MakeAssert,
- * } from '../../types.js'
+ * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, StringablePayload, DetailsToken, MakeAssert} from '../../types.js'
  */
 
 // For our internal debugging purposes, uncomment

@@ -8,11 +8,13 @@ import {
   defaultLimits,
 } from '../src/patterns/patternMatchers.js';
 
-/** @import {Passable} from '@endo/marshal' */
-/** @import {Pattern} from '../src/types.js' */
+/**
+ * @import {Passable} from '@endo/marshal'
+ * @import {Pattern} from '../src/types.js'
+ */
 
 /**
- * @typedef MatchTest
+ * @typedef {object} MatchTest
  * @property {Passable} specimen
  * @property {Pattern[]} yesPatterns
  * @property {[Pattern, RegExp|string][]} noPatterns

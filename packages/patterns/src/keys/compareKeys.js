@@ -17,7 +17,7 @@ import {
 } from './checkKey.js';
 import { makeCompareCollection } from './keycollection-operators.js';
 
-/** @import {CopySet} from '../types' */
+/** @import {CopySet, KeyCompare} from '../types.js' */
 
 /**
  * CopySet X is smaller than CopySet Y iff all of these conditions hold:
@@ -86,7 +86,7 @@ const _mapCompare = makeCompareCollection(
 );
 harden(_mapCompare);
 
-/** @type {import('../types').KeyCompare} */
+/** @type {KeyCompare} */
 export const compareKeys = (left, right) => {
   assertKey(left);
   assertKey(right);

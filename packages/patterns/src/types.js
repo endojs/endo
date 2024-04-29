@@ -2,9 +2,10 @@
 
 export {};
 
-/** @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style' */
-/** @import {PassStyle} from '@endo/pass-style' */
-/** @import {RankCompare, RankCover} from '@endo/marshal' */
+/**
+ * @import {CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Checker} from '@endo/pass-style'
+ * @import {RankCompare, RankCover} from '@endo/marshal'
+ */
 
 /**
  * @typedef {Passable} Key
@@ -216,6 +217,18 @@ export {};
 
 /**
  * @typedef {Partial<AllLimits>} Limits
+ */
+
+/**
+ * @typedef {Exclude<PassStyle, 'tagged'> |
+ *   'copySet' | 'copyBag' | 'copyMap' |
+ *   `match:${any}` | `guard:${any}`
+ * } Kind
+ * It is either a PassStyle other than 'tagged', or, if the underlying
+ * PassStyle is 'tagged', then the `getTag` value for tags that are
+ * recognized at the @endo/patterns level of abstraction. For each of those
+ * tags, a tagged record only has that kind if it satisfies the invariants
+ * that the @endo/patterns level associates with that kind.
  */
 
 /**
