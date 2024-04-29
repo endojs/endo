@@ -666,7 +666,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/promise-kit@workspace:packages/promise-kit"
   dependencies:
-    "@types/node": "npm:^16.6.0"
     ava: "npm:^6.1.2"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
@@ -2670,10 +2669,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:^16.6.0":
-  version: 16.18.34
-  resolution: "@types/node@npm:16.18.34"
-  checksum: 10c0/d6572e12b2200a813b2e0944add0abb8ac59d51a0cf28651dd1dde9de4d43e9d4c2c41fd7cf910d0c3bd8e13d10047f58211a53e76780279fc6d284137d3b001
+"@types/node@npm:*":
+  version: 20.12.7
+  resolution: "@types/node@npm:20.12.7"
+  dependencies:
+    undici-types: "npm:~5.26.4"
+  checksum: 10c0/dce80d63a3b91892b321af823d624995c61e39c6a223cc0ac481a44d337640cc46931d33efb3beeed75f5c85c3bda1d97cef4c5cd4ec333caf5dee59cff6eca0
   languageName: node
   linkType: hard
 
@@ -11637,6 +11638,13 @@ __metadata:
     has-symbols: "npm:^1.0.3"
     which-boxed-primitive: "npm:^1.0.2"
   checksum: 10c0/81ca2e81134167cc8f75fa79fbcc8a94379d6c61de67090986a2273850989dd3bae8440c163121b77434b68263e34787a675cbdcb34bb2f764c6b9c843a11b66
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~5.26.4":
+  version: 5.26.5
+  resolution: "undici-types@npm:5.26.5"
+  checksum: 10c0/bb673d7876c2d411b6eb6c560e0c571eef4a01c1c19925175d16e3a30c4c428181fb8d7ae802a261f283e4166a0ac435e2f505743aa9e45d893f9a3df017b501
   languageName: node
   linkType: hard
 
