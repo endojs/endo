@@ -82,7 +82,7 @@ export const defaultLimits = harden({
  * @returns {AllLimits}
  */
 const limit = (limits = {}) =>
-  /** @type {AllLimits} */(harden({ __proto__: defaultLimits, ...limits }));
+  /** @type {AllLimits} */ (harden({ __proto__: defaultLimits, ...limits }));
 
 const checkIsWellFormedWithLimit = (
   payload,
