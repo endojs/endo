@@ -2,25 +2,9 @@
 
 export {};
 
-/** @import {Passable} from '@endo/pass-style' */
-/** @import {PassStyle} from '@endo/pass-style' */
-/** @import {Checker} from '@endo/pass-style' */
-/** @import {MethodGuard} from '../types.js' */
-
-/** @import {MatcherNamespace} from '../types' */
-/** @import {Pattern} from '../types' */
-/** @import {GetRankCover} from '../types' */
-
 /**
- * @typedef {Exclude<PassStyle, 'tagged'> |
- *   'copySet' | 'copyBag' | 'copyMap' |
- *   `match:${any}` | `guard:${any}`
- * } Kind
- * It is either a PassStyle other than 'tagged', or, if the underlying
- * PassStyle is 'tagged', then the `getTag` value for tags that are
- * recognized at the @endo/patterns level of abstraction. For each of those
- * tags, a tagged record only has that kind if it satisfies the invariants
- * that the @endo/patterns level associates with that kind.
+ * @import {Passable, Checker} from '@endo/pass-style'
+ * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types'
  */
 
 /**
@@ -42,7 +26,7 @@ export {};
  * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
  * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
  *
- * @property {import('../types').GetRankCover} getRankCover
+ * @property {GetRankCover} getRankCover
  * Assumes this is the payload of a CopyTagged with the corresponding
  * matchTag. Return a RankCover to bound from below and above,
  * in rank order, all possible Passables that would match this Matcher.

@@ -34,16 +34,16 @@ import {
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
-/// <reference types="ses"/>
-
-/** @import {Checker, CopyRecord, CopyTagged, Passable} from '@endo/pass-style' */
-/** @import {ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard} from '../types.js' */
-/** @import {Kind, MatchHelper} from './types.js' */
+/**
+ * @import {Checker, CopyRecord, CopyTagged, Passable} from '@endo/pass-style'
+ * @import {ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js'
+ * @import {MatchHelper, PatternKit} from './types.js'
+ */
 
 const { entries, values } = Object;
 const { ownKeys } = Reflect;
 
-/** @type {WeakSet<import('../types.js').Pattern>} */
+/** @type {WeakSet<Pattern>} */
 const patternMemo = new WeakSet();
 
 // /////////////////////// Match Helpers Helpers /////////////////////////////
@@ -78,13 +78,11 @@ export const defaultLimits = harden({
  * Thus, the result only needs to support destructuring. The current
  * implementation uses inheritance as a cheap hack.
  *
- * @param {import('../types.js').Limits} [limits]
- * @returns {import('../types.js').AllLimits}
+ * @param {Limits} [limits]
+ * @returns {AllLimits}
  */
 const limit = (limits = {}) =>
-  /** @type {import('../types.js').AllLimits} */ (
-    harden({ __proto__: defaultLimits, ...limits })
-  );
+  /** @type {AllLimits} */(harden({ __proto__: defaultLimits, ...limits }));
 
 const checkIsWellFormedWithLimit = (
   payload,
@@ -149,7 +147,7 @@ const checkDecimalDigitsLimit = (specimen, decimalDigitsLimit, check) => {
 };
 
 /**
- * @returns {import('./types.js').PatternKit}
+ * @returns {PatternKit}
  */
 const makePatternKit = () => {
   /**
@@ -157,7 +155,7 @@ const makePatternKit = () => {
    * Otherwise result undefined.
    *
    * @param {string} tag
-   * @returns {import('./types.js').MatchHelper | undefined}
+   * @returns {MatchHelper | undefined}
    */
   const maybeMatchHelper = tag =>
     // eslint-disable-next-line no-use-before-define
@@ -301,7 +299,7 @@ const makePatternKit = () => {
 
   /**
    * @param {Passable} specimen
-   * @param {import('../types.js').Key} keyAsPattern
+   * @param {Key} keyAsPattern
    * @param {Checker} check
    * @returns {boolean}
    */
@@ -1697,7 +1695,7 @@ const makePatternKit = () => {
     split: (base, rest = undefined) => {
       if (passStyleOf(harden(base)) === 'copyArray') {
         // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-ignore We know it should be an array
+        // @ts-expect-error We know it should be an array
         return M.splitArray(base, rest && [], rest);
       } else {
         return M.splitRecord(base, rest && {}, rest);
@@ -1706,7 +1704,7 @@ const makePatternKit = () => {
     partial: (base, rest = undefined) => {
       if (passStyleOf(harden(base)) === 'copyArray') {
         // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-ignore We know it should be an array
+        // @ts-expect-error We know it should be an array
         return M.splitArray([], base, rest);
       } else {
         return M.splitRecord({}, base, rest);
@@ -1933,7 +1931,7 @@ harden(assertInterfaceGuard);
  * @template {Record<PropertyKey, MethodGuard>} [M = Record<PropertyKey, MethodGuard>]
  * @param {string} interfaceName
  * @param {M} methodGuards
- * @param {{ sloppy?: boolean, defaultGuards?: import('../types.js').DefaultGuardType }} [options]
+ * @param {{ sloppy?: boolean, defaultGuards?: DefaultGuardType }} [options]
  * @returns {InterfaceGuard<M>}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {

@@ -7,9 +7,10 @@ import {
 import { q, Fail } from '@endo/errors';
 import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
 
-/** @import {KeyComparison} from '../types' */
-/** @import {FullCompare} from '../types' */
-/** @import {RankCompare} from '@endo/marshal' */
+/**
+ * @import {RankCompare} from '@endo/marshal'
+ * @import {FullCompare} from '../types'
+ */
 
 // Based on merge-set-operators.js, but altered for the bag representation.
 // TODO share more code with that file and keycollection-operators.js.

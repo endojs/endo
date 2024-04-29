@@ -16,7 +16,9 @@ import {
 } from './patternMatchers.js';
 import { getCopyMapKeys, makeCopyMap } from '../keys/checkKey.js';
 
-/** @import {AwaitArgGuard, AwaitArgGuardPayload, InterfaceGuard, InterfaceGuardPayload, MethodGuard, MethodGuardPayload} from '../types.js' */
+/**
+ * @import {AwaitArgGuard, AwaitArgGuardPayload, InterfaceGuard, InterfaceGuardPayload, MethodGuard, MethodGuardPayload} from '../types.js'
+ */
 
 // The get*GuardPayload functions exist to adapt to the worlds both
 // before and after https://github.com/endojs/endo/pull/1712 . When
