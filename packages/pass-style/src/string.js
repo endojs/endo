@@ -1,7 +1,6 @@
 import { getEnvironmentOption } from '@endo/env-options';
 import { Fail } from '@endo/errors';
 
-// @ts-expect-error TS builtin `String` type does not yet
 // know about`isWellFormed`
 const hasWellFormedStringMethod = !!String.prototype.isWellFormed;
 
@@ -22,8 +21,7 @@ const hasWellFormedStringMethod = !!String.prototype.isWellFormed;
  * @returns {str is string}
  */
 export const isWellFormedString = hasWellFormedStringMethod
-  ? // @ts-expect-error TS does not yet know about `isWellFormed`
-    str => typeof str === 'string' && str.isWellFormed()
+  ? str => typeof str === 'string' && str.isWellFormed()
   : str => {
       if (typeof str !== 'string') {
         return false;

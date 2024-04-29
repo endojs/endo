@@ -174,7 +174,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -236,7 +236,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -253,7 +253,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -284,7 +284,7 @@ __metadata:
     open: "npm:^9.1.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   bin:
     endo: ./bin/endo
   languageName: unknown
@@ -322,7 +322,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -359,7 +359,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
     ws: "npm:^8.13.0"
   languageName: unknown
   linkType: soft
@@ -376,7 +376,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -402,7 +402,7 @@ __metadata:
     requireindex: "npm:~1.1.0"
     ts-api-utils: "npm:~1.0.1"
     tsutils: "npm:~3.21.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
     typescript-eslint: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -426,7 +426,7 @@ __metadata:
     rollup: "npm:^2.79.1"
     source-map: "npm:0.7.4"
     tsd: "npm:^0.30.7"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -463,7 +463,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -537,7 +537,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -575,7 +575,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -611,7 +611,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -634,7 +634,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -657,7 +657,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -676,7 +676,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -696,7 +696,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   peerDependencies:
     ava: ^5.3.0 || ^6.1.2
   languageName: unknown
@@ -733,7 +733,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -756,7 +756,7 @@ __metadata:
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
     ts-api-utils: "npm:~1.0.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -773,7 +773,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -796,7 +796,7 @@ __metadata:
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
     ts-api-utils: "npm:~1.0.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -813,7 +813,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -831,7 +831,7 @@ __metadata:
     prettier: "npm:^3.0.0"
     ses: "npm:^1.4.1"
     test262-harness: "npm:^10.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -848,7 +848,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -865,7 +865,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.1.2"
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.0.0"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -10122,7 +10122,7 @@ __metadata:
     type-coverage: "npm:^2.26.3"
     typedoc: "npm:^0.25.12"
     typedoc-plugin-markdown: "npm:^3.17.1"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
     typescript-eslint: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -10329,7 +10329,7 @@ __metadata:
     sinon: "npm:^15.1.0"
     terser: "npm:^5.16.6"
     tsd: "npm:^0.30.7"
-    typescript: "npm:~5.5.0-dev.20240327"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -11571,6 +11571,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:5.5.0-beta":
+  version: 5.5.0-beta
+  resolution: "typescript@npm:5.5.0-beta"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/e4b029678d6e77514355a79bb2b30e80784712b58cdb1391e07d2282aefceaff7850edf16814f6b4b9d4f23c84372afdfc6165cb628adc5303274fff8a795ce5
+  languageName: node
+  linkType: hard
+
 "typescript@npm:^3 || ^4":
   version: 4.9.5
   resolution: "typescript@npm:4.9.5"
@@ -11581,13 +11591,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:~5.5.0-dev.20240327":
-  version: 5.5.0-dev.20240329
-  resolution: "typescript@npm:5.5.0-dev.20240329"
+"typescript@patch:typescript@npm%3A5.5.0-beta#optional!builtin<compat/typescript>":
+  version: 5.5.0-beta
+  resolution: "typescript@patch:typescript@npm%3A5.5.0-beta#optional!builtin<compat/typescript>::version=5.5.0-beta&hash=5adc0c"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/e21a2971d4154882aeda6df8d3cc21433a52fc052a2b8cca696a4132d8576578cb2314d0003add033db8f799ed29a583120d24ba9e475bce8079447d3db3dafa
+  checksum: 10c0/acf3385e77938238a216dfd8eb39c583253c6184ffba66ffd6232cc3c931bbc7023e522bf09c5389e327ce5c9a6335fca5be082dd3365ed95c35b89ea21aa388
   languageName: node
   linkType: hard
 
@@ -11598,16 +11608,6 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/e3333f887c6829dfe0ab6c1dbe0dd1e3e2aeb56c66460cb85c5440c566f900c833d370ca34eb47558c0c69e78ced4bfe09b8f4f98b6de7afed9b84b8d1dd06a1
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@npm%3A~5.5.0-dev.20240327#optional!builtin<compat/typescript>":
-  version: 5.5.0-dev.20240329
-  resolution: "typescript@patch:typescript@npm%3A5.5.0-dev.20240329#optional!builtin<compat/typescript>::version=5.5.0-dev.20240329&hash=5adc0c"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/0261861013b74677c7fd3ac47ed96f15179131a18d97a58baa404f281d6d14ddf7637747adc670823b7536b8e77407babfbcfa6ac0e8a37f225b1c0694fe55f6
   languageName: node
   linkType: hard
 

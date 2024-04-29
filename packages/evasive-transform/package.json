@@ -50,7 +50,7 @@
     "eslint": "^8.57.0",
     "rollup": "^2.79.1",
     "tsd": "^0.30.7",
-    "typescript": "~5.5.0-dev.20240327"
+    "typescript": "5.5.0-beta"
   },
   "files": [
     "*.js",
