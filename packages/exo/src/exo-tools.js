@@ -406,6 +406,7 @@ export const defendPrototype = (
     };
     const behaviorMethod = thisfulMethods ? originalMethod : shiftedMethod;
     // TODO some tool does not yet understand the `?.[` syntax
+    // See https://github.com/endojs/endo/pull/2247#discussion_r1583724424
     let methodGuard = methodGuards && methodGuards[prop];
     if (!methodGuard) {
       switch (defaultGuards) {
