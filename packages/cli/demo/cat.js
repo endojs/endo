@@ -64,7 +64,7 @@ const inboxComponent = async ($parent, $end, powers) => {
     $message.appendChild($number);
 
     if (fromId === selfId && toId === selfId) {
-      $message.appendChild(verb);
+      $message.appendChild($verb);
     } else if (fromId === selfId) {
       const toName = await E(powers).reverseIdentify(toId);
       if (toName === undefined) {
