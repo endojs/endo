@@ -395,7 +395,7 @@ const main = async argv => {
   }
   const dedent = makeDedent();
   const scriptAsFn = async (
-    { awaitSnippets, budget, init, args, scalingArg, setup, snippets, r },
+    config,
     infrastructure,
     // Bindings whose names should have been keywords.
     [undefined, Infinity, NaN] = [void 0, 1 / 0, +'NaN'],
@@ -444,8 +444,18 @@ const main = async argv => {
       sort,
       unshift,
     } = freeMethods(Array);
+    const { toString: numberToString } = freeMethods(Number);
     const { repeat, replace, split, slice: stringSlice } = freeMethods(String);
     const { exec } = freeMethods(RegExp);
+
+    const { awaitSnippets, budget, init, args, scalingArg, setup, snippets } =
+      config;
+    const randomHex = byteLen => {
+      let s = replace(numberToString(random(), 16), /0?\W/g, '') || '0';
+      if (s.length < byteLen * 2) s += randomHex(byteLen - (s.length >> 1));
+      return stringSlice(s, 0, byteLen * 2);
+    };
+    const { r = randomHex(16) } = config;
 
     // dummy is an object with no extractable properties.
     const dummy = Object.freeze(Object.create(null));
