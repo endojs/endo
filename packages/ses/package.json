@@ -35,15 +35,25 @@
   "unpkg": "./dist/ses.umd.js",
   "types": "./types.d.ts",
   "exports": {
-    ".": {
-      "types": "./types.d.ts",
-      "import": "./index.js",
-      "require": "./dist/ses.cjs"
+    ".": {      
+      "import": {
+        "types": "./types.d.ts",
+        "default": "./index.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/ses.cjs"
+      }
     },
-    "./lockdown": {
-      "types": "./types.d.ts",
-      "import": "./index.js",
-      "require": "./dist/ses.cjs"
+    "./lockdown": {      
+      "import": {
+        "types": "./types.d.ts",
+        "default": "./index.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/ses.cjs"
+      }
     },
     "./tools.js": "./tools.js",
     "./assert-shim.js": "./assert-shim.js",
