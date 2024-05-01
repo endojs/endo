@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join as pathJoin } from 'node:path';
+import { Readable } from 'node:stream';
 const [_node, self, ...argv] = process.argv;
 const USAGE = `
 Usage: ${self} \\
@@ -40,12 +41,22 @@ Options:
 
   --init CODE, -i CODE
   --init-file PATH, -f PATH
+  --init-module IDENTIFIER, -M IDENTIFIER
     Code to execute once, before anything else (including setup, which runs once
     per measurement iteration).
-    Each use extends initialization code.
-    Example: --init 'import "/path/to/module.js";'
-    Example: --init-file \\
-      <(npx rollup -p @rollup/plugin-node-resolve -i /path/to/module.js -f iife)
+    Each use is subject to independent preprocessing for isolated evaluation.
+    Example: --init \\
+      'import { foo } from "/path/to/module.js"; globalThis.foo = foo;'
+    Example: --init-file /path/to/module.js
+    Example: --init-file <(npx esbuild --bundle /path/to/module.js)
+    Example: --init-module 'data:text/javascript,delete globalThis.harden;'
+    Example: --init-module semver
+
+  --init-preprocessor, -p
+    A command to invoke for bundling init code.
+    If not explicitly specified, it will default to something reasonable like
+    \`npx esbuild --bundle --format=iife\` or
+    \`npx rollup -p @rollup/plugin-node-resolve -f iife\`.
 
   --arg NAME[~MAX|[,SEP]:VALUES], -a NAME[~MAX|[,SEP]:VALUES]
     Define an argument to be used with varying values against each snippet,
@@ -100,6 +111,84 @@ const parseNumber = str => (/[0-9]/.test(str || '') ? Number(str) : NaN);
 
 const q = str => JSON.stringify(str);
 
+// shellTokenize lexes a simple command into POSIX tokens as if there were no
+// no expansion or substitution (i.e., applying special treatment to backslash
+// and quote characters but not to dollar signs or backticks).
+// https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_03
+const shellTokenize = simpleCommand => {
+  // Replace special sequences (i.e., those that might contain literal
+  // whitespace) with dummy placeholders, but remember them.
+  const extracts = [];
+  const splittable = simpleCommand.replaceAll(
+    /[\\](.)|'([^']*)'|"((?:[^\\"]|\\.)*)"|(?:(^|[ \t\n])#[^\n]*)/gs,
+    (_s, escaped, singleQuoted, doubleQuoted, beforeComment) => {
+      if (beforeComment !== undefined) return beforeComment;
+      extracts.push(
+        escaped || singleQuoted || doubleQuoted.replaceAll(/\\(.)/gs, '$1'),
+      );
+      return '\\@';
+    },
+  );
+
+  // Split the result, then replace the placeholders.
+  const tokens = splittable
+    .split(IFS)
+    .filter(token => token !== '')
+    .map(token => token.replaceAll(/\\@/g, () => extracts.shift()));
+  return tokens;
+};
+
+// spawnKit launches a child process, feeds it standard input, and returns a
+// promise for the result.
+const spawnKit = async ([cmd, ...args], { input, ...options } = {}) => {
+  const child = spawn(cmd, args, options);
+  const outChunks = { stdout: [], stderr: [] };
+  const exitKit = makePromiseKit();
+  const inKit = child.stdin && makePromiseKit();
+  const outKit = child.stdout && makePromiseKit();
+  const errKit = child.stderr && makePromiseKit();
+  // cf. https://nodejs.org/docs/latest/api/child_process.html#child_processspawnsynccommand-args-options
+  const result = {
+    status: null,
+    stdout: null,
+    stderr: null,
+    signal: null,
+    error: null,
+  };
+  child.on('error', err => {
+    result.error = err;
+    // An exit event *might* be coming, so wait a tick.
+    setImmediate(() => exitKit.resolve());
+  });
+  child.on('exit', (exitCode, signal) => {
+    result.status = exitCode;
+    result.signal = signal;
+    exitKit.resolve();
+  });
+  const rejectOnError = (emitter, kit, msg) =>
+    emitter.on('error', err => kit.reject(Error(msg, { cause: err })));
+  for (const [label, stream, chunks, kit] of [
+    ['stdout', child.stdout, outChunks.stdout, outKit],
+    ['stderr', child.stderr, outChunks.stderr, errKit],
+  ]) {
+    if (!stream) continue;
+    rejectOnError(stream, kit, `failed reading from ${q(cmd)} ${label}`);
+    stream.on('data', chunk => chunks.push(chunk));
+    stream.on('end', () => kit.resolve());
+  }
+  if (child.stdin) {
+    rejectOnError(child.stdin, inKit, `failed writing to ${q(cmd)} stdin`);
+    Readable.from(input || []).pipe(child.stdin);
+    child.stdin.on('finish', () => inKit.resolve());
+  } else if (input) {
+    throw Error(`missing ${q(cmd)} stdin`);
+  }
+  await Promise.all([exitKit, inKit, outKit, errKit].map(kit => kit?.promise));
+  if (outKit) result.stdout = Buffer.concat(outChunks.stdout);
+  if (errKit) result.stderr = Buffer.concat(outChunks.stderr);
+  return result;
+};
+
 const toSource = (value, space) =>
   JSON.stringify(value, undefined, space)
     // Escape "{" in strings, replace "__proto__" with a computed property,
@@ -145,14 +234,15 @@ const { addCleanup, cleanup } = (() => {
 })();
 
 const CMD_OPTION_NAMES = [
-  '--host',
-  '-h',
-  '--hostGroup',
-  '-g',
-  '--options',
-  '-o',
+  ...['--host', '-h'],
+  ...['--hostGroup', '-g'],
+  ...['--options', '-o'],
 ];
-const INIT_OPTION_NAMES = ['--init', '-i', '--init-file', '-f'];
+const INIT_OPTION_NAMES = [
+  ...['--init', '-i'],
+  ...['--init-file', '-f'],
+  ...['--init-module', '-M'],
+];
 
 const parseArgs = (argv, fail) => {
   // DEFAULT VALUES
@@ -163,6 +253,7 @@ const parseArgs = (argv, fail) => {
   let budget = 10;
   let asModule = false;
   let inits = [];
+  let preprocessor = undefined;
   let args = Object.create(null);
   let scalingArg;
   let setups = [];
@@ -274,8 +365,12 @@ const parseArgs = (argv, fail) => {
       let code = takeValue();
       if (opt === '--init-file' || opt === '-f') {
         code = code === '-' ? readStdin() : readFileSync(code, 'utf8');
+      } else if (opt === '--init-module' || opt === '-M') {
+        code = `import ${q(code)};`;
       }
       inits.push(code);
+    } else if (opt === '--init-preprocessor' || opt === '-p') {
+      preprocessor = takeValue();
     } else if (opt === '--arg' || opt === '-a') {
       const def = takeValue();
       !def.includes('\\') ||
@@ -313,6 +408,7 @@ const parseArgs = (argv, fail) => {
     budget: budget * 1000,
     asModule,
     inits,
+    preprocessor,
     args,
     scalingArg,
     setups,
@@ -332,7 +428,8 @@ const main = async argv => {
     awaitSnippets,
     budget,
     asModule,
-    inits,
+    inits: rawInits,
+    preprocessor,
     args,
     scalingArg,
     setups,
@@ -344,6 +441,58 @@ const main = async argv => {
     return;
   } else if (Object.keys(snippets).length === 0) {
     failArg('at least one snippet is required');
+  }
+
+  // Preprocess init code.
+  let inits = [...rawInits];
+  if (rawInits.length > 0) {
+    let cmd;
+    if (preprocessor) {
+      cmd = shellTokenize(preprocessor);
+    } else {
+      const npx = 'npm exec --no --'.split(IFS);
+      const bundlers = [
+        'esbuild --bundle --format=iife'.split(IFS),
+        'rollup -p @rollup/plugin-node-resolve -f iife'.split(IFS),
+      ];
+      const settlements = await Promise.allSettled(
+        bundlers.map(npxCmd =>
+          spawnKit([...npx, npxCmd[0], '--help'], {
+            stdio: 'ignore',
+            timeout: 15000,
+            killSignal: 'SIGKILL',
+          }).then(result => ({ npxCmd, ...result })),
+        ),
+      );
+      const bestResult = settlements.find(
+        ({ status, value }) => status === 'fulfilled' && value.status === 0,
+      )?.value;
+      if (bestResult) cmd = [...npx, ...bestResult.npxCmd];
+    }
+    const preprocess = !cmd
+      ? code => code
+      : async code => {
+          const result = await spawnKit(cmd, { input: code });
+          const { status: exitCode, stdout, stderr } = result;
+          if (exitCode !== 0) {
+            const { signal: exitSignal, error } = result;
+            const wrappedErr = Error(
+              `preprocess with ${q(cmd)} failed: ${stderr.toString()}`,
+              { cause: error },
+            );
+            wrappedErr.exitCode = exitCode;
+            wrappedErr.exitSignal = exitSignal;
+            wrappedErr.stdout = stdout && stdout.toString();
+            wrappedErr.stderr = stderr && stderr.toString();
+            throw wrappedErr;
+          }
+          return stdout.toString();
+        };
+    inits = await Promise.all(rawInits.map(preprocess));
+    const isModuleLike = rawInits.some(code =>
+      code.match(/^\s*(import|export)(\s*[*{"']|\s+[\p{ID_Start}$_])/mu),
+    );
+    if (isModuleLike) inits.unshift('"use strict"');
   }
 
   // Assemble script source.
