@@ -181,7 +181,6 @@ const template = `
   <div id="chat-window" class="window">
     <label for="chat-to">To:&nbsp;<select id="chat-to"></select></label>
     <p><input type="text" id="chat-message">
-    <p id="endowments">
     <p id="chat-error" class="error">
     <p><button id="chat-discard-button">Discard</button>
     <button id="chat-send-button">Send</button>
