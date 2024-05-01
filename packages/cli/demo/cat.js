@@ -290,11 +290,6 @@ const inboxComponent = async ($parent, $end, powers) => {
       const $pet = document.createElement('input');
       $input.appendChild($pet);
 
-      $pet.addEventListener('keyup', event => {
-        // (do not bubble to the accelerator)
-        event.stopPropagation();
-      });
-
       const $resolve = document.createElement('button');
       $resolve.innerText = 'resolve';
       $input.appendChild($resolve);
@@ -394,8 +389,6 @@ const inboxComponent = async ($parent, $end, powers) => {
           if (key === 'Enter') {
             handleAdopt();
           }
-          // (do not bubble to accelerator)
-          event.stopPropagation();
         });
 
         $adoption.appendChild(document.createTextNode(' '));
@@ -517,8 +510,13 @@ const controlsComponent = ($parent, { focusChat, blurChat }) => {
     showChat();
   });
 
+
+  // Accelerator:
   window.addEventListener('keyup', event => {
     const { key, repeat, metaKey } = event;
+    if (event.target !== document.body) {
+      return;
+    }
     if (repeat || metaKey) return;
     if (key === '"' || key === "'") {
       showChat();
