@@ -116,20 +116,36 @@ const template = `
     display: inline;
   }
 
-  #chat-frame {
-    display: none;
+  textarea {
+    max-width: 100%;
   }
 
-  #chat-frame[data-show=true] {
-    display: flex;
+  input {
+    max-width: 100%;
+  }
+
+  input.big {
+    font-size: 125%;
+  }
+  input.half-wide {
+    max-width: 10ex;
   }
 
   #chat-message {
+    max-width: 40ex;
+  }
+
+  #eval-source {
     width: 40ex;
     font-size: 150%;
   }
 
+  #eval-result-name {
+    font-size: 150%;
+  }
+
   .frame {
+    display: none;
     position: absolute;
     height: 100vh;
     width: 100vw;
@@ -137,18 +153,24 @@ const template = `
     bottom: 0;
     left: 0;
     right: 0;
-    display: flex;
     align-items: center;
     justify-content: center;
     background-color: hsla(210, 38%, 29%, 0.5)
   }
 
+  .frame[data-show=true] {
+    display: flex;
+  }
+
   .window {
     background-color: white;
+    margin: 20px;
     padding: 20px;
     border: 1px solid hsl(210, 60%, 52%);
     border-radius: 10px;
-    overflow: hidden;
+    overflow: auto;
+    max-height: calc(100vh - 40px);
+    max-width: calc(100vw - 40px);
     align-self: center;
     flex: none;
   }
@@ -175,6 +197,7 @@ const template = `
 <div id="controls">
   <button id="cat">🐈‍⬛</button>
   <button id="chat-button">Chat</button>
+  <button id="eval-button">Eval</button>
 </div>
 
 <div id="chat-frame" class="frame">
@@ -186,7 +209,34 @@ const template = `
     <button id="chat-send-button">Send</button>
   </div>
 </div>
+
+<div id="eval-frame" class="frame">
+  <div id="eval-window" class="window">
+    <label for="eval-source"><p>
+      Source:<br>
+      <textarea id="eval-source" rows="1"></textarea>
+    </p></label>
+    <span id="eval-endowments"></span>
+    <p><button id="eval-add-endowment">Add Endowment</button>
+    <label for="eval-result-name">
+      <p>Result name (optional):<br>
+      <input type="text" id="eval-result-name">
+    </p></label>
+    <span id="eval-error"></span>
+    <p>
+    <button id="eval-discard-button">Discard</button>
+    <button id="eval-submit-button">Evaluate</button>
+  </div>
+</div>
 `;
+
+function* generateIds() {
+  for (let i = 0; ; i += 1) {
+    yield `id${i}`;
+  }
+}
+const idGenerator = generateIds();
+const nextId = () => idGenerator.next().value;
 
 const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
@@ -480,10 +530,14 @@ const inventorySelectComponent = async ($select, powers) => {
   }
 };
 
-const controlsComponent = ($parent, { focusChat, blurChat }) => {
-  const $chatFrame = $parent.querySelector('#chat-frame');
-  const $controls = $parent.querySelector('#controls');
+const controlsComponent = (
+  $parent,
+  { focusChat, blurChat, focusEval, blurEval },
+) => {
   const $cat = $parent.querySelector('#cat');
+  const $chatFrame = $parent.querySelector('#chat-frame');
+  const $evalFrame = $parent.querySelector('#eval-frame');
+  const $controls = $parent.querySelector('#controls');
 
   let showFanout = false;
 
@@ -494,9 +548,21 @@ const controlsComponent = ($parent, { focusChat, blurChat }) => {
     focusChat();
   };
 
+  const showEval = () => {
+    $evalFrame.dataset.show = 'true';
+    $controls.dataset.show = 'false';
+    showFanout = false;
+    focusEval();
+  };
+
   const dismissChat = () => {
     $chatFrame.dataset.show = 'false';
     blurChat();
+  };
+
+  const dismissEval = () => {
+    $evalFrame.dataset.show = 'false';
+    blurEval();
   };
 
   $cat.addEventListener('click', () => {
@@ -509,6 +575,10 @@ const controlsComponent = ($parent, { focusChat, blurChat }) => {
     showChat();
   });
 
+  const $evalButton = $parent.querySelector('#eval-button');
+  $evalButton.addEventListener('click', () => {
+    showEval();
+  });
 
   // Accelerator:
   window.addEventListener('keyup', event => {
@@ -520,10 +590,13 @@ const controlsComponent = ($parent, { focusChat, blurChat }) => {
     if (key === '"' || key === "'") {
       showChat();
       event.stopPropagation();
+    } else if (key === '.') {
+      showEval();
+      event.stopPropagation();
     }
   });
 
-  return { dismissChat };
+  return { dismissChat, dismissEval };
 };
 
 const chatComponent = ($parent, powers, { dismissChat }) => {
@@ -582,6 +655,138 @@ const chatComponent = ($parent, powers, { dismissChat }) => {
   return { focusChat, blurChat };
 };
 
+const evalComponent = ($parent, powers, { dismissEval }) => {
+  const $frame = $parent.querySelector('#eval-frame');
+  const $source = $parent.querySelector('#eval-source');
+  const $endOfEndowments = $parent.querySelector('#eval-endowments');
+  const $addEndowment = $parent.querySelector('#eval-add-endowment');
+  const $resultName = $parent.querySelector('#eval-result-name');
+  const $submit = $parent.querySelector('#eval-submit-button');
+  const $discard = $parent.querySelector('#eval-discard-button');
+  let $error = $parent.querySelector('#eval-error');
+  const $endowments = new Map();
+
+  const clearEval = () => {
+    $source.value = '';
+    $resultName.value = '';
+    for (const $endowment of $endowments.values()) {
+      $endowment.remove();
+    }
+    $endowments.clear();
+    const $newError = document.createTextNode('');
+    $error.replaceWith($newError);
+    $error = $newError;
+    dismissEval();
+  };
+
+  $discard.addEventListener('click', () => {
+    clearEval();
+  });
+
+  const handleRemoveEndowment = event => {
+    const { target } = event;
+    const id = target.getAttribute('id');
+    const $endowment = $endowments.get(id);
+    if ($endowment === undefined) {
+      throw new Error(`Endowment does not exist for id ${id}`);
+    }
+    $endowments.delete(id);
+    $endowment.remove();
+  };
+
+  const handleAddEndowment = () => {
+    const $endowment = document.createElement('p');
+    const codeNameId = nextId();
+    const petNameId = nextId();
+    const removeId = nextId();
+
+    $endowment.innerHTML = `
+      <label for="${codeNameId}">
+        Name in source:
+        <input id="${codeNameId}" type="text" class="big half-wide code-name">
+      </label>
+      <label for="${petNameId}">
+        Pet name:
+        <input id="${petNameId}" type="text" class="big half-wide pet-name">
+      </label>
+      <button id="${removeId}">Remove</button>
+    `;
+
+    const $remove = $endowment.querySelector(`#${removeId}`);
+    $remove.addEventListener('click', handleRemoveEndowment);
+    $endOfEndowments.parentElement.insertBefore($endowment, $endOfEndowments);
+    $endowments.set(removeId, $endowment);
+
+    const $codeName = $endowment.querySelector('.code-name');
+    $codeName.focus();
+  };
+
+  $addEndowment.addEventListener('click', handleAddEndowment);
+
+  const handleEval = () => {
+    const source = $source.value;
+    const workerName = 'MAIN';
+    const names = Array.from($endowments.values(), $endowment => {
+      const $codeName = $endowment.querySelector('.code-name');
+      const $petName = $endowment.querySelector('.pet-name');
+      return {
+        petName: $petName.value,
+        codeName: $codeName.value,
+      };
+    });
+    const codeNames = names.map(({ codeName }) => codeName);
+    const petNames = names.map(({ petName }) => petName);
+    const resultName = $resultName.value.trim() || undefined;
+    E(powers)
+      .evaluate(workerName, source, codeNames, petNames, resultName)
+      .then(clearEval, error => {
+        const $newError = document.createElement('p');
+        $newError.className = 'error';
+        $newError.innerText = error.message;
+        $error.replaceWith($newError);
+        $error = $newError;
+      });
+  };
+
+  $frame.addEventListener('keyup', event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Enter') {
+      event.stopPropagation();
+      handleEval();
+    }
+    if (key === 'Escape') {
+      clearEval();
+      event.stopPropagation();
+    }
+  });
+
+  $submit.addEventListener('click', event => {
+    event.stopPropagation();
+    handleEval();
+  });
+
+  const focusEval = () => {
+    $source.focus();
+  };
+
+  const blurEval = () => {
+    $source.value = '';
+    $error.innerText = '';
+  };
+
+  // Automatically adjust the textarea height to match its content.
+  $source.addEventListener('input', () => {
+    // This is a pretty terrible thing to do because it forces a pair of sync
+    // draws that compose poorly.
+    // To do better, we would need a read/write frame coordinator.
+    $source.style.height = '1px';
+    $source.style.height = `${$source.scrollHeight + 2}px`;
+  });
+
+  return { focusEval, blurEval };
+};
+
 const bodyComponent = ($parent, powers) => {
   $parent.innerHTML = template;
 
@@ -595,12 +800,17 @@ const bodyComponent = ($parent, powers) => {
   // To they who can avoid forward-references for entangled component
   // dependency-injection, I salute you and welcome your pull requests.
   /* eslint-disable no-use-before-define */
-  const { dismissChat } = controlsComponent($parent, {
+  const { dismissChat, dismissEval } = controlsComponent($parent, {
     focusChat: () => focusChat(),
     blurChat: () => blurChat(),
+    focusEval: () => focusEval(),
+    blurEval: () => blurEval(),
   });
   const { focusChat, blurChat } = chatComponent($parent, powers, {
     dismissChat,
+  });
+  const { focusEval, blurEval } = evalComponent($parent, powers, {
+    dismissEval,
   });
   /* eslint-enable no-use-before-define */
 };
