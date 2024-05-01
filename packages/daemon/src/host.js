@@ -244,7 +244,7 @@ export const makeHostMaker = ({
      * Helper function for makeUnconfined and makeBundle.
      * @param {string} powersName
      * @param {string} workerName
-     * @param {string} [resultName]
+     * @param {string | string[]} [resultName]
      */
     const prepareMakeCaplet = (powersName, workerName, resultName) => {
       assertPowersName(powersName);
@@ -263,7 +263,7 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.capletId),
+          E(directory).write(resultName, identifiers.capletId),
         );
       }
 
