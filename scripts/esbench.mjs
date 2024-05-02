@@ -395,13 +395,13 @@ const main = async argv => {
   }
   const dedent = makeDedent();
   const scriptAsFn = async (
+    // Extract as parameters identifiers that should have been keywords.
+    { undefined, Infinity, NaN, ...infrastructure },
     config,
-    infrastructure,
-    // Bindings whose names should have been keywords.
-    [undefined, Infinity, NaN] = [void 0, 1 / 0, +'NaN'],
   ) => {
     // Capture primordials to be robust against manipulation in init/setup/etc.
     // This is probably paranoid, but we *do* want to benchmark shims/polyfills/etc.
+    [undefined, Infinity, NaN] = [void 0, 1 / 0, +'NaN'];
     const { print, Array, Function, RegExp } = infrastructure;
     const AsyncFunction = Function(
       'try { return (async () => {}).constructor; } catch (_err) {}',
@@ -683,16 +683,16 @@ const main = async argv => {
   const script = dedent`
     (${scriptFnSource})(
 
-    // config
-    {
-    ...${toSource(config, 2)},
-    init() {\n${inits.join(';\n')}\n},
-    },
-
     // infrastructure
     {
       ...{ print, Array, Function, RegExp },
       dedent: (${makeDedent})(),
+    },
+
+    // config
+    {
+    ...${toSource(config, 2)},
+    init() {\n${inits.join(';\n')}\n},
     },
 
     )
