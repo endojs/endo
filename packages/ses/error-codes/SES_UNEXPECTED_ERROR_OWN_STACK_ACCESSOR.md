@@ -26,4 +26,8 @@ v8 issue at https://issues.chromium.org/issues/40279506
 
 Endo issue at https://github.com/endojs/endo/issues/2198
 
+Failed attempt at mitigation https://github.com/Agoric/endojs-vespera/pull/1
+
 Endo workaround at https://github.com/endojs/endo/pull/2232
+
+v8 discussion of a proper fix https://chromium-review.googlesource.com/c/v8/v8/+/4459251/10..15/src/execution/messages.cc#b1131
