@@ -37,15 +37,15 @@ export {};
 
 /**
  * @typedef {object} PatternKit
- * @property {(specimen: Passable,
+ * @property {(specimen: any,
  *             patt: Passable,
  *             check: Checker,
  *             label?: string|number
  * ) => boolean} checkMatches
- * @property {(specimen: Passable, patt: Pattern) => boolean} matches
- * @property {(specimen: Passable, patt: Pattern, label?: string|number) => void} mustMatch
+ * @property {(specimen: any, patt: Pattern) => boolean} matches
+ * @property {(specimen: any, patt: Pattern, label?: string|number) => void} mustMatch
  * @property {(patt: Pattern) => void} assertPattern
- * @property {(patt: Passable) => boolean} isPattern
+ * @property {(patt: any) => boolean} isPattern
  * @property {GetRankCover} getRankCover
  * @property {MatcherNamespace} M
  * @property {(specimen: Passable, check?: Checker) => Kind | undefined} kindOf

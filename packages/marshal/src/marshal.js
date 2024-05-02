@@ -21,11 +21,12 @@ import {
   makeEncodeToSmallcaps,
 } from './encodeToSmallcaps.js';
 
-/** @import {ConvertSlotToVal, ConvertValToSlot, FromCapData, MakeMarshalOptions, ToCapData} from './types.js' */
-/** @import {Passable} from '@endo/pass-style' */
-/** @import {InterfaceSpec} from '@endo/pass-style' */
-/** @import {Encoding} from './types.js' */
-/** @import {RemotableObject as Remotable} from '@endo/pass-style' */
+/**
+ * @import {ConvertSlotToVal, ConvertValToSlot, FromCapData, MakeMarshalOptions, ToCapData} from './types.js';
+ * @import {Passable, PassableCap, RemotableObject} from '@endo/pass-style';
+ * @import {InterfaceSpec} from '@endo/pass-style';
+ * @import {Encoding} from './types.js';
+ */
 
 const { defineProperties } = Object;
 const { isArray } = Array;
@@ -78,7 +79,7 @@ export const makeMarshal = (
     const slotMap = new Map();
 
     /**
-     * @param {Remotable | Promise} passable
+     * @param {PassableCap} passable
      * @returns {{index: number, repeat: boolean}}
      */
     const encodeSlotCommon = passable => {
@@ -134,7 +135,7 @@ export const makeMarshal = (
 
     if (serializeBodyFormat === 'capdata') {
       /**
-       * @param {Passable} passable
+       * @param {PassableCap} passable
        * @param {InterfaceSpec} [iface]
        * @returns {Encoding}
        */
@@ -148,9 +149,11 @@ export const makeMarshal = (
         }
       };
 
+      /** @type {(promise: RemotableObject, encodeRecur: (p: Passable) => Encoding) => Encoding} */
       const encodeRemotableToCapData = (val, _encodeRecur) =>
         encodeSlotToCapData(val, getInterfaceOf(val));
 
+      /** @type {(promise: Promise, encodeRecur: (p: Passable) => Encoding) => Encoding} */
       const encodePromiseToCapData = (promise, _encodeRecur) =>
         encodeSlotToCapData(promise);
 
@@ -184,7 +187,7 @@ export const makeMarshal = (
     } else if (serializeBodyFormat === 'smallcaps') {
       /**
        * @param {string} prefix
-       * @param {Passable} passable
+       * @param {PassableCap} passable
        * @param {InterfaceSpec} [iface]
        * @returns {string}
        */
@@ -231,19 +234,20 @@ export const makeMarshal = (
   };
 
   const makeFullRevive = slots => {
-    /** @type {Map<number, Passable>} */
+    /** @type {Map<number>} */
     const valMap = new Map();
 
     /**
      * @param {{iface?: string, index: number}} slotData
-     * @returns {Remotable | Promise}
+     * @returns {PassableCap}
      */
     const decodeSlotCommon = slotData => {
       const { iface = undefined, index, ...rest } = slotData;
       ownKeys(rest).length === 0 ||
         Fail`unexpected encoded slot properties ${q(ownKeys(rest))}`;
-      if (valMap.has(index)) {
-        return valMap.get(index);
+      const extant = valMap.get(index);
+      if (extant) {
+        return extant;
       }
       // TODO SECURITY HAZARD: must enfoce that remotable vs promise
       // is according to the encoded string.
@@ -280,11 +284,13 @@ export const makeMarshal = (
       const dName = decodeRecur(name);
       const dMessage = decodeRecur(message);
       // errorId is a late addition so be tolerant of its absence.
-      const dErrorId = errorId && decodeRecur(errorId);
-      typeof dName === 'string' ||
-        Fail`invalid error name typeof ${q(typeof dName)}`;
-      typeof dMessage === 'string' ||
-        Fail`invalid error message typeof ${q(typeof dMessage)}`;
+      const dErrorId = /** @type {string} */ (errorId && decodeRecur(errorId));
+      if (typeof dName !== 'string') {
+        throw Fail`invalid error name typeof ${q(typeof dName)}`;
+      }
+      if (typeof dMessage !== 'string') {
+        throw Fail`invalid error message typeof ${q(typeof dMessage)}`;
+      }
       const errConstructor = getErrorConstructor(dName) || Error;
       const errorName =
         dErrorId === undefined
@@ -340,8 +346,8 @@ export const makeMarshal = (
     const makeDecodeSlotFromSmallcaps = prefix => {
       /**
        * @param {string} stringEncoding
-       * @param {(e: unknown) => Passable} _decodeRecur
-       * @returns {Remotable | Promise}
+       * @param {(e: unknown) => PassableCap} _decodeRecur
+       * @returns {RemotableObject | Promise}
        */
       return (stringEncoding, _decodeRecur) => {
         assert(stringEncoding.charAt(0) === prefix);
@@ -364,7 +370,9 @@ export const makeMarshal = (
     };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
+      // @ts-ignore XXX SmallCapsEncoding
       decodeRemotableFromSmallcaps,
+      // @ts-ignore XXX SmallCapsEncoding
       decodePromiseFromSmallcaps,
       decodeErrorFromSmallcaps,
     });
@@ -396,7 +404,7 @@ export const makeMarshal = (
     // which should be considered fixed once we've completed the switch
     // to smallcaps.
     assertPassable(result);
-    return result;
+    return /** @type {PassableCap} */ (result);
   };
 
   return harden({

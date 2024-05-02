@@ -23,6 +23,6 @@ export {};
  * `assertValid` still needs to be called to determine if it
  * actually is valid.
  * @property {(candidate: any,
- *             passStyleOfRecur: PassStyleOf
+ *             passStyleOfRecur: (val: any) => PassStyle
  *            ) => void} assertValid
  */

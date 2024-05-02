@@ -1,3 +1,4 @@
+/* global Iterator */
 import './enforce-cjs-strict.js';
 import './core-js-configuration.js';
 import 'core-js/actual/iterator/index.js';

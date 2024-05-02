@@ -322,9 +322,6 @@ export const makeCapTP = (
   }
 
   const IS_REMOTE_PUMPKIN = harden({});
-  /**
-   * @type {import('@endo/marshal').ConvertSlotToVal<import('./types.js').CapTPSlot>}
-   */
   const assertValIsLocal = val => {
     const slot = valToSlot.get(val);
     if (slot && slot[1] === '-') {
@@ -413,6 +410,7 @@ export const makeCapTP = (
           epoch,
           questionID,
           target,
+          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
           method: serialize(harden([null, args])),
         });
         return promise;
@@ -428,6 +426,7 @@ export const makeCapTP = (
           epoch,
           questionID,
           target,
+          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
           method: serialize(harden([prop, args])),
         });
         return promise;

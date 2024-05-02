@@ -2,13 +2,14 @@
 
 export {};
 
+// NB: as of TS 5.5 nightly, TS thinks RankCover and Checker "is declared but never read" but they are
 /**
- * @import {CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Checker} from '@endo/pass-style'
- * @import {RankCompare, RankCover} from '@endo/marshal'
+ * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, RemotableObject} from '@endo/pass-style';
+ * @import {RankCompare, RankCover} from '@endo/marshal';
  */
 
 /**
- * @typedef {Passable} Key
+ * @typedef {Exclude<Passable<RemotableObject, never>, Error | Promise>} Key
  *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
@@ -47,7 +48,7 @@ export {};
  */
 
 /**
- * @typedef {Passable} Pattern
+ * @typedef {Exclude<Passable, Error | Promise>} Pattern
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
@@ -425,14 +426,14 @@ export {};
  * The CopyRecord must have all properties that appear on `required`,
  * but may omit properties that appear on `optional`.
  *
- * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<any> | CopyArray<any>,
  *             rest?: Pattern,
  * ) => Matcher} split
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
  * An array or record is split into the first part that is matched by
  * `basePatt`, and the remainder, which is matched against `rest` if present.
  *
- * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<any> | CopyArray<any>,
  *             rest?: Pattern,
  * ) => Matcher} partial
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.

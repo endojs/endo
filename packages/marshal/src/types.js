@@ -1,19 +1,23 @@
 // @ts-check
 export {};
 
+/** @import {Passable, PassableCap} from '@endo/pass-style' */
+
 /**
  * @template Slot
+ * @template {PassableCap} [Value=any]
  * @callback ConvertValToSlot
- * @param {import("@endo/pass-style").PassableCap} val
+ * @param {Value} val
  * @returns {Slot}
  */
 
 /**
  * @template Slot
+ * @template {PassableCap} [Value=any]
  * @callback ConvertSlotToVal
  * @param {Slot} slot
  * @param {string} [iface]
- * @returns {import("@endo/pass-style").PassableCap}
+ * @returns {Value}
  */
 
 /**
@@ -86,7 +90,7 @@ export {};
 /**
  * @template Slot
  * @callback ToCapData
- * @param {any} val a Passable
+ * @param {Passable} val
  * @returns {CapData<Slot>}
  */
 
@@ -174,8 +178,8 @@ export {};
  * ordering would also compare magnitudes, and so agree with the rank ordering
  * of all values other than `NaN`. An array sorted by rank would enable range
  * queries by magnitude.
- * @param {any} left a Passable
- * @param {any} right a Passable
+ * @param {any} left
+ * @param {any} right
  * @returns {RankComparison}
  */
 

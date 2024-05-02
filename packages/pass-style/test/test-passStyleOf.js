@@ -4,9 +4,14 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { q } from '@endo/errors';
 
 import { passStyleOf } from '../src/passStyleOf.js';
-import { Far } from '../src/make-far.js';
+import { Far, ToFarFunction } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
+
+const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
+  // eslint-disable-next-line no-undef
+  global.harden
+);
 
 const { getPrototypeOf, defineProperty } = Object;
 const { ownKeys } = Reflect;
@@ -29,6 +34,11 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
   t.is(passStyleOf(harden(Error('ok'))), 'error');
+});
+
+test('ToFarFunction', t => {
+  const ff = ToFarFunction('far', () => {});
+  t.is(passStyleOf(ff), 'remotable');
 });
 
 test('some passStyleOf rejections', t => {
@@ -106,6 +116,7 @@ test('some passStyleOf rejections', t => {
  *
  * @param {string} [tag]
  * @param {object|null} [proto]
+ * @returns {{ [PASS_STYLE]: 'remotable', [Symbol.toStringTag]: string }}
  */
 const makeTagishRecord = (tag = 'Remotable', proto = undefined) => {
   return Object.create(proto === undefined ? Object.prototype : proto, {
@@ -181,12 +192,14 @@ test('passStyleOf testing remotables', t => {
   t.is(passStyleOf(Far('foo', () => 'far function')), 'remotable');
 
   const tagRecord1 = harden(makeTagishRecord('Alleged: manually constructed'));
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const farObj1 = harden({
     __proto__: tagRecord1,
   });
   t.is(passStyleOf(farObj1), 'remotable');
 
   const tagRecord2 = makeTagishRecord('Alleged: tagRecord not hardened');
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const farObj2 = Object.freeze({
     __proto__: tagRecord2,
   });
@@ -202,12 +215,14 @@ test('passStyleOf testing remotables', t => {
   const tagRecord3 = Object.freeze(
     makeTagishRecord('Alleged: both manually frozen'),
   );
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const farObj3 = Object.freeze({
     __proto__: tagRecord3,
   });
   t.is(passStyleOf(farObj3), 'remotable');
 
   const tagRecord4 = harden(makeTagishRecord('Remotable'));
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const farObj4 = harden({
     __proto__: tagRecord4,
   });
@@ -226,6 +241,7 @@ test('passStyleOf testing remotables', t => {
   const farObjProto6 = harden({
     __proto__: tagRecord6,
   });
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const farObj6 = harden({
     __proto__: farObjProto6,
   });
@@ -253,6 +269,7 @@ test('passStyleOf testing remotables', t => {
   const farTagRecord7 = getPrototypeOf(farBaseProto7);
   t.is(farTagRecord7[PASS_STYLE], 'remotable');
   t.is(getPrototypeOf(farTagRecord7), Object.prototype);
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const farObj7 = new FarBaseClass7(3);
   t.is(passStyleOf(farObj7), 'remotable');
   t.is(farObj7.add(7), 10);
@@ -264,6 +281,7 @@ test('passStyleOf testing remotables', t => {
     }
   }
   harden(FarSubclass8);
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const farObj8 = new FarSubclass8(3);
   t.is(passStyleOf(farObj8), 'remotable');
   t.is(farObj8.twice(), 14);
@@ -409,6 +427,7 @@ test('remotables - safety from the gibson042 attack', t => {
 test('Unexpected stack on errors', t => {
   let err;
   try {
+    // @ts-expect-error purposeful type violation for testing
     null.error;
   } catch (e) {
     err = e;
@@ -429,11 +448,13 @@ test('Allow toStringTag overrides', t => {
   t.is(`${alice}`, '[object DebugName: Allison]');
   t.is(`${q(alice)}`, '"[DebugName: Allison]"');
 
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const carol = harden({ __proto__: alice });
   t.is(passStyleOf(carol), 'remotable');
   t.is(`${carol}`, '[object DebugName: Allison]');
   t.is(`${q(carol)}`, '"[DebugName: Allison]"');
 
+  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
   const bob = harden({
     __proto__: carol,
     [Symbol.toStringTag]: 'DebugName: Robert',
@@ -446,7 +467,9 @@ test('Allow toStringTag overrides', t => {
   t.is(fred.name, 'fred');
   defineProperty(fred, Symbol.toStringTag, { value: 'DebugName: Friedrich' });
   const f = Far('Fred', fred);
+  // @ts-expect-error TS doesn't know `fred` has changed
   t.is(f, fred);
+  // @ts-expect-error TS doesn't know `fred` has changed
   t.is(passStyleOf(fred), 'remotable');
   t.is(`${fred}`, '() => {}');
   t.is(Object.prototype.toString.call(fred), '[object DebugName: Friedrich]');

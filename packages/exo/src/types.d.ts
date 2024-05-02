@@ -1,4 +1,5 @@
 import type { RemotableBrand } from '@endo/eventual-send';
+import type { RemotableObject } from '@endo/pass-style';
 import type { InterfaceGuard, MethodGuard, Pattern } from '@endo/patterns';
 import type { GetInterfaceGuard } from './get-interface.js';
 
@@ -110,7 +111,9 @@ export type FarClassOptions<C, F = any> = {
    */
   receiveInstanceTester?: ReceivePower<IsInstance> | undefined;
 };
-export type Farable<M extends Methods> = M & RemotableBrand<{}, M>;
+export type Farable<M extends Methods> = M &
+  RemotableBrand<{}, M> &
+  RemotableObject;
 export type Guarded<M extends Methods> = Farable<M & GetInterfaceGuard<M>>;
 export type GuardedKit<F extends Record<string, Methods>> = {
   [K in keyof F]: Guarded<F[K]>;

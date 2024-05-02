@@ -1,3 +1,4 @@
+/* global SharedArrayBuffer */
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Worker } from 'worker_threads';

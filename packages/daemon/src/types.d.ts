@@ -568,7 +568,7 @@ export interface EndoHost extends EndoAgent {
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
   ): Promise<FarRef<EndoReadable>>;
-  storeValue<T>(value: T, petName: string): Promise<void>;
+  storeValue<T extends Passable>(value: T, petName: string): Promise<void>;
   provideGuest(
     petName?: string,
     opts?: MakeHostOrGuestOptions,

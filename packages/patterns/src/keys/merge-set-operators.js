@@ -8,6 +8,7 @@ import { q, Fail } from '@endo/errors';
 import { assertNoDuplicates, makeSetOfElements } from './copySet.js';
 
 /**
+ * @import {Passable} from '@endo/pass-style';
  * @import {RankCompare} from '@endo/marshal'
  * @import {FullCompare, KeyComparison} from '../types.js'
  */
@@ -25,7 +26,7 @@ import { assertNoDuplicates, makeSetOfElements } from './copySet.js';
  *  to `fullOrder`. However, it optimizes for the case where these contiguous
  * runs that need to be resorted are either absent or small.
  *
- * @template T
+ * @template {Passable} T
  * @param {T[]} elements
  * @param {RankCompare} rankCompare
  * @param {FullCompare} fullCompare
@@ -89,7 +90,7 @@ const windowResort = (elements, rankCompare, fullCompare) => {
  * For sets, these counts are always 0 or 1, but this representation
  * generalizes nicely for bags.
  *
- * @template T
+ * @template {Passable} T
  * @param {T[]} xelements
  * @param {T[]} yelements
  * @returns {Iterable<[T,bigint,bigint]>}

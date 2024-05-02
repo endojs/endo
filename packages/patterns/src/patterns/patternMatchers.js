@@ -1,3 +1,5 @@
+// @ts-nocheck So many errors that the suppressions hamper readability.
+// TODO parameterize MatchHelper which will solve most of them
 import {
   assertChecker,
   Far,
@@ -232,7 +234,7 @@ const makePatternKit = () => {
    * invariants associated with that recognition.
    * Otherwise, `check(false, ...)` and returns undefined
    *
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Checker} [check]
    * @returns {Kind | undefined}
    */
@@ -263,7 +265,7 @@ const makePatternKit = () => {
    * Checks only recognized kinds, and only if the specimen
    * passes the invariants associated with that recognition.
    *
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Kind} kind
    * @param {Checker} check
    * @returns {boolean}
@@ -291,14 +293,14 @@ const makePatternKit = () => {
    * Checks only recognized kinds, and only if the specimen
    * passes the invariants associated with that recognition.
    *
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Kind} kind
    * @returns {boolean}
    */
   const isKind = (specimen, kind) => checkKind(specimen, kind, identChecker);
 
   /**
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Key} keyAsPattern
    * @param {Checker} check
    * @returns {boolean}
@@ -402,7 +404,7 @@ const makePatternKit = () => {
   // /////////////////////// matches ///////////////////////////////////////////
 
   /**
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Pattern} pattern
    * @param {Checker} check
    * @param {string|number} [label]
@@ -413,7 +415,7 @@ const makePatternKit = () => {
     applyLabelingError(checkMatchesInternal, [specimen, pattern, check], label);
 
   /**
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Pattern} patt
    * @param {Checker} check
    * @returns {boolean}
@@ -561,7 +563,7 @@ const makePatternKit = () => {
   };
 
   /**
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Pattern} patt
    * @returns {boolean}
    */
@@ -572,7 +574,7 @@ const makePatternKit = () => {
    * Returning normally indicates success. Match failure is indicated by
    * throwing.
    *
-   * @param {Passable} specimen
+   * @param {any} specimen
    * @param {Pattern} patt
    * @param {string|number} [label]
    */

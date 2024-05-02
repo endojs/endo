@@ -87,28 +87,26 @@ const makePassStyleOf = passStyleHelpers => {
    * structures, so without this cache, these algorithms could be
    * O(N**2) or worse.
    *
-   * @type {WeakMap<Passable, PassStyle>}
+   * @type {WeakMap<WeakKey, PassStyle>}
    */
   const passStyleMemo = new WeakMap();
 
   /**
    * @type {PassStyleOf}
    */
+  // @ts-expect-error cast
   const passStyleOf = passable => {
     // Even when a WeakSet is correct, when the set has a shorter lifetime
     // than its keys, we prefer a Set due to expected implementation
     // tradeoffs.
     const inProgress = new Set();
 
-    /**
-     * @type {PassStyleOf}
-     */
     const passStyleOfRecur = inner => {
       const innerIsObject = isObject(inner);
       if (innerIsObject) {
-        if (passStyleMemo.has(inner)) {
-          // @ts-ignore TypeScript doesn't know that `get` after `has` is safe
-          return passStyleMemo.get(inner);
+        const innerStyle = passStyleMemo.get(inner);
+        if (innerStyle) {
+          return innerStyle;
         }
         !inProgress.has(inner) ||
           Fail`Pass-by-copy data cannot be cyclic ${inner}`;
@@ -123,9 +121,6 @@ const makePassStyleOf = passStyleHelpers => {
       return passStyle;
     };
 
-    /**
-     * @type {PassStyleOf}
-     */
     const passStyleOfInternal = inner => {
       const typestr = typeof inner;
       switch (typestr) {
