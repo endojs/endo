@@ -207,15 +207,19 @@ const template = `
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    border: solid black 3px;
-    margin: 10px;
-    padding: 10px;
     min-width: 1ex;
     min-height: 1em;
+
+    position: relative;
+    border-width: 10px 20px;
+    border-style: solid;
+    border-image-source: var(--brackets-url);
+    border-image-slice: 20 60 20 60;
+    border-image-repeat: stretch;
   }
 
   .array > *{
-    margin: 10px;
+    margin: 5px;
   }
 
   .object {
@@ -223,19 +227,56 @@ const template = `
     align-items: center;
     border: solid black 3px;
     border-radius: 10px;
-    margin: 10px;
-    padding: 10px;
     min-width: 1ex;
     min-height: 1em;
+
+    position: relative;
+    display: flex;
+    border-style: solid;
+    border-color: transparent;
+    border-width: 10px 20px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .object::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    bottom: 50%;
+    left: -20px;
+    right: -20px;
+    border-width: 10px 20px 10px 20px;
+    border-style: solid;
+    border-color: red;
+    border-image-source: var(--braces-url);
+    border-image-slice: 40 60 40 60;
+  }
+
+  .object::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    bottom: -10px;
+    left: -20px;
+    right: -20px;
+    border-width: 10px 20px 10px 20px;
+    border-style: solid;
+    border-color: red;
+    border-image-source: var(--braces-url);
+    border-image-slice: 40 60 40 60;
+    transform: rotate(180deg);
+    pointer-events: none;
   }
 
   .entry {
-    position: relative;
-    border: solid lightgray 1px;
+    border: solid 1px var(--border-color);
     border-radius: 5px;
-    margin: 10px;
-    margin-top: calc(10px + 0.7em);
-    padding: 10px;
+    padding: 5px;
+    margin: 5px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
   }
 
   .remotable {
@@ -243,8 +284,6 @@ const template = `
   }
 
   .key {
-    position: absolute;
-    top: -0.7em;
     background-color: white;
     white-space: nowrap;
     font-family: monospace;
@@ -312,6 +351,42 @@ const template = `
   </div>
 </div>
 `;
+
+// Introduce background images for curly braces and square brackets to the
+// style sheet.
+
+const root = document.querySelector(':root');
+
+const bracketsBlob = new Blob(
+  [
+    `<?xml version="1.0" encoding="UTF-8"?>
+    <svg version="1.1" height="120" width="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <path d="m17.982 4.125v44 23.75 44h35.852v-3.1367h-18.895v-40.863-23.75-40.863h18.895v-3.1367h-35.852z" color="#000000" stop-color="#000000" style="-inkscape-stroke:none"/>
+      <path d="m66.166 4.125v3.1367h18.895v40.863 23.75 40.863h-18.895v3.1367h35.852v-44-23.75-44h-35.852z" color="#000000" stop-color="#000000" style="-inkscape-stroke:none"/>
+    </svg>
+  `,
+  ],
+  { type: 'image/svg+xml' },
+);
+const bracketsUrl = URL.createObjectURL(bracketsBlob);
+root.style.setProperty('--brackets-url', `url(${bracketsUrl})`);
+
+const bracesBlob = new Blob(
+  [
+    `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+    <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <path
+         style="color:#000000;overflow:visible;fill:#000000;stroke-width:154.309;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none;stop-color:#000000"
+         d="m 53.833038,4.1252291 c -9.180825,0 -16.085381,1.0054216 -20.713729,3.0162626 C 26.442303,10.073969 22.041565,15.645687 19.917096,23.856614 18.627251,28.799927 17.9823,34.916252 17.9823,42.205543 v 47.631819 c 0,8.210936 -1.062236,14.704298 -3.186764,19.480038 C 11.98818,115.68506 7.0563546,118.86891 0,118.86891 V 120 h 16.969363 c 6.980194,-2.56221 11.851299,-6.65631 14.556563,-12.31641 2.27621,-4.85954 3.414372,-12.232635 3.414372,-22.119257 V 38.058184 c 0,-10.975832 1.517457,-18.851647 4.55248,-23.627393 3.034965,-4.7757408 7.815052,-7.1636238 14.34026,-7.1636238 z" />
+      <path
+         style="color:#000000;overflow:visible;fill:#000000;stroke-width:154.309;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none;stop-color:#000000"
+         d="m 66.16697,4.1252291 c 9.180818,0 16.085377,1.0054216 20.713721,3.0162626 6.677007,2.9324773 11.077741,8.5041953 13.202209,16.7151223 1.28985,4.943313 1.9348,11.059638 1.9348,18.348929 v 47.631819 c 0,8.210936 1.06224,14.704298 3.18676,19.480038 2.80736,6.36766 7.73919,9.55151 14.79554,9.55151 V 120 H 103.03064 C 96.050446,117.43779 91.179336,113.34369 88.474073,107.68359 86.197863,102.82405 85.0597,95.450955 85.0597,85.564333 V 38.058184 c 0,-10.975832 -1.517459,-18.851647 -4.552474,-23.627393 C 77.472258,9.6550502 72.692175,7.2671672 66.16697,7.2671672 Z" />
+  </svg>`,
+  ],
+  { type: 'image/svg+xml' },
+);
+const bracesUrl = URL.createObjectURL(bracesBlob);
+root.style.setProperty('--braces-url', `url(${bracesUrl})`);
 
 function* generateIds() {
   for (let i = 0; ; i += 1) {
@@ -809,12 +884,12 @@ const render = value => {
       const $value = document.createElement('div');
       $value.className = 'object';
       for (const [key, child] of Object.entries(value)) {
-        const $entry = document.createElement('div');
+        const $entry = document.createElement('span');
         $entry.className = 'entry';
         $value.appendChild($entry);
-        const $key = document.createElement('div');
+        const $key = document.createElement('span');
         $key.className = 'key';
-        $key.innerText = `${key}:`;
+        $key.innerText = `${key}: `;
         $entry.appendChild($key);
         const $child = render(child);
         $entry.appendChild($child);
