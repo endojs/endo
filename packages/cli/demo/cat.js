@@ -25,11 +25,18 @@
 /* eslint-disable no-continue */
 
 import { E } from '@endo/far';
+import { passStyleOf } from '@endo/pass-style';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { parseMessage } from '../src/message-parse.js';
 
 const template = `
 <style>
+
+  :root {
+    --tint-color:   hsl(210, 71%, 72%);
+    --border-color: hsl(210, 60%, 52%);
+    --mask-color:   hsla(210, 38%, 29%, 0.5);
+  }
 
   * {
     box-sizing: border-box;
@@ -77,8 +84,8 @@ const template = `
     padding: 20px;
     overflow-y: auto;
     overflow-x: hidden;
-    background-color: hsl(210, 71%, 72%);
-    border-left: 1px solid hsl(210, 60%, 52%);
+    background-color: var(--tint-color);
+    border-left: 1px solid var(--border-color);
   }
 
   #pet-list {
@@ -155,7 +162,7 @@ const template = `
     right: 0;
     align-items: center;
     justify-content: center;
-    background-color: hsla(210, 38%, 29%, 0.5)
+    background-color: var(--mask-color);
   }
 
   .frame[data-show=true] {
@@ -166,7 +173,7 @@ const template = `
     background-color: white;
     margin: 20px;
     padding: 20px;
-    border: 1px solid hsl(210, 60%, 52%);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
     overflow: auto;
     max-height: calc(100vh - 40px);
@@ -175,8 +182,77 @@ const template = `
     flex: none;
   }
 
+  #value-value {
+    padding: 5px;
+  }
+
+  .string {
+    white-space: pre;
+    font-family: monospace;
+    background-color: lightgray;
+    word-break: break-word;
+  }
+
+  .number {
+    color: blue;
+    font-family: monospace;
+  }
+
+  .bigint {
+    color: darkgreen;
+    font-family: monospace;
+  }
+
+  .array {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    border: solid black 3px;
+    margin: 10px;
+    padding: 10px;
+    min-width: 1ex;
+    min-height: 1em;
+  }
+
+  .array > *{
+    margin: 10px;
+  }
+
+  .object {
+    display: flex;
+    align-items: center;
+    border: solid black 3px;
+    border-radius: 10px;
+    margin: 10px;
+    padding: 10px;
+    min-width: 1ex;
+    min-height: 1em;
+  }
+
+  .entry {
+    position: relative;
+    border: solid lightgray 1px;
+    border-radius: 5px;
+    margin: 10px;
+    margin-top: calc(10px + 0.7em);
+    padding: 10px;
+  }
+
+  .remotable {
+    background-color: var(--tint-color);
+  }
+
+  .key {
+    position: absolute;
+    top: -0.7em;
+    background-color: white;
+    white-space: nowrap;
+    font-family: monospace;
+  }
+
   .error {
     color: red;
+    font-family: monospace;
     word-break: break-word;
     max-width: 40ex;
   }
@@ -228,6 +304,13 @@ const template = `
     <button id="eval-submit-button">Evaluate</button>
   </div>
 </div>
+
+<div id="value-frame" class="frame">
+  <div id="value-window" class="window">
+    <div id="value-value"></div>
+    <button id="value-close">Close</button>
+  </div>
+</div>
 `;
 
 function* generateIds() {
@@ -242,6 +325,7 @@ const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
   timeStyle: 'long',
 });
+const numberFormatter = new Intl.NumberFormat();
 
 const inboxComponent = async ($parent, $end, powers) => {
   $parent.scrollTo(0, $parent.scrollHeight);
@@ -532,10 +616,11 @@ const inventorySelectComponent = async ($select, powers) => {
 
 const controlsComponent = (
   $parent,
-  { focusChat, blurChat, focusEval, blurEval },
+  { focusChat, blurChat, focusValue, blurValue, focusEval, blurEval },
 ) => {
   const $cat = $parent.querySelector('#cat');
   const $chatFrame = $parent.querySelector('#chat-frame');
+  const $valueFrame = $parent.querySelector('#value-frame');
   const $evalFrame = $parent.querySelector('#eval-frame');
   const $controls = $parent.querySelector('#controls');
 
@@ -548,6 +633,13 @@ const controlsComponent = (
     focusChat();
   };
 
+  const showValue = value => {
+    $valueFrame.dataset.show = 'true';
+    $controls.dataset.show = 'false';
+    showFanout = false;
+    focusValue(value);
+  };
+
   const showEval = () => {
     $evalFrame.dataset.show = 'true';
     $controls.dataset.show = 'false';
@@ -558,6 +650,11 @@ const controlsComponent = (
   const dismissChat = () => {
     $chatFrame.dataset.show = 'false';
     blurChat();
+  };
+
+  const dismissValue = () => {
+    $valueFrame.dataset.show = 'false';
+    blurValue();
   };
 
   const dismissEval = () => {
@@ -596,7 +693,7 @@ const controlsComponent = (
     }
   });
 
-  return { dismissChat, dismissEval };
+  return { dismissChat, showValue, dismissValue, dismissEval };
 };
 
 const chatComponent = ($parent, powers, { dismissChat }) => {
@@ -655,7 +752,141 @@ const chatComponent = ($parent, powers, { dismissChat }) => {
   return { focusChat, blurChat };
 };
 
-const evalComponent = ($parent, powers, { dismissEval }) => {
+const render = value => {
+  let passStyle;
+  try {
+    passStyle = passStyleOf(value);
+  } catch {
+    const $value = document.createElement('div');
+    $value.className = 'error';
+    $value.innerText = '⚠️ Not passable ⚠️';
+    return $value;
+  }
+
+  switch (passStyle) {
+    case 'null':
+    case 'undefined':
+    case 'boolean': {
+      const $value = document.createElement('span');
+      $value.className = 'number';
+      $value.innerText = `${value}`;
+      return $value;
+    }
+    case 'bigint': {
+      const $value = document.createElement('span');
+      $value.className = 'bigint';
+      $value.innerText = `${numberFormatter.format(value)}n`;
+      return $value;
+    }
+    case 'number': {
+      const $value = document.createElement('span');
+      $value.className = 'number';
+      $value.innerText = numberFormatter.format(value);
+      return $value;
+    }
+    case 'string': {
+      const $value = document.createElement('span');
+      $value.className = 'string';
+      $value.innerText = JSON.stringify(value);
+      return $value;
+    }
+    case 'promise': {
+      const $value = document.createElement('span');
+      $value.innerText = '⏳';
+      // TODO await (and respect cancellation)
+      return $value;
+    }
+    case 'copyArray': {
+      const $value = document.createElement('div');
+      $value.className = 'array';
+      for (const child of value) {
+        const $child = render(child);
+        $value.appendChild($child);
+      }
+      return $value;
+    }
+    case 'copyRecord': {
+      const $value = document.createElement('div');
+      $value.className = 'object';
+      for (const [key, child] of Object.entries(value)) {
+        const $entry = document.createElement('div');
+        $entry.className = 'entry';
+        $value.appendChild($entry);
+        const $key = document.createElement('div');
+        $key.className = 'key';
+        $key.innerText = `${key}:`;
+        $entry.appendChild($key);
+        const $child = render(child);
+        $entry.appendChild($child);
+      }
+      return $value;
+    }
+    case 'tagged': {
+      const $value = document.createElement('span');
+      $value.className = 'entry';
+      const $tag = document.createElement('span');
+      $tag.className = 'key';
+      $tag.innerText = `${value[Symbol.toStringTag]}: `;
+      $value.appendChild($tag);
+      const $child = render(value.payload);
+      $value.appendChild($child);
+      return $value;
+    }
+    case 'error': {
+      const $value = document.createElement('span');
+      $value.className = 'error';
+      $value.innerText = value.message;
+      return $value;
+    }
+    case 'remotable': {
+      const $value = document.createElement('span');
+      $value.className = 'remotable entry';
+      $value.innerText = value[Symbol.toStringTag];
+      return $value;
+    }
+    default: {
+      throw new Error(
+        'Unreachable if programmed to account for all pass-styles',
+      );
+    }
+  }
+};
+
+const valueComponent = ($parent, powers, { dismissValue }) => {
+  const $frame = $parent.querySelector('#value-frame');
+  const $value = $parent.querySelector('#value-value');
+  const $close = $parent.querySelector('#value-close');
+
+  const clearValue = () => {
+    $value.innerHTML = '';
+    dismissValue();
+  };
+
+  $close.addEventListener('click', () => {
+    clearValue();
+  });
+
+  $frame.addEventListener('keyup', event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Escape') {
+      clearValue();
+      event.stopPropagation();
+    }
+  });
+
+  const focusValue = value => {
+    $value.innerHTML = '';
+    $value.appendChild(render(value));
+    $close.focus();
+  };
+
+  const blurValue = () => {};
+
+  return { focusValue, blurValue };
+};
+
+const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
   const $frame = $parent.querySelector('#eval-frame');
   const $source = $parent.querySelector('#eval-source');
   const $endOfEndowments = $parent.querySelector('#eval-endowments');
@@ -666,8 +897,17 @@ const evalComponent = ($parent, powers, { dismissEval }) => {
   let $error = $parent.querySelector('#eval-error');
   const $endowments = new Map();
 
+  const resizeSource = () => {
+    // This is a pretty terrible thing to do because it forces a pair of sync
+    // draws that compose poorly.
+    // To do better, we would need a read/write frame coordinator.
+    $source.style.height = '1px';
+    $source.style.height = `${$source.scrollHeight + 2}px`;
+  };
+
   const clearEval = () => {
     $source.value = '';
+    resizeSource();
     $resultName.value = '';
     for (const $endowment of $endowments.values()) {
       $endowment.remove();
@@ -739,22 +979,24 @@ const evalComponent = ($parent, powers, { dismissEval }) => {
     const resultName = $resultName.value.trim() || undefined;
     E(powers)
       .evaluate(workerName, source, codeNames, petNames, resultName)
-      .then(clearEval, error => {
-        const $newError = document.createElement('p');
-        $newError.className = 'error';
-        $newError.innerText = error.message;
-        $error.replaceWith($newError);
-        $error = $newError;
-      });
+      .then(
+        value => {
+          clearEval();
+          showValue(value);
+        },
+        error => {
+          const $newError = document.createElement('p');
+          $newError.className = 'error';
+          $newError.innerText = error.message;
+          $error.replaceWith($newError);
+          $error = $newError;
+        },
+      );
   };
 
   $frame.addEventListener('keyup', event => {
     const { key, repeat, metaKey } = event;
     if (repeat || metaKey) return;
-    if (key === 'Enter') {
-      event.stopPropagation();
-      handleEval();
-    }
     if (key === 'Escape') {
       clearEval();
       event.stopPropagation();
@@ -777,11 +1019,7 @@ const evalComponent = ($parent, powers, { dismissEval }) => {
 
   // Automatically adjust the textarea height to match its content.
   $source.addEventListener('input', () => {
-    // This is a pretty terrible thing to do because it forces a pair of sync
-    // draws that compose poorly.
-    // To do better, we would need a read/write frame coordinator.
-    $source.style.height = '1px';
-    $source.style.height = `${$source.scrollHeight + 2}px`;
+    resizeSource();
   });
 
   return { focusEval, blurEval };
@@ -800,16 +1038,23 @@ const bodyComponent = ($parent, powers) => {
   // To they who can avoid forward-references for entangled component
   // dependency-injection, I salute you and welcome your pull requests.
   /* eslint-disable no-use-before-define */
-  const { dismissChat, dismissEval } = controlsComponent($parent, {
-    focusChat: () => focusChat(),
-    blurChat: () => blurChat(),
-    focusEval: () => focusEval(),
-    blurEval: () => blurEval(),
-  });
+  const { dismissChat, showValue, dismissValue, dismissEval } =
+    controlsComponent($parent, {
+      focusChat: () => focusChat(),
+      blurChat: () => blurChat(),
+      focusValue: value => focusValue(value),
+      blurValue: () => blurValue(),
+      focusEval: () => focusEval(),
+      blurEval: () => blurEval(),
+    });
   const { focusChat, blurChat } = chatComponent($parent, powers, {
     dismissChat,
   });
+  const { focusValue, blurValue } = valueComponent($parent, powers, {
+    dismissValue,
+  });
   const { focusEval, blurEval } = evalComponent($parent, powers, {
+    showValue,
     dismissEval,
   });
   /* eslint-enable no-use-before-define */
