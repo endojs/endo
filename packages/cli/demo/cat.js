@@ -629,7 +629,7 @@ const inboxComponent = async ($parent, $end, powers) => {
   }
 };
 
-const inventoryComponent = async ($parent, $end, powers) => {
+const inventoryComponent = async ($parent, $end, powers, { showValue }) => {
   const $list = document.createElement('div');
   $list.className = 'pet-list';
   $parent.insertBefore($list, $end);
@@ -641,15 +641,17 @@ const inventoryComponent = async ($parent, $end, powers) => {
 
       const $item = document.createElement('div');
       $item.className = 'pet-item';
+      $item.innerHTML = `
+        ${name}
+        <button class="show-button">Show</button>
+        <button class="remove-button">Remove</button>
+      `;
+      const $show = $item.querySelector('.show-button');
+      const $remove = $item.querySelector('.remove-button');
       $list.appendChild($item);
 
-      const $name = document.createTextNode(`${name} `);
-      $item.appendChild($name);
-      $name.innerText = change.add;
-
-      const $remove = document.createElement('button');
-      $item.appendChild($remove);
-      $remove.innerText = 'Remove';
+      $show.onclick = () =>
+        E(powers).lookup(name).then(showValue, window.reportError);
       $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
 
       $names.set(name, $item);
@@ -1107,9 +1109,6 @@ const bodyComponent = ($parent, powers) => {
   const $anchor = $parent.querySelector('#anchor');
   const $pets = $parent.querySelector('#pets');
 
-  inboxComponent($messages, $anchor, powers).catch(window.reportError);
-  inventoryComponent($pets, null, powers).catch(window.reportError);
-
   // To they who can avoid forward-references for entangled component
   // dependency-injection, I salute you and welcome your pull requests.
   /* eslint-disable no-use-before-define */
@@ -1122,6 +1121,10 @@ const bodyComponent = ($parent, powers) => {
       focusEval: () => focusEval(),
       blurEval: () => blurEval(),
     });
+  inboxComponent($messages, $anchor, powers).catch(window.reportError);
+  inventoryComponent($pets, null, powers, { showValue }).catch(
+    window.reportError,
+  );
   const { focusChat, blurChat } = chatComponent($parent, powers, {
     dismissChat,
   });
