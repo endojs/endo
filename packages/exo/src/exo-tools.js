@@ -1,5 +1,5 @@
 import { getMethodNames } from '@endo/eventual-send/utils.js';
-import { hasOwnPropertyOf } from '@endo/pass-style';
+import { hasOwnPropertyOf, toThrowable } from '@endo/pass-style';
 import { E, Far } from '@endo/far';
 import {
   mustMatch,
@@ -164,14 +164,18 @@ const defendSyncMethod = (
   const { syncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     syncMethod(...syncArgs) {
-      const context = getContext(this);
-      // Only harden args and return value if not dealing with a raw value guard.
-      const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
-      const result = apply(behaviorMethod, context, realArgs);
-      if (!isRawReturn) {
-        mustMatch(harden(result), returnGuard, `${label}: result`);
+      try {
+        const context = getContext(this);
+        // Only harden args and return value if not dealing with a raw value guard.
+        const realArgs = defendSyncArgs(syncArgs, matchConfig, label);
+        const result = apply(behaviorMethod, context, realArgs);
+        if (!isRawReturn) {
+          mustMatch(harden(result), returnGuard, `${label}: result`);
+        }
+        return result;
+      } catch (thrownThing) {
+        throw toThrowable(thrownThing);
       }
-      return result;
     },
   };
   return syncMethod;
@@ -251,13 +255,16 @@ const defendAsyncMethod = (
           return apply(behaviorMethod, context, realArgs);
         },
       );
-      if (isRawReturn) {
-        return resultP;
-      }
-      return E.when(resultP, result => {
-        mustMatch(harden(result), returnGuard, `${label}: result`);
-        return result;
-      });
+      return E.when(resultP, fulfillment => {
+        if (!isRawReturn) {
+          mustMatch(harden(fulfillment), returnGuard, `${label}: result`);
+        }
+        return fulfillment;
+      }).catch(reason =>
+        // Done is a chained `.catch` rather than an onRejected clause of the
+        // `E.when` above in case the `mustMatch` throws.
+        Promise.reject(toThrowable(reason)),
+      );
     },
   };
   return asyncMethod;
