@@ -164,12 +164,13 @@ const checkRemotable = (val, check) => {
 };
 
 /**
- * Simple semantics, just tell what interface (or undefined) a remotable has.
+ * Simple semantics, just tell what interface spec a Remotable has,
+ * or undefined if not deemed to be a Remotable.
+ *
  * @type {{
  * <T extends string>(val: PassStyled<any, T>): T;
- * (val: any): string | undefined;
+ * (val: any): InterfaceSpec | undefined;
  * }}
- * @returns the interface specification, or undefined if not a deemed to be a Remotable
  */
 export const getInterfaceOf = val => {
   if (
