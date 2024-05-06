@@ -56,11 +56,12 @@ const main = async () => {
 
   // When importing types from a CJS package, TS v5.5+ considers the "module"
   // field in `ses`' `package.json`, so any .d.ts file is considered to be "ESM
-  // types" (I'm sure this makes sense if you think hard enojugh about it; let
-  // us know if it does). For CJS, we need to provide a `.d.cts` file instead.
+  // types".
+  // For CJS, we need to provide a `.d.cts` file instead.
   // It's unclear if this file can be identical to the original in _all_ cases,
-  // or just ours. I imagine ES-specific types (e.g., `import.meta`) would break
-  // in CJS, but generally consumers have `skipLibCheck` enabled, so ¯\_(ツ)_/¯
+  // or just ours.
+  // We imagine ES-specific types (e.g., `import.meta`) would break
+  // in CJS, but generally consumers have `skipLibCheck` enabled.
 
   // Also: this operation is in this script for portability's sake.
 
