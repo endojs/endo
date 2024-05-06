@@ -87,7 +87,11 @@ const checkRemotableProtoOf = (original, check) => {
   //        }}
   //
   const proto = getPrototypeOf(original);
-  if (proto === objectPrototype || proto === null) {
+  if (
+    proto === objectPrototype ||
+    proto === null ||
+    proto === Function.prototype
+  ) {
     return (
       reject && reject`Remotables must be explicitly declared: ${q(original)}`
     );
