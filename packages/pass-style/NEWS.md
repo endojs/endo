@@ -1,5 +1,9 @@
 User-visible changes in `@endo/pass-style`:
 
+# Next release
+
+- Adds `toThrowable` as a generalization of `toPassableError` that also admits copy data containing passable errors, but still without passable caps, i.e, without remotables or promises. This is in support of the exo boundary throwing only throwables, to ease security review.
+
 # v1.3.0 (2024-03-19)
 
 - Exports `isWellFormedString` and `assertWellFormedString`. Unfortunately the [standard `String.prototype.isWellFormed`](https://tc39.es/proposal-is-usv-string/) first coerces its input to string, leading it to claim that some non-strings are well-formed strings. By contrast, `isWellFormedString` and `assertWellFormedString` will not judge any non-strings to be well-formed strings.

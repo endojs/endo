@@ -29,6 +29,7 @@ export {
   isPassable,
   assertPassable,
   toPassableError,
+  toThrowable,
 } from './src/passStyleOf.js';
 
 export { makeTagged } from './src/makeTagged.js';
