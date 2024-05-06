@@ -1152,9 +1152,8 @@ const makeDaemonCore = async (
     }
 
     const workerFormulaNumber = await randomHex512();
-    const workerFormulation = await formulateNumberedWorker(
-      workerFormulaNumber,
-    );
+    const workerFormulation =
+      await formulateNumberedWorker(workerFormulaNumber);
     return workerFormulation.id;
   };
 
@@ -1794,9 +1793,8 @@ const provideEndoBootstrap = async (
       daemonCore.provide(endoId)
     );
   } else {
-    const { value: endoBootstrap } = await daemonCore.formulateEndo(
-      endoFormulaNumber,
-    );
+    const { value: endoBootstrap } =
+      await daemonCore.formulateEndo(endoFormulaNumber);
     return endoBootstrap;
   }
 };

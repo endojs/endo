@@ -171,9 +171,8 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['move']} */
     const move = async (fromPath, toPath) => {
-      const { hub: fromHub, name: fromName } = await lookupTailNameHub(
-        fromPath,
-      );
+      const { hub: fromHub, name: fromName } =
+        await lookupTailNameHub(fromPath);
       const { hub: toHub, name: toName } = await lookupTailNameHub(toPath);
       if (fromHub === toHub) {
         // eslint-disable-next-line no-use-before-define
@@ -195,9 +194,8 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['copy']} */
     const copy = async (fromPath, toPath) => {
-      const { hub: fromHub, name: fromName } = await lookupTailNameHub(
-        fromPath,
-      );
+      const { hub: fromHub, name: fromName } =
+        await lookupTailNameHub(fromPath);
       const { hub: toHub, name: toName } = await lookupTailNameHub(toPath);
       const id = await fromHub.identify(fromName);
       if (id === undefined) {

@@ -58,14 +58,14 @@ export const tameConsole = (
     typeof globalThis.console !== 'undefined'
       ? globalThis.console
       : typeof globalThis.print === 'function'
-      ? // Make a good-enough console for eshost (including only functions that
-        // log at a specific level with no special argument interpretation).
-        // https://console.spec.whatwg.org/#logging
-        (p => freeze({ debug: p, log: p, info: p, warn: p, error: p }))(
-          // eslint-disable-next-line no-undef
-          wrapLogger(globalThis.print),
-        )
-      : undefined
+        ? // Make a good-enough console for eshost (including only functions that
+          // log at a specific level with no special argument interpretation).
+          // https://console.spec.whatwg.org/#logging
+          (p => freeze({ debug: p, log: p, info: p, warn: p, error: p }))(
+            // eslint-disable-next-line no-undef
+            wrapLogger(globalThis.print),
+          )
+        : undefined
   );
 
   // Upgrade a log-only console (as in `eshost -h SpiderMonkey`).
