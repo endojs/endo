@@ -185,7 +185,7 @@ test('missing interface', t => {
   });
   t.throws(() => greeterMaker.makeSayHello(), {
     message:
-      'In "makeSayHello" method of (greeterMaker): result: "[Symbol(passStyle)]" property expected: "[Function <anon>]"',
+      'In "makeSayHello" method of (greeterMaker): result: Remotables must be explicitly declared: "[Function <anon>]"',
   });
   t.is(greeterMaker[GET_INTERFACE_GUARD]?.(), undefined);
 });
