@@ -180,12 +180,13 @@ test('missing interface', t => {
   );
   const greeterMaker = makeExo('greeterMaker', undefined, {
     makeSayHello() {
-      return () => 'hello';
+      const helloFunc = () => 'hello';
+      return harden(helloFunc);
     },
   });
   t.throws(() => greeterMaker.makeSayHello(), {
     message:
-      'In "makeSayHello" method of (greeterMaker): result: Remotables must be explicitly declared: "[Function <anon>]"',
+      'In "makeSayHello" method of (greeterMaker): result: Remotables must be explicitly declared: "[Function helloFunc]"',
   });
   t.is(greeterMaker[GET_INTERFACE_GUARD]?.(), undefined);
 });
