@@ -240,9 +240,8 @@ export const makeDeferredAttenuatorsProvider = (
         }
         attenuatorSpecifier = defaultAttenuator;
       }
-      const { namespace } = await compartments[ATTENUATORS_COMPARTMENT].import(
-        attenuatorSpecifier,
-      );
+      const { namespace } =
+        await compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
       return namespace;
     };
   }
