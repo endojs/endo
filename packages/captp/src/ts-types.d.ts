@@ -14,10 +14,10 @@ import type { ESingleMethod, Unpromise } from '@endo/eventual-send';
 export type TrapHandler<T> = T extends (...args: infer P) => infer R
   ? (...args: P) => Unpromise<R>
   : T extends Record<string | number | symbol, Function>
-  ? {
-      [K in keyof T]: Unpromise<T[K]>;
-    }
-  : T;
+    ? {
+        [K in keyof T]: Unpromise<T[K]>;
+      }
+    : T;
 
 /* Types for Trap proxy calls. */
 type TrapSingleMethod<T> = {
