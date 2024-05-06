@@ -1,6 +1,6 @@
 User-visible changes in `@endo/pass-style`:
 
-# Next release
+# v1.4.0 (2024-05-06)
 
 - Adds `toThrowable` as a generalization of `toPassableError` that also admits copy data containing passable errors, but still without passable caps, i.e, without remotables or promises. This is in support of the exo boundary throwing only throwables, to ease security review.
 
