@@ -35,7 +35,7 @@
   "unpkg": "./dist/ses.umd.js",
   "types": "./types.d.ts",
   "exports": {
-    ".": {      
+    ".": {
       "import": {
         "types": "./types.d.ts",
         "default": "./index.js"
@@ -45,7 +45,7 @@
         "default": "./dist/ses.cjs"
       }
     },
-    "./lockdown": {      
+    "./lockdown": {
       "import": {
         "types": "./types.d.ts",
         "default": "./index.js"
