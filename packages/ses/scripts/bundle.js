@@ -53,6 +53,31 @@ const main = async () => {
     ...bundleFilePaths.map(dest => write(dest, versionedBundle)),
     ...terseFilePaths.map(dest => write(dest, terse)),
   ]);
+
+  // When importing types from a CJS package, TS v5.5+ considers the "module"
+  // field in `ses`' `package.json`, so any .d.ts file is considered to be "ESM
+  // types".
+  // For CJS, we need to provide a `.d.cts` file instead.
+  // It's unclear if this file can be identical to the original in _all_ cases,
+  // or just ours.
+  // We imagine ES-specific types (e.g., `import.meta`) would break
+  // in CJS, but generally consumers have `skipLibCheck` enabled.
+
+  // Also: this operation is in this script for portability's sake.
+
+  /** The "ESM types" */
+  const sourceDTS = /** @type {string} */ (
+    packageJson.exports['.'].import.types
+  );
+  /** The "CJS types" */
+  const destDTS = /** @type {string} */ (
+    packageJson.exports['.'].require.types
+  );
+  await fs.promises.copyFile(
+    fileURLToPath(new URL(sourceDTS, root)),
+    fileURLToPath(new URL(destDTS, root)),
+  );
+  console.log(`Copied ${sourceDTS} to ${destDTS}`);
 };
 
 main().catch(err => {

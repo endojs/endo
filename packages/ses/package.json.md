@@ -94,7 +94,11 @@ However, `@web/dev-server` gets confused by the extension.
 
 The variations differ only in file name extension.
 
-## "import": "./index.js"
+### "import": {
+
+Node.js and TypeScript will use these when importing `ses` as an ESM.
+
+#### "default": "./index.js"
 
 Node.js and other tools will use this file when importing `ses` as an ESM.
 (JavaScript module).
@@ -102,15 +106,25 @@ We have in the past experimented with using the precompiled bundle of SES here
 (`./dist/ses.cjs` or `./dist/ses.umd.js`), but found that this interacted
 poorly with Endo, because an Endo bundle contains identifiers that SES censors.
 
-## "require": "./dist/ses.cjs"
-
-Node.js and other tools will use this file when importing `ses` as an CommonJS module.
-
-## "types": "./types.d.ts"
+#### "types": "./types.d.ts"
 
 Only applicable for TypeScript v4.7+ consumers configured with `node16` or
 `nodenext` [module resolution][]. This serves the same purpose as the `types`
 prop at the top level.
+
+### "require": {
+
+Node.js and TypesScript will use these when importing `ses` as a CommonJS module.
+
+#### "default": "./dist/ses.cjs"
+
+Node.js and other tools will use this file when importing `ses` as an CommonJS module.
+
+#### "types": "./dist/types.d.cts"
+
+As of TypeScript v5.5 beta, if a package is an ESM package (`"type": "module"`), any `.d.ts` file in the package is considered to be for ESM consumers only.  If CommonJS is targeted, ESM packages must now export types in `.d.cts` files. Think of it this way: *`.d.ts` is to `.d.cts` as `.js` is to `.cjs`*.
+
+At build time, `./types.d.ts` is copied to `./dist/types.d.ts`; it is otherwise identical.
 
 ## "./lockdown"
 
