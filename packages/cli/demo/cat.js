@@ -139,7 +139,7 @@ const template = `
   }
 
   #chat-message {
-    max-width: 40ex;
+    max-width: 60ex;
   }
 
   #eval-source {
@@ -189,7 +189,6 @@ const template = `
   .string {
     white-space: pre;
     font-family: monospace;
-    background-color: lightgray;
     word-break: break-word;
   }
 
@@ -203,90 +202,8 @@ const template = `
     font-family: monospace;
   }
 
-  .array {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    min-width: 1ex;
-    min-height: 1em;
-
-    position: relative;
-    border-width: 10px 20px;
-    border-style: solid;
-    border-image-source: var(--brackets-url);
-    border-image-slice: 20 60 20 60;
-    border-image-repeat: stretch;
-  }
-
-  .array > *{
-    margin: 5px;
-  }
-
-  .object {
-    display: flex;
-    align-items: center;
-    border: solid black 3px;
-    border-radius: 10px;
-    min-width: 1ex;
-    min-height: 1em;
-
-    position: relative;
-    display: flex;
-    border-style: solid;
-    border-color: transparent;
-    border-width: 10px 20px;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .object::before {
-    content: '';
-    position: absolute;
-    top: -10px;
-    bottom: 50%;
-    left: -20px;
-    right: -20px;
-    border-width: 10px 20px 10px 20px;
-    border-style: solid;
-    border-color: red;
-    border-image-source: var(--braces-url);
-    border-image-slice: 40 60 40 60;
-  }
-
-  .object::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    bottom: -10px;
-    left: -20px;
-    right: -20px;
-    border-width: 10px 20px 10px 20px;
-    border-style: solid;
-    border-color: red;
-    border-image-source: var(--braces-url);
-    border-image-slice: 40 60 40 60;
-    transform: rotate(180deg);
-    pointer-events: none;
-  }
-
-  .entry {
-    border: solid 1px var(--border-color);
-    border-radius: 5px;
-    padding: 5px;
-    margin: 5px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .remotable {
-    background-color: var(--tint-color);
-  }
-
-  .key {
-    background-color: white;
-    white-space: nowrap;
-    font-family: monospace;
+  .remotable, .tag {
+    font-style: italic;
   }
 
   .error {
@@ -317,9 +234,9 @@ const template = `
 
 <div id="chat-frame" class="frame">
   <div id="chat-window" class="window">
-    <label for="chat-to">To:&nbsp;<select id="chat-to"></select></label>
-    <p><input type="text" id="chat-message">
-    <p id="chat-error" class="error">
+    <p><label for="chat-to">To:&nbsp;<select id="chat-to"></select></label>
+    <p><input type="text" id="chat-message" class="big">
+    <span id="chat-error" class="error"></span>
     <p><button id="chat-discard-button">Discard</button>
     <button id="chat-send-button">Send</button>
   </div>
@@ -333,60 +250,23 @@ const template = `
     </p></label>
     <span id="eval-endowments"></span>
     <p><button id="eval-add-endowment">Add Endowment</button>
-    <label for="eval-result-name">
-      <p>Result name (optional):<br>
+    <label for="eval-result-name"><p>
+      Result name (optional):<br>
       <input type="text" id="eval-result-name">
     </p></label>
     <span id="eval-error"></span>
-    <p>
-    <button id="eval-discard-button">Discard</button>
+    <p><button id="eval-discard-button">Discard</button>
     <button id="eval-submit-button">Evaluate</button>
   </div>
 </div>
 
 <div id="value-frame" class="frame">
   <div id="value-window" class="window">
-    <div id="value-value"></div>
-    <button id="value-close">Close</button>
+    <p><div id="value-value"></div>
+    <p><button id="value-close">Close</button>
   </div>
 </div>
 `;
-
-// Introduce background images for curly braces and square brackets to the
-// style sheet.
-
-const root = document.querySelector(':root');
-
-const bracketsBlob = new Blob(
-  [
-    `<?xml version="1.0" encoding="UTF-8"?>
-    <svg version="1.1" height="120" width="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      <path d="m17.982 4.125v44 23.75 44h35.852v-3.1367h-18.895v-40.863-23.75-40.863h18.895v-3.1367h-35.852z" color="#000000" stop-color="#000000" style="-inkscape-stroke:none"/>
-      <path d="m66.166 4.125v3.1367h18.895v40.863 23.75 40.863h-18.895v3.1367h35.852v-44-23.75-44h-35.852z" color="#000000" stop-color="#000000" style="-inkscape-stroke:none"/>
-    </svg>
-  `,
-  ],
-  { type: 'image/svg+xml' },
-);
-const bracketsUrl = URL.createObjectURL(bracketsBlob);
-root.style.setProperty('--brackets-url', `url(${bracketsUrl})`);
-
-const bracesBlob = new Blob(
-  [
-    `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-    <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      <path
-         style="color:#000000;overflow:visible;fill:#000000;stroke-width:154.309;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none;stop-color:#000000"
-         d="m 53.833038,4.1252291 c -9.180825,0 -16.085381,1.0054216 -20.713729,3.0162626 C 26.442303,10.073969 22.041565,15.645687 19.917096,23.856614 18.627251,28.799927 17.9823,34.916252 17.9823,42.205543 v 47.631819 c 0,8.210936 -1.062236,14.704298 -3.186764,19.480038 C 11.98818,115.68506 7.0563546,118.86891 0,118.86891 V 120 h 16.969363 c 6.980194,-2.56221 11.851299,-6.65631 14.556563,-12.31641 2.27621,-4.85954 3.414372,-12.232635 3.414372,-22.119257 V 38.058184 c 0,-10.975832 1.517457,-18.851647 4.55248,-23.627393 3.034965,-4.7757408 7.815052,-7.1636238 14.34026,-7.1636238 z" />
-      <path
-         style="color:#000000;overflow:visible;fill:#000000;stroke-width:154.309;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none;stop-color:#000000"
-         d="m 66.16697,4.1252291 c 9.180818,0 16.085377,1.0054216 20.713721,3.0162626 6.677007,2.9324773 11.077741,8.5041953 13.202209,16.7151223 1.28985,4.943313 1.9348,11.059638 1.9348,18.348929 v 47.631819 c 0,8.210936 1.06224,14.704298 3.18676,19.480038 2.80736,6.36766 7.73919,9.55151 14.79554,9.55151 V 120 H 103.03064 C 96.050446,117.43779 91.179336,113.34369 88.474073,107.68359 86.197863,102.82405 85.0597,95.450955 85.0597,85.564333 V 38.058184 c 0,-10.975832 -1.517459,-18.851647 -4.552474,-23.627393 C 77.472258,9.6550502 72.692175,7.2671672 66.16697,7.2671672 Z" />
-  </svg>`,
-  ],
-  { type: 'image/svg+xml' },
-);
-const bracesUrl = URL.createObjectURL(bracesBlob);
-root.style.setProperty('--braces-url', `url(${bracesUrl})`);
 
 function* generateIds() {
   for (let i = 0; ; i += 1) {
@@ -774,32 +654,35 @@ const controlsComponent = (
 };
 
 const chatComponent = ($parent, powers, { dismissChat }) => {
-  const $chatFrame = $parent.querySelector('#chat-frame');
-  const $chatSendButton = $parent.querySelector('#chat-send-button');
-  const $chatRecipientSelect = $parent.querySelector('#chat-to');
-  const $chatMessageInput = $parent.querySelector('#chat-message');
-  const $chatDiscardButton = $parent.querySelector('#chat-discard-button');
-  const $chatError = $parent.querySelector('#chat-error');
+  const $send = $parent.querySelector('#chat-send-button');
+  const $to = $parent.querySelector('#chat-to');
+  const $message = $parent.querySelector('#chat-message');
+  const $discard = $parent.querySelector('#chat-discard-button');
+  let $error = $parent.querySelector('#chat-error');
 
-  $chatDiscardButton.addEventListener('click', () => {
+  $discard.addEventListener('click', () => {
     dismissChat();
   });
 
   const handleChat = event => {
     event.preventDefault();
     event.stopPropagation();
-    const to = $chatRecipientSelect.value;
-    const { strings, petNames, edgeNames } = parseMessage(
-      $chatMessageInput.value,
-    );
+    const to = $to.value;
+    const { strings, petNames, edgeNames } = parseMessage($message.value);
     E(powers)
       .send(to, strings, edgeNames, petNames)
       .then(dismissChat, error => {
-        $chatError.innerText = error.message;
+        const $newError = document.createElement('p');
+        $newError.className = 'error';
+        $newError.innerText = error.message;
+        $error.replaceWith($newError);
+        $error = $newError;
       });
   };
 
-  $chatFrame.addEventListener('keyup', event => {
+  $send.addEventListener('click', handleChat);
+
+  const handleKey = event => {
     const { key, repeat, metaKey } = event;
     if (repeat || metaKey) return;
     if (key === 'Enter') {
@@ -809,22 +692,22 @@ const chatComponent = ($parent, powers, { dismissChat }) => {
       dismissChat();
       event.stopPropagation();
     }
-  });
-
-  $chatSendButton.addEventListener('click', handleChat);
+  };
 
   const focusChat = () => {
-    $chatRecipientSelect.focus();
+    window.addEventListener('keyup', handleKey);
+    $to.focus();
   };
 
   const blurChat = () => {
-    $chatMessageInput.value = '';
-    $chatError.innerText = '';
+    window.removeEventListener('keyup', handleKey);
+    $message.value = '';
+    const $newError = document.createTextNode('');
+    $error.replaceWith($newError);
+    $error = $newError;
   };
 
-  inventorySelectComponent($chatRecipientSelect, powers).catch(
-    window.reportError,
-  );
+  inventorySelectComponent($to, powers).catch(window.reportError);
 
   return { focusChat, blurChat };
 };
@@ -874,36 +757,55 @@ const render = value => {
       return $value;
     }
     case 'copyArray': {
-      const $value = document.createElement('div');
-      $value.className = 'array';
+      const $value = document.createElement('span');
+      $value.appendChild(document.createTextNode('['));
+      const $entries = document.createElement('span');
+      $entries.className = 'entries';
+      $value.appendChild($entries);
+      let $entry;
       for (const child of value) {
+        $entry = document.createElement('span');
+        $entries.appendChild($entry);
         const $child = render(child);
-        $value.appendChild($child);
+        $entry.appendChild($child);
+        $entry.appendChild(document.createTextNode(', '));
       }
+      // Remove final comma.
+      if ($entry) {
+        $entry.removeChild($entry.lastChild);
+      }
+      $value.appendChild(document.createTextNode(']'));
       return $value;
     }
     case 'copyRecord': {
-      const $value = document.createElement('div');
-      $value.className = 'object';
+      const $value = document.createElement('span');
+      $value.appendChild(document.createTextNode('{'));
+      const $entries = document.createElement('span');
+      $value.appendChild($entries);
+      $entries.className = 'entries';
+      let $entry;
       for (const [key, child] of Object.entries(value)) {
-        const $entry = document.createElement('span');
-        $entry.className = 'entry';
-        $value.appendChild($entry);
+        $entry = document.createElement('span');
+        $entries.appendChild($entry);
         const $key = document.createElement('span');
-        $key.className = 'key';
-        $key.innerText = `${key}: `;
+        $key.innerText = `${JSON.stringify(key)}: `;
         $entry.appendChild($key);
         const $child = render(child);
         $entry.appendChild($child);
+        $entry.appendChild(document.createTextNode(', '));
       }
+      if ($entry) {
+        // Remove final comma.
+        $entry.removeChild($entry.lastChild);
+      }
+      $value.appendChild(document.createTextNode('}'));
       return $value;
     }
     case 'tagged': {
       const $value = document.createElement('span');
-      $value.className = 'entry';
       const $tag = document.createElement('span');
-      $tag.className = 'key';
-      $tag.innerText = `${value[Symbol.toStringTag]}: `;
+      $tag.innerText = `${JSON.stringify(value[Symbol.toStringTag])} `;
+      $tag.className = 'tag';
       $value.appendChild($tag);
       const $child = render(value.payload);
       $value.appendChild($child);
@@ -917,7 +819,7 @@ const render = value => {
     }
     case 'remotable': {
       const $value = document.createElement('span');
-      $value.className = 'remotable entry';
+      $value.className = 'remotable';
       $value.innerText = value[Symbol.toStringTag];
       return $value;
     }
@@ -930,7 +832,6 @@ const render = value => {
 };
 
 const valueComponent = ($parent, powers, { dismissValue }) => {
-  const $frame = $parent.querySelector('#value-frame');
   const $value = $parent.querySelector('#value-value');
   const $close = $parent.querySelector('#value-close');
 
@@ -943,28 +844,30 @@ const valueComponent = ($parent, powers, { dismissValue }) => {
     clearValue();
   });
 
-  $frame.addEventListener('keyup', event => {
+  const handleKey = event => {
     const { key, repeat, metaKey } = event;
     if (repeat || metaKey) return;
     if (key === 'Escape') {
       clearValue();
       event.stopPropagation();
     }
-  });
+  };
 
   const focusValue = value => {
+    window.addEventListener('keyup', handleKey);
     $value.innerHTML = '';
     $value.appendChild(render(value));
     $close.focus();
   };
 
-  const blurValue = () => {};
+  const blurValue = () => {
+    window.removeEventListener('keyup', handleKey);
+  };
 
   return { focusValue, blurValue };
 };
 
 const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
-  const $frame = $parent.querySelector('#eval-frame');
   const $source = $parent.querySelector('#eval-source');
   const $endOfEndowments = $parent.querySelector('#eval-endowments');
   const $addEndowment = $parent.querySelector('#eval-add-endowment');
@@ -1071,25 +974,27 @@ const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
       );
   };
 
-  $frame.addEventListener('keyup', event => {
+  $submit.addEventListener('click', event => {
+    event.stopPropagation();
+    handleEval();
+  });
+
+  const handleKey = event => {
     const { key, repeat, metaKey } = event;
     if (repeat || metaKey) return;
     if (key === 'Escape') {
       clearEval();
       event.stopPropagation();
     }
-  });
-
-  $submit.addEventListener('click', event => {
-    event.stopPropagation();
-    handleEval();
-  });
+  };
 
   const focusEval = () => {
+    window.addEventListener('keyup', handleKey);
     $source.focus();
   };
 
   const blurEval = () => {
+    window.removeEventListener('keyup', handleKey);
     $source.value = '';
     $error.innerText = '';
   };
