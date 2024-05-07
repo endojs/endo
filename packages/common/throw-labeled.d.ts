@@ -1,0 +1,2 @@
+export function throwLabeled(innerErr: Error, label: string | number, errConstructor?: import("ses").GenericErrorConstructor | undefined, options?: import("ses").AssertMakeErrorOptions | undefined): never;
+//# sourceMappingURL=throw-labeled.d.ts.map

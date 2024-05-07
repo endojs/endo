@@ -1,0 +1,44 @@
+export namespace defaultLimits {
+    let decimalDigitsLimit: number;
+    let stringLengthLimit: number;
+    let symbolNameLengthLimit: number;
+    let numPropertiesLimit: number;
+    let propertyNameLengthLimit: number;
+    let arrayLengthLimit: number;
+    let numSetElementsLimit: number;
+    let numUniqueBagElementsLimit: number;
+    let numMapEntriesLimit: number;
+}
+export const checkMatches: (specimen: any, patt: Passable, check: Checker, label?: string | number | undefined) => boolean;
+export const matches: (specimen: any, patt: Pattern) => boolean;
+export const mustMatch: (specimen: any, patt: Pattern, label?: string | number | undefined) => void;
+export const assertPattern: (patt: Pattern) => void;
+export const isPattern: (patt: any) => boolean;
+export const getRankCover: GetRankCover;
+export const M: MatcherNamespace;
+export const kindOf: (specimen: Passable, check?: Checker | undefined) => Kind | undefined;
+export const AwaitArgGuardShape: import("../types.js").Matcher;
+export function isAwaitArgGuard(specimen: any): specimen is AwaitArgGuard;
+export function assertAwaitArgGuard(specimen: any): asserts specimen is AwaitArgGuard;
+export const RawGuardShape: import("../types.js").Matcher;
+export function isRawGuard(specimen: any): boolean;
+export function assertRawGuard(specimen: any): void;
+export const SyncValueGuardShape: import("../types.js").Matcher;
+export const SyncValueGuardListShape: import("../types.js").Matcher;
+export const ArgGuardListShape: import("../types.js").Matcher;
+export const MethodGuardPayloadShape: import("../types.js").Matcher;
+export const MethodGuardShape: import("../types.js").Matcher;
+export function assertMethodGuard(specimen: any): asserts specimen is MethodGuard;
+export const InterfaceGuardPayloadShape: import("../types.js").Matcher;
+export const InterfaceGuardShape: import("../types.js").Matcher;
+export function assertInterfaceGuard(specimen: any): asserts specimen is InterfaceGuard;
+import type { Passable } from '@endo/pass-style';
+import type { Checker } from '@endo/pass-style';
+import type { Pattern } from '../types.js';
+import type { GetRankCover } from '../types.js';
+import type { MatcherNamespace } from '../types.js';
+import type { Kind } from '../types.js';
+import type { AwaitArgGuard } from '../types.js';
+import type { MethodGuard } from '../types.js';
+import type { InterfaceGuard } from '../types.js';
+//# sourceMappingURL=patternMatchers.d.ts.map
