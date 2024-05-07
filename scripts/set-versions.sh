@@ -16,14 +16,14 @@ VERSIONSHASH=$(git hash-object -w --stdin)
   jq -r '.data | fromjson | .[].location | "\(.)/package.json"' || true
 ) | while read PACKAGEJSON; do
   PACKAGEJSONHASH=$(
-    jq --slurpfile versions <(git cat-file blob "$VERSIONSHASH") '
+    jq --argfile versions <(git cat-file blob "$VERSIONSHASH") '
       def update(name): if .[name] then {
         (name): [
           .[name] |
           to_entries[] |
           {
             key: .key,
-            value: ($versions[0][.key] // .value)
+            value: ($versions[.key] // .value)
           }
         ] | from_entries
       } else {} end;
