@@ -8,10 +8,12 @@ import {
   arraySlice,
   create,
   defineProperties,
+  errorToString,
   fromEntries,
   reflectSet,
   regexpExec,
   regexpTest,
+  stringReplace,
   weakmapGet,
   weakmapSet,
   weaksetAdd,
@@ -260,7 +262,7 @@ export const tameV8ErrorConstructor = (
       if (errorTaming === 'unsafe') {
         const stackString = stackStringFromSST(error, sst);
         weakmapSet(stackInfos, error, { stackString });
-        return `${error}${stackString}`;
+        return `${errorToString(error)}${stackString}`;
       } else {
         weakmapSet(stackInfos, error, { callSites: sst });
         return '';
@@ -285,7 +287,7 @@ export const tameV8ErrorConstructor = (
 
   const defaultPrepareFn = tamedMethods.prepareStackTrace;
 
-  OriginalError.prepareStackTrace = defaultPrepareFn;
+  const originalPrepareStackTrace = OriginalError.prepareStackTrace;
 
   // A weakset branding some functions as system prepareFns, all of which
   // must be defined by this module, since they can receive an
@@ -299,8 +301,37 @@ export const tameV8ErrorConstructor = (
     // Use concise methods to obtain named functions without constructors.
     const systemMethods = {
       prepareStackTrace(error, sst) {
-        weakmapSet(stackInfos, error, { callSites: sst });
-        return inputPrepareFn(error, safeV8SST(sst));
+        const stackInfo = {};
+        const safeCallSites = safeV8SST(sst);
+        let preparedStack;
+        try {
+          preparedStack = inputPrepareFn(error, safeCallSites);
+          if (preparedStack === safeCallSites) {
+            // Handle depd and similar prepareStackTrace which return the structured stack trace
+            stackInfo.callSites = sst;
+            return safeCallSites;
+          } else if (
+            typeof preparedStack === 'string' &&
+            preparedStack !== ''
+          ) {
+            stackInfo.stackString = stringReplace(preparedStack, /^[\n]+/, '');
+          } else {
+            // We just need to get to the `catch` clause
+            // eslint-disable-next-line no-throw-literal
+            throw undefined;
+          }
+        } catch (_err) {
+          if (errorTaming === 'unsafe') {
+            stackInfo.stackString = stackStringFromSST(error, sst);
+            preparedStack = `${errorToString(error)}${stackInfo.stackString}`;
+          } else {
+            stackInfo.callSites = sst;
+          }
+        } finally {
+          weakmapSet(stackInfos, error, stackInfo);
+        }
+
+        return errorTaming === 'unsafe' ? preparedStack : '';
       },
     };
     weaksetAdd(systemPrepareFnSet, systemMethods.prepareStackTrace);
@@ -332,6 +363,8 @@ export const tameV8ErrorConstructor = (
       configurable: true,
     },
   });
+
+  InitialError.prepareStackTrace = originalPrepareStackTrace;
 
   return tamedMethods.getStackString;
 };
