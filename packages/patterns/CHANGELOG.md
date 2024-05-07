@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/endojs/endo/compare/@endo/patterns@1.3.1...@endo/patterns@1.4.0) (2024-05-07)
+
+
+### Features
+
+* **types:** generic Passable ([fa59e05](https://github.com/endojs/endo/commit/fa59e05fc5621410a184c1eb4f4ee850bddce09c))
+* **types:** ScalarKey ([a02734a](https://github.com/endojs/endo/commit/a02734a45cae94e24d991adaf061059b72623cb6))
+
+
+
 ### [1.3.1](https://github.com/endojs/endo/compare/@endo/patterns@1.3.0...@endo/patterns@1.3.1) (2024-04-04)
 
 

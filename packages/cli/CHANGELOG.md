@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.2.0](https://github.com/endojs/endo/compare/@endo/cli@2.1.1...@endo/cli@2.2.0) (2024-05-07)
+
+
+### Features
+
+* **cli:** Add eval to demo web UI ([8b0fe92](https://github.com/endojs/endo/commit/8b0fe921dd521e0c145fea353bd2fb5765bcf9e5))
+* **cli:** Add eval value viewer ([5b5e10a](https://github.com/endojs/endo/commit/5b5e10a3032b780bd0af44c4fa4c9fc40aed68ca))
+* **cli:** Add responsive curly braces and square brackets ([6095ad5](https://github.com/endojs/endo/commit/6095ad502bae52d8dd5f25b706f0f2ed02d1789f))
+* **cli:** Add show button to inventory in web UI ([3535f53](https://github.com/endojs/endo/commit/3535f53cec4bd923e0e5d327d9fa9d691eb06eb0))
+* **cli:** demo: Add a coat of paint, scroll, chat ([85dad01](https://github.com/endojs/endo/commit/85dad012ee74a24188f926a8fd8ff1a670449df0))
+* **cli:** Less fancy value representations ([f1faf9d](https://github.com/endojs/endo/commit/f1faf9dfaeacbed6b04476dca72e37664eafd59f))
+* **cli:** Show dotted paths ([c1e6db6](https://github.com/endojs/endo/commit/c1e6db6f3e3755cde596b26e0e915d798878c1af))
+* **cli:** Store more value types ([0eb8759](https://github.com/endojs/endo/commit/0eb8759acc0fec6191f037ab3c99990a3f6207ba))
+* **daemon:** Always stop the daemon on purge ([c6a9b0c](https://github.com/endojs/endo/commit/c6a9b0cf9cae0b64dbf5d45ab98fb270352060d4))
+* **daemon:** Invitations ([0f3a2a3](https://github.com/endojs/endo/commit/0f3a2a33783f4915471af717024b77441d4446c2))
+
+
+### Bug Fixes
+
+* **cli:** demo: Fix type error when receiving message from self ([d1c58c4](https://github.com/endojs/endo/commit/d1c58c41e5dcb72d36e6b01b923d66483d96d5a7))
+* **cli:** Remove spooky accelerator cross-coupling ([1a086d7](https://github.com/endojs/endo/commit/1a086d7e554fb16f1f768a25c96e7e646a38079a))
+* **cli:** Remove stray endowments element ([4e78372](https://github.com/endojs/endo/commit/4e78372677badfa42b4696d8c95e3d30ac019f19))
+* **cli:** Update cat.js guide ([ddc0825](https://github.com/endojs/endo/commit/ddc08257a2c1999d9d3ce3e8b7b5e8795aed56a4))
+
+
+
 ### [2.1.1](https://github.com/endojs/endo/compare/@endo/cli@2.1.0...@endo/cli@2.1.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/cli

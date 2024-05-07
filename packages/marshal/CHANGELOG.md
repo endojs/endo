@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.0](https://github.com/endojs/endo/compare/@endo/marshal@1.4.1...@endo/marshal@1.5.0) (2024-05-07)
+
+
+### Features
+
+* **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
+* **types:** generic Passable ([fa59e05](https://github.com/endojs/endo/commit/fa59e05fc5621410a184c1eb4f4ee850bddce09c))
+
+
+### Bug Fixes
+
+* **ses:** makeError defaults to making passable errors ([#2200](https://github.com/endojs/endo/issues/2200)) ([3b0f766](https://github.com/endojs/endo/commit/3b0f76675b32bae4a428aada739b62a5dae02192))
+
+
+
 ### [1.4.1](https://github.com/endojs/endo/compare/@endo/marshal@1.4.0...@endo/marshal@1.4.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/marshal

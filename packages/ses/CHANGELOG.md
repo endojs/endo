@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.0](https://github.com/endojs/endo/compare/ses@1.4.1...ses@1.5.0) (2024-05-07)
+
+
+### Features
+
+* **ses:** add COMPARTMENT_LOAD_ERRORS env option to print verbose output for module loading errors ([eca5f23](https://github.com/endojs/endo/commit/eca5f235358fcf1fe135afca56a2f0a6056bb1b2))
+* **ses:** add ImportNowHook to CompartmentOptions ([e0300ba](https://github.com/endojs/endo/commit/e0300bad2807b5638dfa425c029724a350360447))
+* **ses:** importNowHook PoC ([e20c135](https://github.com/endojs/endo/commit/e20c1356f7f5da3cbee3294f008417fca0182212))
+* **ses:** redefine SharedSymbol to bypass Hermes prototype bug on obj literal short-hand methods ([#2206](https://github.com/endojs/endo/issues/2206)) ([59bb9ba](https://github.com/endojs/endo/commit/59bb9babef64d647b589b755c399f7027643b6fd))
+
+
+### Bug Fixes
+
+* **ses:** `harden` hacks v8 `stack` own accessor problem ([#2232](https://github.com/endojs/endo/issues/2232)) ([4b529e0](https://github.com/endojs/endo/commit/4b529e0ee07d6997f9f25e469a2c53576b0106ea)), closes [#2198](https://github.com/endojs/endo/issues/2198) [#2230](https://github.com/endojs/endo/issues/2230) [#2200](https://github.com/endojs/endo/issues/2200) [#2229](https://github.com/endojs/endo/issues/2229) [#2231](https://github.com/endojs/endo/issues/2231) [#2229](https://github.com/endojs/endo/issues/2229) [#2229](https://github.com/endojs/endo/issues/2229)
+* **ses:** fix broken types for CJS consumers ([a950b99](https://github.com/endojs/endo/commit/a950b995f207f1a21d547c0ac38f633ecd483c17))
+* **ses:** makeError defaults to making passable errors ([#2200](https://github.com/endojs/endo/issues/2200)) ([3b0f766](https://github.com/endojs/endo/commit/3b0f76675b32bae4a428aada739b62a5dae02192))
+* **ses:** naming consistency, types, defensive iterator ([e3248fa](https://github.com/endojs/endo/commit/e3248fa97bafac4dc6a114e3d5c267af9bd8acb6))
+* **ses:** Remove some trailing whitespace ([ff61dea](https://github.com/endojs/endo/commit/ff61deaaa65150946195491ef8fcb33125c0f01c))
+* **ses:** use generators and trampoline to unify sync and async load implementation ([7bc22f6](https://github.com/endojs/endo/commit/7bc22f64a864f434f136583d19a58d507dcb0200))
+
+
+
 ### [1.4.1](https://github.com/endojs/endo/compare/ses@1.4.0...ses@1.4.1) (2024-04-04)
 
 **Note:** Version bump only for package ses
