@@ -21,9 +21,9 @@ import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 const { ownKeys } = Reflect;
 
 /**
- * @import {Passable} from '@endo/pass-style'
+ * @import {Passable, Primitive} from '@endo/pass-style'
  * @import {Checker} from '@endo/marshal'
- * @import {CopyBag, CopyMap, CopySet, Key} from '../types.js'
+ * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js'
  */
 
 // ////////////////// Primitive and Scalar keys ////////////////////////////////
@@ -48,14 +48,14 @@ const checkPrimitiveKey = (val, check) => {
 
 /**
  * @param {any} val
- * @returns {boolean}
+ * @returns {val is Primitive}
  */
 export const isPrimitiveKey = val => checkPrimitiveKey(val, identChecker);
 harden(isPrimitiveKey);
 
 /**
  * @param {Passable} val
- * @returns {void}
+ * @returns {asserts val is Primitive}
  */
 export const assertPrimitiveKey = val => {
   checkPrimitiveKey(val, assertChecker);
@@ -63,7 +63,7 @@ export const assertPrimitiveKey = val => {
 harden(assertPrimitiveKey);
 
 /**
- * @param {Passable} val
+ * @param {any} val
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -80,14 +80,14 @@ export const checkScalarKey = (val, check) => {
 
 /**
  * @param {any} val
- * @returns {boolean}
+ * @returns {val is ScalarKey}
  */
 export const isScalarKey = val => checkScalarKey(val, identChecker);
 harden(isScalarKey);
 
 /**
  * @param {Passable} val
- * @returns {void}
+ * @returns {asserts val is ScalarKey}
  */
 export const assertScalarKey = val => {
   checkScalarKey(val, assertChecker);
