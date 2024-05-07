@@ -72,6 +72,13 @@ https://github.com/endojs/endo/labels/next-release
   git commit -am 'docs: Update release notes'
   ```
 
+* Update `yarn.lock`.
+
+  ```sh
+  yarn
+  git add -um 'chore: Update yarn.lock'
+  ```
+
 * Push the branch.
 
   ```sh
@@ -121,6 +128,13 @@ https://github.com/endojs/endo/labels/next-release
 
   ```sh
   yarn lerna version --no-push --conventional-graduate
+  ```
+
+* Update `yarn.lock`.
+
+  ```sh
+  yarn
+  git add -um 'chore: Update yarn.lock'
   ```
 
 * Publish the versions to npm.

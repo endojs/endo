@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
 - To support TypeScript v5.5, a CommonJS-specific type declaration file is now explicitly exported.

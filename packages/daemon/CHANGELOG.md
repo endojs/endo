@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.3.0](https://github.com/endojs/endo/compare/@endo/daemon@2.2.0...@endo/daemon@2.3.0) (2024-05-07)
+
+
+### Features
+
+* **daemon:** Add partial followLocatorNameChanges() ([3545642](https://github.com/endojs/endo/commit/35456427b3bfce262e788886907098fb44e5c292))
+* **daemon:** Add reverseLocate() ([1221569](https://github.com/endojs/endo/commit/1221569cb8671bcafa40e2161ee918a9189b9246))
+* **daemon:** Always stop the daemon on purge ([c6a9b0c](https://github.com/endojs/endo/commit/c6a9b0cf9cae0b64dbf5d45ab98fb270352060d4))
+* **daemon:** Ensure a single connection between peers ([ab2af63](https://github.com/endojs/endo/commit/ab2af63892de7726654742e81a5d3fa8c4172545))
+* **daemon:** Guest reverseIdentify ([8c9fbd0](https://github.com/endojs/endo/commit/8c9fbd044ebae49d52613792db4d60c645bdd19e))
+* **daemon:** Improve ./types.d.ts ([71808b2](https://github.com/endojs/endo/commit/71808b2625d00e012c02fa46d1959728cd7e0b17))
+* **daemon:** Invitations ([0f3a2a3](https://github.com/endojs/endo/commit/0f3a2a33783f4915471af717024b77441d4446c2))
+* **daemon:** Publish incremental pet store id changes ([d664ace](https://github.com/endojs/endo/commit/d664ace1528c4b907e04a5214cf51828422a77f2))
+* **daemon:** Store passable values ([a4a53d0](https://github.com/endojs/endo/commit/a4a53d04b0aab8354b4e959525a3cc952021bf2a))
+
+
+### Bug Fixes
+
+* **daemon:** Publish removal of name mappings during pet store renames ([0635da2](https://github.com/endojs/endo/commit/0635da2002cfcabbed025e9ea23746b15492c90b))
+* **daemon:** Wait for mail delivery ([493f6bb](https://github.com/endojs/endo/commit/493f6bb97cdf318eb535413577bd518bc8fffbd6))
+
+
+
 ## [2.2.0](https://github.com/endojs/endo/compare/@endo/daemon@2.1.0...@endo/daemon@2.2.0) (2024-04-04)
 
 

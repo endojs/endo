@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.3.1...@endo/pass-style@1.4.0) (2024-05-07)
+
+
+### Features
+
+* **pass-style,exo:** exo boundary only throws throwables ([#2266](https://github.com/endojs/endo/issues/2266)) ([2f0888e](https://github.com/endojs/endo/commit/2f0888e789edca35de86fa9726e6bbd70af8be2f)), closes [#2223](https://github.com/endojs/endo/issues/2223)
+* **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
+* **types:** generic Passable ([fa59e05](https://github.com/endojs/endo/commit/fa59e05fc5621410a184c1eb4f4ee850bddce09c))
+
+
+### Bug Fixes
+
+* **pass-style:** remove redundant vestigial [@returns](https://github.com/returns) declaration ([#1958](https://github.com/endojs/endo/issues/1958)) ([8911ba8](https://github.com/endojs/endo/commit/8911ba89a1669796b6e09e90e24bb4f4c7b33697)), closes [#1933](https://github.com/endojs/endo/issues/1933)
+* **pass-style:** toPassableError fixed. (is/assert)PassableError removed. ([#2156](https://github.com/endojs/endo/issues/2156)) ([205e45f](https://github.com/endojs/endo/commit/205e45f9adc43a795d4689627c830ba0ee9178f9))
+* **ses:** `harden` hacks v8 `stack` own accessor problem ([#2232](https://github.com/endojs/endo/issues/2232)) ([4b529e0](https://github.com/endojs/endo/commit/4b529e0ee07d6997f9f25e469a2c53576b0106ea)), closes [#2198](https://github.com/endojs/endo/issues/2198) [#2230](https://github.com/endojs/endo/issues/2230) [#2200](https://github.com/endojs/endo/issues/2200) [#2229](https://github.com/endojs/endo/issues/2229) [#2231](https://github.com/endojs/endo/issues/2231) [#2229](https://github.com/endojs/endo/issues/2229) [#2229](https://github.com/endojs/endo/issues/2229)
+* **ses:** makeError defaults to making passable errors ([#2200](https://github.com/endojs/endo/issues/2200)) ([3b0f766](https://github.com/endojs/endo/commit/3b0f76675b32bae4a428aada739b62a5dae02192))
+
+
+
 ### [1.3.1](https://github.com/endojs/endo/compare/@endo/pass-style@1.3.0...@endo/pass-style@1.3.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/pass-style

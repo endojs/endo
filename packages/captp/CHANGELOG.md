@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.2.0](https://github.com/endojs/endo/compare/@endo/captp@4.1.1...@endo/captp@4.2.0) (2024-05-07)
+
+
+### Features
+
+* **types:** fromCapData is Passable, but unknown is more practical ([5fa54f0](https://github.com/endojs/endo/commit/5fa54f0287b467d3d6baf354a36263a4aa36ec55))
+
+
+
 ### [4.1.1](https://github.com/endojs/endo/compare/@endo/captp@4.1.0...@endo/captp@4.1.1) (2024-04-04)
 
 **Note:** Version bump only for package @endo/captp

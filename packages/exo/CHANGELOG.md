@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.0](https://github.com/endojs/endo/compare/@endo/exo@1.4.0...@endo/exo@1.5.0) (2024-05-07)
+
+
+### Features
+
+* **pass-style,exo:** exo boundary only throws throwables ([#2266](https://github.com/endojs/endo/issues/2266)) ([2f0888e](https://github.com/endojs/endo/commit/2f0888e789edca35de86fa9726e6bbd70af8be2f)), closes [#2223](https://github.com/endojs/endo/issues/2223)
+* **types:** Guard is a RemotableObject ([e2bfb54](https://github.com/endojs/endo/commit/e2bfb544761143d49aa4d0040bdd2e6d6570a295))
+
+
+
 ## [1.4.0](https://github.com/endojs/endo/compare/@endo/exo@1.3.0...@endo/exo@1.4.0) (2024-04-04)
 
 

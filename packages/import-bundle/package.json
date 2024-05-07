@@ -1,6 +1,6 @@
 {
   "name": "@endo/import-bundle",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "load modules created by @endo/bundle-source",
   "keywords": [],
   "author": "Endo contributors",
@@ -39,16 +39,16 @@
     "lint:types": "tsc"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.4",
-    "@endo/compartment-mapper": "^1.1.4",
-    "@endo/errors": "^1.2.1",
-    "@endo/where": "^1.0.4",
-    "ses": "^1.4.1"
+    "@endo/base64": "^1.0.5",
+    "@endo/compartment-mapper": "^1.1.5",
+    "@endo/errors": "^1.2.2",
+    "@endo/where": "^1.0.5",
+    "ses": "^1.5.0"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^3.2.2",
-    "@endo/init": "^1.1.1",
-    "@endo/ses-ava": "^1.2.1",
+    "@endo/bundle-source": "^3.2.3",
+    "@endo/init": "^1.1.2",
+    "@endo/ses-ava": "^1.2.2",
     "ava": "^6.1.2",
     "c8": "^7.14.0"
   },

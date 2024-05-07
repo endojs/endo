@@ -1,6 +1,6 @@
 {
   "name": "@endo/netstring",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Implements a JavaScript async iterator protocol for consuming and producing binary netstrings.",
   "keywords": [],
   "author": "Endo contributors",
@@ -35,10 +35,10 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/init": "^1.1.1",
-    "@endo/promise-kit": "^1.1.1",
-    "@endo/stream": "^1.2.1",
-    "ses": "^1.4.1"
+    "@endo/init": "^1.1.2",
+    "@endo/promise-kit": "^1.1.2",
+    "@endo/stream": "^1.2.2",
+    "ses": "^1.5.0"
   },
   "devDependencies": {
     "ava": "^6.1.2",
