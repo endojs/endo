@@ -25,11 +25,18 @@
 /* eslint-disable no-continue */
 
 import { E } from '@endo/far';
+import { passStyleOf } from '@endo/pass-style';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 import { parseMessage } from '../src/message-parse.js';
 
 const template = `
 <style>
+
+  :root {
+    --tint-color:   hsl(210, 71%, 72%);
+    --border-color: hsl(210, 60%, 52%);
+    --mask-color:   hsla(210, 38%, 29%, 0.5);
+  }
 
   * {
     box-sizing: border-box;
@@ -77,8 +84,8 @@ const template = `
     padding: 20px;
     overflow-y: auto;
     overflow-x: hidden;
-    background-color: hsl(210, 71%, 72%);
-    border-left: 1px solid hsl(210, 60%, 52%);
+    background-color: var(--tint-color);
+    border-left: 1px solid var(--border-color);
   }
 
   #pet-list {
@@ -116,20 +123,36 @@ const template = `
     display: inline;
   }
 
-  #chat-frame {
-    display: none;
+  textarea {
+    max-width: 100%;
   }
 
-  #chat-frame[data-show=true] {
-    display: flex;
+  input {
+    max-width: 100%;
+  }
+
+  input.big {
+    font-size: 125%;
+  }
+  input.half-wide {
+    max-width: 10ex;
   }
 
   #chat-message {
+    max-width: 60ex;
+  }
+
+  #eval-source {
     width: 40ex;
     font-size: 150%;
   }
 
+  #eval-result-name {
+    font-size: 150%;
+  }
+
   .frame {
+    display: none;
     position: absolute;
     height: 100vh;
     width: 100vw;
@@ -137,24 +160,55 @@ const template = `
     bottom: 0;
     left: 0;
     right: 0;
-    display: flex;
     align-items: center;
     justify-content: center;
-    background-color: hsla(210, 38%, 29%, 0.5)
+    background-color: var(--mask-color);
+  }
+
+  .frame[data-show=true] {
+    display: flex;
   }
 
   .window {
     background-color: white;
+    margin: 20px;
     padding: 20px;
-    border: 1px solid hsl(210, 60%, 52%);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
-    overflow: hidden;
+    overflow: auto;
+    max-height: calc(100vh - 40px);
+    max-width: calc(100vw - 40px);
     align-self: center;
     flex: none;
   }
 
+  #value-value {
+    padding: 5px;
+  }
+
+  .string {
+    white-space: pre;
+    font-family: monospace;
+    word-break: break-word;
+  }
+
+  .number {
+    color: blue;
+    font-family: monospace;
+  }
+
+  .bigint {
+    color: darkgreen;
+    font-family: monospace;
+  }
+
+  .remotable, .tag {
+    font-style: italic;
+  }
+
   .error {
     color: red;
+    font-family: monospace;
     word-break: break-word;
     max-width: 40ex;
   }
@@ -175,24 +229,58 @@ const template = `
 <div id="controls">
   <button id="cat">🐈‍⬛</button>
   <button id="chat-button">Chat</button>
+  <button id="eval-button">Eval</button>
 </div>
 
 <div id="chat-frame" class="frame">
   <div id="chat-window" class="window">
-    <label for="chat-to">To:&nbsp;<select id="chat-to"></select></label>
-    <p><input type="text" id="chat-message">
-    <p id="endowments">
-    <p id="chat-error" class="error">
+    <p><label for="chat-to">To:&nbsp;<select id="chat-to"></select></label>
+    <p><input type="text" id="chat-message" class="big">
+    <span id="chat-error" class="error"></span>
     <p><button id="chat-discard-button">Discard</button>
     <button id="chat-send-button">Send</button>
   </div>
 </div>
+
+<div id="eval-frame" class="frame">
+  <div id="eval-window" class="window">
+    <label for="eval-source"><p>
+      Source:<br>
+      <textarea id="eval-source" rows="1"></textarea>
+    </p></label>
+    <span id="eval-endowments"></span>
+    <p><button id="eval-add-endowment">Add Endowment</button>
+    <label for="eval-result-name"><p>
+      Result name (optional):<br>
+      <input type="text" id="eval-result-name">
+    </p></label>
+    <span id="eval-error"></span>
+    <p><button id="eval-discard-button">Discard</button>
+    <button id="eval-submit-button">Evaluate</button>
+  </div>
+</div>
+
+<div id="value-frame" class="frame">
+  <div id="value-window" class="window">
+    <p><div id="value-value"></div>
+    <p><button id="value-close">Close</button>
+  </div>
+</div>
 `;
+
+function* generateIds() {
+  for (let i = 0; ; i += 1) {
+    yield `id${i}`;
+  }
+}
+const idGenerator = generateIds();
+const nextId = () => idGenerator.next().value;
 
 const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   dateStyle: 'full',
   timeStyle: 'long',
 });
+const numberFormatter = new Intl.NumberFormat();
 
 const inboxComponent = async ($parent, $end, powers) => {
   $parent.scrollTo(0, $parent.scrollHeight);
@@ -289,11 +377,6 @@ const inboxComponent = async ($parent, $end, powers) => {
 
       const $pet = document.createElement('input');
       $input.appendChild($pet);
-
-      $pet.addEventListener('keyup', event => {
-        // (do not bubble to the accelerator)
-        event.stopPropagation();
-      });
 
       const $resolve = document.createElement('button');
       $resolve.innerText = 'resolve';
@@ -394,8 +477,6 @@ const inboxComponent = async ($parent, $end, powers) => {
           if (key === 'Enter') {
             handleAdopt();
           }
-          // (do not bubble to accelerator)
-          event.stopPropagation();
         });
 
         $adoption.appendChild(document.createTextNode(' '));
@@ -428,7 +509,7 @@ const inboxComponent = async ($parent, $end, powers) => {
   }
 };
 
-const inventoryComponent = async ($parent, $end, powers) => {
+const inventoryComponent = async ($parent, $end, powers, { showValue }) => {
   const $list = document.createElement('div');
   $list.className = 'pet-list';
   $parent.insertBefore($list, $end);
@@ -440,15 +521,17 @@ const inventoryComponent = async ($parent, $end, powers) => {
 
       const $item = document.createElement('div');
       $item.className = 'pet-item';
+      $item.innerHTML = `
+        ${name}
+        <button class="show-button">Show</button>
+        <button class="remove-button">Remove</button>
+      `;
+      const $show = $item.querySelector('.show-button');
+      const $remove = $item.querySelector('.remove-button');
       $list.appendChild($item);
 
-      const $name = document.createTextNode(`${name} `);
-      $item.appendChild($name);
-      $name.innerText = change.add;
-
-      const $remove = document.createElement('button');
-      $item.appendChild($remove);
-      $remove.innerText = 'Remove';
+      $show.onclick = () =>
+        E(powers).lookup(name).then(showValue, window.reportError);
       $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
 
       $names.set(name, $item);
@@ -488,10 +571,15 @@ const inventorySelectComponent = async ($select, powers) => {
   }
 };
 
-const controlsComponent = ($parent, { focusChat, blurChat }) => {
-  const $chatFrame = $parent.querySelector('#chat-frame');
-  const $controls = $parent.querySelector('#controls');
+const controlsComponent = (
+  $parent,
+  { focusChat, blurChat, focusValue, blurValue, focusEval, blurEval },
+) => {
   const $cat = $parent.querySelector('#cat');
+  const $chatFrame = $parent.querySelector('#chat-frame');
+  const $valueFrame = $parent.querySelector('#value-frame');
+  const $evalFrame = $parent.querySelector('#eval-frame');
+  const $controls = $parent.querySelector('#controls');
 
   let showFanout = false;
 
@@ -502,9 +590,33 @@ const controlsComponent = ($parent, { focusChat, blurChat }) => {
     focusChat();
   };
 
+  const showValue = value => {
+    $valueFrame.dataset.show = 'true';
+    $controls.dataset.show = 'false';
+    showFanout = false;
+    focusValue(value);
+  };
+
+  const showEval = () => {
+    $evalFrame.dataset.show = 'true';
+    $controls.dataset.show = 'false';
+    showFanout = false;
+    focusEval();
+  };
+
   const dismissChat = () => {
     $chatFrame.dataset.show = 'false';
     blurChat();
+  };
+
+  const dismissValue = () => {
+    $valueFrame.dataset.show = 'false';
+    blurValue();
+  };
+
+  const dismissEval = () => {
+    $evalFrame.dataset.show = 'false';
+    blurEval();
   };
 
   $cat.addEventListener('click', () => {
@@ -517,45 +629,60 @@ const controlsComponent = ($parent, { focusChat, blurChat }) => {
     showChat();
   });
 
+  const $evalButton = $parent.querySelector('#eval-button');
+  $evalButton.addEventListener('click', () => {
+    showEval();
+  });
+
+  // Accelerator:
   window.addEventListener('keyup', event => {
     const { key, repeat, metaKey } = event;
+    if (event.target !== document.body) {
+      return;
+    }
     if (repeat || metaKey) return;
     if (key === '"' || key === "'") {
       showChat();
       event.stopPropagation();
+    } else if (key === '.') {
+      showEval();
+      event.stopPropagation();
     }
   });
 
-  return { dismissChat };
+  return { dismissChat, showValue, dismissValue, dismissEval };
 };
 
 const chatComponent = ($parent, powers, { dismissChat }) => {
-  const $chatFrame = $parent.querySelector('#chat-frame');
-  const $chatSendButton = $parent.querySelector('#chat-send-button');
-  const $chatRecipientSelect = $parent.querySelector('#chat-to');
-  const $chatMessageInput = $parent.querySelector('#chat-message');
-  const $chatDiscardButton = $parent.querySelector('#chat-discard-button');
-  const $chatError = $parent.querySelector('#chat-error');
+  const $send = $parent.querySelector('#chat-send-button');
+  const $to = $parent.querySelector('#chat-to');
+  const $message = $parent.querySelector('#chat-message');
+  const $discard = $parent.querySelector('#chat-discard-button');
+  let $error = $parent.querySelector('#chat-error');
 
-  $chatDiscardButton.addEventListener('click', () => {
+  $discard.addEventListener('click', () => {
     dismissChat();
   });
 
   const handleChat = event => {
     event.preventDefault();
     event.stopPropagation();
-    const to = $chatRecipientSelect.value;
-    const { strings, petNames, edgeNames } = parseMessage(
-      $chatMessageInput.value,
-    );
+    const to = $to.value;
+    const { strings, petNames, edgeNames } = parseMessage($message.value);
     E(powers)
       .send(to, strings, edgeNames, petNames)
       .then(dismissChat, error => {
-        $chatError.innerText = error.message;
+        const $newError = document.createElement('p');
+        $newError.className = 'error';
+        $newError.innerText = error.message;
+        $error.replaceWith($newError);
+        $error = $newError;
       });
   };
 
-  $chatFrame.addEventListener('keyup', event => {
+  $send.addEventListener('click', handleChat);
+
+  const handleKey = event => {
     const { key, repeat, metaKey } = event;
     if (repeat || metaKey) return;
     if (key === 'Enter') {
@@ -565,24 +692,319 @@ const chatComponent = ($parent, powers, { dismissChat }) => {
       dismissChat();
       event.stopPropagation();
     }
-  });
-
-  $chatSendButton.addEventListener('click', handleChat);
+  };
 
   const focusChat = () => {
-    $chatRecipientSelect.focus();
+    window.addEventListener('keyup', handleKey);
+    $to.focus();
   };
 
   const blurChat = () => {
-    $chatMessageInput.value = '';
-    $chatError.innerText = '';
+    window.removeEventListener('keyup', handleKey);
+    $message.value = '';
+    const $newError = document.createTextNode('');
+    $error.replaceWith($newError);
+    $error = $newError;
   };
 
-  inventorySelectComponent($chatRecipientSelect, powers).catch(
-    window.reportError,
-  );
+  inventorySelectComponent($to, powers).catch(window.reportError);
 
   return { focusChat, blurChat };
+};
+
+const render = value => {
+  let passStyle;
+  try {
+    passStyle = passStyleOf(value);
+  } catch {
+    const $value = document.createElement('div');
+    $value.className = 'error';
+    $value.innerText = '⚠️ Not passable ⚠️';
+    return $value;
+  }
+
+  switch (passStyle) {
+    case 'null':
+    case 'undefined':
+    case 'boolean': {
+      const $value = document.createElement('span');
+      $value.className = 'number';
+      $value.innerText = `${value}`;
+      return $value;
+    }
+    case 'bigint': {
+      const $value = document.createElement('span');
+      $value.className = 'bigint';
+      $value.innerText = `${numberFormatter.format(value)}n`;
+      return $value;
+    }
+    case 'number': {
+      const $value = document.createElement('span');
+      $value.className = 'number';
+      $value.innerText = numberFormatter.format(value);
+      return $value;
+    }
+    case 'string': {
+      const $value = document.createElement('span');
+      $value.className = 'string';
+      $value.innerText = JSON.stringify(value);
+      return $value;
+    }
+    case 'promise': {
+      const $value = document.createElement('span');
+      $value.innerText = '⏳';
+      // TODO await (and respect cancellation)
+      return $value;
+    }
+    case 'copyArray': {
+      const $value = document.createElement('span');
+      $value.appendChild(document.createTextNode('['));
+      const $entries = document.createElement('span');
+      $entries.className = 'entries';
+      $value.appendChild($entries);
+      let $entry;
+      for (const child of value) {
+        $entry = document.createElement('span');
+        $entries.appendChild($entry);
+        const $child = render(child);
+        $entry.appendChild($child);
+        $entry.appendChild(document.createTextNode(', '));
+      }
+      // Remove final comma.
+      if ($entry) {
+        $entry.removeChild($entry.lastChild);
+      }
+      $value.appendChild(document.createTextNode(']'));
+      return $value;
+    }
+    case 'copyRecord': {
+      const $value = document.createElement('span');
+      $value.appendChild(document.createTextNode('{'));
+      const $entries = document.createElement('span');
+      $value.appendChild($entries);
+      $entries.className = 'entries';
+      let $entry;
+      for (const [key, child] of Object.entries(value)) {
+        $entry = document.createElement('span');
+        $entries.appendChild($entry);
+        const $key = document.createElement('span');
+        $key.innerText = `${JSON.stringify(key)}: `;
+        $entry.appendChild($key);
+        const $child = render(child);
+        $entry.appendChild($child);
+        $entry.appendChild(document.createTextNode(', '));
+      }
+      if ($entry) {
+        // Remove final comma.
+        $entry.removeChild($entry.lastChild);
+      }
+      $value.appendChild(document.createTextNode('}'));
+      return $value;
+    }
+    case 'tagged': {
+      const $value = document.createElement('span');
+      const $tag = document.createElement('span');
+      $tag.innerText = `${JSON.stringify(value[Symbol.toStringTag])} `;
+      $tag.className = 'tag';
+      $value.appendChild($tag);
+      const $child = render(value.payload);
+      $value.appendChild($child);
+      return $value;
+    }
+    case 'error': {
+      const $value = document.createElement('span');
+      $value.className = 'error';
+      $value.innerText = value.message;
+      return $value;
+    }
+    case 'remotable': {
+      const $value = document.createElement('span');
+      $value.className = 'remotable';
+      $value.innerText = value[Symbol.toStringTag];
+      return $value;
+    }
+    default: {
+      throw new Error(
+        'Unreachable if programmed to account for all pass-styles',
+      );
+    }
+  }
+};
+
+const valueComponent = ($parent, powers, { dismissValue }) => {
+  const $value = $parent.querySelector('#value-value');
+  const $close = $parent.querySelector('#value-close');
+
+  const clearValue = () => {
+    $value.innerHTML = '';
+    dismissValue();
+  };
+
+  $close.addEventListener('click', () => {
+    clearValue();
+  });
+
+  const handleKey = event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Escape') {
+      clearValue();
+      event.stopPropagation();
+    }
+  };
+
+  const focusValue = value => {
+    window.addEventListener('keyup', handleKey);
+    $value.innerHTML = '';
+    $value.appendChild(render(value));
+    $close.focus();
+  };
+
+  const blurValue = () => {
+    window.removeEventListener('keyup', handleKey);
+  };
+
+  return { focusValue, blurValue };
+};
+
+const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
+  const $source = $parent.querySelector('#eval-source');
+  const $endOfEndowments = $parent.querySelector('#eval-endowments');
+  const $addEndowment = $parent.querySelector('#eval-add-endowment');
+  const $resultName = $parent.querySelector('#eval-result-name');
+  const $submit = $parent.querySelector('#eval-submit-button');
+  const $discard = $parent.querySelector('#eval-discard-button');
+  let $error = $parent.querySelector('#eval-error');
+  const $endowments = new Map();
+
+  const resizeSource = () => {
+    // This is a pretty terrible thing to do because it forces a pair of sync
+    // draws that compose poorly.
+    // To do better, we would need a read/write frame coordinator.
+    $source.style.height = '1px';
+    $source.style.height = `${$source.scrollHeight + 2}px`;
+  };
+
+  const clearEval = () => {
+    $source.value = '';
+    resizeSource();
+    $resultName.value = '';
+    for (const $endowment of $endowments.values()) {
+      $endowment.remove();
+    }
+    $endowments.clear();
+    const $newError = document.createTextNode('');
+    $error.replaceWith($newError);
+    $error = $newError;
+    dismissEval();
+  };
+
+  $discard.addEventListener('click', () => {
+    clearEval();
+  });
+
+  const handleRemoveEndowment = event => {
+    const { target } = event;
+    const id = target.getAttribute('id');
+    const $endowment = $endowments.get(id);
+    if ($endowment === undefined) {
+      throw new Error(`Endowment does not exist for id ${id}`);
+    }
+    $endowments.delete(id);
+    $endowment.remove();
+  };
+
+  const handleAddEndowment = () => {
+    const $endowment = document.createElement('p');
+    const codeNameId = nextId();
+    const petNameId = nextId();
+    const removeId = nextId();
+
+    $endowment.innerHTML = `
+      <label for="${codeNameId}">
+        Name in source:
+        <input id="${codeNameId}" type="text" class="big half-wide code-name">
+      </label>
+      <label for="${petNameId}">
+        Pet name:
+        <input id="${petNameId}" type="text" class="big half-wide pet-name">
+      </label>
+      <button id="${removeId}">Remove</button>
+    `;
+
+    const $remove = $endowment.querySelector(`#${removeId}`);
+    $remove.addEventListener('click', handleRemoveEndowment);
+    $endOfEndowments.parentElement.insertBefore($endowment, $endOfEndowments);
+    $endowments.set(removeId, $endowment);
+
+    const $codeName = $endowment.querySelector('.code-name');
+    $codeName.focus();
+  };
+
+  $addEndowment.addEventListener('click', handleAddEndowment);
+
+  const handleEval = () => {
+    const source = $source.value;
+    const workerName = 'MAIN';
+    const names = Array.from($endowments.values(), $endowment => {
+      const $codeName = $endowment.querySelector('.code-name');
+      const $petName = $endowment.querySelector('.pet-name');
+      return {
+        petName: $petName.value,
+        codeName: $codeName.value,
+      };
+    });
+    const codeNames = names.map(({ codeName }) => codeName);
+    const petNames = names.map(({ petName }) => petName);
+    const resultName = $resultName.value.trim() || undefined;
+    E(powers)
+      .evaluate(workerName, source, codeNames, petNames, resultName)
+      .then(
+        value => {
+          clearEval();
+          showValue(value);
+        },
+        error => {
+          const $newError = document.createElement('p');
+          $newError.className = 'error';
+          $newError.innerText = error.message;
+          $error.replaceWith($newError);
+          $error = $newError;
+        },
+      );
+  };
+
+  $submit.addEventListener('click', event => {
+    event.stopPropagation();
+    handleEval();
+  });
+
+  const handleKey = event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Escape') {
+      clearEval();
+      event.stopPropagation();
+    }
+  };
+
+  const focusEval = () => {
+    window.addEventListener('keyup', handleKey);
+    $source.focus();
+  };
+
+  const blurEval = () => {
+    window.removeEventListener('keyup', handleKey);
+    $source.value = '';
+    $error.innerText = '';
+  };
+
+  // Automatically adjust the textarea height to match its content.
+  $source.addEventListener('input', () => {
+    resizeSource();
+  });
+
+  return { focusEval, blurEval };
 };
 
 const bodyComponent = ($parent, powers) => {
@@ -592,18 +1014,31 @@ const bodyComponent = ($parent, powers) => {
   const $anchor = $parent.querySelector('#anchor');
   const $pets = $parent.querySelector('#pets');
 
-  inboxComponent($messages, $anchor, powers).catch(window.reportError);
-  inventoryComponent($pets, null, powers).catch(window.reportError);
-
   // To they who can avoid forward-references for entangled component
   // dependency-injection, I salute you and welcome your pull requests.
   /* eslint-disable no-use-before-define */
-  const { dismissChat } = controlsComponent($parent, {
-    focusChat: () => focusChat(),
-    blurChat: () => blurChat(),
-  });
+  const { dismissChat, showValue, dismissValue, dismissEval } =
+    controlsComponent($parent, {
+      focusChat: () => focusChat(),
+      blurChat: () => blurChat(),
+      focusValue: value => focusValue(value),
+      blurValue: () => blurValue(),
+      focusEval: () => focusEval(),
+      blurEval: () => blurEval(),
+    });
+  inboxComponent($messages, $anchor, powers).catch(window.reportError);
+  inventoryComponent($pets, null, powers, { showValue }).catch(
+    window.reportError,
+  );
   const { focusChat, blurChat } = chatComponent($parent, powers, {
     dismissChat,
+  });
+  const { focusValue, blurValue } = valueComponent($parent, powers, {
+    dismissValue,
+  });
+  const { focusEval, blurEval } = evalComponent($parent, powers, {
+    showValue,
+    dismissEval,
   });
   /* eslint-enable no-use-before-define */
 };
