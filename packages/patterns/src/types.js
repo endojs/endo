@@ -4,7 +4,7 @@ export {};
 
 // NB: as of TS 5.5 nightly, TS thinks RankCover and Checker "is declared but never read" but they are
 /**
- * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, RemotableObject} from '@endo/pass-style';
+ * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Primitive, RemotableObject} from '@endo/pass-style';
  * @import {RankCompare, RankCover} from '@endo/marshal';
  */
 
@@ -32,6 +32,10 @@ export {};
  * The same two Keys, passed to another location, will be `keyEQ` there iff
  * they are `keyEQ` here. (`keyEQ` tests equality according to the
  * key distributed equality semantics.)
+ */
+
+/**
+ * @typedef {Primitive | RemotableObject} ScalarKey
  */
 
 /**
