@@ -5,6 +5,10 @@ import { q } from '@endo/errors';
 
 import { Far, passStyleOf, getInterfaceOf } from '../src/index.js';
 
+/**
+ * @import {PassStyled} from '@endo/pass-style';
+ */
+
 const { create, getPrototypeOf } = Object;
 
 // this only includes the tests that do not use liveSlots
@@ -129,6 +133,7 @@ test('passStyleOf validation of remotables', t => {
   t.throws(() => passStyleOf(badRemotableProto3), NON_METHOD);
   t.throws(() => passStyleOf(badRemotableProto4), NON_METHOD);
 
+  // @ts-expect-error UNTIL https://github.com/microsoft/TypeScript/issues/38385
   t.is(passStyleOf(sub(goodRemotableProto)), 'remotable');
 
   t.throws(() => passStyleOf(sub(badRemotableProto1)), EXPECTED_PASS_STYLE);

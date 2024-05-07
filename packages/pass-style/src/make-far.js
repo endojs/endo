@@ -6,7 +6,7 @@ import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
 /** @import {RemotableBrand} from '@endo/eventual-send' */
-/** @import {InterfaceSpec} from './types.js' */
+/** @import {InterfaceSpec, RemotableObject} from './types.js' */
 
 const { prototype: functionPrototype } = Function;
 const {
@@ -61,7 +61,8 @@ const assertCanBeRemotable = candidate =>
  * // https://github.com/Agoric/agoric-sdk/issues/804
  *
  * @template {{}} T
- * @param {InterfaceSpec} [iface] The interface specification for
+ * @template {InterfaceSpec} I
+ * @param {I} [iface] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
  * "Alleged: " or "DebugName: ", to serve as the alleged name. More
  * general ifaces are not yet implemented. This is temporary. We include the
@@ -74,9 +75,10 @@ const assertCanBeRemotable = candidate =>
  * @param {undefined} [props] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
  * @param {T} [remotable] The object used as the remotable
- * @returns {T & RemotableBrand<{}, T>} remotable, modified for debuggability
+ * @returns {T & RemotableObject<I> & RemotableBrand<{}, T>}} remotable, modified for debuggability
  */
 export const Remotable = (
+  // @ts-expect-error I could have different subtype than string
   iface = 'Remotable',
   props = undefined,
   remotable = /** @type {T} */ ({}),
@@ -124,7 +126,7 @@ export const Remotable = (
   // COMMITTED!
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
-  return /** @type {T & RemotableBrand<{}, T>} */ (remotable);
+  return /** @type {any} */ (remotable);
 };
 harden(Remotable);
 
@@ -207,14 +209,18 @@ harden(Far);
  * when the function comes from elsewhere under less control. For functions
  * you author in place, better to use `Far` on their function literal directly.
  *
+ * @template {(...args: any[]) => any} F
  * @param {string} farName to be used only if `func` is not already a
  * far function.
- * @param {(...args: any[]) => any} func
+ * @param {F} func
+ * @returns {F & RemotableObject & RemotableBrand<{}, F>}
  */
 export const ToFarFunction = (farName, func) => {
   if (getInterfaceOf(func) !== undefined) {
+    // @ts-expect-error checked cast
     return func;
   }
+  // @ts-expect-error could be different subtype
   return Far(farName, (...args) => func(...args));
 };
 harden(ToFarFunction);

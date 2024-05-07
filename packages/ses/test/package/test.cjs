@@ -6,8 +6,8 @@ let globalRef =
   typeof global !== 'undefined'
     ? global
     : typeof self !== 'undefined'
-    ? self
-    : undefined;
+      ? self
+      : undefined;
 if (globalRef && !globalRef.globalThis) {
   globalRef.globalThis = globalRef;
 }

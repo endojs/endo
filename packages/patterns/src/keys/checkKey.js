@@ -21,9 +21,9 @@ import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 const { ownKeys } = Reflect;
 
 /**
- * @import {Passable} from '@endo/pass-style'
+ * @import {Passable, Primitive} from '@endo/pass-style'
  * @import {Checker} from '@endo/marshal'
- * @import {CopyBag, CopyMap, CopySet, Key} from '../types.js'
+ * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js'
  */
 
 // ////////////////// Primitive and Scalar keys ////////////////////////////////
@@ -47,15 +47,15 @@ const checkPrimitiveKey = (val, check) => {
 };
 
 /**
- * @param {Passable} val
- * @returns {boolean}
+ * @param {any} val
+ * @returns {val is Primitive}
  */
 export const isPrimitiveKey = val => checkPrimitiveKey(val, identChecker);
 harden(isPrimitiveKey);
 
 /**
  * @param {Passable} val
- * @returns {void}
+ * @returns {asserts val is Primitive}
  */
 export const assertPrimitiveKey = val => {
   checkPrimitiveKey(val, assertChecker);
@@ -63,7 +63,7 @@ export const assertPrimitiveKey = val => {
 harden(assertPrimitiveKey);
 
 /**
- * @param {Passable} val
+ * @param {any} val
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -79,15 +79,15 @@ export const checkScalarKey = (val, check) => {
 };
 
 /**
- * @param {Passable} val
- * @returns {boolean}
+ * @param {any} val
+ * @returns {val is ScalarKey}
  */
 export const isScalarKey = val => checkScalarKey(val, identChecker);
 harden(isScalarKey);
 
 /**
  * @param {Passable} val
- * @returns {void}
+ * @returns {asserts val is ScalarKey}
  */
 export const assertScalarKey = val => {
   checkScalarKey(val, assertChecker);
@@ -96,11 +96,13 @@ harden(assertScalarKey);
 
 // ////////////////////////////// Keys /////////////////////////////////////////
 
+// @ts-expect-error Key does not satisfy WeakKey
 /** @type {WeakSet<Key>} */
+// @ts-expect-error Key does not satisfy WeakKey
 const keyMemo = new WeakSet();
 
 /**
- * @param {Passable} val
+ * @param {unknown} val
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -111,6 +113,7 @@ export const checkKey = (val, check) => {
     assertPassable(val);
     return true;
   }
+  // @ts-expect-error narrowed
   if (keyMemo.has(val)) {
     return true;
   }
@@ -119,6 +122,7 @@ export const checkKey = (val, check) => {
   if (result) {
     // Don't cache the undefined cases, so that if it is tried again
     // with `assertChecker` it'll throw a diagnostic again
+    // @ts-expect-error narrowed
     keyMemo.add(val);
   }
   // Note that we do not memoize a negative judgement, so that if it is tried
@@ -128,14 +132,17 @@ export const checkKey = (val, check) => {
 harden(checkKey);
 
 /**
- * @param {Passable} val
- * @returns {boolean}
+ * @type {{
+ *   (val: Passable): val is Key;
+ *   (val: any): boolean;
+ * }}
  */
 export const isKey = val => checkKey(val, identChecker);
 harden(isKey);
 
 /**
  * @param {Key} val
+ * @returns {asserts val is Key}
  */
 export const assertKey = val => {
   checkKey(val, assertChecker);
@@ -151,7 +158,7 @@ harden(assertKey);
 const copySetMemo = new WeakSet();
 
 /**
- * @param {Passable} s
+ * @param {any} s
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -172,12 +179,9 @@ export const checkCopySet = (s, check) => {
 harden(checkCopySet);
 
 /**
- * @callback IsCopySet
- * @param {Passable} s
+ * @param {any} s
  * @returns {s is CopySet}
  */
-
-/** @type {IsCopySet} */
 export const isCopySet = s => checkCopySet(s, identChecker);
 harden(isCopySet);
 
@@ -194,7 +198,7 @@ export const assertCopySet = s => {
 harden(assertCopySet);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopySet<K>} s
  * @returns {K[]}
  */
@@ -205,7 +209,7 @@ export const getCopySetKeys = s => {
 harden(getCopySetKeys);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopySet<K>} s
  * @param {(key: K, index: number) => boolean} fn
  * @returns {boolean}
@@ -215,7 +219,7 @@ export const everyCopySetKey = (s, fn) =>
 harden(everyCopySetKey);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {Iterable<K>} elementIter
  * @returns {CopySet<K>}
  */
@@ -235,7 +239,7 @@ harden(makeCopySet);
 const copyBagMemo = new WeakSet();
 
 /**
- * @param {Passable} b
+ * @param {any} b
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -256,12 +260,9 @@ export const checkCopyBag = (b, check) => {
 harden(checkCopyBag);
 
 /**
- * @callback IsCopyBag
- * @param {Passable} b
+ * @param {any} b
  * @returns {b is CopyBag}
  */
-
-/** @type {IsCopyBag} */
 export const isCopyBag = b => checkCopyBag(b, identChecker);
 harden(isCopyBag);
 
@@ -278,7 +279,7 @@ export const assertCopyBag = b => {
 harden(assertCopyBag);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopyBag<K>} b
  * @returns {CopyBag<K>['payload']}
  */
@@ -289,7 +290,7 @@ export const getCopyBagEntries = b => {
 harden(getCopyBagEntries);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {CopyBag<K>} b
  * @param {(entry: [K, bigint], index: number) => boolean} fn
  * @returns {boolean}
@@ -299,7 +300,7 @@ export const everyCopyBagEntry = (b, fn) =>
 harden(everyCopyBagEntry);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {Iterable<[K,bigint]>} bagEntryIter
  * @returns {CopyBag<K>}
  */
@@ -311,7 +312,7 @@ export const makeCopyBag = bagEntryIter => {
 harden(makeCopyBag);
 
 /**
- * @template K
+ * @template {Key} K
  * @param {Iterable<K>} elementIter
  * @returns {CopyBag<K>}
  */
@@ -344,7 +345,7 @@ harden(makeCopyBagFromElements);
 const copyMapMemo = new WeakSet();
 
 /**
- * @param {Passable} m
+ * @param {any} m
  * @param {Checker} check
  * @returns {boolean}
  */
@@ -383,22 +384,16 @@ export const checkCopyMap = (m, check) => {
 harden(checkCopyMap);
 
 /**
- * @callback IsCopyMap
- * @param {Passable} m
+ * @param {any} m
  * @returns {m is CopyMap<Key, Passable>}
  */
-
-/** @type {IsCopyMap} */
 export const isCopyMap = m => checkCopyMap(m, identChecker);
 harden(isCopyMap);
 
 /**
- * @callback AssertCopyMap
  * @param {Passable} m
  * @returns {asserts m is CopyMap<Key, Passable>}
  */
-
-/** @type {AssertCopyMap} */
 export const assertCopyMap = m => {
   checkCopyMap(m, assertChecker);
 };
@@ -539,7 +534,7 @@ harden(makeCopyMap);
 // //////////////////////// Keys Recur /////////////////////////////////////////
 
 /**
- * @param {Passable} val
+ * @param {any} val
  * @param {Checker} check
  * @returns {boolean}
  */

@@ -4,7 +4,7 @@ import { X, q } from '@endo/errors';
 import { assertChecker } from './passStyle-helpers.js';
 
 /** @import {PassStyleHelper} from './internal-types.js' */
-/** @import {Checker, PassStyleOf} from './types.js' */
+/** @import {Checker, PassStyle, PassStyleOf} from './types.js' */
 
 const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
 
@@ -88,7 +88,7 @@ harden(isErrorLike);
 /**
  * @param {string} propName
  * @param {PropertyDescriptor} desc
- * @param {PassStyleOf} passStyleOfRecur
+ * @param {(val: any) => PassStyle} passStyleOfRecur
  * @param {Checker} [check]
  * @returns {boolean}
  */
@@ -157,7 +157,7 @@ harden(checkRecursivelyPassableErrorPropertyDesc);
 
 /**
  * @param {unknown} candidate
- * @param {PassStyleOf} passStyleOfRecur
+ * @param {(val: any) => PassStyle} passStyleOfRecur
  * @param {Checker} [check]
  * @returns {boolean}
  */

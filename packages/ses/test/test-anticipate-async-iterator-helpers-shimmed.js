@@ -1,3 +1,4 @@
+/* global AsyncIterator */
 import './enforce-cjs-strict.js';
 import './core-js-configuration.js';
 import 'core-js/actual/async-iterator/index.js';

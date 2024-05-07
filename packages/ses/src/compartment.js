@@ -22,7 +22,7 @@ import {
   setGlobalObjectEvaluators,
 } from './global-object.js';
 import { sharedGlobalPropertyNames } from './permits.js';
-import { load } from './module-load.js';
+import { load, loadNow } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
@@ -160,7 +160,7 @@ export const CompartmentPrototype = {
     }
 
     assertModuleHooks(this);
-
+    loadNow(privateFields, moduleAliases, this, specifier);
     return compartmentImportNow(/** @type {Compartment} */ (this), specifier);
   },
 };
@@ -209,6 +209,7 @@ export const makeCompartmentConstructor = (
       __shimTransforms__ = [],
       resolveHook,
       importHook,
+      importNowHook,
       moduleMapHook,
       importMetaHook,
     } = options;
@@ -285,6 +286,7 @@ export const makeCompartmentConstructor = (
       safeEvaluate,
       resolveHook,
       importHook,
+      importNowHook,
       moduleMap,
       moduleMapHook,
       importMetaHook,

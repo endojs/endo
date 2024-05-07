@@ -14,6 +14,7 @@ import {
   checkRecursivelyPassableErrorPropertyDesc,
   checkRecursivelyPassableError,
   getErrorConstructor,
+  isErrorLike,
 } from './error.js';
 import { RemotableHelper } from './remotable.js';
 
@@ -22,7 +23,7 @@ import { assertSafePromise } from './safe-promise.js';
 import { assertPassableString } from './string.js';
 
 /** @import {PassStyleHelper} from './internal-types.js' */
-/** @import {Passable} from './types.js' */
+/** @import {CopyArray, CopyRecord, CopyTagged, Passable} from './types.js' */
 /** @import {PassStyle} from './types.js' */
 /** @import {PassStyleOf} from './types.js' */
 /** @import {PrimitiveStyle} from './types.js' */
@@ -30,7 +31,7 @@ import { assertPassableString } from './string.js';
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 
 const { ownKeys } = Reflect;
-const { isFrozen, getOwnPropertyDescriptors } = Object;
+const { isFrozen, getOwnPropertyDescriptors, values } = Object;
 
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
@@ -87,28 +88,26 @@ const makePassStyleOf = passStyleHelpers => {
    * structures, so without this cache, these algorithms could be
    * O(N**2) or worse.
    *
-   * @type {WeakMap<Passable, PassStyle>}
+   * @type {WeakMap<WeakKey, PassStyle>}
    */
   const passStyleMemo = new WeakMap();
 
   /**
    * @type {PassStyleOf}
    */
+  // @ts-expect-error cast
   const passStyleOf = passable => {
     // Even when a WeakSet is correct, when the set has a shorter lifetime
     // than its keys, we prefer a Set due to expected implementation
     // tradeoffs.
     const inProgress = new Set();
 
-    /**
-     * @type {PassStyleOf}
-     */
     const passStyleOfRecur = inner => {
       const innerIsObject = isObject(inner);
       if (innerIsObject) {
-        if (passStyleMemo.has(inner)) {
-          // @ts-ignore TypeScript doesn't know that `get` after `has` is safe
-          return passStyleMemo.get(inner);
+        const innerStyle = passStyleMemo.get(inner);
+        if (innerStyle) {
+          return innerStyle;
         }
         !inProgress.has(inner) ||
           Fail`Pass-by-copy data cannot be cyclic ${inner}`;
@@ -123,9 +122,6 @@ const makePassStyleOf = passStyleHelpers => {
       return passStyle;
     };
 
-    /**
-     * @type {PassStyleOf}
-     */
     const passStyleOfInternal = inner => {
       const typestr = typeof inner;
       switch (typestr) {
@@ -267,10 +263,14 @@ const isPassableErrorPropertyDesc = (name, desc) =>
   checkRecursivelyPassableErrorPropertyDesc(name, desc, passStyleOf);
 
 /**
- * Return a passable error that propagates the diagnostic info of the
- * original, and is linked to the original as a note.
- * `toPassableError` hardens the argument before checking if it is already
- * a passable error. If it is, then `toPassableError` returns the argument.
+ * After hardening, if `err` is a passable error, return it.
+ *
+ * Otherwise, return a new passable error that propagates the diagnostic
+ * info of the original, and is linked to the original as a note.
+ *
+ * TODO Adopt a more flexible notion of passable error, in which
+ * a passable error can contain other own data properties with
+ * throwable values.
  *
  * @param {Error} err
  * @returns {Error}
@@ -309,3 +309,75 @@ export const toPassableError = err => {
   return newError;
 };
 harden(toPassableError);
+
+/**
+ * After hardening, if `specimen` is throwable, return it.
+ * A specimen is throwable iff it is Passable and contains no PassableCaps,
+ * i.e., no Remotables or Promises.
+ * IOW, if it contains only copy-data and passable errors.
+ *
+ * Otherwise, if `specimen` is *almost* throwable, for example, it is
+ * an error that can be made throwable by `toPassableError`, then
+ * return `specimen` converted to a throwable.
+ *
+ * Otherwise, throw a diagnostic indicating a failure to coerce.
+ *
+ * This is in support of the exo boundary throwing only throwables, to ease
+ * security review.
+ *
+ * TODO Adopt a more flexitble notion of throwable, in which
+ * data containers containing non-passable errors can themselves be coerced
+ * to throwable by coercing to a similar containers containing
+ * the results of coercing those errors to passable errors.
+ *
+ * @param {unknown} specimen
+ * @returns {Passable<never, Error>}
+ */
+export const toThrowable = specimen => {
+  harden(specimen);
+  if (isErrorLike(specimen)) {
+    return toPassableError(/** @type {Error} */ (specimen));
+  }
+  // Note that this step will fail if `specimen` would be a passable container
+  // except that it contains non-passable errors that could be converted.
+  // This will need to be fixed to do the TODO above.
+  const passStyle = passStyleOf(specimen);
+  if (isObject(specimen)) {
+    switch (passStyle) {
+      case 'copyArray': {
+        const elements = /** @type {CopyArray} */ (specimen);
+        for (const element of elements) {
+          element === toThrowable(element) ||
+            Fail`nested toThrowable coercion not yet supported ${element}`;
+        }
+        break;
+      }
+      case 'copyRecord': {
+        const rec = /** @type {CopyRecord} */ (specimen);
+        for (const val of values(rec)) {
+          val === toThrowable(val) ||
+            Fail`nested toThrowable coercion not yet supported ${val}`;
+        }
+        break;
+      }
+      case 'tagged': {
+        const tg = /** @type {CopyTagged} */ (specimen);
+        const { payload } = tg;
+        payload === toThrowable(payload) ||
+          Fail`nested toThrowable coercion not yet supported ${payload}`;
+        break;
+      }
+      case 'error': {
+        const er = /** @type {Error} */ (specimen);
+        er === toThrowable(er) ||
+          Fail`nested toThrowable coercion not yet supported ${er}`;
+        break;
+      }
+      default: {
+        throw Fail`A ${q(passStyle)} is not throwable: ${specimen}`;
+      }
+    }
+  }
+  return /** @type {Passable<never,never>} */ (specimen);
+};
+harden(toThrowable);

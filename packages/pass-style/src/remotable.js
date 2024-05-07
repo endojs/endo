@@ -14,8 +14,7 @@ import {
 
 /**
  * @import {Checker} from './types.js'
- * @import {InterfaceSpec} from './types.js'
- * @import {MarshalGetInterfaceOf} from './types.js'
+ * @import {InterfaceSpec, PassStyled} from './types.js'
  * @import {PassStyleHelper} from './internal-types.js'
  * @import {RemotableObject as Remotable} from './types.js'
  */
@@ -88,7 +87,11 @@ const checkRemotableProtoOf = (original, check) => {
   //        }}
   //
   const proto = getPrototypeOf(original);
-  if (proto === objectPrototype || proto === null) {
+  if (
+    proto === objectPrototype ||
+    proto === null ||
+    proto === Function.prototype
+  ) {
     return (
       reject && reject`Remotables must be explicitly declared: ${q(original)}`
     );
@@ -141,9 +144,9 @@ const checkRemotableProtoOf = (original, check) => {
 const confirmedRemotables = new WeakSet();
 
 /**
- * @param {Remotable} val
+ * @param {any} val
  * @param {Checker} [check]
- * @returns {boolean}
+ * @returns {val is Remotable}
  */
 const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
@@ -164,15 +167,25 @@ const checkRemotable = (val, check) => {
   return result;
 };
 
-/** @type {MarshalGetInterfaceOf} */
+/**
+ * Simple semantics, just tell what interface spec a Remotable has,
+ * or undefined if not deemed to be a Remotable.
+ *
+ * @type {{
+ * <T extends string>(val: PassStyled<any, T>): T;
+ * (val: any): InterfaceSpec | undefined;
+ * }}
+ */
 export const getInterfaceOf = val => {
   if (
     !isObject(val) ||
     val[PASS_STYLE] !== 'remotable' ||
     !checkRemotable(val)
   ) {
+    // @ts-expect-error narrowed
     return undefined;
   }
+  // @ts-expect-error narrowed
   return getTag(val);
 };
 harden(getInterfaceOf);

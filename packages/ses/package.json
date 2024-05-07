@@ -36,14 +36,24 @@
   "types": "./types.d.ts",
   "exports": {
     ".": {
-      "types": "./types.d.ts",
-      "import": "./index.js",
-      "require": "./dist/ses.cjs"
+      "import": {
+        "types": "./types.d.ts",
+        "default": "./index.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/ses.cjs"
+      }
     },
     "./lockdown": {
-      "types": "./types.d.ts",
-      "import": "./index.js",
-      "require": "./dist/ses.cjs"
+      "import": {
+        "types": "./types.d.ts",
+        "default": "./index.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/ses.cjs"
+      }
     },
     "./tools.js": "./tools.js",
     "./assert-shim.js": "./assert-shim.js",
@@ -81,7 +91,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.29.0",
-    "prettier": "^3.0.0",
+    "prettier": "^3.2.5",
     "sinon": "^15.1.0",
     "terser": "^5.16.6",
     "tsd": "^0.30.7",

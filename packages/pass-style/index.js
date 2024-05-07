@@ -29,6 +29,7 @@ export {
   isPassable,
   assertPassable,
   toPassableError,
+  toThrowable,
 } from './src/passStyleOf.js';
 
 export { makeTagged } from './src/makeTagged.js';
@@ -48,5 +49,5 @@ export {
   isCopyArray,
 } from './src/typeGuards.js';
 
-// eslint-disable-next-line import/export
+// eslint-disable-next-line import/export -- ESLint not aware of type exports in types.d.ts
 export * from './src/types.js';
