@@ -224,6 +224,7 @@ export const weaksetAdd = uncurryThis(weaksetPrototype.add);
 export const weaksetHas = uncurryThis(weaksetPrototype.has);
 //
 export const functionToString = uncurryThis(functionPrototype.toString);
+export const functionBind = uncurryThis(bind);
 //
 const { all } = Promise;
 export const promiseAll = promises => apply(all, Promise, [promises]);
