@@ -16,4 +16,7 @@ globalThis.Compartment = makeCompartmentConstructor(
   // See https://github.com/endojs/endo/pull/2624#discussion_r1840979770
   getGlobalIntrinsics(globalThis, muteReporter),
   markVirtualizedNativeFunction,
+  {
+    enforceNew: true,
+  },
 );

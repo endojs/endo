@@ -1,16 +1,18 @@
+/**
+ * @module Captures native intrinsics during initialization, so vetted shims
+ * (running between initialization of SES and calling lockdown) are free to
+ * modify the environment without compromising the integrity of SES. For
+ * example, a vetted shim can modify Object.assign because we capture and
+ * export Object and assign here, then never again consult Object to get its
+ * assign property.
+ *
+ * This pattern of use is enforced by eslint rules no-restricted-globals and
+ * no-polymorphic-call.
+ * We maintain the list of restricted globals in ../package.json.
+ */
+
 /* global globalThis */
 /* eslint-disable no-restricted-globals */
-
-/**
- * commons.js
- * Declare shorthand functions. Sharing these declarations across modules
- * improves on consistency and minification. Unused declarations are
- * dropped by the tree shaking process.
- *
- * We capture these, not just for brevity, but for security. If any code
- * modifies Object to change what 'assign' points to, the Compartment shim
- * would be corrupted.
- */
 
 // We cannot use globalThis as the local name since it would capture the
 // lexical name.

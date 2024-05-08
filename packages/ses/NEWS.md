@@ -1,5 +1,17 @@
 User-visible changes in `ses`:
 
+# Next release
+
+Incubating: Please do not rely on these features as they are under development
+and subject to breaking changes that will not be signaled by semver.
+
+- Adds support for an XS-specific variant of the SES shim that is triggered
+  with the `xs` package export condition.
+  This version of SES preserves all the features of `Compartment` provided
+  uniquely by the SES shim, but with the `__native__` constructor option,
+  loses support for importing precompiled module records and gains support
+  for native `ModuleSource`.
+
 # v1.10.0 (2024-11-13)
 
 - Permit [Promise.try](https://github.com/tc39/proposal-promise-try),
