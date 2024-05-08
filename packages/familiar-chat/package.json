@@ -1,0 +1,77 @@
+{
+  "name": "@endo/familiar-chat",
+  "private": true,
+  "version": "0.0.0",
+  "description": null,
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/familiar-chat#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "start": "endo open familiar-chat ./index.js --powers SELF",
+    "dev": "yarn dev:init && yarn dev:run",
+    "dev:init": "endo reset && endo mkguest alice && endo mkguest bob",
+    "dev:run": "nodemon --exec 'endo open familiar-chat ./index.js --powers SELF'",
+    "demo": "./src/demo.sh",
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0",
+    "build": "exit 0",
+    "clean": "git clean -f '*.d.ts*'",
+    "prepack": "tsc --build tsconfig.build.json",
+    "postpack": "yarn clean",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint-check": "yarn lint",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint:types": "tsc",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "devDependencies": {
+    "@endo/lockdown": "^0.1.32",
+    "@endo/ses-ava": "^0.2.44",
+    "ava": "^5.3.0",
+    "c8": "^7.14.0",
+    "tsd": "^0.28.1"
+  },
+  "files": [
+    "*.js",
+    "*.ts",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  },
+  "dependencies": {
+    "@endo/cli": "^0.2.6",
+    "@endo/daemon": "^0.2.6",
+    "@endo/far": "^0.2.22",
+    "preact": "^10.19.2"
+  }
+}
