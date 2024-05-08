@@ -38,6 +38,7 @@
     ".": {
       "import": {
         "types": "./types.d.ts",
+        "xs": "./src-xs/index.js",
         "default": "./index.js"
       },
       "require": {
@@ -57,8 +58,14 @@
     },
     "./tools.js": "./tools.js",
     "./assert-shim.js": "./assert-shim.js",
-    "./lockdown-shim.js": "./lockdown-shim.js",
-    "./compartment-shim.js": "./compartment-shim.js",
+    "./lockdown-shim.js": {
+      "xs": "./src-xs/shim.js",
+      "default": "./lockdown-shim.js"
+    },
+    "./compartment-shim.js": {
+      "xs": "./src-xs/shim.js",
+      "default": "./compartment-shim.js"
+    },
     "./console-shim.js": "./console-shim.js",
     "./package.json": "./package.json"
   },
