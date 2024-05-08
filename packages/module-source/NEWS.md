@@ -4,6 +4,8 @@ User-visible changes in `@endo/module-source`:
 
 - Adds `@endo/module-source/shim.js` to shim `globalThis.ModuleSource`.
   The shim currently replaces the native `globalThis.ModuleSource` if present.
+- Provides an XS-specific variant of `@endo/module-source` that adapts the
+  native `ModuleSource` instead of entraining Babel.
 
 # v1.0.0 (2024-07-30)
 
