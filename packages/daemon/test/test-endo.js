@@ -442,16 +442,157 @@ test('store with name', async t => {
 test('move renames value', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
 
-  const originalNames = await E(host).list();
-  t.assert(originalNames.includes('ten'));
+  t.true(await E(host).has('ten'));
+  t.false(await E(host).has('zehn'));
 
   await E(host).move(['ten'], ['zehn']);
 
-  const newNames = await E(host).list();
-  t.assert(!newNames.includes('ten'));
-  t.assert(newNames.includes('zehn'));
+  t.false(await E(host).has('ten'));
+  t.true(await E(host).has('zehn'));
+});
+
+test('move renames value, overwriting the "to" name', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).storeValue(10, 'ten');
+  await E(host).storeValue('"X"', 'decimus');
+
+  t.true(await E(host).has('ten'));
+  t.true(await E(host).has('decimus'));
+
+  await E(host).move(['ten'], ['decimus']);
+
+  t.false(await E(host).has('ten'));
+  t.true(await E(host).has('decimus'));
+
+  const decimusValue = await E(host).lookup('decimus');
+  t.is(decimusValue, 10);
+});
+
+test('move moves value, from the host to a different name hub', async t => {
+  const { host } = await prepareHost(t);
+  const directory = await E(host).makeDirectory('directory');
+
+  await E(host).storeValue(10, 'ten');
+
+  t.true(await E(host).has('ten'));
+  t.false(await E(directory).has('ten'));
+
+  await E(host).move(['ten'], ['directory', 'ten']);
+
+  t.false(await E(host).has('ten'));
+  t.true(await E(directory).has('ten'));
+});
+
+test('move renames value, for a single guest', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = await E(host).provideGuest('guest', {
+    agentName: 'guest-agent',
+  });
+
+  await E(host).storeValue(10, 'ten');
+  await E(host).move(['ten'], ['guest-agent', 'ten']);
+
+  t.true(await E(guest).has('ten'));
+
+  await E(host).move(['guest-agent', 'ten'], ['guest-agent', 'zehn']);
+
+  t.false(await E(guest).has('ten'));
+  t.true(await E(guest).has('zehn'));
+});
+
+test('move moves value, between different guests', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest1 = await E(host).provideGuest('guest1', {
+    agentName: 'guest1-agent',
+  });
+  const guest2 = await E(host).provideGuest('guest2', {
+    agentName: 'guest2-agent',
+  });
+
+  await E(host).storeValue(10, 'ten');
+  await E(host).move(['ten'], ['guest1-agent', 'ten']);
+
+  t.true(await E(guest1).has('ten'));
+
+  await E(host).move(['guest1-agent', 'ten'], ['guest2-agent', 'ten']);
+
+  t.false(await E(guest1).has('ten'));
+  t.true(await E(guest2).has('ten'));
+});
+
+test('move renames value, for a single caplet name hub', async t => {
+  const { host } = await prepareHost(t);
+
+  const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
+  const nameHub = await E(host).makeUnconfined(
+    'MAIN',
+    nameHubPath,
+    'NONE',
+    'name-hub',
+  );
+
+  await E(host).storeValue(10, 'ten');
+  const tenId = await E(host).identify('ten');
+  await E(nameHub).write(['ten'], tenId);
+
+  t.true(await E(nameHub).has('ten'));
+
+  await E(host).move(['name-hub', 'ten'], ['name-hub', 'zehn']);
+
+  t.false(await E(nameHub).has('ten'));
+  t.true(await E(nameHub).has('zehn'));
+});
+
+test('move moves value, between different caplet name hubs', async t => {
+  const { host } = await prepareHost(t);
+
+  const nameHubPath = path.join(dirname, 'test', 'move-hub.js');
+  const nameHub1 = await E(host).makeUnconfined(
+    'MAIN',
+    nameHubPath,
+    'NONE',
+    'name-hub1',
+  );
+  const nameHub2 = await E(host).makeUnconfined(
+    'MAIN',
+    nameHubPath,
+    'NONE',
+    'name-hub2',
+  );
+
+  await E(host).storeValue(10, 'ten');
+  const tenId = await E(host).identify('ten');
+  await E(nameHub1).write(['ten'], tenId);
+
+  t.true(await E(nameHub1).has('ten'));
+
+  await E(host).move(['name-hub1', 'ten'], ['name-hub2', 'ten']);
+
+  t.false(await E(nameHub1).has('ten'));
+  t.true(await E(nameHub2).has('ten'));
+});
+
+test('move preserves original name if writing to new name hub fails', async t => {
+  const { host } = await prepareHost(t);
+
+  await E(host).storeValue(10, 'ten');
+
+  t.true(await E(host).has('ten'));
+
+  const failedHubPath = path.join(dirname, 'test', 'failed-hub.js');
+  await E(host).makeUnconfined('MAIN', failedHubPath, 'NONE', 'failed-hub');
+
+  await t.throwsAsync(E(host).move(['ten'], ['failed-hub', 'ten']), {
+    message: 'I had one job.',
+  });
+
+  const tenValue = await E(host).lookup('ten');
+  t.is(tenValue, 10);
 });
 
 test('closure state lost by restart', async t => {

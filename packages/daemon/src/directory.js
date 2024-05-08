@@ -180,18 +180,19 @@ export const makeDirectoryMaker = ({
         if (fromHub === directory) {
           await petStore.rename(fromName, toName);
         } else {
-          await fromHub.move([fromName], [toName]);
+          await E(fromHub).move([fromName], [toName]);
         }
         return;
       }
 
-      const id = await fromHub.identify(fromName);
+      const id = await E(fromHub).identify(fromName);
       if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
       // First write to the "to" hub so that the original name is preserved on the
       // "from" hub in case of failure.
-      await toHub.write([toName], id).then(() => fromHub.remove(fromName));
+      await E(toHub).write([toName], id);
+      await E(fromHub).remove(fromName);
     };
 
     /** @type {EndoDirectory['copy']} */
