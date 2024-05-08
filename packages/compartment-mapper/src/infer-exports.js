@@ -83,6 +83,8 @@ function* interpretExports(name, exports, tags) {
       }
     } else if (tags.has(key)) {
       yield* interpretExports(name, value, tags);
+      // Take only the first matching tag.
+      break;
     }
   }
 }
