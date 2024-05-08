@@ -13,8 +13,18 @@ User-visible changes in `ses`:
   - Node 18, Node 20, and all browsers have `structuredClone`
   - Node <= 16 have neither, but are also no longer supported by Endo.
 - Now exports separate layer for console shim: `ses/console-shim.js`.
+
+Incubating: Please do not rely on these features as they are under development
+and subject to breaking changes that will not be signaled by semver.
+
 - Adds permits for `ModuleSource`, either the native implementation or from
   `@endo/module-source/shim.js`.
+- Adds support for an XS-specific variant of the SES shim that is triggered
+  with the `xs` package export condition.
+  This version of SES preserves all the features of `Compartment` provided
+  uniquely by the SES shim, but with the `__native__` constructor option,
+  loses support for importing precompiled module records and gains support
+  for native `ModuleSource`.
 
 # v1.8.0 (2024-08-27)
 
