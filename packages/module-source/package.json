@@ -22,7 +22,10 @@
   "type": "module",
   "main": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "xs": "./src/xs.js",
+      "default": "./index.js"
+    },
     "./shim.js": "./shim.js",
     "./package.json": "./package.json"
   },
