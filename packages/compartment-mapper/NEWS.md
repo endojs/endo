@@ -1,5 +1,11 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Fixes incompatible behavior with Node.js package conditional exports #2276.
+  Previously, the last matching tag would override all prior matches, often
+  causing a bundle to adopt the `default` instead of a more specific condition.
+
 # 0.9.0 (2023-08-07)
 
 - Introduces support for source map generation.
