@@ -117,7 +117,10 @@ export const setGlobalObjectMutableProperties = (
       makeCompartmentConstructor,
       intrinsics,
       markVirtualizedNativeFunction,
-      parentCompartment,
+      {
+        parentCompartment,
+        enforceNew: true,
+      },
     ),
   );
 
