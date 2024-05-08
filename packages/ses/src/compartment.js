@@ -171,7 +171,9 @@ defineProperties(InertCompartment, {
  * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
  * @param {Record<string, any>} intrinsics
  * @param {(object: object) => void} markVirtualizedNativeFunction
- * @param {Compartment} [parentCompartment]
+ * @param {object} [options]
+ * @param {Compartment} [options.parentCompartment]
+ * @param {boolean} [options.enforceNew]
  * @returns {Compartment['constructor']}
  */
 
@@ -184,7 +186,7 @@ defineProperties(InertCompartment, {
 // positional arguments, this function detects the temporary sigil __options__
 // on the first argument and coerces compartments arguments into a single
 // compartments object.
-const compartmentOptions = (...args) => {
+export const compartmentOptions = (...args) => {
   if (args.length === 0) {
     return {};
   }
@@ -229,10 +231,10 @@ export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   markVirtualizedNativeFunction,
-  parentCompartment = undefined,
+  { parentCompartment = undefined, enforceNew = false } = {},
 ) => {
   function Compartment(...args) {
-    if (new.target === undefined) {
+    if (enforceNew && new.target === undefined) {
       throw TypeError(
         "Class constructor Compartment cannot be invoked without 'new'",
       );
