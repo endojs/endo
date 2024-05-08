@@ -184,7 +184,7 @@ defineProperties(InertCompartment, {
 // positional arguments, this function detects the temporary sigil __options__
 // on the first argument and coerces compartments arguments into a single
 // compartments object.
-const compartmentOptions = (...args) => {
+export const compartmentOptions = (...args) => {
   if (args.length === 0) {
     return {};
   }
