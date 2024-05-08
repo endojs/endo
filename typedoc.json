@@ -3,11 +3,13 @@
         "packages/*"
     ],
     "exclude": [
+        "**/tmp/**",
         "packages/cjs-module-analyzer",
         "packages/cli",
         "packages/compartment-mapper",
         "packages/daemon",
         "packages/evasive-transform",
+        "packages/hardened262",
         "packages/lp32",
         "packages/memoize",
         "packages/module-source",

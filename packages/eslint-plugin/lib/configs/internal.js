@@ -24,7 +24,7 @@ const rules = {
 dynamicConfig.overrides.push({
   extends: ['plugin:@endo/recommended-requiring-type-checking'],
   files: fileGlobs,
-  excludedFiles: ['**/src/**/exports.js'],
+  excludedFiles: ['**/src*/**/exports.js'],
   parserOptions,
   rules,
 });

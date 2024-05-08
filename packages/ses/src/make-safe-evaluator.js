@@ -1,7 +1,7 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import { apply, freeze } from './commons.js';
+import { apply, arrayFlatMap, freeze, identity } from './commons.js';
 import { strictScopeTerminator } from './strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
 import { makeEvalScopeKit } from './eval-scope.js';
@@ -62,11 +62,13 @@ export const makeSafeEvaluator = ({
 
     // Execute the mandatory transforms last to ensure that any rewritten code
     // meets those mandatory requirements.
-    source = applyTransforms(source, [
-      ...localTransforms,
-      ...globalTransforms,
-      mandatoryTransforms,
-    ]);
+    source = applyTransforms(
+      source,
+      arrayFlatMap(
+        [localTransforms, globalTransforms, [mandatoryTransforms]],
+        identity,
+      ),
+    );
 
     let err;
     try {
