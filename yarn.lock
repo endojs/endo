@@ -9,7 +9,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "1kce-demo@workspace:packages/1kce"
   dependencies:
-    "@endo/daemon": "npm:0.2.6"
+    "@endo/daemon": "npm:2.3.0"
     "@endo/far": "npm:^0.2.22"
     "@endo/grain": "npm:0.1.0"
     "@endo/lockdown": "npm:^0.1.32"
@@ -477,25 +477,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/daemon@npm:0.2.6, @endo/daemon@npm:^0.2.6":
-  version: 0.2.6
-  resolution: "@endo/daemon@npm:0.2.6"
-  dependencies:
-    "@endo/captp": "npm:^3.1.5"
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/far": "npm:^0.2.22"
-    "@endo/lockdown": "npm:^0.1.32"
-    "@endo/netstring": "npm:^0.3.30"
-    "@endo/promise-kit": "npm:^0.2.60"
-    "@endo/stream": "npm:^0.3.29"
-    "@endo/stream-node": "npm:^0.2.30"
-    "@endo/where": "npm:^0.3.5"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/e97274af1f0fc13ca35717ed9bdd04ea6c80a43ae02ed55e0dc156f2cd45507de71af675f640cc32426eef62f65b074403c7e5a2dff49631dad83a28812d3157
-  languageName: node
-  linkType: hard
-
-"@endo/daemon@npm:^2.3.0, @endo/daemon@workspace:packages/daemon":
+"@endo/daemon@npm:2.3.0, @endo/daemon@npm:^2.3.0, @endo/daemon@workspace:packages/daemon":
   version: 0.0.0-use.local
   resolution: "@endo/daemon@workspace:packages/daemon"
   dependencies:
@@ -532,6 +514,24 @@ __metadata:
     ws: "npm:^8.13.0"
   languageName: unknown
   linkType: soft
+
+"@endo/daemon@npm:^0.2.6":
+  version: 0.2.6
+  resolution: "@endo/daemon@npm:0.2.6"
+  dependencies:
+    "@endo/captp": "npm:^3.1.5"
+    "@endo/eventual-send": "npm:^0.17.6"
+    "@endo/far": "npm:^0.2.22"
+    "@endo/lockdown": "npm:^0.1.32"
+    "@endo/netstring": "npm:^0.3.30"
+    "@endo/promise-kit": "npm:^0.2.60"
+    "@endo/stream": "npm:^0.3.29"
+    "@endo/stream-node": "npm:^0.2.30"
+    "@endo/where": "npm:^0.3.5"
+    ses: "npm:^0.18.8"
+  checksum: 10c0/e97274af1f0fc13ca35717ed9bdd04ea6c80a43ae02ed55e0dc156f2cd45507de71af675f640cc32426eef62f65b074403c7e5a2dff49631dad83a28812d3157
+  languageName: node
+  linkType: hard
 
 "@endo/env-options@npm:^0.1.4":
   version: 0.1.4
@@ -657,13 +657,16 @@ __metadata:
   resolution: "@endo/familiar-chat@workspace:packages/familiar-chat"
   dependencies:
     "@endo/cli": "npm:^0.2.6"
-    "@endo/daemon": "npm:^0.2.6"
+    "@endo/daemon": "npm:2.3.0"
     "@endo/far": "npm:^0.2.22"
     "@endo/lockdown": "npm:^0.1.32"
     "@endo/ses-ava": "npm:^0.2.44"
+    "@types/react": "npm:^18"
+    "@types/react-dom": "npm:^18"
     ava: "npm:^5.3.0"
     c8: "npm:^7.14.0"
-    preact: "npm:^10.19.2"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
     tsd: "npm:^0.28.1"
   languageName: unknown
   linkType: soft
@@ -696,7 +699,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/grain@workspace:packages/grain"
   dependencies:
-    "@endo/daemon": "npm:^0.2.6"
+    "@endo/daemon": "npm:2.3.0"
     "@endo/far": "npm:^0.2.22"
     "@endo/lockdown": "npm:^0.1.32"
     "@endo/promise-kit": "npm:^0.2.60"
@@ -3080,6 +3083,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/prop-types@npm:*":
+  version: 15.7.12
+  resolution: "@types/prop-types@npm:15.7.12"
+  checksum: 10c0/1babcc7db6a1177779f8fde0ccc78d64d459906e6ef69a4ed4dd6339c920c2e05b074ee5a92120fe4e9d9f1a01c952f843ebd550bee2332fc2ef81d1706878f8
+  languageName: node
+  linkType: hard
+
+"@types/react-dom@npm:^18":
+  version: 18.3.0
+  resolution: "@types/react-dom@npm:18.3.0"
+  dependencies:
+    "@types/react": "npm:*"
+  checksum: 10c0/6c90d2ed72c5a0e440d2c75d99287e4b5df3e7b011838cdc03ae5cd518ab52164d86990e73246b9d812eaf02ec351d74e3b4f5bd325bf341e13bf980392fd53b
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:*, @types/react@npm:^18":
+  version: 18.3.1
+  resolution: "@types/react@npm:18.3.1"
+  dependencies:
+    "@types/prop-types": "npm:*"
+    csstype: "npm:^3.0.2"
+  checksum: 10c0/18d856c12a4ec93f3cda2d58ef3d77a9480818afd3af895f812896fb82cfca1f35a692ab1add4ce826a4eb58a071624c7d1c8c6c4ccfb81c100d2916dc607614
+  languageName: node
+  linkType: hard
+
 "@types/resolve@npm:1.17.1":
   version: 1.17.1
   resolution: "@types/resolve@npm:1.17.1"
@@ -5014,6 +5043,13 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 10c0/5738c312387081c98d69c98e105b6327b069197f864a60593245d64c8089c8a0a744e16349281210d56835bb9274130d825a78b2ad6853ca13cfbeffc0c31750
+  languageName: node
+  linkType: hard
+
+"csstype@npm:^3.0.2":
+  version: 3.1.3
+  resolution: "csstype@npm:3.1.3"
+  checksum: 10c0/80c089d6f7e0c5b2bd83cf0539ab41474198579584fa10d86d0cafe0642202343cbc119e076a0b1aece191989477081415d66c9fefbf3c957fc2fc4b7009f248
   languageName: node
   linkType: hard
 
@@ -10277,13 +10313,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"preact@npm:^10.19.2":
-  version: 10.21.0
-  resolution: "preact@npm:10.21.0"
-  checksum: 10c0/1f3cfcb5ca83b780b53593bcb917ae2e8d10a37405c32fb6774be1b5f1f3167d2156bd22c058627388330acc54da35fe8d4bbe7d38ae567a10e5d8fd943a1a06
-  languageName: node
-  linkType: hard
-
 "prelude-ls@npm:^1.2.1":
   version: 1.2.1
   resolution: "prelude-ls@npm:1.2.1"
@@ -10467,7 +10496,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^18.2.0":
+"react-dom@npm:^18.2.0, react-dom@npm:^18.3.1":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1"
   dependencies:
@@ -10486,7 +10515,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^18.2.0":
+"react@npm:^18.2.0, react@npm:^18.3.1":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
   dependencies:

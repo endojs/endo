@@ -2,9 +2,21 @@
 
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
-import 'preact/debug';
-import { h, render, Fragment } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+// import 'preact/debug';
+// import { h, render, Fragment } from 'preact';
+// import { useState, useEffect } from 'preact/hooks';
+
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+// bundler compat issue?
+const { Fragment, useEffect, useState } = React;
+
+// preact/react compatibility
+const h = React.createElement;
+const render = (vnode, domNode) => {
+  const root = createRoot(domNode)
+  root.render(vnode);
+}
 
 /** @type any */
 const { assert } = globalThis;
@@ -121,6 +133,27 @@ const useFollowNames = (getSubFn, deps) => {
   return state;
 };
 
+const useFollowChanges = (getSubFn, deps) => {
+  const reducerFn = (change, setState) => {
+    // apply change
+    setState(prevState => {
+      if ('add' in change) {
+        const name = change.add;
+        const value = change.value;
+        return [...prevState, { name, value }];
+      } else if ('remove' in change) {
+        const name = change.remove;
+        const match = prevState.find(({ name: n }) => n === name);
+        return arrayWithout(prevState, match);
+      }
+      return prevState;
+    });
+  };
+
+  const state = useFollowReducer(getSubFn, reducerFn, deps);
+  return state;
+};
+
 /**
  * @param {Date} date
  */
@@ -196,7 +229,7 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
           'select',
           {
             value: selectedName,
-            onchange: e => setSelectedName(e.target.value),
+            onChange: e => setSelectedName(e.target.value),
           },
           names.map(name => h('option', { value: name }, name)),
         ),
@@ -205,13 +238,13 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
           type: 'text',
           placeholder: selectedName,
           value: asValue,
-          oninput: e => setAsValue(e.target.value),
+          onChange: e => setAsValue(e.target.value),
         }),
         !isApp && h(
           // @ts-ignore
           'button',
           {
-            onclick: () => {
+            onClick: () => {
               actions.adopt(selectedName, asValue || selectedName)
             },
           },
@@ -221,7 +254,7 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
           // @ts-ignore
           'button',
           {
-            onclick: () => {
+            onClick: () => {
               actions.adoptApp(selectedName, asValue || selectedName)
             },
           },
@@ -251,13 +284,13 @@ const requestMessageBodyComponent = ({ message, actions, showControls }) => {
       h('input', {
         type: 'text',
         value: petName,
-        oninput: e => setPetName(e.target.value),
+        onChange: e => setPetName(e.target.value),
       }),
       h(
         // @ts-ignore
         'button',
         {
-          onclick: () => actions.resolve(petName),
+          onClick: () => actions.resolve(petName),
         },
         'resolve',
       ),
@@ -265,7 +298,7 @@ const requestMessageBodyComponent = ({ message, actions, showControls }) => {
         // @ts-ignore
         'button',
         {
-          onclick: () => actions.reject(petName),
+          onClick: () => actions.reject(petName),
         },
         'reject',
       ),
@@ -280,7 +313,7 @@ const requestMessageBodyComponent = ({ message, actions, showControls }) => {
   ]);
 };
 
-const messageComponent = ({ message, target, targetName, setActiveMessage, showControls, nameIdPairs }) => {
+const messageComponent = ({ message, target, targetName, setActiveMessage, showControls, inventory }) => {
   const { number, who, when } = message;
   const [errorText, setErrorText] = useState('');
 
@@ -316,13 +349,13 @@ const messageComponent = ({ message, target, targetName, setActiveMessage, showC
     ]),
     ' ',
     h('b', null, `${whoText}:`),
-    h(messageBodyComponent, { message, actions, showControls, nameIdPairs }),
+    h(messageBodyComponent, { message, actions, showControls, nameIdPairs: inventory }),
     ' ',
     showControls && h(
       // @ts-ignore
       'button',
       {
-        onclick: () => actions.dismiss(),
+        onClick: () => actions.dismiss(),
       },
       'Hide',
     ),
@@ -379,8 +412,8 @@ const sendComponent = ({ target, recipientName }) => {
         {
           type: 'text',
           value: message,
-          oninput: e => setMessage(e.target.value),
-          onkeydown: e => {
+          onChange: e => setMessage(e.target.value),
+          onKeyDown: e => {
             if (e.key === 'Enter') {
               submitMessage()
             }
@@ -392,7 +425,7 @@ const sendComponent = ({ target, recipientName }) => {
         'button',
         {
           disabled: !recipientName,
-          onclick: () => {
+          onClick: () => {
             submitMessage()
           },
         },
@@ -402,10 +435,10 @@ const sendComponent = ({ target, recipientName }) => {
   )
 };
 
-const chatComponent = ({ target, targetName, nameIdPairs }) => {
+const chatComponent = ({ target, targetName, chatPartners, inventory }) => {
   const [activeMessage, setActiveMessage] = useState(false);
   const messages = useFollowMessages(() => E(target).followMessages(), [target]);
-  const knownGuests = useFollowNames(() => E(target).followQueryByType('guest-id512'), []);
+  const knownGuests = chatPartners.map(({ name }) => name);
   const isHost = targetName === 'host';
   const recipients = isHost ? knownGuests : ['HOST', ...knownGuests];
   const [specifiedRecipientName, setRecipientName] = useState();
@@ -417,7 +450,7 @@ const chatComponent = ({ target, targetName, nameIdPairs }) => {
 
   const messageEntries = currentMessages.map(message => {
     const showControls = activeMessage === message;
-    return h(messageComponent, { message, target, targetName, setActiveMessage, showControls, nameIdPairs });
+    return h(messageComponent, { message, target, targetName, setActiveMessage, showControls, inventory });
   });
 
   return h(Fragment, null, [
@@ -427,7 +460,7 @@ const chatComponent = ({ target, targetName, nameIdPairs }) => {
       'select',
       {
         value: recipientName,
-        onchange: e => setRecipientName(e.target.value),
+        onChange: e => setRecipientName(e.target.value),
       },
       recipients.map(name => h('option', { value: name }, name)),
     ),
@@ -449,7 +482,7 @@ const inventoryEntryComponent = ({ target, item }) => {
       // @ts-ignore
       'button',
       {
-        onclick: () => E(target).remove(name).catch(window.reportError),
+        onClick: () => E(target).remove(name).catch(window.reportError),
       },
       'Remove',
     ),
@@ -457,7 +490,7 @@ const inventoryEntryComponent = ({ target, item }) => {
       // @ts-ignore
       'button',
       {
-        onclick: () => {
+        onClick: () => {
           window.open(itemValue.url, '_blank')
         },
       },
@@ -485,14 +518,16 @@ const inventoryComponent = ({ target, inventory }) => {
 
 const bodyComponent = ({ powers }) => {
   const [currentInbox, setCurrentInbox] = useState('host');
-  const guests = useFollowNames(() => E(powers).followQueryByType('guest-id512'), []);
   const target = useAsync(() => {
     if (currentInbox === 'host') {
       return powers;
     }
     return E(powers).lookup(currentInbox)
   }, [currentInbox]);
-  const nameIdPairs = useFollowNames(() => target && E(target).followNamesWithId(), [target]);
+  const inventory = useFollowChanges(() => target && E(target).followNameChangesWithType(), [target]);
+  const nameTypePairs = inventory.map(({ name, value: { type }}) => ({ name, type }));
+  const handles = nameTypePairs.filter(({ type }) => type === 'handle');
+  const guests = []
   const inboxes = ['host', ...guests]
 
   return h(Fragment, null, [
@@ -502,12 +537,12 @@ const bodyComponent = ({ powers }) => {
       'select',
       {
         value: currentInbox,
-        onchange: e => setCurrentInbox(e.target.value),
+        onChange: e => setCurrentInbox(e.target.value),
       },
       inboxes.map(inbox => h('option', { value: inbox }, inbox)),
     ),
-    target && h(inventoryComponent, { target, inventory: nameIdPairs }),
-    target && h(chatComponent, { target, targetName: currentInbox, nameIdPairs }),
+    target && h(inventoryComponent, { target, inventory: nameTypePairs }),
+    target && h(chatComponent, { target, targetName: currentInbox, chatPartners: handles, inventory }),
   ]);
 };
 

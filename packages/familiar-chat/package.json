@@ -43,6 +43,8 @@
   "devDependencies": {
     "@endo/lockdown": "^0.1.32",
     "@endo/ses-ava": "^0.2.44",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
     "ava": "^5.3.0",
     "c8": "^7.14.0",
     "tsd": "^0.28.1"
@@ -70,8 +72,9 @@
   },
   "dependencies": {
     "@endo/cli": "^0.2.6",
-    "@endo/daemon": "^0.2.6",
+    "@endo/daemon": "2.3.0",
     "@endo/far": "^0.2.22",
-    "preact": "^10.19.2"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
