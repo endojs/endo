@@ -2,7 +2,7 @@
 set -e
 
 # fresh start
-endo reset
+endo purge -f
 
 # make profiles
 endo mkguest alice

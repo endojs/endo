@@ -9,12 +9,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "1kce-demo@workspace:packages/1kce"
   dependencies:
-    "@endo/daemon": "npm:0.2.6"
-    "@endo/far": "npm:^0.2.22"
-    "@endo/grain": "npm:0.1.0"
-    "@endo/lockdown": "npm:^0.1.32"
-    "@endo/promise-kit": "npm:0.2.60"
-    "@endo/ses-ava": "npm:^0.2.44"
+    "@endo/daemon": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/grain": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
     ava: "npm:^5.3.0"
     c8: "npm:^7.14.0"
     react: "npm:^18.2.0"
@@ -51,16 +51,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/code-frame@npm:^7.24.2":
-  version: 7.24.2
-  resolution: "@babel/code-frame@npm:7.24.2"
-  dependencies:
-    "@babel/highlight": "npm:^7.24.2"
-    picocolors: "npm:^1.0.0"
-  checksum: 10c0/d1d4cba89475ab6aab7a88242e1fd73b15ecb9f30c109b69752956434d10a26a52cbd37727c4eca104b6d45227bd1dfce39a6a6f4a14c9b2f07f871e968cf406
-  languageName: node
-  linkType: hard
-
 "@babel/generator@npm:^7.23.6":
   version: 7.23.6
   resolution: "@babel/generator@npm:7.23.6"
@@ -70,18 +60,6 @@ __metadata:
     "@jridgewell/trace-mapping": "npm:^0.3.17"
     jsesc: "npm:^2.5.1"
   checksum: 10c0/53540e905cd10db05d9aee0a5304e36927f455ce66f95d1253bb8a179f286b88fa7062ea0db354c566fe27f8bb96567566084ffd259f8feaae1de5eccc8afbda
-  languageName: node
-  linkType: hard
-
-"@babel/generator@npm:^7.24.5":
-  version: 7.24.5
-  resolution: "@babel/generator@npm:7.24.5"
-  dependencies:
-    "@babel/types": "npm:^7.24.5"
-    "@jridgewell/gen-mapping": "npm:^0.3.5"
-    "@jridgewell/trace-mapping": "npm:^0.3.25"
-    jsesc: "npm:^2.5.1"
-  checksum: 10c0/0d64f880150e7dfb92ceff2b4ac865f36aa1e295120920246492ffd0146562dabf79ba8699af1c8833f8a7954818d4d146b7b02f808df4d6024fb99f98b2f78d
   languageName: node
   linkType: hard
 
@@ -120,15 +98,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/helper-split-export-declaration@npm:^7.24.5":
-  version: 7.24.5
-  resolution: "@babel/helper-split-export-declaration@npm:7.24.5"
-  dependencies:
-    "@babel/types": "npm:^7.24.5"
-  checksum: 10c0/d7a812d67d031a348f3fb0e6263ce2dbe6038f81536ba7fb16db385383bcd6542b71833194303bf6d3d0e4f7b6b584c9c8fae8772122e2ce68fc9bdf07f4135d
-  languageName: node
-  linkType: hard
-
 "@babel/helper-string-parser@npm:^7.23.4":
   version: 7.23.4
   resolution: "@babel/helper-string-parser@npm:7.23.4"
@@ -143,13 +112,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/helper-validator-identifier@npm:^7.24.5":
-  version: 7.24.5
-  resolution: "@babel/helper-validator-identifier@npm:7.24.5"
-  checksum: 10c0/05f957229d89ce95a137d04e27f7d0680d84ae48b6ad830e399db0779341f7d30290f863a93351b4b3bde2166737f73a286ea42856bb07c8ddaa95600d38645c
-  languageName: node
-  linkType: hard
-
 "@babel/highlight@npm:^7.23.4":
   version: 7.23.4
   resolution: "@babel/highlight@npm:7.23.4"
@@ -158,27 +120,6 @@ __metadata:
     chalk: "npm:^2.4.2"
     js-tokens: "npm:^4.0.0"
   checksum: 10c0/fbff9fcb2f5539289c3c097d130e852afd10d89a3a08ac0b5ebebbc055cc84a4bcc3dcfed463d488cde12dd0902ef1858279e31d7349b2e8cee43913744bda33
-  languageName: node
-  linkType: hard
-
-"@babel/highlight@npm:^7.24.2":
-  version: 7.24.5
-  resolution: "@babel/highlight@npm:7.24.5"
-  dependencies:
-    "@babel/helper-validator-identifier": "npm:^7.24.5"
-    chalk: "npm:^2.4.2"
-    js-tokens: "npm:^4.0.0"
-    picocolors: "npm:^1.0.0"
-  checksum: 10c0/e98047d3ad24608bfa596d000c861a2cc875af897427f2833b91a4e0d4cead07301a7ec15fa26093dcd61e036e2eed2db338ae54f93016fe0dc785fadc4159db
-  languageName: node
-  linkType: hard
-
-"@babel/parser@npm:^7.17.3, @babel/parser@npm:^7.24.5":
-  version: 7.24.5
-  resolution: "@babel/parser@npm:7.24.5"
-  bin:
-    parser: ./bin/babel-parser.js
-  checksum: 10c0/8333a6ad5328bad34fa0e12bcee147c3345ea9a438c0909e7c68c6cfbea43c464834ffd7eabd1cbc1c62df0a558e22ffade9f5b29440833ba7b33d96a71f88c0
   languageName: node
   linkType: hard
 
@@ -199,24 +140,6 @@ __metadata:
     "@babel/parser": "npm:^7.22.15"
     "@babel/types": "npm:^7.22.15"
   checksum: 10c0/9312edd37cf1311d738907003f2aa321a88a42ba223c69209abe4d7111db019d321805504f606c7fd75f21c6cf9d24d0a8223104cd21ebd207e241b6c551f454
-  languageName: node
-  linkType: hard
-
-"@babel/traverse@npm:^7.17.3":
-  version: 7.24.5
-  resolution: "@babel/traverse@npm:7.24.5"
-  dependencies:
-    "@babel/code-frame": "npm:^7.24.2"
-    "@babel/generator": "npm:^7.24.5"
-    "@babel/helper-environment-visitor": "npm:^7.22.20"
-    "@babel/helper-function-name": "npm:^7.23.0"
-    "@babel/helper-hoist-variables": "npm:^7.22.5"
-    "@babel/helper-split-export-declaration": "npm:^7.24.5"
-    "@babel/parser": "npm:^7.24.5"
-    "@babel/types": "npm:^7.24.5"
-    debug: "npm:^4.3.1"
-    globals: "npm:^11.1.0"
-  checksum: 10c0/3f22534bc2b2ed9208e55ef48af3b32939032b23cb9dc4037447cb108640df70bbb0b9fea86e9c58648949fdc2cb14e89aa79ffa3c62a5dd43459a52fe8c01d1
   languageName: node
   linkType: hard
 
@@ -284,13 +207,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@endo/base64@npm:^0.2.35":
-  version: 0.2.35
-  resolution: "@endo/base64@npm:0.2.35"
-  checksum: 10c0/5935cd609cbe3da91e9bdbc1c3a2be0460c58302d0b92ae63054e537aa9e2e5648a238810ec548d7367166c72094c38e2dbf0b16a37c6987c8d7353d1b0123a1
-  languageName: node
-  linkType: hard
-
 "@endo/base64@workspace:^, @endo/base64@workspace:packages/base64":
   version: 0.0.0-use.local
   resolution: "@endo/base64@workspace:packages/base64"
@@ -335,18 +251,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/captp@npm:^3.1.5":
-  version: 3.1.5
-  resolution: "@endo/captp@npm:3.1.5"
-  dependencies:
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/marshal": "npm:^0.8.9"
-    "@endo/nat": "npm:^4.1.31"
-    "@endo/promise-kit": "npm:^0.2.60"
-  checksum: 10c0/bbae2b1ef1d509bb91373c0a05426b1b93a56bcd7371532025f64e524ae2878cf48bd89f442c4524a61caea06f8ee91956df3ba29a357d4bdb2ec352821e74a7
-  languageName: node
-  linkType: hard
-
 "@endo/captp@workspace:^, @endo/captp@workspace:packages/captp":
   version: 0.0.0-use.local
   resolution: "@endo/captp@workspace:packages/captp"
@@ -387,13 +291,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/cjs-module-analyzer@npm:^0.2.35":
-  version: 0.2.35
-  resolution: "@endo/cjs-module-analyzer@npm:0.2.35"
-  checksum: 10c0/26d571803afe889ba327979c9208a037d8cbbb6e689cf20e10bd8d0658936a35b37d61b86180dbed6ac49ac284307177b16eeb10d6afe61c7674d4c6507913ab
-  languageName: node
-  linkType: hard
-
 "@endo/cjs-module-analyzer@workspace:^, @endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer":
   version: 0.0.0-use.local
   resolution: "@endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer"
@@ -411,24 +308,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/cli@npm:^0.2.6":
-  version: 0.2.6
-  resolution: "@endo/cli@npm:0.2.6"
-  dependencies:
-    "@endo/compartment-mapper": "npm:^0.9.2"
-    "@endo/daemon": "npm:^0.2.6"
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/far": "npm:^0.2.22"
-    "@endo/lockdown": "npm:^0.1.32"
-    "@endo/promise-kit": "npm:^0.2.60"
-    "@endo/where": "npm:^0.3.5"
-    commander: "npm:^5.0.0"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/be217f667f4ac75acbcc559ba356786e10004762db54f35bfb50ac3a4fe1092d8e7918b45af3285e8651de8a513fd9a4f81ef099cc4b04995eeffe0e39b77bbf
-  languageName: node
-  linkType: hard
-
-"@endo/cli@workspace:packages/cli":
+"@endo/cli@workspace:^, @endo/cli@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "@endo/cli@workspace:packages/cli"
   dependencies:
@@ -480,18 +360,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/compartment-mapper@npm:^0.9.2":
-  version: 0.9.2
-  resolution: "@endo/compartment-mapper@npm:0.9.2"
-  dependencies:
-    "@endo/cjs-module-analyzer": "npm:^0.2.35"
-    "@endo/static-module-record": "npm:^0.8.2"
-    "@endo/zip": "npm:^0.2.35"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/ee42a78293f04924f3f65b123822e7f684c4337c3b3921cb78385c37ca4011ca89deca21488c7a44a9d472b196036ba9549b3e727b2934b67a9cf8876f1a8b38
-  languageName: node
-  linkType: hard
-
 "@endo/compartment-mapper@workspace:^, @endo/compartment-mapper@workspace:packages/compartment-mapper":
   version: 0.0.0-use.local
   resolution: "@endo/compartment-mapper@workspace:packages/compartment-mapper"
@@ -512,24 +380,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/daemon@npm:0.2.6, @endo/daemon@npm:^0.2.6":
-  version: 0.2.6
-  resolution: "@endo/daemon@npm:0.2.6"
-  dependencies:
-    "@endo/captp": "npm:^3.1.5"
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/far": "npm:^0.2.22"
-    "@endo/lockdown": "npm:^0.1.32"
-    "@endo/netstring": "npm:^0.3.30"
-    "@endo/promise-kit": "npm:^0.2.60"
-    "@endo/stream": "npm:^0.3.29"
-    "@endo/stream-node": "npm:^0.2.30"
-    "@endo/where": "npm:^0.3.5"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/e97274af1f0fc13ca35717ed9bdd04ea6c80a43ae02ed55e0dc156f2cd45507de71af675f640cc32426eef62f65b074403c7e5a2dff49631dad83a28812d3157
-  languageName: node
-  linkType: hard
 
 "@endo/daemon@workspace:^, @endo/daemon@workspace:packages/daemon":
   version: 0.0.0-use.local
@@ -645,15 +495,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/eventual-send@npm:^0.17.6":
-  version: 0.17.6
-  resolution: "@endo/eventual-send@npm:0.17.6"
-  dependencies:
-    "@endo/env-options": "npm:^0.1.4"
-  checksum: 10c0/3a8dae48e06ad3a8fdad074d0b6b10ced09f1e440f04f802d98372243ed8ead97278d85d4aa4a310dee34bc7146f09e7aaf6d01b7c06cbe3f8610544c97b5ce2
-  languageName: node
-  linkType: hard
-
 "@endo/eventual-send@workspace:^, @endo/eventual-send@workspace:packages/eventual-send":
   version: 0.0.0-use.local
   resolution: "@endo/eventual-send@workspace:packages/eventual-send"
@@ -696,27 +537,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/familiar-chat@workspace:packages/familiar-chat"
   dependencies:
-    "@endo/cli": "npm:^0.2.6"
-    "@endo/daemon": "npm:^0.2.6"
-    "@endo/far": "npm:^0.2.22"
+    "@endo/cli": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/far": "workspace:^"
     "@endo/lockdown": "npm:^0.1.32"
     "@endo/ses-ava": "npm:^0.2.44"
+    "@types/react": "npm:^18"
+    "@types/react-dom": "npm:^18"
     ava: "npm:^5.3.0"
     c8: "npm:^7.14.0"
-    preact: "npm:^10.19.2"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
     tsd: "npm:^0.28.1"
   languageName: unknown
   linkType: soft
-
-"@endo/far@npm:^0.2.22":
-  version: 0.2.22
-  resolution: "@endo/far@npm:0.2.22"
-  dependencies:
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/pass-style": "npm:^0.1.7"
-  checksum: 10c0/bd30a168b47a26014cab296336a64aa2721975c386f7f87b6776dd33cf77f3e85ddb822e8422fbc2befb6920d72301e3b9b206fe71d970dce1870b708b09805d
-  languageName: node
-  linkType: hard
 
 "@endo/far@workspace:^, @endo/far@workspace:packages/far":
   version: 0.0.0-use.local
@@ -733,14 +567,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/grain@npm:0.1.0, @endo/grain@workspace:packages/grain":
+"@endo/grain@workspace:^, @endo/grain@workspace:packages/grain":
   version: 0.0.0-use.local
   resolution: "@endo/grain@workspace:packages/grain"
   dependencies:
-    "@endo/daemon": "npm:^0.2.6"
-    "@endo/far": "npm:^0.2.22"
+    "@endo/daemon": "workspace:^"
+    "@endo/far": "workspace:^"
     "@endo/lockdown": "npm:^0.1.32"
-    "@endo/promise-kit": "npm:^0.2.60"
+    "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "npm:^0.2.44"
     ava: "npm:^5.3.0"
     c8: "npm:^7.14.0"
@@ -776,18 +610,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/init@npm:^0.5.60":
-  version: 0.5.60
-  resolution: "@endo/init@npm:0.5.60"
-  dependencies:
-    "@endo/base64": "npm:^0.2.35"
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/lockdown": "npm:^0.1.32"
-    "@endo/promise-kit": "npm:^0.2.60"
-  checksum: 10c0/247f189139e3ba244ddcf9c3252e865783020c1524cfab94210b504afaecc11f0e9d61ab7beef9fbe221c572577113a7a4d3a12057f9e9072a4e1e7eda493c62
-  languageName: node
-  linkType: hard
 
 "@endo/init@workspace:^, @endo/init@workspace:packages/init":
   version: 0.0.0-use.local
@@ -841,18 +663,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/marshal@npm:^0.8.9":
-  version: 0.8.9
-  resolution: "@endo/marshal@npm:0.8.9"
-  dependencies:
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/nat": "npm:^4.1.31"
-    "@endo/pass-style": "npm:^0.1.7"
-    "@endo/promise-kit": "npm:^0.2.60"
-  checksum: 10c0/cd49675e423e55e8d83f132b051e3844fd065036ada30dbb5452f4d0775c500a16668ad987d227d7f63643e0e1065200014b5545dfe6339d670653c481768b08
-  languageName: node
-  linkType: hard
 
 "@endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
   version: 0.0.0-use.local
@@ -916,13 +726,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/nat@npm:^4.1.31":
-  version: 4.1.31
-  resolution: "@endo/nat@npm:4.1.31"
-  checksum: 10c0/d77f2663b6f22cf4912e71d9a7b9e3e8268519a46d95675197bb2eaf788cccfefda909e632db446d161701a77595d7bb481afc0b1fe026167cbbf245ed3ccdb8
-  languageName: node
-  linkType: hard
-
 "@endo/nat@workspace:^, @endo/nat@workspace:packages/nat":
   version: 0.0.0-use.local
   resolution: "@endo/nat@workspace:packages/nat"
@@ -938,17 +741,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/netstring@npm:^0.3.30":
-  version: 0.3.30
-  resolution: "@endo/netstring@npm:0.3.30"
-  dependencies:
-    "@endo/init": "npm:^0.5.60"
-    "@endo/stream": "npm:^0.3.29"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/9a5910962884f4e5d7cba57cd0e5625241e89af3505d8698b5066c396f2fe16083a4cfc1ac99c950148db36d56a73dac62a086c25538e6ea44288ffc25e4ccff
-  languageName: node
-  linkType: hard
 
 "@endo/netstring@workspace:^, @endo/netstring@workspace:packages/netstring":
   version: 0.0.0-use.local
@@ -970,16 +762,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/pass-style@npm:^0.1.7":
-  version: 0.1.7
-  resolution: "@endo/pass-style@npm:0.1.7"
-  dependencies:
-    "@endo/promise-kit": "npm:^0.2.60"
-    "@fast-check/ava": "npm:^1.1.5"
-  checksum: 10c0/0fc8ca918e4b2888619fa10765b9a414f1ab921b590f257421f4af4a523b80b2afc736280691ed99e8f8807ead3afc478c1a855772c52a4c8fbe43733f3fe656
-  languageName: node
-  linkType: hard
 
 "@endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
   version: 0.0.0-use.local
@@ -1026,15 +808,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/promise-kit@npm:0.2.60, @endo/promise-kit@npm:^0.2.60":
-  version: 0.2.60
-  resolution: "@endo/promise-kit@npm:0.2.60"
-  dependencies:
-    ses: "npm:^0.18.8"
-  checksum: 10c0/45fa191d0211cf9e99a6b300c373849c7662e8832e20fbcfa4a8f4938d9c9509f22c3a76377629be70447adc1d2e4e99a56a99395af19ba2a0c1010bfe1da4dd
-  languageName: node
-  linkType: hard
 
 "@endo/promise-kit@workspace:^, @endo/promise-kit@workspace:packages/promise-kit":
   version: 0.0.0-use.local
@@ -1098,30 +871,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/static-module-record@npm:^0.8.2":
-  version: 0.8.2
-  resolution: "@endo/static-module-record@npm:0.8.2"
-  dependencies:
-    "@agoric/babel-generator": "npm:^7.17.6"
-    "@babel/parser": "npm:^7.17.3"
-    "@babel/traverse": "npm:^7.17.3"
-    "@babel/types": "npm:^7.17.0"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/85b3cc7c11568706c51c85b665b3a49cc141bc7ca023531dbff6cd46e3cd00ddfc6edc58b4dc171a0fb352dd6a33d17b867531d9e1c8a7951eef770635535f51
-  languageName: node
-  linkType: hard
-
-"@endo/stream-node@npm:^0.2.30":
-  version: 0.2.30
-  resolution: "@endo/stream-node@npm:0.2.30"
-  dependencies:
-    "@endo/init": "npm:^0.5.60"
-    "@endo/stream": "npm:^0.3.29"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/e64838d4552715b72f01635e8ff70552eb66c078382a48b3e3ce70af78d0eb5333c39d691a6bc43e5b61a3b535dcde2ac10b6b51886b5f88715a03ffbe783565
-  languageName: node
-  linkType: hard
-
 "@endo/stream-node@workspace:^, @endo/stream-node@workspace:packages/stream-node":
   version: 0.0.0-use.local
   resolution: "@endo/stream-node@workspace:packages/stream-node"
@@ -1161,17 +910,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/stream@npm:^0.3.29":
-  version: 0.3.29
-  resolution: "@endo/stream@npm:0.3.29"
-  dependencies:
-    "@endo/eventual-send": "npm:^0.17.6"
-    "@endo/promise-kit": "npm:^0.2.60"
-    ses: "npm:^0.18.8"
-  checksum: 10c0/a1bbf1d643193650efb4b68784193729ed6c1e2c9039ba2a51502b0ebf37691b338961ed9f69e81d4edec1b40e1f6d4ab1887a6ddf824bcda5d094e6d1489282
-  languageName: node
-  linkType: hard
 
 "@endo/stream@workspace:^, @endo/stream@workspace:packages/stream":
   version: 0.0.0-use.local
@@ -1231,13 +969,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/where@npm:^0.3.5":
-  version: 0.3.5
-  resolution: "@endo/where@npm:0.3.5"
-  checksum: 10c0/ae4214a4ef1ec9338301e4ae3df17e7c988abb1abf5c3e4c7f720b44e93c4d57e11fff7b454a031fa6216cc2ee3b9eba718cc851db171bb50ca91e693e5e8826
-  languageName: node
-  linkType: hard
-
 "@endo/where@workspace:^, @endo/where@workspace:packages/where":
   version: 0.0.0-use.local
   resolution: "@endo/where@workspace:packages/where"
@@ -1254,13 +985,6 @@ __metadata:
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
   linkType: soft
-
-"@endo/zip@npm:^0.2.35":
-  version: 0.2.35
-  resolution: "@endo/zip@npm:0.2.35"
-  checksum: 10c0/bb81c085e47a5d67342dcc039b2f471e4679e08de95cea3cdba598e2644125ec0b2002e7a1d3ff9a10977380487a58688d7e2c4d1d5525c16e46fed4b735372d
-  languageName: node
-  linkType: hard
 
 "@endo/zip@workspace:^, @endo/zip@workspace:packages/zip":
   version: 0.0.0-use.local
@@ -1446,17 +1170,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jridgewell/gen-mapping@npm:^0.3.5":
-  version: 0.3.5
-  resolution: "@jridgewell/gen-mapping@npm:0.3.5"
-  dependencies:
-    "@jridgewell/set-array": "npm:^1.2.1"
-    "@jridgewell/sourcemap-codec": "npm:^1.4.10"
-    "@jridgewell/trace-mapping": "npm:^0.3.24"
-  checksum: 10c0/1be4fd4a6b0f41337c4f5fdf4afc3bd19e39c3691924817108b82ffcb9c9e609c273f936932b9fba4b3a298ce2eb06d9bff4eb1cc3bd81c4f4ee1b4917e25feb
-  languageName: node
-  linkType: hard
-
 "@jridgewell/resolve-uri@npm:^3.1.0":
   version: 3.1.1
   resolution: "@jridgewell/resolve-uri@npm:3.1.1"
@@ -1468,13 +1181,6 @@ __metadata:
   version: 1.1.2
   resolution: "@jridgewell/set-array@npm:1.1.2"
   checksum: 10c0/bc7ab4c4c00470de4e7562ecac3c0c84f53e7ee8a711e546d67c47da7febe7c45cd67d4d84ee3c9b2c05ae8e872656cdded8a707a283d30bd54fbc65aef821ab
-  languageName: node
-  linkType: hard
-
-"@jridgewell/set-array@npm:^1.2.1":
-  version: 1.2.1
-  resolution: "@jridgewell/set-array@npm:1.2.1"
-  checksum: 10c0/2a5aa7b4b5c3464c895c802d8ae3f3d2b92fcbe84ad12f8d0bfbb1f5ad006717e7577ee1fd2eac00c088abe486c7adb27976f45d2941ff6b0b92b2c3302c60f4
   languageName: node
   linkType: hard
 
@@ -1502,16 +1208,6 @@ __metadata:
     "@jridgewell/resolve-uri": "npm:^3.1.0"
     "@jridgewell/sourcemap-codec": "npm:^1.4.14"
   checksum: 10c0/18cf19f88e2792c1c91515f2b629aae05f3cdbb2e60c3886e16e80725234ce26dd10144c4981c05d9366e7094498c0b4fe5c1a89f4a730d7376a4ba4af448149
-  languageName: node
-  linkType: hard
-
-"@jridgewell/trace-mapping@npm:^0.3.24, @jridgewell/trace-mapping@npm:^0.3.25":
-  version: 0.3.25
-  resolution: "@jridgewell/trace-mapping@npm:0.3.25"
-  dependencies:
-    "@jridgewell/resolve-uri": "npm:^3.1.0"
-    "@jridgewell/sourcemap-codec": "npm:^1.4.14"
-  checksum: 10c0/3d1ce6ebc69df9682a5a8896b414c6537e428a1d68b02fcc8363b04284a8ca0df04d0ee3013132252ab14f2527bc13bea6526a912ecb5658f0e39fd2860b4df4
   languageName: node
   linkType: hard
 
@@ -2628,6 +2324,32 @@ __metadata:
   version: 2.4.1
   resolution: "@types/normalize-package-data@npm:2.4.1"
   checksum: 10c0/c90b163741f27a1a4c3b1869d7d5c272adbd355eb50d5f060f9ce122ce4342cf35f5b0005f55ef780596cacfeb69b7eee54cd3c2e02d37f75e664945b6e75fc6
+  languageName: node
+  linkType: hard
+
+"@types/prop-types@npm:*":
+  version: 15.7.12
+  resolution: "@types/prop-types@npm:15.7.12"
+  checksum: 10c0/1babcc7db6a1177779f8fde0ccc78d64d459906e6ef69a4ed4dd6339c920c2e05b074ee5a92120fe4e9d9f1a01c952f843ebd550bee2332fc2ef81d1706878f8
+  languageName: node
+  linkType: hard
+
+"@types/react-dom@npm:^18":
+  version: 18.3.0
+  resolution: "@types/react-dom@npm:18.3.0"
+  dependencies:
+    "@types/react": "npm:*"
+  checksum: 10c0/6c90d2ed72c5a0e440d2c75d99287e4b5df3e7b011838cdc03ae5cd518ab52164d86990e73246b9d812eaf02ec351d74e3b4f5bd325bf341e13bf980392fd53b
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:*, @types/react@npm:^18":
+  version: 18.3.1
+  resolution: "@types/react@npm:18.3.1"
+  dependencies:
+    "@types/prop-types": "npm:*"
+    csstype: "npm:^3.0.2"
+  checksum: 10c0/18d856c12a4ec93f3cda2d58ef3d77a9480818afd3af895f812896fb82cfca1f35a692ab1add4ce826a4eb58a071624c7d1c8c6c4ccfb81c100d2916dc607614
   languageName: node
   linkType: hard
 
@@ -4329,6 +4051,13 @@ __metadata:
   bin:
     cssesc: bin/cssesc
   checksum: 10c0/6bcfd898662671be15ae7827120472c5667afb3d7429f1f917737f3bf84c4176003228131b643ae74543f17a394446247df090c597bb9a728cce298606ed0aa7
+  languageName: node
+  linkType: hard
+
+"csstype@npm:^3.0.2":
+  version: 3.1.3
+  resolution: "csstype@npm:3.1.3"
+  checksum: 10c0/80c089d6f7e0c5b2bd83cf0539ab41474198579584fa10d86d0cafe0642202343cbc119e076a0b1aece191989477081415d66c9fefbf3c957fc2fc4b7009f248
   languageName: node
   linkType: hard
 
@@ -9077,13 +8806,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"picocolors@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "picocolors@npm:1.0.0"
-  checksum: 10c0/20a5b249e331c14479d94ec6817a182fd7a5680debae82705747b2db7ec50009a5f6648d0621c561b0572703f84dbef0858abcbd5856d3c5511426afcb1961f7
-  languageName: node
-  linkType: hard
-
 "picomatch@npm:^2.0.4, picomatch@npm:^2.2.1, picomatch@npm:^2.2.2, picomatch@npm:^2.3.1":
   version: 2.3.1
   resolution: "picomatch@npm:2.3.1"
@@ -9177,13 +8899,6 @@ __metadata:
     cssesc: "npm:^3.0.0"
     util-deprecate: "npm:^1.0.2"
   checksum: 10c0/523196a6bd8cf660bdf537ad95abd79e546d54180f9afb165a4ab3e651ac705d0f8b8ce6b3164fb9e3279ce482c5f751a69eb2d3a1e8eb0fd5e82294fb3ef13e
-  languageName: node
-  linkType: hard
-
-"preact@npm:^10.19.2":
-  version: 10.21.0
-  resolution: "preact@npm:10.21.0"
-  checksum: 10c0/1f3cfcb5ca83b780b53593bcb917ae2e8d10a37405c32fb6774be1b5f1f3167d2156bd22c058627388330acc54da35fe8d4bbe7d38ae567a10e5d8fd943a1a06
   languageName: node
   linkType: hard
 
@@ -9383,7 +9098,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^18.2.0":
+"react-dom@npm:^18.2.0, react-dom@npm:^18.3.1":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1"
   dependencies:
@@ -9402,7 +9117,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^18.2.0":
+"react@npm:^18.2.0, react@npm:^18.3.1":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
   dependencies:
