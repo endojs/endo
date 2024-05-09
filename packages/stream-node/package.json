@@ -77,7 +77,8 @@
   },
   "ava": {
     "files": [
-      "test/**/test-*.js"
+      "test/**/test-*.*",
+      "test/**/*.test.*"
     ],
     "timeout": "2m"
   },
