@@ -67,7 +67,8 @@
   },
   "ava": {
     "files": [
-      "test/**/test-*.js"
+      "test/**/test-*.*",
+      "test/**/*.test.*"
     ]
   },
   "eslintConfig": {
