@@ -9,7 +9,6 @@ module.exports = {
           '**/*.config.*.js',
           // leading wildcard to work in CLI (package path) and IDE (repo path)
           '**/test/**',
-          '**/test-*.js',
           '**/demo*/**/*.js',
           '**/scripts/**/*.js',
         ],
