@@ -43,7 +43,8 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "ava": {
     "files": [
-      "test/**/test-*.js"
+      "test/**/test-*.*",
+      "test/**/*.test.*"
     ]
   },
   "eslintConfig": {
