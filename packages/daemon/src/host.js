@@ -584,6 +584,7 @@ export const makeHostMaker = ({
       list,
       listIdentifiers,
       followNameChanges,
+      followNameChangesWithType,
       followLocatorNameChanges,
       reverseLookup,
       write,
@@ -616,6 +617,7 @@ export const makeHostMaker = ({
       listIdentifiers,
       followLocatorNameChanges,
       followNameChanges,
+      followNameChangesWithType,
       lookup,
       reverseLookup,
       write,
@@ -657,6 +659,8 @@ export const makeHostMaker = ({
       /** @param {string} locator */
       followLocatorNameChanges: locator =>
         makeIteratorRef(host.followLocatorNameChanges(locator)),
+      followNameChangesWithType: (...petNamePath) =>
+        makeIteratorRef(host.followNameChangesWithType(...petNamePath)),
       followMessages: () => makeIteratorRef(host.followMessages()),
       followNameChanges: () => makeIteratorRef(host.followNameChanges()),
     });
