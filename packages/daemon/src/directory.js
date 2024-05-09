@@ -174,22 +174,25 @@ export const makeDirectoryMaker = ({
       const { hub: fromHub, name: fromName } =
         await lookupTailNameHub(fromPath);
       const { hub: toHub, name: toName } = await lookupTailNameHub(toPath);
+
       if (fromHub === toHub) {
         // eslint-disable-next-line no-use-before-define
         if (fromHub === directory) {
           await petStore.rename(fromName, toName);
         } else {
-          await fromHub.move([fromName], [toName]);
+          await E(fromHub).move([fromName], [toName]);
         }
         return;
       }
-      const id = await fromHub.identify(fromName);
+
+      const id = await E(fromHub).identify(fromName);
       if (id === undefined) {
         throw new Error(`Unknown name: ${q(fromPath)}`);
       }
-      const removeP = fromHub.remove(fromName);
-      const addP = toHub.write([toName], id);
-      await Promise.all([addP, removeP]);
+      // First write to the "to" hub so that the original name is preserved on the
+      // "from" hub in case of failure.
+      await E(toHub).write([toName], id);
+      await E(fromHub).remove(fromName);
     };
 
     /** @type {EndoDirectory['copy']} */

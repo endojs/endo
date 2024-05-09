@@ -195,6 +195,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       }
       assertValidId(formulaIdentifier, fromName);
 
+      // Updated persisted name mapping
       const fromPath = filePowers.joinPath(petNameDirectoryPath, fromName);
       const toPath = filePowers.joinPath(petNameDirectoryPath, toName);
       await filePowers.renamePath(fromPath, toPath);
@@ -206,6 +207,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       }
 
       // Update the mapping for the pet name.
+      idsToPetNames.delete(formulaIdentifier, fromName);
       idsToPetNames.add(formulaIdentifier, toName);
 
       publishNameRemoval(formulaIdentifier, fromName);
