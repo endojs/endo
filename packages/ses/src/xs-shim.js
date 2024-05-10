@@ -7,6 +7,43 @@ const nativeFreeze = Object.freeze;
 // This machinery allows us to replace the native Compartment with an adapter
 // in the start compartment and any child compartment that the adapter begets.
 const compartmentShim = `(NativeCompartment, compartmentShim, maybeHarden) => {
+
+  const adaptVirtualSource = ({
+    execute,
+    imports = [],
+    exports = [],
+    reexports = [],
+  }) => {
+    const resolutions = Object.create(null);
+    let i = 0;
+    return {
+      execute(environment) {
+        const fakeCompartment = {
+          importNow(specifier) {
+            return environment[specifier];
+          },
+        };
+        execute(environment, fakeCompartment, resolutions);
+      },
+      bindings: [
+        ...imports.map(specifier => {
+          const resolved = '_' + (i++);
+          resolutions[specifier] = resolved;
+          return { importAllFrom: specifier, as: resolved };
+        }),
+        ...reexports.map(specifier => ({ exportAllFrom: specifier })),
+        ...exports.map(name => ({ export: name })),
+      ],
+    };
+  };
+
+  const adaptSource = (source) => {
+    if (source.execute) {
+      return adaptVirtualSource(source);
+    }
+    return source;
+  }
+
   class Compartment {
     #name;
     #transforms;
@@ -22,7 +59,7 @@ const compartmentShim = `(NativeCompartment, compartmentShim, maybeHarden) => {
           compartment: descriptor.compartment.#native,
         };
       }
-      return { source: descriptor };
+      return { source: adaptSource(descriptor) };
     }
 
     constructor(
