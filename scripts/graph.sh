@@ -2,7 +2,7 @@
 # Generates visualizations of the internal package dependency graph.
 # Also generates visualizations of the transitive reduction (tred) of
 # that graph, which is the minimal graph with the same *transitive*
-# dependcies. Much more legible by itelf. Seeing the two side by side
+# dependencies. Much more legible by itelf. Seeing the two side by side
 # often helps to understand the full picture.
 set -ueo pipefail
 DIR=$(dirname -- "${BASH_SOURCE[0]}")
