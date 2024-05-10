@@ -138,7 +138,7 @@ const prepareHostWithTestNetwork = async t => {
   const iteratorRef = E(host).followMessages();
   const { value: message } = await E(iteratorRef).next();
   const { number } = E.get(message);
-  await E(host).evaluate('MAIN', '`127.0.0.1:0`', [], [], 'netport');
+  await E(host).storeValue('127.0.0.1:0', 'netport');
   await E(host).resolve(await number, 'netport');
 
   // move test network to network dir
@@ -364,8 +364,7 @@ test('anonymous spawn and evaluate with new worker', async t => {
 test('spawning a worker does not overwrite existing non-worker name', async t => {
   const { host } = await prepareHost(t);
 
-  const foo = await E(host).evaluate('MAIN', '10', [], [], 'foo');
-  t.is(foo, 10);
+  await E(host).storeValue(10, 'foo');
 
   // This resolves with the existing value of 'foo' rather than overwriting it
   // with a new worker.
@@ -874,7 +873,7 @@ test('followNameChanges publishes new names', async t => {
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
 
   const { value } = await changesIterator.next();
   t.is(value.add, 'ten');
@@ -885,7 +884,7 @@ test('followNameChanges publishes removed names', async t => {
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
   await changesIterator.next();
 
   await E(host).remove('ten');
@@ -898,7 +897,7 @@ test('followNameChanges publishes renamed names', async t => {
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
   await changesIterator.next();
 
   await E(host).move(['ten'], ['zehn']);
@@ -914,19 +913,19 @@ test('followNameChanges publishes renamed names (existing mappings for both name
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
   await changesIterator.next();
-  await E(host).evaluate('MAIN', '"german 10"', [], [], 'zehn');
+  await E(host).storeValue('"X"', 'decimus');
   await changesIterator.next();
 
-  await E(host).move(['ten'], ['zehn']);
+  await E(host).move(['ten'], ['decimus']);
 
   let { value } = await changesIterator.next();
-  t.is(value.remove, 'zehn');
+  t.is(value.remove, 'decimus');
   value = (await changesIterator.next()).value;
   t.is(value.remove, 'ten');
   value = (await changesIterator.next()).value;
-  t.is(value.add, 'zehn');
+  t.is(value.add, 'decimus');
 });
 
 test('followNameChanges does not notify of redundant pet store writes', async t => {
@@ -934,7 +933,7 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
 
   const changesIterator = await prepareFollowNameChangesIterator(host);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
   await changesIterator.next();
 
   const tenId = await E(host).identify('ten');
@@ -942,7 +941,7 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
 
   // Create a new value and observe its publication, proving that nothing was
   // published as as result of the redundant write.
-  await E(host).evaluate('MAIN', '11', [], [], 'eleven');
+  await E(host).storeValue(11, 'eleven');
   const { value } = await changesIterator.next();
   t.is(value.add, 'eleven');
 });
@@ -950,7 +949,7 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
 test('followLocatorNameChanges first publishes existing pet name', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
   const tenLocatorSub = makeRefIterator(
@@ -989,7 +988,7 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
 test('followLocatorNameChanges publishes added names', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
   const changesIterator = await prepareFollowLocatorNameChangesIterator(
@@ -1006,7 +1005,7 @@ test('followLocatorNameChanges publishes added names', async t => {
 test('followLocatorNameChanges publishes removed names', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
   await E(host).write(['zehn'], idFromLocator(tenLocator));
@@ -1024,7 +1023,7 @@ test('followLocatorNameChanges publishes removed names', async t => {
 test('followLocatorNameChanges publishes renamed names', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
   const changesIterator = await prepareFollowLocatorNameChangesIterator(
@@ -1043,37 +1042,37 @@ test('followLocatorNameChanges publishes renamed names', async t => {
 test('followLocatorNameChanges publishes renamed names (existing mappings for both names)', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
-  await E(host).evaluate('MAIN', '"german 10"', [], [], 'zehn');
+  await E(host).storeValue(10, 'ten');
+  await E(host).storeValue('"X"', 'decimus');
 
   const tenLocator = await E(host).locate('ten');
-  const zehnLocator = await E(host).locate('zehn');
+  const decimusLocator = await E(host).locate('decimus');
   const tenChangesIterator = await prepareFollowLocatorNameChangesIterator(
     host,
     tenLocator,
   );
-  const zehnChangesIterator = await prepareFollowLocatorNameChangesIterator(
+  const decimusChangesIterator = await prepareFollowLocatorNameChangesIterator(
     host,
-    zehnLocator,
+    decimusLocator,
   );
 
-  await E(host).move(['ten'], ['zehn']);
+  await E(host).move(['ten'], ['decimus']);
 
-  // First, changes for "zehn"
-  let { value } = await zehnChangesIterator.next();
-  t.deepEqual(value, { remove: zehnLocator, names: ['zehn'] });
+  // First, changes for "decimus"
+  let { value } = await decimusChangesIterator.next();
+  t.deepEqual(value, { remove: decimusLocator, names: ['decimus'] });
 
   // Then, changes for "ten"
   value = (await tenChangesIterator.next()).value;
   t.deepEqual(value, { remove: tenLocator, names: ['ten'] });
   value = (await tenChangesIterator.next()).value;
-  t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
+  t.deepEqual(value, { add: tenLocator, names: ['decimus'] });
 });
 
 test('followLocatorNameChanges does not notify of redundant pet store writes', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
   const changesIterator = await prepareFollowLocatorNameChangesIterator(
@@ -1466,8 +1465,7 @@ test('lookup with single petname', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).provideGuest('guest');
-  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
-  t.is(ten, 10);
+  await E(host).storeValue(10, 'ten');
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
@@ -1510,7 +1508,7 @@ test('lookup with petname path (caplet with lookup method)', async t => {
 test('lookup with petname path (value has no lookup method)', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).storeValue(10, 'ten');
   await t.throwsAsync(
     E(host).evaluate(
       'MAIN',
@@ -1675,12 +1673,11 @@ test('hello from afar', async t => {
 test('locate local value', async t => {
   const { host } = await prepareHost(t);
 
-  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
-  t.is(ten, 10);
+  await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
   const parsedLocator = parseLocator(tenLocator);
-  t.is(parsedLocator.formulaType, 'eval');
+  t.is(parsedLocator.formulaType, 'marshal');
 });
 
 test('locate local persisted value', async t => {
@@ -1688,8 +1685,7 @@ test('locate local persisted value', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
-    t.is(ten, 10);
+    await E(host).storeValue(10, 'ten');
   }
 
   await restart(config);
@@ -1698,7 +1694,7 @@ test('locate local persisted value', async t => {
     const { host } = await makeHost(config, cancelled);
     const tenLocator = await E(host).locate('ten');
     const parsedLocator = parseLocator(tenLocator);
-    t.is(parsedLocator.formulaType, 'eval');
+    t.is(parsedLocator.formulaType, 'marshal');
   }
 });
 
@@ -1749,8 +1745,7 @@ test('invite, accept, and send mail', async t => {
 test('reverse locate local value', async t => {
   const { host } = await prepareHost(t);
 
-  const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
-  t.is(ten, 10);
+  await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
   const [reverseLocatedName] = await E(host).reverseLocate(tenLocator);
@@ -1762,8 +1757,7 @@ test('reverse locate local persisted value', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const ten = await E(host).evaluate('MAIN', '10', [], [], 'ten');
-    t.is(ten, 10);
+    await E(host).storeValue(10, 'ten');
   }
 
   await restart(config);
