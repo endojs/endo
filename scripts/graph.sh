@@ -1,6 +1,6 @@
 #!/bin/bash
 # Generates visualizations of the internal package dependency graph.
-# Also generates vistualizations of the transitive reduction (tred) of
+# Also generates visualizations of the transitive reduction (tred) of
 # that graph, which is the minimal graph with the same *transitive*
 # dependcies. Much more legible by itelf. Seeing the two side by side
 # often helps to understand the full picture.
