@@ -234,12 +234,12 @@ export const makeMarshal = (
   };
 
   const makeFullRevive = slots => {
-    /** @type {Map<number>} */
+    /** @type {Map<number, RemotableObject | Promise>} */
     const valMap = new Map();
 
     /**
      * @param {{iface?: string, index: number}} slotData
-     * @returns {PassableCap}
+     * @returns {RemotableObject | Promise}
      */
     const decodeSlotCommon = slotData => {
       const { iface = undefined, index, ...rest } = slotData;
@@ -346,7 +346,7 @@ export const makeMarshal = (
     const makeDecodeSlotFromSmallcaps = prefix => {
       /**
        * @param {string} stringEncoding
-       * @param {(e: unknown) => PassableCap} _decodeRecur
+       * @param {(e: unknown) => Passable} _decodeRecur
        * @returns {RemotableObject | Promise}
        */
       return (stringEncoding, _decodeRecur) => {

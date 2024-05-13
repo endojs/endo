@@ -69,6 +69,9 @@ Object.assign(assert, assertions);
 // quote behavior for that environment.
 const bareOrQuote = bare || quote;
 
+// XXX module exports fail if these aren't in scope
+/** @import {AssertMakeErrorOptions, Details, GenericErrorConstructor} from 'ses' */
+
 export {
   // assertions
   assert,
