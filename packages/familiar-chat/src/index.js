@@ -34,6 +34,13 @@ const dateFormatter = new window.Intl.DateTimeFormat(undefined, {
   timeStyle: 'long',
 });
 
+// not exported by daemon?
+const formatId = ({ number, node }) => {
+  const id = `${number}:${node}`;
+  // assertValidId(id);
+  return id;
+};
+
 const arrayWithout = (array, value) => {
   const newArray = array.slice();
   const index = newArray.indexOf(value);
@@ -78,6 +85,7 @@ const useFollowReducer = (getSubFn, reducerFn, deps) => {
     let shouldAbort = false;
     const iterateChanges = async () => {
       for await (const event of subIterator) {
+        console.log('useFollowReducer event', event, shouldAbort)
         // Check if we should abort iteration
         if (shouldAbort) {
           break;
@@ -170,7 +178,30 @@ const formatChatTime = (date) => {
   return strTime;
 }
 
-const packageMessageEdgeNameComponent = ({ edgeName, formulaId, setSelectedName, nameIdPairs }) => {
+const chatMessagePattern = /@([a-z][a-z0-9-]{0,127})(?::([a-z][a-z0-9-]{0,127}))?/g;
+
+const parseChatMessage = message => {
+  const strings = [];
+  const petNames = [];
+  const edgeNames = [];
+  let start = 0;
+  message.replace(chatMessagePattern, (match, edgeName, petName, stop) => {
+    strings.push(message.slice(start, stop));
+    start = stop + match.length;
+
+    edgeNames.push(edgeName);
+    petNames.push(petName ?? edgeName);
+    return '';
+  });
+  strings.push(message.slice(start));
+  return {
+    strings,
+    petNames,
+    edgeNames,
+  };
+};
+
+const PackageMessageEdgeNameComponent = ({ edgeName, formulaId, setSelectedName, nameIdPairs }) => {
   const matchingPair = nameIdPairs.find(({ id }) => formulaId === id);
   const nameIsKnown = matchingPair !== undefined;
   const nameDisplay = nameIsKnown ? `@${matchingPair.name}` : `?${edgeName}`;
@@ -185,9 +216,9 @@ const packageMessageEdgeNameComponent = ({ edgeName, formulaId, setSelectedName,
   )
 };
 
-const packageMessageDisplayComponent = ({ message, setSelectedName, nameIdPairs }) => {
-  /** @type {{ strings: string[], names: string[], formulaIds: string[] }} */
-  const { strings, names, formulaIds } = message;
+const PackageMessageDisplayComponent = ({ message, setSelectedName, nameIdPairs }) => {
+  /** @type {{ strings: string[], names: string[], ids: string[] }} */
+  const { strings, names, ids } = message;
   const stringEntries = strings.map((string, index) => {
     const name = names[index];
     if (name === undefined) {
@@ -195,10 +226,10 @@ const packageMessageDisplayComponent = ({ message, setSelectedName, nameIdPairs 
       const textDisplay = JSON.stringify(string).slice(1, -1);
       return textDisplay;
     } else {
-      const formulaId = formulaIds[index];
+      const formulaId = ids[index];
       return h(Fragment, null, [
         string,
-        h(packageMessageEdgeNameComponent, { edgeName: name, formulaId, setSelectedName, nameIdPairs }),
+        h(PackageMessageEdgeNameComponent, { edgeName: name, formulaId, setSelectedName, nameIdPairs }),
       ]);
     }
   });
@@ -207,9 +238,19 @@ const packageMessageDisplayComponent = ({ message, setSelectedName, nameIdPairs 
   ]);
 };
 
-const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPairs }) => {
-  /** @type {{ strings: string[], names: string[], formulaTypes: string[] }} */
-  const { strings, names, formulaTypes } = message;
+const PackageMessageBodyComponent = ({ message, actions, showControls, nameIdPairs }) => {
+    // date: "2024-05-13T03:39:58.577Z"
+    // dismissed: Promise {<pending>}
+    // dismisser: Alleged: Dismisser {}
+    // from: "59f3acfc3eebdd6fd27a46db2670716440e85225f2607d931042f4f2ad499693bc464f5787dcda1fab1811e1b07ebfba47c945225d8d118024ddb0998cb08102:969bc6bb05575f8ede7167013b40ae054fc5fa48f9609541c3fbf86d09482ccf0f16c0fc5184a9d27192772d344445e5710c7c9fc4ff96afd282cf519cbe3a3e"
+    // ids: []
+    // names: []
+    // number: 5
+    // strings: ['y']
+    // to: "de216c6283f791a0fe7cac27b8b9e398cfa73468f508666eff2f2e3ea53ce570b15d1b88e9352b03aacd5e9322fe162ffd2ea04f54cf291eca9e8e2b1f7585db:9c11c6f325eff13d8c678c90a62f5bc76bd3b4d7355d7190528d48a0ee6905ee5a53ebe341a2ac001c27b5f313ec4ca2a4631f0fd66b4cd1d2adc0d4a774dc70"
+    // type: "package"
+  /** @type {{ strings: string[], names: string[] }} */
+  const { strings, names } = message;
   assert(Array.isArray(strings));
   assert(Array.isArray(names));
 
@@ -218,8 +259,9 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
   const hasItems = names.length > 0;
 
   const makeControls = () => {
-    const index = names.indexOf(selectedName);
-    const type = formulaTypes[index];
+    // const index = names.indexOf(selectedName);
+    // const type = formulaTypes[index];
+    const type = 'unknown';
     const isApp = type === 'web-bundle';
     const typeDisplay = inventoryTypeDisplayDict[type] ?? type;
 
@@ -266,13 +308,13 @@ const packageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
 
   return h(Fragment, null, [
     ' ',
-    h(packageMessageDisplayComponent, { message, setSelectedName, nameIdPairs }),
+    h(PackageMessageDisplayComponent, { message, setSelectedName, nameIdPairs }),
     showControls && h('br', null),
     showControls && hasItems && makeControls(),
   ]);
 };
 
-const requestMessageBodyComponent = ({ message, actions, showControls }) => {
+const RequestMessageBodyComponent = ({ message, actions, showControls }) => {
   const [petName, setPetName] = useState('');
   const { what, when, settled } = message;
   const status = useAsync(() => settled, [settled]);
@@ -313,20 +355,21 @@ const requestMessageBodyComponent = ({ message, actions, showControls }) => {
   ]);
 };
 
-const messageComponent = ({ message, target, targetName, setActiveMessage, showControls, inventory }) => {
-  const { number, who, when } = message;
+const MessageComponent = ({ message, target, targetName, setActiveMessage, showControls, inventory }) => {
+  const { number, from: fromId, date } = message;
   const [errorText, setErrorText] = useState('');
 
-  let messageBodyComponent;
+  let MessageBodyComponent;
   if (message.type === 'request') {
-    messageBodyComponent = requestMessageBodyComponent;
+    MessageBodyComponent = RequestMessageBodyComponent;
   } else if (message.type === 'package') {
-    messageBodyComponent = packageMessageBodyComponent;
+    MessageBodyComponent = PackageMessageBodyComponent;
   } else {
     throw new Error(`Unknown message type: ${message.type}`);
   }
 
-  const whoText = who === 'SELF' ? `${targetName}` : `${who}`;
+  const fromName = inventory.find(({ id }) => id === fromId)?.name;
+  const whoText = fromName === 'SELF' ? `${targetName}` : `${fromName}`;
 
   const reportError = error => {
     setErrorText(error.message);
@@ -345,11 +388,11 @@ const messageComponent = ({ message, target, targetName, setActiveMessage, showC
     onClick: () => setActiveMessage(message),
   }, [
     h('span', null, [
-      formatChatTime(new Date(when)),
+      formatChatTime(new Date(date)),
     ]),
     ' ',
     h('b', null, `${whoText}:`),
-    h(messageBodyComponent, { message, actions, showControls, nameIdPairs: inventory }),
+    h(MessageBodyComponent, { message, actions, showControls, nameIdPairs: inventory }),
     ' ',
     showControls && h(
       // @ts-ignore
@@ -371,35 +414,12 @@ const messageComponent = ({ message, target, targetName, setActiveMessage, showC
   ]);
 };
 
-const pattern = /@([a-z][a-z0-9-]{0,127})(?::([a-z][a-z0-9-]{0,127}))?/g;
-
-export const parseMessage = message => {
-  const strings = [];
-  const petNames = [];
-  const edgeNames = [];
-  let start = 0;
-  message.replace(pattern, (match, edgeName, petName, stop) => {
-    strings.push(message.slice(start, stop));
-    start = stop + match.length;
-
-    edgeNames.push(edgeName);
-    petNames.push(petName ?? edgeName);
-    return '';
-  });
-  strings.push(message.slice(start));
-  return {
-    strings,
-    petNames,
-    edgeNames,
-  };
-};
-
-const sendComponent = ({ target, recipientName }) => {
+const SendComponent = ({ target, recipientName }) => {
   const [message, setMessage] = useState('');
 
   const submitMessage = () => {
     setMessage('');
-    const { strings, edgeNames, petNames } = parseMessage(message);
+    const { strings, edgeNames, petNames } = parseChatMessage(message);
     E(target)
       .send(recipientName, strings, edgeNames, petNames)
       .catch(window.reportError);
@@ -435,22 +455,22 @@ const sendComponent = ({ target, recipientName }) => {
   )
 };
 
-const chatComponent = ({ target, targetName, chatPartners, inventory }) => {
+const ChatComponent = ({ profile, profileName, chatPartners, inventory }) => {
   const [activeMessage, setActiveMessage] = useState(false);
-  const messages = useFollowMessages(() => E(target).followMessages(), [target]);
-  const knownGuests = chatPartners.map(({ name }) => name);
-  const isHost = targetName === 'host';
-  const recipients = isHost ? knownGuests : ['HOST', ...knownGuests];
+  const messages = useFollowMessages(() => E(profile).followMessages(), [profile]);
+  const chatPartnerNames = chatPartners.map(({ name }) => name);
   const [specifiedRecipientName, setRecipientName] = useState();
-  const recipientName = specifiedRecipientName || recipients[0];
+  const recipientName = specifiedRecipientName || chatPartnerNames[0];
+  const recipient = recipientName && chatPartners.find(({ name }) => name === recipientName);
+  const recipientId = recipient && recipient.id;
   const currentMessages = messages.filter(message => {
-    const { who, dest } = message;
-    return who === recipientName || dest === recipientName;
+    const { from, to } = message;
+    return from === recipientId || to === recipientId;
   })
 
   const messageEntries = currentMessages.map(message => {
     const showControls = activeMessage === message;
-    return h(messageComponent, { message, target, targetName, setActiveMessage, showControls, inventory });
+    return h(MessageComponent, { message, target: profile, targetName: profileName, setActiveMessage, showControls, inventory });
   });
 
   return h(Fragment, null, [
@@ -462,14 +482,14 @@ const chatComponent = ({ target, targetName, chatPartners, inventory }) => {
         value: recipientName,
         onChange: e => setRecipientName(e.target.value),
       },
-      recipients.map(name => h('option', { value: name }, name)),
+      chatPartnerNames.map(name => h('option', { value: name }, name)),
     ),
     h('div', null, messageEntries),
-    h(sendComponent, { target, recipientName }),
+    h(SendComponent, { target: profile, recipientName }),
   ]);
 };
 
-const inventoryEntryComponent = ({ target, item }) => {
+const InventoryEntryComponent = ({ target, item }) => {
   const { name, type } = item;
   const isWebBundle = type === 'web-bundle';
   const itemValue = useAsync(() => isWebBundle && E(target).lookup(name), [target, name, isWebBundle])
@@ -499,7 +519,7 @@ const inventoryEntryComponent = ({ target, item }) => {
   ]);
 }
 
-const inventoryComponent = ({ target, inventory }) => {
+const InventoryComponent = ({ target, inventory }) => {
   const inventoryMap = new Map()
   for (const item of inventory) {
     inventoryMap.set(item.name, item);
@@ -507,7 +527,7 @@ const inventoryComponent = ({ target, inventory }) => {
   const sortedNames = [...inventoryMap.keys()].sort((a, b) => a.localeCompare(b));
 
   const inventoryEntries = sortedNames.map(name => {
-    return h(inventoryEntryComponent, { target, item: inventoryMap.get(name) });
+    return h(InventoryEntryComponent, { target, item: inventoryMap.get(name) });
   });
 
   return h(Fragment, null, [
@@ -516,19 +536,22 @@ const inventoryComponent = ({ target, inventory }) => {
   ]);
 };
 
-const bodyComponent = ({ powers }) => {
-  const [currentInbox, setCurrentInbox] = useState('host');
-  const target = useAsync(() => {
-    if (currentInbox === 'host') {
+const BodyComponent = ({ powers }) => {
+  const [currentProfileName, setCurrentProfileName] = useState('host');
+  const currentProfile = useAsync(() => {
+    if (currentProfileName === 'host') {
       return powers;
     }
-    return E(powers).lookup(currentInbox)
-  }, [currentInbox]);
-  const inventory = useFollowChanges(() => target && E(target).followNameChangesWithType(), [target]);
-  const nameTypePairs = inventory.map(({ name, value: { type }}) => ({ name, type }));
-  const handles = nameTypePairs.filter(({ type }) => type === 'handle');
+    return E(powers).lookup(currentProfileName)
+  }, [currentProfileName]);
+  const inventoryEntries = useFollowChanges(() => currentProfile && E(currentProfile).followNameChangesWithType(), [currentProfile]);
+  const inventory = inventoryEntries.map(({ name, value: { type, number, node }}) => {
+    const id = formatId({ number, node });
+    return { name, type, id, number, node };
+  });
+  const handles = inventory.filter(({ type }) => type === 'remote');
   const guests = []
-  const inboxes = ['host', ...guests]
+  const profiles = ['host', ...guests]
 
   return h(Fragment, null, [
     h('h1', {}, '🐈‍⬛'),
@@ -536,18 +559,18 @@ const bodyComponent = ({ powers }) => {
     h(
       'select',
       {
-        value: currentInbox,
-        onChange: e => setCurrentInbox(e.target.value),
+        value: currentProfileName,
+        onChange: e => setCurrentProfileName(e.target.value),
       },
-      inboxes.map(inbox => h('option', { value: inbox }, inbox)),
+      profiles.map(inbox => h('option', { value: inbox }, inbox)),
     ),
-    target && h(inventoryComponent, { target, inventory: nameTypePairs }),
-    target && h(chatComponent, { target, targetName: currentInbox, chatPartners: handles, inventory }),
+    currentProfile && h(InventoryComponent, { target: currentProfile, inventory }),
+    currentProfile && h(ChatComponent, { profile: currentProfile, profileName: currentProfileName, chatPartners: handles, inventory }),
   ]);
 };
 
 export const make = async powers => {
   document.body.innerHTML = '';
-  const app = h(bodyComponent, { powers });
+  const app = h(BodyComponent, { powers });
   render(app, document.body);
 };
