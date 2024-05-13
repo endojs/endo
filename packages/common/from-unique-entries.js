@@ -8,9 +8,9 @@ const { ownKeys } = Reflect;
  * like `Object.fromEntries` but hardens the result.
  * Use it to protect from property names computed from user-provided data.
  *
- * @template K,V
- * @param {Iterable<[K,V]>} allEntries
- * @returns {{[k: K]: V}}
+ * @template [T=any]
+ * @param {Iterable<readonly [PropertyKey, T]>} allEntries
+ * @returns {{ [k: string]: T; }}
  */
 export const fromUniqueEntries = allEntries => {
   const entriesArray = [...allEntries];
