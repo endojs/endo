@@ -230,6 +230,7 @@ const template = `
   <button id="cat">🐈‍⬛</button>
   <button id="chat-button">Chat</button>
   <button id="eval-button">Eval</button>
+  <button id="install-button">Install</button>
 </div>
 
 <div id="chat-frame" class="frame">
@@ -264,6 +265,40 @@ const template = `
   <div id="value-window" class="window">
     <p><div id="value-value"></div>
     <p><button id="value-close">Close</button>
+  </div>
+</div>
+
+<div id="install-frame" class="frame">
+  <div id="install-window" class="window">
+    <div>
+      <label for="install-bundle">
+        Bundle name (readable blob):
+        <input id="install-bundle">
+      </label>
+    </div>
+    <div>
+      <label for="install-powers">
+        Endowed powers:
+        <input id="install-powers">
+      </label>
+    </div>
+    <div>
+      <label for="install-port">
+        Port:
+        <input id="install-port" type="number" min="1024" max="65535">
+      </label>
+    </div>
+    <div>
+      <label for="install-name">
+        New name:
+        <input id="install-name">
+      </label>
+    </div>
+    <span id="install-error" class="error"></span>
+    <div>
+      <button id="install-cancel">Cancel</button>
+      <button id="install-submit">Install</button>
+    </div>
   </div>
 </div>
 `;
@@ -573,65 +608,72 @@ const inventorySelectComponent = async ($select, powers) => {
 
 const controlsComponent = (
   $parent,
-  { focusChat, blurChat, focusValue, blurValue, focusEval, blurEval },
+  {
+    focusChat,
+    blurChat,
+    focusValue,
+    blurValue,
+    focusEval,
+    blurEval,
+    focusInstall,
+    blurInstall,
+  },
 ) => {
   const $cat = $parent.querySelector('#cat');
-  const $chatFrame = $parent.querySelector('#chat-frame');
-  const $valueFrame = $parent.querySelector('#value-frame');
-  const $evalFrame = $parent.querySelector('#eval-frame');
   const $controls = $parent.querySelector('#controls');
 
   let showFanout = false;
 
-  const showChat = () => {
-    $chatFrame.dataset.show = 'true';
-    $controls.dataset.show = 'false';
-    showFanout = false;
-    focusChat();
+  const frameComponent = ($frame, $show, focus, blur) => {
+    const show = (...args) => {
+      $frame.dataset.show = 'true';
+      $controls.dataset.show = 'false';
+      showFanout = false;
+      focus(...args);
+    };
+    const dismiss = () => {
+      $frame.dataset.show = 'false';
+      blur();
+    };
+    if ($show) {
+      $show.addEventListener('click', () => {
+        show();
+      });
+    }
+    return { show, dismiss };
   };
 
-  const showValue = value => {
-    $valueFrame.dataset.show = 'true';
-    $controls.dataset.show = 'false';
-    showFanout = false;
-    focusValue(value);
-  };
+  const { show: showChat, dismiss: dismissChat } = frameComponent(
+    $parent.querySelector('#chat-frame'),
+    $parent.querySelector('#chat-button'),
+    focusChat,
+    blurChat,
+  );
 
-  const showEval = () => {
-    $evalFrame.dataset.show = 'true';
-    $controls.dataset.show = 'false';
-    showFanout = false;
-    focusEval();
-  };
+  const { show: showEval, dismiss: dismissEval } = frameComponent(
+    $parent.querySelector('#eval-frame'),
+    $parent.querySelector('#eval-button'),
+    focusEval,
+    blurEval,
+  );
 
-  const dismissChat = () => {
-    $chatFrame.dataset.show = 'false';
-    blurChat();
-  };
+  const { show: showValue, dismiss: dismissValue } = frameComponent(
+    $parent.querySelector('#value-frame'),
+    null,
+    focusValue,
+    blurValue,
+  );
 
-  const dismissValue = () => {
-    $valueFrame.dataset.show = 'false';
-    blurValue();
-  };
-
-  const dismissEval = () => {
-    $evalFrame.dataset.show = 'false';
-    blurEval();
-  };
+  const { show: showInstall, dismiss: dismissInstall } = frameComponent(
+    $parent.querySelector('#install-frame'),
+    $parent.querySelector('#install-button'),
+    focusInstall,
+    blurInstall,
+  );
 
   $cat.addEventListener('click', () => {
     showFanout = !showFanout;
     $controls.dataset.show = `${showFanout}`;
-  });
-
-  const $chatButton = $parent.querySelector('#chat-button');
-  $chatButton.addEventListener('click', () => {
-    showChat();
-  });
-
-  const $evalButton = $parent.querySelector('#eval-button');
-  $evalButton.addEventListener('click', () => {
-    showEval();
   });
 
   // Accelerator:
@@ -647,10 +689,13 @@ const controlsComponent = (
     } else if (key === '.') {
       showEval();
       event.stopPropagation();
+    } else if (key === 'i') {
+      showInstall();
+      event.stopPropagation();
     }
   });
 
-  return { dismissChat, showValue, dismissValue, dismissEval };
+  return { dismissChat, showValue, dismissValue, dismissEval, dismissInstall };
 };
 
 const chatComponent = ($parent, powers, { dismissChat }) => {
@@ -1007,6 +1052,112 @@ const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
   return { focusEval, blurEval };
 };
 
+/** @param {HTMLElement} $error */
+const errorComponent = $error => {
+  /** @param {string} message */
+  const updateError = message => {
+    const $newError = document.createElement('div');
+    $newError.className = 'error';
+    $error.replaceWith($newError);
+    $error = $newError;
+  };
+
+  const clearError = () => {
+    const $newError = document.createTextNode('');
+    $error.replaceWith($newError);
+    $error = $newError;
+  };
+
+  clearError($error);
+
+  return { updateError, clearError };
+};
+
+const installComponent = ($parent, powers, { dismissInstall }) => {
+  const $bundle = $parent.querySelector('#install-bundle');
+  const $powers = $parent.querySelector('#install-powers');
+  const $port = $parent.querySelector('#install-port');
+  const $name = $parent.querySelector('#install-name');
+  const $submit = $parent.querySelector('#install-submit');
+  const $cancel = $parent.querySelector('#install-cancel');
+  let $error = $parent.querySelector('#install-error');
+
+  const { updateError, clearError } = errorComponent($error);
+
+  const clearInstall = () => {
+    $bundle.value = '';
+    $port.value = '';
+    $name.value = '';
+    clearError();
+  };
+
+  const submit = async () => {
+    const bundleName = $bundle.value;
+    const port = $port.value;
+    const powersName = $powers.value;
+    const webletName = $name.value;
+    const weblet = E(powers).evaluate(
+      'MAIN',
+      `E(apps).makeWeblet(bundle, powers, ${JSON.stringify(
+        port,
+      )}, $id, $cancelled)`,
+      ['apps', 'bundle', 'powers'],
+      ['APPS', bundleName, powersName],
+      webletName,
+    );
+    await E(weblet)
+      .getLocation()
+      .then(
+        webletLocation => {
+          window.open(webletLocation, `port${port}`, 'noopener,noreferrer');
+          clearInstall();
+          dismissInstall();
+        },
+        error => {
+          reportError(error);
+          $bundle.focus();
+          updateError(error.message);
+        },
+      );
+  };
+
+  $submit.addEventListener('click', event => {
+    submit();
+    event.stopPropagation();
+  });
+
+  $cancel.addEventListener('click', event => {
+    clearInstall();
+    dismissInstall();
+    event.stopPropagation();
+  });
+
+  const handleKey = event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Enter') {
+      submit().catch(window.reportError);
+      event.stopPropagation();
+    } else if (key === 'Escape') {
+      clearInstall();
+      dismissInstall();
+      event.stopPropagation();
+    }
+  };
+
+  const focusInstall = () => {
+    window.addEventListener('keyup', handleKey);
+    $bundle.focus();
+  };
+
+  const blurInstall = () => {
+    window.removeEventListener('keyup', handleKey);
+    clearInstall();
+  };
+
+  return { focusInstall, blurInstall };
+};
+
 const bodyComponent = ($parent, powers) => {
   $parent.innerHTML = template;
 
@@ -1017,7 +1168,7 @@ const bodyComponent = ($parent, powers) => {
   // To they who can avoid forward-references for entangled component
   // dependency-injection, I salute you and welcome your pull requests.
   /* eslint-disable no-use-before-define */
-  const { dismissChat, showValue, dismissValue, dismissEval } =
+  const { dismissChat, showValue, dismissValue, dismissEval, dismissInstall } =
     controlsComponent($parent, {
       focusChat: () => focusChat(),
       blurChat: () => blurChat(),
@@ -1025,6 +1176,8 @@ const bodyComponent = ($parent, powers) => {
       blurValue: () => blurValue(),
       focusEval: () => focusEval(),
       blurEval: () => blurEval(),
+      focusInstall: () => focusInstall(),
+      blurInstall: () => blurInstall(),
     });
   inboxComponent($messages, $anchor, powers).catch(window.reportError);
   inventoryComponent($pets, null, powers, { showValue }).catch(
@@ -1039,6 +1192,9 @@ const bodyComponent = ($parent, powers) => {
   const { focusEval, blurEval } = evalComponent($parent, powers, {
     showValue,
     dismissEval,
+  });
+  const { focusInstall, blurInstall } = installComponent($parent, powers, {
+    dismissInstall,
   });
   /* eslint-enable no-use-before-define */
 };
