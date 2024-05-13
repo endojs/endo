@@ -1129,12 +1129,26 @@ const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
       <button id="${removeId}">Remove</button>
     `;
 
+    const $codeName = $endowment.querySelector(`#${codeNameId}`);
+    const $petName = $endowment.querySelector(`#${petNameId}`);
     const $remove = $endowment.querySelector(`#${removeId}`);
+
+    let namesWereSame = true;
+    $codeName.addEventListener('focus', () => {
+      // Allow event to propagate.
+      namesWereSame = $codeName.value === $petName.value;
+    });
+    $codeName.addEventListener('change', () => {
+      // Allow event to propagate.
+      if (namesWereSame) {
+        $petName.value = $codeName.value;
+      }
+    });
+
     $remove.addEventListener('click', handleRemoveEndowment);
     $endOfEndowments.parentElement.insertBefore($endowment, $endOfEndowments);
     $endowments.set(removeId, $endowment);
 
-    const $codeName = $endowment.querySelector('.code-name');
     $codeName.focus();
   };
 
