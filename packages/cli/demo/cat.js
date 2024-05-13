@@ -230,6 +230,7 @@ const template = `
   <button id="cat">🐈‍⬛</button>
   <button id="chat-button">Chat</button>
   <button id="eval-button">Eval</button>
+  <button id="make-button">Make</button>
   <button id="install-button">Install</button>
 </div>
 
@@ -298,6 +299,40 @@ const template = `
     <div>
       <button id="install-cancel">Cancel</button>
       <button id="install-submit">Install</button>
+    </div>
+  </div>
+</div>
+
+<div id="make-frame" class="frame">
+  <div id="make-window" class="window">
+    <div>
+      <label for="make-bundle">
+        Bundle name (readable blob):
+        <input id="make-bundle">
+      </label>
+    </div>
+    <div>
+      <label for="make-powers">
+        Endowed powers:
+        <input id="make-powers">
+      </label>
+    </div>
+    <div>
+      <label for="make-worker">
+        Worker:
+        <input id="make-worker">
+      </label>
+    </div>
+    <div>
+      <label for="make-name">
+        New name:
+        <input id="make-name">
+      </label>
+    </div>
+    <span id="make-error" class="error"></span>
+    <div>
+      <button id="make-cancel">Cancel</button>
+      <button id="make-submit">Make</button>
     </div>
   </div>
 </div>
@@ -615,6 +650,8 @@ const controlsComponent = (
     blurValue,
     focusEval,
     blurEval,
+    focusMake,
+    blurMake,
     focusInstall,
     blurInstall,
   },
@@ -664,6 +701,13 @@ const controlsComponent = (
     blurValue,
   );
 
+  const { show: showMake, dismiss: dismissMake } = frameComponent(
+    $parent.querySelector('#make-frame'),
+    $parent.querySelector('#make-button'),
+    focusMake,
+    blurMake,
+  );
+
   const { show: showInstall, dismiss: dismissInstall } = frameComponent(
     $parent.querySelector('#install-frame'),
     $parent.querySelector('#install-button'),
@@ -689,13 +733,23 @@ const controlsComponent = (
     } else if (key === '.') {
       showEval();
       event.stopPropagation();
+    } else if (key === 'm') {
+      showMake();
+      event.stopPropagation();
     } else if (key === 'i') {
       showInstall();
       event.stopPropagation();
     }
   });
 
-  return { dismissChat, showValue, dismissValue, dismissEval, dismissInstall };
+  return {
+    dismissChat,
+    showValue,
+    dismissValue,
+    dismissEval,
+    dismissInstall,
+    dismissMake,
+  };
 };
 
 const chatComponent = ($parent, powers, { dismissChat }) => {
@@ -1073,6 +1127,85 @@ const errorComponent = $error => {
   return { updateError, clearError };
 };
 
+const makeComponent = ($parent, powers, { dismissMake, showValue }) => {
+  const $bundle = $parent.querySelector('#make-bundle');
+  const $powers = $parent.querySelector('#make-powers');
+  const $worker = $parent.querySelector('#make-worker');
+  const $name = $parent.querySelector('#make-name');
+  const $submit = $parent.querySelector('#make-submit');
+  const $cancel = $parent.querySelector('#make-cancel');
+  let $error = $parent.querySelector('#make-error');
+
+  const { updateError, clearError } = errorComponent($error);
+
+  const clearMake = () => {
+    $bundle.value = '';
+    $powers.value = 'NONE';
+    $worker.value = 'MAIN';
+    $name.value = '';
+    clearError();
+  };
+
+  const submit = async () => {
+    const bundleName = $bundle.value;
+    const powersName = $powers.value;
+    const resultName = $name.value;
+    const workerName = $worker.value;
+    await E(powers)
+      .makeBundle(workerName, bundleName, powersName, resultName)
+      .then(
+        value => {
+          clearMake();
+          dismissMake();
+          showValue(value);
+        },
+        error => {
+          reportError(error);
+          $bundle.focus();
+          updateError(error.message);
+        },
+      );
+  };
+
+  $submit.addEventListener('click', event => {
+    submit();
+    event.stopPropagation();
+  });
+
+  $cancel.addEventListener('click', event => {
+    clearMake();
+    dismissMake();
+    event.stopPropagation();
+  });
+
+  const handleKey = event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Enter') {
+      submit().catch(window.reportError);
+      event.stopPropagation();
+    } else if (key === 'Escape') {
+      clearMake();
+      dismissMake();
+      event.stopPropagation();
+    }
+  };
+
+  const focusMake = () => {
+    window.addEventListener('keyup', handleKey);
+    $bundle.focus();
+  };
+
+  const blurMake = () => {
+    window.removeEventListener('keyup', handleKey);
+    clearMake();
+  };
+
+  clearMake();
+
+  return { focusMake, blurMake };
+};
+
 const installComponent = ($parent, powers, { dismissInstall }) => {
   const $bundle = $parent.querySelector('#install-bundle');
   const $powers = $parent.querySelector('#install-powers');
@@ -1168,17 +1301,25 @@ const bodyComponent = ($parent, powers) => {
   // To they who can avoid forward-references for entangled component
   // dependency-injection, I salute you and welcome your pull requests.
   /* eslint-disable no-use-before-define */
-  const { dismissChat, showValue, dismissValue, dismissEval, dismissInstall } =
-    controlsComponent($parent, {
-      focusChat: () => focusChat(),
-      blurChat: () => blurChat(),
-      focusValue: value => focusValue(value),
-      blurValue: () => blurValue(),
-      focusEval: () => focusEval(),
-      blurEval: () => blurEval(),
-      focusInstall: () => focusInstall(),
-      blurInstall: () => blurInstall(),
-    });
+  const {
+    dismissChat,
+    showValue,
+    dismissValue,
+    dismissEval,
+    dismissInstall,
+    dismissMake,
+  } = controlsComponent($parent, {
+    focusChat: () => focusChat(),
+    blurChat: () => blurChat(),
+    focusValue: value => focusValue(value),
+    blurValue: () => blurValue(),
+    focusEval: () => focusEval(),
+    blurEval: () => blurEval(),
+    focusMake: () => focusMake(),
+    blurMake: () => blurMake(),
+    focusInstall: () => focusInstall(),
+    blurInstall: () => blurInstall(),
+  });
   inboxComponent($messages, $anchor, powers).catch(window.reportError);
   inventoryComponent($pets, null, powers, { showValue }).catch(
     window.reportError,
@@ -1192,6 +1333,10 @@ const bodyComponent = ($parent, powers) => {
   const { focusEval, blurEval } = evalComponent($parent, powers, {
     showValue,
     dismissEval,
+  });
+  const { focusMake, blurMake } = makeComponent($parent, powers, {
+    showValue,
+    dismissMake,
   });
   const { focusInstall, blurInstall } = installComponent($parent, powers, {
     dismissInstall,
