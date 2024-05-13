@@ -234,12 +234,12 @@ const template = `
 
 <div id="controls">
   <button id="cat">🐈‍⬛</button>
-  <button id="chat-button">Chat</button>
-  <button id="eval-button">Eval</button>
-  <button id="make-button">Make</button>
-  <button id="install-button">Install</button>
-  <button id="invite-button">Invite</button>
-  <button id="accept-button">Accept</button>
+  <button id="chat-button"><u>c</u>hat</button>
+  <button id="eval-button"><u>e</u>val</button>
+  <button id="make-button"><u>m</u>ake</button>
+  <button id="install-button"><u>i</u>nstall</button>
+  <button id="invite-button"><u>I</u>nvite</button>
+  <button id="accept-button"><u>A</u>ccept</button>
 </div>
 
 <div id="chat-frame" class="frame">
@@ -795,9 +795,14 @@ const controlsComponent = (
     blurAccept,
   );
 
-  $cat.addEventListener('click', () => {
+  const toggle = () => {
     showFanout = !showFanout;
     $controls.dataset.show = `${showFanout}`;
+  };
+
+  $cat.addEventListener('click', event => {
+    toggle();
+    event.stopPropagation();
   });
 
   // Accelerator:
@@ -807,10 +812,13 @@ const controlsComponent = (
       return;
     }
     if (repeat || metaKey) return;
-    if (key === '"' || key === "'") {
+    if (key === '?') {
+      toggle();
+      event.stopPropagation();
+    } else if (key === 'c') {
       showChat();
       event.stopPropagation();
-    } else if (key === '.') {
+    } else if (key === 'e') {
       showEval();
       event.stopPropagation();
     } else if (key === 'm') {
