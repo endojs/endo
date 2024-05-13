@@ -217,6 +217,12 @@ const template = `
     white-space: nowrap;
   }
 
+  #invitation-value {
+    word-break: break-word;
+    font-size: 150%;
+    width: 100%;
+  }
+
 </style>
 
 <div id="messages">
@@ -232,6 +238,7 @@ const template = `
   <button id="eval-button">Eval</button>
   <button id="make-button">Make</button>
   <button id="install-button">Install</button>
+  <button id="invite-button">Invite</button>
 </div>
 
 <div id="chat-frame" class="frame">
@@ -334,6 +341,31 @@ const template = `
       <button id="make-cancel">Cancel</button>
       <button id="make-submit">Make</button>
     </div>
+  </div>
+</div>
+
+<div id="invite-frame" class="frame">
+  <div id="invite-window" class="window">
+    <div>
+      <label for="invite-name">
+        Name for your new guest:
+        <input id="invite-name">
+      </label>
+    </div>
+    <span id="invite-error" class="error"></span>
+    <div>
+      <button id="invite-cancel">Cancel</button>
+      <button id="invite-submit">Invite</button>
+    </div>
+  </div>
+</div>
+
+<div id="invitation-frame" class="frame">
+  <div id="invitation-window" class="window">
+    Send this invitation to your guest by a mutually trustworthy out-of-band
+    channel.
+    <p><textarea id="invitation-value"></textarea></p>
+    <div><button id="invitation-close">Close</button></div>
   </div>
 </div>
 `;
@@ -654,6 +686,10 @@ const controlsComponent = (
     blurMake,
     focusInstall,
     blurInstall,
+    focusInvite,
+    blurInvite,
+    focusInvitation,
+    blurInvitation,
   },
 ) => {
   const $cat = $parent.querySelector('#cat');
@@ -715,6 +751,20 @@ const controlsComponent = (
     blurInstall,
   );
 
+  const { show: showInvite, dismiss: dismissInvite } = frameComponent(
+    $parent.querySelector('#invite-frame'),
+    $parent.querySelector('#invite-button'),
+    focusInvite,
+    blurInvite,
+  );
+
+  const { show: showInvitation, dismiss: dismissInvitation } = frameComponent(
+    $parent.querySelector('#invitation-frame'),
+    null,
+    focusInvitation,
+    blurInvitation,
+  );
+
   $cat.addEventListener('click', () => {
     showFanout = !showFanout;
     $controls.dataset.show = `${showFanout}`;
@@ -739,6 +789,9 @@ const controlsComponent = (
     } else if (key === 'i') {
       showInstall();
       event.stopPropagation();
+    } else if (key === 'I') {
+      showInvite();
+      event.stopPropagation();
     }
   });
 
@@ -749,6 +802,9 @@ const controlsComponent = (
     dismissEval,
     dismissInstall,
     dismissMake,
+    dismissInvite,
+    showInvitation,
+    dismissInvitation,
   };
 };
 
@@ -930,7 +986,7 @@ const render = value => {
   }
 };
 
-const valueComponent = ($parent, powers, { dismissValue }) => {
+const valueComponent = ($parent, { dismissValue }) => {
   const $value = $parent.querySelector('#value-value');
   const $close = $parent.querySelector('#value-close');
 
@@ -1291,6 +1347,125 @@ const installComponent = ($parent, powers, { dismissInstall }) => {
   return { focusInstall, blurInstall };
 };
 
+const inviteComponent = (
+  $parent,
+  powers,
+  { dismissInvite, showInvitation },
+) => {
+  const $name = $parent.querySelector('#invite-name');
+  const $submit = $parent.querySelector('#invite-submit');
+  const $cancel = $parent.querySelector('#invite-cancel');
+  let $error = $parent.querySelector('#invite-error');
+
+  const { updateError, clearError } = errorComponent($error);
+
+  const clearInvite = () => {
+    $name.value = '';
+    clearError();
+  };
+
+  const submit = async () => {
+    const name = $name.value;
+    const invitation = E(powers).invite(name);
+    await E(invitation)
+      .locate()
+      .then(
+        value => {
+          clearInvite();
+          dismissInvite();
+          showInvitation(value);
+        },
+        error => {
+          reportError(error);
+          $bundle.focus();
+          updateError(error.message);
+        },
+      );
+  };
+
+  $submit.addEventListener('click', event => {
+    submit();
+    event.stopPropagation();
+  });
+
+  $cancel.addEventListener('click', event => {
+    clearInvite();
+    dismissInvite();
+    event.stopPropagation();
+  });
+
+  const handleKey = event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Enter') {
+      submit().catch(window.reportError);
+      event.stopPropagation();
+    } else if (key === 'Escape') {
+      clearInvite();
+      dismissInvite();
+      event.stopPropagation();
+    }
+  };
+
+  const focusInvite = () => {
+    window.addEventListener('keyup', handleKey);
+    $name.focus();
+  };
+
+  const blurInvite = () => {
+    window.removeEventListener('keyup', handleKey);
+    clearInvite();
+  };
+
+  clearInvite();
+
+  return { focusInvite, blurInvite };
+};
+
+const invitationComponent = ($parent, { dismissInvitation }) => {
+  const $value = $parent.querySelector('#invitation-value');
+  const $close = $parent.querySelector('#invitation-close');
+
+  const clearInvitation = () => {
+    $value.value = '';
+    dismissInvitation();
+  };
+
+  $close.addEventListener('click', () => {
+    clearInvitation();
+  });
+
+  $value.addEventListener('click', () => {
+    $value.select();
+  });
+
+  const handleKey = event => {
+    const { key, repeat, metaKey } = event;
+    if (repeat || metaKey) return;
+    if (key === 'Escape') {
+      clearInvitation();
+      event.stopPropagation();
+    }
+  };
+
+  const focusInvitation = value => {
+    window.addEventListener('keyup', handleKey);
+    $value.value = value;
+    // This is a pretty terrible thing to do because it forces a pair of sync
+    // draws that compose poorly.
+    // To do better, we would need a read/write frame coordinator.
+    $value.style.height = '1px';
+    $value.style.height = `${$value.scrollHeight + 2}px`;
+    $close.focus();
+  };
+
+  const blurInvitation = () => {
+    window.removeEventListener('keyup', handleKey);
+  };
+
+  return { focusInvitation, blurInvitation };
+};
+
 const bodyComponent = ($parent, powers) => {
   $parent.innerHTML = template;
 
@@ -1308,6 +1483,9 @@ const bodyComponent = ($parent, powers) => {
     dismissEval,
     dismissInstall,
     dismissMake,
+    dismissInvite,
+    showInvitation,
+    dismissInvitation,
   } = controlsComponent($parent, {
     focusChat: () => focusChat(),
     blurChat: () => blurChat(),
@@ -1319,6 +1497,10 @@ const bodyComponent = ($parent, powers) => {
     blurMake: () => blurMake(),
     focusInstall: () => focusInstall(),
     blurInstall: () => blurInstall(),
+    focusInvitation: value => focusInvitation(value),
+    blurInvitation: () => blurInvitation(),
+    focusInvite: () => focusInvite(),
+    blurInvite: () => blurInvite(),
   });
   inboxComponent($messages, $anchor, powers).catch(window.reportError);
   inventoryComponent($pets, null, powers, { showValue }).catch(
@@ -1327,7 +1509,7 @@ const bodyComponent = ($parent, powers) => {
   const { focusChat, blurChat } = chatComponent($parent, powers, {
     dismissChat,
   });
-  const { focusValue, blurValue } = valueComponent($parent, powers, {
+  const { focusValue, blurValue } = valueComponent($parent, {
     dismissValue,
   });
   const { focusEval, blurEval } = evalComponent($parent, powers, {
@@ -1340,6 +1522,13 @@ const bodyComponent = ($parent, powers) => {
   });
   const { focusInstall, blurInstall } = installComponent($parent, powers, {
     dismissInstall,
+  });
+  const { focusInvitation, blurInvitation } = invitationComponent($parent, {
+    dismissInvitation,
+  });
+  const { focusInvite, blurInvite } = inviteComponent($parent, powers, {
+    showInvitation,
+    dismissInvite,
   });
   /* eslint-enable no-use-before-define */
 };
