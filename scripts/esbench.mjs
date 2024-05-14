@@ -830,6 +830,13 @@ const main = async argv => {
   };
   const scriptFnSource = dedent(['  ' + scriptAsFn.toString()]);
   const script = dedent`
+    // As a convenience, provide a missing print/console using the other.
+    globalThis.print ||= console.log;
+    globalThis.console ||= Object.create(null);
+    for (const m of 'debug log info warn error groupCollapsed groupEnd'.split(' ')) {
+      console[m] ||= print;
+    }
+
     (${scriptFnSource})(
 
     // infrastructure
