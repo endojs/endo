@@ -65,8 +65,8 @@
     "timeout": "2m"
   },
   "dependencies": {
-    "@endo/daemon": "2.3.0",
-    "@endo/far": "^0.2.22",
-    "@endo/promise-kit": "^0.2.60"
+    "@endo/daemon": "^2.3.0",
+    "@endo/far": "^1.1.2",
+    "@endo/promise-kit": "^1.1.2"
   }
 }

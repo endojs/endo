@@ -1,0 +1,456 @@
+{
+  "bundleFileName": "bundle-game.json",
+  "bundleTime": "2024-05-14T06:05:34.360Z",
+  "bundleSize": 746065,
+  "moduleSource": {
+    "relative": "../../src/game.js",
+    "absolute": "/home/xyz/Development/endo/packages/1kce/src/game.js"
+  },
+  "contents": [
+    {
+      "relativePath": "",
+      "mtime": "2024-05-08T06:38:33.701Z",
+      "size": 14483
+    },
+    {
+      "relativePath": "../../../far/src/index.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 1240
+    },
+    {
+      "relativePath": "../../../grain/captp.js",
+      "mtime": "2024-05-08T06:38:40.373Z",
+      "size": 31
+    },
+    {
+      "relativePath": "../../../daemon/reader-ref.js",
+      "mtime": "2024-05-08T02:43:15.044Z",
+      "size": 37
+    },
+    {
+      "relativePath": "../../../daemon/ref-reader.js",
+      "mtime": "2024-05-08T02:43:15.044Z",
+      "size": 37
+    },
+    {
+      "relativePath": "../../../grain/index.js",
+      "mtime": "2024-05-08T06:38:40.373Z",
+      "size": 31
+    },
+    {
+      "relativePath": "../util.js",
+      "mtime": "2024-05-08T06:38:33.701Z",
+      "size": 896
+    },
+    {
+      "relativePath": "../../../eventual-send/src/no-shim.js",
+      "mtime": "2023-09-18T19:00:31.228Z",
+      "size": 190
+    },
+    {
+      "relativePath": "../../../pass-style/index.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 1076
+    },
+    {
+      "relativePath": "../../../grain/src/captp.js",
+      "mtime": "2024-05-08T06:38:40.373Z",
+      "size": 4572
+    },
+    {
+      "relativePath": "../../../daemon/src/reader-ref.js",
+      "mtime": "2024-05-08T02:43:15.048Z",
+      "size": 2080
+    },
+    {
+      "relativePath": "../../../daemon/src/ref-reader.js",
+      "mtime": "2024-05-08T02:43:15.048Z",
+      "size": 938
+    },
+    {
+      "relativePath": "../../../grain/src/index.js",
+      "mtime": "2024-05-08T06:38:40.373Z",
+      "size": 13347
+    },
+    {
+      "relativePath": "../../../promise-kit/index.js",
+      "mtime": "2022-12-08T20:12:04.680Z",
+      "size": 1613
+    },
+    {
+      "relativePath": "../../../eventual-send/src/E.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 13991
+    },
+    {
+      "relativePath": "../../../eventual-send/src/exports.js",
+      "mtime": "2023-09-18T19:00:31.228Z",
+      "size": 76
+    },
+    {
+      "relativePath": "../../../pass-style/src/iter-helpers.js",
+      "mtime": "2023-02-21T15:16:08.266Z",
+      "size": 1810
+    },
+    {
+      "relativePath": "../../../pass-style/src/passStyle-helpers.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 5931
+    },
+    {
+      "relativePath": "../../../pass-style/src/error.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 6402
+    },
+    {
+      "relativePath": "../../../pass-style/src/remotable.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 8632
+    },
+    {
+      "relativePath": "../../../pass-style/src/symbol.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 3971
+    },
+    {
+      "relativePath": "../../../pass-style/src/string.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 3402
+    },
+    {
+      "relativePath": "../../../pass-style/src/passStyleOf.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 12909
+    },
+    {
+      "relativePath": "../../../pass-style/src/makeTagged.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 792
+    },
+    {
+      "relativePath": "../../../pass-style/src/make-far.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 8349
+    },
+    {
+      "relativePath": "../../../pass-style/src/typeGuards.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 2220
+    },
+    {
+      "relativePath": "../../../pass-style/src/types.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 45
+    },
+    {
+      "relativePath": "../../../base64/index.js",
+      "mtime": "2022-09-21T20:42:01.157Z",
+      "size": 164
+    },
+    {
+      "relativePath": "../../../stream/index.js",
+      "mtime": "2024-05-08T02:43:15.068Z",
+      "size": 6485
+    },
+    {
+      "relativePath": "../../../exo/index.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 225
+    },
+    {
+      "relativePath": "../../../daemon/src/interfaces.js",
+      "mtime": "2024-05-08T02:43:15.044Z",
+      "size": 1725
+    },
+    {
+      "relativePath": "../../../daemon/pubsub.js",
+      "mtime": "2024-05-08T07:19:56.932Z",
+      "size": 51
+    },
+    {
+      "relativePath": "../../../promise-kit/src/promise-executor-kit.js",
+      "mtime": "2022-12-08T20:12:04.680Z",
+      "size": 1535
+    },
+    {
+      "relativePath": "../../../promise-kit/src/memo-race.js",
+      "mtime": "2022-12-08T20:12:04.680Z",
+      "size": 4738
+    },
+    {
+      "relativePath": "../../../promise-kit/src/is-promise.js",
+      "mtime": "2022-12-08T20:12:04.680Z",
+      "size": 290
+    },
+    {
+      "relativePath": "../../../promise-kit/src/types.js",
+      "mtime": "2022-09-21T20:42:01.173Z",
+      "size": 681
+    },
+    {
+      "relativePath": "../../../eventual-send/src/track-turns.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 3719
+    },
+    {
+      "relativePath": "../../../eventual-send/src/message-breakpoints.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 5618
+    },
+    {
+      "relativePath": "../../../errors/index.js",
+      "mtime": "2024-05-08T02:43:15.048Z",
+      "size": 2603
+    },
+    {
+      "relativePath": "../../../env-options/index.js",
+      "mtime": "2023-07-19T00:13:30.991Z",
+      "size": 38
+    },
+    {
+      "relativePath": "../../../pass-style/src/copyArray.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 1512
+    },
+    {
+      "relativePath": "../../../pass-style/src/copyRecord.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 1586
+    },
+    {
+      "relativePath": "../../../pass-style/src/tagged.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 1471
+    },
+    {
+      "relativePath": "../../../pass-style/src/safe-promise.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 4994
+    },
+    {
+      "relativePath": "../../../eventual-send/utils.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 125
+    },
+    {
+      "relativePath": "../../../base64/src/encode.js",
+      "mtime": "2024-05-08T02:43:15.032Z",
+      "size": 1968
+    },
+    {
+      "relativePath": "../../../base64/src/decode.js",
+      "mtime": "2024-05-08T02:43:15.032Z",
+      "size": 2435
+    },
+    {
+      "relativePath": "../../../base64/btoa.js",
+      "mtime": "2023-05-02T21:59:06.064Z",
+      "size": 512
+    },
+    {
+      "relativePath": "../../../base64/atob.js",
+      "mtime": "2022-09-21T20:42:01.157Z",
+      "size": 330
+    },
+    {
+      "relativePath": "../../../exo/src/exo-makers.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 6947
+    },
+    {
+      "relativePath": "../../../exo/src/types.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 45
+    },
+    {
+      "relativePath": "../../../exo/src/get-interface.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 826
+    },
+    {
+      "relativePath": "../../../patterns/index.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 1898
+    },
+    {
+      "relativePath": "../../../daemon/src/pubsub.js",
+      "mtime": "2024-05-08T02:43:15.048Z",
+      "size": 2015
+    },
+    {
+      "relativePath": "../../../env-options/src/env-options.js",
+      "mtime": "2024-05-08T02:43:15.048Z",
+      "size": 4330
+    },
+    {
+      "relativePath": "../../../eventual-send/src/local.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 4000
+    },
+    {
+      "relativePath": "../../../base64/src/common.js",
+      "mtime": "2021-09-28T23:51:37.709Z",
+      "size": 526
+    },
+    {
+      "relativePath": "../../../base64/encode.js",
+      "mtime": "2021-09-28T23:51:37.709Z",
+      "size": 48
+    },
+    {
+      "relativePath": "../../../base64/decode.js",
+      "mtime": "2021-09-28T23:51:37.709Z",
+      "size": 48
+    },
+    {
+      "relativePath": "../../../common/object-map.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 2213
+    },
+    {
+      "relativePath": "../../../exo/src/exo-tools.js",
+      "mtime": "2024-05-08T02:43:15.052Z",
+      "size": 15822
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/checkKey.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 14735
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/copySet.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 3011
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/copyBag.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 3991
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/merge-set-operators.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 9558
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/compareKeys.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 8303
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/merge-bag-operators.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 8748
+    },
+    {
+      "relativePath": "../../../patterns/src/patterns/patternMatchers.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 62060
+    },
+    {
+      "relativePath": "../../../patterns/src/patterns/getGuardPayloads.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 9710
+    },
+    {
+      "relativePath": "../../../patterns/src/types.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 23662
+    },
+    {
+      "relativePath": "../../../common/list-difference.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 755
+    },
+    {
+      "relativePath": "../../../marshal/index.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 941
+    },
+    {
+      "relativePath": "../../../common/ident-checker.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 1613
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/keycollection-operators.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 7647
+    },
+    {
+      "relativePath": "../../../common/apply-labeling-error.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 2206
+    },
+    {
+      "relativePath": "../../../common/from-unique-entries.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 911
+    },
+    {
+      "relativePath": "../../../marshal/src/deeplyFulfilled.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 2914
+    },
+    {
+      "relativePath": "../../../marshal/src/encodeToCapData.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 16039
+    },
+    {
+      "relativePath": "../../../marshal/src/marshal-stringify.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 1370
+    },
+    {
+      "relativePath": "../../../marshal/src/marshal.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 14636
+    },
+    {
+      "relativePath": "../../../marshal/src/marshal-justin.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 13298
+    },
+    {
+      "relativePath": "../../../marshal/src/encodePassable.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 28974
+    },
+    {
+      "relativePath": "../../../marshal/src/rankOrder.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 15401
+    },
+    {
+      "relativePath": "../../../marshal/src/types.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 7559
+    },
+    {
+      "relativePath": "../../../common/make-iterator.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 335
+    },
+    {
+      "relativePath": "../../../common/make-array-iterator.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 600
+    },
+    {
+      "relativePath": "../../../common/throw-labeled.js",
+      "mtime": "2024-05-08T02:43:15.040Z",
+      "size": 833
+    },
+    {
+      "relativePath": "../../../nat/src/index.js",
+      "mtime": "2023-05-02T21:59:06.072Z",
+      "size": 2522
+    },
+    {
+      "relativePath": "../../../marshal/src/encodeToSmallcaps.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 16566
+    }
+  ]
+}

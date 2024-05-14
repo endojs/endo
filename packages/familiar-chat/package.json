@@ -71,9 +71,11 @@
     "timeout": "2m"
   },
   "dependencies": {
-    "@endo/cli": "^0.2.6",
-    "@endo/daemon": "2.3.0",
-    "@endo/far": "^0.2.22",
+    "@endo/base64": "^1.0.5",
+    "@endo/cli": "^2.2.0",
+    "@endo/daemon": "^2.3.0",
+    "@endo/far": "^1.1.2",
+    "@endo/stream": "^1.2.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   }
