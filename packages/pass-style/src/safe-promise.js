@@ -1,8 +1,8 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { X, q } from '@endo/errors';
-import { assertChecker, hasOwnPropertyOf } from './passStyle-helpers.js';
+import { q } from '@endo/errors';
+import { assertChecker, hasOwnPropertyOf, CX } from './passStyle-helpers.js';
 
 /** @import {Checker} from './types.js' */
 
@@ -16,7 +16,6 @@ const { toStringTag } = Symbol;
  * @returns {pr is Promise} Whether it is a safe promise
  */
 const checkPromiseOwnKeys = (pr, check) => {
-  const reject = (T, ...subs) => check(false, X(T, ...subs));
   const keys = ownKeys(pr);
 
   if (keys.length === 0) {
@@ -37,7 +36,9 @@ const checkPromiseOwnKeys = (pr, check) => {
   );
 
   if (unknownKeys.length !== 0) {
-    return reject`${pr} - Must not have any own properties: ${q(unknownKeys)}`;
+    return CX(
+      check,
+    )`${pr} - Must not have any own properties: ${q(unknownKeys)}`;
   }
 
   /**
@@ -69,15 +70,15 @@ const checkPromiseOwnKeys = (pr, check) => {
       assert(tagDesc !== undefined);
       return (
         (hasOwnPropertyOf(tagDesc, 'value') ||
-          reject`Own @@toStringTag must be a data property, not an accessor: ${q(
-            tagDesc,
-          )}`) &&
+          CX(
+            check,
+          )`Own @@toStringTag must be a data property, not an accessor: ${q(tagDesc)}`) &&
         (typeof tagDesc.value === 'string' ||
-          reject`Own @@toStringTag value must be a string: ${q(
-            tagDesc.value,
-          )}`) &&
+          CX(
+            check,
+          )`Own @@toStringTag value must be a string: ${q(tagDesc.value)}`) &&
         (!tagDesc.enumerable ||
-          reject`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`)
+          CX(check)`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`)
       );
     }
     const val = pr[key];
@@ -103,7 +104,9 @@ const checkPromiseOwnKeys = (pr, check) => {
         return true;
       }
     }
-    return reject`Unexpected Node async_hooks additions to promise: ${pr}.${q(
+    return CX(
+      check,
+    )`Unexpected Node async_hooks additions to promise: ${pr}.${q(
       String(key),
     )} is ${val}`;
   };
@@ -128,12 +131,11 @@ const checkPromiseOwnKeys = (pr, check) => {
  * @returns {pr is Promise} Whether it is a safe promise
  */
 const checkSafePromise = (pr, check) => {
-  const reject = (T, ...subs) => check(false, X(T, ...subs));
   return (
-    (isFrozen(pr) || reject`${pr} - Must be frozen`) &&
-    (isPromise(pr) || reject`${pr} - Must be a promise`) &&
+    (isFrozen(pr) || CX(check)`${pr} - Must be frozen`) &&
+    (isPromise(pr) || CX(check)`${pr} - Must be a promise`) &&
     (getPrototypeOf(pr) === Promise.prototype ||
-      reject`${pr} - Must inherit from Promise.prototype: ${q(
+      CX(check)`${pr} - Must inherit from Promise.prototype: ${q(
         getPrototypeOf(pr),
       )}`) &&
     checkPromiseOwnKeys(/** @type {Promise} */ (pr), check)

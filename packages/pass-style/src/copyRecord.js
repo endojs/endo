@@ -1,10 +1,12 @@
 /// <reference types="ses"/>
 
-import { X } from '@endo/errors';
+/** @import {Checker} from './types.js' */
+
 import {
   assertChecker,
   canBeMethod,
   checkNormalProperty,
+  CX,
 } from './passStyle-helpers.js';
 
 const { ownKeys } = Reflect;
@@ -18,23 +20,22 @@ export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
   canBeValid: (candidate, check = undefined) => {
-    const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
     if (getPrototypeOf(candidate) !== objectPrototype) {
       return (
-        reject &&
-        reject`Records must inherit from Object.prototype: ${candidate}`
+        !!check &&
+        CX(check)`Records must inherit from Object.prototype: ${candidate}`
       );
     }
 
     return ownKeys(candidate).every(key => {
       return (
         (typeof key === 'string' ||
-          (reject &&
-            reject`Records can only have string-named properties: ${candidate}`)) &&
+          (!!check &&
+            CX(check)`Records can only have string-named properties: ${candidate}`)) &&
         (!canBeMethod(candidate[key]) ||
-          (reject &&
+          (!!check &&
             // TODO: Update message now that there is no such thing as "implicit Remotable".
-            reject`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`))
+            CX(check)`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`))
       );
     });
   },

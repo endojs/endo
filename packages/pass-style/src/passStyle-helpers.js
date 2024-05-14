@@ -80,42 +80,54 @@ export const assertChecker = (cond, details) => {
 harden(assertChecker);
 
 /**
+ * Returns a template literal tag function to fail the provided Checker with details.
+ * The name must be short for ergonomic inline use as in:
+ * ```
+ * return checkCondition(...) || (!!check && CX(check)`...`);
+ * ```
+ *
+ * @param {Checker} check
+ */
+export const CX = check => {
+  const reject = (T, ...subs) => check(false, X(T, ...subs));
+  return reject;
+};
+harden(CX);
+
+/**
  * Checks for the presence and enumerability of an own data property.
  *
  * @param {object} candidate
- * @param {string|number|symbol} propertyName
+ * @param {string|number|symbol} propName
  * @param {boolean} shouldBeEnumerable
  * @param {Checker} [check]
  * @returns {boolean}
  */
 export const checkNormalProperty = (
   candidate,
-  propertyName,
+  propName,
   shouldBeEnumerable,
   check,
 ) => {
-  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
-  const desc = getOwnPropertyDescriptor(candidate, propertyName);
+  const desc = getOwnPropertyDescriptor(candidate, propName);
   if (desc === undefined) {
-    return reject && reject`${q(propertyName)} property expected: ${candidate}`;
+    return !!check && CX(check)`${q(propName)} property expected: ${candidate}`;
   }
   return (
     (hasOwnPropertyOf(desc, 'value') ||
-      (reject &&
-        reject`${q(
-          propertyName,
-        )} must not be an accessor property: ${candidate}`)) &&
+      (!!check &&
+        CX(
+          check,
+        )`${q(propName)} must not be an accessor property: ${candidate}`)) &&
     (shouldBeEnumerable
       ? desc.enumerable ||
-        (reject &&
-          reject`${q(
-            propertyName,
-          )} must be an enumerable property: ${candidate}`)
+        (!!check &&
+          CX(
+            check,
+          )`${q(propName)} must be an enumerable property: ${candidate}`)
       : !desc.enumerable ||
-        (reject &&
-          reject`${q(
-            propertyName,
-          )} must not be an enumerable property: ${candidate}`))
+        (!!check &&
+          CX(check)`${q(propName)} must not be an enumerable property: ${candidate}`))
   );
 };
 harden(checkNormalProperty);
@@ -129,12 +141,11 @@ export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
 export const checkPassStyle = (obj, expectedPassStyle, check) => {
-  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   const actual = obj[PASS_STYLE];
   return (
     actual === expectedPassStyle ||
-    (reject &&
-      reject`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`)
+    (!!check &&
+      CX(check)`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`)
   );
 };
 harden(checkPassStyle);
@@ -147,20 +158,23 @@ const makeCheckTagRecord = checkProto => {
    * @returns {boolean}
    */
   const checkTagRecord = (tagRecord, passStyle, check) => {
-    const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
     return (
       (isObject(tagRecord) ||
-        (reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
+        (!!check &&
+          CX(check)`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
-        (reject && reject`A tagRecord must be frozen: ${tagRecord}`)) &&
+        (!!check && CX(check)`A tagRecord must be frozen: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
-        (reject && reject`An array cannot be a tagRecord: ${tagRecord}`)) &&
+        (!!check &&
+          CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
       checkNormalProperty(tagRecord, PASS_STYLE, false, check) &&
       checkPassStyle(tagRecord, passStyle, check) &&
       checkNormalProperty(tagRecord, Symbol.toStringTag, false, check) &&
       (typeof getTag(tagRecord) === 'string' ||
-        (reject &&
-          reject`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`)) &&
+        (!!check &&
+          CX(
+            check,
+          )`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`)) &&
       checkProto(tagRecord, getPrototypeOf(tagRecord), check)
     );
   };
