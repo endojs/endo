@@ -22,7 +22,7 @@ export const make = async (powers, context) => {
   /** @type {Array<string>} */
   const addresses = [];
 
-  const { node: localNodeId } = await E(powers).getPeerInfo();
+  const peerInfo = E(powers).getPeerInfo();
   const localGreeter = E(powers).greeter();
   const localGateway = E(powers).gateway();
 
@@ -167,6 +167,7 @@ export const make = async (powers, context) => {
     });
 
     const remoteGreeter = getBootstrap();
+    const { node: localNodeId } = await peerInfo;
     return E(remoteGreeter).hello(
       localNodeId,
       localGateway,
@@ -175,11 +176,12 @@ export const make = async (powers, context) => {
     );
   };
 
-  await started;
-
   return Far('TcpNetstringService', {
-    addresses: () => harden(addresses),
+    addresses: () => harden(addresses.slice()),
     supports: address => new URL(address).protocol === `${protocol}:`,
     connect,
+    started() {
+      return started.then(() => true);
+    },
   });
 };
