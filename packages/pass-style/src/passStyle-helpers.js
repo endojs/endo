@@ -137,31 +137,6 @@ export const getOwnDataDescriptor = (
 harden(getOwnDataDescriptor);
 
 /**
- * Checks for the presence and enumerability of an own data property.
- *
- * @param {object} candidate
- * @param {string|number|symbol} propName
- * @param {boolean} shouldBeEnumerable
- * @param {Checker} [check]
- * @returns {boolean}
- */
-export const checkNormalProperty = (
-  candidate,
-  propName,
-  shouldBeEnumerable,
-  check,
-) => {
-  const desc = getOwnDataDescriptor(
-    candidate,
-    propName,
-    shouldBeEnumerable,
-    check,
-  );
-  return desc !== undefined;
-};
-harden(checkNormalProperty);
-
-/**
  * @template {import('./types.js').InterfaceSpec} T
  * @param {import('./types.js').PassStyled<any, T>} tagRecord
  * @returns {T}
@@ -169,12 +144,11 @@ harden(checkNormalProperty);
 export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
-export const checkPassStyle = (obj, expectedPassStyle, check) => {
-  const actual = obj[PASS_STYLE];
+export const checkPassStyle = (obj, passStyle, expectedPassStyle, check) => {
   return (
-    actual === expectedPassStyle ||
+    passStyle === expectedPassStyle ||
     (!!check &&
-      CX(check)`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`)
+      CX(check)`Expected ${q(expectedPassStyle)}, not ${q(passStyle)}: ${obj}`)
   );
 };
 harden(checkPassStyle);
@@ -182,11 +156,11 @@ harden(checkPassStyle);
 const makeCheckTagRecord = checkProto => {
   /**
    * @param {import('./types.js').PassStyled<any, any>} tagRecord
-   * @param {PassStyle} passStyle
+   * @param {PassStyle} expectedPassStyle
    * @param {Checker} [check]
    * @returns {boolean}
    */
-  const checkTagRecord = (tagRecord, passStyle, check) => {
+  const checkTagRecord = (tagRecord, expectedPassStyle, check) => {
     return (
       (isObject(tagRecord) ||
         (!!check &&
@@ -194,12 +168,15 @@ const makeCheckTagRecord = checkProto => {
       (isFrozen(tagRecord) ||
         (!!check && CX(check)`A tagRecord must be frozen: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
-        (!!check &&
-          CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
-      checkNormalProperty(tagRecord, PASS_STYLE, false, check) &&
-      checkPassStyle(tagRecord, passStyle, check) &&
-      checkNormalProperty(tagRecord, Symbol.toStringTag, false, check) &&
-      (typeof getTag(tagRecord) === 'string' ||
+        (!!check && CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
+      checkPassStyle(
+        tagRecord,
+        getOwnDataDescriptor(tagRecord, PASS_STYLE, false, check).value,
+        expectedPassStyle,
+        check,
+      ) &&
+      (typeof getOwnDataDescriptor(tagRecord, Symbol.toStringTag, false, check)
+        .value === 'string' ||
         (!!check &&
           CX(
             check,

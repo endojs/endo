@@ -5,7 +5,7 @@ import {
   assertChecker,
   checkTagRecord,
   PASS_STYLE,
-  checkNormalProperty,
+  getOwnDataDescriptor,
   checkPassStyle,
 } from './passStyle-helpers.js';
 
@@ -20,7 +20,7 @@ export const TaggedHelper = harden({
   styleName: 'tagged',
 
   canBeValid: (candidate, check = undefined) =>
-    checkPassStyle(candidate, 'tagged', check),
+    checkPassStyle(candidate, candidate[PASS_STYLE], 'tagged', check),
 
   assertValid: (candidate, passStyleOfRecur) => {
     checkTagRecord(candidate, 'tagged', assertChecker);
@@ -38,9 +38,10 @@ export const TaggedHelper = harden({
     ownKeys(restDescs).length === 0 ||
       Fail`Unexpected properties on tagged record ${ownKeys(restDescs)}`;
 
-    checkNormalProperty(candidate, 'payload', true, assertChecker);
-
-    // Recursively validate that each member is passable.
-    passStyleOfRecur(candidate.payload);
+    // Validate that the 'payload' property is own/data/enumerable
+    // and its associated value is recursively passable.
+    passStyleOfRecur(
+      getOwnDataDescriptor(candidate, 'payload', true, assertChecker).value,
+    );
   },
 });
