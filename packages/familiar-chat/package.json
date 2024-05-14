@@ -71,9 +71,11 @@
     "timeout": "2m"
   },
   "dependencies": {
+    "@endo/base64": "workspace:^",
     "@endo/cli": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/far": "workspace:^",
+    "@endo/stream": "workspace:^",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   }

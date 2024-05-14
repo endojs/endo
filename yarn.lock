@@ -538,11 +538,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/familiar-chat@workspace:packages/familiar-chat"
   dependencies:
+    "@endo/base64": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/lockdown": "npm:^0.1.32"
     "@endo/ses-ava": "npm:^0.2.44"
+    "@endo/stream": "workspace:^"
     "@types/react": "npm:^18"
     "@types/react-dom": "npm:^18"
     ava: "npm:^5.3.0"

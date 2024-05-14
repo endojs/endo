@@ -27,7 +27,7 @@
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
-    "build": "exit 0",
+    "build": "../bundle-source/bin/bundle-source --cache-json bundles src/game.js game src/deck.js deck",
     "clean": "git clean -f '*.d.ts*'",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "yarn clean",
