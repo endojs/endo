@@ -249,19 +249,23 @@ const PackageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
     // strings: ['y']
     // to: "de216c6283f791a0fe7cac27b8b9e398cfa73468f508666eff2f2e3ea53ce570b15d1b88e9352b03aacd5e9322fe162ffd2ea04f54cf291eca9e8e2b1f7585db:9c11c6f325eff13d8c678c90a62f5bc76bd3b4d7355d7190528d48a0ee6905ee5a53ebe341a2ac001c27b5f313ec4ca2a4631f0fd66b4cd1d2adc0d4a774dc70"
     // type: "package"
-  /** @type {{ strings: string[], names: string[] }} */
-  const { strings, names } = message;
+  /** @type {{ strings: string[], names: string[], ids: string[] }} */
+  const { strings, names, ids } = message;
   assert(Array.isArray(strings));
   assert(Array.isArray(names));
 
   const [asValue, setAsValue] = useState('');
   const [selectedName, setSelectedName] = useState(names[0]);
+  const selectedId = ids[names.indexOf(selectedName)];
   const hasItems = names.length > 0;
 
   const makeControls = () => {
     // const index = names.indexOf(selectedName);
     // const type = formulaTypes[index];
-    const type = 'unknown';
+    let type = 'unknown';
+    if (selectedName.startsWith('bundle-')) {
+      type = 'web-bundle';
+    }
     const isApp = type === 'web-bundle';
     const typeDisplay = inventoryTypeDisplayDict[type] ?? type;
 
@@ -297,7 +301,7 @@ const PackageMessageBodyComponent = ({ message, actions, showControls, nameIdPai
           'button',
           {
             onClick: () => {
-              actions.adoptApp(selectedName, asValue || selectedName)
+              actions.adoptApp(selectedName, asValue || selectedName, 'AGENT')
             },
           },
           'Install App',
@@ -355,7 +359,7 @@ const RequestMessageBodyComponent = ({ message, actions, showControls }) => {
   ]);
 };
 
-const MessageComponent = ({ message, target, targetName, setActiveMessage, showControls, inventory }) => {
+const MessageComponent = ({ message, profile, profileName, setActiveMessage, showControls, inventory }) => {
   const { number, from: fromId, date } = message;
   const [errorText, setErrorText] = useState('');
 
@@ -369,19 +373,35 @@ const MessageComponent = ({ message, target, targetName, setActiveMessage, showC
   }
 
   const fromName = inventory.find(({ id }) => id === fromId)?.name;
-  const whoText = fromName === 'SELF' ? `${targetName}` : `${fromName}`;
+  const whoText = fromName === 'SELF' ? `${profileName}` : `${fromName}`;
 
   const reportError = error => {
     setErrorText(error.message);
   };
   const actions = {
-    dismiss: () => E(target).dismiss(number).catch(reportError),
-    resolve: value => E(target).resolve(number, value).catch(reportError),
-    reject: value => E(target).reject(number, value).catch(reportError),
+    dismiss: () => E(profile).dismiss(number).catch(reportError),
+    resolve: value => E(profile).resolve(number, value).catch(reportError),
+    reject: value => E(profile).reject(number, value).catch(reportError),
     adopt: (selectedName, asValue) =>
-      E(target).adopt(number, selectedName, asValue).catch(reportError),
-    adoptApp: (selectedName, asValue) =>
-      E(target).adoptApp(number, selectedName, asValue).catch(reportError),
+      E(profile).adopt(number, selectedName, asValue).catch(reportError),
+    adoptApp: async (selectedName, asValue, powersName) => {
+      const requestedPort = 1000 + Math.floor(9000 * Math.random())
+      // adopt bundle
+      const temporaryBundleName = `tmp-bundle-${asValue}`;
+      await E(profile).adopt(number, selectedName, temporaryBundleName);
+      // eval make weblet
+      const weblet = await E(profile).evaluate(
+        'MAIN',
+        `E(apps).makeWeblet(bundle, powers, ${JSON.stringify(
+          requestedPort,
+        )}, $id, $cancelled)`,
+        ['apps', 'bundle', 'powers'],
+        ['APPS', temporaryBundleName, powersName],
+        asValue,
+      );
+      // remove bundle
+      await E(profile).remove(temporaryBundleName);
+    }
   };
 
   return h('div', {
@@ -414,13 +434,13 @@ const MessageComponent = ({ message, target, targetName, setActiveMessage, showC
   ]);
 };
 
-const SendComponent = ({ target, recipientName }) => {
+const SendComponent = ({ profile, recipientName }) => {
   const [message, setMessage] = useState('');
 
   const submitMessage = () => {
     setMessage('');
     const { strings, edgeNames, petNames } = parseChatMessage(message);
-    E(target)
+    E(profile)
       .send(recipientName, strings, edgeNames, petNames)
       .catch(window.reportError);
   }
@@ -470,7 +490,7 @@ const ChatComponent = ({ profile, profileName, chatPartners, inventory }) => {
 
   const messageEntries = currentMessages.map(message => {
     const showControls = activeMessage === message;
-    return h(MessageComponent, { message, target: profile, targetName: profileName, setActiveMessage, showControls, inventory });
+    return h(MessageComponent, { message, profile, profileName, setActiveMessage, showControls, inventory });
   });
 
   return h(Fragment, null, [
@@ -485,14 +505,14 @@ const ChatComponent = ({ profile, profileName, chatPartners, inventory }) => {
       chatPartnerNames.map(name => h('option', { value: name }, name)),
     ),
     h('div', null, messageEntries),
-    h(SendComponent, { target: profile, recipientName }),
+    h(SendComponent, { profile, recipientName }),
   ]);
 };
 
-const InventoryEntryComponent = ({ target, item }) => {
+const InventoryEntryComponent = ({ profile, item }) => {
   const { name, type } = item;
-  const isWebBundle = type === 'web-bundle';
-  const itemValue = useAsync(() => isWebBundle && E(target).lookup(name), [target, name, isWebBundle])
+  const isWebBundle = name.startsWith('app-');
+  const webBundleLocation = useAsync(() => isWebBundle && E(E(profile).lookup(name)).getLocation(), [profile, name, isWebBundle])
   const typeDisplay = inventoryTypeDisplayDict[type] ?? type;
   return h('li', null, [
     `${name} `,
@@ -502,16 +522,16 @@ const InventoryEntryComponent = ({ target, item }) => {
       // @ts-ignore
       'button',
       {
-        onClick: () => E(target).remove(name).catch(window.reportError),
+        onClick: () => E(profile).remove(name).catch(window.reportError),
       },
       'Remove',
     ),
-    isWebBundle && itemValue && h(
+    isWebBundle && webBundleLocation && h(
       // @ts-ignore
       'button',
       {
         onClick: () => {
-          window.open(itemValue.url, '_blank')
+          window.open(webBundleLocation, '_blank')
         },
       },
       'Open App',
@@ -519,7 +539,7 @@ const InventoryEntryComponent = ({ target, item }) => {
   ]);
 }
 
-const InventoryComponent = ({ target, inventory }) => {
+const InventoryComponent = ({ profile, inventory }) => {
   const inventoryMap = new Map()
   for (const item of inventory) {
     inventoryMap.set(item.name, item);
@@ -527,7 +547,7 @@ const InventoryComponent = ({ target, inventory }) => {
   const sortedNames = [...inventoryMap.keys()].sort((a, b) => a.localeCompare(b));
 
   const inventoryEntries = sortedNames.map(name => {
-    return h(InventoryEntryComponent, { target, item: inventoryMap.get(name) });
+    return h(InventoryEntryComponent, { profile, item: inventoryMap.get(name) });
   });
 
   return h(Fragment, null, [
@@ -549,7 +569,7 @@ const BodyComponent = ({ powers }) => {
     const id = formatId({ number, node });
     return { name, type, id, number, node };
   });
-  const handles = inventory.filter(({ type }) => type === 'remote');
+  const chatPartners = inventory.filter(({ type }) => type === 'remote');
   const guests = []
   const profiles = ['host', ...guests]
 
@@ -564,8 +584,8 @@ const BodyComponent = ({ powers }) => {
       },
       profiles.map(inbox => h('option', { value: inbox }, inbox)),
     ),
-    currentProfile && h(InventoryComponent, { target: currentProfile, inventory }),
-    currentProfile && h(ChatComponent, { profile: currentProfile, profileName: currentProfileName, chatPartners: handles, inventory }),
+    currentProfile && h(InventoryComponent, { profile: currentProfile, inventory }),
+    currentProfile && h(ChatComponent, { profile: currentProfile, profileName: currentProfileName, chatPartners, inventory }),
   ]);
 };
 
