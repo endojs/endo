@@ -472,6 +472,16 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('mkdir <path>')
+    .option(...commonOptions.as)
+    .description('makes a directory (pet store, name hub)')
+    .action(async (directoryPath, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { mkdir } = await import('./commands/mkdir.js');
+      return mkdir({ agentNames, directoryPath });
+    });
+
+  program
     .command('invite <guest-name>')
     .option(...commonOptions.as)
     .action(async (guestName, cmd) => {
