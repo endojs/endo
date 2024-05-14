@@ -95,6 +95,48 @@ export const CX = check => {
 harden(CX);
 
 /**
+ * Verifies the presence and enumerability of an own data property
+ * and returns its descriptor.
+ *
+ * @param {object} candidate
+ * @param {string|number|symbol} propName
+ * @param {boolean} shouldBeEnumerable
+ * @param {Checker} [check]
+ * @returns {PropertyDescriptor}
+ */
+export const getOwnDataDescriptor = (
+  candidate,
+  propName,
+  shouldBeEnumerable,
+  check,
+) => {
+  const desc = /** @type {PropertyDescriptor} */ (
+    getOwnPropertyDescriptor(candidate, propName)
+  );
+  return (desc !== undefined ||
+    (!!check && CX(check)`${q(propName)} property expected: ${candidate}`)) &&
+    (hasOwnPropertyOf(desc, 'value') ||
+      (!!check &&
+        CX(
+          check,
+        )`${q(propName)} must not be an accessor property: ${candidate}`)) &&
+    (shouldBeEnumerable
+      ? desc.enumerable ||
+        (!!check &&
+          CX(
+            check,
+          )`${q(propName)} must be an enumerable property: ${candidate}`)
+      : !desc.enumerable ||
+        (!!check &&
+          CX(
+            check,
+          )`${q(propName)} must not be an enumerable property: ${candidate}`))
+    ? desc
+    : /** @type {PropertyDescriptor} */ (/** @type {unknown} */ (undefined));
+};
+harden(getOwnDataDescriptor);
+
+/**
  * Checks for the presence and enumerability of an own data property.
  *
  * @param {object} candidate
@@ -109,26 +151,13 @@ export const checkNormalProperty = (
   shouldBeEnumerable,
   check,
 ) => {
-  const desc = getOwnPropertyDescriptor(candidate, propName);
-  if (desc === undefined) {
-    return !!check && CX(check)`${q(propName)} property expected: ${candidate}`;
-  }
-  return (
-    (hasOwnPropertyOf(desc, 'value') ||
-      (!!check &&
-        CX(
-          check,
-        )`${q(propName)} must not be an accessor property: ${candidate}`)) &&
-    (shouldBeEnumerable
-      ? desc.enumerable ||
-        (!!check &&
-          CX(
-            check,
-          )`${q(propName)} must be an enumerable property: ${candidate}`)
-      : !desc.enumerable ||
-        (!!check &&
-          CX(check)`${q(propName)} must not be an enumerable property: ${candidate}`))
+  const desc = getOwnDataDescriptor(
+    candidate,
+    propName,
+    shouldBeEnumerable,
+    check,
   );
+  return desc !== undefined;
 };
 harden(checkNormalProperty);
 

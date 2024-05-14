@@ -5,12 +5,46 @@
 import {
   assertChecker,
   canBeMethod,
-  checkNormalProperty,
+  getOwnDataDescriptor,
   CX,
 } from './passStyle-helpers.js';
 
 const { ownKeys } = Reflect;
-const { getPrototypeOf, values, prototype: objectPrototype } = Object;
+const { getPrototypeOf, prototype: objectPrototype } = Object;
+
+/**
+ * @param {unknown} candidate
+ * @param {Checker} [check]
+ */
+const checkObjectPrototype = (candidate, check = undefined) => {
+  return (
+    getPrototypeOf(candidate) === objectPrototype ||
+    (!!check &&
+      CX(check)`Records must inherit from Object.prototype: ${candidate}`)
+  );
+};
+
+/**
+ * @param {unknown} candidate
+ * @param {PropertyKey} key
+ * @param {unknown} value
+ * @param {Checker} [check]
+ */
+const checkPropertyCanBeValid = (candidate, key, value, check = undefined) => {
+  return (
+    (typeof key === 'string' ||
+      (!!check &&
+        CX(
+          check,
+        )`Records can only have string-named properties: ${candidate}`)) &&
+    (!canBeMethod(value) ||
+      (!!check &&
+        // TODO: Update message now that there is no such thing as "implicit Remotable".
+        CX(
+          check,
+        )`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`))
+  );
+};
 
 /**
  *
@@ -20,34 +54,30 @@ export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
   canBeValid: (candidate, check = undefined) => {
-    if (getPrototypeOf(candidate) !== objectPrototype) {
-      return (
-        !!check &&
-        CX(check)`Records must inherit from Object.prototype: ${candidate}`
-      );
-    }
-
-    return ownKeys(candidate).every(key => {
-      return (
-        (typeof key === 'string' ||
-          (!!check &&
-            CX(check)`Records can only have string-named properties: ${candidate}`)) &&
-        (!canBeMethod(candidate[key]) ||
-          (!!check &&
-            // TODO: Update message now that there is no such thing as "implicit Remotable".
-            CX(check)`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`))
-      );
-    });
+    return (
+      checkObjectPrototype(candidate, check) &&
+      // Reject any candidate with a symbol-keyed property or method-like property
+      // (such input is potentially a Remotable).
+      ownKeys(candidate).every(key =>
+        checkPropertyCanBeValid(candidate, key, candidate[key], check),
+      )
+    );
   },
 
   assertValid: (candidate, passStyleOfRecur) => {
-    CopyRecordHelper.canBeValid(candidate, assertChecker);
+    checkObjectPrototype(candidate, assertChecker);
+
+    // Validate that each own property is appropriate, data/enumerable,
+    // and has a recursively passable associated value.
     for (const name of ownKeys(candidate)) {
-      checkNormalProperty(candidate, name, true, assertChecker);
-    }
-    // Recursively validate that each member is passable.
-    for (const val of values(candidate)) {
-      passStyleOfRecur(val);
+      const { value } = getOwnDataDescriptor(
+        candidate,
+        name,
+        true,
+        assertChecker,
+      );
+      checkPropertyCanBeValid(candidate, name, value, assertChecker);
+      passStyleOfRecur(value);
     }
   },
 });
