@@ -12,7 +12,6 @@ import url from 'url';
 
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
-import { parsePetNamePath } from './pet-name.js';
 
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
@@ -371,7 +370,7 @@ export const main = async rawArgs => {
         storeJson,
         storeJsonStdin,
         storeBigInt,
-        name: parsePetNamePath(name),
+        name,
         agentNames,
       });
     });
