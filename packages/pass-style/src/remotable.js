@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { X, Fail, q } from '@endo/errors';
+import { Fail, q } from '@endo/errors';
 import {
   assertChecker,
   canBeMethod,
@@ -10,6 +10,7 @@ import {
   checkFunctionTagRecord,
   isObject,
   getTag,
+  CX,
 } from './passStyle-helpers.js';
 
 /**
@@ -33,17 +34,18 @@ const {
  * @param {Checker} [check]
  */
 const checkIface = (iface, check) => {
-  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   return (
     // TODO other possible ifaces, once we have third party veracity
     (typeof iface === 'string' ||
-      (reject &&
-        reject`For now, interface ${iface} must be a string; unimplemented`)) &&
+      (!!check &&
+        CX(
+          check,
+        )`For now, interface ${iface} must be a string; unimplemented`)) &&
     (iface === 'Remotable' ||
       iface.startsWith('Alleged: ') ||
       iface.startsWith('DebugName: ') ||
-      (reject &&
-        reject`For now, iface ${q(
+      (!!check &&
+        CX(check)`For now, iface ${q(
           iface,
         )} must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented`))
   );
@@ -68,7 +70,6 @@ harden(assertIface);
  * @returns {boolean}
  */
 const checkRemotableProtoOf = (original, check) => {
-  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   isObject(original) ||
     Fail`Remotables must be objects or functions: ${original}`;
 
@@ -93,7 +94,8 @@ const checkRemotableProtoOf = (original, check) => {
     proto === Function.prototype
   ) {
     return (
-      reject && reject`Remotables must be explicitly declared: ${q(original)}`
+      !!check &&
+      CX(check)`Remotables must be explicitly declared: ${q(original)}`
     );
   }
 
@@ -124,10 +126,10 @@ const checkRemotableProtoOf = (original, check) => {
 
   return (
     (ownKeys(restDescs).length === 0 ||
-      (reject &&
-        reject`Unexpected properties on Remotable Proto ${ownKeys(
-          restDescs,
-        )}`)) &&
+      (!!check &&
+        CX(
+          check,
+        )`Unexpected properties on Remotable Proto ${ownKeys(restDescs)}`)) &&
     checkIface(iface, check)
   );
 };
@@ -152,9 +154,10 @@ const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
   if (!isFrozen(val)) {
-    return reject && reject`cannot serialize non-frozen objects like ${val}`;
+    return (
+      !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
+    );
   }
   // eslint-disable-next-line no-use-before-define
   if (!RemotableHelper.canBeValid(val, check)) {
@@ -198,13 +201,13 @@ export const RemotableHelper = harden({
   styleName: 'remotable',
 
   canBeValid: (candidate, check = undefined) => {
-    const reject = !!check && ((T, ...subs) => check(false, X(T, ...subs)));
     const validType =
       (isObject(candidate) ||
-        (reject &&
-          reject`cannot serialize non-objects as Remotable ${candidate}`)) &&
+        (!!check &&
+          CX(check)`cannot serialize non-objects as Remotable ${candidate}`)) &&
       (!isArray(candidate) ||
-        (reject && reject`cannot serialize arrays as Remotable ${candidate}`));
+        (!!check &&
+          CX(check)`cannot serialize arrays as Remotable ${candidate}`));
     if (!validType) {
       return false;
     }
@@ -217,19 +220,19 @@ export const RemotableHelper = harden({
         return (
           // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
           (hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value') ||
-            (reject &&
-              reject`cannot serialize Remotables with accessors like ${q(
+            (!!check &&
+              CX(check)`cannot serialize Remotables with accessors like ${q(
                 String(key),
               )} in ${candidate}`)) &&
           ((key === Symbol.toStringTag && checkIface(candidate[key], check)) ||
             ((canBeMethod(candidate[key]) ||
-              (reject &&
-                reject`cannot serialize Remotables with non-methods like ${q(
+              (!!check &&
+                CX(check)`cannot serialize Remotables with non-methods like ${q(
                   String(key),
                 )} in ${candidate}`)) &&
               (key !== PASS_STYLE ||
-                (reject &&
-                  reject`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`))))
+                (!!check &&
+                  CX(check)`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`))))
         );
       });
     } else if (typeof candidate === 'function') {
@@ -245,22 +248,28 @@ export const RemotableHelper = harden({
       const restKeys = ownKeys(restDescs);
       return (
         ((nameDesc && typeof nameDesc.value === 'string') ||
-          (reject &&
-            reject`Far function name must be a string, in ${candidate}`)) &&
+          (!!check &&
+            CX(check)`Far function name must be a string, in ${candidate}`)) &&
         ((lengthDesc && typeof lengthDesc.value === 'number') ||
-          (reject &&
-            reject`Far function length must be a number, in ${candidate}`)) &&
+          (!!check &&
+            CX(
+              check,
+            )`Far function length must be a number, in ${candidate}`)) &&
         (toStringTagDesc === undefined ||
           ((typeof toStringTagDesc.value === 'string' ||
-            (reject &&
-              reject`Far function @@toStringTag must be a string, in ${candidate}`)) &&
+            (!!check &&
+              CX(
+                check,
+              )`Far function @@toStringTag must be a string, in ${candidate}`)) &&
             checkIface(toStringTagDesc.value, check))) &&
         (restKeys.length === 0 ||
-          (reject &&
-            reject`Far functions unexpected properties besides .name and .length ${restKeys}`))
+          (!!check &&
+            CX(
+              check,
+            )`Far functions unexpected properties besides .name and .length ${restKeys}`))
       );
     }
-    return reject && reject`unrecognized typeof ${candidate}`;
+    return !!check && CX(check)`unrecognized typeof ${candidate}`;
   },
 
   assertValid: candidate => checkRemotable(candidate, assertChecker),
