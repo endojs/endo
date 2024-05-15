@@ -546,11 +546,11 @@ const main = async argv => {
     return dedent;
   }
   const dedent = makeDedent();
-  const scriptAsFn = async (
+  async function benchmark(
     // Extract as parameters identifiers that should have been keywords.
     { undefined, Infinity, NaN, ...infrastructure },
     config,
-  ) => {
+  ) {
     // Capture primordials to be robust against manipulation in init/setup/etc.
     // This is probably paranoid, but we *do* want to benchmark shims/polyfills/etc.
     [undefined, Infinity, NaN] = [void 0, 1 / 0, +'NaN'];
@@ -563,7 +563,7 @@ const main = async argv => {
     const { ceil, floor, max, min, random } = Math;
     const { isFinite } = Number;
     const { create, entries, keys, values } = Object;
-    const { apply, construct, ownKeys } = Reflect;
+    const { apply, construct, defineProperty, ownKeys } = Reflect;
     const { raw } = String;
     // Avoid Object.fromEntries, which reads its argument as an iterable and is
     // therefore susceptible to replacement of Array.prototype[Symbol.iterator].
@@ -725,15 +725,24 @@ const main = async argv => {
       `;
       push(ctorArgs, body);
       const inner = construct(ctor, ctorArgs);
+      if (data.label) {
+        defineProperty(inner, 'name', {
+          value: data.label,
+          writable: false,
+          enumerable: false,
+          configurable: true,
+        });
+      }
       // The final item in `args` must supply the `now` function used
       // for getting current time in milliseconds.
-      return async args => {
+      const timer = async args => {
         const { now: nowIn } = args[args.length - 1];
         const result = await apply(inner, undefined, args);
         const { now: nowOut, t0, t1, tF } = result;
         if (nowOut !== nowIn) throw 'Error: early return ' + stringify(result);
         return { duration: tF - t1, resolution: t1 - t0 };
       };
+      return timer;
     };
 
     const dataByKey = create(null);
@@ -834,8 +843,8 @@ const main = async argv => {
       }
       if (C <= 0) break;
     }
-  };
-  const scriptFnSource = dedent(['  ' + scriptAsFn.toString()]);
+  }
+  const benchmarkFnSource = dedent(['  ' + benchmark.toString()]);
   const script = dedent`
     // As a convenience, provide a missing print/console using the other.
     globalThis.print ||= console.log;
@@ -861,7 +870,7 @@ const main = async argv => {
     )(
     (log => function die(err) { log(err); throw err; })(console.log.bind(console, "ERROR")),
 
-    (${scriptFnSource})(
+    (${benchmarkFnSource})(
 
     // infrastructure
     {
