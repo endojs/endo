@@ -837,6 +837,23 @@ const main = async argv => {
       console[m] ||= print;
     }
 
+    // Invoke the async function with a logging catch handler that is
+    // immune to later manipulation of Array/Object/Promise/console/etc.
+    // Basically, spell \`(fn)(...args).catch(die)\`
+    // as \`Promise.prototype.catch.call(...reverseArgs(die, (fn)(...args)))\`.
+    // (we can't use console.error because V8 defines one that swallows all input)
+    Promise.prototype.catch.call(...(
+      function reverseArgs(...args) {
+        const last = { done: true, value: undefined };
+        let i = args.length;
+        return {
+          [Symbol.iterator]() { return this; },
+          next() { return --i >= 0 ? { done: false, value: args[i] } : last; },
+        };
+      }
+    )(
+    (log => function die(err) { log(err); throw err; })(console.log.bind(console, "ERROR")),
+
     (${scriptFnSource})(
 
     // infrastructure
@@ -851,7 +868,11 @@ const main = async argv => {
     init() {\n${inits.join(';\n')}\n},
     },
 
+    // end async function arguments
     )
+
+    // end Promise.prototype.catch.call(...reverseArgs(handler, promise))
+    ))
   `;
 
   // Dump the script if so requested.
