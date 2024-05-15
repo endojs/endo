@@ -453,7 +453,7 @@ export interface NameHub {
 }
 
 export interface EndoDirectory extends NameHub {
-  makeDirectory(petName: string): Promise<EndoDirectory>;
+  makeDirectory(...petNamePath: string[]): Promise<EndoDirectory>;
 }
 
 export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;

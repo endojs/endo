@@ -12,7 +12,6 @@ import url from 'url';
 
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
-import { parsePetNamePath } from './pet-name.js';
 
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
@@ -371,7 +370,7 @@ export const main = async rawArgs => {
         storeJson,
         storeJsonStdin,
         storeBigInt,
-        name: parsePetNamePath(name),
+        name,
         agentNames,
       });
     });
@@ -469,6 +468,16 @@ export const main = async rawArgs => {
       const { as: agentNames, introduce: introducedNames } = cmd.opts();
       const { mkguest } = await import('./commands/mkguest.js');
       return mkguest({ agentName, handleName, agentNames, introducedNames });
+    });
+
+  program
+    .command('mkdir <path>')
+    .option(...commonOptions.as)
+    .description('makes a directory (pet store, name hub)')
+    .action(async (directoryPath, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { mkdir } = await import('./commands/mkdir.js');
+      return mkdir({ agentNames, directoryPath });
     });
 
   program

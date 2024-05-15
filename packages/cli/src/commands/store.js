@@ -7,6 +7,7 @@ import { makeReaderRef } from '@endo/daemon';
 import { E } from '@endo/far';
 
 import { withEndoAgent } from '../context.js';
+import { parsePetNamePath } from '../pet-name.js';
 
 /**
  * @param {Array<Uint8Array>} arrays
@@ -72,32 +73,34 @@ export const store = async ({
     )})`;
   }
 
+  const parsedName = parsePetNamePath(name);
+
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     if (storeText !== undefined) {
-      await E(agent).storeValue(storeText, name);
+      await E(agent).storeValue(storeText, parsedName);
     } else if (storeJson !== undefined) {
-      await E(agent).storeValue(JSON.parse(storeJson), name);
+      await E(agent).storeValue(JSON.parse(storeJson), parsedName);
     } else if (storeBigInt !== undefined) {
-      await E(agent).storeValue(BigInt(storeBigInt), name);
+      await E(agent).storeValue(BigInt(storeBigInt), parsedName);
     } else if (storeTextStdin !== undefined) {
       const reader = makeNodeReader(process.stdin);
       const bytes = await asyncConcat(reader);
       const text = new TextDecoder().decode(bytes);
-      await E(agent).storeValue(text, name);
+      await E(agent).storeValue(text, parsedName);
     } else if (storeJsonStdin !== undefined) {
       const reader = makeNodeReader(process.stdin);
       const bytes = await asyncConcat(reader);
       const text = new TextDecoder().decode(bytes);
-      await E(agent).storeValue(JSON.parse(text), name);
+      await E(agent).storeValue(JSON.parse(text), parsedName);
     } else if (storeStdin !== undefined) {
       const reader = makeNodeReader(process.stdin);
       const readerRef = makeReaderRef(reader);
-      await E(agent).storeBlob(readerRef, name);
+      await E(agent).storeBlob(readerRef, parsedName);
     } else if (storePath !== undefined) {
       const nodeReadStream = fs.createReadStream(storePath);
       const reader = makeNodeReader(nodeReadStream);
       const readerRef = makeReaderRef(reader);
-      await E(agent).storeBlob(readerRef, name);
+      await E(agent).storeBlob(readerRef, parsedName);
     }
   });
 };
