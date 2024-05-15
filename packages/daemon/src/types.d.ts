@@ -446,7 +446,7 @@ export interface NameHub {
   ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
   lookup(...petNamePath: string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
-  write(petNamePath: string[], id: string): Promise<void>;
+  write(petNamePath: string | string[], id: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
   move(fromPetName: string[], toPetName: string[]): Promise<void>;
   copy(fromPetName: string[], toPetName: string[]): Promise<void>;
@@ -568,7 +568,10 @@ export interface EndoHost extends EndoAgent {
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
   ): Promise<FarRef<EndoReadable>>;
-  storeValue<T extends Passable>(value: T, petName: string): Promise<void>;
+  storeValue<T extends Passable>(
+    value: T,
+    petName: string | string[],
+  ): Promise<void>;
   provideGuest(
     petName?: string,
     opts?: MakeHostOrGuestOptions,

@@ -8,6 +8,7 @@ import bundleSource from '@endo/bundle-source';
 import { makeReaderRef } from '@endo/daemon';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
+import { parsePetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';
 
 const textEncoder = new TextEncoder();
@@ -37,6 +38,8 @@ export const makeCommand = async ({
     process.exitCode = 1;
     return;
   }
+
+  const resultPath = resultName && parsePetNamePath(resultName);
 
   /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
   let bundleReaderRef;
@@ -68,9 +71,9 @@ export const makeCommand = async ({
             workerName,
             url.pathToFileURL(path.resolve(importPath)).href,
             powersName,
-            resultName,
+            resultPath,
           )
-        : E(agent).makeBundle(workerName, bundleName, powersName, resultName);
+        : E(agent).makeBundle(workerName, bundleName, powersName, resultPath);
     const result = await resultP;
     console.log(result);
 

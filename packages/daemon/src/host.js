@@ -108,16 +108,15 @@ export const makeHostMaker = ({
 
     /**
      * @param {ERef<AsyncIterableIterator<string>>} readerRef
-     * @param {string} [petName]
+     * @param {string | string[]} [petName]
      */
     const storeBlob = async (readerRef, petName) => {
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
       if (petName !== undefined) {
-        assertPetName(petName);
         tasks.push(identifiers =>
-          petStore.write(petName, identifiers.readableBlobId),
+          E(directory).write(petName, identifiers.readableBlobId),
         );
       }
 
@@ -131,9 +130,8 @@ export const makeHostMaker = ({
       const tasks = makeDeferredTasks();
 
       if (petName !== undefined) {
-        assertPetName(petName);
         tasks.push(identifiers =>
-          petStore.write(petName, identifiers.marshalId),
+          E(directory).write(petName, identifiers.marshalId),
         );
       }
 
@@ -244,7 +242,7 @@ export const makeHostMaker = ({
      * Helper function for makeUnconfined and makeBundle.
      * @param {string} powersName
      * @param {string} workerName
-     * @param {string} [resultName]
+     * @param {string | string[]} [resultName]
      */
     const prepareMakeCaplet = (powersName, workerName, resultName) => {
       assertPowersName(powersName);
@@ -263,7 +261,7 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.capletId),
+          E(directory).write(resultName, identifiers.capletId),
         );
       }
 

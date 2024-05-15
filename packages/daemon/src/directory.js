@@ -216,6 +216,9 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['write']} */
     const write = async (petNamePath, id) => {
+      if (typeof petNamePath === 'string') {
+        petNamePath = [petNamePath];
+      }
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
         await petStore.write(petName, id);
