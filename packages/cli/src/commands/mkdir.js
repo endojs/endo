@@ -6,5 +6,5 @@ import { parsePetNamePath } from '../pet-name.js';
 
 export const mkdir = async ({ agentNames, directoryPath }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    await E(agent).makeDirectory(parsePetNamePath(directoryPath));
+    await E(agent).makeDirectory(...parsePetNamePath(directoryPath));
   });

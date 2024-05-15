@@ -207,13 +207,6 @@ export const makeDirectoryMaker = ({
       await toHub.write([toName], id);
     };
 
-    /** @type {EndoDirectory['makeDirectory']} */
-    const makeDirectory = async directoryPetName => {
-      const { value: directory, id } = await formulateDirectory();
-      await petStore.write(directoryPetName, id);
-      return directory;
-    };
-
     /** @type {EndoDirectory['write']} */
     const write = async (petNamePath, id) => {
       if (typeof petNamePath === 'string') {
@@ -226,6 +219,13 @@ export const makeDirectoryMaker = ({
       }
       const { hub, name } = await lookupTailNameHub(petNamePath);
       await hub.write([name], id);
+    };
+
+    /** @type {EndoDirectory['makeDirectory']} */
+    const makeDirectory = async (...directoryPetNamePath) => {
+      const { value: directory, id } = await formulateDirectory();
+      await write(directoryPetNamePath, id);
+      return directory;
     };
 
     /** @type {EndoDirectory} */
