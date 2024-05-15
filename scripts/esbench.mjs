@@ -257,7 +257,7 @@ const parseArgs = (argv, fail) => {
   let args = Object.create(null);
   let scalingArg;
   let setups = [];
-  let snippets = Object.create(null);
+  let snippets = [];
 
   // HELPERS
 
@@ -304,10 +304,13 @@ const parseArgs = (argv, fail) => {
 
   const snippetPatt = /^(?:(?<label>[^:]*):)?(?<code>.*)/s;
   const pushSnippet = def => {
-    const { code, label = code } =
+    const { label: rawLabel, code } =
       def.match(snippetPatt)?.groups || fail(`bad snippet ${def}`);
-    !(label in snippets) || fail(`duplicate snippet label ${q(label)}`);
-    snippets[label] = code === '-' ? readStdin() : code;
+    const label = rawLabel || null;
+    label === null ||
+      snippets.every(([otherLabel]) => otherLabel !== label) ||
+      fail(`duplicate snippet label ${q(label)}`);
+    snippets.push([label, code === '-' ? readStdin() : code]);
   };
 
   // PROCESSING
@@ -439,7 +442,7 @@ const main = async argv => {
     console.log(USAGE);
     process.exitCode = EX_USAGE;
     return;
-  } else if (Object.keys(snippets).length === 0) {
+  } else if (snippets.length === 0) {
     failArg('at least one snippet is required');
   }
 
@@ -559,7 +562,7 @@ const main = async argv => {
     const { stringify } = JSON;
     const { ceil, floor, max, min, random } = Math;
     const { isFinite } = Number;
-    const { entries, keys, values } = Object;
+    const { create, entries, keys, values } = Object;
     const { apply, construct, ownKeys } = Reflect;
     const { raw } = String;
     // Avoid Object.fromEntries, which reads its argument as an iterable and is
@@ -607,7 +610,7 @@ const main = async argv => {
     const { r = randomHex(16) } = config;
 
     // dummy is an object with no extractable properties.
-    const dummy = Object.freeze(Object.create(null));
+    const dummy = Object.freeze(create(null));
     // dedent with String.raw is safe but incorrect.
     const {
       dedent = (strings, ...subs) =>
@@ -733,9 +736,9 @@ const main = async argv => {
       };
     };
 
-    const dataByLabel = {};
-    const sample = async (label, code, budget, args) => {
-      const data = (dataByLabel[label] ||= { i: 0, n: 1 });
+    const dataByKey = create(null);
+    const sample = async (key, label, code, budget, args) => {
+      const data = (dataByKey[key] ||= { label, i: 0, n: 1 });
       const fullArgs = appended(args, { now, dummy });
 
       // Make a timer function with repetition count tuned to foster
@@ -786,30 +789,34 @@ const main = async argv => {
     // For each non-final scaling value and each combination of non-scaling
     // arguments, collect samples from the snippets in random order.
     const argCombos = ifEmpty(crossJoin(values(nonScalingArgs)), [[]]);
-    const snippetEntries = entries(snippets);
-    const snippetOrder = assignEntries(
-      map(snippetEntries, ([label], i) => [label, i]),
-    );
-    const liveSnippetsForCombo = map(argCombos, () => keys(snippetOrder));
+    const snippetIdxs = map(snippets, (_, i) => i);
+    const liveSnippetsForCombo = map(argCombos, () => slice(snippetIdxs));
     const scaling = scalingArg !== undefined ? args[scalingArg] : { max: 0 };
     const maxScale = isFinite(scaling.max) ? scaling.max : Infinity;
     for (let C = argCombos.length, scale = 0; scale <= maxScale; scale += 1) {
       for (let i = 0; i < argCombos.length; i += 1) {
         if (!liveSnippetsForCombo[i]) continue;
-        shuffle(snippetEntries);
+        shuffle(snippetIdxs);
         const output = [];
-        for (let j = 0; j < snippetEntries.length; j += 1) {
-          const [label, code] = snippetEntries[j];
-          const k = indexOf(liveSnippetsForCombo[i], label);
+        for (let j = 0; j < snippetIdxs.length; j += 1) {
+          const snippetIdx = snippetIdxs[j];
+          const k = indexOf(liveSnippetsForCombo[i] || [], snippetIdx);
           if (k < 0) continue;
+          const { 0: label, 1: code } = snippets[snippetIdx];
           const resolvedArgs = appended(argCombos[i], scale);
-          const data = await sample(label, code, budget, resolvedArgs);
+          const data = await sample(
+            snippetIdx,
+            label,
+            code,
+            budget,
+            resolvedArgs,
+          );
           const { n, totalDuration, samples } = data;
           push(output, {
             label,
-            i: snippetOrder[label],
+            i: snippetIdx,
             data,
-            line: `${label} (${stringSlice(stringify(resolvedArgs), 1, -1)}) ${
+            line: `${label || code} (${stringSlice(stringify(resolvedArgs), 1, -1)}) ${
               (samples.length * n) / totalDuration
             } ops/ms after ${samples.length} ${n}-count samples`,
           });
