@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { h } from './util.js';
 import { App } from './app.js';
 
-export const make = async ({ inventory }) => {
+export const make = async ({ actions }) => {
   document.body.innerHTML = '';
 
   const style = document.createElement('style');
@@ -26,5 +26,5 @@ export const make = async ({ inventory }) => {
   document.body.appendChild(container);
 
   const root = createRoot(container);
-  root.render(h(App, { inventory }));
+  root.render(h(App, { actions }));
 };
