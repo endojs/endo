@@ -190,13 +190,16 @@ const spawnKit = async ([cmd, ...args], { input, ...options } = {}) => {
 };
 
 const toSource = (value, space) =>
+  // Rely on JSON.stringify, but replace `"__proto__"` property names
+  // with computed equivalent `["__proto__"]` and make all objects
+  // null-prototype (ensuring that absent fields are undefined).
   JSON.stringify(value, undefined, space)
-    // Escape "{" in strings, replace "__proto__" with a computed property,
-    // and make all objects null-prototype (ensuring that absent fields are
-    // undefined).
+    // Escape "{" in strings to avoid confusing later replacements.
     .replaceAll(/"(\\.|[^\\"])*"/gs, s => s.replaceAll('{', '\\x7B'))
     .replaceAll('"__proto__":', '["__proto__"]:')
-    .replaceAll('{', '{__proto__: null,');
+    .replaceAll('{', '{__proto__: null,')
+    // Restore "{".
+    .replaceAll(/\\x7B|\\./gs, s => (s === '\\x7B' ? '{' : s));
 
 const { makeSimpleError, raiseError } = (() => {
   const simpleErrors = new WeakSet();
