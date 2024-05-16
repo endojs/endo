@@ -227,7 +227,7 @@ export const DeckCardsComponent = ({ deck }) => {
   )
 };
 
-export const DeckManagerComponent = ({ deck, deckMgmt, inventory }) => {
+export const DeckManagerComponent = ({ deck, deckMgmt, actions }) => {
   const nameStartsWithCard = (name) => name.startsWith('card-')
   const addAction = (name) => {
     return deckMgmt.addCardToDeckByName(name)
@@ -241,7 +241,7 @@ export const DeckManagerComponent = ({ deck, deckMgmt, inventory }) => {
           await deckMgmt.makeNewDeck()
         },
       }, ['New Deck']),
-      deck && h(ObjectsListComponent, { key: 'inventory', inventory, addAction, filterFn: nameStartsWithCard }),
+      deck && h(ObjectsListComponent, { key: 'actions', actions, addAction, filterFn: nameStartsWithCard }),
       deck && h(DeckCardsComponent, { key: 'deck', deck }),
     ])
   )

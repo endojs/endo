@@ -1,6 +1,6 @@
 {
   "bundleFileName": "bundle-deck.json",
-  "bundleTime": "2024-05-14T06:05:35.508Z",
+  "bundleTime": "2024-05-16T01:27:55.364Z",
   "bundleSize": 727649,
   "moduleSource": {
     "relative": "../../src/deck.js",
@@ -49,7 +49,7 @@
     },
     {
       "relativePath": "../../../daemon/src/reader-ref.js",
-      "mtime": "2024-05-08T02:43:15.048Z",
+      "mtime": "2024-05-14T08:22:37.960Z",
       "size": 2080
     },
     {
@@ -188,14 +188,14 @@
       "size": 1512
     },
     {
-      "relativePath": "../../../pass-style/src/copyRecord.js",
-      "mtime": "2024-05-08T02:43:15.056Z",
-      "size": 1586
-    },
-    {
       "relativePath": "../../../pass-style/src/tagged.js",
       "mtime": "2024-05-08T02:43:15.060Z",
       "size": 1471
+    },
+    {
+      "relativePath": "../../../pass-style/src/copyRecord.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 1586
     },
     {
       "relativePath": "../../../pass-style/src/safe-promise.js",

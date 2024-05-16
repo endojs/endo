@@ -16,6 +16,24 @@ import { makeMutex } from './util.js';
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
+// Math.random not availabile in Compartment,
+// temporary workaround. Used for shuffling.
+// Shhh, don't tell anyone.
+// from https://gist.github.com/mathiasbynens/5670917
+const getPseudoRandom = (() => {
+  let seed = 0x2F6E2B1;
+  return function() {
+    // Robert Jenkins’ 32 bit integer hash function
+    seed = ((seed + 0x7ED55D16) + (seed << 12))  & 0xFFFFFFFF;
+    seed = ((seed ^ 0xC761C23C) ^ (seed >>> 19)) & 0xFFFFFFFF;
+    seed = ((seed + 0x165667B1) + (seed << 5))   & 0xFFFFFFFF;
+    seed = ((seed + 0xD3A2646C) ^ (seed << 9))   & 0xFFFFFFFF;
+    seed = ((seed + 0xFD7046C5) + (seed << 3))   & 0xFFFFFFFF;
+    seed = ((seed ^ 0xB55A4F09) ^ (seed >>> 16)) & 0xFFFFFFFF;
+    return (seed & 0xFFFFFFF) / 0x10000000;
+  };
+})();
+
 const playerRemoteToLocal = new Map()
 const makePlayer = (getCardDataById, initialState = {}) => {
   const name = initialState.name || 'player'
@@ -240,7 +258,7 @@ export function makeGame (initialState = {}, deck, persistState) {
   const shuffleDrawStack = () => {
     const cards = drawStackIds.get().slice()
     for (let i = cards.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(getPseudoRandom() * (i + 1));
       [cards[i], cards[j]] = [cards[j], cards[i]];
     }
     drawStackIds.set(cards)
@@ -418,7 +436,7 @@ export const make = async (powers) => {
       return undefined
     }
     const readable = await E(powers).lookup('state');
-    const readerRef = E(readable).stream();
+    const readerRef = E(readable).streamBase64();
     const reader = makeRefReader(readerRef);
     let stateBlob = ''
     for await (const chunk of reader) {
@@ -432,13 +450,13 @@ export const make = async (powers) => {
       const stateBlob = JSON.stringify(state)
       const encoded = textEncoder.encode(stateBlob)
       const reader = makeReaderRef([encoded])
-      await E(powers).store(reader, 'state')
+      await E(powers).storeBlob(reader, 'state')
     })
   }
 
   const deck = await E(powers).request(
     // recipient
-    'HOST',
+    'parent',
     // description
     'game/deck',
     // my petname

@@ -5,7 +5,7 @@ import { h } from './util.js';
 import { ActiveGameComponent, DeckManagerComponent, PlayGameComponent } from './game.js';
 
 
-export const App = ({ inventory }) => {
+export const App = ({ actions }) => {
   const [deck, setDeck] = React.useState(undefined);
   const [{ game, stateGrain }, setGame] = React.useState({});
 
@@ -13,25 +13,25 @@ export const App = ({ inventory }) => {
     // deck mgmt
     async fetchDeck () {
       // has-check is workaround for https://github.com/endojs/endo/issues/1843
-      if (await inventory.has('deck')) {
-        const deck = await inventory.lookup('deck')
+      if (await actions.has('deck')) {
+        const deck = await actions.lookup('deck')
         setDeck(deck)
       }
     },
     async makeNewDeck () {
-      const deck = await inventory.makeNewDeck()
+      const deck = await actions.makeNewDeck()
       setDeck(deck)
     },
     async addCardToDeckByName (cardName) {
-      return inventory.addCardToDeckByName(cardName)
+      return actions.addCardToDeckByName(cardName)
     },
   }
 
   const gameMgmt = {
     async fetchGame () {
       // has-check is workaround for https://github.com/endojs/endo/issues/1843
-      if (await inventory.has('game')) {
-        const game = await inventory.lookup('game')
+      if (await actions.has('game')) {
+        const game = await actions.lookup('game')
         setDeck(game)
         const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
         setGame({ game, stateGrain })
@@ -39,7 +39,7 @@ export const App = ({ inventory }) => {
     },
     async start () {
       // make game
-      const game = await inventory.makeGame()
+      const game = await actions.makeGame()
       const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
       setGame({ game, stateGrain })
       await E(game).start(deck)
@@ -68,7 +68,7 @@ export const App = ({ inventory }) => {
           fontSize: '42px',
         },
       }, ['🃏1kce🃏']),
-      !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, inventory }),
+      !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
       !game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
       game && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
     ])

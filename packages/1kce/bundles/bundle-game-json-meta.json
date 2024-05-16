@@ -1,7 +1,7 @@
 {
   "bundleFileName": "bundle-game.json",
-  "bundleTime": "2024-05-14T06:05:34.360Z",
-  "bundleSize": 746065,
+  "bundleTime": "2024-05-16T12:42:44.283Z",
+  "bundleSize": 746925,
   "moduleSource": {
     "relative": "../../src/game.js",
     "absolute": "/home/xyz/Development/endo/packages/1kce/src/game.js"
@@ -9,8 +9,8 @@
   "contents": [
     {
       "relativePath": "",
-      "mtime": "2024-05-08T06:38:33.701Z",
-      "size": 14483
+      "mtime": "2024-05-16T12:42:24.295Z",
+      "size": 15239
     },
     {
       "relativePath": "../../../far/src/index.js",
@@ -59,7 +59,7 @@
     },
     {
       "relativePath": "../../../daemon/src/reader-ref.js",
-      "mtime": "2024-05-08T02:43:15.048Z",
+      "mtime": "2024-05-14T08:22:37.960Z",
       "size": 2080
     },
     {
@@ -328,14 +328,14 @@
       "size": 3991
     },
     {
-      "relativePath": "../../../patterns/src/keys/merge-set-operators.js",
-      "mtime": "2024-05-08T02:43:15.060Z",
-      "size": 9558
-    },
-    {
       "relativePath": "../../../patterns/src/keys/compareKeys.js",
       "mtime": "2024-05-08T02:43:15.060Z",
       "size": 8303
+    },
+    {
+      "relativePath": "../../../patterns/src/keys/merge-set-operators.js",
+      "mtime": "2024-05-08T02:43:15.060Z",
+      "size": 9558
     },
     {
       "relativePath": "../../../patterns/src/keys/merge-bag-operators.js",
@@ -398,14 +398,14 @@
       "size": 16039
     },
     {
-      "relativePath": "../../../marshal/src/marshal-stringify.js",
-      "mtime": "2024-05-08T02:43:15.056Z",
-      "size": 1370
-    },
-    {
       "relativePath": "../../../marshal/src/marshal.js",
       "mtime": "2024-05-08T02:43:15.056Z",
       "size": 14636
+    },
+    {
+      "relativePath": "../../../marshal/src/marshal-stringify.js",
+      "mtime": "2024-05-08T02:43:15.056Z",
+      "size": 1370
     },
     {
       "relativePath": "../../../marshal/src/marshal-justin.js",

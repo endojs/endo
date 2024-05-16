@@ -85,7 +85,6 @@ const useFollowReducer = (getSubFn, reducerFn, deps) => {
     let shouldAbort = false;
     const iterateChanges = async () => {
       for await (const event of subIterator) {
-        console.log('useFollowReducer event', event, shouldAbort)
         // Check if we should abort iteration
         if (shouldAbort) {
           break;
@@ -115,25 +114,6 @@ const useFollowMessages = (getSubFn, deps) => {
       setState(prevState => {
         return arrayWithout(prevState, message);
       });
-    });
-  };
-
-  const state = useFollowReducer(getSubFn, reducerFn, deps);
-  return state;
-};
-
-const useFollowNames = (getSubFn, deps) => {
-  const reducerFn = (change, setState) => {
-    // apply change
-    setState(prevState => {
-      if ('add' in change) {
-        const name = change.add;
-        return [...prevState, name];
-      } else if ('remove' in change) {
-        const name = change.remove;
-        return arrayWithout(prevState, name);
-      }
-      return prevState;
     });
   };
 
