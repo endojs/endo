@@ -74,11 +74,15 @@ export const makeCommand = async ({
             resultPath,
           )
         : E(agent).makeBundle(workerName, bundleName, powersName, resultPath);
-    const result = await resultP;
-    console.log(result);
-
-    if (temporaryBundleName) {
-      await E(agent).remove(temporaryBundleName);
+    let result;
+    try {
+      result = await resultP;
+      console.log(result);
+    } finally {
+      if (temporaryBundleName) {
+        await E(agent).remove(temporaryBundleName);
+      }
     }
+    return result;
   });
 };
