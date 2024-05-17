@@ -524,9 +524,10 @@ const inboxComponent = async ($parent, $end, powers) => {
         $input.innerText = ` ${status} `;
       });
     } else if (message.type === 'package') {
-      const { strings, names } = message;
+      const { strings, names, ids } = message;
       assert(Array.isArray(strings));
       assert(Array.isArray(names));
+      assert(Array.isArray(ids));
 
       $message.appendChild(document.createTextNode(' "'));
 
@@ -540,11 +541,20 @@ const inboxComponent = async ($parent, $end, powers) => {
         const outer = JSON.stringify(strings[index]);
         const inner = outer.slice(1, outer.length - 1);
         $message.appendChild(document.createTextNode(inner));
-        assert.typeof(names[index], 'string');
-        const name = `@${names[index]}`;
-        const $name = document.createElement('b');
-        $name.innerText = name;
-        $message.appendChild($name);
+        const id = ids[index];
+        const edgeName = names[index];
+        assert.typeof(id, 'string');
+        assert.typeof(edgeName, 'string');
+        const knownName = await E(powers).reverseIdentify(id);
+        if (typeof knownName === 'string') {
+          const $name = document.createElement('b');
+          $name.innerText = `@${knownName}`;
+          $message.appendChild($name);
+        } else {
+          const $name = document.createElement('i');
+          $name.innerText = `?${edgeName}`;
+          $message.appendChild($name);
+        }
       }
       if (strings.length > names.length) {
         const outer = JSON.stringify(strings[index]);
