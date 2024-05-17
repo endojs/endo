@@ -2,7 +2,7 @@
 
 /** @import {ModuleMapHook} from 'ses' */
 /** @import {ResolveHook} from 'ses' */
-/** @import {ParseFn} from './types.js' */
+/** @import {ExtraImportOptions, ParseFn} from './types.js' */
 /** @import {ParserImplementation} from './types.js' */
 /** @import {ShouldDeferError} from './types.js' */
 /** @import {ModuleTransforms} from './types.js' */
@@ -325,7 +325,7 @@ const makeModuleMapHook = (
  * only.
  *
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {LinkOptions} options
+ * @param {LinkOptions & ExtraImportOptions} options
  */
 export const link = (
   { entry, compartments: compartmentDescriptors },
@@ -339,6 +339,7 @@ export const link = (
     __shimTransforms__ = [],
     archiveOnly = false,
     Compartment = defaultCompartment,
+    parsers = [],
   },
 ) => {
   const { compartment: entryCompartmentName } = entry;
@@ -356,9 +357,21 @@ export const link = (
 
   const pendingJobs = [];
 
+  /** @type {Record<string, string|Language>} */
+  const customLanguageForExtension = Object.create(null);
+  for (const {parser, extensions, languages} of parsers) {
+    for (const language of languages) {
+      parserForLanguage[language] = parser;
+      for (const extension of extensions) {
+        customLanguageForExtension[extension] = language;
+      }
+    }
+  }
+
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
+    // TODO: The default assignments seem to break type inference
     const {
       location,
       name,
@@ -371,6 +384,10 @@ export const link = (
     // Capture the default.
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
+
+    for (const [ext, lang] of entries(customLanguageForExtension)) {
+      languageForExtension[ext] = lang;
+    }
 
     const parse = mapParsers(
       languageForExtension,

@@ -169,23 +169,25 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const languages = ['mjs', 'cjs', 'json', 'text', 'bytes'];
-const uncontroversialParsers = {
+const LANGUAGES = /** @type {const} */(['mjs', 'cjs', 'json', 'text', 'bytes']);
+const UNCONTROVERSIAL_PARSERS = /** @type {const} */({
   cjs: 'cjs',
   mjs: 'mjs',
   json: 'json',
   text: 'text',
   bytes: 'bytes',
-};
-const commonParsers = { js: 'cjs', ...uncontroversialParsers };
-const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
+});
+const COMMON_PARSERS = /** @type {const} */({ js: 'cjs', ...UNCONTROVERSIAL_PARSERS });
+const MODULE_PARSERS = /** @type {const} */({ js: 'mjs', ...UNCONTROVERSIAL_PARSERS });
+// * @param {{languages?: readonly string[]|string[], uncontroversialParsers?: Record<string, string>, commonParsers?: Record<string, string>, moduleParsers?: Record<string, string>}} [options]
 
 /**
  * @param {object} descriptor
  * @param {string} location
+
  * @returns {Record<string, string>}
  */
-const inferParsers = (descriptor, location) => {
+const inferParsers = (descriptor, location, {languages = LANGUAGES, uncontroversialParsers = UNCONTROVERSIAL_PARSERS, commonParsers = COMMON_PARSERS, moduleParsers = MODULE_PARSERS} = {}) => {
   const { type, module, parsers } = descriptor;
   let additionalParsers = Object.create(null);
   if (parsers !== undefined) {
