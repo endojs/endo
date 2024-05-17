@@ -33,9 +33,9 @@ const template = `
 <style>
 
   :root {
-    --tint-color:   hsl(210, 71%, 72%);
-    --border-color: hsl(210, 60%, 52%);
-    --mask-color:   hsla(210, 38%, 29%, 0.5);
+    --tint-color:   hsl(330, 71%, 72%);
+    --border-color: hsl(330, 60%, 52%);
+    --mask-color:   hsla(330, 38%, 29%, 0.5);
   }
 
   * {
