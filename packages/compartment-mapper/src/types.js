@@ -255,7 +255,7 @@ export {};
  * @param {ReadFn | ReadPowers} [options.readPowers]
  * @returns {Promise<{
  *   bytes: Uint8Array,
- *   parser: Language,
+ *   parser: Language|string,
  *   record: FinalStaticModuleType,
  *   sourceMap?: string,
  * }>}
@@ -385,6 +385,18 @@ export {};
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  * @property {SourceMapHook} [sourceMapHook]
+ */
+
+/**
+ * @typedef CustomParser
+ * @property {ParserImplementation} parser Parser implementation
+ * @property {Array<string|Language>} languages Languages the parser applies to
+ * @property {string[]} extensions Extensions the language applies to
+ */
+
+/**
+ * @typedef {object} ExtraImportOptions
+ * @property {CustomParser[]} [parsers] Custom parser objects
  */
 
 // /////////////////////////////////////////////////////////////////////////////

@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-/** @import {Application} from './types.js' */
+/** @import {Application, ExtraImportOptions} from './types.js' */
 /** @import {ArchiveOptions} from './types.js' */
 /** @import {ExecuteFn} from './types.js' */
 /** @import {ExecuteOptions} from './types.js' */
@@ -36,7 +36,7 @@ export const parserForLanguage = {
 /**
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
+ * @param {ArchiveOptions & ExtraImportOptions} [options]
  * @returns {Promise<Application>}
  */
 export const loadLocation = async (readPowers, moduleLocation, options) => {
@@ -47,6 +47,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     searchSuffixes = undefined,
     commonDependencies = undefined,
     policy,
+    parsers,
   } = options || {};
 
   const { read } = unpackReadPowers(readPowers);
@@ -96,6 +97,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
+      parsers,
       globals,
       transforms,
       moduleTransforms,
@@ -114,7 +116,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
 /**
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ExecuteOptions & ArchiveOptions} [options]
+ * @param {ExecuteOptions & ArchiveOptions & ExtraImportOptions} [options]
  * @returns {Promise<import('./types.js').SomeObject>} the object of the imported modules exported
  * names.
  */
