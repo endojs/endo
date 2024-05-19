@@ -35,9 +35,9 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/init": "^1.1.2",
-    "@endo/promise-kit": "^1.1.2",
-    "@endo/stream": "^1.2.2",
+    "@endo/init": "workspace:*",
+    "@endo/promise-kit": "workspace:*",
+    "@endo/stream": "workspace:*",
     "ses": "^1.5.0"
   },
   "devDependencies": {
