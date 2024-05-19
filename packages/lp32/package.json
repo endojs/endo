@@ -50,13 +50,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/errors": "^1.2.2",
-    "@endo/init": "^1.1.2",
-    "@endo/stream": "^1.2.2",
+    "@endo/errors": "workspace:*",
+    "@endo/init": "workspace:*",
+    "@endo/stream": "workspace:*",
     "ses": "^1.5.0"
   },
   "devDependencies": {
-    "@endo/ses-ava": "^1.2.2",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^6.1.2",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

@@ -44,13 +44,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/eventual-send": "^1.2.2",
-    "@endo/promise-kit": "^1.1.2",
+    "@endo/eventual-send": "workspace:*",
+    "@endo/promise-kit": "workspace:*",
     "ses": "^1.5.0"
   },
   "devDependencies": {
-    "@endo/init": "^1.1.2",
-    "@endo/ses-ava": "^1.2.2",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^6.1.2",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

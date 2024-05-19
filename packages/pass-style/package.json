@@ -34,15 +34,15 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/env-options": "^1.1.4",
-    "@endo/errors": "^1.2.2",
-    "@endo/eventual-send": "^1.2.2",
-    "@endo/promise-kit": "^1.1.2",
+    "@endo/env-options": "workspace:*",
+    "@endo/errors": "workspace:*",
+    "@endo/eventual-send": "workspace:*",
+    "@endo/promise-kit": "workspace:*",
     "@fast-check/ava": "^1.1.5"
   },
   "devDependencies": {
-    "@endo/init": "^1.1.2",
-    "@endo/ses-ava": "^1.2.2",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^6.1.2",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.57.0",
