@@ -1651,13 +1651,33 @@ const makePatternKit = () => {
       limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
     record: (limits = undefined) =>
       limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
+    // struct: A pattern that matches CopyRecords with a fixed quantity of
+    // entries where the values match patterns for corresponding keys is merely
+    // a hardened object with patterns in the places of values for
+    // corresponding keys.
+    // For example, a pattern that matches CopyRecords that have a string value
+    // for the key 'x' and a number for the key 'y' is:
+    // harden({ x: M.string(), y: M.number() }).
     array: (limits = undefined) =>
       limits ? M.arrayOf(M.any(), limits) : ArrayShape,
+    // tuple: A pattern that matches CopyArrays with a fixed quantity of values
+    // that match a heterogeneous array of patterns is merely a hardened array
+    // of the respective patterns.
+    // For example, a pattern that matches CopyArrays of length 2 that have a
+    // string at index 0 and a number at index 1 is:
+    // harden([ M.string(), M.number() ]).
     set: (limits = undefined) => (limits ? M.setOf(M.any(), limits) : SetShape),
     bag: (limits = undefined) =>
       limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
     map: (limits = undefined) =>
       limits ? M.mapOf(M.any(), M.any(), limits) : MapShape,
+    // heterogeneous map: A pattern that matches CopyMaps with a fixed quantity
+    // of entries where the value for each key matches a corresponding pattern
+    // is merely a (hardened) CopyMap with patterns instead of values for the
+    // corresponding keys.
+    // For example, a pattern that matches CopyMaps where the value for the key
+    // 'x' is a number and the value for the key 'y' is a string is:
+    // makeCopyMap([['x', M.number()], ['y', M.string()]]).
     remotable: makeRemotableMatcher,
     error: () => ErrorShape,
     promise: () => PromiseShape,
