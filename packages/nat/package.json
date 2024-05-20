@@ -37,7 +37,8 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.0",
     "prettier": "^3.2.5",
-    "ses": "^1.5.0"
+    "ses": "^1.5.0",
+    "typescript": "5.5.0-beta"
   },
   "directories": {
     "test": "test"

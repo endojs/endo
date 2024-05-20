@@ -30,7 +30,8 @@
   },
   "devDependencies": {
     "@endo/compartment-mapper": "^1.1.5",
-    "ava": "^6.1.2"
+    "ava": "^6.1.2",
+    "typescript": "5.5.0-beta"
   },
   "dependencies": {
     "@endo/base64": "^1.0.5",

@@ -42,7 +42,8 @@
     "@endo/lockdown": "^1.0.7",
     "ava": "^6.1.2",
     "c8": "^7.14.0",
-    "tsd": "^0.30.7"
+    "tsd": "^0.30.7",
+    "typescript": "5.5.0-beta"
   },
   "keywords": [
     "eventual send",

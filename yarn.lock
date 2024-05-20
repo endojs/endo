@@ -196,6 +196,7 @@ __metadata:
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     rollup: "npm:^2.79.1"
+    typescript: "npm:5.5.0-beta"
   bin:
     bundle-source: ./src/tool.js
   languageName: unknown
@@ -214,6 +215,7 @@ __metadata:
     "@endo/ses-ava": "npm:^1.2.2"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -303,6 +305,7 @@ __metadata:
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -392,6 +395,7 @@ __metadata:
     ses: "npm:^1.5.0"
     ses0_18_3: "npm:ses@0.18.3"
     tsd: "npm:^0.30.7"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -440,6 +444,7 @@ __metadata:
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -479,6 +484,7 @@ __metadata:
     "@endo/ses-ava": "npm:^1.2.2"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -496,6 +502,7 @@ __metadata:
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     ses: "npm:^1.5.0"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -509,6 +516,7 @@ __metadata:
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/promise-kit": "npm:^1.1.2"
     ava: "npm:^6.1.2"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -558,6 +566,7 @@ __metadata:
     "@fast-check/ava": "npm:^1.1.5"
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -592,6 +601,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
@@ -711,6 +721,7 @@ __metadata:
     ava: "npm:^6.1.2"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
+    typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
