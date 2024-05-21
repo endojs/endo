@@ -28,8 +28,14 @@
       "default": "./index.js"
     },
     "./import.js": "./import.js",
+    "./import-lite.js": "./import-lite.js",
+    "./import-parsers.js": "./import-parsers.js",
     "./archive.js": "./archive.js",
+    "./archive-lite.js": "./archive-lite.js",
+    "./archive-parsers.js": "./archive-parsers.js",
     "./import-archive.js": "./import-archive.js",
+    "./import-archive-lite.js": "./import-archive-lite.js",
+    "./import-archive-parsers.js": "./import-archive-parsers.js",
     "./bundle.js": "./bundle.js",
     "./node-powers.js": "./node-powers.js",
     "./package.json": "./package.json"
