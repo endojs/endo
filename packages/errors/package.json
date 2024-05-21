@@ -29,8 +29,8 @@
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
-    "build:types": "tsc --build tsconfig.build.json",
-    "clean:types": "git clean -f '*.d.ts*'",
+    "prepack": "tsc --build tsconfig.build.json",
+    "postpack": "git clean -f '*.d.ts*'",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0"
@@ -44,7 +44,8 @@
     "ava": "^6.1.2",
     "c8": "^7.14.0",
     "ses0_18_3": "npm:ses@0.18.3",
-    "tsd": "^0.30.7"
+    "tsd": "^0.30.7",
+    "typescript": "5.5.0-beta"
   },
   "files": [
     "*.js",

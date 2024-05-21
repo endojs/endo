@@ -10,8 +10,8 @@
   },
   "scripts": {
     "build": "exit 0",
-    "build:types": "tsc --build tsconfig.build.json",
-    "clean:types": "git clean -f '*.d.ts*'",
+    "prepack": "tsc --build tsconfig.build.json",
+    "postpack": "git clean -f '*.d.ts*'",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
@@ -37,7 +37,8 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.0",
     "prettier": "^3.2.5",
-    "ses": "^1.5.0"
+    "ses": "^1.5.0",
+    "typescript": "5.5.0-beta"
   },
   "directories": {
     "test": "test"
