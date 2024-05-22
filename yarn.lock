@@ -165,7 +165,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/base64@workspace:packages/base64"
   dependencies:
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -193,7 +193,7 @@ __metadata:
     "@rollup/plugin-commonjs": "npm:^19.0.0"
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     acorn: "npm:^8.2.4"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     rollup: "npm:^2.79.1"
     typescript: "npm:5.5.0-beta"
@@ -213,7 +213,7 @@ __metadata:
     "@endo/nat": "npm:^5.0.7"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -229,7 +229,7 @@ __metadata:
     "@endo/errors": "npm:^1.2.2"
     "@endo/init": "npm:^1.1.2"
     "@endo/zip": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -246,7 +246,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer"
   dependencies:
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -276,7 +276,7 @@ __metadata:
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/stream-node": "npm:^1.1.2"
     "@endo/where": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     commander: "npm:^5.0.0"
     eslint: "npm:^8.57.0"
@@ -302,7 +302,7 @@ __metadata:
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.0-beta"
@@ -316,7 +316,7 @@ __metadata:
     "@endo/cjs-module-analyzer": "npm:^1.0.5"
     "@endo/static-module-record": "npm:^1.1.2"
     "@endo/zip": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -353,7 +353,7 @@ __metadata:
     "@endo/stream": "npm:^1.2.2"
     "@endo/stream-node": "npm:^1.1.2"
     "@endo/where": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -372,7 +372,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/env-options@workspace:packages/env-options"
   dependencies:
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -390,7 +390,7 @@ __metadata:
   dependencies:
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     ses: "npm:^1.5.0"
     ses0_18_3: "npm:ses@0.18.3"
@@ -425,7 +425,7 @@ __metadata:
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     "@types/babel__generator": "npm:^7.6.8"
     "@types/babel__traverse": "npm:^7.20.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     rollup: "npm:^2.79.1"
@@ -441,7 +441,7 @@ __metadata:
   dependencies:
     "@endo/env-options": "npm:^1.1.4"
     "@endo/lockdown": "npm:^1.0.7"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.0-beta"
@@ -461,7 +461,7 @@ __metadata:
     "@endo/pass-style": "npm:^1.4.0"
     "@endo/patterns": "npm:^1.4.0"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -482,7 +482,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/pass-style": "npm:^1.4.0"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -499,7 +499,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@endo/where": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -515,7 +515,7 @@ __metadata:
     "@endo/eventual-send": "npm:^1.2.2"
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/promise-kit": "npm:^1.1.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
@@ -536,7 +536,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@endo/stream": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -564,7 +564,7 @@ __metadata:
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@fast-check/ava": "npm:^1.1.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -576,7 +576,7 @@ __metadata:
   dependencies:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -594,7 +594,7 @@ __metadata:
   resolution: "@endo/nat@workspace:packages/nat"
   dependencies:
     "@endo/compartment-mapper": "npm:^1.1.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
@@ -612,7 +612,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/stream": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -637,7 +637,7 @@ __metadata:
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@fast-check/ava": "npm:^1.1.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -660,7 +660,7 @@ __metadata:
     "@endo/marshal": "npm:^1.5.0"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -676,7 +676,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/promise-kit@workspace:packages/promise-kit"
   dependencies:
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -696,7 +696,7 @@ __metadata:
   dependencies:
     "@endo/env-options": "npm:^1.1.4"
     "@endo/init": "npm:^1.1.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -718,7 +718,7 @@ __metadata:
   dependencies:
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.0-beta"
@@ -733,7 +733,7 @@ __metadata:
     "@babel/parser": "npm:^7.23.6"
     "@babel/traverse": "npm:^7.23.6"
     "@babel/types": "npm:^7.24.0"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     benchmark: "npm:^2.1.4"
     c8: "npm:^7.14.0"
@@ -756,7 +756,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@endo/stream": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -796,7 +796,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -815,7 +815,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/syrup@workspace:packages/syrup"
   dependencies:
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -850,7 +850,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/where@workspace:packages/where"
   dependencies:
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -867,7 +867,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/zip@workspace:packages/zip"
   dependencies:
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
@@ -3410,9 +3410,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ava@npm:^6.1.2":
-  version: 6.1.2
-  resolution: "ava@npm:6.1.2"
+"ava@npm:^6.1.3":
+  version: 6.1.3
+  resolution: "ava@npm:6.1.3"
   dependencies:
     "@vercel/nft": "npm:^0.26.2"
     acorn: "npm:^8.11.3"
@@ -3461,7 +3461,7 @@ __metadata:
       optional: true
   bin:
     ava: entrypoints/cli.mjs
-  checksum: 10c0/f35cb1f9bc716714e7c78a601985745774096e4ecd34f9310b858d5779307afa2245ad24274e2d55dd1022c226f4fbdb41947476300977f0b653be0e627adaa4
+  checksum: 10c0/108b28aceb0dfdb077bcf4c96109d736667999c2ce9f564489c4747482ea0e0c455d4d96fdfaad610b1125b74129b7b1d2ce570ec4903e767f6950d7f722f2cd
   languageName: node
   linkType: hard
 
@@ -10120,7 +10120,7 @@ __metadata:
   dependencies:
     "@jessie.js/eslint-plugin": "npm:^0.3.0"
     "@octokit/core": "npm:^3.4.0"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     conventional-changelog-conventionalcommits: "npm:^4.6.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -10329,7 +10329,7 @@ __metadata:
     "@endo/env-options": "npm:^1.1.4"
     "@endo/static-module-record": "npm:^1.1.2"
     "@endo/test262-runner": "npm:^0.1.37"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.0.3"
     c8: "npm:^7.14.0"
     core-js: "npm:^3.31.0"

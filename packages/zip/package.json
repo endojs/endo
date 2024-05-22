@@ -38,7 +38,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "ava": "^6.1.2",
+    "ava": "^6.1.3",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",
     "eslint": "^8.57.0",
