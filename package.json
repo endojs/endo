@@ -23,7 +23,7 @@
     "prettier": "^3.2.5",
     "ts-api-utils": "~1.0.1",
     "type-coverage": "^2.26.3",
-    "typedoc": "^0.25.12",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-markdown": "^3.17.1",
     "typescript": "5.5.0-beta",
     "typescript-eslint": "^7.3.1"
