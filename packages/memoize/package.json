@@ -64,7 +64,6 @@
       "plugin:@endo/internal"
     ]
   },
-  "prettier": null,
   "ava": {
     "files": [
       "test/**/test-*.*",
