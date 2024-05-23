@@ -475,9 +475,9 @@ export function makeImportNowHookMaker(
     if ('packages' in policy && typeof policy.packages === 'object') {
       for (const [pkgName, policyItem] of entries(policy.packages)) {
         if (
-          policyItem === true ||
-          (policyItem === DYNAMIC_POLICY_VALUE &&
-            !(pkgName in compartmentDescriptor.modules))
+          !(pkgName in compartmentDescriptor.modules) &&
+          pkgName in compartmentDescriptor.scopes &&
+          policyItem
         ) {
           compartmentDescriptor.modules[pkgName] =
             compartmentDescriptor.scopes[pkgName];
