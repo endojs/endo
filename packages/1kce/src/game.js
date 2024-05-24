@@ -36,7 +36,7 @@ const getPseudoRandom = (() => {
 
 const playerRemoteToLocal = new Map()
 const makePlayer = (getCardDataById, initialState = {}) => {
-  const name = initialState.name || 'player'
+  const name = initialState.name || '[unknown player]'
   const handIds = makeSyncArrayGrain(initialState.handIds || [])
   const hand = makeDerivedSyncGrain(
     handIds,
@@ -51,15 +51,12 @@ const makePlayer = (getCardDataById, initialState = {}) => {
     handIds.splice(index, 1)
   }
 
+  // obviously nothing interesting in this remote interface
+  // but currently we rely on captp identity continuity for this elsewhere
   const remoteInterface = Far(`Player "${name}"`, {
+    // safe to expose
     async getName () {
       return name
-    },
-    async getHandGrain () {
-      return makeRemoteGrain(hand)
-    },
-    async removeCardById (cardId) {
-      removeCardById(cardId)
     },
   })
   const localPlayer = {
@@ -84,7 +81,7 @@ export function makeGame (initialState = {}, deck, persistState) {
 
   // players
   const localPlayers = makeSyncArrayGrain()
-  const playerHandIds = makeSyncGrainMap()
+  const playerHandIds = makeSyncGrainMap(initialState.playerHandIds || {})
   const remotePlayers = makeDerivedSyncGrain(
     localPlayers,
     localPlayers => localPlayers.map(localPlayer => localPlayer.remoteInterface),
@@ -98,6 +95,9 @@ export function makeGame (initialState = {}, deck, persistState) {
   const addPlayer = (localPlayer) => {
     localPlayers.push(localPlayer)
     playerHandIds.setGrain(localPlayer.name, localPlayer.handIds)
+  }
+  const getPlayerCount = () => {
+    return localPlayers.getLength()
   }
 
   // current player
@@ -362,17 +362,6 @@ export function makeGame (initialState = {}, deck, persistState) {
   const initialize = async () => {
     // get a local copy of the deck cards
     await importDeck(deck)
-    // create players
-    const aliceData = {
-      name: 'alice',
-      handIds: initialState.playerHandIds?.alice || [],
-    }
-    const bobData = {
-      name: 'bob',
-      handIds: initialState.playerHandIds?.bob || [],
-    }
-    addPlayer(makePlayer(getCardDataById, aliceData))
-    addPlayer(makePlayer(getCardDataById, bobData))
   }
   // to be called at the start of a new game
   const start = async () => {
@@ -384,6 +373,14 @@ export function makeGame (initialState = {}, deck, persistState) {
     // start turn, dont await completion
     continueTurn()
   }
+
+  // load local players from initial state
+  // TODO: weird this happens here, but we need `getCardDataById`
+  // "localPlayers" likely needs a simpler design
+  // and maybe a more explicit entry in the state
+  Object.entries(initialState.playerHandIds).map(([name, handIds]) => {
+    localPlayers.push(makePlayer(getCardDataById, { name, handIds }))
+  })
 
   // remote observable game state, aggregated for remote subscribers
   const statePublic = makeSyncGrainMap({
@@ -413,10 +410,12 @@ export function makeGame (initialState = {}, deck, persistState) {
     })
   })
 
-  // Far
   const game = {
     state: statePublic,
     initialize,
+    addPlayer,
+    makePlayer,
+    getPlayerCount,
     start,
     getCardDataById,
     playCardByIdFromHand,
@@ -467,34 +466,65 @@ export const make = async (powers) => {
   const game = makeGame(gameState, deck, persistState)
   await game.initialize()
 
+  const getCardsAtPlayerLocationGrain = async (remotePlayer) => {
+    const { name } = playerRemoteToLocal.get(remotePlayer)
+    const locationCardIdsGrain = game.getLocationGrain(name)
+    // map location cardIds to CardData
+    // TODO: mem leak because we never unsubscribe / subscriptions are not lazy
+    const locationCardDataGrain = makeDerivedSyncGrain(
+      locationCardIdsGrain,
+      locationCardIds => locationCardIds.map(id => game.getCardDataById(id)),
+    )
+    return makeRemoteGrain(locationCardDataGrain)
+  }
+
   return Far('Game', {
     async start () {
+      // TODO: mark game as started,
+      // prevent multiple starts, new players etc
       return game.start()
     },
-    async playCardByIdFromHand (remoteSourcePlayer, cardId, remoteDestinationPlayer) {
-      const localSourcePlayer = playerRemoteToLocal.get(remoteSourcePlayer)
-      const localDestinationPlayer = playerRemoteToLocal.get(remoteDestinationPlayer)
-      await game.playCardByIdFromHand(localSourcePlayer, cardId, localDestinationPlayer)
+    async newPlayer () {
+      // TODO: let users specify their name
+      const playerIndex = game.getPlayerCount()
+      const playerData = {
+        name: `player-${id}`,
+        handIds: [],
+      }
+      // TODO: simplify
+      game.addPlayer(game.makePlayer(game.getCardDataById, playerData))
+      return playerIndex
     },
-    async getPlayersGrain () {
-      return makeRemoteGrain(game.getRemotePlayersGrain())
-    },
-    async getStateGrain () {
-      return makeRemoteGrainMap(game.state)
-    },
-    async getCurrentPlayerGrain () {
-      return makeRemoteGrain(game.getCurrentRemotePlayerGrain())
-    },
-    async getCardsAtPlayerLocationGrain (remotePlayer) {
-      const { name } = playerRemoteToLocal.get(remotePlayer)
-      const locationCardIdsGrain = game.getLocationGrain(name)
-      // map location cardIds to CardData
-      // TODO: mem leak because we never unsubscribe / subscriptions are not lazy
-      const locationCardDataGrain = makeDerivedSyncGrain(
-        locationCardIdsGrain,
-        locationCardIds => locationCardIds.map(id => game.getCardDataById(id)),
-      )
-      return makeRemoteGrain(locationCardDataGrain)
+    async playerAtIndex (index) {
+      // returns the remote interface for controlling
+      // the player at the index
+      const localPlayer = game.getPlayerAtIndex(index)
+      return Far(`Player-${index}`, {
+        //
+        // generic methods (unpriveleged)
+        //
+        async getStateGrain () {
+          return makeRemoteGrainMap(game.state)
+        },
+        async getPlayersGrain () {
+          return makeRemoteGrain(game.getRemotePlayersGrain())
+        },
+        async getCurrentPlayerGrain () {
+          return makeRemoteGrain(game.getCurrentRemotePlayerGrain())
+        },
+        getCardsAtPlayerLocationGrain,
+        //
+        // player specific methods (priveleged)
+        //
+        async getHandGrain () {
+          return makeRemoteGrain(localPlayer.hand)
+        },
+        async playCardByIdFromHand (cardId, remoteDestinationPlayer) {
+          // TODO: check turn
+          const localDestinationPlayer = playerRemoteToLocal.get(remoteDestinationPlayer)
+          await game.playCardByIdFromHand(localPlayer, cardId, localDestinationPlayer)
+        },
+      })
     },
   });
 };
