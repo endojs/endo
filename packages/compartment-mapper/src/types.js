@@ -527,6 +527,18 @@ export {};
  */
 
 /**
+ * Any {@link PackagePolicy}
+ *
+ * @typedef {PackagePolicy<any, any, any, any>} SomePackagePolicy
+ */
+
+/**
+ * Any {@link Policy}
+ *
+ * @typedef {Policy<any, any, any, any>} SomePolicy
+ */
+
+/**
  * A primitive
  *
  * Lifted from {@link https://npm.im/type-fest type-fest}
