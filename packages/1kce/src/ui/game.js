@@ -267,12 +267,13 @@ export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  const hand = useGrainGetter(
-    () => makeReadonlyArrayGrainFromRemote(
-      E(player).getHandGrain(),
-    ),
-    [player],
-  )
+  // const hand = useGrainGetter(
+  //   () => makeReadonlyArrayGrainFromRemote(
+  //     E(player).getHandGrain(),
+  //   ),
+  //   [player],
+  // )
+  const hand = []
 
   // specify a component to render under the cards
   const cardControlComponent = ({ card }) => {
