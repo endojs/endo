@@ -499,26 +499,31 @@ export {};
 
 /**
  * An object representing a base package policy.
- * @template [PackagePolicyItem=void]
- * @template [GlobalsPolicyItem=void]
- * @template [BuiltinsPolicyItem=void]
+ *
+ * @template [PackagePolicyItem=void] Additional types for a package policy item
+ * @template [GlobalsPolicyItem=void] Additional types for a global policy item
+ * @template [BuiltinsPolicyItem=void] Additional types for a builtin policy item
+ * @template [ExtraOptions=unknown] Additional options
  * @typedef {object} PackagePolicy
  * @property {string} [defaultAttenuator] - The default attenuator.
  * @property {PolicyItem<PackagePolicyItem>} [packages] - The policy item for packages.
  * @property {PolicyItem<GlobalsPolicyItem>|AttenuationDefinition} [globals] - The policy item or full attenuation definition for globals.
  * @property {PolicyItem<BuiltinsPolicyItem>|NestedAttenuationDefinition} [builtins] - The policy item or nested attenuation definition for builtins.
  * @property {boolean} [noGlobalFreeze] - Whether to disable global freeze.
+ * @property {ExtraOptions} [options] - Any additional user-defined options can be added to the policy here
  */
 
 /**
  * An object representing a base policy.
- * @template [PackagePolicyItem=void]
- * @template [GlobalsPolicyItem=void]
- * @template [BuiltinsPolicyItem=void]
+ *
+ * @template [PackagePolicyItem=void] Additional types for a package policy item
+ * @template [GlobalsPolicyItem=void] Additional types for a global policy item
+ * @template [BuiltinsPolicyItem=void] Additional types for a builtin policy item
+ * @template [ExtraOptions=unknown] Additional package-level options
  * @typedef {object} Policy
- * @property {Record<string, PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>>} resources - The package policies for the resources.
+ * @property {Record<string, PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem, ExtraOptions>>} resources - The package policies for the resources.
  * @property {string} [defaultAttenuator] - The default attenuator.
- * @property {PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>} [entry] - The package policy for the entry.
+ * @property {PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem, ExtraOptions>} [entry] - The package policy for the entry.
  */
 
 /**
