@@ -63,7 +63,7 @@ function Nat(allegedNum) {
 
   if (typeof allegedNum === 'number') {
     if (!Number.isSafeInteger(allegedNum)) {
-      throw RangeError(`${allegedNum} not a safe integer`);
+      throw RangeError(`${allegedNum} is not a safe integer`);
     }
     if (allegedNum < 0) {
       throw RangeError(`${allegedNum} is negative`);
