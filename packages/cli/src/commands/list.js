@@ -3,11 +3,13 @@ import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';
 import { withEndoHost } from '../context.js';
+import { parsePetNamePath } from '../pet-name.js';
 
-export const list = async ({ directoryPath, follow, json }) =>
+export const list = async ({ directory, follow, json }) =>
   withEndoHost({ os, process }, async ({ host: agent }) => {
-    if (directoryPath !== undefined) {
-      agent = E(agent).lookup(...directoryPath.split('.'));
+    if (directory !== undefined) {
+      const directoryPath = parsePetNamePath(directory);
+      agent = E(agent).lookup(...directoryPath);
     }
     if (follow) {
       const topic = await E(agent).followNameChanges();
