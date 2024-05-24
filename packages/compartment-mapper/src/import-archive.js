@@ -202,6 +202,7 @@ const makeArchiveImportHookMaker = (
         packageLocation,
         {
           sourceMapUrl,
+          compartmentDescriptor,
         },
       );
       return { record, specifier: moduleSpecifier };

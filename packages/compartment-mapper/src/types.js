@@ -253,6 +253,7 @@ export {};
  * @param {SourceMapHook} [options.sourceMapHook]
  * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
+ * @param {CompartmentDescriptor} [options.compartmentDescriptor]
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language|string,
