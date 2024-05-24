@@ -82,7 +82,15 @@ export {};
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json' | 'bytes' | 'text' | 'pre-mjs-json' | 'pre-cjs-json'} Language
+ * Natively-recognized and custom languages
+ *
+ * @typedef {LiteralUnion<BuiltinLanguage, string>} Language
+ */
+
+/**
+ * Languages natively recognized by `compartment-mapper`
+ *
+ * @typedef {'mjs' | 'cjs' | 'json' | 'bytes' | 'text' | 'pre-mjs-json' | 'pre-cjs-json'} BuiltinLanguage
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -256,7 +264,7 @@ export {};
  * @param {CompartmentDescriptor} [options.compartmentDescriptor]
  * @returns {Promise<{
  *   bytes: Uint8Array,
- *   parser: Language|string,
+ *   parser: Language,
  *   record: FinalStaticModuleType,
  *   sourceMap?: string,
  * }>}
@@ -391,7 +399,7 @@ export {};
 /**
  * @typedef CustomParser
  * @property {ParserImplementation} parser Parser implementation
- * @property {Array<string|Language>} languages Languages the parser applies to
+ * @property {Array<Language>} languages Languages the parser applies to
  * @property {string[]} extensions Extensions the language applies to
  */
 
@@ -516,4 +524,29 @@ export {};
 /**
  * Any object. All objects. Not `null`, though.
  * @typedef {Record<PropertyKey, any>} SomeObject
+ */
+
+/**
+ * A primitive
+ *
+ * Lifted from {@link https://npm.im/type-fest type-fest}
+ *
+ * @typedef {null|undefined|string|number|boolean|symbol|bigint} Primitive
+ * @see {@link LiteralUnion}
+ */
+
+/**
+ * Allows creation of a union of a primitive and a literal type which is not loosened to the primitive.
+ *
+ * Aids type hints in IDEs.
+ *
+ * Lifted from {@link https://npm.im/type-fest type-fest}
+ *
+ * @template LiteralType The literal type
+ * @template {Primitive} PrimitiveType The primitive type
+ * @typedef {LiteralType | (PrimitiveType & Record<never, never>)} LiteralUnion
+ * @example
+ * ```ts
+ * type Baz = LiteralUnion<'foo' | 'bar', string>
+ * ```
  */
