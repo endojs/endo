@@ -157,6 +157,8 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
     globals,
     noGlobalFreeze,
     defaultAttenuator: _ignore, // a carve out for the default attenuator in compartment map
+    // eslint-disable-next-line no-unused-vars
+    options, // any extra options
     ...extra
   } = /** @type {SomePackagePolicy} */ (packagePolicy);
 
