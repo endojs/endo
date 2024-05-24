@@ -1,5 +1,9 @@
 // @ts-check
 
+/**
+ * @import {SomePackagePolicy, SomePolicy} from './types.js'
+ */
+
 const { entries, keys } = Object;
 const { isArray } = Array;
 const q = JSON.stringify;
@@ -134,7 +138,7 @@ const isPolicyItem = item =>
  * @param {unknown} allegedPackagePolicy - Alleged `PackagePolicy` to test
  * @param {string} path - Path in the `Policy` object; used for error messages only
  * @param {string} [url] - URL of the policy file; used for error messages only
- * @returns {asserts allegedPackagePolicy is import('./types.js').PackagePolicy|undefined}
+ * @returns {asserts allegedPackagePolicy is SomePackagePolicy|undefined}
  */
 export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
   if (allegedPackagePolicy === undefined) {
@@ -154,7 +158,7 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
     noGlobalFreeze,
     defaultAttenuator: _ignore, // a carve out for the default attenuator in compartment map
     ...extra
-  } = packagePolicy;
+  } = /** @type {SomePackagePolicy} */ (packagePolicy);
 
   assert(
     keys(extra).length === 0,
@@ -200,7 +204,7 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
  * It also moonlights as a type guard.
  *
  * @param {unknown} allegedPolicy - Alleged `Policy` to test
- * @returns {asserts allegedPolicy is import('./types.js').Policy|undefined}
+ * @returns {asserts allegedPolicy is SomePolicy|undefined}
  */
 export const assertPolicy = allegedPolicy => {
   if (allegedPolicy === undefined) {
