@@ -52,6 +52,15 @@ export const main = async rawArgs => {
   program.name('endo').version(packageDescriptor.version);
 
   program
+    .command('namespace')
+    .description('creates new daemon namespace')
+    .action(async () => {
+      const dirname = process.cwd()
+      const { makeNamespace } = await import('./commands/namespace.js');
+      return makeNamespace({ dirname });
+    });
+
+  program
     .command('install [filePath]')
     .description('installs a web page (weblet)')
     .option(...commonOptions.as)

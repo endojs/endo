@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('dotenv').config();
 (async () => {
   const { main } = await import('../src/endo.js');
   await main(process.argv.slice(2));

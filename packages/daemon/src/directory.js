@@ -6,6 +6,7 @@ import { makeIteratorRef } from './reader-ref.js';
 import { formatLocator, idFromLocator } from './locator.js';
 
 import { DirectoryInterface } from './interfaces.js';
+import { formatId } from './formula-identifier.js';
 
 const { quote: q } = assert;
 
@@ -87,6 +88,15 @@ export const makeDirectoryMaker = ({
       return hub.identify(name);
     };
 
+    /** @type {EndoDirectory['identifyType']} */
+    const identifyType = async (...petNamePath) => {
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      return getTypeForId(id);
+    };
+
     /** @type {EndoDirectory['locate']} */
     const locate = async (...petNamePath) => {
       const id = await identify(...petNamePath);
@@ -156,6 +166,36 @@ export const makeDirectoryMaker = ({
       }
       const hub = /** @type {NameHub} */ (await lookup(...petNamePath));
       yield* hub.followNameChanges();
+    };
+
+    const decorateNameChangesWithType = async function* decorateNameChangesWithType(
+      nameChanges,
+    ) {
+      for await (const nameChange of nameChanges) {
+        const { add, remove, value } = nameChange;
+        console.log('followNameChangesWithType change', { add, remove, value });
+        if (remove !== undefined) {
+          yield { remove };
+          continue;
+        }
+        const id = formatId(value);
+        const type = await getTypeForId(id);
+        const newValue = { ...value, type }
+        yield { add, value: newValue };
+      }
+    }
+
+    /** @type {EndoDirectory['followNameChangesWithType']} */
+    const followNameChangesWithType = async function* followNameChangesWithType(
+      ...petNamePath
+    ) {
+      console.log('followNameChangesWithType', petNamePath);
+      if (petNamePath.length === 0) {
+        yield* decorateNameChangesWithType(petStore.followNameChanges());
+        return;
+      }
+      const hub = /** @type {NameHub} */ (await lookup(...petNamePath));
+      yield* hub.followNameChangesWithType();
     };
 
     /** @type {EndoDirectory['remove']} */
@@ -232,12 +272,14 @@ export const makeDirectoryMaker = ({
     const directory = {
       has,
       identify,
+      identifyType,
       locate,
       reverseLocate,
       followLocatorNameChanges,
       list,
       listIdentifiers,
       followNameChanges,
+      followNameChangesWithType,
       lookup,
       reverseLookup,
       write,
