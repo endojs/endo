@@ -357,14 +357,26 @@ export const link = (
 
   const pendingJobs = [];
 
-  /** @type {Record<string, string|Language>} */
+  /** @type {Record<string, Language>} */
   const customLanguageForExtension = Object.create(null);
-  for (const {parser, extensions, languages} of parsers) {
-    for (const language of languages) {
-      parserForLanguage[language] = parser;
-      for (const extension of extensions) {
-        customLanguageForExtension[extension] = language;
+  for (const { parser, extensions, language } of parsers) {
+    if (
+      language in parserForLanguage &&
+      parserForLanguage[language] !== parser
+    ) {
+      throw new Error(`Parser for language ${q(language)} already defined`);
+    }
+    parserForLanguage[language] = parser;
+    for (const extension of extensions) {
+      if (
+        extension in customLanguageForExtension &&
+        customLanguageForExtension[extension] !== language
+      ) {
+        throw new Error(
+          `Extension ${q(extension)} already assigned language ${q(customLanguageForExtension[extension])}`,
+        );
       }
+      customLanguageForExtension[extension] = language;
     }
   }
 

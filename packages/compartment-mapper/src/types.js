@@ -399,7 +399,7 @@ export {};
 /**
  * @typedef CustomParser
  * @property {ParserImplementation} parser Parser implementation
- * @property {Array<Language>} languages Languages the parser applies to
+ * @property {Language} language Language the parser applies to. Can be new or existing
  * @property {string[]} extensions Extensions the language applies to
  */
 
