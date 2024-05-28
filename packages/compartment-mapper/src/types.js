@@ -52,7 +52,7 @@ export {};
  * @property {Record<string, ScopeDescriptor>} scopes
  * @property {Record<string, Language>} parsers - language for extension
  * @property {Record<string, Language>} types - language for module specifier
- * @property {object} policy - policy specific to compartment
+ * @property {SomePackagePolicy} policy - policy specific to compartment
  */
 
 /**
