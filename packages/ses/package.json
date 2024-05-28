@@ -76,12 +76,12 @@
     "test:platform-compatibility": "node test/package/test.cjs"
   },
   "dependencies": {
-    "@endo/env-options": "^1.1.4"
+    "@endo/env-options": "workspace:*"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^1.1.5",
-    "@endo/static-module-record": "^1.1.2",
-    "@endo/test262-runner": "^0.1.37",
+    "@endo/compartment-mapper": "workspace:*",
+    "@endo/static-module-record": "workspace:*",
+    "@endo/test262-runner": "workspace:*",
     "ava": "^6.1.2",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

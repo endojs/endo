@@ -40,14 +40,14 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.5",
-    "@endo/compartment-mapper": "^1.1.5",
-    "@endo/errors": "^1.2.2"
+    "@endo/base64": "workspace:*",
+    "@endo/compartment-mapper": "workspace:*",
+    "@endo/errors": "workspace:*"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^3.2.3",
-    "@endo/init": "^1.1.2",
-    "@endo/zip": "^1.0.5",
+    "@endo/bundle-source": "workspace:*",
+    "@endo/init": "workspace:*",
+    "@endo/zip": "workspace:*",
     "ava": "^6.1.2",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

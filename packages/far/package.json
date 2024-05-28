@@ -33,13 +33,13 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/errors": "^1.2.2",
-    "@endo/eventual-send": "^1.2.2",
-    "@endo/pass-style": "^1.4.0"
+    "@endo/errors": "workspace:*",
+    "@endo/eventual-send": "workspace:*",
+    "@endo/pass-style": "workspace:*"
   },
   "devDependencies": {
-    "@endo/init": "^1.1.2",
-    "@endo/ses-ava": "^1.2.2",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^6.1.2",
     "c8": "^7.14.0",
     "typescript": "5.5.0-beta"

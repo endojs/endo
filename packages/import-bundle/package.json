@@ -39,16 +39,16 @@
     "lint:types": "tsc"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.5",
-    "@endo/compartment-mapper": "^1.1.5",
-    "@endo/errors": "^1.2.2",
-    "@endo/where": "^1.0.5",
+    "@endo/base64": "workspace:*",
+    "@endo/compartment-mapper": "workspace:*",
+    "@endo/errors": "workspace:*",
+    "@endo/where": "workspace:*",
     "ses": "^1.5.0"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^3.2.3",
-    "@endo/init": "^1.1.2",
-    "@endo/ses-ava": "^1.2.2",
+    "@endo/bundle-source": "workspace:*",
+    "@endo/init": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^6.1.2",
     "c8": "^7.14.0",
     "typescript": "5.5.0-beta"

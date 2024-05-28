@@ -39,8 +39,8 @@
     "ses": "^1.5.0"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.7",
-    "@endo/ses-ava": "^1.2.2",
+    "@endo/lockdown": "workspace:*",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^6.1.2",
     "c8": "^7.14.0",
     "ses0_18_3": "npm:ses@0.18.3",

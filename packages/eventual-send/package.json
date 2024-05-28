@@ -36,10 +36,10 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/env-options": "^1.1.4"
+    "@endo/env-options": "workspace:*"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.7",
+    "@endo/lockdown": "workspace:*",
     "ava": "^6.1.2",
     "c8": "^7.14.0",
     "tsd": "^0.30.7",
