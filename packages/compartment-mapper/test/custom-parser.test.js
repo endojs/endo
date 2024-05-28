@@ -50,7 +50,7 @@ test('defining a custom parser works', async t => {
           },
         },
         extensions: ['md'],
-        languages: ['markdown'],
+        language: 'markdown',
       },
     ],
   });
