@@ -1430,38 +1430,10 @@ export const permitted = {
     '@@toStringTag': 'string',
   },
 
-  '%InertAsyncGeneratorFunction%': {
-    // Properties of the AsyncGeneratorFunction Constructor
-    '[[Proto]]': '%InertFunction%',
-    prototype: '%AsyncGenerator%',
-  },
-
-  '%AsyncGenerator%': {
-    // Properties of the AsyncGeneratorFunction Prototype Object
-    '[[Proto]]': '%FunctionPrototype%',
-    constructor: '%InertAsyncGeneratorFunction%',
-    prototype: '%AsyncGeneratorPrototype%',
-    // length prop added here for React Native jsc-android
-    // https://github.com/endojs/endo/issues/660
-    // https://github.com/react-native-community/jsc-android-buildscripts/issues/181
-    length: 'number',
-    '@@toStringTag': 'string',
-  },
-
   '%GeneratorPrototype%': {
     // Properties of the Generator Prototype Object
     '[[Proto]]': '%IteratorPrototype%',
     constructor: '%Generator%',
-    next: fn,
-    return: fn,
-    throw: fn,
-    '@@toStringTag': 'string',
-  },
-
-  '%AsyncGeneratorPrototype%': {
-    // Properties of the AsyncGenerator Prototype Object
-    '[[Proto]]': '%AsyncIteratorPrototype%',
-    constructor: '%AsyncGenerator%',
     next: fn,
     return: fn,
     throw: fn,

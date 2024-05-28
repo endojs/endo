@@ -48,19 +48,3 @@ test('GeneratorFunction.constructor', t => {
     }
   }
 });
-
-test('AsyncGeneratorFunction.constructor', t => {
-  t.plan(1);
-
-  try {
-    // eslint-disable-next-line no-eval
-    const proto = Object.getPrototypeOf((0, eval)('(async function* () {})'));
-    t.throws(() => proto.constructor(''), { instanceOf: TypeError });
-  } catch (e) {
-    if (e instanceof SyntaxError) {
-      t.pass('not supported');
-    } else {
-      throw e;
-    }
-  }
-});

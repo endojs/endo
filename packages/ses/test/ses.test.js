@@ -6,7 +6,7 @@ lockdown();
 /* eslint-disable no-proto, no-empty-function */
 
 test('tamed constructors', t => {
-  t.plan(12);
+  t.plan(10);
 
   function F() {}
   t.throws(() => F.__proto__.constructor(''), { instanceOf: TypeError });
@@ -16,9 +16,6 @@ test('tamed constructors', t => {
 
   function* G() {}
   t.throws(() => G.__proto__.constructor(''), { instanceOf: TypeError });
-
-  async function* AG() {}
-  t.throws(() => AG.__proto__.constructor(''), { instanceOf: TypeError });
 
   t.throws(() => Error.__proto__.constructor(''), { instanceOf: TypeError });
   t.throws(() => Function.prototype.constructor(''), { instanceOf: TypeError });
@@ -42,10 +39,6 @@ test('tamed constructors', t => {
   t.throws(() => c.evaluate("function* G() {}; G.__proto__.constructor('')"), {
     instanceOf: TypeError,
   });
-  t.throws(
-    () => c.evaluate("async function* AG() {}; AG.__proto__.constructor('')"),
-    { instanceOf: TypeError },
-  );
 });
 
 test('frozen', t => {
