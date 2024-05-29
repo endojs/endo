@@ -397,6 +397,8 @@ export {};
  */
 
 /**
+ * A definition of a custom parser
+ *
  * @typedef CustomParser
  * @property {ParserImplementation} parser Parser implementation
  * @property {Language} language Language the parser applies to. Can be new or existing
