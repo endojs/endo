@@ -184,7 +184,6 @@ const MODULE_PARSERS = /** @type {const} */({ js: 'mjs', ...UNCONTROVERSIAL_PARS
 /**
  * @param {object} descriptor
  * @param {string} location
-
  * @returns {Record<string, string>}
  */
 const inferParsers = (descriptor, location, {languages = LANGUAGES, uncontroversialParsers = UNCONTROVERSIAL_PARSERS, commonParsers = COMMON_PARSERS, moduleParsers = MODULE_PARSERS} = {}) => {
