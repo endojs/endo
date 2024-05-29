@@ -546,26 +546,45 @@ export {};
  */
 
 /**
- * A primitive
- *
- * Lifted from {@link https://npm.im/type-fest type-fest}
+ * Matches any {@link https://developer.mozilla.org/en-US/docs/Glossary/Primitive primitive value}.
  *
  * @typedef {null|undefined|string|number|boolean|symbol|bigint} Primitive
- * @see {@link LiteralUnion}
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/main/source/primitive.d.ts original source}
  */
 
 /**
- * Allows creation of a union of a primitive and a literal type which is not loosened to the primitive.
+ * Allows creating a union type by combining primitive types and literal
+ * types without sacrificing auto-completion in IDEs for the literal type part
+ * of the union.
  *
- * Aids type hints in IDEs.
+ * Currently, when a union type of a primitive type is combined with literal types,
+ * TypeScript loses all information about the combined literals. Thus, when such
+ * a type is used in an IDE with autocompletion, no suggestions are made for the
+ * declared literals.
  *
- * Lifted from {@link https://npm.im/type-fest type-fest}
+ * This type is a workaround for {@link https://github.com/Microsoft/TypeScript/issues/29729 Microsoft/TypeScript#29729}.
+ * It will be removed as soon as it's not needed anymore.
  *
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/main/source/literal-union.d.ts original source}
  * @template LiteralType The literal type
  * @template {Primitive} PrimitiveType The primitive type
  * @typedef {LiteralType | (PrimitiveType & Record<never, never>)} LiteralUnion
  * @example
  * ```ts
- * type Baz = LiteralUnion<'foo' | 'bar', string>
+ * // Before
+ *
+ * type Pet = 'dog' | 'cat' | string;
+ *
+ * const pet: Pet = '';
+ * // Start typing in your TypeScript-enabled IDE.
+ * // You **will not** get auto-completion for `dog` and `cat` literals.
+ *
+ * // After
+ *
+ * type Pet2 = LiteralUnion<'dog' | 'cat', string>;
+ *
+ * const pet: Pet2 = '';
+ * // You **will** get auto-completion for `dog` and `cat` literals.
  * ```
  */
