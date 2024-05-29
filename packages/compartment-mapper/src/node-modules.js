@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {Language} from './types.js' */
+/** @import {Language, SomePackagePolicy} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {MaybeReadFn} from './types.js' */
 /** @import {CanonicalFn} from './types.js' */
@@ -169,24 +169,45 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const LANGUAGES = /** @type {const} */(['mjs', 'cjs', 'json', 'text', 'bytes']);
-const UNCONTROVERSIAL_PARSERS = /** @type {const} */({
+const LANGUAGES = /** @type {const} */ ([
+  'mjs',
+  'cjs',
+  'json',
+  'text',
+  'bytes',
+]);
+const UNCONTROVERSIAL_PARSERS = /** @type {const} */ ({
   cjs: 'cjs',
   mjs: 'mjs',
   json: 'json',
   text: 'text',
   bytes: 'bytes',
 });
-const COMMON_PARSERS = /** @type {const} */({ js: 'cjs', ...UNCONTROVERSIAL_PARSERS });
-const MODULE_PARSERS = /** @type {const} */({ js: 'mjs', ...UNCONTROVERSIAL_PARSERS });
-// * @param {{languages?: readonly string[]|string[], uncontroversialParsers?: Record<string, string>, commonParsers?: Record<string, string>, moduleParsers?: Record<string, string>}} [options]
+const COMMON_PARSERS = /** @type {const} */ ({
+  js: 'cjs',
+  ...UNCONTROVERSIAL_PARSERS,
+});
+const MODULE_PARSERS = /** @type {const} */ ({
+  js: 'mjs',
+  ...UNCONTROVERSIAL_PARSERS,
+});
 
 /**
  * @param {object} descriptor
  * @param {string} location
+ * @param {{languages?: readonly string[]|string[], uncontroversialParsers?: Record<string, string>, commonParsers?: Record<string, string>, moduleParsers?: Record<string, string>}} [options]
  * @returns {Record<string, string>}
  */
-const inferParsers = (descriptor, location, {languages = LANGUAGES, uncontroversialParsers = UNCONTROVERSIAL_PARSERS, commonParsers = COMMON_PARSERS, moduleParsers = MODULE_PARSERS} = {}) => {
+const inferParsers = (
+  descriptor,
+  location,
+  {
+    languages = LANGUAGES,
+    uncontroversialParsers = UNCONTROVERSIAL_PARSERS,
+    commonParsers = COMMON_PARSERS,
+    moduleParsers = MODULE_PARSERS,
+  } = {},
+) => {
   const { type, module, parsers } = descriptor;
   let additionalParsers = Object.create(null);
   if (parsers !== undefined) {
@@ -685,7 +706,7 @@ const translateGraph = (
       scopes,
       parsers,
       types,
-      policy: packagePolicy,
+      policy: /** @type {SomePackagePolicy} */ (packagePolicy),
     };
   }
 
