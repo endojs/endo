@@ -29,7 +29,7 @@ test('defining a custom parser works', async t => {
             { compartmentDescriptor },
           ) => {
             const execute = moduleEnvironmentRecord => {
-              moduleEnvironmentRecord.default = `${bytes}`;
+              moduleEnvironmentRecord.default = new TextDecoder().decode(bytes);
             };
 
             t.truthy(
