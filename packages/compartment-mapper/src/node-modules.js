@@ -169,27 +169,27 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const LANGUAGES = /** @type {const} */ ([
+const defaultLanguages = /** @type {const} */ ([
   'mjs',
   'cjs',
   'json',
   'text',
   'bytes',
 ]);
-const UNCONTROVERSIAL_PARSERS = /** @type {const} */ ({
+const defaultUncontroversialParsers = /** @type {const} */ ({
   cjs: 'cjs',
   mjs: 'mjs',
   json: 'json',
   text: 'text',
   bytes: 'bytes',
 });
-const COMMON_PARSERS = /** @type {const} */ ({
+const defaultCommonParsers = /** @type {const} */ ({
   js: 'cjs',
-  ...UNCONTROVERSIAL_PARSERS,
+  ...defaultUncontroversialParsers,
 });
-const MODULE_PARSERS = /** @type {const} */ ({
+const defaultModuleParsers = /** @type {const} */ ({
   js: 'mjs',
-  ...UNCONTROVERSIAL_PARSERS,
+  ...defaultUncontroversialParsers,
 });
 
 /**
@@ -202,10 +202,10 @@ const inferParsers = (
   descriptor,
   location,
   {
-    languages = LANGUAGES,
-    uncontroversialParsers = UNCONTROVERSIAL_PARSERS,
-    commonParsers = COMMON_PARSERS,
-    moduleParsers = MODULE_PARSERS,
+    languages = defaultLanguages,
+    uncontroversialParsers = defaultUncontroversialParsers,
+    commonParsers = defaultCommonParsers,
+    moduleParsers = defaultModuleParsers,
   } = {},
 ) => {
   const { type, module, parsers } = descriptor;
