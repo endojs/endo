@@ -397,8 +397,8 @@ export const link = (
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
-    for (const [ext, lang] of entries(customLanguageForExtension)) {
-      languageForExtension[ext] = lang;
+    for (const [extension, language] of entries(customLanguageForExtension)) {
+      languageForExtension[extension] = language;
     }
 
     const parse = mapParsers(
