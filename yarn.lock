@@ -165,14 +165,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/base64@workspace:packages/base64"
   dependencies:
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -193,7 +193,7 @@ __metadata:
     "@rollup/plugin-commonjs": "npm:^19.0.0"
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     acorn: "npm:^8.2.4"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     rollup: "npm:^2.79.1"
     typescript: "npm:5.5.0-beta"
@@ -213,7 +213,7 @@ __metadata:
     "@endo/nat": "npm:^5.0.7"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -229,14 +229,14 @@ __metadata:
     "@endo/errors": "npm:^1.2.2"
     "@endo/init": "npm:^1.1.2"
     "@endo/zip": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -246,14 +246,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer"
   dependencies:
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -276,14 +276,14 @@ __metadata:
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/stream-node": "npm:^1.1.2"
     "@endo/where": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     commander: "npm:^5.0.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     open: "npm:^9.1.0"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
@@ -302,7 +302,7 @@ __metadata:
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.0-beta"
@@ -316,14 +316,14 @@ __metadata:
     "@endo/cjs-module-analyzer": "npm:^1.0.5"
     "@endo/static-module-record": "npm:^1.1.2"
     "@endo/zip": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -353,14 +353,14 @@ __metadata:
     "@endo/stream": "npm:^1.2.2"
     "@endo/stream-node": "npm:^1.1.2"
     "@endo/where": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -372,13 +372,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/env-options@workspace:packages/env-options"
   dependencies:
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -390,7 +390,7 @@ __metadata:
   dependencies:
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     ses: "npm:^1.5.0"
     ses0_18_3: "npm:ses@0.18.3"
@@ -425,7 +425,7 @@ __metadata:
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     "@types/babel__generator": "npm:^7.6.8"
     "@types/babel__traverse": "npm:^7.20.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     rollup: "npm:^2.79.1"
@@ -441,7 +441,7 @@ __metadata:
   dependencies:
     "@endo/env-options": "npm:^1.1.4"
     "@endo/lockdown": "npm:^1.0.7"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.0-beta"
@@ -461,13 +461,13 @@ __metadata:
     "@endo/pass-style": "npm:^1.4.0"
     "@endo/patterns": "npm:^1.4.0"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -482,7 +482,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/pass-style": "npm:^1.4.0"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -499,7 +499,7 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@endo/where": "npm:^1.0.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -515,7 +515,7 @@ __metadata:
     "@endo/eventual-send": "npm:^1.2.2"
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/promise-kit": "npm:^1.1.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
@@ -536,14 +536,14 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@endo/stream": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -564,7 +564,7 @@ __metadata:
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@fast-check/ava": "npm:^1.1.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -576,13 +576,13 @@ __metadata:
   dependencies:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -594,11 +594,11 @@ __metadata:
   resolution: "@endo/nat@workspace:packages/nat"
   dependencies:
     "@endo/compartment-mapper": "npm:^1.1.5"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -612,14 +612,14 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/stream": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -637,13 +637,13 @@ __metadata:
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@fast-check/ava": "npm:^1.1.5"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -660,13 +660,13 @@ __metadata:
     "@endo/marshal": "npm:^1.5.0"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -676,14 +676,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/promise-kit@workspace:packages/promise-kit"
   dependencies:
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -696,14 +696,14 @@ __metadata:
   dependencies:
     "@endo/env-options": "npm:^1.1.4"
     "@endo/init": "npm:^1.1.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -718,7 +718,7 @@ __metadata:
   dependencies:
     "@endo/lockdown": "npm:^1.0.7"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.0-beta"
@@ -733,15 +733,15 @@ __metadata:
     "@babel/parser": "npm:^7.23.6"
     "@babel/traverse": "npm:^7.23.6"
     "@babel/types": "npm:^7.24.0"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     benchmark: "npm:^2.1.4"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -756,14 +756,14 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
     "@endo/stream": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     ts-api-utils: "npm:~1.0.1"
@@ -776,12 +776,12 @@ __metadata:
   resolution: "@endo/stream-types-test@workspace:packages/stream-types-test"
   dependencies:
     "@endo/stream": "npm:^1.2.2"
-    babel-eslint: "npm:^10.0.3"
+    babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     typescript: "npm:5.5.0-beta"
@@ -796,14 +796,14 @@ __metadata:
     "@endo/init": "npm:^1.1.2"
     "@endo/promise-kit": "npm:^1.1.2"
     "@endo/ses-ava": "npm:^1.2.2"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     ts-api-utils: "npm:~1.0.1"
@@ -815,14 +815,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/syrup@workspace:packages/syrup"
   dependencies:
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -833,12 +833,12 @@ __metadata:
   resolution: "@endo/test262-runner@workspace:packages/test262-runner"
   dependencies:
     "@endo/compartment-mapper": "npm:^1.1.5"
-    babel-eslint: "npm:^10.0.3"
+    babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.27.5"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
     test262-harness: "npm:^10.0.0"
@@ -850,14 +850,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/where@workspace:packages/where"
   dependencies:
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
@@ -867,27 +867,30 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/zip@workspace:packages/zip"
   dependencies:
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     typescript: "npm:5.5.0-beta"
   languageName: unknown
   linkType: soft
 
-"@es-joy/jsdoccomment@npm:~0.42.0":
-  version: 0.42.0
-  resolution: "@es-joy/jsdoccomment@npm:0.42.0"
+"@es-joy/jsdoccomment@npm:~0.43.0":
+  version: 0.43.0
+  resolution: "@es-joy/jsdoccomment@npm:0.43.0"
   dependencies:
+    "@types/eslint": "npm:^8.56.5"
+    "@types/estree": "npm:^1.0.5"
+    "@typescript-eslint/types": "npm:^7.2.0"
     comment-parser: "npm:1.4.1"
     esquery: "npm:^1.5.0"
     jsdoc-type-pratt-parser: "npm:~4.0.0"
-  checksum: 10c0/a8122762d2df3c6501a9c459e2822315a23c0078c4aeb0b40fb3c84b99e21a78e85e67f962d6b5dde5eb751792a1c67c6a170b619573db7151098a19950abe35
+  checksum: 10c0/862294ed89772a231f309edd68405ece00f6aaf43103210f28410da894a6b697bc1f281c59e813dd37d5b7294f633ee7b874e07a0aa3d72f49504089fc9cb2c4
   languageName: node
   linkType: hard
 
@@ -1011,12 +1014,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jessie.js/eslint-plugin@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@jessie.js/eslint-plugin@npm:0.3.0"
+"@jessie.js/eslint-plugin@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "@jessie.js/eslint-plugin@npm:0.4.1"
   dependencies:
     requireindex: "npm:~1.1.0"
-  checksum: 10c0/6429e92a4940f13dd4f95fb155cb0e64678a3a0fc4bee20351322f2fd3b08fe4295d31ea73bd277124e72e8970e3866f3603050f9f1d4acabc6835dc7457998c
+  peerDependencies:
+    eslint: ">=8.53.0"
+  checksum: 10c0/bfe471dd5e5895b6d8e88c365db776f3cc3caf17590466a5eccb08eb18d6c8d0e6c1f71cb5eb024c982e33f9741549fb0828960340eb72f059bb9f3d3b96b76e
   languageName: node
   linkType: hard
 
@@ -2631,6 +2636,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/eslint@npm:^8.56.5":
+  version: 8.56.10
+  resolution: "@types/eslint@npm:8.56.10"
+  dependencies:
+    "@types/estree": "npm:*"
+    "@types/json-schema": "npm:*"
+  checksum: 10c0/674349d6c342c3864d70f4d5a9965f96fb253801532752c8c500ad6a1c2e8b219e01ccff5dc8791dcb58b5483012c495708bb9f3ff929f5c9322b3da126c15d3
+  languageName: node
+  linkType: hard
+
 "@types/estree@npm:*":
   version: 1.0.1
   resolution: "@types/estree@npm:1.0.1"
@@ -2642,6 +2657,13 @@ __metadata:
   version: 0.0.39
   resolution: "@types/estree@npm:0.0.39"
   checksum: 10c0/f0af6c95ac1988c4827964bd9d3b51d24da442e2188943f6dfcb1e1559103d5d024d564b2e9d3f84c53714a02a0a7435c7441138eb63d9af5de4dfc66cdc0d92
+  languageName: node
+  linkType: hard
+
+"@types/estree@npm:^1.0.5":
+  version: 1.0.5
+  resolution: "@types/estree@npm:1.0.5"
+  checksum: 10c0/b3b0e334288ddb407c7b3357ca67dbee75ee22db242ca7c56fe27db4e1a31989cb8af48a84dd401deb787fe10cc6b2ab1ee82dc4783be87ededbe3d53c79c70d
   languageName: node
   linkType: hard
 
@@ -2793,6 +2815,13 @@ __metadata:
   version: 7.3.1
   resolution: "@typescript-eslint/types@npm:7.3.1"
   checksum: 10c0/d3b579829db901b2ea52000a6e343b7e3814fa06f62ba42711df2533365a247e97699f64fc15482cc433302ff81e8a0eed1ed2b0478d0709171d57910d46bdd5
+  languageName: node
+  linkType: hard
+
+"@typescript-eslint/types@npm:^7.2.0":
+  version: 7.10.0
+  resolution: "@typescript-eslint/types@npm:7.10.0"
+  checksum: 10c0/f01d9330b93cc362ba7967ab5037396f64742076450e1f93139fa69cbe93a6ece3ed55d68ab780c9b7d07ef4a7c645da410305216a2cfc5dec7eba49ee65ab23
   languageName: node
   linkType: hard
 
@@ -3410,9 +3439,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ava@npm:^6.1.2":
-  version: 6.1.2
-  resolution: "ava@npm:6.1.2"
+"ava@npm:^6.1.3":
+  version: 6.1.3
+  resolution: "ava@npm:6.1.3"
   dependencies:
     "@vercel/nft": "npm:^0.26.2"
     acorn: "npm:^8.11.3"
@@ -3461,7 +3490,7 @@ __metadata:
       optional: true
   bin:
     ava: entrypoints/cli.mjs
-  checksum: 10c0/f35cb1f9bc716714e7c78a601985745774096e4ecd34f9310b858d5779307afa2245ad24274e2d55dd1022c226f4fbdb41947476300977f0b653be0e627adaa4
+  checksum: 10c0/108b28aceb0dfdb077bcf4c96109d736667999c2ce9f564489c4747482ea0e0c455d4d96fdfaad610b1125b74129b7b1d2ce570ec4903e767f6950d7f722f2cd
   languageName: node
   linkType: hard
 
@@ -3483,7 +3512,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"babel-eslint@npm:^10.0.3":
+"babel-eslint@npm:^10.1.0":
   version: 10.1.0
   resolution: "babel-eslint@npm:10.1.0"
   dependencies:
@@ -5248,7 +5277,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-eslint-comments@npm:^3.1.2":
+"eslint-plugin-eslint-comments@npm:^3.2.0":
   version: 3.2.0
   resolution: "eslint-plugin-eslint-comments@npm:3.2.0"
   dependencies:
@@ -5260,7 +5289,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-import@npm:^2.27.5, eslint-plugin-import@npm:^2.29.0":
+"eslint-plugin-import@npm:^2.29.1":
   version: 2.29.1
   resolution: "eslint-plugin-import@npm:2.29.1"
   dependencies:
@@ -5287,22 +5316,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-jsdoc@npm:^48.2.2":
-  version: 48.2.2
-  resolution: "eslint-plugin-jsdoc@npm:48.2.2"
+"eslint-plugin-jsdoc@npm:^48.2.5":
+  version: 48.2.5
+  resolution: "eslint-plugin-jsdoc@npm:48.2.5"
   dependencies:
-    "@es-joy/jsdoccomment": "npm:~0.42.0"
+    "@es-joy/jsdoccomment": "npm:~0.43.0"
     are-docs-informative: "npm:^0.0.2"
     comment-parser: "npm:1.4.1"
     debug: "npm:^4.3.4"
     escape-string-regexp: "npm:^4.0.0"
     esquery: "npm:^1.5.0"
     is-builtin-module: "npm:^3.2.1"
-    semver: "npm:^7.6.0"
+    semver: "npm:^7.6.1"
     spdx-expression-parse: "npm:^4.0.0"
   peerDependencies:
     eslint: ^7.0.0 || ^8.0.0 || ^9.0.0
-  checksum: 10c0/d6911e73d36757de5aef127e795116fbbcdef504f7e91d9c0863faf0b1693271d96188f0f1d54c0d74c56652bfa3fb4f1aa1a2f0876b0c6a5e57a874bcb3ac2b
+  checksum: 10c0/0e1350511b74fe443ce3f63ab83627f8d841ca36a3fea5631e6743c721d4f6cd563204c4143cf2ae1d43855134a6fceedac7916fa2fee3bcb17b74fc6c3e0bc1
   languageName: node
   linkType: hard
 
@@ -10118,22 +10147,22 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@jessie.js/eslint-plugin": "npm:^0.3.0"
+    "@jessie.js/eslint-plugin": "npm:^0.4.1"
     "@octokit/core": "npm:^3.4.0"
-    ava: "npm:^6.1.2"
+    ava: "npm:^6.1.3"
     conventional-changelog-conventionalcommits: "npm:^4.6.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-jessie: "npm:^0.0.6"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-import: "npm:^2.29.0"
-    eslint-plugin-jsdoc: "npm:^48.2.2"
+    eslint-plugin-import: "npm:^2.29.1"
+    eslint-plugin-jsdoc: "npm:^48.2.5"
     lerna: "npm:^5.6.2"
     lerna-update-wizard: "npm:^0.17.5"
     prettier: "npm:^3.2.5"
     ts-api-utils: "npm:~1.0.1"
     type-coverage: "npm:^2.26.3"
-    typedoc: "npm:^0.25.12"
+    typedoc: "npm:^0.25.13"
     typedoc-plugin-markdown: "npm:^3.17.1"
     typescript: "npm:5.5.0-beta"
     typescript-eslint: "npm:^7.3.1"
@@ -10287,14 +10316,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.6.0":
-  version: 7.6.0
-  resolution: "semver@npm:7.6.0"
-  dependencies:
-    lru-cache: "npm:^6.0.0"
+"semver@npm:^7.6.1":
+  version: 7.6.2
+  resolution: "semver@npm:7.6.2"
   bin:
     semver: bin/semver.js
-  checksum: 10c0/fbfe717094ace0aa8d6332d7ef5ce727259815bd8d8815700853f4faf23aacbd7192522f0dc5af6df52ef4fa85a355ebd2f5d39f554bd028200d6cf481ab9b53
+  checksum: 10c0/97d3441e97ace8be4b1976433d1c32658f6afaff09f143e52c593bae7eef33de19e3e369c88bd985ce1042c6f441c80c6803078d1de2a9988080b66684cbb30c
   languageName: node
   linkType: hard
 
@@ -10329,15 +10356,15 @@ __metadata:
     "@endo/env-options": "npm:^1.1.4"
     "@endo/static-module-record": "npm:^1.1.2"
     "@endo/test262-runner": "npm:^0.1.37"
-    ava: "npm:^6.1.2"
-    babel-eslint: "npm:^10.0.3"
+    ava: "npm:^6.1.3"
+    babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
     core-js: "npm:^3.31.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
-    eslint-plugin-eslint-comments: "npm:^3.1.2"
-    eslint-plugin-import: "npm:^2.29.0"
+    eslint-plugin-eslint-comments: "npm:^3.2.0"
+    eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     sinon: "npm:^15.1.0"
     terser: "npm:^5.16.6"
@@ -11553,9 +11580,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typedoc@npm:^0.25.12":
-  version: 0.25.12
-  resolution: "typedoc@npm:0.25.12"
+"typedoc@npm:^0.25.13":
+  version: 0.25.13
+  resolution: "typedoc@npm:0.25.13"
   dependencies:
     lunr: "npm:^2.3.9"
     marked: "npm:^4.3.0"
@@ -11565,7 +11592,7 @@ __metadata:
     typescript: 4.6.x || 4.7.x || 4.8.x || 4.9.x || 5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x
   bin:
     typedoc: bin/typedoc
-  checksum: 10c0/35157a90954ed67243bc1ad430781de381431959c62e24f8a8688c4ebae62c2ee11d404002dfd43a0df3bf96721d94fce928423fe1f91f1ed40c99f29c5276aa
+  checksum: 10c0/13878e6a9fc2b65d65e3b514efa11b43bdfd57149861cefc4a969ec213f4bc4b36ee9239d0b654ae18bcbbd5174206d409383f9000b7bdea22da1945f7ac91de
   languageName: node
   linkType: hard
 
@@ -11606,11 +11633,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A5.5.0-beta#optional!builtin<compat/typescript>":
   version: 5.5.0-beta
-  resolution: "typescript@patch:typescript@npm%3A5.5.0-beta#optional!builtin<compat/typescript>::version=5.5.0-beta&hash=5adc0c"
+  resolution: "typescript@patch:typescript@npm%3A5.5.0-beta#optional!builtin<compat/typescript>::version=5.5.0-beta&hash=b45daf"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/acf3385e77938238a216dfd8eb39c583253c6184ffba66ffd6232cc3c931bbc7023e522bf09c5389e327ce5c9a6335fca5be082dd3365ed95c35b89ea21aa388
+  checksum: 10c0/665f9f8140409b79ee61a695627842d49430ce944571b44c3fe81c05a0359041f2aa267e5e5639dfdb844da47c7a542f7a534fe301533c846a20c63cd9ff1d53
   languageName: node
   linkType: hard
 
