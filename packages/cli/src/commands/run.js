@@ -7,6 +7,7 @@ import { M } from '@endo/patterns';
 import bundleSource from '@endo/bundle-source';
 
 import { withEndoAgent } from '../context.js';
+import { parsePetNamePath } from '../pet-name.js';
 
 const endowments = harden({
   assert,
@@ -86,7 +87,8 @@ export const run = async ({
             args.unshift(filePath);
           }
 
-          const readableP = E(agent).lookup(bundleName);
+          const bundleNamePath = parsePetNamePath(bundleName);
+          const readableP = E(agent).lookup(...bundleNamePath);
           const bundleText = await E(readableP).text();
           bundle = JSON.parse(bundleText);
         } else {
