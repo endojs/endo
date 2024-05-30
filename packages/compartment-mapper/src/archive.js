@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {ArchiveOptions} from './types.js' */
+/** @import {ArchiveOptions, ParserForLanguage} from './types.js' */
 /** @import {ArchiveWriter} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
@@ -39,16 +39,20 @@ import { detectAttenuators } from './policy.js';
 
 const textEncoder = new TextEncoder();
 
-/** @type {Record<string, ParserImplementation>} */
-const parserForLanguage = {
-  mjs: parserArchiveMjs,
-  'pre-mjs-json': parserArchiveMjs,
-  cjs: parserArchiveCjs,
-  'pre-cjs-json': parserArchiveCjs,
-  json: parserJson,
-  text: parserText,
-  bytes: parserBytes,
-};
+const { freeze } = Object;
+
+/** @satisfies {Readonly<ParserForLanguage>} */
+const parserForLanguage = freeze(
+  /** @type {const} */ ({
+    mjs: parserArchiveMjs,
+    'pre-mjs-json': parserArchiveMjs,
+    cjs: parserArchiveCjs,
+    'pre-cjs-json': parserArchiveCjs,
+    json: parserJson,
+    text: parserText,
+    bytes: parserBytes,
+  }),
+);
 
 /**
  * @param {string} rel - a relative URL

@@ -293,7 +293,8 @@ export {};
  */
 
 /**
- * @typedef {object} LoadArchiveOptions
+ * @see {@link LoadArchiveOptions}
+ * @typedef {object} ExtraLoadArchiveOptions
  * @property {string} [expectedSha512]
  * @property {Record<string, any>} [modules]
  * @property {typeof Compartment} [Compartment]
@@ -302,6 +303,16 @@ export {};
  */
 
 /**
+ * Options for `loadArchive()`
+ *
+ * @typedef {ExecuteOptions & ExtraLoadArchiveOptions} LoadArchiveOptions
+ */
+
+/**
+ * Set of options available in the context of code execution.
+ *
+ * May be used only as an intersection with other "options" types
+ *
  * @typedef {object} ExecuteOptions
  * @property {object} [globals]
  * @property {Array<Transform>} [transforms]
@@ -313,19 +324,31 @@ export {};
  */
 
 /**
- * @typedef {Record<string, ParserImplementation>} ParserForLanguage
+ * Mapping of {@link Language Languages} to {@link ParserImplementation ParserImplementations}
+ *
+ * @typedef {Partial<Record<Language, ParserImplementation>>} ParserForLanguage
  */
 
 /**
+ * Options for `loadLocation()`
+ *
+ * @typedef {ArchiveOptions} LoadLocationOptions
+ */
+
+/**
+ * @see {@link LinkOptions}
  * @typedef {object} ExtraLinkOptions
  * @property {ResolveHook} [resolve]
  * @property {ImportHookMaker} makeImportHook
  * @property {ParserForLanguage} parserForLanguage
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {boolean} [archiveOnly]
+ * @property {CustomParser[]} [parsers]
  */
 
 /**
+ * Options for `link()`
+ *
  * @typedef {ExecuteOptions & ExtraLinkOptions} LinkOptions
  */
 
@@ -387,13 +410,14 @@ export {};
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
- * @property {object} [policy]
+ * @property {SomePolicy} [policy]
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  * @property {SourceMapHook} [sourceMapHook]
+ * @property {CustomParser[]} [parsers]
  */
 
 /**
@@ -403,11 +427,6 @@ export {};
  * @property {ParserImplementation} parser Parser implementation
  * @property {Language} language Language the parser applies to. Can be new or existing
  * @property {string[]} extensions Extensions the language applies to
- */
-
-/**
- * @typedef {object} ExtraImportOptions
- * @property {CustomParser[]} [parsers] Custom parser objects
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -587,4 +606,10 @@ export {};
  * const pet: Pet2 = '';
  * // You **will** get auto-completion for `dog` and `cat` literals.
  * ```
+ */
+
+/**
+ * Options for `importLocation()`
+ *
+ * @typedef {ExecuteOptions & ArchiveOptions} ImportLocationOptions
  */

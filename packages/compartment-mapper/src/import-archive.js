@@ -1,6 +1,23 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
+/** @import {ImportHook} from 'ses' */
+/** @import {ModuleExportsNamespace} from 'ses' */
+/** @import {StaticModuleType} from 'ses' */
+/** @import {Application} from './types.js' */
+/** @import {CompartmentDescriptor} from './types.js' */
+/** @import {ComputeSourceLocationHook} from './types.js' */
+/** @import {ComputeSourceMapLocationHook} from './types.js' */
+/** @import {ExecuteFn} from './types.js' */
+/** @import {ExitModuleImportHook} from './types.js' */
+/** @import {HashFn} from './types.js' */
+/** @import {ImportHookMaker} from './types.js' */
+/** @import {LoadArchiveOptions} from './types.js' */
+/** @import {ParserForLanguage} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {SomeObject} from './types.js' */
+
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
 import parserPreCjs from './parse-pre-cjs.js';
@@ -15,9 +32,6 @@ import { assertCompartmentMap } from './compartment-map.js';
 import { exitModuleImportHookMaker } from './import-hook.js';
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 
-/** @import {StaticModuleType} from 'ses' */
-/** @import {Application, CompartmentDescriptor, ComputeSourceLocationHook, ComputeSourceMapLocationHook, ExecuteFn, ExecuteOptions, ExitModuleImportHook, HashFn, ImportHookMaker, LoadArchiveOptions, ParserImplementation, ReadPowers} from './types.js' */
-
 const DefaultCompartment = Compartment;
 
 const { Fail, quote: q } = assert;
@@ -26,14 +40,14 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @type {Record<string, ParserImplementation>} */
-const parserForLanguage = {
+/** @satisfies {ParserForLanguage} */
+const parserForLanguage = /** @type {const} */ ({
   'pre-cjs-json': parserPreCjs,
   'pre-mjs-json': parserPreMjs,
   json: parserJson,
   text: parserText,
   bytes: parserBytes,
-};
+});
 
 /**
  * @param {string} errorMessage - error to throw on execute
@@ -87,7 +101,7 @@ const makeArchiveImportHookMaker = (
     // per-compartment:
     const compartmentDescriptor = compartments[packageLocation];
     const { modules } = compartmentDescriptor;
-    /** @type {import('ses').ImportHook} */
+    /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
       // per-module:
       const module = modules[moduleSpecifier];
@@ -216,7 +230,7 @@ const makeArchiveImportHookMaker = (
  * Creates a fake module namespace object that passes a brand check.
  *
  * @param {typeof Compartment} Compartment
- * @returns {import('ses').ModuleExportsNamespace}
+ * @returns {ModuleExportsNamespace}
  */
 const makeFauxModuleExportsNamespace = Compartment => {
   const compartment = new Compartment(
@@ -404,7 +418,7 @@ export const parseArchive = async (
 };
 
 /**
- * @param {import('@endo/zip').ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
  * @param {LoadArchiveOptions} [options]
  * @returns {Promise<Application>}
@@ -432,10 +446,10 @@ export const loadArchive = async (
 };
 
 /**
- * @param {import('@endo/zip').ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
- * @param {ExecuteOptions & LoadArchiveOptions} options
- * @returns {Promise<object>}
+ * @param {LoadArchiveOptions} options
+ * @returns {Promise<SomeObject>}
  */
 export const importArchive = async (readPowers, archiveLocation, options) => {
   const archive = await loadArchive(readPowers, archiveLocation, options);
