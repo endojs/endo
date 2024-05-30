@@ -3,6 +3,7 @@
         "../../typedoc.base.json"
     ],
     "entryPoints": [
-        "index.js"
+        "index.js",
+        "prepare-endo.js"
     ]
 }

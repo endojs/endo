@@ -4,9 +4,5 @@
     ],
     "entryPoints": [
         "src/no-shim.js"
-    ],
-    "validation": {
-        "notExported": false,
-        "invalidLink": false,
-    }
+    ]
 }
