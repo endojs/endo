@@ -1,16 +1,17 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {Language, SomePackagePolicy} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {MaybeReadFn} from './types.js' */
 /** @import {CanonicalFn} from './types.js' */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {ModuleDescriptor} from './types.js' */
-/** @import {ScopeDescriptor} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
+/** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {Language} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
 /** @import {MaybeReadPowers} from './types.js' */
+/** @import {ModuleDescriptor} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {ScopeDescriptor} from './types.js' */
+/** @import {SomePackagePolicy} from './types.js' */
 
 /**
  * The graph is an intermediate object model that the functions of this module
