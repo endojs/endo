@@ -62,6 +62,12 @@ const q = JSON.stringify;
   {
     globals: ['a', {}],
   },
+  {
+    options: {
+      winken: ['blinken', 'nod'],
+      abc: 123,
+    },
+  },
 ].forEach(sample => {
   test(`assertPackagePolicy(${q(sample)}) -> valid`, t => {
     t.plan(1);

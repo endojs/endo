@@ -1,8 +1,7 @@
 // @ts-check
 
 /** @import {ModuleMapHook} from 'ses' */
-/** @import {ResolveHook} from 'ses' */
-/** @import {ExtraImportOptions, ParseFn} from './types.js' */
+/** @import {ParseFn, ParserForLanguage} from './types.js' */
 /** @import {ParserImplementation} from './types.js' */
 /** @import {ShouldDeferError} from './types.js' */
 /** @import {ModuleTransforms} from './types.js' */
@@ -66,7 +65,7 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
  * the type of a module is implied by package.json and should not be inferred
  * from its extension.
- * @param {Record<string, ParserImplementation>} parserForLanguage
+ * @param {ParserForLanguage} parserForLanguage
  * @param {ModuleTransforms} moduleTransforms
  * @returns {ParseFn}
  */
@@ -124,7 +123,9 @@ const makeExtensionParser = (
         `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
       );
     }
-    const { parse } = parserForLanguage[language];
+    const { parse } = /** @type {ParserImplementation} */ (
+      parserForLanguage[language]
+    );
     return parse(bytes, specifier, location, packageLocation, {
       sourceMap,
       ...options,
@@ -136,7 +137,7 @@ const makeExtensionParser = (
  * @param {Record<string, Language>} languageForExtension
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
  * is implied by package.json and should not be inferred from its extension.
- * @param {Record<string, ParserImplementation>} parserForLanguage
+ * @param {ParserForLanguage} parserForLanguage
  * @param {ModuleTransforms} moduleTransforms
  * @returns {ParseFn}
  */
@@ -325,7 +326,7 @@ const makeModuleMapHook = (
  * only.
  *
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {LinkOptions & ExtraImportOptions} options
+ * @param {LinkOptions} options
  */
 export const link = (
   { entry, compartments: compartmentDescriptors },
@@ -359,25 +360,38 @@ export const link = (
 
   /** @type {Record<string, Language>} */
   const customLanguageForExtension = Object.create(null);
+  /** @type {ParserForLanguage} */
+  const customParserForLanguage = Object.create(null);
+
   for (const { parser, extensions, language } of parsers) {
     if (
-      language in parserForLanguage &&
-      parserForLanguage[language] !== parser
+      language in customParserForLanguage &&
+      customParserForLanguage[language] !== parser
     ) {
-      throw new Error(`Parser for language ${q(language)} already defined`);
+      throw new Error(
+        `Custom parser for language ${q(language)} already defined`,
+      );
     }
-    parserForLanguage[language] = parser;
+
+    if (language in parserForLanguage) {
+      throw new Error(
+        `Parser for language ${q(language)} already defined by builtin`,
+      );
+    }
+
     for (const extension of extensions) {
       if (
         extension in customLanguageForExtension &&
         customLanguageForExtension[extension] !== language
       ) {
         throw new Error(
-          `Extension ${q(extension)} already assigned language ${q(customLanguageForExtension[extension])}`,
+          `Extension ${q(extension)} already assigned custom language ${q(customLanguageForExtension[extension])}`,
         );
       }
       customLanguageForExtension[extension] = language;
     }
+
+    customParserForLanguage[language] = parser;
   }
 
   for (const [compartmentName, compartmentDescriptor] of entries(
@@ -397,20 +411,42 @@ export const link = (
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
+    /** @type {Record<string, Language>} */
+    const finalLanguageForExtension = Object.create(null);
     for (const [extension, language] of entries(customLanguageForExtension)) {
-      languageForExtension[extension] = language;
+      if (extension in languageForExtension) {
+        throw new Error(
+          `Extension ${q(extension)} already assigned language ${q(languageForExtension[extension])}`,
+        );
+      }
+      finalLanguageForExtension[extension] = language;
+    }
+    for (const [extension, language] of entries(languageForExtension)) {
+      finalLanguageForExtension[extension] = language;
+    }
+
+    /** @type {ParserForLanguage} */
+    const finalParserForLanguage = Object.create(null);
+
+    for (const [language, parser] of [
+      ...entries(customParserForLanguage),
+      ...entries(parserForLanguage),
+    ]) {
+      finalParserForLanguage[language] = parser;
     }
 
     const parse = mapParsers(
-      languageForExtension,
+      finalLanguageForExtension,
       languageForModuleSpecifier,
-      parserForLanguage,
+      finalParserForLanguage,
       moduleTransforms,
     );
     /** @type {ShouldDeferError} */
     const shouldDeferError = language => {
-      if (language && has(parserForLanguage, language)) {
-        return parserForLanguage[language].heuristicImports;
+      if (language && has(finalParserForLanguage, language)) {
+        return /** @type {ParserImplementation} */ (
+          finalParserForLanguage[language]
+        ).heuristicImports;
       } else {
         // If language is undefined or there's no parser, the error we could consider deferring is surely related to
         // that. Nothing to throw here.
