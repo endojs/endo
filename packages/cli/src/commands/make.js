@@ -39,6 +39,7 @@ export const makeCommand = async ({
     return;
   }
 
+  assert(resultName === undefined || typeof resultName === 'string');
   const resultPath = resultName && parsePetNamePath(resultName);
 
   /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
