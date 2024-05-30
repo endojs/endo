@@ -4,9 +4,5 @@
     ],
     "entryPoints": [
         "src/index.js"
-    ],
-    "validation": {
-        "notExported": false,
-        "invalidLink": false,
-    }
+    ]
 }
