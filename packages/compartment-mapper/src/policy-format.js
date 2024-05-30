@@ -1,8 +1,7 @@
 // @ts-check
 
-/**
- * @import {SomePackagePolicy, SomePolicy} from './types.js'
- */
+/** @import {SomePackagePolicy} from './types.js' */
+/** @import {SomePolicy} from './types.js' */
 
 const { entries, keys } = Object;
 const { isArray } = Array;
