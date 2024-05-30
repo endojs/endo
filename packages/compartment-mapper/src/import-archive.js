@@ -40,14 +40,16 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @satisfies {ParserForLanguage} */
-const parserForLanguage = /** @type {const} */ ({
-  'pre-cjs-json': parserPreCjs,
-  'pre-mjs-json': parserPreMjs,
-  json: parserJson,
-  text: parserText,
-  bytes: parserBytes,
-});
+/** @satisfies {Readonly<ParserForLanguage>} */
+const parserForLanguage = freeze(
+  /** @type {const} */ ({
+    'pre-cjs-json': parserPreCjs,
+    'pre-mjs-json': parserPreMjs,
+    json: parserJson,
+    text: parserText,
+    bytes: parserBytes,
+  }),
+);
 
 /**
  * @param {string} errorMessage - error to throw on execute
