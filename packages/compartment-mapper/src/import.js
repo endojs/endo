@@ -25,10 +25,10 @@ import parserMjs from './parse-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
-const { freeze } = Object;
+const { assign, create, freeze } = Object;
 
 /** @satisfies {Readonly<ParserForLanguage>} */
-export const parserForLanguage = freeze(
+export const defaultParserForLanguage = freeze(
   /** @type {const} */ ({
     mjs: parserMjs,
     cjs: parserCjs,
@@ -44,7 +44,11 @@ export const parserForLanguage = freeze(
  * @param {LoadLocationOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadLocation = async (readPowers, moduleLocation, options) => {
+export const loadLocation = async (
+  readPowers,
+  moduleLocation,
+  options = {},
+) => {
   const {
     moduleTransforms = {},
     dev = false,
@@ -52,8 +56,16 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     searchSuffixes = undefined,
     commonDependencies = undefined,
     policy,
-    parsers,
-  } = options || {};
+    parserForLanguage: parserForLanguageOption = {},
+    languageForExtension: languageForExtensionOption = {},
+  } = options;
+
+  const parserForLanguage = freeze(
+    assign(create(null), defaultParserForLanguage, parserForLanguageOption),
+  );
+  const languageForExtension = freeze(
+    assign(create(null), languageForExtensionOption),
+  );
 
   const { read } = unpackReadPowers(readPowers);
 
@@ -102,7 +114,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
-      parsers,
+      languageForExtension,
       globals,
       transforms,
       moduleTransforms,

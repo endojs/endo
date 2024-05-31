@@ -5,6 +5,7 @@
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
 /** @import {Language} from './types.js' */
+/** @import {LanguageForExtension} from './types.js' */
 /** @import {MaybeReadFn} from './types.js' */
 /** @import {MaybeReadPowers} from './types.js' */
 /** @import {ModuleDescriptor} from './types.js' */
@@ -33,7 +34,7 @@
  * @property {Record<string, string>} externalAliases
  * @property {Record<string, string>} dependencyLocations - from module name to
  * location in storage.
- * @property {Record<string, Language>} parsers - the parser for
+ * @property {LanguageForExtension} parsers - the parser for
  * modules based on their extension.
  * @property {Record<string, Language>} types - the parser for specific
  * modules.

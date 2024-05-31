@@ -1,9 +1,8 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {ResolveHook} from 'ses' */
 /** @import {PrecompiledStaticModuleInterface} from 'ses' */
-/** @import {ParserImplementation} from './types.js' */
+/** @import {ParserForLanguage} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentSources} from './types.js' */
 /** @import {ReadFn} from './types.js' */
@@ -31,7 +30,7 @@ const textEncoder = new TextEncoder();
 
 const { quote: q } = assert;
 
-/** @type {Record<string, ParserImplementation>} */
+/** @type {ParserForLanguage} */
 const parserForLanguage = {
   mjs: parserArchiveMjs,
   'pre-mjs-json': parserArchiveMjs,
@@ -161,13 +160,7 @@ function getBundlerKitForModule(module) {
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
- * @param {object} [options]
- * @param {ModuleTransforms} [options.moduleTransforms]
- * @param {boolean} [options.dev]
- * @param {Set<string>} [options.tags]
- * @param {object} [options.commonDependencies]
- * @param {Array<string>} [options.searchSuffixes]
- * @param {import('./types.js').SourceMapHook} [options.sourceMapHook]
+ * @param {ArchiveOptions} [options]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -178,8 +171,21 @@ export const makeBundle = async (read, moduleLocation, options) => {
     searchSuffixes,
     commonDependencies,
     sourceMapHook = undefined,
+    parserForLanguage: parserForLanguageOption = {},
+    languageForExtension: languageForExtensionOption = {},
   } = options || {};
   const tags = new Set(tagsOption);
+
+  const parserForLanguage = Object.freeze(
+    Object.assign(
+      Object.create(null),
+      defaultParserForLanguage,
+      parserForLanguageOption,
+    ),
+  );
+  const languageForExtension = Object.freeze(
+    Object.assign(Object.create(null), languageForExtensionOption),
+  );
 
   const {
     packageLocation,
@@ -223,6 +229,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
+    languageForExtension,
   });
   await compartment.load(entryModuleSpecifier);
 
