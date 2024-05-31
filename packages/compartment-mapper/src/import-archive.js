@@ -21,11 +21,7 @@
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
-import parserPreCjs from './parse-pre-cjs.js';
-import parserJson from './parse-json.js';
-import parserText from './parse-text.js';
-import parserBytes from './parse-bytes.js';
-import parserPreMjs from './parse-pre-mjs.js';
+import { defaultParserForLanguage } from './import-archive-parsers.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { join } from './node-module-specifier.js';
@@ -40,17 +36,6 @@ const { Fail, quote: q } = assert;
 const textDecoder = new TextDecoder();
 
 const { assign, create, freeze } = Object;
-
-/** @satisfies {Readonly<ParserForLanguage>} */
-const defaultParserForLanguage = freeze(
-  /** @type {const} */ ({
-    'pre-cjs-json': parserPreCjs,
-    'pre-mjs-json': parserPreMjs,
-    json: parserJson,
-    text: parserText,
-    bytes: parserBytes,
-  }),
-);
 
 /**
  * @param {string} errorMessage - error to throw on execute

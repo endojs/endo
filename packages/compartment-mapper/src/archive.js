@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {ArchiveOptions, ParserForLanguage} from './types.js' */
+/** @import {ArchiveOptions} from './types.js' */
 /** @import {ArchiveWriter} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
@@ -22,11 +22,7 @@ import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
 } from './import-hook.js';
-import parserJson from './parse-json.js';
-import parserText from './parse-text.js';
-import parserBytes from './parse-bytes.js';
-import parserArchiveCjs from './parse-archive-cjs.js';
-import parserArchiveMjs from './parse-archive-mjs.js';
+import { defaultParserForLanguage } from './archive-parsers.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import {
@@ -39,19 +35,6 @@ import { detectAttenuators } from './policy.js';
 const textEncoder = new TextEncoder();
 
 const { assign, create, freeze } = Object;
-
-/** @satisfies {Readonly<ParserForLanguage>} */
-const defaultParserForLanguage = freeze(
-  /** @type {const} */ ({
-    mjs: parserArchiveMjs,
-    'pre-mjs-json': parserArchiveMjs,
-    cjs: parserArchiveCjs,
-    'pre-cjs-json': parserArchiveCjs,
-    json: parserJson,
-    text: parserText,
-    bytes: parserBytes,
-  }),
-);
 
 /**
  * @param {string} rel - a relative URL

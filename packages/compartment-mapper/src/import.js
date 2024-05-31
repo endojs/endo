@@ -4,7 +4,6 @@
 /** @import {Application} from './types.js' */
 /** @import {ImportLocationOptions} from './types.js' */
 /** @import {LoadLocationOptions} from './types.js' */
-/** @import {ParserForLanguage} from './types.js' */
 /** @import {ExecuteFn} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
@@ -17,26 +16,11 @@ import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
 } from './import-hook.js';
-import parserJson from './parse-json.js';
-import parserText from './parse-text.js';
-import parserBytes from './parse-bytes.js';
-import parserCjs from './parse-cjs.js';
-import parserMjs from './parse-mjs.js';
+import { defaultParserForLanguage } from './import-parsers.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
 const { assign, create, freeze } = Object;
-
-/** @satisfies {Readonly<ParserForLanguage>} */
-export const defaultParserForLanguage = freeze(
-  /** @type {const} */ ({
-    mjs: parserMjs,
-    cjs: parserCjs,
-    json: parserJson,
-    text: parserText,
-    bytes: parserBytes,
-  }),
-);
 
 /**
  * @param {ReadFn | ReadPowers} readPowers
