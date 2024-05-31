@@ -50,8 +50,8 @@ export {};
  * compartment map.
  * @property {Record<string, ModuleDescriptor>} modules
  * @property {Record<string, ScopeDescriptor>} scopes
- * @property {Record<string, Language>} parsers - language for extension
- * @property {Record<string, Language>} types - language for module specifier
+ * @property {LanguageForExtension} parsers - language for extension
+ * @property {LanguageForModuleSpecifier} types - language for module specifier
  * @property {SomePackagePolicy} policy - policy specific to compartment
  */
 
@@ -300,6 +300,8 @@ export {};
  * @property {typeof Compartment} [Compartment]
  * @property {ComputeSourceLocationHook} [computeSourceLocation]
  * @property {ComputeSourceMapLocationHook} [computeSourceMapLocation]
+ * @property {ParserForLanguage} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
  */
 
 /**
@@ -326,7 +328,19 @@ export {};
 /**
  * Mapping of {@link Language Languages} to {@link ParserImplementation ParserImplementations}
  *
- * @typedef {Partial<Record<Language, ParserImplementation>>} ParserForLanguage
+ * @typedef {Record<Language | string, ParserImplementation>} ParserForLanguage
+ */
+
+/**
+ * Mapping of file extension to {@link Language Languages}.
+ *
+ * @typedef {Record<string, Language>} LanguageForExtension
+ */
+
+/**
+ * Mapping of module specifier to {@link Language Languages}.
+ *
+ * @typedef {Record<string, Language>} LanguageForModuleSpecifier
  */
 
 /**
@@ -340,10 +354,10 @@ export {};
  * @typedef {object} ExtraLinkOptions
  * @property {ResolveHook} [resolve]
  * @property {ImportHookMaker} makeImportHook
- * @property {ParserForLanguage} parserForLanguage
+ * @property {ParserForLanguage} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {boolean} [archiveOnly]
- * @property {CustomParser[]} [parsers]
  */
 
 /**
@@ -417,16 +431,8 @@ export {};
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  * @property {SourceMapHook} [sourceMapHook]
- * @property {CustomParser[]} [parsers]
- */
-
-/**
- * A definition of a custom parser
- *
- * @typedef CustomParser
- * @property {ParserImplementation} parser Parser implementation
- * @property {Language} language Language the parser applies to. Can be new or existing
- * @property {string[]} extensions Extensions the language applies to
+ * @property {Record<string, ParserImplementation>} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
  */
 
 // /////////////////////////////////////////////////////////////////////////////

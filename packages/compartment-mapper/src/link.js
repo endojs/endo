@@ -5,7 +5,7 @@
 /** @import {ParserImplementation} from './types.js' */
 /** @import {ShouldDeferError} from './types.js' */
 /** @import {ModuleTransforms} from './types.js' */
-/** @import {Language} from './types.js' */
+/** @import {LanguageForExtension} from './types.js' */
 /** @import {ModuleDescriptor} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
@@ -21,7 +21,7 @@ import {
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
-const { entries, fromEntries } = Object;
+const { assign, create, entries, freeze, fromEntries } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 const { allSettled } = Promise;
@@ -134,7 +134,7 @@ const makeExtensionParser = (
 };
 
 /**
- * @param {Record<string, Language>} languageForExtension
+ * @param {LanguageForExtension} languageForExtension
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
  * is implied by package.json and should not be inferred from its extension.
  * @param {ParserForLanguage} parserForLanguage
@@ -333,20 +333,20 @@ export const link = (
   {
     resolve = resolveFallback,
     makeImportHook,
-    parserForLanguage,
+    parserForLanguage: parserForLanguageOption = {},
+    languageForExtension: languageForExtensionOption = {},
     globals = {},
     transforms = [],
     moduleTransforms = {},
     __shimTransforms__ = [],
     archiveOnly = false,
     Compartment = defaultCompartment,
-    parsers = [],
   },
 ) => {
   const { compartment: entryCompartmentName } = entry;
 
   /** @type {Record<string, Compartment>} */
-  const compartments = Object.create(null);
+  const compartments = create(null);
 
   /**
    * @param {string} attenuatorSpecifier
@@ -358,41 +358,14 @@ export const link = (
 
   const pendingJobs = [];
 
-  /** @type {Record<string, Language>} */
-  const customLanguageForExtension = Object.create(null);
+  /** @type {LanguageForExtension} */
+  const defaultLanguageForExtension = freeze(
+    assign(create(null), languageForExtensionOption),
+  );
   /** @type {ParserForLanguage} */
-  const customParserForLanguage = Object.create(null);
-
-  for (const { parser, extensions, language } of parsers) {
-    if (
-      language in customParserForLanguage &&
-      customParserForLanguage[language] !== parser
-    ) {
-      throw new Error(
-        `Custom parser for language ${q(language)} already defined`,
-      );
-    }
-
-    if (language in parserForLanguage) {
-      throw new Error(
-        `Parser for language ${q(language)} already defined by builtin`,
-      );
-    }
-
-    for (const extension of extensions) {
-      if (
-        extension in customLanguageForExtension &&
-        customLanguageForExtension[extension] !== language
-      ) {
-        throw new Error(
-          `Extension ${q(extension)} already assigned custom language ${q(customLanguageForExtension[extension])}`,
-        );
-      }
-      customLanguageForExtension[extension] = language;
-    }
-
-    customParserForLanguage[language] = parser;
-  }
+  const parserForLanguage = freeze(
+    assign(create(null), parserForLanguageOption),
+  );
 
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
@@ -401,52 +374,40 @@ export const link = (
     const {
       location,
       name,
-      modules = Object.create(null),
-      parsers: languageForExtension = Object.create(null),
-      types: languageForModuleSpecifier = Object.create(null),
-      scopes = Object.create(null),
+      modules = create(null),
+      parsers: languageForExtensionOverrides = {},
+      types: languageForModuleSpecifierOverrides = {},
+      scopes = create(null),
     } = compartmentDescriptor;
 
     // Capture the default.
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
-    /** @type {Record<string, Language>} */
-    const finalLanguageForExtension = Object.create(null);
-    for (const [extension, language] of entries(customLanguageForExtension)) {
-      if (extension in languageForExtension) {
-        throw new Error(
-          `Extension ${q(extension)} already assigned language ${q(languageForExtension[extension])}`,
-        );
-      }
-      finalLanguageForExtension[extension] = language;
-    }
-    for (const [extension, language] of entries(languageForExtension)) {
-      finalLanguageForExtension[extension] = language;
-    }
-
-    /** @type {ParserForLanguage} */
-    const finalParserForLanguage = Object.create(null);
-
-    for (const [language, parser] of [
-      ...entries(customParserForLanguage),
-      ...entries(parserForLanguage),
-    ]) {
-      finalParserForLanguage[language] = parser;
-    }
+    /** @type {Record<string, string>} */
+    const languageForModuleSpecifier = freeze(
+      assign(create(null), languageForModuleSpecifierOverrides),
+    );
+    /** @type {LanguageForExtension} */
+    const languageForExtension = freeze(
+      assign(
+        create(null),
+        defaultLanguageForExtension,
+        languageForExtensionOverrides,
+      ),
+    );
 
     const parse = mapParsers(
-      finalLanguageForExtension,
+      languageForExtension,
       languageForModuleSpecifier,
-      finalParserForLanguage,
+      parserForLanguage,
       moduleTransforms,
     );
     /** @type {ShouldDeferError} */
     const shouldDeferError = language => {
-      if (language && has(finalParserForLanguage, language)) {
-        return /** @type {ParserImplementation} */ (
-          finalParserForLanguage[language]
-        ).heuristicImports;
+      if (language && has(parserForLanguage, language)) {
+        return /** @type {ParserImplementation} */ (parserForLanguage[language])
+          .heuristicImports;
       } else {
         // If language is undefined or there's no parser, the error we could consider deferring is surely related to
         // that. Nothing to throw here.
@@ -473,7 +434,7 @@ export const link = (
       scopes,
     );
 
-    const compartment = new Compartment(Object.create(null), undefined, {
+    const compartment = new Compartment(create(null), undefined, {
       resolveHook,
       importHook,
       moduleMapHook,

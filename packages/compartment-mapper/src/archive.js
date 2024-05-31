@@ -6,7 +6,6 @@
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
 /** @import {ModuleDescriptor} from './types.js' */
-/** @import {ParserImplementation} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {CaptureSourceLocationHook} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
@@ -39,10 +38,10 @@ import { detectAttenuators } from './policy.js';
 
 const textEncoder = new TextEncoder();
 
-const { freeze } = Object;
+const { assign, create, freeze } = Object;
 
 /** @satisfies {Readonly<ParserForLanguage>} */
-const parserForLanguage = freeze(
+const defaultParserForLanguage = freeze(
   /** @type {const} */ ({
     mjs: parserArchiveMjs,
     'pre-mjs-json': parserArchiveMjs,
@@ -96,7 +95,7 @@ const { keys, entries, fromEntries } = Object;
  */
 const renameCompartments = compartments => {
   /** @type {Record<string, string>} */
-  const compartmentRenames = Object.create(null);
+  const compartmentRenames = create(null);
   let index = 0;
   let prev = '';
 
@@ -137,14 +136,14 @@ const renameCompartments = compartments => {
  * @param {Record<string, string>} compartmentRenames
  */
 const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
-  const result = Object.create(null);
+  const result = create(null);
   for (const compartmentName of keys(compartmentRenames)) {
     const compartment = compartments[compartmentName];
     const { name, label, retained, policy } = compartment;
     if (retained) {
       // rename module compartments
       /** @type {Record<string, ModuleDescriptor>} */
-      const modules = Object.create(null);
+      const modules = create(null);
       const compartmentModules = compartment.modules;
       if (compartment.modules) {
         for (const name of keys(compartmentModules).sort()) {
@@ -295,7 +294,7 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
  * @param {ArchiveOptions} [options]
  * @returns {Promise<{sources: Sources, compartmentMapBytes: Uint8Array, sha512?: string}>}
  */
-const digestLocation = async (powers, moduleLocation, options) => {
+const digestLocation = async (powers, moduleLocation, options = {}) => {
   const {
     moduleTransforms,
     modules: exitModules = {},
@@ -307,7 +306,17 @@ const digestLocation = async (powers, moduleLocation, options) => {
     importHook: exitModuleImportHook = undefined,
     policy = undefined,
     sourceMapHook = undefined,
-  } = options || {};
+    parserForLanguage: parserForLanguageOption = {},
+    languageForExtension: languageForExtensionOption = {},
+  } = options;
+
+  const parserForLanguage = freeze(
+    assign(create(null), defaultParserForLanguage, parserForLanguageOption),
+  );
+  const languageForExtension = freeze(
+    assign(create(null), languageForExtensionOption),
+  );
+
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
     packageLocation,
@@ -363,6 +372,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
+    languageForExtension,
     archiveOnly: true,
   });
   await compartment.load(entryModuleSpecifier);
