@@ -21,7 +21,6 @@
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
-import { defaultParserForLanguage } from './import-archive-parsers.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { join } from './node-module-specifier.js';
@@ -281,7 +280,7 @@ export const parseArchive = async (
   } = options;
 
   const parserForLanguage = freeze(
-    assign(create(null), defaultParserForLanguage, parserForLanguageOption),
+    assign(create(null), parserForLanguageOption),
   );
   const languageForExtension = freeze(
     assign(create(null), languageForExtensionOption),

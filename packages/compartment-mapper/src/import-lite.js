@@ -16,7 +16,6 @@ import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
 } from './import-hook.js';
-import { defaultParserForLanguage } from './import-parsers.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
@@ -45,7 +44,7 @@ export const loadLocation = async (
   } = options;
 
   const parserForLanguage = freeze(
-    assign(create(null), defaultParserForLanguage, parserForLanguageOption),
+    assign(create(null), parserForLanguageOption),
   );
   const languageForExtension = freeze(
     assign(create(null), languageForExtensionOption),

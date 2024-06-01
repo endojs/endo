@@ -22,7 +22,6 @@ import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
 } from './import-hook.js';
-import { defaultParserForLanguage } from './archive-parsers.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import {
@@ -294,7 +293,7 @@ const digestLocation = async (powers, moduleLocation, options = {}) => {
   } = options;
 
   const parserForLanguage = freeze(
-    assign(create(null), defaultParserForLanguage, parserForLanguageOption),
+    assign(create(null), parserForLanguageOption),
   );
   const languageForExtension = freeze(
     assign(create(null), languageForExtensionOption),

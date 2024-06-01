@@ -1,1 +1,1 @@
-export { parserForLanguage } from './src/import-archive-parsers.js';
+export { defaultParserForLanguage } from './src/import-archive-parsers.js';
