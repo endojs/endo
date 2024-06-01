@@ -1,0 +1,43 @@
+{
+  "name": "@endo/xs-test",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Endo parity tests for XS and Node",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/skel#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "xs-test"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {},
+  "scripts": {
+    "build": "exit 0",
+    "build:types": "tsc --build tsconfig.build.json",
+    "clean:types": "git clean -f '*.d.ts*'",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-check": "yarn lint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc",
+    "test": "exit 0",
+    "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@endo/import-bundle": "^1.1.2",
+    "@endo/static-module-record": "^1.1.2",
+    "ses": "^1.5.0"
+  },
+  "files": [],
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

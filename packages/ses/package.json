@@ -38,6 +38,7 @@
     ".": {
       "import": {
         "types": "./types.d.ts",
+        "xs": "./src/xs-shim.js",
         "default": "./index.js"
       },
       "require": {

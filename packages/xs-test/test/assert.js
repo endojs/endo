@@ -1,0 +1,2 @@
+import 'ses';
+assert(true);
