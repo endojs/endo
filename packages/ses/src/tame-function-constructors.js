@@ -121,7 +121,6 @@ export default function tameFunctionConstructors() {
     '%InertGeneratorFunction%',
     '(function*(){})',
   );
-  // Hermes doesn't support async arrow functions, is this ok?
   repairFunction(
     'AsyncFunction',
     '%InertAsyncFunction%',
