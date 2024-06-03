@@ -197,7 +197,11 @@ const defaultModuleParsers = /** @type {const} */ ({
 /**
  * @param {object} descriptor
  * @param {string} location
- * @param {{languages?: readonly string[]|string[], uncontroversialParsers?: Record<string, string>, commonParsers?: Record<string, string>, moduleParsers?: Record<string, string>}} [options]
+ * @param {object} [options]
+ * @param {readonly string[]|string[]} [options.languages]
+ * @param {Record<string, string>} [options.uncontroversialParsers]
+ * @param {Record<string, string>} [options.commonParsers]
+ * @param {Record<string, string>} [options.moduleParsers]
  * @returns {Record<string, string>}
  */
 const inferParsers = (
