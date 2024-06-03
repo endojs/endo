@@ -5,9 +5,6 @@ User-visible changes to the compartment mapper:
 - Fixes incompatible behavior with Node.js package conditional exports #2276.
   Previously, the last matching tag would override all prior matches, often
   causing a bundle to adopt the `default` instead of a more specific condition.
-
-# 0.9.0 (2023-08-07)
-
 - Adds `parserForLanguage` and `languageForExtension` options to all modes of
   operation such that the compartment mapper can analyze and bundle languages
   apart from the built-in languages, which include `esm` and `cjs`.
@@ -15,6 +12,9 @@ User-visible changes to the compartment mapper:
   application and the `"parsers"` property in individual `package.json`
   descriptors may extend or override using any of the configured or built-in
   language parser names.
+
+# 0.9.0 (2023-08-07)
+
 - Introduces support for source map generation.
   Look for `computeSourceMapLocation` and `sourceMapHook` in
   [`README.md`](README.md).
