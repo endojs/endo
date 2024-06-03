@@ -2,12 +2,13 @@
 /* eslint no-shadow: "off" */
 
 /** @import {Application} from './types.js' */
-/** @import {ArchiveOptions} from './types.js' */
+/** @import {ImportLocationOptions} from './types.js' */
+/** @import {LoadLocationOptions} from './types.js' */
+/** @import {ParserForLanguage} from './types.js' */
 /** @import {ExecuteFn} from './types.js' */
-/** @import {ExecuteOptions} from './types.js' */
-/** @import {ParserImplementation} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
+/** @import {SomeObject} from './types.js' */
 
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
@@ -24,22 +25,30 @@ import parserMjs from './parse-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
-/** @type {Record<string, ParserImplementation>} */
-export const parserForLanguage = {
-  mjs: parserMjs,
-  cjs: parserCjs,
-  json: parserJson,
-  text: parserText,
-  bytes: parserBytes,
-};
+const { assign, create, freeze } = Object;
+
+/** @satisfies {Readonly<ParserForLanguage>} */
+export const defaultParserForLanguage = freeze(
+  /** @type {const} */ ({
+    mjs: parserMjs,
+    cjs: parserCjs,
+    json: parserJson,
+    text: parserText,
+    bytes: parserBytes,
+  }),
+);
 
 /**
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
+ * @param {LoadLocationOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadLocation = async (readPowers, moduleLocation, options) => {
+export const loadLocation = async (
+  readPowers,
+  moduleLocation,
+  options = {},
+) => {
   const {
     moduleTransforms = {},
     dev = false,
@@ -47,7 +56,16 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     searchSuffixes = undefined,
     commonDependencies = undefined,
     policy,
-  } = options || {};
+    parserForLanguage: parserForLanguageOption = {},
+    languageForExtension: languageForExtensionOption = {},
+  } = options;
+
+  const parserForLanguage = freeze(
+    assign(create(null), defaultParserForLanguage, parserForLanguageOption),
+  );
+  const languageForExtension = freeze(
+    assign(create(null), languageForExtensionOption),
+  );
 
   const { read } = unpackReadPowers(readPowers);
 
@@ -96,6 +114,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
+      languageForExtension,
       globals,
       transforms,
       moduleTransforms,
@@ -114,8 +133,8 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
 /**
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ExecuteOptions & ArchiveOptions} [options]
- * @returns {Promise<import('./types.js').SomeObject>} the object of the imported modules exported
+ * @param {ImportLocationOptions} [options]
+ * @returns {Promise<SomeObject>} the object of the imported modules exported
  * names.
  */
 export const importLocation = async (

@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @import {Language} from './types.js' */
+/** @import {LanguageForExtension} from './types.js' */
 
 import { join, relativize } from './node-module-specifier.js';
 
@@ -105,7 +105,7 @@ function* interpretExports(name, exports, tags) {
  * @param {object} [packageDescriptor.exports]
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {Record<string, Language>} types - an object to populate
+ * @param {LanguageForExtension} types - an object to populate
  * with any recognized module's type, if implied by a tag.
  * @yields {[string, string]}
  */
@@ -146,7 +146,7 @@ export const inferExportsEntries = function* inferExportsEntries(
  * @param {object} descriptor - the parsed body of a package.json file.
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {Record<string, Language>} types - an object to populate
+ * @param {LanguageForExtension} types - an object to populate
  * with any recognized module's type, if implied by a tag.
  * @returns {Record<string, string>}
  */

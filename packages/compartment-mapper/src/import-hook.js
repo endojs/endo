@@ -316,6 +316,7 @@ export const makeImportHookMaker = (
                 (nextSourceMapObject => {
                   sourceMap = JSON.stringify(nextSourceMapObject);
                 }),
+              compartmentDescriptor,
             },
           );
           const {

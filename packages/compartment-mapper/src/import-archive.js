@@ -1,6 +1,24 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
+/** @import {ImportHook} from 'ses' */
+/** @import {ModuleExportsNamespace} from 'ses' */
+/** @import {StaticModuleType} from 'ses' */
+/** @import {Application} from './types.js' */
+/** @import {CompartmentDescriptor} from './types.js' */
+/** @import {ComputeSourceLocationHook} from './types.js' */
+/** @import {ComputeSourceMapLocationHook} from './types.js' */
+/** @import {ExecuteFn} from './types.js' */
+/** @import {ExitModuleImportHook} from './types.js' */
+/** @import {HashFn} from './types.js' */
+/** @import {ImportHookMaker} from './types.js' */
+/** @import {LanguageForExtension} from './types.js' */
+/** @import {LoadArchiveOptions} from './types.js' */
+/** @import {ParserForLanguage} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {SomeObject} from './types.js' */
+
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
 import parserPreCjs from './parse-pre-cjs.js';
@@ -15,25 +33,24 @@ import { assertCompartmentMap } from './compartment-map.js';
 import { exitModuleImportHookMaker } from './import-hook.js';
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 
-/** @import {StaticModuleType} from 'ses' */
-/** @import {Application, CompartmentDescriptor, ComputeSourceLocationHook, ComputeSourceMapLocationHook, ExecuteFn, ExecuteOptions, ExitModuleImportHook, HashFn, ImportHookMaker, LoadArchiveOptions, ParserImplementation, ReadPowers} from './types.js' */
-
 const DefaultCompartment = Compartment;
 
 const { Fail, quote: q } = assert;
 
 const textDecoder = new TextDecoder();
 
-const { freeze } = Object;
+const { assign, create, freeze } = Object;
 
-/** @type {Record<string, ParserImplementation>} */
-const parserForLanguage = {
-  'pre-cjs-json': parserPreCjs,
-  'pre-mjs-json': parserPreMjs,
-  json: parserJson,
-  text: parserText,
-  bytes: parserBytes,
-};
+/** @satisfies {Readonly<ParserForLanguage>} */
+const defaultParserForLanguage = freeze(
+  /** @type {const} */ ({
+    'pre-cjs-json': parserPreCjs,
+    'pre-mjs-json': parserPreMjs,
+    json: parserJson,
+    text: parserText,
+    bytes: parserBytes,
+  }),
+);
 
 /**
  * @param {string} errorMessage - error to throw on execute
@@ -60,6 +77,7 @@ const postponeErrorToExecute = errorMessage => {
  * @param {(path: string) => Uint8Array} get
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {string} archiveLocation
+ * @param {ParserForLanguage} parserForLanguage
  * @param {HashFn} [computeSha512]
  * @param {ComputeSourceLocationHook} [computeSourceLocation]
  * @param {ExitModuleImportHook} [exitModuleImportHook]
@@ -70,6 +88,7 @@ const makeArchiveImportHookMaker = (
   get,
   compartments,
   archiveLocation,
+  parserForLanguage,
   computeSha512 = undefined,
   computeSourceLocation = undefined,
   exitModuleImportHook = undefined,
@@ -87,7 +106,7 @@ const makeArchiveImportHookMaker = (
     // per-compartment:
     const compartmentDescriptor = compartments[packageLocation];
     const { modules } = compartmentDescriptor;
-    /** @type {import('ses').ImportHook} */
+    /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
       // per-module:
       const module = modules[moduleSpecifier];
@@ -146,14 +165,15 @@ const makeArchiveImportHookMaker = (
           )} in archive ${q(archiveLocation)}`,
         );
       }
-      if (parserForLanguage[module.parser] === undefined) {
+      const parser = parserForLanguage[module.parser];
+      if (parser === undefined) {
         throw Error(
           `Cannot parse ${q(module.parser)} module ${q(
             moduleSpecifier,
           )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}`,
         );
       }
-      const { parse } = parserForLanguage[module.parser];
+      const { parse } = parser;
       const moduleLocation = `${packageLocation}/${module.location}`;
       const moduleBytes = get(moduleLocation);
 
@@ -202,6 +222,7 @@ const makeArchiveImportHookMaker = (
         packageLocation,
         {
           sourceMapUrl,
+          compartmentDescriptor,
         },
       );
       return { record, specifier: moduleSpecifier };
@@ -215,7 +236,7 @@ const makeArchiveImportHookMaker = (
  * Creates a fake module namespace object that passes a brand check.
  *
  * @param {typeof Compartment} Compartment
- * @returns {import('ses').ModuleExportsNamespace}
+ * @returns {ModuleExportsNamespace}
  */
 const makeFauxModuleExportsNamespace = Compartment => {
   const compartment = new Compartment(
@@ -253,6 +274,8 @@ const makeFauxModuleExportsNamespace = Compartment => {
  * @param {CompartmentConstructor} [options.Compartment]
  * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
  * @param {ComputeSourceMapLocationHook} [options.computeSourceMapLocation]
+ * @param {ParserForLanguage} [options.parserForLanguage]
+ * @param {LanguageForExtension} [options.languageForExtension]
  * @returns {Promise<Application>}
  */
 export const parseArchive = async (
@@ -268,7 +291,16 @@ export const parseArchive = async (
     Compartment = DefaultCompartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
+    parserForLanguage: parserForLanguageOption = {},
+    languageForExtension: languageForExtensionOption = {},
   } = options;
+
+  const parserForLanguage = freeze(
+    assign(create(null), defaultParserForLanguage, parserForLanguageOption),
+  );
+  const languageForExtension = freeze(
+    assign(create(null), languageForExtensionOption),
+  );
 
   const compartmentExitModuleImportHook = exitModuleImportHookMaker({
     modules,
@@ -330,6 +362,7 @@ export const parseArchive = async (
       get,
       compartments,
       archiveLocation,
+      parserForLanguage,
       computeSha512,
       computeSourceLocation,
       compartmentExitModuleImportHook,
@@ -342,6 +375,7 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
+      languageForExtension,
       modules: Object.fromEntries(
         Object.keys(modules || {}).map(specifier => {
           return [specifier, makeFauxModuleExportsNamespace(Compartment)];
@@ -378,6 +412,7 @@ export const parseArchive = async (
       get,
       compartments,
       archiveLocation,
+      parserForLanguage,
       computeSha512,
       computeSourceLocation,
       compartmentExitModuleImportHook,
@@ -386,6 +421,7 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
+      languageForExtension,
       globals,
       modules,
       transforms,
@@ -403,7 +439,7 @@ export const parseArchive = async (
 };
 
 /**
- * @param {import('@endo/zip').ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
  * @param {LoadArchiveOptions} [options]
  * @returns {Promise<Application>}
@@ -419,6 +455,8 @@ export const loadArchive = async (
     computeSourceLocation,
     modules,
     computeSourceMapLocation,
+    parserForLanguage,
+    languageForExtension,
   } = options;
   const archiveBytes = await read(archiveLocation);
   return parseArchive(archiveBytes, archiveLocation, {
@@ -427,14 +465,16 @@ export const loadArchive = async (
     computeSourceLocation,
     modules,
     computeSourceMapLocation,
+    parserForLanguage,
+    languageForExtension,
   });
 };
 
 /**
- * @param {import('@endo/zip').ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
- * @param {ExecuteOptions & LoadArchiveOptions} options
- * @returns {Promise<object>}
+ * @param {LoadArchiveOptions} options
+ * @returns {Promise<SomeObject>}
  */
 export const importArchive = async (readPowers, archiveLocation, options) => {
   const archive = await loadArchive(readPowers, archiveLocation, options);

@@ -1,16 +1,18 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {Language} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {MaybeReadFn} from './types.js' */
 /** @import {CanonicalFn} from './types.js' */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {ModuleDescriptor} from './types.js' */
-/** @import {ScopeDescriptor} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
+/** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {Language} from './types.js' */
+/** @import {LanguageForExtension} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
 /** @import {MaybeReadPowers} from './types.js' */
+/** @import {ModuleDescriptor} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {ScopeDescriptor} from './types.js' */
+/** @import {SomePackagePolicy} from './types.js' */
 
 /**
  * The graph is an intermediate object model that the functions of this module
@@ -32,7 +34,7 @@
  * @property {Record<string, string>} externalAliases
  * @property {Record<string, string>} dependencyLocations - from module name to
  * location in storage.
- * @property {Record<string, Language>} parsers - the parser for
+ * @property {LanguageForExtension} parsers - the parser for
  * modules based on their extension.
  * @property {Record<string, Language>} types - the parser for specific
  * modules.
@@ -169,23 +171,49 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const languages = ['mjs', 'cjs', 'json', 'text', 'bytes'];
-const uncontroversialParsers = {
+const defaultLanguages = /** @type {const} */ ([
+  'mjs',
+  'cjs',
+  'json',
+  'text',
+  'bytes',
+]);
+const defaultUncontroversialParsers = /** @type {const} */ ({
   cjs: 'cjs',
   mjs: 'mjs',
   json: 'json',
   text: 'text',
   bytes: 'bytes',
-};
-const commonParsers = { js: 'cjs', ...uncontroversialParsers };
-const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
+});
+const defaultCommonParsers = /** @type {const} */ ({
+  js: 'cjs',
+  ...defaultUncontroversialParsers,
+});
+const defaultModuleParsers = /** @type {const} */ ({
+  js: 'mjs',
+  ...defaultUncontroversialParsers,
+});
 
 /**
  * @param {object} descriptor
  * @param {string} location
+ * @param {object} [options]
+ * @param {readonly string[]|string[]} [options.languages]
+ * @param {Record<string, string>} [options.uncontroversialParsers]
+ * @param {Record<string, string>} [options.commonParsers]
+ * @param {Record<string, string>} [options.moduleParsers]
  * @returns {Record<string, string>}
  */
-const inferParsers = (descriptor, location) => {
+const inferParsers = (
+  descriptor,
+  location,
+  {
+    languages = defaultLanguages,
+    uncontroversialParsers = defaultUncontroversialParsers,
+    commonParsers = defaultCommonParsers,
+    moduleParsers = defaultModuleParsers,
+  } = {},
+) => {
   const { type, module, parsers } = descriptor;
   let additionalParsers = Object.create(null);
   if (parsers !== undefined) {
@@ -684,7 +712,7 @@ const translateGraph = (
       scopes,
       parsers,
       types,
-      policy: packagePolicy,
+      policy: /** @type {SomePackagePolicy} */ (packagePolicy),
     };
   }
 

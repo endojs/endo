@@ -1,12 +1,11 @@
 // @ts-check
 
 /** @import {ModuleMapHook} from 'ses' */
-/** @import {ResolveHook} from 'ses' */
-/** @import {ParseFn} from './types.js' */
+/** @import {ParseFn, ParserForLanguage} from './types.js' */
 /** @import {ParserImplementation} from './types.js' */
 /** @import {ShouldDeferError} from './types.js' */
 /** @import {ModuleTransforms} from './types.js' */
-/** @import {Language} from './types.js' */
+/** @import {LanguageForExtension} from './types.js' */
 /** @import {ModuleDescriptor} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
@@ -22,7 +21,7 @@ import {
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
-const { entries, fromEntries } = Object;
+const { assign, create, entries, freeze, fromEntries } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 const { allSettled } = Promise;
@@ -66,7 +65,7 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
  * the type of a module is implied by package.json and should not be inferred
  * from its extension.
- * @param {Record<string, ParserImplementation>} parserForLanguage
+ * @param {ParserForLanguage} parserForLanguage
  * @param {ModuleTransforms} moduleTransforms
  * @returns {ParseFn}
  */
@@ -124,7 +123,9 @@ const makeExtensionParser = (
         `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
       );
     }
-    const { parse } = parserForLanguage[language];
+    const { parse } = /** @type {ParserImplementation} */ (
+      parserForLanguage[language]
+    );
     return parse(bytes, specifier, location, packageLocation, {
       sourceMap,
       ...options,
@@ -133,10 +134,10 @@ const makeExtensionParser = (
 };
 
 /**
- * @param {Record<string, Language>} languageForExtension
+ * @param {LanguageForExtension} languageForExtension
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
  * is implied by package.json and should not be inferred from its extension.
- * @param {Record<string, ParserImplementation>} parserForLanguage
+ * @param {ParserForLanguage} parserForLanguage
  * @param {ModuleTransforms} moduleTransforms
  * @returns {ParseFn}
  */
@@ -332,7 +333,8 @@ export const link = (
   {
     resolve = resolveFallback,
     makeImportHook,
-    parserForLanguage,
+    parserForLanguage: parserForLanguageOption = {},
+    languageForExtension: languageForExtensionOption = {},
     globals = {},
     transforms = [],
     moduleTransforms = {},
@@ -344,7 +346,7 @@ export const link = (
   const { compartment: entryCompartmentName } = entry;
 
   /** @type {Record<string, Compartment>} */
-  const compartments = Object.create(null);
+  const compartments = create(null);
 
   /**
    * @param {string} attenuatorSpecifier
@@ -356,21 +358,44 @@ export const link = (
 
   const pendingJobs = [];
 
+  /** @type {LanguageForExtension} */
+  const defaultLanguageForExtension = freeze(
+    assign(create(null), languageForExtensionOption),
+  );
+  /** @type {ParserForLanguage} */
+  const parserForLanguage = freeze(
+    assign(create(null), parserForLanguageOption),
+  );
+
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
+    // TODO: The default assignments seem to break type inference
     const {
       location,
       name,
-      modules = Object.create(null),
-      parsers: languageForExtension = Object.create(null),
-      types: languageForModuleSpecifier = Object.create(null),
-      scopes = Object.create(null),
+      modules = create(null),
+      parsers: languageForExtensionOverrides = {},
+      types: languageForModuleSpecifierOverrides = {},
+      scopes = create(null),
     } = compartmentDescriptor;
 
     // Capture the default.
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
+
+    /** @type {Record<string, string>} */
+    const languageForModuleSpecifier = freeze(
+      assign(create(null), languageForModuleSpecifierOverrides),
+    );
+    /** @type {LanguageForExtension} */
+    const languageForExtension = freeze(
+      assign(
+        create(null),
+        defaultLanguageForExtension,
+        languageForExtensionOverrides,
+      ),
+    );
 
     const parse = mapParsers(
       languageForExtension,
@@ -381,7 +406,8 @@ export const link = (
     /** @type {ShouldDeferError} */
     const shouldDeferError = language => {
       if (language && has(parserForLanguage, language)) {
-        return parserForLanguage[language].heuristicImports;
+        return /** @type {ParserImplementation} */ (parserForLanguage[language])
+          .heuristicImports;
       } else {
         // If language is undefined or there's no parser, the error we could consider deferring is surely related to
         // that. Nothing to throw here.
@@ -408,7 +434,7 @@ export const link = (
       scopes,
     );
 
-    const compartment = new Compartment(Object.create(null), undefined, {
+    const compartment = new Compartment(create(null), undefined, {
       resolveHook,
       importHook,
       moduleMapHook,

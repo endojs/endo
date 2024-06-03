@@ -50,9 +50,9 @@ export {};
  * compartment map.
  * @property {Record<string, ModuleDescriptor>} modules
  * @property {Record<string, ScopeDescriptor>} scopes
- * @property {Record<string, Language>} parsers - language for extension
- * @property {Record<string, Language>} types - language for module specifier
- * @property {object} policy - policy specific to compartment
+ * @property {LanguageForExtension} parsers - language for extension
+ * @property {LanguageForModuleSpecifier} types - language for module specifier
+ * @property {SomePackagePolicy} policy - policy specific to compartment
  */
 
 /**
@@ -82,7 +82,15 @@ export {};
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json' | 'bytes' | 'text' | 'pre-mjs-json' | 'pre-cjs-json'} Language
+ * Natively-recognized and custom languages
+ *
+ * @typedef {LiteralUnion<BuiltinLanguage, string>} Language
+ */
+
+/**
+ * Languages natively recognized by `compartment-mapper`
+ *
+ * @typedef {'mjs' | 'cjs' | 'json' | 'bytes' | 'text' | 'pre-mjs-json' | 'pre-cjs-json'} BuiltinLanguage
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -253,6 +261,7 @@ export {};
  * @param {SourceMapHook} [options.sourceMapHook]
  * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
+ * @param {CompartmentDescriptor} [options.compartmentDescriptor]
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,
@@ -284,15 +293,28 @@ export {};
  */
 
 /**
- * @typedef {object} LoadArchiveOptions
+ * @see {@link LoadArchiveOptions}
+ * @typedef {object} ExtraLoadArchiveOptions
  * @property {string} [expectedSha512]
  * @property {Record<string, any>} [modules]
  * @property {typeof Compartment} [Compartment]
  * @property {ComputeSourceLocationHook} [computeSourceLocation]
  * @property {ComputeSourceMapLocationHook} [computeSourceMapLocation]
+ * @property {ParserForLanguage} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
  */
 
 /**
+ * Options for `loadArchive()`
+ *
+ * @typedef {ExecuteOptions & ExtraLoadArchiveOptions} LoadArchiveOptions
+ */
+
+/**
+ * Set of options available in the context of code execution.
+ *
+ * May be used only as an intersection with other "options" types
+ *
  * @typedef {object} ExecuteOptions
  * @property {object} [globals]
  * @property {Array<Transform>} [transforms]
@@ -304,19 +326,43 @@ export {};
  */
 
 /**
- * @typedef {Record<string, ParserImplementation>} ParserForLanguage
+ * Mapping of {@link Language Languages} to {@link ParserImplementation ParserImplementations}
+ *
+ * @typedef {Record<Language | string, ParserImplementation>} ParserForLanguage
  */
 
 /**
+ * Mapping of file extension to {@link Language Languages}.
+ *
+ * @typedef {Record<string, Language>} LanguageForExtension
+ */
+
+/**
+ * Mapping of module specifier to {@link Language Languages}.
+ *
+ * @typedef {Record<string, Language>} LanguageForModuleSpecifier
+ */
+
+/**
+ * Options for `loadLocation()`
+ *
+ * @typedef {ArchiveOptions} LoadLocationOptions
+ */
+
+/**
+ * @see {@link LinkOptions}
  * @typedef {object} ExtraLinkOptions
  * @property {ResolveHook} [resolve]
  * @property {ImportHookMaker} makeImportHook
- * @property {ParserForLanguage} parserForLanguage
+ * @property {ParserForLanguage} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {boolean} [archiveOnly]
  */
 
 /**
+ * Options for `link()`
+ *
  * @typedef {ExecuteOptions & ExtraLinkOptions} LinkOptions
  */
 
@@ -378,13 +424,15 @@ export {};
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
- * @property {object} [policy]
+ * @property {SomePolicy} [policy]
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  * @property {SourceMapHook} [sourceMapHook]
+ * @property {Record<string, ParserImplementation>} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -478,29 +526,96 @@ export {};
 
 /**
  * An object representing a base package policy.
- * @template [PackagePolicyItem=void]
- * @template [GlobalsPolicyItem=void]
- * @template [BuiltinsPolicyItem=void]
+ *
+ * @template [PackagePolicyItem=void] Additional types for a package policy item
+ * @template [GlobalsPolicyItem=void] Additional types for a global policy item
+ * @template [BuiltinsPolicyItem=void] Additional types for a builtin policy item
+ * @template [ExtraOptions=unknown] Additional options
  * @typedef {object} PackagePolicy
  * @property {string} [defaultAttenuator] - The default attenuator.
  * @property {PolicyItem<PackagePolicyItem>} [packages] - The policy item for packages.
  * @property {PolicyItem<GlobalsPolicyItem>|AttenuationDefinition} [globals] - The policy item or full attenuation definition for globals.
  * @property {PolicyItem<BuiltinsPolicyItem>|NestedAttenuationDefinition} [builtins] - The policy item or nested attenuation definition for builtins.
  * @property {boolean} [noGlobalFreeze] - Whether to disable global freeze.
+ * @property {ExtraOptions} [options] - Any additional user-defined options can be added to the policy here
  */
 
 /**
  * An object representing a base policy.
- * @template [PackagePolicyItem=void]
- * @template [GlobalsPolicyItem=void]
- * @template [BuiltinsPolicyItem=void]
+ *
+ * @template [PackagePolicyItem=void] Additional types for a package policy item
+ * @template [GlobalsPolicyItem=void] Additional types for a global policy item
+ * @template [BuiltinsPolicyItem=void] Additional types for a builtin policy item
+ * @template [ExtraOptions=unknown] Additional package-level options
  * @typedef {object} Policy
- * @property {Record<string, PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>>} resources - The package policies for the resources.
+ * @property {Record<string, PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem, ExtraOptions>>} resources - The package policies for the resources.
  * @property {string} [defaultAttenuator] - The default attenuator.
- * @property {PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem>} [entry] - The package policy for the entry.
+ * @property {PackagePolicy<PackagePolicyItem, GlobalsPolicyItem, BuiltinsPolicyItem, ExtraOptions>} [entry] - The package policy for the entry.
  */
 
 /**
  * Any object. All objects. Not `null`, though.
  * @typedef {Record<PropertyKey, any>} SomeObject
+ */
+
+/**
+ * Any {@link PackagePolicy}
+ *
+ * @typedef {PackagePolicy<any, any, any, any>} SomePackagePolicy
+ */
+
+/**
+ * Any {@link Policy}
+ *
+ * @typedef {Policy<any, any, any, any>} SomePolicy
+ */
+
+/**
+ * Matches any {@link https://developer.mozilla.org/en-US/docs/Glossary/Primitive primitive value}.
+ *
+ * @typedef {null|undefined|string|number|boolean|symbol|bigint} Primitive
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/main/source/primitive.d.ts original source}
+ */
+
+/**
+ * Allows creating a union type by combining primitive types and literal
+ * types without sacrificing auto-completion in IDEs for the literal type part
+ * of the union.
+ *
+ * Currently, when a union type of a primitive type is combined with literal types,
+ * TypeScript loses all information about the combined literals. Thus, when such
+ * a type is used in an IDE with autocompletion, no suggestions are made for the
+ * declared literals.
+ *
+ * This type is a workaround for {@link https://github.com/Microsoft/TypeScript/issues/29729 Microsoft/TypeScript#29729}.
+ * It will be removed as soon as it's not needed anymore.
+ *
+ *
+ * @see {@link https://github.com/sindresorhus/type-fest/blob/main/source/literal-union.d.ts original source}
+ * @template LiteralType The literal type
+ * @template {Primitive} PrimitiveType The primitive type
+ * @typedef {LiteralType | (PrimitiveType & Record<never, never>)} LiteralUnion
+ * @example
+ * ```ts
+ * // Before
+ *
+ * type Pet = 'dog' | 'cat' | string;
+ *
+ * const pet: Pet = '';
+ * // Start typing in your TypeScript-enabled IDE.
+ * // You **will not** get auto-completion for `dog` and `cat` literals.
+ *
+ * // After
+ *
+ * type Pet2 = LiteralUnion<'dog' | 'cat', string>;
+ *
+ * const pet: Pet2 = '';
+ * // You **will** get auto-completion for `dog` and `cat` literals.
+ * ```
+ */
+
+/**
+ * Options for `importLocation()`
+ *
+ * @typedef {ExecuteOptions & ArchiveOptions} ImportLocationOptions
  */
