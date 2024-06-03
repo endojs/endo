@@ -12,6 +12,15 @@ User-visible changes to the compartment mapper:
   application and the `"parsers"` property in individual `package.json`
   descriptors may extend or override using any of the configured or built-in
   language parser names.
+- Exports `import-lite.js`, `archive-lite.js`, `import-archive-lite.js`,
+  `import-parsers.js`, `archive-parsers.js`, `import-archive-parsers.js`, and
+  `node-modules.js`, allowing these to be mixed and matched.
+  The existing `import.js`, `archive.js`, and `import-archive.js` all entrain
+  by import their corresponding default behaviors, where the new modules do
+  not.
+  For example, `import-parsers.js` does not entrain Babel.
+  The new `import-lite.js` does not entrain `node-modules.js` and composes
+  with potential alternative package discovery, storage, and locks.
 
 # 0.9.0 (2023-08-07)
 
