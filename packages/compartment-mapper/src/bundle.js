@@ -28,18 +28,23 @@ import cjsSupport from './bundle-cjs.js';
 
 const textEncoder = new TextEncoder();
 
+const { freeze } = Object;
 const { quote: q } = assert;
 
-/** @type {ParserForLanguage} */
-const parserForLanguage = {
-  mjs: parserArchiveMjs,
-  'pre-mjs-json': parserArchiveMjs,
-  cjs: parserArchiveCjs,
-  'pre-cjs-json': parserArchiveCjs,
-  json: parserJson,
-  text: parserText,
-  bytes: parserBytes,
-};
+/**
+ * @satisfies {Readonly<ParserForLanguage>}
+ */
+const defaultParserForLanguage = freeze(
+  /** @type {const} */ ({
+    mjs: parserArchiveMjs,
+    'pre-mjs-json': parserArchiveMjs,
+    cjs: parserArchiveCjs,
+    'pre-cjs-json': parserArchiveCjs,
+    json: parserJson,
+    text: parserText,
+    bytes: parserBytes,
+  }),
+);
 
 /**
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
