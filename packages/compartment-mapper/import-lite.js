@@ -1,1 +1,1 @@
-export { loadLocation, importLocation } from './src/import-lite.js';
+export { loadFromMap, importFromMap } from './src/import-lite.js';

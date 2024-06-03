@@ -1,10 +1,8 @@
 // @ts-check
 
 import { defaultParserForLanguage } from './import-parsers.js';
-import {
-  loadLocation as loadLocationLite,
-  importLocation as importLocationLite,
-} from './import-lite.js';
+import { mapNodeModules } from './node-modules.js';
+import { loadFromMap } from './import-lite.js';
 
 const { assign, create, freeze } = Object;
 
@@ -33,12 +31,24 @@ const assignParserForLanguage = (options = {}) => {
  * @param {ArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadLocation = async (readPowers, moduleLocation, options) =>
-  loadLocationLite(
+export const loadLocation = async (
+  readPowers,
+  moduleLocation,
+  options = {},
+) => {
+  const { dev, tags, commonDependencies, policy } = options;
+  const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
+    dev,
+    tags,
+    commonDependencies,
+    policy,
+  });
+  return loadFromMap(
     readPowers,
-    moduleLocation,
+    compartmentMap,
     assignParserForLanguage(options),
   );
+};
 
 /**
  * @param {ReadFn | ReadPowers} readPowers
@@ -47,9 +57,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) =>
  * @returns {Promise<import('./types.js').SomeObject>} the object of the imported modules exported
  * names.
  */
-export const importLocation = async (readPowers, moduleLocation, options) =>
-  importLocationLite(
-    readPowers,
-    moduleLocation,
-    assignParserForLanguage(options),
-  );
+export const importLocation = async (readPowers, moduleLocation, options) => {
+  const application = await loadLocation(readPowers, moduleLocation, options);
+  return application.import(options);
+};

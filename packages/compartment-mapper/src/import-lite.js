@@ -1,6 +1,7 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
+/** @import {CompartmentMapDescriptor} from './types.js' */
 /** @import {Application} from './types.js' */
 /** @import {ImportLocationOptions} from './types.js' */
 /** @import {LoadLocationOptions} from './types.js' */
@@ -9,36 +10,24 @@
 /** @import {ReadPowers} from './types.js' */
 /** @import {SomeObject} from './types.js' */
 
-import { compartmentMapForNodeModules } from './node-modules.js';
-import { search } from './search.js';
 import { link } from './link.js';
 import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
 } from './import-hook.js';
-import { parseLocatedJson } from './json.js';
-import { unpackReadPowers } from './powers.js';
 
 const { assign, create, freeze } = Object;
 
 /**
  * @param {ReadFn | ReadPowers} readPowers
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {LoadLocationOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadLocation = async (
-  readPowers,
-  moduleLocation,
-  options = {},
-) => {
+export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
     moduleTransforms = {},
-    dev = false,
-    tags = new Set(),
     searchSuffixes = undefined,
-    commonDependencies = undefined,
-    policy,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
   } = options;
@@ -50,27 +39,9 @@ export const loadLocation = async (
     assign(create(null), languageForExtensionOption),
   );
 
-  const { read } = unpackReadPowers(readPowers);
-
   const {
-    packageLocation,
-    packageDescriptorText,
-    packageDescriptorLocation,
-    moduleSpecifier,
-  } = await search(read, moduleLocation);
-
-  const packageDescriptor = parseLocatedJson(
-    packageDescriptorText,
-    packageDescriptorLocation,
-  );
-  const compartmentMap = await compartmentMapForNodeModules(
-    readPowers,
-    packageLocation,
-    tags,
-    packageDescriptor,
-    moduleSpecifier,
-    { dev, commonDependencies, policy },
-  );
+    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
+  } = compartmentMap;
 
   /** @type {ExecuteFn} */
   const execute = async (options = {}) => {
@@ -86,14 +57,18 @@ export const loadLocation = async (
       modules,
       exitModuleImportHook,
     });
-    const makeImportHook = makeImportHookMaker(readPowers, packageLocation, {
-      compartmentDescriptors: compartmentMap.compartments,
-      searchSuffixes,
-      archiveOnly: false,
-      entryCompartmentName: packageLocation,
-      entryModuleSpecifier: moduleSpecifier,
-      exitModuleImportHook: compartmentExitModuleImportHook,
-    });
+    const makeImportHook = makeImportHookMaker(
+      readPowers,
+      entryCompartmentName,
+      {
+        compartmentDescriptors: compartmentMap.compartments,
+        searchSuffixes,
+        archiveOnly: false,
+        entryCompartmentName,
+        entryModuleSpecifier,
+        exitModuleImportHook: compartmentExitModuleImportHook,
+      },
+    );
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
@@ -107,7 +82,7 @@ export const loadLocation = async (
 
     await pendingJobsPromise;
 
-    return compartment.import(moduleSpecifier);
+    return compartment.import(entryModuleSpecifier);
   };
 
   return { import: execute };
@@ -115,16 +90,16 @@ export const loadLocation = async (
 
 /**
  * @param {ReadFn | ReadPowers} readPowers
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {ImportLocationOptions} [options]
  * @returns {Promise<SomeObject>} the object of the imported modules exported
  * names.
  */
-export const importLocation = async (
+export const importFromMap = async (
   readPowers,
-  moduleLocation,
+  compartmentMap,
   options = {},
 ) => {
-  const application = await loadLocation(readPowers, moduleLocation, options);
+  const application = await loadFromMap(readPowers, compartmentMap, options);
   return application.import(options);
 };

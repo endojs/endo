@@ -38,6 +38,7 @@
     "./import-archive-parsers.js": "./import-archive-parsers.js",
     "./bundle.js": "./bundle.js",
     "./node-powers.js": "./node-powers.js",
+    "./node-modules.js": "./node-modules.js",
     "./package.json": "./package.json"
   },
   "scripts": {

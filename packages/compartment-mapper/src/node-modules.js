@@ -55,7 +55,7 @@ import {
   getPolicyForPackage,
 } from './policy.js';
 import { unpackReadPowers } from './powers.js';
-import { searchDescriptor } from './search.js';
+import { search, searchDescriptor } from './search.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -783,4 +783,45 @@ export const compartmentMapForNodeModules = async (
   );
 
   return compartmentMap;
+};
+
+/**
+ * @param {ReadFn | ReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {object} [options]
+ * @param {Set<string>} [options.tags]
+ * @param {boolean} [options.dev]
+ * @param {object} [options.commonDependencies]
+ * @param {object} [options.policy]
+ * @returns {Promise<CompartmentMapDescriptor>}
+ */
+export const mapNodeModules = async (
+  readPowers,
+  moduleLocation,
+  options = {},
+) => {
+  const { tags = new Set(), dev = false, commonDependencies, policy } = options;
+
+  const { read } = unpackReadPowers(readPowers);
+
+  const {
+    packageLocation,
+    packageDescriptorText,
+    packageDescriptorLocation,
+    moduleSpecifier,
+  } = await search(read, moduleLocation);
+
+  const packageDescriptor = parseLocatedJson(
+    packageDescriptorText,
+    packageDescriptorLocation,
+  );
+
+  return compartmentMapForNodeModules(
+    readPowers,
+    packageLocation,
+    tags,
+    packageDescriptor,
+    moduleSpecifier,
+    { dev, commonDependencies, policy },
+  );
 };

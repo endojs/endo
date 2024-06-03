@@ -1,15 +1,14 @@
 // @ts-check
 
 import { defaultParserForLanguage } from './archive-parsers.js';
+import { mapNodeModules } from './node-modules.js';
 import {
-  makeAndHashArchive as makeAndHashArchiveLite,
-  makeArchive as makeArchiveLite,
-  mapLocation as mapLocationLite,
-  hashLocation as hashLocationLite,
-  writeArchive as writeArchiveLite,
+  makeAndHashArchiveFromMap,
+  makeArchiveFromMap,
+  mapFromMap,
+  hashFromMap,
+  writeArchiveFromMap,
 } from './archive-lite.js';
-
-export { makeArchiveCompartmentMap } from './archive-lite.js';
 
 const { assign, create, freeze } = Object;
 
@@ -38,12 +37,18 @@ const assignParserForLanguage = (options = {}) => {
  * @param {ArchiveOptions} [options]
  * @returns {Promise<{bytes: Uint8Array, sha512?: string}>}
  */
-export const makeAndHashArchive = async (powers, moduleLocation, options) =>
-  makeAndHashArchiveLite(
+export const makeAndHashArchive = async (
+  powers,
+  moduleLocation,
+  options = {},
+) => {
+  const compartmentMap = await mapNodeModules(powers, moduleLocation, options);
+  return makeAndHashArchiveFromMap(
     powers,
-    moduleLocation,
+    compartmentMap,
     assignParserForLanguage(options),
   );
+};
 
 /**
  * @param {ReadFn | ReadPowers} powers
@@ -51,8 +56,22 @@ export const makeAndHashArchive = async (powers, moduleLocation, options) =>
  * @param {ArchiveOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
-export const makeArchive = async (powers, moduleLocation, options) =>
-  makeArchiveLite(powers, moduleLocation, assignParserForLanguage(options));
+export const makeArchive = async (powers, moduleLocation, options = {}) => {
+  const { dev, tags, commonDependencies, policy } = options;
+
+  const compartmentMap = await mapNodeModules(powers, moduleLocation, {
+    dev,
+    tags,
+    commonDependencies,
+    policy,
+  });
+
+  return makeArchiveFromMap(
+    powers,
+    compartmentMap,
+    assignParserForLanguage(options),
+  );
+};
 
 /**
  * @param {ReadFn | ReadPowers} powers
@@ -60,8 +79,18 @@ export const makeArchive = async (powers, moduleLocation, options) =>
  * @param {ArchiveOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
-export const mapLocation = async (powers, moduleLocation, options) =>
-  mapLocationLite(powers, moduleLocation, assignParserForLanguage(options));
+export const mapLocation = async (powers, moduleLocation, options = {}) => {
+  const { dev, tags, commonDependencies, policy } = options;
+
+  const compartmentMap = await mapNodeModules(powers, moduleLocation, {
+    dev,
+    tags,
+    commonDependencies,
+    policy,
+  });
+
+  return mapFromMap(powers, compartmentMap, assignParserForLanguage(options));
+};
 
 /**
  * @param {HashPowers} powers
@@ -69,8 +98,18 @@ export const mapLocation = async (powers, moduleLocation, options) =>
  * @param {ArchiveOptions} [options]
  * @returns {Promise<string>}
  */
-export const hashLocation = async (powers, moduleLocation, options) =>
-  hashLocationLite(powers, moduleLocation, assignParserForLanguage(options));
+export const hashLocation = async (powers, moduleLocation, options = {}) => {
+  const { dev, tags, commonDependencies, policy } = options;
+
+  const compartmentMap = await mapNodeModules(powers, moduleLocation, {
+    dev,
+    tags,
+    commonDependencies,
+    policy,
+  });
+
+  return hashFromMap(powers, compartmentMap, assignParserForLanguage(options));
+};
 
 /**
  * @param {WriteFn} write
@@ -84,12 +123,20 @@ export const writeArchive = async (
   readPowers,
   archiveLocation,
   moduleLocation,
-  options,
-) =>
-  writeArchiveLite(
+  options = {},
+) => {
+  const { dev, tags, commonDependencies, policy } = options;
+  const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
+    dev,
+    tags,
+    commonDependencies,
+    policy,
+  });
+  return writeArchiveFromMap(
     write,
     readPowers,
     archiveLocation,
-    moduleLocation,
+    compartmentMap,
     assignParserForLanguage(options),
   );
+};

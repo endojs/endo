@@ -15,14 +15,11 @@
 
 import { writeZip } from '@endo/zip';
 import { resolve } from './node-module-specifier.js';
-import { compartmentMapForNodeModules } from './node-modules.js';
-import { search } from './search.js';
 import { link } from './link.js';
 import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
 } from './import-hook.js';
-import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import {
   assertCompartmentMap,
@@ -272,19 +269,16 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
 
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {ArchiveOptions} [options]
  * @returns {Promise<{sources: Sources, compartmentMapBytes: Uint8Array, sha512?: string}>}
  */
-const digestLocation = async (powers, moduleLocation, options = {}) => {
+const digestFromMap = async (powers, compartmentMap, options = {}) => {
   const {
     moduleTransforms,
     modules: exitModules = {},
-    dev = false,
-    tags = new Set(),
     captureSourceLocation = undefined,
     searchSuffixes = undefined,
-    commonDependencies = undefined,
     importHook: exitModuleImportHook = undefined,
     policy = undefined,
     sourceMapHook = undefined,
@@ -300,29 +294,6 @@ const digestLocation = async (powers, moduleLocation, options = {}) => {
   );
 
   const { read, computeSha512 } = unpackReadPowers(powers);
-  const {
-    packageLocation,
-    packageDescriptorText,
-    packageDescriptorLocation,
-    moduleSpecifier,
-  } = await search(read, moduleLocation);
-
-  tags.add('endo');
-  tags.add('import');
-  tags.add('default');
-
-  const packageDescriptor = parseLocatedJson(
-    packageDescriptorText,
-    packageDescriptorLocation,
-  );
-  const compartmentMap = await compartmentMapForNodeModules(
-    powers,
-    packageLocation,
-    tags,
-    packageDescriptor,
-    moduleSpecifier,
-    { dev, commonDependencies, policy },
-  );
 
   const {
     compartments,
@@ -337,7 +308,7 @@ const digestLocation = async (powers, moduleLocation, options = {}) => {
     exitModuleImportHook,
   });
 
-  const makeImportHook = makeImportHookMaker(read, packageLocation, {
+  const makeImportHook = makeImportHookMaker(read, entryCompartmentName, {
     sources,
     compartmentDescriptors: compartments,
     archiveOnly: true,
@@ -399,14 +370,18 @@ const digestLocation = async (powers, moduleLocation, options = {}) => {
 
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {ArchiveOptions} [options]
  * @returns {Promise<{bytes: Uint8Array, sha512?: string}>}
  */
-export const makeAndHashArchive = async (powers, moduleLocation, options) => {
-  const { compartmentMapBytes, sources, sha512 } = await digestLocation(
+export const makeAndHashArchiveFromMap = async (
+  powers,
+  compartmentMap,
+  options,
+) => {
+  const { compartmentMapBytes, sources, sha512 } = await digestFromMap(
     powers,
-    moduleLocation,
+    compartmentMap,
     options,
   );
 
@@ -420,25 +395,29 @@ export const makeAndHashArchive = async (powers, moduleLocation, options) => {
 
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {ArchiveOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
-export const makeArchive = async (powers, moduleLocation, options) => {
-  const { bytes } = await makeAndHashArchive(powers, moduleLocation, options);
+export const makeArchiveFromMap = async (powers, compartmentMap, options) => {
+  const { bytes } = await makeAndHashArchiveFromMap(
+    powers,
+    compartmentMap,
+    options,
+  );
   return bytes;
 };
 
 /**
  * @param {ReadFn | ReadPowers} powers
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {ArchiveOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
-export const mapLocation = async (powers, moduleLocation, options) => {
-  const { compartmentMapBytes } = await digestLocation(
+export const mapFromMap = async (powers, compartmentMap, options) => {
+  const { compartmentMapBytes } = await digestFromMap(
     powers,
-    moduleLocation,
+    compartmentMap,
     options,
   );
   return compartmentMapBytes;
@@ -446,14 +425,14 @@ export const mapLocation = async (powers, moduleLocation, options) => {
 
 /**
  * @param {HashPowers} powers
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {ArchiveOptions} [options]
  * @returns {Promise<string>}
  */
-export const hashLocation = async (powers, moduleLocation, options) => {
-  const { compartmentMapBytes } = await digestLocation(
+export const hashFromMap = async (powers, compartmentMap, options) => {
+  const { compartmentMapBytes } = await digestFromMap(
     powers,
-    moduleLocation,
+    compartmentMap,
     options,
   );
   const { computeSha512 } = powers;
@@ -464,16 +443,20 @@ export const hashLocation = async (powers, moduleLocation, options) => {
  * @param {WriteFn} write
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
- * @param {string} moduleLocation
+ * @param {CompartmentMapDescriptor} compartmentMap
  * @param {ArchiveOptions} [options]
  */
-export const writeArchive = async (
+export const writeArchiveFromMap = async (
   write,
   readPowers,
   archiveLocation,
-  moduleLocation,
+  compartmentMap,
   options,
 ) => {
-  const archiveBytes = await makeArchive(readPowers, moduleLocation, options);
+  const archiveBytes = await makeArchiveFromMap(
+    readPowers,
+    compartmentMap,
+    options,
+  );
   await write(archiveLocation, archiveBytes);
 };
