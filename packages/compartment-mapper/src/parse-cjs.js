@@ -1,3 +1,7 @@
+/* Provides language behavior (parser) for importing CommonJS as a virtual
+ * module source.
+ */
+
 // @ts-check
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';

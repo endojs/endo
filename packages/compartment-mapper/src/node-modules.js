@@ -1,3 +1,13 @@
+/* Provides functions for constructing a compartment map that has a compartment
+ * descriptor corresponding to every reachable package from an entry module and
+ * how to create links between them.
+ * The resulting compartment map does not describe individual modules but does
+ * capture every usable route between packages including those generalized by
+ * wildcard expansion.
+ * See {@link link} to expand a compartment map to capture module descriptors
+ * for transitive dependencies.
+ */
+
 // @ts-check
 /* eslint no-shadow: 0 */
 
@@ -55,7 +65,7 @@ import {
   getPolicyForPackage,
 } from './policy.js';
 import { unpackReadPowers } from './powers.js';
-import { searchDescriptor } from './search.js';
+import { search, searchDescriptor } from './search.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -783,4 +793,45 @@ export const compartmentMapForNodeModules = async (
   );
 
   return compartmentMap;
+};
+
+/**
+ * @param {ReadFn | ReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {object} [options]
+ * @param {Set<string>} [options.tags]
+ * @param {boolean} [options.dev]
+ * @param {object} [options.commonDependencies]
+ * @param {object} [options.policy]
+ * @returns {Promise<CompartmentMapDescriptor>}
+ */
+export const mapNodeModules = async (
+  readPowers,
+  moduleLocation,
+  options = {},
+) => {
+  const { tags = new Set(), dev = false, commonDependencies, policy } = options;
+
+  const { read } = unpackReadPowers(readPowers);
+
+  const {
+    packageLocation,
+    packageDescriptorText,
+    packageDescriptorLocation,
+    moduleSpecifier,
+  } = await search(read, moduleLocation);
+
+  const packageDescriptor = parseLocatedJson(
+    packageDescriptorText,
+    packageDescriptorLocation,
+  );
+
+  return compartmentMapForNodeModules(
+    readPowers,
+    packageLocation,
+    tags,
+    packageDescriptor,
+    moduleSpecifier,
+    { dev, commonDependencies, policy },
+  );
 };

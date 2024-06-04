@@ -1,3 +1,6 @@
+/* Provides language behavior for analyzing, pre-compiling, and storing ESM
+ * modules for an archive.
+ */
 // @ts-check
 
 import { StaticModuleRecord } from '@endo/static-module-record';

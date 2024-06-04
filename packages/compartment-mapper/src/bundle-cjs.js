@@ -1,3 +1,4 @@
+/* Provides CommonJS support for `bundle.js`. */
 // @ts-nocheck
 /** quotes strings */
 const q = JSON.stringify;

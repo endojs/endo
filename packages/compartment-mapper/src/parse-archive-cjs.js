@@ -1,3 +1,7 @@
+/* Provides language behavior for analyzing, pre-compiling, and storing
+ * CommonJS modules for an archive.
+ */
+
 // @ts-check
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';

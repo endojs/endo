@@ -1,3 +1,5 @@
+/* Provides ESM support for `bundle.js`. */
+
 /** quotes strings */
 const q = JSON.stringify;
 

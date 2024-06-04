@@ -1,17 +1,22 @@
+/* Provides the implementation of each compartment's `importHook` when using
+ * `import.js`, `import-lite.js`, `archive.js`, or `archive-lite.js`.
+ * However, `import-archive.js` and `import-archive-lite.js` use their own variant.
+ *
+ * For building archives, these import hooks create a table of all the modules
+ * in a "working set" of transitive dependencies.
+ */
+
 // @ts-check
 
 /** @import {ImportHook} from 'ses' */
 /** @import {StaticModuleType} from 'ses' */
 /** @import {RedirectStaticModuleInterface} from 'ses' */
-/** @import {ThirdPartyStaticModuleInterface} from 'ses' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 /** @import {HashFn} from './types.js' */
 /** @import {Sources} from './types.js' */
-/** @import {CompartmentSources} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {ImportHookMaker} from './types.js' */
-/** @import {DeferredAttenuatorsProvider} from './types.js' */
 /** @import {ExitModuleImportHook} from './types.js' */
 
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';

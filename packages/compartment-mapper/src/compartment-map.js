@@ -1,3 +1,5 @@
+/* Validates a compartment map against its schema. */
+
 // @ts-check
 /// <reference types="ses"/>
 

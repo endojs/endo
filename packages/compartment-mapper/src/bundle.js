@@ -2,11 +2,9 @@
 /* eslint no-shadow: 0 */
 
 /** @import {PrecompiledStaticModuleInterface} from 'ses' */
-/** @import {ParserForLanguage} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentSources} from './types.js' */
 /** @import {ReadFn} from './types.js' */
-/** @import {ModuleTransforms} from './types.js' */
 /** @import {Sources} from './types.js' */
 /** @import {WriteFn} from './types.js' */
 /** @import {ArchiveOptions} from './types.js' */
@@ -16,11 +14,7 @@ import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
-import parserJson from './parse-json.js';
-import parserText from './parse-text.js';
-import parserBytes from './parse-bytes.js';
-import parserArchiveCjs from './parse-archive-cjs.js';
-import parserArchiveMjs from './parse-archive-mjs.js';
+import { defaultParserForLanguage } from './archive-parsers.js';
 import { parseLocatedJson } from './json.js';
 
 import mjsSupport from './bundle-mjs.js';
@@ -28,23 +22,7 @@ import cjsSupport from './bundle-cjs.js';
 
 const textEncoder = new TextEncoder();
 
-const { freeze } = Object;
 const { quote: q } = assert;
-
-/**
- * @satisfies {Readonly<ParserForLanguage>}
- */
-const defaultParserForLanguage = freeze(
-  /** @type {const} */ ({
-    mjs: parserArchiveMjs,
-    'pre-mjs-json': parserArchiveMjs,
-    cjs: parserArchiveCjs,
-    'pre-cjs-json': parserArchiveCjs,
-    json: parserJson,
-    text: parserText,
-    bytes: parserBytes,
-  }),
-);
 
 /**
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors

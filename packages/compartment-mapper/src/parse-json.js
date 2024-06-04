@@ -1,3 +1,5 @@
+/* Provides language support for importing JSON modules. */
+
 // @ts-check
 
 import { parseLocatedJson } from './json.js';
