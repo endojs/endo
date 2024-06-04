@@ -5,7 +5,6 @@
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentSources} from './types.js' */
 /** @import {ReadFn} from './types.js' */
-/** @import {ModuleTransforms} from './types.js' */
 /** @import {Sources} from './types.js' */
 /** @import {WriteFn} from './types.js' */
 /** @import {ArchiveOptions} from './types.js' */

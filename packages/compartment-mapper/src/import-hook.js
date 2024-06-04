@@ -11,15 +11,12 @@
 /** @import {ImportHook} from 'ses' */
 /** @import {StaticModuleType} from 'ses' */
 /** @import {RedirectStaticModuleInterface} from 'ses' */
-/** @import {ThirdPartyStaticModuleInterface} from 'ses' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 /** @import {HashFn} from './types.js' */
 /** @import {Sources} from './types.js' */
-/** @import {CompartmentSources} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {ImportHookMaker} from './types.js' */
-/** @import {DeferredAttenuatorsProvider} from './types.js' */
 /** @import {ExitModuleImportHook} from './types.js' */
 
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
