@@ -1,3 +1,18 @@
+/* Provides mechanisms for creating archives (zip files with a
+ * `compartmeent-map.json` and a file for every static dependency of an entry
+ * module).
+ *
+ * Uses the conventions of Node.js package managers and the `node_modules`.
+ * Archives will contain a copy for every physical copy of a package on disk,
+ * such that importing will construct a separate instance for each.
+ *
+ * These archives will contain pre-compiled ESM and CJS and this module
+ * entrains a dependency on the core of Babel.
+ *
+ * See `archive-lite.js` for a variation that does not depend on Babel
+ * for cases like XS native Compartments where pre-compilation is not
+ * necessary or where the dependency on Babel can be dererred to runtime.
+ */
 // @ts-check
 
 import { defaultParserForLanguage } from './archive-parsers.js';

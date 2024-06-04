@@ -1,3 +1,19 @@
+/* Provides functions for evaluating a module and its transitive dependencies
+ * given a partially completed compartment map.
+ * The compartment map needs to describe every reachable compartment, where to
+ * find modules in that compartment, and how to link modules between
+ * compartments, but does not need to capture a module descriptor for every
+ * module in the working set of transitive dependencies from the entry module.
+ *
+ * These functions do not have a bias for any particular mapping, so you will
+ * need to use `mapNodeModules` from `@endo/compartment-map/node-modules.js` or
+ * a similar device to construct one.
+ *
+ * The default `parserForLanguage` mapping is empty.
+ * You will need to provide the `defaultParserForLanguage` from
+ * `@endo/compartment-mapper/import-parsers.js` or similar.
+ */
+
 // @ts-check
 /* eslint no-shadow: "off" */
 

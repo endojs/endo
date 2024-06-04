@@ -1,3 +1,33 @@
+/* Provides functions to create an archive (zip file with a
+ * compartment-map.json) from a partially completed compartment map (it must
+ * mention all packages/compartments as well as inter-compartment references
+ * but does not contain an entry for every module reachable from its entry
+ * module) and the means to read them from the containing file system.
+ *
+ * These functions do not have a bias for any particular mapping, so you will
+ * need to use `mapNodeModules` from `@endo/compartment-map/node-modules.js` or
+ * a similar device to construct one.
+ *
+ * The default `parserForLanguage` mapping is empty.
+ * You will need to provide the `defaultParserForLanguage` from
+ * `@endo/compartment-mapper/import-parsers.js` or
+ * `@endo/compartment-mapper/archive-parsers.js`.
+ *
+ * If you use `@endo/compartment-mapper/archive-parsers.js`, the archive
+ * will contain pre-compiled ESM and CJS modules wrapped in a JSON
+ * envelope, suitable for use with the SES shim in any environment
+ * including a web page, without a client-side dependency on Babel.
+ *
+ * If you use `@endo/compartment-mapper/import-parsers.js`, the archive
+ * will contain original sources, so to import the archive with
+ * `src/import-archive-lite.js`, you will need to provide the archive parsers
+ * and entrain a runtime dependency on Babel.
+ *
+ * In fruition of https://github.com/endojs/endo/issues/400, we will be able to
+ * use original source archives on XS and Node.js, but not on the web until the
+ * web platform makes further progress on virtual module loaers.
+ */
+
 // @ts-check
 /* eslint no-shadow: 0 */
 

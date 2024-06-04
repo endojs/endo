@@ -1,3 +1,9 @@
+/* Provides a set of default language behaviors (parsers) suitable for creating
+ * archives (zip files with a `compartment-map.json` and a file for each
+ * module) with pre-compiled sources.
+ *
+ * This module entrains a dependency upon the core of Babel.
+ */
 /** @import {ParserForLanguage} from './types.js' */
 
 import parserJson from './parse-json.js';

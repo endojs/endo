@@ -1,3 +1,4 @@
+/* Annotates JSON parse exceptions with the location of the source. */
 // @ts-check
 
 /**

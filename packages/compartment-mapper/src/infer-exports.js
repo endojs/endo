@@ -1,3 +1,10 @@
+/* Provides functions needed by `node-modules.js` for building
+ * inter-compartment linkage according to the specifications in a
+ * `package.json` as laid out in the `node_modules` convention.
+ * These functions implement the behavior for a package's `"main"`,
+ * `"browser"`, `"imports"`, and `"exports"` properties in a `package.json`.
+ */
+
 // @ts-check
 
 /** @import {LanguageForExtension} from './types.js' */

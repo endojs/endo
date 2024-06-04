@@ -1,3 +1,13 @@
+/* Provides functions for constructing a compartment map that has a compartment
+ * descriptor corresponding to every reachable package from an entry module and
+ * how to create links between them.
+ * The resulting compartment map does not describe individual modules but does
+ * capture every usable route between packages including those generalized by
+ * wildcard expansion.
+ * See {@link link} to expand a compartment map to capture module descriptors
+ * for transitive dependencies.
+ */
+
 // @ts-check
 /* eslint no-shadow: 0 */
 

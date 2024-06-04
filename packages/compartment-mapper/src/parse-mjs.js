@@ -1,3 +1,5 @@
+/* Provides language behavior (a parser) for importing ESM. */
+
 // @ts-check
 
 import { StaticModuleRecord } from '@endo/static-module-record';

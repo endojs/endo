@@ -1,3 +1,9 @@
+/* Provides a set of default language behaviors (parsers) suitable for
+ * evaluating archives (zip files with a `compartment-map.json` and a file for
+ * each module) with pre-compiled ESM and CommonJS.
+ *
+ * This module does not entrain a dependency on Babel.
+ */
 /** @import {ParserForLanguage} from './types.js' */
 
 import parserPreCjs from './parse-pre-cjs.js';

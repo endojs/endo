@@ -1,3 +1,18 @@
+/* Provides functions for evaluating modules in an archive (a zip file
+ * with a `compartment-map.json` and a file for a module and each of its
+ * transitive dependencies.)
+ *
+ * These functions accept the URL of an entry module and find its transitive
+ * dependencies through the Node.js `node_modules` conventions.
+ *
+ * These functions use the default parsers in `import-archive-parsers.js`,
+ * which support only pre-compiled ESM and CommonJS.
+ *
+ * See `import-archive-lite.js` for functions that are not coupled to these
+ * parsers or the `node_modules` conventions without necessarily entraining a
+ * dependency on Babel.
+ */
+
 // @ts-check
 
 import { defaultParserForLanguage } from './import-archive-parsers.js';

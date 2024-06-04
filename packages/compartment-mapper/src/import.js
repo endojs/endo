@@ -1,3 +1,15 @@
+/* Provides functions for evaluating a module and its transitive
+ * dependencies given the URL of the entry module and assuming packages
+ * laid out according to the `node_modules` conventions.
+ *
+ * To import modules according to any other convention, use `import-lite.js`
+ * and provide a compartment map with a custom analog to `mapNodeModules` from
+ * `node-modules.js`.
+ *
+ * The default `parserForLanguage` is `import-parsers.js`, which is suitable
+ * for most cases.
+ */
+
 // @ts-check
 
 import { defaultParserForLanguage } from './import-parsers.js';

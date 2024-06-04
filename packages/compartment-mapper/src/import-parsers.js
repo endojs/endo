@@ -1,3 +1,9 @@
+/* Provides a set of default language behaviors (parsers) suitable for
+ * evaluating modules that have not been pre-compiled.
+ *
+ * This module entrains a dependency upon the core of Babel.
+ */
+
 /** @import {ParserForLanguage} from './types.js' */
 
 import parserJson from './parse-json.js';

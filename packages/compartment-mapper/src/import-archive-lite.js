@@ -1,3 +1,16 @@
+/* Provides functions for evaluating the modules in an archive (a zip
+ * file with a `compartment-map.json` and a file for each module it contains.)
+ *
+ * These functions do not have a bias for any particular mapping, so you will
+ * need to use `mapNodeModules` from `@endo/compartment-map/node-modules.js` or
+ * a similar device to construct one.
+ *
+ * The default `parserForLanguage` mapping is empty.
+ * You will need to provide the `defaultParserForLanguage` from
+ * `@endo/compartment-mapper/import-parsers.js` or
+ * `@endo/compartment-mapper/archive-parsers.js`.
+ */
+
 // @ts-check
 /* eslint no-shadow: "off" */
 
