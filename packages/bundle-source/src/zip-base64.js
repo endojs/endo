@@ -7,7 +7,10 @@ import url from 'url';
 import fs from 'fs';
 import os from 'os';
 
-import { makeAndHashArchive } from '@endo/compartment-mapper/archive.js';
+import { defaultParserForLanguage as transformingParserForLanguage } from '@endo/compartment-mapper/archive-parsers.js';
+import { defaultParserForLanguage as transparentParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
+import { mapNodeModules } from '@endo/compartment-mapper/node-modules.js';
+import { makeAndHashArchiveFromMap } from '@endo/compartment-mapper/archive-lite.js';
 import { encodeBase64 } from '@endo/base64';
 import { whereEndoCache } from '@endo/where';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
@@ -17,12 +20,31 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const readPowers = makeReadPowers({ fs, url, crypto });
 
+/**
+ * @param {string} startFilename
+ * @param {object} [options]
+ * @param {boolean} [options.dev]
+ * @param {boolean} [options.cacheSourceMaps]
+ * @param {boolean} [options.noTransforms]
+ * @param {Record<string, string>} [options.commonDependencies]
+ * @param {object} [grantedPowers]
+ * @param {(bytes: string | Uint8Array) => string} [grantedPowers.computeSha512]
+ * @param {typeof import('path)['resolve']} [grantedPowers.pathResolve]
+ * @param {typeof import('os')['userInfo']} [grantedPowers.userInfo]
+ * @param {typeof process['env']} [grantedPowers.env]
+ * @param {typeof process['platform']} [grantedPowers.platform]
+ */
 export async function bundleZipBase64(
   startFilename,
   options = {},
   grantedPowers = {},
 ) {
-  const { dev = false, cacheSourceMaps = false, commonDependencies } = options;
+  const {
+    dev = false,
+    cacheSourceMaps = false,
+    noTransforms = false,
+    commonDependencies,
+  } = options;
   const powers = { ...readPowers, ...grantedPowers };
   const {
     computeSha512,
@@ -137,9 +159,11 @@ export async function bundleZipBase64(
     return { bytes: objectBytes, parser, sourceMap };
   };
 
-  const { bytes, sha512 } = await makeAndHashArchive(powers, entry, {
-    dev,
-    moduleTransforms: {
+  let parserForLanguage = transparentParserForLanguage;
+  let moduleTransforms = {};
+  if (!noTransforms) {
+    parserForLanguage = transformingParserForLanguage;
+    moduleTransforms = {
       async mjs(
         sourceBytes,
         specifier,
@@ -170,12 +194,25 @@ export async function bundleZipBase64(
           sourceMap,
         );
       },
-    },
-    sourceMapHook(sourceMap, sourceDescriptor) {
-      sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
-    },
+    };
+  }
+
+  const compartmentMap = await mapNodeModules(powers, entry, {
+    dev,
     commonDependencies,
   });
+
+  const { bytes, sha512 } = await makeAndHashArchiveFromMap(
+    powers,
+    compartmentMap,
+    {
+      parserForLanguage,
+      moduleTransforms,
+      sourceMapHook(sourceMap, sourceDescriptor) {
+        sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
+      },
+    },
+  );
   assert(sha512);
   await Promise.all(sourceMapJobs);
   const endoZipBase64 = encodeBase64(bytes);
