@@ -325,12 +325,12 @@ export const makeNodeBundleCache = async (
   nonce,
 ) => {
   const [fs, path, url, crypto, timers, os] = await Promise.all([
-    await loadModule('fs'),
-    await loadModule('path'),
-    await loadModule('url'),
-    await loadModule('crypto'),
-    await loadModule('timers'),
-    await loadModule('os'),
+    loadModule('fs'),
+    loadModule('path'),
+    loadModule('url'),
+    loadModule('crypto'),
+    loadModule('timers'),
+    loadModule('os'),
   ]);
 
   if (nonce === undefined) {
