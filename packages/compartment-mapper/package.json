@@ -33,6 +33,7 @@
     "./archive.js": "./archive.js",
     "./archive-lite.js": "./archive-lite.js",
     "./archive-parsers.js": "./archive-parsers.js",
+    "./capture-lite.js": "./capture-lite.js",
     "./import-archive.js": "./import-archive.js",
     "./import-archive-lite.js": "./import-archive-lite.js",
     "./import-archive-parsers.js": "./import-archive-parsers.js",
