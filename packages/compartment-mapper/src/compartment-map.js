@@ -11,16 +11,6 @@ import { assertPackagePolicy } from './policy-format.js';
 // this definition of `q` rather than `assert.quote`
 const q = JSON.stringify;
 
-const moduleLanguages = [
-  'cjs',
-  'mjs',
-  'json',
-  'text',
-  'bytes',
-  'pre-mjs-json',
-  'pre-cjs-json',
-];
-
 /** @type {(a: string, b: string) => number} */
 // eslint-disable-next-line no-nested-ternary
 export const stringCompare = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
@@ -162,12 +152,6 @@ const assertFileModule = (allegedModule, path, url) => {
     'string',
     `${path}.parser must be a string, got ${q(parser)} in ${q(url)}`,
   );
-  assert(
-    moduleLanguages.includes(parser),
-    `${path}.parser must be one of ${q(moduleLanguages)}, got ${parser} in ${q(
-      url,
-    )}`,
-  );
 
   if (sha512 !== undefined) {
     assert.typeof(
@@ -275,12 +259,6 @@ const assertParsers = (allegedParsers, path, url) => {
       'string',
       `${path}.parsers[${q(key)}] must be a string, got ${value} in ${q(url)}`,
     );
-    assert(
-      moduleLanguages.includes(value),
-      `${path}.parsers[${q(key)}] must be one of ${q(
-        moduleLanguages,
-      )}, got ${value} in ${q(url)}`,
-    );
   }
 };
 
@@ -361,12 +339,6 @@ const assertTypes = (allegedTypes, path, url) => {
       value,
       'string',
       `${path}.types[${q(key)}] must be a string, got ${value} in ${q(url)}`,
-    );
-    assert(
-      moduleLanguages.includes(value),
-      `${path}.types[${q(key)}] must be one of ${q(
-        moduleLanguages,
-      )}, got ${value} in ${q(url)}`,
     );
   }
 };
