@@ -5,7 +5,7 @@
  * represents a well-formed dependency graph, laden with useful metadata. This,
  * for example, could be used for automatic policy generation.
  *
- * Note that the resulting data structure ({@link CaptureResult}) contains a
+ * The resulting data structure ({@link CaptureResult}) contains a
  * mapping of filepaths to compartment map names.
  *
  * These functions do not have a bias for any particular mapping, so you will
