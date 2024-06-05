@@ -2,8 +2,8 @@
  * This module provides {@link captureFromMap}, which only "captures" the
  * compartment map descriptors and sources from a partially completed
  * compartment map--_without_ creating an archive. The resulting compartment map
- * represents a well-formed dependency graph, laden with useful metadata. This
- * could be used for e.g., automatic policy generation.
+ * represents a well-formed dependency graph, laden with useful metadata. This,
+ * for example, could be used for automatic policy generation.
  *
  * Note that the resulting data structure ({@link CaptureResult}) contains a
  * mapping of filepaths to compartment map names.
