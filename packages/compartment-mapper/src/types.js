@@ -619,3 +619,29 @@ export {};
  *
  * @typedef {ExecuteOptions & ArchiveOptions} ImportLocationOptions
  */
+
+/**
+ * Options for `captureFromMap()`
+ *
+ * @typedef CaptureOptions
+ * @property {ModuleTransforms} [moduleTransforms]
+ * @property {Record<string, any>} [modules]
+ * @property {boolean} [dev]
+ * @property {SomePolicy} [policy]
+ * @property {Set<string>} [tags]
+ * @property {ExitModuleImportHook} [importHook]
+ * @property {Array<string>} [searchSuffixes]
+ * @property {Record<string, string>} [commonDependencies]
+ * @property {SourceMapHook} [sourceMapHook]
+ * @property {Record<string, ParserImplementation>} [parserForLanguage]
+ * @property {LanguageForExtension} [languageForExtension]
+ */
+
+/**
+ * The result of `captureFromMap()`
+ *
+ * @typedef CaptureResult
+ * @property {CompartmentMapDescriptor} captureCompartmentMap
+ * @property {Sources} captureSources
+ * @property {Record<string, string>} compartmentRenames
+ */
