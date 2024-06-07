@@ -15,7 +15,6 @@ export {
 } from './src/encodePassable.js';
 
 export {
-  trivialComparator,
   compareNumerics,
   assertRankSorted,
   compareRank,

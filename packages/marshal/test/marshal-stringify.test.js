@@ -38,11 +38,13 @@ test('marshal stringify errors', t => {
     t.throws(() => stringify({}), {
       message: /Cannot pass non-frozen objects like .*. Use harden()/,
     });
-    // @ts-expect-error intentional error
+    // at-ts-ignore rather than at-expect-error because of disagreement
+    // @ts-ignore intentional error
     t.throws(() => stringify(harden(new Uint8Array(1))), {
       message: 'Cannot pass mutable typed arrays like "[Uint8Array]".',
     });
-    // @ts-expect-error intentional error
+    // at-ts-ignore rather than at-expect-error because of disagreement
+    // @ts-ignore intentional error
     t.throws(() => stringify(harden(new Int16Array(1))), {
       message: 'Cannot pass mutable typed arrays like "[Int16Array]".',
     });
