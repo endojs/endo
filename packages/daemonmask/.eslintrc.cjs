@@ -17,7 +17,25 @@ module.exports = {
     {
       files: ['*.js'],
       parserOptions: {
+        ecmaVersion: '2022',
         sourceType: 'module',
+      },
+      rules: {
+        'import/no-unresolved': 'off',
+      },
+    },
+
+    {
+      files: ['*.test.js'],
+      rules: {
+        'id-length': [
+          'error',
+          {
+            min: 2,
+            properties: 'never',
+            exceptionPatterns: ['_', 'a', 'b', 'i', 'j', 'k', 't'],
+          },
+        ],
       },
     },
 
@@ -28,13 +46,12 @@ module.exports = {
       },
     },
 
-    {
-      files: ['*.test.ts', '*.test.js'],
-      extends: [
-        '@metamask/eslint-config-jest',
-        '@metamask/eslint-config-nodejs',
-      ],
-    },
+    // {
+    //   files: ['*.test.ts', '*.test.js'],
+    //   extends: [
+    //     '@metamask/eslint-config-nodejs',
+    //   ],
+    // },
   ],
 
   ignorePatterns: [

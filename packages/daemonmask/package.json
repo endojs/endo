@@ -19,18 +19,16 @@
   },
   "license": "Apache-2.0",
   "author": "Endo contributors",
-  "type": "module",
   "sideEffects": false,
+  "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./src/index.js"
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/types.d.ts",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
   "files": [
     "LICENSE*",
     "SECURITY*",
@@ -39,15 +37,20 @@
     "*.ts"
   ],
   "scripts": {
-    "build": "tsup --clean && yarn build:types",
-    "build:types": "tsc --project tsconfig.build.json",
+    "build": "exit 0",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
     "lint:dependencies": "depcheck && yarn dedupe",
     "lint:eslint": "eslint . --cache --ext js,cjs,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "test": "jest && jest-it-up --config jest.config.cjs",
-    "test:watch": "jest --watch"
+    "test": "ava",
+    "test:coverage": "c8 ava"
+  },
+  "ava": {
+    "files": [
+      "src/**/*.test.*"
+    ],
+    "timeout": "2m"
   },
   "dependencies": {
     "@endo/daemon": "workspace:^",
@@ -57,30 +60,25 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@endo/ses-ava": "^1.2.2",
     "@metamask/eslint-config": "^12.2.0",
-    "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
-    "@types/jest": "^28.1.6",
     "@types/node": "^16",
     "@typescript-eslint/eslint-plugin": "^5.43.0",
     "@typescript-eslint/parser": "^5.43.0",
+    "ava": "^6.1.3",
+    "c8": "^7.14.0",
     "depcheck": "^1.4.3",
     "eslint": "^8.44.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "~2.26.0",
-    "eslint-plugin-jest": "^27.2.2",
     "eslint-plugin-jsdoc": "^39.9.1",
     "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.1.1",
-    "jest": "^28.1.3",
-    "jest-it-up": "^2.0.2",
     "prettier": "^2.7.1",
     "prettier-plugin-packagejson": "^2.3.0",
-    "ts-jest": "^28.0.7",
-    "ts-node": "^10.7.0",
-    "tsup": "^7.2.0",
-    "typescript": "~4.8.4"
+    "typescript": "5.5.0-beta"
   }
 }

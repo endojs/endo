@@ -1,3 +1,8 @@
 {
-  "ignores": ["@types/*", "prettier-plugin-packagejson", "ts-node"]
+  "ignores": [
+    "@types/*",
+    "@endo/ses-ava",
+    "prettier-plugin-packagejson",
+    "ts-node"
+  ]
 }
