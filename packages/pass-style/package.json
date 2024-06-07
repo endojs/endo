@@ -37,7 +37,9 @@
     "@endo/env-options": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
-    "@endo/promise-kit": "workspace:^"
+    "@endo/immutable-arraybuffer": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@fast-check/ava": "^1.1.5"
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
