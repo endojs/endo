@@ -19,6 +19,7 @@ export { universalThis as globalThis };
 
 export const {
   Array,
+  ArrayBuffer,
   Date,
   FinalizationRegistry,
   Float32Array,
@@ -124,6 +125,7 @@ export const {
 } = Reflect;
 
 export const { isArray, prototype: arrayPrototype } = Array;
+export const { isView, prototype: arrayBufferPrototype } = ArrayBuffer;
 export const { prototype: mapPrototype } = Map;
 export const { revocable: proxyRevocable } = Proxy;
 export const { prototype: regexpPrototype } = RegExp;
@@ -173,6 +175,19 @@ export const arraySlice = uncurryThis(arrayPrototype.slice);
 export const arraySome = uncurryThis(arrayPrototype.some);
 export const arraySort = uncurryThis(arrayPrototype.sort);
 export const iterateArray = uncurryThis(arrayPrototype[iteratorSymbol]);
+//
+export const arrayBufferSlice = uncurryThis(arrayBufferPrototype.slice);
+export const arrayBufferTransferToFixedLength =
+  // @ts-expect-error absent from Node 20, which we still support
+  arrayBufferPrototype.transferToFixedLength
+    ? // @ts-expect-error absent from Node 20, which we still support
+      uncurryThis(arrayBufferPrototype.transferToFixedLength)
+    : (arrayBuffer, newLength = arrayBuffer.byteLength) =>
+        // There is no `transferToFixedLength` on Node 20, which we still support.
+        // In that case, there is no way just within the language to detach an
+        // ArrayBuffer, so the best we can do is emulate it using `slice`.
+        // Unfortunately, this leaves the original non-detached.
+        arrayBufferSlice(arrayBuffer, 0, newLength);
 //
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);

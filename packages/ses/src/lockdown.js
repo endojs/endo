@@ -55,6 +55,7 @@ import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
+import './immutable-array-buffer-shim.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 

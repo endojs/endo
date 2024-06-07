@@ -1,5 +1,12 @@
 User-visible changes in SES:
 
+# Next release
+
+- Adds `ArrayBuffer.p.immutable` and `ArrayBuffer.p.transferToImmutable` as a shim for a future proposal. It makes an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer` this ArrayBuffer-like object cannot be transfered or cloned between JS threads.
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
+  - On Node 20, which lacks `transfer`, `transferToFixedLength`, or any other way within the language to detach an ArrayBuffer, `transferToImmutable` will copy the contents of the original, but leave the original undetached. Node 21 does not have this limitation.
+
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
