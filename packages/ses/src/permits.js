@@ -61,6 +61,7 @@ export const universalPropertyNames = {
   Float16Array: 'Float16Array',
   Float32Array: 'Float32Array',
   Float64Array: 'Float64Array',
+  ImmutableArrayBuffer: 'ImmutableArrayBuffer',
   Int8Array: 'Int8Array',
   Int16Array: 'Int16Array',
   Int32Array: 'Int32Array',
@@ -1272,6 +1273,24 @@ export const permitted = {
   // SharedArrayBuffer Objects
   SharedArrayBuffer: false, // UNSAFE and purposely suppressed.
   '%SharedArrayBufferPrototype%': false, // UNSAFE and purposely suppressed.
+
+  ImmutableArrayBuffer: {
+    // Properties of the ImmutableArrayBuffer Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    isView: fn,
+    prototype: '%ImmutableArrayBufferPrototype%',
+    '@@species': getter,
+  },
+
+  '%ImmutableArrayBufferPrototype%': {
+    byteLength: getter,
+    constructor: 'ImmutableArrayBuffer',
+    slice: fn,
+    '@@toStringTag': 'string',
+    resizable: getter,
+    maxByteLength: getter,
+    detached: getter,
+  },
 
   DataView: {
     // Properties of the DataView Constructor

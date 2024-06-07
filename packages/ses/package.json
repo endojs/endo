@@ -132,6 +132,7 @@
         "Float64Array",
         "Function",
         "HandledPromise",
+        "ImmutableArrayBuffer",
         "Int16Array",
         "Int32Array",
         "Int8Array",

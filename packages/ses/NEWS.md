@@ -1,5 +1,11 @@
 User-visible changes in SES:
 
+# Next release
+
+- Adds `ImmutableArrayBuffer` as a shim for a future proposal. `ImmutableArrayBuffer` is supposed to be a peer to `ArrayBuffer` and `SharedArrayBuffer`, except without any mutating methods. As a shim, it does not implement some features that will be proposed.
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer` it cannot be passed between JS threads.
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer`, it cannot be used as the backing store of TypeArrays or DataViews.
+
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
