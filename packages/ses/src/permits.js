@@ -1267,6 +1267,10 @@ export const permitted = {
     // https://github.com/tc39/proposal-arraybuffer-transfer
     transferToFixedLength: fn,
     detached: getter,
+    // https://github.com/endojs/endo/pull/2309#issuecomment-2155513240
+    // to be proposed
+    transferToImmutable: fn,
+    immutable: getter,
   },
 
   // SharedArrayBuffer Objects
