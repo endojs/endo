@@ -4,6 +4,7 @@ export default defineConfig({
   // The entry to bundle.
   entry: [
     'src/**/*.ts',
+    'src/**/*.js',
     '!src/**/__fixtures__/**/*',
     '!src/**/__mocks__/**/*',
     '!src/**/__test__/**/*',
@@ -14,9 +15,9 @@ export default defineConfig({
     '!src/**/*.test.*.ts',
   ],
 
-  // The output formats. We want to generate both CommonJS and ESM bundles.
+  // The output formats.
   // https://tsup.egoist.dev/#bundle-formats
-  format: ['cjs', 'esm'],
+  format: ['esm'],
 
   // Generate sourcemaps as separate files.
   // https://tsup.egoist.dev/#generate-sourcemap-file
@@ -25,10 +26,9 @@ export default defineConfig({
   // Clean the dist folder before bundling.
   clean: true,
 
-  // Enables shimming of `__dirname` and `import.meta.url`, so that they work
-  // in both CommonJS and ESM.
+  // Disables shimming of `__dirname` and `import.meta.url`.
   // https://tsup.egoist.dev/#inject-cjs-and-esm-shims
-  shims: true,
+  shims: false,
 
   // Hide unnecessary logs from the console. Warnings and errors will still be
   // shown.

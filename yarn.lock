@@ -757,7 +757,6 @@ __metadata:
     "@endo/daemon": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/promise-kit": "workspace:^"
-    "@metamask/auto-changelog": "npm:^3.4.3"
     "@metamask/eslint-config": "npm:^12.2.0"
     "@metamask/eslint-config-jest": "npm:^12.1.0"
     "@metamask/eslint-config-nodejs": "npm:^12.1.0"
@@ -766,7 +765,6 @@ __metadata:
     "@types/node": "npm:^16"
     "@typescript-eslint/eslint-plugin": "npm:^5.43.0"
     "@typescript-eslint/parser": "npm:^5.43.0"
-    "@yarnpkg/types": "npm:^4.0.0-rc.52"
     depcheck: "npm:^1.4.3"
     eslint: "npm:^8.44.0"
     eslint-config-prettier: "npm:^8.8.0"
@@ -2882,21 +2880,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/auto-changelog@npm:^3.4.3":
-  version: 3.4.4
-  resolution: "@metamask/auto-changelog@npm:3.4.4"
-  dependencies:
-    diff: "npm:^5.0.0"
-    execa: "npm:^5.1.1"
-    prettier: "npm:^2.8.8"
-    semver: "npm:^7.3.5"
-    yargs: "npm:^17.0.1"
-  bin:
-    auto-changelog: dist/cli.js
-  checksum: 10c0/df94cd5df320416d536f8de75932b497631d026afc195f8f1c191c60f88b34506e69e682e672ccbb392304251ab023b14adf82237e696bff274b04231ac7a89c
-  languageName: node
-  linkType: hard
-
 "@metamask/eslint-config-jest@npm:^12.1.0":
   version: 12.1.0
   resolution: "@metamask/eslint-config-jest@npm:12.1.0"
@@ -4264,15 +4247,6 @@ __metadata:
     js-yaml: "npm:^3.10.0"
     tslib: "npm:^2.4.0"
   checksum: 10c0/be0266fdfb214d091de693cb9195486d04cdca6d71cdebb8bc14efe860a9940b604b6af9acac688e478404795c54029d8841c0ce970be680f7ce6d9372e74d2b
-  languageName: node
-  linkType: hard
-
-"@yarnpkg/types@npm:^4.0.0-rc.52":
-  version: 4.0.0
-  resolution: "@yarnpkg/types@npm:4.0.0"
-  dependencies:
-    tslib: "npm:^2.4.0"
-  checksum: 10c0/41f67a4aa5c414c1e228f51453451fa15e0dd70c5cf2b1ae1ca142a3f018f25e4a37e60372cd0f5970c755e1804a2e31e208bff427add1cf13f899b0b9adc1e0
   languageName: node
   linkType: hard
 
@@ -6666,13 +6640,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diff@npm:^5.0.0":
-  version: 5.2.0
-  resolution: "diff@npm:5.2.0"
-  checksum: 10c0/aed0941f206fe261ecb258dc8d0ceea8abbde3ace5827518ff8d302f0fc9cc81ce116c4d8f379151171336caf0516b79e01abdc1ed1201b6440d895a66689eb4
-  languageName: node
-  linkType: hard
-
 "diff@npm:^5.1.0":
   version: 5.1.0
   resolution: "diff@npm:5.1.0"
@@ -7710,7 +7677,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"execa@npm:^5.0.0, execa@npm:^5.1.1":
+"execa@npm:^5.0.0":
   version: 5.1.1
   resolution: "execa@npm:5.1.1"
   dependencies:
@@ -12898,7 +12865,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:^2.7.1, prettier@npm:^2.8.8":
+"prettier@npm:^2.7.1":
   version: 2.8.8
   resolution: "prettier@npm:2.8.8"
   bin:
@@ -16181,7 +16148,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yargs@npm:^17.0.1, yargs@npm:^17.3.1, yargs@npm:^17.6.2, yargs@npm:^17.7.2":
+"yargs@npm:^17.3.1, yargs@npm:^17.6.2, yargs@npm:^17.7.2":
   version: 17.7.2
   resolution: "yargs@npm:17.7.2"
   dependencies:
