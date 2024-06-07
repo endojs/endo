@@ -6,7 +6,7 @@ import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
 
 /**
- * @import {Passable, Primitive, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
+ * @import {Passable, ByteArray, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
  */
 
 const { ownKeys } = Reflect;
@@ -104,6 +104,13 @@ export const deeplyFulfilled = async val => {
       const valPs = arr.map(p => deeplyFulfilled(p));
       // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
       return E.when(Promise.all(valPs), vals => harden(vals));
+    }
+    case 'byteArray': {
+      const bytes = /** @type {ByteArray} */ (val);
+      // @ts-expect-error Why
+      // "Type 'ArrayBuffer' is not assignable to type 'DeeplyAwaited<T>'."?
+      // TODO fix.
+      return bytes;
     }
     case 'tagged': {
       const tgd = /** @type {CopyTagged} */ (val);
