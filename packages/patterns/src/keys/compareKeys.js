@@ -147,6 +147,30 @@ export const compareKeys = (left, right) => {
       // @ts-expect-error narrowed
       return compareRank(left.length, right.length);
     }
+    case 'byteArray': {
+      // @ts-expect-error narrowed
+      const leftArray = new Uint8Array(left.slice(0));
+      // @ts-expect-error narrowed
+      const rightArray = new Uint8Array(right.slice(0));
+      // @ts-expect-error narrowed
+      const byteLen = Math.min(left.byteLength, right.byteLength);
+      for (let i = 0; i < byteLen; i += 1) {
+        const leftByte = leftArray[i];
+        const rightByte = rightArray[i];
+        if (leftByte < rightByte) {
+          return -1;
+        }
+        if (leftByte > rightByte) {
+          return 1;
+        }
+      }
+      // If all corresponding bytes are the same,
+      // then according to their lengths.
+      // Thus, if the data of ByteArray X is a prefix of
+      // the data of ByteArray Y, then X is smaller than Y.
+      // @ts-expect-error narrowed
+      return compareRank(left.byteLength, right.byteLength);
+    }
     case 'copyRecord': {
       // Pareto partial order comparison.
       // @ts-expect-error narrowed

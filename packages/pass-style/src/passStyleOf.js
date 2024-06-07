@@ -12,6 +12,7 @@ import {
 } from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
+import { ByteArrayHelper } from './byteArray.js';
 import { CopyRecordHelper } from './copyRecord.js';
 import { TaggedHelper } from './tagged.js';
 import {
@@ -48,6 +49,7 @@ const makeHelperTable = passStyleHelpers => {
   const HelperTable = {
     __proto__: null,
     copyArray: undefined,
+    byteArray: undefined,
     copyRecord: undefined,
     tagged: undefined,
     error: undefined,
@@ -236,6 +238,7 @@ export const passStyleOf =
   (globalThis && globalThis[PassStyleOfEndowmentSymbol]) ||
   makePassStyleOf([
     CopyArrayHelper,
+    ByteArrayHelper,
     CopyRecordHelper,
     TaggedHelper,
     ErrorHelper,

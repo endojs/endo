@@ -551,6 +551,9 @@ const checkKeyInternal = (val, check) => {
       // A copyArray is a key iff all its children are keys
       return val.every(checkIt);
     }
+    case 'byteArray': {
+      return true;
+    }
     case 'tagged': {
       const tag = getTag(val);
       switch (tag) {
