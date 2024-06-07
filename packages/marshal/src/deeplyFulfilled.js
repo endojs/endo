@@ -62,6 +62,9 @@ export const deeplyFulfilled = async val => {
       const valPs = val.map(p => deeplyFulfilled(p));
       return E.when(Promise.all(valPs), vals => harden(vals));
     }
+    case 'byteArray': {
+      return val;
+    }
     case 'tagged': {
       const tag = getTag(val);
       return E.when(deeplyFulfilled(val.payload), payload =>
