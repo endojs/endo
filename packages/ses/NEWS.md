@@ -5,7 +5,7 @@ User-visible changes in SES:
 - Adds `ArrayBuffer.p.immutable` and `ArrayBuffer.p.transferToImmutable` as a shim for a future proposal. It makes an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
   - Unlike `ArrayBuffer` and `SharedArrayBuffer` this ArrayBuffer-like object cannot be transfered or cloned between JS threads.
   - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
-  - On Node 20, which lacks `transfer`, `transferToFixedLength`, or any other way within the language to detach an ArrayBuffer, `transferToImmutable` will copy the contents of the original, but leave the original undetached. Node 21 does not have this limitation.
+  - On Node 20, we emulate `transferToFixedLength` with a combination of `slice` to copy the original and `structuredClone` to detach it. Node 21 does not have this inefficiency.
 
 # v1.5.0 (2024-05-06)
 
