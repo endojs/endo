@@ -177,6 +177,8 @@ export const arraySort = uncurryThis(arrayPrototype.sort);
 export const iterateArray = uncurryThis(arrayPrototype[iteratorSymbol]);
 //
 export const arrayBufferSlice = uncurryThis(arrayBufferPrototype.slice);
+const { asUintN: bigIntAsUintN } = BigInt;
+const { structuredClone } = globalThis;
 export const arrayBufferTransferToFixedLength =
   // @ts-expect-error absent from Node 20, which we still support
   arrayBufferPrototype.transferToFixedLength
@@ -184,8 +186,8 @@ export const arrayBufferTransferToFixedLength =
       uncurryThis(arrayBufferPrototype.transferToFixedLength)
     : (arrayBuffer, newLength = arrayBuffer.byteLength) => {
         // There is no `transferToFixedLength` on Node 20, which we still support.
-        // In that case, we use `slice` to get a fixed-length copy and WHATWG HTML
-        // `structuredClone` to detach the original.
+        // In that case, we use `slice` to get a fixed-length copy and,
+        // if present, the WHATWG HTML `structuredClone` to detach the original.
 
         // `slice` accepts negative arguments but `transferToFixedLength` does not...
         // get at the underlying ToIndex operation through `BigInt.asUintN`
@@ -193,10 +195,11 @@ export const arrayBufferTransferToFixedLength =
         // and ToNumber through unary `+` (rather than `Number(newLength)`,
         // which fails to reject BigInts).
         newLength = +newLength;
-        BigInt.asUintN(newLength, 0n);
+        bigIntAsUintN(newLength, 0n);
 
         const copied = arrayBufferSlice(arrayBuffer, 0, newLength);
-        structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
+        structuredClone &&
+          structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
         return copied;
       };
 

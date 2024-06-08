@@ -18,7 +18,6 @@ test.failing('Immutable ArrayBuffer installed and hardened', t => {
 test('Immutable ArrayBuffer ops', t => {
   // Absent on Node <= 18
   const canResize = 'maxByteLength' in ArrayBuffer.prototype;
-  const canDetach = 'detached' in ArrayBuffer.prototype;
 
   const ab1 = new ArrayBuffer(2, { maxByteLength: 7 });
   const ta1 = new Uint8Array(ab1);
@@ -29,7 +28,7 @@ test('Immutable ArrayBuffer ops', t => {
   ta1[1] = 5;
   const ab2 = iab.slice(0);
   const ta2 = new Uint8Array(ab2);
-  t.is(ta1[1], canDetach ? undefined : 5);
+  t.is(ta1[1], undefined);
   t.is(ta2[1], 4);
   ta2[1] = 6;
 
@@ -37,21 +36,21 @@ test('Immutable ArrayBuffer ops', t => {
   t.true(ab3 instanceof ArrayBuffer);
 
   const ta3 = new Uint8Array(ab3);
-  t.is(ta1[1], canDetach ? undefined : 5);
+  t.is(ta1[1], undefined);
   t.is(ta2[1], 6);
   t.is(ta3[1], 4);
 
-  t.is(ab1.byteLength, canDetach ? 0 : 2);
+  t.is(ab1.byteLength, 0);
   t.is(iab.byteLength, 2);
   t.is(ab2.byteLength, 2);
 
   t.is(iab.maxByteLength, 2);
   if (canResize) {
-    t.is(ab1.maxByteLength, canDetach ? 0 : 7);
+    t.is(ab1.maxByteLength, 0);
     t.is(ab2.maxByteLength, 2);
   }
 
-  if (canDetach) {
+  if ('detached' in ab1) {
     t.true(ab1.detached);
     t.false(ab2.detached);
     t.false(ab3.detached);
