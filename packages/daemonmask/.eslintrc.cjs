@@ -10,8 +10,13 @@ module.exports = {
     },
 
     {
-      files: ['*.js', '*.cjs'],
+      files: ['*.js', '*.cjs', '!src/ui/**/*'],
       extends: ['@metamask/eslint-config-nodejs'],
+    },
+
+    {
+      files: ['src/ui/**/*.js'],
+      extends: ['@metamask/eslint-config-browser'],
     },
 
     {
@@ -21,7 +26,9 @@ module.exports = {
         sourceType: 'module',
       },
       rules: {
+        'import/extensions': ['error', 'ignorePackages'],
         'import/no-unresolved': 'off',
+        'import/no-useless-path-segments': 'off',
       },
     },
 
@@ -45,13 +52,6 @@ module.exports = {
         sourceType: 'script',
       },
     },
-
-    // {
-    //   files: ['*.test.ts', '*.test.js'],
-    //   extends: [
-    //     '@metamask/eslint-config-nodejs',
-    //   ],
-    // },
   ],
 
   ignorePatterns: [

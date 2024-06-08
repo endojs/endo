@@ -2,12 +2,12 @@
   "compilerOptions": {
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
-    "checkJs": false,
+    "checkJs": true,
     "downlevelIteration": true,
     "esModuleInterop": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2020"],
+    "lib": ["ES2022"],
     "maxNodeModuleJsDepth": 1,
     "module": "Node16",
     "moduleResolution": "Node16",
@@ -17,5 +17,6 @@
     "strict": true,
     "target": "ESNext"
   },
-  "include": ["src/**/*.js", "src/**/*.ts"]
+  "include": ["src/**/*.js", "src/**/*.ts"],
+  "exclude": ["src/**/*.test.js"]
 }
