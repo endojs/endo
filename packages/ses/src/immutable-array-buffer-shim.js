@@ -10,7 +10,6 @@ import {
 
 // If it already exists, don't replace it with the shim.
 if (!('transferToImmutable' in arrayBufferPrototype)) {
-
   /**
    * This class only exists within the shim, as a convience for imperfectly
    * emulating the proposal, which would not have this class. In the proposal,
