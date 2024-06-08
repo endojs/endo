@@ -164,6 +164,7 @@ export const getAnonymousIntrinsics = () => {
   const iab = ab.transferToImmutable();
   const iabProto = getPrototypeOf(iab);
   if (iabProto !== ArrayBuffer.prototype) {
+    // In a native implementation, these will be the same prototype
     intrinsics['%ImmutableArrayBufferPrototype%'] = iabProto;
   }
 
