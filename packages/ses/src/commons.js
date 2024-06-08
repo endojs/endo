@@ -182,13 +182,24 @@ export const arrayBufferTransferToFixedLength =
   arrayBufferPrototype.transferToFixedLength
     ? // @ts-expect-error absent from Node 20, which we still support
       uncurryThis(arrayBufferPrototype.transferToFixedLength)
-    : (arrayBuffer, newLength = arrayBuffer.byteLength) =>
+    : (arrayBuffer, newLength = arrayBuffer.byteLength) => {
         // There is no `transferToFixedLength` on Node 20, which we still support.
-        // In that case, there is no way just within the language to detach an
-        // ArrayBuffer, so the best we can do is emulate it using `slice`.
-        // Unfortunately, this leaves the original non-detached.
-        arrayBufferSlice(arrayBuffer, 0, newLength);
-//
+        // In that case, we use `slice` to get a fixed-length copy and WHATWG HTML
+        // `structuredClone` to detach the original.
+
+        // `slice` accepts negative arguments but `transferToFixedLength` does not...
+        // get at the underlying ToIndex operation through `BigInt.asUintN`
+        // (avoiding the redundant allocation of e.g. `ArrayBuffer(newLength)`)
+        // and ToNumber through unary `+` (rather than `Number(newLength)`,
+        // which fails to reject BigInts).
+        newLength = +newLength;
+        BigInt.asUintN(newLength, 0n);
+
+        const copied = arrayBufferSlice(arrayBuffer, 0, newLength);
+        structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
+        return copied;
+      };
+
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);
 export const mapHas = uncurryThis(mapPrototype.has);
