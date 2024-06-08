@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 import {
   setPrototypeOf,
   defineProperties,
@@ -37,6 +36,7 @@ class ImmutableArrayBufferInternal {
   }
 
   get detached() {
+    this.#buffer; // shim brand check
     return false;
   }
 
@@ -46,10 +46,12 @@ class ImmutableArrayBufferInternal {
   }
 
   get resizable() {
+    this.#buffer; // shim brand check
     return false;
   }
 
   get immutable() {
+    this.#buffer; // shim brand check
     return true;
   }
 
@@ -58,18 +60,22 @@ class ImmutableArrayBufferInternal {
   }
 
   resize(_newByteLength = undefined) {
+    this.#buffer; // shim brand check
     throw TypeError('Cannot resize an immutable ArrayBuffer');
   }
 
   transfer(_newLength = undefined) {
+    this.#buffer; // shim brand check
     throw TypeError('Cannot detach an immutable ArrayBuffer');
   }
 
   transferToFixedLength(_newLength = undefined) {
+    this.#buffer; // shim brand check
     throw TypeError('Cannot detach an immutable ArrayBuffer');
   }
 
   transferToImmutable(_newLength = undefined) {
+    this.#buffer; // shim brand check
     throw TypeError('Cannot detach an immutable ArrayBuffer');
   }
 }
