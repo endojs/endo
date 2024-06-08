@@ -27,7 +27,8 @@ class ImmutableArrayBufferInternal {
   #buffer;
 
   constructor(buffer) {
-    // This also enforces that `buffer` is a genuine `ArrayBuffer`
+    // This also enforces that `buffer` is a genuine `ArrayBuffer`.
+    // This constructor is deleted from the prototype below.
     this.#buffer = arrayBufferSlice(buffer, 0);
   }
 

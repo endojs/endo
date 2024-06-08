@@ -5,10 +5,8 @@ const { isFrozen, getPrototypeOf } = Object;
 
 lockdown();
 
-// TODO Need to treat the hidden prototype as a hidden instrinsic so it
-// gets hardened when the rest do.
-test.failing('Immutable ArrayBuffer installed and hardened', t => {
-  const ab1 = new ArrayBuffer(2);
+test('Immutable ArrayBuffer installed and hardened', t => {
+  const ab1 = new ArrayBuffer(0);
   const iab = ab1.transferToImmutable();
   const iabProto = getPrototypeOf(iab);
   t.true(isFrozen(iabProto));
