@@ -1273,6 +1273,27 @@ export const permitted = {
     immutable: getter,
   },
 
+  // If this exists, it is purely an artifact of how we currently shim
+  // `transferToImmutable`. As natively implemented, there would be no
+  // such extra prototype.
+  '%ImmutableArrayBufferPrototype%': {
+    '[[Proto]]': '%ArrayBufferPrototype%',
+    byteLength: getter,
+    slice: fn,
+    // See https://github.com/tc39/proposal-resizablearraybuffer
+    transfer: fn,
+    resize: fn,
+    resizable: getter,
+    maxByteLength: getter,
+    // https://github.com/tc39/proposal-arraybuffer-transfer
+    transferToFixedLength: fn,
+    detached: getter,
+    // https://github.com/endojs/endo/pull/2309#issuecomment-2155513240
+    // to be proposed
+    transferToImmutable: fn,
+    immutable: getter,
+  },
+
   // SharedArrayBuffer Objects
   SharedArrayBuffer: false, // UNSAFE and purposely suppressed.
   '%SharedArrayBufferPrototype%': false, // UNSAFE and purposely suppressed.
