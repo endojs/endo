@@ -1,12 +1,11 @@
-/// <reference types="ses"/>
-
+import { X, q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 import { getTag, isObject, makeTagged, passStyleOf } from '@endo/pass-style';
 
-/** @import {Passable, Primitive, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style' */
-
-import { X, q } from '@endo/errors';
+/**
+ * @import {Passable, Primitive, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
+ */
 
 const { ownKeys } = Reflect;
 const { fromEntries } = Object;
