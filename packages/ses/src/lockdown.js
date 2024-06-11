@@ -131,8 +131,9 @@ const assertDirectEvalAvailable = () => {
 
 /**
  * @param {LockdownOptions} [options]
+ * @param {boolean} hermes
  */
-export const repairIntrinsics = (options = {}) => {
+export const repairIntrinsics = (options = {}, hermes) => {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -276,12 +277,10 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
 
-  // Needs to be tested in React Native
-  const AsyncGeneratorFunctionInstance = (0, eval)('async function* AsyncGeneratorFunctionInstance() {}');
-  if (AsyncGeneratorFunctionInstance) {
-    addIntrinsics(getAnonymousIntrinsics());
-  } else {
+  if (hermes) {
     addIntrinsics(getAnonymousIntrinsicsHermes());
+  } else {
+    addIntrinsics(getAnonymousIntrinsics());
   }
 
   completePrototypes();
