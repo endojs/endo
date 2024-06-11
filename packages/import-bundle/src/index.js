@@ -5,7 +5,8 @@
 /* global globalThis */
 /// <reference types="ses"/>
 
-import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
+import { parseArchive } from '@endo/compartment-mapper/import-archive-lite.js';
+import { defaultParserForLanguage } from '@endo/compartment-mapper/import-archive-parsers.js';
 import { decodeBase64 } from '@endo/base64';
 import { Fail } from '@endo/errors';
 import { wrapInescapableCompartment } from './compartment-wrapper.js';
@@ -65,6 +66,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
       expectedSha512,
       computeSourceLocation,
       computeSourceMapLocation,
+      parserForLanguage: defaultParserForLanguage,
     });
     // Call import by property to bypass SES censoring for dynamic import.
     // eslint-disable-next-line dot-notation
