@@ -14,11 +14,6 @@ const write = async (target, content) => {
   await fs.promises.writeFile(location, content);
 };
 
-const BUILD_TYPES = [
-  '',
-  'hermes',
-];
-
 const writeBundle = async ({ buildType }) => {
   const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
@@ -99,6 +94,11 @@ const writeBundle = async ({ buildType }) => {
   );
   console.log(`Copied ${sourceDTS} to ${destDTS}`);
 };
+
+const BUILD_TYPES = [
+  '',
+  'hermes',
+];
 
 const main = async () => {
   await Promise.all(
