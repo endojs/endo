@@ -220,6 +220,15 @@ export const arrayBufferTransferToFixedLength =
           // (avoiding the redundant allocation of e.g. `ArrayBuffer(newLength)`)
           // and ToNumber through unary `+` (rather than `Number(newLength)`,
           // which fails to reject BigInts).
+          //
+          // On platforms like Node 20
+          // - without`tranferToFixedLength` or `transfer`
+          // - with `structuredClone`
+          // - with `resize`
+          //
+          // It might seem like we could avoid the extra copy by
+          // `newBuffer.resize(newLength)`. But `structuredClone`
+          // makes ArrayBuffers that are not resizable.
           return arrayBufferSlice(newBuffer, 0, newLength);
         }
       : /**
