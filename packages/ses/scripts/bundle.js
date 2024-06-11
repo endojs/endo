@@ -25,7 +25,9 @@ const writeBundle = async ({ buildType }) => {
     'utf8',
   );
   const packageJson = JSON.parse(text);
-  const version = packageJson.version;
+  const version = buildType
+    ? `${packageJson.version}-${buildType}`
+    : packageJson.version;
 
   const entryPointPath = buildType ? `../index-${buildType}.js` : '../index.js';
 
