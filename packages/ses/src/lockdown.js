@@ -55,6 +55,7 @@ import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
+import { getAnonymousIntrinsicsHermes } from './get-anonymous-intrinsics-hermes.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -275,7 +276,13 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
 
-  addIntrinsics(getAnonymousIntrinsics());
+  // Needs to be tested in React Native
+  const AsyncGeneratorFunctionInstance = (0, eval)('async function* AsyncGeneratorFunctionInstance() {}');
+  if (AsyncGeneratorFunctionInstance) {
+    addIntrinsics(getAnonymousIntrinsics());
+  } else {
+    addIntrinsics(getAnonymousIntrinsicsHermes());
+  }
 
   completePrototypes();
 

@@ -14,7 +14,8 @@ const write = async (target, content) => {
   await fs.promises.writeFile(location, content);
 };
 
-const main = async () => {
+const main = async (options) => {
+  console.log({ options });
   const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
     'utf8',
@@ -22,10 +23,13 @@ const main = async () => {
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
 
+  const entryPointPath = options && options.buildType ? `../index-${options.buildType}.js` : '../index.js';
+
   const bundle = await makeBundle(
     read,
-    pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
+    pathToFileURL(resolve(entryPointPath, import.meta.url)).toString(),
   );
+  
   const versionedBundle = `// ses@${version}\n${bundle}`;
 
   const { code: terse } = await minify(versionedBundle, {
@@ -46,6 +50,7 @@ const main = async () => {
     'dist/lockdown.cjs',
     'dist/lockdown.mjs',
     'dist/lockdown.umd.js',
+    'dist/ses-hermes.umd.js',
   ];
   const terseFilePaths = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
 
@@ -80,7 +85,8 @@ const main = async () => {
   console.log(`Copied ${sourceDTS} to ${destDTS}`);
 };
 
-main().catch(err => {
+const options = { buildType: process.env.SES_BUILDTYPE };
+main(options).catch(err => {
   console.error('Error running main:', err);
   process.exitCode = 1;
 });
