@@ -14,8 +14,12 @@ const write = async (target, content) => {
   await fs.promises.writeFile(location, content);
 };
 
-const main = async (options) => {
-  console.log({ options });
+const BUILD_TYPES = [
+  '',
+  'hermes',
+];
+
+const writeBundle = async ({ buildType }) => {
   const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
     'utf8',
@@ -23,13 +27,13 @@ const main = async (options) => {
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
 
-  const entryPointPath = options && options.buildType ? `../index-${options.buildType}.js` : '../index.js';
+  const entryPointPath = buildType ? `../index-${buildType}.js` : '../index.js';
 
   const bundle = await makeBundle(
     read,
     pathToFileURL(resolve(entryPointPath, import.meta.url)).toString(),
   );
-  
+
   const versionedBundle = `// ses@${version}\n${bundle}`;
 
   const { code: terse } = await minify(versionedBundle, {
@@ -43,13 +47,13 @@ const main = async (options) => {
 
   await fs.promises.mkdir('dist', { recursive: true });
 
-  const bundleFilePaths = options.buildType ? [
-    `dist/ses-${options.buildType}.cjs`,
-    `dist/ses-${options.buildType}.mjs`,
-    `dist/ses-${options.buildType}.umd.js`,
-    `dist/lockdown-${options.buildType}.cjs`,
-    `dist/lockdown-${options.buildType}.mjs`,
-    `dist/lockdown-${options.buildType}.umd.js`,
+  const bundleFilePaths = buildType ? [
+    `dist/ses-${buildType}.cjs`,
+    `dist/ses-${buildType}.mjs`,
+    `dist/ses-${buildType}.umd.js`,
+    `dist/lockdown-${buildType}.cjs`,
+    `dist/lockdown-${buildType}.mjs`,
+    `dist/lockdown-${buildType}.umd.js`,
   ] : [
     'dist/ses.cjs',
     'dist/ses.mjs',
@@ -58,8 +62,8 @@ const main = async (options) => {
     'dist/lockdown.mjs',
     'dist/lockdown.umd.js',
   ];
-  const terseFilePaths = options.buildType
-    ? [`dist/ses-${options.buildType}.umd.min.js`, `dist/lockdown-${options.buildType}.umd.min.js`]
+  const terseFilePaths = buildType
+    ? [`dist/ses-${buildType}.umd.min.js`, `dist/lockdown-${buildType}.umd.min.js`]
     : ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
 
 
@@ -94,8 +98,14 @@ const main = async (options) => {
   console.log(`Copied ${sourceDTS} to ${destDTS}`);
 };
 
-const options = { buildType: process.env.SES_BUILDTYPE };
-main(options).catch(err => {
+const main = async () => {
+  await Promise.all(
+    BUILD_TYPES.map(
+      buildType => writeBundle({ buildType })),
+    );
+};
+
+main().catch(err => {
   console.error('Error running main:', err);
   process.exitCode = 1;
 });
