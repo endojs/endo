@@ -43,16 +43,25 @@ const main = async (options) => {
 
   await fs.promises.mkdir('dist', { recursive: true });
 
-  const bundleFilePaths = [
+  const bundleFilePaths = options.buildType ? [
+    `dist/ses-${options.buildType}.cjs`,
+    `dist/ses-${options.buildType}.mjs`,
+    `dist/ses-${options.buildType}.umd.js`,
+    `dist/lockdown-${options.buildType}.cjs`,
+    `dist/lockdown-${options.buildType}.mjs`,
+    `dist/lockdown-${options.buildType}.umd.js`,
+  ] : [
     'dist/ses.cjs',
     'dist/ses.mjs',
     'dist/ses.umd.js',
     'dist/lockdown.cjs',
     'dist/lockdown.mjs',
     'dist/lockdown.umd.js',
-    'dist/ses-hermes.umd.js',
   ];
-  const terseFilePaths = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
+  const terseFilePaths = options.buildType
+    ? [`dist/ses-${options.buildType}.umd.min.js`, `dist/lockdown-${options.buildType}.umd.min.js`]
+    : ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
+
 
   await Promise.all([
     ...bundleFilePaths.map(dest => write(dest, versionedBundle)),
