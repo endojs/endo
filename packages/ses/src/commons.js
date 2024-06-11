@@ -180,28 +180,75 @@ export const arrayBufferSlice = uncurryThis(arrayBufferPrototype.slice);
 const { asUintN: bigIntAsUintN } = BigInt;
 const { structuredClone } = globalThis;
 export const arrayBufferTransferToFixedLength =
-  // @ts-expect-error absent from Node 20, which we still support
+  // @ts-expect-error absent from Node <= 20 and not yet in TS type
+  // eslint-disable-next-line no-nested-ternary
   arrayBufferPrototype.transferToFixedLength
-    ? // @ts-expect-error absent from Node 20, which we still support
+    ? // @ts-expect-error absent from Node <= 20 and not yet in TS type
       uncurryThis(arrayBufferPrototype.transferToFixedLength)
-    : (arrayBuffer, newLength = arrayBuffer.byteLength) => {
-        // There is no `transferToFixedLength` on Node 20, which we still support.
-        // In that case, we use `slice` to get a fixed-length copy and,
-        // if present, the WHATWG HTML `structuredClone` to detach the original.
+    : structuredClone
+      ? /**
+         * @param {ArrayBuffer} arrayBuffer
+         * @param {number} newLength
+         * @returns {ArrayBuffer}
+         */
+        (arrayBuffer, newLength = arrayBuffer.byteLength) => {
+          // There is no `transferToFixedLength` on Node <= 20, but there
+          // is web-standard `structuredClone` on Node >= 17, on all modern
+          // browsers, and on many other JS platforms.
+          // In those cases, we first use `structuredClone` to get a fresh
+          // buffer with exclusive access to the underlying data, while
+          // detaching it from the original `arrayBuffer`.
 
-        // `slice` accepts negative arguments but `transferToFixedLength` does not...
-        // get at the underlying ToIndex operation through `BigInt.asUintN`
-        // (avoiding the redundant allocation of e.g. `ArrayBuffer(newLength)`)
-        // and ToNumber through unary `+` (rather than `Number(newLength)`,
-        // which fails to reject BigInts).
-        newLength = +newLength;
-        bigIntAsUintN(newLength, 0n);
+          newLength = +newLength;
+          bigIntAsUintN(newLength, 0n);
 
-        const copied = arrayBufferSlice(arrayBuffer, 0, newLength);
-        structuredClone &&
-          structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
-        return copied;
-      };
+          const newBuffer = /** @type {ArrayBuffer} */ (
+            structuredClone(arrayBuffer, {
+              transfer: [arrayBuffer],
+            })
+          );
+          if (newLength >= newBuffer.byteLength) {
+            return newBuffer;
+          }
+          // If the requested length is shorter than the length of `buffer`,
+          // we use `slice` to shorted the returned result, but at the cost
+          // of an extra copy.
+          //
+          // `slice` accepts negative arguments but `transferToFixedLength`
+          // does not...
+          // get at the underlying ToIndex operation through `BigInt.asUintN`
+          // (avoiding the redundant allocation of e.g. `ArrayBuffer(newLength)`)
+          // and ToNumber through unary `+` (rather than `Number(newLength)`,
+          // which fails to reject BigInts).
+          return arrayBufferSlice(newBuffer, 0, newLength);
+        }
+      : /**
+         * @param {ArrayBuffer} arrayBuffer
+         * @param {number} newLength
+         * @returns {ArrayBuffer}
+         */
+        (arrayBuffer, newLength = arrayBuffer.byteLength) => {
+          // There is no `transferToFixedLength` on Node <= 20,
+          // and no `structuredClone` on Node <= 17 and possibly on some
+          // non-browser JavaScript platforms.
+          // In those cases,
+          // and assuming the absence of `transfer`, we cannot detach
+          // the original, but we must still produce a new fresh buffer with
+          // exclusive mutability of its underlying state. We use `slice`
+          // both to make this exclusive copy and size it appropriately.
+
+          // `slice` accepts negative arguments but `transferToFixedLength`
+          // does not...
+          // get at the underlying ToIndex operation through `BigInt.asUintN`
+          // (avoiding the redundant allocation of e.g. `ArrayBuffer(newLength)`)
+          // and ToNumber through unary `+` (rather than `Number(newLength)`,
+          // which fails to reject BigInts).
+          newLength = +newLength;
+          bigIntAsUintN(newLength, 0n);
+
+          const newBuffer = arrayBufferSlice(arrayBuffer, 0, newLength);
+          return newBuffer;
+        };
 
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);
