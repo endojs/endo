@@ -36,7 +36,12 @@
     "./capture-lite.js": "./capture-lite.js",
     "./import-archive.js": "./import-archive.js",
     "./import-archive-lite.js": "./import-archive-lite.js",
-    "./import-archive-parsers.js": "./import-archive-parsers.js",
+    "./import-archive-parsers.js": {
+      "node": "./src/import-archive-elective-parsers.js",
+      "xs": "./src/import-archive-elective-parsers.js",
+      "default": "./import-archive-parsers.js"
+    },
+    "./import-archive-elective-parsers.js": "./import-archive-elective-parsers.js",
     "./bundle.js": "./bundle.js",
     "./node-powers.js": "./node-powers.js",
     "./node-modules.js": "./node-modules.js",
