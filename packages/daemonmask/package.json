@@ -43,7 +43,9 @@
     "lint:eslint": "eslint . --cache --ext js,cjs,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "test": "ava",
+    "test": "yarn test:sh && yarn test:js",
+    "test:js": "ava",
+    "test:sh": "./tests/main.sh",
     "test:coverage": "c8 ava"
   },
   "ava": {
