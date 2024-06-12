@@ -7,26 +7,31 @@
 
 // @ts-check
 
-/** @type {import('./types.js').CanonicalFn} */
+/** @import {CanonicalFn} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {MaybeReadPowers} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
+
+/** @type {CanonicalFn} */
 const canonicalShim = async path => path;
 
 /**
- * @param {import('./types.js').ReadFn | import('./types.js').ReadPowers | import('./types.js').MaybeReadPowers} powers
- * @returns {import('./types.js').MaybeReadPowers}
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} powers
+ * @returns {MaybeReadPowers}
  */
 export const unpackReadPowers = powers => {
-  /** @type {import('./types.js').ReadFn | undefined} */
+  /** @type {ReadFn | undefined} */
   let read;
-  /** @type {import('./types.js').MaybeReadFn | undefined} */
+  /** @type {MaybeReadFn | undefined} */
   let maybeRead;
-  /** @type {import('./types.js').CanonicalFn | undefined} */
+  /** @type {CanonicalFn | undefined} */
   let canonical;
 
   if (typeof powers === 'function') {
     read = powers;
   } else {
-    ({ read, maybeRead, canonical } =
-      /** @type {import('./types.js').MaybeReadPowers} */ (powers));
+    ({ read, maybeRead, canonical } = /** @type {MaybeReadPowers} */ (powers));
   }
 
   if (canonical === undefined) {
@@ -36,9 +41,7 @@ export const unpackReadPowers = powers => {
   if (maybeRead === undefined) {
     /** @param {string} path */
     maybeRead = path =>
-      /** @type {import('./types.js').ReadFn} */ (read)(path).catch(
-        _error => undefined,
-      );
+      /** @type {ReadFn} */ (read)(path).catch(_error => undefined);
   }
 
   return {

@@ -8,8 +8,16 @@
 
 // @ts-check
 
+/** @import {ImportNowHook} from 'ses' */
 /** @import {ModuleMapHook} from 'ses' */
-/** @import {ParseFn, ParserForLanguage} from './types.js' */
+/** @import {ImportNowHookMaker} from './types.js' */
+/** @import {Language} from './types.js' */
+/** @import {LinkResult} from './types.js' */
+/** @import {ParseFn} from './types.js' */
+/** @import {ParseFnAsync} from './types.js' */
+/** @import {ParserForLanguage} from './types.js' */
+/** @import {SyncLinkOptions} from './types.js' */
+/** @import {SyncModuleTransforms} from './types.js' */
 /** @import {ParserImplementation} from './types.js' */
 /** @import {ShouldDeferError} from './types.js' */
 /** @import {ModuleTransforms} from './types.js' */
@@ -75,7 +83,7 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * from its extension.
  * @param {ParserForLanguage} parserForLanguage
  * @param {ModuleTransforms} moduleTransforms
- * @returns {ParseFn}
+ * @returns {ParseFnAsync}
  */
 const makeExtensionParser = (
   languageForExtension,
@@ -132,6 +140,85 @@ const makeExtensionParser = (
         `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
       );
     }
+    const { parse } = parserForLanguage[language];
+    return parse(bytes, specifier, location, packageLocation, {
+      sourceMap,
+      ...options,
+    });
+  };
+};
+
+/**
+ * `makeExtensionParser` produces a `parser` that parses the content of a
+ * module according to the corresponding module language, given the extension
+ * of the module specifier and the configuration of the containing compartment.
+ * We do not yet support import assertions and we do not have a mechanism
+ * for validating the MIME type of the module content against the
+ * language implied by the extension or file name.
+ *
+ * @param {Record<string, string>} languageForExtension - maps a file extension
+ * to the corresponding language.
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
+ * the type of a module is implied by package.json and should not be inferred
+ * from its extension.
+ * @param {Record<string, ParserImplementation>} parserForLanguage
+ * @param {SyncModuleTransforms} moduleTransforms
+ * @returns {ParseFn}
+ */
+const makeSyncExtensionParser = (
+  languageForExtension,
+  languageForModuleSpecifier,
+  parserForLanguage,
+  moduleTransforms,
+) => {
+  return (bytes, specifier, location, packageLocation, options) => {
+    let language;
+    const extension = parseExtension(location);
+
+    if (
+      !extensionImpliesLanguage(extension) &&
+      has(languageForModuleSpecifier, specifier)
+    ) {
+      language = languageForModuleSpecifier[specifier];
+    } else {
+      language = languageForExtension[extension] || extension;
+    }
+
+    let sourceMap;
+
+    if (has(moduleTransforms, language)) {
+      try {
+        ({
+          bytes,
+          parser: language,
+          sourceMap,
+        } = moduleTransforms[language](
+          bytes,
+          specifier,
+          location,
+          packageLocation,
+          {
+            // At time of writing, sourceMap is always undefined, but keeping
+            // it here is more resilient if the surrounding if block becomes a
+            // loop for multi-step transforms.
+            sourceMap,
+          },
+        ));
+      } catch (err) {
+        throw Error(
+          `Error transforming ${q(language)} source in ${q(location)}: ${
+            err.message
+          }`,
+          { cause: err },
+        );
+      }
+    }
+
+    if (!has(parserForLanguage, language)) {
+      throw Error(
+        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
+      );
+    }
     const { parse } = /** @type {ParserImplementation} */ (
       parserForLanguage[language]
     );
@@ -148,7 +235,7 @@ const makeExtensionParser = (
  * is implied by package.json and should not be inferred from its extension.
  * @param {ParserForLanguage} parserForLanguage
  * @param {ModuleTransforms} moduleTransforms
- * @returns {ParseFn}
+ * @returns {ParseFnAsync}
  */
 export const mapParsers = (
   languageForExtension,
@@ -169,6 +256,41 @@ export const mapParsers = (
     throw Error(`No parser available for language: ${problems.join(', ')}`);
   }
   return makeExtensionParser(
+    fromEntries(languageForExtensionEntries),
+    languageForModuleSpecifier,
+    parserForLanguage,
+    moduleTransforms,
+  );
+};
+
+/**
+ * @param {Record<string, Language>} languageForExtension
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
+ * is implied by package.json and should not be inferred from its extension.
+ * @param {Record<string, ParserImplementation>} parserForLanguage
+ * @param {SyncModuleTransforms} moduleTransforms
+ * @returns {ParseFn}
+ */
+export const mapParsersSync = (
+  languageForExtension,
+  languageForModuleSpecifier,
+  parserForLanguage,
+  moduleTransforms = {},
+) => {
+  /** @type {[string, string][]} */
+  const languageForExtensionEntries = [];
+  const problems = [];
+  for (const [extension, language] of entries(languageForExtension)) {
+    if (has(parserForLanguage, language)) {
+      languageForExtensionEntries.push([extension, language]);
+    } else {
+      problems.push(`${q(language)} for extension ${q(extension)}`);
+    }
+  }
+  if (problems.length > 0) {
+    throw Error(`No parser available for language: ${problems.join(', ')}`);
+  }
+  return makeSyncExtensionParser(
     fromEntries(languageForExtensionEntries),
     languageForModuleSpecifier,
     parserForLanguage,
@@ -333,32 +455,94 @@ const makeModuleMapHook = (
  * the named compartment and building all compartments that it depends upon,
  * recursively threading the modules exported by one compartment into the
  * compartment that imports them.
- * Returns the root of the compartment DAG.
- * Does not load or execute any modules.
- * Uses makeImportHook with the given "location" string of each compartment in
- * the DAG.
- * Passes the given globals and external modules into the root compartment
- * only.
  *
+ * - Returns the root of the compartment DAG.
+ * - Does not load or execute any modules.
+ * - Uses `makeImportHook` with the given "location" string of each compartment
+ *   in the DAG.
+ * - Passes the given globals and external modules into the root compartment
+ *   only.
+ *
+ * Differences between the two overloads:
+ *
+ * - _Must not_ accept `makeImportNowHook`.
+ * - _May_ accept `syncModuleTransforms`, but any keypair in
+ *   `moduleTransforms` (if provided) will overwrite it.
+ *
+ * @overload
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {LinkOptions} options
+ * @returns {LinkResult} the root compartment of the compartment DAG
+ */
+
+/**
+ * Assemble a DAG of compartments as declared in a compartment map starting at
+ * the named compartment and building all compartments that it depends upon,
+ * recursively threading the modules exported by one compartment into the
+ * compartment that imports them.
+ *
+ * - Returns the root of the compartment DAG.
+ * - Does not load or execute any modules.
+ * - Uses `makeImportHook` with the given "location" string of each compartment
+ *   in the DAG.
+ * - Passes the given globals and external modules into the root compartment
+ *   only.
+ *
+ * Differences between the two overloads:
+ *
+ * - _May_ accept `makeImportNowHook`.
+ * - _Must not_ accept `moduleTransforms`
+ * - _May_ accept `syncModuleTransforms`
+ *
+ * @overload
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {SyncLinkOptions} options
+ * @returns {LinkResult} the root compartment of the compartment DAG
+ */
+
+/**
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {LinkOptions|SyncLinkOptions} options
+ * @returns {LinkResult}
  */
 export const link = (
   { entry, compartments: compartmentDescriptors },
-  {
+  options,
+) => {
+  const {
     resolve = resolveFallback,
     makeImportHook,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
     globals = {},
     transforms = [],
-    moduleTransforms = {},
     __shimTransforms__ = [],
     archiveOnly = false,
     Compartment = defaultCompartment,
-  },
-) => {
+  } = options;
+  /** @type {ImportNowHookMaker|undefined} */
+  let makeImportNowHook;
+  /** @type {ModuleTransforms|undefined} */
+  let moduleTransforms;
+  /** @type {SyncModuleTransforms|undefined} */
+  let syncModuleTransforms;
+
+  const isSync = 'makeImportNowHook' in options;
+
+  if (isSync) {
+    makeImportNowHook = options.makeImportNowHook;
+    syncModuleTransforms = options.syncModuleTransforms;
+  } else {
+    const opts = /** @type {LinkOptions} */ (options);
+    moduleTransforms = /** @type {ModuleTransforms} */ ({
+      ...(opts.syncModuleTransforms || {}),
+      ...(opts.moduleTransforms || {}),
+    });
+  }
+
   const { compartment: entryCompartmentName } = entry;
+  const entryCompartmentDescriptor =
+    compartmentDescriptors[entryCompartmentName];
 
   /** @type {Record<string, Compartment>} */
   const compartments = create(null);
@@ -411,13 +595,19 @@ export const link = (
         languageForExtensionOverrides,
       ),
     );
-
-    const parse = mapParsers(
-      languageForExtension,
-      languageForModuleSpecifier,
-      parserForLanguage,
-      moduleTransforms,
-    );
+    const parse = isSync
+      ? mapParsersSync(
+          languageForExtension,
+          languageForModuleSpecifier,
+          parserForLanguage,
+          syncModuleTransforms,
+        )
+      : mapParsers(
+          languageForExtension,
+          languageForModuleSpecifier,
+          parserForLanguage,
+          moduleTransforms,
+        );
     /** @type {ShouldDeferError} */
     const shouldDeferError = language => {
       if (language && has(parserForLanguage, language)) {
@@ -441,6 +631,24 @@ export const link = (
       shouldDeferError,
       compartments,
     });
+    /** @type {ImportNowHook | undefined} */
+    let importNowHook;
+    if (
+      isSync &&
+      makeImportNowHook &&
+      compartmentDescriptor !== entryCompartmentDescriptor
+    ) {
+      // `parse` must be sync here
+      const syncParse = /** @type {ParseFn} */ (parse);
+      importNowHook = makeImportNowHook({
+        entryCompartmentDescriptor,
+        packageLocation: location,
+        packageName: name,
+        parse: syncParse,
+        compartments,
+      });
+    }
+
     const moduleMapHook = makeModuleMapHook(
       compartmentDescriptor,
       compartments,
@@ -453,6 +661,7 @@ export const link = (
       name: location,
       resolveHook,
       importHook,
+      importNowHook,
       moduleMapHook,
       transforms,
       __shimTransforms__,
