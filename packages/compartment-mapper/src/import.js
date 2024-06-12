@@ -19,8 +19,13 @@ import { loadFromMap } from './import-lite.js';
 const { assign, create, freeze } = Object;
 
 /** @import {Application} from './types.js' */
+/** @import {ImportLocationOptions} from './types.js' */
+/** @import {SyncArchiveOptions} from './types.js' */
+/** @import {LoadLocationOptions} from './types.js' */
+/** @import {ImportLocationSyncOptions} from './types.js' */
+/** @import {SomeObject} from './types.js' */
+/** @import {SyncReadPowers} from './types.js' */
 /** @import {ArchiveOptions} from './types.js' */
-/** @import {ExecuteOptions} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 
@@ -38,9 +43,25 @@ const assignParserForLanguage = (options = {}) => {
 };
 
 /**
+ * @overload
+ * @param {SyncReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {SyncArchiveOptions} options
+ * @returns {Promise<Application>}
+ */
+
+/**
+ * @overload
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
+ * @param {LoadLocationOptions} [options]
+ * @returns {Promise<Application>}
+ */
+
+/**
+ * @param {ReadFn|ReadPowers|SyncReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {LoadLocationOptions} [options]
  * @returns {Promise<Application>}
  */
 export const loadLocation = async (
@@ -63,10 +84,32 @@ export const loadLocation = async (
 };
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * Allows dynamic requires
+ *
+ * @overload
+ * @param {SyncReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ExecuteOptions & ArchiveOptions} [options]
- * @returns {Promise<import('./types.js').SomeObject>} the object of the imported modules exported
+ * @param {ImportLocationSyncOptions} options
+ * @returns {Promise<SomeObject>} the object of the imported modules exported
+ * names.
+ */
+
+/**
+ * Disallows dynamic requires
+ *
+ * @overload
+ * @param {ReadPowers|ReadFn} readPowers
+ * @param {string} moduleLocation
+ * @param {ImportLocationOptions} [options]
+ * @returns {Promise<SomeObject>} the object of the imported modules exported
+ * names.
+ */
+
+/**
+ * @param {ReadPowers|ReadFn|SyncReadPowers} readPowers
+ * @param {string} moduleLocation
+ * @param {ImportLocationOptions} [options]
+ * @returns {Promise<SomeObject>} the object of the imported modules exported
  * names.
  */
 export const importLocation = async (readPowers, moduleLocation, options) => {

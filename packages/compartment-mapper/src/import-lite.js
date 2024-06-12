@@ -17,7 +17,7 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-/** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {ArchiveOptions, CompartmentMapDescriptor, ImportLocationSyncOptions, ImportNowHookMaker, LoadArchiveOptions, ModuleTransforms, SyncArchiveOptions, SyncReadPowers} from './types.js' */
 /** @import {Application} from './types.js' */
 /** @import {ImportLocationOptions} from './types.js' */
 /** @import {LoadLocationOptions} from './types.js' */
@@ -30,19 +30,37 @@ import { link } from './link.js';
 import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
+  makeImportNowHookMaker,
 } from './import-hook.js';
 
 const { assign, create, freeze } = Object;
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * @overload
+ * @param {SyncReadPowers} readPowers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {LoadLocationOptions} [options]
+ * @param {ImportLocationSyncOptions} options
  * @returns {Promise<Application>}
  */
+
+/**
+ * @overload
+ * @param {ReadFn | ReadPowers} readPowers
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {ImportLocationOptions} [options]
+ * @returns {Promise<Application>}
+ */
+
+/**
+ * @param {ReadFn|ReadPowers|SyncReadPowers} readPowers
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {ImportLocationOptions} [options]
+ * @returns {Promise<Application>}
+ */
+
 export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
-    moduleTransforms = {},
+    syncModuleTransforms = {},
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
@@ -55,6 +73,24 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     assign(create(null), languageForExtensionOption),
   );
 
+  /**
+   * This type guard determines which of the two paths through the code is taken.
+   *
+   * If `options` is `SyncArchiveOptions`, we will permit dynamic requires. By definition, this must not include async module transforms, and must have a non-empty `dynamicHook`
+   *
+   * If `options` isn't `SyncArchiveOptions`, then no.
+   *
+   * @param {ArchiveOptions|SyncArchiveOptions} value
+   * @returns {value is SyncArchiveOptions}
+   */
+  const isSyncOptions = value => 'dynamicHook' in value;
+
+  const moduleTransforms = isSyncOptions(options)
+    ? undefined
+    : /** @type {ModuleTransforms} */ ({
+        ...syncModuleTransforms,
+        ...(options.moduleTransforms || {}),
+      });
   const {
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
   } = compartmentMap;
@@ -85,16 +121,49 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         exitModuleImportHook: compartmentExitModuleImportHook,
       },
     );
-    const { compartment, pendingJobsPromise } = link(compartmentMap, {
-      makeImportHook,
-      parserForLanguage,
-      languageForExtension,
-      globals,
-      transforms,
-      moduleTransforms,
-      __shimTransforms__,
-      Compartment,
-    });
+
+    /** @type {ImportNowHookMaker | undefined} */
+    let makeImportNowHook;
+
+    /** @type {Compartment} */
+    let compartment;
+    /** @type {Promise<void>} */
+    let pendingJobsPromise;
+
+    if (isSyncOptions(options)) {
+      makeImportNowHook = makeImportNowHookMaker(
+        /** @type {SyncReadPowers} */ (readPowers),
+        entryCompartmentName,
+        {
+          compartmentDescriptors: compartmentMap.compartments,
+          searchSuffixes,
+          dynamicHook: options.dynamicHook,
+        },
+      );
+      ({ compartment, pendingJobsPromise } = link(compartmentMap, {
+        makeImportHook,
+        makeImportNowHook,
+        parserForLanguage,
+        languageForExtension,
+        globals,
+        transforms,
+        syncModuleTransforms,
+        __shimTransforms__,
+        Compartment,
+      }));
+    } else {
+      ({ compartment, pendingJobsPromise } = link(compartmentMap, {
+        makeImportHook,
+        parserForLanguage,
+        languageForExtension,
+        globals,
+        transforms,
+        moduleTransforms,
+        syncModuleTransforms,
+        __shimTransforms__,
+        Compartment,
+      }));
+    }
 
     await pendingJobsPromise;
 
