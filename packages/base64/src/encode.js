@@ -5,9 +5,6 @@
 import { alphabet64, padding } from './common.js';
 
 /**
- * Encodes bytes into a Base64 string, as specified in
- * https://tools.ietf.org/html/rfc4648#section-4
- *
  * XSnap is a JavaScript engine based on Moddable/XS.
  * The algorithm below is orders of magnitude too slow on this VM, but it
  * arranges a native binding on the global object.
@@ -65,6 +62,11 @@ export const jsEncodeBase64 = data => {
   return string;
 };
 
-/** @type {typeof jsEncodeBase64} */
+/**
+ * Encodes bytes into a Base64 string, as specified in
+ * https://tools.ietf.org/html/rfc4648#section-4
+ *
+ * @type {typeof jsEncodeBase64}
+ */
 export const encodeBase64 =
   globalThis.Base64 !== undefined ? globalThis.Base64.encode : jsEncodeBase64;
