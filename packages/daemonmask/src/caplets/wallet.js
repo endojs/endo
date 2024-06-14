@@ -10,6 +10,13 @@ import { makeExo, names } from '../utils.js';
 export const make = async (powers) => {
   const { keyring, provider } = await bootstrap();
 
+  let isInitialized = false;
+  const assertIsInitialized = () => {
+    if (!isInitialized) {
+      throw new Error('Wallet must be initialized first.');
+    }
+  };
+
   return makeExo('Wallet', {
     /**
      * @param {string} seedPhrase
@@ -18,9 +25,11 @@ export const make = async (powers) => {
     async init(seedPhrase, infuraProjectId) {
       await E(keyring).init(seedPhrase);
       await E(provider).init(infuraProjectId);
+      isInitialized = true;
     },
 
     async getAddresses() {
+      assertIsInitialized();
       return [await E(keyring).getAddress()];
     },
 
@@ -30,6 +39,7 @@ export const make = async (powers) => {
      * @param {JsonRpcParams} [params]
      */
     async request(method, params) {
+      assertIsInitialized();
       if (method === 'eth_sendTransaction') {
         throw new Error('not implemented');
       }
