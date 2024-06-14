@@ -34,6 +34,7 @@ module.exports = {
         'jsdoc/require-param-description': 'off',
         'jsdoc/require-property-description': 'off',
         'jsdoc/require-description': 'off',
+        'jsdoc/require-jsdoc': 'off',
         'jsdoc/require-returns': 'off',
         'jsdoc/check-tag-names': 'off',
         'jsdoc/valid-types': 'off',
