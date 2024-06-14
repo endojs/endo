@@ -9,7 +9,9 @@ endo purge -f
 endo start
 
 endo make --UNCONFINED src/caplets/keyring.js --name keyring
-endo eval 'E(keyring).init("test test test test test test test test test test test ball")' keyring
+endo eval 'E(keyring).init(
+  "test test test test test test test test test test test ball"
+)' keyring
 endo eval 'E(keyring).getAddress()' keyring --name address
 
 endo eval 'E(keyring).signMessage("0xdeadbeef")' keyring
