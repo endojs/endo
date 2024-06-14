@@ -55,6 +55,7 @@
     "timeout": "2m"
   },
   "dependencies": {
+    "@endo/bundle-source": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
