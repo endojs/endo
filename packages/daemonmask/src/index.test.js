@@ -1,6 +1,6 @@
 import test from 'ava';
 
-import { greeter } from '.';
+import { greeter } from './index.js';
 
 test('the greeter greets', (t) => {
   const name = 'Huey';

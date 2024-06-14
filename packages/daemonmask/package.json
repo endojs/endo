@@ -44,9 +44,9 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "test": "yarn test:sh && yarn test:js",
+    "test:coverage": "c8 ava",
     "test:js": "ava",
-    "test:sh": "./tests/main.sh",
-    "test:coverage": "c8 ava"
+    "test:sh": "./tests/main.sh"
   },
   "ava": {
     "files": [
@@ -90,5 +90,8 @@
     "prettier": "^2.7.1",
     "prettier-plugin-packagejson": "^2.3.0",
     "typescript": "5.5.0-beta"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

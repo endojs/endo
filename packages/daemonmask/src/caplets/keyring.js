@@ -1,17 +1,17 @@
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { TransactionFactory } from '@ethereumjs/tx';
-import HdKeyring from "@metamask/eth-hd-keyring";
+import HdKeyring from '@metamask/eth-hd-keyring';
 
 /** @import { TxData } from '@ethereumjs/tx' */
 
 /**
  * Converts a `Buffer` into a `0x`-prefixed hex `String`.
- * @param buf {Buffer} object to convert
+ * @param {Buffer} buffer - The buffer to convert.
  */
-const bufferToHex = function (buf) {
-  return '0x' + buf.toString('hex')
-}
+const bufferToHex = function (buffer) {
+  return `0x${buffer.toString('hex')}`;
+};
 
 export const make = () => {
   /** @type {InstanceType<typeof HdKeyring>} */
@@ -20,8 +20,10 @@ export const make = () => {
   let address;
 
   const assertIsInitialized = () => {
-    if (keyring === undefined) throw new Error('Keyring must be initialized first.');
-  }
+    if (keyring === undefined) {
+      throw new Error('Keyring must be initialized first.');
+    }
+  };
 
   return makeExo(
     'Keyring',
@@ -54,7 +56,7 @@ export const make = () => {
         const tx = TransactionFactory.fromTxData(txData);
         const signedTx = await keyring.signTransaction(address, tx);
         return bufferToHex(signedTx.serialize());
-      }
+      },
     },
   );
-}
+};

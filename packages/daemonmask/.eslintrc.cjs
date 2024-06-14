@@ -3,6 +3,8 @@ module.exports = {
 
   extends: ['@metamask/eslint-config'],
 
+  settings: { node: { version: '>=16.0.0' } },
+
   overrides: [
     {
       files: ['*.ts'],
@@ -29,6 +31,12 @@ module.exports = {
         'import/extensions': ['error', 'ignorePackages'],
         'import/no-unresolved': 'off',
         'import/no-useless-path-segments': 'off',
+        'jsdoc/require-param-description': 'off',
+        'jsdoc/require-property-description': 'off',
+        'jsdoc/require-description': 'off',
+        'jsdoc/require-returns': 'off',
+        'jsdoc/check-tag-names': 'off',
+        'jsdoc/valid-types': 'off',
       },
     },
 
