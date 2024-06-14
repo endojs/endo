@@ -1,7 +1,10 @@
-import { makeExo } from '@endo/exo';
 import { E } from '@endo/far';
 
-import { getExoInterface, names } from '../utils.js';
+import { makeExo, names } from '../utils.js';
+
+/**
+ * @import { JsonRpcParams } from '@metamask/eth-query'
+ */
 
 /** @param {any} powers */
 export const make = async (powers) => {
@@ -9,24 +12,20 @@ export const make = async (powers) => {
     await E(powers).request('SELF', 'Please provide a bundler.', 'bundler');
   }
 
-  const bundlerPowers = makeExo(
-    'BundlerPowers',
-    getExoInterface('BundlerPowers'),
-    {
-      /** @param {unknown[]} args */
-      makeBundle(...args) {
-        return E(powers).makeBundle(...args);
-      },
-      /** @param {unknown[]} args */
-      makeUnconfined(...args) {
-        return E(powers).makeUnconfined(...args);
-      },
-      /** @param {unknown[]} args */
-      storeBlob(...args) {
-        return E(powers).storeBlob(...args);
-      },
+  const bundlerPowers = makeExo('BundlerPowers', {
+    /** @param {unknown[]} args */
+    makeBundle(...args) {
+      return E(powers).makeBundle(...args);
     },
-  );
+    /** @param {unknown[]} args */
+    makeUnconfined(...args) {
+      return E(powers).makeUnconfined(...args);
+    },
+    /** @param {unknown[]} args */
+    storeBlob(...args) {
+      return E(powers).storeBlob(...args);
+    },
+  });
   const bundler = await E(powers).lookup(names.BUNDLER);
 
   if (!(await E(powers).has(names.KEYRING))) {
@@ -38,16 +37,36 @@ export const make = async (powers) => {
   }
   const keyring = await E(powers).lookup(names.KEYRING);
 
-  return makeExo('Wallet', getExoInterface('Wallet'), {
+  if (!(await E(powers).has(names.PROVIDER))) {
+    await E(bundler).makeUnconfined(
+      'src/caplets/provider.js',
+      names.PROVIDER,
+      bundlerPowers,
+    );
+  }
+  const provider = await E(powers).lookup(names.PROVIDER);
+
+  return makeExo('Wallet', {
     /**
      * @param {string} seedPhrase
+     * @param {string} infuraProjectId
      */
-    async init(seedPhrase) {
+    async init(seedPhrase, infuraProjectId) {
       await E(keyring).init(seedPhrase);
+      await E(provider).init(infuraProjectId);
     },
 
     async getAddresses() {
       return [await E(keyring).getAddress()];
+    },
+
+    /**
+     * Make a JSON-RPC request to the node.
+     * @param {string} method
+     * @param {JsonRpcParams} [params]
+     */
+    async request(method, params) {
+      return await E(provider).request(method, params);
     },
   });
 };

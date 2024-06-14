@@ -9,5 +9,7 @@ set -o pipefail # Exit on any failure in a pipe
 echo ''
 ./tests/keyring.sh
 echo ''
+./tests/provider.sh
+echo ''
 ./tests/wallet.sh
 echo ''

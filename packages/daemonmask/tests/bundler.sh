@@ -9,4 +9,3 @@ endo purge -f
 endo start
 
 endo make --UNCONFINED src/caplets/bundler.js --name bundler
-endo eval 'E(bundler).prepareBundle("src/caplets/wallet.js")' bundler

@@ -63,6 +63,8 @@
     "@endo/promise-kit": "workspace:^",
     "@ethereumjs/tx": "^4.2.0",
     "@metamask/eth-hd-keyring": "^7.0.1",
+    "@metamask/eth-json-rpc-infura": "^9.1.0",
+    "@metamask/eth-query": "^4.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
