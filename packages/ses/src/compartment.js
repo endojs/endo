@@ -42,19 +42,6 @@ const moduleAliases = new WeakMap();
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
 
-// Compartments do not need an importHook or resolveHook to be useful
-// as a vessel for evaluating programs.
-// However, any method that operates the module system will throw an exception
-// if these hooks are not available.
-const assertModuleHooks = compartment => {
-  const { importHook, resolveHook } = weakmapGet(privateFields, compartment);
-  if (typeof importHook !== 'function' || typeof resolveHook !== 'function') {
-    throw TypeError(
-      'Compartment must be constructed with an importHook and a resolveHook for it to be able to load modules',
-    );
-  }
-};
-
 export const InertCompartment = function Compartment(
   _endowments = {},
   _modules = {},
@@ -111,8 +98,6 @@ export const CompartmentPrototype = {
       throw TypeError('first argument of module() must be a string');
     }
 
-    assertModuleHooks(this);
-
     const { exportsProxy } = getDeferredExports(
       this,
       weakmapGet(privateFields, this),
@@ -127,8 +112,6 @@ export const CompartmentPrototype = {
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of import() must be a string');
     }
-
-    assertModuleHooks(this);
 
     return promiseThen(
       load(privateFields, moduleAliases, this, specifier),
@@ -149,8 +132,6 @@ export const CompartmentPrototype = {
       throw TypeError('first argument of load() must be a string');
     }
 
-    assertModuleHooks(this);
-
     return load(privateFields, moduleAliases, this, specifier);
   },
 
@@ -159,7 +140,6 @@ export const CompartmentPrototype = {
       throw TypeError('first argument of importNow() must be a string');
     }
 
-    assertModuleHooks(this);
     loadNow(privateFields, moduleAliases, this, specifier);
     return compartmentImportNow(/** @type {Compartment} */ (this), specifier);
   },
