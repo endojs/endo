@@ -1,6 +1,6 @@
 // @ts-check
 
-const { quote: q } = assert;
+import { q } from '@endo/errors';
 
 const validNamePattern = /^[a-z][a-z0-9-]{0,127}$/;
 

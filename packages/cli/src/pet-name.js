@@ -1,4 +1,4 @@
-const { quote: q } = assert;
+import { q } from '@endo/errors';
 
 /**
  * Splits a dot-delimited pet name path into an array of pet names.

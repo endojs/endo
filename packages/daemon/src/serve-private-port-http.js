@@ -2,13 +2,12 @@
 
 import { E } from '@endo/far';
 import { mapReader, mapWriter } from '@endo/stream';
+import { q } from '@endo/errors';
 import {
   makeMessageCapTP,
   messageToBytes,
   bytesToMessage,
 } from './connection.js';
-
-const { quote: q } = assert;
 
 export const servePrivatePortHttp = (
   requestedWebletPort,

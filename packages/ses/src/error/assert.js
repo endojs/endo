@@ -150,8 +150,8 @@ freeze(DetailsTokenProto.toString);
 
 /**
  * Normally this is the function exported as `assert.details` and often
- * spelled `d`. However, if the `{errorTaming: 'unsafe'}` option is given to
- * `lockdown`, then `unredactedDetails` is used instead.
+ * spelled `X`. However, if the `{errorTaming: 'unsafe'}` option is
+ * given to `lockdown`, then `unredactedDetails` is used instead.
  *
  * There are some unconditional uses of `redactedDetails` in this module. All
  * of them should be uses where the template literal has no redacted

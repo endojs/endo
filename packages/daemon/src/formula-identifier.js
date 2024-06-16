@@ -3,7 +3,7 @@
 
 /** @import { IdRecord } from './types.js' */
 
-const { quote: q } = assert;
+import { makeError, q } from '@endo/errors';
 
 const numberPattern = /^[0-9a-f]{128}$/;
 const idPattern = /^(?<number>[0-9a-f]{128}):(?<node>[0-9a-f]{128})$/;
@@ -19,7 +19,7 @@ export const isValidNumber = allegedNumber =>
  */
 export const assertValidNumber = allegedNumber => {
   if (!isValidNumber(allegedNumber)) {
-    throw assert.error(`Invalid number ${q(allegedNumber)}`);
+    throw makeError(`Invalid number ${q(allegedNumber)}`);
   }
 };
 
@@ -45,11 +45,11 @@ export const assertValidId = (id, petName) => {
 export const parseId = id => {
   const match = idPattern.exec(id);
   if (match === null) {
-    throw assert.error(`Invalid formula identifier ${q(id)}`);
+    throw makeError(`Invalid formula identifier ${q(id)}`);
   }
   const { groups } = match;
   if (groups === undefined) {
-    throw assert.error(
+    throw makeError(
       `Programmer invariant failure: expected match groups, formula identifier was ${q(
         id,
       )}`,

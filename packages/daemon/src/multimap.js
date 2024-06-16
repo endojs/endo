@@ -2,7 +2,7 @@
 
 /** @import { Multimap, WeakMultimap, BidirectionalMultimap } from './types.js' */
 
-const { quote: q } = assert;
+import { q } from '@endo/errors';
 
 /**
  * @param {new () => (Map | WeakMap)} mapConstructor

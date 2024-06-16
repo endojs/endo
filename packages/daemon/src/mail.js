@@ -3,6 +3,7 @@
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
+import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
 import { assertPetName } from './pet-name.js';
 
@@ -16,8 +17,6 @@ import {
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Envelope, EnvelopedMessage, Handle, Mail, MakeMailbox, Provide, Request, StampedMessage, Topic } from './types.js' */
-
-const { quote: q } = assert;
 
 /**
  * @param {string} description

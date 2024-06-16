@@ -7,7 +7,7 @@ import { makeExo } from '@endo/exo';
 import { E, Far } from '@endo/far';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
-import { q } from '@endo/errors';
+import { makeError, q } from '@endo/errors';
 import { makeRefReader } from './ref-reader.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeMailboxMaker } from './mail.js';
@@ -491,7 +491,7 @@ const makeDaemonCore = async (
   const mustGetIdForRef = ref => {
     const id = idForRef.get(ref);
     if (id === undefined) {
-      throw assert.error(assert.details`No corresponding formula for ${ref}`);
+      throw makeError(assert.details`No corresponding formula for ${ref}`);
     }
     return id;
   };
@@ -501,11 +501,9 @@ const makeDaemonCore = async (
     const ref = refForId.get(id);
     if (ref === undefined) {
       if (formulaForId.get(id) !== undefined) {
-        throw assert.error(
-          assert.details`Formula has not produced a ref ${id}`,
-        );
+        throw makeError(assert.details`Formula has not produced a ref ${id}`);
       }
-      throw assert.error(assert.details`Unknown identifier ${id}`);
+      throw makeError(assert.details`Unknown identifier ${id}`);
     }
     return ref;
   };
@@ -1576,7 +1574,7 @@ const makeDaemonCore = async (
       const guestNodeNumber = url.hostname;
 
       if (!guestHandleNumber) {
-        throw assert.error('Handle locator must have an "id" parameter');
+        throw makeError('Handle locator must have an "id" parameter');
       }
 
       const guestHandleId = formatId({
