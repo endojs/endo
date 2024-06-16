@@ -5,7 +5,10 @@ import {
 } from '@endo/env-options';
 
 // NOTE: We can't import these because they're not in scope before lockdown.
-// import { assert, details as X, Fail } from '@agoric/assert';
+// We also cannot currently import them because it would create a cyclic
+// dependency, though this is more easily fixed.
+// import { assert, X, Fail } from '@endo/errors';
+// See also https://github.com/Agoric/agoric-sdk/issues/9515
 
 // WARNING: Global Mutable State!
 // This state is communicated to `assert` that makes it available to the
@@ -33,7 +36,7 @@ const ENABLED =
 
 const addRejectionNote = detailsNote => reason => {
   if (reason instanceof Error) {
-    assert.note(reason, detailsNote);
+    globalThis.assert.note(reason, detailsNote);
   }
   if (VERBOSE) {
     console.log('REJECTED at top of event loop', reason);
@@ -52,7 +55,7 @@ const wrapFunction =
         result = func(...args);
       } catch (err) {
         if (err instanceof Error) {
-          assert.note(
+          globalThis.assert.note(
             err,
             X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
           );
@@ -90,14 +93,14 @@ export const trackTurns = funcs => {
   if (!ENABLED || typeof globalThis === 'undefined' || !globalThis.assert) {
     return funcs;
   }
-  const { details: X } = assert;
+  const { details: X, note: annotateError } = globalThis.assert;
 
   hiddenCurrentEvent += 1;
   const sendingError = Error(
     `Event: ${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
   );
   if (hiddenPriorError !== undefined) {
-    assert.note(sendingError, X`Caused by: ${hiddenPriorError}`);
+    annotateError(sendingError, X`Caused by: ${hiddenPriorError}`);
   }
 
   return /** @type {T} */ (
