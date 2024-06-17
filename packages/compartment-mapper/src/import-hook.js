@@ -476,7 +476,7 @@ export function makeImportNowHookMaker(
       compartmentDescriptor;
     compartmentDescriptor.modules = moduleDescriptors;
 
-    const { policy } = compartmentDescriptor;
+    const { policy = Object.create(null) } = compartmentDescriptor;
 
     // associates modules with compartment descriptors based on policy
     // which wouldn't otherwise be there
@@ -543,7 +543,18 @@ export function makeImportNowHookMaker(
           packageLocation,
         );
         // eslint-disable-next-line no-await-in-loop
-        const moduleBytes = readSync(moduleLocation);
+        /** @type {Uint8Array} */
+        let moduleBytes;
+        try {
+          moduleBytes = readSync(moduleLocation);
+        } catch (err) {
+          if (err && err.code === 'ENOENT') {
+            // might be an exit module. use the fallback `dynamicHook` to import it
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+          throw err;
+        }
         if (moduleBytes !== undefined) {
           /** @type {string | undefined} */
           let sourceMap;
