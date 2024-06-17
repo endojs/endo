@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import 'ses';
 import test from 'ava';
 import { loadLocation, importArchive, makeBundle } from '../index.js';
@@ -96,7 +98,8 @@ test('makeBundle / importArchive', async t => {
     TextEncoder,
     TextDecoder,
     URL,
-    assert,
+    // See https://github.com/Agoric/agoric-sdk/issues/9515
+    assert: globalThis.assert,
   });
   const evasiveArchiverBundle = archiverBundle
     .replace(/(?<!\.)\bimport\b(?![:"'])/g, 'IMPORT')
