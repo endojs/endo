@@ -346,12 +346,10 @@ export interface AssertionUtilities {
    * ```js
    * assert(sky.isBlue(), details`${sky.color} should be "blue"`);
    * ```
-   * // TODO Update SES-shim to new convention, where `details` is
-   * // renamed to `X` rather than `d`.
-   * or following the normal convention to locally rename `details` to `d`
-   * and `quote` to `q` like `const { details: d, quote: q } = assert;`:
+   * or following the normal convention to locally rename `details` to `X`
+   * and `quote` to `q` like `const { details: X, quote: q } = assert;`:
    * ```js
-   * assert(sky.isBlue(), d`${sky.color} should be "blue"`);
+   * assert(sky.isBlue(), X`${sky.color} should be "blue"`);
    * ```
    * However, note that in most cases it is preferable to instead use the `Fail`
    * template literal tag (which has the same input signature as `details`
@@ -427,10 +425,8 @@ export interface AssertionUtilities {
    * sky.color === expectedColor || Fail`${sky.color} should be ${quote(expectedColor)}`;
    * ```
    *
-   * // TODO Update SES-shim to new convention, where `details` is
-   * // renamed to `X` rather than `d`.
-   * The normal convention is to locally rename `details` to `d` and `quote` to `q`
-   * like `const { details: d, quote: q } = assert;`, so the above example would then be
+   * The normal convention is to locally rename `details` to `X` and `quote` to `q`
+   * like `const { details: X, quote: q } = assert;`, so the above example would then be
    * ```js
    * sky.color === expectedColor || Fail`${sky.color} should be ${q(expectedColor)}`;
    * ```
