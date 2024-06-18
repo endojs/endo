@@ -15,12 +15,33 @@ import { makeReadPowers } from '../src/node-powers.js';
 const readPowers = makeReadPowers({ fs, url });
 const { freeze, keys, assign } = Object;
 
+test('dynamic require should not work without policy', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/app/index.js',
+    import.meta.url,
+  ).toString();
+  await t.throwsAsync(importLocation(readPowers, fixture), {
+    message: /Dynamic require not allowed in compartment "dynamic"/,
+  });
+});
+
 test('intra-package dynamic require works', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',
     import.meta.url,
   ).toString();
-  const { namespace } = await importLocation(readPowers, fixture);
+  const { namespace } = await importLocation(readPowers, fixture, {
+    policy: {
+      entry: {
+        packages: 'any',
+      },
+      resources: {
+        dynamic: {
+          dynamic: true,
+        },
+      },
+    },
+  });
 
   t.deepEqual(
     {
@@ -39,9 +60,23 @@ test('dynamic require fails without sync read powers', async t => {
     import.meta.url,
   ).toString();
   const { read } = readPowers;
-  await t.throwsAsync(importLocation(read, fixture), {
-    message: /Cannot find module '\.\/sprunt\.js'/,
-  });
+  await t.throwsAsync(
+    importLocation(read, fixture, {
+      policy: {
+        entry: {
+          packages: 'any',
+        },
+        resources: {
+          dynamic: {
+            dynamic: true,
+          },
+        },
+      },
+    }),
+    {
+      message: /Cannot find module '\.\/sprunt\.js'/,
+    },
+  );
 });
 
 test('dynamic exit module loading fails without importNowHook', async t => {
@@ -50,9 +85,32 @@ test('dynamic exit module loading fails without importNowHook', async t => {
     import.meta.url,
   ).toString();
 
-  await t.throwsAsync(importLocation(readPowers, fixture), {
-    message: /Failed to load module "cluster"/,
-  });
+  await t.throwsAsync(
+    importLocation(readPowers, fixture, {
+      policy: {
+        entry: {
+          packages: 'any',
+        },
+        resources: {
+          hooked: {
+            packages: {
+              dynamic: true,
+            },
+            builtins: {
+              cluster: true,
+            },
+            dynamic: true,
+          },
+          'hooked>dynamic': {
+            dynamic: true,
+          },
+        },
+      },
+    }),
+    {
+      message: /Failed to load module "cluster"/,
+    },
+  );
 });
 
 test('inter-pkg and exit module dynamic require works', async t => {
@@ -88,6 +146,25 @@ test('inter-pkg and exit module dynamic require works', async t => {
 
   const { namespace } = await importLocation(readPowers, fixture, {
     importNowHook,
+    policy: {
+      entry: {
+        packages: 'any',
+      },
+      resources: {
+        hooked: {
+          packages: {
+            dynamic: true,
+          },
+          builtins: {
+            cluster: true,
+          },
+          dynamic: true,
+        },
+        'hooked>dynamic': {
+          dynamic: true,
+        },
+      },
+    },
   });
 
   t.deepEqual(
@@ -125,6 +202,16 @@ test('sync module transforms work with dynamic require support', async t => {
 
   const { namespace } = await importLocation(readPowers, fixture, {
     syncModuleTransforms,
+    policy: {
+      entry: {
+        packages: 'any',
+      },
+      resources: {
+        dynamic: {
+          dynamic: true,
+        },
+      },
+    },
   });
 
   t.deepEqual(
