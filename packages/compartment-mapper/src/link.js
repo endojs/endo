@@ -451,6 +451,18 @@ const makeModuleMapHook = (
 };
 
 /**
+ * Returns `true` if `value` is a {@link SyncLinkOptions}.
+ *
+ * The only requirement here is that `moduleTransforms` is _not_ present in
+ * `value`; `makeImportNowHook` is optional.
+ *
+ * @param {LinkOptions|SyncLinkOptions} value
+ * @returns {value is SyncLinkOptions}
+ */
+const isSyncOptions = value =>
+  !value || (typeof value === 'object' && !('moduleTransforms' in value));
+
+/**
  * Assemble a DAG of compartments as declared in a compartment map starting at
  * the named compartment and building all compartments that it depends upon,
  * recursively threading the modules exported by one compartment into the
@@ -527,16 +539,19 @@ export const link = (
   /** @type {SyncModuleTransforms|undefined} */
   let syncModuleTransforms;
 
-  const isSync = 'makeImportNowHook' in options;
+  const isSync = isSyncOptions(options);
 
   if (isSync) {
     makeImportNowHook = options.makeImportNowHook;
     syncModuleTransforms = options.syncModuleTransforms;
   } else {
-    const opts = /** @type {LinkOptions} */ (options);
+    // combine both sync and async module transforms
+    // if we're using dynamic requires.
+    // these MAY or MAY not have already been combined by
+    // the time this function is called!
     moduleTransforms = /** @type {ModuleTransforms} */ ({
-      ...(opts.syncModuleTransforms || {}),
-      ...(opts.moduleTransforms || {}),
+      ...options.syncModuleTransforms,
+      ...options.moduleTransforms,
     });
   }
 

@@ -200,6 +200,8 @@ export {};
  */
 
 /**
+ * {@link ReadPowers} supporting synchronous reads and dynamic requires
+ *
  * @typedef {ReadPowers & {readSync: ReadSyncFn, fileURLToPath: FileURLToPathFn}} SyncReadPowers
  */
 
@@ -214,7 +216,7 @@ export {};
  * Mapper lifts CommonJS up, more like a bundler, and does not attempt to vary
  * the behavior of resolution depending on the language of the importing module.
  * @property {SourceMapHook} [sourceMapHook]
- * @property {DynamicImportHook} dynamicHook
+ * @property {ExitModuleImportNowHook} [exitModuleImportNowHook]
  */
 
 /**
@@ -371,9 +373,10 @@ export {};
  */
 
 /**
- * @callback DynamicImportHook
+ * @callback ExitModuleImportNowHook
  * @param {string} specifier
  * @param {string} referrer
+ * @returns {ThirdPartyStaticModuleInterface|undefined} module namespace
  */
 
 /**
@@ -572,7 +575,7 @@ export {};
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  * @property {SourceMapHook} [sourceMapHook]
- * @property {DynamicImportHook} dynamicHook
+ * @property {ExitModuleImportNowHook} [importNowHook]
  * @property {Record<string, ParserImplementation>} [parserForLanguage]
  * @property {LanguageForExtension} [languageForExtension]
  */
@@ -789,12 +792,14 @@ export {};
 /**
  * Options for `importLocation()`
  *
- * @typedef {ExecuteOptions & (ArchiveOptions|SyncArchiveOptions)} ImportLocationOptions
+ * @typedef {ExecuteOptions & ArchiveOptions} ImportLocationOptions
  */
 
 /**
- * Options for `importLocation()` for dynamic require support
- * @typedef {ExecuteOptions & SyncArchiveOptions} ImportLocationSyncOptions
+ * Options for `importLocation()` necessary (but not sufficient--see
+ * {@link SyncReadPowers}) for dynamic require support
+ *
+ * @typedef {ExecuteOptions & SyncArchiveOptions} SyncImportLocationOptions
  */
 
 /**
@@ -814,7 +819,7 @@ export {};
  * @property {SourceMapHook} [sourceMapHook]
  * @property {Record<string, ParserImplementation>} [parserForLanguage]
  * @property {LanguageForExtension} [languageForExtension]
- * @property {DynamicImportHook} [dynamicHook]
+ * @property {ExitModuleImportNowHook} [importNowHook]
  */
 
 /**

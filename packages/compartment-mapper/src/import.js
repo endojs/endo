@@ -22,7 +22,7 @@ const { assign, create, freeze } = Object;
 /** @import {ImportLocationOptions} from './types.js' */
 /** @import {SyncArchiveOptions} from './types.js' */
 /** @import {LoadLocationOptions} from './types.js' */
-/** @import {ImportLocationSyncOptions} from './types.js' */
+/** @import {SyncImportLocationOptions} from './types.js' */
 /** @import {SomeObject} from './types.js' */
 /** @import {SyncReadPowers} from './types.js' */
 /** @import {ArchiveOptions} from './types.js' */
@@ -89,7 +89,7 @@ export const loadLocation = async (
  * @overload
  * @param {SyncReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ImportLocationSyncOptions} options
+ * @param {SyncImportLocationOptions} options
  * @returns {Promise<SomeObject>} the object of the imported modules exported
  * names.
  */
