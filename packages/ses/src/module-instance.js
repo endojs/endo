@@ -24,7 +24,7 @@ import { compartmentEvaluate } from './compartment-evaluate.js';
 
 const { quote: q } = assert;
 
-export const makeThirdPartyModuleInstance = (
+export const makeVirtualModuleInstance = (
   compartmentPrivateFields,
   moduleSource,
   compartment,
@@ -47,7 +47,7 @@ export const makeThirdPartyModuleInstance = (
       arraySome(moduleSource.exports, name => typeof name !== 'string')
     ) {
       throw TypeError(
-        `SES third-party static module record "exports" property must be an array of strings for module ${moduleSpecifier}`,
+        `SES virtual module source "exports" property must be an array of strings for module ${moduleSpecifier}`,
       );
     }
     arrayForEach(moduleSource.exports, name => {
