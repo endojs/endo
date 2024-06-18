@@ -1,17 +1,9 @@
 /* eslint-disable no-underscore-dangle */
 
-// For brevity, in this file, as in module-load.js, the term "moduleRecord"
-// without qualification means "module compartment record".
-// This is a super-set of the "static module record", that is reusable between
-// compartments with different hooks.
-// The "module compartment record" captures the compartment and overlays the
-// module's "imports" with the more specific "resolvedImports" as inferred from
-// the particular compartment's "resolveHook".
-
 import { assert } from './error/assert.js';
 import {
   makeModuleInstance,
-  makeThirdPartyModuleInstance,
+  makeVirtualModuleInstance,
 } from './module-instance.js';
 import {
   Map,
@@ -61,50 +53,50 @@ export const link = (
   return instantiate(compartmentPrivateFields, moduleAliases, moduleRecord);
 };
 
-function isPrecompiled(moduleSource) {
+function mayBePrecompiledModuleSource(moduleSource) {
   return typeof moduleSource.__syncModuleProgram__ === 'string';
 }
 
-function validatePrecompiledStaticModuleRecord(moduleSource, moduleSpecifier) {
+function validatePrecompiledModuleSource(moduleSource, moduleSpecifier) {
   const { __fixedExportMap__, __liveExportMap__ } = moduleSource;
   isObject(__fixedExportMap__) ||
-    Fail`Property '__fixedExportMap__' of a precompiled module record must be an object, got ${q(
+    Fail`Property '__fixedExportMap__' of a precompiled module source must be an object, got ${q(
       __fixedExportMap__,
     )}, for module ${q(moduleSpecifier)}`;
   isObject(__liveExportMap__) ||
-    Fail`Property '__liveExportMap__' of a precompiled module record must be an object, got ${q(
+    Fail`Property '__liveExportMap__' of a precompiled module source must be an object, got ${q(
       __liveExportMap__,
     )}, for module ${q(moduleSpecifier)}`;
 }
 
-function isThirdParty(moduleSource) {
+function mayBeVirtualModuleSource(moduleSource) {
   return typeof moduleSource.execute === 'function';
 }
 
-function validateThirdPartyStaticModuleRecord(moduleSource, moduleSpecifier) {
+function validateVirtualModuleSource(moduleSource, moduleSpecifier) {
   const { exports } = moduleSource;
   isArray(exports) ||
-    Fail`Property 'exports' of a third-party static module record must be an array, got ${q(
+    Fail`Property 'exports' of a third-party module source must be an array, got ${q(
       exports,
     )}, for module ${q(moduleSpecifier)}`;
 }
 
-function validateStaticModuleRecord(moduleSource, moduleSpecifier) {
+function validateModuleSource(moduleSource, moduleSpecifier) {
   isObject(moduleSource) ||
-    Fail`Static module records must be of type object, got ${q(
+    Fail`Module sources must be of type object, got ${q(
       moduleSource,
     )}, for module ${q(moduleSpecifier)}`;
   const { imports, exports, reexports = [] } = moduleSource;
   isArray(imports) ||
-    Fail`Property 'imports' of a static module record must be an array, got ${q(
+    Fail`Property 'imports' of a module source must be an array, got ${q(
       imports,
     )}, for module ${q(moduleSpecifier)}`;
   isArray(exports) ||
-    Fail`Property 'exports' of a precompiled module record must be an array, got ${q(
+    Fail`Property 'exports' of a precompiled module source must be an array, got ${q(
       exports,
     )}, for module ${q(moduleSpecifier)}`;
   isArray(reexports) ||
-    Fail`Property 'reexports' of a precompiled module record must be an array if present, got ${q(
+    Fail`Property 'reexports' of a precompiled module source must be an array if present, got ${q(
       reexports,
     )}, for module ${q(moduleSpecifier)}`;
 }
@@ -123,21 +115,21 @@ export const instantiate = (
     return mapGet(instances, moduleSpecifier);
   }
 
-  validateStaticModuleRecord(moduleSource, moduleSpecifier);
+  validateModuleSource(moduleSource, moduleSpecifier);
 
   const importedInstances = new Map();
   let moduleInstance;
-  if (isPrecompiled(moduleSource)) {
-    validatePrecompiledStaticModuleRecord(moduleSource, moduleSpecifier);
+  if (mayBePrecompiledModuleSource(moduleSource)) {
+    validatePrecompiledModuleSource(moduleSource, moduleSpecifier);
     moduleInstance = makeModuleInstance(
       compartmentPrivateFields,
       moduleAliases,
       moduleRecord,
       importedInstances,
     );
-  } else if (isThirdParty(moduleSource)) {
-    validateThirdPartyStaticModuleRecord(moduleSource, moduleSpecifier);
-    moduleInstance = makeThirdPartyModuleInstance(
+  } else if (mayBeVirtualModuleSource(moduleSource)) {
+    validateVirtualModuleSource(moduleSource, moduleSpecifier);
+    moduleInstance = makeVirtualModuleInstance(
       compartmentPrivateFields,
       moduleSource,
       compartment,
@@ -147,7 +139,7 @@ export const instantiate = (
     );
   } else {
     throw TypeError(
-      `importHook must return a static module record, got ${q(moduleSource)}`,
+      `importHook must provide a module source, got ${q(moduleSource)}`,
     );
   }
 
