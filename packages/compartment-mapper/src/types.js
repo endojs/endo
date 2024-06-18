@@ -682,6 +682,7 @@ export {};
  * @property {PolicyItem<GlobalsPolicyItem>|AttenuationDefinition} [globals] - The policy item or full attenuation definition for globals.
  * @property {PolicyItem<BuiltinsPolicyItem>|NestedAttenuationDefinition} [builtins] - The policy item or nested attenuation definition for builtins.
  * @property {boolean} [noGlobalFreeze] - Whether to disable global freeze.
+ * @property {boolean} [dynamic] - Whether to allow dynamic imports
  * @property {ExtraOptions} [options] - Any additional user-defined options can be added to the policy here
  */
 
@@ -736,7 +737,7 @@ export {};
 /**
  * Any {@link PackagePolicy}
  *
- * @typedef {PackagePolicy<any, any, any, any>} SomePackagePolicy
+ * @typedef {PackagePolicy<PolicyItem, PolicyItem, PolicyItem, unknown>} SomePackagePolicy
  */
 
 /**

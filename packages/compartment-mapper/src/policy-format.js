@@ -132,8 +132,7 @@ const predicateOr =
 const isPolicyItem = item =>
   item === undefined ||
   item === WILDCARD_POLICY_VALUE ||
-  isRecordOf(item, isBoolean) ||
-  isRecordOf(item, value => value === DYNAMIC_POLICY_VALUE);
+  isRecordOf(item, isBoolean);
 
 /**
  * This asserts (i.e., throws) that `allegedPackagePolicy` is a valid `PackagePolicy`.
@@ -164,12 +163,20 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
     defaultAttenuator: _ignore, // a carve out for the default attenuator in compartment map
     // eslint-disable-next-line no-unused-vars
     options, // any extra options
+    dynamic,
     ...extra
   } = /** @type {SomePackagePolicy} */ (packagePolicy);
 
   assert(
     keys(extra).length === 0,
     `${path} must not have extra properties, got ${q(keys(extra))}${inUrl}`,
+  );
+
+  assert(
+    dynamic === undefined || typeof dynamic === 'boolean',
+    `${path}.dynamic must be a boolean, got ${q({
+      dynamic,
+    })}${inUrl}`,
   );
 
   assert(
