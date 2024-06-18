@@ -10,6 +10,7 @@ import {
   assign,
   defineProperties,
   entries,
+  isObject,
   promiseThen,
   toStringTagSymbol,
   weakmapGet,
@@ -207,21 +208,36 @@ export const makeCompartmentConstructor = (
     // moduleMap can be invalid in ways that cannot be detected in the
     // constructor, but these checks allow us to throw early for a better
     // developer experience.
-    for (const [specifier, aliasNamespace] of entries(moduleMap || {})) {
-      if (typeof aliasNamespace === 'string') {
+    for (const [specifier, moduleDescriptor] of entries(moduleMap || {})) {
+      if (typeof moduleDescriptor === 'string') {
         // TODO implement parent module record retrieval.
         throw TypeError(
           `Cannot map module ${q(specifier)} to ${q(
-            aliasNamespace,
+            moduleDescriptor,
           )} in parent compartment`,
         );
-      } else if (weakmapGet(moduleAliases, aliasNamespace) === undefined) {
-        // TODO create and link a synthetic module instance from the given
-        // namespace object.
-        throw ReferenceError(
-          `Cannot map module ${q(
-            specifier,
-          )} because it has no known compartment in this realm`,
+      } else if (isObject(moduleDescriptor)) {
+        if (weakmapGet(moduleAliases, moduleDescriptor) !== undefined) {
+          // No further validation for module namespace objects.
+          // They do bear inspection before evaluation gracefully.
+        } else if (moduleDescriptor.specifier !== undefined) {
+          // TODO validate specifier module descriptors
+        } else if (moduleDescriptor.record !== undefined) {
+          // TODO validate record module descriptors
+        } else if (moduleDescriptor.__syncModuleProgram__ !== undefined) {
+          // TODO validate virtual module source descriptors
+        } else if (moduleDescriptor.execute !== undefined) {
+          // TODO validate module source descriptors
+        } else if (weakmapGet(moduleAliases, moduleDescriptor) === undefined) {
+          throw ReferenceError(
+            `Cannot map module ${q(
+              specifier,
+            )} because it has no known compartment in this realm`,
+          );
+        }
+      } else {
+        throw TypeError(
+          `Value for key ${q(specifier)} in module map must be a string, module descriptor object, module source object, or virtual module namespace`,
         );
       }
     }

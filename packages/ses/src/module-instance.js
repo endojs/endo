@@ -26,7 +26,7 @@ const { quote: q } = assert;
 
 export const makeThirdPartyModuleInstance = (
   compartmentPrivateFields,
-  staticModuleRecord,
+  moduleSource,
   compartment,
   moduleAliases,
   moduleSpecifier,
@@ -41,16 +41,16 @@ export const makeThirdPartyModuleInstance = (
 
   const notifiers = create(null);
 
-  if (staticModuleRecord.exports) {
+  if (moduleSource.exports) {
     if (
-      !isArray(staticModuleRecord.exports) ||
-      arraySome(staticModuleRecord.exports, name => typeof name !== 'string')
+      !isArray(moduleSource.exports) ||
+      arraySome(moduleSource.exports, name => typeof name !== 'string')
     ) {
       throw TypeError(
         `SES third-party static module record "exports" property must be an array of strings for module ${moduleSpecifier}`,
       );
     }
-    arrayForEach(staticModuleRecord.exports, name => {
+    arrayForEach(moduleSource.exports, name => {
       let value = exportsTarget[name];
       const updaters = [];
 
@@ -96,11 +96,7 @@ export const makeThirdPartyModuleInstance = (
         localState.activated = true;
         try {
           // eslint-disable-next-line @endo/no-polymorphic-call
-          staticModuleRecord.execute(
-            exportsTarget,
-            compartment,
-            resolvedImports,
-          );
+          moduleSource.execute(exportsTarget, compartment, resolvedImports);
         } catch (err) {
           localState.errorFromExecute = err;
           throw err;
@@ -126,7 +122,7 @@ export const makeModuleInstance = (
   const {
     compartment,
     moduleSpecifier,
-    staticModuleRecord,
+    moduleSource,
     importMeta: moduleRecordMeta,
   } = moduleRecord;
   const {
@@ -137,7 +133,7 @@ export const makeModuleInstance = (
     __reexportMap__: reexportMap = {},
     __needsImportMeta__: needsImportMeta = false,
     __syncModuleFunctor__,
-  } = staticModuleRecord;
+  } = moduleSource;
 
   const compartmentFields = weakmapGet(privateFields, compartment);
 

@@ -9,7 +9,7 @@ import '../index.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 import { makeImporter, makeStaticRetriever } from './import-commons.js';
 
-test.failing('module map primed with module source', async t => {
+test('module map primed with module source', async t => {
   const compartment = new Compartment(
     // endowments:
     {},
@@ -26,7 +26,7 @@ test.failing('module map primed with module source', async t => {
   t.is(index.default, 42);
 });
 
-test.failing('module map primed with virtual module source', async t => {
+test('module map primed with virtual module source', async t => {
   const compartment = new Compartment(
     // endowments:
     {},
@@ -49,7 +49,7 @@ test.failing('module map primed with virtual module source', async t => {
   t.is(index.default, 42);
 });
 
-test.failing('module map hook returns module source', async t => {
+test('module map hook returns module source', async t => {
   const compartment = new Compartment(
     // endowments:
     {},
@@ -115,7 +115,7 @@ test('importHook returns module namespace', async t => {
   t.is(index.default, 42);
 });
 
-test.failing('importNowHook returns namespace', t => {
+test('importNowHook returns namespace', t => {
   const compartment = new Compartment(
     // endowments:
     {},
@@ -827,6 +827,7 @@ test('importMetaHook', async t => {
   } = await compartment.import('./index.js');
   t.is(metaurl, 'https://example.com/index.js');
 });
+
 test('importMetaHook and meta from record', async t => {
   t.plan(1);
 

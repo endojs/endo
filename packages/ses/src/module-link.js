@@ -61,15 +61,12 @@ export const link = (
   return instantiate(compartmentPrivateFields, moduleAliases, moduleRecord);
 };
 
-function isPrecompiled(staticModuleRecord) {
-  return typeof staticModuleRecord.__syncModuleProgram__ === 'string';
+function isPrecompiled(moduleSource) {
+  return typeof moduleSource.__syncModuleProgram__ === 'string';
 }
 
-function validatePrecompiledStaticModuleRecord(
-  staticModuleRecord,
-  moduleSpecifier,
-) {
-  const { __fixedExportMap__, __liveExportMap__ } = staticModuleRecord;
+function validatePrecompiledStaticModuleRecord(moduleSource, moduleSpecifier) {
+  const { __fixedExportMap__, __liveExportMap__ } = moduleSource;
   isObject(__fixedExportMap__) ||
     Fail`Property '__fixedExportMap__' of a precompiled module record must be an object, got ${q(
       __fixedExportMap__,
@@ -80,27 +77,24 @@ function validatePrecompiledStaticModuleRecord(
     )}, for module ${q(moduleSpecifier)}`;
 }
 
-function isThirdParty(staticModuleRecord) {
-  return typeof staticModuleRecord.execute === 'function';
+function isThirdParty(moduleSource) {
+  return typeof moduleSource.execute === 'function';
 }
 
-function validateThirdPartyStaticModuleRecord(
-  staticModuleRecord,
-  moduleSpecifier,
-) {
-  const { exports } = staticModuleRecord;
+function validateThirdPartyStaticModuleRecord(moduleSource, moduleSpecifier) {
+  const { exports } = moduleSource;
   isArray(exports) ||
     Fail`Property 'exports' of a third-party static module record must be an array, got ${q(
       exports,
     )}, for module ${q(moduleSpecifier)}`;
 }
 
-function validateStaticModuleRecord(staticModuleRecord, moduleSpecifier) {
-  isObject(staticModuleRecord) ||
+function validateStaticModuleRecord(moduleSource, moduleSpecifier) {
+  isObject(moduleSource) ||
     Fail`Static module records must be of type object, got ${q(
-      staticModuleRecord,
+      moduleSource,
     )}, for module ${q(moduleSpecifier)}`;
-  const { imports, exports, reexports = [] } = staticModuleRecord;
+  const { imports, exports, reexports = [] } = moduleSource;
   isArray(imports) ||
     Fail`Property 'imports' of a static module record must be an array, got ${q(
       imports,
@@ -120,7 +114,7 @@ export const instantiate = (
   moduleAliases,
   moduleRecord,
 ) => {
-  const { compartment, moduleSpecifier, resolvedImports, staticModuleRecord } =
+  const { compartment, moduleSpecifier, resolvedImports, moduleSource } =
     moduleRecord;
   const { instances } = weakmapGet(compartmentPrivateFields, compartment);
 
@@ -129,23 +123,23 @@ export const instantiate = (
     return mapGet(instances, moduleSpecifier);
   }
 
-  validateStaticModuleRecord(staticModuleRecord, moduleSpecifier);
+  validateStaticModuleRecord(moduleSource, moduleSpecifier);
 
   const importedInstances = new Map();
   let moduleInstance;
-  if (isPrecompiled(staticModuleRecord)) {
-    validatePrecompiledStaticModuleRecord(staticModuleRecord, moduleSpecifier);
+  if (isPrecompiled(moduleSource)) {
+    validatePrecompiledStaticModuleRecord(moduleSource, moduleSpecifier);
     moduleInstance = makeModuleInstance(
       compartmentPrivateFields,
       moduleAliases,
       moduleRecord,
       importedInstances,
     );
-  } else if (isThirdParty(staticModuleRecord)) {
-    validateThirdPartyStaticModuleRecord(staticModuleRecord, moduleSpecifier);
+  } else if (isThirdParty(moduleSource)) {
+    validateThirdPartyStaticModuleRecord(moduleSource, moduleSpecifier);
     moduleInstance = makeThirdPartyModuleInstance(
       compartmentPrivateFields,
-      staticModuleRecord,
+      moduleSource,
       compartment,
       moduleAliases,
       moduleSpecifier,
@@ -153,9 +147,7 @@ export const instantiate = (
     );
   } else {
     throw TypeError(
-      `importHook must return a static module record, got ${q(
-        staticModuleRecord,
-      )}`,
+      `importHook must return a static module record, got ${q(moduleSource)}`,
     );
   }
 
