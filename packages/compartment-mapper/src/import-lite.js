@@ -16,11 +16,13 @@
 
 // @ts-check
 /* eslint no-shadow: "off" */
-
-/** @import {ArchiveOptions, CompartmentMapDescriptor, ImportLocationSyncOptions, ImportNowHookMaker, LoadArchiveOptions, ModuleTransforms, SyncArchiveOptions, SyncReadPowers} from './types.js' */
+/** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {SyncImportLocationOptions} from './types.js' */
+/** @import {ImportNowHookMaker} from './types.js' */
+/** @import {ModuleTransforms} from './types.js' */
+/** @import {SyncReadPowers} from './types.js' */
 /** @import {Application} from './types.js' */
 /** @import {ImportLocationOptions} from './types.js' */
-/** @import {LoadLocationOptions} from './types.js' */
 /** @import {ExecuteFn} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
@@ -32,14 +34,27 @@ import {
   makeImportHookMaker,
   makeImportNowHookMaker,
 } from './import-hook.js';
+import { isSyncReadPowers } from './powers.js';
 
 const { assign, create, freeze } = Object;
+
+/**
+ * Returns `true` if `value` is a {@link SyncImportLocationOptions}.
+ *
+ * The only requirement here is that `moduleTransforms` is _not_ present in
+ * `value`; `importNowHook` is optional.
+ *
+ * @param {ImportLocationOptions|SyncImportLocationOptions} value
+ * @returns {value is SyncImportLocationOptions}
+ */
+const isSyncOptions = value =>
+  !value || (typeof value === 'object' && !('moduleTransforms' in value));
 
 /**
  * @overload
  * @param {SyncReadPowers} readPowers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ImportLocationSyncOptions} options
+ * @param {SyncImportLocationOptions} [opts]
  * @returns {Promise<Application>}
  */
 
@@ -47,7 +62,7 @@ const { assign, create, freeze } = Object;
  * @overload
  * @param {ReadFn | ReadPowers} readPowers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ImportLocationOptions} [options]
+ * @param {ImportLocationOptions} [opts]
  * @returns {Promise<Application>}
  */
 
@@ -60,7 +75,6 @@ const { assign, create, freeze } = Object;
 
 export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
-    syncModuleTransforms = {},
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
@@ -74,23 +88,43 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   );
 
   /**
-   * This type guard determines which of the two paths through the code is taken.
+   * Object containing options and read powers which fulfills all requirements
+   * for creation of a {@link ImportNowHookMaker}, thus enabling dynamic import
    *
-   * If `options` is `SyncArchiveOptions`, we will permit dynamic requires. By definition, this must not include async module transforms, and must have a non-empty `dynamicHook`
-   *
-   * If `options` isn't `SyncArchiveOptions`, then no.
-   *
-   * @param {ArchiveOptions|SyncArchiveOptions} value
-   * @returns {value is SyncArchiveOptions}
+   * @typedef SyncBehavior
+   * @property {SyncReadPowers} readPowers
+   * @property {SyncImportLocationOptions} options
+   * @property {'SYNC'} type
    */
-  const isSyncOptions = value => 'dynamicHook' in value;
 
-  const moduleTransforms = isSyncOptions(options)
-    ? undefined
-    : /** @type {ModuleTransforms} */ ({
-        ...syncModuleTransforms,
-        ...(options.moduleTransforms || {}),
-      });
+  /**
+   * Object containing options and read powers which is incompatible with
+   * creation of a {@link ImportNowHookMaker}, thus disabling dynamic import
+   *
+   * @typedef AsyncBehavior
+   * @property {ReadFn|ReadPowers} readPowers
+   * @property {ImportLocationOptions} options
+   * @property {'ASYNC'} type
+   */
+
+  /**
+   * When we must control flow based on _n_ type guards consdering _n_ discrete
+   * values, grouping the values into an object, then leveraging a discriminated
+   * union (the `type` property) is one way to approach the problem.
+   */
+  const behavior =
+    isSyncReadPowers(readPowers) && isSyncOptions(options)
+      ? /** @type {SyncBehavior} */ ({
+          readPowers,
+          options: options || {},
+          type: 'SYNC',
+        })
+      : /** @type {AsyncBehavior} */ ({
+          readPowers,
+          options: options || {},
+          type: 'ASYNC',
+        });
+
   const {
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
   } = compartmentMap;
@@ -130,14 +164,16 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     /** @type {Promise<void>} */
     let pendingJobsPromise;
 
-    if (isSyncOptions(options)) {
+    if (behavior.type === 'SYNC') {
+      const { importNowHook: exitModuleImportNowHook, syncModuleTransforms } =
+        behavior.options;
       makeImportNowHook = makeImportNowHookMaker(
         /** @type {SyncReadPowers} */ (readPowers),
         entryCompartmentName,
         {
           compartmentDescriptors: compartmentMap.compartments,
           searchSuffixes,
-          dynamicHook: options.dynamicHook,
+          exitModuleImportNowHook,
         },
       );
       ({ compartment, pendingJobsPromise } = link(compartmentMap, {
@@ -152,6 +188,12 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         Compartment,
       }));
     } else {
+      // sync module transforms are allowed, because they are "compatible"
+      // with async module transforms (not vice-versa)
+      const moduleTransforms = /** @type {ModuleTransforms} */ ({
+        ...behavior.options.syncModuleTransforms,
+        ...behavior.options.moduleTransforms,
+      });
       ({ compartment, pendingJobsPromise } = link(compartmentMap, {
         makeImportHook,
         parserForLanguage,
@@ -159,7 +201,6 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         globals,
         transforms,
         moduleTransforms,
-        syncModuleTransforms,
         __shimTransforms__,
         Compartment,
       }));

@@ -424,7 +424,7 @@ export function makeImportNowHookMaker(
     computeSha512 = undefined,
     searchSuffixes = nodejsConventionSearchSuffixes,
     sourceMapHook = undefined,
-    dynamicHook,
+    exitModuleImportNowHook,
   },
 ) {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
@@ -549,7 +549,7 @@ export function makeImportNowHookMaker(
           moduleBytes = readSync(moduleLocation);
         } catch (err) {
           if (err && err.code === 'ENOENT') {
-            // might be an exit module. use the fallback `dynamicHook` to import it
+            // might be an exit module. use the fallback `exitModuleImportNowHook` to import it
             // eslint-disable-next-line no-continue
             continue;
           }
@@ -630,13 +630,20 @@ export function makeImportNowHookMaker(
         }
       }
 
-      const record = dynamicHook(moduleSpecifier, packageLocation);
+      if (exitModuleImportNowHook) {
+        const record = exitModuleImportNowHook(
+          moduleSpecifier,
+          packageLocation,
+        );
 
-      if (!record) {
-        throw new Error(`Could not import module: ${moduleSpecifier}`);
+        if (!record) {
+          throw new Error(`Could not import module: ${moduleSpecifier}`);
+        }
+
+        return record;
       }
 
-      return record;
+      throw new Error(`Could not import module: ${moduleSpecifier}`);
     };
 
     return importNowHook;

@@ -8,6 +8,7 @@
 // @ts-check
 
 /** @import {CanonicalFn} from './types.js' */
+/** @import {SyncReadPowers} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 /** @import {MaybeReadPowers} from './types.js' */
@@ -51,3 +52,19 @@ export const unpackReadPowers = powers => {
     canonical,
   };
 };
+
+/**
+ * Returns `true` if `value` is a {@link SyncReadPowers}, which requires:
+ *
+ * 1. `readSync` is a function
+ * 2. `fileURLToPath` is a function
+ *
+ * @param {ReadPowers|ReadFn} value
+ * @returns {value is SyncReadPowers}
+ */
+export const isSyncReadPowers = value =>
+  typeof value === 'object' &&
+  'readSync' in value &&
+  typeof value.readSync === 'function' &&
+  'fileURLToPath' in value &&
+  typeof value.fileURLToPath === 'function';
