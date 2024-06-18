@@ -463,6 +463,15 @@ const isSyncOptions = value =>
   !value || (typeof value === 'object' && !('moduleTransforms' in value));
 
 /**
+ * Checks if the compartment descriptor's policy allows dynamic requires.
+ *
+ * @param {CompartmentDescriptor} value
+ * @returns {boolean}
+ */
+const isDynamicRequireAllowed = value =>
+  value.policy && value.policy.dynamic === true;
+
+/**
  * Assemble a DAG of compartments as declared in a compartment map starting at
  * the named compartment and building all compartments that it depends upon,
  * recursively threading the modules exported by one compartment into the
@@ -653,15 +662,25 @@ export const link = (
       makeImportNowHook &&
       compartmentDescriptor !== entryCompartmentDescriptor
     ) {
-      // `parse` must be sync here
-      const syncParse = /** @type {ParseFn} */ (parse);
-      importNowHook = makeImportNowHook({
-        entryCompartmentDescriptor,
-        packageLocation: location,
-        packageName: name,
-        parse: syncParse,
-        compartments,
-      });
+      if (isDynamicRequireAllowed(compartmentDescriptor)) {
+        // `parse` must be sync here
+        const syncParse = /** @type {ParseFn} */ (parse);
+        importNowHook = makeImportNowHook({
+          entryCompartmentDescriptor,
+          packageLocation: location,
+          packageName: name,
+          parse: syncParse,
+          compartments,
+        });
+      } else {
+        // it's possible for this to still be called, but
+        // the error message would be cryptic otherwise.
+        importNowHook = () => {
+          throw new Error(
+            `Dynamic require not allowed in compartment ${q(compartmentDescriptor.name)}`,
+          );
+        };
+      }
     }
 
     const moduleMapHook = makeModuleMapHook(
