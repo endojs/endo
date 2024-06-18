@@ -1,11 +1,3 @@
-// For brevity, in this file, as in module-link.js, the term "moduleRecord"
-// without qualification means "module compartment record".
-// This is a super-set of the "static module record", that is reusable between
-// compartments with different hooks.
-// The "module compartment record" captures the compartment and overlays the
-// module's "imports" with the more specific "resolvedImports" as inferred from
-// the particular compartment's "resolveHook".
-
 import { getEnvironmentOption as getenv } from '@endo/env-options';
 import {
   Map,
@@ -388,7 +380,7 @@ const preferSync = (_asyncImpl, syncImpl) => syncImpl;
 const preferAsync = (asyncImpl, _syncImpl) => asyncImpl;
 
 /*
- * `load` asynchronously gathers the `StaticModuleRecord`s for a module and its
+ * `load` asynchronously gathers the module records for a module and its
  * transitive dependencies.
  * The module records refer to each other by a reference to the dependency's
  * compartment and the specifier of the module within its own compartment.
@@ -432,8 +424,8 @@ export const load = async (
 };
 
 /*
- * `loadNow` synchronously gathers the `StaticModuleRecord`s for a module and its
- * transitive dependencies.
+ * `loadNow` synchronously gathers the module records for a specified module
+ * and its transitive dependencies.
  * The module records refer to each other by a reference to the dependency's
  * compartment and the specifier of the module within its own compartment.
  * This graph is then ready to be synchronously linked and executed.
