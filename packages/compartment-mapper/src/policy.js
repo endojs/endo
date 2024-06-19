@@ -30,26 +30,26 @@ const q = JSON.stringify;
 export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
 
 /**
- * Copies properties (optionally limited to a specific list) from one object
- * to another. By default, copies all enumerable, own, string- and
- * symbol-named properties.
- *
- * @param {object} from
- * @param {object} to
- * @param {Array<string | symbol>} [list]
- * @returns {object}
+ * Copies properties (optionally limited to a specific list) from one object to another.
+ * @template {Record<PropertyKey, any>} T
+ * @template {Record<PropertyKey, any>} U
+ * @template {Array<Partial<keyof T>>} [K=Array<keyof T>]
+ * @param {T} from
+ * @param {U} to
+ * @param {K} [list]
+ * @returns {Omit<U, K[number]> & Pick<T, K[number]>}
  */
 const selectiveCopy = (from, to, list) => {
+  /** @type {Array<Partial<keyof T>>} */
+  let props;
   if (!list) {
     const descs = getOwnPropertyDescriptors(from);
-    list = ownKeys(from).filter(
-      key =>
-        // @ts-expect-error TypeScript still confused about a symbol as index
-        descs[key].enumerable,
-    );
+    props = ownKeys(from).filter(key => descs[key].enumerable);
+  } else {
+    props = list;
   }
-  for (let index = 0; index < list.length; index += 1) {
-    const key = list[index];
+  for (let index = 0; index < props.length; index += 1) {
+    const key = props[index];
     // If an endowment is missing, global value is undefined.
     // This is an expected behavior if globals are used for platform feature detection
     to[key] = from[key];
