@@ -26,8 +26,12 @@ export const makeDirectoryMaker = ({
   /** @type {MakeDirectoryNode} */
   const makeDirectoryNode = petStore => {
     /** @type {EndoDirectory['lookup']} */
-    const lookup = (...petNamePath) => {
+    const lookup = petNamePath => {
+      if (typeof petNamePath === 'string') {
+        petNamePath = [petNamePath];
+      }
       const [headName, ...tailNames] = petNamePath;
+
       const id = petStore.identifyLocal(headName);
       if (id === undefined) {
         throw new TypeError(`Unknown pet name: ${q(headName)}`);
@@ -41,6 +45,7 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['reverseLookup']} */
     const reverseLookup = async presence => {
+      await null;
       const id = getIdForRef(await presence);
       if (id === undefined) {
         return harden([]);
@@ -62,7 +67,7 @@ export const makeDirectoryMaker = ({
         // eslint-disable-next-line no-use-before-define
         return { hub: directory, name: tailName };
       }
-      const nameHub = /** @type {NameHub} */ (await lookup(...headPath));
+      const nameHub = /** @type {NameHub} */ (await lookup(headPath));
       return { hub: nameHub, name: tailName };
     };
 
@@ -126,12 +131,13 @@ export const makeDirectoryMaker = ({
       if (petNamePath.length === 0) {
         return petStore.list();
       }
-      const hub = /** @type {NameHub} */ (await lookup(...petNamePath));
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
       return hub.list();
     };
 
     /** @type {EndoDirectory['listIdentifiers']} */
     const listIdentifiers = async (...petNamePath) => {
+      petNamePath = petNamePath || [];
       const names = await list(...petNamePath);
       const identities = new Set();
       await Promise.all(
@@ -153,12 +159,13 @@ export const makeDirectoryMaker = ({
         yield* petStore.followNameChanges();
         return;
       }
-      const hub = /** @type {NameHub} */ (await lookup(...petNamePath));
+      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
       yield* hub.followNameChanges();
     };
 
     /** @type {EndoDirectory['remove']} */
     const remove = async (...petNamePath) => {
+      await null;
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
         await petStore.remove(petName);
@@ -211,6 +218,7 @@ export const makeDirectoryMaker = ({
       if (typeof petNamePath === 'string') {
         petNamePath = [petNamePath];
       }
+      await null;
       if (petNamePath.length === 1) {
         const petName = petNamePath[0];
         await petStore.write(petName, id);
@@ -221,7 +229,7 @@ export const makeDirectoryMaker = ({
     };
 
     /** @type {EndoDirectory['makeDirectory']} */
-    const makeDirectory = async (...directoryPetNamePath) => {
+    const makeDirectory = async directoryPetNamePath => {
       const { value: directory, id } = await formulateDirectory();
       await write(directoryPetNamePath, id);
       return directory;

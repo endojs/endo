@@ -8,7 +8,11 @@ import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { makeError, q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
-import { assertPetName, petNamePathFrom } from './pet-name.js';
+import {
+  assertPetName,
+  assertPetNamePath,
+  petNamePathFrom,
+} from './pet-name.js';
 import { parseId, formatId } from './formula-identifier.js';
 import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
@@ -89,19 +93,21 @@ export const makeHostMaker = ({
       ...platformNames,
       AGENT: hostId,
       SELF: handleId,
+      MAIN: mainWorkerId,
       ENDO: endoId,
       NETS: networksDirectoryId,
       INFO: inspectorId,
       NONE: leastAuthorityId,
     });
 
+    const directory = makeDirectoryNode(specialStore);
     const mailbox = makeMailbox({
       petStore: specialStore,
+      directory,
       selfId: handleId,
       context,
     });
     const { petStore, handle } = mailbox;
-    const directory = makeDirectoryNode(petStore);
 
     const getEndoBootstrap = async () => provide(endoId, 'endo');
 
@@ -138,33 +144,30 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string} workerName
+     * @param {string[]} workerNamePath
      */
-    const provideWorker = async workerName => {
-      /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
-      const tasks = makeDeferredTasks();
-      // eslint-disable-next-line no-use-before-define
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+    const provideWorker = async workerNamePath => {
+      const workerId = await E(directory).identify(...workerNamePath);
 
       if (workerId !== undefined) {
         return provide(workerId, 'worker');
       }
 
-      const { value } = await formulateWorker(tasks);
+      /** @type {DeferredTasks<WorkerDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      const { value, id } = await formulateWorker(tasks);
+      await E(directory).write(workerNamePath, id);
       return value;
     };
 
     /**
-     * @param {string} workerName
+     * @param {string | undefined} workerName
      * @param {DeferredTasks<{ workerId: string }>['push']} deferTask
      */
     const prepareWorkerFormulation = (workerName, deferTask) => {
-      if (workerName === 'MAIN') {
-        return mainWorkerId;
-      } else if (workerName === 'NEW') {
+      if (workerName === undefined) {
         return undefined;
       }
-
       const workerId = petStore.identifyLocal(workerName);
       if (workerId === undefined) {
         deferTask(identifiers =>
@@ -175,11 +178,11 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'MAIN' | 'NEW'} workerName
+     * @param {string | 'MAIN' | undefined} workerName
      * @param {string} source
      * @param {string[]} codeNames
      * @param {(string | string[])[]} petNamePaths
-     * @param {string} resultName
+     * @param {string[]} resultName
      */
     const evaluate = async (
       workerName,
@@ -189,7 +192,7 @@ export const makeHostMaker = ({
       resultName,
     ) => {
       if (resultName !== undefined) {
-        assertPetName(resultName);
+        assertPetNamePath(resultName);
       }
       if (petNamePaths.length !== codeNames.length) {
         throw new Error('Evaluator requires one pet name for each code name');
@@ -222,7 +225,7 @@ export const makeHostMaker = ({
 
       if (resultName !== undefined) {
         tasks.push(identifiers =>
-          petStore.write(resultName, identifiers.evalId),
+          E(directory).write(resultName, identifiers.evalId),
         );
       }
 
@@ -240,7 +243,7 @@ export const makeHostMaker = ({
     /**
      * Helper function for makeUnconfined and makeBundle.
      * @param {string} powersName
-     * @param {string} workerName
+     * @param {string | undefined} workerName
      * @param {string | string[]} [resultName]
      */
     const prepareMakeCaplet = (powersName, workerName, resultName) => {
@@ -294,7 +297,7 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {string | 'MAIN' | 'NEW'} workerName
+     * @param {string | 'MAIN' | undefined} workerName
      * @param {string} bundleName
      * @param {string | 'NONE' | 'SELF' | 'ENDO'} powersName
      * @param {string} resultName
@@ -398,6 +401,7 @@ export const makeHostMaker = ({
       { introducedNames = {}, agentName = undefined } = {},
     ) => {
       let host = getNamedAgent(petName, 'host');
+      await null;
       if (host === undefined) {
         const { value, id } =
           // Behold, recursion:
@@ -431,6 +435,7 @@ export const makeHostMaker = ({
       { introducedNames = {}, agentName = undefined } = {},
     ) => {
       let guest = getNamedAgent(handleName, 'guest');
+      await null;
       if (guest === undefined) {
         const { value, id } =
           // Behold, recursion:

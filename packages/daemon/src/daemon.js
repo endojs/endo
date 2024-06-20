@@ -439,7 +439,7 @@ const makeDaemonCore = async (
     context.thisDiesIfThatDies(hubId);
 
     const hub = provide(hubId, 'hub');
-    return E(hub).lookup(...path);
+    return E(hub).lookup(path);
   };
 
   /**
@@ -708,6 +708,7 @@ const makeDaemonCore = async (
    * @param {Context} context
    */
   const evaluateFormula = async (id, formulaNumber, formula, context) => {
+    await null;
     if (Object.hasOwn(makers, formula.type)) {
       const make = makers[formula.type];
       const value = await /** @type {unknown} */ (
@@ -839,6 +840,7 @@ const makeDaemonCore = async (
   const formulateReadableBlob = async (readerRef, deferredTasks) => {
     const { formulaNumber, contentSha512 } = await formulaGraphJobs.enqueue(
       async () => {
+        await null;
         const values = {
           formulaNumber: await randomHex512(),
           contentSha512: await contentStore.store(makeRefReader(readerRef)),
@@ -988,6 +990,7 @@ const makeDaemonCore = async (
    * @type {DaemonCore['formulateWorker']}
    */
   const formulateWorker = async deferredTasks => {
+    await null;
     return formulateNumberedWorker(
       await formulaGraphJobs.enqueue(async () => {
         const formulaNumber = await randomHex512();
@@ -1011,6 +1014,7 @@ const makeDaemonCore = async (
     const { specifiedWorkerId, ...remainingSpecifiedIdentifiers } =
       specifiedIdentifiers;
 
+    await null;
     const storeId = (await formulateNumberedPetStore(await randomHex512())).id;
 
     const hostFormulaNumber = await randomHex512();
@@ -1064,6 +1068,7 @@ const makeDaemonCore = async (
     deferredTasks,
     specifiedWorkerId,
   ) => {
+    await null;
     return formulateNumberedHost(
       await formulaGraphJobs.enqueue(async () => {
         const identifiers = await formulateHostDependencies({
@@ -1123,6 +1128,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateGuest']} */
   const formulateGuest = async (hostAgentId, hostHandleId, deferredTasks) => {
+    await null;
     return formulateNumberedGuest(
       await formulaGraphJobs.enqueue(async () => {
         const identifiers = await formulateGuestDependencies(
@@ -1212,6 +1218,7 @@ const makeDaemonCore = async (
               if (typeof formulaIdOrPath === 'string') {
                 return formulaIdOrPath;
               }
+              await null;
               return (
                 /* eslint-disable no-use-before-define */
                 (
@@ -1657,11 +1664,19 @@ const makeDaemonCore = async (
     const petStore = await provide(petStoreId, 'pet-store');
 
     /**
-     * @param {string} petName - The pet name to inspect.
+     * @param {string|string[]} petName - The pet name to inspect.
      * @returns {Promise<KnownEndoInspectors[string]>} An
      * inspector for the value of the given pet name.
      */
     const lookup = async petName => {
+      if (Array.isArray(petName)) {
+        if (petName.length !== 1) {
+          throw Error(
+            'PetStoreInspector.lookup(path) requires path length of 1',
+          );
+        }
+        petName = petName[0];
+      }
       const id = petStore.identifyLocal(petName);
       if (id === undefined) {
         throw new Error(`Unknown pet name ${petName}`);

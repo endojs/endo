@@ -162,7 +162,7 @@ export const main = async rawArgs => {
         UNCONFINED: importPath,
         name: resultName,
         bundle: bundleName,
-        worker: workerName = 'NEW',
+        worker: workerName = undefined,
         as: agentNames,
         powers: powersName = 'NONE',
       } = cmd.opts();
@@ -291,10 +291,10 @@ export const main = async rawArgs => {
     .command('remove [names...]')
     .description('forget a named value')
     .option(...commonOptions.as)
-    .action(async (petNames, cmd) => {
+    .action(async (petNamePaths, cmd) => {
       const { as: agentNames } = cmd.opts();
       const { remove } = await import('./commands/remove.js');
-      return remove({ petNames, agentNames });
+      return remove({ petNamePaths, agentNames });
     });
 
   program
@@ -405,10 +405,10 @@ export const main = async rawArgs => {
     .command('spawn [names...]')
     .description('creates a worker')
     .option(...commonOptions.as)
-    .action(async (petNames, cmd) => {
+    .action(async (petNamePaths, cmd) => {
       const { as: agentNames } = cmd.opts();
       const { spawn } = await import('./commands/spawn.js');
-      return spawn({ petNames, agentNames });
+      return spawn({ petNamePaths, agentNames });
     });
 
   program
@@ -591,6 +591,7 @@ export const main = async rawArgs => {
     .description('erases persistent state and stops if running')
     .action(async cmd => {
       const { force } = cmd.opts();
+      await null;
       const doPurge =
         force ||
         /^y(es)?$/u.test(
