@@ -1,6 +1,7 @@
 # Promise Kit
 
 The promise-kit package provides a simple abstraction for creating and managing a promise. It exports, `makePromiseKit` which is a utility function used to create a Promise and its associated resolver and rejector functions. This is particularly useful in asynchronous programming, where you might need to create a promise and resolve or reject it at a later point in time.
+Note that this serves as a "ponyfill" for `Promise.withResolvers`, making certain accommodations to ensure that the resulting promises can pipeline messages through `@endo/eventual-send`.
 
 ## Usage
 
