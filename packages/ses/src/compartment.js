@@ -161,6 +161,7 @@ defineProperties(InertCompartment, {
  * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
  * @param {Record<string, any>} intrinsics
  * @param {(object: object) => void} markVirtualizedNativeFunction
+ * @param {Compartment} [parentCompartment]
  * @returns {Compartment['constructor']}
  */
 
@@ -169,6 +170,7 @@ export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   markVirtualizedNativeFunction,
+  parentCompartment = undefined,
 ) => {
   function Compartment(endowments = {}, moduleMap = {}, options = {}) {
     if (new.target === undefined) {
@@ -218,6 +220,7 @@ export const makeCompartmentConstructor = (
       intrinsics,
       newGlobalPropertyNames: sharedGlobalPropertyNames,
       makeCompartmentConstructor: targetMakeCompartmentConstructor,
+      parentCompartment: this,
       markVirtualizedNativeFunction,
     });
 
@@ -245,6 +248,7 @@ export const makeCompartmentConstructor = (
       __shimTransforms__,
       deferredExports,
       instances,
+      parentCompartment,
     });
   }
 
