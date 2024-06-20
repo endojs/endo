@@ -48,9 +48,8 @@ export const make = async (powers) => {
   });
 
   async function bootstrap() {
-    if (!(await E(powers).has(names.BUNDLER))) {
-      await E(powers).request('SELF', 'Please provide a bundler.', 'bundler');
-    }
+    // This resolves the value named "bundler" if it already exists.
+    await E(powers).request('SELF', 'Please provide a bundler.', 'bundler');
     const bundler = await E(powers).lookup(names.BUNDLER);
 
     const bundlerPowers = makeExo('BundlerPowers', {
