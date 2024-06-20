@@ -45,6 +45,25 @@ test('module map primed with module record descriptor', async t => {
   t.is(index.default, 42);
 });
 
+test.failing('module map primed with module source descriptor', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './index.js': {
+        source: new StaticModuleRecord('export default 42'),
+      },
+    },
+    // options:
+    {
+      resolveHook: specifier => specifier,
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
 test('module map primed with virtual module source', async t => {
   const compartment = new Compartment(
     // endowments:
@@ -92,6 +111,34 @@ test('module map primed with virtual module record descriptor', async t => {
   const { namespace: index } = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
+
+test.failing(
+  'module map primed with virtual module source descriptor',
+  async t => {
+    const compartment = new Compartment(
+      // endowments:
+      {},
+      // modules:
+      {
+        './index.js': {
+          source: {
+            imports: [],
+            exports: ['default'],
+            execute(env) {
+              env.default = 42;
+            },
+          },
+        },
+      },
+      // options:
+      {
+        resolveHook: specifier => specifier,
+      },
+    );
+    const { namespace: index } = await compartment.import('./index.js');
+    t.is(index.default, 42);
+  },
+);
 
 test('module map hook returns module source', async t => {
   const compartment = new Compartment(
