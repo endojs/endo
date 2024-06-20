@@ -1,7 +1,6 @@
 import { createProvider as createInfuraProvider } from '@metamask/eth-json-rpc-infura';
 import { createFetchMiddleware } from '@metamask/eth-json-rpc-middleware';
 import { providerFromMiddleware } from '@metamask/eth-json-rpc-provider';
-import EthQuery from '@metamask/eth-query';
 
 import { makeExo } from '../utils.js';
 
@@ -20,11 +19,11 @@ const nextId = () => id++;
  */
 
 export const make = () => {
-  /** @type {InstanceType<typeof EthQuery> & Request } */
-  let ethQuery;
+  /** @type {Provider} */
+  let provider;
 
   const assertIsInitialized = () => {
-    if (ethQuery === undefined) {
+    if (provider === undefined) {
       throw new Error('Provider must be initialized first.');
     }
   };
@@ -32,8 +31,6 @@ export const make = () => {
   return makeExo('Provider', {
     /** @param {{ projectId?: string, rpcUrl?: string }} config */
     init({ projectId, rpcUrl }) {
-      /** @type {Provider} */
-      let provider;
       if (typeof projectId === 'string') {
         provider = createInfuraProvider({
           network: 'sepolia',
@@ -50,8 +47,6 @@ export const make = () => {
       } else {
         throw new Error('Either projectId or rpcUrl must be provided.');
       }
-
-      ethQuery = makeEthQuery(provider);
     },
 
     /**
@@ -61,41 +56,23 @@ export const make = () => {
      */
     async request(method, params) {
       assertIsInitialized();
-      return await ethQuery.request(method, params);
+      return new Promise((resolve, reject) => {
+        provider.sendAsync(
+          {
+            jsonrpc: '2.0',
+            id: nextId(),
+            method,
+            params: params ?? [],
+          },
+          (error, response) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(response.result);
+            }
+          },
+        );
+      });
     },
   });
 };
-
-/**
- * @param {Provider} provider
- * @returns {InstanceType<typeof EthQuery> & Request} The EthQuery instance.
- */
-function makeEthQuery(provider) {
-  const ethQuery = new EthQuery(provider);
-
-  /**
-   * @param {string} method
-   * @param {JsonRpcParams} [params]
-   */
-  ethQuery.request = (method, params) =>
-    new Promise((resolve, reject) => {
-      ethQuery.sendAsync(
-        {
-          jsonrpc: '2.0',
-          id: nextId(),
-          method,
-          params: params ?? [],
-        },
-        (error, result) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(result);
-          }
-        },
-      );
-    });
-
-  // @ts-expect-error
-  return ethQuery;
-}

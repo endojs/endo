@@ -36,6 +36,7 @@ module.exports = {
         'jsdoc/require-description': 'off',
         'jsdoc/require-jsdoc': 'off',
         'jsdoc/require-returns': 'off',
+        'jsdoc/require-returns-description': 'off',
         'jsdoc/check-tag-names': 'off',
         'jsdoc/valid-types': 'off',
       },

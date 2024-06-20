@@ -20,3 +20,9 @@ export const makeExo = (name, value) =>
     // @ts-expect-error We're gonna live with this one
     value,
   );
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string | number, unknown>}
+ */
+export const isObject = (value) => Boolean(value) && typeof value === 'object';

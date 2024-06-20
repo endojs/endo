@@ -1,6 +1,8 @@
+import { makeRefIterator } from '@endo/daemon';
+import { makeChangeTopic } from '@endo/daemon/pubsub.js';
 import { E } from '@endo/far';
 
-import { makeExo, names } from '../utils.js';
+import { isObject, makeExo, names } from '../utils.js';
 import { make as makeStore } from './subcomponents/array-store.js';
 
 /**
@@ -9,7 +11,7 @@ import { make as makeStore } from './subcomponents/array-store.js';
 
 /** @param {any} powers */
 export const make = async (powers) => {
-  const { keyring, provider } = await bootstrap();
+  const { keyring, provider, submittedTransactions } = await bootstrap();
 
   let isInitialized = false;
   const assertIsInitialized = () => {
@@ -17,6 +19,8 @@ export const make = async (powers) => {
       throw new Error('Wallet must be initialized first.');
     }
   };
+
+  const pendingTxTopic = makeChangeTopic();
 
   return makeExo('Wallet', {
     /**
@@ -34,6 +38,8 @@ export const make = async (powers) => {
       return [await E(keyring).getAddress()];
     },
 
+    followTransactions: () => makeRefIterator(pendingTxTopic.subscribe()),
+
     /**
      * Make a JSON-RPC request to the node.
      * @param {string} method
@@ -42,8 +48,31 @@ export const make = async (powers) => {
     async request(method, params) {
       assertIsInitialized();
       if (method === 'eth_sendTransaction') {
-        throw new Error('not implemented');
+        if (
+          !Array.isArray(params) ||
+          params.length !== 1 ||
+          !isObject(params[0])
+        ) {
+          throw new Error(
+            'Expected valid transaction parameters for eth_sendTransaction',
+          );
+        }
+
+        const chainId = await E(provider).request('eth_chainId');
+        const txParams = { ...params[0], signature: null };
+        const txSignature = await E(keyring).signTransaction(
+          params[0],
+          chainId,
+        );
+        txParams.signature = txSignature;
+        pendingTxTopic.publisher.next(txParams);
+        await submittedTransactions.push({ txParams, txSignature });
+
+        return await E(provider).request('eth_sendRawTransaction', [
+          txSignature,
+        ]);
       }
+
       return await E(provider).request(method, params);
     },
   });
@@ -87,7 +116,7 @@ export const make = async (powers) => {
     return {
       keyring: await E(powers).lookup(names.KEYRING),
       provider: await E(powers).lookup(names.PROVIDER),
-      transactions: await makeStore(names.TRANSACTIONS, powers),
+      submittedTransactions: await makeStore(names.TRANSACTIONS, powers),
     };
   }
 };

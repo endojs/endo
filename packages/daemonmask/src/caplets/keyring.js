@@ -1,3 +1,4 @@
+import { Common } from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import HdKeyring from '@metamask/eth-hd-keyring';
 
@@ -47,10 +48,15 @@ export const make = () => {
       return keyring.signMessage(address, message);
     },
 
-    /** @param {TxData} txData */
-    async signTransaction(txData) {
+    /**
+     * @param {TxData} txData
+     * @param {string} chainId
+     */
+    async signTransaction(txData, chainId) {
       assertIsInitialized();
-      const tx = TransactionFactory.fromTxData(txData);
+      const tx = TransactionFactory.fromTxData(txData, {
+        common: Common.custom({ chainId: BigInt(chainId) }),
+      });
       const signedTx = await keyring.signTransaction(address, tx);
       return bufferToHex(signedTx.serialize());
     },
