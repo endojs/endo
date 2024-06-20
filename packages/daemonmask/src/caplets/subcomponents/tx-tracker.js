@@ -3,8 +3,11 @@ import { makeChangeTopic } from '@endo/daemon/pubsub.js';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 
+import { makeIdGenerator } from '../../utils.js';
+
 /**
- * @import { Provider } from '@metamask/eth-query'
+ * @import { Json, Provider } from '@metamask/eth-query'
+ * @import { make as makeStore } from './map-store.js'
  */
 
 /**
@@ -12,7 +15,7 @@ import { makePromiseKit } from '@endo/promise-kit';
  * @property {string} signature
  */
 
-const ELEVEN_SECONDS = 11 * 1000;
+const TWELVE_SECONDS = 12 * 1000;
 
 const TX_STATUS = {
   SUBMITTED: 'submitted',
@@ -20,22 +23,42 @@ const TX_STATUS = {
   ORPHANED: 'orphaned',
 };
 
+const nextId = makeIdGenerator();
+
 /**
  * @param {Provider} provider
+ * @param {Awaited<ReturnType<makeStore>>} txHistory
  */
-export const make = async (provider) => {
+export const make = async (provider, txHistory) => {
   const txTopic = makeChangeTopic();
 
+  /**
+   * @param {{ id: string, status: string, params: TxParams, receipt?: Record<string, Json> }} txData
+   */
+  const updateHistory = (txData) => {
+    txTopic.publisher.next(txData);
+    txHistory.set(txData.id, txData);
+  };
+
+  async function* followTransactions() {
+    const subsequentTransactions = txTopic.subscribe();
+    const existingTransactions = await txHistory.getState();
+    yield* Object.values(existingTransactions);
+    yield* subsequentTransactions;
+  }
+
   return {
-    followTransactions: () => makeRefIterator(txTopic.subscribe()),
+    followTransactions: () => makeRefIterator(followTransactions()),
 
     /**
      * @param {TxParams} txParams
      */
     async trackTx(txParams) {
-      txTopic.publisher.next({
+      const id = nextId();
+      updateHistory({
+        id,
         status: TX_STATUS.SUBMITTED,
-        value: { params: { ...txParams } },
+        params: { ...txParams },
       });
 
       /** @type {ReturnType<setInterval>} */
@@ -48,25 +71,28 @@ export const make = async (provider) => {
             [txParams.signature],
           );
 
-          if (typeof receipt === 'string') {
+          if (receipt !== null) {
             clearInterval(intervalId);
-            txTopic.publisher.next({
+            updateHistory({
+              id,
               status: TX_STATUS.COMPLETED,
-              value: { params: { ...txParams }, receipt },
+              params: { ...txParams },
+              receipt,
             });
             resolve(receipt);
           }
         } catch (error) {
           clearInterval(intervalId);
-          txTopic.publisher.next({
+          updateHistory({
+            id,
             status: TX_STATUS.ORPHANED,
-            value: { params: { ...txParams } },
+            params: { ...txParams },
           });
           reject(error);
         }
       };
 
-      intervalId = setInterval(pollForReceipt, ELEVEN_SECONDS);
+      intervalId = setInterval(pollForReceipt, TWELVE_SECONDS);
       pollForReceipt();
       return promise;
     },

@@ -30,5 +30,5 @@ export const isObject = (value) => Boolean(value) && typeof value === 'object';
 export const makeIdGenerator = () => {
   let id = 0;
   // eslint-disable-next-line no-plusplus
-  return () => id++;
+  return () => String(id++);
 };

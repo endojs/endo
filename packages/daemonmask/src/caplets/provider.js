@@ -58,6 +58,7 @@ export const make = () => {
         provider.sendAsync(
           {
             jsonrpc: '2.0',
+            // @ts-expect-error The eth-query types are wrong; strings are OK
             id: nextId(),
             method,
             params: params ?? [],
