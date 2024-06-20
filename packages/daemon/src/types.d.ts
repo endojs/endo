@@ -444,7 +444,7 @@ export interface NameHub {
   followNameChanges(
     ...petNamePath: string[]
   ): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
-  lookup(...petNamePath: string[]): Promise<unknown>;
+  lookup(petNamePath: string | string[]): Promise<unknown>;
   reverseLookup(value: unknown): Array<string>;
   write(petNamePath: string | string[], id: string): Promise<void>;
   remove(...petNamePath: string[]): Promise<void>;
@@ -453,7 +453,7 @@ export interface NameHub {
 }
 
 export interface EndoDirectory extends NameHub {
-  makeDirectory(...petNamePath: string[]): Promise<EndoDirectory>;
+  makeDirectory(petNamePath: string[]): Promise<EndoDirectory>;
 }
 
 export type MakeDirectoryNode = (petStore: PetStore) => EndoDirectory;
@@ -470,7 +470,7 @@ export interface Mail {
   adopt(
     messageNumber: number,
     edgeName: string,
-    petName: string,
+    petName: string[],
   ): Promise<void>;
   dismiss(messageNumber: number): Promise<void>;
   request(
@@ -490,6 +490,7 @@ export interface Mail {
 export type MakeMailbox = (args: {
   selfId: string;
   petStore: PetStore;
+  directory: EndoDirectory;
   context: Context;
 }) => Mail;
 
@@ -580,17 +581,17 @@ export interface EndoHost extends EndoAgent {
     petName?: string,
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
-  makeDirectory(petName: string): Promise<EndoDirectory>;
-  provideWorker(petName: string): Promise<EndoWorker>;
+  makeDirectory(petNamePath: string[]): Promise<EndoDirectory>;
+  provideWorker(petNamePath: string[]): Promise<EndoWorker>;
   evaluate(
     workerPetName: string | undefined,
     source: string,
     codeNames: Array<string>,
     petNames: Array<string>,
-    resultName?: string,
+    resultName?: string[],
   ): Promise<unknown>;
   makeUnconfined(
-    workerName: string | 'NEW' | 'MAIN',
+    workerName: string | undefined | 'MAIN',
     specifier: string,
     powersName: string | 'NONE' | 'SELF' | 'ENDO',
     resultName?: string,

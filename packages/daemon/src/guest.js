@@ -44,13 +44,14 @@ export const makeGuestMaker = ({ provide, makeMailbox, makeDirectoryNode }) => {
       HOST: hostHandleId,
     });
 
+    const directory = makeDirectoryNode(specialStore);
     const mailbox = makeMailbox({
       petStore: specialStore,
+      directory,
       selfId: handleId,
       context,
     });
-    const { petStore, handle } = mailbox;
-    const directory = makeDirectoryNode(petStore);
+    const { handle } = mailbox;
 
     const { reverseIdentify } = specialStore;
     const {

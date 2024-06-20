@@ -41,6 +41,7 @@ const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 const takeCount = async (asyncIterator, count) => {
   const values = [];
 
+  await null;
   // eslint-disable-next-line no-plusplus
   for (let i = 0; i < count; i++) {
     // eslint-disable-next-line no-await-in-loop
@@ -71,6 +72,7 @@ const prepareFollowNameChangesIterator = async host => {
  * @param {string} locator
  */
 const prepareFollowLocatorNameChangesIterator = async (host, locator) => {
+  await null;
   const changesIterator = makeRefIterator(
     await E(host).followLocatorNameChanges(locator),
   );
@@ -247,7 +249,7 @@ test('lifecycle', async t => {
   );
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
   await E(host).cancel('worker');
   cancel(new Error('Cancelled'));
   await closed.catch(() => {});
@@ -276,7 +278,7 @@ test('store pass-copy values', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const restoredValue = await E(host).lookup('value');
+    const restoredValue = await E(host).lookup(['value']);
     t.deepEqual(restoredValue, storedValue);
   }
 });
@@ -286,7 +288,7 @@ test('store formula values', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    await E(host).provideWorker('w1');
+    await E(host).provideWorker(['w1']);
     const counter = await E(host).evaluate(
       'w1',
       `
@@ -304,7 +306,7 @@ test('store formula values', async t => {
       `,
       [],
       [],
-      'temporary-retainer',
+      ['temporary-retainer'],
     );
     await E(host).storeValue(counter, 'counter');
     await E(host).remove('temporary-retainer');
@@ -314,7 +316,7 @@ test('store formula values', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const counter = await E(host).lookup('counter');
+    const counter = await E(host).lookup(['counter']);
     t.is(1, await E(counter).incr());
     t.is(2, await E(counter).incr());
   }
@@ -323,7 +325,7 @@ test('store formula values', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const counter = await E(host).lookup('counter');
+    const counter = await E(host).lookup(['counter']);
     t.is(1, await E(counter).incr());
     t.is(2, await E(counter).incr());
   }
@@ -334,14 +336,14 @@ test('fail to store non-formula exos', async t => {
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
   await t.throwsAsync(() => E(host).storeValue(noFormulaExo, 'exo'), {
-    message: 'No corresponding formula for (an object)',
+    message: /^No corresponding formula for/,
   });
 });
 
 test('spawn and evaluate', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('w1');
+  await E(host).provideWorker(['w1']);
   const ten = await E(host).evaluate('w1', '10', [], []);
   t.is(ten, 10);
 });
@@ -353,13 +355,6 @@ test('anonymous spawn and evaluate', async t => {
   t.is(ten, 10);
 });
 
-test('anonymous spawn and evaluate with new worker', async t => {
-  const { host } = await prepareHost(t);
-
-  const ten = await E(host).evaluate('NEW', '10', [], []);
-  t.is(ten, 10);
-});
-
 // Regression test for https://github.com/endojs/endo/issues/2147
 test('spawning a worker does not overwrite existing non-worker name', async t => {
   const { host } = await prepareHost(t);
@@ -368,8 +363,8 @@ test('spawning a worker does not overwrite existing non-worker name', async t =>
 
   // This resolves with the existing value of 'foo' rather than overwriting it
   // with a new worker.
-  await E(host).provideWorker('foo');
-  await t.throwsAsync(() => E(host).evaluate('foo', '20', [], [], 'bar'), {
+  await E(host).provideWorker(['foo']);
+  await t.throwsAsync(() => E(host).evaluate('foo', '20', [], [], ['bar']), {
     message: 'Cannot evaluate using non-worker',
   });
 });
@@ -380,16 +375,16 @@ test('persist spawn and evaluation', async t => {
   {
     const { host } = await makeHost(config, cancelled);
 
-    await E(host).provideWorker('w1');
+    await E(host).provideWorker(['w1']);
 
-    const ten = await E(host).evaluate('w1', '10', [], [], 'ten');
+    const ten = await E(host).evaluate('w1', '10', [], [], ['ten']);
     t.is(ten, 10);
     const twenty = await E(host).evaluate(
       'w1',
       'number * 2',
       ['number'],
       ['ten'],
-      'twenty',
+      ['twenty'],
     );
 
     // Forget the pet name of the intermediate formula, demonstrating that pet
@@ -405,7 +400,7 @@ test('persist spawn and evaluation', async t => {
   {
     const { host } = await makeHost(config, cancelled);
 
-    const retwenty = await E(host).lookup('twenty');
+    const retwenty = await E(host).lookup(['twenty']);
     t.is(20, retwenty);
   }
 });
@@ -432,7 +427,7 @@ test('store with name', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const readable = await E(host).lookup('hello-text');
+    const readable = await E(host).lookup(['hello-text']);
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
@@ -466,13 +461,13 @@ test('move renames value, overwriting the "to" name', async t => {
   t.false(await E(host).has('ten'));
   t.true(await E(host).has('decimus'));
 
-  const decimusValue = await E(host).lookup('decimus');
+  const decimusValue = await E(host).lookup(['decimus']);
   t.is(decimusValue, 10);
 });
 
 test('move moves value, from the host to a different name hub', async t => {
   const { host } = await prepareHost(t);
-  const directory = await E(host).makeDirectory('directory');
+  const directory = await E(host).makeDirectory(['directory']);
 
   await E(host).storeValue(10, 'ten');
 
@@ -590,7 +585,7 @@ test('move preserves original name if writing to new name hub fails', async t =>
     message: 'I had one job.',
   });
 
-  const tenValue = await E(host).lookup('ten');
+  const tenValue = await E(host).lookup(['ten']);
   t.is(tenValue, 10);
 });
 
@@ -599,7 +594,7 @@ test('closure state lost by restart', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    await E(host).provideWorker('w1');
+    await E(host).provideWorker(['w1']);
 
     await E(host).evaluate(
       'w1',
@@ -621,14 +616,14 @@ test('closure state lost by restart', async t => {
     `,
       [],
       [],
-      'counter-maker',
+      ['counter-maker'],
     );
     await E(host).evaluate(
       'w1',
       `E(cm).makeCounter() `,
       ['cm'],
       ['counter-maker'],
-      'counter',
+      ['counter'],
     );
     const one = await E(host).evaluate(
       'w1',
@@ -657,7 +652,7 @@ test('closure state lost by restart', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    await E(host).lookup('w1');
+    await E(host).lookup(['w1']);
     const one = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
@@ -690,7 +685,7 @@ test('persist unconfined services and their requests', async t => {
       makePromiseKit();
     cancelled.catch(cancelFollower);
     const { host } = await makeHost(config, followerCancelled);
-    await E(host).provideWorker('user-worker');
+    await E(host).provideWorker(['user-worker']);
 
     await E(host).evaluate(
       'user-worker',
@@ -701,7 +696,7 @@ test('persist unconfined services and their requests', async t => {
     `,
       [],
       [],
-      'grant',
+      ['grant'],
     );
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
@@ -713,7 +708,7 @@ test('persist unconfined services and their requests', async t => {
 
   const requesterFinished = (async () => {
     const { host } = await makeHost(config, cancelled);
-    await E(host).provideWorker('w1');
+    await E(host).provideWorker(['w1']);
     await E(host).provideGuest('h1', {
       agentName: 'a1',
     });
@@ -722,13 +717,13 @@ test('persist unconfined services and their requests', async t => {
     const serviceLocation = url.pathToFileURL(servicePath).href;
     await E(host).makeUnconfined('w1', serviceLocation, 'a1', 's1');
 
-    await E(host).provideWorker('w2');
+    await E(host).provideWorker(['w2']);
     const answer = await E(host).evaluate(
       'w2',
       'E(service).ask()',
       ['service'],
       ['s1'],
-      'answer',
+      ['answer'],
     );
     const number = await E(answer).value();
     t.is(number, 42);
@@ -740,7 +735,7 @@ test('persist unconfined services and their requests', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const answer = await E(host).lookup('answer');
+    const answer = await E(host).lookup(['answer']);
     const number = await E(answer).value();
     t.is(number, 42);
   }
@@ -754,7 +749,7 @@ test('persist confined services and their requests', async t => {
       makePromiseKit();
     cancelled.catch(cancelFollower);
     const { host } = await makeHost(config, followerCancelled);
-    await E(host).provideWorker('user-worker');
+    await E(host).provideWorker(['user-worker']);
 
     await E(host).evaluate(
       'user-worker',
@@ -765,7 +760,7 @@ test('persist confined services and their requests', async t => {
     `,
       [],
       [],
-      'grant',
+      ['grant'],
     );
     const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
@@ -777,7 +772,7 @@ test('persist confined services and their requests', async t => {
 
   const requesterFinished = (async () => {
     const { host } = await makeHost(config, cancelled);
-    await E(host).provideWorker('w1');
+    await E(host).provideWorker(['w1']);
     await E(host).provideGuest('h1', { agentName: 'a1' });
 
     const servicePath = path.join(dirname, 'test', 'service.js');
@@ -785,13 +780,13 @@ test('persist confined services and their requests', async t => {
       E(host).makeBundle('w1', bundleName, 'a1', 's1'),
     );
 
-    await E(host).provideWorker('w2');
+    await E(host).provideWorker(['w2']);
     const answer = await E(host).evaluate(
       'w2',
       'E(service).ask()',
       ['service'],
       ['s1'],
-      'answer',
+      ['answer'],
     );
     const number = await E(answer).value();
     t.is(number, 42);
@@ -803,7 +798,7 @@ test('persist confined services and their requests', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const answer = await E(host).lookup('answer');
+    const answer = await E(host).lookup(['answer']);
     const number = await E(answer).value();
     t.is(number, 42);
   }
@@ -813,8 +808,8 @@ test('guest facet receives a message for host', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  await E(host).provideWorker('worker');
-  await E(host).evaluate('worker', '10', [], [], 'ten1');
+  await E(host).provideWorker(['worker']);
+  await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
   const iteratorRef = E(host).followMessages();
   E.sendOnly(guest).request('HOST', 'a number', 'number');
@@ -826,8 +821,8 @@ test('guest facet receives a message for host', async t => {
 
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message1.number, 1);
-  await E(host).adopt(message1.number, 'gift', 'ten2');
-  const ten = await E(host).lookup('ten2');
+  await E(host).adopt(message1.number, 'gift', ['ten2']);
+  const ten = await E(host).lookup(['ten2']);
   t.is(ten, 10);
 
   const guestId = await E(host).identify('guest');
@@ -1093,7 +1088,7 @@ test('followLocatorNameChanges does not notify of redundant pet store writes', a
 test('direct cancellation', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
@@ -1160,7 +1155,7 @@ test('direct cancellation', async t => {
 test('indirect cancellation via worker', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
@@ -1228,12 +1223,12 @@ test('indirect cancellation via worker', async t => {
 test.failing('indirect cancellation via caplet', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('w1');
+  await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
   await E(host).makeUnconfined('w1', counterLocation, 'AGENT', 'counter');
 
-  await E(host).provideWorker('w2');
+  await E(host).provideWorker(['w2']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
   const doublerPath = path.join(dirname, 'test', 'doubler.js');
   const doublerLocation = url.pathToFileURL(doublerPath).href;
@@ -1268,7 +1263,7 @@ test.failing('indirect cancellation via caplet', async t => {
 test('cancel because of requested capability', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
 
   const messages = E(host).followMessages();
@@ -1277,7 +1272,7 @@ test('cancel because of requested capability', async t => {
   const counterLocation = url.pathToFileURL(counterPath).href;
   E(host).makeUnconfined('worker', counterLocation, 'guest-agent', 'counter');
 
-  await E(host).evaluate('worker', '0', [], [], 'zero');
+  await E(host).evaluate('worker', '0', [], [], ['zero']);
   await E(messages).next();
   E(host).resolve(0, 'zero');
 
@@ -1343,7 +1338,7 @@ test('cancel because of requested capability', async t => {
 test('unconfined service can respond to cancellation', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   const capletLocation = url.pathToFileURL(capletPath).href;
@@ -1367,7 +1362,7 @@ test('unconfined service can respond to cancellation', async t => {
 test('confined service can respond to cancellation', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
 
   const capletPath = path.join(dirname, 'test', 'context-consumer.js');
   await doMakeBundle(host, capletPath, bundleName =>
@@ -1388,7 +1383,7 @@ test('make a host', async t => {
   const { host } = await prepareHost(t);
 
   const host2 = E(host).provideHost('fellow-host');
-  await E(host2).provideWorker('w1');
+  await E(host2).provideWorker(['w1']);
   const ten = await E(host2).evaluate('w1', '10', [], []);
   t.is(ten, 10);
 });
@@ -1396,23 +1391,23 @@ test('make a host', async t => {
 test('name and reuse inspector', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
 
   const inspector = await E(host).evaluate(
     'worker',
-    'E(INFO).lookup("counter")',
+    'E(INFO).lookup(["counter"])',
     ['INFO'],
     ['INFO'],
-    'inspector',
+    ['inspector'],
   );
   t.regex(String(inspector), /Alleged: Inspector.+make-unconfined/u);
 
   const worker = await E(host).evaluate(
     'worker',
-    'E(inspector).lookup("worker")',
+    'E(inspector).lookup(["worker"])',
     ['inspector'],
     ['inspector'],
   );
@@ -1423,7 +1418,7 @@ test('name and reuse inspector', async t => {
 test('eval-mediated worker name', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).provideWorker('worker');
+  await E(host).provideWorker(['worker']);
 
   const counterPath = path.join(dirname, 'test', 'counter.js');
   await E(host).makeUnconfined('worker', counterPath, 'NONE', 'counter');
@@ -1442,10 +1437,10 @@ test('eval-mediated worker name', async t => {
   // Note that while `worker === counter-worker`, it doesn't matter here.
   const counterWorker = await E(host).evaluate(
     'worker',
-    'E(E(INFO).lookup("counter")).lookup("worker")',
+    'E(E(INFO).lookup(["counter"])).lookup(["worker"])',
     ['INFO'],
     ['INFO'],
-    'counter-worker',
+    ['counter-worker'],
   );
   t.regex(String(counterWorker), /Alleged: EndoWorker/u);
 
@@ -1469,7 +1464,7 @@ test('lookup with single petname', async t => {
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
-    'E(AGENT).lookup("ten")',
+    'E(AGENT).lookup(["ten"])',
     ['AGENT'],
     ['AGENT'],
   );
@@ -1479,11 +1474,11 @@ test('lookup with single petname', async t => {
 test('lookup with petname path (inspector)', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
-    'E(AGENT).lookup("INFO", "ten", "source")',
+    'E(AGENT).lookup(["INFO", "ten", "source"])',
     ['AGENT'],
     ['AGENT'],
   );
@@ -1498,7 +1493,7 @@ test('lookup with petname path (caplet with lookup method)', async t => {
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
-    'E(AGENT).lookup("lookup", "name")',
+    'E(AGENT).lookup(["lookup", "name"])',
     ['AGENT'],
     ['AGENT'],
   );
@@ -1512,7 +1507,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
   await t.throwsAsync(
     E(host).evaluate(
       'MAIN',
-      'E(AGENT).lookup("ten", "someName")',
+      'E(AGENT).lookup(["ten", "someName"])',
       ['AGENT'],
       ['AGENT'],
     ),
@@ -1523,7 +1518,7 @@ test('lookup with petname path (value has no lookup method)', async t => {
 test('evaluate name resolved by lookup path', async t => {
   const { host } = await prepareHost(t);
 
-  await E(host).evaluate('MAIN', '10', [], [], 'ten');
+  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
 
   const resolvedValue = await E(host).evaluate(
     'MAIN',
@@ -1557,8 +1552,8 @@ test('guest cannot access host methods', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const guestsHost = E(guest).lookup('HOST');
-  await t.throwsAsync(() => E(guestsHost).lookup(), {
+  const guestsHost = E(guest).lookup(['HOST']);
+  await t.throwsAsync(() => E(guestsHost).lookup([]), {
     message: /target has no method "lookup"/u,
   });
   const revealedTarget = await E.get(guestsHost).targetId;
@@ -1578,7 +1573,7 @@ test('read unknown node id', async t => {
   await E(host).write(['abc'], id);
 
   // observe reification failure
-  await t.throwsAsync(() => E(host).lookup('abc'), {
+  await t.throwsAsync(() => E(host).lookup(['abc']), {
     message: /No peer found for node identifier /u,
   });
 });
@@ -1591,13 +1586,13 @@ test('read remote value', async t => {
   await E(hostA).addPeerInfo(await E(hostB).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
   const hostBValueIdentifier = await E(hostB).identify('salutations');
 
   // insert in hostA out of band
   await E(hostA).write(['greetings'], hostBValueIdentifier);
 
-  const hostAValue = await E(hostA).lookup('greetings');
+  const hostAValue = await E(hostA).lookup(['greetings']);
   t.is(hostAValue, 'hello, world!');
 });
 
@@ -1614,7 +1609,7 @@ test('round-trip remotable identity', async t => {
     'Far("Echoer", { echo: value => value })',
     [],
     [],
-    'echoer',
+    ['echoer'],
   );
   const echoerId = await E(hostB).identify('echoer');
   await E(hostA).write(['echoer'], echoerId);
@@ -1641,10 +1636,10 @@ test('hello from afar', async t => {
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // Induce B to connect to A
-  await E(hostA).evaluate('MAIN', '42', [], [], 'ft');
+  await E(hostA).evaluate('MAIN', '42', [], [], ['ft']);
   const ftId = await E(hostA).identify('ft');
   await E(hostB).write(['ft'], ftId);
-  const ft = await E(hostB).lookup('ft');
+  const ft = await E(hostB).lookup(['ft']);
   t.is(ft, 42);
 
   await E(hostB).evaluate(
@@ -1652,7 +1647,7 @@ test('hello from afar', async t => {
     'Far("Echoer", { echo: value => value })',
     [],
     [],
-    'echoer',
+    ['echoer'],
   );
   const echoerId = await E(hostB).identify('echoer');
   await E(hostA).write(['echoer'], echoerId);
@@ -1707,7 +1702,7 @@ test('locate remote value', async t => {
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
   const hostBValueIdentifier = await E(hostB).identify('salutations');
 
   // insert in hostA out of band
@@ -1727,7 +1722,7 @@ test('invite, accept, and send mail', async t => {
   await E(hostB).accept(invitationLocator, 'alice');
 
   // create value to share
-  await E(hostA).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  await E(hostA).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
   const expectedSalutationsId = await E(hostA).identify('salutations');
   await E(hostA).send('bob', ['Hello'], ['salutations'], ['salutations']);
 
@@ -1779,7 +1774,7 @@ test('reverse locate remote value', async t => {
   await E(hostB).addPeerInfo(await E(hostA).getPeerInfo());
 
   // create value to share
-  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], 'salutations');
+  await E(hostB).evaluate('MAIN', '"hello, world!"', [], [], ['salutations']);
   const hostBValueIdentifier = await E(hostB).identify('salutations');
 
   // insert in hostA out of band

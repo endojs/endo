@@ -35,7 +35,7 @@ export const evalCommand = async ({
       source,
       codeNames,
       petNames,
-      resultName,
+      parsePetNamePath(resultName),
     );
     console.log(result);
   });

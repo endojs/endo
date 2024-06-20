@@ -8,6 +8,7 @@ import { makeReaderRef } from '@endo/daemon';
 import bundleSource from '@endo/bundle-source';
 
 import { withEndoAgent } from '../context.js';
+import { parsePetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';
 
 const textEncoder = new TextEncoder();
@@ -25,6 +26,7 @@ export const install = async ({
   let bundleReaderRef;
   /** @type {string | undefined} */
   let temporaryBundleName;
+  await null;
   if (programPath !== undefined) {
     if (bundleName === undefined) {
       // TODO alternately, make a temporary session-scoped GC pet store
@@ -41,6 +43,7 @@ export const install = async ({
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     // Prepare a bundle, with the given name.
+    await null;
     if (bundleReaderRef !== undefined) {
       await E(agent).storeBlob(bundleReaderRef, bundleName);
     }
@@ -53,7 +56,7 @@ export const install = async ({
         )}, $id, $cancelled)`,
         ['apps', 'bundle', 'powers'],
         ['APPS', bundleName, powersName],
-        webletName,
+        parsePetNamePath(webletName),
       );
       const webletLocation = await E(weblet).getLocation();
       process.stdout.write(`${webletLocation}\n`);

@@ -2,8 +2,13 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
+import { parsePetNamePath } from '../pet-name.js';
 
-export const remove = async ({ petNames, agentNames }) =>
+export const remove = async ({ petNamePaths, agentNames }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) =>
-    Promise.all(petNames.map(petName => E(agent).remove(petName))),
+    Promise.all(
+      petNamePaths.map(petNamePath =>
+        E(agent).remove(...parsePetNamePath(petNamePath)),
+      ),
+    ),
   );

@@ -5,7 +5,7 @@ import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
-import { assertPetName } from './pet-name.js';
+import { assertPetName, assertPetNamePath } from './pet-name.js';
 
 import {
   ResponderInterface,
@@ -54,7 +54,7 @@ const makeEnvelope = () => makeExo('Envelope', EnvelopeInterface, {});
 export const makeMailboxMaker = ({ provide }) => {
   /**
     @type {MakeMailbox} */
-  const makeMailbox = ({ selfId, petStore, context }) => {
+  const makeMailbox = ({ selfId, petStore, directory, context }) => {
     /** @type {Map<number, StampedMessage>} */
     const messages = new Map();
 
@@ -218,9 +218,9 @@ export const makeMailboxMaker = ({ provide }) => {
     };
 
     /** @type {Mail['adopt']} */
-    const adopt = async (messageNumber, edgeName, petName) => {
+    const adopt = async (messageNumber, edgeName, petNamePath) => {
       assertPetName(edgeName);
-      assertPetName(petName);
+      assertPetNamePath(petNamePath);
       if (
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
@@ -249,13 +249,14 @@ export const makeMailboxMaker = ({ provide }) => {
         );
       }
       context.thisDiesIfThatDies(id);
-      await petStore.write(petName, id);
+      await E(directory).write(petNamePath, id);
     };
 
     /** @type {Mail['request']} */
     const request = async (toName, description, responseName) => {
+      await null;
       if (responseName !== undefined) {
-        const responseId = petStore.identifyLocal(responseName);
+        const responseId = await E(directory).identify(responseName);
         if (responseId !== undefined) {
           return provide(responseId);
         }
@@ -280,7 +281,7 @@ export const makeMailboxMaker = ({ provide }) => {
       const responseP = provide(responseId);
 
       if (responseName !== undefined) {
-        await petStore.write(responseName, responseId);
+        await E(directory).write(responseName, responseId);
       }
 
       return responseP;

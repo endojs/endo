@@ -19,6 +19,18 @@ export const assertPetName = petName => {
 };
 
 /**
+ * @param {string[]} petNamePath
+ */
+export const assertPetNamePath = petNamePath => {
+  if (!Array.isArray(petNamePath) || petNamePath.length < 1) {
+    throw new Error(`Invalid pet name path`);
+  }
+  for (const petName of petNamePath) {
+    assertPetName(petName);
+  }
+};
+
+/**
  * @param {string | string[]} petNameOrPetNamePath
  */
 export const petNamePathFrom = petNameOrPetNamePath =>
