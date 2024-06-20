@@ -672,6 +672,7 @@ const liberalDecoders = /** @type {Required<DecodeOptions>} */ (
  */
 const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
   const { decodeRemotable, decodePromise, decodeError } = options;
+  /** @type {(encoded: string, skip?: number) => Passable} */
   const innerDecode = (encoded, skip = 0) => {
     switch (encoded.charAt(skip)) {
       case 'v': {
@@ -715,6 +716,7 @@ const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
       }
       case '[':
       case '^': {
+        // @ts-expect-error Type 'unknown[]' is not Passable
         return decodeArray(encoded, innerDecode, skip);
       }
       case '(': {
@@ -728,7 +730,6 @@ const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
       }
     }
   };
-  // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
   return innerDecode;
 };
 
