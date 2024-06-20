@@ -228,7 +228,7 @@ function* loadWithoutErrorAnnotation(
         aliasDescriptor = weakmapGet(moduleAliases, namespace);
         if (aliasDescriptor !== undefined) {
           moduleDescriptor = aliasDescriptor;
-          // Fall through to processing the reesulting {compartment, specifier}
+          // Fall through to processing the resulting {compartment, specifier}
           // alias.
         } else {
           // Promote an arbitrary object to a module namespace with a virtual
