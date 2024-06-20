@@ -1,4 +1,6 @@
-import { createProvider } from '@metamask/eth-json-rpc-infura';
+import { createProvider as createInfuraProvider } from '@metamask/eth-json-rpc-infura';
+import { createFetchMiddleware } from '@metamask/eth-json-rpc-middleware';
+import { providerFromMiddleware } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 
 import { makeExo } from '../utils.js';
@@ -8,6 +10,7 @@ let id = 0;
 const nextId = () => id++;
 
 /**
+ * @import { Provider } from '@metamask/eth-query'
  * @import { JsonRpcParams } from '@metamask/eth-query'
  */
 
@@ -27,12 +30,26 @@ export const make = () => {
   };
 
   return makeExo('Provider', {
-    /** @param {string} projectId */
-    init(projectId) {
-      const provider = createProvider({
-        network: 'sepolia',
-        projectId,
-      });
+    /** @param {{ projectId?: string, rpcUrl?: string }} config */
+    init({ projectId, rpcUrl }) {
+      /** @type {Provider} */
+      let provider;
+      if (typeof projectId === 'string') {
+        provider = createInfuraProvider({
+          network: 'sepolia',
+          projectId,
+        });
+      } else if (typeof rpcUrl === 'string') {
+        const middleware = createFetchMiddleware({
+          btoa: globalThis.btoa,
+          // @ts-expect-error We are at least on Node 18 but TypeScript is unaware
+          fetch: globalThis.fetch,
+          rpcUrl,
+        });
+        provider = providerFromMiddleware(middleware);
+      } else {
+        throw new Error('Either projectId or rpcUrl must be provided.');
+      }
 
       ethQuery = makeEthQuery(provider);
     },
@@ -50,8 +67,8 @@ export const make = () => {
 };
 
 /**
- * @param {ReturnType<typeof createProvider>} provider
- * @returns {InstanceType<typeof EthQuery> & Request} The EthQuery isntance.
+ * @param {Provider} provider
+ * @returns {InstanceType<typeof EthQuery> & Request} The EthQuery instance.
  */
 function makeEthQuery(provider) {
   const ethQuery = new EthQuery(provider);

@@ -21,11 +21,11 @@ export const make = async (powers) => {
   return makeExo('Wallet', {
     /**
      * @param {string} seedPhrase
-     * @param {string} infuraProjectId
+     * @param {{ projectId?: string, rpcUrl?: string}} providerConfig
      */
-    async init(seedPhrase, infuraProjectId) {
+    async init(seedPhrase, providerConfig) {
       await E(keyring).init(seedPhrase);
-      await E(provider).init(infuraProjectId);
+      await E(provider).init(providerConfig);
       isInitialized = true;
     },
 

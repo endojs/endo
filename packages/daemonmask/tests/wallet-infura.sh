@@ -18,7 +18,7 @@ endo make src/caplets/wallet.js --name wallet --powers AGENT
 
 endo eval "E(wallet).init( \
   'test test test test test test test test test test test ball', \
-  '${PROJECT_ID}' \
+  { projectId: '${PROJECT_ID}' } \
 )" wallet
 endo eval "E(wallet).getAddresses()" wallet
 endo eval "E(wallet).request('eth_blockNumber')" wallet

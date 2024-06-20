@@ -2,6 +2,7 @@
   "ignores": [
     "@types/*",
     "@endo/ses-ava",
+    "hardhat",
     "prettier-plugin-packagejson",
     "ts-node"
   ]

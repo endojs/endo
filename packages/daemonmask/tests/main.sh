@@ -11,5 +11,5 @@ echo ''
 echo ''
 ./tests/provider.sh
 echo ''
-./tests/wallet.sh
+./tests/wallet-infura.sh
 echo ''
