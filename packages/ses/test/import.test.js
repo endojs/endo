@@ -26,6 +26,25 @@ test('module map primed with module source', async t => {
   t.is(index.default, 42);
 });
 
+test('module map primed with module record descriptor', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './index.js': {
+        record: new StaticModuleRecord('export default 42'),
+      },
+    },
+    // options:
+    {
+      resolveHook: specifier => specifier,
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
 test('module map primed with virtual module source', async t => {
   const compartment = new Compartment(
     // endowments:
@@ -37,6 +56,31 @@ test('module map primed with virtual module source', async t => {
         exports: ['default'],
         execute(env) {
           env.default = 42;
+        },
+      },
+    },
+    // options:
+    {
+      resolveHook: specifier => specifier,
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+test('module map primed with virtual module record descriptor', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './index.js': {
+        record: {
+          imports: [],
+          exports: ['default'],
+          execute(env) {
+            env.default = 42;
+          },
         },
       },
     },
@@ -62,6 +106,7 @@ test('module map hook returns module source', async t => {
         if (specifier === './index.js') {
           return new StaticModuleRecord('export default 42');
         }
+        return undefined;
       },
     },
   );
@@ -82,6 +127,7 @@ test('importHook returns module source', async t => {
         if (specifier === './index.js') {
           return new StaticModuleRecord('export default 42');
         }
+        return undefined;
       },
     },
   );
@@ -107,6 +153,7 @@ test('importHook returns module namespace', async t => {
         if (specifier === './index.js') {
           return new StaticModuleRecord('export default 42');
         }
+        return undefined;
       },
     },
   );
@@ -131,6 +178,7 @@ test('importNowHook returns namespace', t => {
         if (specifier === './index.js') {
           return new StaticModuleRecord('export default 42');
         }
+        return undefined;
       },
     },
   );
@@ -155,6 +203,7 @@ test('importHook returns compartment and specifier module descriptor', async t =
         if (specifier === './index.js') {
           return new StaticModuleRecord('export default 42');
         }
+        return undefined;
       },
     },
   );
@@ -178,6 +227,7 @@ test('importHook returns record and specifier module descriptor', async t => {
             specifier: './index.js',
           };
         }
+        return undefined;
       },
     },
   );
@@ -211,6 +261,7 @@ test('importHook returns record and specifier module descriptor and import speci
             specifier: './src/index.js',
           };
         }
+        return undefined;
       },
     },
   );
