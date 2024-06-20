@@ -89,6 +89,7 @@
     "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.1.1",
+    "hardhat": "^2.22.5",
     "prettier": "^2.7.1",
     "prettier-plugin-packagejson": "^2.3.0",
     "typescript": "5.5.0-beta"
