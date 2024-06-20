@@ -1,7 +1,7 @@
 import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
-const { details: X, quote: q, Fail } = assert;
+const { details: X, quote: q, Fail, error: makeError } = assert;
 const { assign, create } = Object;
 
 const onSend = makeMessageBreakpointTester('ENDO_SEND_BREAKPOINTS');
@@ -52,7 +52,7 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
             if (this !== receiver) {
               // Reject the async function call
               return HandledPromise.reject(
-                assert.error(
+                makeError(
                   X`Unexpected receiver for "${q(propertyKey)}" method of E(${q(
                     recipient,
                   )})`,

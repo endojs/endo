@@ -7,10 +7,10 @@ const originalConsole = console;
 lockdown({ errorTaming: 'unsafe' });
 
 // Grab `details` only after lockdown
-const { details: d, quote: q } = assert;
+const { details: X, quote: q, note: annotateError } = assert;
 
 test('ava message disclosure blabs', t => {
-  t.throws(() => assert.fail(d`a secret ${666} and a public ${q(777)}`), {
+  t.throws(() => assert.fail(X`a secret ${666} and a public ${q(777)}`), {
     message: /a secret 666 and a public 777/,
   });
 });
@@ -45,7 +45,7 @@ test('assert - safe', t => {
   try {
     const obj = {};
     const fooErr = SyntaxError('foo');
-    assert.fail(d`caused by ${fooErr},${obj}`);
+    assert.fail(X`caused by ${fooErr},${obj}`);
   } catch (barErr) {
     console.error('bar happens', barErr);
   }
@@ -56,7 +56,7 @@ test('assert - unlogged safe', t => {
   t.throws(() => {
     const obj = {};
     const fooErr = SyntaxError('foo');
-    assert.fail(d`caused by ${fooErr},${obj}`);
+    assert.fail(X`caused by ${fooErr},${obj}`);
   });
 });
 
@@ -64,7 +64,7 @@ test('tameConsole - safe', t => {
   const obj = {};
   const fooErr = SyntaxError('foo');
   const barErr = URIError('bar');
-  assert.note(barErr, d`caused by ${fooErr},${obj}`);
+  annotateError(barErr, X`caused by ${fooErr},${obj}`);
   console.log('bar happens', barErr);
   t.pass();
 });
@@ -73,6 +73,6 @@ test('tameConsole - unlogged safe', t => {
   const obj = {};
   const ufooErr = SyntaxError('ufoo');
   const ubarErr = URIError('ubar');
-  assert.note(ubarErr, d`caused by ${ufooErr},${obj}`);
+  annotateError(ubarErr, X`caused by ${ufooErr},${obj}`);
   t.pass();
 });

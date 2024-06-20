@@ -2,12 +2,11 @@
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
+import { q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { formatLocator, idFromLocator } from './locator.js';
 
 import { DirectoryInterface } from './interfaces.js';
-
-const { quote: q } = assert;
 
 /** @import { DaemonCore, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context } from './types.js' */
 

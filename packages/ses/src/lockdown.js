@@ -58,7 +58,7 @@ import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
-const { Fail, details: d, quote: q } = assert;
+const { Fail, details: X, quote: q } = assert;
 
 /** @type {Error=} */
 let priorRepairIntrinsics;
@@ -200,7 +200,7 @@ export const repairIntrinsics = (options = {}) => {
   priorRepairIntrinsics === undefined ||
     // eslint-disable-next-line @endo/no-polymorphic-call
     assert.fail(
-      d`Already locked down at ${priorRepairIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
+      X`Already locked down at ${priorRepairIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
       TypeError,
     );
   // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_ALREADY_LOCKED_DOWN.md
@@ -391,7 +391,7 @@ export const repairIntrinsics = (options = {}) => {
     priorHardenIntrinsics === undefined ||
       // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(
-        d`Already locked down at ${priorHardenIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
+        X`Already locked down at ${priorHardenIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
         TypeError,
       );
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_ALREADY_LOCKED_DOWN.md

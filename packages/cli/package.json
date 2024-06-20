@@ -34,6 +34,7 @@
     "@endo/bundle-source": "^3.2.3",
     "@endo/compartment-mapper": "^1.1.5",
     "@endo/daemon": "^2.3.0",
+    "@endo/errors": "^1.2.2",
     "@endo/eventual-send": "^1.2.2",
     "@endo/exo": "^1.5.0",
     "@endo/far": "^1.1.2",

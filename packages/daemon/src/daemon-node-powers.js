@@ -4,6 +4,7 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
+import { q } from '@endo/errors';
 import { makeNetstringCapTP } from './connection.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makePetStoreMaker } from './pet-store.js';
@@ -13,8 +14,6 @@ import { makeSerialJobs } from './serial-jobs.js';
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
-
-const { quote: q } = assert;
 
 const textEncoder = new TextEncoder();
 

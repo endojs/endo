@@ -1,6 +1,6 @@
 // @ts-check
 
-const { quote: q } = assert;
+import { q } from '@endo/errors';
 
 // Note: Alphabetically sorted
 const formulaTypes = new Set([

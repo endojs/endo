@@ -82,7 +82,13 @@ d.module('z');
 
 // Assertions
 
-const { Fail, quote: q, details: X } = assert;
+const {
+  Fail,
+  quote: q,
+  details: X,
+  error: makeError,
+  note: annotateError,
+} = assert;
 
 assert.equal('a', 'b');
 assert.equal('a', 'b', 'equality error');
@@ -197,18 +203,18 @@ expectType<void>(assume(false, 'definitely'));
 
 // ////////////////////////////////////////////////////////////////////////
 
-assert.note(Error('nothing to see here'), X`except this ${q('detail')}`);
+annotateError(Error('nothing to see here'), X`except this ${q('detail')}`);
 
 X`canst thou string?`.toString();
 
 const stringable = q(null);
 
-expectType<Error>(assert.error(X`details are ${q(stringable)}`));
+expectType<Error>(makeError(X`details are ${q(stringable)}`));
 
-expectType<Error>(assert.error(X`details are ${stringable}`, TypeError));
+expectType<Error>(makeError(X`details are ${stringable}`, TypeError));
 
 expectType<Error>(
-  assert.error(X`details are ${stringable}`, TypeError, {
+  makeError(X`details are ${stringable}`, TypeError, {
     errorName: 'Nom de plum',
   }),
 );
