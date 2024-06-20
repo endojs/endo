@@ -2,11 +2,9 @@ import { createProvider as createInfuraProvider } from '@metamask/eth-json-rpc-i
 import { createFetchMiddleware } from '@metamask/eth-json-rpc-middleware';
 import { providerFromMiddleware } from '@metamask/eth-json-rpc-provider';
 
-import { makeExo } from '../utils.js';
+import { makeExo, makeIdGenerator } from '../utils.js';
 
-let id = 0;
-// eslint-disable-next-line no-plusplus
-const nextId = () => id++;
+const nextId = makeIdGenerator();
 
 /**
  * @import { Provider } from '@metamask/eth-query'

@@ -38,10 +38,10 @@
   ],
   "scripts": {
     "build": "exit 0",
-    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
+    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies --check",
     "lint:dependencies": "depcheck && yarn dedupe",
     "lint:eslint": "eslint . --cache --ext js,cjs,ts",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "start:node": "yarn hardhat node",
     "test": "yarn test:sh && yarn test:js",

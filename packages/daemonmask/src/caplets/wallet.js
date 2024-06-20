@@ -1,9 +1,8 @@
-import { makeRefIterator } from '@endo/daemon';
-import { makeChangeTopic } from '@endo/daemon/pubsub.js';
 import { E } from '@endo/far';
 
 import { isObject, makeExo, names } from '../utils.js';
 import { make as makeStore } from './subcomponents/array-store.js';
+import { make as makeTxTracker } from './subcomponents/tx-tracker.js';
 
 /**
  * @import { JsonRpcParams } from '@metamask/eth-query'
@@ -11,7 +10,7 @@ import { make as makeStore } from './subcomponents/array-store.js';
 
 /** @param {any} powers */
 export const make = async (powers) => {
-  const { keyring, provider, submittedTransactions } = await bootstrap();
+  const { keyring, provider, txHistory, txTracker } = await bootstrap();
 
   let isInitialized = false;
   const assertIsInitialized = () => {
@@ -19,8 +18,6 @@ export const make = async (powers) => {
       throw new Error('Wallet must be initialized first.');
     }
   };
-
-  const pendingTxTopic = makeChangeTopic();
 
   return makeExo('Wallet', {
     /**
@@ -38,7 +35,7 @@ export const make = async (powers) => {
       return [await E(keyring).getAddress()];
     },
 
-    followTransactions: () => makeRefIterator(pendingTxTopic.subscribe()),
+    followTransactions: () => txTracker.followTransactions(),
 
     /**
      * Make a JSON-RPC request to the node.
@@ -59,14 +56,13 @@ export const make = async (powers) => {
         }
 
         const chainId = await E(provider).request('eth_chainId');
-        const txParams = { ...params[0], signature: null };
         const txSignature = await E(keyring).signTransaction(
-          params[0],
+          { ...params[0] },
           chainId,
         );
-        txParams.signature = txSignature;
-        pendingTxTopic.publisher.next(txParams);
-        await submittedTransactions.push({ txParams, txSignature });
+        const txParams = { ...params[0], signature: txSignature };
+        txTracker.trackTx(txParams);
+        await txHistory.push({ txParams });
 
         return await E(provider).request('eth_sendRawTransaction', [
           txSignature,
@@ -113,10 +109,16 @@ export const make = async (powers) => {
       );
     }
 
+    const _keyring = await E(powers).lookup(names.KEYRING);
+    const _provider = await E(powers).lookup(names.PROVIDER);
+    const _txHistory = await makeStore(names.TRANSACTIONS, powers);
+    const _txTracker = await makeTxTracker(provider);
+
     return {
-      keyring: await E(powers).lookup(names.KEYRING),
-      provider: await E(powers).lookup(names.PROVIDER),
-      submittedTransactions: await makeStore(names.TRANSACTIONS, powers),
+      keyring: _keyring,
+      provider: _provider,
+      txHistory: _txHistory,
+      txTracker: _txTracker,
     };
   }
 };
