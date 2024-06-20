@@ -4,8 +4,6 @@ import HdKeyring from '@metamask/eth-hd-keyring';
 
 import { makeExo } from '../utils.js';
 
-/** @import { TxData } from '@ethereumjs/tx' */
-
 /**
  * Converts a `Buffer` into a `0x`-prefixed hex `String`.
  * @param {Buffer} buffer - The buffer to convert.
@@ -23,6 +21,14 @@ export const make = () => {
   const assertIsInitialized = () => {
     if (keyring === undefined) {
       throw new Error('Keyring must be initialized first.');
+    }
+  };
+
+  /** @param {string} otherAddress */
+  const assertIsOurAddress = (otherAddress) => {
+    const isOurAddress = address.toLowerCase() === otherAddress.toLowerCase();
+    if (!isOurAddress) {
+      throw new Error(`Unknown address: ${otherAddress}`);
     }
   };
 
@@ -49,11 +55,13 @@ export const make = () => {
     },
 
     /**
-     * @param {TxData} txData
+     * @param {any} txData
      * @param {string} chainId
      */
     async signTransaction(txData, chainId) {
       assertIsInitialized();
+      assertIsOurAddress(txData.from);
+
       const tx = TransactionFactory.fromTxData(txData, {
         common: Common.custom({ chainId: BigInt(chainId) }),
       });

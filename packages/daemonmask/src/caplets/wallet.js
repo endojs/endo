@@ -48,20 +48,29 @@ export const make = async (powers) => {
         if (
           !Array.isArray(params) ||
           params.length !== 1 ||
-          !isObject(params[0])
+          !isObject(params[0]) ||
+          !params[0].from
         ) {
           throw new Error(
             'Expected valid transaction parameters for eth_sendTransaction',
           );
         }
 
+        const txParams = { ...params[0] };
+        const { from: fromAddress } = txParams;
+        const nonce = await E(provider).request('eth_getTransactionCount', [
+          fromAddress,
+          'latest',
+        ]);
+        txParams.nonce = nonce;
+
         const chainId = await E(provider).request('eth_chainId');
         const txSignature = await E(keyring).signTransaction(
-          { ...params[0] },
+          { ...txParams },
           chainId,
         );
-        const txParams = { ...params[0], signature: txSignature };
-        txTracker.trackTx(txParams);
+        const signedTxParams = { ...txParams, signature: txSignature };
+        txTracker.trackTx(signedTxParams);
 
         return await E(provider).request('eth_sendRawTransaction', [
           txSignature,
