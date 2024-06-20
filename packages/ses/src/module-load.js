@@ -61,10 +61,7 @@ const syncTrampoline = (generatorFunc, args) => {
 // aliases.
 // Both are facilitated by the moduleMap Compartment constructor option.
 export const makeAlias = (compartment, specifier) =>
-  freeze({
-    compartment,
-    specifier,
-  });
+  freeze({ compartment, specifier });
 
 // `resolveAll` pre-computes resolutions of all imports within the compartment
 // in which a module was loaded.
@@ -122,8 +119,6 @@ const loadModuleSource = (
     ]);
   }
 
-  // Memoize.
-  mapSet(moduleRecords, moduleSpecifier, moduleRecord);
   return moduleRecord;
 };
 
@@ -136,8 +131,14 @@ function* loadWithoutErrorAnnotation(
   selectImplementation,
   moduleLoads,
 ) {
-  const { importHook, importNowHook, moduleMap, moduleMapHook, moduleRecords } =
-    weakmapGet(compartmentPrivateFields, compartment);
+  const {
+    importHook,
+    importNowHook,
+    moduleMap,
+    moduleMapHook,
+    moduleRecords,
+    parentCompartment,
+  } = weakmapGet(compartmentPrivateFields, compartment);
 
   if (mapHas(moduleRecords, moduleSpecifier)) {
     return mapGet(moduleRecords, moduleSpecifier);
@@ -185,6 +186,73 @@ function* loadWithoutErrorAnnotation(
       moduleDescriptor = aliasDescriptor;
     }
 
+    if (moduleDescriptor.source !== undefined) {
+      if (typeof moduleDescriptor.source === 'string') {
+        // { source: string, importMeta?, specifier?: string }
+        Fail``; // TODO
+      }
+
+      // { source: ModuleSource, importMeta?, specifier?: string }
+      // { source: VirtualModuleSource, importMeta?, specifier?: string }
+      const {
+        source: moduleSource,
+        specifier: aliasSpecifier = moduleSpecifier,
+        importMeta,
+      } = moduleDescriptor;
+
+      const aliasRecord = loadModuleSource(
+        compartmentPrivateFields,
+        moduleAliases,
+        compartment,
+        aliasSpecifier,
+        moduleSource,
+        enqueueJob,
+        selectImplementation,
+        moduleLoads,
+        importMeta,
+      );
+      mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+      return aliasRecord;
+    }
+
+    if (moduleDescriptor.namespace !== undefined) {
+      // { namespace: string, compartment?: Compartment }
+      if (typeof moduleDescriptor.namespace === 'string') {
+        const {
+          compartment: aliasCompartment = parentCompartment,
+          namespace: aliasSpecifier,
+        } = moduleDescriptor;
+        if (
+          !isObject(aliasCompartment) ||
+          !weakmapHas(compartmentPrivateFields, aliasCompartment)
+        ) {
+          Fail`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`;
+        }
+        // Behold: recursion.
+        // eslint-disable-next-line no-use-before-define
+        const aliasRecord = yield memoizedLoadWithErrorAnnotation(
+          compartmentPrivateFields,
+          moduleAliases,
+          aliasCompartment,
+          aliasSpecifier,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+        );
+        mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+        return aliasRecord;
+      }
+      if (isObject(moduleDescriptor.namespace)) {
+        // { namespace: ModuleNamespace, compartment?: Compartment }
+        // { namespace: Object, compartment?: Compartment }
+      }
+      Fail`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`;
+    }
+
+    if (moduleDescriptor.archive !== undefined) {
+      // { archive: Archive, path: string } Not implemented by SES
+    }
+
     // A (legacy) module descriptor for when we find the module source (record)
     // but at a different specifier than requested.
     // Providing this {specifier, record} descriptor serves as an ergonomic
@@ -211,6 +279,7 @@ function* loadWithoutErrorAnnotation(
         importMeta,
       );
       mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+      mapSet(moduleRecords, aliasSpecifier, aliasRecord);
       return aliasRecord;
     }
 
@@ -245,7 +314,7 @@ function* loadWithoutErrorAnnotation(
     // A (legacy) behavior: If we do not recognize the module descriptor as a
     // module descriptor, we assume that it is a module source (record):
     const moduleSource = moduleDescriptor;
-    return loadModuleSource(
+    const moduleRecord = loadModuleSource(
       compartmentPrivateFields,
       moduleAliases,
       compartment,
@@ -255,6 +324,9 @@ function* loadWithoutErrorAnnotation(
       selectImplementation,
       moduleLoads,
     );
+    // Memoize.
+    mapSet(moduleRecords, moduleSpecifier, moduleRecord);
+    return moduleRecord;
   } else {
     Fail`module descriptor must be a string or object for specifier ${q(
       moduleSpecifier,
