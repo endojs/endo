@@ -5,6 +5,7 @@ export const names = {
   BUNDLER: 'bundler',
   KEYRING: 'keyring',
   PROVIDER: 'provider',
+  TRANSACTIONS: 'transactions',
   WALLET: 'wallet',
 };
 
@@ -16,6 +17,6 @@ export const makeExo = (name, value) =>
   _makeExo(
     name,
     M.interface(name, {}, { defaultGuards: 'passable' }),
-    // @ts-expect-error Can't bother getting this type right
+    // @ts-expect-error We're gonna live with this one
     value,
   );

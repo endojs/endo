@@ -1,6 +1,7 @@
 import { E } from '@endo/far';
 
 import { makeExo, names } from '../utils.js';
+import { make as makeStore } from './subcomponents/array-store.js';
 
 /**
  * @import { JsonRpcParams } from '@metamask/eth-query'
@@ -74,7 +75,6 @@ export const make = async (powers) => {
         bundlerPowers,
       );
     }
-    const _keyring = await E(powers).lookup(names.KEYRING);
 
     if (!(await E(powers).has(names.PROVIDER))) {
       await E(bundler).makeUnconfined(
@@ -83,8 +83,11 @@ export const make = async (powers) => {
         bundlerPowers,
       );
     }
-    const _provider = await E(powers).lookup(names.PROVIDER);
 
-    return { keyring: _keyring, provider: _provider };
+    return {
+      keyring: await E(powers).lookup(names.KEYRING),
+      provider: await E(powers).lookup(names.PROVIDER),
+      transactions: await makeStore(names.TRANSACTIONS, powers),
+    };
   }
 };
