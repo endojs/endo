@@ -15,20 +15,57 @@ const makeAnyArray = () => [];
  * @param {Record<string, Json>} txData
  */
 const TxItem = (txData) => {
-  const truncatedTxParams = {
-    // @ts-expect-error
-    ...txData.params,
-    // @ts-expect-error
-    signature: `${txData.params.signature.substring(0, 40)}...`,
+  /**
+   * @param {string} key
+   * @param {Json} value
+   */
+  const formatValue = (key, value) => {
+    if (typeof value === 'object') {
+      return JSON.stringify(value, null, 2);
+    }
+    if (typeof value === 'string') {
+      if (key === 'signature' || key.toLowerCase().includes('hash')) {
+        return `${value.substring(0, 40)}...`;
+      }
+      if (key.includes('gas') || key === 'value' || key === 'nonce') {
+        return parseInt(value, 16).toString();
+      }
+    }
+    return value.toString();
   };
 
-  return React.createElement('li', {}, [
-    React.createElement('pre', {}, [
-      React.createElement('code', {}, [
-        JSON.stringify(truncatedTxParams, null, 2),
-      ]),
-    ]),
-  ]);
+  return React.createElement(
+    'div',
+    {
+      style: {
+        padding: '10px',
+        margin: '5px',
+        border: '1px solid #ccc',
+        borderRadius: '5px',
+      },
+    },
+    [
+      React.createElement(
+        'ul',
+        { style: { listStyleType: 'none', padding: 0 } },
+        Object.entries({
+          // @ts-expect-error
+          ...txData.params,
+          ...(txData.receipt === undefined
+            ? {}
+            : // @ts-expect-error
+              { hash: txData.receipt.transactionHash }),
+        })
+          .sort(([key1], [key2]) => key1.localeCompare(key2))
+          .map(([key, value]) =>
+            React.createElement('li', { key, style: { marginBottom: '5px' } }, [
+              React.createElement('strong', null, [`${key}: `]),
+              formatValue(key, value),
+            ]),
+          ),
+      ),
+    ],
+  );
 };
 
 /** @param {Record<string, Json>[]} txList */
@@ -58,6 +95,9 @@ export const TxList = ({ txSubscription }) => {
           setPendingTxList((prevValue) => [...prevValue, tx]);
         } else if (tx.status === TxStatus.Completed) {
           setCompletedTxList((prevValue) => [...prevValue, tx]);
+          setPendingTxList((prevValue) =>
+            prevValue.filter((pendingTx) => pendingTx.id !== tx.id),
+          );
         } else {
           console.warn(`Unhandled orphaned transaction: ${tx.toString()}`);
         }

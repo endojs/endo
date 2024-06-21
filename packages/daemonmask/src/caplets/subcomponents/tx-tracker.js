@@ -26,11 +26,11 @@ export const make = async (provider, txHistory) => {
   const txTopic = makeChangeTopic();
 
   /**
-   * @param {{ id: string, status: string, params: TxParams, receipt?: Record<string, Json> }} txData
+   * @param {{ id: string, status: string, params: TxParams, receipt?: Record<string, Json>, hash?: string }} txData
    */
-  const updateHistory = (txData) => {
+  const updateHistory = async (txData) => {
     txTopic.publisher.next(txData);
-    txHistory.set(txData.id, txData);
+    await txHistory.set(txData.id, txData);
   };
 
   async function* followTransactions() {
@@ -48,46 +48,53 @@ export const make = async (provider, txHistory) => {
      */
     async trackTx(txParams) {
       const id = nextId();
-      updateHistory({
+      await updateHistory({
         id,
         status: TxStatus.Submitted,
         params: { ...txParams },
       });
 
-      /** @type {ReturnType<setInterval>} */
-      let intervalId; // eslint-disable-line prefer-const
-      const { promise, resolve, reject } = makePromiseKit();
-      const pollForReceipt = async () => {
-        try {
-          const receipt = await E(provider).request(
-            'eth_getTransactionReceipt',
-            [txParams.signature],
-          );
+      /**
+       * @param {string} txHash
+       */
+      const storeTxReceipt = (txHash) => {
+        /** @type {ReturnType<setInterval>} */
+        let intervalId; // eslint-disable-line prefer-const
+        const { promise, resolve, reject } = makePromiseKit();
+        const pollForReceipt = async () => {
+          try {
+            const receipt = await E(provider).request(
+              'eth_getTransactionReceipt',
+              [txHash],
+            );
 
-          if (receipt !== null) {
+            if (receipt !== null) {
+              clearInterval(intervalId);
+              await updateHistory({
+                id,
+                status: TxStatus.Completed,
+                params: { ...txParams },
+                receipt,
+              });
+              resolve(receipt);
+            }
+          } catch (error) {
             clearInterval(intervalId);
-            updateHistory({
+            await updateHistory({
               id,
-              status: TxStatus.Completed,
+              status: TxStatus.Orphaned,
               params: { ...txParams },
-              receipt,
+              hash: txHash,
             });
-            resolve(receipt);
+            reject(error);
           }
-        } catch (error) {
-          clearInterval(intervalId);
-          updateHistory({
-            id,
-            status: TxStatus.Orphaned,
-            params: { ...txParams },
-          });
-          reject(error);
-        }
-      };
+        };
 
-      intervalId = setInterval(pollForReceipt, TWELVE_SECONDS);
-      pollForReceipt();
-      return promise;
+        intervalId = setInterval(pollForReceipt, TWELVE_SECONDS);
+        pollForReceipt();
+        return promise;
+      };
+      return storeTxReceipt;
     },
   };
 };

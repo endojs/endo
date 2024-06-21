@@ -40,8 +40,7 @@ export const make = async (name, powers) => {
      */
     async set(key, value) {
       const state = await getState();
-      state[key] = value;
-      await setState(state);
+      await setState({ ...state, [key]: value });
     },
   };
 };

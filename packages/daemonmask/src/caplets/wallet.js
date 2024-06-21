@@ -70,11 +70,13 @@ export const make = async (powers) => {
           chainId,
         );
         const signedTxParams = { ...txParams, chainId, signature: txSignature };
-        txTracker.trackTx(signedTxParams);
+        const storeTxReceipt = await txTracker.trackTx(signedTxParams);
 
-        return await E(provider).request('eth_sendRawTransaction', [
+        const txHash = await E(provider).request('eth_sendRawTransaction', [
           txSignature,
         ]);
+        await storeTxReceipt(txHash);
+        return txHash;
       }
 
       return await E(provider).request(method, params);
