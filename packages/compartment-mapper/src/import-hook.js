@@ -494,7 +494,7 @@ export function makeImportNowHookMaker(
       }
     }
 
-    const { readSync } = readPowers;
+    const { readSync, isAbsolute } = readPowers;
 
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
@@ -503,6 +503,23 @@ export function makeImportNowHookMaker(
         throw new Error(
           `Dynamic require not allowed in compartment ${q(compartmentDescriptor.name)}`,
         );
+      }
+
+      if (isAbsolute(moduleSpecifier)) {
+        if (exitModuleImportNowHook) {
+          // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
+          const record = exitModuleImportNowHook(
+            moduleSpecifier,
+            packageLocation,
+          );
+
+          if (!record) {
+            throw new Error(`Could not import module: ${moduleSpecifier}`);
+          }
+          return record;
+        }
+
+        throw new Error(`Could not import module: ${moduleSpecifier}`);
       }
 
       // Collate candidate locations for the moduleSpecifier,
