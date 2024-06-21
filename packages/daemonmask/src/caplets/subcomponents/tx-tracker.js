@@ -1,9 +1,8 @@
-import { makeRefIterator } from '@endo/daemon';
 import { makeChangeTopic } from '@endo/daemon/pubsub.js';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 
-import { makeIdGenerator } from '../../utils.js';
+import { makeIdGenerator, TxStatus } from '../../utils.js';
 
 /**
  * @import { Json, Provider } from '@metamask/eth-query'
@@ -16,12 +15,6 @@ import { makeIdGenerator } from '../../utils.js';
  */
 
 const TWELVE_SECONDS = 12 * 1000;
-
-const TX_STATUS = {
-  SUBMITTED: 'submitted',
-  COMPLETED: 'completed',
-  ORPHANED: 'orphaned',
-};
 
 const nextId = makeIdGenerator();
 
@@ -48,7 +41,7 @@ export const make = async (provider, txHistory) => {
   }
 
   return {
-    followTransactions: () => makeRefIterator(followTransactions()),
+    followTransactions: () => followTransactions(),
 
     /**
      * @param {TxParams} txParams
@@ -57,7 +50,7 @@ export const make = async (provider, txHistory) => {
       const id = nextId();
       updateHistory({
         id,
-        status: TX_STATUS.SUBMITTED,
+        status: TxStatus.Submitted,
         params: { ...txParams },
       });
 
@@ -75,7 +68,7 @@ export const make = async (provider, txHistory) => {
             clearInterval(intervalId);
             updateHistory({
               id,
-              status: TX_STATUS.COMPLETED,
+              status: TxStatus.Completed,
               params: { ...txParams },
               receipt,
             });
@@ -85,7 +78,7 @@ export const make = async (provider, txHistory) => {
           clearInterval(intervalId);
           updateHistory({
             id,
-            status: TX_STATUS.ORPHANED,
+            status: TxStatus.Orphaned,
             params: { ...txParams },
           });
           reject(error);

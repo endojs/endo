@@ -1,21 +1,28 @@
-import { createElement } from './util.js';
+import React from 'react';
 
-export const App = () => {
-  return createElement('div', {}, [
-    createElement(
+import { TxList } from './TxList.js';
+
+/** @import { Actions } from '../weblet.js' */
+
+/**
+ * @param {{ actions: Actions }} props
+ */
+export const App = ({ actions }) => {
+  const txSubscription = actions.followTransactions();
+
+  return React.createElement('div', {}, [
+    React.createElement(
       'h1',
       {
         key: 'title',
         style: {
-          display: 'inline',
-          border: '2px solid black',
-          borderRadius: '12px',
           padding: '4px',
-          background: 'white',
           fontSize: '42px',
+          'justify-self': 'center',
         },
       },
-      ['😈DaemonMask🎭'],
+      ['😈 DaemonMask 🎭'],
     ),
+    React.createElement(TxList, { txSubscription }),
   ]);
 };

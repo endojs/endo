@@ -1,6 +1,7 @@
+import { makeIteratorRef } from '@endo/daemon';
 import { E } from '@endo/far';
 
-import { isObject, makeExo, names } from '../utils.js';
+import { isObject, makeExo, Name } from '../utils.js';
 import { make as makeStore } from './subcomponents/map-store.js';
 import { make as makeTxTracker } from './subcomponents/tx-tracker.js';
 
@@ -35,7 +36,7 @@ export const make = async (powers) => {
       return [await E(keyring).getAddress()];
     },
 
-    followTransactions: () => txTracker.followTransactions(),
+    followTransactions: () => makeIteratorRef(txTracker.followTransactions()),
 
     /**
      * Make a JSON-RPC request to the node.
@@ -57,9 +58,8 @@ export const make = async (powers) => {
         }
 
         const txParams = { ...params[0] };
-        const { from: fromAddress } = txParams;
         const nonce = await E(provider).request('eth_getTransactionCount', [
-          fromAddress,
+          txParams.from,
           'latest',
         ]);
         txParams.nonce = nonce;
@@ -69,7 +69,7 @@ export const make = async (powers) => {
           { ...txParams },
           chainId,
         );
-        const signedTxParams = { ...txParams, signature: txSignature };
+        const signedTxParams = { ...txParams, chainId, signature: txSignature };
         txTracker.trackTx(signedTxParams);
 
         return await E(provider).request('eth_sendRawTransaction', [
@@ -84,7 +84,7 @@ export const make = async (powers) => {
   async function bootstrap() {
     // This resolves the value named "bundler" if it already exists.
     await E(powers).request('SELF', 'Please provide a bundler.', 'bundler');
-    const bundler = await E(powers).lookup(names.BUNDLER);
+    const bundler = await E(powers).lookup(Name.Bundler);
 
     const bundlerPowers = makeExo('BundlerPowers', {
       /** @param {unknown[]} args */
@@ -101,25 +101,25 @@ export const make = async (powers) => {
       },
     });
 
-    if (!(await E(powers).has(names.KEYRING))) {
+    if (!(await E(powers).has(Name.Keyring))) {
       await E(bundler).makeUnconfined(
         'src/caplets/keyring.js',
-        names.KEYRING,
+        Name.Keyring,
         bundlerPowers,
       );
     }
 
-    if (!(await E(powers).has(names.PROVIDER))) {
+    if (!(await E(powers).has(Name.Provider))) {
       await E(bundler).makeUnconfined(
         'src/caplets/provider.js',
-        names.PROVIDER,
+        Name.Provider,
         bundlerPowers,
       );
     }
 
-    const _keyring = await E(powers).lookup(names.KEYRING);
-    const _provider = await E(powers).lookup(names.PROVIDER);
-    const txHistory = await makeStore(names.TRANSACTIONS, powers);
+    const _keyring = await E(powers).lookup(Name.Keyring);
+    const _provider = await E(powers).lookup(Name.Provider);
+    const txHistory = await makeStore(Name.Transactions, powers);
     const _txTracker = await makeTxTracker(_provider, txHistory);
 
     return {

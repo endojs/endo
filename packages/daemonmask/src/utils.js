@@ -1,12 +1,18 @@
 import { makeExo as _makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 
-export const names = {
-  BUNDLER: 'bundler',
-  KEYRING: 'keyring',
-  PROVIDER: 'provider',
-  TRANSACTIONS: 'transactions',
-  WALLET: 'wallet',
+export const Name = {
+  Bundler: 'bundler',
+  Keyring: 'keyring',
+  Provider: 'provider',
+  Transactions: 'transactions',
+  Wallet: 'wallet',
+};
+
+export const TxStatus = {
+  Submitted: 'submitted',
+  Completed: 'completed',
+  Orphaned: 'orphaned',
 };
 
 /**

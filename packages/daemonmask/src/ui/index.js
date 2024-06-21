@@ -1,9 +1,14 @@
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './App.js';
-import { createElement } from './util.js';
 
-export const make = async () => {
+/** @import { Actions } from '../weblet.js' */
+
+/**
+ * @param {{ actions: Actions }} params
+ */
+export const make = async ({ actions }) => {
   document.body.innerHTML = '';
 
   const style = document.createElement('style');
@@ -17,6 +22,10 @@ export const make = async () => {
       padding: 12px;
       font-family: sans-serif;
       background: #e3e3e3;
+      display: grid;
+    }
+    div {
+      display: grid;
     }
   `;
   document.body.appendChild(style);
@@ -25,5 +34,5 @@ export const make = async () => {
   document.body.appendChild(container);
 
   const appRoot = createRoot(container);
-  appRoot.render(createElement(App));
+  appRoot.render(React.createElement(App, { actions }));
 };
