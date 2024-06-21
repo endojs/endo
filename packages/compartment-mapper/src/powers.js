@@ -58,6 +58,7 @@ export const unpackReadPowers = powers => {
  *
  * 1. `readSync` is a function
  * 2. `fileURLToPath` is a function
+ * 3. `isAbsolute` is a function
  *
  * @param {ReadPowers|ReadFn} value
  * @returns {value is SyncReadPowers}
@@ -67,4 +68,6 @@ export const isSyncReadPowers = value =>
   'readSync' in value &&
   typeof value.readSync === 'function' &&
   'fileURLToPath' in value &&
-  typeof value.fileURLToPath === 'function';
+  typeof value.fileURLToPath === 'function' &&
+  'isAbsolute' in value &&
+  typeof value.isAbsolute === 'function';
