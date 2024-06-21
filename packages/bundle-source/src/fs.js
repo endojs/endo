@@ -116,10 +116,10 @@ export const makeFileWriter = (
  *   fs: Pick<import('fs'), 'existsSync'> &
  *     { promises: Pick<
  *         import('fs/promises'),
- *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rm'
+ *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rename' | 'rm'
  *       >,
  *     },
- *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ *   path: Pick<import('path'), 'dirname' | 'resolve' | 'relative' | 'normalize'>,
  *   os: Pick<import('os'), 'platform'>,
  * }} io
  * @param {number} [pid]

@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=16"
   },
-  "packageManager": "yarn@4.2.2",
+  "packageManager": "yarn@4.3.0",
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.4.1",
     "@octokit/core": "^3.4.0",
@@ -25,7 +25,7 @@
     "type-coverage": "^2.26.3",
     "typedoc": "^0.25.13",
     "typedoc-plugin-markdown": "^3.17.1",
-    "typescript": "5.5.0-beta",
+    "typescript": "5.5.2",
     "typescript-eslint": "^7.3.1"
   },
   "scripts": {
