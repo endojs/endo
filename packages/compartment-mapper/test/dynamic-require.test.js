@@ -54,6 +54,35 @@ test('intra-package dynamic require works', async t => {
   );
 });
 
+test('intra-package dynamic require with absolute path works', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/absolute-app/index.js',
+    import.meta.url,
+  ).toString();
+  const { namespace } = await importLocation(readPowers, fixture, {
+    policy: {
+      entry: {
+        packages: 'any',
+      },
+      resources: {
+        absolute: {
+          dynamic: true,
+        },
+      },
+    },
+  });
+
+  t.deepEqual(
+    {
+      default: {
+        isOk: 1,
+      },
+      isOk: 1,
+    },
+    { ...namespace },
+  );
+});
+
 test('dynamic require fails without sync read powers', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',

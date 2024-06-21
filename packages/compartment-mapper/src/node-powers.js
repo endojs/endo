@@ -8,24 +8,28 @@
 
 // @ts-check
 
+/** @import {CanonicalFn} from './types.js' */
+/** @import {CryptoAPI} from './types.js' */
+/** @import {FileURLToPathFn} from './types.js' */
+/** @import {FsAPI} from './types.js' */
+/** @import {HashFn} from './types.js' */
+/** @import {IsAbsoluteFn} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
+/** @import {MaybeReadPowers} from './types.js' */
+/** @import {PathAPI} from './types.js' */
+/** @import {PathToFileURLFn} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 /** @import {ReadSyncFn} from './types.js' */
-/** @import {FsAPI} from './types.js' */
-/** @import {CryptoAPI} from './types.js' */
-/** @import {UrlAPI} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
-/** @import {MaybeReadFn} from './types.js' */
 /** @import {RequireResolveFn} from './types.js' */
-/** @import {CanonicalFn} from './types.js' */
 /** @import {SyncReadPowers} from './types.js' */
-/** @import {HashFn} from './types.js' */
+/** @import {UrlAPI} from './types.js' */
 /** @import {WritePowers} from './types.js' */
 
 import { createRequire } from 'module';
 
 /**
- * @param {string} location
+ * @type {FileURLToPathFn}
  */
 const fakeFileURLToPath = location => {
   const url = new URL(location);
@@ -36,11 +40,16 @@ const fakeFileURLToPath = location => {
 };
 
 /**
- * @param {string} path
+ * @type {PathToFileURLFn} path
  */
 const fakePathToFileURL = path => {
   return new URL(path, 'file://').toString();
 };
+
+/**
+ * @type {IsAbsoluteFn}
+ */
+const fakeIsAbsolute = () => false;
 
 /**
  * The implementation of `makeReadPowers` and the deprecated
@@ -51,13 +60,20 @@ const fakePathToFileURL = path => {
  * @param {FsAPI} args.fs
  * @param {UrlAPI} [args.url]
  * @param {CryptoAPI} [args.crypto]
+ * @param {PathAPI} [args.path]
  * @returns {MaybeReadPowers & SyncReadPowers}
  */
-const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
+const makeReadPowersSloppy = ({
+  fs,
+  url = undefined,
+  crypto = undefined,
+  path = undefined,
+}) => {
   const fileURLToPath =
     url === undefined ? fakeFileURLToPath : url.fileURLToPath;
   const pathToFileURL =
     url === undefined ? fakePathToFileURL : url.pathToFileURL;
+  const isAbsolute = path === undefined ? fakeIsAbsolute : path.isAbsolute;
 
   let readMutex = Promise.resolve(undefined);
 
@@ -72,11 +88,11 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     });
     await promise;
 
-    const path = fileURLToPath(location);
+    const filepath = fileURLToPath(location);
     try {
       // We await here to ensure that we release the mutex only after
       // completing the read.
-      return await fs.promises.readFile(path);
+      return await fs.promises.readFile(filepath);
     } finally {
       release(undefined);
     }
@@ -86,8 +102,8 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
    * @type {ReadSyncFn}
    */
   const readSync = location => {
-    const path = fileURLToPath(location);
-    return fs.readFileSync(path);
+    const filepath = fileURLToPath(location);
+    return fs.readFileSync(filepath);
   };
 
   /**
@@ -158,6 +174,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     computeSha512,
     requireResolve,
     readSync,
+    isAbsolute,
   };
 };
 
