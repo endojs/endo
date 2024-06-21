@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { TxStatus } from '../utils.js';
+import { TxStatus, hexWeiToDecimalEth, hexWeiToDecimalWei } from '../utils.js';
 
 /** @import { Json } from '@metamask/eth-query' */
 /** @import { Actions } from '../weblet.js' */
@@ -12,9 +12,9 @@ import { TxStatus } from '../utils.js';
 const makeAnyArray = () => [];
 
 /**
- * @param {Record<string, Json>} txData
+ * @param {{ txData: Record<string, Json> }} props
  */
-const TxItem = (txData) => {
+const TxItem = ({ txData }) => {
   /**
    * @param {string} key
    * @param {Json} value
@@ -27,8 +27,11 @@ const TxItem = (txData) => {
       if (key === 'signature' || key.toLowerCase().includes('hash')) {
         return `${value.substring(0, 40)}...`;
       }
-      if (key.includes('gas') || key === 'value' || key === 'nonce') {
-        return parseInt(value, 16).toString();
+      if (key.includes('gas') || key === 'nonce') {
+        return hexWeiToDecimalWei(value);
+      }
+      if (key === 'value') {
+        return hexWeiToDecimalEth(value);
       }
     }
     return value.toString();
@@ -77,7 +80,7 @@ const TxItemList = (txList) => {
   return React.createElement(
     'ul',
     {},
-    txList.map((tx) => TxItem(tx)),
+    txList.map((txData) => TxItem({ txData })),
   );
 };
 
@@ -92,9 +95,9 @@ export const TxList = ({ txSubscription }) => {
     const consumeIterator = async () => {
       for await (const tx of txSubscription) {
         if (tx.status === TxStatus.Submitted) {
-          setPendingTxList((prevValue) => [...prevValue, tx]);
+          setPendingTxList((prevValue) => [tx, ...prevValue]);
         } else if (tx.status === TxStatus.Completed) {
-          setCompletedTxList((prevValue) => [...prevValue, tx]);
+          setCompletedTxList((prevValue) => [tx, ...prevValue]);
           setPendingTxList((prevValue) =>
             prevValue.filter((pendingTx) => pendingTx.id !== tx.id),
           );
@@ -107,7 +110,7 @@ export const TxList = ({ txSubscription }) => {
     consumeIterator().catch(console.error);
   }, [txSubscription]);
 
-  return React.createElement('div', {}, [
+  return React.createElement('div', { style: { margin: '0 10%' } }, [
     React.createElement('h2', {}, ['Pending Transactions']),
     TxItemList(pendingTxList),
     React.createElement('h2', {}, ['Completed Transactions']),

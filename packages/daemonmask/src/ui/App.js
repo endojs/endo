@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { TxForm } from './TxForm.js';
 import { TxList } from './TxList.js';
 
 /** @import { Actions } from '../weblet.js' */
@@ -7,8 +8,8 @@ import { TxList } from './TxList.js';
 /**
  * @param {{ actions: Actions }} props
  */
-export const App = ({ actions }) => {
-  const txSubscription = actions.followTransactions();
+export const App = ({ actions: { followTransactions, sendTransaction } }) => {
+  const txSubscription = followTransactions();
 
   return React.createElement('div', {}, [
     React.createElement(
@@ -23,6 +24,7 @@ export const App = ({ actions }) => {
       },
       ['😈 DaemonMask 🎭'],
     ),
+    React.createElement(TxForm, { sendTransaction }),
     React.createElement(TxList, { txSubscription }),
   ]);
 };

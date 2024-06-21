@@ -8,7 +8,7 @@ import { makeExo } from '../utils.js';
  * Converts a `Buffer` into a `0x`-prefixed hex `String`.
  * @param {Buffer} buffer - The buffer to convert.
  */
-const bufferToHex = function (buffer) {
+const bufferToHex = (buffer) => {
   return `0x${buffer.toString('hex')}`;
 };
 

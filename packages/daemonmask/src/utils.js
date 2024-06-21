@@ -38,3 +38,36 @@ export const makeIdGenerator = () => {
   // eslint-disable-next-line no-plusplus
   return () => String(id++);
 };
+
+/** @param {string | number | bigint} decimalValue */
+export const decimalToHex = (decimalValue) => {
+  return `0x${decimalValue.toString(16)}`;
+};
+
+/** @param {string} decimalEth */
+export const decimalEthToHexWei = (decimalEth) => {
+  return decimalToHex(BigInt(parseInt(decimalEth, 10)) * BigInt(1e18));
+};
+
+/**
+ * Converts hexadecimal Wei value to decimal Wei string.
+ * @param {string} hexWei - The hexadecimal representation of Wei.
+ * @returns {string} The decimal string representation of Wei.
+ */
+export const hexWeiToDecimalWei = (hexWei) => {
+  const decimalWei = BigInt(hexWei);
+  return decimalWei.toString();
+};
+
+/**
+ * Converts hexadecimal Wei value to decimal Ether string.
+ * Assumes 1 Ether = 10^18 Wei.
+ * @param {string} hexWei - The hexadecimal representation of Wei.
+ * @returns {string} The decimal string representation of Ether.
+ */
+export const hexWeiToDecimalEth = (hexWei) => {
+  const decimalWei = BigInt(hexWei);
+  // Divide by 10^18 to convert Wei to ETH
+  const ethValue = decimalWei / BigInt('1000000000000000000');
+  return ethValue.toString();
+};
