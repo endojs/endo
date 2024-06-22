@@ -1,8 +1,7 @@
 // @ts-check
 
+import { q } from '@endo/errors';
 import { makeNetstringCapTP } from './connection.js';
-
-const { quote: q } = assert;
 
 export const servePrivatePath = (
   sockPath,

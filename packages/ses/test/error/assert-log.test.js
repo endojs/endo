@@ -2,7 +2,7 @@ import test from 'ava';
 import { assertLogs, throwsAndLogs } from './throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';
 
-const { details: d, quote: q, bare: b } = assert;
+const { details: X, quote: q, bare: b, error: makeError } = assert;
 
 // Self-test of the example from the throwsAndLogs comment.
 test('throwsAndLogs with data', t => {
@@ -86,11 +86,11 @@ test('causal tree', t => {
       const fooErr = SyntaxError('foo');
       let err1;
       try {
-        assert.fail(d`synful ${fooErr}`);
+        assert.fail(X`synful ${fooErr}`);
       } catch (e1) {
         err1 = e1;
       }
-      assert.fail(d`because ${err1}`);
+      assert.fail(X`because ${err1}`);
     },
     /because/,
     [['log', 'Caught', Error]],
@@ -101,11 +101,11 @@ test('causal tree', t => {
       const fooErr = SyntaxError('foo');
       let err1;
       try {
-        assert.fail(d`synful ${fooErr}`);
+        assert.fail(X`synful ${fooErr}`);
       } catch (e1) {
         err1 = e1;
       }
-      assert.fail(d`because ${err1}`);
+      assert.fail(X`because ${err1}`);
     },
     /because/,
     [
@@ -155,12 +155,12 @@ test('a causal tree falls silently', t => {
       const fooErr = SyntaxError('foo');
       let err1;
       try {
-        assert.fail(d`synful ${fooErr}`);
+        assert.fail(X`synful ${fooErr}`);
       } catch (e1) {
         err1 = e1;
       }
       try {
-        assert.fail(d`because ${err1}`);
+        assert.fail(X`because ${err1}`);
       } catch (e2) {
         t.assert(e2 instanceof Error);
       }
@@ -173,12 +173,12 @@ test('a causal tree falls silently', t => {
       const fooErr = SyntaxError('foo');
       let err1;
       try {
-        assert.fail(d`synful ${fooErr}`);
+        assert.fail(X`synful ${fooErr}`);
       } catch (e1) {
         err1 = e1;
       }
       try {
-        assert.fail(d`because ${err1}`);
+        assert.fail(X`because ${err1}`);
       } catch (e2) {
         t.assert(e2 instanceof Error);
       }
@@ -223,13 +223,13 @@ test('assert.equal', t => {
   );
   throwsAndLogs(
     t,
-    () => assert.equal(5, 6, d`${5} !== ${6}`),
+    () => assert.equal(5, 6, X`${5} !== ${6}`),
     /\(a number\) !== \(a number\)/,
     [['log', 'Caught', Error]],
   );
   throwsAndLogs(
     t,
-    () => assert.equal(5, 6, d`${5} !== ${q(6)}`),
+    () => assert.equal(5, 6, X`${5} !== ${q(6)}`),
     /\(a number\) !== 6/,
     [['log', 'Caught', Error]],
   );
@@ -260,8 +260,8 @@ test('assert.typeof', t => {
   ]);
 });
 
-test('assert.error default type', t => {
-  const err = assert.error(d`<${'bar'},${q('baz')}>`);
+test('makeError default type', t => {
+  const err = makeError(X`<${'bar'},${q('baz')}>`);
   t.is(err.message, '<(a string),"baz">');
   t.is(err.name, 'Error');
   throwsAndLogs(
@@ -287,8 +287,8 @@ test('assert.error default type', t => {
   );
 });
 
-test('assert.error explicit type', t => {
-  const err = assert.error(d`<${'bar'},${q('baz')}>`, URIError);
+test('makeError explicit type', t => {
+  const err = makeError(X`<${'bar'},${q('baz')}>`, URIError);
   t.is(err.message, '<(a string),"baz">');
   t.is(err.name, 'URIError');
   throwsAndLogs(
@@ -314,8 +314,8 @@ test('assert.error explicit type', t => {
   );
 });
 
-test('assert.error named', t => {
-  const err = assert.error(d`<${'bar'},${q('baz')}>`, URIError, {
+test('makeError named', t => {
+  const err = makeError(X`<${'bar'},${q('baz')}>`, URIError, {
     errorName: 'Foo-Err',
   });
   t.is(err.message, '<(a string),"baz">');
@@ -346,13 +346,13 @@ test('assert.error named', t => {
 test('assert.quote', t => {
   throwsAndLogs(
     t,
-    () => assert.fail(d`<${'bar'},${q('baz')}>`),
+    () => assert.fail(X`<${'bar'},${q('baz')}>`),
     /<\(a string\),"baz">/,
     [['log', 'Caught', Error]],
   );
   throwsAndLogs(
     t,
-    () => assert.fail(d`<${'bar'},${q('baz')}>`),
+    () => assert.fail(X`<${'bar'},${q('baz')}>`),
     /<\(a string\),"baz">/,
     [
       ['log', 'Caught', '(Error#1)'],
@@ -362,47 +362,47 @@ test('assert.quote', t => {
     { wrapWithCausal: true },
   );
   const list = ['a', 'b', 'c'];
-  throwsAndLogs(t, () => assert.fail(d`${q(list)}`), /\["a","b","c"\]/, [
+  throwsAndLogs(t, () => assert.fail(X`${q(list)}`), /\["a","b","c"\]/, [
     ['log', 'Caught', Error],
   ]);
   const repeat = { x: list, y: list };
   throwsAndLogs(
     t,
-    () => assert.fail(d`${q(repeat)}`),
+    () => assert.fail(X`${q(repeat)}`),
     /{"x":\["a","b","c"\],"y":"\[Seen\]"}/,
     [['log', 'Caught', Error]],
   );
   // Make it into a cycle
   list[1] = list;
-  throwsAndLogs(t, () => assert.fail(d`${q(list)}`), /\["a","\[Seen\]","c"\]/, [
+  throwsAndLogs(t, () => assert.fail(X`${q(list)}`), /\["a","\[Seen\]","c"\]/, [
     ['log', 'Caught', Error],
   ]);
   throwsAndLogs(
     t,
-    () => assert.fail(d`${q(repeat)}`),
+    () => assert.fail(X`${q(repeat)}`),
     /{"x":\["a","\[Seen\]","c"\],"y":"\[Seen\]"}/,
     [['log', 'Caught', Error]],
   );
 });
 
 test('assert.bare', t => {
-  throwsAndLogs(t, () => assert.fail(d`${b('foo')}`), 'foo', [
+  throwsAndLogs(t, () => assert.fail(X`${b('foo')}`), 'foo', [
     ['log', 'Caught', Error],
   ]);
   // Spaces are allowed in bare values.
-  throwsAndLogs(t, () => assert.fail(d`${b('foo bar')}`), 'foo bar', [
+  throwsAndLogs(t, () => assert.fail(X`${b('foo bar')}`), 'foo bar', [
     ['log', 'Caught', Error],
   ]);
   // Multiple consecutive spaces are disallowed and fall back to quote.
-  throwsAndLogs(t, () => assert.fail(d`${b('foo  bar')}`), '"foo  bar"', [
+  throwsAndLogs(t, () => assert.fail(X`${b('foo  bar')}`), '"foo  bar"', [
     ['log', 'Caught', Error],
   ]);
   // Strings with non-word punctuation also fall back.
-  throwsAndLogs(t, () => assert.fail(d`${b('foo%bar')}`), '"foo%bar"', [
+  throwsAndLogs(t, () => assert.fail(X`${b('foo%bar')}`), '"foo%bar"', [
     ['log', 'Caught', Error],
   ]);
   // Non-strings also fall back.
-  throwsAndLogs(t, () => assert.fail(d`${b(undefined)}`), '"[undefined]"', [
+  throwsAndLogs(t, () => assert.fail(X`${b(undefined)}`), '"[undefined]"', [
     ['log', 'Caught', Error],
   ]);
 });
@@ -488,7 +488,7 @@ test('assert.quote as best efforts stringify', t => {
 
 // See https://github.com/endojs/endo/issues/729
 test('printing detailsToken', t => {
-  t.throws(() => assert.error({ __proto__: null }), {
+  t.throws(() => makeError({ __proto__: null }), {
     message: 'unrecognized details {}',
   });
 });

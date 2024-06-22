@@ -1,4 +1,4 @@
-/* global window, document */
+/* global globalThis, window, document */
 /* eslint-disable no-plusplus */
 
 // two approaches:
@@ -152,7 +152,8 @@ lockdown();
   harden(guess);
   const compartment = new Compartment({
     console,
-    assert,
+    // See https://github.com/Agoric/agoric-sdk/issues/9515
+    assert: globalThis.assert,
     guess,
     ...dateEndowment,
   });

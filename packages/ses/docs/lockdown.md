@@ -339,7 +339,7 @@ can find it there. When the information leak is tolerable, the `'unsafe'`
 setting will preserve the filtered stack information on the `err.stack`.
 
 Like hiding the stack, the purpose of the `details` template literal tag (often
-spelled `X` or `d`) together with the `quote` function (often spelled `q`) is
+spelled `X`) together with the `quote` function (often spelled `q`) is
 to redact data from the error messages carried by error instances. The same
 `{errorTaming: 'unsafe'}` suppresses that redaction as well, so that all
 substitution values would act like they've been quoted. With this setting

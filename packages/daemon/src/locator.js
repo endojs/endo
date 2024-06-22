@@ -1,9 +1,8 @@
 // @ts-check
 
+import { makeError, q } from '@endo/errors';
 import { formatId, isValidNumber, parseId } from './formula-identifier.js';
 import { isValidFormulaType } from './formula-type.js';
-
-const { quote: q } = assert;
 
 /**
  * The endo locator format:
@@ -28,7 +27,7 @@ const isValidLocatorType = allegedType =>
  */
 const assertValidLocatorType = allegedType => {
   if (!isValidLocatorType(allegedType)) {
-    throw assert.error(`Unrecognized locator type ${q(allegedType)}`);
+    throw makeError(`Unrecognized locator type ${q(allegedType)}`);
   }
 };
 
@@ -40,17 +39,17 @@ export const parseLocator = allegedLocator => {
   const errorPrefix = `Invalid locator ${q(allegedLocator)}:`;
 
   if (!URL.canParse(allegedLocator)) {
-    throw assert.error(`${errorPrefix} Invalid URL.`);
+    throw makeError(`${errorPrefix} Invalid URL.`);
   }
   const url = new URL(allegedLocator);
 
   if (!allegedLocator.startsWith('endo://')) {
-    throw assert.error(`${errorPrefix} Invalid protocol.`);
+    throw makeError(`${errorPrefix} Invalid protocol.`);
   }
 
   const node = url.host;
   if (!isValidNumber(node)) {
-    throw assert.error(`${errorPrefix} Invalid node identifier.`);
+    throw makeError(`${errorPrefix} Invalid node identifier.`);
   }
 
   if (
@@ -58,17 +57,17 @@ export const parseLocator = allegedLocator => {
     !url.searchParams.has('id') ||
     !url.searchParams.has('type')
   ) {
-    throw assert.error(`${errorPrefix} Invalid search params.`);
+    throw makeError(`${errorPrefix} Invalid search params.`);
   }
 
   const number = url.searchParams.get('id');
   if (number === null || !isValidNumber(number)) {
-    throw assert.error(`${errorPrefix} Invalid id.`);
+    throw makeError(`${errorPrefix} Invalid id.`);
   }
 
   const formulaType = url.searchParams.get('type');
   if (formulaType === null || !isValidLocatorType(formulaType)) {
-    throw assert.error(`${errorPrefix} Invalid type.`);
+    throw makeError(`${errorPrefix} Invalid type.`);
   }
 
   return { formulaType, node, number };

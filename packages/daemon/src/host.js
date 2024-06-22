@@ -6,6 +6,7 @@
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
+import { makeError, q } from '@endo/errors';
 import { makeIteratorRef } from './reader-ref.js';
 import { assertPetName, petNamePathFrom } from './pet-name.js';
 import { parseId, formatId } from './formula-identifier.js';
@@ -13,8 +14,6 @@ import { makePetSitter } from './pet-sitter.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 
 import { HostInterface } from './interfaces.js';
-
-const { quote: q } = assert;
 
 /** @param {string} name */
 const assertPowersName = name => {
@@ -494,10 +493,10 @@ export const makeHostMaker = ({
 
       nodeNumber || assert.Fail`Invitation must have a hostname`;
       if (!remoteHandleNumber) {
-        throw assert.error(`Invitation must have a "from" parameter`);
+        throw makeError(`Invitation must have a "from" parameter`);
       }
       if (invitationNumber === null) {
-        throw assert.error(`Invitation must have an "id" parameter`);
+        throw makeError(`Invitation must have an "id" parameter`);
       }
 
       /** @type {PeerInfo} */

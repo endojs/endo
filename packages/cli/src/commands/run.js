@@ -1,4 +1,4 @@
-/* global process */
+/* global globalThis, process */
 import url from 'url';
 import os from 'os';
 import { E, Far } from '@endo/far';
@@ -10,7 +10,8 @@ import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 
 const endowments = harden({
-  assert,
+  // See https://github.com/Agoric/agoric-sdk/issues/9515
+  assert: globalThis.assert,
   E,
   Far,
   makeExo,

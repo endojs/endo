@@ -3,7 +3,7 @@ import { parseArgs } from 'util';
 import { jsOpts, jsonOpts, makeNodeBundleCache } from '../cache.js';
 
 const USAGE =
-  'bundle-source [--cache-js | --cache-json] cache/ module1.js bundleName1 module2.js bundleName2 ...';
+  'bundle-source [-T,--no-transforms] [--cache-js | --cache-json] cache/ module1.js bundleName1 module2.js bundleName2 ...';
 
 const options = /** @type {const} */ ({
   'no-transforms': {

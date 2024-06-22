@@ -1,4 +1,4 @@
-/* globals document */
+/* globals globalThis, document */
 
 lockdown();
 {
@@ -13,7 +13,11 @@ lockdown();
 
   // Under the default `lockdown` settings, it is safe enough
   // to endow with the safe `console`.
-  const compartment = new Compartment({ console, assert });
+  const compartment = new Compartment({
+    console,
+    // See https://github.com/Agoric/agoric-sdk/issues/9515
+    assert: globalThis.assert,
+  });
 
   execute.addEventListener('click', () => {
     const sourceText = input.value;

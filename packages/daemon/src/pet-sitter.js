@@ -1,11 +1,10 @@
 // @ts-check
 
+import { q } from '@endo/errors';
 import { isPetName } from './pet-name.js';
 import { parseId } from './formula-identifier.js';
 
 /** @import { PetStore, IdRecord, PetStoreIdNameChange } from './types.js' */
-
-const { quote: q } = assert;
 
 /**
  * @param {PetStore} petStore

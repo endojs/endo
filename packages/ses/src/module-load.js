@@ -29,7 +29,7 @@ import {
 } from './commons.js';
 import { assert } from './error/assert.js';
 
-const { Fail, details: d, quote: q } = assert;
+const { Fail, details: X, quote: q, note: annotateError } = assert;
 
 const noop = () => {};
 
@@ -153,7 +153,7 @@ function* loadWithoutErrorAnnotation(
   if (typeof aliasNamespace === 'string') {
     // eslint-disable-next-line @endo/no-polymorphic-call
     assert.fail(
-      d`Cannot map module ${q(moduleSpecifier)} to ${q(
+      X`Cannot map module ${q(moduleSpecifier)} to ${q(
         aliasNamespace,
       )} in parent compartment, not yet implemented`,
       TypeError,
@@ -163,7 +163,7 @@ function* loadWithoutErrorAnnotation(
     if (alias === undefined) {
       // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(
-        d`Cannot map module ${q(
+        X`Cannot map module ${q(
           moduleSpecifier,
         )} because the value is not a module exports namespace, or is from another realm`,
         ReferenceError,
@@ -307,9 +307,9 @@ const memoizedLoadWithErrorAnnotation = (
     ],
     error => {
       // eslint-disable-next-line @endo/no-polymorphic-call
-      assert.note(
+      annotateError(
         error,
-        d`${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
+        X`${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
           compartmentName,
         )}`,
       );

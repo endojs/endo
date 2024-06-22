@@ -1,3 +1,4 @@
+/* global globalThis */
 // @ts-check
 /// <reference types="ses"/>
 
@@ -12,7 +13,8 @@ import { WorkerFacetForDaemonInterface } from './interfaces.js';
 /** @import { EndoReadable, MignonicPowers } from './types.js' */
 
 const endowments = harden({
-  assert,
+  // See https://github.com/Agoric/agoric-sdk/issues/9515
+  assert: globalThis.assert,
   console,
   E,
   Far,

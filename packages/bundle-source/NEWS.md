@@ -1,4 +1,14 @@
 
+# Next version
+
+- Adds support for `--no-transforms` (`-T`) which generates bundles with
+  original sources.
+  A future version of `@endo/import-bundle` will be able to execute this
+  kind of bundle on XS and in Node.js, but will remain opt-in because
+  they cannot be made to run on the web without further work on module
+  virtualization in the platform without entraining a client-side
+  dependency on a JavaScript parser framework (namely Babel).
+
 # v3.2.1 (2024-03-20)
 
 - Fixes an install-time bug introduced in 3.2.0.

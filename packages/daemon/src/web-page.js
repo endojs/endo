@@ -1,5 +1,5 @@
 // @ts-check
-/* global window, document */
+/* global globalThis, window, document */
 
 import '@endo/init/debug.js';
 import { makeCapTP } from '@endo/captp';
@@ -56,7 +56,8 @@ const collectPropsAndBind = target => {
 };
 
 const hardenedEndowments = harden({
-  assert,
+  // See https://github.com/Agoric/agoric-sdk/issues/9515
+  assert: globalThis.assert,
   E,
   Far,
   makeExo,

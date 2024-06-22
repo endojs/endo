@@ -3,7 +3,7 @@
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 
-const { quote: q } = assert;
+import { q } from '@endo/errors';
 
 /** @import {NameHub} from '../src/types.js' */
 

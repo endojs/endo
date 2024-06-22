@@ -1,12 +1,11 @@
 // @ts-check
 
+import { q } from '@endo/errors';
 import { makeChangeTopic } from './pubsub.js';
 import { parseId, assertValidId, isValidNumber } from './formula-identifier.js';
 import { makeBidirectionalMultimap } from './multimap.js';
 
 /** @import { BidirectionalMultimap, Config, FilePowers, IdChangesTopic, NameChangesTopic, PetStore, PetStoreIdNameChange, PetStoreNameChange, PetStorePowers } from './types.js' */
-
-const { quote: q } = assert;
 
 /**
  * @param {FilePowers} filePowers

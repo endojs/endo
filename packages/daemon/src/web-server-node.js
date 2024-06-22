@@ -12,6 +12,7 @@ import { mapWriter, mapReader } from '@endo/stream';
 import { E, Far } from '@endo/far';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 
+import { q } from '@endo/errors';
 import { makeHttpPowers } from './web-server-node-powers.js';
 
 import {
@@ -19,8 +20,6 @@ import {
   messageToBytes,
   bytesToMessage,
 } from './connection.js';
-
-const { quote: q } = assert;
 
 const { servePortHttp } = makeHttpPowers({ ws, http });
 

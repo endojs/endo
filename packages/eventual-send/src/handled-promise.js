@@ -9,7 +9,7 @@ import {
 } from './local.js';
 import { makePostponedHandler } from './postponed.js';
 
-const { Fail, details: X, quote: q } = assert;
+const { Fail, details: X, quote: q, note: annotateError } = assert;
 
 const {
   create,
@@ -337,7 +337,7 @@ export const makeHandledPromise = () => {
         handledResolve(resolvedTarget);
         return resolvedTarget;
       } catch (e) {
-        assert.note(e, X`during resolveWithPresence`);
+        annotateError(e, X`during resolveWithPresence`);
         handledReject(e);
         throw e;
       }
