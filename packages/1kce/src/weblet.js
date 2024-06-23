@@ -62,13 +62,14 @@ export const make = (agent) => {
       // to: "20f44fabae954fca2220c77be32d7608f77e4b33cb99fa434aa49d91e441f2adce46b688fb8997b90224dd92eab5452904159b65a525224ba227ded448c24048:9eaaede4c68ff48208cd2a9a9a2ff0050a3c081c6b7dda0c00aef631cc7ecca188a47829a18cf8274eddf41c3bec5e8dda58c71f1a857b1a34f9c5f474e560ac"
       // type: "request"
       switch (request.description) {
-        case 'game/deck':
-          // if (request.from !== gameHostAgentId) continue
-          await E(agent).resolve(
-            request.number,
-            deckName,
-          );
-          break;
+        // TODO: Change to push
+        // case 'game/deck':
+        //   // if (request.from !== gameHostAgentId) continue
+        //   await E(agent).resolve(
+        //     request.number,
+        //     deckName,
+        //   );
+        //   break;
         default:
           console.log('unhandled request', request)
           continue;
