@@ -1,13 +1,81 @@
 import React from 'react';
 import { E } from '@endo/far';
 import { makeReadonlyGrainMapFromRemote } from '@endo/grain/captp.js';
-import { h } from './util.js';
+import { h, useAsync } from './util.js';
 import { ActiveGameComponent, DeckManagerComponent, PlayGameComponent } from './game.js';
+import { useFollowChanges } from './endo.js';
+const { useRef } = React;
 
+const DeckSelector = ({ actions, deckName, setDeckByName, createNewDeck }) => {
+  const inventory = useFollowChanges(() => actions.subscribeToNames(), [])
+  const names = inventory.map(({ name }) => name)
+  const deckNames = names.filter(name => name.startsWith('deck-'))
+  const newDeckOption = '<new empty deck>'
+  const options = [
+    newDeckOption,
+    ...deckNames,
+  ]
+  const currentSelection = deckName || newDeckOption
+  const isNewDeckSelected = currentSelection === newDeckOption
+  const inputRef = useRef()
+
+  return h('div', null, [
+    h('h2', { key: 'title' }, 'Select Deck'),
+    h('select', {
+        key: 'selector',
+        value: currentSelection,
+        onChange: ({ target: { value }}) => setDeckByName(value),
+      },
+      options.map(name => h('option', { key: name, value: name }, name))
+    ),
+    isNewDeckSelected && h('div', null, [
+      h('input', { key: 'input', type: 'text', ref: inputRef, defaultValue: 'deck-new' }),
+      h('button', {
+        key: 'button',
+        onClick: () => createNewDeck(inputRef.current.value)
+      }, 'Create New Deck'),
+    ])
+  ])
+}
+
+const GameMenu = ({ actions, setGameAgentName }) => {
+  const inventory = useFollowChanges(() => actions.subscribeToNames(), [])
+  const names = inventory.map(({ name }) => name)
+  const gameAgentNames = names.filter(name => name.startsWith('agent-game'))
+  return h('div', null, [
+    h('h2', { key: 'title' }, 'Select Game'),
+    h('ul', { key: 'list' }, gameAgentNames.map(name => {
+      return (
+        h('li', { key: name }, [
+          h('span', { key: 'label'}, name),
+          h('button', {
+            key: 'button',
+            onClick: () => setGameAgentName(name),
+          }, 'select'),
+        ])
+      )
+    })),
+  ])
+}
 
 export const App = ({ actions }) => {
-  const [deck, setDeck] = React.useState(undefined);
-  const [{ game, stateGrain }, setGame] = React.useState({});
+  const [gameAgentName, setGameAgentName] = React.useState(undefined);
+  const { value: gameKit } = useAsync(async () => {
+    if (!gameAgentName) return
+    const agent = await actions.lookup(gameAgentName)
+    const game = await E(agent).lookup('game')
+    const deck = await E(agent).has('deck') && await E(agent).lookup('deck')
+    // const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
+    return { agent, game, deck, }
+    // todo, lookup game state / deck?
+  }, [gameAgentName])
+  const { agent, game, deck, } = gameKit || {};
+  // const [deck, setDeck] = React.useState(undefined);
+  // const [{ game, stateGrain }, setGame] = React.useState({});
+
+  const setDeckByName = async (newDeckName) => {
+    console.log('set deck by name', newDeckName)
+  }
 
   const deckMgmt = {
     // deck mgmt
@@ -27,33 +95,35 @@ export const App = ({ actions }) => {
     },
   }
 
+  // TODO: select agent-game instead of hard code
+
   const gameMgmt = {
-    async fetchGame () {
-      // has-check is workaround for https://github.com/endojs/endo/issues/1843
-      if (await actions.has('game')) {
-        const game = await actions.lookup('game')
-        setDeck(game)
-        const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
-        setGame({ game, stateGrain })
-      }
-    },
-    async start () {
-      // make game
-      const game = await actions.makeGame()
-      const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
-      setGame({ game, stateGrain })
-      await E(game).start(deck)
-    },
+    // async fetchGame () {
+    //   // has-check is workaround for https://github.com/endojs/endo/issues/1843
+    //   if (await actions.has('game')) {
+    //     const game = await actions.lookup('game')
+    //     setDeck(game)
+    //     const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
+    //     setGame({ game, stateGrain })
+    //   }
+    // },
+    // async start () {
+    //   // make game
+    //   const game = await actions.makeGame()
+    //   const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
+    //   setGame({ game, stateGrain })
+    //   await E(game).start(deck)
+    // },
     async playCardByIdFromHand (player, cardId, destinationPlayer) {
       await E(game).playCardByIdFromHand(player, cardId, destinationPlayer)
     },
   }
 
-  // on first render
-  React.useEffect(() => {
-    deckMgmt.fetchDeck()
-    gameMgmt.fetchGame()
-  }, []);
+  // // on first render
+  // React.useEffect(() => {
+  //   deckMgmt.fetchDeck()
+  //   gameMgmt.fetchGame()
+  // }, []);
 
   return (
     h('div', {}, [
@@ -68,9 +138,17 @@ export const App = ({ actions }) => {
           fontSize: '42px',
         },
       }, ['🃏1kce🃏']),
-      !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
-      !game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
-      game && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
+      // select game
+      !gameAgentName && h(GameMenu, { key: 'game-list', actions, setGameAgentName }),
+      // show selected game
+      game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName })
+      // game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
+      
+
+      // // (legacy)
+      // !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
+      // !game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
+      // game && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
     ])
   )
 };

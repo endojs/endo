@@ -453,18 +453,26 @@ export const make = async (powers) => {
     })
   }
 
-  const deck = await E(powers).request(
-    // recipient
-    'parent',
-    // description
-    'game/deck',
-    // my petname
-    'deck',
-  )
+  // const deck = await E(powers).request(
+  //   // recipient
+  //   'parent',
+  //   // description
+  //   'game/deck',
+  //   // my petname
+  //   'deck',
+  // )
 
   const gameState = await loadState()
-  const game = makeGame(gameState, deck, persistState)
-  await game.initialize()
+
+  let game;
+  const setDeck = async (deck) => {
+    game = makeGame(gameState, deck, persistState)
+    await game.initialize()
+  }
+  if (await E(powers).has('deck')) {
+    const deck = await lookup('deck');
+    await setDeck(deck);
+  }
 
   const getCardsAtPlayerLocationGrain = async (remotePlayer) => {
     const { name } = playerRemoteToLocal.get(remotePlayer)
@@ -479,6 +487,11 @@ export const make = async (powers) => {
   }
 
   return Far('Game', {
+    async setDeck (deckId) {
+      await E(powers).write('deck', deckId);
+      const deck = await lookup('deck')
+      await setDeck(deck);
+    },
     async start () {
       // TODO: mark game as started,
       // prevent multiple starts, new players etc

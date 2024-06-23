@@ -84,7 +84,7 @@ const useFollowMessages = (getSubFn, deps) => {
   return state;
 };
 
-const useFollowChanges = (getSubFn, deps) => {
+export const useFollowChanges = (getSubFn, deps) => {
   const reducerFn = (change, setState) => {
     // apply change
     setState(prevState => {
