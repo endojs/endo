@@ -28,12 +28,12 @@
 /** @import {LinkOptions} from './types.js' */
 /** @import {ERef} from '@endo/eventual-send' */
 
-import { resolve as resolveFallback } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
+import { resolve as resolveFallback } from './node-module-specifier.js';
 import {
-  enforceModulePolicy,
   ATTENUATORS_COMPARTMENT,
   attenuateGlobals,
+  enforceModulePolicy,
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
@@ -460,16 +460,11 @@ const makeModuleMapHook = (
  * @returns {value is SyncLinkOptions}
  */
 const isSyncOptions = value =>
-  !value || (typeof value === 'object' && !('moduleTransforms' in value));
-
-/**
- * Checks if the compartment descriptor's policy allows dynamic requires.
- *
- * @param {CompartmentDescriptor} value
- * @returns {boolean}
- */
-const isDynamicRequireAllowed = value =>
-  value.policy && value.policy.dynamic === true;
+  !value ||
+  (typeof value === 'object' &&
+    !('moduleTransforms' in value) &&
+    'makeImportNowHook' in value &&
+    typeof value.makeImportNowHook === 'function');
 
 /**
  * Assemble a DAG of compartments as declared in a compartment map starting at
@@ -593,15 +588,18 @@ export const link = (
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
-    // TODO: The default assignments seem to break type inference
     const {
       location,
       name,
-      modules = create(null),
       parsers: languageForExtensionOverrides = {},
       types: languageForModuleSpecifierOverrides = {},
-      scopes = create(null),
     } = compartmentDescriptor;
+
+    // this is for retaining the correct type inference about these values
+    // without use of `let`
+    const { scopes: _scopes, modules: _modules } = compartmentDescriptor;
+    const modules = _modules || create(null);
+    const scopes = _scopes || create(null);
 
     // Capture the default.
     // The `moduleMapHook` writes back to the compartment map.
@@ -657,15 +655,11 @@ export const link = (
     });
     /** @type {ImportNowHook | undefined} */
     let importNowHook;
-    if (
-      isSync &&
-      makeImportNowHook &&
-      compartmentDescriptor !== entryCompartmentDescriptor
-    ) {
-      if (isDynamicRequireAllowed(compartmentDescriptor)) {
-        // `parse` must be sync here
+
+    if (isSync) {
+      if (entryCompartmentDescriptor !== compartmentDescriptor) {
         const syncParse = /** @type {ParseFn} */ (parse);
-        importNowHook = makeImportNowHook({
+        importNowHook = /** @type {ImportNowHookMaker} */ (makeImportNowHook)({
           entryCompartmentDescriptor,
           packageLocation: location,
           packageName: name,
@@ -673,14 +667,17 @@ export const link = (
           compartments,
         });
       } else {
-        // it's possible for this to still be called, but
-        // the error message would be cryptic otherwise.
+        // should never happen
         importNowHook = () => {
           throw new Error(
-            `Dynamic require not allowed in compartment ${q(compartmentDescriptor.name)}`,
+            'importNowHook should not be called by entry compartment',
           );
         };
       }
+    } else {
+      importNowHook = () => {
+        throw new Error('Provided read powers do not support dynamic requires');
+      };
     }
 
     const moduleMapHook = makeModuleMapHook(
