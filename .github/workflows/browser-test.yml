@@ -10,13 +10,19 @@ jobs:
   browser-tests:
     timeout-minutes: 30
     runs-on: ubuntu-latest
-    container:
-      image: selenium/standalone-chrome:nightly
-      options: --user root # reintroducing a GH Actions default expectation
-      ## https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
-      ## the Selenium image is configured to not run as root, so we have to undo some of it
-    env:
-      HOME: /root # Firefox complains otherwise
+    # This Chrome nightly image can no longer install browsers in Github CI for
+    # lack of some system dependencies:
+    #  Package 'libasound2' has no installation candidate
+    #  Unable to locate package libicu70
+    #  Unable to locate package libffi7
+    #  Unable to locate package libx264-163
+    # container:
+    #   image: selenium/standalone-chrome:nightly
+    #   options: --user root # reintroducing a GH Actions default expectation
+    #   ## https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
+    #   ## the Selenium image is configured to not run as root, so we have to undo some of it
+    # env:
+    #   HOME: /root # Firefox complains otherwise
     steps:
       - name: Put unstable chrome where playwright would look for it
         run: mv /opt/google/chrome /opt/google/chrome-unstable
