@@ -3,6 +3,8 @@
  * module source.
  */
 
+import { findInvalidSyncReadPowersProps, isSyncReadPowers } from './powers.js';
+
 // @ts-check
 
 /** @import {ReadFn} from './types.js' */
@@ -147,9 +149,21 @@ export const wrap = ({
     // if this fails, tell user
 
     /** @type {import('ses').ModuleExportsNamespace} */
-    const namespace = !has(resolvedImports, importSpecifier)
-      ? compartment.importNow(importSpecifier)
-      : compartment.importNow(resolvedImports[importSpecifier]);
+    let namespace;
+
+    if (!has(resolvedImports, importSpecifier)) {
+      if (isSyncReadPowers(readPowers)) {
+        namespace = compartment.importNow(importSpecifier);
+      } else {
+        const invalidProps = findInvalidSyncReadPowersProps(readPowers).sort();
+        throw new Error(
+          `Synchronous readPowers required for dynamic import of ${assert.quote(importSpecifier)}; missing or invalid prop(s): ${invalidProps.join(', ')}`,
+        );
+      }
+    } else {
+      namespace = compartment.importNow(resolvedImports[importSpecifier]);
+    }
+
     // If you read this file carefully, you'll see it's not possible for a cjs module to not have the default anymore.
     // It's currently possible to require modules that were not created by this file though.
     if (has(namespace, 'default')) {
