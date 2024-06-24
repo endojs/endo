@@ -41,8 +41,8 @@ const { assign, create, freeze } = Object;
 /**
  * Returns `true` if `value` is a {@link SyncImportLocationOptions}.
  *
- * The only requirement here is that `moduleTransforms` is _not_ present in
- * `value`; `importNowHook` is optional.
+ * The only requirements here are:
+ * - `moduleTransforms` _is not_ present in `value`
  *
  * @param {ImportLocationOptions|SyncImportLocationOptions} value
  * @returns {value is SyncImportLocationOptions}
