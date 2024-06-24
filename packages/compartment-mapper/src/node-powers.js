@@ -61,7 +61,7 @@ const fakeIsAbsolute = () => false;
  * @param {UrlAPI} [args.url]
  * @param {CryptoAPI} [args.crypto]
  * @param {PathAPI} [args.path]
- * @returns {MaybeReadPowers & SyncReadPowers}
+ * @returns {MaybeReadPowers}
  */
 const makeReadPowersSloppy = ({
   fs,
@@ -96,14 +96,6 @@ const makeReadPowersSloppy = ({
     } finally {
       release(undefined);
     }
-  };
-
-  /**
-   * @type {ReadSyncFn}
-   */
-  const readSync = location => {
-    const filepath = fileURLToPath(location);
-    return fs.readFileSync(filepath);
   };
 
   /**
@@ -156,7 +148,7 @@ const makeReadPowersSloppy = ({
     }
   };
 
-  /** @type {HashFn=} */
+  /** @type {HashFn | undefined} */
   const computeSha512 = crypto
     ? bytes => {
         const hash = crypto.createHash('sha512');
@@ -173,7 +165,42 @@ const makeReadPowersSloppy = ({
     canonical,
     computeSha512,
     requireResolve,
+    isAbsolute,
+  };
+};
+
+/**
+ * Creates {@link ReadPowers} for dynamic module support
+ *
+ * @param {object} args
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} [args.url]
+ * @param {CryptoAPI} [args.crypto]
+ * @param {PathAPI} [args.path]
+ * @returns {MaybeReadPowers & SyncReadPowers}
+ */
+export const makeSyncReadPowers = ({
+  fs,
+  url = undefined,
+  crypto = undefined,
+  path = undefined,
+}) => {
+  const powers = makeReadPowersSloppy({ fs, url, crypto, path });
+  const fileURLToPath = powers.fileURLToPath || fakeFileURLToPath;
+  const isAbsolute = powers.isAbsolute || fakeIsAbsolute;
+
+  /**
+   * @type {ReadSyncFn}
+   */
+  const readSync = location => {
+    const filepath = fileURLToPath(location);
+    return fs.readFileSync(filepath);
+  };
+
+  return {
+    ...powers,
     readSync,
+    fileURLToPath,
     isAbsolute,
   };
 };

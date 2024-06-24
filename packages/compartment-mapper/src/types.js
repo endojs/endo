@@ -209,13 +209,21 @@ export {};
 /**
  * These properties are necessary for dynamic require support
  *
- * @typedef {'fileURLToPath'|'readSync'|'isAbsolute'} SyncReadPowersProps
+ * @typedef {'fileURLToPath' | 'readSync' | 'isAbsolute'} SyncReadPowersProp
+ * @see {@link SyncReadPowers}
  */
 
 /**
- * {@link ReadPowers} supporting synchronous reads and dynamic requires
+ * The extension of {@link ReadPowers} necessary for dynamic require support
  *
- * @typedef {Omit<ReadPowers, SyncReadPowersProps> & Required<Pick<ReadPowers, SyncReadPowersProps>>} SyncReadPowers
+ * For a `ReadPowers` to be a `SyncReadPowers`:
+ *
+ * 1. It must be an object (not a {@link ReadFn})
+ * 2. Prop `readSync` is a function
+ * 3. Prop `fileURLToPath` is a function
+ * 4. Prop `isAbsolute` is a function
+ *
+ * @typedef {Omit<ReadPowers, SyncReadPowersProp> & Required<Pick<ReadPowers, SyncReadPowersProp>>} SyncReadPowers
  */
 
 /**
@@ -465,7 +473,7 @@ export {};
  * @typedef {object} SyncExtraLinkOptions
  * @property {ResolveHook} [resolve]
  * @property {ImportHookMaker} makeImportHook
- * @property {ImportNowHookMaker} [makeImportNowHook]
+ * @property {ImportNowHookMaker} makeImportNowHook
  * @property {ParserForLanguage} parserForLanguage
  * @property {LanguageForExtension} [languageForExtension]
  * @property {SyncModuleTransforms} [syncModuleTransforms]

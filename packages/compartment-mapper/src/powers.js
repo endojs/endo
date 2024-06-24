@@ -9,10 +9,13 @@
 
 /** @import {CanonicalFn} from './types.js' */
 /** @import {SyncReadPowers} from './types.js' */
+/** @import {SyncReadPowersProp} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 /** @import {MaybeReadPowers} from './types.js' */
 /** @import {MaybeReadFn} from './types.js' */
+
+const { freeze } = Object;
 
 /** @type {CanonicalFn} */
 const canonicalShim = async path => path;
@@ -54,20 +57,40 @@ export const unpackReadPowers = powers => {
 };
 
 /**
- * Returns `true` if `value` is a {@link SyncReadPowers}, which requires:
+ * Ordered array of every property in {@link SyncReadPowers} which is _required_.
  *
- * 1. `readSync` is a function
- * 2. `fileURLToPath` is a function
- * 3. `isAbsolute` is a function
+ * @satisfies {Readonly<{[K in SyncReadPowersProp]-?: {} extends Pick<SyncReadPowers, K> ? never : K}[SyncReadPowersProp][]>}
+ */
+const requiredSyncReadPowersProps = freeze(
+  /** @type {const} */ (['fileURLToPath', 'isAbsolute', 'readSync']),
+);
+
+/**
+ * Returns `true` if `value` is a {@link SyncReadPowers}
  *
  * @param {ReadPowers|ReadFn} value
  * @returns {value is SyncReadPowers}
  */
 export const isSyncReadPowers = value =>
   typeof value === 'object' &&
-  'readSync' in value &&
-  typeof value.readSync === 'function' &&
-  'fileURLToPath' in value &&
-  typeof value.fileURLToPath === 'function' &&
-  'isAbsolute' in value &&
-  typeof value.isAbsolute === 'function';
+  requiredSyncReadPowersProps.every(
+    prop => prop in value && typeof value[prop] === 'function',
+  );
+
+/**
+ * Returns a list of the properties missing from (or invalid within) `value` that are required for
+ * `value` to be a {@link SyncReadPowers}.
+ *
+ * Used for human-friendly error messages
+ *
+ * @param {ReadPowers | ReadFn} value The value to check for missing properties.
+ * @returns {SyncReadPowersProp[]}
+ */
+export const findInvalidSyncReadPowersProps = value => {
+  if (typeof value === 'function') {
+    return [...requiredSyncReadPowersProps];
+  }
+  return requiredSyncReadPowersProps.filter(
+    prop => !(prop in value) || typeof value[prop] !== 'function',
+  );
+};
