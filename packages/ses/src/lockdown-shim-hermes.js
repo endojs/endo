@@ -5,7 +5,7 @@
 // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_SLOPPY.md
 import './assert-sloppy-mode.js';
 import { globalThis } from './commons.js';
-import { repairIntrinsics } from './lockdown.js';
+import { repairIntrinsics } from './lockdown-hermes.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -13,7 +13,7 @@ import { repairIntrinsics } from './lockdown.js';
  * @param {LockdownOptions} options
  */
 globalThis.lockdown = options => {
-  const hardenIntrinsics = repairIntrinsics(options, true);
+  const hardenIntrinsics = repairIntrinsics(options);
   globalThis.harden = hardenIntrinsics();
 };
 

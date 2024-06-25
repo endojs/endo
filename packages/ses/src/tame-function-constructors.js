@@ -127,5 +127,17 @@ export default function tameFunctionConstructors() {
     '(async function(){})',
   );
 
+  try {
+    // eslint-disable-next-line
+    new FERAL_FUNCTION('async function* (){}');
+    repairFunction(
+      'AsyncGeneratorFunction',
+      '%InertAsyncGeneratorFunction%',
+      '(async function*(){})',
+    );
+  } catch {
+    // 
+  }
+
   return newIntrinsics;
 }

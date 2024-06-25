@@ -13,3 +13,6 @@
 // limitations under the License.
 
 import './src/lockdown-shim-hermes.js';
+import './src/compartment-shim.js';
+import './src/assert-shim.js';
+import './src/console-shim.js';

@@ -35,9 +35,10 @@ function makeArguments() {
 }
 
 /**
- * getAnonymousIntrinsics()
+ * getAnonymousIntrinsicsHermes()
  * Get the intrinsics not otherwise reachable by named own property
  * traversal from the global object.
+ * This excludes async generators.
  *
  * @returns {object}
  */

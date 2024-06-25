@@ -1,5 +1,6 @@
 /* global process */
 import '../index.js';
+// lockdown();
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
@@ -14,7 +15,11 @@ const write = async (target, content) => {
   await fs.promises.writeFile(location, content);
 };
 
-const writeBundle = async ({ buildType }) => {
+/**
+ * @param {object} [options]
+ * @param {string} [options.buildType] Suffix used to build special bundles (e.g. 'hermes')
+ */
+const writeBundle = async ({ buildType } = {}) => {
   const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
     'utf8',
@@ -24,7 +29,8 @@ const writeBundle = async ({ buildType }) => {
     ? `${packageJson.version}-${buildType}`
     : packageJson.version;
 
-  const entryPointPath = buildType ? `../index-${buildType}.js` : '../index.js';
+  const entryPointPath = `../index${buildType ? `-${buildType}` : ''}.js`;
+  console.log(`Bundle entrypoint: ${entryPointPath}`);
 
   const bundle = await makeBundle(
     read,
@@ -44,24 +50,18 @@ const writeBundle = async ({ buildType }) => {
 
   await fs.promises.mkdir('dist', { recursive: true });
 
-  const bundleFilePaths = buildType ? [
-    `dist/ses-${buildType}.cjs`,
-    `dist/ses-${buildType}.mjs`,
-    `dist/ses-${buildType}.umd.js`,
-    `dist/lockdown-${buildType}.cjs`,
-    `dist/lockdown-${buildType}.mjs`,
-    `dist/lockdown-${buildType}.umd.js`,
-  ] : [
-    'dist/ses.cjs',
-    'dist/ses.mjs',
-    'dist/ses.umd.js',
-    'dist/lockdown.cjs',
-    'dist/lockdown.mjs',
-    'dist/lockdown.umd.js',
+  const bundleFilePaths = [
+    `dist/ses${buildType ? `-${buildType}` : ''}.cjs`,
+    `dist/ses${buildType ? `-${buildType}` : ''}.mjs`,
+    `dist/ses${buildType ? `-${buildType}` : ''}.umd.js`,
+    `dist/lockdown${buildType ? `-${buildType}` : ''}.cjs`,
+    `dist/lockdown${buildType ? `-${buildType}` : ''}.mjs`,
+    `dist/lockdown${buildType ? `-${buildType}` : ''}.umd.js`,
   ];
-  const terseFilePaths = buildType
-    ? [`dist/ses-${buildType}.umd.min.js`, `dist/lockdown-${buildType}.umd.min.js`]
-    : ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
+  const terseFilePaths = [
+    `dist/ses${buildType ? `-${buildType}` : ''}.umd.min.js`,
+    `dist/lockdown${buildType ? `-${buildType}` : ''}.umd.min.js`,
+  ];
 
 
   await Promise.all([
@@ -95,16 +95,8 @@ const writeBundle = async ({ buildType }) => {
   console.log(`Copied ${sourceDTS} to ${destDTS}`);
 };
 
-const BUILD_TYPES = [
-  '',
-  'hermes',
-];
-
 const main = async () => {
-  await Promise.all(
-    BUILD_TYPES.map(
-      buildType => writeBundle({ buildType })),
-    );
+  await writeBundle({ buildType: process.env.SES_BUILD_TYPE || undefined });
 };
 
 main().catch(err => {

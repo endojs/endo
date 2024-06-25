@@ -50,7 +50,7 @@ import { tameDomains } from './tame-domains.js';
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
-import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
+import { getAnonymousIntrinsicsHermes } from './get-anonymous-intrinsics-hermes.js';
 import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
@@ -58,7 +58,7 @@ import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
-const { Fail, details: X, quote: q } = assert;
+const { Fail, details: d, quote: q } = assert;
 
 /** @type {Error=} */
 let priorRepairIntrinsics;
@@ -130,6 +130,7 @@ const assertDirectEvalAvailable = () => {
 
 /**
  * @param {LockdownOptions} [options]
+ * @param {boolean} hermes
  */
 export const repairIntrinsics = (options = {}) => {
   // First time, absent options default to 'safe'.
@@ -200,7 +201,7 @@ export const repairIntrinsics = (options = {}) => {
   priorRepairIntrinsics === undefined ||
     // eslint-disable-next-line @endo/no-polymorphic-call
     assert.fail(
-      X`Already locked down at ${priorRepairIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
+      d`Already locked down at ${priorRepairIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
       TypeError,
     );
   // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_ALREADY_LOCKED_DOWN.md
@@ -275,7 +276,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
 
-  addIntrinsics(getAnonymousIntrinsics());
+  addIntrinsics(getAnonymousIntrinsicsHermes());
 
   completePrototypes();
 
@@ -391,7 +392,7 @@ export const repairIntrinsics = (options = {}) => {
     priorHardenIntrinsics === undefined ||
       // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(
-        X`Already locked down at ${priorHardenIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
+        d`Already locked down at ${priorHardenIntrinsics} (SES_ALREADY_LOCKED_DOWN)`,
         TypeError,
       );
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_ALREADY_LOCKED_DOWN.md

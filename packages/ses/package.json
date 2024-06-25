@@ -55,9 +55,20 @@
         "default": "./dist/ses.cjs"
       }
     },
+    "./lockdown-hermes": {
+      "import": {
+        "types": "./types.d.ts",
+        "default": "./index-hermes.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/ses-hermes.cjs"
+      }
+    },
     "./tools.js": "./tools.js",
     "./assert-shim.js": "./assert-shim.js",
     "./lockdown-shim.js": "./lockdown-shim.js",
+    "./lockdown-shim-hermes.js": "./lockdown-shim-hermes.js",
     "./compartment-shim.js": "./compartment-shim.js",
     "./package.json": "./package.json"
   },
@@ -70,7 +81,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "prepare": "npm run clean && npm run build",
+    "prepare": "npm run clean && npm run build && SES_BUILD_TYPE=hermes npm run build",
     "qt": "ava",
     "test": "tsd && ava",
     "test:platform-compatibility": "node test/package/test.cjs"
