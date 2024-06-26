@@ -12,6 +12,8 @@
 /* eslint no-shadow: 0 */
 
 /** @import {CanonicalFn} from './types.js' */
+/** @import {CompartmentMapForNodeModulesOptions} from './types.js' */
+/** @import {SomePolicy} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentMapDescriptor} from './types.js' */
 /** @import {Language} from './types.js' */
@@ -604,7 +606,7 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {import('./types.js').Policy} [policy]
+ * @param {SomePolicy} [policy]
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -742,10 +744,7 @@ const translateGraph = (
  * @param {Set<string>} tags
  * @param {object} packageDescriptor
  * @param {string} moduleSpecifier
- * @param {object} [options]
- * @param {boolean} [options.dev]
- * @param {object} [options.commonDependencies]
- * @param {object} [options.policy]
+ * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (

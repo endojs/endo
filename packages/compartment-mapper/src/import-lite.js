@@ -16,11 +16,13 @@
 
 // @ts-check
 /* eslint no-shadow: "off" */
-
 /** @import {CompartmentMapDescriptor} from './types.js' */
+/** @import {SyncImportLocationOptions} from './types.js' */
+/** @import {ImportNowHookMaker} from './types.js' */
+/** @import {ModuleTransforms} from './types.js' */
+/** @import {SyncReadPowers} from './types.js' */
 /** @import {Application} from './types.js' */
 /** @import {ImportLocationOptions} from './types.js' */
-/** @import {LoadLocationOptions} from './types.js' */
 /** @import {ExecuteFn} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
@@ -30,19 +32,54 @@ import { link } from './link.js';
 import {
   exitModuleImportHookMaker,
   makeImportHookMaker,
+  makeImportNowHookMaker,
 } from './import-hook.js';
+import { isSyncReadPowers } from './powers.js';
 
 const { assign, create, freeze } = Object;
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * Returns `true` if `value` is a {@link SyncImportLocationOptions}.
+ *
+ * The only requirements here are:
+ * - `moduleTransforms` _is not_ present in `value`
+ * - `importNowHook` _is_ present in `value`
+ *
+ * @param {ImportLocationOptions|SyncImportLocationOptions} value
+ * @returns {value is SyncImportLocationOptions}
+ */
+const isSyncOptions = value =>
+  !value ||
+  (typeof value === 'object' &&
+    !('moduleTransforms' in value) &&
+    'importNowHook' in value &&
+    typeof value.importNowHook === 'function');
+
+/**
+ * @overload
+ * @param {SyncReadPowers} readPowers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {LoadLocationOptions} [options]
+ * @param {SyncImportLocationOptions} [opts]
  * @returns {Promise<Application>}
  */
+
+/**
+ * @overload
+ * @param {ReadFn | ReadPowers} readPowers
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {ImportLocationOptions} [opts]
+ * @returns {Promise<Application>}
+ */
+
+/**
+ * @param {ReadFn|ReadPowers|SyncReadPowers} readPowers
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {ImportLocationOptions} [options]
+ * @returns {Promise<Application>}
+ */
+
 export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
-    moduleTransforms = {},
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
@@ -54,6 +91,44 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const languageForExtension = freeze(
     assign(create(null), languageForExtensionOption),
   );
+
+  /**
+   * Object containing options and read powers which fulfills all requirements
+   * for creation of a {@link ImportNowHookMaker}, thus enabling dynamic import
+   *
+   * @typedef SyncBehavior
+   * @property {SyncReadPowers} readPowers
+   * @property {SyncImportLocationOptions} options
+   * @property {'SYNC'} type
+   */
+
+  /**
+   * Object containing options and read powers which is incompatible with
+   * creation of a {@link ImportNowHookMaker}, thus disabling dynamic import
+   *
+   * @typedef AsyncBehavior
+   * @property {ReadFn|ReadPowers} readPowers
+   * @property {ImportLocationOptions} options
+   * @property {'ASYNC'} type
+   */
+
+  /**
+   * When we must control flow based on _n_ type guards consdering _n_ discrete
+   * values, grouping the values into an object, then leveraging a discriminated
+   * union (the `type` property) is one way to approach the problem.
+   */
+  const behavior =
+    isSyncReadPowers(readPowers) && isSyncOptions(options)
+      ? /** @type {SyncBehavior} */ ({
+          readPowers,
+          options: options || {},
+          type: 'SYNC',
+        })
+      : /** @type {AsyncBehavior} */ ({
+          readPowers,
+          options: options || {},
+          type: 'ASYNC',
+        });
 
   const {
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
@@ -85,16 +160,56 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         exitModuleImportHook: compartmentExitModuleImportHook,
       },
     );
-    const { compartment, pendingJobsPromise } = link(compartmentMap, {
-      makeImportHook,
-      parserForLanguage,
-      languageForExtension,
-      globals,
-      transforms,
-      moduleTransforms,
-      __shimTransforms__,
-      Compartment,
-    });
+
+    /** @type {ImportNowHookMaker | undefined} */
+    let makeImportNowHook;
+
+    /** @type {Compartment} */
+    let compartment;
+    /** @type {Promise<void>} */
+    let pendingJobsPromise;
+
+    if (behavior.type === 'SYNC') {
+      const { importNowHook: exitModuleImportNowHook, syncModuleTransforms } =
+        behavior.options;
+      makeImportNowHook = makeImportNowHookMaker(
+        /** @type {SyncReadPowers} */ (readPowers),
+        entryCompartmentName,
+        {
+          compartmentDescriptors: compartmentMap.compartments,
+          searchSuffixes,
+          exitModuleImportNowHook,
+        },
+      );
+      ({ compartment, pendingJobsPromise } = link(compartmentMap, {
+        makeImportHook,
+        makeImportNowHook,
+        parserForLanguage,
+        languageForExtension,
+        globals,
+        transforms,
+        syncModuleTransforms,
+        __shimTransforms__,
+        Compartment,
+      }));
+    } else {
+      // sync module transforms are allowed, because they are "compatible"
+      // with async module transforms (not vice-versa)
+      const moduleTransforms = /** @type {ModuleTransforms} */ ({
+        ...behavior.options.syncModuleTransforms,
+        ...behavior.options.moduleTransforms,
+      });
+      ({ compartment, pendingJobsPromise } = link(compartmentMap, {
+        makeImportHook,
+        parserForLanguage,
+        languageForExtension,
+        globals,
+        transforms,
+        moduleTransforms,
+        __shimTransforms__,
+        Compartment,
+      }));
+    }
 
     await pendingJobsPromise;
 

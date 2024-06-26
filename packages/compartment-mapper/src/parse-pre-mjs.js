@@ -11,7 +11,7 @@ import { parseLocatedJson } from './json.js';
 const textDecoder = new TextDecoder();
 
 /** @type {import('./types.js').ParseFn} */
-export const parsePreMjs = async (
+export const parsePreMjs = (
   bytes,
   _specifier,
   location,
