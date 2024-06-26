@@ -66,7 +66,7 @@ const { fromEntries } = Object;
  * Passable, or if any of the transitive promises fulfill to something
  * that is not Passable, then the returned promise rejects.
  *
- * If `val` or its parts are non-key Passables only *because* they contains
+ * If `val` or its parts are non-key Passables only *because* they contain
  * promises, the deeply fulfilled forms of val or its parts may be keys. This
  * is for the higher "@endo/patterns" level of abstraction to determine,
  * because it defines the `Key` notion in question.
@@ -81,9 +81,7 @@ export const deeplyFulfilled = async val => {
   // https://github.com/endojs/endo/issues/1257 may be relevant.
 
   if (!isObject(val)) {
-    const prim = /** @type {Primitive} */ (val);
-    // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
-    return prim;
+    return /** @type {DeeplyAwaited<T>} */ (val);
   }
   if (isPromise(val)) {
     return E.when(val, nonp => deeplyFulfilled(nonp));
