@@ -1,17 +1,54 @@
-/// <reference types="ses"/>
-
+import { X, q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 import { getTag, isObject, makeTagged, passStyleOf } from '@endo/pass-style';
 
-/** @import {Passable} from '@endo/pass-style' */
-
-import { X, q } from '@endo/errors';
+/**
+ * @import {Passable, Primitive, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
+ */
 
 const { ownKeys } = Reflect;
 const { fromEntries } = Object;
 
-// TODO return a type contingent on the parameter as deeplyFullfilledObject from agoric-sdk does
+/**
+ * Currently copied from @agoric/internal utils.js.
+ * TODO Should migrate here and then, if needed, reexported there.
+ *
+ * @template T
+ * @typedef {{ [KeyType in keyof T]: T[KeyType] } & {}} Simplify flatten the
+ *   type output to improve type hints shown in editors
+ *   https://github.com/sindresorhus/type-fest/blob/main/source/simplify.d.ts
+ */
+
+/**
+ * Currently copied from @agoric/internal utils.js.
+ * TODO Should migrate here and then, if needed, reexported there.
+ *
+ * @typedef {(...args: any[]) => any} Callable
+ */
+
+/**
+ * Currently copied from @agoric/internal utils.js.
+ * TODO Should migrate here and then, if needed, reexported there.
+ *
+ * @template {{}} T
+ * @typedef {{
+ *   [K in keyof T]: T[K] extends Callable ? T[K] : DeeplyAwaited<T[K]>;
+ * }} DeeplyAwaitedObject
+ */
+
+/**
+ * Currently copied from @agoric/internal utils.js.
+ * TODO Should migrate here and then, if needed, reexported there.
+ *
+ * @template T
+ * @typedef {T extends PromiseLike<any>
+ *     ? Awaited<T>
+ *     : T extends {}
+ *       ? Simplify<DeeplyAwaitedObject<T>>
+ *       : Awaited<T>} DeeplyAwaited
+ */
+
 /**
  * Given a Passable `val` whose pass-by-copy structure may contain leaf
  * promises, return a promise for a replacement Passable,
@@ -29,22 +66,22 @@ const { fromEntries } = Object;
  * Passable, or if any of the transitive promises fulfill to something
  * that is not Passable, then the returned promise rejects.
  *
- * If `val` or its parts are non-key Passables only *because* they contains
+ * If `val` or its parts are non-key Passables only *because* they contain
  * promises, the deeply fulfilled forms of val or its parts may be keys. This
- * is for the higher "store" level of abstraction to determine, because it
- * defines the "key" notion in question.
+ * is for the higher "@endo/patterns" level of abstraction to determine,
+ * because it defines the `Key` notion in question.
  *
- * // TODO: That higher level is in the process of being migrated from
- * // `@agoric/store` to `@endo/patterns`. Once that is far enough along,
- * // revise the above comment to match.
- * // See https://github.com/endojs/endo/pull/1451
- *
- * @param {any} val
- * @returns {Promise<Passable>}
+ * @template {Passable} [T=Passable]
+ * @param {T} val
+ * @returns {Promise<DeeplyAwaited<T>>}
  */
 export const deeplyFulfilled = async val => {
+  // TODO Figure out why we need these at-expect-error directives below
+  // and fix if possible.
+  // https://github.com/endojs/endo/issues/1257 may be relevant.
+
   if (!isObject(val)) {
-    return val;
+    return /** @type {DeeplyAwaited<T>} */ (val);
   }
   if (isPromise(val)) {
     return E.when(val, nonp => deeplyFulfilled(nonp));
@@ -52,30 +89,41 @@ export const deeplyFulfilled = async val => {
   const passStyle = passStyleOf(val);
   switch (passStyle) {
     case 'copyRecord': {
-      const names = ownKeys(val);
-      const valPs = names.map(name => deeplyFulfilled(val[name]));
+      const rec = /** @type {CopyRecord} */ (val);
+      const names = /** @type {string[]} */ (ownKeys(rec));
+      const valPs = names.map(name => deeplyFulfilled(rec[name]));
+      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
       return E.when(Promise.all(valPs), vals =>
         harden(fromEntries(vals.map((c, i) => [names[i], c]))),
       );
     }
     case 'copyArray': {
-      const valPs = val.map(p => deeplyFulfilled(p));
+      const arr = /** @type {CopyArray} */ (val);
+      const valPs = arr.map(p => deeplyFulfilled(p));
+      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
       return E.when(Promise.all(valPs), vals => harden(vals));
     }
     case 'tagged': {
-      const tag = getTag(val);
-      return E.when(deeplyFulfilled(val.payload), payload =>
+      const tgd = /** @type {CopyTagged} */ (val);
+      const tag = getTag(tgd);
+      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
+      return E.when(deeplyFulfilled(tgd.payload), payload =>
         makeTagged(tag, payload),
       );
     }
     case 'remotable': {
-      return val;
+      const rem = /** @type {RemotableObject} */ (val);
+      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
+      return rem;
     }
     case 'error': {
-      return val;
+      const err = /** @type {Error} */ (val);
+      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
+      return err;
     }
     case 'promise': {
-      return E.when(val, nonp => deeplyFulfilled(nonp));
+      const prom = /** @type {Promise} */ (/** @type {unknown} */ (val));
+      return E.when(prom, nonp => deeplyFulfilled(nonp));
     }
     default: {
       throw assert.fail(X`Unexpected passStyle ${q(passStyle)}`, TypeError);
