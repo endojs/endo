@@ -71,7 +71,7 @@ test('toPassableError, toThrowable', t => {
   // a throwable singleton copyArray containing a toThrowable(e), i.e.,
   // an error like e2.
   t.throws(() => toThrowable(notYetCoercable), {
-    message: 'Passable Error has extra unpassed property "foo"',
+    message: 'A throwable cannot contain a "remotable": "[Alleged: Foo]"',
   });
 
   const throwable = harden([e2, { e2 }, makeTagged('e2', e2)]);
