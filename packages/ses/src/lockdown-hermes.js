@@ -50,7 +50,7 @@ import { tameDomains } from './tame-domains.js';
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
-import { getAnonymousIntrinsicsHermes } from './get-anonymous-intrinsics-hermes.js';
+import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
@@ -130,7 +130,6 @@ const assertDirectEvalAvailable = () => {
 
 /**
  * @param {LockdownOptions} [options]
- * @param {boolean} hermes
  */
 export const repairIntrinsics = (options = {}) => {
   // First time, absent options default to 'safe'.
@@ -276,7 +275,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
 
-  addIntrinsics(getAnonymousIntrinsicsHermes());
+  addIntrinsics(getAnonymousIntrinsics());
 
   completePrototypes();
 

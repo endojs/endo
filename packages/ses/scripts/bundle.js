@@ -1,6 +1,5 @@
 /* global process */
 import '../index.js';
-// lockdown();
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
@@ -62,7 +61,6 @@ const writeBundle = async ({ buildType } = {}) => {
     `dist/ses${buildType ? `-${buildType}` : ''}.umd.min.js`,
     `dist/lockdown${buildType ? `-${buildType}` : ''}.umd.min.js`,
   ];
-
 
   await Promise.all([
     ...bundleFilePaths.map(dest => write(dest, versionedBundle)),

@@ -1574,8 +1574,9 @@ export const permitted = {
 };
 
 try {
-  // eslint-disable-next-line
-  new FERAL_FUNCTION('async function* (){}') // A string, so Metro doesn't throw creating release bundle
+  new FERAL_FUNCTION(
+    'return (async function* AsyncGeneratorFunctionInstance() {})',
+  )();
   assign(permitted, {
     '%InertAsyncGeneratorFunction%': {
       // Properties of the AsyncGeneratorFunction Constructor
@@ -1604,7 +1605,41 @@ try {
       throw: fn,
       '@@toStringTag': 'string',
     },
-  })
+
+    // https://github.com/tc39/proposal-async-iterator-helpers
+    AsyncIterator: {
+      // Properties of the Iterator Constructor
+      '[[Proto]]': '%FunctionPrototype%',
+      prototype: '%AsyncIteratorPrototype%',
+      from: fn,
+    },
+
+    '%AsyncIteratorPrototype%': {
+      // The %AsyncIteratorPrototype% Object
+      '@@asyncIterator': fn,
+      // https://github.com/tc39/proposal-async-iterator-helpers
+      constructor: 'AsyncIterator',
+      map: fn,
+      filter: fn,
+      take: fn,
+      drop: fn,
+      flatMap: fn,
+      reduce: fn,
+      toArray: fn,
+      forEach: fn,
+      some: fn,
+      every: fn,
+      find: fn,
+      '@@toStringTag': 'string',
+      // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
+      '@@asyncDispose': false,
+    },
+  });
+
+  // assign(uniqueGlobalPropertyNames, {
+  //   // https://github.com/tc39/proposal-async-iterator-helpers
+  //   AsyncIterator: 'AsyncIterator',
+  // });
 } catch {
-  // 
+  //
 }

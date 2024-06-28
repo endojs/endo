@@ -128,15 +128,16 @@ export default function tameFunctionConstructors() {
   );
 
   try {
-    // eslint-disable-next-line
-    new FERAL_FUNCTION('async function* (){}');
+    new FERAL_FUNCTION(
+      'return (async function* AsyncGeneratorFunctionInstance() {})',
+    )();
     repairFunction(
       'AsyncGeneratorFunction',
       '%InertAsyncGeneratorFunction%',
       '(async function*(){})',
     );
   } catch {
-    // 
+    //
   }
 
   return newIntrinsics;
