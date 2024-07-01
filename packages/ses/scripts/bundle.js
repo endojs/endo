@@ -1,5 +1,11 @@
+/* eslint-disable import/first */
 /* global process */
+
 import '../index.js';
+import '../lockdown.js';
+
+lockdown();
+
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
