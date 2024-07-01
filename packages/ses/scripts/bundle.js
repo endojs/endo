@@ -2,6 +2,7 @@
 /* global process */
 
 import '../index.js';
+import '../lockdown.js';
 
 lockdown();
 
