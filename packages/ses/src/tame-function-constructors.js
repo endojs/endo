@@ -126,11 +126,17 @@ export default function tameFunctionConstructors() {
     '%InertAsyncFunction%',
     '(async function(){})',
   );
-  repairFunction(
-    'AsyncGeneratorFunction',
-    '%InertAsyncGeneratorFunction%',
-    '(async function*(){})',
-  );
+
+  try {
+    new FERAL_FUNCTION('async function* AsyncGeneratorFunctionInstance() {}')();
+    repairFunction(
+      'AsyncGeneratorFunction',
+      '%InertAsyncGeneratorFunction%',
+      '(async function*(){})',
+    );
+  } catch {
+    //
+  }
 
   return newIntrinsics;
 }

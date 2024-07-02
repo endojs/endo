@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush } from './commons.js';
+import { arrayPush, assign, FERAL_FUNCTION } from './commons.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
@@ -1430,38 +1430,10 @@ export const permitted = {
     '@@toStringTag': 'string',
   },
 
-  '%InertAsyncGeneratorFunction%': {
-    // Properties of the AsyncGeneratorFunction Constructor
-    '[[Proto]]': '%InertFunction%',
-    prototype: '%AsyncGenerator%',
-  },
-
-  '%AsyncGenerator%': {
-    // Properties of the AsyncGeneratorFunction Prototype Object
-    '[[Proto]]': '%FunctionPrototype%',
-    constructor: '%InertAsyncGeneratorFunction%',
-    prototype: '%AsyncGeneratorPrototype%',
-    // length prop added here for React Native jsc-android
-    // https://github.com/endojs/endo/issues/660
-    // https://github.com/react-native-community/jsc-android-buildscripts/issues/181
-    length: 'number',
-    '@@toStringTag': 'string',
-  },
-
   '%GeneratorPrototype%': {
     // Properties of the Generator Prototype Object
     '[[Proto]]': '%IteratorPrototype%',
     constructor: '%Generator%',
-    next: fn,
-    return: fn,
-    throw: fn,
-    '@@toStringTag': 'string',
-  },
-
-  '%AsyncGeneratorPrototype%': {
-    // Properties of the AsyncGenerator Prototype Object
-    '[[Proto]]': '%AsyncIteratorPrototype%',
-    constructor: '%AsyncGenerator%',
     next: fn,
     return: fn,
     throw: fn,
@@ -1600,3 +1572,67 @@ export const permitted = {
 
   '%InitialGetStackString%': fn,
 };
+
+try {
+  new FERAL_FUNCTION('async function* AsyncGeneratorFunctionInstance() {}')();
+  assign(permitted, {
+    '%InertAsyncGeneratorFunction%': {
+      // Properties of the AsyncGeneratorFunction Constructor
+      '[[Proto]]': '%InertFunction%',
+      prototype: '%AsyncGenerator%',
+    },
+
+    '%AsyncGenerator%': {
+      // Properties of the AsyncGeneratorFunction Prototype Object
+      '[[Proto]]': '%FunctionPrototype%',
+      constructor: '%InertAsyncGeneratorFunction%',
+      prototype: '%AsyncGeneratorPrototype%',
+      // length prop added here for React Native jsc-android
+      // https://github.com/endojs/endo/issues/660
+      // https://github.com/react-native-community/jsc-android-buildscripts/issues/181
+      length: 'number',
+      '@@toStringTag': 'string',
+    },
+
+    '%AsyncGeneratorPrototype%': {
+      // Properties of the AsyncGenerator Prototype Object
+      '[[Proto]]': '%AsyncIteratorPrototype%',
+      constructor: '%AsyncGenerator%',
+      next: fn,
+      return: fn,
+      throw: fn,
+      '@@toStringTag': 'string',
+    },
+
+    // https://github.com/tc39/proposal-async-iterator-helpers
+    AsyncIterator: {
+      // Properties of the Iterator Constructor
+      '[[Proto]]': '%FunctionPrototype%',
+      prototype: '%AsyncIteratorPrototype%',
+      from: fn,
+    },
+
+    '%AsyncIteratorPrototype%': {
+      // The %AsyncIteratorPrototype% Object
+      '@@asyncIterator': fn,
+      // https://github.com/tc39/proposal-async-iterator-helpers
+      constructor: 'AsyncIterator',
+      map: fn,
+      filter: fn,
+      take: fn,
+      drop: fn,
+      flatMap: fn,
+      reduce: fn,
+      toArray: fn,
+      forEach: fn,
+      some: fn,
+      every: fn,
+      find: fn,
+      '@@toStringTag': 'string',
+      // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
+      '@@asyncDispose': false,
+    },
+  });
+} catch {
+  //
+}
