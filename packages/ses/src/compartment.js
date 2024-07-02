@@ -104,6 +104,8 @@ export const CompartmentPrototype = {
   },
 
   async import(specifier) {
+    const { noNamespaceBox } = weakmapGet(privateFields, this);
+
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of import() must be a string');
     }
@@ -117,6 +119,11 @@ export const CompartmentPrototype = {
           /** @type {Compartment} */ (this),
           specifier,
         );
+        if (noNamespaceBox) {
+          return namespace;
+        }
+        // Legacy behavior: box the namespace object so that thenable modules
+        // do not get coerced into a promise accidentally.
         return { namespace };
       },
     );
@@ -193,6 +200,7 @@ export const makeCompartmentConstructor = (
       importNowHook,
       moduleMapHook,
       importMetaHook,
+      noNamespaceBox = false,
     } = options;
     const globalTransforms = [...transforms, ...__shimTransforms__];
     const endowments = { __proto__: null, ...endowmentsOption };
@@ -255,6 +263,7 @@ export const makeCompartmentConstructor = (
       deferredExports,
       instances,
       parentCompartment,
+      noNamespaceBox,
     });
   }
 
