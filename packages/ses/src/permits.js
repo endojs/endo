@@ -1574,7 +1574,7 @@ export const permitted = {
 };
 
 try {
-new FERAL_FUNCTION('async function* AsyncGeneratorFunctionInstance() {}')();
+  new FERAL_FUNCTION('async function* AsyncGeneratorFunctionInstance() {}')();
   assign(permitted, {
     '%InertAsyncGeneratorFunction%': {
       // Properties of the AsyncGeneratorFunction Constructor
