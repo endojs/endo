@@ -24,6 +24,14 @@ compartments that have no excess authority in their global scope.
 SES runs atop an ES6-compliant platform, enabling safe interaction of
 mutually-suspicious code, using object-capability -style programming.
 
+Agoric and MetaMask rely on Hardened JavaScript and this SES shim as part of
+systems that sandbox third-party plugins or smart contracts and mitigate supply
+chain attacks for production web applications, web extensions, and build
+systems.
+
+[![Agoric Logo](docs/agoric-x100.png)](https://agoric.com/)
+[![MetaMask Logo](docs/metamask-x100.png)](https://metamask.io/)
+
 See https://github.com/Agoric/Jessie to see how SES fits into the various
 flavors of confined JavaScript execution. And visit
 https://ses-demo.agoric.app/demos/ for a demo.
