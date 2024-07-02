@@ -14,28 +14,18 @@ const write = async (target, content) => {
   await fs.promises.writeFile(location, content);
 };
 
-/**
- * @param {object} [options]
- * @param {string} [options.buildType] Suffix used to build special bundles (e.g. 'hermes')
- */
-const writeBundle = async ({ buildType } = {}) => {
+const main = async () => {
   const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
     'utf8',
   );
   const packageJson = JSON.parse(text);
-  const version = buildType
-    ? `${packageJson.version}-${buildType}`
-    : packageJson.version;
-
-  const entryPointPath = `../index${buildType ? `-${buildType}` : ''}.js`;
-  console.log(`Bundle entrypoint: ${entryPointPath}`);
+  const version = packageJson.version;
 
   const bundle = await makeBundle(
     read,
-    pathToFileURL(resolve(entryPointPath, import.meta.url)).toString(),
+    pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
   );
-
   const versionedBundle = `// ses@${version}\n${bundle}`;
 
   const { code: terse } = await minify(versionedBundle, {
@@ -50,17 +40,14 @@ const writeBundle = async ({ buildType } = {}) => {
   await fs.promises.mkdir('dist', { recursive: true });
 
   const bundleFilePaths = [
-    `dist/ses${buildType ? `-${buildType}` : ''}.cjs`,
-    `dist/ses${buildType ? `-${buildType}` : ''}.mjs`,
-    `dist/ses${buildType ? `-${buildType}` : ''}.umd.js`,
-    `dist/lockdown${buildType ? `-${buildType}` : ''}.cjs`,
-    `dist/lockdown${buildType ? `-${buildType}` : ''}.mjs`,
-    `dist/lockdown${buildType ? `-${buildType}` : ''}.umd.js`,
+    'dist/ses.cjs',
+    'dist/ses.mjs',
+    'dist/ses.umd.js',
+    'dist/lockdown.cjs',
+    'dist/lockdown.mjs',
+    'dist/lockdown.umd.js',
   ];
-  const terseFilePaths = [
-    `dist/ses${buildType ? `-${buildType}` : ''}.umd.min.js`,
-    `dist/lockdown${buildType ? `-${buildType}` : ''}.umd.min.js`,
-  ];
+  const terseFilePaths = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
 
   await Promise.all([
     ...bundleFilePaths.map(dest => write(dest, versionedBundle)),
@@ -91,10 +78,6 @@ const writeBundle = async ({ buildType } = {}) => {
     fileURLToPath(new URL(destDTS, root)),
   );
   console.log(`Copied ${sourceDTS} to ${destDTS}`);
-};
-
-const main = async () => {
-  await writeBundle({ buildType: process.env.SES_BUILD_TYPE || undefined });
 };
 
 main().catch(err => {
