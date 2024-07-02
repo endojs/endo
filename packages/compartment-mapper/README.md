@@ -322,15 +322,12 @@ for an end-to-end debugging experience.
 Each of the workflows the compartment mapper executes a portion of one sequence
 of underlying internals.
 
-* search (`search.js`): Scan the parent directories of a given `moduleLocation`
-  until successfully finding and reading a `package.json` for the containing
-  application.
 * map compartments from Node.js packages (`node-modules.js`): Find and gather
   all the `package.json` files for the application's transitive dependencies.
   Use these to construct a compartment map describing how to construct a
   `Compartment` for each application package and how to link the modules each
   exports in the compartments that import them.
-* load compartments (`archive.js`): Using `compartment.load`, or
+* link and load compartments (`archive.js`): Using `compartment.load`, or
   implicitly through `compartment.import`, create a module graph for the
   application's entire working set.
   When creating an archive, this does not execute any of the modules.
@@ -346,36 +343,12 @@ when interacting with a filesystem or work with the archive bytes directly.
 
 This diagram represents the the workflows of each of the public methods like
 `importLocation`.
-Each column of pipes `|` is a workflow from top to bottom.
-Each asterisk `*` denotes a step that is taken by that workflow.
-The dotted lines `.'. : '.'` indicate carrying an archive file from the end of
-one workflow to the beginning of another, either as bytes or a location.
 
-In the diagram, "powers" refer to globals and built-in modules that may provide
-capabilities to a compartment graph.
-For `writeArchive` and `makeArchive`, these may be provided but will be ignored
-since the application does not execute.
-
-```
-                 loadLocation  writeArchive
-             importLocation |  | makeArchive
-                          | |  | |
-                          | |  | |      parseArchive
-                          | |  | |      | loadArchive
-                          | |  | |      | | importArchive
-                          | |  | |      | | |...
-               search ->  * *  * *      | |'| . '
-     map compartments ->  * *  * *   .'.| | |' : :
-         read archive ->  |    | |  '   | * *  : :
-       unpack archive ->  |    | |  :   * * *  : :
-assemble compartments ->  *    * *  :       *  : : <- powers
-    load compartments ->  *    * *  :       *  : :
-       import modules ->  *    | |  :       *  : :
-         pack archive ->       * *  '          : :
-        write archive ->       * '.' <- data   : :
-                               '..............'  : <- files
-                                '...............'
-```
+![The functions of the compartment mapper pass selectively through some common
+stages: mapping, linking, loading, importing, and may also zip at the end or
+unzip at the beginning, or write the zip at the end or read the zip at the
+beginning, or the zip might pass as bytes
+out-of-band](docs/compartment-mapper-workflows.png)
 
 # Compartment maps
 
