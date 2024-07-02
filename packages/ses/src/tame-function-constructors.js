@@ -128,9 +128,7 @@ export default function tameFunctionConstructors() {
   );
 
   try {
-    new FERAL_FUNCTION(
-      'return (async function* AsyncGeneratorFunctionInstance() {})',
-    )();
+new FERAL_FUNCTION('async function* AsyncGeneratorFunctionInstance() {}')();
     repairFunction(
       'AsyncGeneratorFunction',
       '%InertAsyncGeneratorFunction%',
