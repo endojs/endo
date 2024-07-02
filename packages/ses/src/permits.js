@@ -1633,11 +1633,6 @@ try {
       '@@asyncDispose': false,
     },
   });
-
-  // assign(uniqueGlobalPropertyNames, {
-  //   // https://github.com/tc39/proposal-async-iterator-helpers
-  //   AsyncIterator: 'AsyncIterator',
-  // });
 } catch {
   //
 }
