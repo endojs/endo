@@ -1,4 +1,4 @@
-import { evadeCensor } from '../src/index.js';
+import { evadeCensorSync } from '../src/index.js';
 import { test } from './prepare-test-env-ava-fixture.js';
 
 /**
@@ -15,12 +15,12 @@ function stripLinefeeds(str) {
 
 test('evadeCensor() - missing "source" arg', async t => {
   // @ts-expect-error - intentional missing args
-  await t.throwsAsync(evadeCensor());
+  t.throws(evadeCensorSync);
 });
 
 test('evadeCensor() - successful source transform', async t => {
   const { source } = t.context;
-  const { code, map } = await evadeCensor(source);
+  const { code, map } = evadeCensorSync(source);
 
   t.snapshot(stripLinefeeds(code));
   t.is(map, undefined);
@@ -28,7 +28,7 @@ test('evadeCensor() - successful source transform', async t => {
 
 test('evadeCensor() - successful source transform w/ source map', async t => {
   const { source, sourceMap } = t.context;
-  const { code, map } = await evadeCensor(source, {
+  const { code, map } = evadeCensorSync(source, {
     sourceMap,
   });
 
@@ -38,7 +38,7 @@ test('evadeCensor() - successful source transform w/ source map', async t => {
 
 test('evadeCensor() - successful source transform w/ source map & source URL', async t => {
   const { sourceMap, sourceUrl, source } = t.context;
-  const { code, map } = await evadeCensor(source, {
+  const { code, map } = evadeCensorSync(source, {
     sourceMap,
     sourceUrl,
   });
@@ -49,7 +49,7 @@ test('evadeCensor() - successful source transform w/ source map & source URL', a
 
 test('evadeCensor() - successful source transform w/ source URL', async t => {
   const { sourceUrl, source } = t.context;
-  const { code, map } = await evadeCensor(source, {
+  const { code, map } = evadeCensorSync(source, {
     sourceUrl,
   });
 
@@ -59,7 +59,7 @@ test('evadeCensor() - successful source transform w/ source URL', async t => {
 
 test('evadeCensor() - successful source transform w/ source map & unmapping', async t => {
   const { sourceMap, source } = t.context;
-  const { code, map } = await evadeCensor(source, {
+  const { code, map } = evadeCensorSync(source, {
     sourceMap,
     useLocationUnmap: true,
   });
@@ -70,7 +70,7 @@ test('evadeCensor() - successful source transform w/ source map & unmapping', as
 
 test('evadeCensor() - successful source transform w/ source map, source URL & unmapping', async t => {
   const { sourceMap, sourceUrl, source } = t.context;
-  const { code, map } = await evadeCensor(source, {
+  const { code, map } = evadeCensorSync(source, {
     sourceMap,
     sourceUrl,
     useLocationUnmap: true,

@@ -6,7 +6,7 @@ const { parse: parseBabel } = babelParser;
 
 test('makeLocationUnmapper() - missing source map', async t => {
   // @ts-expect-error - wrong number of args
-  await t.throwsAsync(() => makeLocationUnmapper(), {
+  t.throws(makeLocationUnmapper, {
     message: 'Invalid arguments; expected sourceMap',
   });
 });
@@ -16,7 +16,7 @@ test('makeLocationUnmapper() - invalid source map', async t => {
   const sourceMap = '26 sons and she named them all dave';
   const ast = parseBabel(source, { sourceType: 'module' });
 
-  await t.throwsAsync(() => makeLocationUnmapper(sourceMap, ast), {
+  t.throws(() => makeLocationUnmapper(sourceMap, ast), {
     message: /^Invalid source map:/,
   });
 });
@@ -25,7 +25,7 @@ test('makeLocationUnmapper() - missing AST', async t => {
   const { sourceMap } = t.context;
 
   // @ts-expect-error - wrong number of args
-  await t.throwsAsync(() => makeLocationUnmapper(sourceMap), {
+  t.throws(() => makeLocationUnmapper(sourceMap), {
     message: 'Invalid arguments; expected AST ast',
   });
 });
@@ -37,7 +37,7 @@ test('makeLocationUnmapper() - invalid AST', async t => {
   };
 
   // @ts-expect-error - the AST is invalid, as you may have guessed
-  await t.throwsAsync(() => makeLocationUnmapper(sourceMap, ast), {
+  t.throws(() => makeLocationUnmapper(sourceMap, ast), {
     message: 'No SourceLocation found in AST',
   });
 });
@@ -45,7 +45,7 @@ test('makeLocationUnmapper() - invalid AST', async t => {
 test('makeLocationUnmapper() - success', async t => {
   const { source, sourceMap } = t.context;
   const ast = parseBabel(source, { sourceType: 'module' });
-  const unmap = await makeLocationUnmapper(sourceMap, ast);
+  const unmap = makeLocationUnmapper(sourceMap, ast);
 
   t.true(typeof unmap === 'function');
 });
