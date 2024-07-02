@@ -16,14 +16,14 @@ of systems that sandbox third-party plugins or smart contracts and mitigate
 supply chain attacks for production web applications, web extensions, and build
 systems.
 
-[![Agoric Logo](packages/ses/docs/agoric-x100.png)](https://agoric.com/)
-[![MetaMask Logo](packages/ses/docs/metamask-x100.png)](https://metamask.io/)
+[![Agoric Logo](https://github.com/endojs/endo/raw/master/packages/ses/docs/agoric-x100.png)](https://agoric.com/)
+[![MetaMask Logo](https://github.com/endojs/endo/raw/master/packages/ses/docs/metamask-x100.png)](https://metamask.io/)
 
 Endo protects program integrity both in-process and in distributed systems.
 Hardened JavaScript protects local integrity, defending an application against
 [supply chain attacks][]: hacks that enter through upgrades to third-party
 dependencies.
-Endo does this by encouraging the [Principle of Least Authority](#PoLA).
+Endo does this by encouraging the [Principle of Least Authority](#§pola).
 
 Since most JavaScript libraries receive powerful capabilities from global
 objects like `fetch` or modules like `net`, [LavaMoat][] generates reviewable
@@ -73,6 +73,7 @@ So, just as "soo-doo" (super user do) and "soo-doh" (like "pseudo") are valid
 pronunciations of `sudo`, "en-doh" and "en-doo" are both valid pronunciations of
 `endo`.
 
+<a name="§pola"></a>
 ### Principle of Least Authority
 
 The Principle of Least Authority [(Wikipedia)][PoLA] states that a software
