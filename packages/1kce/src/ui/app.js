@@ -64,11 +64,13 @@ export const App = ({ actions }) => {
     if (!gameAgentName) return
     const agent = await actions.lookup(gameAgentName)
     const game = await E(agent).lookup('game')
-    // const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
     return { agent, game }
     // todo, lookup game state / deck?
   }, [gameAgentName])
   const { agent, game } = gameKit || {};
+  // // TODO: this is a disgusting rate of resubs
+  // const stateGrain = game && makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
+
   // slimeball workaround for useLookup subs failing for depth>1
   // manually increase to trigger refresh of deck value
   const [deckReadiness, setDeckReadiness] = React.useState(0)
@@ -83,18 +85,18 @@ export const App = ({ actions }) => {
   }
 
   const deckMgmt = {
-    // deck mgmt
-    async fetchDeck () {
-      // has-check is workaround for https://github.com/endojs/endo/issues/1843
-      if (await actions.has('deck')) {
-        const deck = await actions.lookup('deck')
-        setDeck(deck)
-      }
-    },
-    async makeNewDeck () {
-      const deck = await actions.makeNewDeck()
-      setDeck(deck)
-    },
+    // // deck mgmt
+    // async fetchDeck () {
+    //   // has-check is workaround for https://github.com/endojs/endo/issues/1843
+    //   if (await actions.has('deck')) {
+    //     const deck = await actions.lookup('deck')
+    //     setDeck(deck)
+    //   }
+    // },
+    // async makeNewDeck () {
+    //   const deck = await actions.makeNewDeck()
+    //   setDeck(deck)
+    // },
     async addCardToDeckByName (cardName) {
       return actions.addCardToDeckByName(cardName)
     },
@@ -146,13 +148,12 @@ export const App = ({ actions }) => {
       // select game
       !gameAgentName && h(GameMenu, { key: 'game-list', actions, setGameAgentName }),
       // show selected game
-      game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName, deck })
-      // game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
-      
+      game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName, deck }),
+      game && deck && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
 
       // // (legacy)
       // !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
-      // !game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
+      // game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
       // game && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
     ])
   )
