@@ -81,14 +81,18 @@ export const make = (agent) => {
 
   // form inventory from powers
   const actions = {
-    subscribeToNames () {
+    followNameChanges () {
       return E(agent).followNameChanges()
     },
-    async has (name) {
-      return E(agent).has(name)
+    async has (...names) {
+      return E(agent).has(...names)
     },
-    async lookup (name) {
-      return E(agent).lookup(name)
+    async lookup (...names) {
+      return E(agent).lookup(...names)
+    },
+    // TODO: not a reduction of security (the purpose of actions)
+    async identify (...names) {
+      return E(agent).identify(...names)
     },
 
     

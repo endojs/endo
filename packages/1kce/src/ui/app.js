@@ -3,11 +3,11 @@ import { E } from '@endo/far';
 import { makeReadonlyGrainMapFromRemote } from '@endo/grain/captp.js';
 import { h, useAsync } from './util.js';
 import { ActiveGameComponent, DeckManagerComponent, PlayGameComponent } from './game.js';
-import { useFollowChanges } from './endo.js';
+import { useFollowChanges, useLookup } from './endo.js';
 const { useRef } = React;
 
 const DeckSelector = ({ actions, deckName, setDeckByName, createNewDeck }) => {
-  const inventory = useFollowChanges(() => actions.subscribeToNames(), [])
+  const inventory = useFollowChanges(() => actions.followNameChanges(), [])
   const names = inventory.map(({ name }) => name)
   const deckNames = names.filter(name => name.startsWith('deck-'))
   const newDeckOption = '<new empty deck>'
@@ -39,7 +39,7 @@ const DeckSelector = ({ actions, deckName, setDeckByName, createNewDeck }) => {
 }
 
 const GameMenu = ({ actions, setGameAgentName }) => {
-  const inventory = useFollowChanges(() => actions.subscribeToNames(), [])
+  const inventory = useFollowChanges(() => actions.followNameChanges(), [])
   const names = inventory.map(({ name }) => name)
   const gameAgentNames = names.filter(name => name.startsWith('agent-game'))
   return h('div', null, [
@@ -64,17 +64,22 @@ export const App = ({ actions }) => {
     if (!gameAgentName) return
     const agent = await actions.lookup(gameAgentName)
     const game = await E(agent).lookup('game')
-    const deck = await E(agent).has('deck') && await E(agent).lookup('deck')
     // const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
-    return { agent, game, deck, }
+    return { agent, game }
     // todo, lookup game state / deck?
   }, [gameAgentName])
-  const { agent, game, deck, } = gameKit || {};
-  // const [deck, setDeck] = React.useState(undefined);
-  // const [{ game, stateGrain }, setGame] = React.useState({});
+  const { agent, game } = gameKit || {};
+  // slimeball workaround for useLookup subs failing for depth>1
+  // manually increase to trigger refresh of deck value
+  const [deckReadiness, setDeckReadiness] = React.useState(0)
+  const { value: deck } = useLookup(actions, [gameAgentName, 'deck'], [deckReadiness]);
 
   const setDeckByName = async (newDeckName) => {
     console.log('set deck by name', newDeckName)
+    const deckId = await actions.identify(newDeckName)
+    console.log('set deck with id', deckId)
+    await E(game).setDeck(deckId)
+    setDeckReadiness(value => value + 1)
   }
 
   const deckMgmt = {
@@ -141,7 +146,7 @@ export const App = ({ actions }) => {
       // select game
       !gameAgentName && h(GameMenu, { key: 'game-list', actions, setGameAgentName }),
       // show selected game
-      game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName })
+      game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName, deck })
       // game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
       
 
