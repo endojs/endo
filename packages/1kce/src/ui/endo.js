@@ -1,5 +1,5 @@
 import React from 'react';
-import { h } from './util.js';
+import { h, useAsync } from './util.js';
 import { makeRefIterator } from '@endo/daemon/ref-reader.js';
 // bundler compat issue?
 const { Fragment, useEffect, useState } = React;
@@ -18,7 +18,7 @@ const arrayWithout = (array, value) => {
  * @param {Array} deps
  * @returns {any | undefined}
  */
-const useAsync = (asyncFn, deps) => {
+const useAsyncRaw = (asyncFn, deps) => {
   const [state, setState] = useState();
   useEffect(() => {
     setState(undefined);
@@ -60,6 +60,7 @@ const useFollowReducer = (getSubFn, reducerFn, deps) => {
     // cleanup
     return () => {
       shouldAbort = true;
+      // TODO: should unsub
     };
   }, deps);
 
@@ -105,6 +106,17 @@ export const useFollowChanges = (getSubFn, deps) => {
   return state;
 };
 
+export const useLookup = (actions, names, deps) => {
+  // trigger update on inventory change
+  // TODO: make more efficient, prolly by pushing into endo directory
+  console.log('useLookup', names)
+  const inventory = useFollowChanges(() => actions.followNameChanges(), []);
+  return useAsync(async () => {
+    console.log('useLookup - inside', names)
+    return actions.lookup(...names)
+  }, [inventory, ...names, ...deps]);
+};
+
 export const ObjectsListObjectComponent = ({ addAction, name }) => {
   return (
     h('div', {}, [
@@ -124,7 +136,7 @@ export const ObjectsListObjectComponent = ({ addAction, name }) => {
 
 const filterNoop = () => true
 export const ObjectsListComponent = ({ actions, addAction, filterFn = filterNoop }) => {
-  const inventory = useFollowChanges(() => actions.subscribeToNames(), [])
+  const inventory = useFollowChanges(() => actions.followNameChanges(), [])
   const names = inventory.map(({ name }) => name)
   const uniqueNames = [...new Set(names)].filter(filterFn)
   let objectList
