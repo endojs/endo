@@ -1,6 +1,4 @@
-/* eslint-disable import/first */
 /* global process */
-
 import '../index.js';
 import '../test/lockdown-safe.js';
 import fs from 'fs';
