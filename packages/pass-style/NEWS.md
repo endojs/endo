@@ -1,5 +1,9 @@
 User-visible changes in `@endo/pass-style`:
 
+# Next release
+
+- `deeplyFulfilled` moved from @endo/marshal to @endo/pass-style. @endo/marshal still reexports it, to avoid breaking old importers. But importers should be upgraded to import `deeplyFulfilled` directly from @endo/pass-style.
+
 # v1.4.0 (2024-05-06)
 
 - Adds `toThrowable` as a generalization of `toPassableError` that also admits copy data containing passable errors, but still without passable caps, i.e, without remotables or promises. This is in support of the exo boundary throwing only throwables, to ease security review.
