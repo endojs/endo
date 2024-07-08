@@ -110,6 +110,9 @@ export function makeGame (initialState = getDefaultState(), deck, persistState) 
   const getPlayerCount = () => {
     return localPlayers.getLength()
   }
+  const getLocalPlayerAtIndex = (index) => {
+    return localPlayers.getAtIndex(index)
+  }
 
   // current player
   const currentPlayerIndex = makeSyncGrain(initialState.currentPlayerIndex)
@@ -422,6 +425,7 @@ export function makeGame (initialState = getDefaultState(), deck, persistState) 
     initialize,
     addPlayer,
     makePlayer,
+    getLocalPlayerAtIndex,
     getPlayerCount,
     start,
     getCardDataById,
@@ -464,6 +468,7 @@ export const make = async (powers) => {
 
   let game;
   const initGameWithDeck = async (deck) => {
+    console.log('init game with deck')
     game = makeGame(gameState, deck, persistState)
     await game.initialize()
   }
@@ -501,7 +506,7 @@ export const make = async (powers) => {
       // TODO: let users specify their name
       const playerIndex = game.getPlayerCount()
       const playerData = {
-        name: `player-${id}`,
+        name: `player-${playerIndex}`,
         handIds: [],
       }
       // TODO: simplify
@@ -511,7 +516,7 @@ export const make = async (powers) => {
     async playerAtIndex (index) {
       // returns the remote interface for controlling
       // the player at the index
-      const localPlayer = game.getPlayerAtIndex(index)
+      const localPlayer = game.getLocalPlayerAtIndex(index)
       return Far(`Player-${index}`, {
         //
         // generic methods (unpriveleged)

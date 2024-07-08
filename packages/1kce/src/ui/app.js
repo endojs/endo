@@ -4,7 +4,8 @@ import { makeReadonlyGrainMapFromRemote } from '@endo/grain/captp.js';
 import { h, useAsync } from './util.js';
 import { ActiveGameComponent, DeckManagerComponent, PlayGameComponent } from './game.js';
 import { useFollowChanges, useLookup } from './endo.js';
-const { useRef } = React;
+// endo bundler workaround
+const { useRef, useState, Fragment } = React;
 
 const DeckSelector = ({ actions, deckName, setDeckByName, createNewDeck }) => {
   const inventory = useFollowChanges(() => actions.followNameChanges(), [])
@@ -58,6 +59,23 @@ const GameMenu = ({ actions, setGameAgentName }) => {
   ])
 }
 
+const PlayersManagerComponent = ({ playerMgmt }) => {
+  const ref = useRef()
+  return h('div', {}, [
+    // input for form name to save
+    h('input', { ref, defaultValue: 'player-2' }),
+    h('button', {
+      onClick: () => playerMgmt.newPlayer(ref.current.value)
+    }, 'create invite'),
+  ])
+}
+
+const GameStartComponent = ({ gameMgmt}) => {
+  return h('button', {
+    onClick: () => gameMgmt.start()
+  }, 'Start Game')
+}
+
 export const App = ({ actions }) => {
   const [gameAgentName, setGameAgentName] = React.useState(undefined);
   const { value: gameKit } = useAsync(async () => {
@@ -75,6 +93,9 @@ export const App = ({ actions }) => {
   // manually increase to trigger refresh of deck value
   const [deckReadiness, setDeckReadiness] = React.useState(0)
   const { value: deck } = useLookup(actions, [gameAgentName, 'deck'], [deckReadiness]);
+
+  const [currentPlayer, setCurrentPlayer] = useState();
+  const [stateGrain, setStateGrain] = useState();
 
   const setDeckByName = async (newDeckName) => {
     console.log('set deck by name', newDeckName)
@@ -103,9 +124,24 @@ export const App = ({ actions }) => {
   }
 
   // TODO: select agent-game instead of hard code
+  const playerMgmt = {
+    async newPlayer(destName) {
+      console.log('new player', destName)
+      // create the player in the game
+      const newPlayerIndex = await E(game).newPlayer()
+      // create the facet in the players inventory
+      // TODO: evaluate endowments doesnt actually supports paths?
+      // await actions.evaluate(`E(game).playerAtIndex(${Number(newPlayerIndex)})`, {
+      //   game: `${gameAgentName}.game`
+      // }, destName)
+      await actions.evaluate(`E(game).playerAtIndex(${Number(newPlayerIndex)})`, {
+        game: `${gameAgentName}.game`
+      }, destName)
+    }
+  }
 
   const gameMgmt = {
-    // async fetchGame () {
+    // async fetchGame () { 
     //   // has-check is workaround for https://github.com/endojs/endo/issues/1843
     //   if (await actions.has('game')) {
     //     const game = await actions.lookup('game')
@@ -114,23 +150,19 @@ export const App = ({ actions }) => {
     //     setGame({ game, stateGrain })
     //   }
     // },
-    // async start () {
-    //   // make game
-    //   const game = await actions.makeGame()
-    //   const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
-    //   setGame({ game, stateGrain })
-    //   await E(game).start(deck)
-    // },
+    async start () {
+      await E(game).start()
+      const player = await E(game).playerAtIndex(0)
+      const remoteGrainP = E(player).getStateGrain()
+      const stateGrain = makeReadonlyGrainMapFromRemote(remoteGrainP)
+
+      setCurrentPlayer(player)
+      setStateGrain(stateGrain)
+    },
     async playCardByIdFromHand (player, cardId, destinationPlayer) {
       await E(game).playCardByIdFromHand(player, cardId, destinationPlayer)
     },
   }
-
-  // // on first render
-  // React.useEffect(() => {
-  //   deckMgmt.fetchDeck()
-  //   gameMgmt.fetchGame()
-  // }, []);
 
   return (
     h('div', {}, [
@@ -145,16 +177,26 @@ export const App = ({ actions }) => {
           fontSize: '42px',
         },
       }, ['🃏1kce🃏']),
-      // select game
-      !gameAgentName && h(GameMenu, { key: 'game-list', actions, setGameAgentName }),
-      // show selected game
-      game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName, deck }),
-      game && deck && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
 
-      // // (legacy)
-      // !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
-      // game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
-      // game && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
+      !stateGrain && h(Fragment, null, [
+        // select game
+        !gameAgentName && h(GameMenu, { key: 'game-list', actions, setGameAgentName }),
+        // show selected game
+        game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName, deck }),
+        game && deck && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
+
+        // players Component
+        game && h(PlayersManagerComponent, { key: 'players-manager', playerMgmt, }),
+        game && deck && h(GameStartComponent, { key: 'game-start', gameMgmt }),
+      ]),
+      h(Fragment, null, [
+        
+        // // (legacy)
+        // !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
+        // game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
+        stateGrain && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
+      ]),
+
     ])
   )
 };
