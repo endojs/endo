@@ -94,6 +94,21 @@ export const make = (agent) => {
     async identify (...names) {
       return E(agent).identify(...names)
     },
+    async evaluate (source, endowments, resultName) {
+      console.log(
+        source,
+        Object.keys(endowments),
+        Object.values(endowments).map(path => path.split('.')),
+        resultName,
+      )
+      return E(agent).evaluate(
+        'MAIN',
+        source,
+        Object.keys(endowments),
+        Object.values(endowments).map(path => path.split('.')),
+        resultName,
+      )
+    },
 
     
     async addCardToDeckByName (cardName) {
