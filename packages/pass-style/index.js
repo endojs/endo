@@ -49,5 +49,7 @@ export {
   isCopyArray,
 } from './src/typeGuards.js';
 
+export * from './src/deeplyFulfilled.js';
+
 // eslint-disable-next-line import/export -- ESLint not aware of type exports in types.d.ts
 export * from './src/types.js';

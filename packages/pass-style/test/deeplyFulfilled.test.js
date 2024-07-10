@@ -1,6 +1,5 @@
 import test from '@endo/ses-ava/prepare-endo.js';
-
-import { Far } from '@endo/pass-style';
+import { Far } from '../src/make-far.js';
 import { deeplyFulfilled } from '../src/deeplyFulfilled.js';
 
 // Currently, just copied from deeplyFulfilledObject test.

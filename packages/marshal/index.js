@@ -1,5 +1,3 @@
-export { deeplyFulfilled } from './src/deeplyFulfilled.js';
-
 export { QCLASS } from './src/encodeToCapData.js';
 export { makeMarshal } from './src/marshal.js';
 export { stringify, parse } from './src/marshal-stringify.js';
@@ -35,3 +33,9 @@ export * from './src/types.js';
 // For compatibility, but importers of these should instead import these
 // directly from `@endo/pass-style` or (if applicable) `@endo/far`.
 export * from '@endo/pass-style';
+
+/**
+ * @deprecated Import deeplyFulfilled directly from @endo/pass-style.
+ * The re-export here is just for compat with old importers
+ */
+export { deeplyFulfilled } from '@endo/pass-style';

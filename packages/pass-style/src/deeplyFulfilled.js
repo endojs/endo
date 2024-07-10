@@ -1,7 +1,9 @@
 import { X, q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
-import { getTag, isObject, makeTagged, passStyleOf } from '@endo/pass-style';
+import { getTag, isObject } from './passStyle-helpers.js';
+import { passStyleOf } from './passStyleOf.js';
+import { makeTagged } from './makeTagged.js';
 
 /**
  * @import {Passable, Primitive, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
