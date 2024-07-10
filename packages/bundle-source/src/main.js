@@ -44,10 +44,11 @@ const options = /** @type {const} */ ({
  * @param {import('../cache.js').Logger} [powers.log]
  * @returns {Promise<void>}
  */
-      format: moduleFormat = 'endoZipBase64',
+export const main = async (args, { loadModule, pid, log }) => {
+  await null;
   const {
     values: {
-      format = 'endoZipBase64',
+      format: moduleFormat = 'endoZipBase64',
       'no-transforms': noTransforms,
       'cache-json': cacheJson,
       'cache-js': cacheJs,
@@ -66,6 +67,7 @@ const options = /** @type {const} */ ({
   ) {
     throw Error(USAGE);
   }
+  const format = /** @type {ModuleFormat} */ (moduleFormat);
 
   /** @type {string} */
   let dest;
@@ -102,7 +104,7 @@ const options = /** @type {const} */ ({
     // eslint-disable-next-line no-await-in-loop
     await cache.validateOrAdd(bundleRoot, bundleName, undefined, {
       noTransforms,
-      format: /** @type {ModuleFormat} */ (format),
+      format,
     });
   }
 };

@@ -142,8 +142,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {BundleMeta} [meta]
    * @param {object} [options]
-   * @param {boolean} [options.noTransforms}
-   * @param {ModuleFormat} [options.format}
+   * @param {boolean} [options.noTransforms]
+   * @param {ModuleFormat} [options.format]
    * @returns {Promise<BundleMeta>}
    */
   const validate = async (
