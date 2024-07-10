@@ -1,9 +1,14 @@
 // @ts-check
 import { parseArgs } from 'util';
+import { SUPPORTED_FORMATS } from './bundle-source.js';
 import { jsOpts, jsonOpts, makeNodeBundleCache } from '../cache.js';
 
-const USAGE =
-  'bundle-source [-T,--no-transforms] [--cache-js | --cache-json] cache/ module1.js bundleName1 module2.js bundleName2 ...';
+/** @import {ModuleFormat} from './types.js' */
+
+const USAGE = `\
+bundle-source [-Tf] [--cache-js|--cache-json] <cache/> (<entry.js> <bundle-name>)*
+  -f,--format endoZipBase64*|nestedEvaluate|getExport
+  -T,--no-transforms`;
 
 const options = /** @type {const} */ ({
   'no-transforms': {
@@ -17,6 +22,11 @@ const options = /** @type {const} */ ({
   },
   'cache-json': {
     type: 'string',
+    multiple: false,
+  },
+  format: {
+    type: 'string',
+    short: 'f',
     multiple: false,
   },
   // deprecated
@@ -34,9 +44,10 @@ const options = /** @type {const} */ ({
  * @param {import('../cache.js').Logger} [powers.log]
  * @returns {Promise<void>}
  */
-export const main = async (args, { loadModule, pid, log }) => {
+      format: moduleFormat = 'endoZipBase64',
   const {
     values: {
+      format = 'endoZipBase64',
       'no-transforms': noTransforms,
       'cache-json': cacheJson,
       'cache-js': cacheJs,
@@ -74,6 +85,10 @@ export const main = async (args, { loadModule, pid, log }) => {
     throw Error(USAGE);
   }
 
+  if (!SUPPORTED_FORMATS.includes(format)) {
+    throw Error(`Unsupported format: ${format}\n\n${USAGE}`);
+  }
+
   const cache = await makeNodeBundleCache(
     dest,
     { cacheOpts, cacheSourceMaps: true, log },
@@ -87,6 +102,7 @@ export const main = async (args, { loadModule, pid, log }) => {
     // eslint-disable-next-line no-await-in-loop
     await cache.validateOrAdd(bundleRoot, bundleName, undefined, {
       noTransforms,
+      format: /** @type {ModuleFormat} */ (format),
     });
   }
 };
