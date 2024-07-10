@@ -4,7 +4,7 @@
 
 // @ts-check
 
-/** @import {ReadFn} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
 
 import { relativize } from './node-module-specifier.js';
 import { relative } from './url.js';
@@ -24,15 +24,15 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 /**
  * Searches for the first ancestor directory of given location that contains a
  * package.json.
- * Probes by calling readDescriptor.
- * Returns the result of readDescriptor as data whenever a value is returned.
+ * Probes by calling maybeReadDescriptor.
+ * Returns the result of maybeReadDescriptor as data whenever a value is returned.
  *
  * @template T
  * @param {string} location
- * @param {(location:string)=>Promise<T>} readDescriptor
+ * @param {(location:string)=>Promise<T|undefined>} maybeReadDescriptor
  * @returns {Promise<{data:T, directory: string, location:string, packageDescriptorLocation: string}>}
  */
-export const searchDescriptor = async (location, readDescriptor) => {
+export const searchDescriptor = async (location, maybeReadDescriptor) => {
   await null;
   let directory = resolveLocation('./', location);
   for (;;) {
@@ -41,9 +41,7 @@ export const searchDescriptor = async (location, readDescriptor) => {
       directory,
     );
     // eslint-disable-next-line no-await-in-loop
-    const data = await readDescriptor(packageDescriptorLocation).catch(
-      () => undefined,
-    );
+    const data = await maybeReadDescriptor(packageDescriptorLocation);
     if (data !== undefined) {
       return {
         data,
@@ -61,18 +59,16 @@ export const searchDescriptor = async (location, readDescriptor) => {
 };
 
 /**
- * @param {ReadFn} read
+ * @param {MaybeReadFn} maybeRead
  * @param {string} packageDescriptorLocation
  * @returns {Promise<string | undefined>}
  */
-const readDescriptorDefault = async (
-  read,
+const maybeReadDescriptorDefault = async (
+  maybeRead,
   packageDescriptorLocation,
   // eslint-disable-next-line consistent-return
 ) => {
-  const packageDescriptorBytes = await read(packageDescriptorLocation).catch(
-    () => undefined,
-  );
+  const packageDescriptorBytes = await maybeRead(packageDescriptorLocation);
   if (packageDescriptorBytes !== undefined) {
     const packageDescriptorText = decoder.decode(packageDescriptorBytes);
     return packageDescriptorText;
@@ -86,7 +82,7 @@ const readDescriptorDefault = async (
  * To avoid duplicate work later, returns the text of the package.json for
  * inevitable later use.
  *
- * @param {ReadFn} read
+ * @param {MaybeReadFn} maybeRead
  * @param {string} moduleLocation
  * @returns {Promise<{
  *   packageLocation: string,
@@ -95,10 +91,10 @@ const readDescriptorDefault = async (
  *   moduleSpecifier: string,
  * }>}
  */
-export const search = async (read, moduleLocation) => {
+export const search = async (maybeRead, moduleLocation) => {
   const { data, directory, location, packageDescriptorLocation } =
     await searchDescriptor(moduleLocation, loc =>
-      readDescriptorDefault(read, loc),
+      maybeReadDescriptorDefault(maybeRead, loc),
     );
 
   if (!data) {

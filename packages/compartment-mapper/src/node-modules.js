@@ -797,7 +797,7 @@ export const compartmentMapForNodeModules = async (
 };
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {object} [options]
  * @param {Set<string>} [options.tags]
@@ -813,14 +813,14 @@ export const mapNodeModules = async (
 ) => {
   const { tags = new Set(), dev = false, commonDependencies, policy } = options;
 
-  const { read } = unpackReadPowers(readPowers);
+  const { maybeRead } = unpackReadPowers(readPowers);
 
   const {
     packageLocation,
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
-  } = await search(read, moduleLocation);
+  } = await search(maybeRead, moduleLocation);
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
