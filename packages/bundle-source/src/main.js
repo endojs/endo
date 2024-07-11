@@ -1,12 +1,15 @@
 // @ts-check
+/* global process */
 import { parseArgs } from 'util';
-import { SUPPORTED_FORMATS } from './bundle-source.js';
+
+import bundleSource, { SUPPORTED_FORMATS } from './bundle-source.js';
 import { jsOpts, jsonOpts, makeNodeBundleCache } from '../cache.js';
 
 /** @import {ModuleFormat} from './types.js' */
 
 const USAGE = `\
-bundle-source [-Tf] [--cache-js|--cache-json] <cache/> (<entry.js> <bundle-name>)*
+bundle-source [-Tf] <entry.js>
+bundle-source [-Tf] --cache-js|--cache-json <cache/> (<entry.js> <bundle-name>)*
   -f,--format endoZipBase64*|nestedEvaluate|getExport
   -T,--no-transforms`;
 
@@ -55,17 +58,11 @@ export const main = async (args, { loadModule, pid, log }) => {
       // deprecated
       to: cacheJsAlias,
     },
-    positionals: pairs,
+    positionals,
   } = parseArgs({ args, options, allowPositionals: true });
 
-  if (
-    !(
-      pairs.length > 0 &&
-      pairs.length % 2 === 0 &&
-      [cacheJson, cacheJs, cacheJsAlias].filter(Boolean).length === 1
-    )
-  ) {
-    throw Error(USAGE);
+  if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
+    throw Error(`Unsupported format: ${moduleFormat}\n\n${USAGE}`);
   }
   const format = /** @type {ModuleFormat} */ (moduleFormat);
 
@@ -83,12 +80,24 @@ export const main = async (args, { loadModule, pid, log }) => {
     dest = cacheJson;
     cacheOpts = jsonOpts;
   } else {
-    // unreachable
-    throw Error(USAGE);
+    if (positionals.length !== 1) {
+      throw new Error(USAGE);
+    }
+    const [entryPath] = positionals;
+    const bundle = await bundleSource(entryPath, { noTransforms, format });
+    process.stdout.write(JSON.stringify(bundle));
+    process.stdout.write('\n');
+    return;
   }
 
-  if (!SUPPORTED_FORMATS.includes(format)) {
-    throw Error(`Unsupported format: ${format}\n\n${USAGE}`);
+  if (
+    !(
+      positionals.length > 0 &&
+      positionals.length % 2 === 0 &&
+      [cacheJson, cacheJs, cacheJsAlias].filter(Boolean).length === 1
+    )
+  ) {
+    throw Error(USAGE);
   }
 
   const cache = await makeNodeBundleCache(
@@ -98,8 +107,8 @@ export const main = async (args, { loadModule, pid, log }) => {
     pid,
   );
 
-  for (let ix = 0; ix < pairs.length; ix += 2) {
-    const [bundleRoot, bundleName] = pairs.slice(ix, ix + 2);
+  for (let ix = 0; ix < positionals.length; ix += 2) {
+    const [bundleRoot, bundleName] = positionals.slice(ix, ix + 2);
 
     // eslint-disable-next-line no-await-in-loop
     await cache.validateOrAdd(bundleRoot, bundleName, undefined, {
