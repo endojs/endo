@@ -173,12 +173,14 @@ export default function tameErrorConstructor(
 
   let initialGetStackString = tamedMethods.getStackString;
   if (platform === 'v8') {
-    initialGetStackString = tameV8ErrorConstructor(
-      FERAL_ERROR,
-      InitialError,
-      errorTaming,
-      stackFiltering,
-    );
+    if (errorTaming === 'safe') {
+      initialGetStackString = tameV8ErrorConstructor(
+        FERAL_ERROR,
+        InitialError,
+        errorTaming,
+        stackFiltering,
+      ); 
+    }
   } else if (errorTaming === 'unsafe') {
     // v8 has too much magic around their 'stack' own property for it to
     // coexist cleanly with this accessor. So only install it on non-v8
