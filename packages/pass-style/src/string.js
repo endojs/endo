@@ -73,9 +73,6 @@ const ONLY_WELL_FORMED_STRINGS_PASSABLE =
  * TODO once the switch is removed, simplify `assertPassableString` to
  * simply be `assertWellFormedString`.
  *
- * TODO update https://github.com/Agoric/agoric-sdk/blob/master/docs/env.md
- * which is unfortunately in the wrong repo to be updated in the same change.
- *
  * @param { unknown } str
  * @returns {asserts str is string }
  */
