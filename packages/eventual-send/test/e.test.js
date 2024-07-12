@@ -39,6 +39,7 @@ test('E.when', async t => {
 });
 
 test('E method calls', async t => {
+  await null;
   const x = {
     double(n) {
       return 2 * n;
@@ -50,7 +51,6 @@ test('E method calls', async t => {
   };
   const d = E(x).double(6);
   t.is(typeof d.then, 'function', 'return is a thenable');
-  await null;
   t.is(await d, 12, 'method call works');
   const methodProxy = E(x);
   t.assert(Object.isFrozen(methodProxy));
@@ -106,6 +106,7 @@ test('E call missing method', async t => {
 });
 
 test('E sendOnly call missing method', async t => {
+  await null;
   let count = 279;
   const counter = {
     incr(n) {
@@ -116,7 +117,6 @@ test('E sendOnly call missing method', async t => {
 
   const result = E.sendOnly(counter).decr(210);
   t.is(result, undefined, 'return is undefined as expected');
-  await null;
   t.is(count, 279, `sendOnly method call doesn't change count`);
 });
 
@@ -145,6 +145,7 @@ test('E method call undefined receiver', async t => {
 });
 
 test('E shortcuts', async t => {
+  await null;
   const x = {
     name: 'buddy',
     val: 123,
@@ -157,7 +158,6 @@ test('E shortcuts', async t => {
       return `${greeting}, ${this.name}!`;
     },
   };
-  await null;
   t.is(await E(x).hello('Hello'), 'Hello, buddy!', 'method call works');
   t.is(
     await E(await E.get(await E.get(x).y).fn)(4),
@@ -168,6 +168,7 @@ test('E shortcuts', async t => {
 });
 
 test('E.get', async t => {
+  await null;
   const x = {
     name: 'buddy',
     val: 123,
@@ -185,7 +186,6 @@ test('E.get', async t => {
       return `${greeting}, ${this.name}!`;
     },
   };
-  await null;
   t.assert(Object.isFrozen(await E.get(x).output), 'get output is frozen');
   t.assert(
     Object.isFrozen(await E(E.get(x).testFrozen)({ arg: 123 })),

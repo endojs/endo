@@ -367,8 +367,8 @@ export const makeDaemonicPersistencePowers = (
           return filePowers.readFileText(storagePath);
         };
         const json = async () => {
-          await null;
-          return JSON.parse(await text());
+          const jsonSrc = await text();
+          return JSON.parse(jsonSrc);
         };
         return harden({
           sha512: () => sha512,

@@ -7,11 +7,11 @@ import { detectEngineGC } from './engine-gc.js';
 import { makeGcAndFinalize } from './gc-and-finalize.js';
 
 const isolated = async (t, makeFar) => {
+  await null;
   const local = Far('local', {
     method: () => 'local',
   });
   const far = makeFar(local);
-  await null;
   t.is(await E(far).method(), 'local');
 };
 

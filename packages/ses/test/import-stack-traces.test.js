@@ -3,6 +3,7 @@ import '../index.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 
 test('preserve file names in stack traces', async t => {
+  await null;
   if (Error().stack != null) {
     t.plan(1);
   } else {
@@ -25,7 +26,6 @@ test('preserve file names in stack traces', async t => {
   );
 
   let error;
-  await null;
   try {
     await compartment.import('./main.js');
   } catch (_error) {

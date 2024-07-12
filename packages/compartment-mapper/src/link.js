@@ -84,6 +84,7 @@ const makeExtensionParser = (
   moduleTransforms,
 ) => {
   return async (bytes, specifier, location, packageLocation, options) => {
+    await null;
     let language;
     const extension = parseExtension(location);
 
@@ -98,7 +99,6 @@ const makeExtensionParser = (
 
     let sourceMap;
 
-    await null;
     if (has(moduleTransforms, language)) {
       try {
         ({

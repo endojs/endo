@@ -6,6 +6,7 @@ import { Far } from '@endo/marshal';
 import { E, makeLoopback } from '../src/loopback.js';
 
 test('exportHook', async t => {
+  await null;
   const exports = [];
 
   const { makeFar } = makeLoopback('us', {
@@ -21,7 +22,6 @@ test('exportHook', async t => {
   );
 
   // Prime the pump.
-  await null;
   t.deepEqual(await E(bs).echo(), [], 'echoed');
   t.is(exports.length, 1, 'loopback metaprotocol');
   exports.splice(0);

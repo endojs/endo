@@ -22,6 +22,7 @@ export const makeCommand = async ({
   agentNames,
   powersName,
 }) => {
+  await null;
   if (filePath !== undefined && importPath !== undefined) {
     console.error('Specify only one of [file] or --UNCONFINED <file>');
     process.exitCode = 1;
@@ -46,7 +47,6 @@ export const makeCommand = async ({
   let bundleReaderRef;
   /** @type {string | undefined} */
   let temporaryBundleName;
-  await null;
   if (filePath !== undefined) {
     if (bundleName === undefined) {
       // TODO alternately, make a temporary session-scoped GC pet store
@@ -62,8 +62,8 @@ export const makeCommand = async ({
   }
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    // Prepare a bundle, with the given name.
     await null;
+    // Prepare a bundle, with the given name.
     if (bundleReaderRef !== undefined) {
       await E(agent).storeBlob(bundleReaderRef, bundleName);
     }

@@ -79,11 +79,11 @@ export const makeHttpPowers = ({ http, ws }) => {
 
       server.on('request', (req, res) => {
         (async () => {
+          await null;
           if (req.method === undefined || req.url === undefined) {
             return;
           }
 
-          await null;
           try {
             await sendResponse(req, res);
           } catch (_error) {

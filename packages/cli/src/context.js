@@ -7,11 +7,11 @@ import { provideEndoClient } from './client.js';
 import { parsePetNamePath } from './pet-name.js';
 
 export const withInterrupt = async callback => {
+  await null;
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   cancelled.catch(() => {});
   process.once('SIGINT', () => cancel(Error('SIGINT')));
 
-  await null;
   try {
     await callback({ cancel, cancelled });
     cancel(Error('normal termination'));

@@ -4,6 +4,7 @@ import { Fail } from '@endo/errors';
 import { applyLabelingError } from '../apply-labeling-error.js';
 
 test('test applyLabelingError', async t => {
+  await null;
   t.is(
     applyLabelingError(x => x * 2, [8]),
     16,
@@ -12,7 +13,6 @@ test('test applyLabelingError', async t => {
     applyLabelingError(x => x * 2, [8], 'foo'),
     16,
   );
-  await null;
   t.is(await applyLabelingError(async x => x * 2, [8], 'foo'), 16);
   t.throws(() => applyLabelingError(x => Fail`${x}`, ['e']), {
     message: '"e"',

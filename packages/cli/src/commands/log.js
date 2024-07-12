@@ -24,6 +24,7 @@ const delay = async (ms, cancelled) => {
 
 export const log = async ({ follow, ping }) =>
   withInterrupt(async ({ cancelled }) => {
+    await null;
     const logCheckIntervalMs = ping !== undefined ? Number(ping) : 5_000;
 
     const { username, homedir } = os.userInfo();
@@ -39,7 +40,6 @@ export const log = async ({ follow, ping }) =>
 
     const logPath = path.join(statePath, 'endo.log');
 
-    await null;
     do {
       // Scope cancellation and propagate.
       const { promise: followCancelled, reject: cancelFollower } =

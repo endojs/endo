@@ -27,12 +27,12 @@ test('prime single return', async (/** @type {import('ava').ExecutionContext} */
 });
 
 test('prime empty throw in', async (/** @type {import('ava').ExecutionContext} */ t) => {
+  await null;
   async function* empty() {
     return 'Z';
   }
 
   const iterator = prime(empty());
-  await null;
   try {
     await iterator.throw(Error('Abort'));
     t.fail();
@@ -59,12 +59,12 @@ test('prime single throw in', async (/** @type {import('ava').ExecutionContext} 
 });
 
 test('prime single throw', async (/** @type {import('ava').ExecutionContext} */ t) => {
+  await null;
   async function* empty() {
     throw Error('Abort');
   }
 
   const iterator = prime(empty());
-  await null;
   try {
     await iterator.next(0);
     t.fail('reached beyond end of generator');
@@ -83,12 +83,12 @@ test('prime empty case', async (/** @type {import('ava').ExecutionContext} */ t)
 });
 
 test('prime throw case', async (/** @type {import('ava').ExecutionContext} */ t) => {
+  await null;
   async function* temperamental() {
     throw Error('Abort');
   }
 
   const iterator = prime(temperamental());
-  await null;
   try {
     await iterator.next();
     t.fail();

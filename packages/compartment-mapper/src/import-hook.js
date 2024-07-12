@@ -209,6 +209,7 @@ export const makeImportHookMaker = (
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
+      await null;
       compartmentDescriptor.retained = true;
 
       // per-module:
@@ -217,7 +218,6 @@ export const makeImportHookMaker = (
       // third-party dependency.
       // The `moduleMapHook` captures all third-party dependencies, unless
       // we allow importing any exit.
-      await null;
       if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
         if (exitModuleImportHook) {
           const record = await exitModuleImportHook(moduleSpecifier);

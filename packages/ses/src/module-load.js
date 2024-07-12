@@ -34,9 +34,9 @@ const { Fail, details: X, quote: q, note: annotateError } = assert;
 const noop = () => {};
 
 async function asyncTrampoline(generatorFunc, args, errorWrapper) {
+  await null;
   const iterator = generatorFunc(...args);
   let result = generatorNext(iterator);
-  await null;
   while (!result.done) {
     try {
       // eslint-disable-next-line no-await-in-loop

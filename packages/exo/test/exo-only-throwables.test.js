@@ -24,6 +24,7 @@ const thrower = makeExo(
 );
 
 test('exo only throwables', async t => {
+  await null;
   const e = makeError('test error', undefined, {
     sanitize: false,
   });
@@ -41,7 +42,6 @@ test('exo only throwables', async t => {
   t.true(isPassable(caught));
   t.log('throw caught', caught);
 
-  await null;
   try {
     await thrower.reject(e);
   } catch (thrown) {

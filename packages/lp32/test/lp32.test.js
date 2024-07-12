@@ -176,9 +176,9 @@ test('round-trip varying messages', async t => {
   const [input, output] = makePipe();
 
   const producer = (async () => {
+    await null;
     /** @type {import('@endo/stream').Writer<Uint8Array, undefined>} */
     const w = makeLp32Writer(output);
-    await null;
     for (let i = 0; i < array.length; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await w.next(encoder.encode(array[i]));

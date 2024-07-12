@@ -44,6 +44,7 @@ export const run = async ({
     agentNames,
     { os, process },
     async ({ bootstrap, agent }) => {
+      await null;
       let powersP;
       if (powersName === 'NONE') {
         powersP = E(bootstrap).leastAuthority();
@@ -55,7 +56,6 @@ export const run = async ({
         powersP = E(agent).provideGuest(powersName);
       }
 
-      await null;
       if (importPath !== undefined) {
         if (bundleName !== undefined) {
           console.error(

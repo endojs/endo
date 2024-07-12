@@ -110,6 +110,7 @@ export const make = async (_powers, context) => {
       }
 
       (async () => {
+        await null;
         const {
           reader: frameReader,
           writer: frameWriter,
@@ -137,8 +138,6 @@ export const make = async (_powers, context) => {
         // TODO set up heart monitor
         E.sendOnly(webletBootstrap).ping();
 
-        // eslint-disable-next-line no-use-before-define
-        await null;
         E(webletBootstrap)
           .makeBundle(
             await E(/** @type {any} */ (webletBundle)).json(),

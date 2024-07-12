@@ -244,9 +244,9 @@ const varyingMessages = async (t, opts) => {
   const [input, output] = makePipe();
 
   const producer = (async () => {
+    await null;
     /** @type {import('@endo/stream').Writer<Uint8Array, undefined>} */
     const w = makeNetstringWriter(output, opts);
-    await null;
     for (let i = 0; i < array.length; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await w.next(encoder.encode(array[i]));

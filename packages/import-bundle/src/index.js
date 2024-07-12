@@ -14,6 +14,7 @@ import { wrapInescapableCompartment } from './compartment-wrapper.js';
 // object (with .default, and maybe other properties for named exports)
 
 export async function importBundle(bundle, options = {}, powers = {}) {
+  await null;
   const {
     bundleUrl = undefined,
     filePrefix,
@@ -54,7 +55,6 @@ export async function importBundle(bundle, options = {}, powers = {}) {
   }
 
   const { moduleFormat } = bundle;
-  await null;
   if (moduleFormat === 'endoZipBase64') {
     const { endoZipBase64 } = bundle;
     const bytes = decodeBase64(endoZipBase64);

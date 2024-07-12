@@ -99,9 +99,9 @@ export function scaffold(
       testFunc = testFunc.failing || testFunc;
     }
     return testFunc(title, async t => {
+      await null;
       const compartmentInstrumentation = compartmentInstrumentationFactory();
       let namespace;
-      await null;
       try {
         namespace = await implementation(
           t,
