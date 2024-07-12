@@ -128,7 +128,6 @@ test('E call missing class methods', async t => {
 });
 
 test('E sendOnly call missing method', async t => {
-  await null;
   let count = 279;
   const counter = {
     incr(n) {
@@ -139,6 +138,7 @@ test('E sendOnly call missing method', async t => {
 
   const result = E.sendOnly(counter).decr(210);
   t.is(result, undefined, 'return is undefined as expected');
+  await null;
   t.is(count, 279, `sendOnly method call doesn't change count`);
 });
 
