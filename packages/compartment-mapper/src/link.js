@@ -98,6 +98,7 @@ const makeExtensionParser = (
 
     let sourceMap;
 
+    await null;
     if (has(moduleTransforms, language)) {
       try {
         ({

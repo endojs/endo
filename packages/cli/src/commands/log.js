@@ -39,6 +39,7 @@ export const log = async ({ follow, ping }) =>
 
     const logPath = path.join(statePath, 'endo.log');
 
+    await null;
     do {
       // Scope cancellation and propagate.
       const { promise: followCancelled, reject: cancelFollower } =

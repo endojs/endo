@@ -62,6 +62,7 @@ const builtinLocation = new URL(
 // application package.
 
 export async function setup() {
+  await null;
   if (modules === undefined) {
     const utility = await loadLocation(readPowers, builtinLocation);
     const { namespace } = await utility.import({ globals });
@@ -100,6 +101,7 @@ export function scaffold(
     return testFunc(title, async t => {
       const compartmentInstrumentation = compartmentInstrumentationFactory();
       let namespace;
+      await null;
       try {
         namespace = await implementation(
           t,

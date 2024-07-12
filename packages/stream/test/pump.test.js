@@ -304,6 +304,7 @@ test('pump iterator protocol target return throws', async (/** @type {import('av
     },
   };
 
+  await null;
   try {
     await pump(target, source, 'A');
     t.fail();

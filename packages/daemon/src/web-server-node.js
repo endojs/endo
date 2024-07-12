@@ -138,6 +138,7 @@ export const make = async (_powers, context) => {
         E.sendOnly(webletBootstrap).ping();
 
         // eslint-disable-next-line no-use-before-define
+        await null;
         E(webletBootstrap)
           .makeBundle(
             await E(/** @type {any} */ (webletBundle)).json(),

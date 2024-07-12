@@ -11,6 +11,7 @@ const isolated = async (t, makeFar) => {
     method: () => 'local',
   });
   const far = makeFar(local);
+  await null;
   t.is(await E(far).method(), 'local');
 };
 

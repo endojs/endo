@@ -7,6 +7,7 @@ import './lockdown-safe.js';
 import test from 'ava';
 
 test('shimmed async-iterator helpers', async t => {
+  await null;
   t.deepEqual(
     await (async function* g(i) {
       // eslint-disable-next-line no-plusplus

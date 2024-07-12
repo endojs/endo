@@ -13,6 +13,7 @@ const fromAsync = async iterable => {
 
 export const accept = async ({ guestName, agentNames }) => {
   process.stdin.setEncoding('utf-8');
+  await null;
   const invitationLocator = (await fromAsync(process.stdin)).join('').trim();
   return withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     await E(agent).accept(invitationLocator.trim(), guestName);

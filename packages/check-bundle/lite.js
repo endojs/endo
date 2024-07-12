@@ -59,6 +59,7 @@ export const checkBundle = async (
     X`checkBundle cannot hash non-bundle, moduleFormat must be a string, got ${typeof moduleFormat}`,
   );
 
+  await null;
   if (moduleFormat === 'endoZipBase64') {
     const { endoZipBase64, endoZipBase64Sha512 } = bundle;
     assert.typeof(

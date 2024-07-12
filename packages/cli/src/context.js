@@ -11,6 +11,7 @@ export const withInterrupt = async callback => {
   cancelled.catch(() => {});
   process.once('SIGINT', () => cancel(Error('SIGINT')));
 
+  await null;
   try {
     await callback({ cancel, cancelled });
     cancel(Error('normal termination'));

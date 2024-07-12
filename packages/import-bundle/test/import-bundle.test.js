@@ -59,6 +59,7 @@ test('test import', async t => {
   // bundleSource (in 'getExport' mode) uses rollup() in a way that uses
   // Math.random, which is disabled under SES
   console.log(`TODO: skipping test that needs Math.random`);
+  await null;
   // eslint-disable-next-line no-constant-condition
   if (false) {
     const b1getExport = await bundleSource(

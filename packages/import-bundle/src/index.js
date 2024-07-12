@@ -54,6 +54,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
   }
 
   const { moduleFormat } = bundle;
+  await null;
   if (moduleFormat === 'endoZipBase64') {
     const { endoZipBase64 } = bundle;
     const bytes = decodeBase64(endoZipBase64);

@@ -41,6 +41,7 @@ test('exo only throwables', async t => {
   t.true(isPassable(caught));
   t.log('throw caught', caught);
 
+  await null;
   try {
     await thrower.reject(e);
   } catch (thrown) {

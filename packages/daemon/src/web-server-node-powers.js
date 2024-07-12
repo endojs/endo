@@ -83,6 +83,7 @@ export const makeHttpPowers = ({ http, ws }) => {
             return;
           }
 
+          await null;
           try {
             await sendResponse(req, res);
           } catch (_error) {

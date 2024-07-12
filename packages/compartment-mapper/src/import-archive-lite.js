@@ -107,6 +107,7 @@ const makeArchiveImportHookMaker = (
     const importHook = async moduleSpecifier => {
       // per-module:
       const module = modules[moduleSpecifier];
+      await null;
       if (module === undefined) {
         if (exitModuleImportHook) {
           // At this point in archive importing, if a module is not found and
@@ -354,6 +355,7 @@ export const parseArchive = async (
   // Archive integrity checks: ensure every module is pre-loaded so its hash
   // gets checked, and ensure that every file in the archive is used, and
   // therefore checked.
+  await null;
   if (computeSha512 !== undefined) {
     const makeImportHook = makeArchiveImportHookMaker(
       get,

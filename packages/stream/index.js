@@ -155,6 +155,7 @@ export const prime = (generator, primer) => {
   const primed = harden({
     /** @param {TWrite} value */
     async next(value) {
+      await null;
       if (result === undefined) {
         result = await first;
         if (result.done) {
@@ -165,6 +166,7 @@ export const prime = (generator, primer) => {
     },
     /** @param {TReturn} value */
     async return(value) {
+      await null;
       if (result === undefined) {
         result = await first;
         if (result.done) {
@@ -175,6 +177,7 @@ export const prime = (generator, primer) => {
     },
     /** @param {Error} error */
     async throw(error) {
+      await null;
       if (result === undefined) {
         result = await first;
         if (result.done) {

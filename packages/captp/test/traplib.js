@@ -27,6 +27,7 @@ export const runTrapTests = async (t, Trap, bs, unwrapsPromises) => {
   // Demonstrate async compatibility of traps.
   const pn = E(E(bs).getTraps(3)).getN();
   t.is(Promise.resolve(pn), pn);
+  await null;
   t.is(await pn, 3);
 
   // Demonstrate Trap cannot be used on a promise.

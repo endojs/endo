@@ -21,6 +21,7 @@ test('exportHook', async t => {
   );
 
   // Prime the pump.
+  await null;
   t.deepEqual(await E(bs).echo(), [], 'echoed');
   t.is(exports.length, 1, 'loopback metaprotocol');
   exports.splice(0);

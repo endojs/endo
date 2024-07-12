@@ -37,6 +37,7 @@ const verifyThenAttack = async (t, resolve) => {
   t.not(p, p2, 'an own "then" should cause coercion');
   t.is(getHappened, false, `getter not called too early`);
   t.is(callHappened, false, `then not called too early`);
+  await null;
   t.is(await p2, 'done', `p2 is resolved`);
   t.is(getHappened, true, `getter not called too early`);
   t.is(callHappened, true, `then not called too early`);

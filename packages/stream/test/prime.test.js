@@ -32,6 +32,7 @@ test('prime empty throw in', async (/** @type {import('ava').ExecutionContext} *
   }
 
   const iterator = prime(empty());
+  await null;
   try {
     await iterator.throw(Error('Abort'));
     t.fail();
@@ -63,6 +64,7 @@ test('prime single throw', async (/** @type {import('ava').ExecutionContext} */ 
   }
 
   const iterator = prime(empty());
+  await null;
   try {
     await iterator.next(0);
     t.fail('reached beyond end of generator');
@@ -86,6 +88,7 @@ test('prime throw case', async (/** @type {import('ava').ExecutionContext} */ t)
   }
 
   const iterator = prime(temperamental());
+  await null;
   try {
     await iterator.next();
     t.fail();

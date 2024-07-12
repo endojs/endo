@@ -226,6 +226,7 @@ const renameSources = (sources, compartmentRenames) => {
  * @param {Sources} sources
  */
 const addSourcesToArchive = async (archive, sources) => {
+  await null;
   for (const compartment of keys(sources).sort()) {
     const modules = sources[compartment];
     const compartmentLocation = resolveLocation(`${compartment}/`, 'file:///');

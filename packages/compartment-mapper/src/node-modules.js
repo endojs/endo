@@ -152,6 +152,7 @@ const readDescriptorWithMemo = async (memo, maybeRead, packageLocation) => {
  * } | undefined>}
  */
 const findPackage = async (readDescriptor, canonical, directory, name) => {
+  await null;
   for (;;) {
     // eslint-disable-next-line no-await-in-loop
     const packageLocation = await canonical(

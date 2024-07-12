@@ -394,6 +394,7 @@ test('importHook returning a ModuleInstance with a precompiled functor', async t
     {
       resolveHook: resolveNode,
       importHook: async moduleSpecifier => {
+        await null;
         if (moduleSpecifier === './precompiled.js') {
           const baseRecord = await importHook(moduleSpecifier);
           return {

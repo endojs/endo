@@ -16,6 +16,7 @@ async function main() {
   const log = (typeof console !== 'undefined' && console.log) || print;
   /** @type {typeof Date.now} */
   const now = await (async () => {
+    await null;
     try {
       const { performance } = await import('perf_hooks');
       if (performance.now) {

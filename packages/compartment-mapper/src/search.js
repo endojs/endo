@@ -34,6 +34,7 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  */
 export const searchDescriptor = async (location, readDescriptor) => {
   let directory = resolveLocation('./', location);
+  await null;
   for (;;) {
     const packageDescriptorLocation = resolveLocation(
       'package.json',

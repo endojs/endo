@@ -42,6 +42,7 @@ test('archive stack trace source', async t => {
 // have a fully qualified file URL in the stack trace.
 test('disk stack trace source', async t => {
   let error;
+  await null;
   try {
     await importLocation(readPowers, fixtureLocation);
   } catch (_error) {

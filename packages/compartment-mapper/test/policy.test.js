@@ -5,6 +5,7 @@ import { moduleify, scaffold, sanitizePaths } from './scaffold.js';
 
 function combineAssertions(...assertionFunctions) {
   return async (...args) => {
+    await null;
     for (const assertion of assertionFunctions) {
       // eslint-disable-next-line no-await-in-loop
       await assertion(...args);

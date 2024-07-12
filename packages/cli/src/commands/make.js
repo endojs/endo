@@ -46,6 +46,7 @@ export const makeCommand = async ({
   let bundleReaderRef;
   /** @type {string | undefined} */
   let temporaryBundleName;
+  await null;
   if (filePath !== undefined) {
     if (bundleName === undefined) {
       // TODO alternately, make a temporary session-scoped GC pet store
@@ -62,6 +63,7 @@ export const makeCommand = async ({
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     // Prepare a bundle, with the given name.
+    await null;
     if (bundleReaderRef !== undefined) {
       await E(agent).storeBlob(bundleReaderRef, bundleName);
     }

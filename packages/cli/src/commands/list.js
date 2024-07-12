@@ -40,6 +40,7 @@ export const list = async ({ directory, follow, json, verbose }) =>
       const directoryPath = parsePetNamePath(directory);
       agent = E(agent).lookup(...directoryPath);
     }
+    await null;
     if (follow) {
       const topic = await E(agent).followNameChanges();
       const iterator = makeRefIterator(topic);

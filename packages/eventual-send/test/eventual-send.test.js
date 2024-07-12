@@ -169,6 +169,7 @@ test('new HandledPromise expected errors', async t => {
 
   // Full handler succeeds.
   let fullObj;
+  await null;
   t.is(
     await new HandledPromise((_, _2, rwp) => (fullObj = rwp(handler))),
     fullObj,
@@ -281,6 +282,7 @@ test('new HandledPromise(executor, undefined)', async t => {
     }, 200);
   });
 
+  await null;
   t.is(
     await HandledPromise.applyMethod(handledP, 'hello', ['World', '!']),
     'Hello, World!',
@@ -308,6 +310,7 @@ test('handled promises are promises', t => {
 });
 
 test('eventual send expected errors', async t => {
+  await null;
   t.is(
     await HandledPromise.get(true, 'toString'),
     true.toString,

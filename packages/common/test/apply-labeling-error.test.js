@@ -12,6 +12,7 @@ test('test applyLabelingError', async t => {
     applyLabelingError(x => x * 2, [8], 'foo'),
     16,
   );
+  await null;
   t.is(await applyLabelingError(async x => x * 2, [8], 'foo'), 16);
   t.throws(() => applyLabelingError(x => Fail`${x}`, ['e']), {
     message: '"e"',

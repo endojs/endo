@@ -40,6 +40,7 @@ test('Promise.any aggregate error', async t => {
   const e2 = Error('e2', { cause: e1 });
   const u3 = URIError('u3', { cause: e1 });
 
+  await null;
   try {
     await Promise.any([Promise.reject(e2), Promise.reject(u3)]);
   } catch (a4) {

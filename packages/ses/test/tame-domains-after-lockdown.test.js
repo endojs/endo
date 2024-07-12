@@ -4,6 +4,7 @@ import test from 'ava';
 lockdown({ domainTaming: 'safe' });
 
 test('import domains after lockdown', async t => {
+  await null;
   try {
     await import('domain');
     t.fail('importing domain should throw');

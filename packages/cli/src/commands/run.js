@@ -55,6 +55,7 @@ export const run = async ({
         powersP = E(agent).provideGuest(powersName);
       }
 
+      await null;
       if (importPath !== undefined) {
         if (bundleName !== undefined) {
           console.error(

@@ -76,6 +76,7 @@ export const store = async ({
   const parsedName = parsePetNamePath(name);
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
+    await null;
     if (storeText !== undefined) {
       await E(agent).storeValue(storeText, parsedName);
     } else if (storeJson !== undefined) {

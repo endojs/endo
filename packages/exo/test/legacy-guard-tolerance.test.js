@@ -118,6 +118,7 @@ test('legacy guard tolerance', async t => {
     mg1: meth,
     mg2: meth,
   });
+  await null;
   t.deepEqual(await f1.mg1(77, 88), [77, 88]);
   await t.throwsAsync(async () => f1.mg1(77, laag), {
     message:

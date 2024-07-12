@@ -43,6 +43,7 @@ const makeWorkerTests = isHost => async t => {
 
   const bs = getBootstrap();
   // console.error('have bs', bs);
+  await null;
   if (Trap) {
     await runTrapTests(t, Trap, bs, true);
   } else {
