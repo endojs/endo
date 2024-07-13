@@ -22,6 +22,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {boolean} [options.dev]
  * @param {boolean} [options.cacheSourceMaps]
  * @param {boolean} [options.noTransforms]
+ * @param {string[]} [options.tags]
  * @param {Record<string, string>} [options.commonDependencies]
  * @param {object} [grantedPowers]
  * @param {(bytes: string | Uint8Array) => string} [grantedPowers.computeSha512]
@@ -39,6 +40,7 @@ export async function bundleZipBase64(
     dev = false,
     cacheSourceMaps = false,
     noTransforms = false,
+    tags = [],
     commonDependencies,
   } = options;
   const powers = { ...readPowers, ...grantedPowers };
@@ -71,6 +73,7 @@ export async function bundleZipBase64(
 
   const compartmentMap = await mapNodeModules(powers, entry, {
     dev,
+    tags,
     commonDependencies,
   });
 

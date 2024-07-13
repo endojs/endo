@@ -8,9 +8,10 @@ import { jsOpts, jsonOpts, makeNodeBundleCache } from '../cache.js';
 /** @import {ModuleFormat} from './types.js' */
 
 const USAGE = `\
-bundle-source [-Tf] <entry.js>
-bundle-source [-Tf] --cache-js|--cache-json <cache/> (<entry.js> <bundle-name>)*
+bundle-source [-Tft] <entry.js>
+bundle-source [-Tft] --cache-js|--cache-json <cache/> (<entry.js> <bundle-name>)*
   -f,--format endoZipBase64*|nestedEvaluate|getExport
+  -t,--tag <tag> (browser, node, &c)
   -T,--no-transforms`;
 
 const options = /** @type {const} */ ({
@@ -32,6 +33,11 @@ const options = /** @type {const} */ ({
     short: 'f',
     multiple: false,
   },
+  tag: {
+    type: 'string',
+    short: 't',
+    multiple: true,
+  },
   // deprecated
   to: {
     type: 'string',
@@ -52,6 +58,7 @@ export const main = async (args, { loadModule, pid, log }) => {
   const {
     values: {
       format: moduleFormat = 'endoZipBase64',
+      tag: tags = [],
       'no-transforms': noTransforms,
       'cache-json': cacheJson,
       'cache-js': cacheJs,
@@ -84,7 +91,11 @@ export const main = async (args, { loadModule, pid, log }) => {
       throw new Error(USAGE);
     }
     const [entryPath] = positionals;
-    const bundle = await bundleSource(entryPath, { noTransforms, format });
+    const bundle = await bundleSource(entryPath, {
+      noTransforms,
+      format,
+      tags,
+    });
     process.stdout.write(JSON.stringify(bundle));
     process.stdout.write('\n');
     return;
@@ -114,6 +125,7 @@ export const main = async (args, { loadModule, pid, log }) => {
     await cache.validateOrAdd(bundleRoot, bundleName, undefined, {
       noTransforms,
       format,
+      tags,
     });
   }
 };

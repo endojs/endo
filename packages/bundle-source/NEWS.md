@@ -11,6 +11,8 @@
 - Adds a `-f,--format` command flag to specify other module formats.
 - Adds a new `endoScript` module format.
 - Adds a no-cache, bundle-to-stdout mode.
+- Adds a `-t,--tag` command flag to specify export/import conditions like
+  `"browser"`.
 
 # v3.2.1 (2024-03-20)
 
