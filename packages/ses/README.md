@@ -1,10 +1,10 @@
 # SES
 
-SES is *hardened JavaScript*. SES stands for *fearless cooperation*.
-This package is a SES [shim][define shim] for JavaScript features
-[proposed][SES proposal] to ECMA TC39.
+SES is a [shim][define shim] for [Hardened JavaScript][] as [proposed][SES
+proposal] to ECMA TC39.
+SES stands for *fearless cooperation*.
 Hardened JavaScript is highly compatible with ordinary JavaScript.
-Most existing JavaScript libraries can run on hardened JavaScript.
+Most existing JavaScript libraries can run on Hardened JavaScript.
 
 * **Compartments** Compartments are separate execution contexts: each one has
   its own global object and global lexical scope.
@@ -825,6 +825,7 @@ We find that library authors are generally amenable to making these small change
 compatibility with any environment that protects itself from prototype pollution attacks by freezing
 intrinsics, including `ses`.
 
+[Hardened JavaScript]: https://hardenedjs.org/
 [define shim]: https://en.wikipedia.org/wiki/Shim_(computing)
 [Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
 [incompatibility tracking]: https://github.com/endojs/endo/issues/576
