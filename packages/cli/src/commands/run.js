@@ -44,6 +44,7 @@ export const run = async ({
     agentNames,
     { os, process },
     async ({ bootstrap, agent }) => {
+      await null;
       let powersP;
       if (powersName === 'NONE') {
         powersP = E(bootstrap).leastAuthority();

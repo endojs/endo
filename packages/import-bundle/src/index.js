@@ -14,6 +14,7 @@ import { wrapInescapableCompartment } from './compartment-wrapper.js';
 // object (with .default, and maybe other properties for named exports)
 
 export async function importBundle(bundle, options = {}, powers = {}) {
+  await null;
   const {
     bundleUrl = undefined,
     filePrefix,

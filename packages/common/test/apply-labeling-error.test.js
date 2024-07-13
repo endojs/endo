@@ -4,6 +4,7 @@ import { Fail } from '@endo/errors';
 import { applyLabelingError } from '../apply-labeling-error.js';
 
 test('test applyLabelingError', async t => {
+  await null;
   t.is(
     applyLabelingError(x => x * 2, [8]),
     16,

@@ -412,6 +412,7 @@ export function F(arg) { return arg; }
 });
 
 test('hoist default async export named function', async t => {
+  await null;
   const { namespace } = initialize(
     t,
     `\
@@ -427,6 +428,7 @@ export default async function F(arg) { return arg; }
 });
 
 test('hoist default async export anonymous function', async t => {
+  await null;
   const { namespace } = initialize(
     t,
     `\

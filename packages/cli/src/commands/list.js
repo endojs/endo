@@ -36,6 +36,7 @@ const pad = (fieldVal, width, minPad = 2) => {
 
 export const list = async ({ directory, follow, json, verbose }) =>
   withEndoHost({ os, process }, async ({ host: agent }) => {
+    await null;
     if (directory !== undefined) {
       const directoryPath = parsePetNamePath(directory);
       agent = E(agent).lookup(...directoryPath);

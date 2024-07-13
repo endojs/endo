@@ -20,6 +20,7 @@ test(
 );
 
 const verifyThenAttack = async (t, resolve) => {
+  await null;
   const p = new Promise(_ => {});
   let getHappened = false;
   let callHappened = false;

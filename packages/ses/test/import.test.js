@@ -439,6 +439,7 @@ test('module alias', async t => {
   const wrappedImportHook = makeImportHook('https://example.com');
 
   const importHook = async specifier => {
+    await null;
     const candidates = [specifier, `${specifier}.js`, `${specifier}/index.js`];
     for (const candidate of candidates) {
       // eslint-disable-next-line no-await-in-loop
@@ -498,6 +499,7 @@ test('import reflexive module alias', async t => {
   const wrappedImportHook = makeImportHook('https://example.com');
 
   const importHook = async specifier => {
+    await null;
     const candidates = [specifier, `${specifier}.js`, `${specifier}/index.js`];
     for (const candidate of candidates) {
       // eslint-disable-next-line no-await-in-loop

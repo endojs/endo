@@ -212,6 +212,7 @@ test('concurrent chunked writes', async t => {
 });
 
 test('writer closes anywhere within chunk', async t => {
+  await null;
   for (let count = 0; count < 4; count += 1) {
     const pipe = makePipe();
     const writer = makeNetstringWriter(pipe[1], { chunked: true });
@@ -243,6 +244,7 @@ const varyingMessages = async (t, opts) => {
   const [input, output] = makePipe();
 
   const producer = (async () => {
+    await null;
     /** @type {import('@endo/stream').Writer<Uint8Array, undefined>} */
     const w = makeNetstringWriter(output, opts);
     for (let i = 0; i < array.length; i += 1) {

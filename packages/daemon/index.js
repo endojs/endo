@@ -144,6 +144,7 @@ const enoentOk = error => {
 };
 
 export const clean = async (config = defaultConfig) => {
+  await null;
   if (process.platform !== 'win32') {
     await removePath(config.sockPath).catch(enoentOk);
   }

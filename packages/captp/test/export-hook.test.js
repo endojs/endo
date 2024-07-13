@@ -6,6 +6,7 @@ import { Far } from '@endo/marshal';
 import { E, makeLoopback } from '../src/loopback.js';
 
 test('exportHook', async t => {
+  await null;
   const exports = [];
 
   const { makeFar } = makeLoopback('us', {

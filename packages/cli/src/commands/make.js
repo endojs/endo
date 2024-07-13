@@ -22,6 +22,7 @@ export const makeCommand = async ({
   agentNames,
   powersName,
 }) => {
+  await null;
   if (filePath !== undefined && importPath !== undefined) {
     console.error('Specify only one of [file] or --UNCONFINED <file>');
     process.exitCode = 1;
@@ -61,6 +62,7 @@ export const makeCommand = async ({
   }
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
+    await null;
     // Prepare a bundle, with the given name.
     if (bundleReaderRef !== undefined) {
       await E(agent).storeBlob(bundleReaderRef, bundleName);

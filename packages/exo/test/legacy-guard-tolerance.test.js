@@ -16,6 +16,7 @@ import {
 import { makeExo } from '../src/exo-makers.js';
 
 test('legacy guard tolerance', async t => {
+  await null;
   const aag = M.await(88);
   const laag = makeLegacyAwaitArgGuard({
     argGuard: 88,

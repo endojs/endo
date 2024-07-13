@@ -32,6 +32,7 @@ test('aggregate error', t => {
 });
 
 test('Promise.any aggregate error', async t => {
+  await null;
   if (typeof AggregateError === 'undefined') {
     t.pass('skip test on platforms prior to AggregateError');
     return;

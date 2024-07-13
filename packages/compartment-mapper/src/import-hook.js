@@ -209,6 +209,7 @@ export const makeImportHookMaker = (
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
+      await null;
       compartmentDescriptor.retained = true;
 
       // per-module:

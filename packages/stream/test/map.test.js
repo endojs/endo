@@ -19,6 +19,7 @@ test('map reader', async (/** @type {import('ava').Assertions} */ t) => {
   const order = ['', 'Hello, World!', '\x00', '😇   '];
 
   const makeProducer = async () => {
+    await null;
     for (const value of order) {
       // eslint-disable-next-line no-await-in-loop
       const { done, value: actual } = await produceTo.next(value);
@@ -31,6 +32,7 @@ test('map reader', async (/** @type {import('ava').Assertions} */ t) => {
   };
 
   const makeConsumer = async () => {
+    await null;
     for (const expected of order) {
       // eslint-disable-next-line no-await-in-loop
       const { done, value: actual } = await consumeFrom.next(undefined);
@@ -60,6 +62,7 @@ test('transcoding stream terminated with cause', async (/** @type {import('ava')
   };
 
   const makeConsumer = async () => {
+    await null;
     try {
       for await (const _ of consumeFrom) {
         t.fail();

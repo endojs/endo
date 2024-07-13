@@ -13,6 +13,7 @@ export const provideEndoClient = async (
   cancelled,
   bootstrap,
 ) => {
+  await null;
   try {
     // It is okay to fail to connect because the daemon is not running.
     return await makeEndoClient(name, sockPath, cancelled, bootstrap);

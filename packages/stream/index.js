@@ -156,6 +156,7 @@ export const prime = (generator, primer) => {
     /** @param {TWrite} value */
     async next(value) {
       if (result === undefined) {
+        // eslint-disable-next-line @jessie.js/safe-await-separator
         result = await first;
         if (result.done) {
           return result;
@@ -166,6 +167,7 @@ export const prime = (generator, primer) => {
     /** @param {TReturn} value */
     async return(value) {
       if (result === undefined) {
+        // eslint-disable-next-line @jessie.js/safe-await-separator
         result = await first;
         if (result.done) {
           return result;
@@ -176,6 +178,7 @@ export const prime = (generator, primer) => {
     /** @param {Error} error */
     async throw(error) {
       if (result === undefined) {
+        // eslint-disable-next-line @jessie.js/safe-await-separator
         result = await first;
         if (result.done) {
           throw error;

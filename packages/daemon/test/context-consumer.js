@@ -11,6 +11,7 @@ export const ContextConsumerInterface = M.interface(
 export const make = async (_powers, context) => {
   return makeExo('Context consumer', ContextConsumerInterface, {
     async awaitCancellation() {
+      await null;
       try {
         await E(context).whenCancelled();
       } catch {

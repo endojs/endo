@@ -27,6 +27,7 @@ test('prime single return', async (/** @type {import('ava').ExecutionContext} */
 });
 
 test('prime empty throw in', async (/** @type {import('ava').ExecutionContext} */ t) => {
+  await null;
   async function* empty() {
     return 'Z';
   }
@@ -58,6 +59,7 @@ test('prime single throw in', async (/** @type {import('ava').ExecutionContext} 
 });
 
 test('prime single throw', async (/** @type {import('ava').ExecutionContext} */ t) => {
+  await null;
   async function* empty() {
     throw Error('Abort');
   }
@@ -81,6 +83,7 @@ test('prime empty case', async (/** @type {import('ava').ExecutionContext} */ t)
 });
 
 test('prime throw case', async (/** @type {import('ava').ExecutionContext} */ t) => {
+  await null;
   async function* temperamental() {
     throw Error('Abort');
   }

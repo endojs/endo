@@ -155,6 +155,7 @@ test('handlers are always async', async t => {
 });
 
 test('new HandledPromise expected errors', async t => {
+  await null;
   const handler = {
     get(o, _key) {
       return o;
@@ -259,6 +260,7 @@ test('new HandledPromise expected errors', async t => {
 });
 
 test('new HandledPromise(executor, undefined)', async t => {
+  await null;
   const handledP = new HandledPromise((_, _2, resolveWithPresence) => {
     setTimeout(() => {
       const o = {
@@ -308,6 +310,7 @@ test('handled promises are promises', t => {
 });
 
 test('eventual send expected errors', async t => {
+  await null;
   t.is(
     await HandledPromise.get(true, 'toString'),
     true.toString,

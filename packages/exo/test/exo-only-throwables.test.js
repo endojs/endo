@@ -24,6 +24,7 @@ const thrower = makeExo(
 );
 
 test('exo only throwables', async t => {
+  await null;
   const e = makeError('test error', undefined, {
     sanitize: false,
   });

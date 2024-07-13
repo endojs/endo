@@ -22,6 +22,7 @@ export const checkBundle = async (
   computeSha512,
   bundleName = '<unknown-bundle>',
 ) => {
+  await null;
   assert.typeof(
     bundle,
     'object',

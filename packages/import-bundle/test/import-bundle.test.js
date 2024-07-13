@@ -49,6 +49,7 @@ async function testBundle1(t, b1, mode, ew) {
 }
 
 test('test import', async t => {
+  await null;
   // nestedEvaluate requires a 'require' endowment, but doesn't call it
   function req(what) {
     console.log(`require(${what})`);

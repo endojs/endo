@@ -34,6 +34,7 @@ const { Fail, details: X, quote: q, note: annotateError } = assert;
 const noop = () => {};
 
 async function asyncTrampoline(generatorFunc, args, errorWrapper) {
+  await null;
   const iterator = generatorFunc(...args);
   let result = generatorNext(iterator);
   while (!result.done) {
@@ -349,6 +350,7 @@ function asyncJobQueue() {
    * @returns {Promise<Array<Error>>}
    */
   const drainQueue = async () => {
+    await null;
     for (const job of pendingJobs) {
       // eslint-disable-next-line no-await-in-loop
       await job;

@@ -33,6 +33,7 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  * @returns {Promise<{data:T, directory: string, location:string, packageDescriptorLocation: string}>}
  */
 export const searchDescriptor = async (location, readDescriptor) => {
+  await null;
   let directory = resolveLocation('./', location);
   for (;;) {
     const packageDescriptorLocation = resolveLocation(

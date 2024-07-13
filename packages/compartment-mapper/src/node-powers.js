@@ -104,6 +104,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
    * @param {string} location
    */
   const canonical = async location => {
+    await null;
     try {
       if (location.endsWith('/')) {
         const realPath = await fs.promises.realpath(
@@ -157,6 +158,7 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
    * @param {Uint8Array} data
    */
   const write = async (location, data) => {
+    await null;
     try {
       return await fs.promises.writeFile(fileURLToPath(location), data);
     } catch (error) {

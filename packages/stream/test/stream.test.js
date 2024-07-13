@@ -9,6 +9,7 @@ test('stream', async (/** @type {import('ava').Assertions} */ t) => {
   const order = [10, 20, 30];
 
   const makeProducer = async () => {
+    await null;
     for (const expected of order) {
       // eslint-disable-next-line no-await-in-loop
       const { done, value: actual } = await produceTo.next(expected);
@@ -21,6 +22,7 @@ test('stream', async (/** @type {import('ava').Assertions} */ t) => {
   };
 
   const makeConsumer = async () => {
+    await null;
     for (const expected of order) {
       // eslint-disable-next-line no-await-in-loop
       const { done, value: actual } = await consumeFrom.next(expected);
@@ -43,6 +45,7 @@ test('stream terminated with cause', async (/** @type {import('ava').Assertions}
   };
 
   const makeConsumer = async () => {
+    await null;
     try {
       for await (const _ of consumeFrom) {
         t.fail();

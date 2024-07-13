@@ -105,6 +105,7 @@ const makeArchiveImportHookMaker = (
     const { modules } = compartmentDescriptor;
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
+      await null;
       // per-module:
       const module = modules[moduleSpecifier];
       if (module === undefined) {
@@ -280,6 +281,7 @@ export const parseArchive = async (
   archiveLocation = '<unknown>',
   options = {},
 ) => {
+  await null;
   const {
     computeSha512 = undefined,
     expectedSha512 = undefined,

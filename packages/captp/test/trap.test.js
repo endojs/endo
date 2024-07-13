@@ -16,6 +16,7 @@ import {
 const dirname = url.fileURLToPath(new URL('./', import.meta.url));
 
 const makeWorkerTests = isHost => async t => {
+  await null;
   const initFn = isHost ? makeHost : makeGuest;
   for (let len = 0; len < MIN_TRANSFER_BUFFER_LENGTH; len += 1) {
     t.throws(() => initFn(() => {}, new SharedArrayBuffer(len)), {

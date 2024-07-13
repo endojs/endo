@@ -36,6 +36,7 @@ test('stream to and from Node.js reader/writer', async (/** @type {import('ava')
   });
 
   const makeProducer = async () => {
+    await null;
     let chunkLength = 1;
     for (let i = 0; i < scratch.byteLength; ) {
       const j = i + chunkLength;
@@ -100,6 +101,7 @@ test('stream write error (EPIPE due to exit)', async (/** @type {import('ava').E
   });
 
   const makeProducer = async () => {
+    await null;
     let chunkLength = 1;
     for (let i = 0; i < scratch.byteLength; ) {
       const j = i + chunkLength;
@@ -154,6 +156,7 @@ test('stream writer abort', async (/** @type {import('ava').ExecutionContext} */
   });
 
   const makeProducer = async () => {
+    await null;
     try {
       await writer.throw(Error('Abort'));
     } catch (error) {

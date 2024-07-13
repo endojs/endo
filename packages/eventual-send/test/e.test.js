@@ -39,6 +39,7 @@ test('E.when', async t => {
 });
 
 test('E method calls', async t => {
+  await null;
   const x = {
     double(n) {
       return 2 * n;
@@ -144,6 +145,7 @@ test('E method call undefined receiver', async t => {
 });
 
 test('E shortcuts', async t => {
+  await null;
   const x = {
     name: 'buddy',
     val: 123,
@@ -166,6 +168,7 @@ test('E shortcuts', async t => {
 });
 
 test('E.get', async t => {
+  await null;
   const x = {
     name: 'buddy',
     val: 123,

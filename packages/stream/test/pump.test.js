@@ -256,6 +256,7 @@ test('pump iterator protocol target next throws', async (/** @type {import('ava'
 });
 
 test('pump iterator protocol target return throws', async (/** @type {import('ava').ExecutionContext} */ t) => {
+  await null;
   const source = {
     /** @param {undefined} value */
     async next(value) {

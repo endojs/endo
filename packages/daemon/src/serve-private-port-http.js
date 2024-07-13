@@ -18,6 +18,7 @@ export const servePrivatePortHttp = (
   const connectionClosedPromises = new Set();
 
   const respond = async request => {
+    await null;
     if (request.method === 'GET') {
       if (request.url === '/') {
         return {

@@ -41,6 +41,7 @@ test('archive stack trace source', async t => {
 // Whereas, we expect the same program executed directly from local files to
 // have a fully qualified file URL in the stack trace.
 test('disk stack trace source', async t => {
+  await null;
   let error;
   try {
     await importLocation(readPowers, fixtureLocation);

@@ -84,6 +84,7 @@ const makeExtensionParser = (
   moduleTransforms,
 ) => {
   return async (bytes, specifier, location, packageLocation, options) => {
+    await null;
     let language;
     const extension = parseExtension(location);
 
