@@ -22,6 +22,7 @@ import { parseLocatedJson } from './json.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
+import jsonSupport from './bundle-json.js';
 
 const textEncoder = new TextEncoder();
 
@@ -56,7 +57,7 @@ const sortedModules = (
 
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
-      const { record, parser, deferredError } = source;
+      const { record, parser, deferredError, bytes } = source;
       if (deferredError) {
         throw Error(
           `Cannot bundle: encountered deferredError ${deferredError}`,
@@ -84,6 +85,7 @@ const sortedModules = (
           parser,
           record,
           resolvedImports,
+          bytes,
         });
 
         return key;
@@ -120,6 +122,7 @@ const sortedModules = (
 const implementationPerParser = {
   'pre-mjs-json': mjsSupport,
   'pre-cjs-json': cjsSupport,
+  json: jsonSupport,
 };
 
 function getRuntime(parser) {

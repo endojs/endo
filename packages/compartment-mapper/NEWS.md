@@ -21,6 +21,7 @@ User-visible changes to the compartment mapper:
   For example, `import-parsers.js` does not entrain Babel.
   The new `import-lite.js` does not entrain `node-modules.js` and composes
   with potential alternative package discovery, storage, and locks.
+- Adds JSON module support to `makeBundle`.
 
 # 0.9.0 (2023-08-07)
 
