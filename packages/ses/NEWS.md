@@ -1,5 +1,13 @@
 User-visible changes in SES:
 
+# Next release
+
+- When running Ava tests on Node written in TypeScript, the SES error taming gives linenumbers into the generated JavaScript, in which all compiled code is on line 1. But now, ***during development only*** when you can sacrifice security for a better debugging experience, setting the environment variable
+    ```sh
+    export SUPPRESS_NODE_ERROR_TAMING=enabled
+    ```
+    together with the `errorTaming: 'unsafe'` setting which is normally on for testing, the stacktrace linenumbers should point back into the original TypeScript source.
+
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
