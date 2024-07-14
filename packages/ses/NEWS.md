@@ -4,7 +4,7 @@ User-visible changes in SES:
 
 - When running Ava tests on Node written in TypeScript, the SES error taming gives linenumbers into the generated JavaScript, in which all compiled code is on line 1. But now, ***during development only*** when you can sacrifice security for a better debugging experience, setting the environment variable
     ```sh
-    export SUPPRESS_NODE_ERROR_TAMING=enabled
+    $ export SUPPRESS_NODE_ERROR_TAMING=enabled
     ```
     together with the `errorTaming: 'unsafe'` setting which is normally on for testing, the stacktrace linenumbers should point back into the original TypeScript source.
 
