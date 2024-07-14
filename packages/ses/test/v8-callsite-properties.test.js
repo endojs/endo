@@ -1,4 +1,5 @@
 import test from 'ava';
+import './error/prepare-dont-suppress-error-taming.js';
 import '../index.js';
 
 lockdown({ errorTaming: 'unsafe' });
