@@ -3,7 +3,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import '../index.js';
 
 test('module map hook returns module source descriptor with precompiled module source', async t => {
@@ -17,7 +17,7 @@ test('module map hook returns module source descriptor with precompiled module s
       resolveHook: specifier => specifier,
       moduleMapHook(specifier) {
         if (specifier === './index.js') {
-          return { source: new StaticModuleRecord('export default 42') };
+          return { source: new ModuleSource('export default 42') };
         }
         return undefined;
       },
@@ -198,7 +198,7 @@ test('module map hook returns module source descriptor for parent compartment wi
       moduleMapHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -251,7 +251,7 @@ test('module map hook returns parent compartment module namespace descriptor', a
       moduleMapHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -304,7 +304,7 @@ test('module map hook returns module source descriptor with string reference to 
       moduleMapHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -357,7 +357,7 @@ test('module map hook returns other compartment module namespace descriptor', as
       moduleMapHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -406,7 +406,7 @@ test('module map hook returns module namespace descriptor and namespace object',
       moduleMapHook(specifier) {
         if (specifier === 'a') {
           return {
-            source: new StaticModuleRecord(`export default 42`),
+            source: new ModuleSource(`export default 42`),
           };
         }
         return undefined;
@@ -455,7 +455,7 @@ test('module map hook returns module source descriptor for specifier in own comp
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -491,7 +491,7 @@ test('module map hook returns module source descriptor for specifier in own comp
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -528,7 +528,7 @@ test('module map hook returns module namespace descriptor for specifier in own c
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -564,7 +564,7 @@ test('module map precedes module map hook', t => {
     // modules:
     {
       './index.js': {
-        source: new StaticModuleRecord(`
+        source: new ModuleSource(`
           export default 42;
         `),
       },

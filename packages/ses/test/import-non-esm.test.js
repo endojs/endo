@@ -1,5 +1,5 @@
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import { resolveNode } from './node.js';
 import '../index.js';
 
@@ -114,7 +114,7 @@ test('ESM imports non-ESM as default', async t => {
       };
     }
     if (specifier === './odd') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import even from './even';
         export default n => !even(n);
@@ -149,7 +149,7 @@ test('ESM imports non-ESM by name', async t => {
       };
     }
     if (specifier === './odd') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import { even } from './even';
         export const odd = n => !even(n);
@@ -175,7 +175,7 @@ test('non-ESM imports ESM as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         export default n => n % 2 === 0;
       `,
@@ -210,7 +210,7 @@ test('non-ESM imports ESM by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         export const even = n => n % 2 === 0;
       `,
@@ -262,7 +262,7 @@ test('cross import ESM and non-ESMs', async t => {
       };
     }
     if (specifier === './src/helper.mjs') {
-      return new StaticModuleRecord(`
+      return new ModuleSource(`
         export * from './other.js';
         import d from './default.js';
         export const c = d;

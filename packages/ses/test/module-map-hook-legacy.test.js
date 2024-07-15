@@ -4,7 +4,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import '../index.js';
 
 test('module map hook returns module source', async t => {
@@ -18,7 +18,7 @@ test('module map hook returns module source', async t => {
       resolveHook: specifier => specifier,
       moduleMapHook(specifier) {
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },
@@ -39,7 +39,7 @@ test('module map hook returns module record descriptor', async t => {
       resolveHook: specifier => specifier,
       moduleMapHook(specifier) {
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },

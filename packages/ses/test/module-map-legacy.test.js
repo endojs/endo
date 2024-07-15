@@ -2,7 +2,7 @@
 // descriptor shapes.
 
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import '../index.js';
 
 test('module map primed with module source', async t => {
@@ -11,7 +11,7 @@ test('module map primed with module source', async t => {
     {},
     // modules:
     {
-      './index.js': new StaticModuleRecord('export default 42'),
+      './index.js': new ModuleSource('export default 42'),
     },
     // options:
     {
@@ -29,7 +29,7 @@ test('module map primed with module record descriptor', async t => {
     // modules:
     {
       './index.js': {
-        record: new StaticModuleRecord('export default 42'),
+        record: new ModuleSource('export default 42'),
       },
     },
     // options:

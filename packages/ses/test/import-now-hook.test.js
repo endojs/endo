@@ -3,7 +3,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import '../index.js';
 
 test('import now hook returns module source descriptor with precompiled module source', t => {
@@ -17,7 +17,7 @@ test('import now hook returns module source descriptor with precompiled module s
       resolveHook: specifier => specifier,
       importNowHook(specifier) {
         if (specifier === './index.js') {
-          return { source: new StaticModuleRecord('export default 42') };
+          return { source: new ModuleSource('export default 42') };
         }
         return undefined;
       },
@@ -198,7 +198,7 @@ test('import now hook returns module source descriptor for parent compartment wi
       importNowHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -247,7 +247,7 @@ test('import now hook returns parent compartment module namespace descriptor', t
       importNowHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -296,7 +296,7 @@ test('import now hook returns module source descriptor with string reference to 
       importNowHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -345,7 +345,7 @@ test('import now hook returns other compartment module namespace descriptor', t 
       importNowHook(specifier) {
         if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -390,7 +390,7 @@ test('import now hook returns module namespace descriptor and namespace object',
       importNowHook(specifier) {
         if (specifier === 'a') {
           return {
-            source: new StaticModuleRecord(`export default 42`),
+            source: new ModuleSource(`export default 42`),
           };
         }
         return undefined;
@@ -439,7 +439,7 @@ test('import now hook returns module source descriptor for specifier in own comp
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -471,7 +471,7 @@ test('import now hook returns module source descriptor for specifier in own comp
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -513,7 +513,7 @@ test('import now hook returns module namespace descriptor for specifier in own c
           };
         } else if (specifier === './object.js') {
           return {
-            source: new StaticModuleRecord('export default { meaning: 42 }'),
+            source: new ModuleSource('export default { meaning: 42 }'),
           };
         }
         return undefined;
@@ -540,7 +540,7 @@ test('module map hook precedes import now hook', t => {
       moduleMapHook(specifier) {
         if (specifier === './index.js') {
           return {
-            source: new StaticModuleRecord(`
+            source: new ModuleSource(`
               export default 42;
             `),
           };

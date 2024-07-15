@@ -1,7 +1,7 @@
 // These tests exercise the Compartment module map.
 
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import '../index.js';
 
 test('module map primed with module source descriptor with precompiled module source', async t => {
@@ -11,7 +11,7 @@ test('module map primed with module source descriptor with precompiled module so
     // modules:
     {
       './index.js': {
-        source: new StaticModuleRecord('export default 42'),
+        source: new ModuleSource('export default 42'),
       },
     },
     // options:
@@ -167,7 +167,7 @@ test('module map primed with module source descriptor for parent compartment wit
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -212,7 +212,7 @@ test('module map primed with parent compartment module namespace descriptor', as
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -257,7 +257,7 @@ test('module map primed with module source descriptor with string reference to p
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -302,7 +302,7 @@ test('module map primed with other compartment module namespace descriptor', asy
     // modules:
     {
       './object.js': {
-        source: new StaticModuleRecord('export default { meaning: 42 }'),
+        source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
     // options:
@@ -345,7 +345,7 @@ test('module map primed with module namespace descriptor and namespace object', 
     {},
     {
       a: {
-        source: new StaticModuleRecord(`export default 42`),
+        source: new ModuleSource(`export default 42`),
       },
     },
     {},
@@ -382,7 +382,7 @@ test('module map precedes module map hook', t => {
     // modules:
     {
       './index.js': {
-        source: new StaticModuleRecord(`
+        source: new ModuleSource(`
           export default 42;
         `),
       },

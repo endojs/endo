@@ -527,13 +527,13 @@ JavaScript](https://hardenedjs.org/).
 
 ### Compiled modules
 
-Instead of the `StaticModuleRecord` constructor specified for the SES language,
+Instead of the `ModuleSource` constructor specified for the SES language,
 the SES shim uses compiled static module records as a stand-in.
-These can be created with a `StaticModuleRecord` constructor from a package
+These can be created with a `ModuleSource` constructor from a package
 like `@endo/static-module-record`.
-We omitted `StaticModuleRecord` from the SES shim because it entrains a heavy
+We omitted `ModuleSource` from the SES shim because it entrains a heavy
 dependency on a JavaScript parser.
-The shim depends upon a `StaticModuleRecord` constructor to analyze and
+The shim depends upon a `ModuleSource` constructor to analyze and
 transform the source of a JavaScript module (known as an ESM or a `.mjs` file)
 into a JavaScript program suitable for evaluation with `compartment.evaluate`
 using a particular calling convention to initialize a module instance.
@@ -570,7 +570,7 @@ A compiled static module record has the following shape:
   instead of the evaluation of the `__syncModuleProgram__` string. It will be
   called with the initialization record described above. It is intended to be
   used in environments where eval is not available. Sandboxing of the functor is
-  the responsibility of the author of the StaticModuleRecord.
+  the responsibility of the author of the ModuleSource.
 - `__liveExportsMap__` is a record that maps import names or names in the lexical
   scope of the module to export names, for variables that may change after
   initialization. Any reexported name is assumed to possibly change.
@@ -612,7 +612,7 @@ c.evaluate('console.log("Farewell, World!")', { transforms });
 These transforms do not apply to modules.
 To transform the source of a JavaScript module, the `importHook` must
 intercept the source and transform it before passing it to the
-`StaticModuleRecord` constructor.
+`ModuleSource` constructor.
 These are distinct because programs and modules have distinct grammar
 productions.
 

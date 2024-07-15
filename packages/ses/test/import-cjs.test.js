@@ -1,5 +1,5 @@
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import { resolveNode } from './node.js';
 import '../index.js';
 import { freeze, keys } from '../src/commons.js';
@@ -25,7 +25,7 @@ function heuristicAnalysis(moduleSource) {
   };
 }
 
-const CjsStaticModuleRecord = (moduleSource, moduleLocation) => {
+const CjsModuleSource = (moduleSource, moduleLocation) => {
   if (typeof moduleSource !== 'string') {
     throw TypeError(
       `Cannot create CommonJS static module record, module source must be a string, got ${moduleSource}`,
@@ -78,7 +78,7 @@ test('import a CommonJS module with exports assignment', async t => {
 
   const resolveHook = resolveNode;
   const importHook = async () => {
-    return CjsStaticModuleRecord(
+    return CjsModuleSource(
       `
       exports.meaning = 42;
     `,
@@ -101,7 +101,7 @@ test('import a CommonJS module with exports replacement', async t => {
 
   const resolveHook = resolveNode;
   const importHook = async () => {
-    return CjsStaticModuleRecord(
+    return CjsModuleSource(
       `
       module.exports = 42;
     `,
@@ -125,7 +125,7 @@ test('CommonJS module imports CommonJS module by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.even = n => n % 2 === 0;
       `,
@@ -133,7 +133,7 @@ test('CommonJS module imports CommonJS module by name', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         const { even } = require('./even');
         exports.odd = n => !even(n);
@@ -159,7 +159,7 @@ test('CommonJS module imports CommonJS module as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         module.exports = n => n % 2 === 0;
       `,
@@ -167,7 +167,7 @@ test('CommonJS module imports CommonJS module as default', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         const even = require('./even');
         module.exports = n => !even(n);
@@ -192,7 +192,7 @@ test('ESM imports CommonJS module as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         module.exports = n => n % 2 === 0;
       `,
@@ -200,7 +200,7 @@ test('ESM imports CommonJS module as default', async t => {
       );
     }
     if (specifier === './odd') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import even from './even';
         export default n => !even(n);
@@ -226,7 +226,7 @@ test('ESM imports CommonJS module as star', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.even = n => n % 2 === 0;
       `,
@@ -234,7 +234,7 @@ test('ESM imports CommonJS module as star', async t => {
       );
     }
     if (specifier === './odd') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import * as evens from './even';
         export default n => !evens.even(n);
@@ -260,7 +260,7 @@ test('ESM imports CommonJS module with replaced exports as star', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         module.exports = { even: n => n % 2 === 0 };
       `,
@@ -269,8 +269,8 @@ test('ESM imports CommonJS module with replaced exports as star', async t => {
     }
     if (specifier === './odd') {
       // It should be evens.even(n) not evens.default.even(n)
-      // but CjsStaticModuleRecord is not enough to handle that
-      return new StaticModuleRecord(
+      // but CjsModuleSource is not enough to handle that
+      return new ModuleSource(
         `
         import * as evens from './even';
         export default n => !evens.default.even(n);
@@ -296,7 +296,7 @@ test('ESM imports CommonJS module by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.even = n => n % 2 === 0;
       `,
@@ -304,7 +304,7 @@ test('ESM imports CommonJS module by name', async t => {
       );
     }
     if (specifier === './odd') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import { even } from './even';
         export default n => !even(n);
@@ -330,7 +330,7 @@ test('CommonJS module imports ESM as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         export default n => n % 2 === 0;
       `,
@@ -338,7 +338,7 @@ test('CommonJS module imports ESM as default', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
           const even = require('./even');
           module.exports = n => !even(n);
@@ -364,7 +364,7 @@ test('CommonJS module imports ESM by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         export function even(n) {
          return n % 2 === 0;
@@ -374,7 +374,7 @@ test('CommonJS module imports ESM by name', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
           const { even } = require('./even');
           exports.odd = n => !even(n);
@@ -400,7 +400,7 @@ test('cross import ESM and CommonJS modules', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './src/main.js') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         const direct = require('./other.js');
         const indirect = require("./helper.mjs");
@@ -414,14 +414,14 @@ test('cross import ESM and CommonJS modules', async t => {
       );
     }
     if (specifier === './src/helper.mjs') {
-      return new StaticModuleRecord(`
+      return new ModuleSource(`
         export * from './other.js';
         import d from './default.js';
         export const c = d;
       `);
     }
     if (specifier === './src/other.js') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.a = 10;
         exports.b = 20;
@@ -430,7 +430,7 @@ test('cross import ESM and CommonJS modules', async t => {
       );
     }
     if (specifier === './src/default.js') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.default = 30;
       `,
@@ -448,7 +448,7 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './src/main.js') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         const dep = require("./intermediate.mjs");
         t.is(dep.value, undefined);
@@ -460,7 +460,7 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
       );
     }
     if (specifier === './src/intermediate.mjs') {
-      return new StaticModuleRecord(`
+      return new ModuleSource(`
         export * from './value.js';
         import { value } from './value.js';
         export function check() {
@@ -469,7 +469,7 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
       `);
     }
     if (specifier === './src/value.js') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.reanimate = () => {
           exports.value = 30;
@@ -490,7 +490,7 @@ test('export name as default from CommonJS module', async t => {
 
   const importHook = async specifier => {
     if (specifier === './meaning.cjs') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.meaning = 42;
       `,
@@ -498,12 +498,12 @@ test('export name as default from CommonJS module', async t => {
       );
     }
     if (specifier === './meaning.mjs') {
-      return new StaticModuleRecord(`
+      return new ModuleSource(`
         export { meaning as default } from './meaning.cjs';
       `);
     }
     if (specifier === './main.js') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import meaning from './meaning.mjs';
         t.is(meaning, 42);
@@ -531,7 +531,7 @@ test('synchronous loading via importNowHook', async t => {
 
   const importNowHook = specifier => {
     if (specifier === './meaning.cjs') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.meaning = 42;
       `,
@@ -539,12 +539,12 @@ test('synchronous loading via importNowHook', async t => {
       );
     }
     if (specifier === './meaning.mjs') {
-      return new StaticModuleRecord(`
+      return new ModuleSource(`
         export { meaning as default } from './meaning.cjs';
       `);
     }
     if (specifier === './main.js') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import meaning from './meaning.mjs';
         t.is(meaning, 42);
@@ -576,12 +576,12 @@ test('importNowHook only called if specifier was not imported before', async t =
       throw Error(`importNowHook should not be called to get ./meaning.cjs`);
     }
     if (specifier === './meaning.mjs') {
-      return new StaticModuleRecord(`
+      return new ModuleSource(`
         export { meaning as default } from './meaning.cjs';
       `);
     }
     if (specifier === './main.js') {
-      return new StaticModuleRecord(
+      return new ModuleSource(
         `
         import meaning from './meaning.mjs';
         t.is(meaning, 42);
@@ -593,7 +593,7 @@ test('importNowHook only called if specifier was not imported before', async t =
   };
   const importHook = async specifier => {
     if (specifier === './meaning.cjs') {
-      return CjsStaticModuleRecord(
+      return CjsModuleSource(
         `
         exports.meaning = 42;
       `,

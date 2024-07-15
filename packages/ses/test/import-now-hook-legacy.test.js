@@ -4,7 +4,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import '../index.js';
 
 test('import now hook returns precompiled module source', t => {
@@ -18,7 +18,7 @@ test('import now hook returns precompiled module source', t => {
       resolveHook: specifier => specifier,
       importNowHook(specifier) {
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },
@@ -98,7 +98,7 @@ test('import now hook returns namespace using module method', t => {
           return compartment.module('./index.js');
         }
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },

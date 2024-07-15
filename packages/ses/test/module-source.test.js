@@ -1,11 +1,11 @@
 import test from 'ava';
 import '../index.js';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 
 lockdown();
 
 test('static module record constructor', t => {
-  const msr = new StaticModuleRecord(`
+  const msr = new ModuleSource(`
     import foo from 'import-default-export-from-me.js';
     import oof from 'import-default-export-from-me.js';
     import * as bar from 'import-all-from-me.js';
@@ -36,9 +36,9 @@ test('static module record constructor', t => {
     'should capture sorted unique imports',
   );
 
-  t.truthy(Object.isFrozen(msr), 'StaticModuleRecords should be frozen');
+  t.truthy(Object.isFrozen(msr), 'ModuleSources should be frozen');
   t.truthy(
     Object.isFrozen(msr.imports),
-    'StaticModuleRecord imports should be frozen',
+    'ModuleSource imports should be frozen',
   );
 });

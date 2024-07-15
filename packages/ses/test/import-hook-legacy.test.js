@@ -3,7 +3,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 import '../index.js';
 
 test('import hook returns module source', async t => {
@@ -17,7 +17,7 @@ test('import hook returns module source', async t => {
       resolveHook: specifier => specifier,
       importHook(specifier) {
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },
@@ -38,7 +38,7 @@ test('import hook returns module record descriptor with module source', async t 
       resolveHook: specifier => specifier,
       importHook(specifier) {
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },
@@ -120,7 +120,7 @@ test('import hook returns module namespace using module method', async t => {
           return compartment.module('./index.js');
         }
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },
@@ -145,7 +145,7 @@ test('import hook returns module namespace using import method', async t => {
           return compartment.import('./index.js');
         }
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },
@@ -170,7 +170,7 @@ test('import hook returns compartment and specifier module descriptor', async t 
           return { compartment, specifier: './index.js' };
         }
         if (specifier === './index.js') {
-          return new StaticModuleRecord('export default 42');
+          return new ModuleSource('export default 42');
         }
         return undefined;
       },
@@ -192,7 +192,7 @@ test('import hook returns record and specifier module descriptor', async t => {
       importHook(specifier) {
         if (specifier === '.') {
           return {
-            record: new StaticModuleRecord('export default 42'),
+            record: new ModuleSource('export default 42'),
             specifier: './index.js',
           };
         }
@@ -210,7 +210,7 @@ test('import hook returns record and specifier module descriptor and import spec
     {},
     // modules:
     {
-      './src/peer.js': new StaticModuleRecord('export const number = 42'),
+      './src/peer.js': new ModuleSource('export const number = 42'),
     },
     // options:
     {
@@ -226,7 +226,7 @@ test('import hook returns record and specifier module descriptor and import spec
       importHook(specifier) {
         if (specifier === '.') {
           return {
-            record: new StaticModuleRecord('export * from "./peer.js"'),
+            record: new ModuleSource('export * from "./peer.js"'),
             specifier: './src/index.js',
           };
         }

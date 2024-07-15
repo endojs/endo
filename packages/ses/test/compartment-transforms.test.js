@@ -1,9 +1,6 @@
-// Importing StaticModuleRecord before lockdown is necessary because of an
-// incompatibility in the Babel dependency: There is a conflict with the
-// prototype override mistake.
-import { StaticModuleRecord } from '@endo/static-module-record';
 import '../index.js';
 import './lockdown-safe.js';
+import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
 // Placing the ava import last demonstrates that ava itself is compatible with SES
 import test from 'ava';
 
@@ -54,7 +51,7 @@ test('transforms do not apply to imported modules', async t => {
   const transforms = [transform];
   const resolveHook = () => '';
   const importHook = () =>
-    new StaticModuleRecord('export default "Farewell, World!";');
+    new ModuleSource('export default "Farewell, World!";');
   const c = new Compartment({}, {}, { transforms, resolveHook, importHook });
 
   const { namespace } = await c.import('any-string-here');
@@ -81,7 +78,7 @@ test('__shimTransforms__ do apply to imported modules', async t => {
   const transforms = [transform];
   const resolveHook = () => '';
   const importHook = () =>
-    new StaticModuleRecord('export default "Farewell, World!";');
+    new ModuleSource('export default "Farewell, World!";');
   const c = new Compartment(
     {},
     {},
