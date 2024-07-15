@@ -1,6 +1,6 @@
 import '../index.js';
 import './lockdown-safe.js';
-import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 // Placing the ava import last demonstrates that ava itself is compatible with SES
 import test from 'ava';
 

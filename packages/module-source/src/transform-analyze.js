@@ -6,11 +6,13 @@ import * as h from './hidden.js';
 
 const { freeze } = Object;
 
+/** @import {Options} from './module-source.js' */
+
 const makeCreateStaticRecord = transformSource =>
   /**
    *
    * @param {string} moduleSource
-   * @param {import('./static-module-record.js').Options} options
+   * @param {Options} options
    */
   function createStaticRecord(
     moduleSource,

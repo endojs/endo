@@ -1,20 +1,20 @@
 {
-  "name": "@endo/static-module-record",
-  "version": "1.1.2",
-  "description": "Shim for the SES StaticModuleRecord and module-to-program transformer",
+  "name": "@endo/module-source",
+  "version": "0.0.0",
+  "description": "Ponyfill for the SES ModuleSource and module-to-program transformer",
   "keywords": [
     "ses",
-    "StaticModuleRecord",
+    "ModuleSource",
     "modules",
     "ESM"
   ],
   "author": "Agoric",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/static-module-record#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/module-source#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/static-module-record"
+    "directory": "packages/module-source"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

@@ -3,7 +3,7 @@
  */
 // @ts-check
 
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -18,7 +18,7 @@ export const parseArchiveMjs = async (
 ) => {
   const { sourceMap, sourceMapHook } = options;
   const source = textDecoder.decode(bytes);
-  const record = new StaticModuleRecord(source, {
+  const record = new ModuleSource(source, {
     sourceMap,
     sourceMapUrl: sourceUrl,
     sourceMapHook,

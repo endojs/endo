@@ -3,7 +3,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
-import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 import '../index.js';
 
 test('import hook returns module source', async t => {

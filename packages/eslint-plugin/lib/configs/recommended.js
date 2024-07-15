@@ -11,7 +11,7 @@ module.exports = {
     assert: 'readonly',
     console: 'readonly',
     Compartment: 'readonly',
-    StaticModuleRecord: 'readonly',
+    ModuleSource: 'readonly',
     TextDecoder: 'readonly',
     TextEncoder: 'readonly',
     URL: 'readonly',

@@ -284,7 +284,7 @@ specifier for another module from a referrer module and the import specifier.
 
 ```js
 import 'ses';
-import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
 const c1 = new Compartment({}, {}, {
   name: "first compartment",
@@ -469,11 +469,11 @@ receive the same record type as from `importHook` or throw if it cannot.
 
 ```js
 import 'ses';
-import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
 const compartment = new Compartment({}, {
   c: {
-    source: new StaticModuleRecord(''),
+    source: new ModuleSource(''),
   },
 }, {
   name: "first compartment",
@@ -492,7 +492,7 @@ const compartment = new Compartment({}, {
     // Platform-specific synchronous read API can be used
     const moduleText = fs.readFileSync(moduleLocation);
     return {
-      source: new StaticModuleRecord(moduleText, moduleLocation),
+      source: new ModuleSource(moduleText, moduleLocation),
     };
   },
 });
@@ -518,7 +518,7 @@ The compartment will call `execute` with:
    specified `imports`.
 
 :warning: A future breaking version may allow the `importNow` and the `execute`
-method of third-party static module records to return promises, to support
+method of virtual module sources to return promises, to support
 top-level await.
 
 :warning: The virtual module source interface does not yet agree with the
@@ -528,9 +528,9 @@ JavaScript](https://hardenedjs.org/).
 ### Compiled modules
 
 Instead of the `ModuleSource` constructor specified for the SES language,
-the SES shim uses compiled static module records as a stand-in.
+the SES shim uses compiled module source records as a stand-in.
 These can be created with a `ModuleSource` constructor from a package
-like `@endo/static-module-record`.
+like `@endo/module-source`.
 We omitted `ModuleSource` from the SES shim because it entrains a heavy
 dependency on a JavaScript parser.
 The shim depends upon a `ModuleSource` constructor to analyze and
@@ -538,7 +538,7 @@ transform the source of a JavaScript module (known as an ESM or a `.mjs` file)
 into a JavaScript program suitable for evaluation with `compartment.evaluate`
 using a particular calling convention to initialize a module instance.
 
-A compiled static module record has the following shape:
+A compiled module source record has the following shape:
 
 - `imports` is a record that maps partial module specifiers to a list of
   names imported from the corresponding module.

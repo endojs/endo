@@ -1,10 +1,10 @@
 import test from 'ava';
 import '../index.js';
-import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
 lockdown();
 
-test('static module record constructor', t => {
+test('module source constructor', t => {
   const msr = new ModuleSource(`
     import foo from 'import-default-export-from-me.js';
     import oof from 'import-default-export-from-me.js';

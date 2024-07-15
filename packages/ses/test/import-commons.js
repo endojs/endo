@@ -1,4 +1,4 @@
-import { StaticModuleRecord as ModuleSource } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
 // q, to quote strings in error messages.
 const q = JSON.stringify;

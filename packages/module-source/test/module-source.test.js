@@ -3,7 +3,7 @@
 /* eslint no-underscore-dangle: ["off"] */
 
 // eslint-disable-next-line import/order
-import { StaticModuleRecord } from '../src/static-module-record.js';
+import { ModuleSource } from '../src/module-source.js';
 import './lockdown.js';
 import url from 'url';
 import fs from 'fs';
@@ -18,8 +18,8 @@ import test from 'ava';
 /** @typedef {Map<string, Map<string, Array<Updater>>>} ImportUpdaters */
 
 /**
- * @param {TestContext} t
- * @param {StaticModuleRecord} record
+ * @param {ExecutionContext} t
+ * @param {ModuleSource} record
  */
 function assertDefaultExport(t, record) {
   t.deepEqual(record.imports, []);
@@ -38,7 +38,7 @@ function readFixture(filename) {
 
 test('export default', t => {
   t.plan(8);
-  const record = new StaticModuleRecord('export default bb;');
+  const record = new ModuleSource('export default bb;');
   assertDefaultExport(t, record);
 
   const compartment = new Compartment({
@@ -61,7 +61,7 @@ test('export default', t => {
 });
 
 /**
- * @param {TestContext} t
+ * @param {ExecutionContext} t
  * @param {string} source
  * @param {object} [options]
  * @param {object} [options.endowments]
@@ -69,7 +69,7 @@ test('export default', t => {
  */
 function initialize(t, source, options = {}) {
   const { endowments, imports = new Map() } = options;
-  const record = new StaticModuleRecord(source);
+  const record = new ModuleSource(source);
   // t.log(record.__syncModuleProgram__);
   const liveUpdaters = {};
   const onceUpdaters = {};
@@ -444,17 +444,13 @@ export default async function (arg) { return arg; }
 
 test('zero width joiner is reserved', t => {
   t.throws(() => {
-    const _ = new StaticModuleRecord(
-      `const $h\u200d_import = 123; $h\u200d_import`,
-    );
+    const _ = new ModuleSource(`const $h\u200d_import = 123; $h\u200d_import`);
   });
 });
 
 test('zero width joiner in constified variable is reserved', t => {
   t.throws(() => {
-    const _ = new StaticModuleRecord(
-      `const $c\u200d_myVar = 123; $c\u200d_myVar`,
-    );
+    const _ = new ModuleSource(`const $c\u200d_myVar = 123; $c\u200d_myVar`);
   });
 });
 
@@ -484,7 +480,7 @@ export default new outer().f();
 });
 
 test('nested export fails as syntax', t => {
-  t.throws(() => new StaticModuleRecord(`{ void 0; export default null; }`), {
+  t.throws(() => new ModuleSource(`{ void 0; export default null; }`), {
     instanceOf: SyntaxError,
   });
 });
@@ -586,11 +582,11 @@ test('import meta in export', t => {
   t.is(namespace.a, 'ok file://meta.url');
 });
 test('import meta member present', t => {
-  const record = new StaticModuleRecord(`const a = import.meta.url`);
+  const record = new ModuleSource(`const a = import.meta.url`);
   t.is(record.__needsImportMeta__, true);
 });
 test('import meta present', t => {
-  const record = new StaticModuleRecord(`const a = import.meta`);
+  const record = new ModuleSource(`const a = import.meta`);
   t.is(record.__needsImportMeta__, true);
 });
 
@@ -660,27 +656,27 @@ test('export all', t => {
 // TODO cross product let, class, maybe var:
 
 test('Object.hasOwnProperty override mistake should not crash transform', t => {
-  const { __fixedExportMap__ } = new StaticModuleRecord(`
+  const { __fixedExportMap__ } = new ModuleSource(`
     const { hasOwnProperty } = Object;
     export { hasOwnProperty };
   `);
   t.deepEqual(__fixedExportMap__, { hasOwnProperty: ['hasOwnProperty'] });
 
-  const { __liveExportMap__ } = new StaticModuleRecord(`
+  const { __liveExportMap__ } = new ModuleSource(`
     let hop = 1;
     ({ hasOwnProperty: hop } = Object);
     export { hop as hasOwnProperty };
   `);
   t.deepEqual(__liveExportMap__, { hasOwnProperty: ['hop', true] });
 
-  const { imports } = new StaticModuleRecord(`
+  const { imports } = new ModuleSource(`
     import { hasOwnProperty } from 'hasOwnProperty';
   `);
   t.deepEqual(imports, ['hasOwnProperty']);
 });
 
 test('export function should be fixed when not assigned', t => {
-  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+  const { __fixedExportMap__, __liveExportMap__ } = new ModuleSource(`
     export function work() {}
   `);
   t.deepEqual(__fixedExportMap__, {
@@ -690,7 +686,7 @@ test('export function should be fixed when not assigned', t => {
 });
 
 test('export function should be live when assigned', t => {
-  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+  const { __fixedExportMap__, __liveExportMap__ } = new ModuleSource(`
     export function work() {}
     work = () => {};
   `);
@@ -701,7 +697,7 @@ test('export function should be live when assigned', t => {
 });
 
 test('export const name as default', t => {
-  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+  const { __fixedExportMap__, __liveExportMap__ } = new ModuleSource(`
     const meaning = 42;
     export { meaning as default };
   `);
@@ -717,7 +713,7 @@ test('export name as default from', t => {
     __fixedExportMap__,
     __liveExportMap__,
     __reexportMap__,
-  } = new StaticModuleRecord(`
+  } = new ModuleSource(`
     export { meaning as default } from './meaning.js';
   `);
   // t.log(__syncModuleProgram__);
@@ -730,7 +726,7 @@ test('export name as default from', t => {
 
 test('source map generation', t => {
   t.plan(5);
-  const { __syncModuleProgram__ } = new StaticModuleRecord(`'Hello, World!'`, {
+  const { __syncModuleProgram__ } = new ModuleSource(`'Hello, World!'`, {
     sourceUrl: 'must-appear-in-source.js',
     sourceMapUrl: 'must-not-appear-in-source.js',
     sourceMapHook(sourceMap, { sourceUrl, sourceMapUrl, source }) {
@@ -745,13 +741,13 @@ test('source map generation', t => {
 });
 
 // Regression test for #823
-test('static module records can name Map in scope', t => {
+test('module sources can name Map in scope', t => {
   t.notThrows(() => initialize(t, `const { Map } = globalThis;`));
 });
 
 // Regression test for comment duplication
-test('static module records do not duplicate comments', t => {
-  const { __syncModuleProgram__: program } = new StaticModuleRecord(`
+test('module sources do not duplicate comments', t => {
+  const { __syncModuleProgram__: program } = new ModuleSource(`
     let hi = 'hi';
     /* I both lead and follow */
     let bye = 'bye';
@@ -761,7 +757,7 @@ test('static module records do not duplicate comments', t => {
 
 // Regression test for immer@9.0.6
 test('should handle package "immer" source', t => {
-  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(
+  const { __fixedExportMap__, __liveExportMap__ } = new ModuleSource(
     readFixture('fixtures/immer.js'),
   );
   t.deepEqual(__fixedExportMap__, {
@@ -794,7 +790,7 @@ test('should handle package "immer" source', t => {
 
 // https://github.com/endojs/endo/issues/2094
 test.failing('should support export of defaulted extraction', t => {
-  const _ = new StaticModuleRecord(`
+  const _ = new ModuleSource(`
     const { x, y = x } = globalThis;
     export { x, y };
   `);
