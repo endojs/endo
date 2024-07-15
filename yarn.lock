@@ -329,6 +329,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "npm:^1.5.0"
+    terser: "npm:^5.16.6"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
@@ -10355,7 +10356,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ses@workspace:packages/ses"
   dependencies:
-    "@endo/compartment-mapper": "npm:^1.1.5"
     "@endo/env-options": "npm:^1.1.4"
     "@endo/static-module-record": "npm:^1.1.2"
     "@endo/test262-runner": "npm:^0.1.37"
@@ -10370,7 +10370,6 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     sinon: "npm:^15.1.0"
-    terser: "npm:^5.16.6"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.2"
   languageName: unknown

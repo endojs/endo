@@ -1,12 +1,13 @@
 /* global process */
-import '../index.js';
+import 'ses';
 import fs from 'fs';
-import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { makeBundle } from '../src/bundle.js';
 
 const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs).toString());
-const root = new URL('..', import.meta.url).toString();
+const REL_SES_PKG = '../../ses/';
+const root = new URL(REL_SES_PKG, import.meta.url).toString();
 
 const read = async location => fs.promises.readFile(fileURLToPath(location));
 const write = async (target, content) => {
@@ -24,7 +25,9 @@ const main = async () => {
 
   const bundle = await makeBundle(
     read,
-    pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
+    pathToFileURL(
+      resolve(`${REL_SES_PKG}index.js`, import.meta.url),
+    ).toString(),
   );
   const versionedBundle = `// ses@${version}\n${bundle}`;
 

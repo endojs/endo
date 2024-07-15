@@ -43,7 +43,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "exit 0",
+    "build": "node scripts/bundle.js",
     "prepack": "tsc --build tsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
@@ -70,6 +70,7 @@
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.29.1",
     "prettier": "^3.2.5",
+    "terser": "^5.16.6",
     "typescript": "5.5.2"
   },
   "files": [
