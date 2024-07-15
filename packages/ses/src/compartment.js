@@ -4,12 +4,10 @@
 
 import {
   Map,
-  ReferenceError,
   TypeError,
   WeakMap,
   assign,
   defineProperties,
-  entries,
   promiseThen,
   toStringTagSymbol,
   weakmapGet,
@@ -25,11 +23,8 @@ import { sharedGlobalPropertyNames } from './permits.js';
 import { load, loadNow } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
-import { assert } from './error/assert.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
-
-const { quote: q } = assert;
 
 // moduleAliases associates every public module exports namespace with its
 // corresponding compartment and specifier so they can be used to link modules
@@ -41,19 +36,6 @@ const moduleAliases = new WeakMap();
 
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
-
-// Compartments do not need an importHook or resolveHook to be useful
-// as a vessel for evaluating programs.
-// However, any method that operates the module system will throw an exception
-// if these hooks are not available.
-const assertModuleHooks = compartment => {
-  const { importHook, resolveHook } = weakmapGet(privateFields, compartment);
-  if (typeof importHook !== 'function' || typeof resolveHook !== 'function') {
-    throw TypeError(
-      'Compartment must be constructed with an importHook and a resolveHook for it to be able to load modules',
-    );
-  }
-};
 
 export const InertCompartment = function Compartment(
   _endowments = {},
@@ -111,8 +93,6 @@ export const CompartmentPrototype = {
       throw TypeError('first argument of module() must be a string');
     }
 
-    assertModuleHooks(this);
-
     const { exportsProxy } = getDeferredExports(
       this,
       weakmapGet(privateFields, this),
@@ -127,8 +107,6 @@ export const CompartmentPrototype = {
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of import() must be a string');
     }
-
-    assertModuleHooks(this);
 
     return promiseThen(
       load(privateFields, moduleAliases, this, specifier),
@@ -149,8 +127,6 @@ export const CompartmentPrototype = {
       throw TypeError('first argument of load() must be a string');
     }
 
-    assertModuleHooks(this);
-
     return load(privateFields, moduleAliases, this, specifier);
   },
 
@@ -159,7 +135,6 @@ export const CompartmentPrototype = {
       throw TypeError('first argument of importNow() must be a string');
     }
 
-    assertModuleHooks(this);
     loadNow(privateFields, moduleAliases, this, specifier);
     return compartmentImportNow(/** @type {Compartment} */ (this), specifier);
   },
@@ -221,30 +196,6 @@ export const makeCompartmentConstructor = (
     const instances = new Map();
     // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
     const deferredExports = new Map();
-
-    // Validate given moduleMap.
-    // The module map gets translated on-demand in module-load.js and the
-    // moduleMap can be invalid in ways that cannot be detected in the
-    // constructor, but these checks allow us to throw early for a better
-    // developer experience.
-    for (const [specifier, aliasNamespace] of entries(moduleMap || {})) {
-      if (typeof aliasNamespace === 'string') {
-        // TODO implement parent module record retrieval.
-        throw TypeError(
-          `Cannot map module ${q(specifier)} to ${q(
-            aliasNamespace,
-          )} in parent compartment`,
-        );
-      } else if (weakmapGet(moduleAliases, aliasNamespace) === undefined) {
-        // TODO create and link a synthetic module instance from the given
-        // namespace object.
-        throw ReferenceError(
-          `Cannot map module ${q(
-            specifier,
-          )} because it has no known compartment in this realm`,
-        );
-      }
-    }
 
     const globalObject = {};
 

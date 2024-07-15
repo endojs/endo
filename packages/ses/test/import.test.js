@@ -4,9 +4,270 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
+import { StaticModuleRecord } from '@endo/static-module-record';
 import '../index.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 import { makeImporter, makeStaticRetriever } from './import-commons.js';
+
+test('module map primed with module source', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './index.js': new StaticModuleRecord('export default 42'),
+    },
+    // options:
+    {
+      resolveHook: specifier => specifier,
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+test('module map primed with module record descriptor', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './index.js': {
+        record: new StaticModuleRecord('export default 42'),
+      },
+    },
+    // options:
+    {
+      resolveHook: specifier => specifier,
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+test('module map primed with virtual module source', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './index.js': {
+        imports: [],
+        exports: ['default'],
+        execute(env) {
+          env.default = 42;
+        },
+      },
+    },
+    // options:
+    {
+      resolveHook: specifier => specifier,
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+test('module map primed with virtual module record descriptor', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './index.js': {
+        record: {
+          imports: [],
+          exports: ['default'],
+          execute(env) {
+            env.default = 42;
+          },
+        },
+      },
+    },
+    // options:
+    {
+      resolveHook: specifier => specifier,
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+test('module map hook returns module source', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      resolveHook: specifier => specifier,
+      moduleMapHook(specifier) {
+        if (specifier === './index.js') {
+          return new StaticModuleRecord('export default 42');
+        }
+        return undefined;
+      },
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+test('importHook returns module source', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      resolveHook: specifier => specifier,
+      importHook(specifier) {
+        if (specifier === './index.js') {
+          return new StaticModuleRecord('export default 42');
+        }
+        return undefined;
+      },
+    },
+  );
+  const { namespace: index } = await compartment.import('./index.js');
+  t.is(index.default, 42);
+});
+
+// This case requires the module loader to take care not to attempt to
+// coerce the module namespace object to a promise.
+test('importHook returns module namespace', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      resolveHook: specifier => specifier,
+      importHook(specifier) {
+        if (specifier === '.') {
+          return compartment.module('./index.js');
+        }
+        if (specifier === './index.js') {
+          return new StaticModuleRecord('export default 42');
+        }
+        return undefined;
+      },
+    },
+  );
+  // Unlike import, importNow does not box the namespace.
+  const { namespace: index } = await compartment.import('.');
+  t.is(index.default, 42);
+});
+
+test('importNowHook returns namespace', t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      resolveHook: specifier => specifier,
+      importNowHook(specifier) {
+        if (specifier === '.') {
+          return compartment.module('./index.js');
+        }
+        if (specifier === './index.js') {
+          return new StaticModuleRecord('export default 42');
+        }
+        return undefined;
+      },
+    },
+  );
+  // Unlike import, importNow does not box the namespace.
+  const index = compartment.importNow('.');
+  t.is(index.default, 42);
+});
+
+test('importHook returns compartment and specifier module descriptor', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      resolveHook: specifier => specifier,
+      importHook(specifier) {
+        if (specifier === '.') {
+          return { compartment, specifier: './index.js' };
+        }
+        if (specifier === './index.js') {
+          return new StaticModuleRecord('export default 42');
+        }
+        return undefined;
+      },
+    },
+  );
+  const { namespace: index } = await compartment.import('.');
+  t.is(index.default, 42);
+});
+
+test('importHook returns record and specifier module descriptor', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {},
+    // options:
+    {
+      resolveHook: specifier => specifier,
+      importHook(specifier) {
+        if (specifier === '.') {
+          return {
+            record: new StaticModuleRecord('export default 42'),
+            specifier: './index.js',
+          };
+        }
+        return undefined;
+      },
+    },
+  );
+  const { namespace: index } = await compartment.import('.');
+  t.is(index.default, 42);
+});
+
+test('importHook returns record and specifier module descriptor and import specifiers resolve from response specifier', async t => {
+  const compartment = new Compartment(
+    // endowments:
+    {},
+    // modules:
+    {
+      './src/peer.js': new StaticModuleRecord('export const number = 42'),
+    },
+    // options:
+    {
+      resolveHook(importSpecifier, moduleSpecifier) {
+        if (
+          moduleSpecifier === './src/index.js' &&
+          importSpecifier === './peer.js'
+        ) {
+          return './src/peer.js';
+        }
+        return importSpecifier;
+      },
+      importHook(specifier) {
+        if (specifier === '.') {
+          return {
+            record: new StaticModuleRecord('export * from "./peer.js"'),
+            specifier: './src/index.js',
+          };
+        }
+        return undefined;
+      },
+    },
+  );
+  const { namespace: index } = await compartment.import('.');
+  t.is(index.number, 42);
+});
 
 // This test demonstrates a system of modules in a single Compartment
 // that uses fully qualified URLs as module specifiers and module locations,
@@ -421,7 +682,7 @@ test('mutual dependency between compartments', async t => {
   await compartment.import('./main.js');
 });
 
-test('module alias', async t => {
+test('import redirect shorthand', async t => {
   // The following use of Math.random() is informative but does not
   // affect the outcome of the test, just makes the nature of the error
   // obvious in test output.
@@ -617,6 +878,7 @@ test('importMetaHook', async t => {
   } = await compartment.import('./index.js');
   t.is(metaurl, 'https://example.com/index.js');
 });
+
 test('importMetaHook and meta from record', async t => {
   t.plan(1);
 
