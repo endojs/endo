@@ -250,6 +250,18 @@ lockdown();
       return into.slice(0, offset) + char + into.slice(offset + 1, into.length);
     }
 
+    function dateNow() {
+      try {
+        return Date.now();
+      } catch (err) {
+        if (err instanceof TypeError) {
+          // assume we cannot measure time because of err
+          return NaN;
+        }
+        throw err;
+      }
+    }
+
     /**
      * @param {string} base
      * @param {number} offset
@@ -273,9 +285,9 @@ lockdown();
         const delays = new Map();
         for (let c = 0; c < 36; c++) {
           const guessedCode = buildCode(base, offset, c);
-          const start = Date.now();
+          const start = dateNow();
           guess(guessedCode);
-          const elapsed = Date.now() - start;
+          const elapsed = dateNow() - start;
           delays.set(toChar(c), elapsed);
           yield; // allow UI to refresh
           // if our guess was right, then on the last character
