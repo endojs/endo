@@ -1,6 +1,8 @@
 User-visible changes in SES:
 
-# Next release
+# Next version
+
+- Adds support for module descriptors better aligned with XS.
 
 - When running Ava tests on Node written in TypeScript, the SES error taming
   gives line-numbers into the generated JavaScript, in which all compiled code
@@ -21,7 +23,6 @@ User-visible changes in SES:
   With this setting, when running Ava tests written in TypeScript on Node,
   the stacktrace line-numbers should point back into the original
   TypeScript source, as they would on Node without SES.
-
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.

@@ -1,4 +1,4 @@
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
 // q, to quote strings in error messages.
 const q = JSON.stringify;
@@ -23,5 +23,5 @@ export const makeStaticRetriever = sources => {
 export const makeImporter = (locate, retrieve) => async moduleSpecifier => {
   const moduleLocation = locate(moduleSpecifier);
   const string = await retrieve(moduleLocation);
-  return new StaticModuleRecord(string, moduleLocation);
+  return new ModuleSource(string, moduleLocation);
 };

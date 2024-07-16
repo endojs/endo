@@ -43,10 +43,12 @@ export type RepairIntrinsics = (options?: LockdownOptions) => void;
 export type HardenIntrinsics = () => void;
 export type Lockdown = (options?: LockdownOptions) => void;
 
+export type ModuleExportsNamespace = Record<string, any>;
+
 export type __LiveExportMap__ = Record<string, [string, boolean]>;
 export type __FixedExportMap__ = Record<string, [string]>;
 
-export interface PrecompiledStaticModuleInterface {
+export interface PrecompiledModuleSource {
   imports: Array<string>;
   exports: Array<string>;
   reexports: Array<string>;
@@ -55,7 +57,7 @@ export interface PrecompiledStaticModuleInterface {
   __fixedExportMap__: __FixedExportMap__;
 }
 
-export interface ThirdPartyStaticModuleInterface {
+export interface VirtualModuleSource {
   imports: Array<string>;
   exports: Array<string>;
   /**
@@ -68,34 +70,56 @@ export interface ThirdPartyStaticModuleInterface {
   ): void;
 }
 
-export type FinalStaticModuleType =
-  | PrecompiledStaticModuleInterface
-  | ThirdPartyStaticModuleInterface;
+export type ModuleSource = PrecompiledModuleSource | VirtualModuleSource;
 
-export interface RedirectStaticModuleInterface {
-  specifier: string;
-  record?: FinalStaticModuleType;
+export interface SourceModuleDescriptor {
+  source: string | ModuleSource;
+  specifier?: string;
   importMeta?: any;
+  compartment?: Compartment; // defaults to parent
+}
+
+export interface NamespaceModuleDescriptor {
+  namespace: string | ModuleExportsNamespace;
   compartment?: Compartment;
 }
 
-export type StaticModuleType =
-  | RedirectStaticModuleInterface
-  | FinalStaticModuleType;
+// Deprecated in favor of SourceModuleDescriptor,
+// but beware the change in default compartment.
+export interface RecordModuleDescriptor {
+  specifier: string;
+  record?: ModuleSource;
+  importMeta?: any;
+  compartment?: Compartment; // defaults to self
+}
 
-export type ModuleExportsNamespace = Record<string, any>;
+export type ModuleDescriptor =
+  | SourceModuleDescriptor
+  | NamespaceModuleDescriptor
+  // To be deprecated:
+  | RecordModuleDescriptor
+  | ModuleExportsNamespace
+  | VirtualModuleSource
+  | PrecompiledModuleSource;
+
+// Deprecated type aliases:
+export type PrecompiledStaticModuleInterface = PrecompiledModuleSource;
+export type ThirdPartyStaticModuleInterface = VirtualModuleSource;
+export type RedirectStaticModuleInterface = RecordModuleDescriptor;
+export type FinalStaticModuleType = ModuleSource;
+export type StaticModuleType = RedirectStaticModuleInterface | ModuleSource;
 
 export type Transform = (source: string) => string;
 export type ResolveHook = (
   importSpecifier: string,
   referrerSpecifier: string,
 ) => string;
-export type ModuleMap = Record<string, string | ModuleExportsNamespace>;
+export type ModuleMap = Record<string, string | ModuleDescriptor>;
 export type ModuleMapHook = (
   moduleSpecifier: string,
-) => string | ModuleExportsNamespace | void;
-export type ImportHook = (moduleSpecifier: string) => Promise<StaticModuleType>;
-export type ImportNowHook = (moduleSpecifier: string) => StaticModuleType;
+) => ModuleDescriptor | undefined;
+export type ImportHook = (moduleSpecifier: string) => Promise<ModuleDescriptor>;
+export type ImportNowHook = (moduleSpecifier: string) => ModuleDescriptor;
 
 export interface CompartmentOptions {
   name?: string;

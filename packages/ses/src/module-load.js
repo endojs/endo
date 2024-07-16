@@ -1,39 +1,31 @@
-// For brevity, in this file, as in module-link.js, the term "moduleRecord"
-// without qualification means "module compartment record".
-// This is a super-set of the "static module record", that is reusable between
-// compartments with different hooks.
-// The "module compartment record" captures the compartment and overlays the
-// module's "imports" with the more specific "resolvedImports" as inferred from
-// the particular compartment's "resolveHook".
-
 import { getEnvironmentOption as getenv } from '@endo/env-options';
 import {
-  ReferenceError,
-  TypeError,
   Map,
   Set,
+  TypeError,
   arrayJoin,
   arrayMap,
   arrayPush,
   create,
   freeze,
+  generatorNext,
+  generatorThrow,
+  getOwnPropertyNames,
+  isObject,
   mapGet,
   mapHas,
   mapSet,
-  setAdd,
   promiseThen,
+  setAdd,
   values,
   weakmapGet,
-  generatorNext,
-  generatorThrow,
+  weakmapHas,
 } from './commons.js';
-import { assert } from './error/assert.js';
-
-const { Fail, details: X, quote: q, note: annotateError } = assert;
+import { makeError, annotateError, q, X } from './error/assert.js';
 
 const noop = () => {};
 
-async function asyncTrampoline(generatorFunc, args, errorWrapper) {
+const asyncTrampoline = async (generatorFunc, args, errorWrapper) => {
   await null;
   const iterator = generatorFunc(...args);
   let result = generatorNext(iterator);
@@ -47,9 +39,9 @@ async function asyncTrampoline(generatorFunc, args, errorWrapper) {
     }
   }
   return result.value;
-}
+};
 
-function syncTrampoline(generatorFunc, args) {
+const syncTrampoline = (generatorFunc, args) => {
   const iterator = generatorFunc(...args);
   let result = generatorNext(iterator);
   while (!result.done) {
@@ -60,7 +52,8 @@ function syncTrampoline(generatorFunc, args) {
     }
   }
   return result.value;
-}
+};
+
 // `makeAlias` constructs compartment specifier tuples for the `aliases`
 // private field of compartments.
 // These aliases allow a compartment to alias an internal module specifier to a
@@ -68,10 +61,7 @@ function syncTrampoline(generatorFunc, args) {
 // aliases.
 // Both are facilitated by the moduleMap Compartment constructor option.
 export const makeAlias = (compartment, specifier) =>
-  freeze({
-    compartment,
-    specifier,
-  });
+  freeze({ compartment, specifier });
 
 // `resolveAll` pre-computes resolutions of all imports within the compartment
 // in which a module was loaded.
@@ -84,31 +74,28 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
   return freeze(resolvedImports);
 };
 
-const loadRecord = (
+const loadModuleSource = (
   compartmentPrivateFields,
   moduleAliases,
   compartment,
   moduleSpecifier,
-  staticModuleRecord,
+  moduleSource,
   enqueueJob,
   selectImplementation,
   moduleLoads,
   importMeta,
 ) => {
-  const { resolveHook, moduleRecords } = weakmapGet(
-    compartmentPrivateFields,
-    compartment,
-  );
+  const { resolveHook } = weakmapGet(compartmentPrivateFields, compartment);
 
   // resolve all imports relative to this referrer module.
   const resolvedImports = resolveAll(
-    staticModuleRecord.imports,
+    moduleSource.imports,
     resolveHook,
     moduleSpecifier,
   );
   const moduleRecord = freeze({
     compartment,
-    staticModuleRecord,
+    moduleSource,
     moduleSpecifier,
     resolvedImports,
     importMeta,
@@ -129,8 +116,6 @@ const loadRecord = (
     ]);
   }
 
-  // Memoize.
-  mapSet(moduleRecords, moduleSpecifier, moduleRecord);
   return moduleRecord;
 };
 
@@ -143,101 +128,279 @@ function* loadWithoutErrorAnnotation(
   selectImplementation,
   moduleLoads,
 ) {
-  const { importHook, importNowHook, moduleMap, moduleMapHook, moduleRecords } =
-    weakmapGet(compartmentPrivateFields, compartment);
-
-  // Follow moduleMap, or moduleMapHook if present.
-  let aliasNamespace = moduleMap[moduleSpecifier];
-  if (aliasNamespace === undefined && moduleMapHook !== undefined) {
-    aliasNamespace = moduleMapHook(moduleSpecifier);
-  }
-  if (typeof aliasNamespace === 'string') {
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    assert.fail(
-      X`Cannot map module ${q(moduleSpecifier)} to ${q(
-        aliasNamespace,
-      )} in parent compartment, not yet implemented`,
-      TypeError,
-    );
-  } else if (aliasNamespace !== undefined) {
-    const alias = weakmapGet(moduleAliases, aliasNamespace);
-    if (alias === undefined) {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      assert.fail(
-        X`Cannot map module ${q(
-          moduleSpecifier,
-        )} because the value is not a module exports namespace, or is from another realm`,
-        ReferenceError,
-      );
-    }
-    // Behold: recursion.
-    // eslint-disable-next-line no-use-before-define
-    const aliasRecord = yield memoizedLoadWithErrorAnnotation(
-      compartmentPrivateFields,
-      moduleAliases,
-      alias.compartment,
-      alias.specifier,
-      enqueueJob,
-      selectImplementation,
-      moduleLoads,
-    );
-    mapSet(moduleRecords, moduleSpecifier, aliasRecord);
-    return aliasRecord;
-  }
+  const {
+    importHook,
+    importNowHook,
+    moduleMap,
+    moduleMapHook,
+    moduleRecords,
+    parentCompartment,
+  } = weakmapGet(compartmentPrivateFields, compartment);
 
   if (mapHas(moduleRecords, moduleSpecifier)) {
     return mapGet(moduleRecords, moduleSpecifier);
   }
 
-  const staticModuleRecord = yield selectImplementation(
-    importHook,
-    importNowHook,
-  )(moduleSpecifier);
-
-  if (staticModuleRecord === null || typeof staticModuleRecord !== 'object') {
-    Fail`importHook must return a promise for an object, for module ${q(
-      moduleSpecifier,
-    )} in compartment ${q(compartment.name)}`;
+  // Follow moduleMap, or moduleMapHook if present.
+  let moduleDescriptor = moduleMap[moduleSpecifier];
+  if (moduleDescriptor === undefined && moduleMapHook !== undefined) {
+    moduleDescriptor = moduleMapHook(moduleSpecifier);
+  }
+  if (moduleDescriptor === undefined) {
+    const moduleHook = selectImplementation(importHook, importNowHook);
+    if (moduleHook === undefined) {
+      const moduleHookName = selectImplementation(
+        'importHook',
+        'importNowHook',
+      );
+      throw makeError(
+        X`${moduleHookName} needed to load module ${q(
+          moduleSpecifier,
+        )} in compartment ${q(compartment.name)}`,
+      );
+    }
+    moduleDescriptor = moduleHook(moduleSpecifier);
+    // Uninitialized module namespaces throw if we attempt to coerce them into
+    // promises.
+    if (!weakmapHas(moduleAliases, moduleDescriptor)) {
+      moduleDescriptor = yield moduleDescriptor;
+    }
   }
 
-  // check if record is a RedirectStaticModuleInterface
-  if (staticModuleRecord.specifier !== undefined) {
-    // check if this redirect with an explicit record
-    if (staticModuleRecord.record !== undefined) {
-      // ensure expected record shape
-      if (staticModuleRecord.compartment !== undefined) {
-        throw TypeError(
-          'Cannot redirect to an explicit record with a specified compartment',
+  if (typeof moduleDescriptor === 'string') {
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    throw makeError(
+      X`Cannot map module ${q(moduleSpecifier)} to ${q(
+        moduleDescriptor,
+      )} in parent compartment, use {source} module descriptor`,
+      TypeError,
+    );
+  } else if (isObject(moduleDescriptor)) {
+    // In this shim (and not in XS, and not in the standard we imagine), we
+    // allow a module namespace object to stand in for a module descriptor that
+    // describes its original {compartment, specifier} so that it can be used
+    // to create a link.
+    let aliasDescriptor = weakmapGet(moduleAliases, moduleDescriptor);
+    if (aliasDescriptor !== undefined) {
+      moduleDescriptor = aliasDescriptor;
+    }
+
+    if (moduleDescriptor.namespace !== undefined) {
+      // { namespace: string, compartment?: Compartment }
+      // Namespace module descriptors link to a module instance.
+
+      if (typeof moduleDescriptor.namespace === 'string') {
+        // The default compartment is the *parent*, not this child compartment.
+        // This is a difference from the legacy {specifier, compartment} module
+        // descriptor.
+        const {
+          compartment: aliasCompartment = parentCompartment,
+          namespace: aliasSpecifier,
+        } = moduleDescriptor;
+        if (
+          !isObject(aliasCompartment) ||
+          !weakmapHas(compartmentPrivateFields, aliasCompartment)
+        ) {
+          throw makeError(
+            X`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
+          );
+        }
+        // Behold: recursion.
+        // eslint-disable-next-line no-use-before-define
+        const aliasRecord = yield memoizedLoadWithErrorAnnotation(
+          compartmentPrivateFields,
+          moduleAliases,
+          aliasCompartment,
+          aliasSpecifier,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+        );
+        mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+        return aliasRecord;
+      }
+
+      // All remaining objects must either be a module namespace, or be
+      // promoted into a module namespace with a virtual module source.
+      if (isObject(moduleDescriptor.namespace)) {
+        const { namespace } = moduleDescriptor;
+        // Brand-check SES shim module exports namespaces:
+        aliasDescriptor = weakmapGet(moduleAliases, namespace);
+        if (aliasDescriptor !== undefined) {
+          moduleDescriptor = aliasDescriptor;
+          // Fall through to processing the resulting {compartment, specifier}
+          // alias.
+        } else {
+          // Promote an arbitrary object to a module namespace with a virtual
+          // module source.
+          // { namespace: Object }
+          const exports = getOwnPropertyNames(namespace);
+          /** @type {import('../types.js').VirtualModuleSource} */
+          const moduleSource = {
+            imports: [],
+            exports,
+            execute(env) {
+              for (const name of exports) {
+                env[name] = namespace[name];
+              }
+            },
+          };
+          const importMeta = undefined;
+          const moduleRecord = loadModuleSource(
+            compartmentPrivateFields,
+            moduleAliases,
+            compartment,
+            moduleSpecifier,
+            moduleSource,
+            enqueueJob,
+            selectImplementation,
+            moduleLoads,
+            importMeta,
+          );
+          mapSet(moduleRecords, moduleSpecifier, moduleRecord);
+          return moduleRecord;
+        }
+      } else {
+        throw makeError(
+          X`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
         );
       }
+    }
+
+    if (moduleDescriptor.source !== undefined) {
+      // Module source descriptors create an instance from a module source.
+      // The descriptor may contain the module source, or refer to a source
+      // loaded in a particular compartment.
+
+      if (typeof moduleDescriptor.source === 'string') {
+        // { source: string, importMeta?, specifier?: string, compartment? }
+        // A string source is the specifier for a different module source.
+        // That source may come from this compartment's parent (default), or
+        // from a specified compartment, and the specified compartment may be
+        // this compartment to make a duplicate.
+
+        const {
+          source: loaderSpecifier,
+          specifier: instanceSpecifier = moduleSpecifier,
+          compartment: loaderCompartment = parentCompartment,
+          importMeta = undefined,
+        } = moduleDescriptor;
+
+        // Induce the compartment, possibly a different compartment
+        // to load a module source.
+
+        // Behold: recursion.
+        // eslint-disable-next-line no-use-before-define
+        const loaderRecord = yield memoizedLoadWithErrorAnnotation(
+          compartmentPrivateFields,
+          moduleAliases,
+          loaderCompartment,
+          loaderSpecifier,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+        );
+
+        // Extract the source of the module from the loader compartment's
+        // record.
+        const { moduleSource } = loaderRecord;
+
+        // Instantiate that source in our own compartment, possibly with a
+        // different specifier for resolving its own imports.
+        const moduleRecord = loadModuleSource(
+          compartmentPrivateFields,
+          moduleAliases,
+          compartment,
+          instanceSpecifier,
+          moduleSource,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+          importMeta,
+        );
+        mapSet(moduleRecords, moduleSpecifier, moduleRecord);
+        return moduleRecord;
+      } else {
+        // { source: ModuleSource, importMeta?, specifier?: string }
+        // We assume all non-string module sources are any of the supported
+        // kinds of module source: PrecompiledModuleSource,
+        // VirtualModuleSource, or a native ModuleSource.
+
+        const {
+          source: moduleSource,
+          specifier: aliasSpecifier = moduleSpecifier,
+          importMeta,
+        } = moduleDescriptor;
+
+        const aliasRecord = loadModuleSource(
+          compartmentPrivateFields,
+          moduleAliases,
+          compartment,
+          aliasSpecifier,
+          moduleSource,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+          importMeta,
+        );
+        mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+        return aliasRecord;
+      }
+    }
+
+    if (moduleDescriptor.archive !== undefined) {
+      // { archive: Archive, path: string }
+      // We do not support this XS-native module descriptor.
+      throw makeError(
+        X`Unsupported archive module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
+      );
+    }
+
+    // { record, specifier?, compartment?, importMeta? }
+    // A (legacy) module descriptor for when we find the module source (record)
+    // but at a different specifier than requested.
+    // Providing this {specifier, record} descriptor serves as an ergonomic
+    // short-hand for stashing the record, returning a {compartment, specifier}
+    // reference, bouncing the module hook, then producing the source (record)
+    // when module hook receives the response specifier.
+    if (moduleDescriptor.record !== undefined) {
       const {
         compartment: aliasCompartment = compartment,
         specifier: aliasSpecifier = moduleSpecifier,
-        record: aliasModuleRecord,
+        record: moduleSource,
         importMeta,
-      } = staticModuleRecord;
+      } = moduleDescriptor;
 
-      const aliasRecord = loadRecord(
+      const aliasRecord = loadModuleSource(
         compartmentPrivateFields,
         moduleAliases,
         aliasCompartment,
         aliasSpecifier,
-        aliasModuleRecord,
+        moduleSource,
         enqueueJob,
         selectImplementation,
         moduleLoads,
         importMeta,
       );
       mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+      mapSet(moduleRecords, aliasSpecifier, aliasRecord);
       return aliasRecord;
     }
 
-    // check if this redirect with an explicit compartment
-    if (staticModuleRecord.compartment !== undefined) {
-      // ensure expected record shape
-      if (staticModuleRecord.importMeta !== undefined) {
-        throw TypeError(
-          'Cannot redirect to an implicit record with a specified importMeta',
+    // { specifier: string, compartment: Compartment }
+    // A (legacy) module descriptor that describes a link to a module instance
+    // in a specified compartment.
+    if (
+      moduleDescriptor.compartment !== undefined &&
+      moduleDescriptor.specifier !== undefined
+    ) {
+      if (
+        !isObject(moduleDescriptor.compartment) ||
+        !weakmapHas(compartmentPrivateFields, moduleDescriptor.compartment) ||
+        typeof moduleDescriptor.specifier !== 'string'
+      ) {
+        throw makeError(
+          X`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
         );
       }
       // Behold: recursion.
@@ -245,8 +408,8 @@ function* loadWithoutErrorAnnotation(
       const aliasRecord = yield memoizedLoadWithErrorAnnotation(
         compartmentPrivateFields,
         moduleAliases,
-        staticModuleRecord.compartment,
-        staticModuleRecord.specifier,
+        moduleDescriptor.compartment,
+        moduleDescriptor.specifier,
         enqueueJob,
         selectImplementation,
         moduleLoads,
@@ -255,19 +418,29 @@ function* loadWithoutErrorAnnotation(
       return aliasRecord;
     }
 
-    throw TypeError('Unnexpected RedirectStaticModuleInterface record shape');
+    // A (legacy) behavior: If we do not recognize the module descriptor as a
+    // module descriptor, we assume that it is a module source (record):
+    const moduleSource = moduleDescriptor;
+    const moduleRecord = loadModuleSource(
+      compartmentPrivateFields,
+      moduleAliases,
+      compartment,
+      moduleSpecifier,
+      moduleSource,
+      enqueueJob,
+      selectImplementation,
+      moduleLoads,
+    );
+    // Memoize.
+    mapSet(moduleRecords, moduleSpecifier, moduleRecord);
+    return moduleRecord;
+  } else {
+    throw makeError(
+      X`module descriptor must be a string or object for specifier ${q(
+        moduleSpecifier,
+      )} in compartment ${q(compartment.name)}`,
+    );
   }
-
-  return loadRecord(
-    compartmentPrivateFields,
-    moduleAliases,
-    compartment,
-    moduleSpecifier,
-    staticModuleRecord,
-    enqueueJob,
-    selectImplementation,
-    moduleLoads,
-  );
 }
 
 const memoizedLoadWithErrorAnnotation = (
@@ -323,7 +496,7 @@ const memoizedLoadWithErrorAnnotation = (
   return moduleLoading;
 };
 
-function asyncJobQueue() {
+const asyncJobQueue = () => {
   /** @type {Set<Promise<undefined>>} */
   const pendingJobs = new Set();
   /** @type {Array<Error>} */
@@ -358,14 +531,14 @@ function asyncJobQueue() {
     return errors;
   };
   return { enqueueJob, drainQueue };
-}
+};
 
 /**
  * @param {object} options
  * @param {Array<Error>} options.errors
  * @param {string} options.errorPrefix
  */
-function throwAggregateError({ errors, errorPrefix }) {
+const throwAggregateError = ({ errors, errorPrefix }) => {
   // Throw an aggregate error if there were any errors.
   if (errors.length > 0) {
     const verbose =
@@ -377,13 +550,13 @@ function throwAggregateError({ errors, errorPrefix }) {
       )}`,
     );
   }
-}
+};
 
 const preferSync = (_asyncImpl, syncImpl) => syncImpl;
 const preferAsync = (asyncImpl, _syncImpl) => asyncImpl;
 
 /*
- * `load` asynchronously gathers the `StaticModuleRecord`s for a module and its
+ * `load` asynchronously gathers the module records for a module and its
  * transitive dependencies.
  * The module records refer to each other by a reference to the dependency's
  * compartment and the specifier of the module within its own compartment.
@@ -427,8 +600,8 @@ export const load = async (
 };
 
 /*
- * `loadNow` synchronously gathers the `StaticModuleRecord`s for a module and its
- * transitive dependencies.
+ * `loadNow` synchronously gathers the module records for a specified module
+ * and its transitive dependencies.
  * The module records refer to each other by a reference to the dependency's
  * compartment and the specifier of the module within its own compartment.
  * This graph is then ready to be synchronously linked and executed.
