@@ -262,20 +262,29 @@ This can and should be frozen before running any dynamic code in that
 compartment, yet is not strictly necessary if the compartment only
 runs code from a single party.
 
-
 ### Modules
 
 Any code executed within a compartment shares a set of module instances.
 For modules to work within a compartment, the creator must provide
-a `resolveHook` and an `importHook`.
+module descriptors.
+A compartment can be configured with module descriptors, from highest to lowest
+precedence:
+
+- the `modules` map provided to the `Compartment` constructor,
+- returned by a `moduleMapHook(specifier)` passed as an option to the
+  `Compartment` constructor.
+- returned by either the `importHook(specifier)` or `importNowHook(specifier)`
+  option passed to the `Compartment` constructor. Calling
+  `compartment.import(specifier)` falls through to the `importHook` which may
+  return a promises, whereas `compartment.importNow(specifier)` falls through
+  to the synchronous `importNowHook`.
+
 The `resolveHook` determines how the compartment will infer the full module
 specifier for another module from a referrer module and the import specifier.
-The `importHook` accepts a full specifier and asynchronously returns a
-`StaticModuleRecord` for that module.
 
 ```js
 import 'ses';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
 const c1 = new Compartment({}, {}, {
   name: "first compartment",
@@ -285,29 +294,27 @@ const c1 = new Compartment({}, {}, {
   importHook: async moduleSpecifier => {
     const moduleLocation = locate(moduleSpecifier);
     const moduleText = await retrieve(moduleLocation);
-    return new StaticModuleRecord(moduleText, moduleLocation);
+    return {
+        source: new ModuleSource(moduleText, moduleLocation);
+    };
   },
 });
 ```
 
-> The SES language specifies a global `StaticModuleRecord`, but this is not
-> provided by the shim because it entrains a full JavaScript parser that is an
-> unnecessary performance penalty for the SES runtime.
-> Instead, the SES shim accepts a compiled static module record duck-type that
+> The Hardened JavaScript language specifies a global `ModuleSource`, but this
+> is not provided by the shim because it entrains a full JavaScript parser that
+> is an unnecessary performance penalty for the SES runtime.
+> Instead, the SES shim accepts a pre-compiled module source duck-type that
 > is tightly coupled to the shim implementation.
-> Third party modules can provide suitable implementations and even move the
-> compile step to build time instead of runtime.
 
 A compartment can also link a module in another compartment.
-Each compartment has a `module` function that accepts a module specifier
-and returns the module exports namespace for that module.
-The module exports namespace is not useful for inspecting the exports of the
-module until that module has been imported, but it can be passed into the
-module map of another Compartment, creating a link.
 
 ```js
 const c2 = new Compartment({}, {
-  'c1': c1.module('./main.js'),
+  'c1': {
+    source: './main.js',
+    compartment: c1,
+  },
 }, {
   name: "second compartment",
   resolveHook,
@@ -315,20 +322,67 @@ const c2 = new Compartment({}, {
 });
 ```
 
-### importHook aliases
+#### Module Descriptors
+
+Comparments can load and initialize module namespaces from module descriptors.
+Like property descriptors, module descriptors are ordinary objects with various
+forms.
+
+##### Descriptors with `source` property
+
+- If fhe value of the `source` property is a string, the parent compartment
+  loads the module but the compartment itself initializes the module.
+
+- Otherwise, if the value of the `source` property is the module source, the
+  module is initialized from the module source.
+
+- Otherwise, the value of the `source` property must be an object. The module
+  is loaded and initialized from the object according to the [virtual module
+  source](#VirtualModuleSource) pattern.
+
+If the `importMeta` property is present, its value must be an object. The
+default `importMeta` object is an empty object.
+
+Compartments copy the `importMeta` object properties into the module
+`import.meta` object like `Object.assign`.
+
+If the `specifier` property is present, its value is coerced into a string and
+becomes the referrer specifier of the module, on which all import specifiers
+are resolved using the `resolveHook`.
+
+##### Descriptors with `namespace` property
+
+- If fhe value of the `namespace` property is a string, the descriptor shares a
+  module to be loaded and initialized by the compartment referred by the
+  `compartment` property.
+
+    - If the `compartment` property is present, its value must be a
+      compartment.
+    - If absent, the `compartment` property defaults to the compartment being
+      constructed in the `modules` option, or being hooked in the `loadHook`
+      and `loadNowHook` options.
+
+- Otherwise, if the value of the `namespace` property is a module namepace, the
+  descriptor shares a module that is already available.
+
+- Otherwise, the value of `namespace` property must be an object. The module is
+  loaded and initialized from the object according to the [virtual module
+  namespace](#VirtualModuleNamespace) pattern.
+
+#### Redirects
 
 If a compartment imports a module specified as `"./utility"` but actually
 implemented by an alias like `"./utility/index.js"`, the `importHook` may
 follow redirects, symbolic links, or search for candidates using its own logic
 and return a module that has a different "response specifier" than the original
 "request specifier".
-The `importHook` may return an "alias" object with `record`, `compartment`,
-and `module` properties.
+The `importHook` may return an "alias" object with `source`, `compartment`,
+and `specifier` properties.
 
-- `record` must be a static module record, either a third-party module record
-  or a compiled static module record.
+- `source` must be a module source, either a virtual module source
+  or a compiled module source.
 - `compartment` is optional, to be specified if the alias transits to a
-  different compartment, and
+  the specified different compartment, and
 - `specifier` is the full module specifier of the module in its compartment.
   This defaults to the request specifier, which is only useful if the
   compartment is different.
@@ -340,9 +394,13 @@ alias.
 const importHook = async specifier => {
   const candidates = [specifier, `${specifier}.js`, `${specifier}/index.js`];
   for (const candidate of candidates) {
-    const record = await wrappedImportHook(candidate).catch(_ => undefined);
-    if (record !== undefined) {
-      return { record, specifier };
+    const source = await maybeImportSource(candidate);
+    if (source !== undefined) {
+      return {
+        source,
+        specifier: candidate,
+        compartment,
+      };
     }
   }
   throw new Error(`Cannot find module ${specifier}`);
@@ -354,7 +412,7 @@ const compartment = new Compartment({}, {}, {
 });
 ```
 
-### moduleMapHook
+#### moduleMapHook
 
 The module map above allows modules to be introduced to a compartment up-front.
 Some modules cannot be known that early.
@@ -373,9 +431,15 @@ If the `moduleMapHook` returns `undefined`, the compartment proceeds to the
 ```js
 const moduleMapHook = moduleSpecifier => {
   if (moduleSpecifier === 'even') {
-    return even.module('./index.js');
+    return {
+      source: './index.js',
+      compartment: even,
+    };
   } else if (moduleSpecifier === 'odd') {
-    return odd.module('./index.js');
+    return {
+      source: './index.js',
+      compartment: odd,
+    };
   }
 };
 
@@ -392,17 +456,25 @@ const odd = new Compartment({}, {}, {
 });
 ```
 
-### importNowHook
+#### importNowHook
 
-Additionally, an `importNowHook` may be provided that the compartment will use as means to synchronously load modules not seen before in situations where calling out to asynchronous `importHook` is not possible.
-Specifically, when `compartmentInstance.importNow('specifier')` is called, the compartment will first look up module records it's already aware of and call `moduleMapHook` and if none of that is successful in finding a module record matching the specifier, it will call `importNowHook` expecting to synchronously receive the same record type as from `importHook` or throw if it cannot.
+Additionally, an `importNowHook` may be provided that the compartment will use
+as means to synchronously load modules not seen before in situations where
+calling out to asynchronous `importHook` is not possible.
+Specifically, when `compartmentInstance.importNow('specifier')` is called, the
+compartment will first look up module records it's already aware of and call
+`moduleMapHook` and if none of that is successful in finding a module record
+matching the specifier, it will call `importNowHook` expecting to synchronously
+receive the same record type as from `importHook` or throw if it cannot.
 
 ```js
 import 'ses';
-import { StaticModuleRecord } from '@endo/static-module-record';
+import { ModuleSource } from '@endo/module-source';
 
-const c1 = new Compartment({}, {
-  'c2': c2.module('./main.js'),
+const compartment = new Compartment({}, {
+  c: {
+    source: new ModuleSource(''),
+  },
 }, {
   name: "first compartment",
   resolveHook: (moduleSpecifier, moduleReferrer) => {
@@ -411,27 +483,31 @@ const c1 = new Compartment({}, {
   importHook: async moduleSpecifier => {
     const moduleLocation = locate(moduleSpecifier);
     const moduleText = await retrieve(moduleLocation);
-    return new StaticModuleRecord(moduleText, moduleLocation);
+    return {
+      source: new ModuleSource(moduleText, moduleLocation),
+    };
   },
   importNowHook: moduleSpecifier => {
     const moduleLocation = locate(moduleSpecifier);
-    // Platform specific synchronous read API can be used
+    // Platform-specific synchronous read API can be used
     const moduleText = fs.readFileSync(moduleLocation);
-    return new StaticModuleRecord(moduleText, moduleLocation);
+    return {
+      source: new ModuleSource(moduleText, moduleLocation),
+    };
   },
 });
 //...                   | importHook | importNowHook
-await c1.import('a'); //| called     | not called
-c1.importNow('b');    //| not called | called
-c1.importNow('a');    //| not called | not called
-c1.importNow('c2');   //| not called | not called
+await compartment.import('a'); //| called     | not called
+compartment.importNow('b');    //| not called | called
+compartment.importNow('a');    //| not called | not called
+compartment.importNow('c');    //| not called | not called
 ```
 
-### Third-party modules
+### <a name="VirtualModuleSource"></a> Virtual Module Source
 
 To incorporate modules not implemented as JavaScript modules, third-parties may
-implement a `StaticModuleRecord` interface.
-The record must have an `imports` array and an `execute` method.
+implement a `VirtualModuleSource` interface.
+The object must have an `imports` array and an `execute` method.
 The compartment will call `execute` with:
 
 1. the proxied `exports` namespace object,
@@ -442,23 +518,27 @@ The compartment will call `execute` with:
    specified `imports`.
 
 :warning: A future breaking version may allow the `importNow` and the `execute`
-method of third-party static module records to return promises, to support
+method of virtual module sources to return promises, to support
 top-level await.
+
+:warning: The virtual module source interface does not yet agree with the
+[XS](https://www.moddable.com/hardening-xs) implementation of [Hardened
+JavaScript](https://hardenedjs.org/).
 
 ### Compiled modules
 
-Instead of the `StaticModuleRecord` constructor specified for the SES language,
-the SES shim uses compiled static module records as a stand-in.
-These can be created with a `StaticModuleRecord` constructor from a package
-like `@endo/static-module-record`.
-We omitted `StaticModuleRecord` from the SES shim because it entrains a heavy
+Instead of the `ModuleSource` constructor specified for the SES language,
+the SES shim uses compiled module source records as a stand-in.
+These can be created with a `ModuleSource` constructor from a package
+like `@endo/module-source`.
+We omitted `ModuleSource` from the SES shim because it entrains a heavy
 dependency on a JavaScript parser.
-The shim depends upon a `StaticModuleRecord` constructor to analyze and
+The shim depends upon a `ModuleSource` constructor to analyze and
 transform the source of a JavaScript module (known as an ESM or a `.mjs` file)
 into a JavaScript program suitable for evaluation with `compartment.evaluate`
 using a particular calling convention to initialize a module instance.
 
-A compiled static module record has the following shape:
+A compiled module source record has the following shape:
 
 - `imports` is a record that maps partial module specifiers to a list of
   names imported from the corresponding module.
@@ -490,7 +570,7 @@ A compiled static module record has the following shape:
   instead of the evaluation of the `__syncModuleProgram__` string. It will be
   called with the initialization record described above. It is intended to be
   used in environments where eval is not available. Sandboxing of the functor is
-  the responsibility of the author of the StaticModuleRecord.
+  the responsibility of the author of the ModuleSource.
 - `__liveExportsMap__` is a record that maps import names or names in the lexical
   scope of the module to export names, for variables that may change after
   initialization. Any reexported name is assumed to possibly change.
@@ -532,7 +612,7 @@ c.evaluate('console.log("Farewell, World!")', { transforms });
 These transforms do not apply to modules.
 To transform the source of a JavaScript module, the `importHook` must
 intercept the source and transform it before passing it to the
-`StaticModuleRecord` constructor.
+`ModuleSource` constructor.
 These are distinct because programs and modules have distinct grammar
 productions.
 

@@ -72,27 +72,32 @@ export interface VirtualModuleSource {
 
 export type ModuleSource = PrecompiledModuleSource | VirtualModuleSource;
 
-export interface RedirectModuleDescriptor {
-  specifier: string;
-  record?: ModuleSource;
+export interface SourceModuleDescriptor {
+  source: string | ModuleSource;
+  specifier?: string;
   importMeta?: any;
+  compartment?: Compartment; // defaults to parent
+}
+
+export interface NamespaceModuleDescriptor {
+  namespace: string | ModuleExportsNamespace;
   compartment?: Compartment;
 }
 
-export interface ReferenceModuleDescriptor {
+// Deprecated in favor of SourceModuleDescriptor,
+// but beware the change in default compartment.
+export interface RecordModuleDescriptor {
   specifier: string;
   record?: ModuleSource;
   importMeta?: any;
-  compartment?: Compartment;
+  compartment?: Compartment; // defaults to self
 }
 
 export type ModuleDescriptor =
-  // These descriptor shapes are needed for XS parity:
-  // | SourceModuleDescriptor
-  // | NamespaceModuleDescriptor
+  | SourceModuleDescriptor
+  | NamespaceModuleDescriptor
   // To be deprecated:
-  | RedirectModuleDescriptor
-  | ReferenceModuleDescriptor
+  | RecordModuleDescriptor
   | ModuleExportsNamespace
   | VirtualModuleSource
   | PrecompiledModuleSource;
@@ -100,7 +105,7 @@ export type ModuleDescriptor =
 // Deprecated type aliases:
 export type PrecompiledStaticModuleInterface = PrecompiledModuleSource;
 export type ThirdPartyStaticModuleInterface = VirtualModuleSource;
-export type RedirectStaticModuleInterface = RedirectModuleDescriptor;
+export type RedirectStaticModuleInterface = RecordModuleDescriptor;
 export type FinalStaticModuleType = ModuleSource;
 export type StaticModuleType = RedirectStaticModuleInterface | ModuleSource;
 

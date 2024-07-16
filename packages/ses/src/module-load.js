@@ -10,6 +10,7 @@ import {
   freeze,
   generatorNext,
   generatorThrow,
+  getOwnPropertyNames,
   isObject,
   mapGet,
   mapHas,
@@ -60,10 +61,7 @@ const syncTrampoline = (generatorFunc, args) => {
 // aliases.
 // Both are facilitated by the moduleMap Compartment constructor option.
 export const makeAlias = (compartment, specifier) =>
-  freeze({
-    compartment,
-    specifier,
-  });
+  freeze({ compartment, specifier });
 
 // `resolveAll` pre-computes resolutions of all imports within the compartment
 // in which a module was loaded.
@@ -87,10 +85,7 @@ const loadModuleSource = (
   moduleLoads,
   importMeta,
 ) => {
-  const { resolveHook, moduleRecords } = weakmapGet(
-    compartmentPrivateFields,
-    compartment,
-  );
+  const { resolveHook } = weakmapGet(compartmentPrivateFields, compartment);
 
   // resolve all imports relative to this referrer module.
   const resolvedImports = resolveAll(
@@ -121,8 +116,6 @@ const loadModuleSource = (
     ]);
   }
 
-  // Memoize.
-  mapSet(moduleRecords, moduleSpecifier, moduleRecord);
   return moduleRecord;
 };
 
@@ -135,8 +128,14 @@ function* loadWithoutErrorAnnotation(
   selectImplementation,
   moduleLoads,
 ) {
-  const { importHook, importNowHook, moduleMap, moduleMapHook, moduleRecords } =
-    weakmapGet(compartmentPrivateFields, compartment);
+  const {
+    importHook,
+    importNowHook,
+    moduleMap,
+    moduleMapHook,
+    moduleRecords,
+    parentCompartment,
+  } = weakmapGet(compartmentPrivateFields, compartment);
 
   if (mapHas(moduleRecords, moduleSpecifier)) {
     return mapGet(moduleRecords, moduleSpecifier);
@@ -173,7 +172,7 @@ function* loadWithoutErrorAnnotation(
     throw makeError(
       X`Cannot map module ${q(moduleSpecifier)} to ${q(
         moduleDescriptor,
-      )} in parent compartment, not yet implemented`,
+      )} in parent compartment, use {source} module descriptor`,
       TypeError,
     );
   } else if (isObject(moduleDescriptor)) {
@@ -181,11 +180,183 @@ function* loadWithoutErrorAnnotation(
     // allow a module namespace object to stand in for a module descriptor that
     // describes its original {compartment, specifier} so that it can be used
     // to create a link.
-    const aliasDescriptor = weakmapGet(moduleAliases, moduleDescriptor);
+    let aliasDescriptor = weakmapGet(moduleAliases, moduleDescriptor);
     if (aliasDescriptor !== undefined) {
       moduleDescriptor = aliasDescriptor;
     }
 
+    if (moduleDescriptor.namespace !== undefined) {
+      // { namespace: string, compartment?: Compartment }
+      // Namespace module descriptors link to a module instance.
+
+      if (typeof moduleDescriptor.namespace === 'string') {
+        // The default compartment is the *parent*, not this child compartment.
+        // This is a difference from the legacy {specifier, compartment} module
+        // descriptor.
+        const {
+          compartment: aliasCompartment = parentCompartment,
+          namespace: aliasSpecifier,
+        } = moduleDescriptor;
+        if (
+          !isObject(aliasCompartment) ||
+          !weakmapHas(compartmentPrivateFields, aliasCompartment)
+        ) {
+          throw makeError(
+            X`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
+          );
+        }
+        // Behold: recursion.
+        // eslint-disable-next-line no-use-before-define
+        const aliasRecord = yield memoizedLoadWithErrorAnnotation(
+          compartmentPrivateFields,
+          moduleAliases,
+          aliasCompartment,
+          aliasSpecifier,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+        );
+        mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+        return aliasRecord;
+      }
+
+      // All remaining objects must either be a module namespace, or be
+      // promoted into a module namespace with a virtual module source.
+      if (isObject(moduleDescriptor.namespace)) {
+        const { namespace } = moduleDescriptor;
+        // Brand-check SES shim module exports namespaces:
+        aliasDescriptor = weakmapGet(moduleAliases, namespace);
+        if (aliasDescriptor !== undefined) {
+          moduleDescriptor = aliasDescriptor;
+          // Fall through to processing the resulting {compartment, specifier}
+          // alias.
+        } else {
+          // Promote an arbitrary object to a module namespace with a virtual
+          // module source.
+          // { namespace: Object }
+          const exports = getOwnPropertyNames(namespace);
+          /** @type {import('../types.js').VirtualModuleSource} */
+          const moduleSource = {
+            imports: [],
+            exports,
+            execute(env) {
+              for (const name of exports) {
+                env[name] = namespace[name];
+              }
+            },
+          };
+          const importMeta = undefined;
+          const moduleRecord = loadModuleSource(
+            compartmentPrivateFields,
+            moduleAliases,
+            compartment,
+            moduleSpecifier,
+            moduleSource,
+            enqueueJob,
+            selectImplementation,
+            moduleLoads,
+            importMeta,
+          );
+          mapSet(moduleRecords, moduleSpecifier, moduleRecord);
+          return moduleRecord;
+        }
+      } else {
+        throw makeError(
+          X`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
+        );
+      }
+    }
+
+    if (moduleDescriptor.source !== undefined) {
+      // Module source descriptors create an instance from a module source.
+      // The descriptor may contain the module source, or refer to a source
+      // loaded in a particular compartment.
+
+      if (typeof moduleDescriptor.source === 'string') {
+        // { source: string, importMeta?, specifier?: string, compartment? }
+        // A string source is the specifier for a different module source.
+        // That source may come from this compartment's parent (default), or
+        // from a specified compartment, and the specified compartment may be
+        // this compartment to make a duplicate.
+
+        const {
+          source: loaderSpecifier,
+          specifier: instanceSpecifier = moduleSpecifier,
+          compartment: loaderCompartment = parentCompartment,
+          importMeta = undefined,
+        } = moduleDescriptor;
+
+        // Induce the compartment, possibly a different compartment
+        // to load a module source.
+
+        // Behold: recursion.
+        // eslint-disable-next-line no-use-before-define
+        const loaderRecord = yield memoizedLoadWithErrorAnnotation(
+          compartmentPrivateFields,
+          moduleAliases,
+          loaderCompartment,
+          loaderSpecifier,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+        );
+
+        // Extract the source of the module from the loader compartment's
+        // record.
+        const { moduleSource } = loaderRecord;
+
+        // Instantiate that source in our own compartment, possibly with a
+        // different specifier for resolving its own imports.
+        const moduleRecord = loadModuleSource(
+          compartmentPrivateFields,
+          moduleAliases,
+          compartment,
+          instanceSpecifier,
+          moduleSource,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+          importMeta,
+        );
+        mapSet(moduleRecords, moduleSpecifier, moduleRecord);
+        return moduleRecord;
+      } else {
+        // { source: ModuleSource, importMeta?, specifier?: string }
+        // We assume all non-string module sources are any of the supported
+        // kinds of module source: PrecompiledModuleSource,
+        // VirtualModuleSource, or a native ModuleSource.
+
+        const {
+          source: moduleSource,
+          specifier: aliasSpecifier = moduleSpecifier,
+          importMeta,
+        } = moduleDescriptor;
+
+        const aliasRecord = loadModuleSource(
+          compartmentPrivateFields,
+          moduleAliases,
+          compartment,
+          aliasSpecifier,
+          moduleSource,
+          enqueueJob,
+          selectImplementation,
+          moduleLoads,
+          importMeta,
+        );
+        mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+        return aliasRecord;
+      }
+    }
+
+    if (moduleDescriptor.archive !== undefined) {
+      // { archive: Archive, path: string }
+      // We do not support this XS-native module descriptor.
+      throw makeError(
+        X`Unsupported archive module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
+      );
+    }
+
+    // { record, specifier?, compartment?, importMeta? }
     // A (legacy) module descriptor for when we find the module source (record)
     // but at a different specifier than requested.
     // Providing this {specifier, record} descriptor serves as an ergonomic
@@ -212,9 +383,11 @@ function* loadWithoutErrorAnnotation(
         importMeta,
       );
       mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+      mapSet(moduleRecords, aliasSpecifier, aliasRecord);
       return aliasRecord;
     }
 
+    // { specifier: string, compartment: Compartment }
     // A (legacy) module descriptor that describes a link to a module instance
     // in a specified compartment.
     if (
@@ -248,7 +421,7 @@ function* loadWithoutErrorAnnotation(
     // A (legacy) behavior: If we do not recognize the module descriptor as a
     // module descriptor, we assume that it is a module source (record):
     const moduleSource = moduleDescriptor;
-    return loadModuleSource(
+    const moduleRecord = loadModuleSource(
       compartmentPrivateFields,
       moduleAliases,
       compartment,
@@ -258,6 +431,9 @@ function* loadWithoutErrorAnnotation(
       selectImplementation,
       moduleLoads,
     );
+    // Memoize.
+    mapSet(moduleRecords, moduleSpecifier, moduleRecord);
+    return moduleRecord;
   } else {
     throw makeError(
       X`module descriptor must be a string or object for specifier ${q(

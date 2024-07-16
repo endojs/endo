@@ -1,14 +1,14 @@
-# StaticModuleRecord
+# ModuleSource
 
-This package provides a shim for the `StaticModuleRecord` constructor, suitable
-for use with the SES shim `importHook`.
-The static module record accepts a JavaScript module and converts it into
-a form that SES can use to securely emulate JavaScript modules (ESMs, the `mjs`
-file format) with compartments.
+This package provides a ponyfill for the `ModuleSource` constructor, suitable
+for use in the SES shim's module descriptors.
+The module source accepts a JavaScript module and converts it into
+a form that SES can use to emulate and confine JavaScript modules (ESMs, the
+`mjs` file format) with compartments.
 
 ```js
 import 'ses';
-import { StaticModuleRecord } from '@endo/static-module-record`;
+import { ModuleSource } from '@endo/module-source`;
 
 const c1 = new Compartment({}, {}, {
   name: "first compartment",
@@ -18,14 +18,14 @@ const c1 = new Compartment({}, {}, {
   importHook: async moduleSpecifier => {
     const moduleLocation = locate(moduleSpecifier);
     const moduleText = await retrieve(moduleLocation);
-    return new StaticModuleRecord(moduleText, moduleLocation);
+    return new ModuleSource(moduleText, moduleLocation);
   },
 });
 ```
 
 ## Source maps
 
-The `StaticModuleRecord` is a shim for what we hope to eventually call a native
+The `ModuleSource` is a shim for what we hope to eventually call a native
 `ModuleSource` constructor.
 However, in the absence of a native `ModuleSource`, this produces a
 serializable object that emulates the behavior of `ModuleSource` in conjunction
@@ -39,7 +39,7 @@ changes due to (hopefully temporary) limitations to the underlying code
 generator.
 In the interim, generating a source map can help.
 
-The `StaticModuleRecord` constructor accepts non-standards-track
+The `ModuleSource` constructor accepts non-standards-track
 `sourceMapHook` and `sourceMapUrl` options.
 
 Previously, the sole option was a `string` argument for the `sourceUrl`, such
@@ -47,9 +47,9 @@ that this would be appended to the generated source.
 This change allows for the old or new usage:
 
 ```js
-new StaticModuleRecord(source, sourceUrl);
+new ModuleSource(source, sourceUrl);
 // or
-new StaticModuleRecord(source, { sourceUrl, sourceMapUrl, sourceMapHook });
+new ModuleSource(source, { sourceUrl, sourceMapUrl, sourceMapHook });
 ```
 
 The `sourceMapUrl` is necessary for generating a source map.
