@@ -2,11 +2,25 @@ User-visible changes in SES:
 
 # Next release
 
-- When running Ava tests on Node written in TypeScript, the SES error taming gives linenumbers into the generated JavaScript, in which all compiled code is on line 1. But now, ***during development only*** when you can sacrifice security for a better debugging experience, setting the environment variable
-    ```sh
-    $ export SUPPRESS_NODE_ERROR_TAMING=enabled
-    ```
-    together with the `errorTaming: 'unsafe'` setting which is normally on for testing, the stacktrace linenumbers should point back into the original TypeScript source.
+- When running Ava tests on Node written in TypeScript, the SES error taming
+  gives line-numbers into the generated JavaScript, in which all compiled code
+  is on line 1. This happens even with the normal development-time lockdown
+  options setting
+  ```js
+  errorTaming: 'unsafe'
+  ```
+  or setting the environment variable
+  ```sh
+  $ export LOCKDOWN_ERROR_TAMING=unsafe
+  ```
+  In addition to the normal `'safe'` and `'unsafe'` settings, this release
+  adds `'unsafe-debug'`. This `errorTaming: 'unsafe-debug'` setting
+  should be used ***during development only*** when you can
+  sacrifice more security for a better debugging experience, as explained at
+  [`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
+  With this setting, when running Ava tests written in TypeScript on Node,
+  the stacktrace line-numbers should point back into the original
+  TypeScript source, as they would on Node without SES.
 
 # v1.5.0 (2024-05-06)
 

@@ -1,4 +1,3 @@
-import { getEnvironmentOption } from '@endo/env-options';
 import {
   FERAL_ERROR,
   TypeError,
@@ -37,7 +36,11 @@ export default function tameErrorConstructor(
   errorTaming = 'safe',
   stackFiltering = 'concise',
 ) {
-  if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
+  if (
+    errorTaming !== 'safe' &&
+    errorTaming !== 'unsafe' &&
+    errorTaming !== 'unsafe-debug'
+  ) {
     throw TypeError(`unrecognized errorTaming ${errorTaming}`);
   }
   if (stackFiltering !== 'concise' && stackFiltering !== 'verbose') {
@@ -46,24 +49,8 @@ export default function tameErrorConstructor(
   const ErrorPrototype = FERAL_ERROR.prototype;
 
   const { captureStackTrace: originalCaptureStackTrace } = FERAL_ERROR;
-  let platform =
+  const platform =
     typeof originalCaptureStackTrace === 'function' ? 'v8' : 'unknown';
-
-  const SUPPRESS_NODE_ERROR_TAMING = 'SUPPRESS_NODE_ERROR_TAMING';
-
-  if (
-    errorTaming === 'unsafe' &&
-    platform === 'v8' &&
-    getEnvironmentOption(SUPPRESS_NODE_ERROR_TAMING, 'disabled', [
-      'enabled',
-    ]) === 'enabled'
-  ) {
-    // This case is a kludge to work around
-    // https://github.com/endojs/endo/issues/1798
-    // https://github.com/endojs/endo/issues/2348
-    // https://github.com/Agoric/agoric-sdk/issues/8662
-    platform = SUPPRESS_NODE_ERROR_TAMING;
-  }
 
   const makeErrorConstructor = (_ = {}) => {
     // eslint-disable-next-line no-shadow
@@ -141,7 +128,7 @@ export default function tameErrorConstructor(
     },
   });
 
-  if (platform === SUPPRESS_NODE_ERROR_TAMING) {
+  if (errorTaming === 'unsafe-debug' && platform === 'v8') {
     // This case is a kludge to work around
     // https://github.com/endojs/endo/issues/1798
     // https://github.com/endojs/endo/issues/2348
@@ -236,7 +223,7 @@ export default function tameErrorConstructor(
       errorTaming,
       stackFiltering,
     );
-  } else if (errorTaming === 'unsafe') {
+  } else if (errorTaming === 'unsafe' || errorTaming === 'unsafe-debug') {
     // v8 has too much magic around their 'stack' own property for it to
     // coexist cleanly with this accessor. So only install it on non-v8
 

@@ -1,7 +1,6 @@
 import test from 'ava';
 import url from 'url';
 import { exec } from 'child_process';
-import './error/prepare-dont-suppress-error-taming.js';
 
 const cwd = url.fileURLToPath(
   new URL('console-rejection-trap', import.meta.url),

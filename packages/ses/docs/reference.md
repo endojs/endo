@@ -122,11 +122,15 @@ after `lockdown()`was called.
 
 ### Default `'safe'` settings
 
-All four of these safety-relevant options default to `'safe'` if omitted
+All three of these safety-relevant options default to `'safe'` if omitted
 from a call to `lockdown()`. Their other possible value is `'unsafe'`.
 - `regExpTaming`
 - `localeTaming`
 - `consoleTaming`
+
+In addition, `errorTaming` defaults to `'safe'` but can be set to `'unsafe'`
+or `'unsafe-debug'`, as explained at
+[`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
 - `errorTaming`
 
 The tradeoff is safety vs compatibility with existing code. However, much legacy
@@ -167,9 +171,10 @@ below.
   </tr>
   <tr>
     <td><code>errorTaming</code></td>
-    <td><code>'safe'</code> (default) or <code>'unsafe'</code></td>
+    <td><code>'safe'</code> (default) or <code>'unsafe'</code> or <code>'unsafe-debug'</code></td>
     <td><code>'safe'</code> denies unprivileged stacks access,<br>
-        <code>'unsafe'</code> makes stacks also available by <code>errorInstance.stackkeeps()</code>.</td>
+        <code>'unsafe'</code> makes stacks also available by <code>errorInstance.stack</code>,<br>
+        <code>'unsafe-debug'</code> sacrifices more safety for better TypeScript line-numbers.</td>
   </tr>
   <tr>
     <td><code>stackFiltering</code></td>
@@ -179,9 +184,10 @@ below.
   </tr>
   <tr>
     <td><code>overrideTaming</code></td>
-    <td><code>'moderate'</code> (default) or <code>'min'</code></td>
+    <td><code>'moderate'</code> (default) or <code>'min'</code> or <code>'severe'</code></td>
     <td><code>'moderate'</code> moderates mitigations for legacy compatibility,<br>
-        <code>'min'</code> minimal mitigations for purely modern code</td>
+        <code>'min'</code> minimal mitigations for purely modern code, <br>
+        <code>'severe'</code> when moderate mitigations are inadequate</td>
   </tr>
   </tbody>
 </table>
@@ -258,18 +264,30 @@ In JavaScript the stack is only available via `err.stack`, so some
 development tools assume it is there. When the information leak is tolerable,
 the `'unsafe'` setting preserves `err.stack`'s filtered stack information.
 
-`errorTaming` does not affect the `Error` constructor's safety.
+The `'safe'` or `'unsafe'` settings of `errorTaming` do not affect the `Error`
+constructor's safety, beyond the confidentiality hazards mentioned above.
 After calling `lockdown`, the tamed `Error` constructor in the
 start compartment follows OCap rules. Under v8 it emulates most of the
 magic powers of the v8 `Error` constructor&mdash;those consistent with the
 discourse level of the proposed `getStack`. In all cases, the `Error`
 constructor shared by all other compartments is both safe and powerless.
+
+However, with the `'safe'` and `'unsafe'` settings, you'll often see
+line-numbers into TypeScript sources are always 1, since the TypeScript compiler
+compiles into a single line of JavaScript. For TypeScript on Node on v8,
+the setting `'unsafe-debug'` sacrifices more security to restore the
+normal Node behavior of providing accurate positions into the TypeScript source.
+The `'unsafe-debug'` setting should be used ***for development only***, when
+this is usually the right tradeoff. Please do not use it in production.
+
 ```js
 lockdown(); // errorTaming defaults to 'safe'
 // or
 lockdown({ errorTaming: 'safe' }); // Deny unprivileged access to stacks, if possible
 // vs
 lockdown({ errorTaming: 'unsafe' }); // Stacks also available by errorInstance.stack
+// vs
+lockdown({ errorTaming: 'unsafe-debug' }); // sacrifice more safety for TypeScript line numbers.
 ```
 
 ### `stackFiltering` Options
@@ -329,4 +347,3 @@ lockdown({ overrideTaming: 'moderate' }); // Moderate mitigations for legacy com
 // vs
 lockdown({ overrideTaming: 'min' }); // Minimal mitigations for purely modern code
 ```
-

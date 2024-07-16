@@ -1,5 +1,4 @@
 import test from 'ava';
-import './prepare-dont-suppress-error-taming.js';
 import '../../index.js';
 
 // TODO test Error API in
