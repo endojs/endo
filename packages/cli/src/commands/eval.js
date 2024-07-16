@@ -35,7 +35,7 @@ export const evalCommand = async ({
       source,
       codeNames,
       petNames,
-      parsePetNamePath(resultName),
+      resultName === undefined ? undefined : parsePetNamePath(resultName),
     );
     console.log(result);
   });
