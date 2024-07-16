@@ -144,10 +144,10 @@ lockdown();
       try {
         delayMS(10);
       } catch (err) {
-        if (err instanceof TypeError) {
-          // assume we cannot delay because of err
+        if (!(err instanceof TypeError)) {
+          throw err;
         }
-        throw err;
+        // silently assume we cannot delay because of err
       }
     }
 
@@ -262,7 +262,7 @@ lockdown();
         return Date.now();
       } catch (err) {
         if (err instanceof TypeError) {
-          //  assume we cannot measure time because of err
+          // assume we cannot measure time because of err
           return NaN;
         }
         throw err;
