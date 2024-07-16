@@ -287,7 +287,7 @@ lockdown({ errorTaming: 'safe' }); // Deny unprivileged access to stacks, if pos
 // vs
 lockdown({ errorTaming: 'unsafe' }); // Stacks also available by errorInstance.stack
 // vs
-lockdown({ errorTaming: 'unsafe-debug' }); // sacrifice more safety for TypeScript line numbers.
+lockdown({ errorTaming: 'unsafe-debug' }); // sacrifice more safety for source-mapped line numbers.
 ```
 
 ### `stackFiltering` Options

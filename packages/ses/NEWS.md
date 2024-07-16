@@ -4,10 +4,10 @@ User-visible changes in SES:
 
 - Adds support for module descriptors better aligned with XS.
 
-- When running Ava tests on Node written in TypeScript, the SES error taming
-  gives line-numbers into the generated JavaScript, in which all compiled code
-  is on line 1. This happens even with the normal development-time lockdown
-  options setting
+- When running transpiled code on Node, the SES error taming
+  gives line-numbers into the generated JavaScript, which often don't match the
+  the original lines. This happens even with the normal development-time
+  lockdown options setting,
   ```js
   errorTaming: 'unsafe'
   ```
@@ -15,14 +15,16 @@ User-visible changes in SES:
   ```sh
   $ export LOCKDOWN_ERROR_TAMING=unsafe
   ```
-  In addition to the normal `'safe'` and `'unsafe'` settings, this release
+  To get the original line numbers, this release
   adds `'unsafe-debug'`. This `errorTaming: 'unsafe-debug'` setting
   should be used ***during development only*** when you can
   sacrifice more security for a better debugging experience, as explained at
   [`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
-  With this setting, when running Ava tests written in TypeScript on Node,
-  the stacktrace line-numbers should point back into the original
-  TypeScript source, as they would on Node without SES.
+  With this setting, when running transpiled code on Node (e.g. tests written
+  in TypeScript),
+  the stacktrace line-numbers point back into the original
+  source, as they do on Node without SES.
+  
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
