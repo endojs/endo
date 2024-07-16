@@ -4,6 +4,27 @@ User-visible changes in SES:
 
 - Adds support for module descriptors better aligned with XS.
 
+- When running transpiled code on Node, the SES error taming
+  gives line-numbers into the generated JavaScript, which often don't match the
+  the original lines. This happens even with the normal development-time
+  lockdown options setting,
+  ```js
+  errorTaming: 'unsafe'
+  ```
+  or setting the environment variable
+  ```sh
+  $ export LOCKDOWN_ERROR_TAMING=unsafe
+  ```
+  To get the original line numbers, this release
+  adds `'unsafe-debug'`. This `errorTaming: 'unsafe-debug'` setting
+  should be used ***during development only*** when you can
+  sacrifice more security for a better debugging experience, as explained at
+  [`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
+  With this setting, when running transpiled code on Node (e.g. tests written
+  in TypeScript),
+  the stacktrace line-numbers point back into the original
+  source, as they do on Node without SES.
+  
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.

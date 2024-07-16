@@ -25,7 +25,7 @@ Each option is explained in its own section below.
 | `regExpTaming`               | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` ([details](#regexptaming-options)) |
 | `localeTaming`               | `'safe'`         | `'unsafe'`                             | `toLocaleString`           ([details](#localetaming-options)) |
 | `consoleTaming`              | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
-| `errorTaming`                | `'safe'`         | `'unsafe'`                             | `errorInstance.stack`      ([details](#errortaming-options)) |
+| `errorTaming`                | `'safe'`         | `'unsafe'` `'unsafe-debug'`            | `errorInstance.stack`      ([details](#errortaming-options)) |
 | `errorTrapping`              | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
 | `unhandledRejectionTrapping` | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
 | `evalTaming`                 | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
@@ -293,20 +293,39 @@ default error behavior is much more dangerous. The v8 `Error` constructor
 provides a set of
 [static methods for accessing the raw stack
 information](https://v8.dev/docs/stack-trace-api) that are used to create
-error stack string. Some of this information is consistent with the level
+error stack strings. Some of this information is consistent with the level
 of disclosure provided by the proposed `getStack` special power above.
 Some go well beyond it.
 
-The `errorTaming` option of `lockdown` do not affect the safety of the `Error`
-constructor. In all cases, after calling `lockdown`, the tamed `Error`
+Neither the `'safe'` or `'unsafe'` settings of the `errorTaming`
+affect the safety of the `Error`
+constructor. In those cases, after calling `lockdown`, the tamed `Error`
 constructor in the start compartment follows ocap rules.
 Under v8 it emulates most of the
 magic powers of the v8 `Error` constructor&mdash;those consistent with the
 level of disclosure of the proposed `getStack`. In all cases, the `Error`
 constructor shared by all other compartments is both safe and powerless.
 
-See the [error README](../src/error/README.md) for an in depth explanation of the
-relationship between errors, `assert` and the virtual `console`.
+See the [error README](../src/error/README.md) for an in depth explanation of
+the relationship between errors, `assert` and the virtual `console`.
+
+When running TypeScript tests on Node without SES,
+you'll see accurate line numbers into the original TypeScript source.
+However, with SES with the `'safe'` or `'unsafe'` settings of
+`errorTaming` the stacks will show all TypeScript positions as line 1,
+which is the one line of JavaScript the TypeScript compiled to.
+We would like to fix this while preserving safety, but have not yet done so.
+
+Instead, we introduce the `'unsafe-debug'` setting, which sarifices
+more security to restore this pleasant Node behavior.
+Where `'safe'` and `'unsafe'` endangers only confidentiality, `'unsafe-debug'` also
+endangers intergrity. For development and debugging purposes ***only***,
+this is usually the right tradeoff. But please don't use this setting in a
+production environment.
+
+On non-v8 platforms, `'unsafe'` and `'unsafe-debug'` do the same thing, since
+[the problem](https://github.com/endojs/endo/issues/1798) is specific to
+Node on v8.
 
 ```js
 lockdown(); // errorTaming defaults to 'safe'
@@ -314,6 +333,8 @@ lockdown(); // errorTaming defaults to 'safe'
 lockdown({ errorTaming: 'safe' }); // Deny unprivileged access to stacks, if possible
 // vs
 lockdown({ errorTaming: 'unsafe' }); // stacks also available by errorInstance.stack
+// vs
+lockdown({ errorTaming: 'unsafe-debug' }); // sacrifice more safety for source-mapped line numbers.
 ```
 
 If `lockdown` does not receive an `errorTaming` option, it will respect
