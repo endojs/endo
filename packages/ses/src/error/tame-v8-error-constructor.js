@@ -16,6 +16,7 @@ import {
   weakmapSet,
   weaksetAdd,
   weaksetHas,
+  TypeError,
 } from '../commons.js';
 
 // Whitelist names from https://v8.dev/docs/stack-trace-api
@@ -164,6 +165,11 @@ export const tameV8ErrorConstructor = (
   errorTaming,
   stackFiltering,
 ) => {
+  if (errorTaming === 'unsafe-debug') {
+    throw TypeError(
+      'internal: v8+unsafe-debug special case should already be done',
+    );
+  }
   // TODO: Proper CallSite types
   /** @typedef {{}} CallSite */
 

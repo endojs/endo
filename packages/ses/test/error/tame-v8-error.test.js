@@ -1,7 +1,7 @@
 import test from 'ava';
 import '../../index.js';
 
-lockdown();
+lockdown({ errorTaming: 'safe' });
 
 test('lockdown Error is safe', t => {
   t.is(typeof Error.captureStackTrace, 'function');
