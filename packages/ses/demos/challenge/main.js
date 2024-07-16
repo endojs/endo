@@ -141,14 +141,7 @@ lockdown();
       if (secretCode.slice(i, i + 1) !== guessedCode.slice(i, i + 1)) {
         return false;
       }
-      try {
-        delayMS(10);
-      } catch (err) {
-        if (!(err instanceof TypeError)) {
-          throw err;
-        }
-        // silently assume we cannot delay because of err
-      }
+      delayMS(10);
     }
 
     // they guessed correctly
