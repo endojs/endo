@@ -3,7 +3,7 @@
 This package uses a transformation from a JS module source to a corresponding
 JS program that, when evaluated, produces a function that can execute a module
 and orchestrate its imports and exports.
-The static module record includes the static analysis of the module: what it
+The module source record includes the static analysis of the module: what it
 imports and exports and how it refers to imported modules.
 
 The workflow for executing a module, as conducted by a Compartment,
@@ -47,7 +47,7 @@ export { grey as gray } from './reexport-name-and-rename.js';
 quuux = 'Hello, World!';
 ```
 
-From this, the analyzer produces a static module record that shows what modules
+From this, the analyzer produces a module source record that shows what modules
 the module needs to be linked to and how to link their imports and exports.
 
 ```js
@@ -147,7 +147,7 @@ type ModuleAnalysis = {
 
 // ExportAlls are the relative module specifiers found in directives like:
 //   export * from 'import-and-reexport-all-from-me.js';
-// These are both on the static module record and passed to the import function
+// These are both on the module source and passed to the import function
 // injected into a module functor.
 // TODO Consider removing the import argument.
 // It does not appear to be used by module instances.

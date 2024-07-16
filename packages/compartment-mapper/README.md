@@ -485,7 +485,7 @@ type InternalModuleSpecifier = string;
 // in the namespace of the foreign compartment.
 type ExternalModuleSpecifier = string;
 
-// ParserMap indicates which parser to use to construct static module records
+// ParserMap indicates which parser to use to construct module sources
 // from sources, for each supported file extension.
 // For parity with Node.js, a package with `"type": "module"` in its
 // `package.json` would have a parser map of `{"js": "mjs", "cjs": "cjs",
@@ -500,7 +500,7 @@ type ParserMap = Record<Extension, Parser>;
 // Extension is a file extension such as "js" for "main.js" or "" for "README".
 type Extension = string;
 
-// Parser is a union of built-in parsers for static module records.
+// Parser is a union of built-in parsers for module sources.
 // "mjs" corresponds to ECMAScript modules.
 // "cjs" corresponds to CommonJS modules.
 // "json" corresponds to JSON.

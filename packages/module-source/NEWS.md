@@ -1,5 +1,9 @@
 User-visible changes in Static Module Record, née Transform Module:
 
+# Next version
+
+- Renamed to `@endo/module-source` exporting `ModuleSource`.
+
 # 1.0.0 (2023-12-12)
 
 - Ensures that `this` is bound to `undefined` in module scope and that the
