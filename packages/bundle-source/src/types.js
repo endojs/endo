@@ -2,7 +2,7 @@
 export {};
 
 /**
- * @typedef {'endoZipBase64' | 'nestedEvaluate' | 'getExport'} ModuleFormat
+ * @typedef {'endoZipBase64' | 'endoScript' | 'nestedEvaluate' | 'getExport'} ModuleFormat
  */
 
 // The order of these intersections matters, insofar as Typescript treats the
@@ -25,6 +25,9 @@ export {};
  *   moduleFormat: T,
  *   source: string,
  *   sourceMap: string,
+ * } : T extends 'endoScript' ? {
+ *   moduleFormat: T,
+ *   source: string,
  * } : never} BundleSourceResult
  */
 

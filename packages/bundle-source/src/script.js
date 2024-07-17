@@ -7,9 +7,7 @@ import url from 'url';
 import fs from 'fs';
 import os from 'os';
 
-import { mapNodeModules } from '@endo/compartment-mapper/node-modules.js';
-import { makeAndHashArchiveFromMap } from '@endo/compartment-mapper/archive-lite.js';
-import { encodeBase64 } from '@endo/base64';
+import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 import { makeBundlingKit } from './endo.js';
@@ -30,7 +28,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {typeof process['env']} [grantedPowers.env]
  * @param {typeof process['platform']} [grantedPowers.platform]
  */
-export async function bundleZipBase64(
+export async function bundleScript(
   startFilename,
   options = {},
   grantedPowers = {},
@@ -69,26 +67,19 @@ export async function bundleZipBase64(
       },
     );
 
-  const compartmentMap = await mapNodeModules(powers, entry, {
+  const source = await makeBundle(powers, entry, {
     dev,
     commonDependencies,
+    parserForLanguage,
+    moduleTransforms,
+    sourceMapHook,
   });
 
-  const { bytes, sha512 } = await makeAndHashArchiveFromMap(
-    powers,
-    compartmentMap,
-    {
-      parserForLanguage,
-      moduleTransforms,
-      sourceMapHook,
-    },
-  );
-  assert(sha512);
   await Promise.all(sourceMapJobs);
-  const endoZipBase64 = encodeBase64(bytes);
+
   return harden({
-    moduleFormat: /** @type {const} */ ('endoZipBase64'),
-    endoZipBase64,
-    endoZipBase64Sha512: sha512,
+    moduleFormat: /** @type {const} */ ('endoScript'),
+    source,
+    // TODO sourceMap
   });
 }
