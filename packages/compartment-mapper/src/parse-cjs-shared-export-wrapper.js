@@ -103,8 +103,6 @@ export const wrap = ({
     }
   };
 
-  const redefined = new Set();
-
   const originalExports = new Proxy(moduleEnvironmentRecord.default, {
     set(_target, prop, value) {
       promoteToNamedExport(prop, value);
@@ -123,9 +121,6 @@ export const wrap = ({
       // descriptor.get in the trap will cause an error.
       // Object.defineProperty is used instead of Reflect.defineProperty for better error messages.
       defineProperty(target, prop, descriptor);
-      // Make a note to propagate the value from the getter to the module
-      // environment record when the module finishes executing.
-      redefined.add(prop);
       return true;
     },
   });
@@ -181,13 +176,8 @@ export const wrap = ({
     if (exportsHaveBeenOverwritten) {
       moduleEnvironmentRecord.default = finalExports;
       for (const prop of keys(moduleEnvironmentRecord.default || {})) {
-        if (prop !== 'default') {
+        if (prop !== 'default')
           moduleEnvironmentRecord[prop] = moduleEnvironmentRecord.default[prop];
-        }
-      }
-    } else {
-      for (const prop of redefined) {
-        moduleEnvironmentRecord[prop] = moduleEnvironmentRecord.default[prop];
       }
     }
   };
