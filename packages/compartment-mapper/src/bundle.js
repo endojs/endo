@@ -1,18 +1,21 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {PrecompiledStaticModuleInterface} from 'ses' */
+/** @import {ArchiveOptions} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentSources} from './types.js' */
+/** @import {MaybeReadPowers} from './types.js' */
+/** @import {PrecompiledStaticModuleInterface} from 'ses' */
 /** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
 /** @import {Sources} from './types.js' */
 /** @import {WriteFn} from './types.js' */
-/** @import {ArchiveOptions} from './types.js' */
 
 import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
+import { unpackReadPowers } from './powers.js';
 import { makeImportHookMaker } from './import-hook.js';
 import { defaultParserForLanguage } from './archive-parsers.js';
 import { parseLocatedJson } from './json.js';
@@ -141,12 +144,14 @@ function getBundlerKitForModule(module) {
 }
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {ArchiveOptions} [options]
  * @returns {Promise<string>}
  */
-export const makeBundle = async (read, moduleLocation, options) => {
+export const makeBundle = async (readPowers, moduleLocation, options) => {
+  const { read, maybeRead } = unpackReadPowers(readPowers);
+
   const {
     moduleTransforms,
     dev,
@@ -175,7 +180,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
-  } = await search(read, moduleLocation);
+  } = await search(maybeRead, moduleLocation);
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,

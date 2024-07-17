@@ -2,7 +2,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
-import { parsePetNamePath } from '../pet-name.js';
+import { parseOptionalPetNamePath } from '../pet-name.js';
 
 export const request = async ({
   description,
@@ -14,7 +14,7 @@ export const request = async ({
     const result = await E(agent).request(
       toName,
       description,
-      parsePetNamePath(resultName),
+      parseOptionalPetNamePath(resultName),
     );
     console.log(result);
   });

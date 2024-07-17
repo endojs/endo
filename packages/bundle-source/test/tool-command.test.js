@@ -1,8 +1,8 @@
+/* global Buffer */
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { spawn } from 'child_process';
 import url from 'url';
-import Buffer from 'buffer';
 
 const cwd = url.fileURLToPath(new URL('..', import.meta.url));
 

@@ -8,6 +8,9 @@
   they cannot be made to run on the web without further work on module
   virtualization in the platform without entraining a client-side
   dependency on a JavaScript parser framework (namely Babel).
+- Adds a `-f,--format` command flag to specify other module formats.
+- Adds a new `endoScript` module format.
+- Adds a no-cache, bundle-to-stdout mode.
 
 # v3.2.1 (2024-03-20)
 

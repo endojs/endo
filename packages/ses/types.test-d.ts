@@ -2,6 +2,8 @@
 import { expectType } from 'tsd';
 import type { Assert } from 'ses';
 
+import { equal as nassert } from 'node:assert/strict';
+
 /// <reference types="ses"/>
 
 // Lockdown
@@ -93,6 +95,15 @@ const {
 assert.equal('a', 'b');
 assert.equal('a', 'b', 'equality error');
 assert.equal('a', 'b', X`equality error left:${q('a')}, right:${q('b')}`);
+{
+  // narrowing
+  type NumRecord = { key: 'num'; value: number };
+  type StrRecord = { key: 'str'; value: string };
+  const r: NumRecord | StrRecord = null as any;
+  expectType<string | number>(r.value);
+  assert.equal(r.key, 'str');
+  expectType<string>(r.value);
+}
 
 assert.typeof(10.1, 'number');
 assert.typeof(10n, 'bigint');

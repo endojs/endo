@@ -1,6 +1,11 @@
 // @ts-check
 const DEFAULT_MODULE_FORMAT = 'endoZipBase64';
-const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate', 'endoZipBase64'];
+export const SUPPORTED_FORMATS = [
+  'getExport',
+  'nestedEvaluate',
+  'endoZipBase64',
+  'endoScript',
+];
 
 /** @type {import('./types').BundleSource} */
 // @ts-ignore cast
@@ -21,6 +26,10 @@ const bundleSource = async (
     case 'endoZipBase64': {
       const { bundleZipBase64 } = await import('./zip-base64.js');
       return bundleZipBase64(startFilename, options, powers);
+    }
+    case 'endoScript': {
+      const { bundleScript } = await import('./script.js');
+      return bundleScript(startFilename, options, powers);
     }
     case 'getExport': {
       const { bundleNestedEvaluateAndGetExports } = await import(

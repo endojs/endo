@@ -295,17 +295,17 @@ export interface AssertionFunctions extends BaseAssert {
    *
    * Assert that two values must be `Object.is`.
    */
-  equal(
+  equal<T>(
     /** What we received */
-    actual: any,
+    actual: unknown,
     /** What we wanted */
-    expected: any,
+    expected: T,
     /** The details of what was asserted */
     details?: Details,
     /** An optional alternate error constructor to use */
     errConstructor?: GenericErrorConstructor,
     options?: AssertMakeErrorOptions,
-  ): void;
+  ): asserts actual is T;
 
   /**
    * The `assert.string` method.
