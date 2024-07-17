@@ -1,12 +1,11 @@
 // @ts-check
-/// <reference types="ses"/>
 
 export {};
 
 /** @import {FinalStaticModuleType} from 'ses' */
-/** @import {ThirdPartyStaticModuleInterface} from 'ses' */
 /** @import {ImportHook} from 'ses' */
 /** @import {StaticModuleType} from 'ses' */
+/** @import {ThirdPartyStaticModuleInterface} from 'ses' */
 /** @import {Transform} from 'ses' */
 
 // /////////////////////////////////////////////////////////////////////////////
