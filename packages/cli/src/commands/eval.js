@@ -2,7 +2,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
-import { parsePetNamePath } from '../pet-name.js';
+import { parsePetNamePath, parseOptionalPetNamePath } from '../pet-name.js';
 
 export const evalCommand = async ({
   source,
@@ -35,7 +35,7 @@ export const evalCommand = async ({
       source,
       codeNames,
       petNames,
-      parsePetNamePath(resultName),
+      parseOptionalPetNamePath(resultName),
     );
     console.log(result);
   });
