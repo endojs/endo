@@ -21,7 +21,7 @@ lockdown({
   // NOTE TO REVIEWERS: If you see the following line commented out,
   // this may be a development accident that should be fixed before merging.
   //
-  errorTaming: 'unsafe',
+  errorTaming: 'unsafe-debug',
 
   // The default `{stackFiltering: 'concise'}` setting usually makes for a
   // better debugging experience, by severely reducing the noisy distractions
