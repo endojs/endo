@@ -10,7 +10,7 @@
   "author": "Endo contributors",
   "main": "./lib/index.js",
   "scripts": {
-    "test": "exit 0",
+    "test": "mocha",
     "test:xs": "exit 0",
     "build": "exit 0",
     "lint-fix": "exit 0",
@@ -24,7 +24,9 @@
     "typescript-eslint": "^7.3.1"
   },
   "devDependencies": {
-    "eslint": "^8.57.0"
+    "@types/mocha": "^10",
+    "eslint": "^8.57.0",
+    "mocha": "^10.6.0"
   },
   "engines": {
     "node": ">=0.10.0"
