@@ -8,27 +8,219 @@ ruleTester.run('harden-exports', rule, {
   valid: [
     {
       code: `
-                export const a = 1;
-                export const b = 2;
-                harden({ a, b });
-            `,
+export const a = 1;
+harden(a);
+export const b = 2;
+harden(b);
+                `,
+    },
+    {
+      code: `
+export const a = 1;
+harden(a);
+export const b = 2;
+harden(b);
+                `,
+    },
+    {
+      code: `
+export function foo() {
+        console.log("foo");
+    }
+harden(foo);
+export const a = 1;
+harden(a);
+                `,
+    },
+    {
+      code: `
+export const a = 1;
+harden(a);
+export function bar() {
+        console.log("bar");
+    }
+harden(bar);
+                `,
+    },
+    {
+      code: `
+export const a = 1;
+harden(a);
+export function
+    multilineFunction() {
+        console.log("This is a multiline function.");
+    }
+harden(multilineFunction);
+                `,
+    },
+    {
+      code: `
+export const {
+    getEnvironmentOption,
+    getEnvironmentOptionsList,
+    environmentOptionsListHas,
+    } = makeEnvironmentCaptor();
+harden(getEnvironmentOption);
+harden(getEnvironmentOptionsList);
+harden(environmentOptionsListHas);
+          `,
     },
   ],
   invalid: [
     {
       code: `
-                export const a = 1;
-                export const b = 2;
-                harden({ a });
-            `,
-      errors: [{ message: 'Missing exports in harden call: b' }],
+export const a = 'alreadyHardened';
+export const b = 'toHarden';
+
+harden(a);
+                `,
+      errors: [
+        {
+          message:
+            "The named export 'b' should be followed by a call to 'harden'.",
+        },
+      ],
+      output: `
+export const a = 'alreadyHardened';
+export const b = 'toHarden';
+harden(b);
+
+harden(a);
+                `,
     },
     {
       code: `
-                export const a = 1;
-                export const b = 2;
-            `,
-      errors: [{ message: "No call to 'harden' found in the module." }],
+export const a = 1;
+                `,
+      errors: [
+        {
+          message:
+            "The named export 'a' should be followed by a call to 'harden'.",
+        },
+      ],
+      output: `
+export const a = 1;
+harden(a);
+                `,
+    },
+    {
+      code: `
+export function foo() {
+        console.log("foo");
+    }
+                `,
+      errors: [
+        {
+          message:
+            "The named export 'foo' should be followed by a call to 'harden'.",
+        },
+      ],
+      output: `
+export function foo() {
+        console.log("foo");
+    }
+harden(foo);
+                `,
+    },
+    {
+      code: `
+export function
+    multilineFunction() {
+        console.log("This is a multiline function.");
+    }
+                `,
+      errors: [
+        {
+          message:
+            "The named export 'multilineFunction' should be followed by a call to 'harden'.",
+        },
+      ],
+      output: `
+export function
+    multilineFunction() {
+        console.log("This is a multiline function.");
+    }
+harden(multilineFunction);
+                `,
+    },
+    {
+      code: `
+export const a = 1;
+export const b = 2;
+
+export const alreadyHardened = 3;
+harden(alreadyHardened);
+
+export function foo() {
+    console.log("foo");
+    }
+export function
+    multilineFunction() {
+    console.log("This is a multiline function.");
+    }
+          `,
+      errors: [
+        {
+          message:
+            "The named export 'a' should be followed by a call to 'harden'.",
+        },
+        {
+          message:
+            "The named export 'b' should be followed by a call to 'harden'.",
+        },
+        {
+          message:
+            "The named export 'foo' should be followed by a call to 'harden'.",
+        },
+        {
+          message:
+            "The named export 'multilineFunction' should be followed by a call to 'harden'.",
+        },
+      ],
+      output: `
+export const a = 1;
+harden(a);
+export const b = 2;
+harden(b);
+
+export const alreadyHardened = 3;
+harden(alreadyHardened);
+
+export function foo() {
+    console.log("foo");
+    }
+harden(foo);
+export function
+    multilineFunction() {
+    console.log("This is a multiline function.");
+    }
+harden(multilineFunction);
+          `,
+    },
+    {
+      code: `
+export const {
+  getEnvironmentOption,
+  getEnvironmentOptionsList,
+  environmentOptionsListHas,
+} = makeEnvironmentCaptor();
+      `,
+      errors: [
+        {
+          message:
+            "The named exports 'getEnvironmentOption, getEnvironmentOptionsList, environmentOptionsListHas' should be followed by a call to 'harden'.",
+        },
+      ],
+      output: `
+export const {
+  getEnvironmentOption,
+  getEnvironmentOptionsList,
+  environmentOptionsListHas,
+} = makeEnvironmentCaptor();
+harden(getEnvironmentOption);
+harden(getEnvironmentOptionsList);
+harden(environmentOptionsListHas);
+      `,
     },
   ],
 });
