@@ -1,6 +1,8 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
+/** @import {StaticModuleType} from 'ses' */
+
 /** @import {ArchiveOptions} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {CompartmentSources} from './types.js' */
@@ -10,6 +12,56 @@
 /** @import {ReadPowers} from './types.js' */
 /** @import {Sources} from './types.js' */
 /** @import {WriteFn} from './types.js' */
+
+/**
+ * @typedef {object} BundlerKit
+ * @property {() => string} getFunctor Produces a JavaScript string consisting of
+ * a function expression followed by a comma delimiter that will be evaluated in
+ * a lexical scope with no free variables except the globals.
+ * In the generated bundle runtime, the function will receive an environment
+ * record: a record mapping every name of the corresponding module's internal
+ * namespace to a "cell" it can use to get, set, or observe the linked
+ * variable.
+ * @property {() => string} getCells Produces a JavaScript string consisting of
+ * a JavaScript object and a trailing comma.
+ * The string is evaluated in a lexical context with a `cell` maker, the `cells`
+ * array of every module's internal environment record.
+ * @property {() => string} getFunctorCall Produces a JavaScript string may
+ * be a statement that calls this module's functor with the calling convention
+ * appropriate for its language, injecting whatever cells it needs to link to
+ * other module namespaces.
+ * @property {() => string} getReexportsWiring Produces a JavaScript string
+ * that may include statements that bind the cells reexported by this module.
+ */
+
+/**
+ * @template {unknown} SpecificModuleSource
+ * @typedef {object} BundleModule
+ * @property {string} key
+ * @property {string} compartmentName
+ * @property {string} moduleSpecifier
+ * @property {string} parser
+ * @property {StaticModuleType & SpecificModuleSource} record
+ * @property {Record<string, string>} resolvedImports
+ * @property {Record<string, number>} indexedImports
+ * @property {Uint8Array} bytes
+ * @property {number} index
+ * @property {BundlerKit} bundlerKit
+ */
+
+/**
+ * @template {unknown} SpecificModuleSource
+ * @callback GetBundlerKit
+ * @param {BundleModule<SpecificModuleSource>} module
+ * @returns {BundlerKit}
+ */
+
+/**
+ * @template {unknown} SpecificModuleSource
+ * @typedef {object} BundlerSupport
+ * @property {string} runtime
+ * @property {GetBundlerKit<SpecificModuleSource>} getBundlerKit
+ */
 
 import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
@@ -22,6 +74,7 @@ import { parseLocatedJson } from './json.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
+import jsonSupport from './bundle-json.js';
 
 const textEncoder = new TextEncoder();
 
@@ -39,8 +92,11 @@ const sortedModules = (
   entryCompartmentName,
   entryModuleSpecifier,
 ) => {
+  /** @type {BundleModule<unknown>[]} */
   const modules = [];
+  /** @type {Map<string, string>} aliaes */
   const aliases = new Map();
+  /** @type {Set<string>} seen */
   const seen = new Set();
 
   /**
@@ -56,7 +112,9 @@ const sortedModules = (
 
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
-      const { record, parser, deferredError } = source;
+      const { record, parser, deferredError, bytes } = source;
+      assert(parser !== undefined);
+      assert(bytes !== undefined);
       if (deferredError) {
         throw Error(
           `Cannot bundle: encountered deferredError ${deferredError}`,
@@ -84,6 +142,11 @@ const sortedModules = (
           parser,
           record,
           resolvedImports,
+          bytes,
+          // @ts-expect-error
+          index: undefined,
+          // @ts-expect-error
+          bundlerKit: null,
         });
 
         return key;
@@ -117,31 +180,37 @@ const sortedModules = (
   return { modules, aliases };
 };
 
-const implementationPerParser = {
+/** @type {Record<string, BundlerSupport<unknown>>} */
+const bundlerSupportForLanguage = {
   'pre-mjs-json': mjsSupport,
   'pre-cjs-json': cjsSupport,
+  json: jsonSupport,
 };
 
-function getRuntime(parser) {
-  return implementationPerParser[parser]
-    ? implementationPerParser[parser].runtime
-    : `/*unknown parser:${parser}*/`;
-}
+/** @param {string} language */
+const getRuntime = language =>
+  bundlerSupportForLanguage[language]
+    ? bundlerSupportForLanguage[language].runtime
+    : `/*unknown language:${language}*/`;
 
-function getBundlerKitForModule(module) {
-  const parser = module.parser;
-  if (!implementationPerParser[parser]) {
-    const warning = `/*unknown parser:${parser}*/`;
+/** @param {BundleModule<unknown>} module */
+const getBundlerKitForModule = module => {
+  const language = module.parser;
+  assert(language !== undefined);
+  if (bundlerSupportForLanguage[language] === undefined) {
+    const warning = `/*unknown language:${language}*/`;
     // each item is a function to avoid creating more in-memory copies of the source text etc.
+    /** @type {BundlerKit} */
     return {
-      getFunctor: () => `(()=>{${warning}})`,
-      getCells: `{${warning}}`,
-      getFunctorCall: warning,
+      getFunctor: () => `(()=>{${warning}}),`,
+      getCells: () => `{${warning}},`,
+      getFunctorCall: () => warning,
+      getReexportsWiring: () => '',
     };
   }
-  const { getBundlerKit } = implementationPerParser[parser];
+  const { getBundlerKit } = bundlerSupportForLanguage[language];
   return getBundlerKit(module);
-}
+};
 
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
@@ -266,10 +335,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
 
   const bundle = `\
 'use strict';
-(() => {
-  const functors = [
-${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
-]; // functors end
+(functors => {
 
   const cell = (name, value = undefined) => {
     const observers = [];
@@ -297,7 +363,7 @@ ${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
 
 ${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
 
-const namespaces = cells.map(cells => Object.freeze(Object.create(null, {
+  const namespaces = cells.map(cells => Object.freeze(Object.create(null, {
     ...cells,
     // Make this appear like an ESM module namespace object.
     [Symbol.toStringTag]: {
@@ -317,7 +383,7 @@ ${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
 ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 
   return cells[cells.length - 1]['*'].get();
-})();
+})([${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}]);
 `;
 
   return bundle;

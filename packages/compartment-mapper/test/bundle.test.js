@@ -52,6 +52,7 @@ const expectedLog = [
     fromMjs: 'foo',
     zzz: 1,
   }),
+  { widdershins: 'againshins' },
 ];
 
 test('bundles work', async t => {
