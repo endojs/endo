@@ -47,6 +47,7 @@ export type ModuleExportsNamespace = Record<string, any>;
 
 export type __LiveExportMap__ = Record<string, [string, boolean]>;
 export type __FixedExportMap__ = Record<string, [string]>;
+export type __ReexportMap__ = Record<string, Array<[string, string]>>;
 
 export interface PrecompiledModuleSource {
   imports: Array<string>;
@@ -55,6 +56,7 @@ export interface PrecompiledModuleSource {
   __syncModuleProgram__: string;
   __liveExportMap__: __LiveExportMap__;
   __fixedExportMap__: __FixedExportMap__;
+  __reexportMap__: __ReexportMap__;
 }
 
 export interface VirtualModuleSource {
