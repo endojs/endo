@@ -147,6 +147,7 @@ export const main = async rawArgs => {
 
   program
     .command('make [file]')
+    .alias('mk')
     .description('make a plugin or a worker caplet (worklet)')
     .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
     .option('--UNCONFINED <file>', 'Path to a Node.js module')
@@ -277,6 +278,7 @@ export const main = async rawArgs => {
 
   program
     .command('list [directory]')
+    .alias('ls')
     .description('show names known to the current or specified directory')
     .option('-f,--follow', 'Follow updates')
     .option('-j,--json', 'JSON format output')
@@ -289,6 +291,7 @@ export const main = async rawArgs => {
 
   program
     .command('remove [names...]')
+    .alias('rm')
     .description('forget a named value')
     .option(...commonOptions.as)
     .action(async (petNamePaths, cmd) => {
