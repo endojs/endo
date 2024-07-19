@@ -37,6 +37,7 @@ export async function bundleScript(
     dev = false,
     cacheSourceMaps = false,
     noTransforms = false,
+    tags = [],
     commonDependencies,
   } = options;
   const powers = { ...readPowers, ...grantedPowers };
@@ -69,6 +70,7 @@ export async function bundleScript(
 
   const source = await makeBundle(powers, entry, {
     dev,
+    tags,
     commonDependencies,
     parserForLanguage,
     moduleTransforms,
