@@ -28,7 +28,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "exit 0"
+    "test": "ava"
   },
   "dependencies": {
     "@endo/bundle-source": "^3.2.3",
