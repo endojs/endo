@@ -1,8 +1,8 @@
-#  Endo
+# Endo
 
-[![build status][ci-svg]][ci-url]
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
+[![CI status](https://github.com/endojs/endo/actions/workflows/ci.yml/badge.svg)](https://github.com/endojs/endo/actions/workflows/ci.yml)
 
 Endo is a framework for powerful JavaScript plugin systems and supply chain
 attack resistance.
@@ -114,8 +114,6 @@ Endo and its components are [Apache 2.0 licensed][license-url].
 [SES Strategy Group]: https://groups.google.com/g/ses-strategy
 [SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
 [SES]: packages/ses/README.md
-[ci-svg]: https://github.com/Agoric/SES-shim/workflows/CI/badge.svg?branch=master
-[ci-url]: https://github.com/Agoric/SES-shim/actions?query=workflow%3ACI
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
 [contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
