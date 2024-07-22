@@ -6,7 +6,7 @@
     "exclude": [
         "packages/eslint-plugin",
         "packages/ses-integration-test",
-        "packages/static-module-record",
+        "packages/module-source",
         "packages/test262-runner",
         "packages/ses/test262",
         "packages/ses/types.test-d.ts",

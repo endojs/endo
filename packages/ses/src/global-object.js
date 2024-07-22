@@ -69,11 +69,12 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * `sharedGlobalPropertyNames`.
  *
  * @param {object} globalObject
- * @param {object} param1
- * @param {object} param1.intrinsics
- * @param {object} param1.newGlobalPropertyNames
- * @param {Function} param1.makeCompartmentConstructor
- * @param {(object) => void} param1.markVirtualizedNativeFunction
+ * @param {object} args
+ * @param {object} args.intrinsics
+ * @param {object} args.newGlobalPropertyNames
+ * @param {Function} args.makeCompartmentConstructor
+ * @param {(object) => void} args.markVirtualizedNativeFunction
+ * @param {Compartment} [args.parentCompartment]
  */
 export const setGlobalObjectMutableProperties = (
   globalObject,
@@ -82,6 +83,7 @@ export const setGlobalObjectMutableProperties = (
     newGlobalPropertyNames,
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
+    parentCompartment,
   },
 ) => {
   for (const [name, intrinsicName] of entries(universalPropertyNames)) {
@@ -115,6 +117,7 @@ export const setGlobalObjectMutableProperties = (
       makeCompartmentConstructor,
       intrinsics,
       markVirtualizedNativeFunction,
+      parentCompartment,
     ),
   );
 

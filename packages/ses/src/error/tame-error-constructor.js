@@ -7,6 +7,7 @@ import {
   setPrototypeOf,
   getOwnPropertyDescriptor,
   defineProperty,
+  getOwnPropertyDescriptors,
 } from '../commons.js';
 import { NativeErrors } from '../permits.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
@@ -29,12 +30,17 @@ const tamedMethods = {
     return '';
   },
 };
+let initialGetStackString = tamedMethods.getStackString;
 
 export default function tameErrorConstructor(
   errorTaming = 'safe',
   stackFiltering = 'concise',
 ) {
-  if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
+  if (
+    errorTaming !== 'safe' &&
+    errorTaming !== 'unsafe' &&
+    errorTaming !== 'unsafe-debug'
+  ) {
     throw TypeError(`unrecognized errorTaming ${errorTaming}`);
   }
   if (stackFiltering !== 'concise' && stackFiltering !== 'verbose') {
@@ -42,9 +48,9 @@ export default function tameErrorConstructor(
   }
   const ErrorPrototype = FERAL_ERROR.prototype;
 
-  const platform =
-    typeof FERAL_ERROR.captureStackTrace === 'function' ? 'v8' : 'unknown';
   const { captureStackTrace: originalCaptureStackTrace } = FERAL_ERROR;
+  const platform =
+    typeof originalCaptureStackTrace === 'function' ? 'v8' : 'unknown';
 
   const makeErrorConstructor = (_ = {}) => {
     // eslint-disable-next-line no-shadow
@@ -122,6 +128,45 @@ export default function tameErrorConstructor(
     },
   });
 
+  if (errorTaming === 'unsafe-debug' && platform === 'v8') {
+    // This case is a kludge to work around
+    // https://github.com/endojs/endo/issues/1798
+    // https://github.com/endojs/endo/issues/2348
+    // https://github.com/Agoric/agoric-sdk/issues/8662
+
+    defineProperties(InitialError, {
+      prepareStackTrace: {
+        get() {
+          return FERAL_ERROR.prepareStackTrace;
+        },
+        set(newPrepareStackTrace) {
+          FERAL_ERROR.prepareStackTrace = newPrepareStackTrace;
+        },
+        enumerable: false,
+        configurable: true,
+      },
+      captureStackTrace: {
+        value: FERAL_ERROR.captureStackTrace,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      },
+    });
+
+    const descs = getOwnPropertyDescriptors(InitialError);
+    defineProperties(SharedError, {
+      stackTraceLimit: descs.stackTraceLimit,
+      prepareStackTrace: descs.prepareStackTrace,
+      captureStackTrace: descs.captureStackTrace,
+    });
+
+    return {
+      '%InitialGetStackString%': initialGetStackString,
+      '%InitialError%': InitialError,
+      '%SharedError%': SharedError,
+    };
+  }
+
   // The default SharedError much be completely powerless even on v8,
   // so the lenient `stackTraceLimit` accessor does nothing on all
   // platforms.
@@ -171,7 +216,6 @@ export default function tameErrorConstructor(
     });
   }
 
-  let initialGetStackString = tamedMethods.getStackString;
   if (platform === 'v8') {
     initialGetStackString = tameV8ErrorConstructor(
       FERAL_ERROR,
@@ -179,7 +223,7 @@ export default function tameErrorConstructor(
       errorTaming,
       stackFiltering,
     );
-  } else if (errorTaming === 'unsafe') {
+  } else if (errorTaming === 'unsafe' || errorTaming === 'unsafe-debug') {
     // v8 has too much magic around their 'stack' own property for it to
     // coexist cleanly with this accessor. So only install it on non-v8
 

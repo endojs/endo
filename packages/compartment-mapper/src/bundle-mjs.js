@@ -1,5 +1,8 @@
 /* Provides ESM support for `bundle.js`. */
 
+/** @import {PrecompiledModuleSource} from 'ses' */
+/** @import {BundlerSupport} from './bundle.js' */
+
 /** quotes strings */
 const q = JSON.stringify;
 
@@ -47,6 +50,7 @@ function observeImports(map, importName, importIndex) {
 }
 `;
 
+/** @type {BundlerSupport<PrecompiledModuleSource>} */
 export default {
   runtime,
   getBundlerKit({

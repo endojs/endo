@@ -1,5 +1,10 @@
 /* Provides CommonJS support for `bundle.js`. */
-// @ts-nocheck
+
+/** @import {VirtualModuleSource} from 'ses' */
+/** @import {BundlerSupport} from './bundle.js' */
+
+/** @typedef {VirtualModuleSource & {cjsFunctor: string}} CjsModuleSource */
+
 /** quotes strings */
 const q = JSON.stringify;
 
@@ -15,7 +20,8 @@ const exportsCellRecord = exportsList =>
   );
 
 // This function is serialized and references variables from its destination scope.
-const runtime = function wrapCjsFunctor(num) {
+const runtime = `\
+function wrapCjsFunctor(num) {
   /* eslint-disable no-undef */
   return ({ imports = {} }) => {
     const moduleCells = cells[num];
@@ -50,8 +56,9 @@ const runtime = function wrapCjsFunctor(num) {
     moduleCells['*'].set(Object.freeze(starExports));
   };
   /* eslint-enable no-undef */
-}.toString();
+}`;
 
+/** @type {BundlerSupport<CjsModuleSource>} */
 export default {
   runtime,
   getBundlerKit({

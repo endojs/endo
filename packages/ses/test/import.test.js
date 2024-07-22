@@ -421,7 +421,7 @@ test('mutual dependency between compartments', async t => {
   await compartment.import('./main.js');
 });
 
-test('module alias', async t => {
+test('import redirect shorthand', async t => {
   // The following use of Math.random() is informative but does not
   // affect the outcome of the test, just makes the nature of the error
   // obvious in test output.
@@ -617,6 +617,7 @@ test('importMetaHook', async t => {
   } = await compartment.import('./index.js');
   t.is(metaurl, 'https://example.com/index.js');
 });
+
 test('importMetaHook and meta from record', async t => {
   t.plan(1);
 

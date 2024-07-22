@@ -7,6 +7,8 @@ import { makeFileReader, makeAtomicFileWriter } from './src/fs.js';
 
 const { Fail, quote: q } = assert;
 
+/** @import {ModuleFormat} from './src/types.js' */
+
 /**
  * @typedef {(...args: unknown[]) => void} Logger A message logger.
  */
@@ -17,6 +19,8 @@ const { Fail, quote: q } = assert;
  * @property {string} bundleTime ISO format
  * @property {number} bundleSize
  * @property {boolean} noTransforms
+ * @property {ModuleFormat} format
+ * @property {string[]} tags
  * @property {{ relative: string, absolute: string }} moduleSource
  * @property {Array<{ relativePath: string, mtime: string, size: number }>} contents
  */
@@ -48,11 +52,19 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
+   * @param {string[]} [options.tags]
+   * @param {ModuleFormat} [options.format]
    */
   const add = async (rootPath, targetName, log = defaultLog, options = {}) => {
     const srcRd = cwd.neighbor(rootPath);
 
-    const { noTransforms = false } = options;
+    const {
+      noTransforms = false,
+      format = 'endoZipBase64',
+      tags = [],
+    } = options;
+
+    tags.sort();
 
     const statsByPath = new Map();
 
@@ -81,15 +93,12 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const bundle = await bundleSource(
       rootPath,
-      { ...bundleOptions, noTransforms },
+      { ...bundleOptions, noTransforms, format },
       {
         ...readPowers,
         read: loggedRead,
       },
     );
-
-    const { moduleFormat } = bundle;
-    assert.equal(moduleFormat, 'endoZipBase64');
 
     const code = encodeBundle(bundle);
     await wr.mkdir({ recursive: true });
@@ -113,6 +122,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         }),
       ),
       noTransforms,
+      format,
+      tags,
     };
 
     await metaWr.atomicWriteText(JSON.stringify(meta, null, 2));
@@ -139,6 +150,10 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {any} rootOpt
    * @param {Logger} [log]
    * @param {BundleMeta} [meta]
+   * @param {object} [options]
+   * @param {boolean} [options.noTransforms]
+   * @param {ModuleFormat} [options.format]
+   * @param {string[]} [options.tags]
    * @returns {Promise<BundleMeta>}
    */
   const validate = async (
@@ -146,8 +161,15 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     rootOpt,
     log = defaultLog,
     meta = undefined,
+    options = {},
   ) => {
     await null;
+    const {
+      noTransforms: expectedNoTransforms,
+      format: expectedFormat,
+      tags: expectedTags = [],
+    } = options;
+    expectedTags.sort();
     if (!meta) {
       const metaJson = await loadMetaText(targetName, log);
       if (metaJson) {
@@ -170,8 +192,18 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       bundleSize,
       contents,
       moduleSource: { absolute: moduleSource },
+      format = 'endoZipBase64',
+      noTransforms = false,
+      tags = [],
     } = meta;
+    tags.sort();
     assert.equal(bundleFileName, toBundleName(targetName));
+    assert.equal(format, expectedFormat);
+    assert.equal(noTransforms, expectedNoTransforms);
+    assert.equal(tags.length, expectedTags.length);
+    tags.forEach((tag, index) => {
+      assert.equal(tag, expectedTags[index]);
+    });
     if (rootOpt) {
       moduleSource === cwd.neighbor(rootOpt).absolute() ||
         Fail`bundle ${targetName} was for ${moduleSource}, not ${rootOpt}`;
@@ -217,6 +249,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
+   * @param {ModuleFormat} [options.format]
+   * @param {string[]} [options.tags]
    * @returns {Promise<BundleMeta>}
    */
   const validateOrAdd = async (
@@ -232,8 +266,19 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     if (meta !== undefined) {
       try {
-        meta = await validate(targetName, rootPath, log, meta);
-        const { bundleTime, bundleSize, contents, noTransforms } = meta;
+        meta = await validate(targetName, rootPath, log, meta, {
+          format: options.format,
+          noTransforms: options.noTransforms,
+          tags: options.tags,
+        });
+        const {
+          bundleTime,
+          bundleSize,
+          contents,
+          noTransforms,
+          format = 'endoZipBase64',
+          tags = [],
+        } = meta;
         log(
           `${wr}`,
           toBundleName(targetName),
@@ -244,6 +289,10 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           'with size',
           bundleSize,
           noTransforms ? 'w/o transforms' : 'with transforms',
+          'with format',
+          format,
+          'and tags',
+          JSON.stringify(tags),
         );
       } catch (invalid) {
         meta = undefined;
@@ -254,7 +303,14 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     if (meta === undefined) {
       log(`${wr}`, 'add:', targetName, 'from', rootPath);
       meta = await add(rootPath, targetName, log, options);
-      const { bundleFileName, bundleTime, contents, noTransforms } = meta;
+      const {
+        bundleFileName,
+        bundleTime,
+        contents,
+        noTransforms,
+        format = 'endoZipBase64',
+        tags = [],
+      } = meta;
       log(
         `${wr}`,
         'bundled',
@@ -264,6 +320,10 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         'at',
         bundleTime,
         noTransforms ? 'w/o transforms' : 'with transforms',
+        'with format',
+        format,
+        'and tags',
+        JSON.stringify(tags),
       );
     }
 
@@ -277,6 +337,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
+   * @param {ModuleFormat} [options.format]
+   * @param {string[]} [options.tags]
    */
   const load = async (
     rootPath,
@@ -297,7 +359,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           import(`${wr.readOnly().neighbor(bundleFileName)}`),
       )
       .then(m => harden(m.default));
-    assert.equal(bundle.moduleFormat, 'endoZipBase64');
     todo.resolve(bundle);
     return bundle;
   };

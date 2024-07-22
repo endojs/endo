@@ -2,7 +2,7 @@
 export {};
 
 /**
- * @typedef {'endoZipBase64' | 'nestedEvaluate' | 'getExport'} ModuleFormat
+ * @typedef {'endoZipBase64' | 'endoScript' | 'nestedEvaluate' | 'getExport'} ModuleFormat
  */
 
 // The order of these intersections matters, insofar as Typescript treats the
@@ -25,6 +25,9 @@ export {};
  *   moduleFormat: T,
  *   source: string,
  *   sourceMap: string,
+ * } : T extends 'endoScript' ? {
+ *   moduleFormat: T,
+ *   source: string,
  * } : never} BundleSourceResult
  */
 
@@ -67,6 +70,8 @@ export {};
  * @property {boolean} [noTransforms] - when true, generates a bundle with the
  * original sources instead of SES-shim specific ESM and CJS. This may become
  * default in a future major version.
+ * @property {string[]} [tags] - conditions for package.json conditional
+ * exports and imports.
  */
 
 /**

@@ -259,7 +259,10 @@ const makeModuleMapHook = (
             )}}`,
           );
         }
-        return foreignCompartment.module(foreignModuleSpecifier);
+        return {
+          compartment: foreignCompartment,
+          namespace: foreignModuleSpecifier,
+        };
       }
     }
 
@@ -310,7 +313,10 @@ const makeModuleMapHook = (
           compartment: foreignCompartmentName,
           module: foreignModuleSpecifier,
         };
-        return foreignCompartment.module(foreignModuleSpecifier);
+        return {
+          compartment: foreignCompartment,
+          namespace: foreignModuleSpecifier,
+        };
       }
     }
 

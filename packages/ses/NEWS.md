@@ -1,12 +1,35 @@
 User-visible changes in SES:
 
-# Next release
+# Next version
 
 - Adds `ArrayBuffer.p.immutable` and `ArrayBuffer.p.transferToImmutable` as a shim for a future proposal. It makes an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
   - Unlike `ArrayBuffer` and `SharedArrayBuffer` this shim's ArrayBuffer-like object cannot be transfered or cloned between JS threads.
   - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this shim's ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
   - On Node >= 21 we use the builtin `transferToFixed` to transfer exclusive access to the array buffer contents. On Node <= 20, we emulate `transferToFixedLength` with `structuredClone`. On platforms with neither `transferToFixedLength` nor `structuredClone`, we use `slice` to copy the contents, but have no way to detach the original.
   - Even after the upcoming `transferToImmutable` proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See https://github.com/endojs/endo/pull/2311#discussion_r1632607527 . It will require a later manual step to delete the shim, after manual analysis of the compat implications.
+
+- Adds support for module descriptors better aligned with XS.
+
+- When running transpiled code on Node, the SES error taming
+  gives line-numbers into the generated JavaScript, which often don't match the
+  the original lines. This happens even with the normal development-time
+  lockdown options setting,
+  ```js
+  errorTaming: 'unsafe'
+  ```
+  or setting the environment variable
+  ```sh
+  $ export LOCKDOWN_ERROR_TAMING=unsafe
+  ```
+  To get the original line numbers, this release
+  adds `'unsafe-debug'`. This `errorTaming: 'unsafe-debug'` setting
+  should be used ***during development only*** when you can
+  sacrifice more security for a better debugging experience, as explained at
+  [`errorTaming` Options](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#errortaming-options).
+  With this setting, when running transpiled code on Node (e.g. tests written
+  in TypeScript),
+  the stacktrace line-numbers point back into the original
+  source, as they do on Node without SES.
 
 # v1.5.0 (2024-05-06)
 

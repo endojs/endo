@@ -150,7 +150,8 @@ freeze(DetailsTokenProto.toString);
 
 /**
  * Normally this is the function exported as `assert.details` and often
- * spelled `X`. However, if the `{errorTaming: 'unsafe'}` option is
+ * spelled `X`. However, if the `{errorTaming: 'unsafe'}` or
+ * `{errorTaming: 'unsafe-debug'}` option is
  * given to `lockdown`, then `unredactedDetails` is used instead.
  *
  * There are some unconditional uses of `redactedDetails` in this module. All
@@ -174,7 +175,8 @@ freeze(redactedDetails);
  * `unredactedDetails` is like `details` except that it does not redact
  * anything. It acts like `details` would act if all substitution values
  * were wrapped with the `quote` function above (the function normally
- * spelled `q`). If the `{errorTaming: 'unsafe'}` option is given to
+ * spelled `q`). If the `{errorTaming: 'unsafe'}`
+ * or `{errorTaming: 'unsafe-debug'}` option is given to
  * `lockdown`, then the lockdown-shim arranges for the global `assert` to be
  * one whose `details` property is `unredactedDetails`.
  * This setting optimizes the debugging and testing experience at the price
@@ -564,3 +566,7 @@ export { makeAssert };
 /** @type {Assert} */
 const assert = makeAssert();
 export { assert };
+
+// Internal, to obviate polymorphic dispatch, but may become rigorously
+// consistent with @endo/error.
+export { makeError, note as annotateError, redactedDetails as X, quote as q };

@@ -1,0 +1,84 @@
+{
+  "name": "@endo/module-source",
+  "version": "0.0.0",
+  "description": "Ponyfill for the SES ModuleSource and module-to-program transformer",
+  "keywords": [
+    "ses",
+    "ModuleSource",
+    "modules",
+    "ESM"
+  ],
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/module-source#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/module-source"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "prepack": "tsc --build tsconfig.build.json",
+    "postpack": "git clean -f '*.d.ts*'",
+    "cover": "c8 ava",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint:types": "tsc",
+    "lint:eslint": "eslint .",
+    "lint-fix": "eslint --fix .",
+    "test": "ava"
+  },
+  "dependencies": {
+    "@agoric/babel-generator": "^7.17.6",
+    "@babel/parser": "^7.23.6",
+    "@babel/traverse": "^7.23.6",
+    "@babel/types": "^7.24.0",
+    "ses": "^1.5.0"
+  },
+  "devDependencies": {
+    "ava": "^6.1.3",
+    "babel-eslint": "^10.1.0",
+    "benchmark": "^2.1.4",
+    "c8": "^7.14.0",
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-import": "^2.29.1",
+    "prettier": "^3.2.5",
+    "typescript": "5.5.2"
+  },
+  "files": [
+    "LICENSE*",
+    "SECURITY*",
+    "src",
+    "*.js",
+    "*.ts"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.*",
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 40.33
+  }
+}

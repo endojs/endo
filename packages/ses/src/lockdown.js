@@ -299,7 +299,7 @@ export const repairIntrinsics = (options = {}) => {
    * @type {((error: any) => string | undefined) | undefined}
    */
   let optGetStackString;
-  if (errorTaming !== 'unsafe') {
+  if (errorTaming === 'safe') {
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(
@@ -324,8 +324,12 @@ export const repairIntrinsics = (options = {}) => {
   }
 
   // @ts-ignore assert is absent on globalThis type def.
-  if (errorTaming === 'unsafe' && globalThis.assert === assert) {
-    // If errorTaming is 'unsafe' we replace the global assert with
+  if (
+    (errorTaming === 'unsafe' || errorTaming === 'unsafe-debug') &&
+    globalThis.assert === assert
+  ) {
+    // If errorTaming is 'unsafe' or 'unsafe-debug' we replace the
+    // global assert with
     // one whose `details` template literal tag does not redact
     // unmarked substitution values. IOW, it blabs information that
     // was supposed to be secret from callers, as an aid to debugging
