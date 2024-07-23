@@ -156,7 +156,7 @@ test('no transitive dev dependencies', async t => {
         readPowers,
         noTransitiveDevDepencenciesFixture,
         {
-          dev: true,
+          conditions: new Set(['development']),
         },
       );
       await application.import({

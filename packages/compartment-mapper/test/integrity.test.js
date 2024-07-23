@@ -15,7 +15,7 @@ test('extracting an archive with a superfluous file', async t => {
     modules: {
       builtin: null,
     },
-    dev: true,
+    conditions: new Set(['development']),
   });
 
   const reader = new ZipReader(validBytes);
@@ -46,7 +46,7 @@ test('extracting an archive with a missing file', async t => {
     modules: {
       builtin: null,
     },
-    dev: true,
+    conditions: new Set(['development']),
   });
 
   const reader = new ZipReader(validBytes);
@@ -77,7 +77,7 @@ test('extracting an archive with an inconsistent hash', async t => {
     modules: {
       builtin: null,
     },
-    dev: true,
+    conditions: new Set(['development']),
   });
 
   const reader = new ZipReader(validBytes);
@@ -114,7 +114,7 @@ test('extracting an archive with an inconsistent compartment map hash', async t 
       modules: {
         builtin: null,
       },
-      dev: true,
+      conditions: new Set(['development']),
     });
 
   const { sha512: verifiedSha512 } = await parseArchive(
