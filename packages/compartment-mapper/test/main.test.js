@@ -207,7 +207,7 @@ scaffold(
     });
   },
   1,
-  { tags: new Set(['browser']) },
+  { conditions: new Set(['browser']) },
 );
 
 scaffold(

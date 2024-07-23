@@ -281,7 +281,7 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   const archiveSources = renameSources(sources, compartmentRenames);
 
   const archiveCompartmentMap = {
-    tags: [],
+    conditions: [],
     entry: {
       compartment: archiveEntryCompartmentName,
       module: entryModuleSpecifier,

@@ -48,10 +48,10 @@ export const loadLocation = async (
   moduleLocation,
   options = {},
 ) => {
-  const { dev, tags, commonDependencies, policy } = options;
+  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
     dev,
-    tags,
+    conditions,
     commonDependencies,
     policy,
   });

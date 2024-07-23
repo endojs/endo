@@ -227,7 +227,7 @@ const captureCompartmentMap = (compartmentMap, sources) => {
   const captureSources = renameSources(sources, compartmentRenames);
 
   const captureCompartmentMap = {
-    tags: [],
+    conditions: [],
     entry: {
       compartment: captureEntryCompartmentName,
       module: entryModuleSpecifier,
