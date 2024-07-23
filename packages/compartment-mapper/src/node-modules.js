@@ -276,7 +276,7 @@ const inferParsers = (
  * @param {object} packageDetails
  * @param {string} packageDetails.packageLocation
  * @param {object} packageDetails.packageDescriptor
- * @param {Set<string>} tags
+ * @param {Set<string>} conditions
  * @param {boolean} dev
  * @param {CommonDependencyDescriptors} commonDependencyDescriptors
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
@@ -289,7 +289,7 @@ const graphPackage = async (
   canonical,
   graph,
   { packageLocation, packageDescriptor },
-  tags,
+  conditions,
   dev,
   commonDependencyDescriptors,
   preferredPackageLogicalPathMap = new Map(),
@@ -359,7 +359,7 @@ const graphPackage = async (
         dependencyLocations,
         packageLocation,
         name,
-        tags,
+        conditions,
         preferredPackageLogicalPathMap,
         childLogicalPath,
         optional,
@@ -388,7 +388,7 @@ const graphPackage = async (
     packageDescriptor,
     externalAliases,
     internalAliases,
-    tags,
+    conditions,
     types,
   );
 
@@ -453,7 +453,7 @@ const graphPackage = async (
  * @param {Record<string, string>} dependencyLocations
  * @param {string} packageLocation - location of the package of interest.
  * @param {string} name - name of the package of interest.
- * @param {Set<string>} tags
+ * @param {Set<string>} conditions
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {Array<string>} [childLogicalPath]
  * @param {boolean} [optional] - whether the dependency is optional
@@ -466,7 +466,7 @@ const gatherDependency = async (
   dependencyLocations,
   packageLocation,
   name,
-  tags,
+  conditions,
   preferredPackageLogicalPathMap,
   childLogicalPath = [],
   optional = false,
@@ -501,7 +501,7 @@ const gatherDependency = async (
     canonical,
     graph,
     dependency,
-    tags,
+    conditions,
     false,
     commonDependencyDescriptors,
     preferredPackageLogicalPathMap,
@@ -521,7 +521,7 @@ const gatherDependency = async (
  * @param {MaybeReadFn} maybeRead
  * @param {CanonicalFn} canonical
  * @param {string} packageLocation - location of the main package.
- * @param {Set<string>} tags
+ * @param {Set<string>} conditions
  * @param {object} mainPackageDescriptor - the parsed contents of the main
  * package.json, which was already read when searching for the package.json.
  * @param {boolean} dev - whether to use devDependencies from this package (and
@@ -532,7 +532,7 @@ const graphPackages = async (
   maybeRead,
   canonical,
   packageLocation,
-  tags,
+  conditions,
   mainPackageDescriptor,
   dev,
   commonDependencies = {},
@@ -551,10 +551,10 @@ const graphPackages = async (
 
   const packageDescriptor = await readDescriptor(packageLocation);
 
-  tags = new Set(tags || []);
-  tags.add('import');
-  tags.add('default');
-  tags.add('endo');
+  conditions = new Set(conditions || []);
+  conditions.add('import');
+  conditions.add('default');
+  conditions.add('endo');
 
   if (packageDescriptor === undefined) {
     throw Error(
@@ -589,7 +589,7 @@ const graphPackages = async (
       packageLocation,
       packageDescriptor,
     },
-    tags,
+    conditions,
     dev,
     commonDependencyDescriptors,
   );
@@ -603,7 +603,7 @@ const graphPackages = async (
  * @param {string} entryPackageLocation
  * @param {string} entryModuleSpecifier
  * @param {Graph} graph
- * @param {Set<string>} tags - build tags about the target environment
+ * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {import('./types.js').Policy} [policy]
  * @returns {CompartmentMapDescriptor}
@@ -612,7 +612,7 @@ const translateGraph = (
   entryPackageLocation,
   entryModuleSpecifier,
   graph,
-  tags,
+  conditions,
   policy,
 ) => {
   /** @type {Record<string, CompartmentDescriptor>} */
@@ -728,7 +728,7 @@ const translateGraph = (
   }
 
   return {
-    tags: [...tags],
+    conditions: [...conditions],
     entry: {
       compartment: entryPackageLocation,
       module: entryModuleSpecifier,
@@ -740,7 +740,7 @@ const translateGraph = (
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} packageLocation
- * @param {Set<string>} tags
+ * @param {Set<string>} conditions
  * @param {object} packageDescriptor
  * @param {string} moduleSpecifier
  * @param {object} [options]
@@ -752,7 +752,7 @@ const translateGraph = (
 export const compartmentMapForNodeModules = async (
   readPowers,
   packageLocation,
-  tags,
+  conditions,
   packageDescriptor,
   moduleSpecifier,
   options = {},
@@ -763,7 +763,7 @@ export const compartmentMapForNodeModules = async (
     maybeRead,
     canonical,
     packageLocation,
-    tags,
+    conditions,
     packageDescriptor,
     dev,
     commonDependencies,
@@ -789,7 +789,7 @@ export const compartmentMapForNodeModules = async (
     packageLocation,
     moduleSpecifier,
     graph,
-    tags,
+    conditions,
     policy,
   );
 
@@ -800,7 +800,8 @@ export const compartmentMapForNodeModules = async (
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {object} [options]
- * @param {Set<string>} [options.tags]
+ * @param {Set<string>} [options.tags] deprecated in favor of `conditions`
+ * @param {Set<string>} [options.conditions]
  * @param {boolean} [options.dev]
  * @param {object} [options.commonDependencies]
  * @param {object} [options.policy]
@@ -811,7 +812,13 @@ export const mapNodeModules = async (
   moduleLocation,
   options = {},
 ) => {
-  const { tags = new Set(), dev = false, commonDependencies, policy } = options;
+  const {
+    tags = new Set(),
+    conditions = tags,
+    dev = false,
+    commonDependencies,
+    policy,
+  } = options;
 
   const { maybeRead } = unpackReadPowers(readPowers);
 
@@ -830,7 +837,7 @@ export const mapNodeModules = async (
   return compartmentMapForNodeModules(
     readPowers,
     packageLocation,
-    tags,
+    conditions,
     packageDescriptor,
     moduleSpecifier,
     { dev, commonDependencies, policy },

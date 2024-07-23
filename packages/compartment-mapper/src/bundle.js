@@ -224,14 +224,15 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   const {
     moduleTransforms,
     dev,
-    tags: tagsOption,
+    tags,
+    conditions: conditionsOption = tags,
     searchSuffixes,
     commonDependencies,
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
   } = options || {};
-  const tags = new Set(tagsOption);
+  const conditions = new Set(conditionsOption);
 
   const parserForLanguage = Object.freeze(
     Object.assign(
@@ -258,7 +259,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   const compartmentMap = await compartmentMapForNodeModules(
     read,
     packageLocation,
-    tags,
+    conditions,
     packageDescriptor,
     moduleSpecifier,
     { dev, commonDependencies },

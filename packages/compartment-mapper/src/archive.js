@@ -72,11 +72,11 @@ export const makeAndHashArchive = async (
  * @returns {Promise<Uint8Array>}
  */
 export const makeArchive = async (powers, moduleLocation, options = {}) => {
-  const { dev, tags, commonDependencies, policy } = options;
+  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
-    tags,
+    conditions,
     commonDependencies,
     policy,
   });
@@ -95,11 +95,11 @@ export const makeArchive = async (powers, moduleLocation, options = {}) => {
  * @returns {Promise<Uint8Array>}
  */
 export const mapLocation = async (powers, moduleLocation, options = {}) => {
-  const { dev, tags, commonDependencies, policy } = options;
+  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
-    tags,
+    conditions,
     commonDependencies,
     policy,
   });
@@ -114,11 +114,11 @@ export const mapLocation = async (powers, moduleLocation, options = {}) => {
  * @returns {Promise<string>}
  */
 export const hashLocation = async (powers, moduleLocation, options = {}) => {
-  const { dev, tags, commonDependencies, policy } = options;
+  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
-    tags,
+    conditions,
     commonDependencies,
     policy,
   });
@@ -140,10 +140,10 @@ export const writeArchive = async (
   moduleLocation,
   options = {},
 ) => {
-  const { dev, tags, commonDependencies, policy } = options;
+  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
     dev,
-    tags,
+    conditions,
     commonDependencies,
     policy,
   });

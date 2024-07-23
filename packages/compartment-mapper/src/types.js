@@ -17,7 +17,8 @@ export {};
  * Compartments, each corresponding to Node.js style packaged modules.
  *
  * @typedef {object} CompartmentMapDescriptor
- * @property {Array<string>} tags
+ * @property {Array<string>} [tags] is deprecated in favor of `conditions`
+ * @property {Array<string>} conditions
  * @property {EntryDescriptor} entry
  * @property {Record<string, CompartmentDescriptor>} compartments
  */
@@ -424,7 +425,8 @@ export {};
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {SomePolicy} [policy]
- * @property {Set<string>} [tags]
+ * @property {Set<string>} [tags] deprecated in favor of `conditions`
+ * @property {Set<string>} [conditions]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
@@ -627,7 +629,8 @@ export {};
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {SomePolicy} [policy]
- * @property {Set<string>} [tags]
+ * @property {Set<string>} [tags] deprecated in favor of `conditions`
+ * @property {Set<string>} [conditions]
  * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]

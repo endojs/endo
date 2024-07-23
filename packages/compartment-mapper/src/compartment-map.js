@@ -85,20 +85,20 @@ const assertEmptyObject = (object, message) => {
 };
 
 /**
- * @param {unknown} tags
+ * @param {unknown} conditions
  * @param {string} url
  */
-const assertTags = (tags, url) => {
-  if (tags === undefined) return;
+const assertConditions = (conditions, url) => {
+  if (conditions === undefined) return;
   assert(
-    Array.isArray(tags),
-    `tags must be an array, got ${tags} in ${q(url)}`,
+    Array.isArray(conditions),
+    `conditions must be an array, got ${conditions} in ${q(url)}`,
   );
-  for (const [index, value] of enumerate(tags)) {
+  for (const [index, value] of enumerate(conditions)) {
     assert.typeof(
       value,
       'string',
-      `tags[${index}] must be a string, got ${value} in ${q(url)}`,
+      `conditions[${index}] must be a string, got ${value} in ${q(url)}`,
     );
   }
 };
@@ -480,14 +480,20 @@ export const assertCompartmentMap = (
       url,
     )}`,
   );
-  const { tags, entry, compartments, ...extra } = Object(compartmentMap);
+  const {
+    tags,
+    conditions = tags,
+    entry,
+    compartments,
+    ...extra
+  } = Object(compartmentMap);
   assertEmptyObject(
     extra,
     `Compartment map must not have extra properties, got ${q(
       Object.keys(extra),
     )} in ${q(url)}`,
   );
-  assertTags(tags, url);
+  assertConditions(conditions, url);
   assertEntry(entry, url);
   assertCompartments(compartments, url);
 };

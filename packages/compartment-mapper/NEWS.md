@@ -22,6 +22,8 @@ User-visible changes to the compartment mapper:
   The new `import-lite.js` does not entrain `node-modules.js` and composes
   with potential alternative package discovery, storage, and locks.
 - Adds JSON module support to `makeBundle`.
+- Aliases and deprecates `tags` in favor of `conditions` to align with Node.js
+  terminology.
 
 # 0.9.0 (2023-08-07)
 
