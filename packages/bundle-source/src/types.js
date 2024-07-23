@@ -70,7 +70,7 @@ export {};
  * @property {boolean} [noTransforms] - when true, generates a bundle with the
  * original sources instead of SES-shim specific ESM and CJS. This may become
  * default in a future major version.
- * @property {string[]} [tags] - conditions for package.json conditional
+ * @property {string[]} [conditions] - conditions for package.json conditional
  * exports and imports.
  */
 
