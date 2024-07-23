@@ -26,7 +26,10 @@ function check(t, c, n) {
   t.is(c.evaluate('WeakMap'), 'replaced');
   t.is(c.evaluate('globalThis.WeakMap'), 'replaced');
   t.is(c.evaluate('globalThis.unenumerable'), 'yep');
-  t.is(c.evaluate(`globalThis[Symbol.for('endowmentSymbol')]`), symbolEndowment);
+  t.is(
+    c.evaluate(`globalThis[Symbol.for('endowmentSymbol')]`),
+    symbolEndowment,
+  );
 }
 
 // match what @endo/pass-style does, but note that import-bundle
@@ -43,8 +46,10 @@ test('wrap', t => {
     WeakMap: 'replaced',
     [endowmentSymbol]: symbolEndowment,
   };
-  Object.defineProperty(inescapableGlobalProperties, 'unenumerable',
-                        { value: 'yep', enumerable: false });
+  Object.defineProperty(inescapableGlobalProperties, 'unenumerable', {
+    value: 'yep',
+    enumerable: false,
+  });
   const WrappedCompartment = wrapInescapableCompartment(
     Compartment,
     inescapableTransforms,
