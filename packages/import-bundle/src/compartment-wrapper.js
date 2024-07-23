@@ -42,11 +42,14 @@ export function wrapInescapableCompartment(
     // there are details to work out.
     c.globalThis.Compartment = NewCompartment;
 
-    for (const prop of Object.keys(inescapableGlobalProperties)) {
+    // Use Reflect.ownKeys, not Object.keys, because we want both
+    // string-named and symbol-named properties. Note that
+    // Reflect.ownKeys also includes non-enumerable keys.
+    for (const prop of Reflect.ownKeys(inescapableGlobalProperties)) {
       Object.defineProperty(c.globalThis, prop, {
         value: inescapableGlobalProperties[prop],
         writable: true,
-        enumerable: false,
+        enumerable: false, // TODO: really? why?
         configurable: true,
       });
     }
