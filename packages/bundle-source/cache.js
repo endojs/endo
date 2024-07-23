@@ -2,7 +2,7 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
-import bundleSource from './src/index.js';
+import bundleSource, { DEFAULT_MODULE_FORMAT } from './src/bundle-source.js';
 import { makeFileReader, makeAtomicFileWriter } from './src/fs.js';
 
 const { Fail, quote: q } = assert;
@@ -167,8 +167,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   ) => {
     await null;
     const {
-      noTransforms: expectedNoTransforms,
-      format: expectedFormat,
+      noTransforms: expectedNoTransforms = false,
+      format: expectedFormat = DEFAULT_MODULE_FORMAT,
       conditions: expectedConditions = [],
     } = options;
     expectedConditions.sort();
