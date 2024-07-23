@@ -820,14 +820,12 @@ export const mapNodeModules = async (
     policy,
   } = options;
 
-  const { maybeRead } = unpackReadPowers(readPowers);
-
   const {
     packageLocation,
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
-  } = await search(maybeRead, moduleLocation);
+  } = await search(readPowers, moduleLocation);
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
