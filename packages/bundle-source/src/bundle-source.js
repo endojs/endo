@@ -1,5 +1,5 @@
 // @ts-check
-const DEFAULT_MODULE_FORMAT = 'endoZipBase64';
+export const DEFAULT_MODULE_FORMAT = 'endoZipBase64';
 export const SUPPORTED_FORMATS = [
   'getExport',
   'nestedEvaluate',
