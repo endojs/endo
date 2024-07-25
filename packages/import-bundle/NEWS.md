@@ -1,3 +1,11 @@
+# User-visible changes to `@endo/import-bundle`
+
+## Next release
+
+The `inescapableGlobalProperties` option is changed from supporting only
+string-named enumerable own properties to supporting all own properties
+whether string-named or symbol-named, and whether enumerable or not. But
+see https://github.com/endojs/endo/blob/master/packages/import-bundle/src/compartment-wrapper.md for the longer term plan.
 
 ## 0.4.0 (2023-08-07)
 

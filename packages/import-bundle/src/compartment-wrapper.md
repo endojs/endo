@@ -44,3 +44,27 @@ c2.evaluate(`new WeakMap()`);
 
   [Compartments]: ../../ses/README.md#compartment
   [SES]: ../../ses/README.md
+
+## Note expected semantic changes
+
+This `inescapableGlobalProperties` currently copies the value of all
+own properties, whether string-named or symbol-named, and whether enumerable
+or not. This
+differs from the longer term agreement discussed at
+https://www.youtube.com/watch?v=xlR21uDigGE in these ways:
+- The option in question should be named `inescapableGlobals` since
+  we want to reserve `*Properties` for descriptor copying rather
+  than value copying.
+- We don't plan to support such `*Properties` options at this time.
+  Rather, we should deprecate (and eventually remove) this one
+  once we introduce`inescapableGlobals`.
+- We plan to move these options to the `Compartment` constructor itself,
+  in which case their support in import-bundle will just forward
+  to `Compartment`.
+- Following the `assign`-like semantics agree on in that meeting,
+  this should only copy enumerable own properties, whereas the loop
+  below copies all own properties.
+The loop here does follow this agreement by differing from `assign` in
+making all the target properties non-enumerable. The agreement would
+further align the normal `Compartment` endowments argument to also
+make the target properties non-enumerable.
