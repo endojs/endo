@@ -21,9 +21,10 @@ test('module map hook returns module source descriptor with precompiled module s
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -50,9 +51,10 @@ test('module map hook returns  module source descriptor with virtual module sour
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -98,9 +100,10 @@ test('module map hook returns parent compartment module source descriptor with s
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -180,9 +183,10 @@ test('module map hook returns parent compartment module source reference with di
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -203,12 +207,11 @@ test('module map hook returns module source descriptor for parent compartment wi
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -228,12 +231,11 @@ test('module map hook returns module source descriptor for parent compartment wi
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Separate instances
   t.not(childObject, parentObject);
@@ -256,12 +258,11 @@ test('module map hook returns parent compartment module namespace descriptor', a
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -281,12 +282,11 @@ test('module map hook returns parent compartment module namespace descriptor', a
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Same instances
   t.is(childObject, parentObject);

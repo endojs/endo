@@ -23,9 +23,10 @@ test('import hook returns module source descriptor with precompiled module sourc
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -52,9 +53,10 @@ test('import hook returns module source descriptor with virtual module source', 
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -100,9 +102,10 @@ test('import hook returns parent compartment module source descriptor with strin
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -182,9 +185,10 @@ test('import hook returns parent compartment module source reference with differ
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -205,12 +209,11 @@ test('import hook returns module source descriptor for parent compartment with s
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -230,12 +233,11 @@ test('import hook returns module source descriptor for parent compartment with s
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Separate instances
   t.not(childObject, parentObject);
@@ -258,12 +260,11 @@ test('import hook returns parent compartment module namespace descriptor', async
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -283,12 +284,11 @@ test('import hook returns parent compartment module namespace descriptor', async
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Same instances
   t.is(childObject, parentObject);
@@ -311,12 +311,11 @@ test('import hook returns module source descriptor with string reference to pare
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment(
@@ -336,12 +335,11 @@ test('import hook returns module source descriptor with string reference to pare
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
@@ -364,12 +362,11 @@ test('import hook returns other compartment module namespace descriptor', async 
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment(
@@ -389,12 +386,11 @@ test('import hook returns other compartment module namespace descriptor', async 
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
@@ -413,9 +409,10 @@ test('import hook returns module namespace descriptor and namespace object', asy
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: namespace1 } = await compartment1.import('a');
+  const namespace1 = await compartment1.import('a');
   const compartment2 = new Compartment(
     {},
     {},
@@ -426,9 +423,10 @@ test('import hook returns module namespace descriptor and namespace object', asy
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: namespace2 } = await compartment2.import('z');
+  const namespace2 = await compartment2.import('z');
   t.is(namespace2.default, 42);
   t.is(namespace1, namespace2);
 });
@@ -444,9 +442,10 @@ test('import hook returns module namespace descriptor and non-namespace object',
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace } = await compartment.import('1');
+  const namespace = await compartment.import('1');
   t.is(namespace.meaning, 42);
 });
 
@@ -471,16 +470,13 @@ test('import hook returns module source descriptor for specifier in own compartm
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment.import('./object.js');
+  const { default: object1 } = await compartment.import('./object.js');
   t.is(object1.meaning, 42);
-  const {
-    namespace: { default: object2 },
-  } = await compartment.import('./index.js');
+  const { default: object2 } = await compartment.import('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
@@ -508,16 +504,13 @@ test('import hook returns module source descriptor for specifier in own compartm
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment.import('./object.js');
+  const { default: object1 } = await compartment.import('./object.js');
   t.is(object1.meaning, 42);
-  const {
-    namespace: { default: object2 },
-  } = await compartment.import('./index.js');
+  const { default: object2 } = await compartment.import('./index.js');
   t.is(object2.meaning, 42);
   // Fails to obtain separate instance due to specifier collison.
   t.is(object1, object2);
@@ -544,16 +537,13 @@ test('import hook returns module namespace descriptor for specifier in own compa
         }
         return undefined;
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment.import('./object.js');
+  const { default: object1 } = await compartment.import('./object.js');
   t.is(object1.meaning, 42);
-  const {
-    namespace: { default: object2 },
-  } = await compartment.import('./index.js');
+  const { default: object2 } = await compartment.import('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
@@ -580,11 +570,10 @@ test('module map hook precedes import hook', async t => {
       importHook() {
         throw new Error('not reached');
       },
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: meaning },
-  } = await compartment.import('./index.js');
+  const { default: meaning } = await compartment.import('./index.js');
   t.is(meaning, 42);
 });

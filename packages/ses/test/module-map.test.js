@@ -17,9 +17,10 @@ test('module map primed with module source descriptor with precompiled module so
     // options:
     {
       resolveHook: specifier => specifier,
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -42,9 +43,10 @@ test('module map primed with module source descriptor with virtual module source
     // options:
     {
       resolveHook: specifier => specifier,
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -82,9 +84,10 @@ test('module map primed with parent compartment module source descriptor with st
     // options:
     {
       resolveHook: specifier => specifier,
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -154,9 +157,10 @@ test('module map primed with parent compartment module source reference with dif
         t.is(specifier, './lib/meaning.js');
         return './lib/meaningful.js';
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
@@ -173,12 +177,11 @@ test('module map primed with module source descriptor for parent compartment wit
     // options:
     {
       name: 'parent',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -194,12 +197,11 @@ test('module map primed with module source descriptor for parent compartment wit
     // options:
     {
       name: 'child',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Separate instances
   t.not(childObject, parentObject);
@@ -218,12 +220,11 @@ test('module map primed with parent compartment module namespace descriptor', as
     // options:
     {
       name: 'parent',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
   const compartment = new parent.globalThis.Compartment(
@@ -239,12 +240,11 @@ test('module map primed with parent compartment module namespace descriptor', as
     // options:
     {
       name: 'child',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Same instances
   t.is(childObject, parentObject);
@@ -263,12 +263,11 @@ test('module map primed with module source descriptor with string reference to p
     // options:
     {
       name: 'compartment1',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment(
@@ -284,12 +283,11 @@ test('module map primed with module source descriptor with string reference to p
     // options:
     {
       name: 'child',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
@@ -308,12 +306,11 @@ test('module map primed with other compartment module namespace descriptor', asy
     // options:
     {
       name: 'compartment1',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
   const compartment2 = new Compartment(
@@ -329,12 +326,11 @@ test('module map primed with other compartment module namespace descriptor', asy
     // options:
     {
       name: 'child',
+      __noNamespaceBox__: true,
     },
   );
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
@@ -348,17 +344,21 @@ test('module map primed with module namespace descriptor and namespace object', 
         source: new ModuleSource(`export default 42`),
       },
     },
-    {},
+    {
+      __noNamespaceBox__: true,
+    },
   );
-  const { namespace: namespace1 } = await compartment1.import('a');
+  const namespace1 = await compartment1.import('a');
   const compartment2 = new Compartment(
     {},
     {
       z: { namespace: namespace1 },
     },
-    {},
+    {
+      __noNamespaceBox__: true,
+    },
   );
-  const { namespace: namespace2 } = await compartment2.import('z');
+  const namespace2 = await compartment2.import('z');
   t.is(namespace2.default, 42);
   t.is(namespace1, namespace2);
 });
@@ -369,9 +369,11 @@ test('module map primed with module namespace descriptor and non-namespace objec
     {
       1: { namespace: { meaning: 42 } },
     },
-    {},
+    {
+      __noNamespaceBox__: true,
+    },
   );
-  const { namespace } = await compartment.import('1');
+  const namespace = await compartment.import('1');
   t.is(namespace.meaning, 42);
 });
 

@@ -29,6 +29,19 @@ by the `moduleFormat` below.
 The resulting bundle is suitable for use with `@endo/import-bundle`.
 The default format is of a bundle is `"endoZipBase64"`.
 
+## Conditions
+
+Node.js introduced [conditions](https://nodejs.org/api/packages.html#conditional-exports).
+The `--condition` and `-C` flags accordingly influence `bundle-source` module
+resolution decisions.
+
+The `browser` condition additionally implies the selection of the `browser`
+entry instead of `main` in `package.json`, if not overridden by explicit
+`exports`.
+
+The `development` condition additionally implies that the bundle may import
+`devDependencies` from the package containing the entry module.
+
 ## Source maps
 
 With the `moduleFormat` of `endoZipBase64`, the bundler can generate source

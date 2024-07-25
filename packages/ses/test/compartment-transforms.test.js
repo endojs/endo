@@ -52,9 +52,13 @@ test('transforms do not apply to imported modules', async t => {
   const resolveHook = () => '';
   const importHook = () =>
     new ModuleSource('export default "Farewell, World!";');
-  const c = new Compartment({}, {}, { transforms, resolveHook, importHook });
+  const c = new Compartment(
+    {},
+    {},
+    { transforms, resolveHook, importHook, __noNamespaceBox__: true },
+  );
 
-  const { namespace } = await c.import('any-string-here');
+  const namespace = await c.import('any-string-here');
   const { default: greeting } = namespace;
 
   t.is(greeting, 'Farewell, World!');
@@ -82,10 +86,15 @@ test('__shimTransforms__ do apply to imported modules', async t => {
   const c = new Compartment(
     {},
     {},
-    { __shimTransforms__: transforms, resolveHook, importHook },
+    {
+      __shimTransforms__: transforms,
+      __noNamespaceBox__: true,
+      resolveHook,
+      importHook,
+    },
   );
 
-  const { namespace } = await c.import('any-string-here');
+  const namespace = await c.import('any-string-here');
   const { default: greeting } = namespace;
 
   t.is(greeting, 'Hello, World!');
