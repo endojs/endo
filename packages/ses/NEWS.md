@@ -25,6 +25,12 @@ User-visible changes in SES:
   the stacktrace line-numbers point back into the original
   source, as they do on Node without SES.
   
+- Adds a `__noNamespaceBox__` option that aligns the behavior of the `import`
+  method on SES `Compartment` with the behavior of XS and the behavior we will
+  champion for compartment standards.
+  All use of `Compartment` should migrate to use this option as the standard
+  behavior will be enabled by default with the next major version of SES.
+
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
