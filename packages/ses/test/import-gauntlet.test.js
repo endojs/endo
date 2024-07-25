@@ -49,10 +49,11 @@ test('import all from module', async t => {
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
+      __noNamespaceBox__: true,
     },
   );
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.default.a, 10);
   t.is(namespace.default.b, 20);
@@ -78,10 +79,11 @@ test('import named exports from me', async t => {
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
+      __noNamespaceBox__: true,
     },
   );
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.default.fizz, 10);
   t.is(namespace.default.buzz, 20);
@@ -106,10 +108,11 @@ test('import color from module', async t => {
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
+      __noNamespaceBox__: true,
     },
   );
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.color, 'blue');
 });
@@ -132,10 +135,11 @@ test('import and reexport', async t => {
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
+      __noNamespaceBox__: true,
     },
   );
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.qux, 42);
 });
@@ -159,10 +163,11 @@ test('import and export all', async t => {
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
+      __noNamespaceBox__: true,
     },
   );
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.alpha, 0);
   t.is(namespace.omega, 23);
@@ -189,10 +194,11 @@ test('live binding', async t => {
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
+      __noNamespaceBox__: true,
     },
   );
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.default, 'Hello, World!');
 });

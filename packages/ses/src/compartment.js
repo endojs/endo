@@ -104,6 +104,8 @@ export const CompartmentPrototype = {
   },
 
   async import(specifier) {
+    const { noNamespaceBox } = weakmapGet(privateFields, this);
+
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of import() must be a string');
     }
@@ -117,6 +119,11 @@ export const CompartmentPrototype = {
           /** @type {Compartment} */ (this),
           specifier,
         );
+        if (noNamespaceBox) {
+          return namespace;
+        }
+        // Legacy behavior: box the namespace object so that thenable modules
+        // do not get coerced into a promise accidentally.
         return { namespace };
       },
     );
@@ -172,7 +179,11 @@ export const makeCompartmentConstructor = (
   markVirtualizedNativeFunction,
   parentCompartment = undefined,
 ) => {
-  function Compartment(endowments = {}, moduleMap = {}, options = {}) {
+  function Compartment(
+    endowmentsOption = {},
+    moduleMapOption = {},
+    options = {},
+  ) {
     if (new.target === undefined) {
       throw TypeError(
         "Class constructor Compartment cannot be invoked without 'new'",
@@ -189,8 +200,11 @@ export const makeCompartmentConstructor = (
       importNowHook,
       moduleMapHook,
       importMetaHook,
+      __noNamespaceBox__: noNamespaceBox = false,
     } = options;
     const globalTransforms = [...transforms, ...__shimTransforms__];
+    const endowments = { __proto__: null, ...endowmentsOption };
+    const moduleMap = { __proto__: null, ...moduleMapOption };
 
     // Map<FullSpecifier, ModuleCompartmentRecord>
     const moduleRecords = new Map();
@@ -249,6 +263,7 @@ export const makeCompartmentConstructor = (
       deferredExports,
       instances,
       parentCompartment,
+      noNamespaceBox,
     });
   }
 
