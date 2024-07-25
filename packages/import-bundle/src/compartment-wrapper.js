@@ -49,7 +49,8 @@ export function wrapInescapableCompartment(
       Object.defineProperty(c.globalThis, prop, {
         value: inescapableGlobalProperties[prop],
         writable: true,
-        enumerable: false, // TODO: really? why?
+        // properties of globalThis are generally non-enumerable
+        enumerable: false,
         configurable: true,
       });
     }
