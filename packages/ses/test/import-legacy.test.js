@@ -28,18 +28,20 @@ test('import within one compartment, web resolution', async t => {
   const importHook = makeImporter(locate, retrieve);
 
   const compartment = new Compartment(
+    // endowments:
     {
       double: n => n * 2,
     },
+    // module map:
     {},
+    // options:
     {
       resolveHook,
       importHook,
-      __noNamespaceBox__: true,
     },
   );
 
-  const namespace = await compartment.import(
+  const { namespace } = await compartment.import(
     'https://example.com/packages/example/',
   );
 
@@ -62,18 +64,20 @@ test('import within one compartment, node resolution', async t => {
   });
 
   const compartment = new Compartment(
+    // endowments:
     {
       double: n => n * 2,
     },
+    // module map:
     {},
+    // options:
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/packages/example'),
-      __noNamespaceBox__: true,
     },
   );
 
-  const namespace = await compartment.import('./main.js');
+  const { namespace } = await compartment.import('./main.js');
 
   t.is(namespace.meaning, 42, 'dynamically imports the meaning');
 });
@@ -100,10 +104,13 @@ test('two compartments, three modules, one endowment', async t => {
   });
 
   const doubleCompartment = new Compartment(
+    // endowments:
     {
       double: n => n * 2,
     },
+    // module map:
     {},
+    // options:
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/packages/double'),
@@ -111,24 +118,23 @@ test('two compartments, three modules, one endowment', async t => {
   );
 
   const compartment = new Compartment(
+    // endowments:
     {},
+    // module map:
     {
       // Notably, this is the first case where we thread a depencency between
       // two compartments, using the sigil of one's namespace to indicate
       // linkage before the module has been loaded.
-      double: {
-        namespace: './main.js',
-        compartment: doubleCompartment,
-      },
+      double: doubleCompartment.module('./main.js'),
     },
+    // options:
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/packages/example'),
-      __noNamespaceBox__: true,
     },
   );
 
-  const namespace = await compartment.import('./main.js');
+  const { namespace } = await compartment.import('./main.js');
 
   t.is(namespace.meaning, 42, 'dynamically imports the meaning');
 });
@@ -143,16 +149,18 @@ test('module exports namespace as an object', async t => {
   });
 
   const compartment = new Compartment(
+    // endowments:
     {},
+    // module map:
     {},
+    // options:
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/packages/meaning'),
-      __noNamespaceBox__: true,
     },
   );
 
-  const namespace = await compartment.import('./main.js');
+  const { namespace } = await compartment.import('./main.js');
 
   t.is(
     namespace.meaning,
@@ -216,16 +224,18 @@ test('modules are memoized', async t => {
   });
 
   const compartment = new Compartment(
+    // endowments:
     {},
+    // module map:
     {},
+    // options:
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/packages/example'),
-      __noNamespaceBox__: true,
     },
   );
 
-  const namespace = await compartment.import('./main.js');
+  const { namespace } = await compartment.import('./main.js');
   const { clive, clerk } = namespace;
 
   t.truthy(clive === clerk, 'diamond dependency must refer to the same module');
@@ -241,26 +251,31 @@ test('compartments with same sources do not share instances', async t => {
   });
 
   const leftCompartment = new Compartment(
-    {},
-    {},
+    {}, // endowments
+    {}, // module map
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/packages/arm'),
-      __noNamespaceBox__: true,
     },
   );
 
   const rightCompartment = new Compartment(
-    {},
-    {},
+    {}, // endowments
+    {}, // module map
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/packages/arm'),
-      __noNamespaceBox__: true,
     },
   );
 
-  const [{ default: leftArm }, { default: rightArm }] = await Promise.all([
+  const [
+    {
+      namespace: { default: leftArm },
+    },
+    {
+      namespace: { default: rightArm },
+    },
+  ] = await Promise.all([
     leftCompartment.import('./main.js'),
     rightCompartment.import('./main.js'),
   ]);
@@ -306,7 +321,6 @@ test('module map hook', async t => {
     {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/dependency'),
-      __noNamespaceBox__: true,
     },
   );
 
@@ -322,14 +336,10 @@ test('module map hook', async t => {
           'dependency',
         );
         if (remainder) {
-          return {
-            namespace: remainder,
-            compartment: dependency,
-          };
+          return dependency.module(remainder);
         }
         return undefined;
       },
-      __noNamespaceBox__: true,
     },
   );
 
@@ -369,10 +379,7 @@ test('mutual dependency between compartments', async t => {
     for (const [prefix, compartment] of Object.entries({ even, odd })) {
       const remainder = trimModuleSpecifierPrefix(moduleSpecifier, prefix);
       if (remainder) {
-        return {
-          compartment,
-          namespace: remainder,
-        };
+        return compartment.module(remainder);
       }
     }
     return undefined;
@@ -386,7 +393,6 @@ test('mutual dependency between compartments', async t => {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/even'),
       moduleMapHook,
-      __noNamespaceBox__: true,
     },
   );
 
@@ -398,8 +404,6 @@ test('mutual dependency between compartments', async t => {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/odd'),
       moduleMapHook,
-      [Symbol.for('options')]: true,
-      __noNamespaceBox__: true,
     },
   );
 
@@ -411,7 +415,6 @@ test('mutual dependency between compartments', async t => {
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
       moduleMapHook,
-      __noNamespaceBox__: true,
     },
   );
 
@@ -450,16 +453,17 @@ test('import redirect shorthand', async t => {
   };
 
   const compartment = new Compartment(
-    { Math },
+    {
+      Math,
+    },
     {},
     {
       resolveHook: resolveNode,
       importHook,
-      __noNamespaceBox__: true,
     },
   );
 
-  const namespace = await compartment.import('./main');
+  const { namespace } = await compartment.import('./main');
   t.is(
     namespace.meaning,
     42,
@@ -510,23 +514,21 @@ test('import reflexive module alias', async t => {
 
   const moduleMapHook = specifier => {
     if (specifier === 'self') {
-      return {
-        // eslint-disable-next-line no-use-before-define
-        compartment,
-        namespace: './index.js',
-      };
+      // eslint-disable-next-line no-use-before-define
+      return compartment.module('./index.js');
     }
     return undefined;
   };
 
   const compartment = new Compartment(
-    { t },
+    {
+      t,
+    },
     {},
     {
       resolveHook: resolveNode,
       importHook,
       moduleMapHook,
-      __noNamespaceBox__: true,
     },
   );
 
@@ -578,11 +580,12 @@ test('import.meta populated from module record', async t => {
       importHook: makeImportHook('https://example.com', {
         meta: { url: 'https://example.com/index.js' },
       }),
-      __noNamespaceBox__: true,
     },
   );
 
-  const { default: metaurl } = await compartment.import('./index.js');
+  const {
+    namespace: { default: metaurl },
+  } = await compartment.import('./index.js');
   t.is(metaurl, 'https://example.com/index.js');
 });
 
@@ -606,11 +609,12 @@ test('importMetaHook', async t => {
       importMetaHook: (_moduleSpecifier, meta) => {
         meta.url = 'https://example.com/index.js';
       },
-      __noNamespaceBox__: true,
     },
   );
 
-  const { default: metaurl } = await compartment.import('./index.js');
+  const {
+    namespace: { default: metaurl },
+  } = await compartment.import('./index.js');
   t.is(metaurl, 'https://example.com/index.js');
 });
 
@@ -637,10 +641,11 @@ test('importMetaHook and meta from record', async t => {
         meta.url += '?foo';
         meta.isStillMutableHopefully = 1;
       },
-      __noNamespaceBox__: true,
     },
   );
 
-  const { default: metaurl } = await compartment.import('./index.js');
+  const {
+    namespace: { default: metaurl },
+  } = await compartment.import('./index.js');
   t.is(metaurl, 'https://example.com/index.js?foo');
 });

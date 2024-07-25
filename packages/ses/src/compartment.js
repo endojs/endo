@@ -200,7 +200,7 @@ export const makeCompartmentConstructor = (
       importNowHook,
       moduleMapHook,
       importMetaHook,
-      noNamespaceBox = false,
+      __noNamespaceBox__: noNamespaceBox = false,
     } = options;
     const globalTransforms = [...transforms, ...__shimTransforms__];
     const endowments = { __proto__: null, ...endowmentsOption };
