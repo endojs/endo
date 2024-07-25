@@ -4,7 +4,7 @@ import { toStringTagSymbol, iteratorSymbol } from './commons.js';
  * @file Exports {@code enablements}, a recursively defined
  * JSON record defining the optimum set of intrinsics properties
  * that need to be "repaired" before hardening is applied on
- * enviromments subject to the override mistake.
+ * environments subject to the override mistake.
  *
  * @author JF Paradis
  * @author Mark S. Miller
@@ -14,7 +14,7 @@ import { toStringTagSymbol, iteratorSymbol } from './commons.js';
  * <p>Because "repairing" replaces data properties with accessors, every
  * time a repaired property is accessed, the associated getter is invoked,
  * which degrades the runtime performance of all code executing in the
- * repaired enviromment, compared to the non-repaired case. In order
+ * repaired environment, compared to the non-repaired case. In order
  * to maintain performance, we only repair the properties of objects
  * for which hardening causes a breakage of their normal intended usage.
  *

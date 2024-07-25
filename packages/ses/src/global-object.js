@@ -73,6 +73,7 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * @param {object} args.intrinsics
  * @param {object} args.newGlobalPropertyNames
  * @param {Function} args.makeCompartmentConstructor
+ * @param {import('../types').RepairOptions['reflectMetadataTaming']} args.reflectMetadataTaming
  * @param {(object) => void} args.markVirtualizedNativeFunction
  * @param {Compartment} [args.parentCompartment]
  */
@@ -82,6 +83,7 @@ export const setGlobalObjectMutableProperties = (
     intrinsics,
     newGlobalPropertyNames,
     makeCompartmentConstructor,
+    reflectMetadataTaming,
     markVirtualizedNativeFunction,
     parentCompartment,
   },
@@ -117,6 +119,7 @@ export const setGlobalObjectMutableProperties = (
       makeCompartmentConstructor,
       intrinsics,
       markVirtualizedNativeFunction,
+      reflectMetadataTaming,
       parentCompartment,
     ),
   );

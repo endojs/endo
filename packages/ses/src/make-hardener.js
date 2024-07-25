@@ -125,13 +125,13 @@ const freezeTypedArray = array => {
 /**
  * Create a `harden` function.
  *
- * @returns {Harden}
+ * @returns {{harden: Harden, skipHarden?: (object: any) => void}}
  */
 export const makeHardener = () => {
   // Use a native hardener if possible.
   if (typeof globalThis.harden === 'function') {
     const safeHarden = globalThis.harden;
-    return safeHarden;
+    return { harden: safeHarden };
   }
 
   const hardened = new WeakSet();
@@ -271,5 +271,5 @@ export const makeHardener = () => {
     },
   };
 
-  return harden;
+  return { harden, skipHarden: object => weaksetAdd(hardened, object) };
 };

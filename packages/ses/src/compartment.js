@@ -25,6 +25,7 @@ import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
+import { setGlobalObjectReflectNamespace } from './make-reflect-namespace.js';
 
 // moduleAliases associates every public module exports namespace with its
 // corresponding compartment and specifier so they can be used to link modules
@@ -168,6 +169,7 @@ defineProperties(InertCompartment, {
  * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
  * @param {Record<string, any>} intrinsics
  * @param {(object: object) => void} markVirtualizedNativeFunction
+ * @param {import('../types').RepairOptions['reflectMetadataTaming']} reflectMetadataTaming
  * @param {Compartment} [parentCompartment]
  * @returns {Compartment['constructor']}
  */
@@ -177,6 +179,7 @@ export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   markVirtualizedNativeFunction,
+  reflectMetadataTaming,
   parentCompartment = undefined,
 ) => {
   function Compartment(
@@ -235,6 +238,7 @@ export const makeCompartmentConstructor = (
       newGlobalPropertyNames: sharedGlobalPropertyNames,
       makeCompartmentConstructor: targetMakeCompartmentConstructor,
       parentCompartment: this,
+      reflectMetadataTaming,
       markVirtualizedNativeFunction,
     });
 
@@ -244,6 +248,9 @@ export const makeCompartmentConstructor = (
       safeEvaluate,
       markVirtualizedNativeFunction,
     );
+
+    reflectMetadataTaming === 'mutable-per-global' &&
+      setGlobalObjectReflectNamespace(globalObject);
 
     assign(globalObject, endowments);
 
