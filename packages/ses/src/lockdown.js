@@ -197,7 +197,7 @@ export const repairIntrinsics = (options = {}) => {
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
   reflectMetadataTaming === 'none' ||
-    reflectMetadataTaming === 'keep-and-inherit' ||
+    reflectMetadataTaming === 'unsafe-keep-and-inherit' ||
     reflectMetadataTaming === 'mutable-per-global' ||
     Fail`lockdown(): non supported option reflectMetadataTaming: ${q(reflectMetadataTaming)}`;
 

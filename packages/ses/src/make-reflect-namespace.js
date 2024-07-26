@@ -29,7 +29,7 @@ export const tameReflectMetadata = (reflectMetadataTaming, skipHarden) => {
       '%InitialReflect%': Reflect,
       '%SharedReflect%': Reflect,
     };
-  } else if (reflectMetadataTaming === 'keep-and-inherit') {
+  } else if (reflectMetadataTaming === 'unsafe-keep-and-inherit') {
     return {
       Reflect: Reflect,
       '%InitialReflect%': Reflect,
