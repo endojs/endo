@@ -568,5 +568,15 @@ const assert = makeAssert();
 export { assert };
 
 // Internal, to obviate polymorphic dispatch, but may become rigorously
-// consistent with @endo/error.
-export { makeError, note as annotateError, redactedDetails as X, quote as q };
+// consistent with @endo/error:
+
+/** @type {AssertionFunctions['equal']} */
+const assertEqual = assert.equal;
+
+export {
+  assertEqual,
+  makeError,
+  note as annotateError,
+  redactedDetails as X,
+  quote as q,
+};

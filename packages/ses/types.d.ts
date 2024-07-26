@@ -102,7 +102,8 @@ export type ModuleDescriptor =
   | RecordModuleDescriptor
   | ModuleExportsNamespace
   | VirtualModuleSource
-  | PrecompiledModuleSource;
+  | PrecompiledModuleSource
+  | string;
 
 // Deprecated type aliases:
 export type PrecompiledStaticModuleInterface = PrecompiledModuleSource;
@@ -122,6 +123,10 @@ export type ModuleMapHook = (
 ) => ModuleDescriptor | undefined;
 export type ImportHook = (moduleSpecifier: string) => Promise<ModuleDescriptor>;
 export type ImportNowHook = (moduleSpecifier: string) => ModuleDescriptor;
+export type ImportMetaHook = (
+  moduleSpecifier: string,
+  importMeta: Object,
+) => void;
 
 export interface CompartmentOptions {
   name?: string;
@@ -129,8 +134,12 @@ export interface CompartmentOptions {
   moduleMapHook?: ModuleMapHook;
   importHook?: ImportHook;
   importNowHook?: ImportNowHook;
+  importMetaHook?: ImportMetaHook;
   resolveHook?: ResolveHook;
+  globals?: Map<string, any>;
+  modules?: Map<string, ModuleDescriptor>;
   __shimTransforms__?: Array<Transform>;
+  __noNamespaceBox__?: boolean;
 }
 
 export interface EvaluateOptions {
@@ -532,9 +541,12 @@ declare global {
    * code in a context bound to a new global creates a new compartment.
    */
   export class Compartment {
+    constructor(options?: CompartmentOptions & { __options__: true });
+
+    // Deprecated:
     constructor(
-      globals?: Object,
-      moduleMap?: ModuleMap,
+      globals?: Record<string, any> | undefined,
+      modules?: Record<string, ModuleDescriptor>,
       options?: CompartmentOptions,
     );
 
