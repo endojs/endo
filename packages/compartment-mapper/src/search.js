@@ -4,10 +4,13 @@
 
 // @ts-check
 
-/** @import {MaybeReadFn} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {MaybeReadPowers} from './types.js' */
 
 import { relativize } from './node-module-specifier.js';
 import { relative } from './url.js';
+import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -59,15 +62,16 @@ export const searchDescriptor = async (location, maybeReadDescriptor) => {
 };
 
 /**
- * @param {MaybeReadFn} maybeRead
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} packageDescriptorLocation
  * @returns {Promise<string | undefined>}
  */
 const maybeReadDescriptorDefault = async (
-  maybeRead,
+  readPowers,
   packageDescriptorLocation,
   // eslint-disable-next-line consistent-return
 ) => {
+  const { maybeRead } = unpackReadPowers(readPowers);
   const packageDescriptorBytes = await maybeRead(packageDescriptorLocation);
   if (packageDescriptorBytes !== undefined) {
     const packageDescriptorText = decoder.decode(packageDescriptorBytes);
@@ -82,7 +86,7 @@ const maybeReadDescriptorDefault = async (
  * To avoid duplicate work later, returns the text of the package.json for
  * inevitable later use.
  *
- * @param {MaybeReadFn} maybeRead
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
  * @returns {Promise<{
  *   packageLocation: string,
@@ -91,7 +95,8 @@ const maybeReadDescriptorDefault = async (
  *   moduleSpecifier: string,
  * }>}
  */
-export const search = async (maybeRead, moduleLocation) => {
+export const search = async (readPowers, moduleLocation) => {
+  const { maybeRead } = unpackReadPowers(readPowers);
   const { data, directory, location, packageDescriptorLocation } =
     await searchDescriptor(moduleLocation, loc =>
       maybeReadDescriptorDefault(maybeRead, loc),

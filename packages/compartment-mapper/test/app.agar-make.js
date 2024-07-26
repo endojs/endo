@@ -30,7 +30,7 @@ const mitt = err =>
   });
 
 writeArchive(write, readPowers, archiveFixture, fixture, {
-  dev: true,
+  conditions: new Set(['development']),
   modules: {
     builtin: true,
   },

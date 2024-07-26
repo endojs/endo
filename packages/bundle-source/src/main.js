@@ -12,6 +12,7 @@ bundle-source [-Tft] <entry.js>
 bundle-source [-Tft] --cache-js|--cache-json <cache/> (<entry.js> <bundle-name>)*
   -f,--format endoZipBase64*|nestedEvaluate|getExport
   -C,--condition <condition> (browser, node, development, &c)
+  -C development (to access devDependencies)
   -T,--no-transforms`;
 
 const options = /** @type {const} */ ({

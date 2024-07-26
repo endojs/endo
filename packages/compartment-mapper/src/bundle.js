@@ -219,7 +219,7 @@ const getBundlerKitForModule = module => {
  * @returns {Promise<string>}
  */
 export const makeBundle = async (readPowers, moduleLocation, options) => {
-  const { read, maybeRead } = unpackReadPowers(readPowers);
+  const { read } = unpackReadPowers(readPowers);
 
   const {
     moduleTransforms,
@@ -250,7 +250,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
-  } = await search(maybeRead, moduleLocation);
+  } = await search(readPowers, moduleLocation);
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,

@@ -129,9 +129,8 @@ export function scaffold(
     await setup();
 
     const application = await loadLocation(readPowers, fixture, {
-      dev: true,
       policy,
-      conditions,
+      conditions: new Set(['development', ...(conditions || [])]),
       searchSuffixes,
       commonDependencies,
       ...additionalOptions,
@@ -154,8 +153,7 @@ export function scaffold(
       policy,
       modules,
       Compartment,
-      dev: true,
-      conditions,
+      conditions: new Set(['development', ...(conditions || [])]),
       searchSuffixes,
       commonDependencies,
       ...additionalOptions,
@@ -171,9 +169,8 @@ export function scaffold(
 
       const archive = await makeArchive(readPowers, fixture, {
         modules,
-        dev: true,
         policy,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         ...additionalOptions,
@@ -208,9 +205,8 @@ export function scaffold(
       // Zip files support an arbitrary length prefix.
       const archive = await makeArchive(readPowers, fixture, {
         modules,
-        dev: true,
         policy,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         ...additionalOptions,
@@ -253,9 +249,8 @@ export function scaffold(
 
       await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
         modules: { builtin: true },
-        dev: true,
         policy,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         ...additionalOptions,
@@ -307,8 +302,7 @@ export function scaffold(
       await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
         policy,
         modules,
-        dev: true,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         sourceMapHook,
@@ -344,8 +338,7 @@ export function scaffold(
       const expectedSha512 = await hashLocation(readPowers, fixture, {
         modules,
         Compartment,
-        dev: true,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         ...additionalOptions,
@@ -353,8 +346,7 @@ export function scaffold(
 
       const archiveBytes = await makeArchive(readPowers, fixture, {
         modules,
-        dev: true,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         ...additionalOptions,
@@ -366,8 +358,7 @@ export function scaffold(
         'memory:app.agar',
         {
           modules,
-          dev: true,
-          conditions,
+          conditions: new Set(['development', ...(conditions || [])]),
           computeSha512,
           expectedSha512,
           ...additionalOptions,
@@ -384,8 +375,7 @@ export function scaffold(
       const expectedSha512 = await hashLocation(readPowers, fixture, {
         modules,
         Compartment,
-        dev: true,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         ...additionalOptions,
@@ -393,8 +383,7 @@ export function scaffold(
 
       const archive = await makeArchive(readPowers, fixture, {
         modules,
-        dev: true,
-        conditions,
+        conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
         ...additionalOptions,

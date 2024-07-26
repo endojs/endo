@@ -277,7 +277,7 @@ const inferParsers = (
  * @param {string} packageDetails.packageLocation
  * @param {object} packageDetails.packageDescriptor
  * @param {Set<string>} conditions
- * @param {boolean} dev
+ * @param {boolean | undefined} dev
  * @param {CommonDependencyDescriptors} commonDependencyDescriptors
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {Array<string>} logicalPath
@@ -342,7 +342,7 @@ const graphPackage = async (
   for (const name of Object.keys(optionalDependencies)) {
     optionals.add(name);
   }
-  if (dev) {
+  if (dev !== undefined && dev !== null ? dev : conditions.has('development')) {
     assign(allDependencies, devDependencies);
   }
 
@@ -524,7 +524,7 @@ const gatherDependency = async (
  * @param {Set<string>} conditions
  * @param {object} mainPackageDescriptor - the parsed contents of the main
  * package.json, which was already read when searching for the package.json.
- * @param {boolean} dev - whether to use devDependencies from this package (and
+ * @param {boolean|undefined} dev - whether to use devDependencies from this package (and
  * only this package).
  * @param {Record<string,string>} [commonDependencies] - dependencies to be added to all packages
  */
@@ -757,7 +757,7 @@ export const compartmentMapForNodeModules = async (
   moduleSpecifier,
   options = {},
 ) => {
-  const { dev = false, commonDependencies, policy } = options;
+  const { dev = undefined, commonDependencies, policy } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const graph = await graphPackages(
     maybeRead,
@@ -815,19 +815,17 @@ export const mapNodeModules = async (
   const {
     tags = new Set(),
     conditions = tags,
-    dev = false,
+    dev = undefined,
     commonDependencies,
     policy,
   } = options;
-
-  const { maybeRead } = unpackReadPowers(readPowers);
 
   const {
     packageLocation,
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
-  } = await search(maybeRead, moduleLocation);
+  } = await search(readPowers, moduleLocation);
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,

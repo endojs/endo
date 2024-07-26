@@ -24,6 +24,9 @@ User-visible changes to the compartment mapper:
 - Adds JSON module support to `makeBundle`.
 - Aliases and deprecates `tags` in favor of `conditions` to align with Node.js
   terminology.
+- `mapNodeModules` now infers that it should include `devDependencies` from
+  the entry package from the presence of `"development"` in `conditions`,
+  if the `dev` option is abseent.
 
 # 0.9.0 (2023-08-07)
 

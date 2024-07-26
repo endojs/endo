@@ -13,6 +13,8 @@
 - Adds a no-cache, bundle-to-stdout mode.
 - Adds a `-C,--condition` command flag to specify export/import conditions like
   `"development"` or `"browser"`.
+- The `-C development` condition now provides access to `devDependencies` in
+  the `package.json` of the entry package of a bundle.
 
 # v3.2.1 (2024-03-20)
 
