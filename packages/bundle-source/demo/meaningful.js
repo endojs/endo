@@ -1,1 +1,3 @@
-export const meaning = 42;
+import json from './meaning.json';
+
+export const meaning = json.meaning;
