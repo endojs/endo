@@ -6,7 +6,7 @@ import {
 import { accessor, permitted } from './permits.js';
 
 export const tameRegeneratorRuntime = () => {
-  const { [iteratorSymbol]: iter } = iteratorPrototype;
+  const iter = iteratorPrototype[iteratorSymbol];
   permitted['%IteratorPrototype%']['@@iterator'] = accessor;
   defineProperty(iteratorPrototype, iteratorSymbol, {
     configurable: true,

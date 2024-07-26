@@ -36,7 +36,7 @@ export interface RepairOptions {
   /**
    * none (default): do nothing.
    *
-   * safe: make %GeneratorPrototype%.toString and [@@iterator] to a funky getter/setter which ignores all assignments.
+   * safe: make %IteratorPrototype%[@@iterator] to a funky accessor which ignores all assignments.
    */
   regeneratorRuntimeTaming?: 'none' | 'safe';
   __hardenTaming__?: 'safe' | 'unsafe';
