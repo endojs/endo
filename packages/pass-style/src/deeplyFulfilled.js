@@ -73,7 +73,7 @@ const { fromEntries } = Object;
  * is for the higher "@endo/patterns" level of abstraction to determine,
  * because it defines the `Key` notion in question.
  *
- * @template {Passable} [T=Passable]
+ * @template {Passable} [T=any]
  * @param {T} val
  * @returns {Promise<DeeplyAwaited<T>>}
  */
