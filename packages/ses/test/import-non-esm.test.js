@@ -17,11 +17,12 @@ test('import a non-ESM', async t => {
     };
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const module = compartment.module('.');
   const { meaning } = await compartment.import('.');
 
@@ -56,11 +57,12 @@ test('non-ESM imports non-ESM by name', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -94,11 +96,12 @@ test('non-ESM imports non-ESM as default', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -131,11 +134,12 @@ test('ESM imports non-ESM as default', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -168,11 +172,12 @@ test('ESM imports non-ESM by name', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -205,11 +210,12 @@ test('non-ESM imports ESM as default', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -242,11 +248,12 @@ test('non-ESM imports ESM by name', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -304,10 +311,11 @@ test('cross import ESM and non-ESMs', async t => {
     throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   await compartment.import('./src/main.js');
 });

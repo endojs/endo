@@ -11,7 +11,7 @@ test('globalObject properties mutable', t => {
   t.is(c.evaluate('Date()'), 'bogus');
 
   c.evaluate('Compartment = function(opts) { this.extra = "extra" }');
-  t.is(c.evaluate('(new Compartment({})).extra'), 'extra');
+  t.is(c.evaluate('(new Compartment()).extra'), 'extra');
 
   c.evaluate('Function = function() { this.extra = "extra" }');
   t.is(c.evaluate('new Function().extra'), 'extra');

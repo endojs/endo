@@ -23,7 +23,10 @@ test('tamed constructors', t => {
   t.throws(() => Error.__proto__.constructor(''), { instanceOf: TypeError });
   t.throws(() => Function.prototype.constructor(''), { instanceOf: TypeError });
 
-  const c = new Compartment({ console });
+  const c = new Compartment({
+    globals: { console },
+    __options__: true,
+  });
 
   t.throws(() => c.evaluate("Error.__proto__.constructor('')"), {
     instanceOf: TypeError,
@@ -99,7 +102,10 @@ test('SES compartment also has compartments', t => {
 //   // });
 
 test('SES compartment has harden', t => {
-  const c = new Compartment({ a: 123 });
+  const c = new Compartment({
+    globals: { a: 123 },
+    __options__: true,
+  });
   const obj = c.evaluate('harden({a})');
   t.is(obj.a, 123, 'expected object');
   if (!harden.isFake) {
@@ -151,11 +157,17 @@ test('main use case', t => {
     }
     return power(arg);
   }
-  const attenuatedPower = new Compartment({ power }).evaluate(`(${attenuate})`);
+  const attenuatedPower = new Compartment({
+    globals: { power },
+    __options__: true,
+  }).evaluate(`(${attenuate})`);
   function use(arg) {
     return power(arg);
   }
-  const c = new Compartment({ power: attenuatedPower });
+  const c = new Compartment({
+    globals: { power: attenuatedPower },
+    __options__: true,
+  });
   const user = c.evaluate(`(${use})`);
   t.is(user(1), 2);
   t.throws(() => user(-1), { instanceOf: c.globalThis.TypeError });

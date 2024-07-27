@@ -52,7 +52,10 @@ function simulateDepd() {
 }
 
 test('SES compartment error compatibility - minimal case', t => {
-  const c1 = new Compartment({ t });
+  const c1 = new Compartment({
+    globals: { t },
+    __options__: true,
+  });
   const result = c1.evaluate(`
     const obj = {};
     Error.stackTraceLimit = 10;
@@ -64,7 +67,10 @@ test('SES compartment error compatibility - minimal case', t => {
 });
 
 test('SES compartment error compatibility - basic: prepareStackTrace accepts assignment', t => {
-  const c1 = new Compartment({ t });
+  const c1 = new Compartment({
+    globals: { t },
+    __options__: true,
+  });
   const result = c1.evaluate(`
     const obj = {};
     const newPST = (stack) => stack;
@@ -77,7 +83,10 @@ test('SES compartment error compatibility - basic: prepareStackTrace accepts ass
 });
 
 test('SES compartment error compatibility - functional prepareStackTrace', t => {
-  const c1 = new Compartment({ t });
+  const c1 = new Compartment({
+    globals: { t },
+    __options__: true,
+  });
   const result = c1.evaluate(`
     const prepareObjectStackTrace = (_, stack) => {
       t.fail('must not be called');
@@ -91,7 +100,10 @@ test('SES compartment error compatibility - functional prepareStackTrace', t => 
 });
 
 test('SES compartment error compatibility - endow w Error power', t => {
-  const c1 = new Compartment({ t, Error });
+  const c1 = new Compartment({
+    globals: { t, Error },
+    __options__: true,
+  });
   const result = c1.evaluate(`
     const obj = {
       toString: () => 'Pseudo Error',
@@ -155,7 +167,10 @@ test('SES compartment error compatibility - endow w Error with locally configura
     return LocalError;
   }
 
-  const c1 = new Compartment({ t, Error: createLocalError(Error) });
+  const c1 = new Compartment({
+    globals: { t, Error: createLocalError(Error) },
+    __options__: true,
+  });
   const result1 = c1.evaluate(`
   ${simulateDepd.toString()};
   simulateDepd();
@@ -163,7 +178,10 @@ test('SES compartment error compatibility - endow w Error with locally configura
   t.is(result1, 'getStack');
 
   // assert LocalError is not leaking to Error prototype
-  const evilC = new Compartment({ t, Error: createLocalError(Error) });
+  const evilC = new Compartment({
+    globals: { t, Error: createLocalError(Error) },
+    __options__: true,
+  });
   evilC.evaluate(`
     Error.prepareStackTrace = () => {
       t.fail('prepareStackTrace from evil compartment should not have been called');
