@@ -45,7 +45,7 @@ const { apply } = Reflect;
  */
 const freeze = Object.freeze;
 
-const { entries, keys } = Object;
+const { entries, keys, assign, create } = Object;
 
 const { hasOwnProperty } = Object.prototype;
 /**
@@ -95,12 +95,12 @@ export const exitModuleImportHookMaker = ({
   return async specifier => {
     if (modules && has(modules, specifier)) {
       const ns = modules[specifier];
-      return Object.freeze({
+      return freeze({
         imports: [],
         exports: ns ? keys(ns) : [],
         execute: moduleExports => {
           moduleExports.default = ns;
-          Object.assign(moduleExports, ns);
+          assign(moduleExports, ns);
         },
       });
     }
@@ -136,8 +136,8 @@ export const makeImportHookMaker = (
   readPowers,
   baseLocation,
   {
-    sources = Object.create(null),
-    compartmentDescriptors = Object.create(null),
+    sources = create(null),
+    compartmentDescriptors = create(null),
     archiveOnly = false,
     computeSha512 = undefined,
     searchSuffixes = nodejsConventionSearchSuffixes,
@@ -179,11 +179,10 @@ export const makeImportHookMaker = (
   }) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
-    const packageSources = sources[packageLocation] || Object.create(null);
+    const packageSources = sources[packageLocation] || create(null);
     sources[packageLocation] = packageSources;
     const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
-    const { modules: moduleDescriptors = Object.create(null) } =
-      compartmentDescriptor;
+    const { modules: moduleDescriptors = create(null) } = compartmentDescriptor;
     compartmentDescriptor.modules = moduleDescriptors;
 
     /**
@@ -222,6 +221,9 @@ export const makeImportHookMaker = (
     const importHook = async moduleSpecifier => {
       await null;
       compartmentDescriptor.retained = true;
+
+      // for lint rule
+      await null;
 
       // per-module:
 
@@ -275,8 +277,6 @@ export const makeImportHookMaker = (
         candidates.push(`${moduleSpecifier}${candidateSuffix}`);
       }
 
-      const { maybeRead } = unpackReadPowers(readPowers);
-
       for (const candidateSpecifier of candidates) {
         const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
         if (candidateModuleDescriptor !== undefined) {
@@ -315,6 +315,7 @@ export const makeImportHookMaker = (
           candidateSpecifier,
           packageLocation,
         );
+        const { maybeRead } = unpackReadPowers(readPowers);
         // eslint-disable-next-line no-await-in-loop
         const moduleBytes = await maybeRead(moduleLocation);
         if (moduleBytes !== undefined) {
@@ -423,8 +424,8 @@ export function makeImportNowHookMaker(
   readPowers,
   baseLocation,
   {
-    sources = Object.create(null),
-    compartmentDescriptors = Object.create(null),
+    sources = create(null),
+    compartmentDescriptors = create(null),
     computeSha512 = undefined,
     searchSuffixes = nodejsConventionSearchSuffixes,
     sourceMapHook = undefined,
@@ -474,18 +475,18 @@ export function makeImportNowHookMaker(
     );
 
     packageLocation = resolveLocation(packageLocation, baseLocation);
-    const packageSources = sources[packageLocation] || Object.create(null);
+    const packageSources = sources[packageLocation] || create(null);
     sources[packageLocation] = packageSources;
     const {
       modules:
         moduleDescriptors = /** @type {Record<string, ModuleDescriptor>} */ (
-          Object.create(null)
+          create(null)
         ),
     } = compartmentDescriptor;
     compartmentDescriptor.modules = moduleDescriptors;
 
     let { policy } = compartmentDescriptor;
-    policy = policy || Object.create(null);
+    policy = policy || create(null);
 
     // associates modules with compartment descriptors based on policy
     // which wouldn't otherwise be there
