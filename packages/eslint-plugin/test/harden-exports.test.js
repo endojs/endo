@@ -20,37 +20,6 @@ harden(b);
   },
   {
     code: `
-export function foo() {
-      console.log("foo");
-  }
-harden(foo);
-export const a = 1;
-harden(a);
-              `,
-  },
-  {
-    code: `
-export const a = 1;
-harden(a);
-export function bar() {
-      console.log("bar");
-  }
-harden(bar);
-              `,
-  },
-  {
-    code: `
-export const a = 1;
-harden(a);
-export function
-  multilineFunction() {
-      console.log("This is a multiline function.");
-  }
-harden(multilineFunction);
-              `,
-  },
-  {
-    code: `
 export const {
   getEnvironmentOption,
   getEnvironmentOptionsList,
@@ -73,8 +42,7 @@ harden(a);
               `,
     errors: [
       {
-        message:
-          "The named export 'b' should be followed by a call to 'harden'.",
+        message: "Named export 'b' should be followed by a call to 'harden'.",
       },
     ],
     output: `
@@ -91,8 +59,7 @@ export const a = 1;
               `,
     errors: [
       {
-        message:
-          "The named export 'a' should be followed by a call to 'harden'.",
+        message: "Named export 'a' should be followed by a call to 'harden'.",
       },
     ],
     output: `
@@ -109,14 +76,13 @@ export function foo() {
     errors: [
       {
         message:
-          "The named export 'foo' should be followed by a call to 'harden'.",
+          "Export 'foo' should be a const declaration with an arrow function.",
       },
     ],
     output: `
 export function foo() {
       console.log("foo");
   }
-harden(foo);
               `,
   },
   {
@@ -129,7 +95,7 @@ export function
     errors: [
       {
         message:
-          "The named export 'multilineFunction' should be followed by a call to 'harden'.",
+          "Export 'multilineFunction' should be a const declaration with an arrow function.",
       },
     ],
     output: `
@@ -137,7 +103,6 @@ export function
   multilineFunction() {
       console.log("This is a multiline function.");
   }
-harden(multilineFunction);
               `,
   },
   {
@@ -158,20 +123,18 @@ export function
         `,
     errors: [
       {
-        message:
-          "The named export 'a' should be followed by a call to 'harden'.",
+        message: "Named export 'a' should be followed by a call to 'harden'.",
+      },
+      {
+        message: "Named export 'b' should be followed by a call to 'harden'.",
       },
       {
         message:
-          "The named export 'b' should be followed by a call to 'harden'.",
+          "Export 'foo' should be a const declaration with an arrow function.",
       },
       {
         message:
-          "The named export 'foo' should be followed by a call to 'harden'.",
-      },
-      {
-        message:
-          "The named export 'multilineFunction' should be followed by a call to 'harden'.",
+          "Export 'multilineFunction' should be a const declaration with an arrow function.",
       },
     ],
     output: `
@@ -186,12 +149,10 @@ harden(alreadyHardened);
 export function foo() {
   console.log("foo");
   }
-harden(foo);
 export function
   multilineFunction() {
   console.log("This is a multiline function.");
   }
-harden(multilineFunction);
         `,
   },
   {
@@ -205,7 +166,7 @@ environmentOptionsListHas,
     errors: [
       {
         message:
-          "The named exports 'getEnvironmentOption, getEnvironmentOptionsList, environmentOptionsListHas' should be followed by a call to 'harden'.",
+          "Named exports 'getEnvironmentOption, getEnvironmentOptionsList, environmentOptionsListHas' should be followed by a call to 'harden'.",
       },
     ],
     output: `
