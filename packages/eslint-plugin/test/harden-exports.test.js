@@ -42,8 +42,7 @@ harden(a);
               `,
     errors: [
       {
-        message:
-          "The named export 'b' should be followed by a call to 'harden'.",
+        message: "Named export 'b' should be followed by a call to 'harden'.",
       },
     ],
     output: `
@@ -60,8 +59,7 @@ export const a = 1;
               `,
     errors: [
       {
-        message:
-          "The named export 'a' should be followed by a call to 'harden'.",
+        message: "Named export 'a' should be followed by a call to 'harden'.",
       },
     ],
     output: `
@@ -125,12 +123,10 @@ export function
         `,
     errors: [
       {
-        message:
-          "The named export 'a' should be followed by a call to 'harden'.",
+        message: "Named export 'a' should be followed by a call to 'harden'.",
       },
       {
-        message:
-          "The named export 'b' should be followed by a call to 'harden'.",
+        message: "Named export 'b' should be followed by a call to 'harden'.",
       },
       {
         message:
@@ -170,7 +166,7 @@ environmentOptionsListHas,
     errors: [
       {
         message:
-          "The named exports 'getEnvironmentOption, getEnvironmentOptionsList, environmentOptionsListHas' should be followed by a call to 'harden'.",
+          "Named exports 'getEnvironmentOption, getEnvironmentOptionsList, environmentOptionsListHas' should be followed by a call to 'harden'.",
       },
     ],
     output: `

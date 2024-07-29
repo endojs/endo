@@ -94,7 +94,7 @@ module.exports = {
             const noun = missingHardenCalls.length === 1 ? 'export' : 'exports';
             context.report({
               node: exportNode,
-              message: `The named ${noun} '${missingHardenCalls.join(', ')}' should be followed by a call to 'harden'.`,
+              message: `Named ${noun} '${missingHardenCalls.join(', ')}' should be followed by a call to 'harden'.`,
               fix: function (fixer) {
                 const hardenCalls = missingHardenCalls
                   .map(name => `harden(${name});`)
