@@ -15,6 +15,10 @@ export type SyncTrampolineGeneratorFn<
   TArg = TInitial,
   TResult = TArg,
   Thunk extends ThunkFn<TArg, TResult> = ThunkFn<TArg, TResult>,
-> = TResult extends Promise<any>
-  ? never
-  : (thunkFn: Thunk, initial: TInitial) => Generator<TResult, TResult, TResult>;
+> =
+  TResult extends Promise<any>
+    ? never
+    : (
+        thunkFn: Thunk,
+        initial: TInitial,
+      ) => Generator<TResult, TResult, TResult>;
