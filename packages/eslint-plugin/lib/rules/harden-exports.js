@@ -59,8 +59,11 @@ module.exports = {
                 }
               }
             } else if (exportNode.declaration.type === 'FunctionDeclaration') {
-              // @ts-expect-error xxx typedef
-              exportNames.push(exportNode.declaration.id.name);
+              context.report({
+                node: exportNode,
+                // The 'function' keyword hoisting makes the valuable mutable before it can be hardened.
+                message: `Export '${exportNode.declaration.id.name}' should be a const declaration with an arrow function.`,
+              });
             }
           } else if (exportNode.specifiers) {
             for (const spec of exportNode.specifiers) {
@@ -91,7 +94,7 @@ module.exports = {
             const noun = missingHardenCalls.length === 1 ? 'export' : 'exports';
             context.report({
               node: exportNode,
-              message: `The named ${noun} '${missingHardenCalls.join(', ')}' should be followed by a call to 'harden'.`,
+              message: `Named ${noun} '${missingHardenCalls.join(', ')}' should be followed by a call to 'harden'.`,
               fix: function (fixer) {
                 const hardenCalls = missingHardenCalls
                   .map(name => `harden(${name});`)
