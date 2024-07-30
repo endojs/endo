@@ -95,11 +95,14 @@ test('makeBundle / importArchive', async t => {
 
   const archiverBundle = await makeBundle(readPowers.read, archiverLocation);
   const archiverCompartment = new Compartment({
-    TextEncoder,
-    TextDecoder,
-    URL,
-    // See https://github.com/Agoric/agoric-sdk/issues/9515
-    assert: globalThis.assert,
+    globals: {
+      TextEncoder,
+      TextDecoder,
+      URL,
+      // See https://github.com/Agoric/agoric-sdk/issues/9515
+      assert: globalThis.assert,
+    },
+    __options__: true,
   });
   const evasiveArchiverBundle = archiverBundle
     .replace(/(?<!\.)\bimport\b(?![:"'])/g, 'IMPORT')

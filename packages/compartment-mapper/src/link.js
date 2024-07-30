@@ -449,13 +449,14 @@ export const link = (
       scopes,
     );
 
-    const compartment = new Compartment(create(null), undefined, {
+    const compartment = new Compartment({
+      name: location,
       resolveHook,
       importHook,
       moduleMapHook,
       transforms,
       __shimTransforms__,
-      name: location,
+      __options__: true,
     });
 
     if (!archiveOnly) {

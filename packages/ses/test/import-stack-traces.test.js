@@ -16,14 +16,11 @@ test('preserve file names in stack traces', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {}, // endowments
-    {}, // module map
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com/packages/erroneous'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com/packages/erroneous'),
+    __options__: true,
+  });
 
   let error;
   try {

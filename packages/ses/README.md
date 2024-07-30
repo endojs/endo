@@ -169,7 +169,10 @@ function on `globalThis`.
 import 'ses';
 
 const c = new Compartment({
-  print: harden(console.log),
+  globals: {
+    print: harden(console.log),
+  },
+  __options__: true, // temporary migration affordance
 });
 
 c.evaluate(`
@@ -213,7 +216,10 @@ through:
 * by assigning them to the compartment's `globalThis` after construction.
 
 ```js
-const powerfulCompartment = new Compartment({ Math });
+const powerfulCompartment = new Compartment({
+  globals: { Math },
+  __options__: true, // temporary migration affordance
+});
 powerfulCompartment.globalThis.Date = Date;
 ```
 
@@ -286,7 +292,7 @@ specifier for another module from a referrer module and the import specifier.
 import 'ses';
 import { ModuleSource } from '@endo/module-source';
 
-const c1 = new Compartment({}, {}, {
+const c1 = new Compartment({
   name: "first compartment",
   resolveHook: (moduleSpecifier, moduleReferrer) => {
     return resolve(moduleSpecifier, moduleReferrer);
@@ -298,6 +304,7 @@ const c1 = new Compartment({}, {}, {
         source: new ModuleSource(moduleText, moduleLocation);
     };
   },
+  __options__: true, // temporary migration affordance
 });
 ```
 
@@ -310,15 +317,17 @@ const c1 = new Compartment({}, {}, {
 A compartment can also link a module in another compartment.
 
 ```js
-const c2 = new Compartment({}, {
-  'c1': {
-    source: './main.js',
-    compartment: c1,
-  },
-}, {
+const c2 = new Compartment({
   name: "second compartment",
+  modules: {
+    'c1': {
+      source: './main.js',
+      compartment: c1,
+    },
+  },
   resolveHook,
   importHook,
+  __options__: true, // temporary migration affordance
 });
 ```
 
@@ -406,9 +415,10 @@ const importHook = async specifier => {
   throw new Error(`Cannot find module ${specifier}`);
 };
 
-const compartment = new Compartment({}, {}, {
+const compartment = new Compartment({
   resolveHook,
   importHook,
+  __options__: true, // temporary migration affordance
 });
 ```
 
@@ -443,16 +453,18 @@ const moduleMapHook = moduleSpecifier => {
   }
 };
 
-const even = new Compartment({}, {}, {
+const even = new Compartment({
   resolveHook: nodeResolveHook,
   importHook: makeImportHook('https://example.com/even'),
   moduleMapHook,
+  __options__: true, // temporary migration affordance
 });
 
-const odd = new Compartment({}, {}, {
+const odd = new Compartment({
   resolveHook: nodeResolveHook,
   importHook: makeImportHook('https://example.com/odd'),
   moduleMapHook,
+  __options__: true, // temporary migration affordance
 });
 ```
 
@@ -471,12 +483,13 @@ receive the same record type as from `importHook` or throw if it cannot.
 import 'ses';
 import { ModuleSource } from '@endo/module-source';
 
-const compartment = new Compartment({}, {
-  c: {
-    source: new ModuleSource(''),
-  },
-}, {
+const compartment = new Compartment({
   name: "first compartment",
+  modules: {
+    c: {
+      source: new ModuleSource(''),
+    },
+  },
   resolveHook: (moduleSpecifier, moduleReferrer) => {
     return resolve(moduleSpecifier, moduleReferrer);
   },
@@ -495,6 +508,7 @@ const compartment = new Compartment({}, {
       source: new ModuleSource(moduleText, moduleLocation),
     };
   },
+  __options__: true, // temporary migration affordance
 });
 //...                   | importHook | importNowHook
 await compartment.import('a'); //| called     | not called
@@ -595,7 +609,11 @@ not a module.
 
 ```js
 const transforms = [addCodeCoverageInstrumentation];
-const c = new Compartment({ console, coverage }, null, { transforms });
+const c = new Compartment({
+  globals: { console, coverage },
+  transforms,
+  __options__: true, // temporary migration affordance
+});
 c.evaluate('console.log("Hello");');
 ```
 
@@ -633,8 +651,10 @@ instead of `transforms`.
 
 ```js
 const __shimTransforms__ = [addCoverage];
-const c = new Compartment({ console, coverage }, null, {
+const c = new Compartment({
+  globals: { console, coverage },
   __shimTransforms__,
+  __options__: true, // temporary migration affordance
 });
 c.evaluate('console.log("Hello");');
 ```
@@ -741,11 +761,17 @@ abilities.
 lockdown();
 
 const promise = new Promise(resolve => {
-  const compartmentA = new Compartment(harden({ resolve }));
+  const compartmentA = new Compartment({
+    globals: harden({ resolve }),
+  __options__: true, // temporary migration affordance
+  });
   compartmentA.evaluate(programA);
 });
 
-const compartmentB = new Compartment(harden({ promise }));
+const compartmentB = new Compartment({
+  globals: harden({ promise }),
+  __options__: true, // temporary migration affordance
+});
 compartmentB.evaluate(programB);
 ```
 

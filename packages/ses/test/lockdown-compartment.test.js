@@ -6,7 +6,7 @@ test('lockdown returns or throws', t => {
 
   // Compartment constructor does not throw before lockdown.
   (() => {
-    const c = new Compartment({}, {}, {});
+    const c = new Compartment();
     const functionConstructor = c.evaluate('Function.prototype.constructor');
     t.is(
       functionConstructor,
@@ -19,7 +19,7 @@ test('lockdown returns or throws', t => {
 
   // Compartment constructor does not throw after lockdown.
   (() => {
-    const c = new Compartment({}, {}, {});
+    const c = new Compartment();
     const cf = c.evaluate('Function.prototype.constructor');
     t.not(
       cf,
@@ -27,7 +27,7 @@ test('lockdown returns or throws', t => {
       'after lockdown, Function.prototype.constructor must be tamed inside compartments',
     );
 
-    const d = new Compartment({}, {}, {});
+    const d = new Compartment();
     const df = d.evaluate('Function.prototype.constructor');
     t.is(
       cf,
