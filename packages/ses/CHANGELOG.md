@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/endojs/endo/compare/ses@1.5.0...ses@1.6.0) (2024-07-30)
+
+
+### Features
+
+* **ses:** Capture Compartment endowments and modules options ([81eb956](https://github.com/endojs/endo/commit/81eb95630727664dacfeb8b1444356a41e286fac))
+* **ses:** Compartment single argument options ([bc94a2b](https://github.com/endojs/endo/commit/bc94a2bd29a651d76ca39ebdc68b3f75c6c5a1da))
+* **ses:** Module descriptor parity with XS ([11f1345](https://github.com/endojs/endo/commit/11f134508ff95f4d0ad029ef02746e2228ec409e))
+* **ses:** Option __noNamespaceBox__ ([d996bad](https://github.com/endojs/endo/commit/d996bad715b54f77be1a2b3de74e85dd55fce246))
+* **ses:** permit toHex etc ([#2385](https://github.com/endojs/endo/issues/2385)) ([c7ebcc1](https://github.com/endojs/endo/commit/c7ebcc12a8fed739eddd419fe1cc0b270c913317))
+* **ses:** Remove module map validation ([2f27834](https://github.com/endojs/endo/commit/2f278349c7db822a18d061f59c2e737ae987f764))
+* **types:** assert.equal narrows ([c3a593c](https://github.com/endojs/endo/commit/c3a593c4c09c07578cff9eb949e6486201176c5b))
+
+
+### Bug Fixes
+
+* endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
+* **ses-demo:** adapt to disabled `Date.now()` throwing ([#2357](https://github.com/endojs/endo/issues/2357)) ([b007d20](https://github.com/endojs/endo/commit/b007d206bd23a9765b598aaf18b77d4a007c9593)), closes [/github.com/endojs/endo/issues/910#issuecomment-1581855420](https://github.com/endojs//github.com/endojs/endo/issues/910/issues/issuecomment-1581855420)
+* **ses:** Add missing reexports map field on precompiled module source ([78b273d](https://github.com/endojs/endo/commit/78b273df0f7f506fef1f3ce8da4a6dfd7e442110))
+* **ses:** Defer module hook assertions ([8e4396b](https://github.com/endojs/endo/commit/8e4396b6ef059f556d8ce0af083f29d3ed57f6cd))
+* **ses:** work around [#2348](https://github.com/endojs/endo/issues/2348) linenumber bug ([#2355](https://github.com/endojs/endo/issues/2355)) ([00f5eab](https://github.com/endojs/endo/commit/00f5eab1916a93ae3e4440f86e405507d56d8d16))
+
+
+
 ## [1.5.0](https://github.com/endojs/endo/compare/ses@1.4.1...ses@1.5.0) (2024-05-07)
 
 

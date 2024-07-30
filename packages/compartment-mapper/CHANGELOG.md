@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.5...@endo/compartment-mapper@1.2.0) (2024-07-30)
+
+
+### Features
+
+* **compartment-mapper:** Custom parser support ([#2304](https://github.com/endojs/endo/issues/2304)) ([43d867e](https://github.com/endojs/endo/commit/43d867ec4a5627900e2bac858c6e13a5cb92a562)), closes [#2303](https://github.com/endojs/endo/issues/2303) [#2303](https://github.com/endojs/endo/issues/2303) [#2303](https://github.com/endojs/endo/issues/2303) [#2303](https://github.com/endojs/endo/issues/2303)
+* **compartment-mapper:** Export lite and parser modules ([7b5432f](https://github.com/endojs/endo/commit/7b5432f247ac60d6ec0fef7b7e619124689c8495))
+* **compartment-mapper:** Infer dev mode from development condition ([51d8601](https://github.com/endojs/endo/commit/51d8601f23f761f408fcffab4979e8fd10fd601d))
+* **compartment-mapper:** JSON module support for makeBundle ([779595c](https://github.com/endojs/endo/commit/779595c048663d4e3fcba3bac00d9ca063bbed15))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** Support ESM imports defined property from CJS from set property of CJS ([bfd51ee](https://github.com/endojs/endo/commit/bfd51eee657fd65751c832898b7091b7ad3ecc7c))
+* **compartment-mapper:** Take only first matching tag of package exports ([7e7654d](https://github.com/endojs/endo/commit/7e7654de10b552a3486289f2e9e677546aafe464))
+* **compartment-mapper:** Thread maybeRead through initial package.json search ([592a485](https://github.com/endojs/endo/commit/592a485e22c78b17d7d0270b22ea9772e2da80f1))
+* endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
+
+
+
 ### [1.1.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.1.4...@endo/compartment-mapper@1.1.5) (2024-05-07)
 
 **Note:** Version bump only for package @endo/compartment-mapper

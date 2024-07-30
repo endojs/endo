@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/endojs/endo/compare/@endo/import-bundle@1.1.2...@endo/import-bundle@1.2.0) (2024-07-30)
+
+
+### Features
+
+* **import-bundle:** accept symbol-named properties on inescapableGlobalProperties ([#2377](https://github.com/endojs/endo/issues/2377)) ([8bb2b39](https://github.com/endojs/endo/commit/8bb2b39136172975bb56a40d1b2973973153044d)), closes [#2376](https://github.com/endojs/endo/issues/2376) [#2376](https://github.com/endojs/endo/issues/2376)
+
+
+
 ### [1.1.2](https://github.com/endojs/endo/compare/@endo/import-bundle@1.1.1...@endo/import-bundle@1.1.2) (2024-05-07)
 
 **Note:** Version bump only for package @endo/import-bundle
