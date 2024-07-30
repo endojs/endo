@@ -184,6 +184,7 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
 
 const defaultLanguages = /** @type {const} */ ([
   'mjs',
+  'mts',
   'cjs',
   'json',
   'text',
@@ -192,6 +193,7 @@ const defaultLanguages = /** @type {const} */ ([
 const defaultUncontroversialParsers = /** @type {const} */ ({
   cjs: 'cjs',
   mjs: 'mjs',
+  mts: 'mts',
   json: 'json',
   text: 'text',
   bytes: 'bytes',

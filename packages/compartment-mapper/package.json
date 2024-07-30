@@ -58,6 +58,7 @@
     "@endo/cjs-module-analyzer": "^1.0.5",
     "@endo/module-source": "^0.0.0",
     "@endo/zip": "^1.0.5",
+    "@swc/wasm-typescript": "^1.7.2",
     "ses": "^1.5.0"
   },
   "devDependencies": {
