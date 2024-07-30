@@ -1,6 +1,6 @@
-User-visible changes to the compartment mapper:
+User-visible changes to `@endo/compartment-mapper`:
 
-# Next release
+# v1.2.0 (2024-07-30)
 
 - Fixes incompatible behavior with Node.js package conditional exports #2276.
   Previously, the last matching tag would override all prior matches, often
