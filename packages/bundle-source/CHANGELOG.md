@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.2.3...@endo/bundle-source@3.3.0) (2024-07-30)
+
+
+### Features
+
+* **bundle-source:** Add `tag` command-line flag ([ba1f346](https://github.com/endojs/endo/commit/ba1f346513d0302c1e114925ed4abeb9d31d4afb))
+* **bundle-source:** Add a no-cache mode for bundling to stdout ([25401c2](https://github.com/endojs/endo/commit/25401c232348aca94be0421940c9551365de0fc7))
+* **bundle-source:** Entrain devDependencies with development condition ([308307e](https://github.com/endojs/endo/commit/308307e1b1b940d77f770daea5aa4b10e595a667))
+* **bundle-source:** New endoScript format to obviate Rollup ([583c7e3](https://github.com/endojs/endo/commit/583c7e3ae4e12948a788f41f0c49aa2ff8e19584))
+* **bundle-source:** Support JSON modules in nested evaluate and get export bundle formats ([33df698](https://github.com/endojs/endo/commit/33df6983cdd4331d5ade8ddc90e258557cb8b7d7))
+* **bundle-source:** Zip original sources with --no-transforms ([2af54c3](https://github.com/endojs/endo/commit/2af54c36c0a62ee108dc691c3f09e928337bc0d3))
+* **bundle-support:** CLI support for other formats ([80252b2](https://github.com/endojs/endo/commit/80252b26279181f20c88f1993feb4264f3fbb221))
+
+
+### Bug Fixes
+
+* **bundle-source:** Mention --no-transforms in bundle-source usage ([5da60c8](https://github.com/endojs/endo/commit/5da60c806b85264582ba5943fd1c0792b2a9f32b))
+* **bundle-source:** Recognize default metadata ([5ee3a9b](https://github.com/endojs/endo/commit/5ee3a9b875d568f2045ae871dc6c2ad1ddd0c617))
+
+
+### Performance Improvements
+
+* **bundle-source:** Allow imports to run parallel ([f3afe94](https://github.com/endojs/endo/commit/f3afe942f1530ce0476ff83b82a62cfe04446df4))
+
+
+
 ### [3.2.3](https://github.com/endojs/endo/compare/@endo/bundle-source@3.2.2...@endo/bundle-source@3.2.3) (2024-05-07)
 
 **Note:** Version bump only for package @endo/bundle-source

@@ -1,5 +1,6 @@
+User-visible changes to `@endo/bundle-source`:
 
-# Next version
+# v3.3.0 (2024-07-30)
 
 - Adds support for `--no-transforms` (`-T`) which generates bundles with
   original sources.

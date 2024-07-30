@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.0](https://github.com/endojs/endo/compare/@endo/daemon@2.3.0...@endo/daemon@2.4.0) (2024-07-30)
+
+
+### Features
+
+* **cli:** Further dot-delimited path support ([b7035b4](https://github.com/endojs/endo/commit/b7035b47687546dbd804b22f39eab4d18f1b19b5))
+* **daemon,cli:** Make caplets in pet name paths ([ad80978](https://github.com/endojs/endo/commit/ad8097878e7680f2de2019fdd286d94b8b43e38c))
+* **daemon,cli:** Store at pet name path ([d54402d](https://github.com/endojs/endo/commit/d54402da91b23b4e00bf6fa03550ea7b04ec659c))
+* **daemon:** Accept spread path at makeDirectory() ([61dc434](https://github.com/endojs/endo/commit/61dc4347b3a0b3ad6dea2a52b9cb0466c1cdc161))
+
+
+### Bug Fixes
+
+* **daemon:** Delete moved "from" names ([182bab5](https://github.com/endojs/endo/commit/182bab53409b3db4c5198a8462cea9724b3bb789))
+* **daemon:** Make directory `move()` compatible with Exo name hubs ([52d93ad](https://github.com/endojs/endo/commit/52d93ad38b5f122c7ac632023f12434f7cbf5474))
+* **daemon:** Preserve 'from' name in case of write failure for 'to' name ([feb3a22](https://github.com/endojs/endo/commit/feb3a22cc7ba006fb11c2a43fa4861a18469a709))
+* endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
+
+
+
 ## [2.3.0](https://github.com/endojs/endo/compare/@endo/daemon@2.2.0...@endo/daemon@2.3.0) (2024-05-07)
 
 

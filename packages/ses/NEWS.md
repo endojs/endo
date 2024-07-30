@@ -1,6 +1,6 @@
-User-visible changes in SES:
+User-visible changes in `ses`:
 
-# Next version
+# v1.6.0 (2024-07-30)
 
 - *NOTICE*: This version introduces multiple features to converge upon a
   more common standard for [Hardened JavaScript](https://hardenedjs.org).
