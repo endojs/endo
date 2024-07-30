@@ -52,7 +52,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
-   * @param {string[]} [options.tags]
    * @param {string[]} [options.conditions]
    * @param {ModuleFormat} [options.format]
    */
@@ -154,7 +153,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
    * @param {ModuleFormat} [options.format]
-   * @param {string[]} [options.tags]
    * @param {string[]} [options.conditions]
    * @returns {Promise<BundleMeta>}
    */

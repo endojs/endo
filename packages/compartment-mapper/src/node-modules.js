@@ -728,7 +728,9 @@ const translateGraph = (
   }
 
   return {
-    conditions: [...conditions],
+    // TODO graceful migration from tags to conditions
+    // https://github.com/endojs/endo/issues/2388
+    tags: [...conditions],
     entry: {
       compartment: entryPackageLocation,
       module: entryModuleSpecifier,

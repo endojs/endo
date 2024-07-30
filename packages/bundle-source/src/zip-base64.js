@@ -22,7 +22,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {boolean} [options.dev]
  * @param {boolean} [options.cacheSourceMaps]
  * @param {boolean} [options.noTransforms]
- * @param {string[]} [options.condditions]
+ * @param {string[]} [options.conditions]
  * @param {Record<string, string>} [options.commonDependencies]
  * @param {object} [grantedPowers]
  * @param {(bytes: string | Uint8Array) => string} [grantedPowers.computeSha512]

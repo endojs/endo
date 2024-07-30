@@ -380,7 +380,7 @@ The compartment map shape:
 // CompartmentMap describes how to prepare compartments
 // to run an application.
 type CompartmentMap = {
-  conditions: Conditions,
+  tags: Conditions,
   entry: Entry,
   compartments: Record<CompartmentName, Compartment>,
   realms: Record<RealmName, Realm>, // TODO
