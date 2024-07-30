@@ -117,7 +117,7 @@ https://github.com/endojs/endo/labels/next-release
 
   ```sh
   yarn
-  git add -um 'chore: Update yarn.lock'
+  git commit -um 'chore: Update yarn.lock'
   ```
 
 * Publish the versions to npm.
