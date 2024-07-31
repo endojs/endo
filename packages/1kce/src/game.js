@@ -243,6 +243,7 @@ export function makeGame (initialState = getDefaultState(), deck, persistState) 
     for await (const card of await E(deck).getCards()) {
       deckGrain.push(card)
     }
+    console.log(`imported ${deckGrain.getLength()} cards`)
   }
 
   // draw stack - this is the stack of cards the players draw from
@@ -375,6 +376,8 @@ export function makeGame (initialState = getDefaultState(), deck, persistState) 
   }
   // to be called at the start of a new game
   const start = async () => {
+    // initialize
+    await initialize()
     // populate the draw stack
     populateDrawStackFromDeck()
     shuffleDrawStack()
@@ -470,7 +473,6 @@ export const make = async (powers) => {
   const initGameWithDeck = async (deck) => {
     console.log('init game with deck')
     game = makeGame(gameState, deck, persistState)
-    await game.initialize()
   }
   if (await E(powers).has('deck')) {
     const deck = await E(powers).lookup('deck');
