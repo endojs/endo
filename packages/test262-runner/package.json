@@ -1,6 +1,6 @@
 {
   "name": "@endo/test262-runner",
-  "version": "0.1.38",
+  "version": "0.1.39",
   "private": true,
   "description": "Hardened JavaScript Test262 Runner",
   "keywords": [],
@@ -31,8 +31,8 @@
     "test262:node": "test262-harness --host-type node --host-path node --test262-dir test262  --prelude prelude/node.js 'test262/test/**/*.js' --features-include ses-xs-parity"
   },
   "dependencies": {
-    "@endo/compartment-mapper": "^1.2.0",
-    "ses": "^1.6.0",
+    "@endo/compartment-mapper": "^1.2.1",
+    "ses": "^1.7.0",
     "test262-harness": "^10.0.0"
   },
   "devDependencies": {

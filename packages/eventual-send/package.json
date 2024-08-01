@@ -1,6 +1,6 @@
 {
   "name": "@endo/eventual-send",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Extend a Promise class to implement the eventual-send API",
   "type": "module",
   "main": "src/no-shim.js",
@@ -39,7 +39,7 @@
     "@endo/env-options": "^1.1.5"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.8",
+    "@endo/lockdown": "^1.0.9",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "tsd": "^0.30.7",

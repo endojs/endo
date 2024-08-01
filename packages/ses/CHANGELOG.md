@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.0](https://github.com/endojs/endo/compare/ses@1.6.0...ses@1.7.0) (2024-08-01)
+
+
+### Features
+
+* **ses:** call lockdown before bundling SES shim ([#2337](https://github.com/endojs/endo/issues/2337)) ([8c01dd4](https://github.com/endojs/endo/commit/8c01dd4dd796d6fc492784d3a993d091fd3cd595))
+
+
+
 ## [1.6.0](https://github.com/endojs/endo/compare/ses@1.5.0...ses@1.6.0) (2024-07-30)
 
 

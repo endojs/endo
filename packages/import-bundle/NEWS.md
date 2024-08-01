@@ -1,5 +1,10 @@
 User-visible changes to `@endo/import-bundle`:
 
+# v1.2.1 (2024-08-01)
+
+- Fixes support for `inescapableGlobalProperties` in the `endoZipBase64` format
+  that had been lost due to changes to the `Compartment` interface.
+
 # v1.2.0 (2024-07-30)
 
 - The `inescapableGlobalProperties` option is changed from supporting only
