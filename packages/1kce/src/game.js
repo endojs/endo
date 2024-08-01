@@ -53,16 +53,11 @@ const makePlayer = (getCardDataById, playerInitialState = {}) => {
 
   // this is a remote interface for a player
   // and should not allow access to priveledged into like the hand
-  // (but it does for now) 
   // we rely on captp identity continuity for this elsewhere
   const remoteInterface = Far(`Player "${name}"`, {
     // public
     async getName () {
       return name
-    },
-    // (supposed to be) private
-    async getHandGrain () {
-      return makeRemoteGrain(hand)
     },
   })
   const localPlayer = {
@@ -532,7 +527,7 @@ export const make = async (powers) => {
       const localPlayer = game.getLocalPlayerAtIndex(index)
       return Far(`Player-${index}`, {
         //
-        // generic methods (unpriveleged)
+        // generic methods (public)
         //
         async getStateGrain () {
           return makeRemoteGrainMap(game.state)
@@ -545,7 +540,13 @@ export const make = async (powers) => {
         },
         getCardsAtPlayerLocationGrain,
         //
-        // player specific methods (priveleged)
+        // player specific methods (public)
+        //
+        async getOwnPlayer () {
+          return localPlayer.remoteInterface
+        },
+        //
+        // player specific methods (private)
         //
         async getHandGrain () {
           return makeRemoteGrain(localPlayer.hand)

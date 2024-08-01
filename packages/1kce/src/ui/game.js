@@ -263,30 +263,25 @@ const PlayCardButtonComponent = ({ card, playerControl, sourcePlayer, destPlayer
   }, [playLabel])
 }
 
-export const GameCurrentPlayerComponent = ({ playerControl, player, players }) => {
-  const { value: name } = useAsync(async () => {
-    return await E(player).getName()
-  }, [player]);
+export const GameCurrentPlayerHandComponent = ({ playerControl, currentPlayer, players }) => {
   const hand = useGrainGetter(
     () => makeReadonlyArrayGrainFromRemote(
-      // TODO: this is the public player
-      // we should instead use the private player controller interface
-      E(player).getHandGrain(),
+      E(playerControl).getHandGrain(),
     ),
-    [player],
+    [playerControl],
   )
 
   // specify a component to render under the cards
   const cardControlComponent = ({ card }) => {
     const playControls = [
       // first to self
-      h(PlayCardButtonComponent, { key: 'self', card, playerControl, sourcePlayer: player, destPlayer: player }),
+      h(PlayCardButtonComponent, { key: 'self', card, playerControl, sourcePlayer: currentPlayer, destPlayer: currentPlayer }),
       // then to all other players except self
       ...players.map((otherPlayer, index) => {
-        if (otherPlayer === player) {
+        if (otherPlayer === currentPlayer) {
           return null
         }
-        return h(PlayCardButtonComponent, { key: index, card, playerControl, sourcePlayer: player, destPlayer: otherPlayer })
+        return h(PlayCardButtonComponent, { key: index, card, playerControl, sourcePlayer: currentPlayer, destPlayer: otherPlayer })
       }),
     ]
     return (
@@ -304,9 +299,22 @@ export const GameCurrentPlayerComponent = ({ playerControl, player, players }) =
   }
 
   return (
+    h(CardsDisplayComponent, { cards: hand, cardControlComponent, emptyMessage: '( No cards in hand. )' })
+  )
+}
+
+export const GameCurrentPlayerComponent = ({ playerControl, ownPlayer, currentPlayer, players }) => {
+  // this equality is possible via captp's identity continuity
+  const selfIsCurrentPlayer = ownPlayer === currentPlayer
+
+  const { value: name } = useAsync(async () => {
+    return await E(currentPlayer).getName()
+  }, [currentPlayer]);
+
+  return (
     h('div', {}, [
       h('h3', { key: 'player-subtitle' }, [`Current Player: ${name}`]),
-      h(CardsDisplayComponent, { cards: hand, cardControlComponent, emptyMessage: '( No cards in hand. )' }),
+      selfIsCurrentPlayer && h(GameCurrentPlayerHandComponent, { playerControl, currentPlayer, players }),
     ])
   )
 }
@@ -330,7 +338,7 @@ export const GamePlayerAreaComponent = ({ playerControl, player, isCurrentPlayer
   )
 }
 
-export const ActiveGameComponent = ({ playerControl, stateGrain }) => {
+export const ActiveGameComponent = ({ playerControl, ownPlayer, stateGrain }) => {
   const players = useGrainGetter(
     () => stateGrain.getGrain('players'),
     [stateGrain],
@@ -382,7 +390,7 @@ export const ActiveGameComponent = ({ playerControl, stateGrain }) => {
             }),
           ])
         })),
-        currentPlayer && h(GameCurrentPlayerComponent, { playerControl, player: currentPlayer, players }),
+        currentPlayer && h(GameCurrentPlayerComponent, { playerControl, ownPlayer, currentPlayer, players }),
       ]),
       h('section', {
         key: 'log',
