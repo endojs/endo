@@ -21,7 +21,7 @@ import {
   weakmapGet,
   weakmapHas,
 } from './commons.js';
-import { makeError, annotateError, q, X } from './error/assert.js';
+import { makeError, annotateError, q, b, X } from './error/assert.js';
 
 const noop = () => {};
 
@@ -154,7 +154,7 @@ function* loadWithoutErrorAnnotation(
         'importNowHook',
       );
       throw makeError(
-        X`${moduleHookName} needed to load module ${q(
+        X`${b(moduleHookName)} needed to load module ${q(
           moduleSpecifier,
         )} in compartment ${q(compartment.name)}`,
       );

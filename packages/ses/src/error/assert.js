@@ -579,4 +579,5 @@ export {
   note as annotateError,
   redactedDetails as X,
   quote as q,
+  bare as b,
 };
