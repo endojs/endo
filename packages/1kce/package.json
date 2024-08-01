@@ -38,11 +38,8 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "@endo/lockdown": "^0.1.32",
-    "@endo/ses-ava": "^0.2.44",
-    "ava": "^5.3.0",
-    "c8": "^7.14.0",
-    "tsd": "^0.28.1"
+    "@endo/lockdown": "^1.0.7",
+    "@endo/ses-ava": "^1.2.2"
   },
   "files": [
     "*.js",
