@@ -1,4 +1,12 @@
-flow:
+# setup
+
+### setup cli
+in `packages/cli`:
+
+npm i -g .
+
+### setup basic objects
+in `packages/1kce`:
 
 ```sh
 # fresh start
@@ -17,20 +25,18 @@ endo bundle --name bundle-game ./src/weblet.js && \
 endo install --bundle bundle-game --powers AGENT --listen 0 --name app-game
 ```
 
-- create players
-- start
+### webui steps
+- open installed webui
+- select `agent-game`
+- from dropdown select deck `deck-new`
+- add cards to deck
+- create invite for player-0
+- create invite for player-1
+- start game
+- open new tab of same url
+- select player-1
+- play game in both tabs
 
-    ui:
-        select game agent / game invite/player
-        game setup config
-
-
-
-0. chat
-1. send app
-2. send cards
-3. build deck
-4. start play
 
 TODO:
 - [X] set deck
@@ -40,4 +46,27 @@ TODO:
       - fails to update on depth >1
         - new dir method for subscribing to one name, applied recursively
 - [x] modify deck (single player)
-- [ ] start game
+- [ ] setup players
+  - [x] add a new player invite
+  - [ ] create first player by default?
+- [x] start game
+  - [x] failure to import deck
+- [x] play game
+  - [x] render hand
+    - [x] target has no method
+    - [x] playerHandGrain not updating ?
+  - [x] render other players
+    need to explicitly create all players
+  - [x] ui needs sense of selected player
+    - [x] select game via player interface
+    - [x] select via game lobby
+    - [x] unified flow for selecting player interface
+      - game:
+        - [x] getCardsAtPlayerLocationGrain
+      - stateGrain:
+        - [x] make loadable from control interface
+      - gameMgmt:
+        - [x] start (not needed during play)
+        - [x] playCardByIdFromHand
+- [x] dont show other players hand during their turn
+- [ ] factor out game creation code
