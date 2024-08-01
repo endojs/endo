@@ -3,6 +3,7 @@
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
 [![CI status](https://github.com/endojs/endo/actions/workflows/ci.yml/badge.svg)](https://github.com/endojs/endo/actions/workflows/ci.yml)
+[![Mutable.ai Auto Wiki](https://img.shields.io/badge/Auto_Wiki-Mutable.ai-blue)](https://wiki.mutable.ai/endojs/endo)
 
 Endo is a framework for powerful JavaScript plugin systems and supply chain
 attack resistance.
