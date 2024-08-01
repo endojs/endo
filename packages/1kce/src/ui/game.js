@@ -267,25 +267,26 @@ export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
-  // const hand = useGrainGetter(
-  //   () => makeReadonlyArrayGrainFromRemote(
-  //     E(player).getHandGrain(),
-  //   ),
-  //   [player],
-  // )
-  const hand = []
+  const hand = useGrainGetter(
+    () => makeReadonlyArrayGrainFromRemote(
+      // TODO: this is the public player
+      // we should instead use the private player controller interface
+      E(player).getHandGrain(),
+    ),
+    [player],
+  )
 
   // specify a component to render under the cards
   const cardControlComponent = ({ card }) => {
     const playControls = [
       // first to self
-      h(PlayCardButtonComponent, { card, gameMgmt, sourcePlayer: player, destPlayer: player }),
+      h(PlayCardButtonComponent, { key: 'self', card, gameMgmt, sourcePlayer: player, destPlayer: player }),
       // then to all other players except self
-      ...players.map(otherPlayer => {
+      ...players.map((otherPlayer, index) => {
         if (otherPlayer === player) {
           return null
         }
-        return h(PlayCardButtonComponent, { card, gameMgmt, sourcePlayer: player, destPlayer: otherPlayer })
+        return h(PlayCardButtonComponent, { key: index, card, gameMgmt, sourcePlayer: player, destPlayer: otherPlayer })
       }),
     ]
     return (
@@ -304,7 +305,7 @@ export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
 
   return (
     h('div', {}, [
-      h('h3', null, [`Current Player: ${name}`]),
+      h('h3', { key: 'player-subtitle' }, [`Current Player: ${name}`]),
       h(CardsDisplayComponent, { cards: hand, cardControlComponent, emptyMessage: '( No cards in hand. )' }),
     ])
   )
@@ -323,8 +324,8 @@ export const GamePlayerAreaComponent = ({ game, player, isCurrentPlayer, score }
 
   return (
     h('div', {}, [
-      h('h4', null, [`${name} [${score}] ${isCurrentPlayer ? '(current)' : ''}`]),
-      h(CardsDisplayComponent, { cards: playerAreaCards, emptyMessage: '( No cards in player area. )' }),
+      h('h4', { key: 'title' }, [`${name} [${score}] ${isCurrentPlayer ? '(current)' : ''}`]),
+      h(CardsDisplayComponent, { key: 'cards', cards: playerAreaCards, emptyMessage: '( No cards in player area. )' }),
     ])
   )
 }
@@ -353,6 +354,7 @@ export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
 
   return (
     h('div', {
+      key: 'wrapper',
       style: {
         display: 'flex',
       },
