@@ -152,7 +152,7 @@ test('inescapable global properties, nested evaluate format', async t => {
   t.is(ns.default, 42);
 });
 
-test.failing('inescapable global properties, zip base64 format', async t => {
+test('inescapable global properties, zip base64 format', async t => {
   const bundle = await bundleSource(
     url.fileURLToPath(new URL('export-inescapable-global.js', import.meta.url)),
     'endoZipBase64',
