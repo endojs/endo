@@ -123,3 +123,45 @@ test('inescapable transforms', async t => {
   });
   t.is(ns.f4('is ok'), 'substitution is ok', `iT ns.f4 ok`);
 });
+
+test('inescapable global properties, get export format', async t => {
+  const bundle = await bundleSource(
+    url.fileURLToPath(new URL('export-inescapable-global.js', import.meta.url)),
+    'getExport',
+  );
+
+  const ns = await importBundle(bundle, {
+    inescapableGlobalProperties: {
+      inescapableGlobalValue: 42,
+    },
+  });
+  t.is(ns.default, 42);
+});
+
+test('inescapable global properties, nested evaluate format', async t => {
+  const bundle = await bundleSource(
+    url.fileURLToPath(new URL('export-inescapable-global.js', import.meta.url)),
+    'nestedEvaluate',
+  );
+
+  const ns = await importBundle(bundle, {
+    inescapableGlobalProperties: {
+      inescapableGlobalValue: 42,
+    },
+  });
+  t.is(ns.default, 42);
+});
+
+test.failing('inescapable global properties, zip base64 format', async t => {
+  const bundle = await bundleSource(
+    url.fileURLToPath(new URL('export-inescapable-global.js', import.meta.url)),
+    'endoZipBase64',
+  );
+
+  const ns = await importBundle(bundle, {
+    inescapableGlobalProperties: {
+      inescapableGlobalValue: 42,
+    },
+  });
+  t.is(ns.default, 42);
+});
