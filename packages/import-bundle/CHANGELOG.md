@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.2.1](https://github.com/endojs/endo/compare/@endo/import-bundle@1.2.0...@endo/import-bundle@1.2.1) (2024-08-01)
+
+
+### Bug Fixes
+
+* **import-bundle:** Adapt comaprtment mapper constructor ([4a06ec3](https://github.com/endojs/endo/commit/4a06ec3c06da57840f43f81a7fbd29019e197148))
+
+
+
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/import-bundle@1.1.2...@endo/import-bundle@1.2.0) (2024-07-30)
 
 
