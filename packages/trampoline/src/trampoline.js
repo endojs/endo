@@ -1,22 +1,21 @@
+/* eslint-disable @jessie.js/safe-await-separator */
 /**
- * @import {ThunkFn, SyncTrampolineGeneratorFn, TrampolineGeneratorFn } from './types.js'
+ * @import {ThunkFn, SyncTrampolineGeneratorFn, TrampolineGeneratorFn, AsyncTrampolineGeneratorFn, SyncThunkFn } from './types.js'
  */
 
 /**
- * Synchronous trampoline
- *
- * This trampoline will only accept a `Hook` where `HookResult` is _not_ a `Promise`.
+ * Trampoline on {@link TrampolineGeneratorFn generatorFn} with a synchronous {@link SyncThunkFn thunk}.
  *
  * @template TInitial Type of the initial value passed to the `generatorFn`
  * @template [TArg=TInitial] Type of the argument passed to the `thunkFn`
  * @template [TResult=TArg] Result of the `thunkFn` _and_ the return value of the `generatorFn`
  * @param {SyncTrampolineGeneratorFn<TInitial, TArg, TResult>} generatorFn Generator-returning function accepting a thunk and optionally an initial value
- * @param {ThunkFn<TArg, TResult>} thunkFn Synchronous thunk which `generatorFn` should call
+ * @param {SyncThunkFn<TArg, TResult>} thunk Synchronous thunk which `generatorFn` should call
  * @param {TInitial} initial Initial value
  * @returns {TResult}
  */
-export function syncTrampoline(generatorFn, thunkFn, initial) {
-  const iterator = generatorFn(thunkFn, initial);
+export function syncTrampoline(generatorFn, thunk, initial) {
+  const iterator = generatorFn(thunk, initial);
   let result = iterator.next();
   while (!result.done) {
     result = iterator.next(result.value);
@@ -25,20 +24,18 @@ export function syncTrampoline(generatorFn, thunkFn, initial) {
 }
 
 /**
- * Asynchronous trampoline
- *
- * This trampoline will accept a {@link ThunkFn} where `TResult` _may_ be a `Promise`.
+ * Trampoline on {@link TrampolineGeneratorFn generatorFn} with a synchronous _or_ asynchronous {@link ThunkFn thunk}.
  *
  * @template TInitial Type of the initial value passed to the `generatorFn`
  * @template [TArg=TInitial] Type of the argument passed to the `thunkFn`
  * @template [TResult=TArg] Result of `thunkFn` _and_ the return value of the `generatorFn`
  * @param {TrampolineGeneratorFn<TInitial, TArg, TResult>} generatorFn Generator-returning function accepting a thunk and optionally an initial value
- * @param {ThunkFn<TArg, TResult>} thunkFn Thunk function
+ * @param {ThunkFn<TArg, TResult>} thunk Thunk function
  * @param {TInitial} initial Initial value passed to `generatorFn`
  * @returns {Promise<Awaited<TResult>>} Final value of generator
  */
-export async function trampoline(generatorFn, thunkFn, initial) {
-  const iterator = generatorFn(thunkFn, initial);
+export async function trampoline(generatorFn, thunk, initial) {
+  const iterator = generatorFn(thunk, initial);
   let result = iterator.next();
   while (!result.done) {
     // eslint-disable-next-line no-await-in-loop
@@ -48,4 +45,7 @@ export async function trampoline(generatorFn, thunkFn, initial) {
   return result.value;
 }
 
+/**
+ * Alias for {@link trampoline}
+ */
 export const asyncTrampoline = trampoline;

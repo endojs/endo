@@ -1,8 +1,14 @@
 {
   "name": "@endo/trampoline",
-  "version": "0.0.0",
-  "description": "",
-  "keywords": [],
+  "version": "0.1.0",
+  "description": "Multicolor trampolining for recursive operations",
+  "keywords": [
+    "trampoline",
+    "recursive",
+    "async",
+    "sync",
+    "generator"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/blob/master/packages/trampoline/README.md",
@@ -18,9 +24,13 @@
   "main": "./index.js",
   "module": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
     "./package.json": "./package.json"
   },
+  "types": "./index.d.ts",
   "scripts": {
     "build": "exit 0",
     "build:types": "tsc --build tsconfig.build.json",
@@ -30,7 +40,7 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test:types": "tsd -f \"test/*.test-d.ts\"",
+    "test:types": "yarn build:types && tsd -f \"test/*.test-d.ts\"; yarn clean:types",
     "test:ava": "ava",
     "test": "yarn test:types && yarn test:ava"
   },
@@ -62,7 +72,7 @@
   },
   "ava": {
     "files": [
-      "test/**/test-*.js"
+      "test/**/*.test.js"
     ],
     "timeout": "2m"
   },

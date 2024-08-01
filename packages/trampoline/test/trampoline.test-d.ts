@@ -1,6 +1,8 @@
+/* eslint-disable no-redeclare */
 import { expectAssignable, expectNever, expectNotType, expectType } from 'tsd';
 import { trampoline, syncTrampoline } from '../src/trampoline.js';
 import {
+  SyncThunkFn,
   SyncTrampolineGeneratorFn,
   ThunkFn,
   TrampolineGeneratorFn,
