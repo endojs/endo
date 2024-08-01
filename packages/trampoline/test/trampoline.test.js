@@ -1,3 +1,10 @@
+/**
+ * These tests are based on example code written by @naugtur
+ *
+ * @module
+ */
+
+import test from 'ava';
 import { setTimeout } from 'node:timers';
 import { syncTrampoline, trampoline } from '../src/trampoline.js';
 
@@ -7,49 +14,56 @@ import { syncTrampoline, trampoline } from '../src/trampoline.js';
 
 /**
  * @template {number|Promise<number>} TResult
- * @template {ThunkFn<number, TResult>} Hook
- * @param {Hook} hook
+ * @param {ThunkFn<number, TResult>} thunk
  * @param {number} [input]
  * @returns {Generator<TResult, number, number>}
  */
-function* operationsWithHook(hook, input = 0) {
+function* operationsWithThunk(thunk, input = 0) {
   let result = input * 2; // First operation
-  result = yield hook(result); // Call the hook, which can be sync or async
+  result = yield thunk(result); // Call the hook, which can be sync or async
   result *= 2; // Operation on the hook's result
-  console.log(Date.now(), [input, result]);
   // Check if the result is divisible by N, and if so, recurse
   if (result < 1000) {
-    result = yield* operationsWithHook(hook, result); // Recurse with yield*
+    result = yield* operationsWithThunk(thunk, result); // Recurse with yield*
   }
   return result;
 }
 
-// Synchronous hook
 /**
- *
+ * Synchronous thunk
  * @param {number} x
  * @returns {number}
  */
-function syncHook(x = 0) {
+function syncThunk(x = 0) {
   return x + 10;
 }
 
-// Asynchronous hook
 /**
- *
+ * Asynchronous thunk
  * @param {number} x
  * @returns {Promise<number>}
  */
-async function asyncHook(x = 0) {
-  await new Promise(resolve => setTimeout(resolve, 101));
+async function asyncThunk(x = 0) {
+  await new Promise(resolve => setTimeout(resolve));
   return x + 10;
 }
 
-// Execute synchronously
-const syncResult = syncTrampoline(operationsWithHook, syncHook, 5);
-console.log(syncResult); // Output will depend on operations and hook
+const expectedResult = 2980;
 
-// Execute asynchronously
-trampoline(operationsWithHook, asyncHook, 5).then(result => {
-  console.log(result); // Output will depend on operations and hook
+test('synchronous execution', t => {
+  const syncResult = syncTrampoline(operationsWithThunk, syncThunk, 5);
+  t.is(syncResult, expectedResult);
+  t.pass();
+});
+
+test('asynchronous execution w/ sync thunk', async t => {
+  const asyncResult = await trampoline(operationsWithThunk, syncThunk, 5);
+  t.is(asyncResult, expectedResult);
+  t.pass();
+});
+
+test('asynchronous execution', async t => {
+  const asyncResult = await trampoline(operationsWithThunk, asyncThunk, 5);
+  t.is(asyncResult, expectedResult);
+  t.pass();
 });
