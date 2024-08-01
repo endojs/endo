@@ -92,7 +92,7 @@ const PlayersManagerComponent = ({ playerMgmt }) => {
   const ref = useRef()
   return h('div', {}, [
     // input for form name to save
-    h('input', { ref, defaultValue: 'player-2' }),
+    h('input', { ref, defaultValue: 'player-0' }),
     h('button', {
       onClick: () => playerMgmt.newPlayer(ref.current.value)
     }, 'create invite'),
