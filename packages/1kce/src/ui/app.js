@@ -39,13 +39,35 @@ const DeckSelector = ({ actions, deckName, setDeckByName, createNewDeck }) => {
   ])
 }
 
-const GameMenu = ({ actions, setGameAgentName }) => {
+const GameSelectFromActiveGameMenu = ({ actions, gameMgmt }) => {
+  const inventory = useFollowChanges(() => actions.followNameChanges(), [])
+  const names = inventory.map(({ name }) => name)
+  const gameAgentNames = names.filter(name => name.startsWith('player-'))
+  return h('div', null, [
+    h('h2', { key: 'title' }, 'Select by Active Game'),
+    gameAgentNames.length === 0 && h('span', { key: 'list' }, '( no active games )'),
+    gameAgentNames.length > 0 && h('ul', { key: 'list' }, gameAgentNames.map(name => {
+      return (
+        h('li', { key: name }, [
+          h('span', { key: 'label'}, name),
+          h('button', {
+            key: 'button',
+            onClick: () => gameMgmt.setPlayerControlByName(name),
+          }, 'select'),
+        ])
+      )
+    })),
+  ])
+}
+
+const GameSelectFromLobbyMenu = ({ actions, setGameAgentName }) => {
   const inventory = useFollowChanges(() => actions.followNameChanges(), [])
   const names = inventory.map(({ name }) => name)
   const gameAgentNames = names.filter(name => name.startsWith('agent-game'))
   return h('div', null, [
-    h('h2', { key: 'title' }, 'Select Game'),
-    h('ul', { key: 'list' }, gameAgentNames.map(name => {
+    h('h2', { key: 'title' }, 'Select by Game Lobby'),
+    gameAgentNames.length === 0 && h('span', { key: 'list' }, '( no game lobbies )'),
+    gameAgentNames.length > 0 && h('ul', { key: 'list' }, gameAgentNames.map(name => {
       return (
         h('li', { key: name }, [
           h('span', { key: 'label'}, name),
@@ -56,6 +78,13 @@ const GameMenu = ({ actions, setGameAgentName }) => {
         ])
       )
     })),
+  ])
+}
+
+const GameMenu = ({ actions, gameMgmt, setGameAgentName }) => {
+  return h('div', null, [
+    h(GameSelectFromActiveGameMenu, { key: 'active', actions, gameMgmt }),
+    h(GameSelectFromLobbyMenu, { key: 'lobby', actions, setGameAgentName }),
   ])
 }
 
@@ -94,7 +123,7 @@ export const App = ({ actions }) => {
   const [deckReadiness, setDeckReadiness] = React.useState(0)
   const { value: deck } = useLookup(actions, [gameAgentName, 'deck'], [deckReadiness]);
 
-  const [currentPlayer, setCurrentPlayer] = useState();
+  const [playerControl, setPlayerControl] = useState();
   const [stateGrain, setStateGrain] = useState();
 
   const setDeckByName = async (newDeckName) => {
@@ -141,28 +170,25 @@ export const App = ({ actions }) => {
   }
 
   const gameMgmt = {
-    // async fetchGame () { 
-    //   // has-check is workaround for https://github.com/endojs/endo/issues/1843
-    //   if (await actions.has('game')) {
-    //     const game = await actions.lookup('game')
-    //     setDeck(game)
-    //     const stateGrain = makeReadonlyGrainMapFromRemote(E(game).getStateGrain())
-    //     setGame({ game, stateGrain })
-    //   }
-    // },
     async start () {
       await E(game).start()
-      const player = await E(game).playerAtIndex(0)
-      const remoteGrainP = E(player).getStateGrain()
+      const newPlayerControl = await E(game).playerAtIndex(0)
+      gameMgmt.setPlayerControl(newPlayerControl)
+    },
+    async setPlayerControlByName (playerControlName) {
+      const newPlayerControl = await actions.lookup(playerControlName)
+      gameMgmt.setPlayerControl(newPlayerControl)
+    },
+    setPlayerControl (playerControl) {
+      const remoteGrainP = E(playerControl).getStateGrain()
       const stateGrain = makeReadonlyGrainMapFromRemote(remoteGrainP)
 
-      setCurrentPlayer(player)
+      setPlayerControl(playerControl)
       setStateGrain(stateGrain)
-    },
-    async playCardByIdFromHand (player, cardId, destinationPlayer) {
-      await E(game).playCardByIdFromHand(player, cardId, destinationPlayer)
-    },
+    }
   }
+
+  const gameIsReady = (stateGrain !== undefined) && (playerControl !== undefined)
 
   return (
     h('div', {}, [
@@ -177,10 +203,11 @@ export const App = ({ actions }) => {
           fontSize: '42px',
         },
       }, ['🃏1kce🃏']),
-
-      !stateGrain && h(Fragment, null, [
+      
+      // no game loaded: select game
+      !gameIsReady && h(Fragment, null, [
         // select game
-        !gameAgentName && h(GameMenu, { key: 'game-list', actions, setGameAgentName }),
+        !gameAgentName && h(GameMenu, { key: 'game-list', actions, setGameAgentName, gameMgmt }),
         // show selected game
         game && !deck && h(DeckSelector, { key: 'deck-selector', actions, setDeckByName, deck }),
         game && deck && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
@@ -189,13 +216,9 @@ export const App = ({ actions }) => {
         game && h(PlayersManagerComponent, { key: 'players-manager', playerMgmt, }),
         game && deck && h(GameStartComponent, { key: 'game-start', gameMgmt }),
       ]),
-      h(Fragment, null, [
-        
-        // // (legacy)
-        // !game && h(DeckManagerComponent, { key: 'deck-manager', deck, deckMgmt, actions }),
-        // game && deck && h(PlayGameComponent, { key: 'play-game-component', game, stateGrain, gameMgmt }),
-        stateGrain && h(ActiveGameComponent, { key: 'active-game-component', game, stateGrain, gameMgmt }),
-      ]),
+
+      // game loaded: show game
+      gameIsReady && h(ActiveGameComponent, { key: 'active-game-component', playerControl, stateGrain }),
 
     ])
   )
