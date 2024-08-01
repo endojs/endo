@@ -124,6 +124,7 @@ export const App = ({ actions }) => {
   const { value: deck } = useLookup(actions, [gameAgentName, 'deck'], [deckReadiness]);
 
   const [playerControl, setPlayerControl] = useState();
+  const [ownPlayer, setOwnPlayer] = useState();
   const [stateGrain, setStateGrain] = useState();
 
   const setDeckByName = async (newDeckName) => {
@@ -169,26 +170,30 @@ export const App = ({ actions }) => {
     }
   }
 
+  const setPlayerControlInterfaces = async (playerControl) => {
+    const remoteGrainP = E(playerControl).getStateGrain()
+    const stateGrain = makeReadonlyGrainMapFromRemote(remoteGrainP)
+    // this is the player representation that matches the player controller
+    const ownPlayer = await E(playerControl).getOwnPlayer()
+
+    setPlayerControl(playerControl)
+    setOwnPlayer(ownPlayer)
+    setStateGrain(stateGrain)
+  }
+
   const gameMgmt = {
     async start () {
       await E(game).start()
       const newPlayerControl = await E(game).playerAtIndex(0)
-      gameMgmt.setPlayerControl(newPlayerControl)
+      await setPlayerControlInterfaces(newPlayerControl)
     },
     async setPlayerControlByName (playerControlName) {
       const newPlayerControl = await actions.lookup(playerControlName)
-      gameMgmt.setPlayerControl(newPlayerControl)
+      await setPlayerControlInterfaces(newPlayerControl)
     },
-    setPlayerControl (playerControl) {
-      const remoteGrainP = E(playerControl).getStateGrain()
-      const stateGrain = makeReadonlyGrainMapFromRemote(remoteGrainP)
-
-      setPlayerControl(playerControl)
-      setStateGrain(stateGrain)
-    }
   }
 
-  const gameIsReady = (stateGrain !== undefined) && (playerControl !== undefined)
+  const gameIsReady = (stateGrain !== undefined) && (ownPlayer !== undefined) && (playerControl !== undefined)
 
   return (
     h('div', {}, [
@@ -218,7 +223,7 @@ export const App = ({ actions }) => {
       ]),
 
       // game loaded: show game
-      gameIsReady && h(ActiveGameComponent, { key: 'active-game-component', playerControl, stateGrain }),
+      gameIsReady && h(ActiveGameComponent, { key: 'active-game-component', playerControl, stateGrain, ownPlayer }),
 
     ])
   )
