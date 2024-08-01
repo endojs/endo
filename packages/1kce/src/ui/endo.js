@@ -110,9 +110,11 @@ export const useLookup = (actions, names, deps) => {
   // trigger update on inventory change
   // TODO: make more efficient, prolly by pushing into endo directory
   console.log('useLookup', names)
+  // if (!names || names.includes(undefined)) debugger
   const inventory = useFollowChanges(() => actions.followNameChanges(), []);
   return useAsync(async () => {
     console.log('useLookup - inside', names)
+    // if (!names || names.includes(undefined)) debugger
     return actions.lookup(...names)
   }, [inventory, ...names, ...deps]);
 };

@@ -51,12 +51,18 @@ const makePlayer = (getCardDataById, playerInitialState = {}) => {
     handIds.splice(index, 1)
   }
 
-  // obviously nothing interesting in this remote interface
-  // but currently we rely on captp identity continuity for this elsewhere
+  // this is a remote interface for a player
+  // and should not allow access to priveledged into like the hand
+  // (but it does for now) 
+  // we rely on captp identity continuity for this elsewhere
   const remoteInterface = Far(`Player "${name}"`, {
-    // safe to expose
+    // public
     async getName () {
       return name
+    },
+    // (supposed to be) private
+    async getHandGrain () {
+      return makeRemoteGrain(hand)
     },
   })
   const localPlayer = {
@@ -515,8 +521,15 @@ export const make = async (powers) => {
       game.addPlayer(game.makePlayer(game.getCardDataById, playerData))
       return playerIndex
     },
+    getCardsAtPlayerLocationGrain,
+    // TODO: this should be handled by private control interface 
+    async playCardByIdFromHand (remoteSourcePlayer, cardId, remoteDestinationPlayer) {
+      const localPlayer = playerRemoteToLocal.get(remoteSourcePlayer)
+      const localDestinationPlayer = playerRemoteToLocal.get(remoteDestinationPlayer)
+      await game.playCardByIdFromHand(localPlayer, cardId, localDestinationPlayer)
+    },
     async playerAtIndex (index) {
-      // returns the remote interface for controlling
+      // returns the (private) remote interface for controlling
       // the player at the index
       const localPlayer = game.getLocalPlayerAtIndex(index)
       return Far(`Player-${index}`, {
