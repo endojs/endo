@@ -521,7 +521,6 @@ export const make = async (powers) => {
       game.addPlayer(game.makePlayer(game.getCardDataById, playerData))
       return playerIndex
     },
-    getCardsAtPlayerLocationGrain,
     // TODO: this should be handled by private control interface 
     async playCardByIdFromHand (remoteSourcePlayer, cardId, remoteDestinationPlayer) {
       const localPlayer = playerRemoteToLocal.get(remoteSourcePlayer)
@@ -529,8 +528,7 @@ export const make = async (powers) => {
       await game.playCardByIdFromHand(localPlayer, cardId, localDestinationPlayer)
     },
     async playerAtIndex (index) {
-      // returns the (private) remote interface for controlling
-      // the player at the index
+      // returns the (private) remote interface for player control at the index
       const localPlayer = game.getLocalPlayerAtIndex(index)
       return Far(`Player-${index}`, {
         //

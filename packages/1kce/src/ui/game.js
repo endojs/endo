@@ -247,7 +247,7 @@ export const DeckManagerComponent = ({ deck, deckMgmt, actions }) => {
   )
 };
 
-const PlayCardButtonComponent = ({ card, gameMgmt, sourcePlayer, destPlayer }) => {
+const PlayCardButtonComponent = ({ card, playerControl, sourcePlayer, destPlayer }) => {
   const { value: destPlayerName } = useAsync(async () => {
     return await E(destPlayer).getName()
   }, [destPlayer]);
@@ -258,12 +258,12 @@ const PlayCardButtonComponent = ({ card, gameMgmt, sourcePlayer, destPlayer }) =
       margin: '2px',
     },
     onClick: async () => {
-      await gameMgmt.playCardByIdFromHand(sourcePlayer, card.id, destPlayer)
+      await E(playerControl).playCardByIdFromHand(card.id, destPlayer)
     },
   }, [playLabel])
 }
 
-export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
+export const GameCurrentPlayerComponent = ({ playerControl, player, players }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
@@ -280,13 +280,13 @@ export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
   const cardControlComponent = ({ card }) => {
     const playControls = [
       // first to self
-      h(PlayCardButtonComponent, { key: 'self', card, gameMgmt, sourcePlayer: player, destPlayer: player }),
+      h(PlayCardButtonComponent, { key: 'self', card, playerControl, sourcePlayer: player, destPlayer: player }),
       // then to all other players except self
       ...players.map((otherPlayer, index) => {
         if (otherPlayer === player) {
           return null
         }
-        return h(PlayCardButtonComponent, { key: index, card, gameMgmt, sourcePlayer: player, destPlayer: otherPlayer })
+        return h(PlayCardButtonComponent, { key: index, card, playerControl, sourcePlayer: player, destPlayer: otherPlayer })
       }),
     ]
     return (
@@ -311,13 +311,13 @@ export const GameCurrentPlayerComponent = ({ gameMgmt, player, players }) => {
   )
 }
 
-export const GamePlayerAreaComponent = ({ game, player, isCurrentPlayer, score }) => {
+export const GamePlayerAreaComponent = ({ playerControl, player, isCurrentPlayer, score }) => {
   const { value: name } = useAsync(async () => {
     return await E(player).getName()
   }, [player]);
   const playerAreaCards = useGrainGetter(
     () => makeReadonlyArrayGrainFromRemote(
-      E(game).getCardsAtPlayerLocationGrain(player),
+      E(playerControl).getCardsAtPlayerLocationGrain(player),
     ),
     [player],
   )
@@ -330,7 +330,7 @@ export const GamePlayerAreaComponent = ({ game, player, isCurrentPlayer, score }
   )
 }
 
-export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
+export const ActiveGameComponent = ({ playerControl, stateGrain }) => {
   const players = useGrainGetter(
     () => stateGrain.getGrain('players'),
     [stateGrain],
@@ -375,14 +375,14 @@ export const ActiveGameComponent = ({ game, gameMgmt, stateGrain }) => {
             key: keyForItems(player),
           }, [
             h(GamePlayerAreaComponent, {
-              game,
+              playerControl,
               player,
               isCurrentPlayer: player === currentPlayer,
               score,
             }),
           ])
         })),
-        currentPlayer && h(GameCurrentPlayerComponent, { gameMgmt, player: currentPlayer, players }),
+        currentPlayer && h(GameCurrentPlayerComponent, { playerControl, player: currentPlayer, players }),
       ]),
       h('section', {
         key: 'log',
