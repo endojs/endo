@@ -360,3 +360,25 @@ export const FERAL_STACK_GETTER = feralStackGetter;
  * @type {((newValue: any) => void) | undefined}
  */
 export const FERAL_STACK_SETTER = feralStackSetter;
+
+// Test for async generator function syntax support.
+let AsyncGeneratorNewFunctionInstance;
+try {
+  // Wrapping one in an new Function lets the `hermesc` binary file
+  // parse the Metro js bundle without SyntaxError, to generate the
+  // optimised Hermes bytecode bundle, when `gradlew` is called to
+  // assemble the release build APK for React Native prod Android apps.
+  // Delaying the error until runtime lets us customise lockdown behaviour.
+  AsyncGeneratorNewFunctionInstance = new FERAL_FUNCTION(
+    'return (async function* AsyncGeneratorFunctionInstance() {})',
+  )();
+} catch (e) {
+  if (e.name === 'SyntaxError') {
+    // Swallows Hermes error `async generators are unsupported` at runtime.
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    console.info('skipping async generators');
+  } else {
+    throw e;
+  }
+}
+export const AsyncGeneratorFunctionInstance = AsyncGeneratorNewFunctionInstance;
