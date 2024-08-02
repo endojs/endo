@@ -33,6 +33,17 @@ export interface RepairOptions {
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
+  /**
+   * none (safe): Metadata methods will be removed.
+   *
+   * unsafe-keep-and-inherit: Metadata methods will be kept, frozen and inherited to new globals if they were installed when lockdown() is called.
+   *
+   * mutable-per-global: Metadata methods will be mutable per global.
+   */
+  reflectMetadataTaming?:
+    | 'none'
+    | 'unsafe-keep-and-inherit'
+    | 'mutable-per-global';
   __hardenTaming__?: 'safe' | 'unsafe';
 }
 

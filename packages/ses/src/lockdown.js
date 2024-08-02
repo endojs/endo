@@ -55,6 +55,7 @@ import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
+import { tameReflectMetadata } from './make-reflect-namespace.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -73,7 +74,7 @@ let priorHardenIntrinsics;
  * @param {T} ref
  * @returns {T}
  */
-const safeHarden = makeHardener();
+const { harden: safeHarden, skipHarden } = makeHardener();
 
 /**
  * @callback Transform
@@ -138,6 +139,9 @@ export const repairIntrinsics = (options = {}) => {
   // Reconstructing `option` here also ensures that it is a well
   // behaved record, with only own data properties.
   //
+  // The `reflectMetadataTaming` is not a safety issue. Rather it is a tradeoff
+  // between code compatibility, which is better with the `'unsafe-writable-once'`
+  //
   // The `overrideTaming` is not a safety issue. Rather it is a tradeoff
   // between code compatibility, which is better with the `'moderate'`
   // setting, and tool compatibility, which is better with the `'min'`
@@ -152,7 +156,7 @@ export const repairIntrinsics = (options = {}) => {
   // `stackFrameFiltering` to`'concise'` limits the display to the stack frame
   // information most likely to be relevant, eliminating distracting frames
   // such as those from the infrastructure. However, the bug you're trying to
-  // track down might be in the infrastrure, in which case the `'verbose'` setting
+  // track down might be in the infrastructure, in which case the `'verbose'` setting
   // is useful. See
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/docs/lockdown.md#stackfiltering-options)
   // for an explanation.
@@ -175,6 +179,7 @@ export const repairIntrinsics = (options = {}) => {
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
     evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safeEval'),
+    reflectMetadataTaming = getenv('LOCKDOWN_REFLECT_METADATA_TAMING', 'none'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
@@ -190,6 +195,11 @@ export const repairIntrinsics = (options = {}) => {
     evalTaming === 'safeEval' ||
     evalTaming === 'noEval' ||
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
+
+  reflectMetadataTaming === 'none' ||
+    reflectMetadataTaming === 'unsafe-keep-and-inherit' ||
+    reflectMetadataTaming === 'mutable-per-global' ||
+    Fail`lockdown(): non supported option reflectMetadataTaming: ${q(reflectMetadataTaming)}`;
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
@@ -274,6 +284,9 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameMathObject(mathTaming));
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
+  addIntrinsics(
+    tameReflectMetadata(/** @type {any} */ (reflectMetadataTaming), skipHarden),
+  );
 
   addIntrinsics(getAnonymousIntrinsics());
 
@@ -361,6 +374,7 @@ export const repairIntrinsics = (options = {}) => {
     newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
+    reflectMetadataTaming: /** @type {any} */ (reflectMetadataTaming),
   });
 
   if (evalTaming === 'noEval') {

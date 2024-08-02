@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush } from './commons.js';
+import { arrayPush, proxyRevocable } from './commons.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
@@ -92,7 +92,6 @@ export const universalPropertyNames = {
   // *** Other Properties of the Global Object
 
   JSON: 'JSON',
-  Reflect: 'Reflect',
 
   // *** Annex B
 
@@ -108,8 +107,7 @@ export const universalPropertyNames = {
 
 /**
  * initialGlobalPropertyNames
- * Those found only on the initial global, i.e., the global of the
- * start compartment, as well as any compartments created before lockdown.
+ * Those found only on the initial global, i.e., the global of the start compartment.
  * These may provide much of the power provided by the original.
  * Maps from property name to the intrinsic name in the whitelist.
  */
@@ -128,6 +126,7 @@ export const initialGlobalPropertyNames = {
   // *** Other Properties of the Global Object
 
   Math: '%InitialMath%',
+  Reflect: '%InitialReflect%',
 
   // ESNext
 
@@ -143,7 +142,7 @@ export const initialGlobalPropertyNames = {
 
 /**
  * sharedGlobalPropertyNames
- * Those found only on the globals of new compartments created after lockdown,
+ * Those found only on the globals of subcompartments,
  * which must therefore be powerless.
  * Maps from property name to the intrinsic name in the whitelist.
  */
@@ -157,36 +156,8 @@ export const sharedGlobalPropertyNames = {
 
   // *** Other Properties of the Global Object
 
+  Reflect: '%SharedReflect%',
   Math: '%SharedMath%',
-};
-
-/**
- * uniqueGlobalPropertyNames
- * Those made separately for each global, including the initial global
- * of the start compartment.
- * Maps from property name to the intrinsic name in the whitelist
- * (which is currently always the same).
- */
-export const uniqueGlobalPropertyNames = {
-  // *** Value Properties of the Global Object
-
-  globalThis: '%UniqueGlobalThis%',
-
-  // *** Function Properties of the Global Object
-
-  eval: '%UniqueEval%',
-
-  // *** Constructor Properties of the Global Object
-
-  Function: '%UniqueFunction%',
-
-  // *** Other Properties of the Global Object
-
-  // ESNext
-
-  Compartment: '%UniqueCompartment%',
-  // According to current agreements, eventually the Realm constructor too.
-  // 'Realm',
 };
 
 // All the "subclasses" of Error. These are collectively represented in the
@@ -228,9 +199,9 @@ export { NativeErrors };
  *     is typeof the given type. For example, {@code "Infinity"} leads to
  *     "number" and property values that fail {@code typeof "number"}.
  *     are removed.
- * <li>A string value equal to an intinsic name ("ObjectPrototype",
+ * <li>A string value equal to an intrinsic name ("ObjectPrototype",
  *     "Array", etc), in which case the property whitelisted if its
- *     value property is equal to the value of the corresponfing
+ *     value property is equal to the value of the corresponding
  *     intrinsics. For example, {@code Map.prototype} leads to
  *     "MapPrototype" and the property is removed if its value is
  *     not equal to %MapPrototype%
@@ -404,6 +375,52 @@ const CommonMath = {
   // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
   irandom: false,
 };
+
+export const StandardReflect = {
+  // The Reflect Object
+  // Not a function object.
+  apply: fn,
+  construct: fn,
+  defineProperty: fn,
+  deleteProperty: fn,
+  get: fn,
+  getOwnPropertyDescriptor: fn,
+  getPrototypeOf: fn,
+  has: fn,
+  isExtensible: fn,
+  ownKeys: fn,
+  preventExtensions: fn,
+  set: fn,
+  setPrototypeOf: fn,
+  '@@toStringTag': 'string',
+};
+
+export const ReflectWithMetadata = {
+  ...StandardReflect,
+  decorate: fn,
+  metadata: fn,
+  defineMetadata: fn,
+  hasMetadata: fn,
+  hasOwnMetadata: fn,
+  getMetadata: fn,
+  getOwnMetadata: fn,
+  getMetadataKeys: fn,
+  getOwnMetadataKeys: fn,
+  deleteMetadata: fn,
+  // since 0.2.0
+  'RegisteredSymbol(@reflect-metadata:registry)': {
+    getProvider: fn,
+    registerProvider: fn,
+    setProvider: fn,
+  },
+};
+
+let never;
+{
+  const { proxy, revoke } = proxyRevocable({}, {});
+  revoke();
+  never = proxy;
+}
 
 export const permitted = {
   // ECMA https://tc39.es/ecma262
@@ -1553,24 +1570,10 @@ export const permitted = {
 
   // Reflection
 
-  Reflect: {
-    // The Reflect Object
-    // Not a function object.
-    apply: fn,
-    construct: fn,
-    defineProperty: fn,
-    deleteProperty: fn,
-    get: fn,
-    getOwnPropertyDescriptor: fn,
-    getPrototypeOf: fn,
-    has: fn,
-    isExtensible: fn,
-    ownKeys: fn,
-    preventExtensions: fn,
-    set: fn,
-    setPrototypeOf: fn,
-    '@@toStringTag': 'string',
-  },
+  // Note: this will be set to StandardReflect or reflectMetadataTaming when lockdown()
+  Reflect: never,
+  '%InitialReflect%': never,
+  '%SharedReflect%': never,
 
   Proxy: {
     // Properties of the Proxy Constructor

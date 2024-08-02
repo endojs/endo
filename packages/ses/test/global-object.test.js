@@ -28,6 +28,7 @@ test('globalObject', t => {
     intrinsics,
     newGlobalPropertyNames: sharedGlobalPropertyNames,
     makeCompartmentConstructor,
+    reflectMetadataTaming: 'none',
     markVirtualizedNativeFunction,
   });
   setGlobalObjectEvaluators(

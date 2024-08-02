@@ -12,4 +12,5 @@ globalThis.Compartment = makeCompartmentConstructor(
   makeCompartmentConstructor,
   getGlobalIntrinsics(globalThis),
   markVirtualizedNativeFunction,
+  'none',
 );

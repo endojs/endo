@@ -90,6 +90,12 @@ export const { stringify: stringifyJson } = JSON;
 // Needed only for the Safari bug workaround below
 const { defineProperty: originalDefineProperty } = Object;
 
+/**
+ * @param {object} object
+ * @param {PropertyKey} prop
+ * @param {PropertyDescriptor} descriptor
+ * @returns
+ */
 export const defineProperty = (object, prop, descriptor) => {
   // We used to do the following, until we had to reopen Safari bug
   // https://bugs.webkit.org/show_bug.cgi?id=222538#c17
