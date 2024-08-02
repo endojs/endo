@@ -55,6 +55,7 @@ import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
+import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -180,11 +181,19 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
+    regeneratorRuntimeTaming = getenv(
+      'LOCKDOWN_REGENERATOR_RUNTIME_TAMING',
+      'none',
+    ),
     __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
     dateTaming = 'safe', // deprecated
     mathTaming = 'safe', // deprecated
     ...extraOptions
   } = options;
+
+  regeneratorRuntimeTaming === 'safe' ||
+    regeneratorRuntimeTaming === 'none' ||
+    Fail`lockdown(): non supported option regeneratorRuntimeTaming: ${q(regeneratorRuntimeTaming)}`;
 
   evalTaming === 'unsafeEval' ||
     evalTaming === 'safeEval' ||
@@ -341,6 +350,8 @@ export const repairIntrinsics = (options = {}) => {
   tameLocaleMethods(intrinsics, localeTaming);
 
   tameFauxDataProperties(intrinsics);
+
+  if (regeneratorRuntimeTaming === 'safe') tameRegeneratorRuntime();
 
   /**
    * 2. WHITELIST to standardize the environment.
