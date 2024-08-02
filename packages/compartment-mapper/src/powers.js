@@ -7,25 +7,35 @@
 
 // @ts-check
 
-/** @type {import('./types.js').CanonicalFn} */
+/** @import {CanonicalFn} from './types.js' */
+/** @import {SyncReadPowers} from './types.js' */
+/** @import {SyncReadPowersProp} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {MaybeReadPowers} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
+
+const { freeze } = Object;
+
+/** @type {CanonicalFn} */
 const canonicalShim = async path => path;
 
 /**
- * @param {import('./types.js').ReadFn | import('./types.js').ReadPowers | import('./types.js').MaybeReadPowers} powers
- * @returns {import('./types.js').MaybeReadPowers}
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} powers
+ * @returns {MaybeReadPowers}
  */
 export const unpackReadPowers = powers => {
-  /** @type {import('./types.js').ReadFn | undefined} */
+  /** @type {ReadFn | undefined} */
   let read;
-  /** @type {import('./types.js').MaybeReadFn | undefined} */
+  /** @type {MaybeReadFn | undefined} */
   let maybeRead;
-  /** @type {import('./types.js').CanonicalFn | undefined} */
+  /** @type {CanonicalFn | undefined} */
   let canonical;
 
   if (typeof powers === 'function') {
     read = powers;
   } else {
-    ({ read, maybeRead, canonical } = powers);
+    ({ read, maybeRead, canonical } = /** @type {MaybeReadPowers} */ (powers));
   }
 
   if (canonical === undefined) {
@@ -35,9 +45,7 @@ export const unpackReadPowers = powers => {
   if (maybeRead === undefined) {
     /** @param {string} path */
     maybeRead = path =>
-      /** @type {import('./types.js').ReadFn} */ (read)(path).catch(
-        _error => undefined,
-      );
+      /** @type {ReadFn} */ (read)(path).catch(_error => undefined);
   }
 
   return {
@@ -46,4 +54,43 @@ export const unpackReadPowers = powers => {
     maybeRead,
     canonical,
   };
+};
+
+/**
+ * Ordered array of every property in {@link SyncReadPowers} which is _required_.
+ *
+ * @satisfies {Readonly<{[K in SyncReadPowersProp]-?: {} extends Pick<SyncReadPowers, K> ? never : K}[SyncReadPowersProp][]>}
+ */
+const requiredSyncReadPowersProps = freeze(
+  /** @type {const} */ (['fileURLToPath', 'isAbsolute', 'readSync']),
+);
+
+/**
+ * Returns `true` if `value` is a {@link SyncReadPowers}
+ *
+ * @param {ReadPowers|ReadFn} value
+ * @returns {value is SyncReadPowers}
+ */
+export const isSyncReadPowers = value =>
+  typeof value === 'object' &&
+  requiredSyncReadPowersProps.every(
+    prop => prop in value && typeof value[prop] === 'function',
+  );
+
+/**
+ * Returns a list of the properties missing from (or invalid within) `value` that are required for
+ * `value` to be a {@link SyncReadPowers}.
+ *
+ * Used for human-friendly error messages
+ *
+ * @param {ReadPowers | ReadFn} value The value to check for missing properties.
+ * @returns {SyncReadPowersProp[]}
+ */
+export const findInvalidSyncReadPowersProps = value => {
+  if (typeof value === 'function') {
+    return [...requiredSyncReadPowersProps];
+  }
+  return requiredSyncReadPowersProps.filter(
+    prop => !(prop in value) || typeof value[prop] !== 'function',
+  );
 };

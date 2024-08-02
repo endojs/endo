@@ -7,7 +7,7 @@ import { ModuleSource } from '@endo/module-source';
 const textDecoder = new TextDecoder();
 
 /** @type {import('./types.js').ParseFn} */
-export const parseMjs = async (
+export const parseMjs = (
   bytes,
   _specifier,
   sourceUrl,

@@ -8,14 +8,28 @@
 
 // @ts-check
 
-/** @import {ReadPowers} from './types.js' */
+/** @import {CanonicalFn} from './types.js' */
+/** @import {CryptoAPI} from './types.js' */
+/** @import {FileURLToPathFn} from './types.js' */
+/** @import {FsAPI} from './types.js' */
 /** @import {HashFn} from './types.js' */
+/** @import {IsAbsoluteFn} from './types.js' */
+/** @import {MaybeReadFn} from './types.js' */
+/** @import {MaybeReadPowers} from './types.js' */
+/** @import {PathAPI} from './types.js' */
+/** @import {PathToFileURLFn} from './types.js' */
+/** @import {ReadFn} from './types.js' */
+/** @import {ReadPowers} from './types.js' */
+/** @import {ReadSyncFn} from './types.js' */
+/** @import {RequireResolveFn} from './types.js' */
+/** @import {SyncReadPowers} from './types.js' */
+/** @import {UrlAPI} from './types.js' */
 /** @import {WritePowers} from './types.js' */
 
 import { createRequire } from 'module';
 
 /**
- * @param {string} location
+ * @type {FileURLToPathFn}
  */
 const fakeFileURLToPath = location => {
   const url = new URL(location);
@@ -26,11 +40,16 @@ const fakeFileURLToPath = location => {
 };
 
 /**
- * @param {string} path
+ * @type {PathToFileURLFn} path
  */
 const fakePathToFileURL = path => {
   return new URL(path, 'file://').toString();
 };
+
+/**
+ * @type {IsAbsoluteFn}
+ */
+const fakeIsAbsolute = () => false;
 
 /**
  * The implementation of `makeReadPowers` and the deprecated
@@ -38,20 +57,28 @@ const fakePathToFileURL = path => {
  * but `makeReadPowers` presents a type that requires `url`.
  *
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} [args.url]
- * @param {typeof import('crypto')} [args.crypto]
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} [args.url]
+ * @param {CryptoAPI} [args.crypto]
+ * @param {PathAPI} [args.path]
+ * @returns {MaybeReadPowers}
  */
-const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
+const makeReadPowersSloppy = ({
+  fs,
+  url = undefined,
+  crypto = undefined,
+  path = undefined,
+}) => {
   const fileURLToPath =
     url === undefined ? fakeFileURLToPath : url.fileURLToPath;
   const pathToFileURL =
     url === undefined ? fakePathToFileURL : url.pathToFileURL;
+  const isAbsolute = path === undefined ? fakeIsAbsolute : path.isAbsolute;
 
   let readMutex = Promise.resolve(undefined);
 
   /**
-   * @param {string} location
+   * @type {ReadFn}
    */
   const read = async location => {
     const promise = readMutex;
@@ -61,18 +88,18 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     });
     await promise;
 
-    const path = fileURLToPath(location);
+    const filepath = fileURLToPath(location);
     try {
       // We await here to ensure that we release the mutex only after
       // completing the read.
-      return await fs.promises.readFile(path);
+      return await fs.promises.readFile(filepath);
     } finally {
       release(undefined);
     }
   };
 
   /**
-   * @param {string} location
+   * @type {MaybeReadFn}
    */
   const maybeRead = location =>
     read(location).catch(error => {
@@ -85,6 +112,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
       throw error;
     });
 
+  /** @type {RequireResolveFn} */
   const requireResolve = (from, specifier, options) =>
     createRequire(from).resolve(specifier, options);
 
@@ -101,7 +129,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
    * non-existent directory on the next step after canonicalizing the package
    * location.
    *
-   * @param {string} location
+   * @type {CanonicalFn}
    */
   const canonical = async location => {
     await null;
@@ -120,7 +148,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     }
   };
 
-  /** @type {HashFn=} */
+  /** @type {HashFn | undefined} */
   const computeSha512 = crypto
     ? bytes => {
         const hash = crypto.createHash('sha512');
@@ -137,6 +165,43 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     canonical,
     computeSha512,
     requireResolve,
+    isAbsolute,
+  };
+};
+
+/**
+ * Creates {@link ReadPowers} for dynamic module support
+ *
+ * @param {object} args
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} [args.url]
+ * @param {CryptoAPI} [args.crypto]
+ * @param {PathAPI} [args.path]
+ * @returns {MaybeReadPowers & SyncReadPowers}
+ */
+export const makeSyncReadPowers = ({
+  fs,
+  url = undefined,
+  crypto = undefined,
+  path = undefined,
+}) => {
+  const powers = makeReadPowersSloppy({ fs, url, crypto, path });
+  const fileURLToPath = powers.fileURLToPath || fakeFileURLToPath;
+  const isAbsolute = powers.isAbsolute || fakeIsAbsolute;
+
+  /**
+   * @type {ReadSyncFn}
+   */
+  const readSync = location => {
+    const filepath = fileURLToPath(location);
+    return fs.readFileSync(filepath);
+  };
+
+  return {
+    ...powers,
+    readSync,
+    fileURLToPath,
+    isAbsolute,
   };
 };
 
@@ -146,8 +211,8 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
  * but `makeWritePowers` presents a type that requires `url`.
  *
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} [args.url]
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} [args.url]
  */
 const makeWritePowersSloppy = ({ fs, url = undefined }) => {
   const fileURLToPath =
@@ -171,16 +236,16 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
 
 /**
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} args.url
- * @param {typeof import('crypto')} [args.crypto]
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} args.url
+ * @param {CryptoAPI} [args.crypto]
  */
 export const makeReadPowers = makeReadPowersSloppy;
 
 /**
  * @param {object} args
- * @param {typeof import('fs')} args.fs
- * @param {typeof import('url')} args.url
+ * @param {FsAPI} args.fs
+ * @param {UrlAPI} args.url
  */
 export const makeWritePowers = makeWritePowersSloppy;
 
@@ -189,8 +254,8 @@ export const makeWritePowers = makeWritePowersSloppy;
  * It transpires that positional arguments needed to become an arguments bag to
  * reasonably expand to multiple optional dependencies.
  *
- * @param {typeof import('fs')} fs
- * @param {typeof import('crypto')} [crypto]
+ * @param {FsAPI} fs
+ * @param {CryptoAPI} [crypto]
  * @returns {ReadPowers}
  */
 export const makeNodeReadPowers = (fs, crypto = undefined) => {
@@ -202,7 +267,7 @@ export const makeNodeReadPowers = (fs, crypto = undefined) => {
  * It transpires that positional arguments needed to become an arguments bag to
  * reasonably expand to multiple optional dependencies.
  *
- * @param {typeof import('fs')} fs
+ * @param {FsAPI} fs
  * @returns {WritePowers}
  */
 export const makeNodeWritePowers = fs => {

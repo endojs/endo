@@ -8,18 +8,27 @@
 
 // @ts-check
 
-/** @import {ImportHook} from 'ses' */
+/** @import {ImportHook, ThirdPartyStaticModuleInterface} from 'ses' */
+/** @import {ImportNowHook} from 'ses' */
 /** @import {StaticModuleType} from 'ses' */
 /** @import {RedirectStaticModuleInterface} from 'ses' */
+/** @import {MakeImportNowHookMakerOptions, ModuleDescriptor} from './types.js' */
 /** @import {ReadFn} from './types.js' */
+/** @import {SyncReadPowers} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
 /** @import {HashFn} from './types.js' */
 /** @import {Sources} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {ImportHookMaker} from './types.js' */
 /** @import {ExitModuleImportHook} from './types.js' */
+/** @import {SourceMapHook} from './types.js' */
+/** @import {ImportNowHookMaker} from './types.js' */
 
-import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
+import {
+  attenuateModuleHook,
+  ATTENUATORS_COMPARTMENT,
+  enforceModulePolicy,
+} from './policy.js';
 import { resolve } from './node-module-specifier.js';
 import { unpackReadPowers } from './powers.js';
 
@@ -35,6 +44,8 @@ const { apply } = Reflect;
  * @type {import('ses').Harden}
  */
 const freeze = Object.freeze;
+
+const { entries, keys, assign, create } = Object;
 
 const { hasOwnProperty } = Object.prototype;
 /**
@@ -71,7 +82,7 @@ const nodejsConventionSearchSuffixes = [
 /**
  * @param {object} params
  * @param {Record<string, any>=} params.modules
- * @param {ExitModuleImportHook=} params.exitModuleImportHook
+ * @param {ExitModuleImportHook} [params.exitModuleImportHook]
  * @returns {ExitModuleImportHook|undefined}
  */
 export const exitModuleImportHookMaker = ({
@@ -84,12 +95,12 @@ export const exitModuleImportHookMaker = ({
   return async specifier => {
     if (modules && has(modules, specifier)) {
       const ns = modules[specifier];
-      return Object.freeze({
+      return freeze({
         imports: [],
-        exports: ns ? Object.keys(ns) : [],
+        exports: ns ? keys(ns) : [],
         execute: moduleExports => {
           moduleExports.default = ns;
-          Object.assign(moduleExports, ns);
+          assign(moduleExports, ns);
         },
       });
     }
@@ -110,23 +121,23 @@ export const exitModuleImportHookMaker = ({
  * @param {HashFn} [options.computeSha512]
  * @param {Array<string>} [options.searchSuffixes] - Suffixes to search if the
  * unmodified specifier is not found.
- * Pass [] to emulate Node.js’s strict behavior.
- * The default handles Node.js’s CommonJS behavior.
+ * Pass [] to emulate Node.js' strict behavior.
+ * The default handles Node.js' CommonJS behavior.
  * Unlike Node.js, the Compartment Mapper lifts CommonJS up, more like a
  * bundler, and does not attempt to vary the behavior of resolution depending
  * on the language of the importing module.
  * @param {string} options.entryCompartmentName
  * @param {string} options.entryModuleSpecifier
  * @param {ExitModuleImportHook} [options.exitModuleImportHook]
- * @param {import('./types.js').SourceMapHook} [options.sourceMapHook]
+ * @param {SourceMapHook} [options.sourceMapHook]
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
   readPowers,
   baseLocation,
   {
-    sources = Object.create(null),
-    compartmentDescriptors = Object.create(null),
+    sources = create(null),
+    compartmentDescriptors = create(null),
     archiveOnly = false,
     computeSha512 = undefined,
     searchSuffixes = nodejsConventionSearchSuffixes,
@@ -168,11 +179,10 @@ export const makeImportHookMaker = (
   }) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
-    const packageSources = sources[packageLocation] || Object.create(null);
+    const packageSources = sources[packageLocation] || create(null);
     sources[packageLocation] = packageSources;
     const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
-    const { modules: moduleDescriptors = Object.create(null) } =
-      compartmentDescriptor;
+    const { modules: moduleDescriptors = create(null) } = compartmentDescriptor;
     compartmentDescriptor.modules = moduleDescriptors;
 
     /**
@@ -211,6 +221,9 @@ export const makeImportHookMaker = (
     const importHook = async moduleSpecifier => {
       await null;
       compartmentDescriptor.retained = true;
+
+      // for lint rule
+      await null;
 
       // per-module:
 
@@ -264,8 +277,6 @@ export const makeImportHookMaker = (
         candidates.push(`${moduleSpecifier}${candidateSuffix}`);
       }
 
-      const { maybeRead } = unpackReadPowers(readPowers);
-
       for (const candidateSpecifier of candidates) {
         const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
         if (candidateModuleDescriptor !== undefined) {
@@ -304,6 +315,7 @@ export const makeImportHookMaker = (
           candidateSpecifier,
           packageLocation,
         );
+        const { maybeRead } = unpackReadPowers(readPowers);
         // eslint-disable-next-line no-await-in-loop
         const moduleBytes = await maybeRead(moduleLocation);
         if (moduleBytes !== undefined) {
@@ -399,3 +411,303 @@ export const makeImportHookMaker = (
   };
   return makeImportHook;
 };
+
+/**
+ * Synchronous import for dynamic requires.
+ *
+ * @param {SyncReadPowers} readPowers
+ * @param {string} baseLocation
+ * @param {MakeImportNowHookMakerOptions} options
+ * @returns {ImportNowHookMaker}
+ */
+export function makeImportNowHookMaker(
+  readPowers,
+  baseLocation,
+  {
+    sources = create(null),
+    compartmentDescriptors = create(null),
+    computeSha512 = undefined,
+    searchSuffixes = nodejsConventionSearchSuffixes,
+    sourceMapHook = undefined,
+    exitModuleImportNowHook,
+  },
+) {
+  // Set of specifiers for modules (scoped to compartment) whose parser is not
+  // using heuristics to determine imports.
+  /** @type {Map<string, Set<string>>} compartment name ->* module specifier */
+  const strictlyRequired = new Map();
+
+  /**
+   * @param {string} compartmentName
+   */
+  const strictlyRequiredForCompartment = compartmentName => {
+    let compartmentStrictlyRequired = strictlyRequired.get(compartmentName);
+    if (compartmentStrictlyRequired !== undefined) {
+      return compartmentStrictlyRequired;
+    }
+    compartmentStrictlyRequired = new Set();
+    strictlyRequired.set(compartmentName, compartmentStrictlyRequired);
+    return compartmentStrictlyRequired;
+  };
+
+  /**
+   * @type {ImportNowHookMaker}
+   */
+  const makeImportNowHook = ({
+    packageLocation,
+    packageName: _packageName,
+    entryCompartmentDescriptor,
+    parse,
+    compartments,
+  }) => {
+    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
+
+    // this is necessary, because there's nothing that prevents someone from calling this function with the entry compartment.
+    assert(
+      compartmentDescriptor !== entryCompartmentDescriptor,
+      'Cannot create an ImportNowHook for the entry compartment',
+    );
+
+    // this is not strictly necessary, since the types should handle it.
+    assert(
+      parse[Symbol.toStringTag] !== 'AsyncFunction',
+      'async parsers are unsupported',
+    );
+
+    packageLocation = resolveLocation(packageLocation, baseLocation);
+    const packageSources = sources[packageLocation] || create(null);
+    sources[packageLocation] = packageSources;
+    const {
+      modules:
+        moduleDescriptors = /** @type {Record<string, ModuleDescriptor>} */ (
+          create(null)
+        ),
+    } = compartmentDescriptor;
+    compartmentDescriptor.modules = moduleDescriptors;
+
+    let { policy } = compartmentDescriptor;
+    policy = policy || create(null);
+
+    // associates modules with compartment descriptors based on policy
+    // which wouldn't otherwise be there
+    if ('packages' in policy && typeof policy.packages === 'object') {
+      for (const [pkgName, policyItem] of entries(policy.packages)) {
+        if (
+          !(pkgName in compartmentDescriptor.modules) &&
+          pkgName in compartmentDescriptor.scopes &&
+          policyItem
+        ) {
+          compartmentDescriptor.modules[pkgName] =
+            compartmentDescriptor.scopes[pkgName];
+        }
+      }
+    }
+
+    const { readSync, isAbsolute } = readPowers;
+
+    /** @type {ImportNowHook} */
+    const importNowHook = moduleSpecifier => {
+      if (isAbsolute(moduleSpecifier)) {
+        let shouldCallExitModuleImportNowHook = true;
+        for (const [someDescriptorName, someDescriptor] of entries(
+          compartmentDescriptors,
+        )) {
+          if (someDescriptorName !== ATTENUATORS_COMPARTMENT) {
+            const moduleSpecifierUrl = resolveLocation(
+              moduleSpecifier,
+              packageLocation,
+            );
+            if (
+              !compartmentDescriptor.location.startsWith(moduleSpecifierUrl)
+            ) {
+              if (moduleSpecifierUrl.startsWith(someDescriptor.location)) {
+                if (compartmentDescriptor.name in someDescriptor.modules) {
+                  return {
+                    specifier: moduleSpecifier,
+                    compartment: compartments[someDescriptorName],
+                  };
+                } else if (compartmentDescriptor === someDescriptor) {
+                  shouldCallExitModuleImportNowHook = false;
+                }
+              }
+            }
+          }
+        }
+        if (shouldCallExitModuleImportNowHook) {
+          if (exitModuleImportNowHook) {
+            // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
+            const record = exitModuleImportNowHook(
+              moduleSpecifier,
+              packageLocation,
+            );
+
+            if (!record) {
+              throw new Error(`Could not import module: ${q(moduleSpecifier)}`);
+            }
+
+            return record;
+          }
+          throw new Error(
+            `Could not import module: ${q(moduleSpecifier)}; try providing an importNowHook`,
+          );
+        }
+      }
+
+      // Collate candidate locations for the moduleSpecifier,
+      // to support Node.js conventions and similar.
+      const candidates = [moduleSpecifier];
+      if (!searchSuffixes.some(suffix => moduleSpecifier.endsWith(suffix))) {
+        for (const candidateSuffix of searchSuffixes) {
+          candidates.push(`${moduleSpecifier}${candidateSuffix}`);
+        }
+      }
+
+      for (const candidateSpecifier of candidates) {
+        const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
+        if (candidateModuleDescriptor !== undefined) {
+          const { compartment: candidateCompartmentName = packageLocation } =
+            candidateModuleDescriptor;
+          const candidateCompartment = compartments[candidateCompartmentName];
+          if (candidateCompartment === undefined) {
+            throw Error(
+              `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          // modify compartmentMap to include this redirect
+          const candidateCompartmentDescriptor =
+            compartmentDescriptors[candidateCompartmentName];
+          if (candidateCompartmentDescriptor === undefined) {
+            throw Error(
+              `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          candidateCompartmentDescriptor.modules[moduleSpecifier] =
+            candidateModuleDescriptor;
+          // return a redirect
+          /** @type {RedirectStaticModuleInterface} */
+          const record = {
+            specifier: candidateSpecifier,
+            compartment: candidateCompartment,
+          };
+          return record;
+        }
+
+        // Using a specifier as a location.
+        // This is not always valid.
+        // But, for Node.js, when the specifier is relative and not a directory
+        // name, they are usable as URL's.
+        const moduleLocation = resolveLocation(
+          candidateSpecifier,
+          packageLocation,
+        );
+
+        // eslint-disable-next-line no-await-in-loop
+        /** @type {Uint8Array} */
+        let moduleBytes;
+        try {
+          moduleBytes = readSync(moduleLocation);
+        } catch (err) {
+          if (err && err.code === 'ENOENT') {
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+          throw err;
+        }
+        if (moduleBytes !== undefined) {
+          /** @type {string | undefined} */
+          let sourceMap;
+          // eslint-disable-next-line no-await-in-loop
+          const envelope = parse(
+            moduleBytes,
+            candidateSpecifier,
+            moduleLocation,
+            packageLocation,
+            {
+              compartmentDescriptor,
+              readPowers,
+              sourceMapHook:
+                sourceMapHook &&
+                (nextSourceMapObject => {
+                  sourceMap = JSON.stringify(nextSourceMapObject);
+                }),
+            },
+          );
+          const {
+            parser,
+            bytes: transformedBytes,
+            record: concreteRecord,
+          } = envelope;
+
+          // Facilitate a redirect if the returned record has a different
+          // module specifier than the requested one.
+          if (candidateSpecifier !== moduleSpecifier) {
+            moduleDescriptors[moduleSpecifier] = {
+              module: candidateSpecifier,
+              compartment: packageLocation,
+            };
+          }
+          /** @type {StaticModuleType} */
+          const record = {
+            record: concreteRecord,
+            specifier: candidateSpecifier,
+            importMeta: { url: moduleLocation },
+          };
+
+          let sha512;
+          if (computeSha512 !== undefined) {
+            sha512 = computeSha512(transformedBytes);
+
+            if (sourceMapHook !== undefined && sourceMap !== undefined) {
+              sourceMapHook(sourceMap, {
+                compartment: packageLocation,
+                module: candidateSpecifier,
+                location: moduleLocation,
+                sha512,
+              });
+            }
+          }
+
+          const packageRelativeLocation = moduleLocation.slice(
+            packageLocation.length,
+          );
+          packageSources[candidateSpecifier] = {
+            location: packageRelativeLocation,
+            sourceLocation: moduleLocation,
+            parser,
+            bytes: transformedBytes,
+            record: concreteRecord,
+            sha512,
+          };
+          for (const importSpecifier of getImportsFromRecord(record)) {
+            strictlyRequiredForCompartment(packageLocation).add(
+              resolve(importSpecifier, moduleSpecifier),
+            );
+          }
+
+          return record;
+        }
+      }
+
+      if (exitModuleImportNowHook) {
+        // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
+        const record = exitModuleImportNowHook(
+          moduleSpecifier,
+          packageLocation,
+        );
+
+        if (!record) {
+          throw new Error(`Could not import module: ${q(moduleSpecifier)}`);
+        }
+
+        return record;
+      }
+
+      throw new Error(
+        `Could not import module: ${q(moduleSpecifier)}; try providing an importNowHook`,
+      );
+    };
+
+    return importNowHook;
+  };
+  return makeImportNowHook;
+}
