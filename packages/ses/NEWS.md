@@ -27,6 +27,12 @@ User-visible changes in `ses`:
   All use of `Compartment` should migrate to use this option as the standard
   behavior will be enabled by default with the next major version of SES.
 
+- Adds `ArrayBuffer.p.immutable` and `ArrayBuffer.p.transferToImmutable` as a shim for a future proposal. It makes an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer` this shim's ArrayBuffer-like object cannot be transfered or cloned between JS threads.
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this shim's ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
+  - On Node >= 21 we use the builtin `transferToFixed` to transfer exclusive access to the array buffer contents. On Node <= 20, we emulate `transferToFixedLength` with `structuredClone`. On platforms with neither `transferToFixedLength` nor `structuredClone`, we use `slice` to copy the contents, but have no way to detach the original.
+  - Even after the upcoming `transferToImmutable` proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See https://github.com/endojs/endo/pull/2311#discussion_r1632607527 . It will require a later manual step to delete the shim, after manual analysis of the compat implications.
+
 - Adds support for module descriptors better aligned with XS.
   Compartments use module desriptors to load and link modules.
   The importHook, importNowHook, and moduleMapHook all return module descriptors
@@ -60,7 +66,7 @@ User-visible changes in `ses`:
   in TypeScript),
   the stacktrace line-numbers point back into the original
   source, as they do on Node without SES.
-  
+
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
