@@ -8,7 +8,7 @@ import {
 
 /**
  * @import {Passable, PassStyle} from '@endo/pass-style'
- * @import {FullCompare, RankCompare, RankCover} from './types.js'
+ * @import {FullCompare, RankCompare, RankCover, RankComparison} from './types.js'
  */
 
 const { entries, fromEntries, setPrototypeOf, is } = Object;
@@ -44,9 +44,46 @@ const { entries, fromEntries, setPrototypeOf, is } = Object;
  */
 const sameValueZero = (x, y) => x === y || is(x, y);
 
+/**
+ * @param {any} left
+ * @param {any} right
+ * @returns {RankComparison}
+ */
 export const trivialComparator = (left, right) =>
   // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
   left < right ? -1 : left === right ? 0 : 1;
+harden(trivialComparator);
+
+// Apparently eslint confused about whether the function can ever exit
+// without an explicit return.
+// eslint-disable-next-line jsdoc/require-returns-check
+/**
+ * @param {string} left
+ * @param {string} right
+ * @returns {RankComparison}
+ */
+export const compareByCodePoints = (left, right) => {
+  const leftIter = left[Symbol.iterator]();
+  const rightIter = right[Symbol.iterator]();
+  for (;;) {
+    const { value: leftChar } = leftIter.next();
+    const { value: rightChar } = rightIter.next();
+    if (leftChar === undefined && rightChar === undefined) {
+      return 0;
+    } else if (leftChar === undefined) {
+      // left is a prefix of right.
+      return -1;
+    } else if (rightChar === undefined) {
+      // right is a prefix of left.
+      return 1;
+    }
+    const leftCodepoint = /** @type {number} */ (leftChar.codePointAt(0));
+    const rightCodepoint = /** @type {number} */ (rightChar.codePointAt(0));
+    if (leftCodepoint < rightCodepoint) return -1;
+    if (leftCodepoint > rightCodepoint) return 1;
+  }
+};
+harden(compareByCodePoints);
 
 /**
  * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
@@ -138,8 +175,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         return 0;
       }
       case 'boolean':
-      case 'bigint':
-      case 'string': {
+      case 'bigint': {
         // Within each of these passStyles, the rank ordering agrees with
         // JavaScript's relational operators `<` and `>`.
         if (left < right) {
@@ -148,6 +184,9 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
           assert(left > right);
           return 1;
         }
+      }
+      case 'string': {
+        return compareByCodePoints(left, right);
       }
       case 'symbol': {
         return comparator(
