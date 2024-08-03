@@ -21,12 +21,18 @@ test('console', t => {
 
   harden(getPrototypeOf(console));
   harden(console);
-  const c1 = new Compartment({ console });
+  const c1 = new Compartment({
+    globals: { console },
+    __options__: true,
+  });
   t.is(console, c1.evaluate('(console)'));
 
   const fakeConsole = { log: console.log };
   harden(fakeConsole);
-  const c2 = new Compartment({ console: fakeConsole });
+  const c2 = new Compartment({
+    globals: { console: fakeConsole },
+    __options__: true,
+  });
   t.is(console.log, c2.evaluate('(console.log)'));
 });
 

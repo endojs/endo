@@ -2,11 +2,11 @@ import test from 'ava';
 import { inferExports } from '../src/infer-exports.js';
 
 function scaffold(cases) {
-  const tags = new Set(['node', 'import', 'default']);
+  const conditions = new Set(['node', 'import', 'default']);
   cases.forEach(pkg => {
     test(`infer-exports for ${pkg.name}`, t => {
       const types = {};
-      const exports = inferExports(pkg, tags, types);
+      const exports = inferExports(pkg, conditions, types);
       t.snapshot({ types, exports });
     });
   });

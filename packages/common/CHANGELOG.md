@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.2.4](https://github.com/endojs/endo/compare/@endo/common@1.2.3...@endo/common@1.2.4) (2024-08-01)
+
+**Note:** Version bump only for package @endo/common
+
+
+
+
+
+### [1.2.3](https://github.com/endojs/endo/compare/@endo/common@1.2.2...@endo/common@1.2.3) (2024-07-30)
+
+
+### Bug Fixes
+
+* **types:** fromUniqueEntries ([e465ffb](https://github.com/endojs/endo/commit/e465ffb7a48fbebf0525a86a2423a5b84d8b1feb))
+
+
+
 ### [1.2.2](https://github.com/endojs/endo/compare/@endo/common@1.2.1...@endo/common@1.2.2) (2024-05-07)
 
 **Note:** Version bump only for package @endo/common

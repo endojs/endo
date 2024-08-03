@@ -17,14 +17,11 @@ test('import for side effect', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -43,16 +40,14 @@ test('import all from module', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.default.a, 10);
   t.is(namespace.default.b, 20);
@@ -72,16 +67,14 @@ test('import named exports from me', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.default.fizz, 10);
   t.is(namespace.default.buzz, 20);
@@ -100,16 +93,14 @@ test('import color from module', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.color, 'blue');
 });
@@ -126,16 +117,14 @@ test('import and reexport', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.qux, 42);
 });
@@ -153,16 +142,14 @@ test('import and export all', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.alpha, 0);
   t.is(namespace.omega, 23);
@@ -183,16 +170,14 @@ test('live binding', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const { namespace } = await compartment.import('./main.js');
+  const namespace = await compartment.import('./main.js');
 
   t.is(namespace.default, 'Hello, World!');
 });
@@ -219,14 +204,12 @@ test('live binding through reexporting intermediary', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -245,14 +228,12 @@ test('export name as default', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -286,14 +267,12 @@ test('export-as with duplicated export name', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -315,14 +294,12 @@ test.failing('reexport with implicit default syntax', async t => {
     `,
   });
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: makeImportHook('https://example.com'),
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -345,24 +322,22 @@ test('importHook returning a RedirectStaticModuleInterface with a specified comp
     './meaning.js': './alias-target.js',
   };
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: async moduleSpecifier => {
-        const aliasTarget = aliasRegistry[moduleSpecifier];
-        if (aliasTarget !== undefined) {
-          const record = {
-            specifier: aliasTarget,
-            compartment,
-          };
-          return record;
-        }
-        return importHook(moduleSpecifier);
-      },
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: async moduleSpecifier => {
+      const aliasTarget = aliasRegistry[moduleSpecifier];
+      if (aliasTarget !== undefined) {
+        const record = {
+          specifier: aliasTarget,
+          compartment,
+        };
+        return record;
+      }
+      return importHook(moduleSpecifier);
     },
-  );
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -388,27 +363,25 @@ test('importHook returning a ModuleInstance with a precompiled functor', async t
   });
   const importHook = makeImportHook('https://example.com');
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: async moduleSpecifier => {
-        await null;
-        if (moduleSpecifier === './precompiled.js') {
-          const baseRecord = await importHook(moduleSpecifier);
-          return {
-            ...baseRecord,
-            __syncModuleFunctor__: ({ onceVar, liveVar }) => {
-              onceVar.a(123);
-              liveVar.b(456);
-            },
-          };
-        }
-        return importHook(moduleSpecifier);
-      },
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: async moduleSpecifier => {
+      await null;
+      if (moduleSpecifier === './precompiled.js') {
+        const baseRecord = await importHook(moduleSpecifier);
+        return {
+          ...baseRecord,
+          __syncModuleFunctor__: ({ onceVar, liveVar }) => {
+            onceVar.a(123);
+            liveVar.b(456);
+          },
+        };
+      }
+      return importHook(moduleSpecifier);
     },
-  );
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -423,14 +396,12 @@ test('this in module scope must be undefined', async t => {
   });
   const importHook = makeImportHook('https://example.com');
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook,
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook,
+    __options__: true,
+  });
 
   await compartment.import('./index.js');
 });

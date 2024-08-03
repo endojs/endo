@@ -71,7 +71,7 @@ test('confinement evaluation Symbol.unscopables with-statement escape', t => {
   // by leaving its shadow on the actual global scope.
   globalThis.flag = 'unsafe';
 
-  const c = new Compartment({ flag: 'safe' });
+  const c = new Compartment({ globals: { flag: 'safe' }, __options__: true });
 
   // Known loss of fidility of emulating a proper host:
   t.throws(() => c.evaluate('Symbol.unscopables = { flag: true };'));

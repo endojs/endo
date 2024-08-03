@@ -1,6 +1,6 @@
 {
   "name": "@endo/evasive-transform",
-  "version": "1.1.2",
+  "version": "1.2.1",
   "description": "Source transforms to evade SES censorship",
   "keywords": [
     "ses",
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@babel/types": "^7.24.0",
-    "@endo/ses-ava": "^1.2.2",
+    "@endo/ses-ava": "^1.2.4",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "@types/babel__generator": "^7.6.8",

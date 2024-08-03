@@ -424,7 +424,8 @@ export {};
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {SomePolicy} [policy]
- * @property {Set<string>} [tags]
+ * @property {Set<string>} [tags] deprecated in favor of `conditions`
+ * @property {Set<string>} [conditions]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
@@ -627,7 +628,8 @@ export {};
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {SomePolicy} [policy]
- * @property {Set<string>} [tags]
+ * @property {Set<string>} [tags] deprecated in favor of `conditions`
+ * @property {Set<string>} [conditions]
  * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]

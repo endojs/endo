@@ -227,6 +227,8 @@ const captureCompartmentMap = (compartmentMap, sources) => {
   const captureSources = renameSources(sources, compartmentRenames);
 
   const captureCompartmentMap = {
+    // TODO graceful migration from tags to conditions
+    // https://github.com/endojs/endo/issues/2388
     tags: [],
     entry: {
       compartment: captureEntryCompartmentName,

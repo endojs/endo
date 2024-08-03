@@ -40,11 +40,11 @@ const bundleSource = async (...args) => {
   return JSON.parse(bundleText);
 };
 
-test('bundle-source with --format and --tag', async t => {
+test('bundle-source with --format and --condition', async t => {
   const compartment = new Compartment();
   {
     const bundle = await bundleSource(
-      '--tag',
+      '--condition',
       'b',
       '--format',
       'endoScript',
@@ -55,7 +55,7 @@ test('bundle-source with --format and --tag', async t => {
   }
   {
     const bundle = await bundleSource(
-      '--tag',
+      '--condition',
       'a',
       '--format',
       'endoScript',

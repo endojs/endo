@@ -312,6 +312,17 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('copy <from> <to>')
+    .alias('cp')
+    .option(...commonOptions.as)
+    .description('makes a duplicate of a given value with a new name')
+    .action(async (sourcePath, targetPath, cmd) => {
+      const { as: agentNames } = cmd.opts();
+      const { copy } = await import('./commands/copy.js');
+      return copy({ agentNames, sourcePath, targetPath });
+    });
+
+  program
     .command('show <name>')
     .description('prints the named value')
     .option(...commonOptions.as)

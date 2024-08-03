@@ -281,6 +281,8 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   const archiveSources = renameSources(sources, compartmentRenames);
 
   const archiveCompartmentMap = {
+    // TODO migrate tags to conditions
+    // https://github.com/endojs/endo/issues/2388
     tags: [],
     entry: {
       compartment: archiveEntryCompartmentName,

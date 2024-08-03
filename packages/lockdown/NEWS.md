@@ -1,6 +1,6 @@
 User-visible changes to `@endo/lockdown`:
 
-# Next release
+# v1.0.8 (2024-07-30)
 
 - Changed `@endo/lockdown/commit-debug.js` so that it now sets
   the `lockdown` option `errorTaming: 'unsafe-debug'` instead of

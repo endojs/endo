@@ -164,27 +164,15 @@ in a parent directory, under `node_modules`.
 The `main`, `browser`, and `exports` properties determine the modules each
 package exports to other compartments.
 
-The `exports` property describes [package entry points] and can be influenced
-by build _tags_.
-Currently, the only tag supported by the compartment mapper is `import`, which
-indicates that the module map should use ESM modules over CommonJS modules or
-other variants.
-
-> TODO
->
-> A future version may reveal other tags like `browser` to prepare an
-> application for use in a web client.
-> For this case, the compartment mapper would prepare a JSON manifest like an
-> `importmap` (if not precisely an `importmap`).
-> The "compartment map" would be consistent except when the dependency graph
-> changes so updates could be automated with a `postinstall` script.
-> Preparing a web application for production would follow a process similar to
-> creating an archive, but with the `browser` build tag.
-
-The `browser` and `require` tags are well-known but not yet supported.
-The `browser` tag will apply for compartment maps generated for use on the web.
-The `require` tag is a fallback for environments that do not support ESM and
-will never apply.
+The `exports` property describes [package entry points][] and can be influenced
+by build _conditions_.
+Currently, the only conditions supported by the compartment mapper are
+`import`, `browser`, and `endo`.
+The `imports` condition indicates that the module map should use ESM modules
+over CommonJS modules or other variants, and `endo`.
+The `browser` condition also draws in the `browser` property from
+`package.json` instead of `main`.
+The `endo` condition only indicates that this tool is in use.
 
 If no `exports` apply to the root of the compartment namespace (`"."`),
 the `main` property serves as a default.
@@ -284,7 +272,7 @@ Node.js platform.
 > For browser applications, the compartment mapper would use the translator
 > modules in two modes.
 > During development, the compartment mapper would be able to load the
-> translator in the client, with the `browser` tag.
+> translator in the client, with the `browser` condition.
 > The compartment mapper would also be able to run the translator in a separate
 > non-browser compartment during bundling, so the translator can be excluded
 > from the production application and archived applications.
@@ -392,18 +380,19 @@ The compartment map shape:
 // CompartmentMap describes how to prepare compartments
 // to run an application.
 type CompartmentMap = {
-  tags: Tags,
+  tags: Conditions,
   entry: Entry,
   compartments: Record<CompartmentName, Compartment>,
   realms: Record<RealmName, Realm>, // TODO
 };
 
-// Tags are the build tags for the compartment.
+// Conditions influence which modules are selected
+// to represent the implementation of various modules.
 // These may include terms like "browser", meaning
 // each compartment uses the implementation of each
 // module suitable for use in a browser environment.
-type Tags = Array<Tag>;
-type Tag = string;
+type Conditions = Array<Condition>;
+type Condition = string;
 
 // Entry is a reference to the module that is the module to initially import.
 type Entry = CompartmentModule;

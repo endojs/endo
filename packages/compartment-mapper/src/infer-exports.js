@@ -57,15 +57,15 @@ function* interpretBrowserField(name, browser, main = 'index.js') {
 /**
  * @param {string} name - the name of the referrer package.
  * @param {object} exports - the `exports` field from a package.json.
- * @param {Set<string>} tags - build tags about the target environment
+ * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @yields {[string, string]}
  * @returns {Generator<[string, string]>}
  */
-function* interpretExports(name, exports, tags) {
+function* interpretExports(name, exports, conditions) {
   if (isArray(exports)) {
     for (const section of exports) {
-      const results = [...interpretExports(name, section, tags)];
+      const results = [...interpretExports(name, section, conditions)];
       if (results.length > 0) {
         yield* results;
         break;
@@ -84,12 +84,12 @@ function* interpretExports(name, exports, tags) {
   for (const [key, value] of entries(exports)) {
     if (key.startsWith('./') || key === '.') {
       if (name === '.') {
-        yield* interpretExports(key, value, tags);
+        yield* interpretExports(key, value, conditions);
       } else {
-        yield* interpretExports(join(name, key), value, tags);
+        yield* interpretExports(join(name, key), value, conditions);
       }
-    } else if (tags.has(key)) {
-      yield* interpretExports(name, value, tags);
+    } else if (conditions.has(key)) {
+      yield* interpretExports(name, value, conditions);
       // Take only the first matching tag.
       break;
     }
@@ -110,7 +110,7 @@ function* interpretExports(name, exports, tags) {
  * @param {string} packageDescriptor.main
  * @param {string} [packageDescriptor.module]
  * @param {object} [packageDescriptor.exports]
- * @param {Set<string>} tags - build tags about the target environment
+ * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {LanguageForExtension} types - an object to populate
  * with any recognized module's type, if implied by a tag.
@@ -118,12 +118,12 @@ function* interpretExports(name, exports, tags) {
  */
 export const inferExportsEntries = function* inferExportsEntries(
   { main, module, exports },
-  tags,
+  conditions,
   types,
 ) {
   // From lowest to highest precedence, such that later entries override former
   // entries.
-  if (module !== undefined && tags.has('import')) {
+  if (module !== undefined && conditions.has('import')) {
     // In this one case, the key "module" has carried a hint that the
     // referenced module is an ECMASCript module, and that hint may be
     // necessary to override whatever type might be inferred from the module
@@ -135,7 +135,7 @@ export const inferExportsEntries = function* inferExportsEntries(
     yield ['.', relativize(main)];
   }
   if (exports !== undefined) {
-    yield* interpretExports('.', exports, tags);
+    yield* interpretExports('.', exports, conditions);
   }
   // TODO Otherwise, glob 'files' for all '.js', '.cjs', and '.mjs' entry
   // modules, taking care to exclude node_modules.
@@ -151,20 +151,20 @@ export const inferExportsEntries = function* inferExportsEntries(
  * package's module map, like `./index.js`.
  *
  * @param {object} descriptor - the parsed body of a package.json file.
- * @param {Set<string>} tags - build tags about the target environment
+ * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {LanguageForExtension} types - an object to populate
  * with any recognized module's type, if implied by a tag.
  * @returns {Record<string, string>}
  */
-export const inferExports = (descriptor, tags, types) =>
-  fromEntries(inferExportsEntries(descriptor, tags, types));
+export const inferExports = (descriptor, conditions, types) =>
+  fromEntries(inferExportsEntries(descriptor, conditions, types));
 
 export const inferExportsAndAliases = (
   descriptor,
   externalAliases,
   internalAliases,
-  tags,
+  conditions,
   types,
 ) => {
   const { name, type, main, module, exports, browser } = descriptor;
@@ -172,7 +172,7 @@ export const inferExportsAndAliases = (
   // collect externalAliases from exports and main/module
   assign(
     externalAliases,
-    fromEntries(inferExportsEntries(descriptor, tags, types)),
+    fromEntries(inferExportsEntries(descriptor, conditions, types)),
   );
 
   // expose default module as package root
@@ -188,7 +188,7 @@ export const inferExportsAndAliases = (
   }
 
   // if present, allow "browser" field to populate moduleMap
-  if (tags.has('browser') && browser !== undefined) {
+  if (conditions.has('browser') && browser !== undefined) {
     for (const [specifier, target] of interpretBrowserField(
       name,
       browser,

@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.4.2](https://github.com/endojs/endo/compare/@endo/pass-style@1.4.1...@endo/pass-style@1.4.2) (2024-08-01)
+
+**Note:** Version bump only for package @endo/pass-style
+
+
+
+
+
+### [1.4.1](https://github.com/endojs/endo/compare/@endo/pass-style@1.4.0...@endo/pass-style@1.4.1) (2024-07-30)
+
+
+### Performance Improvements
+
+* **pass-style:** Eliminate redundant work to validate copyArrays and copyRecords ([59e2ba8](https://github.com/endojs/endo/commit/59e2ba85965e136097737099947f02d5b976ccb6))
+* **pass-style:** Make a rejector only when needed ([3c3e4b7](https://github.com/endojs/endo/commit/3c3e4b701dbf23263125f00f02864016ef0e8f8b))
+* **pass-style:** Use more property descriptor value extraction ([5fabd3f](https://github.com/endojs/endo/commit/5fabd3f4dc7ecf76283c759f60017ebbac7c314f))
+
+
+
 ## [1.4.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.3.1...@endo/pass-style@1.4.0) (2024-05-07)
 
 

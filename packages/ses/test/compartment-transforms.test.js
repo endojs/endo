@@ -9,7 +9,7 @@ test('transforms apply to evaluated expressions', t => {
 
   const transform = source => source.replace(/Farewell/g, 'Hello');
   const transforms = [transform];
-  const c = new Compartment({}, {}, { transforms });
+  const c = new Compartment({ transforms, __options__: true });
   const greeting = c.evaluate('"Farewell, World!"');
 
   t.is(greeting, 'Hello, World!');
@@ -20,13 +20,13 @@ test('transforms apply to dynamic eval in compartments', t => {
 
   const transform = source => source.replace(/Farewell/g, 'Hello');
   const transforms = [transform];
-  const c = new Compartment(
-    {
+  const c = new Compartment({
+    transforms,
+    globals: {
       greeting: '"Farewell, World!"',
     },
-    {},
-    { transforms },
-  );
+    __options__: true,
+  });
   const greeting = c.evaluate('(0, eval)(greeting)');
 
   t.is(greeting, 'Hello, World!');
@@ -37,7 +37,7 @@ test('transforms do not apply to dynamic eval in compartments within compartment
 
   const transform = source => source.replace(/Farewell/g, 'Hello');
   const transforms = [transform];
-  const c = new Compartment({}, {}, { transforms });
+  const c = new Compartment({ transforms, __options__: true });
   const d = c.evaluate('new Compartment()');
   const greeting = d.evaluate('"Farewell, World!"');
 
@@ -52,9 +52,15 @@ test('transforms do not apply to imported modules', async t => {
   const resolveHook = () => '';
   const importHook = () =>
     new ModuleSource('export default "Farewell, World!";');
-  const c = new Compartment({}, {}, { transforms, resolveHook, importHook });
+  const c = new Compartment({
+    transforms,
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const { namespace } = await c.import('any-string-here');
+  const namespace = await c.import('any-string-here');
   const { default: greeting } = namespace;
 
   t.is(greeting, 'Farewell, World!');
@@ -65,7 +71,10 @@ test('__shimTransforms__ apply to evaluated expressions', t => {
 
   const transform = source => source.replace(/Farewell/g, 'Hello');
   const transforms = [transform];
-  const c = new Compartment({}, {}, { __shimTransforms__: transforms });
+  const c = new Compartment({
+    __shimTransforms__: transforms,
+    __options__: true,
+  });
   const greeting = c.evaluate('"Farewell, World!"');
 
   t.is(greeting, 'Hello, World!');
@@ -79,13 +88,15 @@ test('__shimTransforms__ do apply to imported modules', async t => {
   const resolveHook = () => '';
   const importHook = () =>
     new ModuleSource('export default "Farewell, World!";');
-  const c = new Compartment(
-    {},
-    {},
-    { __shimTransforms__: transforms, resolveHook, importHook },
-  );
+  const c = new Compartment({
+    __shimTransforms__: transforms,
+    __noNamespaceBox__: true,
+    __options__: true,
+    resolveHook,
+    importHook,
+  });
 
-  const { namespace } = await c.import('any-string-here');
+  const namespace = await c.import('any-string-here');
   const { default: greeting } = namespace;
 
   t.is(greeting, 'Hello, World!');

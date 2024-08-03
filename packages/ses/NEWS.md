@@ -1,6 +1,31 @@
-User-visible changes in SES:
+User-visible changes in `ses`:
 
-# Next version
+# v1.6.0 (2024-07-30)
+
+- *NOTICE*: This version introduces multiple features to converge upon a
+  more common standard for [Hardened JavaScript](https://hardenedjs.org).
+  All code should begin migrating to these usage patterns as the older
+  patterns are now deprecated and will not be supported in a future major
+  version of SES.
+
+- To converge on a portable pattern for using `Compartment`, introduces an
+  `__options__` property for the first argument of the `Compartment`
+  constructor that must be `true` if present and indicates the object is the
+  options bag and not the global endowments. All code going forward should
+  include this flag until the next major version of SES, when we plan for it to
+  become vesgitial and drop support for three-argument `Compartment`
+  construction.
+
+  In the unlikely event that existing code names an endowment `__options__`,
+  that code will break and need to be adjusted to adopt this version.
+  Because we rate this unlikely, we have elected not to mark this with
+  a major version bump.
+
+- Adds a `__noNamespaceBox__` option that aligns the behavior of the `import`
+  method on SES `Compartment` with the behavior of XS and the behavior we will
+  champion for compartment standards.
+  All use of `Compartment` should migrate to use this option as the standard
+  behavior will be enabled by default with the next major version of SES.
 
 - Adds `ArrayBuffer.p.immutable` and `ArrayBuffer.p.transferToImmutable` as a shim for a future proposal. It makes an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
   - Unlike `ArrayBuffer` and `SharedArrayBuffer` this shim's ArrayBuffer-like object cannot be transfered or cloned between JS threads.
@@ -9,6 +34,17 @@ User-visible changes in SES:
   - Even after the upcoming `transferToImmutable` proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See https://github.com/endojs/endo/pull/2311#discussion_r1632607527 . It will require a later manual step to delete the shim, after manual analysis of the compat implications.
 
 - Adds support for module descriptors better aligned with XS.
+  Compartments use module desriptors to load and link modules.
+  The importHook, importNowHook, and moduleMapHook all return module descriptors
+  (sometimes promises for module descriptors).
+  The modules option or argument to the Compatment constructor has module
+  descriptors for all its values.
+  - `{record, specifier, compartment}` should become `{source: record,
+    specifier, compartment}`.
+  - `{specifier, compartment}` should become `{source: specifier,
+    compartment}`.
+  - `{record: compartment.module(specifier)}` should become `{namespace:
+    specifier, compartment}`.
 
 - When running transpiled code on Node, the SES error taming
   gives line-numbers into the generated JavaScript, which often don't match the

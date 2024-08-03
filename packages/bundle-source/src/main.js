@@ -11,7 +11,8 @@ const USAGE = `\
 bundle-source [-Tft] <entry.js>
 bundle-source [-Tft] --cache-js|--cache-json <cache/> (<entry.js> <bundle-name>)*
   -f,--format endoZipBase64*|nestedEvaluate|getExport
-  -t,--tag <tag> (browser, node, &c)
+  -C,--condition <condition> (browser, node, development, &c)
+  -C development (to access devDependencies)
   -T,--no-transforms`;
 
 const options = /** @type {const} */ ({
@@ -33,9 +34,9 @@ const options = /** @type {const} */ ({
     short: 'f',
     multiple: false,
   },
-  tag: {
+  condition: {
     type: 'string',
-    short: 't',
+    short: 'C',
     multiple: true,
   },
   // deprecated
@@ -58,7 +59,7 @@ export const main = async (args, { loadModule, pid, log }) => {
   const {
     values: {
       format: moduleFormat = 'endoZipBase64',
-      tag: tags = [],
+      condition: conditions = [],
       'no-transforms': noTransforms,
       'cache-json': cacheJson,
       'cache-js': cacheJs,
@@ -94,7 +95,7 @@ export const main = async (args, { loadModule, pid, log }) => {
     const bundle = await bundleSource(entryPath, {
       noTransforms,
       format,
-      tags,
+      conditions,
     });
     process.stdout.write(JSON.stringify(bundle));
     process.stdout.write('\n');
@@ -125,7 +126,7 @@ export const main = async (args, { loadModule, pid, log }) => {
     await cache.validateOrAdd(bundleRoot, bundleName, undefined, {
       noTransforms,
       format,
-      tags,
+      conditions,
     });
   }
 };

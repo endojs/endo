@@ -5,30 +5,23 @@ import { ModuleSource } from '@endo/module-source';
 import '../index.js';
 
 test('module map primed with module source descriptor with precompiled module source', async t => {
-  const compartment = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment = new Compartment({
+    modules: {
       './index.js': {
         source: new ModuleSource('export default 42'),
       },
     },
-    // options:
-    {
-      resolveHook: specifier => specifier,
-    },
-  );
-  const { namespace: index } = await compartment.import('./index.js');
+    resolveHook: specifier => specifier,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
 test('module map primed with module source descriptor with virtual module source', async t => {
-  const compartment = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment = new Compartment({
+    modules: {
       './index.js': {
         source: {
           imports: [],
@@ -39,21 +32,17 @@ test('module map primed with module source descriptor with virtual module source
         },
       },
     },
-    // options:
-    {
-      resolveHook: specifier => specifier,
-    },
-  );
-  const { namespace: index } = await compartment.import('./index.js');
+    resolveHook: specifier => specifier,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
 test('module map primed with parent compartment module source descriptor with string reference to parent compartment', async t => {
-  const parent = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const parent = new Compartment({
+    modules: {
       './meaning.js': {
         source: {
           imports: [],
@@ -64,36 +53,27 @@ test('module map primed with parent compartment module source descriptor with st
         },
       },
     },
-    // options:
-    {
-      resolveHook: specifier => specifier,
-    },
-  );
+    resolveHook: specifier => specifier,
+    __options__: true,
+  });
 
-  const compartment = new parent.globalThis.Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment = new parent.globalThis.Compartment({
+    modules: {
       './index.js': {
         source: './meaning.js',
       },
     },
-    // options:
-    {
-      resolveHook: specifier => specifier,
-    },
-  );
-  const { namespace: index } = await compartment.import('./index.js');
+    resolveHook: specifier => specifier,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
 test('module map primed with parent compartment module source reference with different specifier', async t => {
-  const parent = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const parent = new Compartment({
+    modules: {
       './meaningful.js': {
         source: {
           imports: [],
@@ -116,16 +96,14 @@ test('module map primed with parent compartment module source reference with dif
         },
       },
     },
-    // options:
-    {
-      name: 'parent',
-      resolveHook(relative, specifier) {
-        t.is(relative, './meaningful.js');
-        t.is(specifier, './meaning.js');
-        return relative;
-      },
+    name: 'parent',
+    resolveHook(relative, specifier) {
+      t.is(relative, './meaningful.js');
+      t.is(specifier, './meaning.js');
+      return relative;
     },
-  );
+    __options__: true,
+  });
 
   const compartment = new parent.globalThis.Compartment(
     // endowments:
@@ -154,246 +132,194 @@ test('module map primed with parent compartment module source reference with dif
         t.is(specifier, './lib/meaning.js');
         return './lib/meaningful.js';
       },
+      __noNamespaceBox__: true,
     },
   );
-  const { namespace: index } = await compartment.import('./index.js');
+  const index = await compartment.import('./index.js');
   t.is(index.default, 42);
 });
 
 test('module map primed with module source descriptor for parent compartment with string reference', async t => {
-  const parent = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const parent = new Compartment({
+    name: 'parent',
+    modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    // options:
-    {
-      name: 'parent',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
-  const compartment = new parent.globalThis.Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment = new parent.globalThis.Compartment({
+    name: 'child',
+    modules: {
       './index.js': {
         source: './object.js',
         // implies parent compartment
       },
     },
-    // options:
-    {
-      name: 'child',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Separate instances
   t.not(childObject, parentObject);
 });
 
 test('module map primed with parent compartment module namespace descriptor', async t => {
-  const parent = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const parent = new Compartment({
+    name: 'parent',
+    modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    // options:
-    {
-      name: 'parent',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: parentObject },
-  } = await parent.import('./object.js');
+  const { default: parentObject } = await parent.import('./object.js');
   t.is(parentObject.meaning, 42);
 
-  const compartment = new parent.globalThis.Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment = new parent.globalThis.Compartment({
+    name: 'child',
+    modules: {
       './index.js': {
         namespace: './object.js',
         // implies parent compartment
       },
     },
-    // options:
-    {
-      name: 'child',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: childObject },
-  } = await compartment.import('./index.js');
+  const { default: childObject } = await compartment.import('./index.js');
   t.is(childObject.meaning, 42);
   // Same instances
   t.is(childObject, parentObject);
 });
 
 test('module map primed with module source descriptor with string reference to parent compartment', async t => {
-  const compartment1 = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment1 = new Compartment({
+    name: 'compartment1',
+    modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    // options:
-    {
-      name: 'compartment1',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
-  const compartment2 = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment2 = new Compartment({
+    name: 'child',
+    modules: {
       './index.js': {
         source: './object.js',
         compartment: compartment1,
       },
     },
-    // options:
-    {
-      name: 'child',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Separate instances
   t.not(object1, object2);
 });
 
 test('module map primed with other compartment module namespace descriptor', async t => {
-  const compartment1 = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment1 = new Compartment({
+    name: 'compartment1',
+    modules: {
       './object.js': {
         source: new ModuleSource('export default { meaning: 42 }'),
       },
     },
-    // options:
-    {
-      name: 'compartment1',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: object1 },
-  } = await compartment1.import('./object.js');
+  const { default: object1 } = await compartment1.import('./object.js');
   t.is(object1.meaning, 42);
 
-  const compartment2 = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment2 = new Compartment({
+    name: 'child',
+    modules: {
       './index.js': {
         namespace: './object.js',
         compartment: compartment1,
       },
     },
-    // options:
-    {
-      name: 'child',
-    },
-  );
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
 
-  const {
-    namespace: { default: object2 },
-  } = await compartment2.import('./index.js');
+  const { default: object2 } = await compartment2.import('./index.js');
   t.is(object2.meaning, 42);
   // Same instances
   t.is(object1, object2);
 });
 
 test('module map primed with module namespace descriptor and namespace object', async t => {
-  const compartment1 = new Compartment(
-    {},
-    {
+  const compartment1 = new Compartment({
+    modules: {
       a: {
         source: new ModuleSource(`export default 42`),
       },
     },
-    {},
-  );
-  const { namespace: namespace1 } = await compartment1.import('a');
-  const compartment2 = new Compartment(
-    {},
-    {
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  const namespace1 = await compartment1.import('a');
+  const compartment2 = new Compartment({
+    modules: {
       z: { namespace: namespace1 },
     },
-    {},
-  );
-  const { namespace: namespace2 } = await compartment2.import('z');
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  const namespace2 = await compartment2.import('z');
   t.is(namespace2.default, 42);
   t.is(namespace1, namespace2);
 });
 
 test('module map primed with module namespace descriptor and non-namespace object', async t => {
-  const compartment = new Compartment(
-    {},
-    {
+  const compartment = new Compartment({
+    modules: {
       1: { namespace: { meaning: 42 } },
     },
-    {},
-  );
-  const { namespace } = await compartment.import('1');
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  const namespace = await compartment.import('1');
   t.is(namespace.meaning, 42);
 });
 
 test('module map precedes module map hook', t => {
-  const compartment = new Compartment(
-    // endowments:
-    {},
-    // modules:
-    {
+  const compartment = new Compartment({
+    modules: {
       './index.js': {
         source: new ModuleSource(`
           export default 42;
         `),
       },
     },
-    // options:
-    {
-      moduleMapHook() {
-        throw new Error('not reached');
-      },
+    moduleMapHook() {
+      throw new Error('not reached');
     },
-  );
+    __options__: true,
+  });
 
   const { default: meaning } = compartment.importNow('./index.js');
   t.is(meaning, 42);

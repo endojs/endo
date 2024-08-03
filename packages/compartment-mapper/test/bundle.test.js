@@ -61,7 +61,10 @@ test('bundles work', async t => {
   const print = entry => {
     log.push(entry);
   };
-  const compartment = new Compartment({ print });
+  const compartment = new Compartment({
+    globals: { print },
+    __options__: true,
+  });
   compartment.evaluate(bundle);
   t.deepEqual(log, expectedLog);
 });
@@ -93,7 +96,10 @@ test.failing('bundle cjs-compat', async t => {
   const print = entry => {
     log.push(entry);
   };
-  const compartment = new Compartment({ print });
+  const compartment = new Compartment({
+    globals: { print },
+    __options__: true,
+  });
   compartment.evaluate(bundle);
   t.deepEqual(log, expectedLog);
 });

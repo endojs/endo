@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.2.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.1.3...@endo/eslint-plugin@2.2.0) (2024-07-30)
+
+
+### Features
+
+* auto-fix for harden-exports rule ([b07a159](https://github.com/endojs/endo/commit/b07a159490a3217643ecd147a361a25f27a25460))
+* error attempting to harden 'function' export ([d799b69](https://github.com/endojs/endo/commit/d799b69191883d9dd097b8e2b3873947ee13ac28))
+* harden-exports rule ([9f5ed41](https://github.com/endojs/endo/commit/9f5ed41a40f01e6d8f7648b2e6827ce6a4db68d5))
+* **harden-exports:** handle TypeScript ([387409c](https://github.com/endojs/endo/commit/387409c7dfbc29d332a3721fba6ab2ed1a6c2772))
+
+
+
 ### [2.1.3](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.1.2...@endo/eslint-plugin@2.1.3) (2024-05-07)
 
 **Note:** Version bump only for package @endo/eslint-plugin

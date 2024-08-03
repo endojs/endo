@@ -161,7 +161,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@endo/base64@npm:^1.0.5, @endo/base64@workspace:packages/base64":
+"@endo/base64@npm:^1.0.6, @endo/base64@workspace:packages/base64":
   version: 0.0.0-use.local
   resolution: "@endo/base64@workspace:packages/base64"
   dependencies:
@@ -178,20 +178,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/bundle-source@npm:^3.2.3, @endo/bundle-source@workspace:packages/bundle-source":
+"@endo/bundle-source@npm:^3.3.0, @endo/bundle-source@workspace:packages/bundle-source":
   version: 0.0.0-use.local
   resolution: "@endo/bundle-source@workspace:packages/bundle-source"
   dependencies:
-    "@endo/base64": "npm:^1.0.5"
-    "@endo/compartment-mapper": "npm:^1.1.5"
-    "@endo/evasive-transform": "npm:^1.1.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
-    "@endo/where": "npm:^1.0.5"
-    "@endo/zip": "npm:^1.0.5"
+    "@endo/base64": "npm:^1.0.6"
+    "@endo/compartment-mapper": "npm:^1.2.0"
+    "@endo/evasive-transform": "npm:^1.2.0"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/lockdown": "npm:^1.0.8"
+    "@endo/promise-kit": "npm:^1.1.3"
+    "@endo/ses-ava": "npm:^1.2.3"
+    "@endo/where": "npm:^1.0.6"
+    "@endo/zip": "npm:^1.0.6"
     "@rollup/plugin-commonjs": "npm:^19.0.0"
+    "@rollup/plugin-json": "npm:^6.1.0"
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     acorn: "npm:^8.2.4"
     ava: "npm:^6.1.3"
@@ -204,17 +205,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/captp@npm:^4.2.0, @endo/captp@workspace:packages/captp":
+"@endo/captp@npm:^4.2.2, @endo/captp@workspace:packages/captp":
   version: 0.0.0-use.local
   resolution: "@endo/captp@workspace:packages/captp"
   dependencies:
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/marshal": "npm:^1.5.0"
-    "@endo/nat": "npm:^5.0.7"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/marshal": "npm:^1.5.2"
+    "@endo/nat": "npm:^5.0.9"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.2"
@@ -225,12 +226,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/check-bundle@workspace:packages/check-bundle"
   dependencies:
-    "@endo/base64": "npm:^1.0.5"
-    "@endo/bundle-source": "npm:^3.2.3"
-    "@endo/compartment-mapper": "npm:^1.1.5"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/zip": "npm:^1.0.5"
+    "@endo/base64": "npm:^1.0.6"
+    "@endo/bundle-source": "npm:^3.3.0"
+    "@endo/compartment-mapper": "npm:^1.2.0"
+    "@endo/errors": "npm:^1.2.3"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/zip": "npm:^1.0.6"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -244,7 +245,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/cjs-module-analyzer@npm:^1.0.5, @endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer":
+"@endo/cjs-module-analyzer@npm:^1.0.6, @endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer":
   version: 0.0.0-use.local
   resolution: "@endo/cjs-module-analyzer@workspace:packages/cjs-module-analyzer"
   dependencies:
@@ -265,20 +266,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/cli@workspace:packages/cli"
   dependencies:
-    "@endo/bundle-source": "npm:^3.2.3"
-    "@endo/compartment-mapper": "npm:^1.1.5"
-    "@endo/daemon": "npm:^2.3.0"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/exo": "npm:^1.5.0"
-    "@endo/far": "npm:^1.1.2"
-    "@endo/import-bundle": "npm:^1.1.2"
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/pass-style": "npm:^1.4.0"
-    "@endo/patterns": "npm:^1.4.0"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/stream-node": "npm:^1.1.2"
-    "@endo/where": "npm:^1.0.5"
+    "@endo/bundle-source": "npm:^3.3.0"
+    "@endo/compartment-mapper": "npm:^1.2.1"
+    "@endo/daemon": "npm:^2.4.1"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/exo": "npm:^1.5.2"
+    "@endo/far": "npm:^1.1.4"
+    "@endo/import-bundle": "npm:^1.2.1"
+    "@endo/lockdown": "npm:^1.0.9"
+    "@endo/pass-style": "npm:^1.4.2"
+    "@endo/patterns": "npm:^1.4.2"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/stream-node": "npm:^1.1.4"
+    "@endo/where": "npm:^1.0.6"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     commander: "npm:^5.0.0"
@@ -289,22 +290,22 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     open: "npm:^9.1.0"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   bin:
     endo: ./bin/endo
   languageName: unknown
   linkType: soft
 
-"@endo/common@npm:^1.2.2, @endo/common@workspace:packages/common":
+"@endo/common@npm:^1.2.4, @endo/common@workspace:packages/common":
   version: 0.0.0-use.local
   resolution: "@endo/common@workspace:packages/common"
   dependencies:
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/lockdown": "npm:^1.0.9"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
@@ -312,13 +313,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/compartment-mapper@npm:^1.1.5, @endo/compartment-mapper@workspace:packages/compartment-mapper":
+"@endo/compartment-mapper@npm:^1.2.0, @endo/compartment-mapper@npm:^1.2.1, @endo/compartment-mapper@workspace:packages/compartment-mapper":
   version: 0.0.0-use.local
   resolution: "@endo/compartment-mapper@workspace:packages/compartment-mapper"
   dependencies:
-    "@endo/cjs-module-analyzer": "npm:^1.0.5"
-    "@endo/module-source": "npm:^0.0.0"
-    "@endo/zip": "npm:^1.0.5"
+    "@endo/cjs-module-analyzer": "npm:^1.0.6"
+    "@endo/module-source": "npm:^1.0.1"
+    "@endo/zip": "npm:^1.0.6"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -328,34 +329,34 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/daemon@npm:^2.3.0, @endo/daemon@workspace:packages/daemon":
+"@endo/daemon@npm:^2.4.1, @endo/daemon@workspace:packages/daemon":
   version: 0.0.0-use.local
   resolution: "@endo/daemon@workspace:packages/daemon"
   dependencies:
-    "@endo/base64": "npm:^1.0.5"
-    "@endo/bundle-source": "npm:^3.2.3"
-    "@endo/captp": "npm:^4.2.0"
-    "@endo/compartment-mapper": "npm:^1.1.5"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/exo": "npm:^1.5.0"
-    "@endo/far": "npm:^1.1.2"
-    "@endo/import-bundle": "npm:^1.1.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/marshal": "npm:^1.5.0"
-    "@endo/netstring": "npm:^1.0.7"
-    "@endo/patterns": "npm:^1.4.0"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
-    "@endo/stream": "npm:^1.2.2"
-    "@endo/stream-node": "npm:^1.1.2"
-    "@endo/where": "npm:^1.0.5"
+    "@endo/base64": "npm:^1.0.6"
+    "@endo/bundle-source": "npm:^3.3.0"
+    "@endo/captp": "npm:^4.2.2"
+    "@endo/compartment-mapper": "npm:^1.2.1"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/exo": "npm:^1.5.2"
+    "@endo/far": "npm:^1.1.4"
+    "@endo/import-bundle": "npm:^1.2.1"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/lockdown": "npm:^1.0.9"
+    "@endo/marshal": "npm:^1.5.2"
+    "@endo/netstring": "npm:^1.0.9"
+    "@endo/patterns": "npm:^1.4.2"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/ses-ava": "npm:^1.2.4"
+    "@endo/stream": "npm:^1.2.4"
+    "@endo/stream-node": "npm:^1.1.4"
+    "@endo/where": "npm:^1.0.6"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -365,13 +366,13 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
     ws: "npm:^8.13.0"
   languageName: unknown
   linkType: soft
 
-"@endo/env-options@npm:^1.1.4, @endo/env-options@workspace:packages/env-options":
+"@endo/env-options@npm:^1.1.5, @endo/env-options@workspace:packages/env-options":
   version: 0.0.0-use.local
   resolution: "@endo/env-options@workspace:packages/env-options"
   dependencies:
@@ -387,15 +388,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/errors@npm:^1.2.2, @endo/errors@workspace:packages/errors":
+"@endo/errors@npm:^1.2.3, @endo/errors@npm:^1.2.4, @endo/errors@workspace:packages/errors":
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/lockdown": "npm:^1.0.9"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     ses0_18_3: "npm:ses@0.18.3"
     tsd: "npm:^0.30.7"
     typescript: "npm:5.5.2"
@@ -417,7 +418,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/evasive-transform@npm:^1.1.2, @endo/evasive-transform@workspace:packages/evasive-transform":
+"@endo/evasive-transform@npm:^1.2.0, @endo/evasive-transform@workspace:packages/evasive-transform":
   version: 0.0.0-use.local
   resolution: "@endo/evasive-transform@workspace:packages/evasive-transform"
   dependencies:
@@ -425,7 +426,7 @@ __metadata:
     "@babel/parser": "npm:^7.23.6"
     "@babel/traverse": "npm:^7.23.6"
     "@babel/types": "npm:^7.24.0"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/ses-ava": "npm:^1.2.4"
     "@rollup/plugin-commonjs": "npm:^19.0.0"
     "@rollup/plugin-node-resolve": "npm:^13.0.0"
     "@types/babel__generator": "npm:^7.6.8"
@@ -440,12 +441,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/eventual-send@npm:^1.2.2, @endo/eventual-send@workspace:packages/eventual-send":
+"@endo/eventual-send@npm:^1.2.3, @endo/eventual-send@npm:^1.2.4, @endo/eventual-send@workspace:packages/eventual-send":
   version: 0.0.0-use.local
   resolution: "@endo/eventual-send@workspace:packages/eventual-send"
   dependencies:
-    "@endo/env-options": "npm:^1.1.4"
-    "@endo/lockdown": "npm:^1.0.7"
+    "@endo/env-options": "npm:^1.1.5"
+    "@endo/lockdown": "npm:^1.0.9"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
@@ -453,19 +454,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/exo@npm:^1.5.0, @endo/exo@workspace:packages/exo":
+"@endo/exo@npm:^1.5.2, @endo/exo@workspace:packages/exo":
   version: 0.0.0-use.local
   resolution: "@endo/exo@workspace:packages/exo"
   dependencies:
-    "@endo/common": "npm:^1.2.2"
-    "@endo/env-options": "npm:^1.1.4"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/far": "npm:^1.1.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/pass-style": "npm:^1.4.0"
-    "@endo/patterns": "npm:^1.4.0"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/common": "npm:^1.2.4"
+    "@endo/env-options": "npm:^1.1.5"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/far": "npm:^1.1.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/pass-style": "npm:^1.4.2"
+    "@endo/patterns": "npm:^1.4.2"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
@@ -478,58 +479,58 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/far@npm:^1.1.2, @endo/far@workspace:packages/far":
+"@endo/far@npm:^1.1.4, @endo/far@workspace:packages/far":
   version: 0.0.0-use.local
   resolution: "@endo/far@workspace:packages/far"
   dependencies:
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/pass-style": "npm:^1.4.0"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/pass-style": "npm:^1.4.2"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/import-bundle@npm:^1.1.2, @endo/import-bundle@workspace:packages/import-bundle":
+"@endo/import-bundle@npm:^1.2.1, @endo/import-bundle@workspace:packages/import-bundle":
   version: 0.0.0-use.local
   resolution: "@endo/import-bundle@workspace:packages/import-bundle"
   dependencies:
-    "@endo/base64": "npm:^1.0.5"
-    "@endo/bundle-source": "npm:^3.2.3"
-    "@endo/compartment-mapper": "npm:^1.1.5"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
-    "@endo/where": "npm:^1.0.5"
+    "@endo/base64": "npm:^1.0.6"
+    "@endo/bundle-source": "npm:^3.3.0"
+    "@endo/compartment-mapper": "npm:^1.2.1"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/ses-ava": "npm:^1.2.4"
+    "@endo/where": "npm:^1.0.6"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/init@npm:^1.1.2, @endo/init@workspace:packages/init":
+"@endo/init@npm:^1.1.3, @endo/init@workspace:packages/init":
   version: 0.0.0-use.local
   resolution: "@endo/init@workspace:packages/init"
   dependencies:
-    "@endo/base64": "npm:^1.0.5"
-    "@endo/compartment-mapper": "npm:^1.1.5"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/promise-kit": "npm:^1.1.2"
+    "@endo/base64": "npm:^1.0.6"
+    "@endo/compartment-mapper": "npm:^1.2.0"
+    "@endo/eventual-send": "npm:^1.2.3"
+    "@endo/lockdown": "npm:^1.0.8"
+    "@endo/promise-kit": "npm:^1.1.3"
     ava: "npm:^6.1.3"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/lockdown@npm:^1.0.7, @endo/lockdown@workspace:packages/lockdown":
+"@endo/lockdown@npm:^1.0.8, @endo/lockdown@npm:^1.0.9, @endo/lockdown@workspace:packages/lockdown":
   version: 0.0.0-use.local
   resolution: "@endo/lockdown@workspace:packages/lockdown"
   dependencies:
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
   languageName: unknown
   linkType: soft
 
@@ -537,10 +538,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/lp32@workspace:packages/lp32"
   dependencies:
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
-    "@endo/stream": "npm:^1.2.2"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/ses-ava": "npm:^1.2.4"
+    "@endo/stream": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -550,24 +551,24 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/marshal@npm:^1.5.0, @endo/marshal@workspace:packages/marshal":
+"@endo/marshal@npm:^1.5.2, @endo/marshal@workspace:packages/marshal":
   version: 0.0.0-use.local
   resolution: "@endo/marshal@workspace:packages/marshal"
   dependencies:
-    "@endo/common": "npm:^1.2.2"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/nat": "npm:^5.0.7"
-    "@endo/pass-style": "npm:^1.4.0"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/common": "npm:^1.2.4"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/lockdown": "npm:^1.0.9"
+    "@endo/nat": "npm:^5.0.9"
+    "@endo/pass-style": "npm:^1.4.2"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/ses-ava": "npm:^1.2.4"
     "@fast-check/ava": "npm:^1.1.5"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
@@ -579,8 +580,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/memoize@workspace:packages/memoize"
   dependencies:
-    "@endo/init": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
@@ -589,12 +590,12 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/module-source@npm:^0.0.0, @endo/module-source@workspace:packages/module-source":
+"@endo/module-source@npm:^1.0.1, @endo/module-source@workspace:packages/module-source":
   version: 0.0.0-use.local
   resolution: "@endo/module-source@workspace:packages/module-source"
   dependencies:
@@ -612,34 +613,34 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/nat@npm:^5.0.7, @endo/nat@workspace:packages/nat":
+"@endo/nat@npm:^5.0.9, @endo/nat@workspace:packages/nat":
   version: 0.0.0-use.local
   resolution: "@endo/nat@workspace:packages/nat"
   dependencies:
-    "@endo/compartment-mapper": "npm:^1.1.5"
+    "@endo/compartment-mapper": "npm:^1.2.1"
     ava: "npm:^6.1.3"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/netstring@npm:^1.0.7, @endo/netstring@workspace:packages/netstring":
+"@endo/netstring@npm:^1.0.9, @endo/netstring@workspace:packages/netstring":
   version: 0.0.0-use.local
   resolution: "@endo/netstring@workspace:packages/netstring"
   dependencies:
-    "@endo/init": "npm:^1.1.2"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/stream": "npm:^1.2.2"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/stream": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -649,21 +650,21 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/pass-style@npm:^1.4.0, @endo/pass-style@workspace:packages/pass-style":
+"@endo/pass-style@npm:^1.4.2, @endo/pass-style@workspace:packages/pass-style":
   version: 0.0.0-use.local
   resolution: "@endo/pass-style@workspace:packages/pass-style"
   dependencies:
-    "@endo/env-options": "npm:^1.1.4"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/env-options": "npm:^1.1.5"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/ses-ava": "npm:^1.2.4"
     "@fast-check/ava": "npm:^1.1.5"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
@@ -677,17 +678,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/patterns@npm:^1.4.0, @endo/patterns@workspace:packages/patterns":
+"@endo/patterns@npm:^1.4.2, @endo/patterns@workspace:packages/patterns":
   version: 0.0.0-use.local
   resolution: "@endo/patterns@workspace:packages/patterns"
   dependencies:
-    "@endo/common": "npm:^1.2.2"
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/marshal": "npm:^1.5.0"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/common": "npm:^1.2.4"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/marshal": "npm:^1.5.2"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
@@ -700,7 +701,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/promise-kit@npm:^1.1.2, @endo/promise-kit@workspace:packages/promise-kit":
+"@endo/promise-kit@npm:^1.1.3, @endo/promise-kit@npm:^1.1.4, @endo/promise-kit@workspace:packages/promise-kit":
   version: 0.0.0-use.local
   resolution: "@endo/promise-kit@workspace:packages/promise-kit"
   dependencies:
@@ -713,17 +714,17 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/ses-ava@npm:^1.2.2, @endo/ses-ava@workspace:packages/ses-ava":
+"@endo/ses-ava@npm:^1.2.3, @endo/ses-ava@npm:^1.2.4, @endo/ses-ava@workspace:packages/ses-ava":
   version: 0.0.0-use.local
   resolution: "@endo/ses-ava@workspace:packages/ses-ava"
   dependencies:
-    "@endo/env-options": "npm:^1.1.4"
-    "@endo/init": "npm:^1.1.2"
+    "@endo/env-options": "npm:^1.1.5"
+    "@endo/init": "npm:^1.1.3"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -733,7 +734,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   peerDependencies:
     ava: ^5.3.0 || ^6.1.2
@@ -744,8 +745,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/skel@workspace:packages/skel"
   dependencies:
-    "@endo/lockdown": "npm:^1.0.7"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/lockdown": "npm:^1.0.9"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.30.7"
@@ -753,14 +754,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/stream-node@npm:^1.1.2, @endo/stream-node@workspace:packages/stream-node":
+"@endo/stream-node@npm:^1.1.4, @endo/stream-node@workspace:packages/stream-node":
   version: 0.0.0-use.local
   resolution: "@endo/stream-node@workspace:packages/stream-node"
   dependencies:
-    "@endo/errors": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
-    "@endo/stream": "npm:^1.2.2"
+    "@endo/errors": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/ses-ava": "npm:^1.2.4"
+    "@endo/stream": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -770,7 +771,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     ts-api-utils: "npm:~1.0.1"
     typescript: "npm:5.5.2"
   languageName: unknown
@@ -780,7 +781,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/stream-types-test@workspace:packages/stream-types-test"
   dependencies:
-    "@endo/stream": "npm:^1.2.2"
+    "@endo/stream": "npm:^1.2.4"
     babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -788,19 +789,19 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/stream@npm:^1.2.2, @endo/stream@workspace:packages/stream":
+"@endo/stream@npm:^1.2.4, @endo/stream@workspace:packages/stream":
   version: 0.0.0-use.local
   resolution: "@endo/stream@workspace:packages/stream"
   dependencies:
-    "@endo/eventual-send": "npm:^1.2.2"
-    "@endo/init": "npm:^1.1.2"
-    "@endo/promise-kit": "npm:^1.1.2"
-    "@endo/ses-ava": "npm:^1.2.2"
+    "@endo/eventual-send": "npm:^1.2.4"
+    "@endo/init": "npm:^1.1.3"
+    "@endo/promise-kit": "npm:^1.1.4"
+    "@endo/ses-ava": "npm:^1.2.4"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"
@@ -810,7 +811,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     ts-api-utils: "npm:~1.0.1"
     typescript: "npm:5.5.2"
   languageName: unknown
@@ -833,11 +834,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/test262-runner@npm:^0.1.37, @endo/test262-runner@workspace:packages/test262-runner":
+"@endo/test262-runner@npm:^0.1.39, @endo/test262-runner@workspace:packages/test262-runner":
   version: 0.0.0-use.local
   resolution: "@endo/test262-runner@workspace:packages/test262-runner"
   dependencies:
-    "@endo/compartment-mapper": "npm:^1.1.5"
+    "@endo/compartment-mapper": "npm:^1.2.1"
     babel-eslint: "npm:^10.1.0"
     eslint: "npm:^8.57.0"
     eslint-config-airbnb-base: "npm:^15.0.0"
@@ -845,13 +846,13 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
-    ses: "npm:^1.5.0"
+    ses: "npm:^1.7.0"
     test262-harness: "npm:^10.0.0"
     typescript: "npm:5.5.2"
   languageName: unknown
   linkType: soft
 
-"@endo/where@npm:^1.0.5, @endo/where@workspace:packages/where":
+"@endo/where@npm:^1.0.6, @endo/where@workspace:packages/where":
   version: 0.0.0-use.local
   resolution: "@endo/where@workspace:packages/where"
   dependencies:
@@ -868,7 +869,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/zip@npm:^1.0.5, @endo/zip@workspace:packages/zip":
+"@endo/zip@npm:^1.0.6, @endo/zip@workspace:packages/zip":
   version: 0.0.0-use.local
   resolution: "@endo/zip@workspace:packages/zip"
   dependencies:
@@ -2501,6 +2502,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@rollup/plugin-json@npm:^6.1.0":
+  version: 6.1.0
+  resolution: "@rollup/plugin-json@npm:6.1.0"
+  dependencies:
+    "@rollup/pluginutils": "npm:^5.1.0"
+  peerDependencies:
+    rollup: ^1.20.0||^2.0.0||^3.0.0||^4.0.0
+  peerDependenciesMeta:
+    rollup:
+      optional: true
+  checksum: 10c0/9400c431b5e0cf3088ba2eb2d038809a2b0fb2a84ed004997da85582f48cd64958ed3168893c4f2c8109e38652400ed68282d0c92bf8ec07a3b2ef2e1ceab0b7
+  languageName: node
+  linkType: hard
+
 "@rollup/plugin-node-resolve@npm:^13.0.0":
   version: 13.3.0
   resolution: "@rollup/plugin-node-resolve@npm:13.3.0"
@@ -2537,6 +2552,22 @@ __metadata:
     estree-walker: "npm:^2.0.1"
     picomatch: "npm:^2.2.2"
   checksum: 10c0/3ee56b2c8f1ed8dfd0a92631da1af3a2dfdd0321948f089b3752b4de1b54dc5076701eadd0e5fc18bd191b77af594ac1db6279e83951238ba16bf8a414c64c48
+  languageName: node
+  linkType: hard
+
+"@rollup/pluginutils@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "@rollup/pluginutils@npm:5.1.0"
+  dependencies:
+    "@types/estree": "npm:^1.0.0"
+    estree-walker: "npm:^2.0.2"
+    picomatch: "npm:^2.3.1"
+  peerDependencies:
+    rollup: ^1.20.0||^2.0.0||^3.0.0||^4.0.0
+  peerDependenciesMeta:
+    rollup:
+      optional: true
+  checksum: 10c0/c7bed15711f942d6fdd3470fef4105b73991f99a478605e13d41888963330a6f9e32be37e6ddb13f012bc7673ff5e54f06f59fd47109436c1c513986a8a7612d
   languageName: node
   linkType: hard
 
@@ -2665,7 +2696,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/estree@npm:^1.0.5":
+"@types/estree@npm:^1.0.0, @types/estree@npm:^1.0.5":
   version: 1.0.5
   resolution: "@types/estree@npm:1.0.5"
   checksum: 10c0/b3b0e334288ddb407c7b3357ca67dbee75ee22db242ca7c56fe27db4e1a31989cb8af48a84dd401deb787fe10cc6b2ab1ee82dc4783be87ededbe3d53c79c70d
@@ -5538,7 +5569,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"estree-walker@npm:2.0.2, estree-walker@npm:^2.0.1":
+"estree-walker@npm:2.0.2, estree-walker@npm:^2.0.1, estree-walker@npm:^2.0.2":
   version: 2.0.2
   resolution: "estree-walker@npm:2.0.2"
   checksum: 10c0/53a6c54e2019b8c914dc395890153ffdc2322781acf4bd7d1a32d7aedc1710807bdcd866ac133903d5629ec601fbb50abe8c2e5553c7f5a0afdd9b6af6c945af
@@ -10506,14 +10537,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ses@npm:^1.5.0, ses@workspace:packages/ses":
+"ses@npm:^1.7.0, ses@workspace:packages/ses":
   version: 0.0.0-use.local
   resolution: "ses@workspace:packages/ses"
   dependencies:
-    "@endo/compartment-mapper": "npm:^1.1.5"
-    "@endo/env-options": "npm:^1.1.4"
-    "@endo/module-source": "npm:^0.0.0"
-    "@endo/test262-runner": "npm:^0.1.37"
+    "@endo/compartment-mapper": "npm:^1.2.1"
+    "@endo/env-options": "npm:^1.1.5"
+    "@endo/module-source": "npm:^1.0.1"
+    "@endo/test262-runner": "npm:^0.1.39"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
     c8: "npm:^7.14.0"

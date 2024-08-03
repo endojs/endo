@@ -219,19 +219,20 @@ const getBundlerKitForModule = module => {
  * @returns {Promise<string>}
  */
 export const makeBundle = async (readPowers, moduleLocation, options) => {
-  const { read, maybeRead } = unpackReadPowers(readPowers);
+  const { read } = unpackReadPowers(readPowers);
 
   const {
     moduleTransforms,
     dev,
     tags: tagsOption,
+    conditions: conditionsOption = tagsOption,
     searchSuffixes,
     commonDependencies,
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
   } = options || {};
-  const tags = new Set(tagsOption);
+  const conditions = new Set(conditionsOption);
 
   const parserForLanguage = Object.freeze(
     Object.assign(
@@ -249,7 +250,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
-  } = await search(maybeRead, moduleLocation);
+  } = await search(readPowers, moduleLocation);
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
@@ -258,7 +259,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   const compartmentMap = await compartmentMapForNodeModules(
     read,
     packageLocation,
-    tags,
+    conditions,
     packageDescriptor,
     moduleSpecifier,
     { dev, commonDependencies },

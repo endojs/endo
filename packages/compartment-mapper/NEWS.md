@@ -1,6 +1,6 @@
-User-visible changes to the compartment mapper:
+User-visible changes to `@endo/compartment-mapper`:
 
-# Next release
+# v1.2.0 (2024-07-30)
 
 - Fixes incompatible behavior with Node.js package conditional exports #2276.
   Previously, the last matching tag would override all prior matches, often
@@ -22,6 +22,11 @@ User-visible changes to the compartment mapper:
   The new `import-lite.js` does not entrain `node-modules.js` and composes
   with potential alternative package discovery, storage, and locks.
 - Adds JSON module support to `makeBundle`.
+- Aliases and deprecates `tags` in favor of `conditions` to align with Node.js
+  terminology.
+- `mapNodeModules` now infers that it should include `devDependencies` from
+  the entry package from the presence of `"development"` in `conditions`,
+  if the `dev` option is abseent.
 
 # 0.9.0 (2023-08-07)
 

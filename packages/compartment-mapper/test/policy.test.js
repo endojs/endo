@@ -200,7 +200,7 @@ scaffold(
       },
     },
     // 'eve' defines a browser override for 'dan' pointing to 'hackity'
-    tags: new Set(['browser']),
+    conditions: new Set(['browser']),
   },
 );
 
@@ -222,7 +222,7 @@ scaffold(
     addGlobals: globals,
     policy,
     // This turns alice malicious - attempting to redirect alice.js to an outside module
-    tags: new Set(['browser']),
+    conditions: new Set(['browser']),
   },
 );
 
