@@ -494,6 +494,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
+  version: 0.0.0-use.local
+  resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
+  dependencies:
+    ava: "npm:^6.1.3"
+    c8: "npm:^7.14.0"
+    tsd: "npm:^0.30.7"
+    typescript: "npm:5.5.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/import-bundle@npm:^1.2.1, @endo/import-bundle@workspace:packages/import-bundle":
   version: 0.0.0-use.local
   resolution: "@endo/import-bundle@workspace:packages/import-bundle"
