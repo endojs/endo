@@ -50,7 +50,7 @@ harden(DEFAULT_PROMISE_METHODS);
  * @returns {T}
  */
 export const stripFunction = target => {
-  Object.setPrototypeOf(target, null);
+  Object.setPrototypeOf(target, harden({ [Symbol.toStringTag]: 'OCell' }));
   for (const key of Reflect.ownKeys(target)) {
     delete target[key];
   }
@@ -65,7 +65,7 @@ const makeTarget = (getThisArg, shadowMethodEntries) => {
       value: (...args) => Reflect.apply(fn, getThisArg(), args),
     });
   }
-  harden(target);
+  // harden(target);
   return target;
 };
 
@@ -100,15 +100,27 @@ export const prepareOTools = (
     Promise.prototype[key],
   ]);
 
-  const hpGet = HandledPromise
-    ? HandledPromise.get
-    : (x, prop) => when(x).then(y => y[prop]);
-  const hpApplyFunction = HandledPromise
-    ? HandledPromise.applyFunction
-    : (x, args) => when(x).then(y => y(...args));
-  const hpApplyMethod = HandledPromise
-    ? HandledPromise.applyMethod
-    : (x, prop, args) => when(x).then(y => y[prop](...args));
+  const hpGet =
+    (HandledPromise && HandledPromise.get) ||
+    ((x, prop) => when(x).then(y => y[prop]));
+  const hpApplyFunction =
+    (HandledPromise && HandledPromise.applyFunction) ||
+    ((x, args) => when(x).then(y => y(...args)));
+  const hpApplyMethod =
+    (HandledPromise && HandledPromise.applyMethod) ||
+    ((x, prop, args) => when(x).then(y => y[prop](...args)));
+  const hpDelete =
+    (HandledPromise && HandledPromise.delete) ||
+    ((x, prop) =>
+      when(x).then(y => {
+        return delete y[prop];
+      }));
+  const hpSet =
+    (HandledPromise && HandledPromise.set) ||
+    ((x, prop, value) =>
+      when(x).then(y => {
+        return (y[prop] = value);
+      }));
 
   /**
    * @param {unknown} boundThis
@@ -128,10 +140,10 @@ export const prepareOTools = (
       return cachedThisArg;
     };
 
-    const target = makeTarget(getThisArg, promiseMethodEntries);
+    const tgt = makeTarget(getThisArg, promiseMethodEntries);
 
     const spaceName = boundName ? ` ${JSON.stringify(String(boundName))}` : '';
-    const cell = new Proxy(target, {
+    const cell = new Proxy(tgt, {
       apply(_target, thisArg, args) {
         if (thisArg !== parentCell) {
           return when(
@@ -151,10 +163,24 @@ export const prepareOTools = (
         const retP = hpApplyMethod(boundThis, boundName, args);
         return makeBoundOCell(retP, cell);
       },
+      deleteProperty(target, key) {
+        if (promiseMethodEntries.some(([m]) => m === key)) {
+          return false;
+        }
+        hpDelete(getThisArg(), key).catch(sink);
+        return Reflect.deleteProperty(target, key);
+      },
+      set(target, key, value, _receiver) {
+        if (promiseMethodEntries.some(([m]) => m === key)) {
+          return false;
+        }
+        hpSet(getThisArg(), key, value).catch(sink);
+        return Reflect.set(target, key, value);
+      },
       get(_target, key) {
         if (typeof key === 'string' && promiseMethods.includes(key)) {
           // Base case, escape the cell via a promise method.
-          return target[key];
+          return tgt[key];
         }
         if (key === Symbol.toPrimitive) {
           // Work around a bug that somehow freezes the Node.js REPL.
@@ -168,7 +194,7 @@ export const prepareOTools = (
       },
     });
 
-    harden(cell);
+    // harden(cell);
     return cell;
   };
 
@@ -194,7 +220,6 @@ export const prepareOTools = (
    * @returns {OCell<T>}
    */
   const makeOCell = obj => makeBoundOCell(obj);
-  harden(makeOCell);
-  return { makeOCell, makeO };
+  return harden({ makeOCell, makeO });
 };
 harden(prepareOTools);
