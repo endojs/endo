@@ -19,6 +19,7 @@ export { universalThis as globalThis };
 
 export const {
   Array,
+  ArrayBuffer,
   Date,
   FinalizationRegistry,
   Float32Array,
