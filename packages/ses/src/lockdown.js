@@ -15,6 +15,7 @@
 // @ts-check
 
 import { getEnvironmentOption as getenv } from '@endo/env-options';
+import '@endo/immutable-arraybuffer/shim.js';
 import {
   FERAL_FUNCTION,
   FERAL_EVAL,
