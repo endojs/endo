@@ -12,7 +12,7 @@ export const tameRegeneratorRuntime = () => {
   defineProperty(iteratorPrototype, iteratorSymbol, {
     configurable: true,
     get: () => iter,
-    set: function (value) {
+    set(value) {
       // ignore the assignment on IteratorPrototype
       if (this === iteratorPrototype) return true;
       if (objectHasOwnProperty(this, iteratorSymbol)) {
@@ -25,6 +25,7 @@ export const tameRegeneratorRuntime = () => {
         enumerable: true,
         configurable: true,
       });
+      return true;
     },
   });
 };
