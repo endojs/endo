@@ -1,5 +1,20 @@
 User-visible changes in `ses`:
 
+# Unreleased
+
+- If lockdown's `errorTrapping: 'report'` mode is selected (possibly via the
+  `'platform'`, or `'exit'` or `'abort'` modes), uncaught exceptions will be
+  written to standard error with the new `SES_UNCAUGHT_EXCEPTION: ` prefix.
+  This is intended to give valuable context to users of the system, especially
+  when an uncaught exception is not an `Error` object, and therefore its origin
+  may be hard to find in source code.
+
+  This is not likely to affect most systems built with SES, as stderr is
+  generally reserved for user-only messages.  If your SES system sends its
+  stderr to a program which parses it, you may need to adapt that program to be
+  tolerant of the `SES_UNCAUGHT_EXCEPTION: ` prefix.  Even for such programs, it
+  is unlikely they are that sensitive to stderr formatting.
+
 # v1.6.0 (2024-07-30)
 
 - *NOTICE*: This version introduces multiple features to converge upon a
