@@ -34,11 +34,11 @@ export interface RepairOptions {
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
   /**
-   * none (default): do nothing.
+   * safe (default): do nothing.
    *
-   * safe: make %IteratorPrototype%[@@iterator] to a funky accessor which ignores all assignments.
+   * unsafe-ignore: make %IteratorPrototype%[@@iterator] to a funky accessor which ignores all assignments.
    */
-  regeneratorRuntimeTaming?: 'none' | 'safe';
+  legacyRegeneratorRuntimeTaming?: 'safe' | 'unsafe-ignore';
   __hardenTaming__?: 'safe' | 'unsafe';
 }
 

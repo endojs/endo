@@ -181,9 +181,9 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
-    regeneratorRuntimeTaming = getenv(
-      'LOCKDOWN_REGENERATOR_RUNTIME_TAMING',
-      'none',
+    legacyRegeneratorRuntimeTaming = getenv(
+      'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
+      'safe',
     ),
     __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
     dateTaming = 'safe', // deprecated
@@ -191,9 +191,9 @@ export const repairIntrinsics = (options = {}) => {
     ...extraOptions
   } = options;
 
-  regeneratorRuntimeTaming === 'safe' ||
-    regeneratorRuntimeTaming === 'none' ||
-    Fail`lockdown(): non supported option regeneratorRuntimeTaming: ${q(regeneratorRuntimeTaming)}`;
+  legacyRegeneratorRuntimeTaming === 'safe' ||
+    legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
+    Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
 
   evalTaming === 'unsafeEval' ||
     evalTaming === 'safeEval' ||
@@ -351,7 +351,8 @@ export const repairIntrinsics = (options = {}) => {
 
   tameFauxDataProperties(intrinsics);
 
-  if (regeneratorRuntimeTaming === 'safe') tameRegeneratorRuntime();
+  if (legacyRegeneratorRuntimeTaming === 'unsafe-ignore')
+    tameRegeneratorRuntime();
 
   /**
    * 2. WHITELIST to standardize the environment.
