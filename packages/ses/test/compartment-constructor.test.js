@@ -35,21 +35,18 @@ test('Compartment class', t => {
 });
 
 test('Compartment name', t => {
-  const c = new Compartment({}, {}, { name: 'x' });
+  const c = new Compartment({ name: 'x', __options__: true });
   t.is(c.name, 'x');
 });
 
 test('Compartment name object toString', t => {
-  const c = new Compartment(
-    {},
-    {},
-    {
-      name: {
-        toString() {
-          return 'x';
-        },
+  const c = new Compartment({
+    name: {
+      toString() {
+        return 'x';
       },
     },
-  );
+    __options__: true,
+  });
   t.is(c.name, 'x');
 });

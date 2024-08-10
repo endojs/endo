@@ -224,8 +224,8 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   const {
     moduleTransforms,
     dev,
-    tags,
-    conditions: conditionsOption = tags,
+    tags: tagsOption,
+    conditions: conditionsOption = tagsOption,
     searchSuffixes,
     commonDependencies,
     sourceMapHook = undefined,

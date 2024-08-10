@@ -481,8 +481,9 @@ export const assertCompartmentMap = (
     )}`,
   );
   const {
-    tags,
-    conditions = tags,
+    // TODO migrate tags to conditions
+    // https://github.com/endojs/endo/issues/2388
+    tags: conditions,
     entry,
     compartments,
     ...extra

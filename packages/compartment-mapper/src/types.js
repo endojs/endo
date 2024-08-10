@@ -17,8 +17,7 @@ export {};
  * Compartments, each corresponding to Node.js style packaged modules.
  *
  * @typedef {object} CompartmentMapDescriptor
- * @property {Array<string>} [tags] is deprecated in favor of `conditions`
- * @property {Array<string>} conditions
+ * @property {Array<string>} tags
  * @property {EntryDescriptor} entry
  * @property {Record<string, CompartmentDescriptor>} compartments
  */

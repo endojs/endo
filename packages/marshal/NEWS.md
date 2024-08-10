@@ -1,6 +1,6 @@
 User-visible changes in `@endo/marshal`:
 
-# Next release
+# v1.5.1 (2024-07-30)
 
 - `deeplyFulfilled` moved from @endo/marshal to @endo/pass-style. @endo/marshal still reexports it, to avoid breaking old importers. But importers should be upgraded to import `deeplyFulfilled` directly from @endo/pass-style.
 

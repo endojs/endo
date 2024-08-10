@@ -1113,8 +1113,14 @@ export const permitted = {
   Int8Array: TypedArray('%Int8ArrayPrototype%'),
   Uint16Array: TypedArray('%Uint16ArrayPrototype%'),
   Uint32Array: TypedArray('%Uint32ArrayPrototype%'),
-  Uint8Array: TypedArray('%Uint8ArrayPrototype%'),
   Uint8ClampedArray: TypedArray('%Uint8ClampedArrayPrototype%'),
+  Uint8Array: {
+    ...TypedArray('%Uint8ArrayPrototype%'),
+    // https://github.com/tc39/proposal-arraybuffer-base64
+    fromBase64: fn,
+    // https://github.com/tc39/proposal-arraybuffer-base64
+    fromHex: fn,
+  },
 
   '%BigInt64ArrayPrototype%': TypedArrayPrototype('BigInt64Array'),
   '%BigUint64ArrayPrototype%': TypedArrayPrototype('BigUint64Array'),
@@ -1127,8 +1133,18 @@ export const permitted = {
   '%Int8ArrayPrototype%': TypedArrayPrototype('Int8Array'),
   '%Uint16ArrayPrototype%': TypedArrayPrototype('Uint16Array'),
   '%Uint32ArrayPrototype%': TypedArrayPrototype('Uint32Array'),
-  '%Uint8ArrayPrototype%': TypedArrayPrototype('Uint8Array'),
   '%Uint8ClampedArrayPrototype%': TypedArrayPrototype('Uint8ClampedArray'),
+  '%Uint8ArrayPrototype%': {
+    ...TypedArrayPrototype('Uint8Array'),
+    // https://github.com/tc39/proposal-arraybuffer-base64
+    setFromBase64: fn,
+    // https://github.com/tc39/proposal-arraybuffer-base64
+    setFromHex: fn,
+    // https://github.com/tc39/proposal-arraybuffer-base64
+    toBase64: fn,
+    // https://github.com/tc39/proposal-arraybuffer-base64
+    toHex: fn,
+  },
 
   // *** Keyed Collections
 

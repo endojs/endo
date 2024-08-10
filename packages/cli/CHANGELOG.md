@@ -3,6 +3,40 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.3.1](https://github.com/endojs/endo/compare/@endo/cli@2.3.0...@endo/cli@2.3.1) (2024-08-01)
+
+**Note:** Version bump only for package @endo/cli
+
+
+
+
+
+## [2.3.0](https://github.com/endojs/endo/compare/@endo/cli@2.2.0...@endo/cli@2.3.0) (2024-07-30)
+
+
+### Features
+
+* Add a `--verbose` option to the `endo list` command ([3389a83](https://github.com/endojs/endo/commit/3389a8341cc5f1465bcc3337b86d9a4ef047d133))
+* Add common aliases to CLI commands ([b22479c](https://github.com/endojs/endo/commit/b22479c33f949ece859c9ee6689be2e9d688f764))
+* additional dot-delimited petname path support ([254459c](https://github.com/endojs/endo/commit/254459c2547f29b9d6dd96544b859bced38becf3))
+* **cli:** Add `move|mv [options] <from> <to>` ([0b2d6dc](https://github.com/endojs/endo/commit/0b2d6dc543572bbc0f87acba9bd1b2f74782b03d))
+* **cli:** Add copy command ([4ae3915](https://github.com/endojs/endo/commit/4ae39153f78ca74ae15791236f418811e869b2ea))
+* **cli:** Add mkdir command ([63a58b1](https://github.com/endojs/endo/commit/63a58b179cd8469b7140c3bc138b33de0869e529))
+* **cli:** Further dot-delimited path support ([b7035b4](https://github.com/endojs/endo/commit/b7035b47687546dbd804b22f39eab4d18f1b19b5))
+* **cli:** Support pet name paths for store command ([33c70b3](https://github.com/endojs/endo/commit/33c70b35b77691bbbeff77dd55c1eb559602fed4))
+* **daemon,cli:** Make caplets in pet name paths ([ad80978](https://github.com/endojs/endo/commit/ad8097878e7680f2de2019fdd286d94b8b43e38c))
+* **daemon:** Accept spread path at makeDirectory() ([61dc434](https://github.com/endojs/endo/commit/61dc4347b3a0b3ad6dea2a52b9cb0466c1cdc161))
+
+
+### Bug Fixes
+
+* clean up temp bundle when make() throws ([97c6aed](https://github.com/endojs/endo/commit/97c6aed42fae06c2e323969a00fedbc0b338c85e)), closes [#2290](https://github.com/endojs/endo/issues/2290)
+* **cli:** Fix result name parsing in request command ([67a22bd](https://github.com/endojs/endo/commit/67a22bda487512a8d7d74c853ca9e5e121c77920))
+* **cli:** Re-enable using eval without specified result name ([26b188f](https://github.com/endojs/endo/commit/26b188f393c5ea23a6d6d6a2f83323a73fc4ee38))
+* endow with original unstructured `assert` ([#2323](https://github.com/endojs/endo/issues/2323)) ([8b2bedb](https://github.com/endojs/endo/commit/8b2bedb8fec02050508495ae9e78cd50a275286d)), closes [#2324](https://github.com/endojs/endo/issues/2324) [#2324](https://github.com/endojs/endo/issues/2324)
+
+
+
 ## [2.2.0](https://github.com/endojs/endo/compare/@endo/cli@2.1.1...@endo/cli@2.2.0) (2024-05-07)
 
 

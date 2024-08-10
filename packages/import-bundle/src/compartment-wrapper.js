@@ -1,3 +1,54 @@
+/** @import {ModuleDescriptor} from 'ses' */
+
+// In order to facilitate migration from the deprecated signature
+// of the compartment constructor,
+//   new Compartent(globals?, modules?, options?)
+// to the new signature:
+//   new Compartment(options?)
+// where globals and modules are expressed in the options bag instead of
+// positional arguments, this function detects the temporary sigil __options__
+// on the first argument and coerces compartments arguments into a single
+// compartments object.
+const compartmentOptions = (...args) => {
+  if (args.length === 0) {
+    return {};
+  }
+  if (
+    args.length === 1 &&
+    typeof args[0] === 'object' &&
+    args[0] !== null &&
+    '__options__' in args[0]
+  ) {
+    const { __options__, ...options } = args[0];
+    assert(
+      __options__ === true,
+      `Compartment constructor only supports true __options__ sigil, got ${__options__}`,
+    );
+    return options;
+  } else {
+    const [
+      globals = /** @type {Map<string, any>} */ ({}),
+      modules = /** @type {Map<string, ModuleDescriptor>} */ ({}),
+      options = {},
+    ] = args;
+    assert.equal(
+      options.modules,
+      undefined,
+      `Compartment constructor must receive either a module map argument or modules option, not both`,
+    );
+    assert.equal(
+      options.globals,
+      undefined,
+      `Compartment constructor must receive either globals argument or option, not both`,
+    );
+    return {
+      ...options,
+      globals,
+      modules,
+    };
+  }
+};
+
 export function wrapInescapableCompartment(
   OldCompartment,
   inescapableTransforms,
@@ -6,16 +57,14 @@ export function wrapInescapableCompartment(
   // This is the new Compartment constructor. We name it `Compartment` so
   // that it's .name property is correct, but we hold it in 'NewCompartment'
   // so that lint doesn't think we're shadowing the original.
-  const NewCompartment = function Compartment(
-    endowments,
-    modules,
-    oldOptions = {},
-  ) {
-    const { transforms: oldTransforms = [], ...otherOptions } = oldOptions;
+  const NewCompartment = function Compartment(...args) {
+    const { transforms: oldTransforms = [], ...otherOptions } =
+      compartmentOptions(...args);
     const newTransforms = [...oldTransforms, ...inescapableTransforms];
     const newOptions = {
       ...otherOptions,
       transforms: newTransforms,
+      __options__: true,
     };
 
     // The real Compartment is defined as a class, so 'new Compartment()'
@@ -29,11 +78,7 @@ export function wrapInescapableCompartment(
 
     // It, or a subclass, was called as a constructor
 
-    const c = Reflect.construct(
-      OldCompartment,
-      [endowments, modules, newOptions],
-      new.target,
-    );
+    const c = Reflect.construct(OldCompartment, [newOptions], new.target);
     // The confinement applies to all compartments too. This relies upon the
     // child's normal Compartment behaving the same way as the parent's,
     // which will cease to be the case soon (their module tables are

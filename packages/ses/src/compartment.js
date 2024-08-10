@@ -19,12 +19,15 @@ import {
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from './global-object.js';
+import { assertEqual } from './error/assert.js';
 import { sharedGlobalPropertyNames } from './permits.js';
 import { load, loadNow } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
+
+/** @import {ModuleDescriptor} from '../types.js' */
 
 // moduleAliases associates every public module exports namespace with its
 // corresponding compartment and specifier so they can be used to link modules
@@ -172,6 +175,55 @@ defineProperties(InertCompartment, {
  * @returns {Compartment['constructor']}
  */
 
+// In order to facilitate migration from the deprecated signature
+// of the compartment constructor,
+//   new Compartent(globals?, modules?, options?)
+// to the new signature:
+//   new Compartment(options?)
+// where globals and modules are expressed in the options bag instead of
+// positional arguments, this function detects the temporary sigil __options__
+// on the first argument and coerces compartments arguments into a single
+// compartments object.
+const compartmentOptions = (...args) => {
+  if (args.length === 0) {
+    return {};
+  }
+  if (
+    args.length === 1 &&
+    typeof args[0] === 'object' &&
+    args[0] !== null &&
+    '__options__' in args[0]
+  ) {
+    const { __options__, ...options } = args[0];
+    assert(
+      __options__ === true,
+      `Compartment constructor only supports true __options__ sigil, got ${__options__}`,
+    );
+    return options;
+  } else {
+    const [
+      globals = /** @type {Map<string, any>} */ ({}),
+      modules = /** @type {Map<string, ModuleDescriptor>} */ ({}),
+      options = {},
+    ] = args;
+    assertEqual(
+      options.modules,
+      undefined,
+      `Compartment constructor must receive either a module map argument or modules option, not both`,
+    );
+    assertEqual(
+      options.globals,
+      undefined,
+      `Compartment constructor must receive either globals argument or option, not both`,
+    );
+    return {
+      ...options,
+      globals,
+      modules,
+    };
+  }
+};
+
 /** @type {MakeCompartmentConstructor} */
 export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
@@ -179,11 +231,7 @@ export const makeCompartmentConstructor = (
   markVirtualizedNativeFunction,
   parentCompartment = undefined,
 ) => {
-  function Compartment(
-    endowmentsOption = {},
-    moduleMapOption = {},
-    options = {},
-  ) {
+  function Compartment(...args) {
     if (new.target === undefined) {
       throw TypeError(
         "Class constructor Compartment cannot be invoked without 'new'",
@@ -195,13 +243,15 @@ export const makeCompartmentConstructor = (
       name = '<unknown>',
       transforms = [],
       __shimTransforms__ = [],
+      globals: endowmentsOption = {},
+      modules: moduleMapOption = {},
       resolveHook,
       importHook,
       importNowHook,
       moduleMapHook,
       importMetaHook,
       __noNamespaceBox__: noNamespaceBox = false,
-    } = options;
+    } = compartmentOptions(...args);
     const globalTransforms = [...transforms, ...__shimTransforms__];
     const endowments = { __proto__: null, ...endowmentsOption };
     const moduleMap = { __proto__: null, ...moduleMapOption };

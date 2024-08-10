@@ -230,32 +230,6 @@ const makeArchiveImportHookMaker = (
   return makeImportHook;
 };
 
-/**
- * Creates a fake module namespace object that passes a brand check.
- *
- * @param {typeof Compartment} Compartment
- * @returns {ModuleExportsNamespace}
- */
-const makeFauxModuleExportsNamespace = Compartment => {
-  const compartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook() {
-        return '.';
-      },
-      async importHook() {
-        return {
-          imports: [],
-          execute() {},
-          exports: [],
-        };
-      },
-    },
-  );
-  return compartment.module('.');
-};
-
 // Have to give it a name to capture the external meaning of Compartment
 // Otherwise @param {typeof Compartment} takes the Compartment to mean
 // the const variable defined within the function.
@@ -377,7 +351,7 @@ export const parseArchive = async (
       languageForExtension,
       modules: Object.fromEntries(
         Object.keys(modules || {}).map(specifier => {
-          return [specifier, makeFauxModuleExportsNamespace(Compartment)];
+          return [specifier, { namespace: {} }];
         }),
       ),
       Compartment,

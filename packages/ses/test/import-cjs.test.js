@@ -86,11 +86,12 @@ test('import a CommonJS module with exports assignment', async t => {
     );
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const module = compartment.module('.');
   const { meaning } = await compartment.import('.');
 
@@ -111,11 +112,12 @@ test('import a CommonJS module with exports replacement', async t => {
     );
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const module = compartment.module('.');
   const { default: meaning } = await compartment.import('.');
 
@@ -148,11 +150,12 @@ test('CommonJS module imports CommonJS module by name', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -184,11 +187,12 @@ test('CommonJS module imports CommonJS module as default', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const namespace = await compartment.import('./odd');
   const { default: odd } = namespace;
 
@@ -221,11 +225,12 @@ test('ESM imports CommonJS module as default', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -257,11 +262,12 @@ test('ESM imports CommonJS module as star', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -295,11 +301,12 @@ test('ESM imports CommonJS module with replaced exports as star', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -331,11 +338,12 @@ test('ESM imports CommonJS module by name', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -367,11 +375,12 @@ test('CommonJS module imports ESM as default', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -405,11 +414,12 @@ test('CommonJS module imports ESM by name', async t => {
     throw Error(`Cannot load module ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    {},
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   const { odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -462,11 +472,13 @@ test('cross import ESM and CommonJS modules', async t => {
     throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    { resolveHook, importHook, __noNamespaceBox__: true },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
   await compartment.import('./src/main.js');
 });
 
@@ -507,7 +519,12 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
     throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
-  const compartment = new Compartment({ t }, {}, { resolveHook, importHook });
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook,
+    importHook,
+    __options__: true,
+  });
   await compartment.import('./src/main.js');
 });
 
@@ -540,14 +557,12 @@ test('export name as default from CommonJS module', async t => {
     throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook,
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook,
+    __options__: true,
+  });
 
   await compartment.import('./main.js');
 });
@@ -581,15 +596,13 @@ test('synchronous loading via importNowHook', async t => {
     throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook: async () => {},
-      importNowHook,
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: async () => {},
+    importNowHook,
+    __options__: true,
+  });
 
   compartment.importNow('./main.js');
 });
@@ -629,15 +642,13 @@ test('importNowHook only called if specifier was not imported before', async t =
     throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
-  const compartment = new Compartment(
-    { t },
-    {},
-    {
-      resolveHook: resolveNode,
-      importHook,
-      importNowHook,
-    },
-  );
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook,
+    importNowHook,
+    __options__: true,
+  });
 
   // compartment.import would be the more natural here, but all prerequisites
   // to synchronously finding the module before calling importNowHook should

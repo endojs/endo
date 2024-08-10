@@ -3,6 +3,7 @@ import url from 'url';
 import { rollup as rollup0 } from 'rollup';
 import resolve0 from '@rollup/plugin-node-resolve';
 import commonjs0 from '@rollup/plugin-commonjs';
+import json0 from '@rollup/plugin-json';
 import { evadeCensor } from '@endo/evasive-transform';
 
 const DEFAULT_FILE_PREFIX = '/bundled-source/...';
@@ -42,6 +43,7 @@ export async function bundleNestedEvaluateAndGetExports(
 ) {
   const {
     commonjsPlugin = commonjs0,
+    jsonPlugin = json0,
     rollup = rollup0,
     resolvePlugin = resolve0,
     pathResolve = path.resolve,
@@ -54,7 +56,11 @@ export async function bundleNestedEvaluateAndGetExports(
     treeshake: false,
     preserveModules: moduleFormat === 'nestedEvaluate',
     external: [...externals],
-    plugins: [resolvePlugin({ preferBuiltins: true }), commonjsPlugin()],
+    plugins: [
+      resolvePlugin({ preferBuiltins: true }),
+      commonjsPlugin(),
+      jsonPlugin(),
+    ],
   });
   const { output } = await bundle.generate({
     exports: 'named',

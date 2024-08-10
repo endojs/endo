@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.9](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.8...@endo/lockdown@1.0.9) (2024-08-01)
+
+**Note:** Version bump only for package @endo/lockdown
+
+
+
+
+
+### [1.0.8](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.7...@endo/lockdown@1.0.8) (2024-07-30)
+
+
+### Bug Fixes
+
+* **lockdown:** change commit-debug.js to unsafe-debug ([#2359](https://github.com/endojs/endo/issues/2359)) ([c7a80fd](https://github.com/endojs/endo/commit/c7a80fdfb282e71ff867572cfccff0d58a56fdef)), closes [#2355](https://github.com/endojs/endo/issues/2355) [/github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js#L54](https://github.com/endojs//github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js/issues/L54) [/github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/core/src/kernelTemplate.js#L60](https://github.com/endojs//github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/core/src/kernelTemplate.js/issues/L60) [/github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js#L54](https://github.com/endojs//github.com/LavaMoat/LavaMoat/blob/1cb057b281d46d2564872f53c2769bf4c4cb0ba5/packages/webpack/src/plugin.js/issues/L54) [/github.com/MetaMask/metamask-extension/blob/7b3450a294a2fe5751726a9c33d6fa0b564f03dd/app/scripts/lockdown-run.js#L6](https://github.com/endojs//github.com/MetaMask/metamask-extension/blob/7b3450a294a2fe5751726a9c33d6fa0b564f03dd/app/scripts/lockdown-run.js/issues/L6) [/github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-utils/src/eval-worker.ts#L14](https://github.com/endojs//github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-utils/src/eval-worker.ts/issues/L14) [/github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-execution-environments/src/common/lockdown/lockdown.ts#L15](https://github.com/endojs//github.com/MetaMask/snaps/blob/0a265dcf9de73a16a7b50cc47681fe6da179383a/packages/snaps-execution-environments/src/common/lockdown/lockdown.ts/issues/L15) [#2355](https://github.com/endojs/endo/issues/2355)
+
+
+
 ### [1.0.7](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.6...@endo/lockdown@1.0.7) (2024-05-07)
 
 **Note:** Version bump only for package @endo/lockdown
