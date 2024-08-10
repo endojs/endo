@@ -24,6 +24,10 @@ const exitAssertions = (
       'exit error code',
     );
     t.assert(
+      stderr.includes('SES_UNCAUGHT_EXCEPTION:'),
+      'stderr should have SES_UNCAUGHT_EXCEPTION:',
+    );
+    t.assert(
       stderr.includes('(Error#1)'),
       'stderr should have an error marker',
     );
@@ -44,35 +48,35 @@ const exitAssertions = (
 };
 
 test('errors reveal their stacks', async t => {
-  t.plan(5);
+  t.plan(6);
   await new Promise(resolve => {
     exec('node default.js', { cwd }, exitAssertions(t, resolve, 255));
   });
 });
 
 test('errors reveal their stacks with errorTrapping: platform', async t => {
-  t.plan(5);
+  t.plan(6);
   await new Promise(resolve => {
     exec('node platform.js', { cwd }, exitAssertions(t, resolve, 255));
   });
 });
 
 test('errors reveal their stacks with errorTrapping: exit', async t => {
-  t.plan(5);
+  t.plan(6);
   await new Promise(resolve => {
     exec('node exit.js', { cwd }, exitAssertions(t, resolve, 255));
   });
 });
 
 test('errors reveal their stacks with errorTrapping: exit with code', async t => {
-  t.plan(5);
+  t.plan(6);
   await new Promise(resolve => {
     exec('node exit-code.js', { cwd }, exitAssertions(t, resolve, 127));
   });
 });
 
 test('errors reveal their stacks with errorTrapping: abort', async t => {
-  t.plan(5);
+  t.plan(6);
   // Mac exits with null, Linux exits with code 134
   await new Promise(resolve => {
     exec('node abort.js', { cwd }, exitAssertions(t, resolve, null, 134));
@@ -80,11 +84,15 @@ test('errors reveal their stacks with errorTrapping: abort', async t => {
 });
 
 test('errors reveal their stacks with errorTrapping: report', async t => {
-  t.plan(5);
+  t.plan(6);
   await new Promise(resolve => {
     exec('node report.js', { cwd }, (err, stdout, stderr) => {
       t.log({ stdout, stderr });
       t.is(err, null);
+      t.assert(
+        stderr.includes('SES_UNCAUGHT_EXCEPTION:'),
+        'stderr should have SES_UNCAUGHT_EXCEPTION:',
+      );
       t.assert(
         stderr.includes('(Error#1)'),
         'stderr should have an error marker',

@@ -121,7 +121,7 @@ export const tameConsole = (
 
     globalProcess.on('uncaughtException', error => {
       // causalConsole is born frozen so not vulnerable to method tampering.
-      ourConsole.error(error);
+      ourConsole.error('SES_UNCAUGHT_EXCEPTION:', error);
       if (terminate) {
         terminate();
       }
@@ -156,7 +156,7 @@ export const tameConsole = (
     globalWindow.addEventListener('error', event => {
       event.preventDefault();
       // 'platform' and 'report' just log the reason.
-      ourConsole.error(event.error);
+      ourConsole.error('SES_UNCAUGHT_EXCEPTION:', event.error);
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
         globalWindow.location.href = `about:blank`;
       }
