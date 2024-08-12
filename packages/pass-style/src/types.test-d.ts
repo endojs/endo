@@ -40,3 +40,19 @@ expectPassable('str');
 expectPassable(undefined);
 // void is really `undefined`, and thus Passable
 expectPassable(fn());
+
+expectPassable({});
+expectPassable({ a: {} });
+// @ts-expect-error not passable
+expectPassable(fn);
+// FIXME promise for a non-Passable is not Passable
+expectPassable(Promise.resolve(fn));
+// @ts-expect-error not passable
+expectPassable({ a: { b: fn } });
+
+expectPassable(remotable);
+expectPassable({ a: remotable });
+expectPassable(copyTagged);
+expectPassable(Promise.resolve(remotable));
+expectPassable({ a: Promise.resolve(remotable) });
+expectPassable({ a: Promise.resolve(fn) });
