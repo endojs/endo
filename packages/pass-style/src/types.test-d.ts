@@ -1,9 +1,9 @@
 /* eslint-disable */
-import { expectType, expectNotType } from 'tsd';
+import { expectAssignable, expectType, expectNotType } from 'tsd';
 import { Far } from './make-far';
 import { passStyleOf } from './passStyleOf';
 import { makeTagged } from './makeTagged';
-import { CopyTagged, PassStyle } from './types';
+import { CopyTagged, Passable, PassStyle } from './types';
 import { PASS_STYLE } from './passStyle-helpers';
 
 const remotable = Far('foo', {});
@@ -29,3 +29,14 @@ expectType<'copyRecord'>(passStyleOf({}));
 expectType<'copyRecord'>(passStyleOf({ [PASS_STYLE]: 'arbitrary' } as const));
 expectType<'remotable'>(passStyleOf(remotable));
 expectType<PassStyle>(passStyleOf(someUnknown));
+
+const expectPassable = (val: Passable) => {};
+
+const fn = () => {};
+
+expectPassable(1);
+expectPassable(null);
+expectPassable('str');
+expectPassable(undefined);
+// void is really `undefined`, and thus Passable
+expectPassable(fn());

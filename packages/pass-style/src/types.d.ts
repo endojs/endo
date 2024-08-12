@@ -64,7 +64,7 @@ export type PassByRef =
  * and is classified by PassStyle:
  *   * Atomic primitive values have a PrimitiveStyle (PassStyle
  *     'undefined' | 'null' | 'boolean' | 'number' | 'bigint'
- *     | 'string' | 'symbol').
+ *     | 'string' | 'symbol'). (Passable considers `void` to be `undefined`.)
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
@@ -82,7 +82,7 @@ export type PassByRef =
 export type Passable<
   PC extends PassableCap = PassableCap,
   E extends Error = Error,
-> = Primitive | Container<PC, E> | PC | E;
+> = void | Primitive | Container<PC, E> | PC | E;
 
 export type Container<PC extends PassableCap, E extends Error> =
   | CopyArrayI<PC, E>
