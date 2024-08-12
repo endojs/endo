@@ -4,7 +4,9 @@ import '../index.js';
 lockdown({ legacyRegeneratorRuntimeTaming: 'unsafe-ignore' });
 
 test('lockdown Iterator.prototype[@@iterator] is tamed', t => {
-  const IteratorProto = Iterator.prototype;
+  const IteratorProto = Object.getPrototypeOf(
+    Object.getPrototypeOf([].values()),
+  );
   const desc = Object.getOwnPropertyDescriptor(IteratorProto, Symbol.iterator);
   if (!desc || !desc.get || !desc.set) throw new Error('unreachable');
   t.is(desc.configurable || desc.enumerable, false);
@@ -37,9 +39,15 @@ test('lockdown Iterator.prototype[@@iterator] is tamed', t => {
 
 test('lockdown Iterator.prototype[@@iterator] is tamed in Compartments', t => {
   const c = new Compartment();
-  t.is(c.globalThis.Iterator.prototype, Iterator.prototype);
+  const compartmentIteratorProto = Object.getPrototypeOf(
+    Object.getPrototypeOf(c.globalThis.Array().values()),
+  );
+  t.is(
+    compartmentIteratorProto,
+    Object.getPrototypeOf(Object.getPrototypeOf([].values())),
+  );
   const parentFunction = Object.getOwnPropertyDescriptor(
-    c.globalThis.Iterator.prototype,
+    compartmentIteratorProto,
     Symbol.iterator,
   )?.get?.constructor;
   if (!parentFunction) throw new Error('unreachable');
