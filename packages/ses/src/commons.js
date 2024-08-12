@@ -138,6 +138,7 @@ export const { prototype: generatorPrototype } = getPrototypeOf(
   function* () {},
 );
 export const iteratorPrototype = getPrototypeOf(
+  // eslint-disable-next-line @endo/no-polymorphic-call
   getPrototypeOf(arrayPrototype.values()),
 );
 
