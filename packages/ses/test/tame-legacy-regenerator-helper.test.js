@@ -46,10 +46,8 @@ test('lockdown Iterator.prototype[@@iterator] is tamed in Compartments', t => {
     compartmentIteratorProto,
     Object.getPrototypeOf(Object.getPrototypeOf([].values())),
   );
-  const parentFunction = Object.getOwnPropertyDescriptor(
-    compartmentIteratorProto,
-    Symbol.iterator,
-  )?.get?.constructor;
-  if (!parentFunction) throw new Error('unreachable');
+  const parentFunction = /** @type {any} */ (
+    Object.getOwnPropertyDescriptor(compartmentIteratorProto, Symbol.iterator)
+  ).get.constructor;
   t.throws(() => Reflect.construct(parentFunction, ['return globalThis']));
 });
