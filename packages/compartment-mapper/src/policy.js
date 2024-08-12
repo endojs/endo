@@ -10,7 +10,9 @@ import {
   policyLookupHelper,
 } from './policy-format.js';
 
-const { create, entries, values, assign, keys, freeze } = Object;
+const { create, entries, values, assign, freeze, getOwnPropertyDescriptors } =
+  Object;
+const { ownKeys } = Reflect;
 const q = JSON.stringify;
 
 /**
@@ -28,7 +30,12 @@ export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
  */
 const selectiveCopy = (from, to, list) => {
   if (!list) {
-    list = keys(from);
+    const descs = getOwnPropertyDescriptors(from);
+    list = ownKeys(from).filter(
+      key =>
+        // @ts-expect-error TypeScript still confused about a symbol as index
+        descs[key].enumerable,
+    );
   }
   for (let index = 0; index < list.length; index += 1) {
     const key = list[index];
