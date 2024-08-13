@@ -32,12 +32,12 @@ const arrayBufferSlice = (arrayBuffer, start = undefined, end = undefined) =>
  * @param {ArrayBuffer} arrayBuffer
  * @returns {ArrayBuffer}
  */
-let arrayBufferClone;
+let arrayBufferTransfer;
 
 if (transfer) {
-  arrayBufferClone = arrayBuffer => apply(transfer, arrayBuffer, []);
+  arrayBufferTransfer = arrayBuffer => apply(transfer, arrayBuffer, []);
 } else if (globalThis.structuredClone) {
-  arrayBufferClone = arrayBuffer => {
+  arrayBufferTransfer = arrayBuffer => {
     // Hopefully, a zero-length slice is cheap, but still enforces that
     // `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
     arrayBufferSlice(arrayBuffer, 0, 0);
@@ -51,7 +51,7 @@ if (transfer) {
 }
 
 /**
- * This class only exists as an artifact or this ponyfill and shim,
+ * This class only exists as an artifact of this ponyfill and shim,
  * as a convience for imperfectly emulating the
  * *Immutable ArrayBuffer* proposal, which would not have this class.
  * In the proposal,
@@ -72,7 +72,7 @@ class ImmutableArrayBufferInternal {
 
   constructor(buffer) {
     // This constructor is deleted from the prototype below.
-    this.#buffer = arrayBufferClone(buffer);
+    this.#buffer = arrayBufferTransfer(buffer);
   }
 
   get byteLength() {
@@ -99,7 +99,7 @@ class ImmutableArrayBufferInternal {
     return true;
   }
 
-  slice(begin = 0, end = undefined) {
+  slice(begin = undefined, end = undefined) {
     return arrayBufferSlice(this.#buffer, begin, end);
   }
 
@@ -143,8 +143,8 @@ export const isBufferImmutable = buffer => {
     return apply(isImmutableGetter, buffer, []);
   } catch (err) {
     if (err instanceof TypeError) {
-      // TODO: Should this test if `buffer` is a genuine `ArrayBuffer` exotic
-      // object, and throw if not?
+      // Enforce that `buffer` is a genuine ArrayBuffer before returning.
+      arrayBufferSlice(buffer, 0, 0);
       return false;
     }
     throw err;

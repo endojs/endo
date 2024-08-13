@@ -8,11 +8,11 @@ be made for the most recent branch only.
 
 ## Coordinated Vulnerability Disclosure of Security Bugs
 
-SES stands for fearless cooperation, and strong security requires strong collaboration with security researchers. If you believe that you have found a security sensitive bug that should not be disclosed until a fix has been made available, we encourage you to report it. To report a bug in HardenedJS, you have several options that include: 
+SES stands for fearless cooperation, and strong security requires strong collaboration with security researchers. If you believe that you have found a security sensitive bug that should not be disclosed until a fix has been made available, we encourage you to report it. To report a bug in HardenedJS, you have several options that include:
 
-* Reporting the issue to the [Agoric HackerOne vulnerability rewards program](https://hackerone.com/agoric). 
+* Reporting the issue to the [Agoric HackerOne vulnerability rewards program](https://hackerone.com/agoric).
 
-* Sending an email to security at (@) agoric.com., encrypted or unencrypted. To encrypt, please use  @Warner’s personal GPG key  [A476E2E6 11880C98 5B3C3A39 0386E81B 11CAA07A](http://www.lothar.com/warner-gpg.html)  .
+* Sending an email to security at (@) agoric.com., encrypted or unencrypted. To encrypt, please use [@warner](https://github.com/warner)’s personal GPG key  [A476E2E6 11880C98 5B3C3A39 0386E81B 11CAA07A](http://www.lothar.com/warner-gpg.html).
 
 * Sending a message on Keybase to `@agoric_security`, or sharing code and other log files via Keybase’s encrypted file system. ((_keybase_private/agoric_security,$YOURNAME).
 
@@ -33,6 +33,6 @@ SES stands for fearless cooperation, and strong security requires strong collabo
 	* While the current industry standard for vulnerability coordination resolution is 90 days, Agoric code maintainers will strive to release a patch as quickly as possible.
 
 When a bug patch is included in a software release, the Agoric code maintainers will:
-	* Confirm the version and date of the software release with the reporter.
-	* Provide information about the security issue that the software release resolves.
-	* Credit the bug reporter for discovery by adding thanks in release notes, securing a CVE designation, or adding the researcher’s name to a Hall of Fame.
+  * Confirm the version and date of the software release with the reporter.
+  * Provide information about the security issue that the software release resolves.
+  * Credit the bug reporter for discovery by adding thanks in release notes, securing a CVE designation, or adding the researcher’s name to a Hall of Fame.
