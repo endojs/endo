@@ -55,10 +55,34 @@ test('Immutable ArrayBuffer shim ops', t => {
   t.false(iab.resizable);
 });
 
+test('Standard DataView behavior baseline', t => {
+  t.throws(() => new DataView({}), { instanceOf: TypeError });
+
+  const ab1 = new ArrayBuffer(2);
+  const ta1 = new Uint8Array(ab1);
+  ta1[0] = 3;
+  ta1[1] = 4;
+
+  const dv = new DataView(ab1);
+  t.is(dv.byteLength, 2);
+});
+
 // This could have been written as a test.failing as compared to
 // the immutable ArrayBuffer we'll propose. However, I'd rather test what
 // the shim purposely does instead.
-test('Immutable ArrayBuffer shim limitations', t => {
+test('DataView on Immutable ArrayBuffer shim limitations', t => {
+  const ab1 = new ArrayBuffer(2);
+  const ta1 = new Uint8Array(ab1);
+  ta1[0] = 3;
+  ta1[1] = 4;
+
+  const iab = ab1.transferToImmutable();
+  t.throws(() => new DataView(iab), {
+    instanceOf: TypeError,
+  });
+});
+
+test('Standard TypedArray behavior baseline', t => {
   const ab1 = new ArrayBuffer(2);
   const dv1 = new DataView(ab1);
   t.is(dv1.buffer, ab1);
@@ -68,21 +92,31 @@ test('Immutable ArrayBuffer shim limitations', t => {
   ta1[1] = 4;
   t.is(ta1.byteLength, 2);
 
-  t.throws(() => new DataView({}), { instanceOf: TypeError });
   // Unfortutanely, calling a TypeArray constructor with an object that
   // is not a TypeArray, ArrayBuffer, or Iterable just creates a useless
   // empty TypedArray, rather than throwing.
   const ta2 = new Uint8Array({});
   t.is(ta2.byteLength, 0);
+});
+
+// This could have been written as a test.failing as compared to
+// the immutable ArrayBuffer we'll propose. However, I'd rather test what
+// the shim purposely does instead.
+test('TypedArray on Immutable ArrayBuffer shim limitations', t => {
+  const ab1 = new ArrayBuffer(2);
+  const dv1 = new DataView(ab1);
+  t.is(dv1.buffer, ab1);
+  t.is(dv1.byteLength, 2);
+  const ta1 = new Uint8Array(ab1);
+  ta1[0] = 3;
+  ta1[1] = 4;
+  t.is(ta1.byteLength, 2);
 
   const iab = ab1.transferToImmutable();
-  t.throws(() => new DataView(iab), {
-    instanceOf: TypeError,
-  });
   // Unfortunately, unlike the immutable ArrayBuffer to be proposed,
   // calling a TypedArray constructor with the shim implementation of
   // an immutable ArrayBuffer as argument treats it as an unrecognized object,
-  // rather than throwing an error.
+  // rather than throwing an error or acting as a non-changeable TypedArray.
   t.is(iab.byteLength, 2);
   const ta3 = new Uint8Array(iab);
   t.is(ta3.byteLength, 0);
