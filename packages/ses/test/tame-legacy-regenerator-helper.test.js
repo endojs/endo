@@ -12,22 +12,14 @@ test('lockdown Iterator.prototype[@@iterator] is tamed', t => {
   t.is(desc.configurable || desc.enumerable, false);
   t.is(desc.value, undefined);
 
-  const { get, set } = desc;
-  t.is(
-    Function.prototype.toString.call(get),
-    'function get() { [native code] }',
-  );
-  t.is(
-    Function.prototype.toString.call(set),
-    'function set() { [native code] }',
-  );
+  const { get } = desc;
 
   const child = Object.create(IteratorProto);
   child[Symbol.iterator] = 'foo'; // override test
   t.is(child[Symbol.iterator], 'foo');
 
   const native = get();
-  IteratorProto[Symbol.iterator] = function () {
+  IteratorProto[Symbol.iterator] = function f() {
     return this;
   };
   t.is(get(), native);

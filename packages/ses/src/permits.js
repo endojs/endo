@@ -290,7 +290,7 @@ const getter = {
 //   set: fn,
 // };
 
-export const accessor = {
+const accessor = {
   get: fn,
   set: fn,
 };
@@ -1352,7 +1352,7 @@ export const permitted = {
 
   '%IteratorPrototype%': {
     // The %IteratorPrototype% Object
-    '@@iterator': /** @type {any} */ (fn),
+    '@@iterator': fn,
     // https://github.com/tc39/proposal-iterator-helpers
     constructor: 'Iterator',
     map: fn,

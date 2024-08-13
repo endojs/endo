@@ -351,9 +351,6 @@ export const repairIntrinsics = (options = {}) => {
 
   tameFauxDataProperties(intrinsics);
 
-  if (legacyRegeneratorRuntimeTaming === 'unsafe-ignore')
-    tameRegeneratorRuntime();
-
   /**
    * 2. WHITELIST to standardize the environment.
    */
@@ -424,6 +421,9 @@ export const repairIntrinsics = (options = {}) => {
     // clear yet which is better.
     // @ts-ignore enablePropertyOverrides does its own input validation
     enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
+    if (legacyRegeneratorRuntimeTaming === 'unsafe-ignore') {
+      tameRegeneratorRuntime();
+    }
 
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.
