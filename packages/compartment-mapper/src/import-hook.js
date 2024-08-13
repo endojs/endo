@@ -503,7 +503,7 @@ export function makeImportNowHookMaker(
       }
     }
 
-    const { readSync, isAbsolute } = readPowers;
+    const { maybeReadSync, isAbsolute } = readPowers;
 
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
@@ -601,18 +601,7 @@ export function makeImportNowHookMaker(
           packageLocation,
         );
 
-        // eslint-disable-next-line no-await-in-loop
-        /** @type {Uint8Array} */
-        let moduleBytes;
-        try {
-          moduleBytes = readSync(moduleLocation);
-        } catch (err) {
-          if (err && err.code === 'ENOENT') {
-            // eslint-disable-next-line no-continue
-            continue;
-          }
-          throw err;
-        }
+        const moduleBytes = maybeReadSync(moduleLocation);
         if (moduleBytes !== undefined) {
           /** @type {string | undefined} */
           let sourceMap;
