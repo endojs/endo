@@ -88,8 +88,8 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   );
 
   /**
-   * Object containing options and read powers which fulfills all requirements
-   * for creation of a {@link ImportNowHookMaker}, thus enabling dynamic import
+   * Object containing options and read powers that fulfills all requirements
+   * for creation of a {@link ImportNowHookMaker}, thus enabling dynamic import.
    *
    * @typedef SyncBehavior
    * @property {SyncReadPowers} readPowers
@@ -99,7 +99,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
 
   /**
    * Object containing options and read powers which is incompatible with
-   * creation of a {@link ImportNowHookMaker}, thus disabling dynamic import
+   * creation of an {@link ImportNowHookMaker}, thus disabling dynamic import.
    *
    * @typedef AsyncBehavior
    * @property {ReadFn|ReadPowers} readPowers
