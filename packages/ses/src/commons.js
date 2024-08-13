@@ -137,6 +137,10 @@ export const { prototype: generatorPrototype } = getPrototypeOf(
   // eslint-disable-next-line no-empty-function, func-names
   function* () {},
 );
+export const iteratorPrototype = getPrototypeOf(
+  // eslint-disable-next-line @endo/no-polymorphic-call
+  getPrototypeOf(arrayPrototype.values()),
+);
 
 export const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
 

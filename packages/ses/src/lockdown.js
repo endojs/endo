@@ -55,6 +55,7 @@ import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
+import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -180,11 +181,19 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
+    legacyRegeneratorRuntimeTaming = getenv(
+      'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
+      'safe',
+    ),
     __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
     dateTaming = 'safe', // deprecated
     mathTaming = 'safe', // deprecated
     ...extraOptions
   } = options;
+
+  legacyRegeneratorRuntimeTaming === 'safe' ||
+    legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
+    Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
 
   evalTaming === 'unsafeEval' ||
     evalTaming === 'safeEval' ||
@@ -412,6 +421,9 @@ export const repairIntrinsics = (options = {}) => {
     // clear yet which is better.
     // @ts-ignore enablePropertyOverrides does its own input validation
     enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
+    if (legacyRegeneratorRuntimeTaming === 'unsafe-ignore') {
+      tameRegeneratorRuntime();
+    }
 
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.
