@@ -136,6 +136,14 @@ export {};
  */
 
 /**
+ * A resolution of `undefined` indicates `ENOENT` or the equivalent.
+ *
+ * @callback MaybeReadSyncFn
+ * @param {string} location
+ * @returns {Uint8Array | undefined} bytes
+ */
+
+/**
  * Returns a canonical URL for a given URL, following redirects or symbolic
  * links if any exist along the path.
  * Must return the given logical location if the real location does not exist.
@@ -197,8 +205,8 @@ export {};
 /**
  * @typedef {object} ReadPowers
  * @property {ReadFn} read
- * @property {ReadSyncFn} [readSync] Used for dynamic require support
  * @property {CanonicalFn} canonical
+ * @property {MaybeReadSyncFn} [maybeReadSync]
  * @property {HashFn} [computeSha512]
  * @property {FileURLToPathFn} [fileURLToPath]
  * @property {PathToFileURLFn} [pathToFileURL]
@@ -209,7 +217,7 @@ export {};
 /**
  * These properties are necessary for dynamic require support
  *
- * @typedef {'fileURLToPath' | 'readSync' | 'isAbsolute'} SyncReadPowersProp
+ * @typedef {'fileURLToPath' | 'isAbsolute'| 'maybeReadSync'} SyncReadPowersProp
  * @see {@link SyncReadPowers}
  */
 
@@ -219,7 +227,7 @@ export {};
  * For a `ReadPowers` to be a `SyncReadPowers`:
  *
  * 1. It must be an object (not a {@link ReadFn})
- * 2. Prop `readSync` is a function
+ * 2. Prop `maybeReadSync` is a function
  * 3. Prop `fileURLToPath` is a function
  * 4. Prop `isAbsolute` is a function
  *

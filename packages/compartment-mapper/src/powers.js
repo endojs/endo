@@ -62,7 +62,7 @@ export const unpackReadPowers = powers => {
  * @satisfies {Readonly<{[K in SyncReadPowersProp]-?: {} extends Pick<SyncReadPowers, K> ? never : K}[SyncReadPowersProp][]>}
  */
 const requiredSyncReadPowersProps = freeze(
-  /** @type {const} */ (['fileURLToPath', 'isAbsolute', 'readSync']),
+  /** @type {const} */ (['fileURLToPath', 'isAbsolute', 'maybeReadSync']),
 );
 
 /**
