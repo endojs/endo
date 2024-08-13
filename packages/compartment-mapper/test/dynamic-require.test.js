@@ -236,13 +236,13 @@ test('intra-package dynamic require with arbitrary absolute does not path works 
   );
 });
 
-test('dynamic require fails without readSync in read powers', async t => {
+test('dynamic require fails without maybeReadSync in read powers', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',
     import.meta.url,
   ).toString();
 
-  const { readSync: _, ...lessPower } = readPowers;
+  const { maybeReadSync: _, ...lessPower } = readPowers;
   await t.throwsAsync(
     // @ts-expect-error bad type
     importLocation(lessPower, fixture, {
@@ -262,7 +262,7 @@ test('dynamic require fails without readSync in read powers', async t => {
     }),
     {
       message:
-        /Synchronous readPowers required for dynamic import of "is-ok"; missing or invalid prop\(s\): readSync/,
+        /Synchronous readPowers required for dynamic import of "is-ok"; missing or invalid prop\(s\): maybeReadSync/,
     },
   );
 });

@@ -20,11 +20,11 @@
 /** @import {PathToFileURLFn} from './types.js' */
 /** @import {ReadFn} from './types.js' */
 /** @import {ReadPowers} from './types.js' */
-/** @import {ReadSyncFn} from './types.js' */
 /** @import {RequireResolveFn} from './types.js' */
 /** @import {SyncReadPowers} from './types.js' */
 /** @import {UrlAPI} from './types.js' */
 /** @import {WritePowers} from './types.js' */
+/** @import {MaybeReadSyncFn} from './types.js' */
 
 import { createRequire } from 'module';
 
@@ -190,16 +190,26 @@ export const makeSyncReadPowers = ({
   const isAbsolute = powers.isAbsolute || fakeIsAbsolute;
 
   /**
-   * @type {ReadSyncFn}
+   * @type {MaybeReadSyncFn}
    */
-  const readSync = location => {
+  const maybeReadSync = location => {
     const filepath = fileURLToPath(location);
-    return fs.readFileSync(filepath);
+    try {
+      return fs.readFileSync(filepath);
+    } catch (error) {
+      if (
+        'code' in error &&
+        (error.code === 'ENOENT' || error.code === 'EISDIR')
+      ) {
+        return undefined;
+      }
+      throw error;
+    }
   };
 
   return {
     ...powers,
-    readSync,
+    maybeReadSync,
     fileURLToPath,
     isAbsolute,
   };
