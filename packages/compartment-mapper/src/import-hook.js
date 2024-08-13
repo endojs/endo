@@ -491,14 +491,14 @@ export function makeImportNowHookMaker(
     // associates modules with compartment descriptors based on policy
     // which wouldn't otherwise be there
     if ('packages' in policy && typeof policy.packages === 'object') {
-      for (const [pkgName, policyItem] of entries(policy.packages)) {
+      for (const [packageName, packagePolicyItem] of entries(policy.packages)) {
         if (
-          !(pkgName in compartmentDescriptor.modules) &&
-          pkgName in compartmentDescriptor.scopes &&
-          policyItem
+          !(packageName in compartmentDescriptor.modules) &&
+          packageName in compartmentDescriptor.scopes &&
+          packagePolicyItem
         ) {
-          compartmentDescriptor.modules[pkgName] =
-            compartmentDescriptor.scopes[pkgName];
+          compartmentDescriptor.modules[packageName] =
+            compartmentDescriptor.scopes[packageName];
         }
       }
     }
