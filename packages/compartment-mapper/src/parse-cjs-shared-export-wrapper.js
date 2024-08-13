@@ -145,7 +145,8 @@ export const wrap = ({
     },
   });
 
-  const require = (/** @type {string} */ importSpecifier) => {
+  /** @param {string} importSpecifier */
+  const require = importSpecifier => {
     // if this fails, tell user
 
     /** @type {import('ses').ModuleExportsNamespace} */
