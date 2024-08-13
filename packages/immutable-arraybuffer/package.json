@@ -1,0 +1,67 @@
+{
+  "name": "@endo/immutable-arraybuffer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Immutable ArrayBuffer",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/immutable-arraybuffer#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/immutable-arraybuffer"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./shim.js": "./shim.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-check": "yarn lint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc",
+    "postpack": "git clean -f '*.d.ts*'",
+    "prepack": "tsc --build tsconfig.build.json",
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0"
+  },
+  "devDependencies": {
+    "ava": "^6.1.3",
+    "c8": "^7.14.0",
+    "tsd": "^0.30.7",
+    "typescript": "5.5.2"
+  },
+  "files": [
+    "*.js",
+    "*.ts",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.*",
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
