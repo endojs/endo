@@ -96,10 +96,9 @@ const maybeReadDescriptorDefault = async (
  * }>}
  */
 export const search = async (readPowers, moduleLocation) => {
-  const { maybeRead } = unpackReadPowers(readPowers);
   const { data, directory, location, packageDescriptorLocation } =
     await searchDescriptor(moduleLocation, loc =>
-      maybeReadDescriptorDefault(maybeRead, loc),
+      maybeReadDescriptorDefault(readPowers, loc),
     );
 
   if (!data) {
