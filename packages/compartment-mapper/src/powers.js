@@ -68,13 +68,16 @@ const requiredSyncReadPowersProps = freeze(
 /**
  * Returns `true` if `value` is a {@link SyncReadPowers}
  *
- * @param {ReadPowers|ReadFn} value
+ * @param {ReadPowers|ReadFn|undefined} value
  * @returns {value is SyncReadPowers}
  */
 export const isSyncReadPowers = value =>
-  typeof value === 'object' &&
-  requiredSyncReadPowersProps.every(
-    prop => prop in value && typeof value[prop] === 'function',
+  Boolean(
+    value &&
+      typeof value === 'object' &&
+      requiredSyncReadPowersProps.every(
+        prop => prop in value && typeof value[prop] === 'function',
+      ),
   );
 
 /**
@@ -83,11 +86,11 @@ export const isSyncReadPowers = value =>
  *
  * Used for human-friendly error messages
  *
- * @param {ReadPowers | ReadFn} value The value to check for missing properties.
+ * @param {ReadPowers | ReadFn} [value] The value to check for missing properties.
  * @returns {SyncReadPowersProp[]}
  */
 export const findInvalidSyncReadPowersProps = value => {
-  if (typeof value === 'function') {
+  if (!value || typeof value === 'function') {
     return [...requiredSyncReadPowersProps];
   }
   return requiredSyncReadPowersProps.filter(
