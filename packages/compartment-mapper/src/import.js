@@ -69,7 +69,10 @@ export const loadLocation = async (
   moduleLocation,
   options = {},
 ) => {
-  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
+  const { dev, tags, commonDependencies, policy } = options;
+  // conditions are not present in SyncArchiveOptions
+  const conditions =
+    'conditions' in options ? options.conditions || tags : tags;
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
     dev,
     conditions,
