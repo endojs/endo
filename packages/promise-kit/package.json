@@ -38,7 +38,7 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "ses": "^1.7.0"
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "ava": "^6.1.3",

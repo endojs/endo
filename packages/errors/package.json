@@ -36,11 +36,11 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "ses": "^1.7.0"
+    "ses": "workspace:^"
   },
   "devDependencies": {
-    "@endo/lockdown": "^1.0.9",
-    "@endo/ses-ava": "^1.2.4",
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "ses0_18_3": "npm:ses@0.18.3",

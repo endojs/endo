@@ -47,18 +47,18 @@
     "lint:types": "tsc"
   },
   "devDependencies": {
-    "@endo/init": "^1.1.3",
-    "@endo/ses-ava": "^1.2.4",
+    "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "typescript": "5.5.2"
   },
   "dependencies": {
-    "@endo/errors": "^1.2.4",
-    "@endo/eventual-send": "^1.2.4",
-    "@endo/marshal": "^1.5.2",
-    "@endo/nat": "^5.0.9",
-    "@endo/promise-kit": "^1.1.4"
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/marshal": "workspace:^",
+    "@endo/nat": "workspace:^",
+    "@endo/promise-kit": "workspace:^"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
