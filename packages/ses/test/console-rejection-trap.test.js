@@ -36,8 +36,8 @@ const exitAssertions = (
       'stderr should have an error marker',
     );
     t.assert(
-      code !== 0 || stderr.includes('SES_UNHANDLED_REJECTION'),
-      'stderr should have SES_UNHANDLED_REJECTION',
+      code !== 0 || stderr.includes('SES_UNHANDLED_REJECTION:'),
+      'stderr should have SES_UNHANDLED_REJECTION:',
     );
     t.assert(
       code === 0 || !stderr.includes('(Error#2)'),

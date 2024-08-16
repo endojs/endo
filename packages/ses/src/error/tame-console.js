@@ -120,8 +120,8 @@ export const tameConsole = (
     }
 
     globalProcess.on('uncaughtException', error => {
-      // causalConsole is born frozen so not vulnerable to method tampering.
-      ourConsole.error(error);
+      // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNCAUGHT_EXCEPTION.md
+      ourConsole.error('SES_UNCAUGHT_EXCEPTION:', error);
       if (terminate) {
         terminate();
       }
@@ -133,8 +133,9 @@ export const tameConsole = (
     typeof globalProcess.on === 'function'
   ) {
     const handleRejection = reason => {
-      // 'platform' and 'report' just log the reason.
+      // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNHANDLED_REJECTION.md
       ourConsole.error('SES_UNHANDLED_REJECTION:', reason);
+      // 'platform' and 'report' just log the reason.
     };
     // Maybe track unhandled promise rejections.
     const h = makeRejectionHandlers(handleRejection);
@@ -155,8 +156,9 @@ export const tameConsole = (
   ) {
     globalWindow.addEventListener('error', event => {
       event.preventDefault();
+      // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNCAUGHT_EXCEPTION.md
+      ourConsole.error('SES_UNCAUGHT_EXCEPTION:', event.error);
       // 'platform' and 'report' just log the reason.
-      ourConsole.error(event.error);
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
         globalWindow.location.href = `about:blank`;
       }
@@ -168,6 +170,7 @@ export const tameConsole = (
     typeof globalWindow.addEventListener === 'function'
   ) {
     const handleRejection = reason => {
+      // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_UNHANDLED_REJECTION.md
       ourConsole.error('SES_UNHANDLED_REJECTION:', reason);
     };
 
