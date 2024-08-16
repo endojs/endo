@@ -7,7 +7,7 @@ was called.
 
 ```
 (TypeError#1)
-TypeError#1: Already lockded down (SES_ALREADY_LOCKED_DOWN)
+TypeError#1: Already locked down (SES_ALREADY_LOCKED_DOWN)
 
   at repairIntrinsics
   at lockdown
