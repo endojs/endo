@@ -79,8 +79,5 @@
     "@babel/parser": "^7.23.6",
     "@babel/traverse": "^7.23.6",
     "source-map-js": "^1.2.0"
-  },
-  "resolutions": {
-    "@babel/types": "7.23.0"
   }
 }
