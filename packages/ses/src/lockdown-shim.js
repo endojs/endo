@@ -10,7 +10,7 @@ import { repairIntrinsics } from './lockdown.js';
 /** @import {LockdownOptions} from '../types.js' */
 
 /**
- * @param {LockdownOptions} options
+ * @param {LockdownOptions} [options]
  */
 globalThis.lockdown = options => {
   const hardenIntrinsics = repairIntrinsics(options);
@@ -18,7 +18,7 @@ globalThis.lockdown = options => {
 };
 
 /**
- * @param {LockdownOptions} options
+ * @param {LockdownOptions} [options]
  */
 globalThis.repairIntrinsics = options => {
   const hardenIntrinsics = repairIntrinsics(options);
