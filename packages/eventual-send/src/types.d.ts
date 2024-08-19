@@ -17,7 +17,7 @@ export type * from './track-turns.js';
 //   Types exposed to modules.
 //
 
-export type Callable = (...args: unknown[]) => any;
+export type Callable = (...args: any[]) => any;
 
 /**
  * Nominal type to carry the local and remote interfaces of a Remotable.
