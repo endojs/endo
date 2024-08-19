@@ -111,6 +111,185 @@ export const exitModuleImportHookMaker = ({
   };
 };
 
+// <==================== I'll just park my circus here for a minute 🤡
+
+const asyncTrampoline = async (generatorFunc, args) => {
+  await null;
+  const iterator = generatorFunc(...args);
+  let result = iterator.next();
+  while (!result.done) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const val = await result.value;
+      result = iterator.next(val);
+    } catch (error) {
+      result = iterator.throw(error);
+    }
+  }
+  return result.value;
+};
+
+const syncTrampoline = (generatorFunc, args) => {
+  const iterator = generatorFunc(...args);
+  let result = iterator.next();
+  while (!result.done) {
+    try {
+      result = iterator.next(result.value);
+    } catch (error) {
+      result = iterator.throw(error);
+    }
+  }
+  return result.value;
+};
+
+const nominateCandidates = ({ moduleSpecifier, searchSuffixes }) => {
+  // Collate candidate locations for the moduleSpecifier,
+  // to support Node.js conventions and similar.
+  const candidates = [moduleSpecifier];
+  for (const candidateSuffix of searchSuffixes) {
+    candidates.push(`${moduleSpecifier}${candidateSuffix}`);
+  }
+  return candidates;
+};
+// Let's take candidates for a bounce
+
+/**
+ *
+ * @param {*} context
+ * @param {*} importToolkit
+ * @returns
+ */
+function* kingOfTheBouncyCastle(
+  {
+    candidates,
+    compartmentDescriptor,
+    compartmentDescriptors,
+    compartments,
+    computeSha512,
+    moduleDescriptors,
+    moduleSpecifier,
+    packageLocation,
+    packageSources,
+    readPowers,
+    sourceMapHook,
+  },
+  { maybeRead, parse, shouldDeferError, strictlyRequiredForCompartment },
+) {
+  for (const candidateSpecifier of candidates) {
+    const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
+    if (candidateModuleDescriptor !== undefined) {
+      const { compartment: candidateCompartmentName = packageLocation } =
+        candidateModuleDescriptor;
+      const candidateCompartment = compartments[candidateCompartmentName];
+      if (candidateCompartment === undefined) {
+        throw Error(
+          `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+        );
+      }
+      // modify compartmentMap to include this redirect
+      const candidateCompartmentDescriptor =
+        compartmentDescriptors[candidateCompartmentName];
+      if (candidateCompartmentDescriptor === undefined) {
+        throw Error(
+          `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+        );
+      }
+      candidateCompartmentDescriptor.modules[moduleSpecifier] =
+        candidateModuleDescriptor;
+      // return a redirect
+      /** @type {RedirectStaticModuleInterface} */
+      const record = {
+        specifier: candidateSpecifier,
+        compartment: candidateCompartment,
+      };
+      return record;
+    }
+
+    // Using a specifier as a location.
+    // This is not always valid.
+    // But, for Node.js, when the specifier is relative and not a directory
+    // name, they are usable as URL's.
+    const moduleLocation = resolveLocation(candidateSpecifier, packageLocation);
+    const moduleBytes = yield maybeRead(moduleLocation);
+    if (moduleBytes !== undefined) {
+      /** @type {string | undefined} */
+      let sourceMap;
+      const envelope = yield parse(
+        moduleBytes,
+        candidateSpecifier,
+        moduleLocation,
+        packageLocation,
+        {
+          readPowers,
+          sourceMapHook:
+            sourceMapHook &&
+            (nextSourceMapObject => {
+              sourceMap = JSON.stringify(nextSourceMapObject);
+            }),
+          compartmentDescriptor,
+        },
+      );
+      const {
+        parser,
+        bytes: transformedBytes,
+        record: concreteRecord,
+      } = envelope;
+
+      // Facilitate a redirect if the returned record has a different
+      // module specifier than the requested one.
+      if (candidateSpecifier !== moduleSpecifier) {
+        moduleDescriptors[moduleSpecifier] = {
+          module: candidateSpecifier,
+          compartment: packageLocation,
+        };
+      }
+      /** @type {StaticModuleType} */
+      const record = {
+        record: concreteRecord,
+        specifier: candidateSpecifier,
+        importMeta: { url: moduleLocation },
+      };
+
+      let sha512;
+      if (computeSha512 !== undefined) {
+        sha512 = computeSha512(transformedBytes);
+
+        if (sourceMapHook !== undefined && sourceMap !== undefined) {
+          sourceMapHook(sourceMap, {
+            compartment: packageLocation,
+            module: candidateSpecifier,
+            location: moduleLocation,
+            sha512,
+          });
+        }
+      }
+
+      const packageRelativeLocation = moduleLocation.slice(
+        packageLocation.length,
+      );
+      packageSources[candidateSpecifier] = {
+        location: packageRelativeLocation,
+        sourceLocation: moduleLocation,
+        parser,
+        bytes: transformedBytes,
+        record: concreteRecord,
+        sha512,
+      };
+      if (!shouldDeferError(parser)) {
+        for (const importSpecifier of getImportsFromRecord(record)) {
+          strictlyRequiredForCompartment(packageLocation).add(
+            resolve(importSpecifier, moduleSpecifier),
+          );
+        }
+      }
+
+      return record;
+    }
+  }
+}
+
+// ====================> I'll just park my circus here for a minute 🤡
+
 /**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
@@ -270,129 +449,32 @@ export const makeImportHookMaker = (
         );
       }
 
-      // Collate candidate locations for the moduleSpecifier,
-      // to support Node.js conventions and similar.
-      const candidates = [moduleSpecifier];
-      for (const candidateSuffix of searchSuffixes) {
-        candidates.push(`${moduleSpecifier}${candidateSuffix}`);
-      }
+      const { maybeRead } = unpackReadPowers(readPowers);
 
-      for (const candidateSpecifier of candidates) {
-        const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
-        if (candidateModuleDescriptor !== undefined) {
-          const { compartment: candidateCompartmentName = packageLocation } =
-            candidateModuleDescriptor;
-          const candidateCompartment = compartments[candidateCompartmentName];
-          if (candidateCompartment === undefined) {
-            throw Error(
-              `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
-            );
-          }
-          // modify compartmentMap to include this redirect
-          const candidateCompartmentDescriptor =
-            compartmentDescriptors[candidateCompartmentName];
-          if (candidateCompartmentDescriptor === undefined) {
-            throw Error(
-              `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
-            );
-          }
-          candidateCompartmentDescriptor.modules[moduleSpecifier] =
-            candidateModuleDescriptor;
-          // return a redirect
-          /** @type {RedirectStaticModuleInterface} */
-          const record = {
-            specifier: candidateSpecifier,
-            compartment: candidateCompartment,
-          };
-          return record;
-        }
+      const candidates = nominateCandidates({
+        moduleSpecifier,
+        searchSuffixes,
+      });
 
-        // Using a specifier as a location.
-        // This is not always valid.
-        // But, for Node.js, when the specifier is relative and not a directory
-        // name, they are usable as URL's.
-        const moduleLocation = resolveLocation(
-          candidateSpecifier,
+      const record = await asyncTrampoline(kingOfTheBouncyCastle, [
+        {
+          candidates,
+          compartmentDescriptor,
+          compartmentDescriptors,
+          compartments,
+          computeSha512,
+          moduleDescriptors,
+          moduleSpecifier,
           packageLocation,
-        );
-        const { maybeRead } = unpackReadPowers(readPowers);
-        // eslint-disable-next-line no-await-in-loop
-        const moduleBytes = await maybeRead(moduleLocation);
-        if (moduleBytes !== undefined) {
-          /** @type {string | undefined} */
-          let sourceMap;
-          // eslint-disable-next-line no-await-in-loop
-          const envelope = await parse(
-            moduleBytes,
-            candidateSpecifier,
-            moduleLocation,
-            packageLocation,
-            {
-              readPowers,
-              sourceMapHook:
-                sourceMapHook &&
-                (nextSourceMapObject => {
-                  sourceMap = JSON.stringify(nextSourceMapObject);
-                }),
-              compartmentDescriptor,
-            },
-          );
-          const {
-            parser,
-            bytes: transformedBytes,
-            record: concreteRecord,
-          } = envelope;
+          packageSources,
+          readPowers,
+          sourceMapHook,
+        },
+        { maybeRead, parse, shouldDeferError, strictlyRequiredForCompartment },
+      ]);
 
-          // Facilitate a redirect if the returned record has a different
-          // module specifier than the requested one.
-          if (candidateSpecifier !== moduleSpecifier) {
-            moduleDescriptors[moduleSpecifier] = {
-              module: candidateSpecifier,
-              compartment: packageLocation,
-            };
-          }
-          /** @type {StaticModuleType} */
-          const record = {
-            record: concreteRecord,
-            specifier: candidateSpecifier,
-            importMeta: { url: moduleLocation },
-          };
-
-          let sha512;
-          if (computeSha512 !== undefined) {
-            sha512 = computeSha512(transformedBytes);
-
-            if (sourceMapHook !== undefined && sourceMap !== undefined) {
-              sourceMapHook(sourceMap, {
-                compartment: packageLocation,
-                module: candidateSpecifier,
-                location: moduleLocation,
-                sha512,
-              });
-            }
-          }
-
-          const packageRelativeLocation = moduleLocation.slice(
-            packageLocation.length,
-          );
-          packageSources[candidateSpecifier] = {
-            location: packageRelativeLocation,
-            sourceLocation: moduleLocation,
-            parser,
-            bytes: transformedBytes,
-            record: concreteRecord,
-            sha512,
-          };
-          if (!shouldDeferError(parser)) {
-            for (const importSpecifier of getImportsFromRecord(record)) {
-              strictlyRequiredForCompartment(packageLocation).add(
-                resolve(importSpecifier, moduleSpecifier),
-              );
-            }
-          }
-
-          return record;
-        }
+      if (record) {
+        return record;
       }
 
       return deferError(
@@ -548,151 +630,57 @@ export function makeImportNowHookMaker(
             return record;
           }
           throw new Error(
-            `Could not import module: ${q(moduleSpecifier)}; try providing an importNowHook`,
+            `Could not import module: ${q(
+              moduleSpecifier,
+            )}; try providing an importNowHook`,
           );
         }
       }
 
-      // Collate candidate locations for the moduleSpecifier,
-      // to support Node.js conventions and similar.
-      const candidates = [moduleSpecifier];
-      if (!searchSuffixes.some(suffix => moduleSpecifier.endsWith(suffix))) {
-        for (const candidateSuffix of searchSuffixes) {
-          candidates.push(`${moduleSpecifier}${candidateSuffix}`);
-        }
-      }
+      const candidates = nominateCandidates({
+        moduleSpecifier,
+        searchSuffixes,
+      });
 
-      for (const candidateSpecifier of candidates) {
-        const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
-        if (candidateModuleDescriptor !== undefined) {
-          const { compartment: candidateCompartmentName = packageLocation } =
-            candidateModuleDescriptor;
-          const candidateCompartment = compartments[candidateCompartmentName];
-          if (candidateCompartment === undefined) {
-            throw Error(
-              `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
-            );
-          }
-          // modify compartmentMap to include this redirect
-          const candidateCompartmentDescriptor =
-            compartmentDescriptors[candidateCompartmentName];
-          if (candidateCompartmentDescriptor === undefined) {
-            throw Error(
-              `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
-            );
-          }
-          candidateCompartmentDescriptor.modules[moduleSpecifier] =
-            candidateModuleDescriptor;
-          // return a redirect
-          /** @type {RedirectStaticModuleInterface} */
-          const record = {
-            specifier: candidateSpecifier,
-            compartment: candidateCompartment,
-          };
-          return record;
-        }
-
-        // Using a specifier as a location.
-        // This is not always valid.
-        // But, for Node.js, when the specifier is relative and not a directory
-        // name, they are usable as URL's.
-        const moduleLocation = resolveLocation(
-          candidateSpecifier,
+      const record = syncTrampoline(kingOfTheBouncyCastle, [
+        {
+          candidates,
+          compartmentDescriptor,
+          compartmentDescriptors,
+          compartments,
+          computeSha512,
+          moduleDescriptors,
+          moduleSpecifier,
           packageLocation,
-        );
+          packageSources,
+          readPowers,
+          sourceMapHook,
+        },
+        { maybeRead: maybeReadSync, parse, shouldDeferError: ()=>false, strictlyRequiredForCompartment },
+      ]);
 
-        const moduleBytes = maybeReadSync(moduleLocation);
-        if (moduleBytes !== undefined) {
-          /** @type {string | undefined} */
-          let sourceMap;
-          // eslint-disable-next-line no-await-in-loop
-          const envelope = parse(
-            moduleBytes,
-            candidateSpecifier,
-            moduleLocation,
-            packageLocation,
-            {
-              compartmentDescriptor,
-              readPowers,
-              sourceMapHook:
-                sourceMapHook &&
-                (nextSourceMapObject => {
-                  sourceMap = JSON.stringify(nextSourceMapObject);
-                }),
-            },
-          );
-          const {
-            parser,
-            bytes: transformedBytes,
-            record: concreteRecord,
-          } = envelope;
-
-          // Facilitate a redirect if the returned record has a different
-          // module specifier than the requested one.
-          if (candidateSpecifier !== moduleSpecifier) {
-            moduleDescriptors[moduleSpecifier] = {
-              module: candidateSpecifier,
-              compartment: packageLocation,
-            };
-          }
-          /** @type {StaticModuleType} */
-          const record = {
-            record: concreteRecord,
-            specifier: candidateSpecifier,
-            importMeta: { url: moduleLocation },
-          };
-
-          let sha512;
-          if (computeSha512 !== undefined) {
-            sha512 = computeSha512(transformedBytes);
-
-            if (sourceMapHook !== undefined && sourceMap !== undefined) {
-              sourceMapHook(sourceMap, {
-                compartment: packageLocation,
-                module: candidateSpecifier,
-                location: moduleLocation,
-                sha512,
-              });
-            }
-          }
-
-          const packageRelativeLocation = moduleLocation.slice(
-            packageLocation.length,
-          );
-          packageSources[candidateSpecifier] = {
-            location: packageRelativeLocation,
-            sourceLocation: moduleLocation,
-            parser,
-            bytes: transformedBytes,
-            record: concreteRecord,
-            sha512,
-          };
-          for (const importSpecifier of getImportsFromRecord(record)) {
-            strictlyRequiredForCompartment(packageLocation).add(
-              resolve(importSpecifier, moduleSpecifier),
-            );
-          }
-
-          return record;
-        }
+      if (record) {
+        return record;
       }
 
       if (exitModuleImportNowHook) {
         // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
-        const record = exitModuleImportNowHook(
+        const exitRecord = exitModuleImportNowHook(
           moduleSpecifier,
           packageLocation,
         );
 
-        if (!record) {
+        if (!exitRecord) {
           throw new Error(`Could not import module: ${q(moduleSpecifier)}`);
         }
 
-        return record;
+        return exitRecord;
       }
 
       throw new Error(
-        `Could not import module: ${q(moduleSpecifier)}; try providing an importNowHook`,
+        `Could not import module: ${q(
+          moduleSpecifier,
+        )}; try providing an importNowHook`,
       );
     };
 
