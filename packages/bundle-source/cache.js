@@ -19,6 +19,7 @@ const { Fail, quote: q } = assert;
  * @property {string} bundleTime ISO format
  * @property {number} bundleSize
  * @property {boolean} noTransforms
+ * @property {boolean} elideComments
  * @property {ModuleFormat} format
  * @property {string[]} conditions
  * @property {{ relative: string, absolute: string }} moduleSource
@@ -52,6 +53,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
+   * @param {boolean} [options.elideComments]
    * @param {string[]} [options.conditions]
    * @param {ModuleFormat} [options.format]
    */
@@ -60,6 +62,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const {
       noTransforms = false,
+      elideComments = false,
       format = 'endoZipBase64',
       conditions = [],
     } = options;
@@ -93,7 +96,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const bundle = await bundleSource(
       rootPath,
-      { ...bundleOptions, noTransforms, format, conditions },
+      { ...bundleOptions, noTransforms, elideComments, format, conditions },
       {
         ...readPowers,
         read: loggedRead,
@@ -122,6 +125,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         }),
       ),
       noTransforms,
+      elideComments,
       format,
       conditions,
     };
@@ -152,6 +156,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {BundleMeta} [meta]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
+   * @param {boolean} [options.elideComments]
    * @param {ModuleFormat} [options.format]
    * @param {string[]} [options.conditions]
    * @returns {Promise<BundleMeta>}
@@ -166,6 +171,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     await null;
     const {
       noTransforms: expectedNoTransforms = false,
+      elideComments: expectedElideComments = false,
       format: expectedFormat = DEFAULT_MODULE_FORMAT,
       conditions: expectedConditions = [],
     } = options;
@@ -194,12 +200,14 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       moduleSource: { absolute: moduleSource },
       format = 'endoZipBase64',
       noTransforms = false,
+      elideComments = false,
       conditions = [],
     } = meta;
     conditions.sort();
     assert.equal(bundleFileName, toBundleName(targetName));
     assert.equal(format, expectedFormat);
     assert.equal(noTransforms, expectedNoTransforms);
+    assert.equal(elideComments, expectedElideComments);
     assert.equal(conditions.length, expectedConditions.length);
     conditions.forEach((tag, index) => {
       assert.equal(tag, expectedConditions[index]);
@@ -249,6 +257,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
+   * @param {boolean} [options.elideComments]
    * @param {ModuleFormat} [options.format]
    * @param {string[]} [options.conditions]
    * @returns {Promise<BundleMeta>}
@@ -269,6 +278,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         meta = await validate(targetName, rootPath, log, meta, {
           format: options.format,
           noTransforms: options.noTransforms,
+          elideComments: options.elideComments,
           conditions: options.conditions,
         });
         const {
@@ -276,6 +286,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           bundleSize,
           contents,
           noTransforms,
+          elideComments,
           format = 'endoZipBase64',
           conditions = [],
         } = meta;
@@ -288,7 +299,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           bundleTime,
           'with size',
           bundleSize,
-          noTransforms ? 'w/o transforms' : 'with transforms',
+          `${noTransforms ? 'w/o transforms' : 'with transforms'}${elideComments ? ' and comments elided' : ''}`,
           'with format',
           format,
           'and conditions',
@@ -308,6 +319,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         bundleTime,
         contents,
         noTransforms,
+        elideComments,
         format = 'endoZipBase64',
         conditions = [],
       } = meta;
@@ -319,7 +331,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         bundleFileName,
         'at',
         bundleTime,
-        noTransforms ? 'w/o transforms' : 'with transforms',
+        `${noTransforms ? 'w/o transforms' : 'with transforms'}${elideComments ? ' and comments elided' : ''}`,
         'with format',
         format,
         'and conditions',
@@ -337,6 +349,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @param {Logger} [log]
    * @param {object} [options]
    * @param {boolean} [options.noTransforms]
+   * @param {boolean} [options.elideComments]
    * @param {ModuleFormat} [options.format]
    * @param {string[]} [options.conditions]
    */

@@ -1,5 +1,12 @@
 User-visible changes to `@endo/bundle-source`:
 
+# Next version
+
+- Adds support for `--elide-comments` (`-e`) that blanks out the interior of
+  comments in `endoScript` and `endoZipBase64` formats to reduce bundle size
+  without compromising cursor position correspondence between source and bundle
+  code.
+
 # v3.3.0 (2024-07-30)
 
 - Adds support for `--no-transforms` (`-T`) which generates bundles with

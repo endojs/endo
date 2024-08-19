@@ -12,8 +12,14 @@ const textDecoder = new TextDecoder();
 
 export const makeBundlingKit = (
   { pathResolve, userInfo, computeSha512, platform, env },
-  { cacheSourceMaps, noTransforms, commonDependencies, dev },
+  { cacheSourceMaps, elideComments, noTransforms, commonDependencies, dev },
 ) => {
+  if (noTransforms && elideComments) {
+    throw new Error(
+      'bundleSource endoZipBase64 cannot elideComments with noTransforms',
+    );
+  }
+
   const sourceMapJobs = new Set();
   let writeSourceMap = Function.prototype;
   if (cacheSourceMaps) {
@@ -112,6 +118,7 @@ export const makeBundlingKit = (
       sourceType: babelSourceType,
       sourceMap,
       sourceMapUrl: new URL(specifier, location).href,
+      elideComments,
     }));
     const objectBytes = textEncoder.encode(object);
     return { bytes: objectBytes, parser, sourceMap };

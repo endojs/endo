@@ -67,6 +67,9 @@ export {};
  * @property {T} [format]
  * @property {boolean} [dev] - development mode, for test bundles that need
  * access to devDependencies of the entry package.
+ * @property {boolean} [elideComments] - when true for the `endoScript` and
+ * `endoZipBase64` format, replaces the interior of comments with blank space
+ * that advances the cursor the same number of lines and columns.
  * @property {boolean} [noTransforms] - when true, generates a bundle with the
  * original sources instead of SES-shim specific ESM and CJS. This may become
  * default in a future major version.

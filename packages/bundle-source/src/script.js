@@ -20,6 +20,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {boolean} [options.dev]
  * @param {boolean} [options.cacheSourceMaps]
  * @param {boolean} [options.noTransforms]
+ * @param {boolean} [options.elideComments]
  * @param {Record<string, string>} [options.commonDependencies]
  * @param {object} [grantedPowers]
  * @param {(bytes: string | Uint8Array) => string} [grantedPowers.computeSha512]
@@ -37,9 +38,11 @@ export async function bundleScript(
     dev = false,
     cacheSourceMaps = false,
     noTransforms = false,
+    elideComments = false,
     conditions = [],
     commonDependencies,
   } = options;
+
   const powers = { ...readPowers, ...grantedPowers };
   const {
     computeSha512,
@@ -63,6 +66,7 @@ export async function bundleScript(
       {
         cacheSourceMaps,
         noTransforms,
+        elideComments,
         commonDependencies,
         dev,
       },

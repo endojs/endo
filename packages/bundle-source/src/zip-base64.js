@@ -22,6 +22,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {boolean} [options.dev]
  * @param {boolean} [options.cacheSourceMaps]
  * @param {boolean} [options.noTransforms]
+ * @param {boolean} [options.elideComments]
  * @param {string[]} [options.conditions]
  * @param {Record<string, string>} [options.commonDependencies]
  * @param {object} [grantedPowers]
@@ -40,6 +41,7 @@ export async function bundleZipBase64(
     dev = false,
     cacheSourceMaps = false,
     noTransforms = false,
+    elideComments = false,
     conditions = [],
     commonDependencies,
   } = options;
@@ -66,6 +68,7 @@ export async function bundleZipBase64(
       {
         cacheSourceMaps,
         noTransforms,
+        elideComments,
         commonDependencies,
         dev,
       },
