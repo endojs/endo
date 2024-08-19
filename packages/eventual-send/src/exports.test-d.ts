@@ -64,3 +64,8 @@ E.when(
 ).then(result => {
   expectType<{ something: string }>(result);
 });
+
+{
+  const local = { getVal: () => 'val' };
+  expectType<Promise<string>>(E(local).getVal());
+}

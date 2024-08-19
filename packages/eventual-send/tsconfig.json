@@ -3,6 +3,7 @@
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
+    "strict": true,
     "noImplicitAny": false,
     "useUnknownInCatchVariables": false,
     "skipLibCheck": false

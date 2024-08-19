@@ -115,12 +115,13 @@ export const makeHandledPromise = () => {
    * @type {Required<Handler<any>>}
    */
   let forwardingHandler;
+  /** @type {(...args: any[]) => Promise<unknown>} */
   let handle;
 
   /**
    * @param {string} handlerName
    * @param {Handler<any>} handler
-   * @param {string} operation
+   * @param {keyof Handler<any>} operation
    * @param {any} o
    * @param {any[]} opArgs
    * @param {Promise<unknown>} [returnedP]
@@ -147,7 +148,9 @@ export const makeHandledPromise = () => {
 
     if (matchSendOnly && typeof handler[actualOp] !== 'function') {
       // Substitute for sendonly with the corresponding non-sendonly operation.
-      actualOp = matchSendOnly[1];
+      actualOp = /** @type {'get' | 'applyMethod' | 'applyFunction'} */ (
+        matchSendOnly[1]
+      );
     }
 
     // Fast path: just call the actual operation.
@@ -207,6 +210,7 @@ export const makeHandledPromise = () => {
     let handledReject;
     let resolved = false;
     let resolvedTarget = null;
+    /** @type {Promise<R>} */
     let handledP;
     let continueForwarding = () => {};
     const assertNotYetForwarded = () => {
@@ -379,7 +383,7 @@ export const makeHandledPromise = () => {
    * must not have any own properties. The requirements are otherwise
    * identical.
    *
-   * @param {Promise} p
+   * @param {Promise<unknown>} p
    * @returns {boolean}
    */
   const isSafePromise = p => {
@@ -439,6 +443,7 @@ export const makeHandledPromise = () => {
       }
       // Assimilate the `resolvedPromise` as an actual frozen Promise, by
       // treating `resolvedPromise` as if it is a non-promise thenable.
+      /** @type {Promise['then']} */
       const executeThen = (resolve, reject) =>
         resolvedPromise.then(resolve, reject);
       return harden(
@@ -497,6 +502,7 @@ export const makeHandledPromise = () => {
       // We run in a future turn to prevent synchronous attacks,
       let raceIsOver = false;
 
+      /** @type {(handlerName: string, handler: any, o: any) => any} */
       const win = (handlerName, handler, o) => {
         if (raceIsOver) {
           return;
@@ -509,6 +515,7 @@ export const makeHandledPromise = () => {
         raceIsOver = true;
       };
 
+      /** @type {(reason: unknown) => void} */
       const lose = reason => {
         if (raceIsOver) {
           return;
