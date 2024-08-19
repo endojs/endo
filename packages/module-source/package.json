@@ -41,7 +41,7 @@
     "@babel/parser": "^7.23.6",
     "@babel/traverse": "^7.23.6",
     "@babel/types": "^7.24.0",
-    "ses": "^1.7.0"
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "ava": "^6.1.3",

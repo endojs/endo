@@ -9,7 +9,6 @@
   },
   "includeMergedTags": true,
   "npmClient": "yarn",
-  "useWorkspaces": true,
   "version": "independent",
   "useNx": false
 }

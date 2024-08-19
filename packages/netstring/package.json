@@ -35,10 +35,10 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/init": "^1.1.3",
-    "@endo/promise-kit": "^1.1.4",
-    "@endo/stream": "^1.2.4",
-    "ses": "^1.7.0"
+    "@endo/init": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^",
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "ava": "^6.1.3",

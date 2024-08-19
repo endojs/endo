@@ -29,15 +29,15 @@
     "lint:types": "tsc"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^1.2.0",
+    "@endo/compartment-mapper": "workspace:^",
     "ava": "^6.1.3",
     "typescript": "5.5.2"
   },
   "dependencies": {
-    "@endo/base64": "^1.0.6",
-    "@endo/eventual-send": "^1.2.3",
-    "@endo/lockdown": "^1.0.8",
-    "@endo/promise-kit": "^1.1.3"
+    "@endo/base64": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/lockdown": "workspace:^",
+    "@endo/promise-kit": "workspace:^"
   },
   "files": [
     "LICENSE*",

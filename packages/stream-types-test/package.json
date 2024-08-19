@@ -26,8 +26,8 @@
     "test": "yarn lint:types"
   },
   "dependencies": {
-    "@endo/stream": "^1.2.4",
-    "ses": "^1.7.0"
+    "@endo/stream": "workspace:^",
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "babel-eslint": "^10.1.0",

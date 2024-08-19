@@ -55,10 +55,10 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/cjs-module-analyzer": "^1.0.6",
-    "@endo/module-source": "^1.0.1",
-    "@endo/zip": "^1.0.6",
-    "ses": "^1.7.0"
+    "@endo/cjs-module-analyzer": "workspace:^",
+    "@endo/module-source": "workspace:^",
+    "@endo/zip": "workspace:^",
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "ava": "^6.1.3",

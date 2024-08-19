@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@babel/types": "^7.24.0",
-    "@endo/ses-ava": "^1.2.4",
+    "@endo/ses-ava": "workspace:^",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "@types/babel__generator": "^7.6.8",
@@ -79,8 +79,5 @@
     "@babel/parser": "^7.23.6",
     "@babel/traverse": "^7.23.6",
     "source-map-js": "^1.2.0"
-  },
-  "resolutions": {
-    "@babel/types": "7.23.0"
   }
 }
