@@ -19,6 +19,7 @@ export { universalThis as globalThis };
 
 export const {
   Array,
+  ArrayBuffer,
   Date,
   FinalizationRegistry,
   Float32Array,
@@ -124,6 +125,7 @@ export const {
 } = Reflect;
 
 export const { isArray, prototype: arrayPrototype } = Array;
+export const { prototype: arrayBufferPrototype } = ArrayBuffer;
 export const { prototype: mapPrototype } = Map;
 export const { revocable: proxyRevocable } = Proxy;
 export const { prototype: regexpPrototype } = RegExp;
@@ -177,6 +179,8 @@ export const arraySlice = uncurryThis(arrayPrototype.slice);
 export const arraySome = uncurryThis(arrayPrototype.some);
 export const arraySort = uncurryThis(arrayPrototype.sort);
 export const iterateArray = uncurryThis(arrayPrototype[iteratorSymbol]);
+//
+export const arrayBufferSlice = uncurryThis(arrayBufferPrototype.slice);
 //
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);
