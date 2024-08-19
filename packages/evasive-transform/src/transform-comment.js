@@ -1,6 +1,6 @@
 /**
- * Provides {@link transformComment} which evades SES restrictions by modifying
- * a Babel AST Node.
+ * Provides {@link evadeComment} and {@link elideComment} which evade SES
+ * restrictions by modifying a Babel AST Node.
  *
  * @module
  */
@@ -28,7 +28,7 @@ const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
  * @param {import('@babel/types').Comment} node
  * @param {import('./location-unmapper.js').LocationUnmapper} [unmapLoc]
  */
-export function transformComment(node, unmapLoc) {
+export function evadeComment(node, unmapLoc) {
   node.type = 'CommentBlock';
   // Within comments...
   node.value = node.value
@@ -46,3 +46,44 @@ export function transformComment(node, unmapLoc) {
     unmapLoc(node.loc);
   }
 }
+
+/**
+ * Inspects a comment for a hint that it must be preserved by a transform.
+ *
+ * @param {string} comment
+ */
+const markedForPreservation = comment => {
+  if (comment.startsWith('!')) {
+    return true;
+  }
+  if (comment.startsWith('*')) {
+    // Detect jsdoc style @preserve, @copyright, @license, @cc_on (IE
+    // cconditional comments)
+    return /(?:^|\n)\s*\*?\s*@(?:preserve|copyright|license|cc_on)\b/.test(
+      comment,
+    );
+  }
+  return false;
+};
+
+/**
+ * Elides all non-newlines before the last line and replaces all non-newlines
+ * with spaces on the last line.
+ * This can greatly reduce the size of a well-commented artifact without
+ * displacing lines or columns in the transformed code.
+ *
+ * @param {import('@babel/types').Comment} node
+ * @param {import('./location-unmapper.js').LocationUnmapper} [unmapLoc]
+ */
+export const elideComment = (node, unmapLoc) => {
+  if (node.type === 'CommentBlock') {
+    if (!markedForPreservation(node.value)) {
+      node.value = node.value.replace(/[^\n]+\n/g, '\n').replace(/[^\n]/g, ' ');
+    }
+  } else {
+    node.value = '';
+  }
+  if (unmapLoc) {
+    unmapLoc(node.loc);
+  }
+};
