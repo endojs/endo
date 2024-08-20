@@ -13,12 +13,18 @@ bundle-source [-Tft] --cache-js|--cache-json <cache/> (<entry.js> <bundle-name>)
   -f,--format endoZipBase64*|nestedEvaluate|getExport
   -C,--condition <condition> (browser, node, development, &c)
   -C development (to access devDependencies)
-  -T,--no-transforms`;
+  -T,--no-transforms
+  -e,--elide-comments`;
 
 const options = /** @type {const} */ ({
   'no-transforms': {
     type: 'boolean',
     short: 'T',
+    multiple: false,
+  },
+  'elide-comments': {
+    type: 'boolean',
+    short: 'e',
     multiple: false,
   },
   'cache-js': {
@@ -61,6 +67,7 @@ export const main = async (args, { loadModule, pid, log }) => {
       format: moduleFormat = 'endoZipBase64',
       condition: conditions = [],
       'no-transforms': noTransforms,
+      'elide-comments': elideComments,
       'cache-json': cacheJson,
       'cache-js': cacheJs,
       // deprecated
@@ -69,6 +76,11 @@ export const main = async (args, { loadModule, pid, log }) => {
     positionals,
   } = parseArgs({ args, options, allowPositionals: true });
 
+  if (noTransforms && elideComments) {
+    throw Error(
+      `Cannot elide comments without transforms (-T,--no-transforms + -e,--elide-comments)`,
+    );
+  }
   if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
     throw Error(`Unsupported format: ${moduleFormat}\n\n${USAGE}`);
   }
@@ -94,6 +106,7 @@ export const main = async (args, { loadModule, pid, log }) => {
     const [entryPath] = positionals;
     const bundle = await bundleSource(entryPath, {
       noTransforms,
+      elideComments,
       format,
       conditions,
     });
@@ -125,6 +138,7 @@ export const main = async (args, { loadModule, pid, log }) => {
     // eslint-disable-next-line no-await-in-loop
     await cache.validateOrAdd(bundleRoot, bundleName, undefined, {
       noTransforms,
+      elideComments,
       format,
       conditions,
     });

@@ -19,6 +19,7 @@ import { generate } from './generate.js';
  * @property {string|import('source-map').RawSourceMap} [sourceMap] - Original source map in JSON string or object form
  * @property {string} [sourceUrl] - URL or filepath of the original source in `code`
  * @property {boolean} [useLocationUnmap] - Enable location unmapping. Only applies if `sourceMap` was provided
+ * @property {boolean} [elideComments] - Replace comments with an ellipsis but preserve interior newlines.
  * @property {import('./parse-ast.js').SourceType} [sourceType] - Module source type
  * @public
  */
@@ -41,7 +42,13 @@ import { generate } from './generate.js';
 export function evadeCensorSync(source, options) {
   // TODO Use options ?? {} when resolved:
   // https://github.com/Agoric/agoric-sdk/issues/8671
-  const { sourceMap, sourceUrl, useLocationUnmap, sourceType } = options || {};
+  const {
+    sourceMap,
+    sourceUrl,
+    useLocationUnmap,
+    sourceType,
+    elideComments = false,
+  } = options || {};
 
   // Parse the rolled-up chunk with Babel.
   // We are prepared for different module systems.
@@ -53,9 +60,13 @@ export function evadeCensorSync(source, options) {
     typeof sourceMap === 'string' ? sourceMap : JSON.stringify(sourceMap);
 
   if (sourceMap && useLocationUnmap) {
-    transformAst(ast, { sourceMap: sourceMapJson, useLocationUnmap });
+    transformAst(ast, {
+      sourceMap: sourceMapJson,
+      useLocationUnmap,
+      elideComments,
+    });
   } else {
-    transformAst(ast);
+    transformAst(ast, { elideComments });
   }
 
   if (sourceUrl) {

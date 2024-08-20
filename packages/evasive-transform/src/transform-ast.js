@@ -5,7 +5,7 @@
  */
 
 import babelTraverse from '@babel/traverse';
-import { transformComment } from './transform-comment.js';
+import { evadeComment, elideComment } from './transform-comment.js';
 import { makeLocationUnmapper } from './location-unmapper.js';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
@@ -34,6 +34,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @typedef TransformAstOptionsWithoutSourceMap
  * @property {false} [useLocationUnmap] - Enable location unmapping
  * @property {string} [sourceMap] - Original source map
+ * @property {boolean} [elideComments]
  */
 
 /**
@@ -45,6 +46,7 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @typedef TransformAstOptionsWithLocationUnmap
  * @property {true} useLocationUnmap - Enable location unmapping
  * @property {string} sourceMap - Original source map
+ * @property {boolean} [elideComments]
  */
 
 /**
@@ -57,12 +59,16 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @param {TransformAstOptions} [opts]
  * @returns {void}
  */
-export function transformAst(ast, { sourceMap, useLocationUnmap } = {}) {
+export function transformAst(
+  ast,
+  { sourceMap, useLocationUnmap, elideComments = false } = {},
+) {
   /** @type {import('./location-unmapper.js').LocationUnmapper|undefined} */
   let unmapLoc;
   if (sourceMap && useLocationUnmap) {
     unmapLoc = makeLocationUnmapper(sourceMap, ast);
   }
+  const transformComment = elideComments ? elideComment : evadeComment;
   traverse(ast, {
     enter(p) {
       const { loc, leadingComments, innerComments, trailingComments, type } =

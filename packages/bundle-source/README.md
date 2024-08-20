@@ -42,6 +42,21 @@ entry instead of `main` in `package.json`, if not overridden by explicit
 The `development` condition additionally implies that the bundle may import
 `devDependencies` from the package containing the entry module.
 
+## Comment Elision
+
+The `--elide-comments (`-e`) flag with `--format` (`-f`) `endoScript` or
+`endoZipBase64` (default) causes the bundler to blank out the interior of
+comments, without compromising line or column number cursor advancement.
+This can reduce bundle size without harming the debug experience any more than
+other transforms.
+
+Comment elision preserves `/*! slashasterbang /` comments and JSDoc comments
+with `@preserve`, `@copyright`, `@license` pragmas or the Internet Explorer
+`@cc_on` pragma.
+
+Comment elision does not strip comments entirely.
+The syntax to begin or end comments remains.
+
 ## Source maps
 
 With the `moduleFormat` of `endoZipBase64`, the bundler can generate source
