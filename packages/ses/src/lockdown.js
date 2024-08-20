@@ -273,6 +273,7 @@ export const repairIntrinsics = (options = {}) => {
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector();
 
+  // @ts-expect-error __hardenTaming__ could be any string
   const tamedHarden = tameHarden(safeHarden, __hardenTaming__);
   addIntrinsics({ harden: tamedHarden });
 

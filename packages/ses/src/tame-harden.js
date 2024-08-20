@@ -1,6 +1,9 @@
 /* eslint-disable no-restricted-globals */
 import { TypeError, freeze } from './commons.js';
 
+/** @import {Harden} from '../types.js'; */
+
+/** @type {(safeHarden: Harden, hardenTaming: 'safe' | 'unsafe') => Harden} */
 export const tameHarden = (safeHarden, hardenTaming) => {
   if (hardenTaming !== 'safe' && hardenTaming !== 'unsafe') {
     throw TypeError(`unrecognized fakeHardenOption ${hardenTaming}`);
@@ -16,6 +19,7 @@ export const tameHarden = (safeHarden, hardenTaming) => {
   Object.isSealed = () => true;
   Reflect.isExtensible = () => false;
 
+  // @ts-expect-error secret property
   if (safeHarden.isFake) {
     // The "safe" hardener is already a fake hardener.
     // Just use it.

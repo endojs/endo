@@ -111,15 +111,16 @@ const { race } = {
    * Unlike `Promise.race` it cleans up after itself so a non-resolved value doesn't hold onto
    * the result promise.
    *
-   * @template T
+   * @template {readonly unknown[] | []} T
    * @template {PromiseConstructor} [P=PromiseConstructor]
    * @this {P}
-   * @param {Iterable<T>} values An iterable of Promises.
-   * @returns {Promise<Awaited<T>>} A new Promise.
+   * @param {T} values An iterable of Promises.
+   * @returns {Promise<Awaited<T[number]>>} A new Promise.
    */
   race(values) {
     let deferred;
-    /** @type {T[]} */
+    /** @type {[...T]} */
+    // @ts-expect-error filled by the loop
     const cachedValues = [];
     const C = this;
     const result = new C((resolve, reject) => {

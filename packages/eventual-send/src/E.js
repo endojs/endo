@@ -36,7 +36,7 @@ const baseFreezableProxyHandler = {
  *
  * @param {any} recipient Any value passed to E(x)
  * @param {import('./types').HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler} the Proxy handler
+ * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeEProxyHandler = (recipient, HandledPromise) =>
   harden({
@@ -48,6 +48,7 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
           // In order to be `this` sensitive it is defined using concise method
           // syntax rather than as an arrow function. To ensure the function
           // is not constructable, it also avoids the `function` syntax.
+          /** @type {(...args: any[]) => Promise<unknown>} */
           [propertyKey](...args) {
             if (this !== receiver) {
               // Reject the async function call
@@ -96,7 +97,7 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
  *
  * @param {any} recipient Any value passed to E.sendOnly(x)
  * @param {import('./types').HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler} the Proxy handler
+ * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
   harden({
@@ -108,6 +109,7 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
           // In order to be `this` sensitive it is defined using concise method
           // syntax rather than as an arrow function. To ensure the function
           // is not constructable, it also avoids the `function` syntax.
+          /** @type {(...args: any[]) => undefined} */
           [propertyKey](...args) {
             // Throw since the function returns nothing
             this === receiver ||
@@ -152,7 +154,7 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
  *
  * @param {any} x Any value passed to E.get(x)
  * @param {import('./types').HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler} the Proxy handler
+ * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeEGetProxyHandler = (x, HandledPromise) =>
   harden({
@@ -176,6 +178,7 @@ const makeE = HandledPromise => {
        * @param {T} x target for method/function call
        * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
        */
+      // @ts-expect-error XXX typedef
       x => harden(new Proxy(() => {}, makeEProxyHandler(x, HandledPromise))),
       {
         /**
@@ -190,6 +193,7 @@ const makeE = HandledPromise => {
          * @readonly
          */
         get: x =>
+          // @ts-expect-error XXX typedef
           harden(
             new Proxy(create(null), makeEGetProxyHandler(x, HandledPromise)),
           ),
@@ -215,6 +219,7 @@ const makeE = HandledPromise => {
          * @readonly
          */
         sendOnly: x =>
+          // @ts-expect-error XXX typedef
           harden(
             new Proxy(() => {}, makeESendOnlyProxyHandler(x, HandledPromise)),
           ),

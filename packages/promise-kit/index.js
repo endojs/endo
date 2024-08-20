@@ -40,9 +40,9 @@ harden(makePromiseKit);
  * Unlike `Promise.race` it cleans up after itself so a non-resolved value doesn't hold onto
  * the result promise.
  *
- * @template T
- * @param {Iterable<T>} values An iterable of Promises.
- * @returns {Promise<Awaited<T>>} A new Promise.
+ * @template {readonly unknown[] | []} T
+ * @param {T} values An iterable of Promises.
+ * @returns {Promise<Awaited<T[number]>>} A new Promise.
  */
 export function racePromises(values) {
   return harden(memoRace.call(BestPipelinablePromise, values));

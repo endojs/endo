@@ -213,8 +213,10 @@ export const stringReplace = /** @type {any} */ (
 );
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
-/** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */
-export const stringSplit = uncurryThis(stringPrototype.split);
+export const stringSplit =
+  /** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */ (
+    uncurryThis(stringPrototype.split)
+  );
 export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
 //
