@@ -30,23 +30,17 @@ const { fromEntries } = Object;
  */
 
 /**
- * Currently copied from @agoric/internal utils.js.
- * TODO Should migrate here and then, if needed, reexported there.
- *
- * @template {{}} T
+ * @template {Record<string, any>} T
  * @typedef {{
  *   [K in keyof T]: T[K] extends Callable ? T[K] : DeeplyAwaited<T[K]>;
  * }} DeeplyAwaitedObject
  */
 
 /**
- * Currently copied from @agoric/internal utils.js.
- * TODO Should migrate here and then, if needed, reexported there.
- *
  * @template T
  * @typedef {T extends PromiseLike<any>
  *     ? Awaited<T>
- *     : T extends {}
+ *     : T extends Record<string, any>
  *       ? Simplify<DeeplyAwaitedObject<T>>
  *       : Awaited<T>} DeeplyAwaited
  */
@@ -73,7 +67,7 @@ const { fromEntries } = Object;
  * is for the higher "@endo/patterns" level of abstraction to determine,
  * because it defines the `Key` notion in question.
  *
- * @template {Passable} [T=Passable]
+ * @template {Passable} T
  * @param {T} val
  * @returns {Promise<DeeplyAwaited<T>>}
  */
