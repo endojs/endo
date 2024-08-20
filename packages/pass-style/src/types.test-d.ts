@@ -45,7 +45,7 @@ expectPassable({});
 expectPassable({ a: {} });
 // @ts-expect-error not passable
 expectPassable(fn);
-// FIXME promise for a non-Passable is not Passable
+// @ts-expect-error Promise for not passable
 expectPassable(Promise.resolve(fn));
 // @ts-expect-error not passable
 expectPassable({ a: { b: fn } });
@@ -55,4 +55,5 @@ expectPassable({ a: remotable });
 expectPassable(copyTagged);
 expectPassable(Promise.resolve(remotable));
 expectPassable({ a: Promise.resolve(remotable) });
+// @ts-expect-error Promise for not passable
 expectPassable({ a: Promise.resolve(fn) });

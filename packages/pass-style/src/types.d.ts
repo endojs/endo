@@ -150,7 +150,10 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
-export type PassableCap = Promise<any> | RemotableObject;
+export type PassableCap<E extends Error = Error> =
+  | Promise<Passable<PassableCap<E>, E>>
+  | RemotableObject;
+
 /**
  * A Passable sequence of Passable values.
  */
