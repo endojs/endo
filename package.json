@@ -19,7 +19,6 @@
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jsdoc": "^48.2.5",
     "lerna": "^8.1.8",
-    "lerna-update-wizard": "^0.17.5",
     "prettier": "^3.2.5",
     "ts-api-utils": "~1.0.1",
     "type-coverage": "^2.26.3",
