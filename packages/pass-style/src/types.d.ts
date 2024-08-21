@@ -80,20 +80,43 @@ export type PassByRef =
  * using 'slots').
  */
 export type Passable<
-  PC extends PassableCap = PassableCap,
+  R extends RemotableObject = RemotableObject,
   E extends Error = Error,
-> = void | Primitive | Container<PC, E> | PC | E;
+  AllowPromise extends boolean = any,
+  AllowTopLevelPromise extends boolean = AllowPromise,
+> =
+  | void
+  | Primitive
+  | Container<R, E, AllowPromise>
+  | R
+  | E
+  | (true extends AllowTopLevelPromise
+      ? Promise<Passable<R, E, AllowPromise, false>>
+      : never);
 
-export type Container<PC extends PassableCap, E extends Error> =
-  | CopyArrayI<PC, E>
-  | CopyRecordI<PC, E>
-  | CopyTaggedI<PC, E>;
-interface CopyArrayI<PC extends PassableCap, E extends Error>
-  extends CopyArray<Passable<PC, E>> {}
-interface CopyRecordI<PC extends PassableCap, E extends Error>
-  extends CopyRecord<Passable<PC, E>> {}
-interface CopyTaggedI<PC extends PassableCap, E extends Error>
-  extends CopyTagged<string, Passable<PC, E>> {}
+export type Container<
+  R extends RemotableObject,
+  E extends Error,
+  AllowPromise extends boolean = any,
+> =
+  | CopyArrayI<R, E, AllowPromise>
+  | CopyRecordI<R, E, AllowPromise>
+  | CopyTaggedI<R, E, AllowPromise>;
+interface CopyArrayI<
+  R extends RemotableObject,
+  E extends Error,
+  AllowPromise extends boolean,
+> extends CopyArray<Passable<R, E, AllowPromise>> {}
+interface CopyRecordI<
+  R extends RemotableObject,
+  E extends Error,
+  AllowPromise extends boolean,
+> extends CopyRecord<Passable<R, E, AllowPromise>> {}
+interface CopyTaggedI<
+  R extends RemotableObject,
+  E extends Error,
+  AllowPromise extends boolean,
+> extends CopyTagged<string, Passable<R, E, AllowPromise>> {}
 
 export type PassStyleOf = {
   (p: undefined): 'undefined';
@@ -135,7 +158,7 @@ export type PassStyleOf = {
  * trip (as exists between vats) to produce data structures disconnected from
  * any potential proxies.
  */
-export type PureData = Passable<never, never>;
+export type PureData = Passable<never, never, false>;
 /**
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
@@ -150,9 +173,10 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
-export type PassableCap<E extends Error = Error> =
-  | Promise<Passable<PassableCap<E>, E>>
-  | RemotableObject;
+export type PassableCap<
+  R extends RemotableObject = RemotableObject,
+  AllowPromise extends boolean = any,
+> = R | (true extends AllowPromise ? Promise<R> : never);
 
 /**
  * A Passable sequence of Passable values.

@@ -9,7 +9,7 @@ export {};
  */
 
 /**
- * @typedef {Exclude<Passable<RemotableObject, never>, Error | Promise>} Key
+ * @typedef {Exclude<Passable<RemotableObject, never, false>, never>} Key
  *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
