@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.eslint-base.json",
   "compilerOptions": {
     "checkJs": true,
-    "maxNodeModuleJsDepth": 2
+    "maxNodeModuleJsDepth": 1
   },
   "include": [
     "*.js",
