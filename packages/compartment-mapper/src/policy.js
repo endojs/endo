@@ -21,7 +21,9 @@ const q = JSON.stringify;
 export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
 
 /**
- * Copies properties (optionally limited to a specific list) from one object to another.
+ * Copies properties (optionally limited to a specific list) from one object
+ * to another. By default, copies all enumerable, own, string- and
+ * symbol-named properties.
  *
  * @param {object} from
  * @param {object} to
