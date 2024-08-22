@@ -6,8 +6,9 @@ import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
 
 /**
- * @import {Passable, Primitive, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
+ * @import {Passable, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
  */
+/** @import {Callable, RemotableBrand} from '@endo/eventual-send' */
 
 const { ownKeys } = Reflect;
 const { fromEntries } = Object;
@@ -23,26 +24,16 @@ const { fromEntries } = Object;
  */
 
 /**
- * Currently copied from @agoric/internal utils.js.
- * TODO Should migrate here and then, if needed, reexported there.
- *
- * @typedef {(...args: any[]) => any} Callable
- */
-
-/**
- * @template {Record<string, any>} T
- * @typedef {{
- *   [K in keyof T]: T[K] extends Callable ? T[K] : DeeplyAwaited<T[K]>;
- * }} DeeplyAwaitedObject
- */
-
-/**
  * @template T
- * @typedef {T extends PromiseLike<any>
- *     ? Awaited<T>
- *     : T extends Record<string, any>
- *       ? Simplify<DeeplyAwaitedObject<T>>
- *       : Awaited<T>} DeeplyAwaited
+ * @typedef {boolean extends (T extends never ? true : false)
+ *   ? T    // pass through the `any` type
+ *   : T extends PromiseLike<any>
+ *     ? DeeplyAwaited<Awaited<T>>
+ *     : T extends object
+ *       ? T extends (Callable | RemotableBrand<any, any> | RemotableObject)
+ *         ? T
+ *         : Simplify<{[K in keyof T]: DeeplyAwaited<T[K]>}>
+ *       : T} DeeplyAwaited
  */
 
 /**

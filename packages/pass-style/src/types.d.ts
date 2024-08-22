@@ -54,8 +54,8 @@ export type PassByCopy =
 
 export type PassByRef =
   | RemotableObject
-  | Promise<RemotableObject>
-  | Promise<PassByCopy>;
+  | PromiseLike<RemotableObject>
+  | PromiseLike<PassByCopy>;
 
 /**
  * A Passable is acyclic data that can be marshalled. It must be hardened to
@@ -91,7 +91,7 @@ export type Passable<
   | R
   | E
   | (true extends AllowTopLevelPromise
-      ? Promise<Passable<R, E, AllowPromise, false>>
+      ? PromiseLike<Passable<R, E, AllowPromise, false>>
       : never);
 
 export type Container<
@@ -126,7 +126,7 @@ export type PassStyleOf = {
   (p: bigint): 'bigint';
   (p: symbol): 'symbol';
   (p: null): 'null';
-  (p: Promise<any>): 'promise';
+  (p: PromiseLike<any>): 'promise';
   (p: Error): 'error';
   (p: CopyTagged): 'tagged';
   (p: any[]): 'copyArray';
@@ -134,7 +134,7 @@ export type PassStyleOf = {
   (p: Iterator<any, any, undefined>): 'remotable';
   <T extends PassStyled<TaggedOrRemotable, any>>(p: T): ExtractStyle<T>;
   (p: { [key: string]: any }): 'copyRecord';
-  (p: any): PassStyle;
+  (p: any): never;
 };
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
@@ -176,7 +176,7 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 export type PassableCap<
   R extends RemotableObject = RemotableObject,
   AllowPromise extends boolean = any,
-> = R | (true extends AllowPromise ? Promise<R> : never);
+> = R | (true extends AllowPromise ? PromiseLike<R> : never);
 
 /**
  * A Passable sequence of Passable values.

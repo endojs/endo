@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { expectAssignable, expectType, expectNotType } from 'tsd';
+import { expectAssignable, expectType, expectNever, expectNotType } from 'tsd';
 import { Far } from './make-far';
 import { passStyleOf } from './passStyleOf';
 import { makeTagged } from './makeTagged';
@@ -34,7 +34,9 @@ expectType<'copyRecord'>(passStyleOf({}));
 // though the object is specifying a PASS_STYLE, it doesn't match the case for extracting it
 expectType<'copyRecord'>(passStyleOf({ [PASS_STYLE]: 'arbitrary' } as const));
 expectType<'remotable'>(passStyleOf(remotable));
-expectType<PassStyle>(passStyleOf(someUnknown));
+try {
+  expectNever(passStyleOf(someUnknown));
+} catch {}
 
 const expectPassable = (val: Passable) => {};
 const expectPureData = (val: PureData) => {
@@ -55,12 +57,23 @@ expectPureData(fn());
 
 expectPureData({});
 expectPureData({ a: {} });
+expectPureData([]);
+expectPureData([{}]);
 // @ts-expect-error not passable
 expectPassable(fn);
 // @ts-expect-error Promise for not passable
 expectPassable(Promise.resolve(fn));
 // @ts-expect-error not passable
 expectPassable({ a: { b: fn } });
+
+// @ts-expect-error not passable
+expectPassable(someUnknown);
+// @ts-expect-error Promise for not passable
+expectPassable(Promise.resolve(someUnknown));
+// @ts-expect-error not passable
+expectPassable({ a: { b: someUnknown } });
+// @ts-expect-error not passable
+expectPassable([someUnknown]);
 
 expectPassable(remotable);
 expectPassableCap(remotable);
@@ -71,16 +84,29 @@ expectPassable({ a: remotable });
 expectPassableCap({ a: remotable });
 // @ts-expect-error not pure-data
 expectPureData({ a: remotable });
+expectPassable([remotable]);
+// @ts-expect-error not passable capability
+expectPassableCap([remotable]);
+// @ts-expect-error not pure-data
+expectPureData([remotable]);
 expectPassable(copyTagged);
 // @ts-expect-error not passable capability
 expectPassableCap(copyTagged);
 // @ts-expect-error not pure-data
 expectPureData(copyTagged);
+
 expectPassable(Promise.resolve(remotable));
 expectPassableCap(Promise.resolve(remotable));
 // @ts-expect-error not pure-data
 expectPureData(Promise.resolve(remotable));
 expectPassable({ a: Promise.resolve(remotable) });
+expectPassable([Promise.resolve(remotable)]);
+expectPassable(Promise.resolve({ a: Promise.resolve(remotable) }));
+expectPassable(Promise.resolve([Promise.resolve(remotable)]));
+expectPassable([remotable] as const);
+expectPassable([Promise.resolve(remotable)] as const);
+expectPassable(Promise.resolve({ a: Promise.resolve(remotable) } as const));
+expectPassable(Promise.resolve([Promise.resolve(remotable)] as const));
 // @ts-expect-error not passable capability
 expectPassableCap({ a: Promise.resolve(remotable) });
 // @ts-expect-error not pure-data
