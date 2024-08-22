@@ -893,7 +893,7 @@ lockdown(); // legacyRegeneratorRuntimeTaming defaults to 'safe'
 lockdown({ legacyRegeneratorRuntimeTaming: 'safe' }); // do nothing
 // vs
 lockdown({ legacyRegeneratorRuntimeTaming: 'unsafe-ignore' }); // try fix compatibility with regenerator-runtime
-Iterator.prototype[Symbol.iterator] = function() { return this } // this assignment fails but not throwing with unsafe-ignore
+Iterator.prototype[Symbol.iterator] = function() { return this } // this assignment fails without throwing with unsafe-ignore
 ```
 
 ## `__hardenTaming__` Options
