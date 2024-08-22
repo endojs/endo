@@ -884,7 +884,7 @@ from 0.10.5 to 0.13.7.
 
 The `legacyRegeneratorRuntimeTaming` option, when set to `'safe'`, it does nothing.
 
-When set to `'unsafe-ignore'`, it convert `Iterator.prototype[Symbol.iterator]` to
+When set to `'unsafe-ignore'`, it converts `Iterator.prototype[Symbol.iterator]` to
 a getter/setter that ignores all assignments to it.
 
 ```js
