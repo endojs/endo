@@ -1,7 +1,10 @@
 import '../index.js';
 import test from 'ava';
 
-lockdown({ __hardenTaming__: 'safe' });
+lockdown({
+  overrideTaming: 'moderate',
+  __hardenTaming__: 'safe',
+});
 
 // See https://github.com/endojs/endo/issues/616#issuecomment-800733101
 

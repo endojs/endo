@@ -2,7 +2,11 @@ import '../index.js';
 import test from 'ava';
 import { overrideTester } from './override-tester.js';
 
-lockdown({ errorTaming: 'safe', __hardenTaming__: 'safe' });
+lockdown({
+  errorTaming: 'safe',
+  overrideTaming: 'moderate',
+  __hardenTaming__: 'safe',
+});
 
 test('enablePropertyOverrides - on', t => {
   overrideTester(t, 'Object', {}, ['toString', 'valueOf']);
