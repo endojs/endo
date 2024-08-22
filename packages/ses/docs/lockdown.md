@@ -20,39 +20,41 @@ compatibility vs better tool compatibility.
 
 Each option is explained in its own section below.
 
-| option                       | default setting  | other settings                         | about |
-|------------------------------|------------------|----------------------------------------|-------|
-| `regExpTaming`               | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` ([details](#regexptaming-options)) |
-| `localeTaming`               | `'safe'`         | `'unsafe'`                             | `toLocaleString`           ([details](#localetaming-options)) |
-| `consoleTaming`              | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
-| `errorTaming`                | `'safe'`         | `'unsafe'` `'unsafe-debug'`            | `errorInstance.stack`      ([details](#errortaming-options)) |
-| `errorTrapping`              | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
-| `unhandledRejectionTrapping` | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
-| `evalTaming`                 | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
-| `stackFiltering`             | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
-| `overrideTaming`             | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
-| `overrideDebug`              | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
-| `domainTaming`               | `'safe'`         | `'unsafe'`                             | Node.js `domain` module    ([details](#domaintaming-options)) |
-| `__hardenTaming__`           | `'safe'`         | `'unsafe'`                             | Making `harden` no-op for performance in trusted environments ([details](#__hardentaming__-options)) |
+| option                           | default setting  | other settings                         | about |
+|----------------------------------|------------------|----------------------------------------|-------|
+| `regExpTaming`                   | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` ([details](#regexptaming-options)) |
+| `localeTaming`                   | `'safe'`         | `'unsafe'`                             | `toLocaleString`           ([details](#localetaming-options)) |
+| `consoleTaming`                  | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
+| `errorTaming`                    | `'safe'`         | `'unsafe'` `'unsafe-debug'`            | `errorInstance.stack`      ([details](#errortaming-options)) |
+| `errorTrapping`                  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
+| `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
+| `evalTaming`                     | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
+| `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
+| `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
+| `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
+| `domainTaming`                   | `'safe'`         | `'unsafe'`                             | Node.js `domain` module    ([details](#domaintaming-options)) |
+| `legacyRegeneratorRuntimeTaming` | `'safe'`         | `'unsafe-ignore'`                      | regenerator-runtime ([details](#legacyregeneratorruntimetaming-options)) |
+| `__hardenTaming__`               | `'safe'`         | `'unsafe'`                             | Making `harden` no-op for performance in trusted environments ([details](#__hardentaming__-options)) |
 
 In the absence of any of these options in lockdown arguments, lockdown will
 attempt to read these options from `process.env`, using the Node.js convention
 for threading environment variables into a JavaScript program.
 
-| option                       | environment variable                    | notes                 |
-|------------------------------|-----------------------------------------|-----------------------|
-| `regExpTaming`               | `LOCKDOWN_REGEXP_TAMING`                |                       |
-| `localeTaming`               | `LOCKDOWN_LOCALE_TAMING`                |                       |
-| `consoleTaming`              | `LOCKDOWN_CONSOLE_TAMING`               |                       |
-| `errorTaming`                | `LOCKDOWN_ERROR_TAMING`                 |                       |
-| `errorTrapping`              | `LOCKDOWN_ERROR_TRAPPING`               |                       |
-| `unhandledRejectionTrapping` | `LOCKDOWN_UNHANDLED_REJECTION_TRAPPING` |                       |
-| `evalTaming`                 | `LOCKDOWN_EVAL_TAMING`                  |                       |
-| `stackFiltering`             | `LOCKDOWN_STACK_FILTERING`              |                       |
-| `overrideTaming`             | `LOCKDOWN_OVERRIDE_TAMING`              |                       |
-| `overrideDebug`              | `LOCKDOWN_OVERRIDE_DEBUG`               | comma separated names |
-| `domainTaming`               | `LOCKDOWN_DOMAIN_TAMING`                |                       |
-| `__hardenTaming__`           | `LOCKDOWN_HARDEN_TAMING`                |                       |
+| option                           | environment variable                         | notes                 |
+|----------------------------------|----------------------------------------------|-----------------------|
+| `regExpTaming`                   | `LOCKDOWN_REGEXP_TAMING`                     |                       |
+| `localeTaming`                   | `LOCKDOWN_LOCALE_TAMING`                     |                       |
+| `consoleTaming`                  | `LOCKDOWN_CONSOLE_TAMING`                    |                       |
+| `errorTaming`                    | `LOCKDOWN_ERROR_TAMING`                      |                       |
+| `errorTrapping`                  | `LOCKDOWN_ERROR_TRAPPING`                    |                       |
+| `unhandledRejectionTrapping`     | `LOCKDOWN_UNHANDLED_REJECTION_TRAPPING`      |                       |
+| `evalTaming`                     | `LOCKDOWN_EVAL_TAMING`                       |                       |
+| `stackFiltering`                 | `LOCKDOWN_STACK_FILTERING`                   |                       |
+| `overrideTaming`                 | `LOCKDOWN_OVERRIDE_TAMING`                   |                       |
+| `overrideDebug`                  | `LOCKDOWN_OVERRIDE_DEBUG`                    | comma separated names |
+| `domainTaming`                   | `LOCKDOWN_DOMAIN_TAMING`                     |                       |
+| `legacyRegeneratorRuntimeTaming` | `LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING` |                       |
+| `__hardenTaming__`               | `LOCKDOWN_HARDEN_TAMING`                     |                       |
 
 The options `mathTaming` and `dateTaming` are deprecated.
 `Math.random`, `Date.now`, and the `new Date()` are disabled within
@@ -871,6 +873,28 @@ Unfortunately, some modules ultimately depend on the `domain` module,
 even when they do not actively use its features.
 To run multi-tenant applications safely, these dependencies must be carefully
 fixed or avoided.
+
+## `legacyRegeneratorRuntimeTaming` Options
+
+`regenerator-runtime` is a widely used package in the ecosystem.
+It is used to support generators and async functions transpiled to ES5.
+
+The option `legacyRegeneratorRuntimeTaming` is to fix `regenerator-runtime`
+from 0.10.5 to 0.13.7.
+
+The `legacyRegeneratorRuntimeTaming` option, when set to `'safe'`, it does nothing.
+
+When set to `'unsafe-ignore'`, it convert `Iterator.prototype[Symbol.iterator]` to
+a getter/setter that ignores all assignments to it.
+
+```js
+lockdown(); // legacyRegeneratorRuntimeTaming defaults to 'safe'
+// or
+lockdown({ legacyRegeneratorRuntimeTaming: 'safe' }); // do nothing
+// vs
+lockdown({ legacyRegeneratorRuntimeTaming: 'unsafe-ignore' }); // try fix compatibility with regenerator-runtime
+Iterator.prototype[Symbol.iterator] = function() { return this } // this assignment fails but not throwing with unsafe-ignore
+```
 
 ## `__hardenTaming__` Options
 

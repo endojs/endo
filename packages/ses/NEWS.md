@@ -2,6 +2,8 @@ User-visible changes in `ses`:
 
 # Unreleased
 
+- New `legacyRegeneratorRuntimeTaming: 'unsafe-ignore'` lockdown option to tame
+  old `regenerator-runtime` (from 0.10.5 to 0.13.7).
 - If lockdown's `errorTrapping: 'report'` mode is selected (possibly via the
   `'platform'`, or `'exit'` or `'abort'` modes), uncaught exceptions will be
   written to standard error with the new `SES_UNCAUGHT_EXCEPTION: ` prefix.
@@ -75,7 +77,7 @@ User-visible changes in `ses`:
   in TypeScript),
   the stacktrace line-numbers point back into the original
   source, as they do on Node without SES.
-  
+
 # v1.5.0 (2024-05-06)
 
 - Adds `importNowHook` to the `Compartment` options. The compartment will invoke the hook whenever it encounters a missing dependency while running `compartmentInstance.importNow(specifier)`, which cannot use an asynchronous `importHook`.
