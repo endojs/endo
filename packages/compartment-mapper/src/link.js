@@ -14,9 +14,11 @@
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
  *   ImportNowHookMaker,
+ *   LanguageForExtension,
  *   LinkOptions,
  *   LinkResult,
  *   ModuleDescriptor,
+ *   ModuleTransforms,
  *   ParseFn,
  *   AsyncParseFn,
  *   ParserForLanguage,
@@ -27,6 +29,7 @@
 
 import { makeMapParsers } from './map-parser.js';
 import { resolve as resolveFallback } from './node-module-specifier.js';
+import { parseExtension } from './extension.js';
 import {
   ATTENUATORS_COMPARTMENT,
   attenuateGlobals,
@@ -34,7 +37,7 @@ import {
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
-const { assign, create, entries, freeze } = Object;
+const { assign, create, entries, freeze, fromEntries } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 const { allSettled } = Promise;
@@ -56,6 +59,134 @@ const q = JSON.stringify;
  * @returns {boolean}
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
+
+/**
+ * Decide if extension is clearly indicating a parser/language for a file
+ *
+ * @param {string} extension
+ * @returns {boolean}
+ */
+const extensionImpliesLanguage = extension => extension !== 'js';
+
+// cf. section 3.1 of RFC 3986 URI Scheme Generic Syntax
+// https://www.rfc-editor.org/rfc/rfc3986#section-3.1
+const urlish = /^[a-z][a-z0-9+\-.]*:/;
+
+/**
+ * `makeExtensionParser` produces a `parser` that parses the content of a
+ * module according to the corresponding module language, given the extension
+ * of the module specifier and the configuration of the containing compartment.
+ * We do not yet support import assertions and we do not have a mechanism
+ * for validating the MIME type of the module content against the
+ * language implied by the extension or file name.
+ *
+ * @param {Record<string, string>} languageForExtension - maps a file extension
+ * to the corresponding language.
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
+ * the type of a module is implied by package.json and should not be inferred
+ * from its extension.
+ * @param {ParserForLanguage} parserForLanguage
+ * @param {ModuleTransforms} moduleTransforms
+ * @returns {AsyncParseFn}
+ */
+const makeExtensionParser = (
+  languageForExtension,
+  languageForModuleSpecifier,
+  parserForLanguage,
+  moduleTransforms,
+) => {
+  return async (bytes, specifier, location, packageLocation, options) => {
+    await null;
+    let language;
+    const extension = parseExtension(location);
+
+    if (
+      !extensionImpliesLanguage(extension) &&
+      has(languageForModuleSpecifier, specifier)
+    ) {
+      language = languageForModuleSpecifier[specifier];
+    } else {
+      language = languageForExtension[extension] || extension;
+    }
+
+    let sourceMap;
+
+    if (has(moduleTransforms, language)) {
+      try {
+        ({
+          bytes,
+          parser: language,
+          sourceMap,
+        } = await moduleTransforms[language](
+          bytes,
+          specifier,
+          location,
+          packageLocation,
+          {
+            // At time of writing, sourceMap is always undefined, but keeping
+            // it here is more resilient if the surrounding if block becomes a
+            // loop for multi-step transforms.
+            sourceMap,
+          },
+        ));
+      } catch (err) {
+        throw Error(
+          `Error transforming ${q(language)} source in ${q(location)}: ${
+            err.message
+          }`,
+          { cause: err },
+        );
+      }
+    }
+
+    if (!has(parserForLanguage, language)) {
+      throw Error(
+        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
+      );
+    }
+    const { parse } = /** @type {ParserImplementation} */ (
+      parserForLanguage[language]
+    );
+    return parse(bytes, specifier, location, packageLocation, {
+      sourceMap,
+      ...options,
+    });
+  };
+};
+
+/**
+ * @param {LanguageForExtension} languageForExtension
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
+ * is implied by package.json and should not be inferred from its extension.
+ * @param {ParserForLanguage} parserForLanguage
+ * @param {ModuleTransforms} moduleTransforms
+ * @returns {AsyncParseFn}
+ */
+export const mapParsers = (
+  languageForExtension,
+  languageForModuleSpecifier,
+  parserForLanguage,
+  moduleTransforms = {},
+) => {
+  const languageForExtensionEntries = [];
+  const problems = [];
+  for (const [extension, language] of entries(languageForExtension)) {
+    if (has(parserForLanguage, language)) {
+      languageForExtensionEntries.push([extension, language]);
+    } else {
+      problems.push(`${q(language)} for extension ${q(extension)}`);
+    }
+  }
+  if (problems.length > 0) {
+    throw Error(`No parser available for language: ${problems.join(', ')}`);
+  }
+  return makeExtensionParser(
+    fromEntries(languageForExtensionEntries),
+    languageForModuleSpecifier,
+    parserForLanguage,
+    moduleTransforms,
+  );
+};
 
 /**
  * For a full, absolute module specifier like "dependency",
@@ -92,6 +223,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {string} compartmentName
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
+ * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
 const makeModuleMapHook = (
@@ -100,6 +232,7 @@ const makeModuleMapHook = (
   compartmentName,
   moduleDescriptors,
   scopeDescriptors,
+  archiveOnly,
 ) => {
   /**
    * @param {string} moduleSpecifier
@@ -107,6 +240,23 @@ const makeModuleMapHook = (
    */
   const moduleMapHook = moduleSpecifier => {
     compartmentDescriptor.retained = true;
+
+    if (archiveOnly && urlish.test(moduleSpecifier)) {
+      // When creating an archive of an application that imports a platform
+      // module like node:fs, we implicitly expect these to be provided by the
+      // host's importHook on the target platform.
+      return {
+        source: {
+          imports: [],
+          exports: [],
+          execute() {
+            throw new Error(
+              'Cannot import an application loaded strictly for analysis',
+            );
+          },
+        },
+      };
+    }
 
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
@@ -352,6 +502,7 @@ export const link = (
       compartmentName,
       modules,
       scopes,
+      archiveOnly,
     );
 
     const compartment = new Compartment({
