@@ -142,7 +142,11 @@ export const getAnonymousIntrinsics = () => {
     );
     intrinsics['%WrapForValidIteratorPrototype%'] = getPrototypeOf(
       // eslint-disable-next-line @endo/no-polymorphic-call
-      globalThis.Iterator.from({ next() {} }),
+      globalThis.Iterator.from({
+        next() {
+          return { value: undefined };
+        },
+      }),
     );
   }
 
