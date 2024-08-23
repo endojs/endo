@@ -1,5 +1,36 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next release
+
+- The archiver will now automatically omit any module with a specifier
+  that starts with a URL scheme, like `node:fs`.
+
+  ```js
+  // before
+  const archive = makeArchive(readPowers, entryLocation, {
+    modules: {'node:fs': 'node:fs'});
+  ```
+
+  ```js
+  // after
+  const archive = makeArchive(readPowers, entryLocation);
+  ```
+
+  As before, these "exits" from the archive must instead be supplied by an
+  `importHook` when importing a module from an archive, or the archive will
+  fail to load.
+
+  ```js
+  const app = await parseArchive(archive)
+  const { namespace } = await app.import({
+    async importHook(specifier) {
+      if (specifier === 'node:fs') {
+        return { namespace: makeMemFs() };
+      }
+    }
+  });
+  ```
+
 # v1.2.0 (2024-07-30)
 
 - Fixes incompatible behavior with Node.js package conditional exports #2276.
