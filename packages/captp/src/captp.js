@@ -19,6 +19,9 @@ export { E };
 
 const WELL_KNOWN_SLOT_PROPERTIES = harden(['answerID', 'questionID', 'target']);
 
+const sink = () => {};
+harden(sink);
+
 /**
  * @param {any} maybeThenable
  * @returns {boolean}
@@ -126,7 +129,7 @@ export const makeCapTP = (
     // Silence the unhandled rejection warning, but don't affect
     // the user's handlers.
     const p = Promise.reject(reason);
-    p.catch(_ => {});
+    p.catch(sink);
     return p;
   };
 
@@ -680,7 +683,7 @@ export const makeCapTP = (
       trapIteratorResultP.set(questionID, nextResultP);
 
       // Ensure that our caller handles any rejection.
-      return nextResultP.then(() => {});
+      return nextResultP.then(sink);
     },
     // Answer to one of our questions.
     CTP_RETURN(obj) {
