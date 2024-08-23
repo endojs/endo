@@ -70,7 +70,6 @@ export async function bundleZipBase64(
         noTransforms,
         elideComments,
         commonDependencies,
-        dev,
       },
     );
 
