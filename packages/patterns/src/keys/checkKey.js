@@ -509,7 +509,7 @@ harden(copyMapKeySet);
 
 /**
  * @template {Key} K
- * @template {Passable} V
+ * @template {Passable} [V=any]
  * @param {Iterable<[K, V]>} entries
  * @returns {CopyMap<K,V>}
  */

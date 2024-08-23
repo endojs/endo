@@ -99,24 +99,35 @@ export type Container<
   E extends Error,
   AllowPromise extends boolean = any,
 > =
-  | CopyArrayI<R, E, AllowPromise>
-  | CopyRecordI<R, E, AllowPromise>
-  | CopyTaggedI<R, E, AllowPromise>;
-interface CopyArrayI<
-  R extends RemotableObject,
-  E extends Error,
-  AllowPromise extends boolean,
-> extends CopyArray<Passable<R, E, AllowPromise>> {}
-interface CopyRecordI<
-  R extends RemotableObject,
-  E extends Error,
-  AllowPromise extends boolean,
-> extends CopyRecord<Passable<R, E, AllowPromise>> {}
-interface CopyTaggedI<
-  R extends RemotableObject,
-  E extends Error,
-  AllowPromise extends boolean,
-> extends CopyTagged<string, Passable<R, E, AllowPromise>> {}
+  | CopyArrayI<Passable<R, E, AllowPromise>>
+  | CopyRecordI<Passable<R, E, AllowPromise>>
+  | CopyTaggedI<Passable<R, E, AllowPromise>>;
+interface CopyArrayI<T extends Passable = any> extends CopyArray<T> {}
+interface CopyRecordI<T extends Passable = any> extends CopyRecord<T> {}
+interface CopyTaggedI<T extends Passable = any> extends CopyTagged<string, T> {}
+
+export type PassableSubset<
+  T extends Passable<RemotableObject, Error, false> = Passable<
+    RemotableObject,
+    Error,
+    false
+  >,
+  AllowPromise extends boolean = false,
+  AllowTopLevelPromise extends boolean = AllowPromise,
+> =
+  | T
+  | SubsetContainer<T, AllowPromise>
+  | (true extends AllowTopLevelPromise
+      ? PromiseLike<PassableSubset<T, AllowPromise, false>>
+      : never);
+
+type SubsetContainer<
+  T extends Passable<RemotableObject, Error, false>,
+  AllowPromise extends boolean = false,
+> =
+  | CopyArrayI<PassableSubset<T, AllowPromise>>
+  | CopyRecordI<PassableSubset<T, AllowPromise>>
+  | CopyTaggedI<PassableSubset<T, AllowPromise>>;
 
 export type PassStyleOf = {
   (p: undefined): 'undefined';

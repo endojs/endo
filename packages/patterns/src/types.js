@@ -52,7 +52,7 @@ export {};
  */
 
 /**
- * @typedef {Exclude<Passable, Error | Promise>} Pattern
+ * @typedef {Exclude<Passable<RemotableObject, never, false>, never>} Pattern
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
@@ -136,7 +136,7 @@ export {};
 
 // TODO: enumerate Matcher tag values?
 /**
- * @typedef {CopyTagged<`match:${string}`, Passable>} Matcher
+ * @typedef {CopyTagged<`match:${string}`, Pattern>} Matcher
  *
  * A Pattern representing the predicate characterizing a category of Passables,
  * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.
@@ -202,7 +202,7 @@ export {};
 
 /**
  * @callback CheckPattern
- * @param {Passable} allegedPattern
+ * @param {Pattern} allegedPattern
  * @param {Checker} check
  * @returns {boolean}
  */
