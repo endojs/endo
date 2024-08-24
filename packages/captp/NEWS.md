@@ -1,5 +1,9 @@
 User-visible changes in `@endo/captp`:
 
+# Unreleased
+
+- Relax typing of `send` to allow `async` functions, and abort the connection if the `send` function returns a rejected promise.
+
 # v3.1.0 (2023-04-14)
 
 - Disable GC by default to work around known issues with dropping

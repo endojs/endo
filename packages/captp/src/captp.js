@@ -19,6 +19,9 @@ export { E };
 
 const WELL_KNOWN_SLOT_PROPERTIES = harden(['answerID', 'questionID', 'target']);
 
+const sink = () => {};
+harden(sink);
+
 /**
  * @param {any} maybeThenable
  * @returns {boolean}
@@ -63,7 +66,7 @@ const reverseSlot = slot => {
  * Create a CapTP connection.
  *
  * @param {string} ourId our name for the current side
- * @param {(obj: Record<string, any>) => void} rawSend send a JSONable packet
+ * @param {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} rawSend send a JSONable packet
  * @param {any} bootstrapObj the object to export to the other side
  * @param {CapTPOptions} opts options to the connection
  */
@@ -126,7 +129,7 @@ export const makeCapTP = (
     // Silence the unhandled rejection warning, but don't affect
     // the user's handlers.
     const p = Promise.reject(reason);
-    p.catch(_ => {});
+    p.catch(sink);
     return p;
   };
 
@@ -193,8 +196,10 @@ export const makeCapTP = (
       return;
     }
 
-    // Actually send the message, in the next turn.
-    rawSend(obj);
+    // Actually send the message.
+    Promise.resolve(rawSend(obj))
+      // eslint-disable-next-line no-use-before-define
+      .catch(abort); // Abort if rawSend returned a rejection.
   };
 
   /**
@@ -680,7 +685,7 @@ export const makeCapTP = (
       trapIteratorResultP.set(questionID, nextResultP);
 
       // Ensure that our caller handles any rejection.
-      return nextResultP.then(() => {});
+      return nextResultP.then(sink);
     },
     // Answer to one of our questions.
     CTP_RETURN(obj) {
@@ -724,7 +729,7 @@ export const makeCapTP = (
         quietReject(obj.reason, false);
         unplug = reason;
         // Deliver the object, even though we're unplugged.
-        rawSend(obj);
+        Promise.resolve(rawSend(obj)).catch(sink);
       }
       // We no longer wish to subscribe to object finalization.
       slotToImported.clearWithoutFinalizing();
