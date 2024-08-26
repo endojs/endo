@@ -52,7 +52,9 @@
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
+    "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "ses": "workspace:^",
     "typescript": "~5.9.2"
   },
   "dependencies": {
