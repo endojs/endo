@@ -37,7 +37,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * provided to the options.
  *
  * @template {string|undefined} [SourceUrl=undefined]
- * @typedef {{code: string, map: SourceUrl extends string ? import('source-map').RawSourceMap : never}} TransformedResult
+ * @typedef {{code: string, map: SourceUrl extends string ? import('source-map-js').RawSourceMap : never}} TransformedResult
  * @internal
  */
 
