@@ -25,6 +25,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     inescapableTransforms = [],
     inescapableGlobalProperties = {},
     expectedSha512 = undefined,
+    importHook = undefined,
   } = options;
   const {
     computeSha512 = undefined,
@@ -63,6 +64,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
       expectedSha512,
       computeSourceLocation,
       computeSourceMapLocation,
+      importHook,
     });
     // Call import by property to bypass SES censoring for dynamic import.
     // eslint-disable-next-line dot-notation
@@ -71,6 +73,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
       __shimTransforms__: transforms,
       // @ts-expect-error TS2740 missing properties from type
       Compartment: CompartmentToUse,
+      importHook,
     });
     // namespace.default has the default export
     return namespace;
