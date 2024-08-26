@@ -1,5 +1,11 @@
 User-visible changes in `ses`:
 
+# Next version
+
+- Exports a `StrictModuleDescriptor` type that consists only of the
+  `NamespaceModuleDescriptor` and `SourceModuleDescriptor` that are mutually
+  supported by SES and XS.
+
 # v1.11.0 (2025-01-23)
 
 - Adds support for dynamic `import` in conjunction with an update to
