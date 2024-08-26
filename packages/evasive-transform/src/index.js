@@ -16,7 +16,7 @@ import { generate } from './generate.js';
  * Options for {@link evadeCensorSync}
  *
  * @typedef EvadeCensorOptions
- * @property {string|import('source-map').RawSourceMap} [sourceMap] - Original source map in JSON string or object form
+ * @property {string|import('source-map-js').RawSourceMap} [sourceMap] - Original source map in JSON string or object form
  * @property {string} [sourceUrl] - URL or filepath of the original source in `code`
  * @property {boolean} [useLocationUnmap] - Enable location unmapping. Only applies if `sourceMap` was provided
  * @property {boolean} [elideComments] - Replace comments with an ellipsis but preserve interior newlines.
