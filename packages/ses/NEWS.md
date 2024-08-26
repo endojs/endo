@@ -1,9 +1,14 @@
 User-visible changes in `ses`:
 
-# Unreleased
+# Next version
+
+- Exports a `StrictModuleDescriptor` type that consists only of the
+  `NamespaceModuleDescriptor` and `SourceModuleDescriptor` that are mutually
+  supported by SES and XS.
 
 - New `legacyRegeneratorRuntimeTaming: 'unsafe-ignore'` lockdown option to tame
   old `regenerator-runtime` (from 0.10.5 to 0.13.7).
+
 - If lockdown's `errorTrapping: 'report'` mode is selected (possibly via the
   `'platform'`, or `'exit'` or `'abort'` modes), uncaught exceptions will be
   written to standard error with the new `SES_UNCAUGHT_EXCEPTION: ` prefix.

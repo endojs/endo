@@ -111,6 +111,10 @@ export type ModuleDescriptor =
   | PrecompiledModuleSource
   | string;
 
+export type StrictModuleDescriptor =
+  | SourceModuleDescriptor
+  | NamespaceModuleDescriptor;
+
 // Deprecated type aliases:
 export type PrecompiledStaticModuleInterface = PrecompiledModuleSource;
 export type ThirdPartyStaticModuleInterface = VirtualModuleSource;
