@@ -423,13 +423,13 @@ export const enforceModulePolicy = (
  * @param {object} options
  * @param {import('./types.js').DeferredAttenuatorsProvider} options.attenuators
  * @param {import('./types.js').AttenuationDefinition} options.attenuationDefinition
- * @param {import('ses').ThirdPartyStaticModuleInterface} options.originalModuleRecord
- * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>}
+ * @param {import('ses').VirtualModuleSource} options.moduleSource
+ * @returns {Promise<import('ses').VirtualModuleSource>}
  */
-async function attenuateModule({
+async function attenuateVirtualModuleSource({
   attenuators,
   attenuationDefinition,
-  originalModuleRecord,
+  moduleSource,
 }) {
   const attenuate = await importAttenuatorForDefinition(
     attenuationDefinition,
@@ -440,39 +440,85 @@ async function attenuateModule({
   // An async attenuator maker could be introduced here to return a synchronous attenuator.
   // For async attenuators see PR https://github.com/endojs/endo/pull/1535
 
-  return freeze({
-    imports: originalModuleRecord.imports,
+  return {
+    imports: moduleSource.imports,
     // It seems ok to declare the exports but then let the attenuator trim the values.
     // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
-    exports: originalModuleRecord.exports,
+    exports: moduleSource.exports,
     execute: (moduleExports, compartment, resolvedImports) => {
       const ns = {};
-      originalModuleRecord.execute(ns, compartment, resolvedImports);
+      moduleSource.execute(ns, compartment, resolvedImports);
       const attenuated = attenuate(ns);
       moduleExports.default = attenuated;
       assign(moduleExports, attenuated);
     },
-  });
+  };
+}
+
+/**
+ * Attenuates a module
+ * @param {object} options
+ * @param {import('./types.js').DeferredAttenuatorsProvider} options.attenuators
+ * @param {import('./types.js').AttenuationDefinition} options.attenuationDefinition
+ * @param {import('ses').VirtualModuleSource | import('ses').StrictModuleDescriptor} options.moduleDescriptor
+ * @returns {Promise<import('ses').StrictModuleDescriptor>}
+ */
+async function attenuateModule({
+  attenuators,
+  attenuationDefinition,
+  moduleDescriptor,
+}) {
+  await null;
+  if ('source' in moduleDescriptor) {
+    const { source: moduleSource } = moduleDescriptor;
+    if (
+      typeof moduleSource !== 'string' &&
+      'imports' in moduleSource &&
+      'exports' in moduleSource &&
+      'execute' in moduleSource
+    ) {
+      return {
+        source: await attenuateVirtualModuleSource({
+          attenuators,
+          attenuationDefinition,
+          moduleSource,
+        }),
+      };
+    }
+  } else if (
+    'imports' in moduleDescriptor &&
+    'exports' in moduleDescriptor &&
+    'execute' in moduleDescriptor
+  ) {
+    return {
+      source: await attenuateVirtualModuleSource({
+        attenuators,
+        attenuationDefinition,
+        moduleSource: moduleDescriptor,
+      }),
+    };
+  }
+  throw new Error('Can only attenuate virtual module source descriptors');
 }
 
 /**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier - exit module name
- * @param {import('ses').ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
+ * @param {import('ses').VirtualModuleSource | import('ses').StrictModuleDescriptor} moduleDescriptor - reference to the exit module
  * @param {import('./types.js').PackagePolicy} policy - local compartment policy
  * @param {import('./types.js').DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
- * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>} - the attenuated module
+ * @returns {Promise<import('ses').ModuleDescriptor>} - the attenuated module descriptor
  */
 export const attenuateModuleHook = async (
   specifier,
-  originalModuleRecord,
+  moduleDescriptor,
   policy,
   attenuators,
 ) => {
   const policyValue = policyLookupHelper(policy, 'builtins', specifier);
   if (!policy || policyValue === true) {
-    return originalModuleRecord;
+    return moduleDescriptor;
   }
 
   if (!policyValue) {
@@ -485,6 +531,6 @@ export const attenuateModuleHook = async (
   return attenuateModule({
     attenuators,
     attenuationDefinition: policyValue,
-    originalModuleRecord,
+    moduleDescriptor,
   });
 };

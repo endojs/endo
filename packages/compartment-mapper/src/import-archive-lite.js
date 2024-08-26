@@ -124,15 +124,12 @@ const makeArchiveImportHookMaker = (
             // note it's not being marked as exit in sources
             // it could get marked and the second pass, when the archive is being executed, would have the data
             // to enforce which exits can be dynamically imported
-            return {
-              record: await attenuateModuleHook(
-                moduleSpecifier,
-                record,
-                compartmentDescriptor.policy,
-                attenuators,
-              ),
-              specifier: moduleSpecifier,
-            };
+            return attenuateModuleHook(
+              moduleSpecifier,
+              record,
+              compartmentDescriptor.policy,
+              attenuators,
+            );
           } else {
             // if exitModuleImportHook is allowed, the mechanism to defer
             // errors in archive creation is never used. We don't want to
