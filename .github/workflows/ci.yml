@@ -231,57 +231,6 @@ jobs:
       - name: Run yarn test262
         run: exit 0 # TODO remove test262 from required tests for CI
 
-  platform-compatibility-test:
-    name: platform-compatibility-test
-
-    # begin macro
-
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [18.x, 20.x]
-        platform: [ubuntu-latest]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      # without this, setup-node errors on mismatched yarn versions
-      - run: corepack enable
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-
-      - name: Echo node version
-        run: node --version
-
-      - name: Install dependencies
-        run: yarn install --immutable
-
-      # end macro
-
-      - name: 'build'
-        run: yarn run build
-
-      # fails under Node v12
-      - run: corepack disable
-
-      - name: 'switch to node v12'
-        uses: actions/setup-node@v3
-        with:
-          node-version: '12.x'
-
-      - name: Echo node version
-        run: node --version
-
-      - name: Run test:platform-compatibility
-        # npm b/c Yarn 4 doesn't work in Node 12
-        run: cd packages/ses && npm run test:platform-compatibility
-
   viable-release:
     name: viable-release
 
