@@ -46,3 +46,5 @@ testIfAggregateError('aggregate error console', t => {
     { wrapWithCausal: true },
   );
 });
+
+// TODO SuppressedError

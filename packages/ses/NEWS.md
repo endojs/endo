@@ -104,6 +104,8 @@ and subject to breaking changes that will not be signaled by semver.
 
 # v1.9.0 (2024-10-10)
 
+- TODO explain `SuppressedError` support
+
 - On platforms without
   [`Array.prototype.transfer`](https://github.com/tc39/proposal-resizablearraybuffer)
   but with a global `structuredClone`, the ses-shim's `lockdown` will now

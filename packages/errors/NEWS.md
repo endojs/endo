@@ -23,6 +23,8 @@ User-visible changes in `@endo/errors`:
   Both `false` and `Fail` satisfy the `Rejector` type.
   We also deprecate the old checkFoo/assertChecker pattern from @endo/common.
   The exported `isFoo` and `assertFoo` behave the same as they had when then they were using the checkFoo/assertChecker pattern, but are now internally faster and clearer.
+- TODO explain `SuppressedError` support
+
 
 # v1.1.0 (2024-02-22)
 

@@ -19,8 +19,8 @@ import { CopyRecordHelper } from './copyRecord.js';
 import { TaggedHelper } from './tagged.js';
 import {
   ErrorHelper,
-  confirmRecursivelyPassableErrorPropertyDesc,
-  confirmRecursivelyPassableError,
+  checkRecursivelyPassableErrorOwnPropertyDesc,
+  checkRecursivelyThrowable,
   getErrorConstructor,
   isErrorLike,
 } from './error.js';
@@ -283,7 +283,7 @@ hideAndHardenFunction(isPassable);
  * @returns {boolean}
  */
 const isPassableErrorPropertyDesc = (name, desc) =>
-  confirmRecursivelyPassableErrorPropertyDesc(name, desc, passStyleOf, false);
+  checkRecursivelyPassableErrorOwnPropertyDesc(name, desc, passStyleOf);
 
 /**
  * After hardening, if `err` is a passable error, return it.
@@ -300,19 +300,34 @@ const isPassableErrorPropertyDesc = (name, desc) =>
  */
 export const toPassableError = err => {
   harden(err);
-  if (confirmRecursivelyPassableError(err, passStyleOf, false)) {
+  if (checkRecursivelyThrowable(err, passStyleOf)) {
     return err;
   }
   const { name, message } = err;
-  const { cause: causeDesc, errors: errorsDesc } =
-    getOwnPropertyDescriptors(err);
+  const {
+    cause: causeDesc,
+    errors: errorsDesc,
+    error: errorDesc,
+    suppressed: suppressedDesc,
+  } = getOwnPropertyDescriptors(err);
   let cause;
   let errors;
+  let error;
+  let suppressed;
   if (causeDesc && isPassableErrorPropertyDesc('cause', causeDesc)) {
     cause = causeDesc.value;
   }
   if (errorsDesc && isPassableErrorPropertyDesc('errors', errorsDesc)) {
     errors = errorsDesc.value;
+  }
+  if (errorDesc && isPassableErrorPropertyDesc('error', errorDesc)) {
+    error = errorDesc.value;
+  }
+  if (
+    suppressedDesc &&
+    isPassableErrorPropertyDesc('suppressed', suppressedDesc)
+  ) {
+    suppressed = suppressedDesc.value;
   }
 
   const errConstructor = getErrorConstructor(`${name}`) || Error;
@@ -320,6 +335,8 @@ export const toPassableError = err => {
     // @ts-ignore Assuming cause is Error | undefined
     cause,
     errors,
+    error,
+    suppressed,
   });
   // Still needed, because `makeError` only does a shallow freeze.
   harden(newError);

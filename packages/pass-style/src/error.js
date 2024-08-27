@@ -1,14 +1,15 @@
 /// <reference types="ses"/>
 
-import { Fail, q, hideAndHardenFunction } from '@endo/errors';
+import { FAIL, q, hideAndHardenFunction } from '@endo/errors';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
  * @import {PassStyleHelper} from './internal-types.js';
- * @import {PassStyle} from './types.js';
+ * @import {PassStyle, CopyTagged, Passable} from './types.js';
  */
 
-const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
+const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } =
+  Object;
 
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
 // whilelist.
@@ -29,6 +30,8 @@ const errorConstructors = new Map(
     // To accommodate platforms prior to AggregateError, we comment out the
     // following line and instead conditionally add it to the map below.
     // ['AggregateError', AggregateError],
+    // Likewise https://github.com/tc39/proposal-explicit-resource-management
+    // ['SuppressedError', SuppressedError],
   ]),
 );
 
@@ -37,9 +40,15 @@ if (typeof AggregateError !== 'undefined') {
   errorConstructors.set('AggregateError', AggregateError);
 }
 
+if (typeof SuppressedError !== 'undefined') {
+  // Conditional, to accommodate platforms prior to SuppressedError
+  errorConstructors.set('SuppressedError', SuppressedError);
+}
+
 /**
  * Because the error constructor returned by this function might be
- * `AggregateError`, which has different construction parameters
+ * `AggregateError` or `SuppressedError`,
+ * each of which has different construction parameters
  * from the other error constructors, do not use it directly to try
  * to make an error instance. Rather, use `makeError` which encapsulates
  * this non-uniformity.
@@ -63,7 +72,6 @@ const confirmErrorLike = (candidate, reject) => {
   );
 };
 harden(confirmErrorLike);
-/// <reference types="ses"/>
 
 /**
  * Validating error objects are passable raises a tension between security
@@ -87,26 +95,21 @@ export const isErrorLike = candidate => confirmErrorLike(candidate, false);
 hideAndHardenFunction(isErrorLike);
 
 /**
+ * An own property of a passable error must be a data property whose value is
+ * a throwable value.
+ *
  * @param {string} propName
  * @param {PropertyDescriptor} desc
  * @param {(val: any) => PassStyle} passStyleOfRecur
  * @param {Rejector} reject
  * @returns {boolean}
  */
-export const confirmRecursivelyPassableErrorPropertyDesc = (
+export const confirmRecursivelyPassableErrorOwnPropertyDesc = (
   propName,
   desc,
   passStyleOfRecur,
   reject,
 ) => {
-  if (desc.enumerable) {
-    return (
-      reject &&
-      reject`Passable Error ${q(
-        propName,
-      )} own property must not be enumerable: ${desc}`
-    );
-  }
   if (!hasOwn(desc, 'value')) {
     return (
       reject &&
@@ -127,41 +130,24 @@ export const confirmRecursivelyPassableErrorPropertyDesc = (
           )} own property must be a string: ${value}`)
       );
     }
-    case 'cause': {
-      // eslint-disable-next-line no-use-before-define
-      return confirmRecursivelyPassableError(value, passStyleOfRecur, reject);
-    }
-    case 'errors': {
-      if (!Array.isArray(value) || passStyleOfRecur(value) !== 'copyArray') {
-        return (
-          reject &&
-          reject`Passable Error ${q(
-            propName,
-          )} own property must be a copyArray: ${value}`
-        );
-      }
-      return value.every(err =>
-        // eslint-disable-next-line no-use-before-define
-        confirmRecursivelyPassableError(err, passStyleOfRecur, reject),
-      );
-    }
     default: {
       break;
     }
   }
-  return (
-    reject && reject`Passable Error has extra unpassed property ${q(propName)}`
-  );
+  // eslint-disable-next-line no-use-before-define
+  return confirmRecursivelyThrowable(value, passStyleOfRecur, reject);
 };
-harden(confirmRecursivelyPassableErrorPropertyDesc);
+harden(confirmRecursivelyPassableErrorOwnPropertyDesc);
 
 /**
+ * `candidate` is throwable if it contains only data and passable errors.
+ *
  * @param {unknown} candidate
  * @param {(val: any) => PassStyle} passStyleOfRecur
  * @param {Rejector} reject
  * @returns {boolean}
  */
-export const confirmRecursivelyPassableError = (
+export const confirmRecursivelyThrowable = (
   candidate,
   passStyleOfRecur,
   reject,
@@ -187,7 +173,7 @@ export const confirmRecursivelyPassableError = (
   }
 
   return entries(descs).every(([propName, desc]) =>
-    confirmRecursivelyPassableErrorPropertyDesc(
+    confirmRecursivelyPassableErrorOwnPropertyDesc(
       propName,
       desc,
       passStyleOfRecur,
@@ -195,9 +181,11 @@ export const confirmRecursivelyPassableError = (
     ),
   );
 };
-harden(confirmRecursivelyPassableError);
+harden(confirmRecursivelyThrowable);
 
 /**
+ * A passable error is a throwable error and contains only throwable values.
+ *
  * @type {PassStyleHelper}
  */
 export const ErrorHelper = harden({
@@ -206,5 +194,6 @@ export const ErrorHelper = harden({
   confirmCanBeValid: confirmErrorLike,
 
   assertRestValid: (candidate, passStyleOfRecur) =>
-    confirmRecursivelyPassableError(candidate, passStyleOfRecur, Fail),
+    confirmErrorLike(candidate, FAIL) &&
+    confirmRecursivelyThrowable(candidate, passStyleOfRecur, FAIL),
 });
