@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.4.3](https://github.com/endojs/endo/compare/@endo/pass-style@1.4.2...@endo/pass-style@1.4.3) (2024-08-27)
+
+
+### Bug Fixes
+
+* **types:** void is Passable ([1ecb0e7](https://github.com/endojs/endo/commit/1ecb0e7732978f8907ec58a166d792f19b4c8054))
+
+
+
 ### [1.4.2](https://github.com/endojs/endo/compare/@endo/pass-style@1.4.1...@endo/pass-style@1.4.2) (2024-08-01)
 
 **Note:** Version bump only for package @endo/pass-style

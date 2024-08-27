@@ -1,6 +1,6 @@
 User-visible changes in `ses`:
 
-# Unreleased
+# v1.8.0 (2024-08-27)
 
 - New `legacyRegeneratorRuntimeTaming: 'unsafe-ignore'` lockdown option to tame
   old `regenerator-runtime` (from 0.10.5 to 0.13.7).

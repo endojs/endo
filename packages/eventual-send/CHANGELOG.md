@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.2.5](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.4...@endo/eventual-send@1.2.5) (2024-08-27)
+
+
+### Bug Fixes
+
+* **types:** EProxy / Callable ([ea7e8cc](https://github.com/endojs/endo/commit/ea7e8cc7c0c61c68a8b93aebd51548c898f0ae1e))
+
+
+
 ### [1.2.4](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.3...@endo/eventual-send@1.2.4) (2024-08-01)
 
 **Note:** Version bump only for package @endo/eventual-send

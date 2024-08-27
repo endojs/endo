@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.3.2](https://github.com/endojs/endo/compare/@endo/cli@2.3.1...@endo/cli@2.3.2) (2024-08-27)
+
+**Note:** Version bump only for package @endo/cli
+
+
+
+
+
 ### [2.3.1](https://github.com/endojs/endo/compare/@endo/cli@2.3.0...@endo/cli@2.3.1) (2024-08-01)
 
 **Note:** Version bump only for package @endo/cli

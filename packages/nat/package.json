@@ -1,6 +1,6 @@
 {
   "name": "@endo/nat",
-  "version": "5.0.9",
+  "version": "5.0.10",
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
   "main": "./src/index.js",
   "type": "module",

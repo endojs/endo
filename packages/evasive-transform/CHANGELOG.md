@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.2.1...@endo/evasive-transform@1.3.0) (2024-08-27)
+
+
+### Features
+
+* **evasive-transform:** elideComments option ([69ba3d7](https://github.com/endojs/endo/commit/69ba3d768ac9cae9acc99a2322e4691d14a658c2))
+
+
+
 ### [1.2.1](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.2.0...@endo/evasive-transform@1.2.1) (2024-08-01)
 
 **Note:** Version bump only for package @endo/evasive-transform

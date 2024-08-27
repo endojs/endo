@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.0](https://github.com/endojs/endo/compare/ses@1.7.0...ses@1.8.0) (2024-08-27)
+
+
+### Features
+
+* add regenerator runtime taming ([#2383](https://github.com/endojs/endo/issues/2383)) ([6ae7995](https://github.com/endojs/endo/commit/6ae799521e6ae8b2e938402ce1f2f9e845c2dcfb)), closes [#621](https://github.com/endojs/endo/issues/621) [#1950](https://github.com/endojs/endo/issues/1950)
+* **ses:** `errorTrapping` reports prepend `"SES_UNCAUGHT_EXCEPTION:"` ([1090063](https://github.com/endojs/endo/commit/1090063003250c1f1f3f84b96455c6eb11b580a7))
+
+
+### Bug Fixes
+
+* Delete obsolete platform-compatibility-test ([#2419](https://github.com/endojs/endo/issues/2419)) ([61660da](https://github.com/endojs/endo/commit/61660dad93d6bebbc5525a60fcfdd857f7855d0b)), closes [#2418](https://github.com/endojs/endo/issues/2418) [#2417](https://github.com/endojs/endo/issues/2417) [#1308](https://github.com/endojs/endo/issues/1308) [/github.com/endojs/endo/pull/2419#pullrequestreview-2252979514](https://github.com/endojs//github.com/endojs/endo/pull/2419/issues/pullrequestreview-2252979514) [#2418](https://github.com/endojs/endo/issues/2418) [#2417](https://github.com/endojs/endo/issues/2417)
+* IteratorResult in getAnonymousIntrinsics ([ccb1b26](https://github.com/endojs/endo/commit/ccb1b267f72d76d0753a10be751b0686a803d9a5))
+* **ses:** make test insensitive to an irrelevant env var ([#2403](https://github.com/endojs/endo/issues/2403)) ([8fc0ef7](https://github.com/endojs/endo/commit/8fc0ef7e8b31f2b03e57c4bee7d1a5bbf7c13afc)), closes [#2383](https://github.com/endojs/endo/issues/2383)
+
+
+
 ## [1.7.0](https://github.com/endojs/endo/compare/ses@1.6.0...ses@1.7.0) (2024-08-01)
 
 

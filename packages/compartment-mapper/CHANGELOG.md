@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.2.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.1...@endo/compartment-mapper@1.2.2) (2024-08-27)
+
+
+### Bug Fixes
+
+* **compartment-mapper:** fix [#2407](https://github.com/endojs/endo/issues/2407) include symbol-named properties ([#2408](https://github.com/endojs/endo/issues/2408)) ([2b799f8](https://github.com/endojs/endo/commit/2b799f8b1f0a1beb6f6841652ff2fa92e8458d23)), closes [#2377](https://github.com/endojs/endo/issues/2377)
+
+
+
 ### [1.2.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.0...@endo/compartment-mapper@1.2.1) (2024-08-01)
 
 **Note:** Version bump only for package @endo/compartment-mapper

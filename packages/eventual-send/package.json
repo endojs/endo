@@ -1,6 +1,6 @@
 {
   "name": "@endo/eventual-send",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Extend a Promise class to implement the eventual-send API",
   "type": "module",
   "main": "src/no-shim.js",
