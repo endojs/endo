@@ -304,15 +304,30 @@ export const toPassableError = err => {
     return err;
   }
   const { name, message } = err;
-  const { cause: causeDesc, errors: errorsDesc } =
-    getOwnPropertyDescriptors(err);
+  const {
+    cause: causeDesc,
+    errors: errorsDesc,
+    error: errorDesc,
+    suppressed: suppressedDesc,
+  } = getOwnPropertyDescriptors(err);
   let cause;
   let errors;
+  let error;
+  let suppressed;
   if (causeDesc && isPassableErrorPropertyDesc('cause', causeDesc)) {
     cause = causeDesc.value;
   }
   if (errorsDesc && isPassableErrorPropertyDesc('errors', errorsDesc)) {
     errors = errorsDesc.value;
+  }
+  if (errorDesc && isPassableErrorPropertyDesc('error', errorDesc)) {
+    error = errorDesc.value;
+  }
+  if (
+    suppressedDesc &&
+    isPassableErrorPropertyDesc('suppressed', suppressedDesc)
+  ) {
+    suppressed = suppressedDesc.value;
   }
 
   const errConstructor = getErrorConstructor(`${name}`) || Error;
@@ -320,6 +335,8 @@ export const toPassableError = err => {
     // @ts-ignore Assuming cause is Error | undefined
     cause,
     errors,
+    error,
+    suppressed,
   });
   // Still needed, because `makeError` only does a shallow freeze.
   harden(newError);
