@@ -60,6 +60,10 @@ const has = (object, key) => apply(hasOwnProperty, object, [key]);
  */
 const extensionImpliesLanguage = extension => extension !== 'js';
 
+// cf. section 3.1 of RFC 3986 URI Scheme Generic Syntax
+// https://www.rfc-editor.org/rfc/rfc3986#section-3.1
+const urlish = /^[a-z][a-z0-9+\-.]*:/;
+
 /**
  * `makeExtensionParser` produces a `parser` that parses the content of a
  * module according to the corresponding module language, given the extension
@@ -211,6 +215,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {string} compartmentName
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
+ * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
 const makeModuleMapHook = (
@@ -219,6 +224,7 @@ const makeModuleMapHook = (
   compartmentName,
   moduleDescriptors,
   scopeDescriptors,
+  archiveOnly,
 ) => {
   /**
    * @param {string} moduleSpecifier
@@ -226,6 +232,23 @@ const makeModuleMapHook = (
    */
   const moduleMapHook = moduleSpecifier => {
     compartmentDescriptor.retained = true;
+
+    if (archiveOnly && urlish.test(moduleSpecifier)) {
+      // When creating an archive of an application that imports a platform
+      // module like node:fs, we implicitly expect these to be provided by the
+      // host's importHook on the target platform.
+      return {
+        source: {
+          imports: [],
+          exports: [],
+          execute() {
+            throw new Error(
+              'Cannot import an application loaded strictly for analysis',
+            );
+          },
+        },
+      };
+    }
 
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
@@ -447,6 +470,7 @@ export const link = (
       compartmentName,
       modules,
       scopes,
+      archiveOnly,
     );
 
     const compartment = new Compartment({
