@@ -38,6 +38,8 @@ export {};
  *                                      errorId?: string,
  *                                      cause?: Encoding,
  *                                      errors?: Encoding[],
+ *                                      error?: Encoding,
+ *                                      suppressed?: Encoding,
  *           } |
  *           EncodingClass<'slot'> & { index: number,
  *                                     iface?: string
