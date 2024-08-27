@@ -1,5 +1,9 @@
 User-visible changes in `@endo/marshal`:
 
+# Next release
+
+TODO explain `SuppressedError` support
+
 # v1.7.0 (2025-06-02)
 
 - `@endo/marshal` now also exports a `qp` function meaning "quote passable"
