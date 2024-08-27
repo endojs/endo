@@ -12,7 +12,7 @@ const textDecoder = new TextDecoder();
 
 export const makeBundlingKit = (
   { pathResolve, userInfo, computeSha512, platform, env },
-  { cacheSourceMaps, elideComments, noTransforms, commonDependencies, dev },
+  { cacheSourceMaps, elideComments, noTransforms, commonDependencies },
 ) => {
   if (noTransforms && elideComments) {
     throw new Error(
