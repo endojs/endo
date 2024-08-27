@@ -1,5 +1,13 @@
 User-visible changes to `@endo/import-bundle`:
 
+# Next release
+
+- Adds an `importHook` option to `importBundle` that allows an `endoZipBase64`
+  format bundle to link modules outside itself ("exits").
+  The `bundleSource` function and `bundle-source` command now interpret any
+  module specifier that starts with a URI scheme like `node:fs` as external
+  module specifiers implicitly.
+
 # v1.3.0 (2024-10-10)
 
 - Adds support for `endoScript` format bundles.
