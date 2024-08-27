@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.4.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.3.0...@endo/bundle-source@3.4.0) (2024-08-27)
+
+
+### Features
+
+* **bundle-source:** --elide-comments ([0a59732](https://github.com/endojs/endo/commit/0a597328ce779ce95ab8d1675cdd84e4ece955f8))
+
+
+
 ## [3.3.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.2.3...@endo/bundle-source@3.3.0) (2024-07-30)
 
 

@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.3.0](https://github.com/endojs/endo/compare/@endo/captp@4.2.2...@endo/captp@4.3.0) (2024-08-27)
+
+
+### Features
+
+* **captp:** handle `send` rejections ([7201ae4](https://github.com/endojs/endo/commit/7201ae48a67aa0526f433ea6e2609b3cc29115dd))
+
+
+
 ### [4.2.2](https://github.com/endojs/endo/compare/@endo/captp@4.2.1...@endo/captp@4.2.2) (2024-08-01)
 
 **Note:** Version bump only for package @endo/captp

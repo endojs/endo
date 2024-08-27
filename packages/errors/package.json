@@ -1,6 +1,6 @@
 {
   "name": "@endo/errors",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Package exports of the `assert` global",
   "keywords": [],
   "author": "Endo contributors",
