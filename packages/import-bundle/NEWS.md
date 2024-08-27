@@ -1,5 +1,13 @@
 User-visible changes to `@endo/import-bundle`:
 
+# Next release
+
+- Adds an `importHook` option to `importBundle` that allows an `endoZipBase64`
+  format bundle to link modules outside itself ("exits").
+  The `bundleSource` function and `bundle-source` command now interpret any
+  module specifier that starts with a URI scheme like `node:fs` as external
+  module specifiers implicitly.
+
 # v1.2.1 (2024-08-01)
 
 - Fixes support for `inescapableGlobalProperties` in the `endoZipBase64` format
