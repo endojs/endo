@@ -180,18 +180,18 @@ test('smallcaps unserialize extended errors', t => {
     '#{"#error":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
-  t.false('extraProp' in refErr);
-  t.false('cause' in refErr);
-  t.false('errors' in refErr);
+  t.true('extraProp' in refErr);
+  t.true('cause' in refErr);
+  t.true('errors' in refErr);
 
   const aggErr = uns(
     '#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
-  t.false('extraProp' in aggErr);
-  t.false('cause' in aggErr);
+  t.true('extraProp' in aggErr);
+  t.true('cause' in aggErr);
   if (supportsAggregateError) {
-    t.is(aggErr.errors.length, 0);
+    t.is(aggErr.errors.length, 2);
   } else {
     t.false('errors' in aggErr);
   }
@@ -200,9 +200,9 @@ test('smallcaps unserialize extended errors', t => {
     '#{"#error":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
-  t.false('extraProp' in unkErr);
-  t.false('cause' in unkErr);
-  t.false('errors' in unkErr);
+  t.true('extraProp' in unkErr);
+  t.true('cause' in unkErr);
+  t.true('errors' in unkErr);
 });
 
 testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
@@ -215,7 +215,7 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
     `#{"#error":"msg","name":"ReferenceError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
-  t.false('extraProp' in refErr);
+  t.true('extraProp' in refErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
   t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
 
@@ -223,7 +223,7 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
     `#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
-  t.false('extraProp' in aggErr);
+  t.true('extraProp' in aggErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
   t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
 
@@ -231,10 +231,12 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
     `#{"#error":"msg","name":"UnknownError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
-  t.false('extraProp' in unkErr);
+  t.true('extraProp' in unkErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
   t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
 });
+
+// TODO SuppressedError
 
 test('smallcaps mal-formed @qclass', t => {
   const { unserialize } = makeTestMarshal();
@@ -431,17 +433,13 @@ test('smallcaps encoding examples', t => {
   const err2 = harden(Error('#NaN'));
   assertRoundTrip(err2, '#{"#error":"!#NaN","name":"Error"}', [], 'error');
 
-  // non-passable errors alone still serialize
-  const nonPassableErr = Error('foo');
+  const extraPropError = Error('foo');
   // @ts-expect-error this type error is what we're testing
-  nonPassableErr.extraProperty = 'something bad';
-  harden(nonPassableErr);
-  t.throws(() => passStyleOf(nonPassableErr), {
-    message:
-      /Passable Error "extraProperty" own property must not be enumerable: \{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*\}/,
-  });
+  extraPropError.extraProperty = 'something bad';
+  harden(extraPropError);
+  t.is(passStyleOf(extraPropError), 'error');
   assertSer(
-    nonPassableErr,
+    extraPropError,
     '#{"#error":"foo","name":"Error"}',
     [],
     'non passable errors pass',
