@@ -182,6 +182,32 @@ test('live binding', async t => {
   t.is(namespace.default, 'Hello, World!');
 });
 
+test.only('live binding but it was defined first', async t => {
+  t.plan(1);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/main.js': `
+    let quuux = null;
+    // Live binding of an exported variable.
+    quuux = 'Hello, World!';
+    export { quuux };
+    `,
+  });
+
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+
+  // to preview what it's importing:
+  // console.log(await makeImportHook('https://example.com')('./main.js'))
+  // The only reason this ever works is moduleLexicals
+  const namespace = await compartment.import('./main.js');
+  t.is(namespace.quuux, 'Hello, World!');
+});
+
 test('live binding through reexporting intermediary', async t => {
   t.plan(2);
 
