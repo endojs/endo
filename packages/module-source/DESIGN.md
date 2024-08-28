@@ -77,7 +77,7 @@ the module needs to be linked to and how to link their imports and exports.
 
 The functor source, the module transformed into a program, has the following
 shape.
-The names are additionally obscured with Unicode zero-width-joiners to avoid
+The names are additionally obscured with invisible joiner characters to avoid
 collisions with sensibly constructed modules, and the transformation preserves
 line numbers.
 
