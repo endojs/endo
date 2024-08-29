@@ -503,6 +503,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
+    lodash: "npm:^4.17.21"
     prettier: "npm:^3.2.5"
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
