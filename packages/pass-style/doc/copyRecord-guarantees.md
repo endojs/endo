@@ -26,8 +26,7 @@ If `r` is a proxy, then, if this plan goes as we expect, this test will throw wi
 # How do I enumerate thee, let me list the ways
 
 Why only string-named own enumerable data properties?
-JavaScript has a [tremendous number of different constructs for enumerating the
-properties](enumerating-properties.md) of an object, with different semantics
+JavaScript has a [tremendous number of different constructs for enumerating the properties](enumerating-properties.md "https://github.com/endojs/endo/blob/master/packages/pass-style/doc/enumerating-properties.md") of an object, with different semantics
 of what subset they choose to enumerate.
 Once an object passes `assertRecord(r)`, all of these are guaranteed to agree.
 

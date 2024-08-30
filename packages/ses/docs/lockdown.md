@@ -184,7 +184,7 @@ wrapped `console`.
 In addition, the virtual `console` has a special relationship with
 error objects and with the SES `assert` package, so that errors can report yet
 more diagnostic information that should remain hidden from other objects. See
-the [error README](../src/error/README.md) for an in depth explanation of this
+the [error README](../src/error/README.md "https://github.com/endojs/endo/blob/master/packages/ses/src/error/README.md") for an in depth explanation of this
 relationship between errors, `assert` and the virtual `console`.
 
 ```js
@@ -211,7 +211,7 @@ LOCKDOWN_CONSOLE_TAMING=unsafe
 The `consoleTaming: 'safe'` setting replaces the global console with a tamed
 console, and that tamed console is safe to endow to a guest `Compartment`.
 Additionally, any errors created with the `assert` function or methods on its
-namespace may have [redacted details](../src/error/README.md): information
+namespace may have [redacted details](../src/error/README.md "https://github.com/endojs/endo/blob/master/packages/ses/src/error/README.md"): information
 included in the error message that is informative to a debugger and made
 invisible to an attacker.
 The tamed console removes redactions and shows these details to the original
@@ -308,7 +308,7 @@ magic powers of the v8 `Error` constructor&mdash;those consistent with the
 level of disclosure of the proposed `getStack`. In all cases, the `Error`
 constructor shared by all other compartments is both safe and powerless.
 
-See the [error README](../src/error/README.md) for an in depth explanation of
+See the [error README](../src/error/README.md "https://github.com/endojs/endo/blob/master/packages/ses/src/error/README.md") for an in depth explanation of
 the relationship between errors, `assert` and the virtual `console`.
 
 When running TypeScript tests on Node without SES,

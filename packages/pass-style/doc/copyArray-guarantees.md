@@ -17,8 +17,7 @@ The input validation check `assertCopyArray(arr)` asserts that `passStyleOf(arr)
 # How do I enumerate thee, let me list the ways
 
 Why these properties restrictions?
-JavaScript has a [tremendous number of different constructs for enumerating the
-properties](enumerating-properties.md) of an object, with different semantics
+JavaScript has a [tremendous number of different constructs for enumerating the properties](enumerating-properties.md "https://github.com/endojs/endo/blob/master/packages/pass-style/doc/enumerating-properties.md") of an object, with different semantics
 of what subset they choose to enumerate.
 Once an object passes `assertCopyArray(arr)`, all of these are guaranteed to
 agree except for `length`.
