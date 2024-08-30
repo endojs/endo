@@ -38,7 +38,9 @@ const whereHomeWindows = (env, info) => {
  * @type {typeof import('./types.js').whereEndoState}
  */
 export const whereEndoState = (platform, env, info) => {
-  if (env.XDG_STATE_HOME !== undefined) {
+  if (env.ENDO_STATE !== undefined) {
+    return env.ENDO_STATE;
+  } else if (env.XDG_STATE_HOME !== undefined) {
     return `${env.XDG_STATE_HOME}/endo`;
   } else if (platform === 'win32') {
     return `${whereHomeWindows(env, info)}\\Endo`;
@@ -59,7 +61,9 @@ export const whereEndoState = (platform, env, info) => {
  * @type {typeof import('./types.js').whereEndoEphemeralState}
  */
 export const whereEndoEphemeralState = (platform, env, info) => {
-  if (env.XDG_RUNTIME_DIR !== undefined) {
+  if (env.ENDO_TEMP_STATE !== undefined) {
+    return env.ENDO_TEMP_STATE;
+  } else if (env.XDG_RUNTIME_DIR !== undefined) {
     return `${env.XDG_RUNTIME_DIR}/endo`;
   } else if (platform === 'win32') {
     return `${whereHomeWindows(env, info)}\\Temp\\Endo`;
@@ -102,7 +106,9 @@ export const whereEndoSock = (platform, env, info, protocol = 'captp0') => {
  * @type {typeof import('./types.js').whereEndoCache}
  */
 export const whereEndoCache = (platform, env, info) => {
-  if (env.XDG_CACHE_HOME !== undefined) {
+  if (env.ENDO_CACHE !== undefined) {
+    return env.ENDO_CACHE;
+  } else if (env.XDG_CACHE_HOME !== undefined) {
     return `${env.XDG_CACHE_HOME}/endo`;
   } else if (platform === 'win32') {
     return `${whereHomeWindows(env, info)}\\Endo`;
