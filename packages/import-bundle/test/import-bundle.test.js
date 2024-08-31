@@ -80,7 +80,7 @@ test('test import archive', async t => {
   const endowments = { console };
   const b1EndoZip = await makeArchive(
     read,
-    new URL('bundle1.js', import.meta.url).toString(),
+    new URL('bundle1.js', import.meta.url).href,
   );
   const b1EndoZipBase64 = encodeBase64(b1EndoZip);
   const b1EndoZipBase64Bundle = {
@@ -88,6 +88,15 @@ test('test import archive', async t => {
     endoZipBase64: b1EndoZipBase64,
   };
   await testBundle1(t, b1EndoZipBase64Bundle, 'endoZipBase64', endowments);
+});
+
+test('test import script', async t => {
+  const endowments = { console };
+  const b1EndoScriptBundle = await bundleSource(
+    url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
+    'endoScript',
+  );
+  await testBundle1(t, b1EndoScriptBundle, 'endoScript', endowments);
 });
 
 test('test missing sourceMap', async t => {
@@ -142,6 +151,20 @@ test('inescapable global properties, nested evaluate format', async t => {
   const bundle = await bundleSource(
     url.fileURLToPath(new URL('export-inescapable-global.js', import.meta.url)),
     'nestedEvaluate',
+  );
+
+  const ns = await importBundle(bundle, {
+    inescapableGlobalProperties: {
+      inescapableGlobalValue: 42,
+    },
+  });
+  t.is(ns.default, 42);
+});
+
+test('inescapable global properties, script format', async t => {
+  const bundle = await bundleSource(
+    url.fileURLToPath(new URL('export-inescapable-global.js', import.meta.url)),
+    'endoScript',
   );
 
   const ns = await importBundle(bundle, {

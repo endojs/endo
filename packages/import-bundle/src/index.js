@@ -54,6 +54,8 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     );
   }
 
+  let compartment;
+
   const { moduleFormat } = bundle;
   if (moduleFormat === 'endoZipBase64') {
     const { endoZipBase64 } = bundle;
@@ -76,8 +78,8 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     return namespace;
   }
 
-  let c;
-  const { source, sourceMap } = bundle;
+  let { source } = bundle;
+  const { sourceMap } = bundle;
   if (moduleFormat === 'getExport') {
     // The 'getExport' format is a string which defines a wrapper function
     // named `getExport()`. This function provides a `module` to the
@@ -87,6 +89,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     // (making it an expression). We also want to append the `sourceMap`
     // comment so `evaluate` can attach useful debug information. Finally, to
     // extract the namespace object, we need to invoke this function.
+    source = `(${source})\n${sourceMap || ''}`;
   } else if (moduleFormat === 'nestedEvaluate') {
     // The 'nestedEvaluate' format is similar, except the wrapper function
     // (now named `getExportWithNestedEvaluate`) wraps more than a single
@@ -98,17 +101,27 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     // `filePrefix`, which will be used as the sourceMap for the top-level
     // module. The sourceMap name for other modules will be derived from
     // `filePrefix` and the relative import path of each module.
-    endowments.nestedEvaluate = src => c.evaluate(src);
+    endowments.nestedEvaluate = src => compartment.evaluate(src);
+    source = `(${source})\n${sourceMap || ''}`;
+  } else if (moduleFormat === 'endoScript') {
+    // The 'endoScript' format is just a script.
   } else {
     Fail`unrecognized moduleFormat '${moduleFormat}'`;
   }
 
-  c = new CompartmentToUse(endowments, {}, { transforms });
-  harden(c.globalThis);
-  const actualSource = `(${source})\n${sourceMap || ''}`;
-  const namespace = c.evaluate(actualSource)(filePrefix);
-  // namespace.default has the default export
-  return namespace;
+  compartment = new CompartmentToUse(endowments, {}, { transforms });
+  harden(compartment.globalThis);
+  const result = compartment.evaluate(source);
+  if (moduleFormat === 'endoScript') {
+    // The completion value of an 'endoScript' is the namespace.
+    // This format does not curry the filePrefix.
+    return result;
+  } else {
+    // The 'getExport' and 'nestedEvaluate' formats curry a filePrefix.
+    const namespace = result(filePrefix);
+    // namespace.default has the default export
+    return namespace;
+  }
 }
 
 /*
