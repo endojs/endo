@@ -1,5 +1,5 @@
-export const HIDDEN_PREFIX = '$h\u200d_';
-export const HIDDEN_CONST_VAR_PREFIX = '$c\u200d_';
+export const HIDDEN_PREFIX = '$h\u034f_';
+export const HIDDEN_CONST_VAR_PREFIX = '$c\u034f_';
 export const HIDDEN_A = `${HIDDEN_PREFIX}a`;
 export const HIDDEN_IMPORT = `${HIDDEN_PREFIX}import`;
 export const HIDDEN_IMPORT_SELF = `${HIDDEN_PREFIX}importSelf`;

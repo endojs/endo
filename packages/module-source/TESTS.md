@@ -12,7 +12,7 @@ Pairs of module source vs functor source. The output was generated.
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: bb };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: bb };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -24,7 +24,7 @@ Pairs of module source vs functor source. The output was generated.
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: class {valueOf() {return 45;}} };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: class {valueOf() {return 45;}} };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -36,8 +36,8 @@ export default 123
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   //#! /usr/bin/env node
-const { default: $c‍_default } = { default: 123 };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   //#! /usr/bin/env node
+const { default: $c͏_default } = { default: 123 };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -48,7 +48,7 @@ const { default: $c‍_default } = { default: 123 };$h‍_once.default($c‍_def
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: arguments };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: arguments };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -59,7 +59,7 @@ const { default: $c‍_default } = { default: 123 };$h‍_once.default($c‍_def
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: this };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: this };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -77,11 +77,11 @@ export const ghi = 789;
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   let abc = 123;$h‍_once.abc(abc);
-let $c‍_def = 456;$h‍_live.def($c‍_def);
-let def2 = def;$h‍_once.def2(def2);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   let abc = 123;$h͏_once.abc(abc);
+let $c͏_def = 456;$h͏_live.def($c͏_def);
+let def2 = def;$h͏_once.def2(def2);
 def++;
-const ghi = 789;$h‍_once.ghi(ghi);
+const ghi = 789;$h͏_once.ghi(ghi);
 })
 ```
 
@@ -94,8 +94,8 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const abc = 123;$h‍_once.abc(abc);
-const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: ['skip', 789, 'a', 'b'], other: 999, and: 998 };$h‍_once.def(def);$h‍_once.ghi(ghi);$h‍_once.nestrest(nestrest);$h‍_once.rest(rest);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const abc = 123;$h͏_once.abc(abc);
+const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: ['skip', 789, 'a', 'b'], other: 999, and: 998 };$h͏_once.def(def);$h͏_once.ghi(ghi);$h͏_once.nestrest(nestrest);$h͏_once.rest(rest);
 })
 ```
 
@@ -107,8 +107,8 @@ export const abc = 123;
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const abc2 = abc;
-const abc = 123;$h‍_once.abc(abc);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const abc2 = abc;
+const abc = 123;$h͏_once.abc(abc);
 })
 ```
 
@@ -120,8 +120,8 @@ export let abc = 123;
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const abc2 = abc;
-let abc = 123;$h‍_once.abc(abc);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const abc2 = abc;
+let abc = 123;$h͏_once.abc(abc);
 })
 ```
 
@@ -134,9 +134,9 @@ export const abc3 = abc;
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);$h‍_live.abc();   const abc2 = abc;$h‍_once.abc2(abc2);
-var $c‍_abc = 123;abc = $c‍_abc;
-const abc3 = abc;$h‍_once.abc3(abc3);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);$h͏_live.abc();   const abc2 = abc;$h͏_once.abc2(abc2);
+var $c͏_abc = 123;abc = $c͏_abc;
+const abc3 = abc;$h͏_once.abc3(abc3);
 })
 ```
 
@@ -151,11 +151,11 @@ export const fn3 = fn;
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);Object.defineProperty($c‍_fn, 'name', {value: "fn"});$h‍_live.fn($c‍_fn);   const fn2 = fn;$h‍_once.fn2(fn2);
-function $c‍_fn() {
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);Object.defineProperty($c͏_fn, 'name', {value: "fn"});$h͏_live.fn($c͏_fn);   const fn2 = fn;$h͏_once.fn2(fn2);
+function $c͏_fn() {
   return 'foo';
 }
-const fn3 = fn;$h‍_once.fn3(fn3);
+const fn3 = fn;$h͏_once.fn3(fn3);
 })
 ```
 
@@ -167,8 +167,8 @@ export class C {} if (C) { count += 1; }
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   let $c‍_count = 0;$h‍_live.count($c‍_count);{
-  class C {}$h‍_live.C(C);}if (C) {count += 1;}
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   let $c͏_count = 0;$h͏_live.count($c͏_count);{
+  class C {}$h͏_live.C(C);}if (C) {count += 1;}
 })
 ```
 
@@ -179,7 +179,7 @@ export class C {} if (C) { count += 1; }
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: class C {} };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: class C {} };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -190,7 +190,7 @@ export class C {} if (C) { count += 1; }
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: class {} };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: class {} };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -201,7 +201,7 @@ export class C {} if (C) { count += 1; }
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: class {} };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: class {} };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -213,8 +213,8 @@ export function F(arg) { return arg; }
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);Object.defineProperty($c‍_F, 'name', {value: "F"});$h‍_live.F($c‍_F);   F(123);
-function $c‍_F(arg) {return arg;}
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);Object.defineProperty($c͏_F, 'name', {value: "F"});$h͏_live.F($c͏_F);   F(123);
+function $c͏_F(arg) {return arg;}
 })
 ```
 
@@ -225,7 +225,7 @@ function $c‍_F(arg) {return arg;}
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: async function F(arg) {return arg;} };$h‍_once.default($c‍_default);
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: async function F(arg) {return arg;} };$h͏_once.default($c͏_default);
 })
 ```
 
@@ -236,7 +236,7 @@ function $c‍_F(arg) {return arg;}
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([]), []);   const { default: $c‍_default } = { default: async function (arg) {return arg;} };$h‍_once.default($c‍_default);;
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([]), []);   const { default: $c͏_default } = { default: async function (arg) {return arg;} };$h͏_once.default($c͏_default);;
 })
 ```
 
@@ -249,7 +249,7 @@ function $c‍_F(arg) {return arg;}
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   let ns;$h‍_imports(new Map([["module", new Map([["*", [$h‍_a => (ns = $h‍_a)]]])]]), []);   
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   let ns;$h͏_imports(new Map([["module", new Map([["*", [$h͏_a => (ns = $h͏_a)]]])]]), []);   
 })
 ```
 
@@ -260,7 +260,7 @@ function $c‍_F(arg) {return arg;}
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   let foo,bar;$h‍_imports(new Map([["module", new Map([["foo", [$h‍_a => (foo = $h‍_a)]],["bar", [$h‍_a => (bar = $h‍_a)]]])]]), []);   
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   let foo,bar;$h͏_imports(new Map([["module", new Map([["foo", [$h͏_a => (foo = $h͏_a)]],["bar", [$h͏_a => (bar = $h͏_a)]]])]]), []);   
 })
 ```
 #### Case 3
@@ -270,7 +270,7 @@ function $c‍_F(arg) {return arg;}
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   let myName;$h‍_imports(new Map([["module", new Map([["default", [$h‍_a => (myName = $h‍_a)]]])]]), []);   
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   let myName;$h͏_imports(new Map([["module", new Map([["default", [$h͏_a => (myName = $h͏_a)]]])]]), []);   
 })
 ```
 
@@ -282,7 +282,7 @@ function $c‍_F(arg) {return arg;}
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   let myName,other;$h‍_imports(new Map([["module", new Map([["default", [$h‍_a => (myName = $h‍_a)]],["otherName", [$h‍_a => (other = $h‍_a)]]])]]), []);   
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   let myName,other;$h͏_imports(new Map([["module", new Map([["default", [$h͏_a => (myName = $h͏_a)]],["otherName", [$h͏_a => (other = $h͏_a)]]])]]), []);   
 })
 ```
 
@@ -294,6 +294,6 @@ function $c‍_F(arg) {return arg;}
 ```
 
 ```js
- (({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   $h‍_imports(new Map([["module", new Map([])]]), []);   
+ (({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,  }) => {   $h͏_imports(new Map([["module", new Map([])]]), []);   
 })
 ```

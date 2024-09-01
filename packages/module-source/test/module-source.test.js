@@ -442,22 +442,22 @@ export default async function (arg) { return arg; }
   t.is(await ret, 'foo', 'F returns correctly');
 });
 
-test('zero width joiner is reserved', t => {
+test('invisible joiner character is reserved', t => {
   t.throws(() => {
-    const _ = new ModuleSource(`const $h\u200d_import = 123; $h\u200d_import`);
+    const _ = new ModuleSource(`const $h\u034f_import = 123; $h\u034f_import`);
   });
 });
 
-test('zero width joiner in constified variable is reserved', t => {
+test('invisible joiner character in constified variable is reserved', t => {
   t.throws(() => {
-    const _ = new ModuleSource(`const $c\u200d_myVar = 123; $c\u200d_myVar`);
+    const _ = new ModuleSource(`const $c\u034f_myVar = 123; $c\u034f_myVar`);
   });
 });
 
-test('zero width joiner is allowed in non-reserved words', t => {
+test('invisible joiner character is allowed in non-reserved words', t => {
   const { namespace } = initialize(
     t,
-    `const $h\u200d_import2 = 123; export default $h\u200d_import2`,
+    `const $h\u034f_import2 = 123; export default $h\u034f_import2`,
   );
   const { default: name } = namespace;
   t.is(name, 123);
@@ -729,6 +729,7 @@ test('source map generation', t => {
   const { __syncModuleProgram__ } = new ModuleSource(`'Hello, World!'`, {
     sourceUrl: 'must-appear-in-source.js',
     sourceMapUrl: 'must-not-appear-in-source.js',
+    // @ts-expect-error SourceMapHookDetails do not have those properties!
     sourceMapHook(sourceMap, { sourceUrl, sourceMapUrl, source }) {
       t.log(sourceMap);
       t.is(sourceMapUrl, 'must-not-appear-in-source.js');
