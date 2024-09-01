@@ -1,5 +1,9 @@
 User-visible changes to `@endo/import-bundle`:
 
+# Next release
+
+- Adds support for `endoScript` format bundles.
+
 # v1.2.1 (2024-08-01)
 
 - Fixes support for `inescapableGlobalProperties` in the `endoZipBase64` format
