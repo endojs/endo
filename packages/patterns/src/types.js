@@ -540,6 +540,33 @@ export {};
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>} InterfaceGuard
+ * Characterize dynamic behavior such as method argument/response signatures and promise awaiting.
+ *
+ * The {@link @endo/exo!} package uses `InterfaceGuard`s as the first level of
+ * defense for Exo objects against malformed input.
+ *
+ * For example:
+ *
+ * ```js
+ * const AsyncSerializerI = M.interface('AsyncSerializer', {
+ *   // This interface has a single method, which is async as indicated by M.callWhen().
+ *   // The method accepts a single argument, consumed with an implied `await` as indicated by M.await(),
+ *   // and the result of that implied `await` is allowed to fulfill to any value per M.any().
+ *   // The method result is a string as indicated by M.string(),
+ *   // which is inherently wrapped in a promise by the async nature of the method.
+ *   getStringOf: M.callWhen(M.await(M.any())).returns(M.string()),
+ * });
+ * const asyncSerializer = makeExo('AsyncSerializer', AsyncSerializerI, {
+ *   // M.callWhen() delays invocation of this method implementation
+ *   // while provided argument is in a pending state
+ *   // (i.e., it is a promise that has not yet settled).
+ *   getStringOf(val) { return String(val); },
+ * });
+ *
+ * const stringP = asyncSerializer.getStringOf(Promise.resolve(42n));
+ * isPromise(stringP); // => true
+ * await stringP; // => "42"
+ * ```
  */
 
 /**
@@ -555,6 +582,8 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
+ */
+
 /**
  * @typedef {object} MethodGuardReturns
  * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
