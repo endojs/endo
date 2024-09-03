@@ -5,7 +5,7 @@
  */
 
 // @ts-ignore XXX no types defined
-import babelGenerator from '@agoric/babel-generator';
+import babelGenerator from '@babel/generator';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
 // `node -r esm`, we must use the pattern below.
@@ -21,6 +21,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * Options for {@link generateCode} with source map
  *
  * @typedef GenerateAstOptionsWithSourceMap
+ * @property {string} [source]
  * @property {string} sourceUrl - If present, we will generate a source map
  * @internal
  */
@@ -29,7 +30,8 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * Options for {@link generateCode} (no source map generated)
  *
  * @typedef GenerateAstOptionsWithoutSourceMap
- * @property {undefined} sourceUrl - This should be undefined or otherwise not provided
+ * @property {string} [source]
+ * @property {undefined} [sourceUrl] - This should be undefined or otherwise not provided
  * @internal
  */
 
@@ -67,12 +69,19 @@ export const generate =
       // TODO Use options?.sourceUrl when resolved:
       // https://github.com/Agoric/agoric-sdk/issues/8671
       const sourceUrl = options ? options.sourceUrl : undefined;
-      const result = generator(ast, {
-        sourceFileName: sourceUrl,
-        sourceMaps: Boolean(sourceUrl),
-        retainLines: true,
-        compact: true,
-      });
+      const source = options ? options.source : undefined;
+      const result = generator(
+        ast,
+        {
+          sourceFileName: sourceUrl,
+          sourceMaps: Boolean(sourceUrl),
+          retainLines: true,
+          ...(source === undefined
+            ? {}
+            : { experimental_preserveFormat: true }),
+        },
+        source,
+      );
 
       if (sourceUrl) {
         return {
