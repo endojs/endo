@@ -34,8 +34,8 @@ export {};
  * CopyTaggeds recognized as Keys.
  *
  * Distributed equality is location independent.
- * The same two Keys, passed to another location, will be `keyEQ` there iff
- * they are `keyEQ` here. (`keyEQ` tests equality according to the
+ * The same two Keys, passed to another location, will be {@link keyEQ} there iff
+ * they are {@link keyEQ} here. ({@link keyEQ} tests equality according to the
  * key distributed equality semantics.)
  *
  * ### Rank order and key order
@@ -90,19 +90,19 @@ export {};
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
- * non-container leaf is either a Key or a Matcher, or such leaves in isolation
+ * non-container leaf is either a Key or a {@link Matcher}, or such leaves in isolation
  * with no container.
  *
  * A Pattern acts as a declarative total predicate over Passables, where each
- * Passable is either matched or not matched by it. Every Key is also a Pattern
- * that matches only "itself", i.e., Keys that are `keyEQ` to it according to
+ * Passable is either matched or not matched by it. Every {@link Key} is also a Pattern
+ * that matches only "itself", i.e., Keys that are {@link keyEQ} to it according to
  * the key distributed equality semantics.
  *
  * Patterns cannot contain promises or errors, as these do
  * not have useful distributed equality or matching semantics. Likewise,
  * no Pattern can distinguish among promises, or distinguish among errors.
  * Patterns also cannot contain any CopyTaggeds except for those recognized as
- * CopySets, CopyBags, CopyMaps, or Matchers.
+ * {@link CopySet}s, {@link CopyBag}s, {@link CopyMap}s, or {@link Matcher}s.
  *
  * Be aware that we may recognize more CopyTaggeds over time, including
  * CopyTaggeds recognized as Patterns.
@@ -139,7 +139,7 @@ export {};
  * @typedef {CopyTagged<'copySet', K[]>} CopySet
  *
  * A Passable collection of Keys that are all mutually distinguishable
- * according to the key distributed equality semantics exposed by `keyEQ`.
+ * according to the key distributed equality semantics exposed by {@link keyEQ}.
  */
 
 /**
@@ -147,7 +147,7 @@ export {};
  * @typedef {CopyTagged<'copyBag', [K, bigint][]>} CopyBag
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
- * according to the key distributed equality semantics exposed by `keyEQ`,
+ * according to the key distributed equality semantics exposed by {@link keyEQ},
  * each with a corresponding positive cardinality.
  */
 
@@ -157,7 +157,7 @@ export {};
  * @typedef {CopyTagged<'copyMap', { keys: K[], values: V[] }>} CopyMap
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
- * according to the key distributed equality semantics exposed by `keyEQ`,
+ * according to the key distributed equality semantics exposed by {@link keyEQ},
  * each with a corresponding Passable value.
  */
 
