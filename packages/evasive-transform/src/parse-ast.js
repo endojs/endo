@@ -33,7 +33,11 @@ const { parse: parseBabel } = babelParser;
  * @param {ParseAstOptions} [opts] - Options for underlying parser
  * @internal
  */
-export function parseAst(source, opts) {
+export function parseAst(source, opts = {}) {
   // Might not want to pass `opts` verbatim, but also might not matter!
-  return parseBabel(source, opts);
+  return parseBabel(source, {
+    tokens: true,
+    createParenthesizedExpressions: true,
+    ...opts,
+  });
 }

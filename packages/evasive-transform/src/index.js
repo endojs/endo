@@ -70,9 +70,9 @@ export function evadeCensorSync(source, options) {
   }
 
   if (sourceUrl) {
-    return generate(ast, { sourceUrl });
+    return generate(ast, { source, sourceUrl });
   }
-  return generate(ast);
+  return generate(ast, { source });
 }
 
 /**
