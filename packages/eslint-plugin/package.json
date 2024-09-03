@@ -37,5 +37,16 @@
   "license": "Apache-2.0",
   "repository": {
     "directory": "packages/eslint-plugin"
-  }
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ]
 }

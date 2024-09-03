@@ -97,14 +97,15 @@
     "typescript": "~5.6.1-rc"
   },
   "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
     "LICENSE*",
-    "NEWS*",
     "SECURITY*",
     "dist",
-    "types.d.ts",
-    "index.js",
-    "tools.js",
-    "src"
+    "lib",
+    "src",
+    "tools"
   ],
   "publishConfig": {
     "access": "public"
