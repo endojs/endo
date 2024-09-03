@@ -1,6 +1,9 @@
 import {
+  ArrayBuffer,
   arrayBufferPrototype,
   arrayBufferSlice,
+  arrayBufferGetByteLength,
+  Uint8Array,
   globalThis,
   TypeError,
   defineProperty,
@@ -12,7 +15,9 @@ export const shimArrayBufferTransfer = () => {
     // Assume already exists so does not need to be shimmed.
     // Such conditional shimming is ok in this case since ArrayBuffer.p.transfer
     // is already officially part of JS.
-    return;
+    //
+    // Empty object because this shim has nothing for `addIntrinsics` to add.
+    return {};
   }
   const clone = globalThis.structuredClone;
   if (typeof clone !== 'function') {
@@ -30,10 +35,9 @@ export const shimArrayBufferTransfer = () => {
      * @param {number} [newLength]
      */
     transfer(newLength = undefined) {
-      // Hopefully, a zero-length slice is cheap, but still enforces that
-      // `this` is a genuine `ArrayBuffer` exotic object.
-      arrayBufferSlice(this, 0, 0);
-      const oldLength = this.byteLength;
+      // Using this builtin getter also ensures that `this` is a genuine
+      // ArrayBuffer.
+      const oldLength = arrayBufferGetByteLength(this);
       if (newLength === undefined || newLength === oldLength) {
         return clone(this, { transfer: [this] });
       }
@@ -41,13 +45,28 @@ export const shimArrayBufferTransfer = () => {
         throw new TypeError(`transfer newLength if provided must be a number`);
       }
       if (newLength > oldLength) {
-        // TODO support this case somehow
-        throw new TypeError(
-          `Cannot yet emulate transfer to larger ArrayBuffer ${newLength}`,
-        );
+        // TODO Is there any way to do this bulk move or copy other than by
+        // manually iterating over each position?
+        const result = new ArrayBuffer(newLength);
+        // TODO Should this use DavaViews rather than TypedArrays?
+        const taOld = new Uint8Array(this);
+        const taNew = new Uint8Array(result);
+        let i = 0;
+        for (; i < oldLength; i += 1) {
+          taNew[i] = taOld[i];
+        }
+        for (; i < newLength; i += 1) {
+          taNew[i] = 0;
+        }
+        // Using clone only to detach, and only after the copy succeeds
+        clone(this, { transfer: [this] });
+        return result;
+      } else {
+        const result = arrayBufferSlice(this, 0, newLength);
+        // Using clone only to detach, and only after the slice succeeds
+        clone(this, { transfer: [this] });
+        return result;
       }
-      const tmp = clone(this, { transfer: [this] });
-      return arrayBufferSlice(tmp, 0, newLength);
     },
   };
 
@@ -58,4 +77,7 @@ export const shimArrayBufferTransfer = () => {
     enumerable: false,
     configurable: true,
   });
+
+  // Empty object because this shim has nothing for `addIntrinsics` to add.
+  return {};
 };

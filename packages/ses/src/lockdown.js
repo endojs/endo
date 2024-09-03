@@ -285,7 +285,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameMathObject(mathTaming));
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
-  shimArrayBufferTransfer();
+  addIntrinsics(shimArrayBufferTransfer());
 
   addIntrinsics(getAnonymousIntrinsics());
 

@@ -35,6 +35,7 @@ export const {
   Set,
   String,
   Symbol,
+  Uint8Array,
   WeakMap,
   WeakSet,
 } = globalThis;
@@ -181,6 +182,11 @@ export const arraySort = uncurryThis(arrayPrototype.sort);
 export const iterateArray = uncurryThis(arrayPrototype[iteratorSymbol]);
 //
 export const arrayBufferSlice = uncurryThis(arrayBufferPrototype.slice);
+/** @type {(b: ArrayBuffer) => number} */
+export const arrayBufferGetByteLength = uncurryThis(
+  // @ts-expect-error we know it is there on all conforming platforms
+  getOwnPropertyDescriptor(arrayBufferPrototype, 'byteLength').get,
+);
 //
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);
