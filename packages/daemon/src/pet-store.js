@@ -248,9 +248,7 @@ export const makePetStoreMaker = (filePowers, config) => {
     assertValidName,
   ) => {
     if (!isValidNumber(formulaNumber)) {
-      throw Error(
-        `Invalid formula number for pet store ${q(formulaNumber)}`,
-      );
+      throw Error(`Invalid formula number for pet store ${q(formulaNumber)}`);
     }
     const prefix = formulaNumber.slice(0, 2);
     const suffix = formulaNumber.slice(2);
