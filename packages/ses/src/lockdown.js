@@ -56,6 +56,7 @@ import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
+import { shimArrayBufferTransfer } from './shim-arraybuffer-transfer.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -284,6 +285,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameMathObject(mathTaming));
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
+  addIntrinsics(shimArrayBufferTransfer());
 
   addIntrinsics(getAnonymousIntrinsics());
 
