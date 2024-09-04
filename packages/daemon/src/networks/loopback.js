@@ -13,7 +13,7 @@ export const makeLoopbackNetwork = gateway => {
       supports: address => new URL(address).protocol === 'loop:',
       connect: address => {
         if (address !== 'loop:') {
-          throw new Error(
+          throw Error(
             'Failed invariant: loopback only supports "loop:" address',
           );
         }

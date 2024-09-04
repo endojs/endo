@@ -23,7 +23,7 @@ export const makePetSitter = (petStore, specialNames) => {
       return specialNames[petName];
     }
     if (!isPetName(petName)) {
-      throw new Error(
+      throw Error(
         `Invalid pet name ${q(petName)} and not one of ${Object.keys(
           specialNames,
         ).join(', ')}`,
@@ -39,7 +39,7 @@ export const makePetSitter = (petStore, specialNames) => {
   const idRecordForName = petName => {
     const id = identifyLocal(petName);
     if (id === undefined) {
-      throw new Error(`Formula does not exist for pet name ${q(petName)}`);
+      throw Error(`Formula does not exist for pet name ${q(petName)}`);
     }
     return parseId(id);
   };

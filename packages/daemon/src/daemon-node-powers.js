@@ -386,7 +386,7 @@ export const makeDaemonicPersistencePowers = (
   const makeFormulaPath = formulaNumber => {
     const { statePath } = config;
     if (formulaNumber.length < 3) {
-      throw new TypeError(`Invalid formula number ${q(formulaNumber)}`);
+      throw TypeError(`Invalid formula number ${q(formulaNumber)}`);
     }
     const head = formulaNumber.slice(0, 2);
     const tail = formulaNumber.slice(2);
@@ -403,13 +403,13 @@ export const makeDaemonicPersistencePowers = (
     const { file: formulaPath } = makeFormulaPath(formulaNumber);
     const formulaText = await filePowers.maybeReadFileText(formulaPath);
     if (formulaText === undefined) {
-      throw new ReferenceError(`No reference exists at path ${formulaPath}`);
+      throw ReferenceError(`No reference exists at path ${formulaPath}`);
     }
     const formula = (() => {
       try {
         return JSON.parse(formulaText);
       } catch (error) {
-        throw new TypeError(
+        throw TypeError(
           `Corrupt description for reference in file ${formulaPath}: ${error.message}`,
         );
       }

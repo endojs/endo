@@ -34,7 +34,7 @@ export const makeDirectoryMaker = ({
 
       const id = petStore.identifyLocal(headName);
       if (id === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(headName)}`);
+        throw TypeError(`Unknown pet name: ${q(headName)}`);
       }
       const value = provide(id, 'hub');
       return tailNames.reduce(
@@ -59,7 +59,7 @@ export const makeDirectoryMaker = ({
      */
     const lookupTailNameHub = async petNamePath => {
       if (petNamePath.length === 0) {
-        throw new TypeError(`Empty pet name path`);
+        throw TypeError(`Empty pet name path`);
       }
       const headPath = petNamePath.slice(0, -1);
       const tailName = petNamePath[petNamePath.length - 1];
@@ -193,7 +193,7 @@ export const makeDirectoryMaker = ({
 
       const id = await E(fromHub).identify(fromName);
       if (id === undefined) {
-        throw new Error(`Unknown name: ${q(fromPath)}`);
+        throw Error(`Unknown name: ${q(fromPath)}`);
       }
       // First write to the "to" hub so that the original name is preserved on the
       // "from" hub in case of failure.
@@ -208,7 +208,7 @@ export const makeDirectoryMaker = ({
       const { hub: toHub, name: toName } = await lookupTailNameHub(toPath);
       const id = await fromHub.identify(fromName);
       if (id === undefined) {
-        throw new Error(`Unknown name: ${q(fromPath)}`);
+        throw Error(`Unknown name: ${q(fromPath)}`);
       }
       await toHub.write([toName], id);
     };

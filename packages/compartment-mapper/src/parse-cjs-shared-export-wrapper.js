@@ -158,7 +158,7 @@ export const wrap = ({
         namespace = compartment.importNow(importSpecifier);
       } else {
         const invalidProps = findInvalidReadNowPowersProps(readPowers).sort();
-        throw new Error(
+        throw Error(
           `Synchronous readPowers required for dynamic import of ${assert.quote(importSpecifier)}; missing or invalid prop(s): ${invalidProps.join(', ')}`,
         );
       }

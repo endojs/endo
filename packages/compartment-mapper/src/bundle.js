@@ -358,7 +358,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
         }
         const module = modulesByKey[key];
         if (module === undefined) {
-          throw new Error(
+          throw Error(
             `Unable to locate module for key ${q(key)} import specifier ${q(
               importSpecifier,
             )} in ${q(module.moduleSpecifier)} of compartment ${q(

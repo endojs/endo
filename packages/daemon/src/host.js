@@ -195,7 +195,7 @@ export const makeHostMaker = ({
         assertPetNamePath(resultName);
       }
       if (petNamePaths.length !== codeNames.length) {
-        throw new Error('Evaluator requires one pet name for each code name');
+        throw Error('Evaluator requires one pet name for each code name');
       }
 
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
@@ -207,14 +207,14 @@ export const makeHostMaker = ({
       const endowmentFormulaIdsOrPaths = petNamePaths.map(
         (petNameOrPath, index) => {
           if (typeof codeNames[index] !== 'string') {
-            throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
+            throw Error(`Invalid endowment name: ${q(codeNames[index])}`);
           }
 
           const petNamePath = petNamePathFrom(petNameOrPath);
           if (petNamePath.length === 1) {
             const id = petStore.identifyLocal(petNamePath[0]);
             if (id === undefined) {
-              throw new Error(`Unknown pet name ${q(petNamePath[0])}`);
+              throw Error(`Unknown pet name ${q(petNamePath[0])}`);
             }
             return id;
           }
@@ -310,7 +310,7 @@ export const makeHostMaker = ({
     ) => {
       const bundleId = petStore.identifyLocal(bundleName);
       if (bundleId === undefined) {
-        throw new TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
+        throw TypeError(`Unknown pet name for bundle: ${q(bundleName)}`);
       }
 
       const { tasks, workerId, powersId } = prepareMakeCaplet(
@@ -538,10 +538,10 @@ export const makeHostMaker = ({
     };
 
     /** @type {EndoHost['cancel']} */
-    const cancel = async (petName, reason = new Error('Cancelled')) => {
+    const cancel = async (petName, reason = Error('Cancelled')) => {
       const id = petStore.identifyLocal(petName);
       if (id === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+        throw TypeError(`Unknown pet name: ${q(petName)}`);
       }
       return cancelValue(id, reason);
     };

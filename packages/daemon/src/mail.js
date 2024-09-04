@@ -125,15 +125,15 @@ export const makeMailboxMaker = ({ provide }) => {
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
       ) {
-        throw new Error(`Invalid request number ${q(messageNumber)}`);
+        throw Error(`Invalid request number ${q(messageNumber)}`);
       }
       const message = messages.get(messageNumber);
       if (message === undefined) {
-        throw new Error(`Invalid request, ${q(messageNumber)}`);
+        throw Error(`Invalid request, ${q(messageNumber)}`);
       }
       const id = petStore.identifyLocal(resolutionName);
       if (id === undefined) {
-        throw new TypeError(
+        throw TypeError(
           `No formula exists for the pet name ${q(resolutionName)}`,
         );
       }
@@ -152,7 +152,7 @@ export const makeMailboxMaker = ({ provide }) => {
         const req = /** @type {Request} */ (message);
         const { responder } = E.get(req);
         E.sendOnly(responder).respondId(
-          harden(Promise.reject(harden(new Error(reason)))),
+          harden(Promise.reject(harden(Error(reason)))),
         );
       }
     };
@@ -161,21 +161,21 @@ export const makeMailboxMaker = ({ provide }) => {
     const send = async (toName, strings, edgeNames, petNames) => {
       const toId = petStore.identifyLocal(toName);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toName}`);
+        throw Error(`Unknown recipient ${toName}`);
       }
       const to = /** @type {Handle} */ (await provide(toId));
 
       petNames.forEach(assertPetName);
       edgeNames.forEach(assertPetName);
       if (petNames.length !== edgeNames.length) {
-        throw new Error(
+        throw Error(
           `Message must have one edge name (${q(
             edgeNames.length,
           )}) for every pet name (${q(petNames.length)})`,
         );
       }
       if (strings.length < petNames.length) {
-        throw new Error(
+        throw Error(
           `Message must have one string before every value delivered`,
         );
       }
@@ -183,7 +183,7 @@ export const makeMailboxMaker = ({ provide }) => {
       const ids = petNames.map(petName => {
         const id = petStore.identifyLocal(petName);
         if (id === undefined) {
-          throw new Error(`Unknown pet name ${q(petName)}`);
+          throw Error(`Unknown pet name ${q(petName)}`);
         }
         return id;
       });
@@ -207,11 +207,11 @@ export const makeMailboxMaker = ({ provide }) => {
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
       ) {
-        throw new Error(`Invalid request number ${messageNumber}`);
+        throw Error(`Invalid request number ${messageNumber}`);
       }
       const message = messages.get(messageNumber);
       if (message === undefined) {
-        throw new Error(`Invalid request number ${messageNumber}`);
+        throw Error(`Invalid request number ${messageNumber}`);
       }
       const { dismisser } = E.get(message);
       return E(dismisser).dismiss();
@@ -225,24 +225,24 @@ export const makeMailboxMaker = ({ provide }) => {
         typeof messageNumber !== 'number' ||
         messageNumber >= Number.MAX_SAFE_INTEGER
       ) {
-        throw new Error(`Invalid message number ${q(messageNumber)}`);
+        throw Error(`Invalid message number ${q(messageNumber)}`);
       }
       const message = messages.get(messageNumber);
       if (message === undefined) {
-        throw new Error(`No such message with number ${q(messageNumber)}`);
+        throw Error(`No such message with number ${q(messageNumber)}`);
       }
       if (message.type !== 'package') {
-        throw new Error(`Message must be a package ${q(messageNumber)}`);
+        throw Error(`Message must be a package ${q(messageNumber)}`);
       }
       const index = message.names.lastIndexOf(edgeName);
       if (index === -1) {
-        throw new Error(
+        throw Error(
           `No reference named ${q(edgeName)} in message ${q(messageNumber)}`,
         );
       }
       const id = message.ids[index];
       if (id === undefined) {
-        throw new Error(
+        throw Error(
           `panic: message must contain a formula for every name, including the name ${q(
             edgeName,
           )} at ${q(index)}`,
@@ -264,7 +264,7 @@ export const makeMailboxMaker = ({ provide }) => {
 
       const toId = petStore.identifyLocal(toName);
       if (toId === undefined) {
-        throw new Error(`Unknown recipient ${toName}`);
+        throw Error(`Unknown recipient ${toName}`);
       }
       const to = /** @type {Handle} */ (await provide(toId));
 
@@ -293,7 +293,7 @@ export const makeMailboxMaker = ({ provide }) => {
     const open = envelope => {
       const message = outbox.get(envelope);
       if (message === undefined) {
-        throw new Error('Mail fraud: unrecognized parcel');
+        throw Error('Mail fraud: unrecognized parcel');
       }
       return message;
     };
@@ -308,7 +308,7 @@ export const makeMailboxMaker = ({ provide }) => {
       const sender = /** @type {Promise<Handle>} */ (provide(allegedFromId));
       const message = await E(sender).open(envelope);
       if (allegedFromId !== message.from) {
-        throw new Error('Mail fraud: alleged sender does not recognize parcel');
+        throw Error('Mail fraud: alleged sender does not recognize parcel');
       }
       deliver(message);
     };

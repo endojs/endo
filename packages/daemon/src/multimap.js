@@ -73,7 +73,7 @@ export const makeBidirectionalMultimap = () => {
       const existingKey = valueForKey.get(value);
 
       if (hasExistingMapping && existingKey !== key) {
-        throw new Error(
+        throw Error(
           `May not remap key ${q(existingKey)} of existing value to new key ${q(
             key,
           )}. Delete the original mapping first.`,

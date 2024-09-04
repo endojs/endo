@@ -101,7 +101,7 @@ test('import now hook returns parent compartment module source reference with di
             imports: [],
             exports: ['meaning'],
             execute() {
-              throw new Error('should not execute');
+              throw Error('should not execute');
             },
           },
         };
@@ -457,7 +457,7 @@ test('module map hook precedes import now hook', t => {
       return undefined;
     },
     importNowHook() {
-      throw new Error('not reached');
+      throw Error('not reached');
     },
     __options__: true,
   });

@@ -34,7 +34,7 @@ export const assertValidId = (id, petName) => {
     if (petName !== undefined) {
       message += ` for pet name ${q(petName)}`;
     }
-    throw new Error(message);
+    throw Error(message);
   }
 };
 

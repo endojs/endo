@@ -105,7 +105,7 @@ export const make = async (_powers, context) => {
 
     const connect = (connection, request) => {
       if (request.url !== `/${accessToken}/`) {
-        connection.writer.throw(new Error(`Invalid access token.`));
+        connection.writer.throw(Error(`Invalid access token.`));
         return;
       }
 

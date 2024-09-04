@@ -27,7 +27,7 @@ const removePath = async removalPath => {
     .rm(removalPath, { recursive: true, force: true })
     .catch(cause => {
       /** @type {object} */
-      const error = new Error(cause.message, { cause });
+      const error = Error(cause.message, { cause });
       error.code = cause.code;
       throw error;
     });
@@ -129,7 +129,7 @@ export const start = async (config = defaultConfig) => {
           'message' in message &&
           typeof message.message === 'string'
         ) {
-          reject(new Error(message.message));
+          reject(Error(message.message));
         }
       }
     });

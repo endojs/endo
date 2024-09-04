@@ -477,7 +477,7 @@ export function scaffold(
       // in a way that is difficult to generalize since not all test paths
       // reach here.
       if (sourceMaps.size !== 0) {
-        throw new Error(
+        throw Error(
           'The bundler and importer should agree on source map count',
         );
       }

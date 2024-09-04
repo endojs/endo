@@ -21,7 +21,7 @@ const powers = makePowers({ fs, url });
 const { promise: cancelled, reject: cancel } =
   /** @type {PromiseKit<never>} */ (makePromiseKit());
 
-process.once('SIGINT', () => cancel(new Error('SIGINT')));
+process.once('SIGINT', () => cancel(Error('SIGINT')));
 
 // @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;

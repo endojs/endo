@@ -164,7 +164,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       assertValidName(petName);
       const formulaIdentifier = idsToPetNames.getKey(petName);
       if (formulaIdentifier === undefined) {
-        throw new Error(
+        throw Error(
           `Formula does not exist for pet name ${JSON.stringify(petName)}`,
         );
       }
@@ -188,7 +188,7 @@ export const makePetStoreMaker = (filePowers, config) => {
       const formulaIdentifier = idsToPetNames.getKey(fromName);
       const overwrittenId = idsToPetNames.getKey(toName);
       if (formulaIdentifier === undefined) {
-        throw new Error(
+        throw Error(
           `Formula does not exist for pet name ${JSON.stringify(fromName)}`,
         );
       }
@@ -248,7 +248,7 @@ export const makePetStoreMaker = (filePowers, config) => {
     assertValidName,
   ) => {
     if (!isValidNumber(formulaNumber)) {
-      throw new Error(
+      throw Error(
         `Invalid formula number for pet store ${q(formulaNumber)}`,
       );
     }

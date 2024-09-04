@@ -27,7 +27,7 @@ import {
 /** @import { Config, Builtins } from './types.js' */
 
 if (process.argv.length < 5) {
-  throw new Error(
+  throw Error(
     `daemon.js requires arguments [sockPath] [statePath] [ephemeralStatePath] [cachePath], got ${process.argv.join(
       ', ',
     )}`,
@@ -144,11 +144,11 @@ const main = async () => {
 
   // Wait for services to end normally
   await servicesStopped;
-  cancel(new Error('Terminated normally'));
-  cancelGracePeriod(new Error('Terminated normally'));
+  cancel(Error('Terminated normally'));
+  cancelGracePeriod(Error('Terminated normally'));
 };
 
-process.once('SIGINT', () => cancel(new Error('SIGINT')));
+process.once('SIGINT', () => cancel(Error('SIGINT')));
 
 // @ts-ignore Yes, we can assign to exitCode, typedoc.
 process.exitCode = 1;

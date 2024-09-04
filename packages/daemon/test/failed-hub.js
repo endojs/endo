@@ -7,7 +7,7 @@ export const make = () => {
     M.interface('FailedHub', {}, { defaultGuards: 'passable' }),
     {
       write() {
-        throw new Error('I had one job.');
+        throw Error('I had one job.');
       },
     },
   );

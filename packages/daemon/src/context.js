@@ -28,7 +28,7 @@ export const makeContextMaker = ({ controllerForId, provideController }) => {
     const cancel = (reason, prefix = '*') => {
       if (done) return disposed;
       done = true;
-      rejectCancelled(reason || harden(new Error('Cancelled')));
+      rejectCancelled(reason || harden(Error('Cancelled')));
 
       console.log(`${prefix} ${id}`);
 

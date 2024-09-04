@@ -8,7 +8,7 @@ test('lockdown Iterator.prototype[@@iterator] is tamed', t => {
     Object.getPrototypeOf([].values()),
   );
   const desc = Object.getOwnPropertyDescriptor(IteratorProto, Symbol.iterator);
-  if (!desc || !desc.get || !desc.set) throw new Error('unreachable');
+  if (!desc || !desc.get || !desc.set) throw Error('unreachable');
   t.is(desc.configurable || desc.enumerable, false);
   t.is(desc.value, undefined);
 
