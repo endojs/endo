@@ -515,7 +515,7 @@ constructors in the compartment.
 ```js
 const c = new Compartment()
 c.globalThis.eval = c.globalThis.Function = function() {
-  throw new TypeError();
+  throw TypeError();
 };
 ```
 

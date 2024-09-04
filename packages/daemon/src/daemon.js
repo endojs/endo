@@ -286,7 +286,7 @@ const makeDaemonCore = async (
     provide: async requestedId => {
       const { node } = parseId(requestedId);
       if (node !== localNodeId) {
-        throw new Error(
+        throw Error(
           `Gateway can only provide local values. Got request for node ${q(
             node,
           )}`,
@@ -349,7 +349,7 @@ const makeDaemonCore = async (
     const gracefulCancel = async () => {
       E.sendOnly(workerDaemonFacet).terminate();
       const cancelWorkerGracePeriod = () => {
-        throw new Error('Exited gracefully before grace period elapsed');
+        throw Error('Exited gracefully before grace period elapsed');
       };
       const workerGracePeriodCancelled = Promise.race([
         gracePeriodElapsed,
@@ -357,7 +357,7 @@ const makeDaemonCore = async (
       ]).then(cancelWorkerGracePeriod, cancelWorkerGracePeriod);
       await delay(gracePeriodMs, workerGracePeriodCancelled)
         .then(() => {
-          throw new Error(
+          throw Error(
             `Worker termination grace period ${gracePeriodMs}ms elapsed`,
           );
         })
@@ -599,7 +599,7 @@ const makeDaemonCore = async (
       const endoBootstrap = makeExo('Endo', EndoInterface, {
         ping: async () => 'pong',
         terminate: async () => {
-          cancel(new Error('Termination requested'));
+          cancel(Error('Termination requested'));
         },
         host: () => provide(hostId, 'host'),
         leastAuthority: () => provide(leastAuthorityId, 'guest'),
@@ -631,7 +631,7 @@ const makeDaemonCore = async (
       makeLoopbackNetwork(Promise.resolve(localGateway)),
     'least-authority': () => {
       const disallowedFn = async () => {
-        throw new Error('not allowed');
+        throw Error('not allowed');
       };
       return /** @type {FarRef<EndoGuest>} */ (
         /** @type {unknown} */ (
@@ -722,7 +722,7 @@ const makeDaemonCore = async (
       }
       return value;
     } else {
-      throw new TypeError(`Invalid formula: ${q(formula)}`);
+      throw TypeError(`Invalid formula: ${q(formula)}`);
     }
   };
 
@@ -818,12 +818,12 @@ const makeDaemonCore = async (
    */
   const getPeerIdForNodeIdentifier = async nodeId => {
     if (nodeId === localNodeId) {
-      throw new Error(`Cannot get peer formula identifier for self`);
+      throw Error(`Cannot get peer formula identifier for self`);
     }
     const knownPeers = await provide(knownPeersId, 'pet-store');
     const peerId = knownPeers.identifyLocal(nodeId);
     if (peerId === undefined) {
-      throw new Error(`No peer found for node identifier ${q(nodeId)}.`);
+      throw Error(`No peer found for node identifier ${q(nodeId)}.`);
     }
     return peerId;
   };
@@ -1541,7 +1541,7 @@ const makeDaemonCore = async (
             }
           }
         }
-        throw new Error('Cannot connect to peer: no supported addresses');
+        throw Error('Cannot connect to peer: no supported addresses');
       },
       context.cancel,
       context.cancelled,
@@ -1602,7 +1602,7 @@ const makeDaemonCore = async (
       await formulaGraphJobs.enqueue();
       const controller = provideController(id);
       console.log('Cancelled:');
-      await controller.context.cancel(new Error('Invitation accepted'));
+      await controller.context.cancel(Error('Invitation accepted'));
 
       await E(hostAgent).write([guestName], guestHandleId);
 
@@ -1679,7 +1679,7 @@ const makeDaemonCore = async (
       }
       const id = petStore.identifyLocal(petName);
       if (id === undefined) {
-        throw new Error(`Unknown pet name ${petName}`);
+        throw Error(`Unknown pet name ${petName}`);
       }
       const { number: formulaNumber } = parseId(id);
       const formula = await getFormulaForId(id);

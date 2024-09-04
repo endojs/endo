@@ -824,7 +824,7 @@ const render = value => {
       return $value;
     }
     default: {
-      throw new Error(
+      throw Error(
         'Unreachable if programmed to account for all pass-styles',
       );
     }
@@ -908,7 +908,7 @@ const evalComponent = ($parent, powers, { dismissEval, showValue }) => {
     const id = target.getAttribute('id');
     const $endowment = $endowments.get(id);
     if ($endowment === undefined) {
-      throw new Error(`Endowment does not exist for id ${id}`);
+      throw Error(`Endowment does not exist for id ${id}`);
     }
     $endowments.delete(id);
     $endowment.remove();

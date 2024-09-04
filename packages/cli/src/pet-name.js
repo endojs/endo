@@ -13,7 +13,7 @@ export const parsePetNamePath = petNamePath => {
   const petNames = petNamePath.split('.');
   for (const petName of petNames) {
     if (petName === '') {
-      throw new Error(
+      throw Error(
         `Pet name path ${q(petNamePath)} contains an empty segment.`,
       );
     }

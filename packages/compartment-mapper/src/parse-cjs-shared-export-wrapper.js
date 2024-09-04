@@ -143,7 +143,7 @@ export const wrap = ({
 
   const require = (/** @type {string} */ importSpecifier) => {
     if (!has(resolvedImports, importSpecifier)) {
-      throw new Error(
+      throw Error(
         `Cannot find module "${importSpecifier}" in "${location}"`,
       );
     }

@@ -25,13 +25,13 @@ import { SourceMapConsumer } from 'source-map-js';
  */
 export function makeLocationUnmapper(sourceMap, ast) {
   if (!sourceMap) {
-    throw new TypeError('Invalid arguments; expected sourceMap');
+    throw TypeError('Invalid arguments; expected sourceMap');
   }
   if (!ast || typeof ast !== 'object') {
-    throw new TypeError('Invalid arguments; expected AST ast');
+    throw TypeError('Invalid arguments; expected AST ast');
   }
   if (!ast.loc) {
-    throw new TypeError('No SourceLocation found in AST');
+    throw TypeError('No SourceLocation found in AST');
   }
   try {
     // We rearrange the rolled-up chunk according to its sourcemap to move
@@ -73,7 +73,7 @@ export function makeLocationUnmapper(sourceMap, ast) {
     // A source map string should be valid JSON, and if `JSON.parse()` fails, a
     // SyntaxError is thrown
     if (err instanceof SyntaxError) {
-      throw new TypeError(`Invalid source map: ${err}`);
+      throw TypeError(`Invalid source map: ${err}`);
     }
     throw err;
   }
