@@ -824,9 +824,7 @@ const render = value => {
       return $value;
     }
     default: {
-      throw Error(
-        'Unreachable if programmed to account for all pass-styles',
-      );
+      throw Error('Unreachable if programmed to account for all pass-styles');
     }
   }
 };

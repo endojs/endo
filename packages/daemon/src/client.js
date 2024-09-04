@@ -18,9 +18,7 @@ export const makeEndoClient = async (name, sockPath, cancelled, bootstrap) => {
     conn.on('error', (/** @type {any} */ error) => {
       if (error.code === 'ENOENT') {
         reject(
-          Error(
-            `Cannot connect to Endo. Is Endo running? ${error.message}`,
-          ),
+          Error(`Cannot connect to Endo. Is Endo running? ${error.message}`),
         );
       } else {
         reject(error);
