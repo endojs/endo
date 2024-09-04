@@ -32,7 +32,7 @@
     "test:xs": "exit 0",
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
+    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:eslint": "eslint .",

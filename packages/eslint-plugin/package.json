@@ -14,7 +14,8 @@
     "test:xs": "exit 0",
     "build": "exit 0",
     "lint-fix": "exit 0",
-    "lint-check": "exit 0"
+    "lint-check": "exit 0",
+    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
     "requireindex": "~1.1.0",

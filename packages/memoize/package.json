@@ -30,7 +30,7 @@
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
+    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'",
     "test": "ava"
   },
   "dependencies": {
