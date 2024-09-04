@@ -188,6 +188,8 @@ export const arrayBufferGetByteLength = uncurryThis(
   getOwnPropertyDescriptor(arrayBufferPrototype, 'byteLength').get,
 );
 //
+export const typedArraySet = uncurryThis(typedArrayPrototype.set);
+//
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);
 export const mapHas = uncurryThis(mapPrototype.has);

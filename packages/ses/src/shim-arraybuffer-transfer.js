@@ -4,6 +4,7 @@ import {
   arrayBufferSlice,
   arrayBufferGetByteLength,
   Uint8Array,
+  typedArraySet,
   globalThis,
   TypeError,
   defineProperty,
@@ -45,19 +46,10 @@ export const shimArrayBufferTransfer = () => {
         throw new TypeError(`transfer newLength if provided must be a number`);
       }
       if (newLength > oldLength) {
-        // TODO Is there any way to do this bulk move or copy other than by
-        // manually iterating over each position?
         const result = new ArrayBuffer(newLength);
-        // TODO Should this use DavaViews rather than TypedArrays?
         const taOld = new Uint8Array(this);
         const taNew = new Uint8Array(result);
-        let i = 0;
-        for (; i < oldLength; i += 1) {
-          taNew[i] = taOld[i];
-        }
-        for (; i < newLength; i += 1) {
-          taNew[i] = 0;
-        }
+        typedArraySet(taNew, taOld);
         // Using clone only to detach, and only after the copy succeeds
         clone(this, { transfer: [this] });
         return result;

@@ -7,13 +7,9 @@ lockdown();
 // correctly enough on platforms like Node 18 or Node 20 that don't yet have
 // it natively, and so are testing the shim on those. On platforms where
 // Array.prototype.transfer is present, like Node 22,
-// we also run the same tests.Thus,
+// we also run the same tests. Thus,
 // this test only tests the intersection behavior of the standard and
-// the shim. The shim does not yet support a `newLength` argument
-// larger than the original.
-//
-// TODO once the shim supports transfering to a larger length, we must
-// test that as well.
+// the shim.
 
 test('ArrayBuffer.p.transfer', t => {
   const abX = new ArrayBuffer(3);
