@@ -1,8 +1,8 @@
 import Benchmark from 'benchmark';
 import fs from 'fs';
 import url from 'url';
-import { makeTransformSource } from '../src/transformSource.js';
-import makeModulePlugins from '../src/babelPlugin.js';
+import { makeTransformSource } from '../src/transform-source.js';
+import makeModulePlugins from '../src/babel-plugin.js';
 
 const suite = new Benchmark.Suite();
 
