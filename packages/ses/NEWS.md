@@ -1,5 +1,18 @@
 User-visible changes in `ses`:
 
+# Next release
+
+- On platforms without
+  [`Array.prototype.transfer`](https://github.com/tc39/proposal-resizablearraybuffer)
+  but with a global `structuredClone`, the ses-shim's `lockdown` will now
+  install an emulation of `Array.prototype.transfer`. On platforms with neither,
+  the ses-shim will *currently* not install such an emulation.
+  However, once we verify that endo is not intended to support platforms
+  without both, we may change `lockdown` to throw, failing to lock down.
+  - XS and Node >= 22 already have `Array.prototype.transfer`.
+  - Node 18, Node 20, and all browsers have `structuredClone`
+  - Node <= 16 have neither, but are also no longer supported by Endo.
+
 # v1.8.0 (2024-08-27)
 
 - New `legacyRegeneratorRuntimeTaming: 'unsafe-ignore'` lockdown option to tame
