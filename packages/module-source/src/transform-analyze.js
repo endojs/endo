@@ -1,6 +1,6 @@
 // @ts-nocheck XXX Babel types
-import { makeTransformSource } from './transformSource.js';
-import makeModulePlugins from './babelPlugin.js';
+import { makeTransformSource } from './transform-source.js';
+import makeModulePlugins from './babel-plugin.js';
 
 import * as h from './hidden.js';
 
