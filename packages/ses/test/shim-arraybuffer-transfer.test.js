@@ -1,3 +1,4 @@
+/* global globalThis */
 import test from 'ava';
 import '../index.js';
 
@@ -24,6 +25,15 @@ test('ArrayBuffer.p.transfer', t => {
   t.is(taX[1], 11);
   t.is(taX[2], 12);
   t.is(taX[3], undefined);
+
+  if (!('transfer' in ArrayBuffer.prototype)) {
+    t.false('structuredClone' in globalThis);
+    // Currently, shim-arraybuffer-transfer.shim, when run on a platform
+    // with neither `Array.prototype.transfer` nor `structuredClone` does
+    // not shim `Array.prototype.transfer`. Thus, we currently do not
+    // consider this absence to be a non-conformance to the endo ses-shim.
+    return;
+  }
 
   // because this test must run on platforms prior to
   // ArrayBuffer.prototype.detached, we test detachment by other means.

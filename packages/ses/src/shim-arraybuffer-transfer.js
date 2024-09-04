@@ -22,10 +22,21 @@ export const shimArrayBufferTransfer = () => {
   }
   const clone = globalThis.structuredClone;
   if (typeof clone !== 'function') {
-    // Indeed, Node <= 16 has neither.
-    throw TypeError(
-      `Can only shim missing ArrayBuffer.prototype.transfer on a platform with "structuredClone"`,
-    );
+    // On a platform with neither `Array.prototype.transfer`
+    // nor `structuredClone`, this shim does nothing.
+    // For example, Node <= 16 has neither.
+    //
+    // Empty object because this shim has nothing for `addIntrinsics` to add.
+    return {};
+    // TODO Rather than doing nothing, should the endo ses-shim throw
+    // in this case?
+    // throw TypeError(
+    //   `Can only shim missing ArrayBuffer.prototype.transfer on a platform with "structuredClone"`,
+    // );
+    // For example, endo no longer supports Node <= 16. All browsers have
+    // `structuredClone`. XS has `Array.prototype.transfer`. Are there still
+    // any platforms without both that Endo should still support?
+    // What about Hermes?
   }
 
   /**
@@ -43,7 +54,7 @@ export const shimArrayBufferTransfer = () => {
         return clone(this, { transfer: [this] });
       }
       if (typeof newLength !== 'number') {
-        throw new TypeError(`transfer newLength if provided must be a number`);
+        throw TypeError(`transfer newLength if provided must be a number`);
       }
       if (newLength > oldLength) {
         const result = new ArrayBuffer(newLength);
