@@ -1,4 +1,4 @@
-({   imports: $h͏_imports,   liveVar: $h͏_live,   onceVar: $h͏_once,   importMeta: $h͏____meta, }) => (function () { 'use strict';   $h͏_imports([]);Object.defineProperty(createBinop, 'name', {value: "createBinop"});$h͏_once.createBinop(createBinop);   // deliberately offset
+({imports:$h͏_imports,liveVar:$h͏_live,onceVar:$h͏_once,import:$h͏_import,importMeta:$h͏____meta})=>(function(){'use strict';$h͏_imports([]);Object.defineProperty(createBinop,'name',{value:"createBinop"});$h͏_once.createBinop(createBinop);// deliberately offset
 function TokenType() {}
 const beforeExpr = 0;
 
