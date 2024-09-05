@@ -18,7 +18,8 @@
     "test:xs": "exit 0",
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint '**/*.js'"
+    "lint": "eslint '**/*.js'",
+    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
     "ses": "workspace:^"

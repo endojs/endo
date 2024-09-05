@@ -72,7 +72,8 @@
     "lint:types": "tsc",
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
-    "test": "tsd && ava"
+    "test": "tsd && ava",
+    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^"
