@@ -58,13 +58,15 @@
     "typescript": "~5.6.1-rc"
   },
   "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
     "LICENSE*",
     "SECURITY*",
-    "NEWS*",
+    "dist",
+    "lib",
     "src",
-    "*.js",
-    "*.ts",
-    "*.map"
+    "tools"
   ],
   "eslintConfig": {
     "extends": [

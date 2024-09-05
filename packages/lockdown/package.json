@@ -24,11 +24,15 @@
     "ses": "workspace:^"
   },
   "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
     "LICENSE*",
     "SECURITY*",
+    "dist",
+    "lib",
     "src",
-    "*.js",
-    "*.ts"
+    "tools"
   ],
   "repository": {
     "type": "git",

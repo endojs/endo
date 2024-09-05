@@ -44,10 +44,15 @@
     "typescript": "~5.6.1-rc"
   },
   "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
     "LICENSE*",
     "SECURITY*",
-    "*.js",
-    "*.ts"
+    "dist",
+    "lib",
+    "src",
+    "tools"
   ],
   "publishConfig": {
     "access": "public"

@@ -54,11 +54,13 @@
     "typescript": "~5.6.1-rc"
   },
   "files": [
-    "*.js",
-    "*.ts",
-    "NEWS*",
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
     "LICENSE*",
     "SECURITY*",
+    "dist",
+    "lib",
     "src",
     "tools"
   ],

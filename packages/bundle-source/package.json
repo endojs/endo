@@ -48,12 +48,15 @@
   },
   "keywords": [],
   "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
     "LICENSE*",
     "SECURITY*",
-    "rollup-*.tgz",
+    "dist",
+    "lib",
     "src",
-    "*.js",
-    "*.ts"
+    "tools"
   ],
   "repository": {
     "type": "git",

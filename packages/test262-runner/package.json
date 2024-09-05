@@ -49,5 +49,16 @@
     "extends": [
       "plugin:@endo/internal"
     ]
-  }
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ]
 }
