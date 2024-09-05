@@ -29,6 +29,7 @@
     },
     "./ref-reader.js": "./ref-reader.js",
     "./reader-ref.js": "./reader-ref.js",
+    "./pubsub.js": "./pubsub.js",
     "./package.json": "./package.json"
   },
   "scripts": {
