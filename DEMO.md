@@ -4,9 +4,8 @@
 on both machines setup network device
 and perform invites
 ```bash
-endo eval '`127.0.0.1:0`' -n tcp-netstring-json-captp0-host-port
-endo make --powers AGENT -n tcp --UNCONFINED ./packages/daemon/src/networks/tcp-netstring.js
-endo eval 'E(self).move([`tcp`],[`NETS`,`tcp`])' self:AGENT
+endo store --text 127.0.0.1:0 --name tcp-netstring-json-captp0-host-port
+endo make --powers AGENT --name NETS.tcp --UNCONFINED ./packages/daemon/src/networks/tcp-netstring.js
 # endo invite bob
 # echo '(invitation)' | endo accept alice 
 ```
