@@ -72,7 +72,7 @@ const makeCreateStaticRecord = transformSource =>
       .map(
         src =>
           `[${js(src)}, [${Object.entries(isrc[src])
-            .map(([exp, upds]) => `[${js(exp)}, [${upds.join(',')}]]`)
+            .map(([exp, upds]) => `[${js(exp)},[${upds.join(',')}]]`)
             .join(',')}]]`,
       )
       .join(',')}]);`;
@@ -81,9 +81,7 @@ const makeCreateStaticRecord = transformSource =>
         let src = '';
         if (cvname) {
           // It's a function assigned to, so set its name property.
-          src = `Object.defineProperty(${cvname}, 'name', {value: ${js(
-            vname,
-          )}});`;
+          src = `Object.defineProperty(${cvname},'name',{value:${js(vname)}});`;
         }
         const hDeclId = isOnce ? h.HIDDEN_ONCE : h.HIDDEN_LIVE;
         src += `${hDeclId}.${vname}(${cvname || ''});`;
@@ -100,15 +98,9 @@ const makeCreateStaticRecord = transformSource =>
     // well.
     // Relies on the evaluator to ensure these functions are strict.
     let functorSource = `\
-({ \
-  imports: ${h.HIDDEN_IMPORTS}, \
-  liveVar: ${h.HIDDEN_LIVE}, \
-  onceVar: ${h.HIDDEN_ONCE}, \
-  import: ${h.HIDDEN_IMPORT}, \
-  importMeta: ${h.HIDDEN_META}, \
-}) => (function () { 'use strict'; \
-  ${preamble} \
-  ${scriptSource}
+({imports:${h.HIDDEN_IMPORTS},liveVar:${h.HIDDEN_LIVE},onceVar:${h.HIDDEN_ONCE},import:${h.HIDDEN_IMPORT},importMeta:${h.HIDDEN_META}})=>(function(){'use strict';\
+${preamble}\
+${scriptSource}
 })()
 `;
 
