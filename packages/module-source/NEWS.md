@@ -1,5 +1,10 @@
 User-visible changes in `@endo/module-source`:
 
+# Next release
+
+- Adds `@endo/module-source/shim.js` to shim `globalThis.ModuleSource`.
+  The shim currently replaces the native `globalThis.ModuleSource` if present.
+
 # v1.0.0 (2024-07-30)
 
 - Renamed from `@endo/static-module-record` to `@endo/module-source` exporting

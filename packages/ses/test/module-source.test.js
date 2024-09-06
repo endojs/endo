@@ -1,6 +1,8 @@
+/// <reference types="ses">
+
 import test from 'ava';
 import '../index.js';
-import { ModuleSource } from '@endo/module-source';
+import '@endo/module-source/shim.js';
 
 lockdown();
 
@@ -41,4 +43,8 @@ test('module source constructor', t => {
     Object.isFrozen(msr.imports),
     'ModuleSource imports should be frozen',
   );
+});
+
+test('ModuleSource is a shared intrinsic', t => {
+  t.truthy(ModuleSource === new Compartment().globalThis.ModuleSource);
 });
