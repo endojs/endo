@@ -101,8 +101,12 @@ export const universalPropertyNames = {
 
   // ESNext
 
+  // https://github.com/tc39/proposal-source-phase-imports?tab=readme-ov-file#js-module-source
+  ModuleSource: 'ModuleSource',
+
   lockdown: 'lockdown',
   harden: 'harden',
+
   HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
 };
 
@@ -1503,6 +1507,25 @@ export const permitted = {
     getSendOnly: fn,
     prototype: '%PromisePrototype%',
     resolve: fn,
+  },
+
+  // https://github.com/tc39/proposal-source-phase-imports?tab=readme-ov-file#js-module-source
+  '%AbstractModuleSourcePrototype%': {
+    constructor: '%AbstractModuleSource%',
+    '@@toStringTag': getter,
+  },
+  '%AbstractModuleSource%': {
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%AbstractModuleSourcePrototype%',
+  },
+  '%ModuleSourcePrototype%': {
+    '[[Proto]]': '%AbstractModuleSourcePrototype%',
+    constructor: 'ModuleSource',
+    '@@toStringTag': getter,
+  },
+  ModuleSource: {
+    '[[Proto]]': '%AbstractModuleSource%',
+    prototype: '%ModuleSourcePrototype%',
   },
 
   Promise: {
