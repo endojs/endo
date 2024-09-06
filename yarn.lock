@@ -348,6 +348,7 @@ __metadata:
   dependencies:
     "@endo/cjs-module-analyzer": "workspace:^"
     "@endo/module-source": "workspace:^"
+    "@endo/trampoline": "workspace:^"
     "@endo/zip": "workspace:^"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"
@@ -892,7 +893,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/trampoline@workspace:packages/trampoline":
+"@endo/trampoline@workspace:^, @endo/trampoline@workspace:packages/trampoline":
   version: 0.0.0-use.local
   resolution: "@endo/trampoline@workspace:packages/trampoline"
   dependencies:
