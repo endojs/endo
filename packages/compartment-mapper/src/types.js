@@ -865,3 +865,70 @@ export {};
  * @property {Sources} captureSources
  * @property {Record<string, string>} compartmentRenames
  */
+
+/**
+ * Options object for `createStaticModuleType`.
+ *
+ * @typedef CreateStaticModuleTypeOptions
+ * @property {string[]} candidates List of `moduleSpecifier` with search
+ * suffixes appended
+ * @property {CompartmentDescriptor} compartmentDescriptor Compartment
+ * descriptor
+ * @property {Record<string, CompartmentDescriptor>} compartmentDescriptors All
+ * compartment descriptors
+ * @property {Record<string, Compartment>} compartments All compartments
+ * @property {HashFn} [computeSha512] Function to compute SHA-512 hash
+ * @property {Record<string, ModuleDescriptor>} moduleDescriptors All module
+ * descriptors
+ * @property {string} moduleSpecifier Module specifier
+ * @property {string} packageLocation Package location
+ * @property {CompartmentSources} packageSources Sources
+ * @property {ReadPowers|ReadFn} readPowers Powers
+ * @property {SourceMapHook} [sourceMapHook] Source map hook
+ * @property {(compartmentName: string) => Set<string>}
+ * strictlyRequiredForCompartment Function returning a set of module names
+ * (scoped to the compartment) whose parser is not using heuristics to determine
+ * imports.
+ */
+
+/**
+ * Operators for `createStaticModuleType` representing synchronous operation.
+ *
+ * @typedef SyncCreateStaticModuleTypeOperators
+ * @property {MaybeReadSyncFn} maybeRead A function that reads a file, returning
+ * its binary contents _or_ `undefined` if the file is not found
+ * @property {ParseFn} parse A function which parses the (defined) binary
+ * contents from `maybeRead` into a `ParseResult`
+ * @property {never} [shouldDeferError] Should be omitted.
+ */
+
+/**
+ * Operators for `createStaticModuleType` representing asynchronous operation.
+ *
+ * @typedef AsyncCreateStaticModuleTypeOperators
+ * @property {MaybeReadFn} maybeRead A function that reads a file, resolving w/
+ * its binary contents _or_ `undefined` if the file is not found
+ * @property {ParseFnAsync|ParseFn} parse A function which parses the (defined)
+ * binary contents from `maybeRead` into a `ParseResult`
+ * @property {(language: Language) => boolean} shouldDeferError A function that
+ * returns `true` if the language returned by `parse` should defer errors.
+ */
+
+/**
+ * Either synchronous or asynchronous operators for `createStaticModuleType`.
+ *
+ * @typedef {AsyncCreateStaticModuleTypeOperators|SyncCreateStaticModuleTypeOperators} CreateStaticModuleTypeOperators
+ */
+
+/**
+ * The agglomeration of things that the `createStaticModuleType` generator can
+ * yield.
+ *
+ * The generator does not necessarily yield _all_ of these; it depends on
+ * whether the operators are {@link AsyncCreateStaticModuleTypeOperators} or
+ * {@link SyncCreateStaticModuleTypeOperators}.
+ *
+ * @typedef {ReturnType<CreateStaticModuleTypeOperators['maybeRead']> |
+ * ReturnType<CreateStaticModuleTypeOperators['parse']>}
+ * CreateStaticModuleTypeYieldables
+ */
