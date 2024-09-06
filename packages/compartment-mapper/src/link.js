@@ -10,11 +10,9 @@
 
 /** @import {ImportNowHook} from 'ses' */
 /** @import {ModuleMapHook} from 'ses' */
-/** @import {ImportNowHookMaker} from './types.js' */
-/** @import {Language} from './types.js' */
+/** @import {ImportNowHookMaker, ModuleTransform, ParseFnAsync, SyncModuleTransform} from './types.js' */
 /** @import {LinkResult} from './types.js' */
 /** @import {ParseFn} from './types.js' */
-/** @import {ParseFnAsync} from './types.js' */
 /** @import {ParserForLanguage} from './types.js' */
 /** @import {SyncLinkOptions} from './types.js' */
 /** @import {SyncModuleTransforms} from './types.js' */
@@ -28,7 +26,7 @@
 /** @import {LinkOptions} from './types.js' */
 /** @import {ERef} from '@endo/eventual-send' */
 
-import { parseExtension } from './extension.js';
+import { mapParsers } from './map-parser.js';
 import { resolve as resolveFallback } from './node-module-specifier.js';
 import {
   ATTENUATORS_COMPARTMENT,
@@ -37,7 +35,7 @@ import {
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
-const { assign, create, entries, freeze, fromEntries } = Object;
+const { assign, create, entries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 const { allSettled } = Promise;
@@ -59,244 +57,6 @@ const q = JSON.stringify;
  * @returns {boolean}
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
-
-/**
- * Decide if extension is clearly indicating a parser/language for a file
- *
- * @param {string} extension
- * @returns {boolean}
- */
-const extensionImpliesLanguage = extension => extension !== 'js';
-
-/**
- * `makeExtensionParser` produces a `parser` that parses the content of a
- * module according to the corresponding module language, given the extension
- * of the module specifier and the configuration of the containing compartment.
- * We do not yet support import assertions and we do not have a mechanism
- * for validating the MIME type of the module content against the
- * language implied by the extension or file name.
- *
- * @param {Record<string, string>} languageForExtension - maps a file extension
- * to the corresponding language.
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
- * the type of a module is implied by package.json and should not be inferred
- * from its extension.
- * @param {ParserForLanguage} parserForLanguage
- * @param {ModuleTransforms} moduleTransforms
- * @returns {ParseFnAsync}
- */
-const makeExtensionParser = (
-  languageForExtension,
-  languageForModuleSpecifier,
-  parserForLanguage,
-  moduleTransforms,
-) => {
-  return async (bytes, specifier, location, packageLocation, options) => {
-    await null;
-    let language;
-    const extension = parseExtension(location);
-
-    if (
-      !extensionImpliesLanguage(extension) &&
-      has(languageForModuleSpecifier, specifier)
-    ) {
-      language = languageForModuleSpecifier[specifier];
-    } else {
-      language = languageForExtension[extension] || extension;
-    }
-
-    let sourceMap;
-
-    if (has(moduleTransforms, language)) {
-      try {
-        ({
-          bytes,
-          parser: language,
-          sourceMap,
-        } = await moduleTransforms[language](
-          bytes,
-          specifier,
-          location,
-          packageLocation,
-          {
-            // At time of writing, sourceMap is always undefined, but keeping
-            // it here is more resilient if the surrounding if block becomes a
-            // loop for multi-step transforms.
-            sourceMap,
-          },
-        ));
-      } catch (err) {
-        throw Error(
-          `Error transforming ${q(language)} source in ${q(location)}: ${
-            err.message
-          }`,
-          { cause: err },
-        );
-      }
-    }
-
-    if (!has(parserForLanguage, language)) {
-      throw Error(
-        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
-      );
-    }
-    const { parse } = parserForLanguage[language];
-    return parse(bytes, specifier, location, packageLocation, {
-      sourceMap,
-      ...options,
-    });
-  };
-};
-
-/**
- * `makeExtensionParser` produces a `parser` that parses the content of a
- * module according to the corresponding module language, given the extension
- * of the module specifier and the configuration of the containing compartment.
- * We do not yet support import assertions and we do not have a mechanism
- * for validating the MIME type of the module content against the
- * language implied by the extension or file name.
- *
- * @param {Record<string, string>} languageForExtension - maps a file extension
- * to the corresponding language.
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
- * the type of a module is implied by package.json and should not be inferred
- * from its extension.
- * @param {Record<string, ParserImplementation>} parserForLanguage
- * @param {SyncModuleTransforms} moduleTransforms
- * @returns {ParseFn}
- */
-const makeSyncExtensionParser = (
-  languageForExtension,
-  languageForModuleSpecifier,
-  parserForLanguage,
-  moduleTransforms,
-) => {
-  return (bytes, specifier, location, packageLocation, options) => {
-    let language;
-    const extension = parseExtension(location);
-
-    if (
-      !extensionImpliesLanguage(extension) &&
-      has(languageForModuleSpecifier, specifier)
-    ) {
-      language = languageForModuleSpecifier[specifier];
-    } else {
-      language = languageForExtension[extension] || extension;
-    }
-
-    let sourceMap;
-
-    if (has(moduleTransforms, language)) {
-      try {
-        ({
-          bytes,
-          parser: language,
-          sourceMap,
-        } = moduleTransforms[language](
-          bytes,
-          specifier,
-          location,
-          packageLocation,
-          {
-            // At time of writing, sourceMap is always undefined, but keeping
-            // it here is more resilient if the surrounding if block becomes a
-            // loop for multi-step transforms.
-            sourceMap,
-          },
-        ));
-      } catch (err) {
-        throw Error(
-          `Error transforming ${q(language)} source in ${q(location)}: ${
-            err.message
-          }`,
-          { cause: err },
-        );
-      }
-    }
-
-    if (!has(parserForLanguage, language)) {
-      throw Error(
-        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
-      );
-    }
-    const { parse } = /** @type {ParserImplementation} */ (
-      parserForLanguage[language]
-    );
-    return parse(bytes, specifier, location, packageLocation, {
-      sourceMap,
-      ...options,
-    });
-  };
-};
-
-/**
- * @param {LanguageForExtension} languageForExtension
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
- * is implied by package.json and should not be inferred from its extension.
- * @param {ParserForLanguage} parserForLanguage
- * @param {ModuleTransforms} moduleTransforms
- * @returns {ParseFnAsync}
- */
-export const mapParsers = (
-  languageForExtension,
-  languageForModuleSpecifier,
-  parserForLanguage,
-  moduleTransforms = {},
-) => {
-  const languageForExtensionEntries = [];
-  const problems = [];
-  for (const [extension, language] of entries(languageForExtension)) {
-    if (has(parserForLanguage, language)) {
-      languageForExtensionEntries.push([extension, language]);
-    } else {
-      problems.push(`${q(language)} for extension ${q(extension)}`);
-    }
-  }
-  if (problems.length > 0) {
-    throw Error(`No parser available for language: ${problems.join(', ')}`);
-  }
-  return makeExtensionParser(
-    fromEntries(languageForExtensionEntries),
-    languageForModuleSpecifier,
-    parserForLanguage,
-    moduleTransforms,
-  );
-};
-
-/**
- * @param {Record<string, Language>} languageForExtension
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
- * is implied by package.json and should not be inferred from its extension.
- * @param {Record<string, ParserImplementation>} parserForLanguage
- * @param {SyncModuleTransforms} moduleTransforms
- * @returns {ParseFn}
- */
-export const mapParsersSync = (
-  languageForExtension,
-  languageForModuleSpecifier,
-  parserForLanguage,
-  moduleTransforms = {},
-) => {
-  /** @type {[string, string][]} */
-  const languageForExtensionEntries = [];
-  const problems = [];
-  for (const [extension, language] of entries(languageForExtension)) {
-    if (has(parserForLanguage, language)) {
-      languageForExtensionEntries.push([extension, language]);
-    } else {
-      problems.push(`${q(language)} for extension ${q(extension)}`);
-    }
-  }
-  if (problems.length > 0) {
-    throw Error(`No parser available for language: ${problems.join(', ')}`);
-  }
-  return makeSyncExtensionParser(
-    fromEntries(languageForExtensionEntries),
-    languageForModuleSpecifier,
-    parserForLanguage,
-    moduleTransforms,
-  );
-};
 
 /**
  * For a full, absolute module specifier like "dependency",
@@ -536,28 +296,20 @@ export const link = (
     archiveOnly = false,
     Compartment = defaultCompartment,
   } = options;
-  /** @type {ImportNowHookMaker|undefined} */
-  let makeImportNowHook;
-  /** @type {ModuleTransforms|undefined} */
-  let moduleTransforms;
-  /** @type {SyncModuleTransforms|undefined} */
-  let syncModuleTransforms;
 
   const isSync = isSyncOptions(options);
+  const syncModuleTransforms = isSync
+    ? options.syncModuleTransforms
+    : undefined;
+  const moduleTransforms = isSync
+    ? undefined
+    : /** @type {ModuleTransforms|undefined} */ ({
+        ...options.syncModuleTransforms,
+        ...options.moduleTransforms,
+      });
 
-  if (isSync) {
-    makeImportNowHook = options.makeImportNowHook;
-    syncModuleTransforms = options.syncModuleTransforms;
-  } else {
-    // combine both sync and async module transforms
-    // if we're using dynamic requires.
-    // these MAY or MAY not have already been combined by
-    // the time this function is called!
-    moduleTransforms = /** @type {ModuleTransforms} */ ({
-      ...options.syncModuleTransforms,
-      ...options.moduleTransforms,
-    });
-  }
+  const makeImportNowHook = isSync ? options.makeImportNowHook : undefined;
+  ``;
 
   const { compartment: entryCompartmentName } = entry;
   const entryCompartmentDescriptor =
@@ -617,19 +369,19 @@ export const link = (
         languageForExtensionOverrides,
       ),
     );
-    const parse = isSync
-      ? mapParsersSync(
-          languageForExtension,
-          languageForModuleSpecifier,
-          parserForLanguage,
-          syncModuleTransforms,
-        )
-      : mapParsers(
-          languageForExtension,
-          languageForModuleSpecifier,
-          parserForLanguage,
-          moduleTransforms,
-        );
+
+    // TS is kind of dumb about this, so we can use a type assertion to avoid a
+    // pointless ternary.
+    const parse = /** @type {ParseFn|ParseFnAsync} */ (
+      mapParsers(
+        languageForExtension,
+        languageForModuleSpecifier,
+        parserForLanguage,
+        moduleTransforms,
+        syncModuleTransforms,
+      )
+    );
+
     /** @type {ShouldDeferError} */
     const shouldDeferError = language => {
       if (language && has(parserForLanguage, language)) {
