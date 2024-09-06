@@ -55,6 +55,28 @@ const analyzeModule = makeModuleAnalyzer();
  * @property {SourceMapHook} [sourceMapHook]
  */
 
+// https://github.com/tc39/proposal-source-phase-imports?tab=readme-ov-file#js-module-source
+
+let AbstractModuleSourcePrototype = {};
+
+// WebAssembly and ModuleSource are both in motion.
+// The Source Phase Imports proposal implies an additional AbstractModuleSource
+// layer above the existing WebAssembly.Module that would be shared by
+// the JavaScript ModuleSource prototype chain.
+// This condition is not met at time of writing, but will allow these prototype
+// chains to converge
+const WebAssembly = globalThis.WebAssembly;
+if (WebAssembly !== undefined) {
+  const WebAssemblyModuleSource = WebAssembly.Module;
+  const WebAssemblyModuleSourcePrototype = WebAssemblyModuleSource.prototype;
+  const WebAssemblyModuleSourcePrototypeProto = Object.getPrototypeOf(
+    WebAssemblyModuleSourcePrototype,
+  );
+  if (WebAssemblyModuleSourcePrototypeProto !== Object.prototype) {
+    AbstractModuleSourcePrototype = WebAssemblyModuleSourcePrototypeProto;
+  }
+}
+
 // XXX implements import('ses').PrecompiledModuleSource but adding
 // `@implements` errors that this isn't a class and `@returns` errors that
 // there's no value returned.
@@ -100,3 +122,5 @@ export function ModuleSource(source, opts = {}) {
   this.__needsImportMeta__ = needsImportMeta;
   freeze(this);
 }
+
+Object.setPrototypeOf(ModuleSource.prototype, AbstractModuleSourcePrototype);
