@@ -1,5 +1,115 @@
 import test from '@endo/ses-ava/prepare-endo.js';
+import { E } from '@endo/far';
+import { util } from '../src/index.js';
+import { makeScenario } from './util.js';
+import { makeKumavisStore } from '../src/kumavis-store.js';
 
-test('placeholder', async t => {
-  t.pass('TODO: add tests');
+const { delay } = util;
+
+test('lifecycle - ping/gc', async t => {
+  const makeGem = {
+    methodNames: ['ping'],
+    makeFacet: async () => {
+      return {
+        async ping() {
+          return 'pong';
+        },
+      };
+    },
+  };
+
+  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  // bob's bootstrap is alice and vice versa
+  const alice = await bobKit.captpKit.getBootstrap();
+
+  console.log('ping ->');
+  console.log('     <-', await E(alice).ping());
+  console.log('ping ->');
+  console.log('     <-', await E(alice).ping());
+  await aliceKit.wakeController.sleep();
+
+  console.log('ping ->');
+  console.log('     <-', await E(alice).ping());
+
+  console.log('...attempting to trigger timebased GC...');
+  await delay(10e3);
+
+  console.log('ping ->');
+  console.log('     <-', await E(alice).ping());
+
+  // this is just an example
+  t.pass();
+});
+
+test('persistence - counter', async t => {
+  const makeGem = {
+    methodNames: ['increment', 'getCount'],
+    makeFacet: async ({ persistenceNode }) => {
+      const initState = { count: 0 };
+      const store = await makeKumavisStore({ persistenceNode }, initState);
+      return {
+        async increment() {
+          let { count } = store.get();
+          count += 1;
+          await store.update({ count });
+          return count;
+        },
+        async getCount() {
+          const { count } = store.get();
+          return count;
+        },
+      };
+    },
+  };
+
+  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  // bob's bootstrap is alice and vice versa
+  const alice = await bobKit.captpKit.getBootstrap();
+
+  t.deepEqual(await E(alice).getCount(), 0);
+  await E(alice).increment();
+  t.deepEqual(await E(alice).getCount(), 1);
+
+  await aliceKit.wakeController.sleep();
+
+  t.deepEqual(await E(alice).getCount(), 1);
+  await E(alice).increment();
+  await E(alice).increment();
+  t.deepEqual(await E(alice).getCount(), 3);
+});
+
+test('kumavis store - serialization of gem refs', async t => {
+  const makeGem = {
+    methodNames: ['addFriend', 'getFriends'],
+    makeFacet: async ({ persistenceNode, gemLookup }) => {
+      const initState = { friends: [] };
+      const store = await makeKumavisStore(
+        { persistenceNode, gemLookup },
+        initState,
+      );
+      return {
+        async addFriend(friend) {
+          const { friends } = store.get();
+          friends.push(friend);
+          await store.update({ friends });
+          return `added friend ${friend} (${friends.length} friends total)`;
+        },
+        async getFriends() {
+          const { friends } = store.get();
+          return friends;
+        },
+      };
+    },
+  };
+
+  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  // bob's bootstrap is alice and vice versa
+  const alice = await bobKit.captpKit.getBootstrap();
+  const bob = await aliceKit.captpKit.getBootstrap();
+
+  await E(alice).addFriend(bob);
+  await aliceKit.wakeController.sleep();
+
+  const aliceFriends = await E(alice).getFriends();
+  t.deepEqual(aliceFriends, [bob]);
 });

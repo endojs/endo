@@ -1,6 +1,56 @@
-export const makeKumavisStore = async ({ persistenceNode }, initState) => {
-  const marshall = state => state;
-  const unmarshall = state => state;
+const walkJson = (obj, handler) => {
+  // Loop through each key in the object
+  for (const key in obj) {
+    // Check if the key belongs to the object itself (not inherited)
+    if (Reflect.has(obj, key)) {
+      // Call the handler function with the current key and value
+      handler(obj, key, obj[key]);
+      // If the value is an object (and not null), recurse into it
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        walkJson(obj[key], handler);
+      }
+    }
+  }
+};
+
+const isRemoteRef = ref =>
+  typeof ref === 'object' &&
+  !Array.isArray(ref) &&
+  String(ref).includes('Alleged:');
+
+export const makeKumavisStore = async (
+  { persistenceNode, gemLookup },
+  initState,
+) => {
+  // turns gemRefs into prefixed strings
+  // and escapes ordinary strings
+  const marshall = state => {
+    walkJson(state, (parent, key, value) => {
+      if (typeof value === 'string') {
+        parent[key] = `string:${value}`;
+      } else if (isRemoteRef(value)) {
+        const gemId = gemLookup.getGemId(value);
+        parent[key] = gemId;
+      }
+    });
+    return state;
+  };
+  // turns prefixed strings back into strings
+  // and looks up gemRefs by id
+  const unmarshall = state => {
+    walkJson(state, (parent, key, value) => {
+      if (typeof value === 'string') {
+        if (value.startsWith('string:')) {
+          parent[key] = value.slice('string:'.length);
+        } else if (value.startsWith('gem:')) {
+          parent[key] = gemLookup.getGemById(value);
+        } else {
+          throw new Error('Unexpected unescaped string value in state');
+        }
+      }
+    });
+    return state;
+  };
   const serialize = state => JSON.stringify(state);
   const deserialize = string => JSON.parse(string);
   const read = async () =>

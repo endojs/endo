@@ -11,6 +11,8 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export const util = { noop, never, delay };
 
+const getRandomId = () => Math.random().toString(36).slice(2);
+
 /**
  * @template TBootstrap
  * @param {string} name
@@ -58,14 +60,16 @@ const makePersistenceNode = () => {
     },
     set(newValue) {
       if (typeof newValue !== 'string') {
-        throw new Error('persistence node expected string');
+        throw new Error(
+          `persistence node expected string (got "${typeof newValue}")`,
+        );
       }
       value = newValue;
     },
   };
 };
 
-const makeWakeController = ({ name, makeFacet, persistenceNode }) => {
+const makeWakeController = ({ name, makeFacet }) => {
   let isAwake = false;
   let target;
   let currentFacetId;
@@ -98,7 +102,10 @@ const makeWakeController = ({ name, makeFacet, persistenceNode }) => {
       const facetId = Math.random().toString(36).slice(2);
       // simulate startup process
       await delay(200);
-      const facet = await makeFacet({ persistenceNode, facetId });
+      const facet = await makeFacet({
+        // for debugging:
+        facetId,
+      });
       target = new WeakRef(facet);
       currentFacetId = facetId;
       registry.register(facet, facetId);
@@ -153,17 +160,92 @@ const makeWrapper = (name, wakeController, methodNames) => {
   );
 };
 
-export const makeGem = ({ name, makeFacet, methodNames }) => {
-  console.log(`gem:${name} created`);
+const makeGemFactory = ({ gemController }) => {
+  return ({ name, makeFacet, methodNames }) => {
+    const gemId = `gem:${getRandomId()}`;
+    console.log(`${gemId} created ("${name}")`);
 
-  const persistenceNode = makePersistenceNode();
-  const wakeController = makeWakeController({
-    name,
-    makeFacet,
-    persistenceNode,
-  });
-  const wrapper = makeWrapper(name, wakeController, methodNames);
-  const target = Far(`gem:${name}`, wrapper);
+    const gemLookup = gemController.getLookup();
+    const persistenceNode = makePersistenceNode();
+    // we wrap this here to avoid passing things to the wake controller
+    // the wake controller adds little of value as "endowments"
+    const makeFacetWithEndowments = async endowments => {
+      return makeFacet({
+        ...endowments,
+        persistenceNode,
+        gemLookup,
+      });
+    };
+    const wakeController = makeWakeController({
+      name,
+      makeFacet: makeFacetWithEndowments,
+    });
+    const wrapper = makeWrapper(name, wakeController, methodNames);
+    const target = Far(`${gemId}`, wrapper);
+    gemController.register(gemId, target);
 
-  return { target, wakeController };
+    return { target, wakeController };
+  };
+};
+
+const makeGemController = () => {
+  const gemIdToGem = new Map();
+  const gemToGemId = new WeakMap();
+
+  const getGemById = gemId => {
+    return gemIdToGem.get(gemId);
+  };
+  const getGemId = gem => {
+    // if (!gemToGemId.has(gem)) {
+    //   throw new Error(`Gem not found in lookup ("${gem}")`);
+    // }
+    // return gemToGemId.get(gem);
+
+    // this is a hack to get the gem id from the remote ref
+    // this is prolly not safe or something
+    // some identity discontinuity happening with the first technique
+    const str = String(gem);
+    const startIndex = str.indexOf('Alleged: ');
+    const endIndex = str.indexOf(']');
+    if (startIndex === -1 || endIndex === -1) {
+      throw new Error(`Could not find gem id in remote ref ("${str}")`);
+    }
+    const gemId = str.slice(startIndex + 9, endIndex);
+    if (!gemId) {
+      throw new Error('Gem id was empty');
+    }
+    if (!gemId.startsWith('gem:')) {
+      throw new Error('Gem id did not start with gem:');
+    }
+    return gemId;
+  };
+  const register = (gemId, gem) => {
+    if (gemIdToGem.has(gemId)) {
+      throw new Error(`Gem id already registered ("${gemId}")`);
+    }
+    console.log(`${gemId} registered: ${gem}`);
+    gemIdToGem.set(gemId, gem);
+    gemToGemId.set(gem, gemId);
+  };
+
+  return {
+    register,
+    getGemById,
+    getGemId,
+    getLookup() {
+      return {
+        getGemById,
+        getGemId,
+      };
+    },
+  };
+};
+
+export const makeKernel = () => {
+  const gemController = makeGemController();
+  const makeGem = makeGemFactory({ gemController });
+  return {
+    makeGem,
+    gemController,
+  };
 };
