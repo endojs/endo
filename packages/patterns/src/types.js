@@ -12,7 +12,7 @@ export {};
  * @typedef {Exclude<Passable<RemotableObject, never>, Error | Promise>} Key
  *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
- * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
+ * (CopyArray, ByteArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
  * non-container leaf is either a Passable primitive value or a Remotable (a
  * remotely-accessible object or presence for a remote object), or such leaves
  * in isolation with no container.
@@ -55,7 +55,7 @@ export {};
  * @typedef {Exclude<Passable, Error | Promise>} Pattern
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
- * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
+ * (CopyArray, ByteArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
  * non-container leaf is either a Key or a Matcher, or such leaves in isolation
  * with no container.
  *
@@ -215,6 +215,7 @@ export {};
  * @property {number} numPropertiesLimit
  * @property {number} propertyNameLengthLimit
  * @property {number} arrayLengthLimit
+ * @property {number} byteLengthLimit
  * @property {number} numSetElementsLimit
  * @property {number} numUniqueBagElementsLimit
  * @property {number} numMapEntriesLimit
@@ -306,6 +307,9 @@ export {};
  *
  * @property {(limits?: Limits) => Matcher} array
  * Matches any CopyArray, subject to limits.
+ *
+ * @property {(limits?: Limits) => Matcher} bytes
+ * Matches any ByteArray, subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} set
  * Matches any CopySet, subject to limits.
