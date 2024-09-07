@@ -50,7 +50,22 @@ export const makeMessageCapTP = (
   };
 };
 
-const makeWakeController = ({ name, makeFacet }) => {
+const makePersistenceNode = () => {
+  let value;
+  return {
+    get() {
+      return value;
+    },
+    set(newValue) {
+      if (typeof newValue !== 'string') {
+        throw new Error('persistence node expected string');
+      }
+      value = newValue;
+    },
+  };
+};
+
+const makeWakeController = ({ name, makeFacet, persistenceNode }) => {
   let isAwake = false;
   let target;
   let currentFacetId;
@@ -83,7 +98,7 @@ const makeWakeController = ({ name, makeFacet }) => {
       const facetId = Math.random().toString(36).slice(2);
       // simulate startup process
       await delay(200);
-      const facet = await makeFacet(facetId);
+      const facet = await makeFacet({ persistenceNode, facetId });
       target = new WeakRef(facet);
       currentFacetId = facetId;
       registry.register(facet, facetId);
@@ -141,7 +156,12 @@ const makeWrapper = (name, wakeController, methodNames) => {
 export const makeGem = ({ name, makeFacet, methodNames }) => {
   console.log(`gem:${name} created`);
 
-  const wakeController = makeWakeController({ name, makeFacet });
+  const persistenceNode = makePersistenceNode();
+  const wakeController = makeWakeController({
+    name,
+    makeFacet,
+    persistenceNode,
+  });
   const wrapper = makeWrapper(name, wakeController, methodNames);
   const target = Far(`gem:${name}`, wrapper);
 

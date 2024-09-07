@@ -4,6 +4,7 @@ import '@endo/init';
 import { E } from '@endo/far';
 import { makePipe } from '@endo/stream';
 import { makeMessageCapTP, makeGem, util } from '../src/index.js';
+import { makeKumavisStore } from '../src/kumavis-store.js';
 
 const { never } = util;
 
@@ -12,10 +13,15 @@ const makeScenario = () => {
   const [writerB, readerA] = makePipe();
 
   const methodNames = ['ping'];
-  const makeFacet = async facetId => {
+  const makeFacet = async ({ facetId, persistenceNode }) => {
+    const initState = { count: 0 };
+    const store = await makeKumavisStore({ persistenceNode }, initState);
     const gem = {
       async ping() {
-        return `pong (${facetId})`;
+        let { count } = store.get();
+        count += 1;
+        await store.update({ count });
+        return `${facetId}: pong. (${count} times total)`;
       },
     };
     return gem;

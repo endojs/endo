@@ -1,7 +1,4 @@
-export const makeKumavisStore = async (
-  { persistenceNode, retentionNode },
-  initState,
-) => {
+export const makeKumavisStore = async ({ persistenceNode }, initState) => {
   const marshall = state => state;
   const unmarshall = state => state;
   const serialize = state => JSON.stringify(state);
