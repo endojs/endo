@@ -41,7 +41,7 @@ test('lifecycle - ping/gc', async t => {
   t.pass();
 });
 
-test('persistence - counter', async t => {
+test('persistence - simple json counter', async t => {
   const makeGem = {
     methodNames: ['increment', 'getCount'],
     makeFacet: async ({ persistenceNode }) => {
@@ -73,8 +73,7 @@ test('persistence - counter', async t => {
   await aliceKit.wakeController.sleep();
 
   t.deepEqual(await E(alice).getCount(), 1);
-  await E(alice).increment();
-  await E(alice).increment();
+  await Promise.all([E(alice).increment(), E(alice).increment()]);
   t.deepEqual(await E(alice).getCount(), 3);
 });
 
@@ -112,4 +111,5 @@ test('kumavis store - serialization of gem refs', async t => {
 
   const aliceFriends = await E(alice).getFriends();
   t.deepEqual(aliceFriends, [bob]);
+  t.notDeepEqual(aliceFriends, [alice]);
 });
