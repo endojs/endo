@@ -26,7 +26,7 @@ test('lifecycle - ping/gc', async t => {
   console.log('     <-', await E(alice).ping());
   console.log('ping ->');
   console.log('     <-', await E(alice).ping());
-  await aliceKit.wakeController.sleep();
+  await aliceKit.gem.wakeController.sleep();
 
   console.log('ping ->');
   console.log('     <-', await E(alice).ping());
@@ -70,7 +70,7 @@ test('persistence - simple json counter', async t => {
   await E(alice).increment();
   t.deepEqual(await E(alice).getCount(), 1);
 
-  await aliceKit.wakeController.sleep();
+  await aliceKit.gem.wakeController.sleep();
 
   t.deepEqual(await E(alice).getCount(), 1);
   await Promise.all([E(alice).increment(), E(alice).increment()]);
@@ -80,10 +80,10 @@ test('persistence - simple json counter', async t => {
 test('kumavis store - serialization of gem refs', async t => {
   const makeGem = {
     methodNames: ['addFriend', 'getFriends'],
-    makeFacet: async ({ persistenceNode, gemLookup }) => {
+    makeFacet: async ({ persistenceNode, retentionSet, gemLookup }) => {
       const initState = { friends: [] };
       const store = await makeKumavisStore(
-        { persistenceNode, gemLookup },
+        { persistenceNode, retentionSet, gemLookup },
         initState,
       );
       return {
@@ -106,10 +106,13 @@ test('kumavis store - serialization of gem refs', async t => {
   const alice = await bobKit.captpKit.getBootstrap();
   const bob = await aliceKit.captpKit.getBootstrap();
 
+  t.deepEqual(aliceKit.gem.retentionSet.size, 0);
   await E(alice).addFriend(bob);
-  await aliceKit.wakeController.sleep();
+  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
+  await aliceKit.gem.wakeController.sleep();
 
   const aliceFriends = await E(alice).getFriends();
+  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
   t.deepEqual(aliceFriends, [bob]);
   t.notDeepEqual(aliceFriends, [alice]);
 });

@@ -13,28 +13,40 @@ export const makeScenario = ({
 
   const kernel = makeKernel();
 
-  const { target: gemA, wakeController: wakeControllerA } = kernel.makeGem({
+  const gemA = kernel.makeGem({
     name: 'alice',
     makeFacet: makeAlice.makeFacet,
     methodNames: makeAlice.methodNames,
   });
-  const captpKitA = makeMessageCapTP('Alice', writerA, readerA, never, gemA);
+  const captpKitA = makeMessageCapTP(
+    'Alice',
+    writerA,
+    readerA,
+    never,
+    gemA.farRef,
+  );
 
-  const { target: gemB, wakeController: wakeControllerB } = kernel.makeGem({
+  const gemB = kernel.makeGem({
     name: 'bob',
     makeFacet: makeBob.makeFacet,
     methodNames: makeBob.methodNames,
   });
-  const captpKitB = makeMessageCapTP('Bob', writerB, readerB, never, gemB);
+  const captpKitB = makeMessageCapTP(
+    'Bob',
+    writerB,
+    readerB,
+    never,
+    gemB.farRef,
+  );
 
   return {
     aliceKit: {
       captpKit: captpKitA,
-      wakeController: wakeControllerA,
+      gem: gemA,
     },
     bobKit: {
       captpKit: captpKitB,
-      wakeController: wakeControllerB,
+      gem: gemB,
     },
   };
 };

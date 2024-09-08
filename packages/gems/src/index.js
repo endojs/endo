@@ -167,12 +167,14 @@ const makeGemFactory = ({ gemController }) => {
 
     const gemLookup = gemController.getLookup();
     const persistenceNode = makePersistenceNode();
+    const retentionSet = new Set();
     // we wrap this here to avoid passing things to the wake controller
     // the wake controller adds little of value as "endowments"
     const makeFacetWithEndowments = async endowments => {
       return makeFacet({
         ...endowments,
         persistenceNode,
+        retentionSet,
         gemLookup,
       });
     };
@@ -181,10 +183,10 @@ const makeGemFactory = ({ gemController }) => {
       makeFacet: makeFacetWithEndowments,
     });
     const wrapper = makeWrapper(name, wakeController, methodNames);
-    const target = Far(`${gemId}`, wrapper);
-    gemController.register(gemId, target);
+    const farRef = Far(`${gemId}`, wrapper);
+    gemController.register(gemId, farRef);
 
-    return { target, wakeController };
+    return { farRef, wakeController, persistenceNode, retentionSet };
   };
 };
 

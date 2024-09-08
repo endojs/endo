@@ -19,18 +19,20 @@ const isRemoteRef = ref =>
   String(ref).includes('Alleged:');
 
 export const makeKumavisStore = async (
-  { persistenceNode, gemLookup },
+  { persistenceNode, retentionSet, gemLookup },
   initState,
 ) => {
   // turns gemRefs into prefixed strings
   // and escapes ordinary strings
   const marshall = state => {
+    if (retentionSet) retentionSet.clear();
     walkJson(state, (parent, key, value) => {
       if (typeof value === 'string') {
         parent[key] = `string:${value}`;
       } else if (isRemoteRef(value)) {
         const gemId = gemLookup.getGemId(value);
         parent[key] = gemId;
+        if (retentionSet) retentionSet.add(gemId);
       }
     });
     return state;
