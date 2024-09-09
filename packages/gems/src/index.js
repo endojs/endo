@@ -161,13 +161,29 @@ const makeWrapper = (name, wakeController, methodNames) => {
 };
 
 const makeGemFactory = ({ gemController }) => {
-  return ({ name, makeFacet, methodNames }) => {
+  const makeGem = ({ name, makeFacet, methodNames }) => {
     const gemId = `gem:${getRandomId()}`;
     console.log(`${gemId} created ("${name}")`);
 
     const gemLookup = gemController.getLookup();
     const persistenceNode = makePersistenceNode();
     const retentionSet = new Set();
+
+    const incarnateGem = async ({
+      name: childName,
+      code,
+      methodNames: childMethodNames,
+    }) => {
+      const compartment = new Compartment();
+      const childMakeFacet = compartment.evaluate(code);
+      const { gemId: childGemId, farRef } = await makeGem({
+        name: childName,
+        makeFacet: childMakeFacet,
+        methodNames: childMethodNames,
+      });
+      return { gemId: childGemId, farRef };
+    };
+
     // we wrap this here to avoid passing things to the wake controller
     // the wake controller adds little of value as "endowments"
     const makeFacetWithEndowments = async endowments => {
@@ -175,6 +191,7 @@ const makeGemFactory = ({ gemController }) => {
         ...endowments,
         persistenceNode,
         retentionSet,
+        incarnateGem,
         gemLookup,
       });
     };
@@ -186,8 +203,9 @@ const makeGemFactory = ({ gemController }) => {
     const farRef = Far(`${gemId}`, wrapper);
     gemController.register(gemId, farRef);
 
-    return { farRef, wakeController, persistenceNode, retentionSet };
+    return { gemId, farRef, wakeController, persistenceNode, retentionSet };
   };
+  return makeGem;
 };
 
 const makeGemController = () => {
