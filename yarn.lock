@@ -528,6 +528,7 @@ __metadata:
   resolution: "@endo/gems@workspace:packages/gems"
   dependencies:
     "@endo/captp": "workspace:^"
+    "@endo/exo": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"

@@ -12,11 +12,11 @@ test('lifecycle - ping/gc', async t => {
   const gemRecipe = {
     name: gemName,
     interface: M.interface(gemName, {
-      ping: M.call().returns(M.string()),
+      ping: M.callWhen().returns(M.string()),
     }),
     makeFacet: async () => {
       return {
-        ping() {
+        async ping() {
           return 'pong';
         },
       };
@@ -189,15 +189,15 @@ test('makeGem - widget factory', async t => {
           const widget = await incarnateEvalGem({
             name: 'widget',
             interface: M.interface('Widget', {
-              sayHi: M.call().returns(M.string()),
+              sayHi: M.callWhen().returns(M.string()),
             }),
-            code: 'async () => ({ sayHi: () => "hi im a widget" })',
+            code: 'async () => ({ sayHi: async () => "hi im a widget" })',
           });
           // you probably wouldnt want this to
           // manage the retention of the widget,
           // the consumer of the widget should do that.
           retentionSet.add(widget.gemId);
-          return widget.farRef;
+          return widget.exo;
         },
       };
     },

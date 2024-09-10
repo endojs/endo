@@ -22,20 +22,14 @@ export const makeScenario = ({
     writerA,
     readerA,
     never,
-    gemA.farRef,
+    gemA.exo,
   );
 
   const gemB = kernel.makeGem({
     ...recipeForBob,
     name: `${recipeForBob.name}-bob`,
   });
-  const captpKitB = makeMessageCapTP(
-    'Bob',
-    writerB,
-    readerB,
-    never,
-    gemB.farRef,
-  );
+  const captpKitB = makeMessageCapTP('Bob', writerB, readerB, never, gemB.exo);
 
   return {
     aliceKit: {

@@ -1,7 +1,7 @@
 /* global setTimeout */
 
 import { makeCapTP } from '@endo/captp';
-import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 
 /** @import { Stream } from '@endo/stream' */
@@ -177,12 +177,12 @@ const makeGemFactory = ({ gemController }) => {
     }) => {
       const compartment = new Compartment({ M });
       const childMakeFacet = compartment.evaluate(code);
-      const { gemId: childGemId, farRef } = await makeGem({
+      const { gemId: childGemId, exo } = await makeGem({
         name: childName,
         makeFacet: childMakeFacet,
         interface: childIface,
       });
-      return { gemId: childGemId, farRef };
+      return { gemId: childGemId, exo };
     };
 
     // we wrap this here to avoid passing things to the wake controller
@@ -202,10 +202,10 @@ const makeGemFactory = ({ gemController }) => {
     });
     const methodNames = getInterfaceMethodKeys(iface);
     const wrapper = makeWrapper(name, wakeController, methodNames);
-    const farRef = Far(`${gemId}`, wrapper);
-    gemController.register(gemId, farRef);
+    const exo = makeExo(`${gemId}`, iface, wrapper);
+    gemController.register(gemId, exo);
 
-    return { gemId, farRef, wakeController, persistenceNode, retentionSet };
+    return { gemId, exo, wakeController, persistenceNode, retentionSet };
   };
   return makeGem;
 };

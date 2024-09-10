@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
+    "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/patterns": "workspace:^"
   },
