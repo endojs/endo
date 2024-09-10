@@ -530,6 +530,7 @@ __metadata:
     "@endo/captp": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
     ava: "npm:^6.1.3"

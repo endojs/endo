@@ -2,6 +2,7 @@
 
 import { makeCapTP } from '@endo/captp';
 import { Far } from '@endo/far';
+import { getInterfaceMethodKeys, M } from '@endo/patterns';
 
 /** @import { Stream } from '@endo/stream' */
 
@@ -161,7 +162,7 @@ const makeWrapper = (name, wakeController, methodNames) => {
 };
 
 const makeGemFactory = ({ gemController }) => {
-  const makeGem = ({ name, makeFacet, methodNames }) => {
+  const makeGem = ({ name, makeFacet, interface: iface }) => {
     const gemId = `gem:${getRandomId()}`;
     console.log(`${gemId} created ("${name}")`);
 
@@ -169,17 +170,17 @@ const makeGemFactory = ({ gemController }) => {
     const persistenceNode = makePersistenceNode();
     const retentionSet = new Set();
 
-    const incarnateGem = async ({
+    const incarnateEvalGem = async ({
       name: childName,
+      interface: childIface,
       code,
-      methodNames: childMethodNames,
     }) => {
-      const compartment = new Compartment();
+      const compartment = new Compartment({ M });
       const childMakeFacet = compartment.evaluate(code);
       const { gemId: childGemId, farRef } = await makeGem({
         name: childName,
         makeFacet: childMakeFacet,
-        methodNames: childMethodNames,
+        interface: childIface,
       });
       return { gemId: childGemId, farRef };
     };
@@ -191,7 +192,7 @@ const makeGemFactory = ({ gemController }) => {
         ...endowments,
         persistenceNode,
         retentionSet,
-        incarnateGem,
+        incarnateEvalGem,
         gemLookup,
       });
     };
@@ -199,6 +200,7 @@ const makeGemFactory = ({ gemController }) => {
       name,
       makeFacet: makeFacetWithEndowments,
     });
+    const methodNames = getInterfaceMethodKeys(iface);
     const wrapper = makeWrapper(name, wakeController, methodNames);
     const farRef = Far(`${gemId}`, wrapper);
     gemController.register(gemId, farRef);

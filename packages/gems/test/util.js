@@ -4,9 +4,9 @@ import { makeMessageCapTP, util, makeKernel } from '../src/index.js';
 const { never } = util;
 
 export const makeScenario = ({
-  makeBoth,
-  makeAlice = makeBoth,
-  makeBob = makeBoth,
+  recipeForBoth,
+  recipeForAlice = recipeForBoth,
+  recipeForBob = recipeForBoth,
 }) => {
   const [writerA, readerB] = makePipe();
   const [writerB, readerA] = makePipe();
@@ -14,9 +14,8 @@ export const makeScenario = ({
   const kernel = makeKernel();
 
   const gemA = kernel.makeGem({
-    name: 'alice',
-    makeFacet: makeAlice.makeFacet,
-    methodNames: makeAlice.methodNames,
+    ...recipeForAlice,
+    name: `${recipeForAlice.name}-alice`,
   });
   const captpKitA = makeMessageCapTP(
     'Alice',
@@ -27,9 +26,8 @@ export const makeScenario = ({
   );
 
   const gemB = kernel.makeGem({
-    name: 'bob',
-    makeFacet: makeBob.makeFacet,
-    methodNames: makeBob.methodNames,
+    ...recipeForBob,
+    name: `${recipeForBob.name}-bob`,
   });
   const captpKitB = makeMessageCapTP(
     'Bob',

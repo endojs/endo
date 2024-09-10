@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { E } from '@endo/far';
+import { M } from '@endo/patterns';
 import { util } from '../src/index.js';
 import { makeScenario } from './util.js';
 import { makeKumavisStore } from '../src/kumavis-store.js';
@@ -7,18 +8,22 @@ import { makeKumavisStore } from '../src/kumavis-store.js';
 const { delay } = util;
 
 test('lifecycle - ping/gc', async t => {
-  const makeGem = {
-    methodNames: ['ping'],
+  const gemName = 'PingGem';
+  const gemRecipe = {
+    name: gemName,
+    interface: M.interface(gemName, {
+      ping: M.call().returns(M.string()),
+    }),
     makeFacet: async () => {
       return {
-        async ping() {
+        ping() {
           return 'pong';
         },
       };
     },
   };
 
-  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
   // bob's bootstrap is alice and vice versa
   const alice = await bobKit.captpKit.getBootstrap();
 
@@ -42,8 +47,12 @@ test('lifecycle - ping/gc', async t => {
 });
 
 test('persistence - simple json counter', async t => {
-  const makeGem = {
-    methodNames: ['increment', 'getCount'],
+  const gemName = 'CounterGem';
+  const gemRecipe = {
+    interface: M.interface(gemName, {
+      increment: M.callWhen().returns(M.number()),
+      getCount: M.callWhen().returns(M.number()),
+    }),
     makeFacet: async ({ persistenceNode }) => {
       const initState = { count: 0 };
       const store = await makeKumavisStore({ persistenceNode }, initState);
@@ -62,7 +71,7 @@ test('persistence - simple json counter', async t => {
     },
   };
 
-  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
   // bob's bootstrap is alice and vice versa
   const alice = await bobKit.captpKit.getBootstrap();
 
@@ -77,9 +86,14 @@ test('persistence - simple json counter', async t => {
   t.deepEqual(await E(alice).getCount(), 3);
 });
 
-test('kumavis store - serialization + retention of gem refs', async t => {
-  const makeGem = {
-    methodNames: ['addFriend', 'getFriends'],
+test('kumavis store - serialization of gem refs', async t => {
+  const gemName = 'FriendGem';
+  const gemRecipe = {
+    name: gemName,
+    interface: M.interface(gemName, {
+      addFriend: M.callWhen(M.any()).returns(M.string()),
+      getFriends: M.callWhen().returns(M.any()),
+    }),
     makeFacet: async ({ persistenceNode, retentionSet, gemLookup }) => {
       const initState = { friends: [] };
       const store = await makeKumavisStore(
@@ -101,7 +115,7 @@ test('kumavis store - serialization + retention of gem refs', async t => {
     },
   };
 
-  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
   // bob's bootstrap is alice and vice versa
   const alice = await bobKit.captpKit.getBootstrap();
   const bob = await aliceKit.captpKit.getBootstrap();
@@ -117,9 +131,14 @@ test('kumavis store - serialization + retention of gem refs', async t => {
   t.notDeepEqual(aliceFriends, [alice]);
 });
 
-test('kumavis store - serialization of gem refs', async t => {
-  const makeGem = {
-    methodNames: ['addFriend', 'getFriends'],
+test('kumavis store - serialization + retention of gem refs', async t => {
+  const gemName = 'FriendGem';
+  const gemRecipe = {
+    name: gemName,
+    interface: M.interface(gemName, {
+      addFriend: M.callWhen(M.any()).returns(M.string()),
+      getFriends: M.callWhen().returns(M.any()),
+    }),
     makeFacet: async ({ persistenceNode, retentionSet, gemLookup }) => {
       const initState = { friends: [] };
       const store = await makeKumavisStore(
@@ -141,7 +160,7 @@ test('kumavis store - serialization of gem refs', async t => {
     },
   };
 
-  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
   // bob's bootstrap is alice and vice versa
   const alice = await bobKit.captpKit.getBootstrap();
   const bob = await aliceKit.captpKit.getBootstrap();
@@ -158,15 +177,21 @@ test('kumavis store - serialization of gem refs', async t => {
 });
 
 test('makeGem - widget factory', async t => {
-  const makeGem = {
-    methodNames: ['makeWidget'],
-    makeFacet: async ({ retentionSet, incarnateGem }) => {
+  const gemName = 'WidgetGem';
+  const gemRecipe = {
+    name: gemName,
+    interface: M.interface(gemName, {
+      makeWidget: M.callWhen().returns(M.any()),
+    }),
+    makeFacet: async ({ retentionSet, incarnateEvalGem }) => {
       return {
         async makeWidget() {
-          const widget = await incarnateGem({
+          const widget = await incarnateEvalGem({
             name: 'widget',
-            methodNames: ['sayHi'],
-            code: 'async () => ({ sayHi: async () => "hi im a widget" })',
+            interface: M.interface('Widget', {
+              sayHi: M.call().returns(M.string()),
+            }),
+            code: 'async () => ({ sayHi: () => "hi im a widget" })',
           });
           // you probably wouldnt want this to
           // manage the retention of the widget,
@@ -178,7 +203,7 @@ test('makeGem - widget factory', async t => {
     },
   };
 
-  const { aliceKit, bobKit } = makeScenario({ makeBoth: makeGem });
+  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
   // bob's bootstrap is alice and vice versa
   const alice = await bobKit.captpKit.getBootstrap();
 
