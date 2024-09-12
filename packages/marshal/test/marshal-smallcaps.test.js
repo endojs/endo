@@ -53,10 +53,9 @@ test('smallcaps serialize static data', t => {
   t.deepEqual(ser(0), { body: '#0', slots: [] });
   t.deepEqual(ser(-0), { body: '#0', slots: [] });
   t.deepEqual(ser(-0), ser(0));
-  // unregistered symbols
+  // symbols
   t.throws(() => ser(Symbol('sym2')), {
-    // An anonymous symbol is not Passable
-    message: /Only registered symbols or well-known symbols are passable:/,
+    message: 'Unrecognized typeof "symbol"',
   });
 
   const cd = ser(harden([1, 2]));
@@ -324,7 +323,6 @@ test('smallcaps records', t => {
  *  * `+` - non-negative bigint
  *  * `-` - negative bigint
  *  * `#` - manifest constant
- *  * `%` - symbol
  *  * `$` - remotable
  *  * `&` - promise
  */
@@ -365,16 +363,6 @@ test('smallcaps encoding examples', t => {
   assertRoundTrip('+escaped', `#"!+escaped"`, [], 'escaped +');
   assertRoundTrip('-escaped', `#"!-escaped"`, [], 'escaped -');
   assertRoundTrip('%escaped', `#"!%escaped"`, [], 'escaped %');
-
-  // Symbols
-  assertRoundTrip(Symbol.iterator, '#"%@@iterator"', [], 'well known symbol');
-  assertRoundTrip(Symbol.for('foo'), '#"%foo"', [], 'reg symbol');
-  assertRoundTrip(
-    Symbol.for('@@foo'),
-    '#"%@@@@foo"',
-    [],
-    'reg symbol that looks well known',
-  );
 
   // Remotables
   const foo = Far('foo', {});

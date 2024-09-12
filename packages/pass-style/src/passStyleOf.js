@@ -18,7 +18,6 @@ import {
 } from './error.js';
 import { RemotableHelper } from './remotable.js';
 
-import { assertPassableSymbol } from './symbol.js';
 import { assertSafePromise } from './safe-promise.js';
 import { assertPassableString } from './string.js';
 
@@ -134,10 +133,6 @@ const makePassStyleOf = passStyleHelpers => {
         case 'string': {
           assertPassableString(inner);
           return 'string';
-        }
-        case 'symbol': {
-          assertPassableSymbol(inner);
-          return 'symbol';
         }
         case 'object': {
           if (inner === null) {

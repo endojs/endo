@@ -61,8 +61,8 @@ test('serialize static data', t => {
   t.deepEqual(ser(-0), ser(0));
   // unregistered symbols
   t.throws(() => ser(Symbol('sym2')), {
-    // An anonymous symbol is not Passable
-    message: /Only registered symbols or well-known symbols are passable:/,
+    // A symbol is not Passable
+    message: 'Unrecognized typeof "symbol"',
   });
 
   const cd = ser(harden([1, 2]));

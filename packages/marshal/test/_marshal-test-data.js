@@ -48,14 +48,6 @@ export const roundTripPairs = harden([
   // Does not fit into a number
   [9007199254740993n, { '@qclass': 'bigint', digits: '9007199254740993' }],
 
-  // Well known symbols
-  [Symbol.asyncIterator, { '@qclass': 'symbol', name: '@@asyncIterator' }],
-  [Symbol.match, { '@qclass': 'symbol', name: '@@match' }],
-  // Registered symbols
-  [Symbol.for('foo'), { '@qclass': 'symbol', name: 'foo' }],
-  // Registered symbol hilbert hotel
-  [Symbol.for('@@foo'), { '@qclass': 'symbol', name: '@@@@foo' }],
-
   // Normal json reviver cannot make properties with undefined values
   [[undefined], [{ '@qclass': 'undefined' }]],
   [{ foo: undefined }, { foo: { '@qclass': 'undefined' } }],
@@ -181,10 +173,6 @@ export const jsonJustinPairs = harden([
   ['{"@qclass":"-Infinity"}', '-Infinity'],
   ['{"@qclass":"bigint","digits":"4"}', '4n'],
   ['{"@qclass":"bigint","digits":"9007199254740993"}', '9007199254740993n'],
-  ['{"@qclass":"symbol","name":"@@asyncIterator"}', 'Symbol.asyncIterator'],
-  ['{"@qclass":"symbol","name":"@@match"}', 'Symbol.match'],
-  ['{"@qclass":"symbol","name":"foo"}', 'Symbol.for("foo")'],
-  ['{"@qclass":"symbol","name":"@@@@foo"}', 'Symbol.for("@@foo")'],
 
   // Arrays and objects
   ['[{"@qclass":"undefined"}]', '[undefined]'],
@@ -264,11 +252,8 @@ export const unsortedSample = harden([
   [5],
   exampleAlice,
   [],
-  Symbol.for('foo'),
   Error('not erroneous'),
-  Symbol.for('@@foo'),
   [5, { bar: 5 }],
-  Symbol.for(''),
   false,
   exampleCarol,
   [exampleCarol, 'm'],
@@ -291,7 +276,6 @@ export const unsortedSample = harden([
     ['b', 3],
   ]),
   Infinity,
-  Symbol.isConcatSpreadable,
   [5, { foo: 4, bar: undefined }],
   Promise.resolve('fulfillment'),
   [5, { foo: 4 }],
@@ -385,10 +369,6 @@ export const sortedSample = harden([
   'foo',
 
   null,
-  Symbol.for(''),
-  Symbol.for('@@foo'),
-  Symbol.isConcatSpreadable,
-  Symbol.for('foo'),
 
   undefined,
   undefined,

@@ -13,11 +13,6 @@ export {
 export { getErrorConstructor, toPassableError } from './src/helpers/error.js';
 export { getInterfaceOf } from './src/helpers/remotable.js';
 
-export {
-  nameForPassableSymbol,
-  passableSymbolForName,
-} from './src/helpers/symbol.js';
-
 export { passStyleOf, assertPassable } from './src/passStyleOf.js';
 
 export { deeplyFulfilled } from './src/deeplyFulfilled.js';
@@ -41,9 +36,6 @@ export {
 
 // eslint-disable-next-line import/export
 export * from './src/types.js';
-
-
-const { details: X, Fail } = assert;
 
 // This is a pathological minimum, but exercised by the unit test.
 export const MIN_DATA_BUFFER_LENGTH = 1;

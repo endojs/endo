@@ -13,9 +13,6 @@ import {
   makeTagged,
   getTag,
   hasOwnPropertyOf,
-  assertPassableSymbol,
-  nameForPassableSymbol,
-  passableSymbolForName,
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
@@ -209,11 +206,6 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
         const str = String(passable);
         return /** @type {bigint} */ (passable) < 0n ? str : `+${str}`;
       }
-      case 'symbol': {
-        assertPassableSymbol(passable);
-        const name = /** @type {string} */ (nameForPassableSymbol(passable));
-        return `%${name}`;
-      }
       case 'copyRecord': {
         // Currently copyRecord allows only string keys so this will
         // work. If we allow sortable symbol keys, this will need to
@@ -352,9 +344,6 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
           case '!': {
             // un-hilbert-ify the string
             return encoding.slice(1);
-          }
-          case '%': {
-            return passableSymbolForName(encoding.slice(1));
           }
           case '#': {
             switch (encoding) {

@@ -13,9 +13,6 @@ import {
   isObject,
   getTag,
   hasOwnPropertyOf,
-  assertPassableSymbol,
-  nameForPassableSymbol,
-  passableSymbolForName,
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
@@ -153,14 +150,6 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
         return {
           [QCLASS]: 'bigint',
           digits: String(passable),
-        };
-      }
-      case 'symbol': {
-        assertPassableSymbol(passable);
-        const name = /** @type {string} */ (nameForPassableSymbol(passable));
-        return {
-          [QCLASS]: 'symbol',
-          name,
         };
       }
       case 'copyRecord': {
@@ -348,17 +337,6 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
           typeof digits === 'string' ||
             Fail`invalid digits typeof ${q(typeof digits)}`;
           return BigInt(digits);
-        }
-        case '@@asyncIterator': {
-          // Deprecated qclass. TODO make conditional
-          // on environment variable. Eventually remove, but after confident
-          // that there are no more supported senders.
-          //
-          return Symbol.asyncIterator;
-        }
-        case 'symbol': {
-          const { name } = jsonEncoded;
-          return passableSymbolForName(name);
         }
         case 'tagged': {
           const { tag, payload } = jsonEncoded;

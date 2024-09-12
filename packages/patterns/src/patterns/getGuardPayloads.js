@@ -14,7 +14,6 @@ import {
   matches,
   mustMatch,
 } from './patternMatchers.js';
-import { getCopyMapKeys, makeCopyMap } from '../keys/checkKey.js';
 
 /**
  * @import {AwaitArgGuard, AwaitArgGuardPayload, InterfaceGuard, InterfaceGuardPayload, MethodGuard, MethodGuardPayload} from '../types.js'
@@ -206,7 +205,6 @@ const LegacyInterfaceGuardShape = M.splitRecord(
     // There is no need to accommodate LegacyMethodGuardShape in
     // this position, since `symbolMethodGuards happened
     // after https://github.com/endojs/endo/pull/1712
-    symbolMethodGuards: M.mapOf(M.symbol(), MethodGuardShape),
   },
 );
 
@@ -265,21 +263,15 @@ export const getInterfaceGuardPayload = interfaceGuard => {
 };
 harden(getInterfaceGuardPayload);
 
-const emptyCopyMap = makeCopyMap([]);
-
 /**
  * @param {InterfaceGuard} interfaceGuard
  * @returns {(string | symbol)[]}
  */
 export const getInterfaceMethodKeys = interfaceGuard => {
-  const { methodGuards, symbolMethodGuards = emptyCopyMap } =
-    getInterfaceGuardPayload(interfaceGuard);
+  const { methodGuards } = getInterfaceGuardPayload(interfaceGuard);
   /** @type {(string | symbol)[]} */
   // TODO at-ts-expect-error works locally but not from @endo/exo
   // @ts-ignore inference is too weak to see this is ok
-  return harden([
-    ...Reflect.ownKeys(methodGuards),
-    ...getCopyMapKeys(symbolMethodGuards),
-  ]);
+  return harden([...Reflect.ownKeys(methodGuards)]);
 };
 harden(getInterfaceMethodKeys);

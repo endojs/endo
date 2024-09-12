@@ -18,7 +18,6 @@ expectType<'string'>(passStyleOf('str'));
 expectType<'boolean'>(passStyleOf(true));
 expectType<'number'>(passStyleOf(1));
 expectType<'bigint'>(passStyleOf(1n));
-expectType<'symbol'>(passStyleOf(Symbol.for('foo')));
 expectType<'null'>(passStyleOf(null));
 expectType<'promise'>(passStyleOf(Promise.resolve()));
 expectType<'error'>(passStyleOf(new Error()));

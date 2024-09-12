@@ -31,8 +31,6 @@ export {};
  *           EncodingClass<'Infinity'> |
  *           EncodingClass<'-Infinity'> |
  *           EncodingClass<'bigint'> & { digits: string } |
- *           EncodingClass<'@@asyncIterator'> |
- *           EncodingClass<'symbol'> & { name: string } |
  *           EncodingClass<'error'> & { name: string,
  *                                      message: string,
  *                                      errorId?: string,
@@ -50,7 +48,8 @@ export {};
  *           }
  * } EncodingUnion
  *
- * Note that the '@@asyncIterator' encoding is deprecated. Use 'symbol' instead.
+ * Note that the '@@asyncIterator' and 'symbol' encodings are no longer
+ * supported.
  *
  * The 'hilbert' encoding is a reference to the Hilbert Hotel
  * of https://www.ias.edu/ideas/2016/pires-hilbert-hotel .
