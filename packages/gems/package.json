@@ -36,6 +36,8 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
+    "@agoric/swingset-liveslots": "0.10.3-u16.1",
+    "@agoric/zone": "0.3.0-u16.1",
     "@endo/captp": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",

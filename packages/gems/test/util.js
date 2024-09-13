@@ -1,7 +1,20 @@
 import { makePipe } from '@endo/stream';
 import { makeMessageCapTP, util, makeKernel } from '../src/index.js';
+import { reincarnate } from '@agoric/swingset-liveslots/tools/setup-vat-data.js';
 
 const { never } = util;
+
+const setupWorld = (fakeStore) => {
+  const { fakeVomKit } = reincarnate({ relaxDurabilityRules: false, fakeStore });
+  const { vom, cm, vrm } = fakeVomKit;
+  const flush = () => {
+    vom.flushStateCache();
+    cm.flushSchemaCache();
+    vrm.flushIDCounters();
+  }
+  const baggage = cm.provideBaggage();
+  return { baggage, flush };
+};
 
 export const makeScenario = ({
   recipeForBoth,
@@ -11,7 +24,10 @@ export const makeScenario = ({
   const [writerA, readerB] = makePipe();
   const [writerB, readerA] = makePipe();
 
-  const kernel = makeKernel();
+  const fakeStore = new Map();
+  const { baggage } = setupWorld(fakeStore);
+
+  const kernel = makeKernel(baggage);
 
   const gemA = kernel.makeGem({
     ...recipeForAlice,
@@ -22,14 +38,14 @@ export const makeScenario = ({
     writerA,
     readerA,
     never,
-    gemA.exo,
+    gemA,
   );
 
   const gemB = kernel.makeGem({
     ...recipeForBob,
     name: `${recipeForBob.name}-bob`,
   });
-  const captpKitB = makeMessageCapTP('Bob', writerB, readerB, never, gemB.exo);
+  const captpKitB = makeMessageCapTP('Bob', writerB, readerB, never, gemB);
 
   return {
     aliceKit: {
