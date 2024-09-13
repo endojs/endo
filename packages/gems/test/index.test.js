@@ -2,11 +2,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import '@agoric/swingset-liveslots/tools/setup-vat-data.js';
 import { E } from '@endo/far';
 import { M } from '@endo/patterns';
-import { util } from '../src/index.js';
 import { makeScenario } from './util.js';
-import { makeKumavisStore } from '../src/kumavis-store.js';
-
-const { delay } = util;
 
 test('lifecycle - ping/gc', async t => {
   const gemName = 'PingGem';
@@ -84,7 +80,8 @@ test('persistence - simple json counter', async t => {
   t.deepEqual(await E(alice).getCount(), 3);
 });
 
-test.failing('kumavis store - serialization of gem refs', async t => {
+// TODO: need to untangle captp remote refs for persistence
+test.skip('kumavis store - serialization of gem refs', async t => {
   const gemName = 'FriendGem';
   const gemRecipe = {
     name: gemName,
@@ -101,6 +98,7 @@ test.failing('kumavis store - serialization of gem refs', async t => {
         return `added friend ${friend} (${friends.length} friends total)`;
       },
       async getFriends() {
+        const { store } = this.state;
         const { friends } = store.get('state');
         return friends;
       },
@@ -133,19 +131,21 @@ test.skip('makeGem - widget factory', async t => {
     init: () => ({ widgets: [] }),
     methods: {
       async makeWidget() {
-        const powers = this.state.powers;
-        const widget = powers.incarnateEvalGem({
+        const { gems } = this.state.powers;
+        const widget = gems.incarnateEvalGem({
           name: 'widget',
           interface: M.interface('Widget', {
             sayHi: M.callWhen().returns(M.string()),
           }),
-          code: 'async () => ({ sayHi: async () => "hi im a widget" })',
+          code: '({ sayHi: async () => "hi im a widget" })',
         });
         // you probably wouldnt want this to
         // manage the retention of the widget,
         // the consumer of the widget should do that.
-        retentionSet.add(widget.gemId);
-        return widget.exo;
+        const { store } = this.state;
+        const { widgets } = store.get('state');
+        store.set('state', { widgets: [...widgets, widget] });
+        return widget;
       },
     },
   };

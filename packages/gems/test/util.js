@@ -1,8 +1,8 @@
 import { makePipe } from '@endo/stream';
-import { makeMessageCapTP, util, makeKernel } from '../src/index.js';
+import { makeMessageCapTP, makeKernel } from '../src/index.js';
 import { reincarnate } from '@agoric/swingset-liveslots/tools/setup-vat-data.js';
 
-const { never } = util;
+const never = new Promise(() => {});
 
 const setupWorld = (fakeStore) => {
   const { fakeVomKit } = reincarnate({ relaxDurabilityRules: false, fakeStore });

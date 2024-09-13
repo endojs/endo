@@ -1,15 +1,9 @@
 /* global setTimeout */
 
-import { makeCapTP } from '@endo/captp';
+import { Far, makeCapTP } from '@endo/captp';
 import { makeDurableZone } from '@agoric/zone/durable.js';
 
 /** @import { Stream } from '@endo/stream' */
-
-const noop = (...args) => {};
-const never = new Promise(() => {});
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-export const util = { noop, never, delay };
 
 const getRandomId = () => Math.random().toString(36).slice(2);
 
@@ -53,114 +47,6 @@ export const makeMessageCapTP = (
     closed,
   };
 };
-
-// const makePersistenceNode = () => {
-//   let value;
-//   return {
-//     get() {
-//       return value;
-//     },
-//     set(newValue) {
-//       if (typeof newValue !== 'string') {
-//         throw new Error(
-//           `persistence node expected string (got "${typeof newValue}")`,
-//         );
-//       }
-//       value = newValue;
-//     },
-//   };
-// };
-
-// const makeWakeController = ({ name, makeFacet }) => {
-//   let isAwake = false;
-//   let target;
-//   let currentFacetId;
-
-//   let controller;
-
-//   const triggerSleep = targetFacetId => {
-//     if (currentFacetId === targetFacetId) {
-//       console.log(
-//         `gem:${name}/facet:${targetFacetId} being put to sleep (due to GC)`,
-//       );
-//       controller.sleep();
-//     }
-//   };
-
-//   // is it theoretically possible for a facet to get GC'd while handling a message?
-//   // i was unable to observe it happening
-//   const registry = new FinalizationRegistry(facetId => {
-//     console.log(`gem:${name}/facet:${facetId} has been garbage collected.`);
-//     triggerSleep(facetId);
-//   });
-
-//   controller = {
-//     async wake() {
-//       await null;
-//       // need to handle case where marked as awake but target is garbage collected
-//       if (isAwake && target && target.deref() !== undefined)
-//         return target.deref();
-//       // bug when wake is inflight
-//       const facetId = Math.random().toString(36).slice(2);
-//       // simulate startup process
-//       await delay(200);
-//       const facet = await makeFacet({
-//         // for debugging:
-//         facetId,
-//       });
-//       target = new WeakRef(facet);
-//       currentFacetId = facetId;
-//       registry.register(facet, facetId);
-//       console.log(`gem:${name}/facet:${facetId} created`);
-//       isAwake = true;
-//       return facet;
-//     },
-//     async sleep() {
-//       await null;
-//       if (!isAwake) return;
-//       console.log(`gem:${name}/facet:${currentFacetId} being put to sleep`);
-//       // simulate shutdown process
-//       // bug when sleep is inflight
-//       await delay(200);
-//       target = undefined;
-//       isAwake = false;
-//     },
-//     isAwake() {
-//       return isAwake;
-//     },
-//     assertAwake() {
-//       if (!isAwake) {
-//         throw new Error('not awake');
-//       }
-//     },
-//   };
-
-//   return controller;
-// };
-
-// const makeWrapper = (name, wakeController, methodNames) => {
-//   return Object.fromEntries(
-//     methodNames.map(methodName => {
-//       return [
-//         methodName,
-//         async function wrapperFn(...args) {
-//           console.log(`gem:${name} ${methodName} called`);
-//           const facet = await wakeController.wake();
-//           // load bearing codesmell against unseen enemies.
-//           // uhhhh, use (return-await + noop) to retain a strong reference to `facet` to
-//           // to prevent GC of facet before fully responding to a message.
-//           // we want the GC event to imply that the facet is no longer in use.
-//           // but we dont get many guarantees about when the GC event will fire.
-//           // this problem has not been witnessed,
-//           // this solution has not been verified.
-//           const result = await facet[methodName](...args);
-//           noop(facet);
-//           return result;
-//         },
-//       ];
-//     }),
-//   );
-// };
 
 // const makeGemFactory = ({ gemController }) => {
 //   const makeGem = ({ name, makeFacet, interface: iface }) => {
@@ -211,34 +97,51 @@ export const makeMessageCapTP = (
 //   return makeGem;
 // };
 
-const makeGemFactory = (zone) => {
+export const makeKernel = (baggage) => {
+  const zone = makeDurableZone(baggage);
   const gemZone = zone.subZone('GemZone');
+  let kernel;
+  let gemCreationPowers;
+
   const makeGem = ({ name, interfaceGuards, methods, init = initEmpty }) => {
     // maybe instead want to expose the store making functions
     const store = gemZone.mapStore(name);
     if (!store.has('state')) {
       store.init('state', harden(init()));
     }
-    const finalizeStore = (instance) => {
+    const exposeEndowments = (instance) => {
       // this late setting of the store seems to work around
-      // an issue where the store is missing despite being set in
+      // an issue where the store is missing when set in
       // the initializer
       instance.state.store = store;
+      instance.state.powers = harden({ gems: gemCreationPowers });
+
+      // instance.state.powers = Far('GemPowers', {
+      //   incarnateEvalGem,
+      // };
     };
     // only good for singletons as here
-    const initWithStore = (store, ...args) => harden({ store, ...args });
-    const constructGem = zone.exoClass(name, interfaceGuards, initWithStore, methods, { finish: finalizeStore });
+    const initWithEndowments = (...args) => harden({ store: {}, powers: {}, ...args });
+    const constructGem = zone.exoClass(name, interfaceGuards, initWithEndowments, methods, { finish: exposeEndowments });
     const gem = constructGem();
     return gem;
   }
 
-  return makeGem;
-}
+  // kernel = zone.exo('kernel', undefined, { makeGem });
+  kernel = { makeGem };
 
-export const makeKernel = (baggage) => {
-  const zone = makeDurableZone(baggage);
-  const makeGem = makeGemFactory(zone);
-  return {
-    makeGem,
+  const incarnateEvalGem = ({ name: childName, interface: childInterfaceGuards, code }) => {
+    // TODO: this could happen in another Realm
+    const compartment = new Compartment();
+    const methods = compartment.evaluate(code);
+    const gem = makeGem({
+      name: childName,
+      interfaceGuards: childInterfaceGuards,
+      methods: methods,
+    });
+    return gem;
   };
+  gemCreationPowers = zone.exo('kernel:gemCreationPowers', undefined, { incarnateEvalGem });
+
+  return kernel;
 };
