@@ -3,7 +3,7 @@
 
 // @ts-check
 
-/** @import {Policy} from './types.js' */
+/** @import {FindRedirectParams, Policy} from './types.js' */
 /** @import {PackagePolicy} from './types.js' */
 /** @import {AttenuationDefinition} from './types.js' */
 /** @import {PackageNamingKit} from './types.js' */
@@ -11,6 +11,7 @@
 /** @import {CompartmentDescriptor} from './types.js' */
 /** @import {Attenuator} from './types.js' */
 /** @import {SomePolicy} from './types.js' */
+/** @import {RedirectStaticModuleInterface} from 'ses' */
 
 import {
   getAttenuatorFromDefinition,

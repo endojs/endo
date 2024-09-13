@@ -8,22 +8,27 @@
 
 // @ts-check
 
-/** @import {ImportNowHook} from 'ses' */
-/** @import {ModuleMapHook} from 'ses' */
-/** @import {ImportNowHookMaker, ModuleTransform, ParseFnAsync, SyncModuleTransform} from './types.js' */
-/** @import {LinkResult} from './types.js' */
-/** @import {ParseFn} from './types.js' */
-/** @import {ParserForLanguage} from './types.js' */
-/** @import {SyncLinkOptions} from './types.js' */
-/** @import {SyncModuleTransforms} from './types.js' */
-/** @import {ParserImplementation} from './types.js' */
-/** @import {ShouldDeferError} from './types.js' */
-/** @import {ModuleTransforms} from './types.js' */
-/** @import {LanguageForExtension} from './types.js' */
-/** @import {ModuleDescriptor} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {LinkOptions} from './types.js' */
+/** @import {ImportNowHook, ModuleMapHook} from 'ses' */
+/**
+ * @import {
+ *   CompartmentDescriptor,
+ *   CompartmentMapDescriptor,
+ *   ImportNowHookMaker,
+ *   ImportNowHookMakerParams,
+ *   LanguageForExtension,
+ *   LinkOptions,
+ *   LinkResult,
+ *   ModuleDescriptor,
+ *   ModuleTransforms,
+ *   ParseFn,
+ *   ParseFnAsync,
+ *   ParserForLanguage,
+ *   ParserImplementation,
+ *   ShouldDeferError,
+ *   SyncLinkOptions,
+ *   SyncModuleTransforms
+ * } from './types.js'
+ */
 /** @import {ERef} from '@endo/eventual-send' */
 
 import { mapParsers } from './map-parser.js';
@@ -297,23 +302,26 @@ export const link = (
     Compartment = defaultCompartment,
   } = options;
 
-  const isSync = isSyncOptions(options);
-  const syncModuleTransforms = isSync
-    ? options.syncModuleTransforms
-    : undefined;
-  const moduleTransforms = isSync
-    ? undefined
-    : /** @type {ModuleTransforms|undefined} */ ({
-        ...options.syncModuleTransforms,
-        ...options.moduleTransforms,
-      });
+  /** @type {SyncModuleTransforms|undefined} */
+  let syncModuleTransforms;
+  /** @type {ModuleTransforms|undefined} */
+  let moduleTransforms;
+  /** @type {ImportNowHookMaker|undefined} */
+  let makeImportNowHook;
 
-  const makeImportNowHook = isSync ? options.makeImportNowHook : undefined;
-  ``;
+  if (isSyncOptions(options)) {
+    syncModuleTransforms = options.syncModuleTransforms;
+    makeImportNowHook = options.makeImportNowHook;
+  } else {
+    // we can fold syncModuleTransforms into moduleTransforms because
+    // async supports sync, but not vice-versa
+    moduleTransforms = /** @type {ModuleTransforms|undefined} */ ({
+      ...options.syncModuleTransforms,
+      ...options.moduleTransforms,
+    });
+  }
 
   const { compartment: entryCompartmentName } = entry;
-  const entryCompartmentDescriptor =
-    compartmentDescriptors[entryCompartmentName];
 
   /** @type {Record<string, Compartment>} */
   const compartments = create(null);
@@ -408,24 +416,21 @@ export const link = (
     /** @type {ImportNowHook | undefined} */
     let importNowHook;
 
-    if (isSync) {
-      if (entryCompartmentDescriptor !== compartmentDescriptor) {
-        const syncParse = /** @type {ParseFn} */ (parse);
-        importNowHook = /** @type {ImportNowHookMaker} */ (makeImportNowHook)({
-          entryCompartmentDescriptor,
-          packageLocation: location,
-          packageName: name,
-          parse: syncParse,
-          compartments,
-        });
-      } else {
-        // should never happen
-        importNowHook = () => {
-          throw new Error(
-            'importNowHook should not be called by entry compartment',
-          );
-        };
-      }
+    if (makeImportNowHook) {
+      // Note: using the LHS of this statement as the value for `params.parse`
+      // below causes a `no-object-shorthand` error. afaict there is no such
+      // configuration for this rule which would allow the below type assertion
+      // to be used.
+      const syncParse = /** @type {ParseFn} */ (parse);
+
+      /** @type {ImportNowHookMakerParams} */
+      const params = {
+        packageLocation: location,
+        packageName: name,
+        parse: syncParse,
+        compartments,
+      };
+      importNowHook = makeImportNowHook(params);
     } else {
       importNowHook = () => {
         throw new Error('Provided read powers do not support dynamic requires');

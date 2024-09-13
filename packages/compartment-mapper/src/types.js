@@ -299,7 +299,6 @@ export {};
 
 /**
  * @typedef {object} ImportNowHookMakerParams
- * @property {CompartmentDescriptor} entryCompartmentDescriptor
  * @property {string} packageLocation
  * @property {string} packageName
  * @property {ParseFn} parse
@@ -885,10 +884,9 @@ export {};
  * @property {CompartmentSources} packageSources Sources
  * @property {ReadPowers|ReadFn} readPowers Powers
  * @property {SourceMapHook} [sourceMapHook] Source map hook
- * @property {(compartmentName: string) => Set<string>}
- * strictlyRequiredForCompartment Function returning a set of module names
- * (scoped to the compartment) whose parser is not using heuristics to determine
- * imports.
+ * @property {(compartmentName: string) => Set<string>} strictlyRequiredForCompartment Function
+ *   returning a set of module names (scoped to the compartment) whose parser is not using
+ *   heuristics to determine imports.
  */
 
 /**
@@ -931,4 +929,15 @@ export {};
  * @typedef {ReturnType<CreateStaticModuleTypeOperators['maybeRead']> |
  * ReturnType<CreateStaticModuleTypeOperators['parse']>}
  * CreateStaticModuleTypeYieldables
+ */
+
+/**
+ * Parameters for `findRedirect()`.
+ *
+ * @typedef FindRedirectParams
+ * @property {CompartmentDescriptor} compartmentDescriptor
+ * @property {Record<string, CompartmentDescriptor>} compartmentDescriptors
+ * @property {Record<string, Compartment>} compartments
+ * @property {string} absoluteModuleSpecifier A module specifier which is an absolute path
+ * @property {string} packageLocation
  */

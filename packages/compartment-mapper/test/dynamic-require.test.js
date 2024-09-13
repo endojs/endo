@@ -151,15 +151,13 @@ test('intra-package dynamic require with inter-package absolute path works witho
   t.is(importNowHookCallCount, 0);
 });
 
-test('intra-package dynamic require with arbitrary absolute path works when invoking the exitModuleImportNowHook', async t => {
-  t.plan(2);
+test('intra-package dynamic require with arbitrary absolute path fails', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/broken-app/index.js',
     import.meta.url,
   ).toString();
-  let importNowHookCallCount = 0;
+  /** @type {ExitModuleImportNowHook} */
   const importNowHook = (specifier, packageLocation) => {
-    importNowHookCallCount += 1;
     const require = Module.createRequire(
       readPowers.fileURLToPath(packageLocation),
     );
@@ -190,48 +188,13 @@ test('intra-package dynamic require with arbitrary absolute path works when invo
     },
   };
 
-  const { namespace } = await importLocation(readPowers, fixture, {
-    policy,
-    importNowHook,
-  });
-
-  t.deepEqual(
-    {
-      default: {
-        isOk: 1,
-      },
-      isOk: 1,
-    },
-    { ...namespace },
-  );
-  t.is(importNowHookCallCount, 1);
-});
-
-test('intra-package dynamic require with arbitrary absolute does not path works when no exitModuleImportNowHook provided', async t => {
-  const fixture = new URL(
-    'fixtures-dynamic/node_modules/broken-app/index.js',
-    import.meta.url,
-  ).toString();
-  /** @type {Policy} */
-  const policy = {
-    entry: {
-      packages: 'any',
-    },
-    resources: {
-      badsprunt: {
-        packages: {
-          'node-tammy-build': true,
-        },
-      },
-    },
-  };
-
   await t.throwsAsync(
     importLocation(readPowers, fixture, {
       policy,
+      importNowHook,
     }),
     {
-      message: /try providing an importNowHook/,
+      message: /Could not import unknown module/,
     },
   );
 });
@@ -297,8 +260,8 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
   );
 });
 
-test('inter-pkg and exit module dynamic require works', async t => {
-  t.plan(2);
+test('inter-package and exit module dynamic require works', async t => {
+  t.plan(3);
 
   const fixture = new URL(
     'fixtures-dynamic/node_modules/hooked-app/index.js',
@@ -307,10 +270,13 @@ test('inter-pkg and exit module dynamic require works', async t => {
 
   // number of times the `importNowHook` got called
   let importNowHookCallCount = 0;
+  /** @type {string[]} */
+  const importNowHookSpecifiers = [];
 
   /** @type {ExitModuleImportNowHook} */
   const importNowHook = (specifier, packageLocation) => {
     importNowHookCallCount += 1;
+    importNowHookSpecifiers.push(specifier);
     const require = Module.createRequire(
       readPowers.fileURLToPath(packageLocation),
     );
@@ -343,6 +309,11 @@ test('inter-pkg and exit module dynamic require works', async t => {
             cluster: true,
           },
         },
+        'hooked>dynamic': {
+          packages: {
+            'is-ok': true,
+          },
+        },
       },
     },
   });
@@ -356,7 +327,9 @@ test('inter-pkg and exit module dynamic require works', async t => {
     },
     { ...namespace },
   );
+
   t.is(importNowHookCallCount, 1);
+  t.deepEqual(importNowHookSpecifiers, ['cluster']);
 });
 
 test('sync module transforms work with dynamic require support', async t => {
