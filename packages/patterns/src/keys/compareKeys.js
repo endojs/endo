@@ -102,10 +102,6 @@ export const compareKeys = (left, right) => {
     case 'boolean':
     case 'bigint':
     case 'string':
-    case 'symbol': {
-      // for these, keys compare the same as rank
-      return compareRank(left, right);
-    }
     case 'number': {
       const rankComp = compareRank(left, right);
       if (rankComp === 0) {

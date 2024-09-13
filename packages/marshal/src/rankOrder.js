@@ -1,4 +1,4 @@
-import { getTag, passStyleOf, nameForPassableSymbol } from '@endo/pass-style';
+import { getTag, passStyleOf } from '@endo/pass-style';
 import { Fail, q } from '@endo/errors';
 import {
   passStylePrefixes,
@@ -148,12 +148,6 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
           assert(left > right);
           return 1;
         }
-      }
-      case 'symbol': {
-        return comparator(
-          nameForPassableSymbol(left),
-          nameForPassableSymbol(right),
-        );
       }
       case 'number': {
         // `NaN`'s rank is after all other numbers.
