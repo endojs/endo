@@ -7,27 +7,33 @@
  */
 
 // @ts-check
-
-/** @import {ImportHook} from 'ses' */
-/** @import {ImportNowHook} from 'ses' */
-/** @import {StaticModuleType} from 'ses' */
-/** @import {RedirectStaticModuleInterface} from 'ses' */
-/** @import {CreateStaticModuleTypeOperators} from './types.js' */
-/** @import {CreateStaticModuleTypeOptions} from './types.js' */
-/** @import {CreateStaticModuleTypeYieldables} from './types.js' */
-/** @import {ParseResult} from './types.js' */
-/** @import {MakeImportNowHookMakerOptions} from './types.js' */
-/** @import {ModuleDescriptor} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {SyncReadPowers} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {HashFn} from './types.js' */
-/** @import {Sources} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {ImportHookMaker} from './types.js' */
-/** @import {ExitModuleImportHook} from './types.js' */
-/** @import {SourceMapHook} from './types.js' */
-/** @import {ImportNowHookMaker} from './types.js' */
+/**
+ * @import {
+ *   ImportHook,
+ *   ImportNowHook,
+ *   RedirectStaticModuleInterface,
+ *   StaticModuleType
+ * } from 'ses'
+ * @import {
+ *   CompartmentDescriptor,
+ *   CreateStaticModuleTypeOperators,
+ *   CreateStaticModuleTypeOptions,
+ *   CreateStaticModuleTypeYieldables,
+ *   ExitModuleImportHook,
+ *   FindRedirectParams,
+ *   HashFn,
+ *   ImportHookMaker,
+ *   ImportNowHookMaker,
+ *   MakeImportNowHookMakerOptions,
+ *   ModuleDescriptor,
+ *   ParseResult,
+ *   ReadFn,
+ *   ReadPowers,
+ *   SourceMapHook,
+ *   Sources,
+ *   SyncReadPowers
+ * } from './types.js'
+ */
 
 import { asyncTrampoline, syncTrampoline } from '@endo/trampoline';
 import { resolve } from './node-module-specifier.js';
@@ -84,6 +90,63 @@ const nodejsConventionSearchSuffixes = [
   '/index.json',
   '/index.node',
 ];
+
+/**
+ * Given a module specifier which is an absolute path, attempt to match it with
+ * an existing compartment; return a {@link RedirectStaticModuleInterface} if found.
+ *
+ * @throws If we determine `absoluteModuleSpecifier` is unknown
+ * @param {FindRedirectParams} params Parameters
+ * @returns {RedirectStaticModuleInterface|undefined} A redirect or nothing
+ */
+const findRedirect = ({
+  compartmentDescriptor,
+  compartmentDescriptors,
+  compartments,
+  absoluteModuleSpecifier,
+  packageLocation,
+}) => {
+  let specifierIsArbitrary = true;
+  for (const [someDescriptorName, someDescriptor] of entries(
+    compartmentDescriptors,
+  )) {
+    if (someDescriptorName !== ATTENUATORS_COMPARTMENT) {
+      const moduleSpecifierUrl = `${new URL(absoluteModuleSpecifier, packageLocation)}`;
+      if (!compartmentDescriptor.location.startsWith(moduleSpecifierUrl)) {
+        if (moduleSpecifierUrl.startsWith(someDescriptor.location)) {
+          // compartmentDescriptor is a dependency of someDescriptor; we
+          // can use that compartment
+          if (someDescriptor.name in compartmentDescriptor.modules) {
+            return {
+              specifier: absoluteModuleSpecifier,
+              compartment: compartments[someDescriptorName],
+            };
+          }
+          // compartmentDescriptor is a dependent of someSomeDescriptor;
+          // this is more dubious but a common pattern
+          if (compartmentDescriptor.name in someDescriptor.modules) {
+            return {
+              specifier: absoluteModuleSpecifier,
+              compartment: compartments[someDescriptorName],
+            };
+          }
+          if (compartmentDescriptor === someDescriptor) {
+            // this compartmentDescriptor wants to dynamically load its own module
+            // using an absolute path
+            specifierIsArbitrary = false;
+          }
+        }
+      }
+    }
+  }
+
+  if (specifierIsArbitrary) {
+    throw new Error(
+      `Could not import unknown module: ${q(absoluteModuleSpecifier)}`,
+    );
+  }
+  return undefined;
+};
 
 /**
  * @param {object} params
@@ -542,17 +605,10 @@ export function makeImportNowHookMaker(
   const makeImportNowHook = ({
     packageLocation,
     packageName: _packageName,
-    entryCompartmentDescriptor,
     parse,
     compartments,
   }) => {
     const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
-
-    // this is necessary, because there's nothing that prevents someone from calling this function with the entry compartment.
-    assert(
-      compartmentDescriptor !== entryCompartmentDescriptor,
-      'Cannot create an ImportNowHook for the entry compartment',
-    );
 
     // this is not strictly necessary, since the types should handle it.
     assert(
@@ -594,50 +650,15 @@ export function makeImportNowHookMaker(
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
       if (isAbsolute(moduleSpecifier)) {
-        let shouldCallExitModuleImportNowHook = true;
-        for (const [someDescriptorName, someDescriptor] of entries(
+        const record = findRedirect({
+          compartmentDescriptor,
           compartmentDescriptors,
-        )) {
-          if (someDescriptorName !== ATTENUATORS_COMPARTMENT) {
-            const moduleSpecifierUrl = resolveLocation(
-              moduleSpecifier,
-              packageLocation,
-            );
-            if (
-              !compartmentDescriptor.location.startsWith(moduleSpecifierUrl)
-            ) {
-              if (moduleSpecifierUrl.startsWith(someDescriptor.location)) {
-                if (compartmentDescriptor.name in someDescriptor.modules) {
-                  return {
-                    specifier: moduleSpecifier,
-                    compartment: compartments[someDescriptorName],
-                  };
-                } else if (compartmentDescriptor === someDescriptor) {
-                  shouldCallExitModuleImportNowHook = false;
-                }
-              }
-            }
-          }
-        }
-        if (shouldCallExitModuleImportNowHook) {
-          if (exitModuleImportNowHook) {
-            // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
-            const record = exitModuleImportNowHook(
-              moduleSpecifier,
-              packageLocation,
-            );
-
-            if (!record) {
-              throw new Error(`Could not import module: ${q(moduleSpecifier)}`);
-            }
-
-            return record;
-          }
-          throw new Error(
-            `Could not import module: ${q(
-              moduleSpecifier,
-            )}; try providing an importNowHook`,
-          );
+          compartments,
+          absoluteModuleSpecifier: moduleSpecifier,
+          packageLocation,
+        });
+        if (record) {
+          return record;
         }
       }
 
