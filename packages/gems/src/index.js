@@ -1,6 +1,6 @@
 /* global setTimeout */
 
-import { Far, makeCapTP } from '@endo/captp';
+import { makeCapTP } from '@endo/captp';
 import { makeDurableZone } from '@agoric/zone/durable.js';
 
 /** @import { Stream } from '@endo/stream' */
@@ -48,55 +48,6 @@ export const makeMessageCapTP = (
   };
 };
 
-// const makeGemFactory = ({ gemController }) => {
-//   const makeGem = ({ name, makeFacet, interface: iface }) => {
-//     const gemId = `gem:${getRandomId()}`;
-//     console.log(`${gemId} created ("${name}")`);
-
-//     const gemLookup = gemController.getLookup();
-//     const persistenceNode = makePersistenceNode();
-//     const retentionSet = new Set();
-
-//     const incarnateEvalGem = async ({
-//       name: childName,
-//       interface: childIface,
-//       code,
-//     }) => {
-//       const compartment = new Compartment({ M });
-//       const childMakeFacet = compartment.evaluate(code);
-//       const { gemId: childGemId, exo } = await makeGem({
-//         name: childName,
-//         makeFacet: childMakeFacet,
-//         interface: childIface,
-//       });
-//       return { gemId: childGemId, exo };
-//     };
-
-//     // we wrap this here to avoid passing things to the wake controller
-//     // the wake controller adds little of value as "endowments"
-//     const makeFacetWithEndowments = async endowments => {
-//       return makeFacet({
-//         ...endowments,
-//         persistenceNode,
-//         retentionSet,
-//         incarnateEvalGem,
-//         gemLookup,
-//       });
-//     };
-//     const wakeController = makeWakeController({
-//       name,
-//       makeFacet: makeFacetWithEndowments,
-//     });
-//     const methodNames = getInterfaceMethodKeys(iface);
-//     const wrapper = makeWrapper(name, wakeController, methodNames);
-//     const exo = makeExo(`${gemId}`, iface, wrapper);
-//     gemController.register(gemId, exo);
-
-//     return { gemId, exo, wakeController, persistenceNode, retentionSet };
-//   };
-//   return makeGem;
-// };
-
 export const makeKernel = (baggage) => {
   const zone = makeDurableZone(baggage);
   const gemZone = zone.subZone('GemZone');
@@ -115,10 +66,6 @@ export const makeKernel = (baggage) => {
       // the initializer
       instance.state.store = store;
       instance.state.powers = harden({ gems: gemCreationPowers });
-
-      // instance.state.powers = Far('GemPowers', {
-      //   incarnateEvalGem,
-      // };
     };
     // only good for singletons as here
     const initWithEndowments = (...args) => harden({ store: {}, powers: {}, ...args });
