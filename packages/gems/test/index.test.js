@@ -14,7 +14,7 @@ TODO:
 
 */
 
-test.only('persistence - simple json counter', async t => {
+test('persistence - simple json counter', async t => {
   const gemName = 'CounterGem';
   const gemRecipe = {
     name: gemName,
@@ -59,44 +59,55 @@ test.only('persistence - simple json counter', async t => {
 });
 
 // TODO: need to untangle captp remote refs for persistence
-test.skip('kumavis store - serialization of gem refs', async t => {
-  const gemName = 'FriendGem';
-  const gemRecipe = {
-    name: gemName,
-    interface: M.interface(gemName, {
-      addFriend: M.callWhen(M.any()).returns(M.string()),
-      getFriends: M.callWhen().returns(M.any()),
-    }),
-    init: () => ({ friends: [] }),
-    methods: {
-      async addFriend(friend) {
-        const { store } = this.state;
-        const { friends } = store.get('state');
-        store.set('state', { friends: [...friends, friend] });
-        return `added friend ${friend} (${friends.length} friends total)`;
+test('kumavis store - serialization of gem refs', async t => {
+  const friendsListRecipe = {
+    name: 'FriendsList',
+    code: `${({ M, gemName, getStore }) => ({
+      interface: M.interface(gemName, {
+        addFriend: M.call(M.any()).returns(M.string()),
+        getFriends: M.call().returns(M.any()),
+      }),
+      init: () => ({ friends: [] }),
+      methods: {
+        addFriend(friend) {
+          const store = getStore(this.self);
+          const { friends } = store.get();
+          store.set({ friends: [...friends, friend] });
+          return `added friend ${friend} (${friends.length} friends total)`;
+        },
+        getFriends() {
+          const store = getStore(this.self);
+          const { friends } = store.get();
+          return friends;
+        },
       },
-      async getFriends() {
-        const { store } = this.state;
-        const { friends } = store.get('state');
-        return friends;
-      },
-    },
+    })}`
   };
 
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
-  const bob = await aliceKit.captpKit.getBootstrap();
+  const friendRecipe = {
+    name: 'Friend',
+    code: `${({ M, gemName }) => ({
+      interface: M.interface(gemName, {}),
+      methods: {},
+    })}`
+  };
 
-  // t.deepEqual(aliceKit.gem.retentionSet.size, 0);
-  await E(alice).addFriend(bob);
-  // t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  // await aliceKit.gem.wakeController.sleep();
+  const vat = makeVat();
+  let kernel = vat.restart();
+  let friendsList = kernel.makeGem(friendsListRecipe);
+  kernel.store.init('friendsList', friendsList);
+  let friend = kernel.makeGem(friendRecipe);
+  kernel.store.init('friend', friend);
 
-  const aliceFriends = await E(alice).getFriends();
-  // t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  t.deepEqual(aliceFriends, [bob]);
-  t.notDeepEqual(aliceFriends, [alice]);
+  t.deepEqual(friendsList.getFriends(), []);
+  friendsList.addFriend(friend);
+  t.deepEqual(friendsList.getFriends(), [friend]);
+
+  kernel = vat.restart();
+  friendsList = kernel.store.get('friendsList');
+  friend = kernel.store.get('friend');
+
+  t.deepEqual(friendsList.getFriends(), [friend]);
 });
 
 test.skip('makeGem - widget factory', async t => {
