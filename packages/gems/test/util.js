@@ -1,8 +1,5 @@
-import { makePipe } from '@endo/stream';
-import { makeMessageCapTP, makeKernel } from '../src/index.js';
+import { makeKernel } from '../src/index.js';
 import { reincarnate } from '@agoric/swingset-liveslots/tools/setup-vat-data.js';
-
-const never = new Promise(() => {});
 
 const setupWorld = (fakeStore) => {
   const { fakeVomKit } = reincarnate({ relaxDurabilityRules: false, fakeStore });
@@ -16,45 +13,20 @@ const setupWorld = (fakeStore) => {
   return { baggage, flush };
 };
 
-export const makeScenario = ({
-  recipeForBoth,
-  recipeForAlice = recipeForBoth,
-  recipeForBob = recipeForBoth,
-}) => {
-  const [writerA, readerB] = makePipe();
-  const [writerB, readerA] = makePipe();
+export const makeVat = () => {
+  let fakeStore, baggage, flush, kernel;
 
-  const fakeStore = new Map();
-  const { baggage } = setupWorld(fakeStore);
-
-  const kernel = makeKernel(baggage);
-
-  const gemA = kernel.makeGem({
-    ...recipeForAlice,
-    name: `${recipeForAlice.name}-alice`,
-  });
-  const captpKitA = makeMessageCapTP(
-    'Alice',
-    writerA,
-    readerA,
-    never,
-    gemA,
-  );
-
-  const gemB = kernel.makeGem({
-    ...recipeForBob,
-    name: `${recipeForBob.name}-bob`,
-  });
-  const captpKitB = makeMessageCapTP('Bob', writerB, readerB, never, gemB);
+  const restart = () => {
+    if (flush) {
+      flush();
+    }
+    fakeStore = new Map(fakeStore);
+    ({ baggage, flush } = setupWorld(fakeStore));
+    kernel = makeKernel(baggage);
+    return kernel;
+  }
 
   return {
-    aliceKit: {
-      captpKit: captpKitA,
-      gem: gemA,
-    },
-    bobKit: {
-      captpKit: captpKitB,
-      gem: gemB,
-    },
-  };
+    restart,
+  }
 };

@@ -2,7 +2,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import '@agoric/swingset-liveslots/tools/setup-vat-data.js';
 import { E } from '@endo/far';
 import { M } from '@endo/patterns';
-import { makeScenario } from './util.js';
+import { makeVat } from './util.js';
 
 /*
 
@@ -13,43 +13,6 @@ TODO:
   - [ ] figure out gem class registry GC
 
 */
-
-test('lifecycle - ping/gc', async t => {
-  const gemName = 'PingGem';
-  const gemRecipe = {
-    name: gemName,
-    interface: M.interface(gemName, {
-      ping: M.callWhen().returns(M.string()),
-    }),
-    methods: {
-      async ping() {
-        return 'pong';
-      },
-    },
-  };
-
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
-
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-  // await aliceKit.gem.wakeController.sleep();
-
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-
-  // console.log('...attempting to trigger timebased GC...');
-  // await delay(10e3);
-
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-
-  // this is just an example
-  t.pass();
-});
 
 test.only('persistence - simple json counter', async t => {
   const gemName = 'CounterGem';
@@ -63,7 +26,6 @@ test.only('persistence - simple json counter', async t => {
       init: () => ({ count: 0 }),
       methods: {
         async increment() {
-          // const { store } = this.state;
           const store = getStore(this.self);
           let { count } = store.get();
           count += 1;
@@ -71,7 +33,6 @@ test.only('persistence - simple json counter', async t => {
           return count;
         },
         async getCount() {
-          // const { store } = this.state;
           const store = getStore(this.self);
           const { count } = store.get();
           return count;
@@ -80,19 +41,21 @@ test.only('persistence - simple json counter', async t => {
     })}`
   };
 
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
+  const vat = makeVat();
+  let kernel = vat.restart();
+  let counter = kernel.makeGem(gemRecipe);
+  kernel.store.init('counter', counter);
 
-  t.deepEqual(await E(alice).getCount(), 0);
-  await E(alice).increment();
-  t.deepEqual(await E(alice).getCount(), 1);
+  t.deepEqual(await E(counter).getCount(), 0);
+  await E(counter).increment();
+  t.deepEqual(await E(counter).getCount(), 1);
 
-  // await aliceKit.gem.wakeController.sleep();
+  kernel = vat.restart();
+  counter = kernel.store.get('counter');
 
-  t.deepEqual(await E(alice).getCount(), 1);
-  await Promise.all([E(alice).increment(), E(alice).increment()]);
-  t.deepEqual(await E(alice).getCount(), 3);
+  t.deepEqual(await E(counter).getCount(), 1);
+  await Promise.all([E(counter).increment(), E(counter).increment()]);
+  t.deepEqual(await E(counter).getCount(), 3);
 });
 
 // TODO: need to untangle captp remote refs for persistence
