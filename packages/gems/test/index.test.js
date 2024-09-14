@@ -4,6 +4,16 @@ import { E } from '@endo/far';
 import { M } from '@endo/patterns';
 import { makeScenario } from './util.js';
 
+/*
+
+TODO:
+  - [ ] test teardown / reincarnation
+  - [ ] test ChildClass registrations
+  - [ ] flatten gem class registry
+  - [ ] figure out gem class registry GC
+
+*/
+
 test('lifecycle - ping/gc', async t => {
   const gemName = 'PingGem';
   const gemRecipe = {
@@ -41,28 +51,33 @@ test('lifecycle - ping/gc', async t => {
   t.pass();
 });
 
-test('persistence - simple json counter', async t => {
+test.only('persistence - simple json counter', async t => {
   const gemName = 'CounterGem';
   const gemRecipe = {
-    interface: M.interface(gemName, {
-      increment: M.callWhen().returns(M.number()),
-      getCount: M.callWhen().returns(M.number()),
-    }),
-    init: () => ({ count: 0 }),
-    methods: {
-      async increment() {
-        const { store } = this.state;
-        let { count } = store.get('state');
-        count += 1;
-        store.set('state', { count });
-        return count;
+    name: gemName,
+    code: `${({ M, gemName, getStore }) => ({
+      interface: M.interface(gemName, {
+        increment: M.callWhen().returns(M.number()),
+        getCount: M.callWhen().returns(M.number()),
+      }),
+      init: () => ({ count: 0 }),
+      methods: {
+        async increment() {
+          // const { store } = this.state;
+          const store = getStore(this.self);
+          let { count } = store.get();
+          count += 1;
+          store.set({ count });
+          return count;
+        },
+        async getCount() {
+          // const { store } = this.state;
+          const store = getStore(this.self);
+          const { count } = store.get();
+          return count;
+        },
       },
-      async getCount() {
-        const { store } = this.state;
-        const { count } = store.get('state');
-        return count;
-      },
-    },
+    })}`
   };
 
   const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
