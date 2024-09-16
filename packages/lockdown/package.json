@@ -48,7 +48,6 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "ava": {
     "files": [
-      "test/**/test-*.*",
       "test/**/*.test.*"
     ]
   },
