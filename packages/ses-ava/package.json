@@ -77,7 +77,6 @@
   },
   "ava": {
     "files": [
-      "test/**/test-*.*",
       "test/**/*.test.*"
     ],
     "timeout": "2m"
