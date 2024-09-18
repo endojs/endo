@@ -1,5 +1,5 @@
 /*---
-flags: []
+flags: [async]
 ---*/
 
 let message;
@@ -11,24 +11,23 @@ const c1 = new Compartment({
   globals: {
     print,
   },
-  importHook: async () => {
-    return new ModuleSource(`
-      const c3 = new Compartment({ print });
-      c3.evaluate('print("hi")');
-    `);
+  loadHook: async () => {
+    return {
+      source: new ModuleSource(`
+        const c3 = new Compartment({ globals: { print }, __options__: true });
+        c3.evaluate('print("hi")');
+      `),
+    };
   },
 });
 
 const c2 = new Compartment({
   __options__: true,
-  importHook: async () => {
+  loadHook: async () => {
     return { namespace: '', compartment: c1 };
   },
 });
 
-c2.import('.').then(
-  () => {
-    assert.sameValue(message, 'hi');
-  },
-  error => assert.fail(error),
-);
+c2.import('.').then(() => {
+  assert.sameValue(message, 'hi');
+});

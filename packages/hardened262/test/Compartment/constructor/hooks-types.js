@@ -7,7 +7,7 @@ flags: [module,noSesNode,noSesXs]
 const names = ['resolveHook', 'loadHook', 'loadNowHook'];
 
 function test(name, hook) {
-  return new Compartment({ [name]: hook });
+  return new Compartment({ __options__: true, [name]: hook });
 }
 
 assert.sameValue(
@@ -16,7 +16,7 @@ assert.sameValue(
   'no options',
 );
 assert.sameValue(
-  new Compartment({}).toString(),
+  new Compartment({ __options__: true }).toString(),
   '[object Compartment]',
   'no hooks',
 );
