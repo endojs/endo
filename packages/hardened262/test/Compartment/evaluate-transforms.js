@@ -1,6 +1,6 @@
 /*---
 features: [Compartment]
-flags: []
+flags: [noXs]
 ---*/
 const compartment = new Compartment({
   __options__: true,
