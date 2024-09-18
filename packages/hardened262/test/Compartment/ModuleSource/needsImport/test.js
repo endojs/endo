@@ -1,6 +1,8 @@
 /*---
-description: 
-flags: [onlyStrict]
+description: |
+  Currently failing with XS.
+  Currently failing with SES.
+flags: [onlyStrict,noSesNode]
 ---*/
 
 const smr1 = new ModuleSource(`

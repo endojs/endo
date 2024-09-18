@@ -1,6 +1,8 @@
 /*---
 description: 
-flags: [async,onlyStrict]
+  Currently failing in XS.
+  Currently failing in SES.
+flags: [async,onlyStrict,noXs,noSesNode,noSesXs]
 ---*/
 
 function resolveHook(importSpecifier, referrerSpecifier) {

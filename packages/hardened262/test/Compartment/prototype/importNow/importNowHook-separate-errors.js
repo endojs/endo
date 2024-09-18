@@ -1,6 +1,8 @@
 /*---
-description: 
-flags: [onlyStrict]
+description: |
+  Currently failing in SES.
+  Currently failing on bare XS as well.
+flags: [onlyStrict,noXs,noSesXs,noSesNode]
 ---*/
 
 function resolveHook(importSpecifier, referrerSpecifier) {

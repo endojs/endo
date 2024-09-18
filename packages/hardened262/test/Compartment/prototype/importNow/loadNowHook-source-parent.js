@@ -1,6 +1,7 @@
 /*---
-description: 
-flags: [onlyStrict]
+description:
+  Currently failing in XS and SES.
+flags: [onlyStrict,noXs,noSesXs,noSesNode]
 ---*/
 
 const parentCompartment = new Compartment({

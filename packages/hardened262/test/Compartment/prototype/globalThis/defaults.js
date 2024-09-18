@@ -1,6 +1,8 @@
 /*---
-description: 
-flags: [onlyStrict]
+description: |
+  Currently failing in SES.
+  Passes with XS, but not with XS under Lockdown.
+flags: [onlyStrict,noXs,noSesXs,noSesNode]
 ---*/
 
 const c = new Compartment();

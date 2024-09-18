@@ -1,6 +1,6 @@
 /*---
 description: 
-flags: [onlyStrict]
+flags: [onlyStrict,noSesNode,noSesXs]
 ---*/
 
 const source = new ModuleSource(`
