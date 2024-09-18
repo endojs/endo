@@ -1,7 +1,7 @@
 /*---
 description: |
   Currently failing with SES, pending fix.
-flags: [onlyStrict,noSesXs,noSesNode]
+flags: [onlyStrict,noXs,noSesXs,noSesNode]
 includes: [propertyHelper.js]
 ---*/
 
