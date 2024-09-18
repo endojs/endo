@@ -19,7 +19,7 @@ import {
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from './global-object.js';
-import { assertEqual } from './error/assert.js';
+import { assert, assertEqual } from './error/assert.js';
 import { sharedGlobalPropertyNames } from './permits.js';
 import { load, loadNow } from './module-load.js';
 import { link } from './module-link.js';
