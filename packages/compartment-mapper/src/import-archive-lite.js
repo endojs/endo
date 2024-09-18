@@ -15,7 +15,6 @@
 /* eslint no-shadow: "off" */
 
 /** @import {ImportHook} from 'ses' */
-/** @import {ModuleExportsNamespace} from 'ses' */
 /** @import {StaticModuleType} from 'ses' */
 /** @import {Application} from './types.js' */
 /** @import {CompartmentDescriptor} from './types.js' */
