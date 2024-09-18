@@ -27,6 +27,7 @@ import { getDeferredExports } from './module-proxy.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
+/** @import {CompartmentOptions} from '../types.js' */
 /** @import {ModuleDescriptor} from '../types.js' */
 
 // moduleAliases associates every public module exports namespace with its
@@ -230,6 +231,22 @@ export const compartmentOptions = (...args) => {
     };
   }
 };
+
+/**
+ * @callback LegacyCompartmentOptionsFn
+ * @param {Record<string, any>} globals
+ * @param {Record<string, ModuleDescriptor>} modules
+ * @param {CompartmentOptions} options
+ * @returns {CompartmentOptions}
+ */
+
+/**
+ * @callback FutureCompartmentOptionsFn
+ * @param {CompartmentOptions & {[Symbol.for('future')]: true}} options
+ * @param {never} noSecondArgument
+ * @param {never} noThirdArgument
+ * @returns {CompartmentOptions}
+ */
 
 /** @type {MakeCompartmentConstructor} */
 export const makeCompartmentConstructor = (
