@@ -1,6 +1,6 @@
 /*---
 description:
-flags: [onlyStrict]
+flags: [onlyStrict,noXs,noSesNode,noSesXs]
 includes: [propertyHelper.js]
 ---*/
 

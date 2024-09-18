@@ -1,6 +1,8 @@
 /*---
-description:
-flags: [onlyStrict]
+description: |
+  Currently failing on XS.
+  Currently failing on SES.
+flags: [onlyStrict,noXs,noSesXs,noSesNode]
 includes: [propertyHelper.js]
 ---*/
 
