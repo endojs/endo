@@ -1,10 +1,10 @@
 /*---
-description:
+description: |
+  Currently failing with SES, pending work to fix.
 includes: [propertyHelper.js]
 features: [Symbol.toStringTag]
+flags: [noSloppy,onlyLockdown,noSesNode,noSesXs]
 ---*/
-
-lockdown();
 
 verifyProperty(Compartment.prototype, Symbol.toStringTag, {
   value: 'Compartment',

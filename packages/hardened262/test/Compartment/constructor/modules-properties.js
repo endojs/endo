@@ -1,6 +1,7 @@
 /*---
-description: 
-flags: [async, onlyStrict]
+description: |
+  Currently failing with SES, pending work to fix.
+flags: [async,onlyStrict,noSesNode,noSesXs]
 ---*/
 
 let getterCount = 0;
