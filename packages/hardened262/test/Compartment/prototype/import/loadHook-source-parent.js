@@ -25,13 +25,10 @@ const childCompartment = new parentCompartment.globalThis.Compartment({
   },
 });
 
-Promise.all([
-	childCompartment.import('foo'),
-	parentCompartment.import('bar'),
-])
-.then(([ child, parent ]) => {
-	assert.sameValue(child.meaning, 42, "child export");
-	assert.sameValue(parent.meaning, 42, "parent export");
-	assert(child !== parent, "separate namepaces");
-})
-.then($DONE, $DONE);
+Promise.all([childCompartment.import('foo'), parentCompartment.import('bar')])
+  .then(([child, parent]) => {
+    assert.sameValue(child.meaning, 42, 'child export');
+    assert.sameValue(parent.meaning, 42, 'parent export');
+    assert(child !== parent, 'separate namepaces');
+  })
+  .then($DONE, $DONE);
