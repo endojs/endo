@@ -28,6 +28,6 @@ const childCompartment = new parentCompartment.globalThis.Compartment({
 const child = childCompartment.importNow('foo');
 const parent = parentCompartment.importNow('bar');
 
-assert.sameValue(child.meaning, 42, "child export");
-assert.sameValue(parent.meaning, 42, "parent export");
-assert(child !== parent, "separate namepaces");
+assert.sameValue(child.meaning, 42, 'child export');
+assert.sameValue(parent.meaning, 42, 'parent export');
+assert(child !== parent, 'separate namepaces');
