@@ -113,7 +113,7 @@ const sortedModules = (
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
       const { record, parser, deferredError, bytes } = source;
-      assert(parser !== undefined);
+      assert(parser !== undefined, `no language ${JSON.stringify(source)}`);
       assert(bytes !== undefined);
       if (deferredError) {
         throw Error(
