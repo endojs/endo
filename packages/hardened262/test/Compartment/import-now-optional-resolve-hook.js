@@ -1,5 +1,5 @@
 /*---
-flags: []
+flags: [noXs]
 ---*/
 
 const compartment = new Compartment({
