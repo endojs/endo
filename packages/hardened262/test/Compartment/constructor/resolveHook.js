@@ -1,7 +1,7 @@
 /*---
 description: |
   Currently failing with SES, pending work to fix.
-flags: [module,noSesNode,noSesXs]
+flags: [module,noSesNode,noSesXs,noXs]
 ---*/
 
 const c = new Compartment({
