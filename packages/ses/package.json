@@ -59,6 +59,7 @@
     "./assert-shim.js": "./assert-shim.js",
     "./lockdown-shim.js": "./lockdown-shim.js",
     "./compartment-shim.js": "./compartment-shim.js",
+    "./console-shim.js": "./console-shim.js",
     "./package.json": "./package.json"
   },
   "scripts": {
