@@ -12,6 +12,7 @@ User-visible changes in `ses`:
   - XS and Node >= 22 already have `Array.prototype.transfer`.
   - Node 18, Node 20, and all browsers have `structuredClone`
   - Node <= 16 have neither, but are also no longer supported by Endo.
+- Fixes a missing file for `ses/console-shim.js`.
 
 # v1.8.0 (2024-08-27)
 
