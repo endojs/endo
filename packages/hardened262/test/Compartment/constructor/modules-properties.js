@@ -1,7 +1,7 @@
 /*---
 description: |
   Currently failing with SES, pending work to fix.
-flags: [async,onlyStrict,noSesNode,noSesXs]
+flags: [async,onlyStrict,noSesNode]
 ---*/
 
 let getterCount = 0;
@@ -43,8 +43,8 @@ const modules = Object.create(
   },
 );
 
-const c1 = new Compartment({ modules });
-const c2 = new Compartment({ modules });
+const c1 = new Compartment({ modules, __options__: true });
+const c2 = new Compartment({ modules, __options__: true });
 
 assert.sameValue(getterCount, 2, 'getterCount');
 assert.sameValue(setterCount, 0, 'setterCount');

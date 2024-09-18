@@ -55,7 +55,7 @@ const globals = Object.create(
   },
 );
 
-const c1 = new Compartment({ globals });
+const c1 = new Compartment({ globals, __options__: true });
 c1.evaluate(`
   foo++;
   bar++;
@@ -64,7 +64,7 @@ c1.evaluate(`
   globalThis.which = 1;
 `);
 
-const c2 = new Compartment({ globals });
+const c2 = new Compartment({ globals, __options__: true });
 c2.evaluate(`
   foo++;
   bar++;

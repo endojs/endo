@@ -6,7 +6,7 @@ flags: [onlyStrict,noSesNode,noSesXs]
 
 function check(globals) {
   return function () {
-    return new Compartment({ globals }).toString();
+    return new Compartment({ globals, __options__: true }).toString();
   };
 }
 
@@ -16,7 +16,12 @@ assert.sameValue(
   'no options',
 );
 assert.sameValue(
-  new Compartment({}).toString(),
+  new Compartment({ __options__: true }).toString(),
+  '[object Compartment]',
+  'no globals',
+);
+assert.sameValue(
+  new Compartment({ globals: {}, __options__: true }).toString(),
   '[object Compartment]',
   'no globals',
 );
