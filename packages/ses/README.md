@@ -147,7 +147,7 @@ console.log(Object.isFrozen(capability.inc));
 // true
 ```
 
-Note that although the **surface** of the capability is frozen, the capability
+Although the **surface** of the capability is frozen, the capability
 still closes over the mutable counter.
 Hardening an object graph makes the surface immutable, but does not guarantee
 that methods are free of side effects.
