@@ -142,8 +142,8 @@ export interface CompartmentOptions {
   importNowHook?: ImportNowHook;
   importMetaHook?: ImportMetaHook;
   resolveHook?: ResolveHook;
-  globals?: Map<string, any>;
-  modules?: Map<string, ModuleDescriptor>;
+  globals?: Object,
+  modules?: ModuleMap;
   __shimTransforms__?: Array<Transform>;
   __noNamespaceBox__?: boolean;
 }
