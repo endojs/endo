@@ -118,6 +118,7 @@
     "rules": {
       "no-restricted-globals": [
         "error",
+        "AggregateError",
         "Array",
         "ArrayBuffer",
         "Atomics",
@@ -125,6 +126,7 @@
         "BigInt64Array",
         "BigUint64Array",
         "Boolean",
+        "Compartment",
         "DataView",
         "Date",
         "Error",
@@ -160,6 +162,7 @@
         "Uint8ClampedArray",
         "WeakMap",
         "WeakSet",
+        "assert",
         "decodeURI",
         "decodeURIComponent",
         "encodeURI",
@@ -169,10 +172,10 @@
         "globalThis",
         "isFinite",
         "isNaN",
+        "lockdown",
         "parseFloat",
         "parseInt",
-        "unescape",
-        "AggregateError"
+        "unescape"
       ],
       "@endo/no-polymorphic-call": "error"
     },
