@@ -1,6 +1,7 @@
 /*---
-description: 
-flags: [onlyStrict]
+description: |
+  SES dropped support for globalLexicals.
+flags: [onlyStrict,noSesXs,noSesNode]
 ---*/
 
 let getterCount = 0;

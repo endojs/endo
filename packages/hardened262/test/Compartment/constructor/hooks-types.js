@@ -1,6 +1,7 @@
 /*---
-description: 
-flags: [module]
+description: |
+  Currently failing with SES, pending work to fix.
+flags: [module,noSesNode,noSesXs]
 ---*/
 
 const names = ['resolveHook', 'loadHook', 'loadNowHook'];

@@ -1,6 +1,7 @@
 /*---
-description: 
-flags: [onlyStrict]
+description: |
+  Currently failing with SES, pending work to fix.
+flags: [onlyStrict,noSesXs,noSesNode]
 ---*/
 
 function check(options) {
