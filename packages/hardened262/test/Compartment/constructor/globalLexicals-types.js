@@ -1,6 +1,7 @@
 /*---
-description: 
-flags: [onlyStrict]
+description: |
+  SES no longer supports globalLexicals.
+flags: [onlyStrict,noSesXs,noSesNode]
 ---*/
 
 function check(globalLexicals) {

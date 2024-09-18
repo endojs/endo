@@ -1,10 +1,8 @@
 /*---
 description:
 features: [harden]
-flags: [onlyStrict]
+flags: [onlyStrict,onlyLockdown,noSesNode]
 ---*/
-
-lockdown();
 
 const object = {};
 const frozenObject = Object.freeze({});

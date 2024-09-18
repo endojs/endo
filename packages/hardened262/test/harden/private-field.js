@@ -1,10 +1,8 @@
 /*---
 description:
 features: [harden]
-flags: [onlyStrict]
+flags: [onlyStrict,onlyLockdown]
 ---*/
-
-lockdown();
 
 class Class {
   #value;
