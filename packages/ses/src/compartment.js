@@ -192,8 +192,7 @@ export const compartmentOptions = (...args) => {
   }
   if (
     args.length === 1 &&
-    typeof args[0] === 'object' &&
-    args[0] !== null &&
+    Object(args[0]) === args[0] &&
     '__options__' in args[0]
   ) {
     const { __options__, ...options } = args[0];
@@ -203,25 +202,31 @@ export const compartmentOptions = (...args) => {
     );
     return options;
   } else {
-    const [
-      globals = /** @type {Map<string, any>} */ ({}),
-      modules = /** @type {Map<string, ModuleDescriptor>} */ ({}),
-      options = {},
-    ] = args;
+    const [globals, modules, options = {}] = args;
+    if (args.length >= 1 && Object(globals) !== globals) {
+      throw new TypeError(
+        'Compartment must receive an object for options or globals',
+      );
+    }
+    if (args.length >= 2 && Object(modules) !== modules) {
+      throw new TypeError('Compartment must receive an object for modules');
+    }
     assertEqual(
       options.modules,
       undefined,
       `Compartment constructor must receive either a module map argument or modules option, not both`,
+      TypeError,
     );
     assertEqual(
       options.globals,
       undefined,
       `Compartment constructor must receive either globals argument or option, not both`,
+      TypeError,
     );
     return {
       ...options,
-      globals,
-      modules,
+      globals: globals || {},
+      modules: modules || {},
     };
   }
 };
@@ -241,19 +246,67 @@ export const makeCompartmentConstructor = (
     }
 
     // Extract options, and shallow-clone transforms.
+    const options = compartmentOptions(...args);
+
+    if ('globals' in options && Object(options.globals) !== options.globals) {
+      throw new TypeError('Compartment globals must be an object if specified');
+    }
+    if ('modules' in options && Object(options.modules) !== options.modules) {
+      throw new TypeError('Compartment modules must be an object if specified');
+    }
+    if ('resolveHook' in options && typeof options.resolveHook !== 'function') {
+      throw new TypeError(
+        'Compartment resolveHook must be a function if specified',
+      );
+    }
+    if ('importHook' in options && typeof options.importHook !== 'function') {
+      throw new TypeError(
+        'Compartment importHook must be a function if specified',
+      );
+    }
+    if (
+      'importNowHook' in options &&
+      typeof options.importNowHook !== 'function'
+    ) {
+      throw new TypeError(
+        'Compartment importNowHook must be a function if specified',
+      );
+    }
+    if ('loadHook' in options && typeof options.loadHook !== 'function') {
+      throw new TypeError(
+        'Compartment loadHook must be a function if specified',
+      );
+    }
+    if ('loadNowHook' in options && typeof options.loadNowHook !== 'function') {
+      throw new TypeError(
+        'Compartment loadNowHook must be a function if specified',
+      );
+    }
+    if (
+      'moduleMapHook' in options &&
+      typeof options.moduleMapHook !== 'function'
+    ) {
+      throw new TypeError(
+        'Compartment moduleMapHook must be a function if specified',
+      );
+    }
+
     const {
       name = '<unknown>',
       transforms = [],
       __shimTransforms__ = [],
-      globals: endowmentsOption = {},
-      modules: moduleMapOption = {},
+      globals: endowmentsOption,
+      modules: moduleMapOption,
       resolveHook,
-      importHook,
-      importNowHook,
+      loadHook,
+      loadNowHook,
+      importHook = loadHook,
+      importNowHook = loadNowHook,
       moduleMapHook,
       importMetaHook,
       __noNamespaceBox__: noNamespaceBox = false,
-    } = compartmentOptions(...args);
+    } = options;
+
     const globalTransforms = [...transforms, ...__shimTransforms__];
     const endowments = { __proto__: null, ...endowmentsOption };
     const moduleMap = { __proto__: null, ...moduleMapOption };
