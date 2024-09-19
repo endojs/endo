@@ -37,7 +37,7 @@ test.serial(
   ),
 );
 
-test.serial.failing(
+test.serial(
   'sending-messages',
   makeSectionTest(
     $({ cwd: 'demo' }),
@@ -49,7 +49,7 @@ test.serial.failing(
   ),
 );
 
-test.serial.failing(
+test.serial(
   'names-in-transit',
   makeSectionTest(
     $({ cwd: 'demo' }),
@@ -62,7 +62,7 @@ test.serial.failing(
   ),
 );
 
-test.serial.failing(
+test.serial(
   'mailboxes-are-symmetric',
   makeSectionTest(
     $({ cwd: 'demo' }),

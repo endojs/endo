@@ -10,8 +10,8 @@ export const section = async (execa, testLine) => {
     stdout: /^1\. "HOST" sent "Please enjoy this @counter\."/,
   });
   await testLine(execa`endo adopt --as alice-agent 1 counter --name redoubler`);
-  await testLine(execa`endo list --as alice-agent`, {
-    stdout: 'redoubler',
+  await testLine(execa`endo list alice-agent`, {
+    stdout: /redoubler/,
   });
   await testLine(execa`endo dismiss --as alice-agent 1`);
 };

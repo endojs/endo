@@ -7,8 +7,11 @@ export const section = async (execa, testLine) => {
     execa`endo send HOST --as alice-agent ${'This is the @doubler you sent me.'}`,
   );
   await testLine(execa`endo inbox`, {
-    stdout: /^0\. "alice" sent "This is the @doubler you sent me\."/,
+    stdout: /3\. "alice" sent "This is the @doubler you sent me\."/,
   });
-  await testLine(execa`endo adopt 0 doubler doubler-from-alice`);
-  await testLine(execa`endo dismiss 0`);
+  await testLine(execa`endo adopt 3 doubler doubler-from-alice`);
+  await testLine(execa`endo dismiss 3`);
+  await testLine(execa`endo inbox`, {
+    stdout: /^(?!3\. "alice" sent "This is the @doubler you sent me\.").*/,
+  });
 };

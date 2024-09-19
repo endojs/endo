@@ -206,7 +206,7 @@ and adopt the "doubler" object into our own store.
 > endo inbox --as alice-agent
 0. "HOST" sent "Please enjoy this @doubler."
 > endo adopt --as alice-agent 0 doubler
-> endo list --as alice-agent
+> endo list alice-agent
 doubler
 > endo dismiss --as alice-agent 0
 ```
@@ -230,7 +230,7 @@ Then, alice adopts "counter", giving it their own name, "redoubler".
 > endo inbox --as alice-agent
 1. "HOST" sent "Please enjoy this @counter."
 > endo adopt --as alice-agent 1 counter --name redoubler
-> endo list --as alice-agent
+> endo list alice-agent
 redoubler
 > endo dismiss --as alice-agent 1
 ```
