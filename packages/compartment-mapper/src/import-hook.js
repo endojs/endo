@@ -43,7 +43,6 @@ import {
   enforceModulePolicy,
 } from './policy.js';
 import { unpackReadPowers } from './powers.js';
-import { isSyncParser } from './map-parser.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -611,7 +610,7 @@ export function makeImportNowHookMaker(
   }) => {
     const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
 
-    if (!isSyncParser(parse)) {
+    if (!parse.isSyncParser) {
       return () => {
         throw new Error(
           'Dynamic requires are only possible whith synchronous parser and no async module transforms in options',
