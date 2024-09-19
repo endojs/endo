@@ -2,7 +2,7 @@ import test from 'ava';
 import url from 'url';
 import { exec } from 'child_process';
 
-const cwd = url.fileURLToPath(new URL('console-error-trap', import.meta.url));
+const cwd = url.fileURLToPath(new URL('_console-error-trap', import.meta.url));
 
 const exitAssertions = (
   t,

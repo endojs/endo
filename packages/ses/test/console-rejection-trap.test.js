@@ -3,7 +3,7 @@ import url from 'url';
 import { exec } from 'child_process';
 
 const cwd = url.fileURLToPath(
-  new URL('console-rejection-trap', import.meta.url),
+  new URL('_console-rejection-trap', import.meta.url),
 );
 
 const exitAssertions = (
