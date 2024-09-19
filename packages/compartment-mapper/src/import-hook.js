@@ -618,11 +618,6 @@ export function makeImportNowHookMaker(
     }
 
     const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
-    // this is not necessary.
-    assert(
-      parse[Symbol.toStringTag] !== 'AsyncFunction',
-      'async parsers are unsupported',
-    );
 
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || create(null);
