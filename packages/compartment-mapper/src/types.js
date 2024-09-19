@@ -469,20 +469,10 @@ export {};
  * @typedef {object} ExtraLinkOptions
  * @property {ResolveHook} [resolve]
  * @property {ImportHookMaker} makeImportHook
+ * @property {ImportNowHookMaker} [makeImportNowHook]
  * @property {ParserForLanguage} [parserForLanguage]
  * @property {LanguageForExtension} [languageForExtension]
  * @property {ModuleTransforms} [moduleTransforms]
- * @property {SyncModuleTransforms} [syncModuleTransforms]
- * @property {boolean} [archiveOnly]
- */
-
-/**
- * @typedef {object} SyncExtraLinkOptions
- * @property {ResolveHook} [resolve]
- * @property {ImportHookMaker} makeImportHook
- * @property {ImportNowHookMaker} makeImportNowHook
- * @property {ParserForLanguage} parserForLanguage
- * @property {LanguageForExtension} [languageForExtension]
  * @property {SyncModuleTransforms} [syncModuleTransforms]
  * @property {boolean} [archiveOnly]
  */
@@ -499,10 +489,6 @@ export {};
  * Options for `link()`
  *
  * @typedef {ExecuteOptions & ExtraLinkOptions} LinkOptions
- */
-
-/**
- * @typedef {ExecuteOptions & SyncExtraLinkOptions} SyncLinkOptions
  */
 
 /**
