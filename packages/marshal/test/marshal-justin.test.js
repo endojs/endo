@@ -3,7 +3,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Remotable, makeTagged } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin } from '../src/marshal-justin.js';
-import { jsonJustinPairs } from './marshal-test-data.js';
+import { jsonJustinPairs } from './_marshal-test-data.js';
 
 // this only includes the tests that do not use liveSlots
 

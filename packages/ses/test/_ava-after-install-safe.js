@@ -1,5 +1,5 @@
 import '../index.js';
-import './lockdown-safe.js';
+import './_lockdown-safe.js';
 import test from 'ava';
 
 // Confirm that tap can be imported after a safe-Error lockdown, and exercise

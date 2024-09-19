@@ -1,7 +1,7 @@
 /* global globalThis */
 
 import '../index.js';
-import './lockdown-safe.js';
+import './_lockdown-safe.js';
 import test from 'ava';
 import { makeEvalFunction } from '../src/make-eval-function.js';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';

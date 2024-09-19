@@ -1,7 +1,7 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 
-import { HandledPromise } from './get-hp.js';
+import { HandledPromise } from './_get-hp.js';
 
 const { getPrototypeOf, isFrozen } = Object;
 const { ownKeys, getOwnPropertyDescriptor } = Reflect;

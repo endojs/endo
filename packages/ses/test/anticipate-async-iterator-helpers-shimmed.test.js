@@ -1,9 +1,9 @@
 /* global AsyncIterator */
-import './enforce-cjs-strict.js';
-import './core-js-configuration.js';
+import './_enforce-cjs-strict.js';
+import './_core-js-configuration.js';
 import 'core-js/actual/async-iterator/index.js';
 import '../index.js';
-import './lockdown-safe.js';
+import './_lockdown-safe.js';
 import test from 'ava';
 
 test('shimmed async-iterator helpers', async t => {

@@ -1,7 +1,7 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 
-import { E, HandledPromise } from './get-hp.js';
+import { E, HandledPromise } from './_get-hp.js';
 
 const verifySimplePromise = async (t, resolve) => {
   const p = new Promise(_ => {});

@@ -2,7 +2,7 @@
 
 import test from 'ava';
 import { encodeSyrup } from '../src/encode.js';
-import { table } from './table.js';
+import { table } from './_table.js';
 
 test('affirmative encode cases', t => {
   for (const { syrup, value } of table) {

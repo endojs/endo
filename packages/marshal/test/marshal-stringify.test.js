@@ -2,7 +2,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Far } from '@endo/pass-style';
 import { stringify, parse } from '../src/marshal-stringify.js';
-import { roundTripPairs } from './marshal-test-data.js';
+import { roundTripPairs } from './_marshal-test-data.js';
 
 const { isFrozen } = Object;
 

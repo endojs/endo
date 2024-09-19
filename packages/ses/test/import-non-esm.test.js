@@ -1,6 +1,6 @@
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
-import { resolveNode } from './node.js';
+import { resolveNode } from './_node.js';
 import '../index.js';
 
 test('import a non-ESM', async t => {

@@ -3,7 +3,7 @@
 
 import test from 'ava';
 import '../index.js';
-import { resolveNode, makeNodeImporter } from './node.js';
+import { resolveNode, makeNodeImporter } from './_node.js';
 
 test('import for side effect', async t => {
   t.plan(0);

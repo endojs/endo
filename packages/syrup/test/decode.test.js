@@ -2,7 +2,7 @@
 
 import test from 'ava';
 import { decodeSyrup } from '../src/decode.js';
-import { table } from './table.js';
+import { table } from './_table.js';
 
 const textEncoder = new TextEncoder();
 

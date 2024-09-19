@@ -1,5 +1,5 @@
 import test from 'ava';
-import './no-eval.js';
+import './_no-eval.js';
 import '../index.js';
 
 // I've manually verified that this is not failing due to the dynamic-eval

@@ -3,7 +3,7 @@
 import test from 'ava';
 import { decodeSyrup } from '../src/decode.js';
 import { encodeSyrup } from '../src/encode.js';
-import { XorShift } from './xorshift.js';
+import { XorShift } from './_xorshift.js';
 
 /**
  * @param {number} budget

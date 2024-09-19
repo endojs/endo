@@ -1,7 +1,7 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 
-import { E, HandledPromise } from './get-hp.js';
+import { E, HandledPromise } from './_get-hp.js';
 
 test('E reexports', async t => {
   t.is(E.resolve, HandledPromise.resolve, 'E reexports resolve');

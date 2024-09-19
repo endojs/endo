@@ -12,7 +12,7 @@ import {
   makeLegacyAwaitArgGuard,
   makeLegacyMethodGuard,
   makeLegacyInterfaceGuard,
-} from './make-legacy-guards.js';
+} from './_make-legacy-guards.js';
 import { makeExo } from '../src/exo-makers.js';
 
 test('legacy guard tolerance', async t => {

@@ -1,7 +1,7 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 
-import { HandledPromise } from './get-hp.js';
+import { HandledPromise } from './_get-hp.js';
 
 test('resolveWithPresence with proxy options', async t => {
   const l = t.log; // decomment this line for debug aid
