@@ -1,44 +1,31 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import '@agoric/swingset-liveslots/tools/setup-vat-data.js';
-import { E } from '@endo/far';
-import { M } from '@endo/patterns';
 import { makeVat } from './util.js';
 
-/*
-
-TODO:
-  - [ ] test teardown / reincarnation
-  - [ ] test ChildClass registrations
-  - [ ] flatten gem class registry
-  - [ ] figure out gem class registry GC
-
-*/
-
 test('persistence - simple json counter', async t => {
-  const gemName = 'CounterGem';
   const gemRecipe = {
-    name: gemName,
+    name: 'CounterGem',
     code: `${({ M, gemName, getStore }) => ({
       interface: M.interface(gemName, {
-        increment: M.callWhen().returns(M.number()),
-        getCount: M.callWhen().returns(M.number()),
+        increment: M.call().returns(M.number()),
+        getCount: M.call().returns(M.number()),
       }),
       init: () => ({ count: 0 }),
       methods: {
-        async increment() {
+        increment() {
           const store = getStore(this.self);
           let { count } = store.get();
           count += 1;
           store.set({ count });
           return count;
         },
-        async getCount() {
+        getCount() {
           const store = getStore(this.self);
           const { count } = store.get();
           return count;
         },
       },
-    })}`
+    })}`,
   };
 
   const vat = makeVat();
@@ -46,16 +33,17 @@ test('persistence - simple json counter', async t => {
   let counter = kernel.makeGem(gemRecipe);
   kernel.store.init('counter', counter);
 
-  t.deepEqual(await E(counter).getCount(), 0);
-  await E(counter).increment();
-  t.deepEqual(await E(counter).getCount(), 1);
+  t.deepEqual(counter.getCount(), 0);
+  counter.increment();
+  t.deepEqual(counter.getCount(), 1);
 
   kernel = vat.restart();
   counter = kernel.store.get('counter');
 
-  t.deepEqual(await E(counter).getCount(), 1);
-  await Promise.all([E(counter).increment(), E(counter).increment()]);
-  t.deepEqual(await E(counter).getCount(), 3);
+  t.deepEqual(counter.getCount(), 1);
+  counter.increment();
+  counter.increment();
+  t.deepEqual(counter.getCount(), 3);
 });
 
 // TODO: need to untangle captp remote refs for persistence
@@ -81,7 +69,7 @@ test('kumavis store - serialization of gem refs', async t => {
           return friends;
         },
       },
-    })}`
+    })}`,
   };
 
   const friendRecipe = {
@@ -89,7 +77,7 @@ test('kumavis store - serialization of gem refs', async t => {
     code: `${({ M, gemName }) => ({
       interface: M.interface(gemName, {}),
       methods: {},
-    })}`
+    })}`,
   };
 
   const vat = makeVat();
@@ -110,50 +98,55 @@ test('kumavis store - serialization of gem refs', async t => {
   t.deepEqual(friendsList.getFriends(), [friend]);
 });
 
-test.skip('makeGem - widget factory', async t => {
-  const gemName = 'WidgetGem';
-  const gemRecipe = {
-    name: gemName,
-    interface: M.interface(gemName, {
-      makeWidget: M.callWhen().returns(M.any()),
-    }),
-    init: () => ({ widgets: [] }),
-    methods: {
-      async makeWidget() {
-        const { gems } = this.state.powers;
-        const widget = gems.incarnateEvalGem({
-          name: 'widget',
-          interface: M.interface('Widget', {
-            sayHi: M.callWhen().returns(M.string()),
+test('makeGem - widget factory', async t => {
+  const widgetFactoryRecipe = {
+    name: 'WidgetFactory',
+    code: `${({ M, gemName, defineChildGem, lookupChildGemClass }) => {
+      defineChildGem({
+        name: 'Widget',
+        code: `${({ M: M2 }) => ({
+          interface: M2.interface('Widget', {
+            sayHi: M2.call().returns(M2.string()),
           }),
-          code: '({ sayHi: async () => "hi im a widget" })',
-        });
-        // you probably wouldnt want this to
-        // manage the retention of the widget,
-        // the consumer of the widget should do that.
-        const { store } = this.state;
-        const { widgets } = store.get('state');
-        store.set('state', { widgets: [...widgets, widget] });
-        return widget;
-      },
-    },
+          methods: {
+            sayHi() {
+              return 'hi im a widget';
+            },
+          },
+        })}`,
+      });
+      return {
+        interface: M.interface(gemName, {
+          makeWidget: M.call().returns(M.any()),
+        }),
+        methods: {
+          makeWidget() {
+            const makeWidget = lookupChildGemClass('Widget');
+            return makeWidget();
+          },
+        },
+      };
+    }}`,
   };
 
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
+  const vat = makeVat();
+  let kernel = vat.restart();
+  let widgetFactory = kernel.makeGem(widgetFactoryRecipe);
+  kernel.store.init('widgetFactory', widgetFactory);
 
-  // t.deepEqual(aliceKit.gem.retentionSet.size, 0);
-  const widget1 = await E(alice).makeWidget();
-  // t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  // await aliceKit.gem.wakeController.sleep();
+  let widget = widgetFactory.makeWidget();
+  kernel.store.init('widget', widget);
 
-  // t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  const widget2 = await E(alice).makeWidget();
-  // t.deepEqual(aliceKit.gem.retentionSet.size, 2);
+  t.deepEqual(widget.sayHi(), 'hi im a widget');
 
-  await E(widget1).sayHi();
-  await E(widget2).sayHi();
+  kernel = vat.restart();
+  widgetFactory = kernel.store.get('widgetFactory');
+  widget = kernel.store.get('widget');
+
+  t.deepEqual(widget.sayHi(), 'hi im a widget');
+  const widget2 = widgetFactory.makeWidget();
+  kernel.store.init('widget2', widget2);
+  t.deepEqual(widget2.sayHi(), 'hi im a widget');
 
   t.pass();
 });

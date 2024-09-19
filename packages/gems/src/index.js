@@ -1,14 +1,9 @@
-/* global setTimeout */
-
 import { makeCapTP } from '@endo/captp';
 import { makeDurableZone } from '@agoric/zone/durable.js';
 import { M } from '@endo/patterns';
 
 /** @import { Stream } from '@endo/stream' */
 
-const getRandomId = () => Math.random().toString(36).slice(2);
-
-const initEmpty = () => {};
 const initWithPassthrough = ({ ...args } = {}) => harden({ ...args });
 
 /**
@@ -50,12 +45,10 @@ export const makeMessageCapTP = (
   };
 };
 
-export const makeKernel = (baggage) => {
+export const makeKernel = baggage => {
   const zone = makeDurableZone(baggage);
   const rootStore = zone.mapStore('rootStore');
   const rootGemZone = zone.subZone('RootGemZone');
-  let kernel;
-  // let gemCreationPowers;
 
   /*
   GemZone:
@@ -68,36 +61,37 @@ export const makeKernel = (baggage) => {
   // so this loads the subZones and stores only once. registered child namespaces are cached.
   // Additionally, you cant ask what subzones exist. so we need to keep track of them ourselves.
   // So GemNamespaces serve as an abstraction for managing the gem class registration tree
-  const loadGemNamespaceFromGemZone = (gemZone) => {
+  const loadGemNamespaceFromGemZone = gemZone => {
     const childCache = new Map();
-    const data = gemZone.mapStore('data')
-    const instances = gemZone.weakMapStore('instances')
-    const registry = gemZone.subZone('gemRegistry')
-    const childKeys = gemZone.setStore('childKeys')
+    const data = gemZone.mapStore('data');
+    const instances = gemZone.weakMapStore('instances');
+    const registry = gemZone.subZone('gemRegistry');
+    const childKeys = gemZone.setStore('childKeys');
+    let exoClass;
     const namespace = {
-      initRecipe (gemRecipe) {
+      initRecipe(gemRecipe) {
         data.init('recipe', harden(gemRecipe));
       },
-      getRecipe () {
+      getRecipe() {
         return data.get('recipe');
       },
-      getStoreForInstance (instance, initFn) {
+      getStoreForInstance(instance, initFn) {
         if (!instances.has(instance)) {
           const value = harden(initFn());
           instances.init(instance, value);
         }
         const store = {
-          get () {
+          get() {
             return instances.get(instance);
           },
-          set (value) {
+          set(value) {
             instances.set(instance, harden(value));
           },
-        }
+        };
         return store;
       },
       // methods
-      lookupChild (name) {
+      lookupChild(name) {
         if (childCache.has(name)) {
           return childCache.get(name);
         }
@@ -107,80 +101,86 @@ export const makeKernel = (baggage) => {
         childCache.set(name, chilldNamespace);
         return chilldNamespace;
       },
-      getChildKeys () {
+      getChildKeys() {
         return Array.from(childKeys.values());
       },
-      exoClass (...args) {
-        return gemZone.exoClass(...args);
+      exoClass(...args) {
+        if (exoClass === undefined) {
+          exoClass = gemZone.exoClass(...args);
+        }
+        return exoClass;
       },
-    }
+    };
     return namespace;
-  }
+  };
 
   // stores a gem recipe in the registry. for each gem, called once per universe.
   const registerGem = (parentGemNamespace, gemRecipe) => {
     const { name } = gemRecipe;
     const gemNs = parentGemNamespace.lookupChild(name);
     gemNs.initRecipe(harden(gemRecipe));
-    console.log('registered gem', name);
-  }
+  };
 
   // used internally. defines a registered gem class. for each gem, called once per process.
   const loadGem = (parentGemNamespace, name) => {
     const gemNs = parentGemNamespace.lookupChild(name);
     const gemRecipe = gemNs.getRecipe();
     const { code } = gemRecipe;
+    const defineChildGem = childGemRecipe => {
+      // ignore if already registered
+      if (gemNs.getChildKeys().includes(childGemRecipe.name)) {
+        return;
+      }
+      registerGem(gemNs, childGemRecipe);
+    };
     const compartment = new Compartment();
     const constructGem = compartment.evaluate(code);
-    const { interface: interfaceGuards, init, methods } = constructGem({
+    const {
+      interface: interfaceGuards,
+      init,
+      methods,
+    } = constructGem({
       M,
       gemName: name,
-      getStore: (instance) => gemNs.getStoreForInstance(instance, init),
+      getStore: instance => gemNs.getStoreForInstance(instance, init),
+      defineChildGem,
+      lookupChildGemClass: childName => loadGem(gemNs, childName),
     });
-    console.log('loaded gem', name);
     return gemNs.exoClass(name, interfaceGuards, initWithPassthrough, methods);
-  }
+  };
 
   // reincarnate all registered gems
   // TODO: should be as lazy as possible
 
   const rootGemNamespace = loadGemNamespaceFromGemZone(rootGemZone);
 
-  const walkGemRegistry = (gemNs) => {
+  const walkGemRegistry = gemNs => {
     for (const name of gemNs.getChildKeys()) {
       loadGem(gemNs, name);
       const childGemNs = gemNs.lookupChild(name);
       walkGemRegistry(childGemNs);
     }
-  }
+  };
   walkGemRegistry(rootGemNamespace);
 
-  const registerRootGem = (gemRecipe) => {
+  const registerRootGem = gemRecipe => {
     registerGem(rootGemNamespace, gemRecipe);
-  }
-  const loadRootGem = (name) => {
+  };
+  const loadRootGem = name => {
     return loadGem(rootGemNamespace, name);
-  }
-  const makeRootGem = (gemRecipe) => {
+  };
+  const makeRootGem = gemRecipe => {
     registerRootGem(gemRecipe);
     const makeGem = loadRootGem(gemRecipe.name);
     return makeGem();
-  }
+  };
 
-  kernel = { registerGem: registerRootGem, makeGem: makeRootGem, store: rootStore, ns: rootGemNamespace };
-
-  // const incarnateEvalGem = ({ name: childName, interface: childInterfaceGuards, code }) => {
-  //   // TODO: this could happen in another Realm
-  //   const compartment = new Compartment();
-  //   const methods = compartment.evaluate(code);
-  //   const gem = makeGem({
-  //     name: childName,
-  //     interfaceGuards: childInterfaceGuards,
-  //     methods: methods,
-  //   });
-  //   return gem;
-  // };
-  // gemCreationPowers = zone.exo('kernel:gemCreationPowers', undefined, { incarnateEvalGem });
+  const kernel = {
+    registerGem: registerRootGem,
+    makeGem: makeRootGem,
+    store: rootStore,
+    ns: rootGemNamespace,
+  };
 
   return kernel;
 };
