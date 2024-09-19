@@ -43,6 +43,8 @@ const has = (object, key) => apply(hasOwnProperty, object, [key]);
  */
 const extensionImpliesLanguage = extension => extension !== 'js';
 
+const syncParsers = new WeakSet()
+
 /**
  * Produces a `parser` that parses the content of a module according to the
  * corresponding module language, given the extension of the module specifier
@@ -227,12 +229,23 @@ const makeExtensionParser = (
   // if we have nothing in the moduleTransforms object, then we can use the syncParser.
   if (keys(moduleTransforms).length === 0) {
     transforms = syncModuleTransforms;
+    syncParsers.add(syncParser);
     return syncParser;
   }
 
-  transforms = moduleTransforms;
+
+  // we can fold syncModuleTransforms into moduleTransforms because
+  // async supports sync, but not vice-versa
+  transforms = ({
+    ...syncModuleTransforms,
+    ...moduleTransforms,
+  });
+
+
   return asyncParser;
 };
+
+export const isSyncParser = (parser) => syncParsers.has(parser);
 
 /**
  * @overload
@@ -284,6 +297,7 @@ export const mapParsers = (
   if (problems.length > 0) {
     throw Error(`No parser available for language: ${problems.join(', ')}`);
   }
+
   return makeExtensionParser(
     fromEntries(languageForExtensionEntries),
     languageForModuleSpecifier,

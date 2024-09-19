@@ -25,7 +25,6 @@
  *   ParserForLanguage,
  *   ParserImplementation,
  *   ShouldDeferError,
- *   SyncLinkOptions,
  *   SyncModuleTransforms
  * } from './types.js'
  */
@@ -40,7 +39,7 @@ import {
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
-const { assign, create, entries, freeze } = Object;
+const { assign, create, entries, freeze, keys } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 const { allSettled } = Promise;
@@ -216,22 +215,6 @@ const makeModuleMapHook = (
 };
 
 /**
- * Returns `true` if `value` is a {@link SyncLinkOptions}.
- *
- * The only requirement here is that `moduleTransforms` is _not_ present in
- * `value`; `makeImportNowHook` is optional.
- *
- * @param {LinkOptions|SyncLinkOptions} value
- * @returns {value is SyncLinkOptions}
- */
-const isSyncOptions = value =>
-  !value ||
-  (typeof value === 'object' &&
-    !('moduleTransforms' in value) &&
-    'makeImportNowHook' in value &&
-    typeof value.makeImportNowHook === 'function');
-
-/**
  * Assemble a DAG of compartments as declared in a compartment map starting at
  * the named compartment and building all compartments that it depends upon,
  * recursively threading the modules exported by one compartment into the
@@ -244,46 +227,14 @@ const isSyncOptions = value =>
  * - Passes the given globals and external modules into the root compartment
  *   only.
  *
- * Differences between the two overloads:
- *
- * - _Must not_ accept `makeImportNowHook`.
- * - _May_ accept `syncModuleTransforms`, but any keypair in
- *   `moduleTransforms` (if provided) will overwrite it.
- *
- * @overload
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {LinkOptions} options
  * @returns {LinkResult} the root compartment of the compartment DAG
  */
 
 /**
- * Assemble a DAG of compartments as declared in a compartment map starting at
- * the named compartment and building all compartments that it depends upon,
- * recursively threading the modules exported by one compartment into the
- * compartment that imports them.
- *
- * - Returns the root of the compartment DAG.
- * - Does not load or execute any modules.
- * - Uses `makeImportHook` with the given "location" string of each compartment
- *   in the DAG.
- * - Passes the given globals and external modules into the root compartment
- *   only.
- *
- * Differences between the two overloads:
- *
- * - _May_ accept `makeImportNowHook`.
- * - _Must not_ accept `moduleTransforms`
- * - _May_ accept `syncModuleTransforms`
- *
- * @overload
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {SyncLinkOptions} options
- * @returns {LinkResult} the root compartment of the compartment DAG
- */
-
-/**
- * @param {CompartmentMapDescriptor} compartmentMap
- * @param {LinkOptions|SyncLinkOptions} options
+ * @param {LinkOptions} options
  * @returns {LinkResult}
  */
 export const link = (
@@ -293,33 +244,17 @@ export const link = (
   const {
     resolve = resolveFallback,
     makeImportHook,
+    makeImportNowHook,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
     globals = {},
     transforms = [],
+    moduleTransforms,
+    syncModuleTransforms,
     __shimTransforms__ = [],
     archiveOnly = false,
     Compartment = defaultCompartment,
   } = options;
-
-  /** @type {SyncModuleTransforms|undefined} */
-  let syncModuleTransforms;
-  /** @type {ModuleTransforms|undefined} */
-  let moduleTransforms;
-  /** @type {ImportNowHookMaker|undefined} */
-  let makeImportNowHook;
-
-  if (isSyncOptions(options)) {
-    syncModuleTransforms = options.syncModuleTransforms;
-    makeImportNowHook = options.makeImportNowHook;
-  } else {
-    // we can fold syncModuleTransforms into moduleTransforms because
-    // async supports sync, but not vice-versa
-    moduleTransforms = /** @type {ModuleTransforms|undefined} */ ({
-      ...options.syncModuleTransforms,
-      ...options.moduleTransforms,
-    });
-  }
 
   const { compartment: entryCompartmentName } = entry;
 
