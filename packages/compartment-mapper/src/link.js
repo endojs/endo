@@ -215,6 +215,15 @@ const makeModuleMapHook = (
 };
 
 /**
+ * @type {ImportNowHookMaker}
+ */
+const impossibleImportNowHookMaker = () => {
+  return function impossibleImportNowHook() {
+    throw new Error('Provided read powers do not support dynamic requires');
+  };
+};
+
+/**
  * Assemble a DAG of compartments as declared in a compartment map starting at
  * the named compartment and building all compartments that it depends upon,
  * recursively threading the modules exported by one compartment into the
@@ -244,7 +253,7 @@ export const link = (
   const {
     resolve = resolveFallback,
     makeImportHook,
-    makeImportNowHook,
+    makeImportNowHook = impossibleImportNowHookMaker,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
     globals = {},
@@ -348,29 +357,13 @@ export const link = (
       shouldDeferError,
       compartments,
     });
-    /** @type {ImportNowHook | undefined} */
-    let importNowHook;
 
-    if (makeImportNowHook) {
-      // Note: using the LHS of this statement as the value for `params.parse`
-      // below causes a `no-object-shorthand` error. afaict there is no such
-      // configuration for this rule which would allow the below type assertion
-      // to be used.
-      const syncParse = /** @type {ParseFn} */ (parse);
-
-      /** @type {ImportNowHookMakerParams} */
-      const params = {
-        packageLocation: location,
-        packageName: name,
-        parse: syncParse,
-        compartments,
-      };
-      importNowHook = makeImportNowHook(params);
-    } else {
-      importNowHook = () => {
-        throw new Error('Provided read powers do not support dynamic requires');
-      };
-    }
+    const importNowHook = makeImportNowHook({
+      packageLocation: location,
+      packageName: name,
+      parse,
+      compartments,
+    });
 
     const moduleMapHook = makeModuleMapHook(
       compartmentDescriptor,

@@ -301,7 +301,7 @@ export {};
  * @typedef {object} ImportNowHookMakerParams
  * @property {string} packageLocation
  * @property {string} packageName
- * @property {ParseFn} parse
+ * @property {ParseFn|ParseFnAsync} parse
  * @property {Record<string, Compartment>} compartments
  */
 
