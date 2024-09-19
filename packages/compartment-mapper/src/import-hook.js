@@ -111,20 +111,21 @@ const findRedirect = ({
     compartmentDescriptors,
   )) {
     if (someDescriptorName !== ATTENUATORS_COMPARTMENT) {
-      const moduleSpecifierUrl = `${new URL(absoluteModuleSpecifier, packageLocation)}`;
+      const moduleSpecifierUrl = new URL(
+        absoluteModuleSpecifier,
+        packageLocation,
+      ).href;
       if (!compartmentDescriptor.location.startsWith(moduleSpecifierUrl)) {
         if (moduleSpecifierUrl.startsWith(someDescriptor.location)) {
           // compartmentDescriptor is a dependency of someDescriptor; we
           // can use that compartment
-          if (someDescriptor.name in compartmentDescriptor.modules) {
-            return {
-              specifier: absoluteModuleSpecifier,
-              compartment: compartments[someDescriptorName],
-            };
-          }
-          // compartmentDescriptor is a dependent of someSomeDescriptor;
-          // this is more dubious but a common pattern
-          if (compartmentDescriptor.name in someDescriptor.modules) {
+          // similarly, if the relationship is true the other way around.
+          // We could allow requiring any compartment contents by absolute path, but requiring
+          // a relationship between compartments is a reasonable limitation.
+          if (
+            someDescriptor.name in compartmentDescriptor.modules ||
+            compartmentDescriptor.name in someDescriptor.modules
+          ) {
             return {
               specifier: absoluteModuleSpecifier,
               compartment: compartments[someDescriptorName],
@@ -637,8 +638,9 @@ export function makeImportNowHookMaker(
     let { policy } = compartmentDescriptor;
     policy = policy || create(null);
 
-    // associates modules with compartment descriptors based on policy
-    // which wouldn't otherwise be there
+    // Associates modules with compartment descriptors based on policy
+    // in cases where the association was not made when building the
+    // compartment map but is indicated by the policy.
     if ('packages' in policy && typeof policy.packages === 'object') {
       for (const [packageName, packagePolicyItem] of entries(policy.packages)) {
         if (
