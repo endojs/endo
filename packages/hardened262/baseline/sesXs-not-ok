@@ -1,0 +1,12 @@
+test/Compartment/prototype/evaluate/environments.js
+test/Compartment/prototype/importNow/importNowHook-separate-namespaces.js
+test/Compartment/prototype/importNow/importNowHook-shared-errors.js
+test/Compartment/prototype/importNow/importNowHook-shared-namespaces.js
+test/Compartment/prototype/importNow/loadNowHook-separate-errors.js
+test/Compartment/prototype/importNow/loadNowHook-separate-namespaces.js
+test/Compartment/prototype/importNow/loadNowHook-shared-errors.js
+test/Compartment/prototype/importNow/loadNowHook-shared-namespaces.js
+test/Compartment/prototype/importNow/modules-separate-errors.js
+test/Compartment/prototype/importNow/modules-separate-namespaces.js
+test/Compartment/prototype/importNow/modules-shared-errors.js
+test/Compartment/prototype/importNow/modules-shared-namespaces.js
