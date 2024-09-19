@@ -39,9 +39,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
-      - name: Echo node version
-        run: node --version
-
       - name: Install dependencies
         run: yarn install --immutable
 
@@ -89,9 +86,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
-      - name: Echo node version
-        run: node --version
-
       - name: Install dependencies
         run: yarn install --immutable
 
@@ -138,9 +132,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
-      - name: Echo node version
-        run: node --version
-
       # end macro
 
       - name: Install dependencies
@@ -178,9 +169,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
-      - name: Echo node version
-        run: node --version
-
       - name: Install dependencies
         run: yarn install --immutable
 
@@ -217,9 +205,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
-      - name: Echo node version
-        run: node --version
-
       - name: Install dependencies
         run: yarn install --immutable
 
@@ -255,9 +240,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
-
-      - name: Echo node version
-        run: node --version
 
       - name: Install dependencies
         run: yarn install --immutable
