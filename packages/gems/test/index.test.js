@@ -5,24 +5,19 @@ import { makeVat } from './util.js';
 test('persistence - simple json counter', async t => {
   const gemRecipe = {
     name: 'CounterGem',
-    code: `${({ M, gemName, getStore }) => ({
+    code: `${({ M, gemName }) => ({
       interface: M.interface(gemName, {
         increment: M.call().returns(M.number()),
         getCount: M.call().returns(M.number()),
       }),
-      init: () => ({ count: 0 }),
+      init: (count = 0) => ({ count }),
       methods: {
         increment() {
-          const store = getStore(this.self);
-          let { count } = store.get();
-          count += 1;
-          store.set({ count });
-          return count;
+          this.state.count += 1;
+          return this.state.count;
         },
         getCount() {
-          const store = getStore(this.self);
-          const { count } = store.get();
-          return count;
+          return this.state.count;
         },
       },
     })}`,
@@ -50,23 +45,19 @@ test('persistence - simple json counter', async t => {
 test('kumavis store - serialization of gem refs', async t => {
   const friendsListRecipe = {
     name: 'FriendsList',
-    code: `${({ M, gemName, getStore }) => ({
+    code: `${({ M, gemName }) => ({
       interface: M.interface(gemName, {
         addFriend: M.call(M.any()).returns(M.string()),
         getFriends: M.call().returns(M.any()),
       }),
-      init: () => ({ friends: [] }),
+      init: () => harden({ friends: [] }),
       methods: {
         addFriend(friend) {
-          const store = getStore(this.self);
-          const { friends } = store.get();
-          store.set({ friends: [...friends, friend] });
-          return `added friend ${friend} (${friends.length} friends total)`;
+          this.state.friends = harden([...this.state.friends, friend]);
+          return `added friend ${friend} (${this.state.friends.length} friends total)`;
         },
         getFriends() {
-          const store = getStore(this.self);
-          const { friends } = store.get();
-          return friends;
+          return this.state.friends;
         },
       },
     })}`,

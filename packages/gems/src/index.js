@@ -53,7 +53,6 @@ export const makeKernel = baggage => {
   /*
   GemZone:
     (store) 'data': { recipe }
-    (store) 'instances': WeakMap<gem instance, StorageMap>
     (subzone) 'gemRegistry': SubZone<name, GemZone>
   */
 
@@ -64,7 +63,6 @@ export const makeKernel = baggage => {
   const loadGemNamespaceFromGemZone = gemZone => {
     const childCache = new Map();
     const data = gemZone.mapStore('data');
-    const instances = gemZone.weakMapStore('instances');
     const registry = gemZone.subZone('gemRegistry');
     const childKeys = gemZone.setStore('childKeys');
     let exoClass;
@@ -74,21 +72,6 @@ export const makeKernel = baggage => {
       },
       getRecipe() {
         return data.get('recipe');
-      },
-      getStoreForInstance(instance, initFn) {
-        if (!instances.has(instance)) {
-          const value = harden(initFn());
-          instances.init(instance, value);
-        }
-        const store = {
-          get() {
-            return instances.get(instance);
-          },
-          set(value) {
-            instances.set(instance, harden(value));
-          },
-        };
-        return store;
       },
       // methods
       lookupChild(name) {
@@ -142,11 +125,15 @@ export const makeKernel = baggage => {
     } = constructGem({
       M,
       gemName: name,
-      getStore: instance => gemNs.getStoreForInstance(instance, init),
       defineChildGem,
       lookupChildGemClass: childName => loadGem(gemNs, childName),
     });
-    return gemNs.exoClass(name, interfaceGuards, initWithPassthrough, methods);
+    return gemNs.exoClass(
+      name,
+      interfaceGuards,
+      init || initWithPassthrough,
+      methods,
+    );
   };
 
   // reincarnate all registered gems
