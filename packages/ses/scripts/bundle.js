@@ -1,10 +1,11 @@
 /* global process */
 import '../index.js';
-import '../test/lockdown-safe.js';
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
 import { fileURLToPath, pathToFileURL } from 'url';
+
+lockdown();
 
 const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs).toString());
 const root = new URL('..', import.meta.url).toString();
