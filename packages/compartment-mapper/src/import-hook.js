@@ -608,16 +608,15 @@ export function makeImportNowHookMaker(
     parse,
     compartments,
   }) => {
-    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
-
-    if (!parse.isSyncParser) {
-      return () => {
+    if (!('isSyncParser' in parse)) {
+      return function impossibleTransformImportNowHook() {
         throw new Error(
-          'Dynamic requires are only possible whith synchronous parser and no async module transforms in options',
+          'Dynamic requires are only possible with synchronous parsers and no asynchronous module transforms in options',
         );
       };
     }
 
+    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
     // this is not necessary.
     assert(
       parse[Symbol.toStringTag] !== 'AsyncFunction',
