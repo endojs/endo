@@ -350,7 +350,7 @@ export {};
  */
 
 /**
- * @callback ParseFn
+ * @callback ParseFn_
  * @param {Uint8Array} bytes
  * @param {string} specifier
  * @param {string} location
@@ -362,6 +362,10 @@ export {};
  * @param {ReadFn | ReadPowers} [options.readPowers]
  * @param {CompartmentDescriptor} [options.compartmentDescriptor]
  * @returns {ParseResult}
+ */
+
+/**
+ * @typedef {ParseFn_ & {isSyncParser?: true}} ParseFn
  */
 
 /**
