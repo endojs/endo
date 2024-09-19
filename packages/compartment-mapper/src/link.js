@@ -39,7 +39,7 @@ import {
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
-const { assign, create, entries, freeze, keys } = Object;
+const { assign, create, entries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 const { allSettled } = Promise;
