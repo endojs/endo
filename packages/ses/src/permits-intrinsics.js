@@ -156,8 +156,10 @@ export default function whitelistIntrinsics(
       return;
     }
 
-    // We can't clean [[prototype]], therefore abort.
-    throw TypeError(`Unexpected intrinsic ${path}.__proto__ at ${protoName}`);
+    // We can't clean [[Prototype]], therefore abort.
+    throw TypeError(
+      `Unexpected [[Prototype]] at ${path}.__proto__ (expected ${protoName || '%ObjectPrototype%'})`,
+    );
   }
 
   /*
@@ -212,7 +214,9 @@ export default function whitelistIntrinsics(
       }
     }
 
-    throw TypeError(`Unexpected whitelist permit ${permit} at ${path}`);
+    throw TypeError(
+      `Unexpected property ${prop} with permit ${permit} at ${path}`,
+    );
   }
 
   /*
