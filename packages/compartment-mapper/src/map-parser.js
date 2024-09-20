@@ -200,7 +200,6 @@ const makeExtensionParser = (
   }
 };
 
-
 /**
  * @param {LanguageForExtension} languageForExtension
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
@@ -242,10 +241,10 @@ export const mapParsers = (
 };
 
 /**
- * Prepares a function to map parsers after verifying whether synchronous behavior is 
+ * Prepares a function to map parsers after verifying whether synchronous behavior is
  * preferred. Synchronous behavior is selected if all parsers are synchronous and no
  * async transforms are provided.
- * 
+ *
  * @param {object} options
  * @param {ParserForLanguage} options.parserForLanguage
  * @param {ModuleTransforms} [options.moduleTransforms]
