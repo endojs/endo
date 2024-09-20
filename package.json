@@ -53,7 +53,15 @@
     "atLeast": 0
   },
   "resolutions": {
-    "@babel/types": "7.24.0",
+    "@babel/code-frame": "./vendor/@babel/code-frame/code-frame-7.25.7.tgz",
+    "@babel/generator": "./vendor/@babel/generator/generator-7.25.7.tgz",
+    "@babel/parser": "./vendor/@babel/parser/parser-7.25.7.tgz",
+    "@babel/template": "./vendor/@babel/template/template-7.25.7.tgz",
+    "@babel/highlight": "./vendor/@babel/highlight/highlight-7.25.7.tgz",
+    "@babel/helper-string-parser": "./vendor/@babel/helper-string-parser/helper-string-parser-7.25.7.tgz",
+    "@babel/helper-validator-identifier": "./vendor/@babel/helper-validator-identifier/helper-validator-identifier-7.25.7.tgz",
+    "@babel/traverse": "./vendor/@babel/traverse/traverse-7.25.7.tgz",
+    "@babel/types": "./vendor/@babel/types/types-7.25.7.tgz",
     "@lerna/version@npm:5.6.2": "patch:@lerna/version@npm%3A5.6.2#~/.yarn/patches/@lerna-version-npm-5.6.2-ce2d9cb2f5.patch",
     "@lerna/conventional-commits@npm:5.6.2": "patch:@lerna/conventional-commits@npm%3A5.6.2#~/.yarn/patches/@lerna-conventional-commits-npm-5.6.2-a373ba4bc0.patch"
   }

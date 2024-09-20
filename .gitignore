@@ -74,3 +74,5 @@ dist/
 api-docs
 
 .aider*
+
+vendor

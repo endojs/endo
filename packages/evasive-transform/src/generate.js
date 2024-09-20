@@ -4,7 +4,7 @@
  * @module
  */
 
-import babelGenerator from '@agoric/babel-generator';
+import babelGenerator from '@babel/generator';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
 // `node -r esm`, we must use the pattern below.
@@ -66,12 +66,17 @@ export const generate =
       // TODO Use options?.sourceUrl when resolved:
       // https://github.com/Agoric/agoric-sdk/issues/8671
       const sourceUrl = options ? options.sourceUrl : undefined;
-      const result = generator(ast, {
-        sourceFileName: sourceUrl,
-        sourceMaps: Boolean(sourceUrl),
-        retainLines: true,
-        compact: true,
-      });
+      const source = options ? options.source : undefined;
+      const result = generator(
+        ast,
+        {
+          sourceFileName: sourceUrl,
+          sourceMaps: Boolean(sourceUrl),
+          retainLines: true,
+          preserveFormat: true,
+        },
+        source,
+      );
 
       if (sourceUrl) {
         return {
