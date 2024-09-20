@@ -654,7 +654,7 @@ const translateGraph = (
     /* c8 ignore next */
     if (policy && !packagePolicy) {
       // this should never happen
-      throw new TypeError('Unexpectedly falsy package policy');
+      throw TypeError('Unexpectedly falsy package policy');
     }
 
     /**

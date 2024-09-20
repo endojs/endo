@@ -17,7 +17,7 @@ export const make = async (_powers, context) => {
       } catch {
         return 'cancelled';
       }
-      throw new Error('should have been cancelled');
+      throw Error('should have been cancelled');
     },
   });
 };

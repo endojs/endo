@@ -412,7 +412,7 @@ const importHook = async specifier => {
       };
     }
   }
-  throw new Error(`Cannot find module ${specifier}`);
+  throw Error(`Cannot find module ${specifier}`);
 };
 
 const compartment = new Compartment({

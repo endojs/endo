@@ -251,7 +251,7 @@ test('lifecycle', async t => {
   const host = E(bootstrap).host();
   await E(host).provideWorker(['worker']);
   await E(host).cancel('worker');
-  cancel(new Error('Cancelled'));
+  cancel(Error('Cancelled'));
   await closed.catch(() => {});
 
   t.pass();

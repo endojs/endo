@@ -118,7 +118,7 @@ test('change topic terminates with error', async (/** @type {import('ava').Asser
 
   const subscription = subscribe();
 
-  await publisher.throw(new TypeError('sentinel'));
+  await publisher.throw(TypeError('sentinel'));
 
   await t.throwsAsync(() => subscription.next(), {
     instanceOf: TypeError,
