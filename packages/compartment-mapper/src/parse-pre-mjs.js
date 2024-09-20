@@ -38,4 +38,5 @@ export const parsePreMjs = (
 export default {
   parse: parsePreMjs,
   heuristicImports: false,
+  synchronous: true,
 };

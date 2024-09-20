@@ -44,4 +44,5 @@ export const parseJson = (bytes, _specifier, location, _packageLocation) => {
 export default {
   parse: parseJson,
   heuristicImports: false,
+  synchronous: true,
 };

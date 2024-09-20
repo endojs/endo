@@ -36,19 +36,33 @@ import {
 } from './import-hook.js';
 import { isSyncReadPowers } from './powers.js';
 
-const { assign, create, freeze } = Object;
+const { assign, create, freeze, entries } = Object;
 
 /**
  * Returns `true` if `value` is a {@link SyncImportLocationOptions}.
  *
- * The only requirements here are:
+ * The requirements here are:
  * - `moduleTransforms` _is not_ present in `value`
+ * - `parserForLanguage` - if set, contains synchronous parsers only
  *
  * @param {ImportLocationOptions|SyncImportLocationOptions} value
  * @returns {value is SyncImportLocationOptions}
  */
-const isSyncOptions = value =>
-  !value || (typeof value === 'object' && !('moduleTransforms' in value));
+const isSyncOptions = value => {
+  if (!value || (typeof value === 'object' && !('moduleTransforms' in value))) {
+    if (value.parserForLanguage) {
+      for (const [_language, { synchronous }] of entries(
+        value.parserForLanguage,
+      )) {
+        if (!synchronous) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  return false;
+};
 
 /**
  * @overload

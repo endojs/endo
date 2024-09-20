@@ -66,4 +66,5 @@ export const parseArchiveCjs = (
 export default {
   parse: parseArchiveCjs,
   heuristicImports: true,
+  synchronous: true,
 };

@@ -33,4 +33,5 @@ export const parseMjs = (
 export default {
   parse: parseMjs,
   heuristicImports: false,
+  synchronous: true,
 };

@@ -8,29 +8,26 @@
 
 // @ts-check
 
-/** @import {ImportNowHook, ModuleMapHook} from 'ses' */
+/** @import {ModuleMapHook} from 'ses' */
 /**
  * @import {
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
  *   ImportNowHookMaker,
- *   ImportNowHookMakerParams,
  *   LanguageForExtension,
  *   LinkOptions,
  *   LinkResult,
  *   ModuleDescriptor,
- *   ModuleTransforms,
  *   ParseFn,
  *   ParseFnAsync,
  *   ParserForLanguage,
  *   ParserImplementation,
  *   ShouldDeferError,
- *   SyncModuleTransforms
  * } from './types.js'
  */
 /** @import {ERef} from '@endo/eventual-send' */
 
-import { mapParsers } from './map-parser.js';
+import { makeMapParsers } from './map-parser.js';
 import { resolve as resolveFallback } from './node-module-specifier.js';
 import {
   ATTENUATORS_COMPARTMENT,
@@ -289,6 +286,12 @@ export const link = (
     assign(create(null), parserForLanguageOption),
   );
 
+  const mapParsers = makeMapParsers({
+    parserForLanguage,
+    moduleTransforms,
+    syncModuleTransforms,
+  });
+
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
@@ -325,13 +328,7 @@ export const link = (
     // TS is kind of dumb about this, so we can use a type assertion to avoid a
     // pointless ternary.
     const parse = /** @type {ParseFn|ParseFnAsync} */ (
-      mapParsers(
-        languageForExtension,
-        languageForModuleSpecifier,
-        parserForLanguage,
-        moduleTransforms,
-        syncModuleTransforms,
-      )
+      mapParsers(languageForExtension, languageForModuleSpecifier)
     );
 
     /** @type {ShouldDeferError} */

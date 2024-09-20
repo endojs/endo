@@ -51,45 +51,7 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * of the module content against the language implied by the extension or file
  * name.
  *
- * @overload
- * @param {Record<string, string>} languageForExtension - maps a file extension
- * to the corresponding language.
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
- * the type of a module is implied by package.json and should not be inferred
- * from its extension.
- * @param {ParserForLanguage} parserForLanguage
- * @param {never} [moduleTransforms]
- * @param {SyncModuleTransforms} [syncModuleTransforms]
- * @returns {ParseFn}
- */
-
-/**
- * Produces a `parser` that parses the content of a module according to the
- * corresponding module language, given the extension of the module specifier
- * and the configuration of the containing compartment. We do not yet support
- * import assertions and we do not have a mechanism for validating the MIME type
- * of the module content against the language implied by the extension or file
- * name.
- * @overload
- * @param {Record<string, string>} languageForExtension - maps a file extension
- * to the corresponding language.
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
- * the type of a module is implied by package.json and should not be inferred
- * from its extension.
- * @param {ParserForLanguage} parserForLanguage
- * @param {ModuleTransforms|SyncModuleTransforms} [moduleTransforms]
- * @param {SyncModuleTransforms} [syncModuleTransforms]
- * @returns {ParseFnAsync}
- */
-
-/**
- * Produces a `parser` that parses the content of a module according to the
- * corresponding module language, given the extension of the module specifier
- * and the configuration of the containing compartment. We do not yet support
- * import assertions and we do not have a mechanism for validating the MIME type
- * of the module content against the language implied by the extension or file
- * name.
- *
+ * @param {boolean} preferSynchronous
  * @param {Record<string, string>} languageForExtension - maps a file extension
  * to the corresponding language.
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
@@ -101,6 +63,7 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * @returns {ParseFnAsync|ParseFn}
  */
 const makeExtensionParser = (
+  preferSynchronous,
   languageForExtension,
   languageForModuleSpecifier,
   parserForLanguage,
@@ -202,12 +165,7 @@ const makeExtensionParser = (
   syncParser.isSyncParser = true;
 
   /**
-   * @param {Uint8Array} bytes
-   * @param {string} specifier
-   * @param {string} location
-   * @param {string} packageLocation
-   * @param {*} options
-   * @returns {Promise<ParseResult>}
+   * @type {ParseFnAsync}
    */
   const asyncParser = async (
     bytes,
@@ -226,51 +184,31 @@ const makeExtensionParser = (
     );
   };
 
-  // if we have nothing in the moduleTransforms object, then we can use the syncParser.
-  if (keys(moduleTransforms).length === 0) {
+  // Unfortunately, typescript was not smart enough to figure out the return type depending on a boolean in arguments, so it has to be ParseFnAsync|ParseFn
+  if (preferSynchronous) {
     transforms = syncModuleTransforms;
     return syncParser;
+  } else {
+    // we can fold syncModuleTransforms into moduleTransforms because
+    // async supports sync, but not vice-versa
+    transforms = {
+      ...syncModuleTransforms,
+      ...moduleTransforms,
+    };
+
+    return asyncParser;
   }
-
-  // we can fold syncModuleTransforms into moduleTransforms because
-  // async supports sync, but not vice-versa
-  transforms = {
-    ...syncModuleTransforms,
-    ...moduleTransforms,
-  };
-
-  return asyncParser;
 };
 
-/**
- * @overload
- * @param {LanguageForExtension} languageForExtension
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
- * is implied by package.json and should not be inferred from its extension.
- * @param {ParserForLanguage} parserForLanguage
- * @param {undefined} [moduleTransforms]
- * @param {SyncModuleTransforms} [syncModuleTransforms]
- * @returns {ParseFn}
- */
-
-/**
- * @overload
- * @param {LanguageForExtension} languageForExtension
- * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
- * is implied by package.json and should not be inferred from its extension.
- * @param {ParserForLanguage} parserForLanguage
- * @param {ModuleTransforms|SyncModuleTransforms} [moduleTransforms]
- * @param {SyncModuleTransforms} [syncModuleTransforms]
- * @returns {ParseFnAsync}
- */
 
 /**
  * @param {LanguageForExtension} languageForExtension
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
  * is implied by package.json and should not be inferred from its extension.
  * @param {ParserForLanguage} parserForLanguage
- * @param {ModuleTransforms|SyncModuleTransforms} [moduleTransforms]
+ * @param {ModuleTransforms} [moduleTransforms]
  * @param {SyncModuleTransforms} [syncModuleTransforms]
+ * @param {boolean} [preferSynchronous]
  * @returns {ParseFnAsync|ParseFn}
  */
 export const mapParsers = (
@@ -279,6 +217,7 @@ export const mapParsers = (
   parserForLanguage,
   moduleTransforms = {},
   syncModuleTransforms = {},
+  preferSynchronous = false,
 ) => {
   const languageForExtensionEntries = [];
   const problems = [];
@@ -293,10 +232,49 @@ export const mapParsers = (
     throw Error(`No parser available for language: ${problems.join(', ')}`);
   }
   return makeExtensionParser(
+    preferSynchronous,
     fromEntries(languageForExtensionEntries),
     languageForModuleSpecifier,
     parserForLanguage,
     moduleTransforms,
     syncModuleTransforms,
   );
+};
+
+/**
+ * Prepares a function to map parsers after verifying whether synchronous behavior is 
+ * preferred. Synchronous behavior is selected if all parsers are synchronous and no
+ * async transforms are provided.
+ * 
+ * @param {object} options
+ * @param {ParserForLanguage} options.parserForLanguage
+ * @param {ModuleTransforms} [options.moduleTransforms]
+ * @param {SyncModuleTransforms} [options.syncModuleTransforms]
+ * @returns {(languageForExtension: LanguageForExtension, languageForModuleSpecifier: Record<string, string>) => ParseFnAsync|ParseFn}
+ */
+export const makeMapParsers = ({
+  parserForLanguage,
+  moduleTransforms,
+  syncModuleTransforms,
+}) => {
+  let preferSynchronous = true;
+  if (moduleTransforms && keys(moduleTransforms).length > 0) {
+    preferSynchronous = false;
+  } else {
+    for (const [_language, { synchronous }] of entries(parserForLanguage)) {
+      if (!synchronous) {
+        preferSynchronous = false;
+        break;
+      }
+    }
+  }
+  return (languageForExtension, languageForModuleSpecifier) =>
+    mapParsers(
+      languageForExtension,
+      languageForModuleSpecifier,
+      parserForLanguage,
+      moduleTransforms,
+      syncModuleTransforms,
+      preferSynchronous,
+    );
 };

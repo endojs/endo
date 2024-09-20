@@ -64,4 +64,5 @@ export const parsePreCjs = (
 export default {
   parse: parsePreCjs,
   heuristicImports: true,
+  synchronous: true,
 };

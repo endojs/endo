@@ -35,4 +35,5 @@ export const parseArchiveMjs = (
 export default {
   parse: parseArchiveMjs,
   heuristicImports: false,
+  synchronous: true,
 };

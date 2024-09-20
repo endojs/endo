@@ -44,4 +44,5 @@ export const parseText = (bytes, _specifier, _location, _packageLocation) => {
 export default {
   parse: parseText,
   heuristicImports: false,
+  synchronous: true,
 };

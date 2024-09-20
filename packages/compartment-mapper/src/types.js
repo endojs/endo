@@ -388,6 +388,7 @@ export {};
  *
  * @typedef {object} ParserImplementation
  * @property {boolean} heuristicImports
+ * @property {boolean} [synchronous]
  * @property {ParseFn} parse
  */
 

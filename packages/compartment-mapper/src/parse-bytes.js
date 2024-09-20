@@ -44,4 +44,5 @@ export const parseBytes = (bytes, _specifier, _location, _packageLocation) => {
 export default {
   parse: parseBytes,
   heuristicImports: false,
+  synchronous: true,
 };
