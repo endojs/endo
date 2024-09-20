@@ -1,5 +1,5 @@
 // Like test-sanity-unfiltered.js but with { stackFiltering: 'concise' }
-import { makeSanityTests } from './sanity.js';
+import { makeSanityTests } from './_sanity.js';
 
 // 'concise' is currently the default. But the purpose of this
 // test is not to test what choice is the default. Since the behavior

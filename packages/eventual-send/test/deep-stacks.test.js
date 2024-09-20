@@ -5,7 +5,7 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 
-import { E } from './get-hp.js';
+import { E } from './_get-hp.js';
 
 const testDeepStacksWhen = test.macro({
   title: (title, loggerDescription, _getLogger) =>

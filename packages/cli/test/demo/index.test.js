@@ -1,8 +1,8 @@
 import test from 'ava';
 import { $ } from 'execa';
-import { makeSectionTest } from '../section.js';
-import { withContext } from '../with-context.js';
-import { daemonContext } from '../daemon-context.js';
+import { makeSectionTest } from '../_section.js';
+import { withContext } from '../_with-context.js';
+import { daemonContext } from '../_daemon-context.js';
 import * as counterExample from './counter-example.js';
 import * as doublerAgent from './doubler-agent.js';
 import * as confinedScript from './confined-script.js';

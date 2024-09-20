@@ -1,6 +1,6 @@
 import test from 'ava';
 import '../index.js';
-import { resolveNode, makeNodeImporter } from './node.js';
+import { resolveNode, makeNodeImporter } from './_node.js';
 
 test('preserve file names in stack traces', async t => {
   await null;

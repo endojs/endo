@@ -1,6 +1,6 @@
 import test from 'ava';
 import '../../index.js';
-import { throwsAndLogs } from './throws-and-logs.js';
+import { throwsAndLogs } from './_throws-and-logs.js';
 
 lockdown();
 

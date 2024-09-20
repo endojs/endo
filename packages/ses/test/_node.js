@@ -1,7 +1,7 @@
 // Module node.js provides resolve and locate hooks that follow a subset of
 // Node.js module semantics.
 
-import { makeStaticRetriever, makeImporter } from './import-commons.js';
+import { makeStaticRetriever, makeImporter } from './_import-commons.js';
 
 const q = JSON.stringify;
 

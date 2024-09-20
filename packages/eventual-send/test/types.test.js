@@ -1,7 +1,7 @@
 import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 
-import { E } from './get-hp.js';
+import { E } from './_get-hp.js';
 
 /**
  * Mock a Remotable maker.

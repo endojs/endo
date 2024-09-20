@@ -1,6 +1,6 @@
 import '../index.js';
 import test from 'ava';
-import { overrideTester } from './override-tester.js';
+import { overrideTester } from './_override-tester.js';
 
 lockdown({ overrideTaming: 'severe', __hardenTaming__: 'safe' });
 

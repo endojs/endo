@@ -1,6 +1,6 @@
 import test from 'ava';
 import '../../index.js';
-import { assertLogs } from './throws-and-logs.js';
+import { assertLogs } from './_throws-and-logs.js';
 
 const { defineProperties } = Object;
 const { apply } = Reflect;

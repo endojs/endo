@@ -1,5 +1,5 @@
 import { evadeCensorSync } from '../src/index.js';
-import { test } from './prepare-test-env-ava-fixture.js';
+import { test } from './_prepare-test-env-ava-fixture.js';
 
 /**
  * Removes all linefeeds from string

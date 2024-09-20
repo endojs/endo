@@ -1,4 +1,4 @@
-import { test } from './prepare-test-env-ava-fixture.js';
+import { test } from './_prepare-test-env-ava-fixture.js';
 import { evadeComment } from '../src/transform-comment.js';
 
 test('evadeComment() - Node type becomes CommentBlock', async t => {

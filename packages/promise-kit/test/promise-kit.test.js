@@ -1,7 +1,7 @@
 /* globals globalThis, FinalizationRegistry, setImmediate */
 
 import 'ses';
-import './lockdown.js';
+import './_lockdown.js';
 import test from 'ava';
 
 import v8 from 'node:v8';

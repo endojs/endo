@@ -1,4 +1,4 @@
-import { test } from './prepare-test-env-ava-fixture.js';
+import { test } from './_prepare-test-env-ava-fixture.js';
 import { elideComment } from '../src/transform-comment.js';
 import { evadeCensorSync } from '../src/index.js';
 

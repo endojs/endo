@@ -16,7 +16,7 @@ import {
   getIndexCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
-import { unsortedSample, sortedSample } from './marshal-test-data.js';
+import { unsortedSample, sortedSample } from './_marshal-test-data.js';
 
 test('compareRank is reflexive', async t => {
   await fc.assert(

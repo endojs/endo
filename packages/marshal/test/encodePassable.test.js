@@ -13,7 +13,7 @@ import {
   makeDecodePassable,
 } from '../src/encodePassable.js';
 import { compareRank, makeComparatorKit } from '../src/rankOrder.js';
-import { unsortedSample } from './marshal-test-data.js';
+import { unsortedSample } from './_marshal-test-data.js';
 
 const buffers = {
   __proto__: null,

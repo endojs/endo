@@ -1,5 +1,5 @@
 import test from 'ava';
-import { atob as origAtob, btoa as origBtoa } from './capture-atob-btoa.js';
+import { atob as origAtob, btoa as origBtoa } from './_capture-atob-btoa.js';
 import { encodeBase64, decodeBase64, atob, btoa } from '../index.js';
 
 /**

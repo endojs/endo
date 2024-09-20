@@ -5,8 +5,8 @@
 
 import test from 'ava';
 import '../index.js';
-import { resolveNode, makeNodeImporter } from './node.js';
-import { makeImporter, makeStaticRetriever } from './import-commons.js';
+import { resolveNode, makeNodeImporter } from './_node.js';
+import { makeImporter, makeStaticRetriever } from './_import-commons.js';
 
 // This test demonstrates a system of modules in a single Compartment
 // that uses fully qualified URLs as module specifiers and module locations,

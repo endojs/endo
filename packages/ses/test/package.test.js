@@ -2,7 +2,7 @@ import test from 'ava';
 import url from 'url';
 import { spawn } from 'child_process';
 
-const cwd = url.fileURLToPath(new URL('package/', import.meta.url));
+const cwd = url.fileURLToPath(new URL('_package/', import.meta.url));
 
 const table = {
   cjs: {

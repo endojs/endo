@@ -1,7 +1,7 @@
 import test from 'ava';
 import '../../index.js';
 import { filterConsole } from '../../src/error/console.js';
-import { assertLogs } from './throws-and-logs.js';
+import { assertLogs } from './_throws-and-logs.js';
 
 lockdown();
 

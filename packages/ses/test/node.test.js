@@ -1,5 +1,5 @@
 import test from 'ava';
-import { resolveNode as resolve } from './node.js';
+import { resolveNode as resolve } from './_node.js';
 
 const q = JSON.stringify;
 

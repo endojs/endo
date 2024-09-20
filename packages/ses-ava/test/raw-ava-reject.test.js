@@ -4,7 +4,7 @@
 
 import 'ses';
 import test from 'ava';
-import { exampleProblem } from './example-problem.js';
+import { exampleProblem } from './_example-problem.js';
 
 lockdown({
   // Comment or uncomment each of these switches to see variations of the

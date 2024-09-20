@@ -1,7 +1,7 @@
 /* global globalThis */
 
 import '../index.js';
-import './lockdown-safe.js';
+import './_lockdown-safe.js';
 import test from 'ava';
 
 test('confinement evaluation strict mode', t => {

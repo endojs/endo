@@ -1,5 +1,5 @@
 import '../index.js';
-import './lockdown-safe.js';
+import './_lockdown-safe.js';
 import test from 'ava';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
