@@ -1,223 +1,143 @@
 import test from '@endo/ses-ava/prepare-endo.js';
-import { E } from '@endo/far';
-import { M } from '@endo/patterns';
-import { util } from '../src/index.js';
-import { makeScenario } from './util.js';
-import { makeKumavisStore } from '../src/kumavis-store.js';
-
-const { delay } = util;
-
-test('lifecycle - ping/gc', async t => {
-  const gemName = 'PingGem';
-  const gemRecipe = {
-    name: gemName,
-    interface: M.interface(gemName, {
-      ping: M.callWhen().returns(M.string()),
-    }),
-    makeFacet: async () => {
-      return {
-        async ping() {
-          return 'pong';
-        },
-      };
-    },
-  };
-
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
-
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-  await aliceKit.gem.wakeController.sleep();
-
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-
-  console.log('...attempting to trigger timebased GC...');
-  await delay(10e3);
-
-  console.log('ping ->');
-  console.log('     <-', await E(alice).ping());
-
-  // this is just an example
-  t.pass();
-});
+import '@agoric/swingset-liveslots/tools/setup-vat-data.js';
+import { makeVat } from './util.js';
 
 test('persistence - simple json counter', async t => {
-  const gemName = 'CounterGem';
   const gemRecipe = {
-    interface: M.interface(gemName, {
-      increment: M.callWhen().returns(M.number()),
-      getCount: M.callWhen().returns(M.number()),
-    }),
-    makeFacet: async ({ persistenceNode }) => {
-      const initState = { count: 0 };
-      const store = await makeKumavisStore({ persistenceNode }, initState);
-      return {
-        async increment() {
-          let { count } = store.get();
-          count += 1;
-          await store.update({ count });
-          return count;
+    name: 'CounterGem',
+    code: `${({ M, gemName }) => ({
+      interface: M.interface(gemName, {
+        increment: M.call().returns(M.number()),
+        getCount: M.call().returns(M.number()),
+      }),
+      init: (count = 0) => ({ count }),
+      methods: {
+        increment() {
+          this.state.count += 1;
+          return this.state.count;
         },
-        async getCount() {
-          const { count } = store.get();
-          return count;
+        getCount() {
+          return this.state.count;
         },
-      };
-    },
+      },
+    })}`,
   };
 
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
+  const vat = makeVat();
+  let kernel = vat.restart();
+  let counter = kernel.makeGem(gemRecipe);
+  kernel.store.init('counter', counter);
 
-  t.deepEqual(await E(alice).getCount(), 0);
-  await E(alice).increment();
-  t.deepEqual(await E(alice).getCount(), 1);
+  t.deepEqual(counter.getCount(), 0);
+  counter.increment();
+  t.deepEqual(counter.getCount(), 1);
 
-  await aliceKit.gem.wakeController.sleep();
+  kernel = vat.restart();
+  counter = kernel.store.get('counter');
 
-  t.deepEqual(await E(alice).getCount(), 1);
-  await Promise.all([E(alice).increment(), E(alice).increment()]);
-  t.deepEqual(await E(alice).getCount(), 3);
+  t.deepEqual(counter.getCount(), 1);
+  counter.increment();
+  counter.increment();
+  t.deepEqual(counter.getCount(), 3);
 });
 
+// TODO: need to untangle captp remote refs for persistence
 test('kumavis store - serialization of gem refs', async t => {
-  const gemName = 'FriendGem';
-  const gemRecipe = {
-    name: gemName,
-    interface: M.interface(gemName, {
-      addFriend: M.callWhen(M.any()).returns(M.string()),
-      getFriends: M.callWhen().returns(M.any()),
-    }),
-    makeFacet: async ({ persistenceNode, retentionSet, gemLookup }) => {
-      const initState = { friends: [] };
-      const store = await makeKumavisStore(
-        { persistenceNode, retentionSet, gemLookup },
-        initState,
-      );
-      return {
-        async addFriend(friend) {
-          const { friends } = store.get();
-          friends.push(friend);
-          await store.update({ friends });
-          return `added friend ${friend} (${friends.length} friends total)`;
+  const friendsListRecipe = {
+    name: 'FriendsList',
+    code: `${({ M, gemName }) => ({
+      interface: M.interface(gemName, {
+        addFriend: M.call(M.any()).returns(M.string()),
+        getFriends: M.call().returns(M.any()),
+      }),
+      init: () => harden({ friends: [] }),
+      methods: {
+        addFriend(friend) {
+          this.state.friends = harden([...this.state.friends, friend]);
+          return `added friend ${friend} (${this.state.friends.length} friends total)`;
         },
-        async getFriends() {
-          const { friends } = store.get();
-          return friends;
+        getFriends() {
+          return this.state.friends;
         },
-      };
-    },
+      },
+    })}`,
   };
 
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
-  const bob = await aliceKit.captpKit.getBootstrap();
-
-  t.deepEqual(aliceKit.gem.retentionSet.size, 0);
-  await E(alice).addFriend(bob);
-  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  await aliceKit.gem.wakeController.sleep();
-
-  const aliceFriends = await E(alice).getFriends();
-  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  t.deepEqual(aliceFriends, [bob]);
-  t.notDeepEqual(aliceFriends, [alice]);
-});
-
-test('kumavis store - serialization + retention of gem refs', async t => {
-  const gemName = 'FriendGem';
-  const gemRecipe = {
-    name: gemName,
-    interface: M.interface(gemName, {
-      addFriend: M.callWhen(M.any()).returns(M.string()),
-      getFriends: M.callWhen().returns(M.any()),
-    }),
-    makeFacet: async ({ persistenceNode, retentionSet, gemLookup }) => {
-      const initState = { friends: [] };
-      const store = await makeKumavisStore(
-        { persistenceNode, retentionSet, gemLookup },
-        initState,
-      );
-      return {
-        async addFriend(friend) {
-          const { friends } = store.get();
-          friends.push(friend);
-          await store.update({ friends });
-          return `added friend ${friend} (${friends.length} friends total)`;
-        },
-        async getFriends() {
-          const { friends } = store.get();
-          return friends;
-        },
-      };
-    },
+  const friendRecipe = {
+    name: 'Friend',
+    code: `${({ M, gemName }) => ({
+      interface: M.interface(gemName, {}),
+      methods: {},
+    })}`,
   };
 
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
-  const bob = await aliceKit.captpKit.getBootstrap();
+  const vat = makeVat();
+  let kernel = vat.restart();
+  let friendsList = kernel.makeGem(friendsListRecipe);
+  kernel.store.init('friendsList', friendsList);
+  let friend = kernel.makeGem(friendRecipe);
+  kernel.store.init('friend', friend);
 
-  t.deepEqual(aliceKit.gem.retentionSet.size, 0);
-  await E(alice).addFriend(bob);
-  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  await aliceKit.gem.wakeController.sleep();
+  t.deepEqual(friendsList.getFriends(), []);
+  friendsList.addFriend(friend);
+  t.deepEqual(friendsList.getFriends(), [friend]);
 
-  const aliceFriends = await E(alice).getFriends();
-  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  t.deepEqual(aliceFriends, [bob]);
-  t.notDeepEqual(aliceFriends, [alice]);
+  kernel = vat.restart();
+  friendsList = kernel.store.get('friendsList');
+  friend = kernel.store.get('friend');
+
+  t.deepEqual(friendsList.getFriends(), [friend]);
 });
 
 test('makeGem - widget factory', async t => {
-  const gemName = 'WidgetGem';
-  const gemRecipe = {
-    name: gemName,
-    interface: M.interface(gemName, {
-      makeWidget: M.callWhen().returns(M.any()),
-    }),
-    makeFacet: async ({ retentionSet, incarnateEvalGem }) => {
+  const widgetFactoryRecipe = {
+    name: 'WidgetFactory',
+    code: `${({ M, gemName, defineChildGem, lookupChildGemClass }) => {
+      defineChildGem({
+        name: 'Widget',
+        code: `${({ M: M2 }) => ({
+          interface: M2.interface('Widget', {
+            sayHi: M2.call().returns(M2.string()),
+          }),
+          methods: {
+            sayHi() {
+              return 'hi im a widget';
+            },
+          },
+        })}`,
+      });
       return {
-        async makeWidget() {
-          const widget = await incarnateEvalGem({
-            name: 'widget',
-            interface: M.interface('Widget', {
-              sayHi: M.callWhen().returns(M.string()),
-            }),
-            code: 'async () => ({ sayHi: async () => "hi im a widget" })',
-          });
-          // you probably wouldnt want this to
-          // manage the retention of the widget,
-          // the consumer of the widget should do that.
-          retentionSet.add(widget.gemId);
-          return widget.exo;
+        interface: M.interface(gemName, {
+          makeWidget: M.call().returns(M.any()),
+        }),
+        methods: {
+          makeWidget() {
+            const makeWidget = lookupChildGemClass('Widget');
+            return makeWidget();
+          },
         },
       };
-    },
+    }}`,
   };
 
-  const { aliceKit, bobKit } = makeScenario({ recipeForBoth: gemRecipe });
-  // bob's bootstrap is alice and vice versa
-  const alice = await bobKit.captpKit.getBootstrap();
+  const vat = makeVat();
+  let kernel = vat.restart();
+  let widgetFactory = kernel.makeGem(widgetFactoryRecipe);
+  kernel.store.init('widgetFactory', widgetFactory);
 
-  t.deepEqual(aliceKit.gem.retentionSet.size, 0);
-  const widget1 = await E(alice).makeWidget();
-  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  await aliceKit.gem.wakeController.sleep();
+  let widget = widgetFactory.makeWidget();
+  kernel.store.init('widget', widget);
 
-  t.deepEqual(aliceKit.gem.retentionSet.size, 1);
-  const widget2 = await E(alice).makeWidget();
-  t.deepEqual(aliceKit.gem.retentionSet.size, 2);
+  t.deepEqual(widget.sayHi(), 'hi im a widget');
 
-  await E(widget1).sayHi();
-  await E(widget2).sayHi();
+  kernel = vat.restart();
+  widgetFactory = kernel.store.get('widgetFactory');
+  widget = kernel.store.get('widget');
+
+  t.deepEqual(widget.sayHi(), 'hi im a widget');
+  const widget2 = widgetFactory.makeWidget();
+  kernel.store.init('widget2', widget2);
+  t.deepEqual(widget2.sayHi(), 'hi im a widget');
 
   t.pass();
 });

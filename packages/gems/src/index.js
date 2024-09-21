@@ -1,18 +1,10 @@
-/* global setTimeout */
-
 import { makeCapTP } from '@endo/captp';
-import { makeExo } from '@endo/exo';
-import { getInterfaceMethodKeys, M } from '@endo/patterns';
+import { makeDurableZone } from '@agoric/zone/durable.js';
+import { M } from '@endo/patterns';
 
 /** @import { Stream } from '@endo/stream' */
 
-const noop = (...args) => {};
-const never = new Promise(() => {});
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-export const util = { noop, never, delay };
-
-const getRandomId = () => Math.random().toString(36).slice(2);
+const initWithPassthrough = ({ ...args } = {}) => harden({ ...args });
 
 /**
  * @template TBootstrap
@@ -53,221 +45,129 @@ export const makeMessageCapTP = (
   };
 };
 
-const makePersistenceNode = () => {
-  let value;
-  return {
-    get() {
-      return value;
-    },
-    set(newValue) {
-      if (typeof newValue !== 'string') {
-        throw new Error(
-          `persistence node expected string (got "${typeof newValue}")`,
-        );
-      }
-      value = newValue;
-    },
-  };
-};
+export const makeKernel = baggage => {
+  const zone = makeDurableZone(baggage);
+  const rootStore = zone.mapStore('rootStore');
+  const rootGemZone = zone.subZone('RootGemZone');
 
-const makeWakeController = ({ name, makeFacet }) => {
-  let isAwake = false;
-  let target;
-  let currentFacetId;
+  /*
+  GemZone:
+    (store) 'data': { recipe }
+    (subzone) 'gemRegistry': SubZone<name, GemZone>
+  */
 
-  let controller;
-
-  const triggerSleep = targetFacetId => {
-    if (currentFacetId === targetFacetId) {
-      console.log(
-        `gem:${name}/facet:${targetFacetId} being put to sleep (due to GC)`,
-      );
-      controller.sleep();
-    }
-  };
-
-  // is it theoretically possible for a facet to get GC'd while handling a message?
-  // i was unable to observe it happening
-  const registry = new FinalizationRegistry(facetId => {
-    console.log(`gem:${name}/facet:${facetId} has been garbage collected.`);
-    triggerSleep(facetId);
-  });
-
-  controller = {
-    async wake() {
-      await null;
-      // need to handle case where marked as awake but target is garbage collected
-      if (isAwake && target && target.deref() !== undefined)
-        return target.deref();
-      // bug when wake is inflight
-      const facetId = Math.random().toString(36).slice(2);
-      // simulate startup process
-      await delay(200);
-      const facet = await makeFacet({
-        // for debugging:
-        facetId,
-      });
-      target = new WeakRef(facet);
-      currentFacetId = facetId;
-      registry.register(facet, facetId);
-      console.log(`gem:${name}/facet:${facetId} created`);
-      isAwake = true;
-      return facet;
-    },
-    async sleep() {
-      await null;
-      if (!isAwake) return;
-      console.log(`gem:${name}/facet:${currentFacetId} being put to sleep`);
-      // simulate shutdown process
-      // bug when sleep is inflight
-      await delay(200);
-      target = undefined;
-      isAwake = false;
-    },
-    isAwake() {
-      return isAwake;
-    },
-    assertAwake() {
-      if (!isAwake) {
-        throw new Error('not awake');
-      }
-    },
-  };
-
-  return controller;
-};
-
-const makeWrapper = (name, wakeController, methodNames) => {
-  return Object.fromEntries(
-    methodNames.map(methodName => {
-      return [
-        methodName,
-        async function wrapperFn(...args) {
-          console.log(`gem:${name} ${methodName} called`);
-          const facet = await wakeController.wake();
-          // load bearing codesmell against unseen enemies.
-          // uhhhh, use (return-await + noop) to retain a strong reference to `facet` to
-          // to prevent GC of facet before fully responding to a message.
-          // we want the GC event to imply that the facet is no longer in use.
-          // but we dont get many guarantees about when the GC event will fire.
-          // this problem has not been witnessed,
-          // this solution has not been verified.
-          const result = await facet[methodName](...args);
-          noop(facet);
-          return result;
-        },
-      ];
-    }),
-  );
-};
-
-const makeGemFactory = ({ gemController }) => {
-  const makeGem = ({ name, makeFacet, interface: iface }) => {
-    const gemId = `gem:${getRandomId()}`;
-    console.log(`${gemId} created ("${name}")`);
-
-    const gemLookup = gemController.getLookup();
-    const persistenceNode = makePersistenceNode();
-    const retentionSet = new Set();
-
-    const incarnateEvalGem = async ({
-      name: childName,
-      interface: childIface,
-      code,
-    }) => {
-      const compartment = new Compartment({ M });
-      const childMakeFacet = compartment.evaluate(code);
-      const { gemId: childGemId, exo } = await makeGem({
-        name: childName,
-        makeFacet: childMakeFacet,
-        interface: childIface,
-      });
-      return { gemId: childGemId, exo };
+  // "GemNamespaces" are created bc zones dont allow you to lookup subZones by name more than once
+  // so this loads the subZones and stores only once. registered child namespaces are cached.
+  // Additionally, you cant ask what subzones exist. so we need to keep track of them ourselves.
+  // So GemNamespaces serve as an abstraction for managing the gem class registration tree
+  const loadGemNamespaceFromGemZone = gemZone => {
+    const childCache = new Map();
+    const data = gemZone.mapStore('data');
+    const registry = gemZone.subZone('gemRegistry');
+    const childKeys = gemZone.setStore('childKeys');
+    let exoClass;
+    const namespace = {
+      initRecipe(gemRecipe) {
+        data.init('recipe', harden(gemRecipe));
+      },
+      getRecipe() {
+        return data.get('recipe');
+      },
+      // methods
+      lookupChild(name) {
+        if (childCache.has(name)) {
+          return childCache.get(name);
+        }
+        childKeys.add(name);
+        const childGemZone = registry.subZone(name);
+        const chilldNamespace = loadGemNamespaceFromGemZone(childGemZone);
+        childCache.set(name, chilldNamespace);
+        return chilldNamespace;
+      },
+      getChildKeys() {
+        return Array.from(childKeys.values());
+      },
+      exoClass(...args) {
+        if (exoClass === undefined) {
+          exoClass = gemZone.exoClass(...args);
+        }
+        return exoClass;
+      },
     };
+    return namespace;
+  };
 
-    // we wrap this here to avoid passing things to the wake controller
-    // the wake controller adds little of value as "endowments"
-    const makeFacetWithEndowments = async endowments => {
-      return makeFacet({
-        ...endowments,
-        persistenceNode,
-        retentionSet,
-        incarnateEvalGem,
-        gemLookup,
-      });
+  // stores a gem recipe in the registry. for each gem, called once per universe.
+  const registerGem = (parentGemNamespace, gemRecipe) => {
+    const { name } = gemRecipe;
+    const gemNs = parentGemNamespace.lookupChild(name);
+    gemNs.initRecipe(harden(gemRecipe));
+  };
+
+  // used internally. defines a registered gem class. for each gem, called once per process.
+  const loadGem = (parentGemNamespace, name) => {
+    const gemNs = parentGemNamespace.lookupChild(name);
+    const gemRecipe = gemNs.getRecipe();
+    const { code } = gemRecipe;
+    const defineChildGem = childGemRecipe => {
+      // ignore if already registered
+      if (gemNs.getChildKeys().includes(childGemRecipe.name)) {
+        return;
+      }
+      registerGem(gemNs, childGemRecipe);
     };
-    const wakeController = makeWakeController({
-      name,
-      makeFacet: makeFacetWithEndowments,
+    const compartment = new Compartment();
+    const constructGem = compartment.evaluate(code);
+    const {
+      interface: interfaceGuards,
+      init,
+      methods,
+    } = constructGem({
+      M,
+      gemName: name,
+      defineChildGem,
+      lookupChildGemClass: childName => loadGem(gemNs, childName),
     });
-    const methodNames = getInterfaceMethodKeys(iface);
-    const wrapper = makeWrapper(name, wakeController, methodNames);
-    const exo = makeExo(`${gemId}`, iface, wrapper);
-    gemController.register(gemId, exo);
-
-    return { gemId, exo, wakeController, persistenceNode, retentionSet };
+    return gemNs.exoClass(
+      name,
+      interfaceGuards,
+      init || initWithPassthrough,
+      methods,
+    );
   };
-  return makeGem;
-};
 
-const makeGemController = () => {
-  const gemIdToGem = new Map();
-  const gemToGemId = new WeakMap();
+  // reincarnate all registered gems
+  // TODO: should be as lazy as possible
 
-  const getGemById = gemId => {
-    return gemIdToGem.get(gemId);
-  };
-  const getGemId = gem => {
-    // if (!gemToGemId.has(gem)) {
-    //   throw new Error(`Gem not found in lookup ("${gem}")`);
-    // }
-    // return gemToGemId.get(gem);
+  const rootGemNamespace = loadGemNamespaceFromGemZone(rootGemZone);
 
-    // this is a hack to get the gem id from the remote ref
-    // this is prolly not safe or something
-    // some identity discontinuity happening with the first technique
-    const str = String(gem);
-    const startIndex = str.indexOf('Alleged: ');
-    const endIndex = str.indexOf(']');
-    if (startIndex === -1 || endIndex === -1) {
-      throw new Error(`Could not find gem id in remote ref ("${str}")`);
+  const walkGemRegistry = gemNs => {
+    for (const name of gemNs.getChildKeys()) {
+      loadGem(gemNs, name);
+      const childGemNs = gemNs.lookupChild(name);
+      walkGemRegistry(childGemNs);
     }
-    const gemId = str.slice(startIndex + 9, endIndex);
-    if (!gemId) {
-      throw new Error('Gem id was empty');
-    }
-    if (!gemId.startsWith('gem:')) {
-      throw new Error('Gem id did not start with gem:');
-    }
-    return gemId;
   };
-  const register = (gemId, gem) => {
-    if (gemIdToGem.has(gemId)) {
-      throw new Error(`Gem id already registered ("${gemId}")`);
-    }
-    console.log(`${gemId} registered: ${gem}`);
-    gemIdToGem.set(gemId, gem);
-    gemToGemId.set(gem, gemId);
+  walkGemRegistry(rootGemNamespace);
+
+  const registerRootGem = gemRecipe => {
+    registerGem(rootGemNamespace, gemRecipe);
+  };
+  const loadRootGem = name => {
+    return loadGem(rootGemNamespace, name);
+  };
+  const makeRootGem = gemRecipe => {
+    registerRootGem(gemRecipe);
+    const makeGem = loadRootGem(gemRecipe.name);
+    return makeGem();
   };
 
-  return {
-    register,
-    getGemById,
-    getGemId,
-    getLookup() {
-      return {
-        getGemById,
-        getGemId,
-      };
-    },
+  const kernel = {
+    registerGem: registerRootGem,
+    makeGem: makeRootGem,
+    store: rootStore,
+    ns: rootGemNamespace,
   };
-};
 
-export const makeKernel = () => {
-  const gemController = makeGemController();
-  const makeGem = makeGemFactory({ gemController });
-  return {
-    makeGem,
-    gemController,
-  };
+  return kernel;
 };
