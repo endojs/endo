@@ -20,13 +20,14 @@ export const makeMessageCapTP = (
   reader,
   cancelled,
   bootstrap,
+  captpOpts,
 ) => {
   /** @param {any} message */
   const send = message => {
     return writer.next(message);
   };
 
-  const { dispatch, getBootstrap, abort } = makeCapTP(name, send, bootstrap);
+  const { dispatch, getBootstrap, abort } = makeCapTP(name, send, bootstrap, captpOpts);
 
   const drained = (async () => {
     for await (const message of reader) {

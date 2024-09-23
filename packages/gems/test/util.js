@@ -1,5 +1,37 @@
 import { reincarnate } from '@agoric/swingset-liveslots/tools/setup-vat-data.js';
-import { makeKernel } from '../src/index.js';
+import { makeKernel, makeMessageCapTP } from '../src/index.js';
+import { makePipe } from '@endo/stream';
+
+const never = new Promise(() => {});
+
+export const makeCaptpPair = (leftOpts, rightOpts) => {
+  const [writerA, readerB] = makePipe();
+  const [writerB, readerA] = makePipe();
+
+  const makeLeft = (tag, bootstrap) => {
+    return makeMessageCapTP(
+      tag,
+      writerA,
+      readerA,
+      never,
+      bootstrap,
+      leftOpts,
+    );
+  };
+
+  const makeRight = (tag, bootstrap) => {
+    return makeMessageCapTP(
+      tag,
+      writerB,
+      readerB,
+      never,
+      bootstrap,
+      rightOpts,
+    );
+  };
+
+  return { makeLeft, makeRight };
+};
 
 const setupWorld = fakeStore => {
   const { fakeVomKit } = reincarnate({
