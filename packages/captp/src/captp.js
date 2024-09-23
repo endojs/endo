@@ -51,6 +51,7 @@ const reverseSlot = slot => {
  * @typedef {object} CapTPOptions the options to makeCapTP
  * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [importHook]
+ * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [gcHook]
  * @property {(err: any) => void} [onReject]
  * @property {number} [epoch] an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
@@ -96,6 +97,7 @@ export const makeCapTP = (
     epoch = 0,
     exportHook,
     importHook,
+    gcHook,
     trapGuest,
     trapHost,
     gcImports = false,
@@ -536,6 +538,10 @@ export const makeCapTP = (
       if (numRefs > toDecr) {
         slotToNumRefs.set(slot, numRefs - toDecr);
       } else {
+        if (gcHook) {
+          const value = slotToExported.get(slot);
+          gcHook(value, slot);
+        }
         // We are dropping the last known reference to this slot.
         gcStats.DROPPED += 1;
         slotToNumRefs.delete(slot);
