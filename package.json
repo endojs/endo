@@ -25,7 +25,7 @@
     "type-coverage": "^2.26.3",
     "typedoc": "^0.26.6",
     "typedoc-plugin-markdown": "^4.2.5",
-    "typescript": "~5.6.1-rc",
+    "typescript": "~5.6.2",
     "typescript-eslint": "^7.3.1"
   },
   "scripts": {
