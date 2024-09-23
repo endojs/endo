@@ -38,7 +38,7 @@
     "eslint-plugin-import": "^2.29.1",
     "prettier": "^3.2.5",
     "ses": "workspace:^",
-    "typescript": "~5.6.1-rc"
+    "typescript": "~5.6.2"
   },
   "directories": {
     "test": "test"
