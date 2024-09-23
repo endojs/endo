@@ -440,7 +440,6 @@ __metadata:
     eslint: "npm:^8.57.0"
     mocha: "npm:^10.6.0"
     requireindex: "npm:~1.1.0"
-    ts-api-utils: "npm:~1.0.1"
     tsutils: "npm:~3.21.0"
     typescript: "npm:~5.6.2"
     typescript-eslint: "npm:^7.3.1"
@@ -812,7 +811,6 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "workspace:^"
-    ts-api-utils: "npm:~1.0.1"
     typescript: "npm:~5.6.2"
   languageName: unknown
   linkType: soft
@@ -852,7 +850,6 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.2.5"
     ses: "workspace:^"
-    ts-api-utils: "npm:~1.0.1"
     typescript: "npm:~5.6.2"
   languageName: unknown
   linkType: soft
@@ -9035,7 +9032,6 @@ __metadata:
     eslint-plugin-jsdoc: "npm:^48.2.5"
     lerna: "npm:^8.1.8"
     prettier: "npm:^3.2.5"
-    ts-api-utils: "npm:~1.0.1"
     type-coverage: "npm:^2.26.3"
     typedoc: "npm:^0.26.6"
     typedoc-plugin-markdown: "npm:^4.2.5"
@@ -10088,7 +10084,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-api-utils@npm:^1.0.1, ts-api-utils@npm:~1.0.1":
+"ts-api-utils@npm:^1.0.1":
   version: 1.0.3
   resolution: "ts-api-utils@npm:1.0.3"
   peerDependencies:

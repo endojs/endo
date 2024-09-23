@@ -21,7 +21,6 @@
     "eslint-plugin-jsdoc": "^48.2.5",
     "lerna": "^8.1.8",
     "prettier": "^3.2.5",
-    "ts-api-utils": "~1.0.1",
     "type-coverage": "^2.26.3",
     "typedoc": "^0.26.6",
     "typedoc-plugin-markdown": "^4.2.5",
