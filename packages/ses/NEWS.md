@@ -13,8 +13,6 @@ User-visible changes in `ses`:
   - Node 18, Node 20, and all browsers have `structuredClone`
   - Node <= 16 have neither, but are also no longer supported by Endo.
 - Now exports separate layer for console shim: `ses/console-shim.js`.
-- Adds permits for `ModuleSource` if present, either the native implementation
-  or from `@endo/module-source/shim.js`.
 
 # v1.8.0 (2024-08-27)
 
