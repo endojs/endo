@@ -74,6 +74,7 @@
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
     "test": "tsd && ava",
+    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js",
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {

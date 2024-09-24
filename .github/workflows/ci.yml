@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -75,7 +75,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -121,7 +121,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -158,7 +158,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -194,7 +194,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -230,7 +230,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
@@ -260,3 +260,93 @@ jobs:
       # when imported in an NPM node_modules tree.
       - name: Prepack packages
         run: yarn lerna run --reject-cycles --concurrency 1 prepack
+
+  test-xs:
+    name: test-xs
+
+    # begin macro
+
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20.x]
+        # may include release tags and hashes:
+        moddable-version: [5.0.0]
+        platform: [ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: endo
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+        working-directory: endo
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          path: endo
+          node-version: ${{ matrix.node-version }}
+          cache: yarn
+          cache-dependency-path: endo/yarn.lock
+
+      - name: Install dependencies
+        working-directory: endo
+        run: yarn install --immutable
+
+      # end macro
+
+      - name: Run yarn build
+        working-directory: endo
+        run: yarn build
+
+      - name: Restore XS binary cache
+        id: restore-xs
+        uses: actions/cache@v4
+        with:
+          path: bin/xst
+          key: xst-lin64-${{ matrix.moddable-version }}
+
+      - name: Choose download or build
+        if: steps.restore-xs.outputs.cache-hit != 'true'
+        id: check-release
+        run: |
+          if curl -f -s -o /dev/null -I -L https://api.github.com/repos/Moddable-OpenSource/moddable/releases/tags/${{ matrix.moddable-version }}
+          then
+            echo release=download
+          else
+            echo release=build
+          fi >> $GITHUB_OUTPUT
+
+      - name: Download XS
+        if: steps.check-release.outputs.release == 'download'
+        run: |
+          wget "https://github.com/Moddable-OpenSource/moddable/releases/download/${{ matrix.moddable-version }}/xst-lin64.zip"
+          unzip xst-lin64.zip -d bin
+          mkdir -p bin
+          chmod 755 bin/xst
+
+      - name: Checkout XS
+        if: steps.check-release.outputs.release == 'build'
+        uses: actions/checkout@v4
+        with:
+          repository: moddable-OpenSource/moddable
+          ref: ${{ matrix.moddable-version }}
+          path: moddable
+
+      - name: Build XS
+        if: steps.check-release.outputs.release == 'build'
+        working-directory: moddable/xs/makefiles/lin
+        run: |
+          make debug MODDABLE=$GITHUB_WORKSPACE/moddable CC='cc "-D__has_builtin(x)=1"' # give the syntax highlighter a hand: '
+          mkdir -p $GITHUB_WORKSPACE/bin
+          cp $GITHUB_WORKSPACE/moddable/build/bin/lin/debug/xst $GITHUB_WORKSPACE/bin/xst
+
+      - name: Run XS tests
+        working-directory: endo
+        run: |
+          PATH=$PATH:$GITHUB_WORKSPACE/bin
+          yarn lerna run test:xs
