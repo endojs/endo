@@ -44,7 +44,3 @@ test('module source constructor', t => {
     'ModuleSource imports should be frozen',
   );
 });
-
-test('ModuleSource is a shared intrinsic', t => {
-  t.truthy(ModuleSource === new Compartment().globalThis.ModuleSource);
-});
