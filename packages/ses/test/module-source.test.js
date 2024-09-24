@@ -6,6 +6,19 @@ import '@endo/module-source/shim.js';
 
 lockdown();
 
+test('module source property/prototype graph and hardening', t => {
+  const AbstractModuleSource = Object.getPrototypeOf(ModuleSource);
+  t.is(
+    Object.getPrototypeOf(ModuleSource.prototype),
+    AbstractModuleSource.prototype,
+  );
+
+  t.truthy(Object.isFrozen(ModuleSource));
+  t.truthy(Object.isFrozen(AbstractModuleSource));
+  t.truthy(Object.isFrozen(ModuleSource.prototype));
+  t.truthy(Object.isFrozen(AbstractModuleSource.prototype));
+});
+
 test('module source constructor', t => {
   const msr = new ModuleSource(`
     import foo from 'import-default-export-from-me.js';
