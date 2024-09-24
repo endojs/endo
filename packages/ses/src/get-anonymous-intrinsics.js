@@ -161,5 +161,19 @@ export const getAnonymousIntrinsics = () => {
     );
   }
 
+  if (globalThis.ModuleSource) {
+    const AbstractModuleSourcePrototype = getPrototypeOf(
+      globalThis.ModuleSource.prototype,
+    );
+    intrinsics['%AbstractModuleSourcePrototype%'] =
+      AbstractModuleSourcePrototype;
+    intrinsics['%AbstractModuleSource%'] =
+      AbstractModuleSourcePrototype.constructor;
+  }
+
+  if (globalThis.ModuleSource) {
+    intrinsics['%ModuleSourcePrototype%'] = globalThis.ModuleSource.prototype;
+  }
+
   return intrinsics;
 };

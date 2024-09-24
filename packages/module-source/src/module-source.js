@@ -100,3 +100,32 @@ export function ModuleSource(source, opts = {}) {
   this.__needsImportMeta__ = needsImportMeta;
   freeze(this);
 }
+
+// AbstractModuleSource
+// https://github.com/tc39/proposal-source-phase-imports?tab=readme-ov-file#js-module-source
+//
+// We are attempting to ensure that a JavaScript shim (particularly ses) is
+// forward-compatible as the engine evolves beneath it, with or without this
+// ModuleSource shim, and with our without a native AbstractModuleSource which
+// remains undecided.
+// Lockdown does not gracefully handle the presence of an unexpected prototype,
+// but can tolerate the absence of an expected prototype.
+// So, we are providing AbstractModuleSource since we can better tolerate the
+// various uncertain futures.
+//
+// WebAssembly and ModuleSource are both in motion.
+// The Source Phase Imports proposal implies an additional AbstractModuleSource
+// layer above the existing WebAssembly.Module that would be shared by
+// the JavaScript ModuleSource prototype chains.
+// At time of writing, no version of WebAssembly provides the shared base
+// class, and the ModuleSource *shim* gains nothing from sharing one when that
+// prototype when it comes into being.
+// So, we do not attempt to entangle our AbstractModuleSource with
+// WebAssembly.Module.
+
+function AbstractModuleSource() {
+  // no-op, safe to super()
+}
+
+Object.setPrototypeOf(ModuleSource, AbstractModuleSource);
+Object.setPrototypeOf(ModuleSource.prototype, AbstractModuleSource.prototype);
