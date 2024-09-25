@@ -1,3 +1,6 @@
+// @ts-check
+import '@agoric/store/exported.js';
+
 import { E } from '@endo/captp';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeVat } from './vats/node-vat/outside.js';
@@ -23,17 +26,19 @@ const initKernel = (kernelVatSupervisor) => {
 }
 
 export const makeKernel = async (kernelVatState = []) => {
+  const { promise: vatP, resolve: setVat } = makePromiseKit();
+  const getRemoteExtRefController = async () => {
+    const { workerFacet } = await vatP;
+    return E(workerFacet).getExtRefController();
+  };
   const vatSupervisor = makeVatSupervisor('kernel', kernelVatState, getRemoteExtRefController);
   initKernel(vatSupervisor);
   const vatSideKernelFacet = vatSupervisor.store.get('kernel');
 
   const { reject: terminateVat, promise: vatCancelled } = makePromiseKit();
   const vatState = vatSupervisor.store.get('vat-state');
-  const vatP = makeVat(vatSideKernelFacet, vatSupervisor.captpOpts, vatState, vatCancelled);
-  async function getRemoteExtRefController() {
-    const { workerFacet } = await vatP;
-    return E(workerFacet).getExtRefController()
-  }
+  setVat(makeVat(vatSideKernelFacet, vatSupervisor.captpOpts, vatState, vatCancelled));
+  
   const { workerFacet, workerTerminated } = await vatP;
   const { store } = vatSupervisor;
 

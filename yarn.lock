@@ -64,6 +64,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@agoric/store@npm:0.9.3-u17.1":
+  version: 0.9.3-u17.1
+  resolution: "@agoric/store@npm:0.9.3-u17.1"
+  dependencies:
+    "@endo/errors": "npm:^1.2.5"
+    "@endo/exo": "npm:^1.5.3"
+    "@endo/marshal": "npm:^1.5.3"
+    "@endo/pass-style": "npm:^1.4.3"
+    "@endo/patterns": "npm:^1.4.3"
+  checksum: 10c0/cfd94f968b8c3ab7259058ba8574f8126e5db6e41b02a409ec9e9a5ad7e59f9341be2a3bc63c10c38c7130c65987d0cfa8aae18e585ee899c7d565c4863116bf
+  languageName: node
+  linkType: hard
+
 "@agoric/store@npm:0.9.3-upgrade-16a-dev-fb592e4.0+fb592e4, @agoric/store@npm:^0.9.3-u16.0":
   version: 0.9.3-upgrade-16a-dev-fb592e4.0
   resolution: "@agoric/store@npm:0.9.3-upgrade-16a-dev-fb592e4.0"
@@ -556,7 +569,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/errors@npm:^1.2.2, @endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
+"@endo/errors@npm:^1.2.2, @endo/errors@npm:^1.2.5, @endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
@@ -622,7 +635,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/exo@npm:^1.5.0, @endo/exo@workspace:^, @endo/exo@workspace:packages/exo":
+"@endo/exo@npm:^1.5.0, @endo/exo@npm:^1.5.3, @endo/exo@workspace:^, @endo/exo@workspace:packages/exo":
   version: 0.0.0-use.local
   resolution: "@endo/exo@workspace:packages/exo"
   dependencies:
@@ -666,6 +679,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/gems@workspace:packages/gems"
   dependencies:
+    "@agoric/store": "npm:0.9.3-u17.1"
     "@agoric/swingset-liveslots": "npm:0.10.3-u16.1"
     "@agoric/zone": "npm:0.3.0-u16.1"
     "@endo/captp": "workspace:^"
@@ -680,6 +694,7 @@ __metadata:
     "@endo/stream-node": "workspace:^"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
+    ses: "workspace:^"
     tsd: "npm:^0.30.7"
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
@@ -758,7 +773,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/marshal@npm:^1.5.0, @endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
+"@endo/marshal@npm:^1.5.0, @endo/marshal@npm:^1.5.3, @endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
   version: 0.0.0-use.local
   resolution: "@endo/marshal@workspace:packages/marshal"
   dependencies:
@@ -857,7 +872,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/pass-style@npm:^1.4.0, @endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
+"@endo/pass-style@npm:^1.4.0, @endo/pass-style@npm:^1.4.3, @endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
   version: 0.0.0-use.local
   resolution: "@endo/pass-style@workspace:packages/pass-style"
   dependencies:
@@ -880,7 +895,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/patterns@npm:^1.4.0, @endo/patterns@workspace:^, @endo/patterns@workspace:packages/patterns":
+"@endo/patterns@npm:^1.4.0, @endo/patterns@npm:^1.4.3, @endo/patterns@workspace:^, @endo/patterns@workspace:packages/patterns":
   version: 0.0.0-use.local
   resolution: "@endo/patterns@workspace:packages/patterns"
   dependencies:

@@ -1,3 +1,5 @@
+/* global process */
+
 import '@endo/init'
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { E } from '@endo/captp';

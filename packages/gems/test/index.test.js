@@ -3,7 +3,7 @@ import '@agoric/swingset-liveslots/tools/setup-vat-data.js';
 import { E } from '@endo/captp';
 import { makeKernelFactory } from './util.js';
 
-const { restart, stop, clear } = makeKernelFactory();
+const { restart, clear } = makeKernelFactory();
 
 test.afterEach(async t => {
   await clear();
@@ -167,8 +167,7 @@ test.skip('persistence - widget factory', async t => {
     };
   }}`;
 
-  const vat = makeVat();
-  let kernel = vat.restart();
+  let kernel = restart();
   let widgetFactory = kernel.makeGem('WidgetFactory', widgetFactoryRecipe);
   kernel.store.init('widgetFactory', widgetFactory);
 
@@ -177,7 +176,7 @@ test.skip('persistence - widget factory', async t => {
 
   t.deepEqual(widget.sayHi(), 'hi im a widget');
 
-  kernel = vat.restart();
+  kernel = restart();
   widgetFactory = kernel.store.get('widgetFactory');
   widget = kernel.store.get('widget');
 

@@ -1,8 +1,3 @@
-
-/* global globalThis */
-// @ts-check
-/// <reference types="ses"/>
-
 import { E } from '@endo/far';
 import { M } from '@endo/patterns';
 import { setupZone } from './zone.js';
