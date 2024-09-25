@@ -15,6 +15,7 @@ const textDecoder = new TextDecoder();
  * @param {Stream<unknown, any, unknown, unknown>} writer
  * @param {Stream<any, undefined, undefined, undefined>} reader
  * @param {Promise<void>} cancelled
+ * @param opts
  * @param {TBootstrap} bootstrap
  */
 export const makeMessageCapTP = (
@@ -71,6 +72,7 @@ export const bytesToMessage = bytes => {
  * @param {Writer<Uint8Array>} bytesWriter
  * @param {Reader<Uint8Array>} bytesReader
  * @param {Promise<void>} cancelled
+ * @param captpOpts
  * @param {TBootstrap} bootstrap
  */
 export const makeNetstringCapTP = (

@@ -41,12 +41,15 @@
     "@endo/captp": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
-    "@endo/patterns": "workspace:^"
+    "@endo/netstring": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^",
+    "@endo/stream-node": "workspace:^"
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "@endo/stream": "workspace:^",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "tsd": "^0.30.7",

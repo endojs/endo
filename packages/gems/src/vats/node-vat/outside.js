@@ -1,7 +1,8 @@
-import * as childProcess from "child_process";
-import * as url from "url";
-import { makeDaemonicControlPowers } from "../../daemon-vendor/daemon-node-powers.js";
-import { E, Far } from '@endo/captp';
+import * as childProcess from 'child_process';
+import * as url from 'url';
+import { makeDaemonicControlPowers } from '../../daemon-vendor/daemon-node-powers.js';
+
+const never = new Promise(() => {});
 
 const { fileURLToPath } = url;
 const config = {
@@ -10,7 +11,7 @@ const config = {
   ),
 };
 
-export const makeVat = async (vatSideKernelFacet, captpOpts, vatState) => {
+export const makeVat = async (vatSideKernelFacet, captpOpts, vatState, cancelled = never) => {
   const daemonicControlPowers = makeDaemonicControlPowers(
     config,
     fileURLToPath,
@@ -19,10 +20,6 @@ export const makeVat = async (vatSideKernelFacet, captpOpts, vatState) => {
   );
 
   const workerId = 1;
-  const cancelled = new Promise(() => {});
-
-  const worker = await daemonicControlPowers.makeWorker(workerId, vatSideKernelFacet, cancelled, vatState);
-
-  console.log('worker outside', await E(worker.workerDaemonFacet).ping())
-  return worker
+  const { workerTerminated, workerDaemonFacet: workerFacet } = await daemonicControlPowers.makeWorker(workerId, vatSideKernelFacet, cancelled, vatState);
+  return { workerTerminated, workerFacet };
 }

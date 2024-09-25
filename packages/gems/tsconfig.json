@@ -5,5 +5,5 @@
     "*.ts",
     "src/**/*.js",
     "src/**/*.ts"
-  ]
+, "examples/demo.js", "examples/chat.js"  ]
 }

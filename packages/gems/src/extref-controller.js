@@ -1,4 +1,4 @@
-import { E } from "@endo/captp";
+import { E } from '@endo/captp';
 
 
 // TODO: import?
@@ -32,14 +32,14 @@ export const installExtRefController = (label, zone, fakeVomKit, getRemoteExtRef
   }
 
   const reanimate = (slot) => {
-    console.log(`% ${label} reanimate extRef`, slot)
+    // console.log(`% ${label} reanimate extRef`, slot)
     const context = data.get(slot);
     const { ref: remoteSlot } = context;
     // TODO: durable zone marshall requires this to be remoteable
     return E(getRemoteExtRefController()).lookupHold(remoteSlot);
   }
   const cleanup = (slot) => {
-    console.log(`- ${label} cleanup extRef`, slot)
+    // console.log(`- ${label} cleanup extRef`, slot)
     data.delete(slot);
     // indicate no further GC needed
     return false;
@@ -54,12 +54,12 @@ export const installExtRefController = (label, zone, fakeVomKit, getRemoteExtRef
     const slot = makeBaseRef(kindID, id, isDurable);
     // register the slot with the value, so it can be stored
     fakeStuff.registerEntry(slot, value, false);
-    console.log(`+ ${label} make extRef`, slot)
+    // console.log(`+ ${label} make extRef`, slot)
     // tell the remote to hold the value, and store its remote slot
     const remoteSlot = await E(getRemoteExtRefController()).registerHold(value);
     const context = harden({ ref: remoteSlot });
     data.init(slot, context);
-    console.log(`* ${label} fix extRef`, slot)
+    // console.log(`* ${label} fix extRef`, slot)
   }
   const registerHold = (value) => {
     const slot = fakeStuff.getSlotForVal(value);

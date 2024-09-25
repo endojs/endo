@@ -11,9 +11,8 @@ import fs from 'fs';
 import url from 'url';
 
 import { makePromiseKit } from '@endo/promise-kit';
-// import { main } from '../../daemon-vendor/worker.js';
 import { makePowers } from '../../daemon-vendor/worker-node-powers.js';
-import { startVatSupervisorProcess } from '../../vat-supervisor.js';
+import { startVatSupervisorProcess } from '../../worker.js';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
 
