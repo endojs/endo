@@ -1,4 +1,4 @@
-
+/* global E registerClass */
 
 const makeChatRoom = registerClass('ChatRoom', `${() => {
   const interfaceGuards = undefined;
@@ -26,3 +26,4 @@ const makeChatRoom = registerClass('ChatRoom', `${() => {
 }}`);
 
 const chatRoom = makeChatRoom();
+return chatRoom;

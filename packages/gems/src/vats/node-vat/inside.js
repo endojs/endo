@@ -1,14 +1,10 @@
 // @ts-check
 /* global process */
 
-// Establish a perimeter:
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/promise-kit/shim.js';
-import '@endo/lockdown/commit.js';
+import '@endo/init';
 
-import fs from 'fs';
-import url from 'url';
+import * as fs from 'fs';
+import * as url from 'url';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePowers } from '../../daemon-vendor/worker-node-powers.js';

@@ -1,5 +1,5 @@
 
-/* global globalThis */
+/* global globalThis setTimeout */
 // @ts-check
 /// <reference types="ses"/>
 
@@ -33,12 +33,7 @@ export const startVatSupervisorProcess = (label, vatState, powers, pid, cancel, 
    * @typedef {ReturnType<makeWorkerFacet>} WorkerBootstrap
    */
 
-  /**
-   * @param {object} args
-   * @param {any} args.vatSupervisor
-   * @param {(error: Error) => void} args.cancel
-   */
-  const makeWorkerFacet = ({ vatSupervisor, cancel }) => {
+  const makeWorkerFacet = () => {
     const { zone, serializeState } = vatSupervisor;
     
     return zone.exo('EndoWorkerFacetForDaemon', undefined, {
@@ -66,10 +61,9 @@ export const startVatSupervisorProcess = (label, vatState, powers, pid, cancel, 
           }),
         );
         const actionFn = compartment.evaluate(source);
-        const powers = {
+        const result = actionFn({
           registerClass,
-        };
-        const result = actionFn(powers);
+        });
         console.log('incubateGem result', result);
         return result;
       },
@@ -99,10 +93,7 @@ export const startVatSupervisorProcess = (label, vatState, powers, pid, cancel, 
 
   const { reader, writer } = powers.connection;
 
-  const workerFacet = makeWorkerFacet({
-    vatSupervisor,
-    cancel,
-  });
+  const workerFacet = makeWorkerFacet();
 
   const { closed, getBootstrap: getVatSideKernel } = makeNetstringCapTP(
     'Endo',

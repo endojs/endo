@@ -1,145 +1,10 @@
 // @ts-check
 /* eslint-disable no-void */
 
-import { makePromiseKit } from '@endo/promise-kit';
-import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 import { makeNetstringCapTP } from './connection.js';
 
 /* @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
-
-const textEncoder = new TextEncoder();
-
-/*
- * @param {object} modules
- * @param {typeof import('net')} modules.net
- * @returns {SocketPowers}
- */
-export const makeSocketPowers = ({ net }) => {
-  const serveListener = async (listen, cancelled) => {
-    const [
-      /** @type {Reader<Connection>} */ readFrom,
-      /** @type {Writer<Connection} */ writeTo,
-    ] = makePipe();
-
-    const server = net.createServer();
-    const { promise: erred, reject: err } = makePromiseKit();
-    server.on('error', error => {
-      err(error);
-      void writeTo.throw(error);
-    });
-    server.on('close', () => {
-      void writeTo.return(undefined);
-    });
-
-    cancelled.catch(error => {
-      server.close();
-      void writeTo.throw(error);
-    });
-
-    const listening = listen(server);
-
-    await Promise.race([erred, cancelled, listening]);
-
-    server.on('connection', conn => {
-      const reader = makeNodeReader(conn);
-      const writer = makeNodeWriter(conn);
-      const closed = new Promise(resolve => conn.on('close', resolve));
-      // TODO Respect back-pressure signal and avoid accepting new connections.
-      void writeTo.next({ reader, writer, closed });
-    });
-
-    const port = await listening;
-
-    return harden({
-      port,
-      connections: readFrom,
-    });
-  };
-
-  /* @type {SocketPowers['servePort']} */
-  const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
-    serveListener(
-      server =>
-        new Promise(resolve =>
-          server.listen(port, host, () => resolve(server.address().port)),
-        ),
-      cancelled,
-    );
-
-  /* @type {SocketPowers['connectPort']} */
-  const connectPort = ({ port, host }) =>
-    new Promise((resolve, reject) => {
-      const conn = net.connect(port, host, err => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        const reader = makeNodeReader(conn);
-        const writer = makeNodeWriter(conn);
-        const closed = new Promise(close => conn.on('close', close));
-        resolve({
-          reader,
-          writer,
-          closed,
-        });
-      });
-    });
-
-  /* @type {SocketPowers['servePath']} */
-  const servePath = async ({ path, cancelled }) => {
-    const { connections } = await serveListener(server => {
-      return new Promise((resolve, reject) =>
-        server.listen({ path }, error => {
-          if (error) {
-            if (path.length >= 104) {
-              console.warn(
-                `Warning: Length of path for domain socket or named path exceeeds common maximum (104, possibly 108) for some platforms (length: ${path.length}, path: ${path})`,
-              );
-            }
-            reject(error);
-          } else {
-            resolve(undefined);
-          }
-        }),
-      );
-    }, cancelled);
-    return connections;
-  };
-
-  return { servePort, servePath, connectPort };
-};
-
-/*
- * @param {typeof import('crypto')} crypto
- * @returns {CryptoPowers}
- */
-export const makeCryptoPowers = crypto => {
-  const makeSha512 = () => {
-    const digester = crypto.createHash('sha512');
-    return harden({
-      update: chunk => digester.update(chunk),
-      updateText: chunk => digester.update(textEncoder.encode(chunk)),
-      digestHex: () => digester.digest('hex'),
-    });
-  };
-
-  const randomHex512 = () =>
-    new Promise((resolve, reject) =>
-      crypto.randomBytes(64, (err, bytes) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(bytes.toString('hex'));
-        }
-      }),
-    );
-
-  return harden({
-    makeSha512,
-    randomHex512,
-  });
-};
 
 /**
  * @param {any} config
@@ -163,7 +28,6 @@ export const makeDaemonicControlPowers = (
    * @param {Promise<never>} cancelled
    */
   const makeWorker = async (workerId, daemonWorkerFacet, cancelled, vatState) => {
-    const { statePath, ephemeralStatePath } = config;
 
     // const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
     // const workerEphemeralStatePath = filePowers.joinPath(
