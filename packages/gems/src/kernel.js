@@ -32,6 +32,7 @@ export const makeKernel = async (kernelVatState = []) => {
     return E(workerFacet).getExtRefController();
   };
   const vatSupervisor = makeVatSupervisor('kernel', kernelVatState, getRemoteExtRefController);
+  await vatSupervisor.initialize();
   initKernel(vatSupervisor);
   const vatSideKernelFacet = vatSupervisor.store.get('kernel');
 

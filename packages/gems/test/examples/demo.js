@@ -22,7 +22,7 @@ const initDemo = async (vatSupervisor, workerFacet) => {
   console.log('initDemo')
   // code to run in vat
   // register a class and create an instance of it
-  const source = `${(powers)=>{
+  const source = `(${(powers)=>{
     const name = 'DemoCounter';
     const makeCounter = powers.registerClass(name, `${() => {
       const interfaceGuards = undefined;
@@ -36,7 +36,7 @@ const initDemo = async (vatSupervisor, workerFacet) => {
       return { interfaceGuards, initFn, methods };
     }}`);
     return makeCounter();
-  }}`
+  }})()`
   const demoResult = await E(workerFacet).incubate(source);
   vatSupervisor.store.init('demoResult', demoResult);
 }

@@ -117,11 +117,11 @@ test.serial('persistence - cross-vat refs in state', async t => {
   let friendsList = makeFriendsList();
   kernel.store.init('friendsList', friendsList);
 
-  let foreignFriend = await E(kernel.workerFacet).incubate(`({ registerClass }) => {
+  let foreignFriend = await E(kernel.workerFacet).incubate(`
     const recipe = ${JSON.stringify(friendRecipe)};
     const makeFriend = registerClass('Friend', recipe);
-    return makeFriend();
-  }`);
+    makeFriend();
+  `);
   kernel.store.init('friend', foreignFriend);
 
   t.deepEqual(friendsList.getFriends(), []);
@@ -135,6 +135,38 @@ test.serial('persistence - cross-vat refs in state', async t => {
   foreignFriend = kernel.store.get('friend');
 
   t.deepEqual(friendsList.getFriends(), [foreignFriend]);
+});
+
+test.serial('registerIncubation - defineClass', async t => {
+  const incubationCode = `(${() => {
+    const makePingPong = defineClass('PingPong', {
+      interfaceGuards: M.interface('PingPong', {
+        ping: M.call().returns(M.string()),
+      }),
+      initFn: () => harden({}),
+      methods: {
+        ping() {
+          return 'pong';
+        },
+      },
+    });
+
+    if (firstTime) {
+      return makePingPong();
+    }
+  }})()`
+
+  let { kernel } = await restart();
+
+  let pingPong = kernel.vatSupervisor.registerIncubation('PingPong', incubationCode);
+  kernel.store.init('pingPong', pingPong);
+
+  t.deepEqual(pingPong.ping(), 'pong');
+
+  ({ kernel } = await restart());
+
+  pingPong = kernel.store.get('pingPong');
+  t.deepEqual(pingPong.ping(), 'pong');
 });
 
 // Need a way of creating a class that uses another class -- maybe exoClassKit?

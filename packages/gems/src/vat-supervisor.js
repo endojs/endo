@@ -3,10 +3,58 @@ import { M } from '@endo/patterns';
 import { setupZone } from './zone.js';
 import { installExtRefController } from './extref-controller.js';
 
+// stores initialization scripts
+// "registerIncubation" registers a script to be evaluated at every vat start
+// "incubate" evals code in an environment that allows registering classes
+const makeIncubationRegistry = (zone, getEndowments) => {
+  const incubationRegistry = zone.mapStore('incubationRegistry');
 
+  const incubate = (source, firstTime = true) => {
+    const endowments = getEndowments();
+    const compartment = new Compartment({ ...endowments, firstTime });
+    return compartment.evaluate(source);
+  };
+
+  const loadIncubation = (name, firstTime = false) => {
+    const { source } = incubationRegistry.get(name);
+    return incubate(source, firstTime);
+  }
+
+  const loadAllIncubations = async () => {
+    for (const name of incubationRegistry.keys()) {
+      await loadIncubation(name);
+    }
+  }
+
+  const registerIncubation = (name, source) => {
+    incubationRegistry.init(name, harden({ source }));
+    return loadIncubation(name, true);
+  };
+
+  return { incubate, registerIncubation, loadAllIncubations };
+};
+
+// stores class definitions
+// "defineClass" defines a class in the zone
+// "registerClass" registers a class definition for initialization at every vat start
+//   its equivalent to "registerIncubation" where you register a class
 const makeClassRegistry = (zone) => {
   const classRegistry = zone.mapStore('classRegistry');
   const classCache = new Map();
+
+  const defineClass = (name, {
+    interfaceGuards,
+    initFn,
+    methods,
+  }) => {
+    const exoClass = zone.exoClass(
+      name,
+      interfaceGuards,
+      initFn,
+      methods,
+    );
+    return exoClass;
+  };
 
   const loadClass = name => {
     if (classCache.has(name)) {
@@ -19,12 +67,7 @@ const makeClassRegistry = (zone) => {
       initFn,
       methods,
     } = builder({ E, M, name });
-    const exoClass = zone.exoClass(
-      name,
-      interfaceGuards,
-      initFn,
-      methods,
-    );
+    const exoClass = defineClass(name, { interfaceGuards, initFn, methods });
     classCache.set(name, exoClass);
     return exoClass;
   };
@@ -44,7 +87,7 @@ const makeClassRegistry = (zone) => {
     return loadClass(name);
   };
 
-  return { registerClass, loadClasses };
+  return { defineClass, registerClass, loadClasses };
 };
 
 export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) => {
@@ -52,7 +95,16 @@ export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) =>
 
   const { zone, flush, fakeVomKit } = setupZone(fakeStore);
   const store = zone.mapStore('store');
-  const { registerClass, loadClasses } = makeClassRegistry(zone);
+
+  const endowments = { E, M };
+  const getEndowments = () => endowments;
+  const { incubate, registerIncubation, loadAllIncubations } = makeIncubationRegistry(zone, getEndowments);
+  const { defineClass, registerClass, loadClasses } = makeClassRegistry(zone);
+  endowments.incubate = incubate;
+  endowments.registerIncubation = registerIncubation;
+  endowments.defineClass = defineClass;
+  endowments.registerClass = registerClass;
+  harden(endowments);
 
   const extRefZone = zone.subZone('externalRefs');
   const extRefController = installExtRefController('vat-supervisor', extRefZone, fakeVomKit, getRemoteExtRefController);
@@ -81,12 +133,15 @@ export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) =>
     },
   }
 
-  loadClasses();
+  const initialize = async () => {
+    loadClasses();
+    await loadAllIncubations();
+  };
 
   const serializeState = () => {
     flush();
     return Array.from(fakeStore.entries());
   };
 
-  return { zone, store, registerClass, fakeStore, fakeVomKit, serializeState, flush, extRefController, captpOpts };
+  return { initialize, zone, store, incubate, registerIncubation, registerClass, fakeStore, fakeVomKit, serializeState, flush, extRefController, captpOpts };
 };
