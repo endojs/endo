@@ -10,11 +10,12 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makeNetstringCapTP } from './daemon-vendor/connection.js';
 import { makeVatSupervisor } from './vat-supervisor.js';
 
-export const startVatSupervisorProcess = (label, vatState, powers, pid, cancel, cancelled) => {
+export const startVatSupervisorProcess = async (label, vatState, powers, pid, cancel, cancelled) => {
 
   const { promise: vatSideKernelP, resolve: setVatSideKernel } = makePromiseKit();
   const getRemoteExtRefController = () => E(vatSideKernelP).getExtRefController();
   const vatSupervisor = makeVatSupervisor(label, vatState, getRemoteExtRefController);
+  await vatSupervisor.initialize();
 
   const endowments = harden({
     // See https://github.com/Agoric/agoric-sdk/issues/9515
@@ -52,20 +53,12 @@ export const startVatSupervisorProcess = (label, vatState, powers, pid, cancel, 
         return vatSupervisor.extRefController;
       },
 
-      // evals code in an environment that allows registering classes
       incubate (source) {
-        const { registerClass } = vatSupervisor;
-        const compartment = new Compartment(
-          harden({
-            ...endowments,
-          }),
-        );
-        const actionFn = compartment.evaluate(source);
-        const result = actionFn({
-          registerClass,
-        });
-        console.log('incubateGem result', result);
-        return result;
+        return vatSupervisor.incubate(source);
+      },
+
+      registerIncubation (name, recipe) {
+        return vatSupervisor.registerIncubation(name, recipe);
       },
 
       serializeState () {
