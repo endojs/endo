@@ -141,12 +141,11 @@ export const makeCryptoPowers = crypto => {
   });
 };
 
-/*
- * @param {Config} config
+/**
+ * @param {any} config
  * @param {import('url').fileURLToPath} fileURLToPath
- * @param {FilePowers} filePowers
- * @param {typeof import('fs')} fs
  * @param {typeof import('child_process')} popen
+ * @param captpOpts
  */
 export const makeDaemonicControlPowers = (
   config,
@@ -214,6 +213,9 @@ export const makeDaemonicControlPowers = (
     // await filePowers.writeFileText(pidPath, `${child.pid}\n`);
 
     cancelled.catch(async () => {
+      console.log(
+        `Endo worker cancelling for PID ${workerPid} with unique identifier ${workerId}`,
+      );
       child.kill();
     });
 
@@ -261,20 +263,18 @@ export const makeDaemonicControlPowers = (
  */
 export const makeDaemonicPowers = ({
   config,
-  fs,
   popen,
   url,
-  filePowers,
   cryptoPowers,
+  captpOpts,
 }) => {
   const { fileURLToPath } = url;
 
   const daemonicControlPowers = makeDaemonicControlPowers(
     config,
     fileURLToPath,
-    filePowers,
-    fs,
     popen,
+    captpOpts,
   );
 
   return harden({

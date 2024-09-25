@@ -1,70 +1,33 @@
-import { reincarnate } from '@agoric/swingset-liveslots/tools/setup-vat-data.js';
-import { makeKernel, makeMessageCapTP } from '../src/index.js';
-import { makePipe } from '@endo/stream';
+import { makeKernel } from '../src/kernel.js';
 
-const never = new Promise(() => {});
 
-export const makeCaptpPair = (leftOpts, rightOpts) => {
-  const [writerA, readerB] = makePipe();
-  const [writerB, readerA] = makePipe();
-
-  const makeLeft = (tag, bootstrap) => {
-    return makeMessageCapTP(
-      tag,
-      writerA,
-      readerA,
-      never,
-      bootstrap,
-      leftOpts,
-    );
-  };
-
-  const makeRight = (tag, bootstrap) => {
-    return makeMessageCapTP(
-      tag,
-      writerB,
-      readerB,
-      never,
-      bootstrap,
-      rightOpts,
-    );
-  };
-
-  return { makeLeft, makeRight };
-};
-
-const setupWorld = fakeStore => {
-  const { fakeVomKit } = reincarnate({
-    relaxDurabilityRules: false,
-    fakeStore,
-  });
-  const { vom, cm, vrm } = fakeVomKit;
-  const flush = () => {
-    vom.flushStateCache();
-    cm.flushSchemaCache();
-    vrm.flushIDCounters();
-  };
-  const baggage = cm.provideBaggage();
-  return { baggage, flush };
-};
-
-export const makeVat = () => {
-  let fakeStore;
-  let baggage;
-  let flush;
+export const makeKernelFactory = () => {
   let kernel;
+  let kernelVatState = [];
 
-  const restart = () => {
-    if (flush) {
-      flush();
+  const stop = async () => {
+    await null;
+    if (kernel) {
+      await kernel.shutdown();
+      kernelVatState = kernel.vatSupervisor.serializeState();
+      kernel = null;
     }
-    fakeStore = new Map(fakeStore);
-    ({ baggage, flush } = setupWorld(fakeStore));
-    kernel = makeKernel(baggage);
-    return kernel;
+  };
+
+  const restart = async () => {
+    await stop();
+    kernel = await makeKernel(kernelVatState);
+    return { kernel };
+  };
+
+  const clear = async () => {
+    await stop();
+    kernelVatState = [];
   };
 
   return {
+    stop,
     restart,
+    clear,
   };
 };
