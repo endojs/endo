@@ -96,7 +96,7 @@ export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) =>
   const { zone, flush, fakeVomKit } = setupZone(fakeStore);
   const store = zone.mapStore('store');
 
-  const endowments = { E, M };
+  const endowments = { E, M, Math, Date };
   const getEndowments = () => endowments;
   const { incubate, registerIncubation, loadAllIncubations } = makeIncubationRegistry(zone, getEndowments);
   const { defineClass, registerClass, loadClasses } = makeClassRegistry(zone);
@@ -104,6 +104,8 @@ export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) =>
   endowments.registerIncubation = registerIncubation;
   endowments.defineClass = defineClass;
   endowments.registerClass = registerClass;
+  // temp
+  endowments.fetch = fetch;
   harden(endowments);
 
   const extRefZone = zone.subZone('externalRefs');
