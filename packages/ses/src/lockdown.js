@@ -46,6 +46,7 @@ import { makeSafeEvaluator } from './make-safe-evaluator.js';
 import { initialGlobalPropertyNames } from './permits.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
 import { tameDomains } from './tame-domains.js';
+import { tameModuleSource } from './tame-module-source.js';
 
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
@@ -286,6 +287,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
   addIntrinsics(shimArrayBufferTransfer());
+  addIntrinsics(tameModuleSource());
 
   addIntrinsics(getAnonymousIntrinsics());
 
