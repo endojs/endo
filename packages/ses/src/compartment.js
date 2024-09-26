@@ -204,12 +204,24 @@ export const compartmentOptions = (...args) => {
     return options;
   } else {
     const [globals, modules, options = {}] = args;
-    if (args.length >= 1 && Object(globals) !== globals) {
+    if (
+      args.length >= 1 &&
+      Object(globals) !== globals &&
+      // SES differs from XS in that it must tolerate an explicit undefined or null for globals
+      globals !== undefined &&
+      globals !== null
+    ) {
       throw new TypeError(
         'Compartment must receive an object for options or globals',
       );
     }
-    if (args.length >= 2 && Object(modules) !== modules) {
+    if (
+      args.length >= 2 &&
+      Object(modules) !== modules &&
+      // SES differs from XS in that it must tolerate an explicit undefined or null for modules
+      modules !== undefined &&
+      modules !== null
+    ) {
       throw new TypeError('Compartment must receive an object for modules');
     }
     assertEqual(
