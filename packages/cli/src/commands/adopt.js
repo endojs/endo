@@ -3,6 +3,7 @@ import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
+import { parseNumber } from '../number-parse.js';
 
 export const adoptCommand = async ({
   messageNumberText,
@@ -11,7 +12,9 @@ export const adoptCommand = async ({
   agentNames,
 }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    // TODO less bad number parsing.
-    const messageNumber = Number(messageNumberText);
-    await E(agent).adopt(messageNumber, edgeName, parsePetNamePath(name));
+    await E(agent).adopt(
+      parseNumber(messageNumberText),
+      edgeName,
+      parsePetNamePath(name),
+    );
   });

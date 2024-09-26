@@ -2,6 +2,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
+import { parseNumber } from '../number-parse.js';
 
 export const resolveCommand = async ({
   requestNumberText,
@@ -9,7 +10,5 @@ export const resolveCommand = async ({
   agentNames,
 }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    // TODO less bad number parsing.
-    const requestNumber = Number(requestNumberText);
-    await E(agent).resolve(requestNumber, resolutionName);
+    await E(agent).resolve(parseNumber(requestNumberText), resolutionName);
   });
