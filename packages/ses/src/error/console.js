@@ -368,8 +368,10 @@ export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     const levelMethod = (...logArgs) => {
       const subErrors = [];
       const argTags = extractErrorArgs(logArgs, subErrors);
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      baseConsole[level](...argTags);
+      if (baseConsole[level]) {
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        baseConsole[level](...argTags);
+      }
       // @ts-expect-error ConsoleProp vs LogSeverity mismatch
       logSubErrors(level, subErrors);
     };
@@ -476,12 +478,16 @@ export const defineCausalConsoleFromLogger = loggedErrorHandler => {
           // the host console will separate them with additional spaces.
           arrayPush(indents, ' ');
         });
+      } else {
+        baseConsole[name] = () => {};
       }
     }
     if (baseConsole.groupEnd) {
       baseConsole.groupEnd = makeNamed('groupEnd', (...args) => {
         arrayPop(indents);
       });
+    } else {
+      baseConsole.groupEnd = () => {};
     }
     harden(baseConsole);
     const causalConsole = makeCausalConsole(
