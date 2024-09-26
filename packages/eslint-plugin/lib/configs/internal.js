@@ -68,6 +68,7 @@ module.exports = {
     'bundles/**',
     'coverage/**',
     'dist/**',
+    'tmp/**',
     'test262/**',
     'ava*.config.js',
   ],
