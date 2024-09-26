@@ -1524,6 +1524,10 @@ export const permitted = {
     bindings: getter,
     needsImport: getter,
     needsImportMeta: getter,
+    // @endo/module-source provides a legacy interface
+    imports: getter,
+    exports: getter,
+    reexports: getter,
   },
 
   '%AbstractModuleSource%': {
