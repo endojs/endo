@@ -288,8 +288,10 @@ export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
         logError(severity, subError);
       }
     } finally {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      baseConsole.groupEnd();
+      if (baseConsole.groupEnd) {
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        baseConsole.groupEnd();
+      }
     }
   };
 

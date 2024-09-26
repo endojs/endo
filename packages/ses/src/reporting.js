@@ -80,18 +80,19 @@ export const chooseReporter = reporting => {
  */
 export const reportInGroup = (groupLabel, console, callback) => {
   const { warn, error, groupCollapsed, groupEnd } = console;
+  const grouping = groupCollapsed && groupEnd;
   let groupStarted = false;
   try {
     return callback({
       warn(...args) {
-        if (!groupStarted) {
+        if (grouping && !groupStarted) {
           groupCollapsed(groupLabel);
           groupStarted = true;
         }
         warn(...args);
       },
       error(...args) {
-        if (!groupStarted) {
+        if (grouping && !groupStarted) {
           groupCollapsed(groupLabel);
           groupStarted = true;
         }
@@ -99,8 +100,9 @@ export const reportInGroup = (groupLabel, console, callback) => {
       },
     });
   } finally {
-    if (groupStarted) {
+    if (grouping && groupStarted) {
       groupEnd();
+      groupStarted = false;
     }
   }
 };
