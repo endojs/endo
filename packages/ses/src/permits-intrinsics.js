@@ -326,7 +326,7 @@ export default function whitelistIntrinsics(
     // removed from the global object by the whitelisting operation.
     visitProperties('intrinsics', intrinsics, permitted);
   } finally {
-    if (groupStarted) {
+    if (groupStarted && console.groupEnd) {
       // eslint-disable-next-line @endo/no-polymorphic-call
       console.groupEnd();
     }
