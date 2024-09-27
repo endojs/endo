@@ -49,6 +49,8 @@ const reverseSlot = slot => {
 
 /**
  * @typedef {object} CapTPOptions the options to makeCapTP
+ * @property {(val: unknown) => import('./types.js').CapTPSlot | undefined} [valueToSlotHook]
+ * @property {(slot: import('./types.js').CapTPSlot) => void} [missingExportHook]
  * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [importHook]
  * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [gcHook]
@@ -95,6 +97,8 @@ export const makeCapTP = (
   const {
     onReject = err => console.error('CapTP', ourId, 'exception:', err),
     epoch = 0,
+    valueToSlotHook,
+    missingExportHook,
     exportHook,
     importHook,
     gcHook,
@@ -259,6 +263,73 @@ export const makeCapTP = (
   const answers = new Map(); // chosen by our peer
 
   /**
+   * Generates a new slot identifier for a given value.
+   *
+   * @param {any} val - The value for which to generate a slot identifier.
+   * @returns {import('./types.js').CapTPSlot} - The generated slot identifier.
+   */
+  const makeSlotForVal = val => {
+    /**
+     * new export
+     *
+     * @type {import('./types.js').CapTPSlot}
+     */
+    let slot;
+    if (isPromise(val)) {
+      // This is a promise, so we're going to increment the lastPromiseId
+      // and use that to construct the slot name.  Promise slots are prefaced
+      // with 'p+'.
+      lastPromiseID += 1;
+      slot = `p+${lastPromiseID}`;
+    } else {
+      // Since this isn't a promise, we instead increment the lastExportId and
+      // use that to construct the slot name.  Non-promises are prefaced with
+      // 'o+' for normal objects, or `t+` for syncable.
+      const exportID = lastExportID + 1;
+      if (exportedTrapHandlers.has(val)) {
+        slot = `t+${exportID}`;
+      } else {
+        slot = `o+${exportID}`;
+      }
+      lastExportID = exportID;
+    }
+    return slot;
+  };
+
+  const markAsExported = (val, slot) => {
+    if (exportHook) {
+      exportHook(val, slot);
+    }
+    if (isPromise(val)) {
+      const promiseID = reverseSlot(slot);
+      // Set up promise listener to inform other side when this promise
+      // is fulfilled/broken
+      const rejected = reason =>
+        send({
+          type: 'CTP_RESOLVE',
+          promiseID,
+          rej: serialize(harden(reason)),
+        });
+      E.when(
+        val,
+        result =>
+          send({
+            type: 'CTP_RESOLVE',
+            promiseID,
+            res: serialize(harden(result)),
+          }),
+        rejected,
+        // Propagate internal errors as rejections.
+      ).catch(rejected);
+    }
+    // Record the export in both valToSlot and slotToVal so we can look it
+    // up from either the value or the slot name later.
+    valToSlot.set(val, slot);
+    slotToExported.set(slot, val);
+    sendSlot.add(slot);
+  };
+
+  /**
    * Called at marshalling time.  Either retrieves an existing export, or if
    * not yet exported, records this exported object.  If a promise, sets up a
    * promise listener to inform the other side when the promise is
@@ -268,68 +339,23 @@ export const makeCapTP = (
    */
   function convertValToSlot(val) {
     if (!valToSlot.has(val)) {
-      /**
-       * new export
-       *
-       * @type {import('./types.js').CapTPSlot}
-       */
-      let slot;
-      if (isPromise(val)) {
-        // This is a promise, so we're going to increment the lastPromiseId
-        // and use that to construct the slot name.  Promise slots are prefaced
-        // with 'p+'.
-        lastPromiseID += 1;
-        slot = `p+${lastPromiseID}`;
-        const promiseID = reverseSlot(slot);
-        if (exportHook) {
-          exportHook(val, slot);
-        }
-        // Set up promise listener to inform other side when this promise
-        // is fulfilled/broken
-        const rejected = reason =>
-          send({
-            type: 'CTP_RESOLVE',
-            promiseID,
-            rej: serialize(harden(reason)),
-          });
-        E.when(
-          val,
-          result =>
-            send({
-              type: 'CTP_RESOLVE',
-              promiseID,
-              res: serialize(harden(result)),
-            }),
-          rejected,
-          // Propagate internal errors as rejections.
-        ).catch(rejected);
-      } else {
-        // Since this isn't a promise, we instead increment the lastExportId and
-        // use that to construct the slot name.  Non-promises are prefaced with
-        // 'o+' for normal objects, or `t+` for syncable.
-        const exportID = lastExportID + 1;
-        if (exportedTrapHandlers.has(val)) {
-          slot = `t+${exportID}`;
-        } else {
-          slot = `o+${exportID}`;
-        }
-        if (exportHook) {
-          exportHook(val, slot);
-        }
-        lastExportID = exportID;
+      /** @type {import('./types.js').CapTPSlot | undefined} */
+      let slot = undefined;
+      if (valueToSlotHook) {
+        slot = valueToSlotHook(val);
       }
-
-      // Now record the export in both valToSlot and slotToVal so we can look it
-      // up from either the value or the slot name later.
-      valToSlot.set(val, slot);
-      slotToExported.set(slot, val);
+      if (slot === undefined) {
+        slot = makeSlotForVal(val);
+      }
+      assert.typeof(slot, 'string');
+      markAsExported(val, slot);
     }
     // At this point, the value is guaranteed to be exported, so return the
     // associated slot number.
     const slot = valToSlot.get(val);
     assert.typeof(slot, 'string');
 
-    return sendSlot.add(slot);
+    return slot;
   }
 
   const IS_REMOTE_PUMPKIN = harden({});
@@ -467,46 +493,56 @@ export const makeCapTP = (
     return harden({ promise, settler });
   };
 
+  const markAsImported = (slot, iface) => {
+    let val;
+    // Make a new handled promise for the slot.
+    const { promise, settler } = makeRemoteKit(slot);
+    if (slot[0] === 'o' || slot[0] === 't') {
+      if (iface === undefined) {
+        iface = `Alleged: Presence ${ourId} ${slot}`;
+      }
+      // A new remote presence
+      // Use Remotable rather than Far to make a remote from a presence
+      val = Remotable(iface, undefined, settler.resolveWithPresence());
+      if (importHook) {
+        importHook(val, slot);
+      }
+    } else {
+      val = promise;
+      if (importHook) {
+        importHook(val, slot);
+      }
+      // A new promise
+      settlers.set(slot, settler);
+    }
+    slotToImported.set(slot, val);
+    valToSlot.set(val, slot);
+    // If we imported this slot, mark it as one our peer exported.
+    recvSlot.add(slot);
+    return val;
+  };
+
   /**
    * Set up import
    *
    * @type {import('@endo/marshal').ConvertSlotToVal<import('./types.js').CapTPSlot>}
    */
   function convertSlotToVal(theirSlot, iface = undefined) {
-    let val;
     const slot = reverseSlot(theirSlot);
 
     if (slot[1] === '+') {
+      // Allow the user to fill in missing imports.
+      if (!slotToExported.has(slot) && missingExportHook) {
+        missingExportHook(slot);
+      }
       slotToExported.has(slot) || Fail`Unknown export ${slot}`;
       return slotToExported.get(slot);
     }
     if (!slotToImported.has(slot)) {
-      // Make a new handled promise for the slot.
-      const { promise, settler } = makeRemoteKit(slot);
-      if (slot[0] === 'o' || slot[0] === 't') {
-        if (iface === undefined) {
-          iface = `Alleged: Presence ${ourId} ${slot}`;
-        }
-        // A new remote presence
-        // Use Remotable rather than Far to make a remote from a presence
-        val = Remotable(iface, undefined, settler.resolveWithPresence());
-        if (importHook) {
-          importHook(val, slot);
-        }
-      } else {
-        val = promise;
-        if (importHook) {
-          importHook(val, slot);
-        }
-        // A new promise
-        settlers.set(slot, settler);
-      }
-      slotToImported.set(slot, val);
-      valToSlot.set(val, slot);
+      markAsImported(slot, iface);
     }
 
-    // If we imported this slot, mark it as one our peer exported.
-    return slotToImported.get(recvSlot.add(slot));
+    return slotToImported.get(slot);
   }
 
   // Message handler used for CapTP dispatcher
@@ -806,6 +842,32 @@ export const makeCapTP = (
     return far;
   };
 
+  /**
+   * Imports a slot and converts it to a corresponding value.
+   *
+   * @param {import('./types.js').CapTPSlot} slot - The slot to be converted.
+   * @returns {any} The presence for the given slot.
+   */
+  const importSlot = slot => {
+    if (slot[1] === '+') {
+      // We don't import exports.
+      Fail`Cannot import exported slot ${slot}`;
+    }
+    // return presence for slot
+    return markAsImported(slot);
+  };
+  const exportValue = (value, slot) => {
+    if (valToSlot.has(value)) {
+      if (valToSlot.get(value) === slot) {
+        // Already exported
+        return;
+      }
+      Fail`Value already exported at different slot`;
+    }
+    // mark value as exported at slot
+    markAsExported(value, slot);
+  };
+
   // Put together our return value.
   const rets = {
     abort,
@@ -817,6 +879,8 @@ export const makeCapTP = (
     unserialize,
     makeTrapHandler,
     Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
+    importSlot,
+    exportValue,
   };
 
   if (trapGuest) {
