@@ -1,13 +1,13 @@
 import { E } from '@endo/far';
 import { M } from '@endo/patterns';
 import { setupZone } from './zone.js';
-import { installExtRefController } from './extref-controller.js';
 
 // stores initialization scripts
 // "registerIncubation" registers a script to be evaluated at every vat start
 // "incubate" evals code in an environment that allows registering classes
 const makeIncubationRegistry = (zone, getEndowments) => {
   const incubationRegistry = zone.mapStore('incubationRegistry');
+  const incubationStore = zone.mapStore('incubationStore');
 
   const incubate = (source, firstTime = true) => {
     const endowments = getEndowments();
@@ -18,17 +18,24 @@ const makeIncubationRegistry = (zone, getEndowments) => {
   const loadIncubation = (name, firstTime = false) => {
     const { source } = incubationRegistry.get(name);
     return incubate(source, firstTime);
-  }
+  };
 
   const loadAllIncubations = async () => {
     for (const name of incubationRegistry.keys()) {
       await loadIncubation(name);
     }
-  }
+  };
 
   const registerIncubation = (name, source) => {
+    incubationStore.init(name, harden({}));
+
     incubationRegistry.init(name, harden({ source }));
     return loadIncubation(name, true);
+  };
+
+  const updateIncubationEndowments = (name, endowment) => {
+    const endowments = incubationStore.get(name);
+    incubationStore.set(name, harden({ ...endowments, ...endowment }));
   };
 
   return { incubate, registerIncubation, loadAllIncubations };
@@ -38,21 +45,12 @@ const makeIncubationRegistry = (zone, getEndowments) => {
 // "defineClass" defines a class in the zone
 // "registerClass" registers a class definition for initialization at every vat start
 //   its equivalent to "registerIncubation" where you register a class
-const makeClassRegistry = (zone) => {
+const makeClassRegistry = zone => {
   const classRegistry = zone.mapStore('classRegistry');
   const classCache = new Map();
 
-  const defineClass = (name, {
-    interfaceGuards,
-    initFn,
-    methods,
-  }) => {
-    const exoClass = zone.exoClass(
-      name,
-      interfaceGuards,
-      initFn,
-      methods,
-    );
+  const defineClass = (name, { interfaceGuards, initFn, methods }) => {
+    const exoClass = zone.exoClass(name, interfaceGuards, initFn, methods);
     return exoClass;
   };
 
@@ -62,11 +60,7 @@ const makeClassRegistry = (zone) => {
     }
     const { builderSource } = classRegistry.get(name);
     const builder = new Compartment().evaluate(builderSource);
-    const {
-      interfaceGuards,
-      initFn,
-      methods,
-    } = builder({ E, M, name });
+    const { interfaceGuards, initFn, methods } = builder({ E, M, name });
     const exoClass = defineClass(name, { interfaceGuards, initFn, methods });
     classCache.set(name, exoClass);
     return exoClass;
@@ -80,26 +74,46 @@ const makeClassRegistry = (zone) => {
 
   const registerClass = (name, builderSource) => {
     // TODO: currently we require all names to be unique
-    classRegistry.init(name, harden({
+    classRegistry.init(
       name,
-      builderSource,
-    }));
+      harden({
+        name,
+        builderSource,
+      }),
+    );
     return loadClass(name);
   };
 
   return { defineClass, registerClass, loadClasses };
 };
 
-export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) => {
+export const makeVatSupervisor = (label, vatState) => {
   const fakeStore = new Map(vatState);
 
   const { zone, flush, fakeVomKit } = setupZone(fakeStore);
   const store = zone.mapStore('store');
 
-  const endowments = { E, M, Math, Date };
+  const endowments = {
+    // See https://github.com/Agoric/agoric-sdk/issues/9515
+    assert: globalThis.assert,
+    console,
+    E,
+    // Far,
+    // makeExo,
+    M,
+    TextEncoder,
+    TextDecoder,
+    URL,
+    // Allow non-deterministic sources
+    Math,
+    Date,
+  };
+
   const getEndowments = () => endowments;
-  const { incubate, registerIncubation, loadAllIncubations } = makeIncubationRegistry(zone, getEndowments);
+  const { incubate, registerIncubation, loadAllIncubations } =
+    makeIncubationRegistry(zone, getEndowments);
   const { defineClass, registerClass, loadClasses } = makeClassRegistry(zone);
+
   endowments.incubate = incubate;
   endowments.registerIncubation = registerIncubation;
   endowments.defineClass = defineClass;
@@ -107,33 +121,6 @@ export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) =>
   // temp
   endowments.fetch = fetch;
   harden(endowments);
-
-  const extRefZone = zone.subZone('externalRefs');
-  const extRefController = installExtRefController('vat-supervisor', extRefZone, fakeVomKit, getRemoteExtRefController);
-
-  const captpOpts = {
-    gcImports: true,
-    exportHook (val, slot) {
-      // console.log(`>> ${label} exportHook`, val, slot)
-      // we eagerly hold this value
-      extRefController.registerHold(val);
-    },
-    importHook (val, slot) {
-      // console.log(`<< ${label} importHook`, val, slot)
-      // establish durability for this imported reference
-      extRefController.registerExtRef(val).catch(err => {
-        console.error(`failed to registerExtRef for catptp slot ${slot}`, err)
-      })
-    },
-    gcHook (val, slot) {
-      // console.log(`-- ${label} gcHook`, val, slot)
-      // we can release this value
-      // TODO: this could get released if the captp WeakMap is not vomkit aware
-      // actually idk how to verify when this can be released,
-      // maybe when extRefController no longer has any references to it? 
-      // extRefController.releaseHold(val);
-    },
-  }
 
   const initialize = async () => {
     loadClasses();
@@ -145,5 +132,16 @@ export const makeVatSupervisor = (label, vatState, getRemoteExtRefController) =>
     return Array.from(fakeStore.entries());
   };
 
-  return { initialize, zone, store, incubate, registerIncubation, registerClass, fakeStore, fakeVomKit, serializeState, flush, extRefController, captpOpts };
+  return {
+    initialize,
+    zone,
+    store,
+    incubate,
+    registerIncubation,
+    registerClass,
+    fakeStore,
+    fakeVomKit,
+    serializeState,
+    flush,
+  };
 };

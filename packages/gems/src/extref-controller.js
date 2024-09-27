@@ -1,116 +1,127 @@
-import { E } from '@endo/captp';
+import { makeCustomDurableKindWithContext } from './custom-kind.js';
 
+/**
+ * @param {string} label
+ * @param {import('@agoric/zone').Zone} zone
+ * @param {any} fakeVomKit
+ * @param {() => any} getCaptp
+ */
+export const installExtRefController = (label, zone, fakeVomKit, getCaptp) => {
+  const imports = zone.setStore('imports');
+  const exports = zone.mapStore('exports');
+  const { fakeStuff } = fakeVomKit;
 
-// TODO: import?
-const makeBaseRef = (kindID, id, isDurable) => {
-  return `o+${isDurable ? 'd' : 'v'}${kindID}/${id}`;
-}
-
-  /**
-   * @param {string} label
-   * @param {import('@agoric/zone').Zone} zone
-   * @param {any} fakeVomKit
-   * @param {any} getRemoteExtRefController
-   */
-export const installExtRefController = (label, zone, fakeVomKit, getRemoteExtRefController) => {
-  const store = zone.mapStore('controller');
-  const data = zone.mapStore('data');
-  const heldValues = zone.mapStore('holds');
-  const { vrm, fakeStuff } = fakeVomKit;
-  const isDurable = true;
-
-  if (!store.has('kindID')) {
-    store.init('kindID', `${vrm.allocateNextID('exportID')}`);
-    store.init('nextInstanceID', 1n);
-  }
-  const kindID = store.get('kindID');
-
-  const getAndIncrementNextInstanceID = () => {
-    const nextInstanceID = store.get('nextInstanceID');
-    store.set('nextInstanceID', nextInstanceID + 1n);
-    return nextInstanceID;
-  }
-
-  const reanimate = (slot) => {
-    // console.log(`% ${label} reanimate extRef`, slot)
-    const context = data.get(slot);
-    const { ref: remoteSlot } = context;
-    // TODO: durable zone marshall requires this to be remoteable
-    return E(getRemoteExtRefController()).lookupHold(remoteSlot);
-  }
-  const cleanup = (slot) => {
-    // console.log(`- ${label} cleanup extRef`, slot)
-    data.delete(slot);
-    // indicate no further GC needed
-    return false;
-  }
-  // associates a captp imported value with a slot that is reanimated to
-  // a promise will resolve to the captp value.
-  // each time the value is imported, a new slot is created.
-  // TODO: could likely reuse an existing slot after looking up the remoteSlot
-  const registerExtRef = async (value) => {
-    // make a slot for the extRef
-    const id = getAndIncrementNextInstanceID();
-    const slot = makeBaseRef(kindID, id, isDurable);
-    // register the slot with the value, so it can be stored
-    fakeStuff.registerEntry(slot, value, false);
-    // console.log(`+ ${label} make extRef`, slot)
-    // tell the remote to hold the value, and store its remote slot
-    const remoteSlot = await E(getRemoteExtRefController()).registerHold(value);
-    const context = harden({ ref: remoteSlot });
-    data.init(slot, context);
-    // console.log(`* ${label} fix extRef`, slot)
-  }
-  const registerHold = (value) => {
-    const slot = fakeStuff.getSlotForVal(value);
-    if (slot === undefined) {
-      throw new Error(`(${label}) registerHold - value not registered: ${value}`);
-    }
-    if (!heldValues.has(slot)) {
-      heldValues.init(slot, value);
-    }
-    return slot;
-  }
-  const releaseHold = (value) => {
-    const slot = fakeStuff.getSlotForVal(value);
-    if (slot === undefined) {
-      throw new Error(`(${label}) releaseHold - value not registered: ${value}`);
-    }
-    heldValues.delete(slot);
-  }
-  const lookupHold = (slot) => {
-    if (!heldValues.has(slot)) {
-      throw new Error(`(${label}) lookupHold - value not held for slot: ${slot}`);
-    }
-    return heldValues.get(slot);
-  }
-
-  // register ExtRef kind
-  vrm.registerKind(kindID, reanimate, cleanup, isDurable);
-
-  // register the controller in the zone
-  const makeExtRefController = zone.exoClass('ExtRefController', undefined, () => harden({}), {
-    registerExtRef,
-    registerHold,
-    releaseHold,
-    lookupHold,
+  const makeExtRef = makeCustomDurableKindWithContext(fakeVomKit, zone, {
+    make: (context, value, remoteSlot) => {
+      context.ref = remoteSlot;
+      return value;
+    },
+    reanimate: context => {
+      const { ref: remoteSlot } = context;
+      const captp = getCaptp();
+      // console.log(`## ${label} reanimate`, remoteSlot)
+      return captp.importSlot(remoteSlot);
+    },
+    cleanup: context => {
+      const { ref: remoteSlot } = context;
+      imports.delete(remoteSlot);
+      // indicate no further GC needed
+      return false;
+    },
   });
-  // store.init('controller', durableExtRefController);
 
-  return makeExtRefController();
-}
+  // marks a captp imported presence as durable,
+  const registerImport = (remoteSlot, value) => {
+    if (imports.has(remoteSlot)) {
+      return;
+    }
+    // console.log(`!! ${label} registerExtRef`, value, remoteSlot)
+    // Note: extRef === value
+    makeExtRef(value, remoteSlot);
+    imports.add(remoteSlot);
+  };
+  const registerExport = value => {
+    const durableSlot = fakeStuff.getSlotForVal(value);
+    if (durableSlot === undefined) {
+      throw new Error(
+        `(${label}) registerExport - value not registered: ${value}`,
+      );
+    }
+    if (!exports.has(durableSlot)) {
+      exports.init(durableSlot, value);
+    }
+    return durableSlot;
+  };
+  const unregisterExport = slot => {
+    if (exports.has(slot)) {
+      exports.delete(slot);
+    }
+  };
+  const lookupExport = slot => {
+    if (!exports.has(slot)) {
+      throw new Error(
+        `(${label}) lookupExport - value not held for slot: ${slot}`,
+      );
+    }
+    return exports.get(slot);
+  };
 
-/*
-  value seen in importHook, with no ExtRef made for it:
-    remote.registerHold(val), returns remoteSlot
-    makeExtRef(remoteSlot)
-    alias value to ExtRef's slot
-    BUG: theres a delay where we dont know the remote slot
-    a shutdown here would break the ExtRef
-  reanimate - value seen in importHook, with ExtRef made for it:
-    we dont know its remoteSlot yet
-    so we cant tell if we've seen it before
-    it will get a new slot
-    can override back to the old slot in reanimate once we know it
-    register hold will be a no-op
-*/
+  const isPromiseSlot = slot => {
+    return slot[0] === 'p';
+  };
+
+  const captpOpts = {
+    //
+    // standard options
+    //
+    gcImports: true,
+    exportHook(val, captpSlot) {
+      // NOTE: we only want to handle non-promises
+      if (isPromiseSlot(captpSlot)) {
+        return;
+      }
+      // console.log(`>> ${label} exportHook`, val, captpSlot, durableSlot)
+      // This value has been exported, so we add it to our table
+      registerExport(val);
+    },
+    importHook(val, captpSlot) {
+      // We only want to handle non-promises
+      if (isPromiseSlot(captpSlot)) {
+        return;
+      }
+      // console.log(`<< ${label} importHook`, val, captpSlot);
+      // We know the other side has used "valueToSlotHook" to provide a durable slot
+      const remoteDurableSlot = captpSlot;
+      // establish durability for this imported reference
+      registerImport(remoteDurableSlot, val);
+    },
+    //
+    // extended options
+    //
+    valueToSlotHook(val) {
+      // Captp is asking us to provide a slot for the value,
+      // we'll provide the durable slot
+      // TODO: could this slot collide with captp?
+      // maybe not because KindId/instanceId wont conflict
+      const durableSlot = fakeStuff.getSlotForVal(val);
+      // console.log(`>> ${label} valueToSlotHook`, val, durableSlot)
+      return durableSlot;
+    },
+    missingExportHook(slot) {
+      // console.log(`$$ ${label} exporting missing slot`, slot)
+      // Captp is trying to use an export it doesn't have,
+      // so we need to provide it
+      const value = lookupExport(slot);
+      const captp = getCaptp();
+      captp.exportValue(value, slot);
+    },
+    gcHook(_val, slot) {
+      // console.log(`-- ${label} gcHook`, _val, slot)
+      // we can release this value
+      // NOTE: this will only work correctly if captp is using the vomkit WeakMap
+      unregisterExport(slot);
+    },
+  };
+
+  return { captpOpts };
+};
