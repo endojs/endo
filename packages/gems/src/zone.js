@@ -4,7 +4,6 @@
 import { reincarnate } from '@agoric/swingset-liveslots/tools/setup-vat-data.js';
 import { makeDurableZone } from '@agoric/zone/durable.js';
 
-
 export const setupVomkit = fakeStore => {
   const { fakeVomKit } = reincarnate({
     relaxDurabilityRules: false,

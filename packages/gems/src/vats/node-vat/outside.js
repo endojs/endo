@@ -1,25 +1,40 @@
 import * as childProcess from 'child_process';
 import * as url from 'url';
-import { makeDaemonicControlPowers } from '../../daemon-vendor/daemon-node-powers.js';
+import { makeWorkerKit } from '../../worker-outside.js';
 
+/** @type Promise<never> */
 const never = new Promise(() => {});
 
 const { fileURLToPath } = url;
 const config = {
-  workerPath: fileURLToPath(
-    new URL('./inside.js', import.meta.url),
-  ),
+  workerPath: fileURLToPath(new URL('./inside.js', import.meta.url)),
 };
 
-export const makeVat = async (vatSideKernelFacet, captpOpts, vatState, cancelled = never) => {
-  const daemonicControlPowers = makeDaemonicControlPowers(
+export const makeVat = (
+  zone,
+  fakeVomKit,
+  vatSideKernelFacet,
+  vatState,
+  captpOpts,
+  cancelled = never,
+) => {
+  const workerKit = makeWorkerKit(
     config,
     fileURLToPath,
     childProcess,
     captpOpts,
   );
 
-  const workerId = 1;
-  const { workerTerminated, workerDaemonFacet: workerFacet } = await daemonicControlPowers.makeWorker(workerId, vatSideKernelFacet, cancelled, vatState);
+  const workerId = `1`;
+  const workerZone = zone.subZone(`worker-${workerId}`);
+  const { workerTerminated, workerDaemonFacet: workerFacet } =
+    workerKit.makeWorker(
+      workerId,
+      workerZone,
+      fakeVomKit,
+      vatSideKernelFacet,
+      cancelled,
+      vatState,
+    );
   return { workerTerminated, workerFacet };
-}
+};

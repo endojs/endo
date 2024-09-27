@@ -1,6 +1,5 @@
 import { makeKernel } from '../src/kernel.js';
 
-
 export const makeKernelFactory = () => {
   let kernel;
   let kernelVatState = [];

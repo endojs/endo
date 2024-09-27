@@ -2,9 +2,7 @@
 /* eslint-disable no-void */
 
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
-import { makeNetstringCapTP } from './connection.js';
-
-/* @import { Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
+import { makeDurableCaptp } from './durable-captp.js';
 
 /**
  * @param {any} config
@@ -12,42 +10,29 @@ import { makeNetstringCapTP } from './connection.js';
  * @param {typeof import('child_process')} popen
  * @param captpOpts
  */
-export const makeDaemonicControlPowers = (
-  config,
-  fileURLToPath,
-  popen,
-  captpOpts,
-) => {
-  const endoWorkerPath = config.workerPath || fileURLToPath(
-    new URL('worker-node.js', import.meta.url),
-  );
+export const makeWorkerKit = (config, fileURLToPath, popen, captpOpts) => {
+  const endoWorkerPath =
+    config.workerPath ||
+    fileURLToPath(new URL('worker-node.js', import.meta.url));
 
-  /*
+  /**
    * @param {string} workerId
-   * @param {DaemonWorkerFacet} daemonWorkerFacet
+   * @param {import('@agoric/zone').Zone} workerZone
+   * @param {any} fakeVomKit
+   * @param {any} workerFacet
    * @param {Promise<never>} cancelled
+   * @param {any} vatState
    */
-  const makeWorker = async (workerId, daemonWorkerFacet, cancelled, vatState) => {
-
-    // const workerStatePath = filePowers.joinPath(statePath, 'worker', workerId);
-    // const workerEphemeralStatePath = filePowers.joinPath(
-    //   ephemeralStatePath,
-    //   'worker',
-    //   workerId,
-    // );
-
-    // await Promise.all([
-    //   filePowers.makePath(workerStatePath),
-    //   filePowers.makePath(workerEphemeralStatePath),
-    // ]);
-
-    // const logPath = filePowers.joinPath(workerStatePath, 'worker.log');
-    // const pidPath = filePowers.joinPath(workerEphemeralStatePath, 'worker.pid');
-
-    // const log = fs.openSync(logPath, 'a');
+  const makeWorker = (
+    workerId,
+    workerZone,
+    fakeVomKit,
+    workerFacet,
+    cancelled,
+    vatState,
+  ) => {
     const vatStateBlob = JSON.stringify(vatState);
     const child = popen.fork(endoWorkerPath, [vatStateBlob], {
-      // stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
       stdio: ['ignore', 'inherit', 'inherit', 'pipe', 'pipe', 'ipc'],
       // stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe', 'ipc'],
       // @ts-ignore Stale Node.js type definition.
@@ -64,6 +49,7 @@ export const makeDaemonicControlPowers = (
     assert(nodeReader);
     const reader = makeNodeReader(nodeReader);
     const writer = makeNodeWriter(nodeWriter);
+    const connection = { reader, writer };
 
     const workerClosed = new Promise(resolve => {
       child.on('exit', () => {
@@ -87,12 +73,18 @@ export const makeDaemonicControlPowers = (
       `Endo worker started PID ${workerPid} unique identifier ${workerId}`,
     );
 
-    const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
+    const captpZone = workerZone.subZone('captp');
+    const {
+      captp,
+      getBootstrap,
+      closed: capTpClosed,
+    } = makeDurableCaptp(
       `Worker ${workerId}`,
-      writer,
-      reader,
+      captpZone,
+      fakeVomKit,
+      connection,
       cancelled,
-      daemonWorkerFacet,
+      workerFacet,
       captpOpts,
     );
 
@@ -107,42 +99,10 @@ export const makeDaemonicControlPowers = (
     /* @type {ERef<WorkerDaemonFacet>} */
     const workerDaemonFacet = getBootstrap();
 
-    return { workerTerminated, workerDaemonFacet };
+    return { workerTerminated, workerDaemonFacet, captp };
   };
 
   return harden({
     makeWorker,
-  });
-};
-
-/*
- * @param {object} opts
- * @param {Config} opts.config
- * @param {typeof import('fs')} opts.fs
- * @param {typeof import('child_process')} opts.popen
- * @param {typeof import('url')} opts.url
- * @param {FilePowers} opts.filePowers
- * @param {CryptoPowers} opts.cryptoPowers
- * @returns {DaemonicPowers}
- */
-export const makeDaemonicPowers = ({
-  config,
-  popen,
-  url,
-  cryptoPowers,
-  captpOpts,
-}) => {
-  const { fileURLToPath } = url;
-
-  const daemonicControlPowers = makeDaemonicControlPowers(
-    config,
-    fileURLToPath,
-    popen,
-    captpOpts,
-  );
-
-  return harden({
-    crypto: cryptoPowers,
-    control: daemonicControlPowers,
   });
 };

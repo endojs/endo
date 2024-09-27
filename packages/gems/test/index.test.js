@@ -63,7 +63,7 @@ test.serial('persistence - exo refs in state', async t => {
         return this.state.friends;
       },
     },
-  })}`
+  })}`;
 
   const friendRecipe = `${() => ({
     methods: {},
@@ -71,7 +71,10 @@ test.serial('persistence - exo refs in state', async t => {
 
   let { kernel } = await restart();
 
-  const makeFriendsList = kernel.vatSupervisor.registerClass('FriendsList', friendsListRecipe);
+  const makeFriendsList = kernel.vatSupervisor.registerClass(
+    'FriendsList',
+    friendsListRecipe,
+  );
   let friendsList = makeFriendsList();
   kernel.store.init('friendsList', friendsList);
   const makeFriend = kernel.vatSupervisor.registerClass('Friend', friendRecipe);
@@ -105,15 +108,22 @@ test.serial('persistence - cross-vat refs in state', async t => {
         return this.state.friends;
       },
     },
-  })}`
+  })}`;
 
   const friendRecipe = `${() => ({
-    methods: {},
+    methods: {
+      greet() {
+        return 'hello';
+      },
+    },
   })}`;
 
   let { kernel } = await restart();
 
-  const makeFriendsList = kernel.vatSupervisor.registerClass('FriendsList', friendsListRecipe);
+  const makeFriendsList = kernel.vatSupervisor.registerClass(
+    'FriendsList',
+    friendsListRecipe,
+  );
   let friendsList = makeFriendsList();
   kernel.store.init('friendsList', friendsList);
 
@@ -123,6 +133,7 @@ test.serial('persistence - cross-vat refs in state', async t => {
     makeFriend();
   `);
   kernel.store.init('friend', foreignFriend);
+  t.deepEqual(await E(foreignFriend).greet(), 'hello');
 
   t.deepEqual(friendsList.getFriends(), []);
   friendsList.addFriend(foreignFriend);
@@ -133,6 +144,7 @@ test.serial('persistence - cross-vat refs in state', async t => {
   // NOTE: this friend is a promise for a presence,
   // despite the presence being directly put into the store
   foreignFriend = kernel.store.get('friend');
+  t.deepEqual(await E(foreignFriend).greet(), 'hello');
 
   t.deepEqual(friendsList.getFriends(), [foreignFriend]);
 });
@@ -154,11 +166,14 @@ test.serial('registerIncubation - defineClass', async t => {
     if (firstTime) {
       return makePingPong();
     }
-  }})()`
+  }})()`;
 
   let { kernel } = await restart();
 
-  let pingPong = kernel.vatSupervisor.registerIncubation('PingPong', incubationCode);
+  let pingPong = kernel.vatSupervisor.registerIncubation(
+    'PingPong',
+    incubationCode,
+  );
   kernel.store.init('pingPong', pingPong);
 
   t.deepEqual(pingPong.ping(), 'pong');
@@ -172,7 +187,12 @@ test.serial('registerIncubation - defineClass', async t => {
 // Need a way of creating a class that uses another class -- maybe exoClassKit?
 // maybe putting makeNewInstance fn in the store?
 test.skip('persistence - widget factory', async t => {
-  const widgetFactoryRecipe = `${({ M, gemName, registerChildClass, lookupChildGemClass }) => {
+  const widgetFactoryRecipe = `${({
+    M,
+    gemName,
+    registerChildClass,
+    lookupChildGemClass,
+  }) => {
     registerChildClass({
       name: 'Widget',
       code: `${({ M: M2 }) => ({
