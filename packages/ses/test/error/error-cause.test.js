@@ -41,3 +41,5 @@ test('error cause', t => {
     configurable: true,
   });
 });
+
+// TODO SuppressedError

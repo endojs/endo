@@ -35,6 +35,7 @@ import {
   weakmapHas,
   weakmapSet,
   AggregateError,
+  SuppressedError,
   getOwnPropertyDescriptors,
   ownKeys,
   create,
@@ -268,12 +269,13 @@ const tagError = (err, optErrorName = err.name) => {
  *     such as `stack` on v8 (Chrome, Brave, Edge?)
  *   - `sanitizeError` will freeze the error, preventing any correct engine from
  *     adding or
- *     altering any of the error's own properties `sanitizeError` is done.
+ *     altering any of the error's own properties after `sanitizeError` is done.
  *
  * However, `sanitizeError` will not, for example, `harden`
  * (i.e., deeply freeze)
- * or ensure that the `cause` or `errors` property satisfy the `Passable`
- * constraints. The purpose of `sanitizeError` is only to protect against
+ * or ensure that the `cause`, `errors`, `error`, or `suppressed` properties
+ * satisfy the `Passable` constraints.
+ * The purpose of `sanitizeError` is only to protect against
  * mischief the host may have already added to the error as created,
  * not to ensure that the error is actually Passable. For that,
  * see `toPassableError` in `@endo/pass-style`.
@@ -285,8 +287,10 @@ export const sanitizeError = error => {
   const {
     name: _nameDesc,
     message: _messageDesc,
-    errors: _errorsDesc = undefined,
     cause: _causeDesc = undefined,
+    errors: _errorsDesc = undefined,
+    error: _errorDesc = undefined,
+    suppressed: _suppressedDesc = undefined,
     stack: _stackDesc = undefined,
     ...restDescs
   } = descs;
@@ -316,6 +320,8 @@ export const sanitizeError = error => {
 };
 
 /**
+ * TODO rewrite to be more general
+ *
  * @type {AssertionUtilities['error']}
  */
 const makeError = (
@@ -325,6 +331,8 @@ const makeError = (
     errorName = undefined,
     cause = undefined,
     errors = undefined,
+    error = undefined,
+    suppressed = undefined,
     sanitize = true,
   } = {},
 ) => {
@@ -339,37 +347,41 @@ const makeError = (
   }
   const messageString = getMessageString(hiddenDetails);
   const opts = cause && { cause };
-  let error;
+  let err;
   if (
     typeof AggregateError !== 'undefined' &&
     errConstructor === AggregateError
   ) {
-    error = AggregateError(errors || [], messageString, opts);
+    err = AggregateError(errors || [], messageString, opts);
+  } else if (
+    typeof SuppressedError !== 'undefined' &&
+    errConstructor === SuppressedError
+  ) {
+    err = SuppressedError(error, suppressed, messageString);
+    // TODO what about errors, cause?
   } else {
-    error = /** @type {ErrorConstructor} */ (errConstructor)(
-      messageString,
-      opts,
-    );
+    err = /** @type {ErrorConstructor} */ (errConstructor)(messageString, opts);
     if (errors !== undefined) {
       // Since we need to tolerate `errors` on an AggregateError, may as
       // well tolerate it on all errors.
-      defineProperty(error, 'errors', {
+      defineProperty(err, 'errors', {
         value: errors,
         writable: true,
         enumerable: false,
         configurable: true,
       });
     }
+    // TODO similarly tolerate error,suppressed ?
   }
-  weakmapSet(hiddenMessageLogArgs, error, getLogArgs(hiddenDetails));
+  weakmapSet(hiddenMessageLogArgs, err, getLogArgs(hiddenDetails));
   if (errorName !== undefined) {
-    tagError(error, errorName);
+    tagError(err, errorName);
   }
   if (sanitize) {
-    sanitizeError(error);
+    sanitizeError(err);
   }
   // The next line is a particularly fruitful place to put a breakpoint.
-  return error;
+  return err;
 };
 freeze(makeError);
 

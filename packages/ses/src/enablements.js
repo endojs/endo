@@ -155,6 +155,12 @@ export const moderateEnablements = {
     name: true, // set by "node 14"?
   },
 
+  // https://github.com/tc39/proposal-explicit-resource-management
+  '%SuppressedErrorPrototype%': {
+    message: true, // to match TypeErrorPrototype.message
+    name: true, // set by some Node?
+  },
+
   '%PromisePrototype%': {
     constructor: true, // set by "core-js"
   },
