@@ -6,6 +6,7 @@ import {
   getPrototypeOf,
   setPrototypeOf,
   freeze,
+  AsyncGeneratorFunctionInstance,
 } from './commons.js';
 
 // This module replaces the original `Function` constructor, and the original
@@ -126,11 +127,14 @@ export default function tameFunctionConstructors() {
     '%InertAsyncFunction%',
     '(async function(){})',
   );
-  repairFunction(
-    'AsyncGeneratorFunction',
-    '%InertAsyncGeneratorFunction%',
-    '(async function*(){})',
-  );
+
+  if (AsyncGeneratorFunctionInstance !== undefined) {
+    repairFunction(
+      'AsyncGeneratorFunction',
+      '%InertAsyncGeneratorFunction%',
+      '(async function*(){})',
+    );
+  }
 
   return newIntrinsics;
 }
