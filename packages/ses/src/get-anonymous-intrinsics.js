@@ -14,6 +14,8 @@ import {
   matchAllSymbol,
   regexpPrototype,
   globalThis,
+  assign,
+  AsyncGeneratorFunctionInstance,
 } from './commons.js';
 import { InertCompartment } from './compartment.js';
 
@@ -95,20 +97,6 @@ export const getAnonymousIntrinsics = () => {
 
   const Generator = GeneratorFunction.prototype;
 
-  // 25.3.1 The AsyncGeneratorFunction Constructor
-
-  // eslint-disable-next-line no-empty-function
-  async function* AsyncGeneratorFunctionInstance() {}
-  const AsyncGeneratorFunction = getConstructorOf(
-    AsyncGeneratorFunctionInstance,
-  );
-
-  // 25.3.2.2 AsyncGeneratorFunction.prototype
-  const AsyncGenerator = AsyncGeneratorFunction.prototype;
-  // 25.5.1 Properties of the AsyncGenerator Prototype Object
-  const AsyncGeneratorPrototype = AsyncGenerator.prototype;
-  const AsyncIteratorPrototype = getPrototypeOf(AsyncGeneratorPrototype);
-
   // 25.7.1 The AsyncFunction Constructor
 
   // eslint-disable-next-line no-empty-function
@@ -119,10 +107,6 @@ export const getAnonymousIntrinsics = () => {
     '%InertFunction%': InertFunction,
     '%ArrayIteratorPrototype%': ArrayIteratorPrototype,
     '%InertAsyncFunction%': AsyncFunction,
-    '%AsyncGenerator%': AsyncGenerator,
-    '%InertAsyncGeneratorFunction%': AsyncGeneratorFunction,
-    '%AsyncGeneratorPrototype%': AsyncGeneratorPrototype,
-    '%AsyncIteratorPrototype%': AsyncIteratorPrototype,
     '%Generator%': Generator,
     '%InertGeneratorFunction%': GeneratorFunction,
     '%IteratorPrototype%': IteratorPrototype,
@@ -134,6 +118,27 @@ export const getAnonymousIntrinsics = () => {
     '%TypedArray%': TypedArray,
     '%InertCompartment%': InertCompartment,
   };
+
+  if (AsyncGeneratorFunctionInstance !== undefined) {
+    // 25.3.1 The AsyncGeneratorFunction Constructor
+
+    const AsyncGeneratorFunction = getConstructorOf(
+      AsyncGeneratorFunctionInstance,
+    );
+
+    // 25.3.2.2 AsyncGeneratorFunction.prototype
+    const AsyncGenerator = AsyncGeneratorFunction.prototype;
+    // 25.5.1 Properties of the AsyncGenerator Prototype Object
+    const AsyncGeneratorPrototype = AsyncGenerator.prototype;
+    const AsyncIteratorPrototype = getPrototypeOf(AsyncGeneratorPrototype);
+
+    assign(intrinsics, {
+      '%AsyncGenerator%': AsyncGenerator,
+      '%InertAsyncGeneratorFunction%': AsyncGeneratorFunction,
+      '%AsyncGeneratorPrototype%': AsyncGeneratorPrototype,
+      '%AsyncIteratorPrototype%': AsyncIteratorPrototype,
+    });
+  }
 
   if (globalThis.Iterator) {
     intrinsics['%IteratorHelperPrototype%'] = getPrototypeOf(
