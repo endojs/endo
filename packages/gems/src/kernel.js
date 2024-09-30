@@ -44,7 +44,7 @@ export const makeKernel = async (kernelVatState = []) => {
     captpOpts,
     /** @type Promise<never> */ (vatCancelled),
   );
-  const { store } = vatSupervisor;
+  const { store, serializeState } = vatSupervisor;
 
   const terminateChildVats = async () => {
     await E(workerFacet).nextCrank();
@@ -58,5 +58,12 @@ export const makeKernel = async (kernelVatState = []) => {
     await terminateChildVats();
   };
 
-  return { store, vatSupervisor, workerFacet, workerTerminated, shutdown };
+  return {
+    store,
+    vatSupervisor,
+    workerFacet,
+    workerTerminated,
+    shutdown,
+    serializeState,
+  };
 };
