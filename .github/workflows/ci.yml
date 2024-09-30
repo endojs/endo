@@ -213,6 +213,41 @@ jobs:
       - name: Run yarn test262
         run: exit 0 # TODO remove test262 from required tests for CI
 
+  test-hermes:
+    name: test-hermes
+
+    # begin macro
+
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # without this, setup-node errors on mismatched yarn versions
+      - run: corepack enable
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # end macro
+
+      - name: Run yarn build
+        run: yarn build
+
+      - name: Run SES/Hermes smoke test
+        run: cd packages/ses && yarn test:hermes
+
   viable-release:
     name: viable-release
 
