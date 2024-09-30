@@ -386,3 +386,49 @@ export const FERAL_STACK_GETTER = feralStackGetter;
  * @type {((newValue: any) => void) | undefined}
  */
 export const FERAL_STACK_SETTER = feralStackSetter;
+
+const getAsyncGeneratorFunctionInstance = () => {
+  // Test for async generator function syntax support.
+  try {
+    // Wrapping one in an new Function lets the `hermesc` binary file
+    // parse the Metro js bundle without SyntaxError, to generate the
+    // optimised Hermes bytecode bundle, when `gradlew` is called to
+    // assemble the release build APK for React Native prod Android apps.
+    // Delaying the error until runtime lets us customise lockdown behaviour.
+    return new FERAL_FUNCTION(
+      'return (async function* AsyncGeneratorFunctionInstance() {})',
+    )();
+  } catch (error) {
+    // Note: `Error.prototype.jsEngine` is only set by React Native runtime, not Hermes:
+    // https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/hermes/executor/HermesExecutorFactory.cpp#L224-L230
+    if (error.name === 'SyntaxError') {
+      // Swallows Hermes error `async generators are unsupported` at runtime.
+      if (globalThis.console !== undefined) {
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        console.warn('SES Skipping async generators');
+      }
+      if (globalThis.print !== undefined) {
+        // @ts-expect-error Hermes defines a print fn that accepts one or more arguments.
+        // eslint-disable-next-line no-undef
+        print('SES Skipping async generators');
+      }
+      // Note: `console` is not a JS built-in, so Hermes engine throws:
+      // Uncaught ReferenceError: Property 'console' doesn't exist
+      // See: https://github.com/facebook/hermes/issues/675
+      // However React Native provides a `console` implementation when setting up error handling:
+      // https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/Core/InitializeCore.js
+      return undefined;
+    } else {
+      throw error;
+    }
+  }
+};
+
+/**
+ * If the platform supports async generator functions, this will be an
+ * async generator function instance. Otherwise, it will be `undefined`.
+ *
+ * @type {AsyncGeneratorFunction | undefined}
+ */
+export const AsyncGeneratorFunctionInstance =
+  getAsyncGeneratorFunctionInstance();
