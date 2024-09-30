@@ -1,6 +1,7 @@
-import { E } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { setupZone } from './zone.js';
+import { makeDefineDurableFactory } from './custom-kind.js';
 
 // stores initialization scripts
 // "registerIncubation" registers a script to be evaluated at every vat start
@@ -45,14 +46,47 @@ const makeIncubationRegistry = (zone, getEndowments) => {
 // "defineClass" defines a class in the zone
 // "registerClass" registers a class definition for initialization at every vat start
 //   its equivalent to "registerIncubation" where you register a class
-const makeClassRegistry = zone => {
+const makeClassRegistry = (zone, fakeVomKit) => {
+  const { fakeStuff } = fakeVomKit;
   const classRegistry = zone.mapStore('classRegistry');
   const classCache = new Map();
 
   const defineClass = (name, { interfaceGuards, initFn, methods }) => {
-    const exoClass = zone.exoClass(name, interfaceGuards, initFn, methods);
-    return exoClass;
+    const makeExoClass = zone.exoClass(name, interfaceGuards, initFn, methods);
+    const farMakeExoClass = Far(`makeExoClass-${name}`, makeExoClass);
+    // determine the kindSlot by creating an ephemeral instance
+    // TODO: dont do this, just find the kindSlot
+    const testValue = farMakeExoClass();
+    const testSlot = fakeStuff.getSlotForVal(testValue);
+    const kindSlot = testSlot.split('/')[0];
+    fakeStuff.registerEntry(kindSlot, farMakeExoClass, false);
+    return farMakeExoClass;
   };
+
+  // const jsClassToExoClass = new Map();
+  const defineJsClass = jsClass => {
+    const methods = jsClass.prototype;
+    return defineClass(jsClass.name, {
+      interfaceGuards: methods.implements,
+      initFn: methods.init,
+      methods,
+    });
+  };
+  // const getJsClassExo = jsClass => {
+  //   if (jsClassToExoClass.has(jsClass)) {
+  //     return jsClassToExoClass.get(jsClass);
+  //   }
+  //   const makeJsClassExo = defineJsClass(jsClass);
+  //   jsClassToExoClass.set(jsClass, makeJsClassExo);
+  //   return makeJsClassExo;
+  // };
+  // const DurableBaseClass = harden(class {
+  //   constructor(...args) {
+  //     const descendantClass = this.constructor;
+  //     const makeJsClassExo = getJsClassExo(descendantClass)
+  //     return makeJsClassExo(...args);
+  //   }
+  // });
 
   const loadClass = name => {
     if (classCache.has(name)) {
@@ -84,7 +118,15 @@ const makeClassRegistry = zone => {
     return loadClass(name);
   };
 
-  return { defineClass, registerClass, loadClasses };
+  const defineDurableFactory = makeDefineDurableFactory(fakeVomKit, zone);
+
+  return {
+    defineClass,
+    defineJsClass,
+    registerClass,
+    loadClasses,
+    defineDurableFactory,
+  };
 };
 
 export const makeVatSupervisor = (label, vatState) => {
@@ -112,12 +154,23 @@ export const makeVatSupervisor = (label, vatState) => {
   const getEndowments = () => endowments;
   const { incubate, registerIncubation, loadAllIncubations } =
     makeIncubationRegistry(zone, getEndowments);
-  const { defineClass, registerClass, loadClasses } = makeClassRegistry(zone);
+  const {
+    defineClass,
+    defineJsClass,
+    DurableBaseClass,
+    registerClass,
+    loadClasses,
+    defineDurableFactory,
+  } = makeClassRegistry(zone, fakeVomKit);
 
   endowments.incubate = incubate;
   endowments.registerIncubation = registerIncubation;
+  endowments.defineJsClass = defineJsClass;
+  endowments.DurableBaseClass = DurableBaseClass;
   endowments.defineClass = defineClass;
   endowments.registerClass = registerClass;
+  endowments.defineDurableFactory = defineDurableFactory;
+
   // temp
   endowments.fetch = fetch;
   harden(endowments);
@@ -139,6 +192,7 @@ export const makeVatSupervisor = (label, vatState) => {
     incubate,
     registerIncubation,
     registerClass,
+    defineJsClass,
     fakeStore,
     fakeVomKit,
     serializeState,
