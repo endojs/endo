@@ -9,270 +9,450 @@ updates:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /.
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/init
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/ses-ava
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/skel
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/env-options
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/stream-node
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/marshal
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/import-bundle
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/patterns
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/check-bundle/test/fixture
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/check-bundle
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/cjs-module-analyzer
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/nat
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/stream
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/base64
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/exo
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/netstring
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/stream-types-test
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/pass-style
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/cli
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/memoize
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/zip
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/captp
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/common
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/immutable-arraybuffer
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/test262-runner
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/test262-runner/test262
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/daemon
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/lockdown
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/bundle-source
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/promise-kit
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/far
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/lp32
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/ses/test/_package
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/ses
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/errors
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/evasive-transform/test/fixtures-transform/test-location-unmapper
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/evasive-transform
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/syrup
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/demo/policy/att2
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/demo/policy/att1
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/demo/policy
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/demo/policy/polyfill
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/test/fixtures-cthuloops
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: >-
       /packages/compartment-mapper/test/fixtures-strictly-inconsistent-directories
@@ -280,78 +460,130 @@ updates:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/test/fixtures-stability
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/test/fixtures-symlink/app
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/test/fixtures-strictly-inconsistent-packages
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/test/fixtures-esm-imports-cjs-define
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/test/fixtures-order
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper/test/fixtures-assets
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/compartment-mapper
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/where
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/eventual-send
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/trampoline
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/module-source
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: npm
     directory: /packages/eslint-plugin
     schedule:
       interval: weekly
     commit-message:
       prefix: chore
+    groups:
+      all-minor-patch:
+        patterns:
+          - '*'
   - package-ecosystem: github-actions
     directory: /
     schedule:
