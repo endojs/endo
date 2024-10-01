@@ -49,7 +49,8 @@ const reverseSlot = slot => {
 
 /**
  * @typedef {object} CapTPOptions the options to makeCapTP
- * @property {(val: unknown) => import('./types.js').CapTPSlot | undefined} [valueToSlotHook]
+ * @property {(val: unknown) => import('./types.js').CapTPSlot | undefined} [onBeforeExportHook]
+ * @property {(slot: import('./types.js').CapTPSlot, iface: string | undefined) => unknown} [onBeforeImportHook]
  * @property {(slot: import('./types.js').CapTPSlot) => void} [missingExportHook]
  * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: import('./types.js').CapTPSlot) => void} [importHook]
@@ -97,7 +98,8 @@ export const makeCapTP = (
   const {
     onReject = err => console.error('CapTP', ourId, 'exception:', err),
     epoch = 0,
-    valueToSlotHook,
+    onBeforeExportHook,
+    onBeforeImportHook,
     missingExportHook,
     exportHook,
     importHook,
@@ -341,8 +343,8 @@ export const makeCapTP = (
     if (!valToSlot.has(val)) {
       /** @type {import('./types.js').CapTPSlot | undefined} */
       let slot = undefined;
-      if (valueToSlotHook) {
-        slot = valueToSlotHook(val);
+      if (onBeforeExportHook) {
+        slot = onBeforeExportHook(val);
       }
       if (slot === undefined) {
         slot = makeSlotForVal(val);
@@ -493,7 +495,14 @@ export const makeCapTP = (
     return harden({ promise, settler });
   };
 
-  const markAsImported = (slot, iface) => {
+  const markAsImported = (val, slot) => {
+    slotToImported.set(slot, val);
+    valToSlot.set(val, slot);
+    // If we imported this slot, mark it as one our peer exported.
+    recvSlot.add(slot);
+  };
+
+  const makeRemoteForSlot = (slot, iface) => {
     let val;
     // Make a new handled promise for the slot.
     const { promise, settler } = makeRemoteKit(slot);
@@ -501,9 +510,14 @@ export const makeCapTP = (
       if (iface === undefined) {
         iface = `Alleged: Presence ${ourId} ${slot}`;
       }
-      // A new remote presence
-      // Use Remotable rather than Far to make a remote from a presence
-      val = Remotable(iface, undefined, settler.resolveWithPresence());
+      if (onBeforeImportHook) {
+        val = onBeforeImportHook(slot, iface);
+      }
+      if (val === undefined) {
+        // A new remote presence
+        // Use Remotable rather than Far to make a remote from a presence
+        val = Remotable(iface, undefined, settler.resolveWithPresence());
+      }
       if (importHook) {
         importHook(val, slot);
       }
@@ -515,10 +529,6 @@ export const makeCapTP = (
       // A new promise
       settlers.set(slot, settler);
     }
-    slotToImported.set(slot, val);
-    valToSlot.set(val, slot);
-    // If we imported this slot, mark it as one our peer exported.
-    recvSlot.add(slot);
     return val;
   };
 
@@ -533,13 +543,20 @@ export const makeCapTP = (
     if (slot[1] === '+') {
       // Allow the user to fill in missing imports.
       if (!slotToExported.has(slot) && missingExportHook) {
-        missingExportHook(slot);
+        const val = missingExportHook(slot);
+        if (val !== undefined) {
+          if (valToSlot.has(val) && valToSlot.get(val) !== slot) {
+            Fail`Value already exported at different slot`;
+          }
+          markAsExported(val, slot);
+        }
       }
       slotToExported.has(slot) || Fail`Unknown export ${slot}`;
       return slotToExported.get(slot);
     }
     if (!slotToImported.has(slot)) {
-      markAsImported(slot, iface);
+      const val = makeRemoteForSlot(slot, iface);
+      markAsImported(val, slot);
     }
 
     return slotToImported.get(slot);
@@ -848,24 +865,31 @@ export const makeCapTP = (
    * @param {import('./types.js').CapTPSlot} slot - The slot to be converted.
    * @returns {any} The presence for the given slot.
    */
-  const importSlot = slot => {
+  const importSlot = (val, slot) => {
     if (slot[1] === '+') {
       // We don't import exports.
       Fail`Cannot import exported slot ${slot}`;
     }
-    // return presence for slot
-    return markAsImported(slot);
+    if (slotToImported.has(slot)) {
+      if (slotToImported.get(slot) === val) {
+        // Already imported
+        return;
+      }
+      Fail`Slot already imported at different value`;
+    }
+    // mark value as imported at slot
+    markAsImported(val, slot);
   };
-  const exportValue = (value, slot) => {
-    if (valToSlot.has(value)) {
-      if (valToSlot.get(value) === slot) {
+  const exportValue = (val, slot) => {
+    if (valToSlot.has(val)) {
+      if (valToSlot.get(val) === slot) {
         // Already exported
         return;
       }
       Fail`Value already exported at different slot`;
     }
     // mark value as exported at slot
-    markAsExported(value, slot);
+    markAsExported(val, slot);
   };
 
   // Put together our return value.
@@ -881,6 +905,7 @@ export const makeCapTP = (
     Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
     importSlot,
     exportValue,
+    makeRemoteKit,
   };
 
   if (trapGuest) {
