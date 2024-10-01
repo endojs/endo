@@ -18,14 +18,14 @@
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
-    "requireindex": "~1.1.0",
+    "requireindex": "~1.2.0",
     "tsutils": "~3.21.0",
     "typescript": "~5.6.2",
-    "typescript-eslint": "^7.3.1"
+    "typescript-eslint": "^8.8.0"
   },
   "devDependencies": {
     "@types/mocha": "^10",
-    "eslint": "^8.57.0",
+    "eslint": "^9.11.1",
     "mocha": "^10.6.0"
   },
   "engines": {
