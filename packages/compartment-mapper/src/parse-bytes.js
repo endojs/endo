@@ -13,12 +13,7 @@
 const freeze = Object.freeze;
 
 /** @type {import('./types.js').ParseFn} */
-export const parseBytes = async (
-  bytes,
-  _specifier,
-  _location,
-  _packageLocation,
-) => {
+export const parseBytes = (bytes, _specifier, _location, _packageLocation) => {
   // Snapshot ArrayBuffer
   const buffer = new ArrayBuffer(bytes.length);
   const bytesView = new Uint8Array(buffer);
@@ -49,4 +44,5 @@ export const parseBytes = async (
 export default {
   parse: parseBytes,
   heuristicImports: false,
+  synchronous: true,
 };

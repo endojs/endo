@@ -12,7 +12,7 @@ import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 const textDecoder = new TextDecoder();
 
 /** @type {import('./types.js').ParseFn} */
-export const parsePreCjs = async (
+export const parsePreCjs = (
   bytes,
   _specifier,
   location,
@@ -25,7 +25,7 @@ export const parsePreCjs = async (
     location,
   );
 
-  const { filename, dirname } = await getModulePaths(readPowers, location);
+  const { filename, dirname } = getModulePaths(readPowers, location);
 
   /**
    * @param {object} moduleEnvironmentRecord
@@ -64,4 +64,5 @@ export const parsePreCjs = async (
 export default {
   parse: parsePreCjs,
   heuristicImports: true,
+  synchronous: true,
 };

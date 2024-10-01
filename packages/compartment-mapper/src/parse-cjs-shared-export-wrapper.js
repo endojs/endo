@@ -3,6 +3,8 @@
  * module source.
  */
 
+import { findInvalidReadNowPowersProps, isReadNowPowers } from './powers.js';
+
 // @ts-check
 
 /** @import {ReadFn} from './types.js' */
@@ -24,7 +26,9 @@ const noTrailingSlash = path => {
 };
 
 /**
- * Generates values for __filename and __dirname from location
+ * Generates values for __filename and __dirname from location _if and only if_
+ * `readPowers` is of type {@link ReadPowers} containing a
+ * {@link ReadPowers.fileURLToPath} method.
  *
  * @param {ReadPowers | ReadFn | undefined} readPowers
  * @param {string} location
@@ -141,13 +145,26 @@ export const wrap = ({
     },
   });
 
-  const require = (/** @type {string} */ importSpecifier) => {
+  /** @param {string} importSpecifier */
+  const require = importSpecifier => {
+    // if this fails, tell user
+
+    /** @type {import('ses').ModuleExportsNamespace} */
+    let namespace;
+
     if (!has(resolvedImports, importSpecifier)) {
-      throw new Error(
-        `Cannot find module "${importSpecifier}" in "${location}"`,
-      );
+      if (isReadNowPowers(readPowers)) {
+        namespace = compartment.importNow(importSpecifier);
+      } else {
+        const invalidProps = findInvalidReadNowPowersProps(readPowers).sort();
+        throw new Error(
+          `Synchronous readPowers required for dynamic import of ${assert.quote(importSpecifier)}; missing or invalid prop(s): ${invalidProps.join(', ')}`,
+        );
+      }
+    } else {
+      namespace = compartment.importNow(resolvedImports[importSpecifier]);
     }
-    const namespace = compartment.importNow(resolvedImports[importSpecifier]);
+
     // If you read this file carefully, you'll see it's not possible for a cjs module to not have the default anymore.
     // It's currently possible to require modules that were not created by this file though.
     if (has(namespace, 'default')) {

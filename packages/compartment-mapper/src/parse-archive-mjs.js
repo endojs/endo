@@ -9,7 +9,7 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 /** @type {import('./types.js').ParseFn} */
-export const parseArchiveMjs = async (
+export const parseArchiveMjs = (
   bytes,
   specifier,
   sourceUrl,
@@ -35,4 +35,5 @@ export const parseArchiveMjs = async (
 export default {
   parse: parseArchiveMjs,
   heuristicImports: false,
+  synchronous: true,
 };
