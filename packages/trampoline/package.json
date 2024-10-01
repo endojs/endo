@@ -1,6 +1,6 @@
 {
   "name": "@endo/trampoline",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Multicolor trampolining for recursive operations",
   "keywords": [
     "trampoline",
@@ -64,7 +64,6 @@
     "*.js",
     "*.ts"
   ],
-  "private": true,
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
@@ -75,6 +74,9 @@
       "test/**/*.test.js"
     ],
     "timeout": "2m"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "typeCoverage": {
     "atLeast": 96.09
