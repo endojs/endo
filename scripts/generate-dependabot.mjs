@@ -36,6 +36,11 @@ async function getPackageDirectories() {
       'commit-message': {
         prefix: 'chore',
       },
+      groups: {
+        'all-minor-patch': {
+          patterns: ['*'], // Group all minor and patch updates together
+        },
+      },
     });
   });
 
