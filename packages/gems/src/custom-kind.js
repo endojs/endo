@@ -51,6 +51,7 @@ export const makeCustomDurableKindWithContext = (
     instanceData.init(instanceSlot, harden(context));
     // register the slot with the value, so it can be stored
     fakeStuff.registerEntry(instanceSlot, value, false);
+    return value;
   };
 
   const reanimate = instanceSlot => {

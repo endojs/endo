@@ -1,5 +1,9 @@
 import { makeNetstringCapTP } from './daemon-vendor/connection.js';
-import { installExtRefController } from './extref-controller.js';
+import {
+  installExternalReferenceController,
+  makeCaptpOptionsForExtRefController,
+} from './extref-controller.js';
+import { makeSimplePresenceController } from './presence-controller.js';
 
 export const makeDurableCaptp = (
   name,
@@ -12,12 +16,14 @@ export const makeDurableCaptp = (
 ) => {
   let captp;
   const getCaptp = () => captp;
-  const { captpOpts: extRefOpts } = installExtRefController(
+  const presenceController = makeSimplePresenceController(getCaptp);
+  const extRefController = installExternalReferenceController(
     name,
     zone,
     fakeVomKit,
-    getCaptp,
+    presenceController,
   );
+  const extRefOpts = makeCaptpOptionsForExtRefController(extRefController);
   const captpOpts = { ...opts, ...extRefOpts };
   const netStringCaptpClient = makeNetstringCapTP(
     name,
