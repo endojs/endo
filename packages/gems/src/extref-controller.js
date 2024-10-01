@@ -4,124 +4,104 @@ import { makeCustomDurableKindWithContext } from './custom-kind.js';
  * @param {string} label
  * @param {import('@agoric/zone').Zone} zone
  * @param {any} fakeVomKit
- * @param {() => any} getCaptp
+ * @param {import('./presence-controller').PresenceController} presenceController
  */
-export const installExtRefController = (label, zone, fakeVomKit, getCaptp) => {
-  const imports = zone.setStore('imports');
-  const exports = zone.mapStore('exports');
+export const installExternalReferenceController = (
+  label,
+  zone,
+  fakeVomKit,
+  presenceController,
+) => {
+  const { makePresenceForSlot, cleanupPresenceForSlot } = presenceController;
   const { fakeStuff } = fakeVomKit;
 
+  // TODO: "imports" should be a weakRefMap
+  // We want to cache the presence for a slot,
+  // but we don't need to hold on to it.
+  const imports = zone.mapStore('imports');
+  const exports = zone.mapStore('exports');
+
   const makeExtRef = makeCustomDurableKindWithContext(fakeVomKit, zone, {
-    make: (context, value, remoteSlot) => {
+    make: (context, remoteSlot, iface) => {
       context.ref = remoteSlot;
-      return value;
+      context.iface = iface;
+      return makePresenceForSlot(remoteSlot, iface);
     },
     reanimate: context => {
-      const { ref: remoteSlot } = context;
-      const captp = getCaptp();
-      // console.log(`## ${label} reanimate`, remoteSlot)
-      return captp.importSlot(remoteSlot);
+      const { ref: remoteSlot, iface } = context;
+      return makePresenceForSlot(remoteSlot, iface);
     },
     cleanup: context => {
       const { ref: remoteSlot } = context;
-      imports.delete(remoteSlot);
-      // indicate no further GC needed
-      return false;
+      // We don't need to clear from imports here,
+      // because its already been dropped before this call can happen.
+      // Return GC hint -- true if potentially more GC needed.
+      return cleanupPresenceForSlot(remoteSlot);
     },
   });
 
-  // marks a captp imported presence as durable,
-  const registerImport = (remoteSlot, value) => {
+  const registerImport = (remoteSlot, iface) => {
+    // console.log(`- ${label} registerImport ${remoteSlot}`);
     if (imports.has(remoteSlot)) {
-      return;
+      return imports.get(remoteSlot);
     }
-    // console.log(`!! ${label} registerExtRef`, value, remoteSlot)
-    // Note: extRef === value
-    makeExtRef(value, remoteSlot);
-    imports.add(remoteSlot);
+    const extRef = makeExtRef(remoteSlot, iface);
+    imports.init(remoteSlot, extRef);
+    return extRef;
   };
+
   const registerExport = value => {
+    // console.log(`- ${label} registerExport ${value}`);
     const durableSlot = fakeStuff.getSlotForVal(value);
     if (durableSlot === undefined) {
-      throw new Error(
-        `(${label}) registerExport - value not registered: ${value}`,
-      );
+      throw new Error(`registerExport - value not registered: ${value}`);
     }
     if (!exports.has(durableSlot)) {
       exports.init(durableSlot, value);
     }
     return durableSlot;
   };
-  const unregisterExport = slot => {
-    if (exports.has(slot)) {
-      exports.delete(slot);
+  const unregisterExport = localSlot => {
+    // console.log(`- ${label} unregisterExport ${localSlot}`);
+    if (exports.has(localSlot)) {
+      exports.delete(localSlot);
+      return true;
     }
+    return false;
   };
-  const lookupExport = slot => {
-    if (!exports.has(slot)) {
+  const lookupExport = localSlot => {
+    // console.log(`- ${label} lookupExport ${localSlot}`);
+    if (!exports.has(localSlot)) {
       throw new Error(
-        `(${label}) lookupExport - value not held for slot: ${slot}`,
+        `(${label}) lookupExport - value not held for slot: ${localSlot}`,
       );
     }
-    return exports.get(slot);
+    return exports.get(localSlot);
   };
 
-  const isPromiseSlot = slot => {
-    return slot[0] === 'p';
-  };
+  return { registerImport, registerExport, unregisterExport, lookupExport };
+};
 
-  const captpOpts = {
-    //
-    // standard options
-    //
-    gcImports: true,
-    exportHook(val, captpSlot) {
-      // NOTE: we only want to handle non-promises
-      if (isPromiseSlot(captpSlot)) {
-        return;
-      }
-      // console.log(`>> ${label} exportHook`, val, captpSlot, durableSlot)
-      // This value has been exported, so we add it to our table
-      registerExport(val);
+export const makeCaptpOptionsForExtRefController = controller => {
+  const captpOptions = {
+    onBeforeImportHook: (slot, iface) => {
+      // Returns the presence for the remote slot.
+      return controller.registerImport(slot, iface);
     },
-    importHook(val, captpSlot) {
-      // We only want to handle non-promises
-      if (isPromiseSlot(captpSlot)) {
-        return;
-      }
-      // console.log(`<< ${label} importHook`, val, captpSlot);
-      // We know the other side has used "valueToSlotHook" to provide a durable slot
-      const remoteDurableSlot = captpSlot;
-      // establish durability for this imported reference
-      registerImport(remoteDurableSlot, val);
+    onBeforeExportHook: value => {
+      // Returns the slot for the value.
+      return controller.registerExport(value);
     },
-    //
-    // extended options
-    //
-    valueToSlotHook(val) {
-      // Captp is asking us to provide a slot for the value,
-      // we'll provide the durable slot
-      // TODO: could this slot collide with captp?
-      // maybe not because KindId/instanceId wont conflict
-      const durableSlot = fakeStuff.getSlotForVal(val);
-      // console.log(`>> ${label} valueToSlotHook`, val, durableSlot)
-      return durableSlot;
+    missingExportHook: slot => {
+      // The controller's export table has a longer lifetime than the captp session.
+      // Throws if not found.
+      return controller.lookupExport(slot);
     },
-    missingExportHook(slot) {
-      // console.log(`$$ ${label} exporting missing slot`, slot)
-      // Captp is trying to use an export it doesn't have,
-      // so we need to provide it
-      const value = lookupExport(slot);
-      const captp = getCaptp();
-      captp.exportValue(value, slot);
-    },
-    gcHook(_val, slot) {
-      // console.log(`-- ${label} gcHook`, _val, slot)
-      // we can release this value
-      // NOTE: this will only work correctly if captp is using the vomkit WeakMap
-      unregisterExport(slot);
+    gcHook: slot => {
+      // Remote has reported that our export is no longer needed.
+      // Return GC hint -- true if potentially more GC needed.
+      return controller.unregisterExport(slot);
     },
   };
-
-  return { captpOpts };
+  return captpOptions;
 };
