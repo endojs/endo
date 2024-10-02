@@ -1,4 +1,5 @@
 import {
+  FERAL_FUNCTION,
   TypeError,
   WeakSet,
   arrayFilter,
@@ -12,6 +13,7 @@ import {
   is,
   isObject,
   objectHasOwnProperty,
+  printHermes,
   values,
   weaksetHas,
 } from './commons.js';
@@ -85,12 +87,40 @@ export const makeIntrinsicsCollector = () => {
   // whitelist to find out the intrinsic name for that prototype and add it
   // to the intrinsics.
   const completePrototypes = () => {
+    printHermes('SES: completePrototypes');
+    // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
+    printHermes(JSON.stringify(intrinsics)); // 13 enumerable intrinsics
+    // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
+    printHermes(Object.keys(intrinsics));
+    let i = 0;
     for (const [name, intrinsic] of entries(intrinsics)) {
+      i += 1;
+      try {
+        // eslint-disable-next-line no-new-func
+        new FERAL_FUNCTION(
+          'return (async function* AsyncGeneratorFunctionInstance() {})',
+        )();
+      } catch (e) {
+        // eslint-disable-next-line
+        print(
+          // @ts-expect-error
+          // eslint-disable-next-line @endo/no-polymorphic-call
+          `- ${i} ${name} : ${name !== '%Generator%' ? intrinsic : "❌ Uncaught TypeError: Can't call Function.prototype.toString() on non-callable"}`,
+        ); // 71 total intrinsics
+      }
       if (!isObject(intrinsic)) {
         // eslint-disable-next-line no-continue
         continue;
       }
-      if (!objectHasOwnProperty(intrinsic, 'prototype')) {
+      const intrinsicPrototype = intrinsic.prototype;
+      if (
+        !objectHasOwnProperty(intrinsic, 'prototype')
+        // || (typeof intrinsicPrototype === 'object' &&
+        // eslint-disable-next-line
+        // Object.keys(intrinsicPrototype).length === 0)
+        // However this condition does too much, it breaks the build when whitelistIntrinsics is called after
+        // SES_UNCAUGHT_EXCEPTION: (TypeError#1) Unexpected property prototype with permit %ArrayPrototype% at intrinsics.Array.prototype
+      ) {
         // eslint-disable-next-line no-continue
         continue;
       }
@@ -98,26 +128,46 @@ export const makeIntrinsicsCollector = () => {
       if (typeof permit !== 'object') {
         throw TypeError(`Expected permit object at whitelist.${name}`);
       }
-      const namePrototype = permit.prototype;
-      if (!namePrototype) {
+      const permitPrototype = permit.prototype;
+      if (!permitPrototype) {
+        printHermes(
+          '⚠️',
+          // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
+          JSON.stringify(Object.getOwnPropertyDescriptors(intrinsic)),
+        );
+        // Our final 3 permits (function instances): lockdown, harden, %InitialGetStackString%
+        // are implemented on Hermes as intrinsics with 3 non-standard properties:
+        // - caller {"enumerable":false,"configurable":false}" from [[Proto]]: %FunctionPrototype%
+        // - arguments {"enumerable":false,"configurable":false} from [[Proto]]: %FunctionPrototype%
+        // - prototype {"value":{},"writable":true,"enumerable":false,"configurable":false}
+        // so we tolerate the unexpected prototype property here,
+        // treating it like no prototype, so skipping it when completing prototypes.
+        if (
+          name === 'lockdown' ||
+          name === 'harden' ||
+          name === '%InitialGetStackString%'
+        )
+          // eslint-disable-next-line no-continue
+          continue;
         throw TypeError(`${name}.prototype property not whitelisted`);
       }
       if (
-        typeof namePrototype !== 'string' ||
-        !objectHasOwnProperty(permitted, namePrototype)
+        typeof permitPrototype !== 'string' ||
+        !objectHasOwnProperty(permitted, permitPrototype)
       ) {
         throw TypeError(`Unrecognized ${name}.prototype whitelist entry`);
       }
-      const intrinsicPrototype = intrinsic.prototype;
-      if (objectHasOwnProperty(intrinsics, namePrototype)) {
-        if (intrinsics[namePrototype] !== intrinsicPrototype) {
-          throw TypeError(`Conflicting bindings of ${namePrototype}`);
+      if (objectHasOwnProperty(intrinsics, permitPrototype)) {
+        if (intrinsics[permitPrototype] !== intrinsicPrototype) {
+          throw TypeError(`Conflicting bindings of ${permitPrototype}`);
         }
         // eslint-disable-next-line no-continue
         continue;
       }
-      intrinsics[namePrototype] = intrinsicPrototype;
+      intrinsics[permitPrototype] = intrinsicPrototype;
     }
+    // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
+    printHermes(Object.keys(intrinsics));
   };
   freeze(completePrototypes);
 

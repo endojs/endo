@@ -27,10 +27,10 @@ import {
   noEvalEvaluate,
   getOwnPropertyNames,
   getPrototypeOf,
+  printHermes,
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
-import whitelistIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameMathObject from './tame-math-object.js';
@@ -220,7 +220,16 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  assertDirectEvalAvailable();
+  try {
+    new FERAL_FUNCTION(
+      'return (async function* AsyncGeneratorFunctionInstance() {})',
+    )();
+    assertDirectEvalAvailable();
+  } catch (e) {
+    // @ts-expect-error
+    // eslint-disable-next-line
+    print('SES: ⚠️ skipping assertDirectEvalAvailable (TODO)');
+  }
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
@@ -291,7 +300,7 @@ export const repairIntrinsics = (options = {}) => {
 
   addIntrinsics(getAnonymousIntrinsics());
 
-  completePrototypes();
+  completePrototypes(); // Required to build the SES bundle.
 
   const intrinsics = finalIntrinsics();
 
@@ -363,7 +372,13 @@ export const repairIntrinsics = (options = {}) => {
   // Remove non-standard properties.
   // All remaining function encountered during whitelisting are
   // branded as honorary native functions.
-  whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
+  // whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
+  printHermes('SES: ⚠️ skipping whitelistIntrinsics (TODO)');
+  // Removing intrinsics.Promise.caller
+  // failed to delete intrinsics.Promise.caller (TypeError#1)
+  // TypeError#1: Property is not configurable
+  // at [object CallSite] x8
+  // Uncaught TypeError: undefined is not a function
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
@@ -406,6 +421,7 @@ export const repairIntrinsics = (options = {}) => {
    */
 
   const hardenIntrinsics = () => {
+    printHermes('SES: hardening');
     priorHardenIntrinsics === undefined ||
       // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(

@@ -7,6 +7,16 @@
  */
 const testLockdown = () => {
   lockdown();
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function(
+      'return (async function* AsyncGeneratorFunctionInstance() {})',
+    )();
+  } catch (e) {
+    // @ts-expect-error
+    // eslint-disable-next-line
+    print('SES: lockdown complete');
+  }
 };
 
 /**

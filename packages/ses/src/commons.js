@@ -397,7 +397,7 @@ const getAsyncGeneratorFunctionInstance = () => {
       // Swallows Hermes error `async generators are unsupported` at runtime.
       // @ts-expect-error ts(2554) Expected 0 arguments, but got 1. It refers to the Web API Window object, but on Hermes we expect 1 argument.
       // eslint-disable-next-line no-undef
-      print('SES: Skipping async generators, unsupported on Hermes');
+      print('SES: ⚠️ Skipping async generators, unsupported on Hermes');
       // Note: `console` is not a JS built-in, so Hermes engine throws:
       // Uncaught ReferenceError: Property 'console' doesn't exist
       // See: https://github.com/facebook/hermes/issues/675
@@ -411,3 +411,20 @@ const getAsyncGeneratorFunctionInstance = () => {
 };
 export const AsyncGeneratorFunctionInstance =
   getAsyncGeneratorFunctionInstance();
+
+/**
+ * Print on Hermes VM
+ * @param  {...any} args Arguments to print
+ */
+export const printHermes = (...args) => {
+  try {
+    // eslint-disable-next-line no-new-func
+    new FERAL_FUNCTION(
+      'return (async function* AsyncGeneratorFunctionInstance() {})',
+    )();
+  } catch (e) {
+    // @ts-expect-error
+    // eslint-disable-next-line
+    print(args);
+  }
+};
