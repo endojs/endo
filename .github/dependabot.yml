@@ -8,6 +8,7 @@ updates:
   # for every subpackage, and we expect that bumping this package will cause the
   # yarn.lock to bump the resolved versions for all the subpackages.
   - package-ecosystem: npm
+    # TODO try the `directories` option to get all the subpackages
     directory: /.
     schedule:
       interval: weekly
@@ -17,6 +18,9 @@ updates:
       all-minor-patch:
         patterns:
           - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
 
   - package-ecosystem: github-actions
     directory: /
