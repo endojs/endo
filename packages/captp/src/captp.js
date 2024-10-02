@@ -284,6 +284,12 @@ export const makeCapTP = (
         }
         // Set up promise listener to inform other side when this promise
         // is fulfilled/broken
+        const resolved = result =>
+          send({
+            type: 'CTP_RESOLVE',
+            promiseID,
+            res: serialize(harden(result)),
+          });
         const rejected = reason =>
           send({
             type: 'CTP_RESOLVE',
@@ -292,12 +298,7 @@ export const makeCapTP = (
           });
         E.when(
           val,
-          result =>
-            send({
-              type: 'CTP_RESOLVE',
-              promiseID,
-              res: serialize(harden(result)),
-            }),
+          resolved,
           rejected,
           // Propagate internal errors as rejections.
         ).catch(rejected);
