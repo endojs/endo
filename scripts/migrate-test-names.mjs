@@ -21,9 +21,9 @@ const usage = `
 Run this script in a package to convert its test names and Ava config.
 
 To run it over all packages,
-  yarn lerna exec --concurrency 1 --no-bail '../../scripts/migrate-test-names.mjs'
+  yarn workspaces foreach --all exec '../../scripts/migrate-test-names.mjs'
 Then for the couple deeper packages
-  yarn lerna exec --concurrency 1 --no-bail '../../../scripts/migrate-test-names.mjs'
+  yarn workspaces foreach --all exec '../../../scripts/migrate-test-names.mjs'
 
 `;
 
