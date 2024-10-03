@@ -473,12 +473,37 @@ export const makeCapTP = (
   };
 
   /**
+   * Called when we have a new slot that needs to be made into a value.
+   *
+   * @param {import('./types.js').CapTPSlot} slot
+   * @param {string | undefined} iface
+   * @returns {{val: any, settler: Settler }}
+   */
+  const makeValueForSlot = (slot, iface) => {
+    let val;
+    // Make a new handled promise for the slot.
+    const { promise, settler } = makeRemoteKit(slot);
+    if (slot[0] === 'o' || slot[0] === 't') {
+      if (iface === undefined) {
+        iface = `Alleged: Presence ${ourId} ${slot}`;
+      }
+      // A new remote presence
+      // Use Remotable rather than Far to make a remote from a presence
+      val = Remotable(iface, undefined, settler.resolveWithPresence());
+    } else if (slot[0] === 'p') {
+      val = promise;
+    } else {
+      Fail`Unknown slot type ${slot}`;
+    }
+    return { val, settler };
+  };
+
+  /**
    * Set up import
    *
    * @type {import('@endo/marshal').ConvertSlotToVal<import('./types.js').CapTPSlot>}
    */
   function convertSlotToVal(theirSlot, iface = undefined) {
-    let val;
     const slot = reverseSlot(theirSlot);
 
     if (slot[1] === '+') {
@@ -486,23 +511,11 @@ export const makeCapTP = (
       return slotToExported.get(slot);
     }
     if (!slotToImported.has(slot)) {
-      // Make a new handled promise for the slot.
-      const { promise, settler } = makeRemoteKit(slot);
-      if (slot[0] === 'o' || slot[0] === 't') {
-        if (iface === undefined) {
-          iface = `Alleged: Presence ${ourId} ${slot}`;
-        }
-        // A new remote presence
-        // Use Remotable rather than Far to make a remote from a presence
-        val = Remotable(iface, undefined, settler.resolveWithPresence());
-        if (importHook) {
-          importHook(val, slot);
-        }
-      } else {
-        val = promise;
-        if (importHook) {
-          importHook(val, slot);
-        }
+      const { val, settler } = makeValueForSlot(slot, iface);
+      if (importHook) {
+        importHook(val, slot);
+      }
+      if (slot[0] === 'p') {
         // A new promise
         settlers.set(slot, settler);
       }
