@@ -29,11 +29,15 @@ const stdio = ['ignore', 'ignore', 'ignore'];
 
 for (const [name, { args, code }] of Object.entries(table)) {
   test(name, async t => {
-    await new Promise(resolve => {
+    await new Promise((resolve, reject) => {
       const child = spawn('node', args, { cwd, stdio });
       child.on('close', actualCode => {
-        t.is(actualCode, code);
-        resolve(true);
+        try {
+          t.is(actualCode, code);
+          resolve(true);
+        } catch (error) {
+          reject(error);
+        }
       });
     });
   });
