@@ -257,6 +257,35 @@ export const makeCapTP = (
   const answers = new Map(); // chosen by our peer
 
   /**
+   * Called when we have encountered a new value that needs to be assigned a slot.
+   *
+   * @param {any} val
+   * @returns {import('./types.js').CapTPSlot}
+   */
+  const makeSlotForValue = val => {
+    /** @type {import('./types.js').CapTPSlot} */
+    let slot;
+    if (isPromise(val)) {
+      // This is a promise, so we're going to increment the lastPromiseId
+      // and use that to construct the slot name.  Promise slots are prefaced
+      // with 'p+'.
+      lastPromiseID += 1;
+      slot = `p+${lastPromiseID}`;
+    } else {
+      // Since this isn't a promise, we instead increment the lastExportId and
+      // use that to construct the slot name.  Non-promises are prefaced with
+      // 'o+' for normal objects, or `t+` for syncable.
+      lastExportID += 1;
+      if (exportedTrapHandlers.has(val)) {
+        slot = `t+${lastExportID}`;
+      } else {
+        slot = `o+${lastExportID}`;
+      }
+    }
+    return slot;
+  };
+
+  /**
    * Called at marshalling time.  Either retrieves an existing export, or if
    * not yet exported, records this exported object.  If a promise, sets up a
    * promise listener to inform the other side when the promise is
@@ -266,24 +295,14 @@ export const makeCapTP = (
    */
   function convertValToSlot(val) {
     if (!valToSlot.has(val)) {
-      /**
-       * new export
-       *
-       * @type {import('./types.js').CapTPSlot}
-       */
-      let slot;
+      const slot = makeSlotForValue(val);
+      if (exportHook) {
+        exportHook(val, slot);
+      }
       if (isPromise(val)) {
-        // This is a promise, so we're going to increment the lastPromiseId
-        // and use that to construct the slot name.  Promise slots are prefaced
-        // with 'p+'.
-        lastPromiseID += 1;
-        slot = `p+${lastPromiseID}`;
-        const promiseID = reverseSlot(slot);
-        if (exportHook) {
-          exportHook(val, slot);
-        }
         // Set up promise listener to inform other side when this promise
         // is fulfilled/broken
+        const promiseID = reverseSlot(slot);
         const resolved = result =>
           send({
             type: 'CTP_RESOLVE',
@@ -302,33 +321,20 @@ export const makeCapTP = (
           rejected,
           // Propagate internal errors as rejections.
         ).catch(rejected);
-      } else {
-        // Since this isn't a promise, we instead increment the lastExportId and
-        // use that to construct the slot name.  Non-promises are prefaced with
-        // 'o+' for normal objects, or `t+` for syncable.
-        const exportID = lastExportID + 1;
-        if (exportedTrapHandlers.has(val)) {
-          slot = `t+${exportID}`;
-        } else {
-          slot = `o+${exportID}`;
-        }
-        if (exportHook) {
-          exportHook(val, slot);
-        }
-        lastExportID = exportID;
       }
-
       // Now record the export in both valToSlot and slotToVal so we can look it
       // up from either the value or the slot name later.
       valToSlot.set(val, slot);
       slotToExported.set(slot, val);
     }
+
     // At this point, the value is guaranteed to be exported, so return the
     // associated slot number.
     const slot = valToSlot.get(val);
     assert.typeof(slot, 'string');
+    sendSlot.add(slot);
 
-    return sendSlot.add(slot);
+    return slot;
   }
 
   const IS_REMOTE_PUMPKIN = harden({});
