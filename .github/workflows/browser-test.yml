@@ -27,7 +27,7 @@ jobs:
       - name: Put unstable chrome where playwright would look for it
         run: mv /opt/google/chrome /opt/google/chrome-unstable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - name: Provide yarn # yarn is missing in the Selenium image
