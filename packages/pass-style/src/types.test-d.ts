@@ -1,10 +1,10 @@
 /* eslint-disable */
 import { expectAssignable, expectType, expectNotType } from 'tsd';
-import { Far } from './make-far';
-import { passStyleOf } from './passStyleOf';
-import { makeTagged } from './makeTagged';
-import { CopyTagged, Passable, PassStyle } from './types';
-import { PASS_STYLE } from './passStyle-helpers';
+import { Far } from './make-far.js';
+import { passStyleOf } from './passStyleOf.js';
+import { makeTagged } from './makeTagged.js';
+import { CopyTagged, Passable, PassStyle } from './types.js';
+import { PASS_STYLE } from './passStyle-helpers.js';
 
 const remotable = Far('foo', {});
 
