@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 import { globalThis } from './commons.js';
 import { makeCompartmentConstructor } from './compartment.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
