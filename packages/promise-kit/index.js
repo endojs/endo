@@ -1,7 +1,5 @@
 /* global globalThis */
 
-/// <reference types="ses"/>
-
 import { makeReleasingExecutorKit } from './src/promise-executor-kit.js';
 import { memoRace } from './src/memo-race.js';
 

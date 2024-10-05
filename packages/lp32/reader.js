@@ -1,6 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
-
 // We use a DataView to give users choice over endianness.
 // But DataView does not default to host-byte-order like other typed arrays.
 
