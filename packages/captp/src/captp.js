@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
 
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise

@@ -1,5 +1,4 @@
 /* global setTimeout */
-/// <reference types="ses"/>
 
 import { Far } from '@endo/marshal';
 import { X, Fail } from '@endo/errors';

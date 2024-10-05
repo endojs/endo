@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 import '@endo/init/pre-remoting.js';
 import '@endo/init/debug.js';
 

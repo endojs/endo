@@ -4,8 +4,6 @@ import type { Assert } from 'ses';
 
 import { equal as nassert } from 'node:assert/strict';
 
-/// <reference types="ses"/>
-
 // Lockdown
 
 lockdown();
