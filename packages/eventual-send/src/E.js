@@ -35,7 +35,7 @@ const baseFreezableProxyHandler = {
  * A Proxy handler for E(x).
  *
  * @param {any} recipient Any value passed to E(x)
- * @param {import('./types').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeEProxyHandler = (recipient, HandledPromise) =>
@@ -96,7 +96,7 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
  * It is a variant on the E(x) Proxy handler.
  *
  * @param {any} recipient Any value passed to E.sendOnly(x)
- * @param {import('./types').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
@@ -153,7 +153,7 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
  * It is a variant on the E(x) Proxy handler.
  *
  * @param {any} x Any value passed to E.get(x)
- * @param {import('./types').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeEGetProxyHandler = (x, HandledPromise) =>
@@ -164,7 +164,7 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
   });
 
 /**
- * @param {import('./types').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
  */
 const makeE = HandledPromise => {
   return harden(
@@ -255,7 +255,7 @@ export default makeE;
  *
  * @template Primary The type of the primary reference.
  * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {ERef<Local & import('./types').RemotableBrand<Local, Primary>>} FarRef
+ * @typedef {ERef<Local & import('./types.js').RemotableBrand<Local, Primary>>} FarRef
  */
 
 /**
@@ -263,7 +263,7 @@ export default makeE;
  * properties that are *not* functions.
  *
  * @template T The type to be filtered.
- * @typedef {Omit<T, FilteredKeys<T, import('./types').Callable>>} DataOnly
+ * @typedef {Omit<T, FilteredKeys<T, import('./types.js').Callable>>} DataOnly
  */
 
 /**
@@ -273,7 +273,7 @@ export default makeE;
  */
 
 /**
- * @template {import('./types').Callable} T
+ * @template {import('./types.js').Callable} T
  * @typedef {(
  *   ReturnType<T> extends PromiseLike<infer U>                       // if function returns a promise
  *     ? T                                                            // return the function
@@ -284,7 +284,7 @@ export default makeE;
 /**
  * @template T
  * @typedef {{
- *   readonly [P in keyof T]: T[P] extends import('./types').Callable
+ *   readonly [P in keyof T]: T[P] extends import('./types.js').Callable
  *     ? ECallable<T[P]>
  *     : never;
  * }} EMethods
@@ -300,14 +300,14 @@ export default makeE;
  */
 
 /**
- * @template {import('./types').Callable} T
+ * @template {import('./types.js').Callable} T
  * @typedef {(...args: Parameters<T>) => Promise<void>} ESendOnlyCallable
  */
 
 /**
  * @template T
  * @typedef {{
- *   readonly [P in keyof T]: T[P] extends import('./types').Callable
+ *   readonly [P in keyof T]: T[P] extends import('./types.js').Callable
  *     ? ESendOnlyCallable<T[P]>
  *     : never;
  * }} ESendOnlyMethods
@@ -316,7 +316,7 @@ export default makeE;
 /**
  * @template T
  * @typedef {(
- *   T extends import('./types').Callable
+ *   T extends import('./types.js').Callable
  *     ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
  *     : ESendOnlyMethods<Required<T>>
  * )} ESendOnlyCallableOrMethods
@@ -325,7 +325,7 @@ export default makeE;
 /**
  * @template T
  * @typedef {(
- *   T extends import('./types').Callable
+ *   T extends import('./types.js').Callable
  *     ? ECallable<T> & EMethods<Required<T>>
  *     : EMethods<Required<T>>
  * )} ECallableOrMethods
@@ -352,9 +352,9 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends import('./types').Callable
+ *   T extends import('./types.js').Callable
  *     ? (...args: Parameters<T>) => ReturnType<T>                     // a root callable, no methods
- *     : Pick<T, FilteredKeys<T, import('./types').Callable>>          // any callable methods
+ *     : Pick<T, FilteredKeys<T, import('./types.js').Callable>>          // any callable methods
  * )} PickCallable
  */
 
@@ -363,9 +363,9 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends import('./types').RemotableBrand<infer L, infer R>     // if a given T is some remote interface R
+ *   T extends import('./types.js').RemotableBrand<infer L, infer R>     // if a given T is some remote interface R
  *     ? PickCallable<R>                                              // then return the callable properties of R
- *     : Awaited<T> extends import('./types').RemotableBrand<infer L, infer R> // otherwise, if the final resolution of T is some remote interface R
+ *     : Awaited<T> extends import('./types.js').RemotableBrand<infer L, infer R> // otherwise, if the final resolution of T is some remote interface R
  *     ? PickCallable<R>                                              // then return the callable properties of R
  *     : T extends PromiseLike<infer U>                               // otherwise, if T is a promise
  *     ? Awaited<T>                                                   // then return resolved value T
@@ -376,9 +376,9 @@ export default makeE;
 /**
  * @template T
  * @typedef {(
- *   T extends import('./types').RemotableBrand<infer L, infer R>
+ *   T extends import('./types.js').RemotableBrand<infer L, infer R>
  *     ? L
- *     : Awaited<T> extends import('./types').RemotableBrand<infer L, infer R>
+ *     : Awaited<T> extends import('./types.js').RemotableBrand<infer L, infer R>
  *     ? L
  *     : T extends PromiseLike<infer U>
  *     ? Awaited<T>
@@ -390,7 +390,7 @@ export default makeE;
  * @template [R = unknown]
  * @typedef {{
  *   promise: Promise<R>;
- *   settler: import('./types').Settler<R>;
+ *   settler: import('./types.js').Settler<R>;
  * }} EPromiseKit
  */
 
@@ -400,11 +400,11 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends import('./types').Callable
+ *   T extends import('./types.js').Callable
  *     ? (...args: Parameters<T>) => ERef<Awaited<EOnly<ReturnType<T>>>>
- *     : T extends Record<PropertyKey, import('./types').Callable>
+ *     : T extends Record<PropertyKey, import('./types.js').Callable>
  *     ? {
- *         [K in keyof T]: T[K] extends import('./types').Callable
+ *         [K in keyof T]: T[K] extends import('./types.js').Callable
  *           ? (...args: Parameters<T[K]>) => ERef<Awaited<EOnly<ReturnType<T[K]>>>>
  *           : T[K];
  *       }

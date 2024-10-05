@@ -4,8 +4,8 @@
  * Create a simple postponedHandler that just postpones until donePostponing is
  * called.
  *
- * @param {import('./types').HandledPromiseConstructor} HandledPromise
- * @returns {[Required<import('./types').Handler<any>>, () => void]} postponedHandler and donePostponing callback.
+ * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
+ * @returns {[Required<import('./types.js').Handler<any>>, () => void]} postponedHandler and donePostponing callback.
  */
 export const makePostponedHandler = HandledPromise => {
   /** @type {() => void} */
@@ -29,7 +29,7 @@ export const makePostponedHandler = HandledPromise => {
     };
   };
 
-  /** @type {Required<import('./types').Handler<any>>} */
+  /** @type {Required<import('./types.js').Handler<any>>} */
   const postponedHandler = {
     get: makePostponedOperation('get'),
     getSendOnly: makePostponedOperation('getSendOnly'),

@@ -7,7 +7,7 @@ export const SUPPORTED_FORMATS = [
   'endoScript',
 ];
 
-/** @type {import('./types').BundleSource} */
+/** @type {import('./types.js').BundleSource} */
 // @ts-ignore cast
 const bundleSource = async (
   startFilename,
@@ -18,7 +18,7 @@ const bundleSource = async (
   if (typeof options === 'string') {
     options = { format: options };
   }
-  /** @type {{ format: import('./types').ModuleFormat }} */
+  /** @type {{ format: import('./types.js').ModuleFormat }} */
   // @ts-expect-error cast (xxx params)
   const { format: moduleFormat = DEFAULT_MODULE_FORMAT } = options;
 
