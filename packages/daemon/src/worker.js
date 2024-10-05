@@ -1,7 +1,5 @@
 /* global globalThis */
 // @ts-check
-/// <reference types="ses"/>
-
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';

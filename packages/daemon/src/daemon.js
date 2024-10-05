@@ -1,6 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
-
 /* global setTimeout, clearTimeout */
 
 import { makeExo } from '@endo/exo';

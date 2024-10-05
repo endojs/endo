@@ -14,7 +14,6 @@ import { makeLocationUnmapper } from './location-unmapper.js';
 // OR, upgrading to Babel 8 probably addresses this defect.
 // const { default: traverse } = /** @type {any} */ (babelTraverse);
 const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
-  // @ts-expect-error
   babelTraverse.default || babelTraverse
 );
 
