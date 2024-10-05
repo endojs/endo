@@ -11,8 +11,11 @@ import {
 import { loggedErrorHandler as defaultHandler } from './assert.js';
 import { makeCausalConsole } from './console.js';
 import { makeRejectionHandlers } from './unhandled-rejection.js';
-import './types.js';
-import './internal-types.js';
+
+/**
+ * @import {VirtualConsole} from './types.js'
+ * @import {GetStackString} from './internal-types.js';
+ */
 
 const failFast = message => {
   throw TypeError(message);

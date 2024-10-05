@@ -4,6 +4,10 @@ import { makeMessageBreakpointTester } from './message-breakpoints.js';
 const { details: X, quote: q, Fail, error: makeError } = assert;
 const { assign, create } = Object;
 
+/**
+ * @import { HandledPromiseConstructor } from './types.js';
+ */
+
 const onSend = makeMessageBreakpointTester('ENDO_SEND_BREAKPOINTS');
 
 /** @type {ProxyHandler<any>} */
@@ -35,7 +39,7 @@ const baseFreezableProxyHandler = {
  * A Proxy handler for E(x).
  *
  * @param {any} recipient Any value passed to E(x)
- * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
+ * @param {HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeEProxyHandler = (recipient, HandledPromise) =>
@@ -96,7 +100,7 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
  * It is a variant on the E(x) Proxy handler.
  *
  * @param {any} recipient Any value passed to E.sendOnly(x)
- * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
+ * @param {HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
@@ -153,7 +157,7 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
  * It is a variant on the E(x) Proxy handler.
  *
  * @param {any} x Any value passed to E.get(x)
- * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
+ * @param {HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler<unknown>} the Proxy handler
  */
 const makeEGetProxyHandler = (x, HandledPromise) =>
@@ -164,7 +168,7 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
   });
 
 /**
- * @param {import('./types.js').HandledPromiseConstructor} HandledPromise
+ * @param {HandledPromiseConstructor} HandledPromise
  */
 const makeE = HandledPromise => {
   return harden(
