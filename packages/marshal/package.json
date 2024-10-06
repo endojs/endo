@@ -52,7 +52,7 @@
     "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "@fast-check/ava": "^1.1.5",
+    "@fast-check/ava": "^2.0.1",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "typescript": "~5.6.2"
