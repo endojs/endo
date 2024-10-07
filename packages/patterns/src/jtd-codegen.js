@@ -25,38 +25,34 @@ const main = () => {
 main();
 #!/usr/bin/env node
 
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
 import fs from 'fs/promises';
 import { convertJTDToPattern } from './jtd-to-pattern.js';
 
 const main = async () => {
-  const argv = yargs(hideBin(process.argv))
-    .usage('Usage: $0 <input-file> [options]')
-    .positional('input-file', {
-      describe: 'Path to the input JTD file',
-      type: 'string',
-    })
-    .option('output', {
-      alias: 'o',
-      describe: 'Output file path',
-      type: 'string',
-    })
-    .demandCommand(1)
-    .help()
-    .argv;
+  const args = process.argv.slice(2);
+  let inputFile, outputFile;
+
+  if (args.length < 1) {
+    console.error('Usage: jtd-codegen <input-file> [-o <output-file>]');
+    process.exit(1);
+  }
+
+  inputFile = args[0];
+  const outputIndex = args.indexOf('-o');
+  if (outputIndex !== -1 && args[outputIndex + 1]) {
+    outputFile = args[outputIndex + 1];
+  }
 
   try {
-    const inputFile = argv._[0];
     const jtdContent = await fs.readFile(inputFile, 'utf-8');
     const jtdSchema = JSON.parse(jtdContent);
     const pattern = convertJTDToPattern(jtdSchema);
     
     const output = JSON.stringify(pattern, null, 2);
     
-    if (argv.output) {
-      await fs.writeFile(argv.output, output);
-      console.log(`Pattern written to ${argv.output}`);
+    if (outputFile) {
+      await fs.writeFile(outputFile, output);
+      console.log(`Pattern written to ${outputFile}`);
     } else {
       console.log(output);
     }
