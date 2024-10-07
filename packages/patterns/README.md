@@ -36,6 +36,25 @@ await stringP; // => "42"
 
 See [types.js](./src/types.js) for the definitions of these new types and (at typedefs `PatternMatchers` and `GuardMakers`) the methods of the exported `M` namespace object.
 
+## JTD to Pattern Conversion
+
+This package includes a CLI tool `jtd-codegen` that converts JSON Type Definition (JTD) schemas to Pattern values. To use it:
+
+```bash
+jtd-codegen <input-file> [-o <output-file>]
+```
+
+Where:
+- `<input-file>` is the path to your JTD schema JSON file
+- `-o <output-file>` (optional) specifies an output file to write the resulting Pattern. If not provided, the Pattern will be printed to stdout.
+
+Example:
+```bash
+jtd-codegen path/to/your/jtd-schema.json -o output-pattern.json
+```
+
+This tool allows you to easily convert JTD schemas to Pattern values, which can then be used within the `@endo/patterns` ecosystem.
+
 ## Invariants
 
 Any Passable value is a possibly-empty tree of `passStyleOf`-level containers (CopyArray, CopyRecord, CopyTagged) in which each node may be extended with an arbitrary number of non-container Passable leaves (an isolated non-container Passable is a sole leaf of an empty tree).
