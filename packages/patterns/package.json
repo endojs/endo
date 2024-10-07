@@ -21,6 +21,9 @@
     ".": "./index.js",
     "./package.json": "./package.json"
   },
+  "bin": {
+    "jtd-codegen": "./src/jtd-codegen.js"
+  },
   "scripts": {
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
