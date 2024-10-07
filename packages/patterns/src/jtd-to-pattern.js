@@ -1,9 +1,8 @@
-/** @import {Pattern} from './types.js' */
+import { M } from './types.js';
 
 /**
- *
  * @param {any} jtdSchema a JSON Type Definition schema per RFC 8927
- * @returns {Pattern}
+ * @returns {import('./types.js').Pattern}
  */
 export const convertJTDToPattern = jtdSchema => {
   if (typeof jtdSchema !== 'object' || jtdSchema === null) {
@@ -11,27 +10,27 @@ export const convertJTDToPattern = jtdSchema => {
   }
 
   if ('enum' in jtdSchema) {
-    return { enum: jtdSchema.enum };
+    return M.enums(jtdSchema.enum);
   }
 
   if ('type' in jtdSchema) {
     switch (jtdSchema.type) {
       case 'boolean':
-        return { type: 'boolean' };
+        return M.boolean();
       case 'string':
-        return { type: 'string' };
+        return M.string();
       case 'timestamp':
-        return { type: 'string', format: 'date-time' };
+        return M.string(); // TODO: Add specific timestamp validation
       case 'float32':
       case 'float64':
-        return { type: 'number' };
+        return M.number();
       case 'int8':
       case 'uint8':
       case 'int16':
       case 'uint16':
       case 'int32':
       case 'uint32':
-        return { type: 'integer' };
+        return M.integer();
       default:
         throw new Error(`Unsupported JTD type: ${jtdSchema.type}`);
     }
@@ -42,36 +41,25 @@ export const convertJTDToPattern = jtdSchema => {
     for (const [key, value] of Object.entries(jtdSchema.properties)) {
       properties[key] = convertJTDToPattern(value);
     }
-    return {
-      type: 'object',
-      properties,
-      required: Object.keys(jtdSchema.properties),
-    };
+    return M.record(properties);
   }
 
   if ('optionalProperties' in jtdSchema) {
     const properties = {};
     for (const [key, value] of Object.entries(jtdSchema.optionalProperties)) {
-      properties[key] = convertJTDToPattern(value);
+      properties[key] = M.optional(convertJTDToPattern(value));
     }
-    return {
-      type: 'object',
-      properties,
-    };
+    return M.record(properties);
   }
 
   if ('elements' in jtdSchema) {
-    return {
-      type: 'array',
-      items: convertJTDToPattern(jtdSchema.elements),
-    };
+    return M.array(convertJTDToPattern(jtdSchema.elements));
   }
 
   if ('values' in jtdSchema) {
-    return {
-      type: 'object',
-      additionalProperties: convertJTDToPattern(jtdSchema.values),
-    };
+    return M.record({
+      [M.string()]: convertJTDToPattern(jtdSchema.values),
+    });
   }
 
   throw new Error('Invalid JTD schema: no recognized schema form');
