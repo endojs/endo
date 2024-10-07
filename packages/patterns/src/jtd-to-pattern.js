@@ -1,4 +1,11 @@
-export const convertJTDToPattern = (jtdSchema) => {
+/** @import {Pattern} from './types.js' */
+
+/**
+ *
+ * @param {any} jtdSchema a JSON Type Definition schema per RFC 8927
+ * @returns {Pattern}
+ */
+export const convertJTDToPattern = jtdSchema => {
   if (typeof jtdSchema !== 'object' || jtdSchema === null) {
     throw new Error('Invalid JTD schema: must be an object');
   }
