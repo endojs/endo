@@ -2,22 +2,27 @@
 /* eslint-env node */
 
 import * as fs from 'fs/promises';
+import { parseArgs } from 'node:util';
 import { convertJTDToPattern } from './jtd-to-pattern.js';
 
 const main = async () => {
-  const args = process.argv.slice(2);
-  let outputFile;
+  const { values, positionals } = parseArgs({
+    options: {
+      output: {
+        type: 'string',
+        short: 'o',
+      },
+    },
+    allowPositionals: true,
+  });
 
-  if (args.length < 1) {
+  if (positionals.length < 1) {
     console.error('Usage: jtd-codegen <input-file> [-o <output-file>]');
     process.exit(1);
   }
 
-  const inputFile = args[0];
-  const outputIndex = args.indexOf('-o');
-  if (outputIndex !== -1 && args[outputIndex + 1]) {
-    outputFile = args[outputIndex + 1];
-  }
+  const inputFile = positionals[0];
+  const outputFile = values.output;
 
   try {
     const jtdContent = await fs.readFile(inputFile, 'utf-8');
