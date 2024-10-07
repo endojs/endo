@@ -1,4 +1,4 @@
-import { M } from './types.js';
+import { M } from '../index.js';
 
 /**
  * @param {any} jtdSchema a JSON Type Definition schema per RFC 8927
@@ -10,7 +10,7 @@ export const convertJTDToPattern = jtdSchema => {
   }
 
   if ('enum' in jtdSchema) {
-    return M.enums(jtdSchema.enum);
+    return M.or(jtdSchema.enum);
   }
 
   if ('type' in jtdSchema) {
@@ -30,36 +30,33 @@ export const convertJTDToPattern = jtdSchema => {
       case 'uint16':
       case 'int32':
       case 'uint32':
-        return M.integer();
+        return M.number();
       default:
         throw new Error(`Unsupported JTD type: ${jtdSchema.type}`);
     }
   }
 
-  if ('properties' in jtdSchema) {
+  if ('properties' in jtdSchema || 'optionalProperties' in jtdSchema) {
     const properties = {};
-    for (const [key, value] of Object.entries(jtdSchema.properties)) {
+    for (const [key, value] of Object.entries(jtdSchema.properties || {})) {
       properties[key] = convertJTDToPattern(value);
     }
-    return M.record(properties);
-  }
-
-  if ('optionalProperties' in jtdSchema) {
-    const properties = {};
-    for (const [key, value] of Object.entries(jtdSchema.optionalProperties)) {
-      properties[key] = M.optional(convertJTDToPattern(value));
+    if ('optionalProperties' in jtdSchema) {
+      const optionalProperties = {};
+      for (const [key, value] of Object.entries(jtdSchema.optionalProperties)) {
+        optionalProperties[key] = convertJTDToPattern(value);
+      }
+      return M.splitRecord(properties, optionalProperties);
     }
-    return M.record(properties);
+    return properties;
   }
 
   if ('elements' in jtdSchema) {
-    return M.array(convertJTDToPattern(jtdSchema.elements));
+    return M.arrayOf(convertJTDToPattern(jtdSchema.elements));
   }
 
   if ('values' in jtdSchema) {
-    return M.record({
-      [M.string()]: convertJTDToPattern(jtdSchema.values),
-    });
+    return M.recordOf(convertJTDToPattern(jtdSchema.values));
   }
 
   throw new Error('Invalid JTD schema: no recognized schema form');

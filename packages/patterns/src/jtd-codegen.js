@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /* eslint-env node */
+import '@endo/init';
 
 import * as fs from 'fs/promises';
 import { parseArgs } from 'node:util';
