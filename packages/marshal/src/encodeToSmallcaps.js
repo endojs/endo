@@ -387,10 +387,10 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
               encoding,
               decodeFromSmallcaps,
             );
-            // // @ts-ignore XXX SmallCapsEncoding
-            // if (passStyleOf(result) !== 'remotable') {
-            //   Fail`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`;
-            // }
+            // @ts-ignore XXX SmallCapsEncoding
+            if (passStyleOf(result) !== 'remotable') {
+              Fail`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`;
+            }
             return result;
           }
           case '&': {
