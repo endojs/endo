@@ -418,7 +418,6 @@ export const AsyncGeneratorFunctionInstance =
  */
 export const printHermes = (...args) => {
   try {
-    // eslint-disable-next-line no-new-func
     new FERAL_FUNCTION(
       'return (async function* AsyncGeneratorFunctionInstance() {})',
     )();

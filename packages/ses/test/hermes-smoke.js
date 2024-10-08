@@ -16,6 +16,13 @@ const testLockdown = () => {
     // @ts-expect-error
     // eslint-disable-next-line
     print('SES: lockdown complete');
+    // Now let's do some checking...
+    const fn = () => {};
+    const fnPrototype = fn.prototype; // constructor ref
+    // @ts-expect-error
+    // eslint-disable-next-line
+    print(Object.getOwnPropertyDescriptors(fnPrototype)); // [object Object]
+    // TODO: pass it a string
   }
 };
 

@@ -94,9 +94,14 @@ export const makeIntrinsicsCollector = () => {
     printHermes(Object.keys(intrinsics));
     let i = 0;
     for (const [name, intrinsic] of entries(intrinsics)) {
+      (name === 'lockdown' || name === 'Promise') &&
+        printHermes(
+          '⚠️',
+          // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
+          JSON.stringify(Object.getOwnPropertyDescriptors(intrinsic)),
+        );
       i += 1;
       try {
-        // eslint-disable-next-line no-new-func
         new FERAL_FUNCTION(
           'return (async function* AsyncGeneratorFunctionInstance() {})',
         )();

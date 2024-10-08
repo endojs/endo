@@ -19,8 +19,11 @@ case "$OS" in
 esac
 
 # Paths relative to 'packages/ses'
-HERMESC="../../node_modules/hermes-engine-cli/$OS_DIR/hermesc"
-HERMES="../../node_modules/hermes-engine-cli/$OS_DIR/hermes"
+HERMESC="../../../hermes-cli-darwin-v0.12.0/hermesc" # HBC v89
+HERMES="../../../hermes-cli-darwin-v0.12.0/hermes"  # HBC v89
+
+# HERMESC="../../../hermes-cli-darwin/hermesc" # v0.13.0, HBC v96
+# HERMES="../../../hermes-cli-darwin/hermes" # v0.13.0, HBC v96
 
 echo "Concatenating: dist/ses-hermes.cjs + test/hermes-smoke.js"
 cat dist/ses-hermes.cjs test/hermes-smoke.js > test/hermes-smoke-dist.js

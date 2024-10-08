@@ -31,6 +31,7 @@ import {
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
+import whitelistIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameMathObject from './tame-math-object.js';
@@ -372,13 +373,7 @@ export const repairIntrinsics = (options = {}) => {
   // Remove non-standard properties.
   // All remaining function encountered during whitelisting are
   // branded as honorary native functions.
-  // whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
-  printHermes('SES: ⚠️ skipping whitelistIntrinsics (TODO)');
-  // Removing intrinsics.Promise.caller
-  // failed to delete intrinsics.Promise.caller (TypeError#1)
-  // TypeError#1: Property is not configurable
-  // at [object CallSite] x8
-  // Uncaught TypeError: undefined is not a function
+  whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.

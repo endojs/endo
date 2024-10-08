@@ -1,7 +1,10 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush } from './commons.js';
+import {
+  arrayPush,
+  // FERAL_FUNCTION
+} from './commons.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
@@ -271,6 +274,15 @@ export const FunctionInstance = {
   // be used as a constructor have a prototype property. For constructors,
   // since prototype properties are instance-specific, we define it there.
 };
+
+// try {
+//   new FERAL_FUNCTION(
+//     'return (async function* AsyncGeneratorFunctionInstance() {})',
+//   )();
+// } catch (e) {
+//   // eslint-disable-next-line @endo/no-polymorphic-call
+//   Object.assign(FunctionInstance, { prototype: '%FunctionPrototype%' });
+// }
 
 // AsyncFunction Instances
 export const AsyncFunctionInstance = {

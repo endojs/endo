@@ -45,6 +45,7 @@
 
 import { permitted, FunctionInstance, isAccessorPermit } from './permits.js';
 import {
+  FERAL_FUNCTION,
   Map,
   String,
   Symbol,
@@ -59,6 +60,7 @@ import {
   mapGet,
   objectHasOwnProperty,
   ownKeys,
+  printHermes,
   symbolKeyFor,
 } from './commons.js';
 
@@ -74,6 +76,7 @@ export default function whitelistIntrinsics(
   intrinsics,
   markVirtualizedNativeFunction,
 ) {
+  printHermes('SES: whitelistIntrinsics');
   let groupStarted = false;
   const inConsoleGroup = (level, ...args) => {
     if (!groupStarted) {
@@ -268,6 +271,7 @@ export default function whitelistIntrinsics(
    * Visit all properties for a permit.
    */
   function visitProperties(path, obj, permit) {
+    // printHermes('visitProperties', path);
     if (obj === undefined || obj === null) {
       return;
     }
@@ -297,7 +301,45 @@ export default function whitelistIntrinsics(
           inConsoleGroup('warn', `Removing ${subPath}`);
         }
         try {
-          delete obj[prop];
+          try {
+            new FERAL_FUNCTION(
+              'return (async function* AsyncGeneratorFunctionInstance() {})',
+            )();
+            delete obj[prop];
+          } catch (e) {
+            // On Hermes we have non-standard properties `caller` and `arguments`
+            // both of which are non-configurable, causing:
+            // TypeError#1: Property is not configurable at[object CallSite]
+            // when attempting to remove them, so we skip them here,
+            // branding them as honorary native functions.
+            if (prop !== 'caller' && prop !== 'arguments') {
+              delete obj[prop];
+            } else {
+              // @ts-expect-error
+              // eslint-disable-next-line
+              print('Skipping non-configurable property on subPath:', subPath);
+            }
+          }
+          // The problematic `caller` and `arguments` subPath's:
+          // 'intrinsics.Promise.caller'
+          // 'intrinsics.Promise.arguments'
+          // 'intrinsics.Promise.resolve.caller'
+          // 'intrinsics.Promise.resolve.arguments'
+          // 'intrinsics.Promise.all.caller'
+          // 'intrinsics.Promise.all.arguments'
+          // 'intrinsics.Promise.reject.caller'
+          // 'intrinsics.Promise.reject.arguments'
+          // 'intrinsics.Promise.race.caller'
+          // 'intrinsics.Promise.race.arguments'
+          // 'intrinsics.lockdown.caller'
+          // 'intrinsics.lockdown.arguments'
+          // 'intrinsics.harden.caller'
+          // 'intrinsics.harden.arguments'
+          // 'intrinsics.%InertFunction%.caller'
+          // 'intrinsics.%InertFunction%.arguments'
+          // 'intrinsics.%InertGeneratorFunction%.caller'
+          // 'intrinsics.%InertGeneratorFunction%.arguments'
+          // etc
         } catch (err) {
           if (prop in obj) {
             if (typeof obj === 'function' && prop === 'prototype') {
@@ -327,8 +369,17 @@ export default function whitelistIntrinsics(
     visitProperties('intrinsics', intrinsics, permitted);
   } finally {
     if (groupStarted) {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      console.groupEnd();
+      try {
+        new FERAL_FUNCTION(
+          'return (async function* AsyncGeneratorFunctionInstance() {})',
+        )();
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        console.groupEnd();
+      } catch (e) {
+        // @ts-expect-error
+        // eslint-disable-next-line
+        print('Skipping: console.groupEnd()');
+      }
     }
   }
 }
