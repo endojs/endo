@@ -398,7 +398,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
-    typescript: "npm:~5.6.1-rc"
+    typescript: "npm:~5.6.2"
   languageName: unknown
   linkType: soft
 
@@ -10548,6 +10548,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:~5.6.2":
+  version: 5.6.2
+  resolution: "typescript@npm:5.6.2"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/3ed8297a8c7c56b7fec282532503d1ac795239d06e7c4966b42d4330c6cf433a170b53bcf93a130a7f14ccc5235de5560df4f1045eb7f3550b46ebed16d3c5e5
+  languageName: node
+  linkType: hard
+
 "typescript@patch:typescript@npm%3A>=3 < 6#optional!builtin<compat/typescript>":
   version: 5.5.4
   resolution: "typescript@patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"
@@ -10565,6 +10575,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/7849a6f82731f33d05dc9401252eeed78cec227aa9b23c316638c12c15ff7ec0903d62aa8718ea0ab5aad2e155a74edcd0c8053b8fdf8020bd1652720d89db7c
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A~5.6.2#optional!builtin<compat/typescript>":
+  version: 5.6.2
+  resolution: "typescript@patch:typescript@npm%3A5.6.2#optional!builtin<compat/typescript>::version=5.6.2&hash=74658d"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/e6c1662e4852e22fe4bbdca471dca3e3edc74f6f1df043135c44a18a7902037023ccb0abdfb754595ca9028df8920f2f8492c00fc3cbb4309079aae8b7de71cd
   languageName: node
   linkType: hard
 
