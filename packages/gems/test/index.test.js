@@ -184,6 +184,36 @@ test.serial('registerIncubation - defineClass', async t => {
   t.deepEqual(pingPong.ping(), 'pong');
 });
 
+test.serial('registerIncubation - js class constructor is durable', async t => {
+  const incubationCode = `
+    defineJsClass(class PingPong {
+      implements = M.interface('PingPong', {
+        ping: M.call().returns(M.string()),
+      })
+      init () { return harden({}) }
+      ping() { return 'pong' }
+    });
+  `;
+
+  let { kernel } = await restart();
+
+  const makeFn = kernel.vatSupervisor.registerIncubation(
+    'PingPong',
+    incubationCode,
+  );
+  kernel.store.init('makePingPong', makeFn);
+
+  let makePingPong = kernel.store.get('makePingPong');
+  const pingPong1 = makePingPong();
+  t.deepEqual(pingPong1.ping(), 'pong');
+
+  ({ kernel } = await restart());
+  
+  makePingPong = kernel.store.get('makePingPong');
+  const pingPong2 = makePingPong();
+  t.deepEqual(pingPong2.ping(), 'pong');
+});
+
 // Need a way of creating a class that uses another class -- maybe exoClassKit?
 // maybe putting makeNewInstance fn in the store?
 test.skip('persistence - widget factory', async t => {
