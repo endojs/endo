@@ -31,7 +31,6 @@ export const makeSimplePresenceController = getCaptp => {
     const { settler } = captp.makeRemoteKit(slot);
     const value = Remotable(iface, undefined, settler.resolveWithPresence());
     presenceForSlot.set(slot, value);
-    captp.importSlot(value, slot);
     return value;
   };
 
@@ -79,7 +78,6 @@ export const makeReconnectingPresenceController = ({ getConnection }) => {
     const { settler } = captp.makeRemoteKit(slot);
     const value = Remotable(iface, undefined, settler.resolveWithPresence());
     presenceForSlot.set(slot, value);
-    captp.importSlot(delegatePresence, slot);
     return value;
   };
 

@@ -15,7 +15,7 @@ export const installExternalReferenceController = (
   const { makePresenceForSlot, cleanupPresenceForSlot } = presenceController;
   const { fakeStuff } = fakeVomKit;
 
-  // TODO: "imports" should be a weakRefMap
+  // TODO: "imports" should be a WeakValueMap/FinalizingMap
   // We want to cache the presence for a slot,
   // but we don't need to hold on to it.
   const imports = zone.mapStore('imports');
@@ -79,29 +79,30 @@ export const installExternalReferenceController = (
     return exports.get(localSlot);
   };
 
-  return { registerImport, registerExport, unregisterExport, lookupExport };
+  const makeCaptpImportExportTables = () => {
+    return {
+      makeSlotForValue: registerExport,
+      makeValueForSlot: (slot, iface) => {
+        const val = registerImport(slot, iface);
+        return { val, settler: undefined };
+      },
+      hasImport: slot => imports.has(slot),
+      getImport: slot => imports.get(slot),
+      markAsImported: () => {/* already registered */},
+      hasExport: slot => exports.has(slot),
+      getExport: slot => lookupExport(slot),
+      markAsExported: () => {/* already registered */},
+      deleteExport: slot => unregisterExport(slot),
+      didDisconnect: () => {/* noop */},
+    }
+  };
+
+  return { registerImport, registerExport, unregisterExport, lookupExport, makeCaptpImportExportTables };
 };
 
 export const makeCaptpOptionsForExtRefController = controller => {
   const captpOptions = {
-    onBeforeImportHook: (slot, iface) => {
-      // Returns the presence for the remote slot.
-      return controller.registerImport(slot, iface);
-    },
-    onBeforeExportHook: value => {
-      // Returns the slot for the value.
-      return controller.registerExport(value);
-    },
-    missingExportHook: slot => {
-      // The controller's export table has a longer lifetime than the captp session.
-      // Throws if not found.
-      return controller.lookupExport(slot);
-    },
-    gcHook: slot => {
-      // Remote has reported that our export is no longer needed.
-      // Return GC hint -- true if potentially more GC needed.
-      return controller.unregisterExport(slot);
-    },
+    makeCaptpImportExportTables: controller.makeCaptpImportExportTables,
   };
   return captpOptions;
 };
