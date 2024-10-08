@@ -466,7 +466,7 @@ const assertEntry = (allegedEntry, url) => {
 /**
  * @param {unknown} allegedCompartmentMap
  * @param {string} [url]
- * @returns {asserts compartmentMap is import('./types.js').CompartmentMapDescriptor}
+ * @returns {asserts allegedCompartmentMap is import('./types.js').CompartmentMapDescriptor}
  */
 
 export const assertCompartmentMap = (
