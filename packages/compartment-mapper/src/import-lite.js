@@ -152,6 +152,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
       transforms,
       __shimTransforms__,
       Compartment: CompartmentOption = LoadCompartmentOption,
+      __native__,
       importHook: exitModuleImportHook,
     } = options;
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
@@ -201,6 +202,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         syncModuleTransforms,
         __shimTransforms__,
         Compartment: CompartmentOption,
+        __native__,
       }));
     } else {
       // sync module transforms are allowed, because they are "compatible"
@@ -215,6 +217,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         syncModuleTransforms,
         __shimTransforms__,
         Compartment: CompartmentOption,
+        __native__,
       }));
     }
 

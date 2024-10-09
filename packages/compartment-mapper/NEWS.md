@@ -51,6 +51,15 @@ Experimental:
   enabled by default. See the signature of `loadFromMap()` in `import-lite.js`
   for details.
 
+Experimental:
+
+- Adds a `__native__: true` option to all paths to import, that indicates that
+  the application will fall through to the native implementation of
+  Compartment, currently only available on XS, which lacks support for
+  precompiled module sources (as exist in many archived applications,
+  particularly Agoric smart contract bundles) and instead supports loading
+  modules from original sources (which is not possible at runtime on XS).
+
 # v1.2.0 (2024-07-30)
 
 - Fixes incompatible behavior with Node.js package conditional exports #2276.

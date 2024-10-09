@@ -29,6 +29,7 @@ export type ExecuteOptions = Partial<{
   __shimTransforms__: Array<Transform>;
   attenuations: Record<string, object>;
   Compartment: typeof Compartment;
+  __native__: boolean;
 }> &
   ModulesOption &
   ExitModuleImportHookOption;
@@ -38,6 +39,7 @@ export type ParseArchiveOptions = Partial<{
   computeSha512: HashFn;
   computeSourceLocation: ComputeSourceLocationHook;
   computeSourceMapLocation: ComputeSourceMapLocationHook;
+  __native__: boolean;
 }> &
   ModulesOption &
   CompartmentOption &

@@ -328,6 +328,20 @@ These will be appended to each module from the archive, for debugging purposes.
 The `@endo/bundle-source` and `@endo/import-bundle` tools integrate source maps
 for an end-to-end debugging experience.
 
+# XS (experimental)
+
+The Compartment Mapper can use native XS `Compartment` and `ModuleSource` under
+certain conditions:
+
+1. The application must be an XS script that was compiled with the `xs`
+  package condition.
+  This causes `ses`, `@endo/module-source`, and `@endo/import-bundle` to
+  provide slightly different implementations that can fall through to native
+  behavior.
+2. The application must opt-in with the `__native__: true` option on any
+  of the compartment mapper methods that import modules like `importLocation`
+  and `importArchive`.
+
 # Design
 
 Each of the workflows the compartment mapper executes a portion of one sequence

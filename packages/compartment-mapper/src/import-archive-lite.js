@@ -257,6 +257,7 @@ export const parseArchive = async (
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
+    __native__ = false,
   } = options;
 
   const parserForLanguage = freeze(
@@ -343,6 +344,7 @@ export const parseArchive = async (
         }),
       ),
       Compartment: CompartmentParseOption,
+      __native__,
     });
 
     await pendingJobsPromise;
@@ -362,6 +364,7 @@ export const parseArchive = async (
       transforms,
       __shimTransforms__,
       Compartment: CompartmentOption = CompartmentParseOption,
+      __native__,
       importHook: exitModuleImportHook,
     } = options || {};
 
@@ -388,6 +391,7 @@ export const parseArchive = async (
       transforms,
       __shimTransforms__,
       Compartment: CompartmentOption,
+      __native__,
     });
 
     await pendingJobsPromise;
