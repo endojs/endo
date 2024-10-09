@@ -44,6 +44,7 @@ export type LinkOptions = {
   moduleTransforms?: ModuleTransforms;
   syncModuleTransforms?: SyncModuleTransforms;
   archiveOnly?: boolean;
+  __native__?: boolean;
 } & ExecuteOptions;
 
 export type LinkResult = {

@@ -35,6 +35,13 @@ Experimental:
   `node`), `@endo/compartment-mapper/import-archive-parsers.js` also now
   includes `mjs` and `cjs` by entraining Babel, which performs adequately on
   that platform.
+- Adds a `__native__: true` option to all paths to import, that indicates that
+  the application will fall through to the native implementation of
+  Compartment, currently only available on XS, which lacks support for
+  precompiled module sources (as exist in many archived applications,
+  particularly Agoric smart contract bundles) and instead supports loading
+  modules from original sources (which is not possible at runtime on XS).
+
 
 # v1.4.0 (2024-11-13)
 

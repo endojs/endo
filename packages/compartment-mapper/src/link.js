@@ -258,6 +258,7 @@ export const link = (
     moduleTransforms,
     syncModuleTransforms,
     __shimTransforms__ = [],
+    __native__ = false,
     archiveOnly = false,
     Compartment = defaultCompartment,
   } = options;
@@ -362,6 +363,7 @@ export const link = (
       transforms,
       __shimTransforms__,
       __options__: true,
+      __native__,
     });
 
     if (!archiveOnly) {
