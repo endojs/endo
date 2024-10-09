@@ -106,13 +106,16 @@ export const makeIntrinsicsCollector = () => {
         // - arguments {"enumerable":false,"configurable":false} from [[Proto]]: %FunctionPrototype%
         // - prototype {"value":{},"writable":true,"enumerable":false,"configurable":false}
         // so we tolerate the unexpected prototype property instead of throwing an Error.
-        if (
-          name === 'lockdown' ||
-          name === 'harden' ||
-          name === '%InitialGetStackString%'
-        )
+        const IGNORED_PROTOTYPE_PERMITS = [
+          'lockdown',
+          'harden',
+          '%InitialGetStackString%',
+        ];
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        if (IGNORED_PROTOTYPE_PERMITS.includes(name)) {
           // eslint-disable-next-line no-continue
           continue;
+        }
         throw TypeError(`${name}.prototype property not whitelisted`);
       }
       if (
