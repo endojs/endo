@@ -7,23 +7,17 @@
  */
 const testLockdown = () => {
   lockdown();
-  try {
-    // eslint-disable-next-line no-new-func
-    new Function(
-      'return (async function* AsyncGeneratorFunctionInstance() {})',
-    )();
-  } catch (e) {
-    // @ts-expect-error
-    // eslint-disable-next-line
-    print('SES: lockdown complete');
-    // Now let's do some checking...
-    const fn = () => {};
-    const fnPrototype = fn.prototype; // constructor ref
-    // @ts-expect-error
-    // eslint-disable-next-line
-    print(Object.getOwnPropertyDescriptors(fnPrototype)); // [object Object]
-    // TODO: pass it a string
-  }
+  // @ts-expect-error
+  // eslint-disable-next-line
+  print('SES: lockdown complete ✅');
+  // eslint-disable-next-line
+  print('TODO: smoke test sanity checks?');
+  // TODO: sanity checks on non-standard props
+  // constructor ref, pass it a string
+  // function FunctionInstance() {}
+  // const FunctionInstancePrototype = FunctionInstance.prototype;
+  // const ArrowFunctionInstance = () => {};
+  // const ArrowFunctionInstancePrototype = ArrowFunctionInstance.prototype;
 };
 
 /**

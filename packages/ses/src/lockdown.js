@@ -28,6 +28,7 @@ import {
   getOwnPropertyNames,
   getPrototypeOf,
   printHermes,
+  AsyncGeneratorFunctionInstance,
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
@@ -221,15 +222,10 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  try {
-    new FERAL_FUNCTION(
-      'return (async function* AsyncGeneratorFunctionInstance() {})',
-    )();
+  if (AsyncGeneratorFunctionInstance === undefined) {
+    printHermes('SES: ⚠️ Skipping assertDirectEvalAvailable (TODO)');
+  } else {
     assertDirectEvalAvailable();
-  } catch (e) {
-    // @ts-expect-error
-    // eslint-disable-next-line
-    print('SES: ⚠️ skipping assertDirectEvalAvailable (TODO)');
   }
 
   /**
@@ -371,7 +367,7 @@ export const repairIntrinsics = (options = {}) => {
    */
 
   // Remove non-standard properties.
-  // All remaining function encountered during whitelisting are
+  // All remaining functions encountered during whitelisting are
   // branded as honorary native functions.
   whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
 

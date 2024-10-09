@@ -395,9 +395,11 @@ const getAsyncGeneratorFunctionInstance = () => {
     // https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/hermes/executor/HermesExecutorFactory.cpp#L224-L230
     if (e.name === 'SyntaxError') {
       // Swallows Hermes error `async generators are unsupported` at runtime.
-      // @ts-expect-error ts(2554) Expected 0 arguments, but got 1. It refers to the Web API Window object, but on Hermes we expect 1 argument.
       // eslint-disable-next-line no-undef
-      print('SES: ⚠️ Skipping async generators, unsupported on Hermes');
+      print(
+        // @ts-expect-error ts(2554) Expected 0 arguments, but got 1. It refers to the Web API Window object, but on Hermes we expect 1 argument.
+        'SES: ⚠️ Skipping async generators, unsupported on Hermes (tameFunctionConstructors, getAnonymousIntrinsics)',
+      );
       // Note: `console` is not a JS built-in, so Hermes engine throws:
       // Uncaught ReferenceError: Property 'console' doesn't exist
       // See: https://github.com/facebook/hermes/issues/675
@@ -417,13 +419,9 @@ export const AsyncGeneratorFunctionInstance =
  * @param  {...any} args Arguments to print
  */
 export const printHermes = (...args) => {
-  try {
-    new FERAL_FUNCTION(
-      'return (async function* AsyncGeneratorFunctionInstance() {})',
-    )();
-  } catch (e) {
-    // @ts-expect-error
-    // eslint-disable-next-line
+  if (AsyncGeneratorFunctionInstance === undefined) {
+    // @ts-expect-error ts(2554)
+    // eslint-disable-next-line no-undef
     print(args);
   }
 };

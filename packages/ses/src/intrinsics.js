@@ -1,5 +1,5 @@
 import {
-  FERAL_FUNCTION,
+  AsyncGeneratorFunctionInstance,
   TypeError,
   WeakSet,
   arrayFilter,
@@ -12,8 +12,10 @@ import {
   globalThis,
   is,
   isObject,
+  keys,
   objectHasOwnProperty,
   printHermes,
+  stringifyJson,
   values,
   weaksetHas,
 } from './commons.js';
@@ -88,31 +90,20 @@ export const makeIntrinsicsCollector = () => {
   // to the intrinsics.
   const completePrototypes = () => {
     printHermes('SES: completePrototypes');
-    // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
-    printHermes(JSON.stringify(intrinsics)); // 13 enumerable intrinsics
-    // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
-    printHermes(Object.keys(intrinsics));
+    printHermes(`+ 13 enumerable intrinsics: ${stringifyJson(intrinsics)}`); // 13 enumerable intrinsics
+    printHermes(`+ 71 Intrinsics: ${keys(intrinsics)}`); // 71 intrinsics
     let i = 0;
     for (const [name, intrinsic] of entries(intrinsics)) {
-      (name === 'lockdown' || name === 'Promise') &&
-        printHermes(
-          '⚠️',
-          // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
-          JSON.stringify(Object.getOwnPropertyDescriptors(intrinsic)),
-        );
       i += 1;
-      try {
-        new FERAL_FUNCTION(
-          'return (async function* AsyncGeneratorFunctionInstance() {})',
-        )();
-      } catch (e) {
-        // eslint-disable-next-line
-        print(
-          // @ts-expect-error
-          // eslint-disable-next-line @endo/no-polymorphic-call
+      if (AsyncGeneratorFunctionInstance === undefined) {
+        printHermes(
           `- ${i} ${name} : ${name !== '%Generator%' ? intrinsic : "❌ Uncaught TypeError: Can't call Function.prototype.toString() on non-callable"}`,
-        ); // 71 total intrinsics
+        );
       }
+      name === 'Promise' &&
+        printHermes(
+          `-- ${stringifyJson(getOwnPropertyDescriptors(intrinsic))}`,
+        );
       if (!isObject(intrinsic)) {
         // eslint-disable-next-line no-continue
         continue;
@@ -136,9 +127,7 @@ export const makeIntrinsicsCollector = () => {
       const permitPrototype = permit.prototype;
       if (!permitPrototype) {
         printHermes(
-          '⚠️',
-          // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
-          JSON.stringify(Object.getOwnPropertyDescriptors(intrinsic)),
+          `-- ${stringifyJson(getOwnPropertyDescriptors(intrinsic))}`,
         );
         // Our final 3 permits (function instances): lockdown, harden, %InitialGetStackString%
         // are implemented on Hermes as intrinsics with 3 non-standard properties:
@@ -151,9 +140,11 @@ export const makeIntrinsicsCollector = () => {
           name === 'lockdown' ||
           name === 'harden' ||
           name === '%InitialGetStackString%'
-        )
+        ) {
+          printHermes(`-- ⚠️ Tolerating incompletable ${name} on Hermes`);
           // eslint-disable-next-line no-continue
           continue;
+        }
         throw TypeError(`${name}.prototype property not whitelisted`);
       }
       if (
@@ -171,8 +162,8 @@ export const makeIntrinsicsCollector = () => {
       }
       intrinsics[permitPrototype] = intrinsicPrototype;
     }
-    // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
-    printHermes(Object.keys(intrinsics));
+    // printHermes(`- ${stringifyJson(intrinsics)}`); // [TypeError: this is not a Date object.]
+    printHermes(`+ 110 Intrinsics: ${keys(intrinsics)}`); // 110 intrinsics
   };
   freeze(completePrototypes);
 

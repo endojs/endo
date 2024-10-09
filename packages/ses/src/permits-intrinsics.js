@@ -45,7 +45,7 @@
 
 import { permitted, FunctionInstance, isAccessorPermit } from './permits.js';
 import {
-  FERAL_FUNCTION,
+  AsyncGeneratorFunctionInstance,
   Map,
   String,
   Symbol,
@@ -301,24 +301,19 @@ export default function whitelistIntrinsics(
           inConsoleGroup('warn', `Removing ${subPath}`);
         }
         try {
-          try {
-            new FERAL_FUNCTION(
-              'return (async function* AsyncGeneratorFunctionInstance() {})',
-            )();
-            delete obj[prop];
-          } catch (e) {
+          // TODO: better condition
+          if (AsyncGeneratorFunctionInstance === undefined) {
             // On Hermes we have non-standard properties `caller` and `arguments`
             // both of which are non-configurable, causing:
-            // TypeError#1: Property is not configurable at[object CallSite]
-            // when attempting to remove them, so we skip them here,
-            // branding them as honorary native functions.
+            // TypeError#1: Property is not configurable at [object CallSite]
+            // when attempting to remove them, so we skip them here.
             if (prop !== 'caller' && prop !== 'arguments') {
               delete obj[prop];
             } else {
-              // @ts-expect-error
-              // eslint-disable-next-line
-              print('Skipping non-configurable property on subPath:', subPath);
+              printHermes(`- ⚠️ Tolerating undeletable ${subPath} on Hermes`);
             }
+          } else {
+            delete obj[prop];
           }
           // The problematic `caller` and `arguments` subPath's:
           // 'intrinsics.Promise.caller'
@@ -369,16 +364,12 @@ export default function whitelistIntrinsics(
     visitProperties('intrinsics', intrinsics, permitted);
   } finally {
     if (groupStarted) {
-      try {
-        new FERAL_FUNCTION(
-          'return (async function* AsyncGeneratorFunctionInstance() {})',
-        )();
+      // TODO: better condition
+      if (AsyncGeneratorFunctionInstance === undefined) {
+        printHermes('Skipping: console.groupEnd()');
+      } else {
         // eslint-disable-next-line @endo/no-polymorphic-call
         console.groupEnd();
-      } catch (e) {
-        // @ts-expect-error
-        // eslint-disable-next-line
-        print('Skipping: console.groupEnd()');
       }
     }
   }
