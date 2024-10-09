@@ -243,36 +243,40 @@ const compartmentShim = `(
       let nativeOptions = { globals, modules };
 
       if (importHook) {
+        /** @param {string} specifier */
+        const nativeImportHook = async specifier => {
+          let descriptor =
+            this.#descriptors.get(specifier) ??
+            moduleMapHook(specifier) ??
+            (await importHook(specifier));
+          this.#descriptors.delete(specifier);
+          descriptor = this.#adaptDescriptor(descriptor, specifier);
+          return descriptor;
+        };
         nativeOptions = {
-          ...options,
+          ...nativeOptions,
           resolveHook,
-          /** @param {string} specifier */
-          loadHook: async specifier => {
-            let descriptor =
-              this.#descriptors.get(specifier) ??
-              moduleMapHook(specifier) ??
-              (await importHook(specifier));
-            this.#descriptors.delete(specifier);
-            descriptor = this.#adaptDescriptor(descriptor, specifier);
-            return descriptor;
-          },
+          importHook: nativeImportHook,
+          loadHook: nativeImportHook,
         };
       }
 
       if (importNowHook) {
+        /** @param {string} specifier */
+        const nativeImportNowHook = specifier => {
+          let descriptor =
+            this.#descriptors.get(specifier) ??
+            moduleMapHook(specifier) ??
+            importNowHook(specifier);
+          this.#descriptors.delete(specifier);
+          descriptor = this.#adaptDescriptor(descriptor, specifier);
+          return descriptor;
+        };
         nativeOptions = {
-          ...options,
+          ...nativeOptions,
           resolveHook,
-          /** @param {string} specifier */
-          loadNowHook: specifier => {
-            let descriptor =
-              this.#descriptors.get(specifier) ??
-              moduleMapHook(specifier) ??
-              importNowHook(specifier);
-            this.#descriptors.delete(specifier);
-            descriptor = this.#adaptDescriptor(descriptor, specifier);
-            return descriptor;
-          },
+          importNowHook: nativeImportNowHook,
+          loadNowHook: nativeImportNowHook,
         };
       }
 
