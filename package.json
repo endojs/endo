@@ -2,7 +2,8 @@
   "private": true,
   "useWorkspaces": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "go/engo"
   ],
   "engines": {
     "node": ">=16"

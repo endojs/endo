@@ -1,0 +1,17 @@
+{
+  "name": "engo",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "ses": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/base64": "workspace:^",
+    "@endo/bundle-source": "workspace:^"
+  },
+  "scripts": {
+    "build": "bundle-source -f endoScript -C xs src/xsnap.js | jq -r .source > xsnap.js"
+  }
+}
