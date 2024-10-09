@@ -107,6 +107,7 @@ const compartmentShim = `(
     #native;
     #virtual;
     #delegate;
+    #eval;
     #descriptors;
     #noNamespaceBox;
 
@@ -278,6 +279,9 @@ const compartmentShim = `(
       this.#native = new NativeCompartment(nativeOptions);
 
       this.#delegate = options.__native__ ? this.#native : this.#virtual;
+      this.#eval = options.__native__ ?
+        this.#native.globalThis.eval :
+        this.#virtual.evaluate.bind(this.#virtual);
 
       const ChildCompartment = this.#native.evaluate(compartmentShim)(
         compartmentShim,
@@ -322,7 +326,7 @@ const compartmentShim = `(
       for (const transform of this.#transforms) {
         source = transform(source);
       }
-      return this.#delegate.evaluate(source, options);
+      return this.#eval(source, options);
     }
 
     get globalThis() {
