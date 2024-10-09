@@ -317,7 +317,7 @@ const compartmentShim = `(
       if (this.#noNamespaceBox) {
         return this.#delegate.import(specifier);
       }
-      return { namespace: await this.#native.import(specifier) };
+      return { namespace: await this.#delegate.import(specifier) };
     }
 
     /** @param {string} specifier */
