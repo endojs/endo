@@ -4,6 +4,7 @@
  * @module
  */
 
+// @ts-ignore XXX no types defined
 import babelGenerator from '@agoric/babel-generator';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
