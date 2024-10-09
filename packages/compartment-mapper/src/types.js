@@ -480,6 +480,8 @@ export {};
  * @property {LanguageForExtension} [languageForExtension]
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {SyncModuleTransforms} [syncModuleTransforms]
+ * @property {boolean} [__native__] Use native Compartment and native
+ * ModuleSource (XS only at time of writing)
  * @property {boolean} [archiveOnly]
  */
 
