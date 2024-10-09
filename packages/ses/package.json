@@ -38,6 +38,7 @@
     ".": {
       "import": {
         "types": "./types.d.ts",
+        "xs": "./src-xs/index.js",
         "default": "./index.js"
       },
       "require": {
@@ -57,8 +58,14 @@
     },
     "./tools.js": "./tools.js",
     "./assert-shim.js": "./assert-shim.js",
-    "./lockdown-shim.js": "./lockdown-shim.js",
-    "./compartment-shim.js": "./compartment-shim.js",
+    "./lockdown-shim.js": {
+      "xs": "./src-xs/shim.js",
+      "default": "./lockdown-shim.js"
+    },
+    "./compartment-shim.js": {
+      "xs": "./src-xs/shim.js",
+      "default": "./compartment-shim.js"
+    },
     "./console-shim.js": "./console-shim.js",
     "./package.json": "./package.json"
   },
@@ -74,7 +81,7 @@
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
     "test": "tsd && ava",
-    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js",
+    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js",
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
