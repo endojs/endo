@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.11](https://github.com/endojs/endo/compare/@endo/stream-types-test@1.0.10...@endo/stream-types-test@1.0.11) (2024-10-10)
+
+**Note:** Version bump only for package @endo/stream-types-test
+
+
+
+
+
 ### [1.0.10](https://github.com/endojs/endo/compare/@endo/stream-types-test@1.0.9...@endo/stream-types-test@1.0.10) (2024-08-27)
 
 **Note:** Version bump only for package @endo/stream-types-test

@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.41](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.40...@endo/test262-runner@0.1.41) (2024-10-10)
+
+**Note:** Version bump only for package @endo/test262-runner
+
+
+
+
+
 ### [0.1.40](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.39...@endo/test262-runner@0.1.40) (2024-08-27)
 
 **Note:** Version bump only for package @endo/test262-runner
