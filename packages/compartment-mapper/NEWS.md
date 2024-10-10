@@ -1,6 +1,6 @@
 User-visible changes to `@endo/compartment-mapper`:
 
-# Next release
+# v1.3.0 (2024-10-10)
 
 - Adds support for dynamic requires in CommonJS modules. This requires specific
   configuration to be passed in (including new read powers), and is _not_

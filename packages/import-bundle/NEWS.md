@@ -1,6 +1,6 @@
 User-visible changes to `@endo/import-bundle`:
 
-# Next release
+# v1.3.0 (2024-10-10)
 
 - Adds support for `endoScript` format bundles.
 

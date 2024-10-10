@@ -1,6 +1,6 @@
 User-visible changes in `ses`:
 
-# Next release
+# v1.9.0 (2024-10-10)
 
 - On platforms without
   [`Array.prototype.transfer`](https://github.com/tc39/proposal-resizablearraybuffer)
