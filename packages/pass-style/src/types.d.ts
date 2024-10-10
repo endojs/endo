@@ -54,8 +54,8 @@ export type PassByCopy =
 
 export type PassByRef =
   | RemotableObject
-  | Promise<RemotableObject>
-  | Promise<PassByCopy>;
+  | PromiseLike<RemotableObject>
+  | PromiseLike<PassByCopy>;
 
 /**
  * A Passable is acyclic data that can be marshalled. It must be hardened to
@@ -80,20 +80,54 @@ export type PassByRef =
  * using 'slots').
  */
 export type Passable<
-  PC extends PassableCap = PassableCap,
+  R extends RemotableObject = RemotableObject,
   E extends Error = Error,
-> = void | Primitive | Container<PC, E> | PC | E;
+  AllowPromise extends boolean = any,
+  AllowTopLevelPromise extends boolean = AllowPromise,
+> =
+  | void
+  | Primitive
+  | Container<R, E, AllowPromise>
+  | R
+  | E
+  | (true extends AllowTopLevelPromise
+      ? PromiseLike<Passable<R, E, AllowPromise, false>>
+      : never);
 
-export type Container<PC extends PassableCap, E extends Error> =
-  | CopyArrayI<PC, E>
-  | CopyRecordI<PC, E>
-  | CopyTaggedI<PC, E>;
-interface CopyArrayI<PC extends PassableCap, E extends Error>
-  extends CopyArray<Passable<PC, E>> {}
-interface CopyRecordI<PC extends PassableCap, E extends Error>
-  extends CopyRecord<Passable<PC, E>> {}
-interface CopyTaggedI<PC extends PassableCap, E extends Error>
-  extends CopyTagged<string, Passable<PC, E>> {}
+export type Container<
+  R extends RemotableObject,
+  E extends Error,
+  AllowPromise extends boolean = any,
+> =
+  | CopyArrayI<Passable<R, E, AllowPromise>>
+  | CopyRecordI<Passable<R, E, AllowPromise>>
+  | CopyTaggedI<Passable<R, E, AllowPromise>>;
+interface CopyArrayI<T extends Passable = any> extends CopyArray<T> {}
+interface CopyRecordI<T extends Passable = any> extends CopyRecord<T> {}
+interface CopyTaggedI<T extends Passable = any> extends CopyTagged<string, T> {}
+
+export type PassableSubset<
+  T extends Passable<RemotableObject, Error, false> = Passable<
+    RemotableObject,
+    Error,
+    false
+  >,
+  AllowPromise extends boolean = false,
+  AllowTopLevelPromise extends boolean = AllowPromise,
+> =
+  | T
+  | SubsetContainer<T, AllowPromise>
+  | (true extends AllowTopLevelPromise
+      ? PromiseLike<PassableSubset<T, AllowPromise, false>>
+      : never);
+
+type SubsetContainer<
+  T extends Passable<RemotableObject, Error, false>,
+  AllowPromise extends boolean = false,
+> =
+  | CopyArrayI<PassableSubset<T, AllowPromise>>
+  | CopyRecordI<PassableSubset<T, AllowPromise>>
+  | CopyTaggedI<PassableSubset<T, AllowPromise>>;
 
 export type PassStyleOf = {
   (p: undefined): 'undefined';
@@ -103,7 +137,7 @@ export type PassStyleOf = {
   (p: bigint): 'bigint';
   (p: symbol): 'symbol';
   (p: null): 'null';
-  (p: Promise<any>): 'promise';
+  (p: PromiseLike<any>): 'promise';
   (p: Error): 'error';
   (p: CopyTagged): 'tagged';
   (p: any[]): 'copyArray';
@@ -111,7 +145,7 @@ export type PassStyleOf = {
   (p: Iterator<any, any, undefined>): 'remotable';
   <T extends PassStyled<TaggedOrRemotable, any>>(p: T): ExtractStyle<T>;
   (p: { [key: string]: any }): 'copyRecord';
-  (p: any): PassStyle;
+  (p: any): never;
 };
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
@@ -135,7 +169,7 @@ export type PassStyleOf = {
  * trip (as exists between vats) to produce data structures disconnected from
  * any potential proxies.
  */
-export type PureData = Passable<never, never>;
+export type PureData = Passable<never, never, false>;
 /**
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
@@ -150,7 +184,11 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
-export type PassableCap = Promise<any> | RemotableObject;
+export type PassableCap<
+  R extends RemotableObject = RemotableObject,
+  AllowPromise extends boolean = any,
+> = R | (true extends AllowPromise ? PromiseLike<R> : never);
+
 /**
  * A Passable sequence of Passable values.
  */

@@ -387,7 +387,7 @@ export const makeCapTP = (
           epoch,
           questionID,
           target,
-          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
+          // @ts-expect-error Type 'unknown[]' is not assignable to type 'Passable'.
           method: serialize(harden([null, args])),
         });
         return promise;
@@ -404,7 +404,7 @@ export const makeCapTP = (
           epoch,
           questionID,
           target,
-          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
+          // @ts-expect-error Type 'unknown[]' is not assignable to type 'Passable'.
           method: serialize(harden([prop, args])),
         });
         return promise;
