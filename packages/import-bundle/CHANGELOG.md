@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/endojs/endo/compare/@endo/import-bundle@1.2.2...@endo/import-bundle@1.3.0) (2024-10-10)
+
+
+### Features
+
+* **import-bundle:** Support endoScript ([4af8ebf](https://github.com/endojs/endo/commit/4af8ebfdb19b829b620949359f70a7dcf6a6aae7))
+
+
+
 ### [1.2.2](https://github.com/endojs/endo/compare/@endo/import-bundle@1.2.1...@endo/import-bundle@1.2.2) (2024-08-27)
 
 **Note:** Version bump only for package @endo/import-bundle

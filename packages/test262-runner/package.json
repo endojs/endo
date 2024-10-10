@@ -1,6 +1,6 @@
 {
   "name": "@endo/test262-runner",
-  "version": "0.1.40",
+  "version": "0.1.41",
   "private": true,
   "description": "Hardened JavaScript Test262 Runner",
   "keywords": [],

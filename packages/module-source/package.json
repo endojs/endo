@@ -1,6 +1,6 @@
 {
   "name": "@endo/module-source",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Ponyfill for the SES ModuleSource and module-to-program transformer",
   "keywords": [
     "ses",

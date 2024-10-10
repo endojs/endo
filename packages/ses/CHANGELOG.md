@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.0](https://github.com/endojs/endo/compare/ses@1.8.0...ses@1.9.0) (2024-10-10)
+
+
+### Features
+
+* **module-source:** Introduce a shim that composes with lockdown ([9a3ecca](https://github.com/endojs/endo/commit/9a3ecca305b4a3b4a2e09d03ea84671969a26586))
+* **ses:** Add ModuleSource shared intrinsic ([541d1ea](https://github.com/endojs/endo/commit/541d1eac7418d1044a3d3f1c9a94bb9c824892e4))
+* **ses:** Anticipate a ModuleSource shared intrinsic ([0d210a3](https://github.com/endojs/endo/commit/0d210a33c7730e59f722fa2c9e5441eb6065e1b3))
+* **ses:** Expose console shim ([70dd851](https://github.com/endojs/endo/commit/70dd851bec5003f5a8aa7ba2cbef4c2fbc4b8cfd))
+* **ses:** shim ArrayBuffer.prototype.transfer ([#2417](https://github.com/endojs/endo/issues/2417)) ([4e5e30e](https://github.com/endojs/endo/commit/4e5e30e3077d90cde4721a235d2a1d1d9a286b85)), closes [#2419](https://github.com/endojs/endo/issues/2419) [#2418](https://github.com/endojs/endo/issues/2418) [#2419](https://github.com/endojs/endo/issues/2419) [#2414](https://github.com/endojs/endo/issues/2414) [#2414](https://github.com/endojs/endo/issues/2414) [#2418](https://github.com/endojs/endo/issues/2418) [#2414](https://github.com/endojs/endo/issues/2414) [#2418](https://github.com/endojs/endo/issues/2418)
+* **ses:** Shim console groupCollapsed and groupEnd as absent on XS ([5e8fd33](https://github.com/endojs/endo/commit/5e8fd33e7c9bf23b12640022a5ca4b11c29d0136))
+* **ses:** Tame ModuleSource ([4702335](https://github.com/endojs/endo/commit/4702335eb102a77fe95538027896f6419372a5a0))
+
+
+### Bug Fixes
+
+* **ses:** Expose ses/console-shim ([8f653b0](https://github.com/endojs/endo/commit/8f653b06c7c9013e2aec42a37d0cefadac126b75))
+* **ses:** package test correctly rejects instead of uncaught exception ([#2566](https://github.com/endojs/endo/issues/2566)) ([d0d2554](https://github.com/endojs/endo/commit/d0d25541615d98c575d392aee111544198deb0ac))
+* **ses:** Use lexical assert, not global ([b58cd9b](https://github.com/endojs/endo/commit/b58cd9be95fc7bde9fbbda7ec0bd775e8880bf01))
+
+
+
 ## [1.8.0](https://github.com/endojs/endo/compare/ses@1.7.0...ses@1.8.0) (2024-08-27)
 
 
