@@ -3,7 +3,10 @@
 /* eslint-disable no-restricted-globals */
 
 import { makeLRUCacheMap } from '../make-lru-cachemap.js';
-import './internal-types.js';
+
+/**
+ * @import {LogArgs} from './internal-types.js';
+ */
 
 const { freeze } = Object;
 const { isSafeInteger } = Number;

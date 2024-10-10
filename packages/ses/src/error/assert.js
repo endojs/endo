@@ -48,6 +48,7 @@ import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
  * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, StringablePayload, DetailsToken, MakeAssert} from '../../types.js'
+ * @import {LogArgs, NoteCallback, LoggedErrorHandler} from "./internal-types.js";
  */
 
 // For our internal debugging purposes, uncomment

@@ -22,8 +22,11 @@ import {
   weaksetAdd,
   weaksetHas,
 } from '../commons.js';
-import './types.js';
-import './internal-types.js';
+
+/**
+ * @import {FilterConsole, LogSeverity, VirtualConsole} from './types.js'
+ * @import {ErrorInfo, ErrorInfoKind, LogRecord, NoteCallback, LoggedErrorHandler, MakeCausalConsole, MakeLoggingConsoleKit} from "./internal-types.js";
+ */
 
 // For our internal debugging purposes, uncomment
 // const internalDebugConsole = console;
