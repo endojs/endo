@@ -22,7 +22,11 @@ export type PrimitiveStyle =
   | 'string'
   | 'symbol';
 
-export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
+export type ContainerStyle =
+  | 'copyRecord'
+  | 'copyArray'
+  | 'byteArray'
+  | 'tagged';
 
 export type PassStyle =
   | PrimitiveStyle
@@ -49,6 +53,7 @@ export type PassByCopy =
   | Primitive
   | Error
   | CopyArray
+  | ByteArray
   | CopyRecord
   | CopyTagged;
 
@@ -67,6 +72,7 @@ export type PassByRef =
  *     | 'string' | 'symbol'). (Passable considers `void` to be `undefined`.)
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
+ *     * sequences of 8-bit bytes (PassStyle 'byteArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
  *     * higher-level types as CopyTaggeds (PassStyle 'tagged').
  *   * PassableCaps (PassStyle 'remotable' | 'promise') expose local values to
@@ -86,10 +92,12 @@ export type Passable<
 
 export type Container<PC extends PassableCap, E extends Error> =
   | CopyArrayI<PC, E>
+  | ByteArrayI
   | CopyRecordI<PC, E>
   | CopyTaggedI<PC, E>;
 interface CopyArrayI<PC extends PassableCap, E extends Error>
   extends CopyArray<Passable<PC, E>> {}
+interface ByteArrayI extends ByteArray {}
 interface CopyRecordI<PC extends PassableCap, E extends Error>
   extends CopyRecord<Passable<PC, E>> {}
 interface CopyTaggedI<PC extends PassableCap, E extends Error>
@@ -116,10 +124,9 @@ export type PassStyleOf = {
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
- * PureData is an arbitrary composition of primitive values into CopyArray
- * and/or
- * CopyRecord and/or CopyTagged containers (or a single primitive value with no
- * container), and is fully pass-by-copy.
+ * PureData is an arbitrary composition of primitive values into CopyArray,
+ * ByteArray, CopyRecord, and/or CopyTagged containers
+ * (or a single primitive value with no container), and is fully pass-by-copy.
  *
  * This restriction assures absence of side effects and interleaving risks *given*
  * that none of the containers can be a Proxy instance.
@@ -155,6 +162,11 @@ export type PassableCap = Promise<any> | RemotableObject;
  * A Passable sequence of Passable values.
  */
 export type CopyArray<T extends Passable = any> = Array<T>;
+
+/**
+ * A `ByteArray` is a normal hardened immutable `ArrayBuffer`
+ */
+export type ByteArray = ArrayBuffer;
 
 /**
  * A Passable dictionary in which each key is a string and each value is Passable.
