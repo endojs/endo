@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/endojs/endo/compare/@endo/module-source@1.0.2...@endo/module-source@1.1.0) (2024-10-10)
+
+
+### Features
+
+* **module-source:** Introduce a shim that composes with lockdown ([9a3ecca](https://github.com/endojs/endo/commit/9a3ecca305b4a3b4a2e09d03ea84671969a26586))
+
+
+### Bug Fixes
+
+* **module-source:** Sub non-conforming `ZWJ` prefixes with `CGJ` ([862dfd8](https://github.com/endojs/endo/commit/862dfd8a81dfec893300123745c0c3a579c54162))
+
+
+
 ### [1.0.2](https://github.com/endojs/endo/compare/@endo/module-source@1.0.1...@endo/module-source@1.0.2) (2024-08-27)
 
 **Note:** Version bump only for package @endo/module-source

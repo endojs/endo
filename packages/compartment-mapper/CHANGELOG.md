@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.2...@endo/compartment-mapper@1.3.0) (2024-10-10)
+
+
+### Features
+
+* **compartment-mapper:** support for dynamic requires ([572589c](https://github.com/endojs/endo/commit/572589cbce247b322925cd3c1274ba56d72d3741))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** bad type in assertCompartmentMap ([81d7464](https://github.com/endojs/endo/commit/81d74646756b187306ba0511386aea6365979e78))
+
+
+
 ### [1.2.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.2.1...@endo/compartment-mapper@1.2.2) (2024-08-27)
 
 

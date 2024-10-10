@@ -1,6 +1,10 @@
 User-visible changes in `@endo/captp`:
 
-# Unreleased
+# v4.4.0 (2024-10-10)
+
+- Add optional configuration `makeCapTPImportExportTables` for external management of import/export tables.
+
+# v4.3.0 (2024-08-23)
 
 - Relax typing of `send` to allow `async` functions, and abort the connection if the `send` function returns a rejected promise.
 

@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.3.3](https://github.com/endojs/endo/compare/@endo/cli@2.3.2...@endo/cli@2.3.3) (2024-10-10)
+
+
+### Bug Fixes
+
+* **cli:** Improve number parsing ([aa48722](https://github.com/endojs/endo/commit/aa48722505c19bc77793ecc0f4e4efe51c345db0))
+
+
+
 ### [2.3.2](https://github.com/endojs/endo/compare/@endo/cli@2.3.1...@endo/cli@2.3.2) (2024-08-27)
 
 **Note:** Version bump only for package @endo/cli
