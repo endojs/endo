@@ -378,3 +378,36 @@ export const FERAL_STACK_GETTER = feralStackGetter;
  * @type {((newValue: any) => void) | undefined}
  */
 export const FERAL_STACK_SETTER = feralStackSetter;
+
+const getAsyncGeneratorFunctionInstance = () => {
+  // Test for async generator function syntax support.
+  try {
+    // Wrapping one in an new Function lets the `hermesc` binary file
+    // parse the Metro js bundle without SyntaxError, to generate the
+    // optimised Hermes bytecode bundle, when `gradlew` is called to
+    // assemble the release build APK for React Native prod Android apps.
+    // Delaying the error until runtime lets us customise lockdown behaviour.
+    return new FERAL_FUNCTION(
+      'return (async function* AsyncGeneratorFunctionInstance() {})',
+    )();
+  } catch (e) {
+    // Note: `Error.prototype.jsEngine` is only set by React Native runtime, not Hermes:
+    // https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/hermes/executor/HermesExecutorFactory.cpp#L224-L230
+    if (e.name === 'SyntaxError') {
+      // Swallows Hermes error `async generators are unsupported` at runtime.
+      // @ts-expect-error ts(2554) Expected 0 arguments, but got 1. It refers to the Web API Window object, but on Hermes we expect 1 argument.
+      // eslint-disable-next-line no-undef
+      print('SES: Skipping async generators, unsupported on Hermes');
+      // Note: `console` is not a JS built-in, so Hermes engine throws:
+      // Uncaught ReferenceError: Property 'console' doesn't exist
+      // See: https://github.com/facebook/hermes/issues/675
+      // However React Native provides a `console` implementation when setting up error handling:
+      // https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/Core/InitializeCore.js
+      return undefined;
+    } else {
+      throw e;
+    }
+  }
+};
+export const AsyncGeneratorFunctionInstance =
+  getAsyncGeneratorFunctionInstance();
