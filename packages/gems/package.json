@@ -18,10 +18,6 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
-  "exports": {
-    ".": "./index.js",
-    "./package.json": "./package.json"
-  },
   "scripts": {
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
@@ -36,17 +32,22 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
+    "@agoric/store": "0.9.3-u17.1",
     "@agoric/swingset-liveslots": "0.10.3-u16.1",
     "@agoric/zone": "0.3.0-u16.1",
     "@endo/captp": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/far": "workspace:^",
-    "@endo/patterns": "workspace:^"
+    "@endo/init": "workspace:^",
+    "@endo/netstring": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^",
+    "@endo/stream-node": "workspace:^",
+    "ses": "workspace:^"
   },
   "devDependencies": {
-    "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "@endo/stream": "workspace:^",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "tsd": "^0.30.7",

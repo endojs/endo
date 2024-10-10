@@ -37,7 +37,7 @@ test('exportHook', async t => {
   await expect([], 1, 2, { foo: `I'm just data` });
 
   const pr = Promise.resolve('pr');
-  const [roundPr] = await expect([{ val: pr, slot: 'p+6' }], pr);
+  const [roundPr] = await expect([{ val: pr, slot: 'p+1' }], pr);
   t.is(roundPr, pr);
 
   const pr2 = new globalThis.HandledPromise(() => {});
@@ -51,7 +51,7 @@ test('exportHook', async t => {
     },
   ] = await expect(
     [
-      { val: pr2, slot: 'p+8' },
+      { val: pr2, slot: 'p+2' },
       { val: far, slot: 'o+2' },
     ],
     {

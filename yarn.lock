@@ -64,6 +64,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@agoric/store@npm:0.9.3-u17.1":
+  version: 0.9.3-u17.1
+  resolution: "@agoric/store@npm:0.9.3-u17.1"
+  dependencies:
+    "@endo/errors": "npm:^1.2.5"
+    "@endo/exo": "npm:^1.5.3"
+    "@endo/marshal": "npm:^1.5.3"
+    "@endo/pass-style": "npm:^1.4.3"
+    "@endo/patterns": "npm:^1.4.3"
+  checksum: 10c0/cfd94f968b8c3ab7259058ba8574f8126e5db6e41b02a409ec9e9a5ad7e59f9341be2a3bc63c10c38c7130c65987d0cfa8aae18e585ee899c7d565c4863116bf
+  languageName: node
+  linkType: hard
+
 "@agoric/store@npm:0.9.3-upgrade-16a-dev-fb592e4.0+fb592e4, @agoric/store@npm:^0.9.3-u16.0":
   version: 0.9.3-upgrade-16a-dev-fb592e4.0
   resolution: "@agoric/store@npm:0.9.3-upgrade-16a-dev-fb592e4.0"
@@ -385,7 +398,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
-    typescript: "npm:~5.6.1-rc"
+    typescript: "npm:~5.6.2"
   languageName: unknown
   linkType: soft
 
@@ -556,7 +569,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/errors@npm:^1.2.2, @endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
+"@endo/errors@npm:^1.2.2, @endo/errors@npm:^1.2.5, @endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
@@ -622,7 +635,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/exo@npm:^1.5.0, @endo/exo@workspace:^, @endo/exo@workspace:packages/exo":
+"@endo/exo@npm:^1.5.0, @endo/exo@npm:^1.5.3, @endo/exo@workspace:^, @endo/exo@workspace:packages/exo":
   version: 0.0.0-use.local
   resolution: "@endo/exo@workspace:packages/exo"
   dependencies:
@@ -666,17 +679,22 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/gems@workspace:packages/gems"
   dependencies:
+    "@agoric/store": "npm:0.9.3-u17.1"
     "@agoric/swingset-liveslots": "npm:0.10.3-u16.1"
     "@agoric/zone": "npm:0.3.0-u16.1"
     "@endo/captp": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/netstring": "workspace:^"
     "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
+    "@endo/stream-node": "workspace:^"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
+    ses: "workspace:^"
     tsd: "npm:^0.30.7"
     typescript: "npm:~5.6.1-rc"
   languageName: unknown
@@ -755,7 +773,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/marshal@npm:^1.5.0, @endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
+"@endo/marshal@npm:^1.5.0, @endo/marshal@npm:^1.5.3, @endo/marshal@workspace:^, @endo/marshal@workspace:packages/marshal":
   version: 0.0.0-use.local
   resolution: "@endo/marshal@workspace:packages/marshal"
   dependencies:
@@ -854,7 +872,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/pass-style@npm:^1.4.0, @endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
+"@endo/pass-style@npm:^1.4.0, @endo/pass-style@npm:^1.4.3, @endo/pass-style@workspace:^, @endo/pass-style@workspace:packages/pass-style":
   version: 0.0.0-use.local
   resolution: "@endo/pass-style@workspace:packages/pass-style"
   dependencies:
@@ -877,7 +895,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/patterns@npm:^1.4.0, @endo/patterns@workspace:^, @endo/patterns@workspace:packages/patterns":
+"@endo/patterns@npm:^1.4.0, @endo/patterns@npm:^1.4.3, @endo/patterns@workspace:^, @endo/patterns@workspace:packages/patterns":
   version: 0.0.0-use.local
   resolution: "@endo/patterns@workspace:packages/patterns"
   dependencies:
@@ -10530,6 +10548,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:~5.6.2":
+  version: 5.6.2
+  resolution: "typescript@npm:5.6.2"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/3ed8297a8c7c56b7fec282532503d1ac795239d06e7c4966b42d4330c6cf433a170b53bcf93a130a7f14ccc5235de5560df4f1045eb7f3550b46ebed16d3c5e5
+  languageName: node
+  linkType: hard
+
 "typescript@patch:typescript@npm%3A>=3 < 6#optional!builtin<compat/typescript>":
   version: 5.5.4
   resolution: "typescript@patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"
@@ -10547,6 +10575,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/7849a6f82731f33d05dc9401252eeed78cec227aa9b23c316638c12c15ff7ec0903d62aa8718ea0ab5aad2e155a74edcd0c8053b8fdf8020bd1652720d89db7c
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A~5.6.2#optional!builtin<compat/typescript>":
+  version: 5.6.2
+  resolution: "typescript@patch:typescript@npm%3A5.6.2#optional!builtin<compat/typescript>::version=5.6.2&hash=74658d"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/e6c1662e4852e22fe4bbdca471dca3e3edc74f6f1df043135c44a18a7902037023ccb0abdfb754595ca9028df8920f2f8492c00fc3cbb4309079aae8b7de71cd
   languageName: node
   linkType: hard
 
