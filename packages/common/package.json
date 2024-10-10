@@ -46,10 +46,12 @@
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {
+    "@endo/eventual-send": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
+    "ses": "workspace:^",
     "tsd": "^0.31.2",
     "typescript": "~5.6.2"
   },
