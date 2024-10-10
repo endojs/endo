@@ -88,16 +88,28 @@ export const installExternalReferenceController = (
       },
       hasImport: slot => imports.has(slot),
       getImport: slot => imports.get(slot),
-      markAsImported: () => {/* already registered */},
+      markAsImported: () => {
+        /* already registered */
+      },
       hasExport: slot => exports.has(slot),
       getExport: slot => lookupExport(slot),
-      markAsExported: () => {/* already registered */},
+      markAsExported: () => {
+        /* already registered */
+      },
       deleteExport: slot => unregisterExport(slot),
-      didDisconnect: () => {/* noop */},
-    }
+      didDisconnect: () => {
+        /* noop */
+      },
+    };
   };
 
-  return { registerImport, registerExport, unregisterExport, lookupExport, makeCaptpImportExportTables };
+  return {
+    registerImport,
+    registerExport,
+    unregisterExport,
+    lookupExport,
+    makeCaptpImportExportTables,
+  };
 };
 
 export const makeCaptpOptionsForExtRefController = controller => {

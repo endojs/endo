@@ -1,15 +1,20 @@
-import test from '@endo/ses-ava/prepare-endo.js';
+import { default as testFn } from '@endo/ses-ava/prepare-endo.js';
 import '@agoric/swingset-liveslots/tools/setup-vat-data.js';
 import { E } from '@endo/captp';
 import { makeKernelFactory } from './util.js';
 
+// All these tests must be serial.
+// There can only be one kernel per Realm due to the use of
+// vomkit. see reincarnate() in setup-vat-data.js
+const test = testFn.serial;
 const { restart, clear } = makeKernelFactory();
 
-test.afterEach(async t => {
+// always (even on failure) clear the kernel state after each test
+testFn.afterEach.always(async t => {
   await clear();
 });
 
-test.serial('persistence - simple json counter', async t => {
+test('persistence - simple json counter', async t => {
   const recipe = `${({ M, name }) => ({
     interfaceGuards: M.interface(name, {
       increment: M.call().returns(M.number()),
@@ -47,7 +52,7 @@ test.serial('persistence - simple json counter', async t => {
 });
 
 // TODO: need to untangle captp remote refs for persistence
-test.serial('persistence - exo refs in state', async t => {
+test('persistence - exo refs in state', async t => {
   const friendsListRecipe = `${({ M, name }) => ({
     interfaceGuards: M.interface(name, {
       addFriend: M.call(M.any()).returns(M.string()),
@@ -92,7 +97,7 @@ test.serial('persistence - exo refs in state', async t => {
   t.deepEqual(friendsList.getFriends(), [friend]);
 });
 
-test.serial('persistence - cross-vat refs in state', async t => {
+test('persistence - cross-vat refs in state', async t => {
   const friendsListRecipe = `${({ M, name }) => ({
     interfaceGuards: M.interface(name, {
       addFriend: M.call(M.any()).returns(M.string()),
@@ -149,7 +154,7 @@ test.serial('persistence - cross-vat refs in state', async t => {
   t.deepEqual(friendsList.getFriends(), [foreignFriend]);
 });
 
-test.serial('registerIncubation - defineClass', async t => {
+test('registerIncubation - defineClass', async t => {
   const incubationCode = `(${() => {
     const makePingPong = defineClass('PingPong', {
       interfaceGuards: M.interface('PingPong', {
@@ -184,7 +189,7 @@ test.serial('registerIncubation - defineClass', async t => {
   t.deepEqual(pingPong.ping(), 'pong');
 });
 
-test.serial('registerIncubation - js class constructor is durable', async t => {
+test('registerIncubation - js class constructor is durable', async t => {
   const incubationCode = `
     defineJsClass(class PingPong {
       implements = M.interface('PingPong', {
@@ -208,10 +213,49 @@ test.serial('registerIncubation - js class constructor is durable', async t => {
   t.deepEqual(pingPong1.ping(), 'pong');
 
   ({ kernel } = await restart());
-  
+
   makePingPong = kernel.store.get('makePingPong');
   const pingPong2 = makePingPong();
   t.deepEqual(pingPong2.ping(), 'pong');
+});
+
+test('registerIncubation - register with exo endowments', async t => {
+  const pingPongIncubationCode = `
+    defineJsClass(class PingPong {
+      implements = M.interface('PingPong', {
+        ping: M.call().returns(M.string()),
+      })
+      init () { return harden({}) }
+      ping() { return 'pong' }
+    });
+  `;
+  const forwarderIncubationCode = `
+    defineJsClass(class Forwarder {
+      forward(selector) { return E(target)[selector]() }
+    });
+  `;
+
+  let { kernel } = await restart();
+
+  const makePingPong = kernel.vatSupervisor.registerIncubation(
+    'PingPong',
+    pingPongIncubationCode,
+  );
+  const pingPong = makePingPong();
+
+  const makeForwarder = kernel.vatSupervisor.registerIncubation(
+    'Forwarder',
+    forwarderIncubationCode,
+    { target: pingPong },
+  );
+
+  let forwarder = makeForwarder();
+  kernel.store.init('forwarder', forwarder);
+
+  ({ kernel } = await restart());
+
+  forwarder = kernel.store.get('forwarder');
+  t.deepEqual(await E(forwarder).forward('ping'), 'pong');
 });
 
 // Need a way of creating a class that uses another class -- maybe exoClassKit?

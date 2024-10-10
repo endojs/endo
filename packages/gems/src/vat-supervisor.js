@@ -3,40 +3,59 @@ import { M } from '@endo/patterns';
 import { setupZone } from './zone.js';
 import { makeDefineDurableFactory } from './custom-kind.js';
 
+const incubationsKey = 'incubations';
+
 // stores initialization scripts
 // "registerIncubation" registers a script to be evaluated at every vat start
 // "incubate" evals code in an environment that allows registering classes
-const makeIncubationRegistry = (zone, getEndowments) => {
+const makeIncubationRegistry = (label, zone, getEnvEndowments) => {
+  // dataStore[incubateKey] stores the incubation order.
+  // mapStore iteration order does not follow insertion order.
+  const dataStore = zone.mapStore('data');
   const incubationRegistry = zone.mapStore('incubationRegistry');
-  const incubationStore = zone.mapStore('incubationStore');
+  if (!dataStore.has(incubationsKey)) {
+    dataStore.init(incubationsKey, harden([]));
+  }
 
-  const incubate = (source, firstTime = true) => {
-    const endowments = getEndowments();
-    const compartment = new Compartment({ ...endowments, firstTime });
+  const incubate = (source, endowments, firstTime = true) => {
+    const envEndowments = getEnvEndowments();
+    const compartment = new Compartment({
+      ...envEndowments,
+      ...endowments,
+      firstTime,
+    });
     return compartment.evaluate(source);
   };
 
-  const loadIncubation = (name, firstTime = false) => {
-    const { source } = incubationRegistry.get(name);
-    return incubate(source, firstTime);
-  };
-
-  const loadAllIncubations = async () => {
-    for (const name of incubationRegistry.keys()) {
-      await loadIncubation(name);
+  const loadIncubation = (incubationRecord, firstTime = false) => {
+    const { name, source, endowments } = incubationRecord;
+    try {
+      return incubate(source, endowments, firstTime);
+    } catch (err) {
+      console.error(`Error incubating ${name}:`, err);
+      throw err;
     }
   };
 
-  const registerIncubation = (name, source) => {
-    incubationStore.init(name, harden({}));
-
-    incubationRegistry.init(name, harden({ source }));
-    return loadIncubation(name, true);
+  const loadAllIncubations = async () => {
+    const incubationOrder = dataStore.get(incubationsKey);
+    for (const name of incubationOrder) {
+      const incubationRecord = incubationRegistry.get(name);
+      await loadIncubation(incubationRecord);
+    }
   };
 
-  const updateIncubationEndowments = (name, endowment) => {
-    const endowments = incubationStore.get(name);
-    incubationStore.set(name, harden({ ...endowments, ...endowment }));
+  const registerIncubation = (name, source, endowments) => {
+    if (incubationRegistry.has(name)) {
+      throw new Error(`Incubation ${name} already registered`);
+    }
+    const incubationRecord = harden({ name, source, endowments });
+    incubationRegistry.init(name, incubationRecord);
+    dataStore.set(
+      incubationsKey,
+      harden([...dataStore.get(incubationsKey), name]),
+    );
+    return loadIncubation(incubationRecord, true);
   };
 
   return { incubate, registerIncubation, loadAllIncubations };
@@ -135,7 +154,7 @@ export const makeVatSupervisor = (label, vatState) => {
   const { zone, flush, fakeVomKit } = setupZone(fakeStore);
   const store = zone.mapStore('store');
 
-  const endowments = {
+  const envEndowments = {
     // See https://github.com/Agoric/agoric-sdk/issues/9515
     assert: globalThis.assert,
     console,
@@ -151,9 +170,9 @@ export const makeVatSupervisor = (label, vatState) => {
     Date,
   };
 
-  const getEndowments = () => endowments;
+  const getEnvEndowments = () => envEndowments;
   const { incubate, registerIncubation, loadAllIncubations } =
-    makeIncubationRegistry(zone, getEndowments);
+    makeIncubationRegistry(label, zone, getEnvEndowments);
   const {
     defineClass,
     defineJsClass,
@@ -163,17 +182,17 @@ export const makeVatSupervisor = (label, vatState) => {
     defineDurableFactory,
   } = makeClassRegistry(zone, fakeVomKit);
 
-  endowments.incubate = incubate;
-  endowments.registerIncubation = registerIncubation;
-  endowments.defineJsClass = defineJsClass;
-  endowments.DurableBaseClass = DurableBaseClass;
-  endowments.defineClass = defineClass;
-  endowments.registerClass = registerClass;
-  endowments.defineDurableFactory = defineDurableFactory;
+  envEndowments.incubate = incubate;
+  envEndowments.registerIncubation = registerIncubation;
+  envEndowments.defineJsClass = defineJsClass;
+  envEndowments.DurableBaseClass = DurableBaseClass;
+  envEndowments.defineClass = defineClass;
+  envEndowments.registerClass = registerClass;
+  envEndowments.defineDurableFactory = defineDurableFactory;
 
   // temp
-  endowments.fetch = fetch;
-  harden(endowments);
+  envEndowments.fetch = fetch;
+  harden(envEndowments);
 
   const initialize = async () => {
     loadClasses();
