@@ -38,8 +38,8 @@ export const startVatSupervisorProcess = async (
         return vatSupervisor.incubate(source);
       },
 
-      registerIncubation(name, recipe) {
-        return vatSupervisor.registerIncubation(name, recipe);
+      registerIncubation(name, code) {
+        return vatSupervisor.registerIncubation(name, code);
       },
 
       serializeState() {

@@ -13,11 +13,13 @@ const never = new Promise(() => {});
 export const makeKernelFactory = () => {
   let kernel;
   let kernelVatState = [];
+  let lastKernelVatState = kernelVatState;
 
   const stop = async () => {
     await null;
     if (kernel) {
       await kernel.shutdown();
+      lastKernelVatState = kernelVatState;
       kernelVatState = kernel.vatSupervisor.serializeState();
       kernel = null;
     }
@@ -34,10 +36,50 @@ export const makeKernelFactory = () => {
     kernelVatState = [];
   };
 
+  const debug = () => {
+    if (!kernel) {
+      throw Error('kernel not running');
+    }
+    const currentKernelVatState = kernel.vatSupervisor.serializeState();
+    const changes = [];
+    const has = (collection, key) =>
+      collection.find(row => row[0] === key) !== undefined;
+    const get = (collection, key) => collection.find(row => row[0] === key)[1];
+    for (const [key, value] of currentKernelVatState) {
+      if (!has(lastKernelVatState, key)) {
+        changes.push({ type: 'added', key, value });
+      } else if (get(lastKernelVatState, key) !== value) {
+        changes.push({ type: 'changed', key, value });
+      }
+    }
+    for (const [key, value] of lastKernelVatState) {
+      if (!has(currentKernelVatState, key)) {
+        changes.push({ type: 'removed', key, value });
+      }
+    }
+    console.log('kernelVatState changes since last stop/restart:');
+    if (changes.length === 0) {
+      console.log('  (no changes)');
+    }
+    for (const change of changes) {
+      console.log(`  ${change.type}: ${change.key}`);
+      console.log(
+        '    ',
+        change.value
+          .split('\n')
+          .map(line => `    ${line}`)
+          .join('\n'),
+      );
+    }
+
+    return changes;
+  };
+
   return {
     stop,
     restart,
     clear,
+    debug,
   };
 };
 
