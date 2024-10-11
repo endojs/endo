@@ -1,10 +1,6 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, no-underscore-dangle */
 import { expectType } from 'tsd';
-import type { Assert } from 'ses';
-
-import { equal as nassert } from 'node:assert/strict';
-
-/// <reference types="ses"/>
+import type { Assert } from '.';
 
 // Lockdown
 

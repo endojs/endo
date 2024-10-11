@@ -6,7 +6,7 @@ import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
 
 /**
- * @import {Passable, Primitive, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
+ * @import {Passable, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '../index.js';
  */
 
 const { ownKeys } = Reflect;
