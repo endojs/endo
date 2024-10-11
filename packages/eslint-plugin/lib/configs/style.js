@@ -1,5 +1,9 @@
 module.exports = {
-  extends: ['airbnb-base', 'plugin:jsdoc/recommended', 'prettier'],
+  extends: [
+    'airbnb-base',
+    'plugin:jsdoc/recommended-typescript-flavor',
+    'prettier',
+  ],
   rules: {
     quotes: [
       'error',
@@ -38,7 +42,6 @@ module.exports = {
     'no-inner-declarations': 'off',
 
     'jsdoc/no-multi-asterisks': ['warn', { allowWhitespace: true }],
-    'jsdoc/no-undefined-types': 'off',
     'jsdoc/require-jsdoc': 'off',
     'jsdoc/require-property-description': 'off',
     'jsdoc/require-param-description': 'off',
@@ -47,6 +50,10 @@ module.exports = {
     'jsdoc/require-yields': 'off',
     'jsdoc/tag-lines': 'off',
     'jsdoc/valid-types': 'off',
+    'jsdoc/check-types': [
+      'warn',
+      { exemptTagContexts: [{ tag: 'typedef', types: ['Object'] }] },
+    ],
 
     'no-unused-vars': [
       'error',
