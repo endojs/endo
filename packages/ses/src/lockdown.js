@@ -188,8 +188,6 @@ export const repairIntrinsics = (options = {}) => {
       'safe',
     ),
     __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
-    dateTaming = 'safe', // deprecated
-    mathTaming = 'safe', // deprecated
     ...extraOptions
   } = options;
 
@@ -281,9 +279,9 @@ export const repairIntrinsics = (options = {}) => {
 
   addIntrinsics(tameFunctionConstructors());
 
-  addIntrinsics(tameDateConstructor(dateTaming));
+  addIntrinsics(tameDateConstructor());
   addIntrinsics(tameErrorConstructor(errorTaming, stackFiltering));
-  addIntrinsics(tameMathObject(mathTaming));
+  addIntrinsics(tameMathObject());
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
   addIntrinsics(shimArrayBufferTransfer());
