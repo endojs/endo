@@ -31,6 +31,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     transforms = [],
     inescapableTransforms = [],
     inescapableGlobalProperties = {},
+    __native__ = false,
     expectedSha512 = undefined,
     importHook = undefined,
   } = options;
@@ -82,6 +83,8 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     const { namespace } = await archive['import']({
       globals: endowments,
       __shimTransforms__: transforms,
+      __native__,
+      // @ts-expect-error TS2740 missing properties from type
       Compartment: CompartmentToUse,
       importHook,
     });
