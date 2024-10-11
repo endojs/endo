@@ -11,16 +11,12 @@ import parserJson from './parse-json.js';
 import parserText from './parse-text.js';
 import parserBytes from './parse-bytes.js';
 import parserPreMjs from './parse-pre-mjs.js';
-import parserMjs from './parse-mjs.js';
-import parserCjs from './parse-cjs.js';
 
 /** @satisfies {Readonly<ParserForLanguage>} */
 export const defaultParserForLanguage = Object.freeze(
   /** @type {const} */ ({
     'pre-cjs-json': parserPreCjs,
     'pre-mjs-json': parserPreMjs,
-    cjs: parserCjs,
-    mjs: parserMjs,
     json: parserJson,
     text: parserText,
     bytes: parserBytes,
