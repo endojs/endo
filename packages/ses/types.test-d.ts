@@ -12,8 +12,6 @@ lockdown();
 lockdown({});
 lockdown({ errorTaming: 'unsafe' });
 lockdown({
-  mathTaming: 'unsafe',
-  dateTaming: 'unsafe',
   errorTaming: 'unsafe',
   localeTaming: 'unsafe',
   consoleTaming: 'unsafe',

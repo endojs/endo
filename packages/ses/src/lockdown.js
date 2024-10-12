@@ -188,10 +188,23 @@ export const repairIntrinsics = (options = {}) => {
       'safe',
     ),
     __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
-    dateTaming = 'safe', // deprecated
-    mathTaming = 'safe', // deprecated
+    dateTaming, // deprecated
+    mathTaming, // deprecated
     ...extraOptions
   } = options;
+
+  if (dateTaming !== undefined) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `The 'dateTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
+    );
+  }
+  if (mathTaming !== undefined) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `The 'mathTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
+    );
+  }
 
   legacyRegeneratorRuntimeTaming === 'safe' ||
     legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
@@ -281,9 +294,9 @@ export const repairIntrinsics = (options = {}) => {
 
   addIntrinsics(tameFunctionConstructors());
 
-  addIntrinsics(tameDateConstructor(dateTaming));
+  addIntrinsics(tameDateConstructor());
   addIntrinsics(tameErrorConstructor(errorTaming, stackFiltering));
-  addIntrinsics(tameMathObject(mathTaming));
+  addIntrinsics(tameMathObject());
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
   addIntrinsics(shimArrayBufferTransfer());

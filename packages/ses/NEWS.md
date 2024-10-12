@@ -1,5 +1,9 @@
 User-visible changes in `ses`:
 
+# Next version
+
+- Specifying the long discontinued `mathTaming` or `dateTaming` options logs a warning.
+
 # v1.9.0 (2024-10-10)
 
 - On platforms without
