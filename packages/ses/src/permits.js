@@ -270,6 +270,7 @@ export const FunctionInstance = {
   '[[Proto]]': '%FunctionPrototype%',
   length: 'number',
   name: 'string',
+  // prototype: 'undefined', // Fixed in Static Hermes
   // Do not specify "prototype" here, since only Function instances that can
   // be used as a constructor have a prototype property. For constructors,
   // since prototype properties are instance-specific, we define it there.
@@ -293,6 +294,7 @@ export const AsyncFunctionInstance = {
 
 // Aliases
 const fn = FunctionInstance;
+const HermesFn = { ...FunctionInstance, prototype: 'undefined' };
 const asyncFn = AsyncFunctionInstance;
 
 const getter = {
@@ -1653,8 +1655,8 @@ export const permitted = {
     '@@toStringTag': 'string',
   },
 
-  lockdown: fn,
-  harden: { ...fn, isFake: 'boolean' },
+  lockdown: HermesFn,
+  harden: { ...HermesFn, isFake: 'boolean' },
 
-  '%InitialGetStackString%': fn,
+  '%InitialGetStackString%': HermesFn,
 };

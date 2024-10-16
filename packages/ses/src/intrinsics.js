@@ -108,7 +108,6 @@ export const makeIntrinsicsCollector = () => {
         // eslint-disable-next-line no-continue
         continue;
       }
-      const intrinsicPrototype = intrinsic.prototype;
       if (
         !objectHasOwnProperty(intrinsic, 'prototype')
         // || (typeof intrinsicPrototype === 'object' &&
@@ -125,26 +124,28 @@ export const makeIntrinsicsCollector = () => {
         throw TypeError(`Expected permit object at whitelist.${name}`);
       }
       const permitPrototype = permit.prototype;
+
+      if (
+        typeof intrinsic === 'function' &&
+        intrinsic.prototype !== undefined &&
+        permitPrototype === 'undefined' // permits.js
+      ) {
+        try {
+          intrinsic.prototype = undefined;
+          printHermes(
+            `Setting prototype to undefined on ${intrinsic} on name ${name}`,
+          );
+        } catch {
+          printHermes(`❌ Not setting prototype to undefined on ${name}`);
+        }
+      }
+
+      const intrinsicPrototype = intrinsic.prototype;
+
       if (!permitPrototype) {
         printHermes(
           `-- ${stringifyJson(getOwnPropertyDescriptors(intrinsic))}`,
         );
-        // Our final 3 permits (function instances): lockdown, harden, %InitialGetStackString%
-        // are implemented on Hermes as intrinsics with 3 non-standard properties:
-        // - caller {"enumerable":false,"configurable":false}" from [[Proto]]: %FunctionPrototype%
-        // - arguments {"enumerable":false,"configurable":false} from [[Proto]]: %FunctionPrototype%
-        // - prototype {"value":{},"writable":true,"enumerable":false,"configurable":false}
-        // so we tolerate the unexpected prototype property here,
-        // treating it like no prototype, so skipping it when completing prototypes.
-        if (
-          name === 'lockdown' ||
-          name === 'harden' ||
-          name === '%InitialGetStackString%'
-        ) {
-          printHermes(`-- ⚠️ Tolerating incompletable ${name} on Hermes`);
-          // eslint-disable-next-line no-continue
-          continue;
-        }
         throw TypeError(`${name}.prototype property not whitelisted`);
       }
       if (

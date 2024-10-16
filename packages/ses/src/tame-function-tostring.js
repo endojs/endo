@@ -4,6 +4,7 @@ import {
   freeze,
   functionPrototype,
   functionToString,
+  printHermes,
   stringEndsWith,
   weaksetAdd,
   weaksetHas,
@@ -15,15 +16,17 @@ const nativeSuffix = ') { [native code] }';
 // patching of `Function.prototype.toString` is also globally stateful. We
 // use this top level state so that multiple calls to `tameFunctionToString` are
 // idempotent, rather than creating redundant indirections.
-let markVirtualizedNativeFunction;
+let repairVirtualizedNativeFunction;
 
 /**
  * Replace `Function.prototype.toString` with one that recognizes
  * shimmed functions as honorary native functions.
  */
 export const tameFunctionToString = () => {
-  if (markVirtualizedNativeFunction === undefined) {
+  printHermes('SES: tameFunctionToString'); // lockdown,compartment shim
+  if (repairVirtualizedNativeFunction === undefined) {
     const virtualizedNativeFunctions = new WeakSet();
+    const repairedNativeFunctions = new WeakSet();
 
     const tamingMethods = {
       toString() {
@@ -42,9 +45,31 @@ export const tameFunctionToString = () => {
       value: tamingMethods.toString,
     });
 
-    markVirtualizedNativeFunction = freeze(func =>
-      weaksetAdd(virtualizedNativeFunctions, func),
-    );
+    printHermes(`functionPrototype: ${functionPrototype}`);
+
+    repairVirtualizedNativeFunction = freeze(func => {
+      try {
+        printHermes(`func.prototype: ${func.prototype}`);
+      } catch (error) {
+        printHermes(`❌ func.prototype: ${error}`);
+      }
+      printHermes(`func: ${func}`);
+      if (
+        !weaksetHas(repairedNativeFunctions, func) &&
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        !/^[A-Z]/.test(func.name) &&
+        func.prototype !== undefined
+      ) {
+        printHermes(`Setting prototype to undefined on ${func}`);
+        // delete func.prototype;
+        // defineProperty(func, 'prototype', {
+        //   value: undefined,
+        // });
+        func.prototype = undefined;
+      }
+      weaksetAdd(repairedNativeFunctions, func);
+      return weaksetAdd(virtualizedNativeFunctions, func);
+    });
   }
-  return markVirtualizedNativeFunction;
+  return repairVirtualizedNativeFunction;
 };
