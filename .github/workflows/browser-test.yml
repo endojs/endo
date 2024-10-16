@@ -24,9 +24,20 @@ jobs:
     #   ## the Selenium image is configured to not run as root, so we have to undo some of it
     # env:
     #   HOME: /root # Firefox complains otherwise
+    env:
+      DEBIAN_FRONTEND: noninteractive
     steps:
       - name: Put unstable chrome where playwright would look for it
         run: mv /opt/google/chrome /opt/google/chrome-unstable
+      - name: Install browser dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates \
+            libatomic1 libflite1 libgles2 libharfbuzz-icu0 libhyphen0 libmanette-0.2-0 libicu74 libsecret-1-0 libxslt1.1 woff2 \
+            ca-certificates fonts-liberation libatk-bridge2.0-0 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgbm1 libgcc1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 lsb-release wget xdg-utils \
+            libvpx9 libevent-2.1-7t64 libopus0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 libgstreamer-plugins-bad1.0-0 gstreamer1.0-libav
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
