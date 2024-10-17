@@ -18,7 +18,8 @@ export async function importBundle(bundle, options = {}, powers = {}) {
   const {
     bundleUrl = undefined,
     filePrefix,
-    endowments: optEndowments = {},
+    globals: optGlobals = {},
+    endowments: optEndowments = optGlobals,
     // transforms are indeed __shimTransforms__, intended to apply to both
     // evaluated programs and modules shimmed to programs.
     transforms = [],
