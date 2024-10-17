@@ -51,6 +51,7 @@ const {
   freeze,
   getPrototypeOf,
   getOwnPropertyDescriptors,
+  hasOwn,
   entries,
 } = Object;
 const { apply } = Reflect;
@@ -176,7 +177,7 @@ const makeVirtualExecutionContext = originalT => {
 };
 
 /**
- * @template {import('ava').TestFn} [T=import('ava').TestFn]
+ * @template {import('ava').OnlyFn} [T=import('ava').TestFn]
  * @param {T} testerFunc
  * @returns {T} Not yet frozen!
  */
@@ -248,7 +249,7 @@ const augmentLogging = testerFunc => {
   // https://github.com/endojs/endo/issues/647#issuecomment-809010961
   Object.assign(augmented, testerFunc);
   // @ts-expect-error cast
-  return /** @type {import('ava').TestFn} */ augmented;
+  return /** @type {import('ava').OnlyFn} */ augmented;
 };
 
 /**
@@ -278,19 +279,21 @@ const augmentLogging = testerFunc => {
  * (which defaults to using the SES-aware `console.error`)
  * before propagating into `rawTest`.
  *
- * @template {import('ava').TestFn} [T=import('ava').TestFn] ava `test`
+ * @template {import('ava').OnlyFn} [T=import('ava').TestFn] ava `test`
  * @param {T} avaTest
  * @returns {T}
  */
 const wrapTest = avaTest => {
   const sesAvaTest = augmentLogging(avaTest);
   for (const methodName of overrideList) {
-    defineProperty(sesAvaTest, methodName, {
-      value: augmentLogging(avaTest[methodName]),
-      writable: true,
-      enumerable: true,
-      configurable: true,
-    });
+    if (hasOwn(avaTest, methodName)) {
+      defineProperty(sesAvaTest, methodName, {
+        value: wrapTest(avaTest[methodName]),
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
+    }
   }
   harden(sesAvaTest);
   return sesAvaTest;
