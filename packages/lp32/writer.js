@@ -1,6 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
-
 import { Fail, q } from '@endo/errors';
 import { hostIsLittleEndian } from './src/host-endian.js';
 

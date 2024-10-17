@@ -1,4 +1,3 @@
-/// <reference types="ses"/>
 import { objectMap } from '@endo/common/object-map.js';
 import { environmentOptionsListHas } from '@endo/env-options';
 

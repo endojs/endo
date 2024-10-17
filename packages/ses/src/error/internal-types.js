@@ -1,6 +1,10 @@
 // @ts-check
 
 /**
+ * @import {VirtualConsole} from './types.js'
+ */
+
+/**
  * @typedef {readonly any[]} LogArgs
  *
  * This is an array suitable to be used as arguments of a console

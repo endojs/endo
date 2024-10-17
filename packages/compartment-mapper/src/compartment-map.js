@@ -1,8 +1,6 @@
 /* Validates a compartment map against its schema. */
 
 // @ts-check
-/// <reference types="ses"/>
-
 import { assertPackagePolicy } from './policy-format.js';
 
 // TODO convert to the new `||` assert style.

@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
 /** @import {CapTPSlot, TrapHost, TrapGuest, TrapImpl} from './types.js' */
 

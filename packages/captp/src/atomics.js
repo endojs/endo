@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 import { X, Fail } from '@endo/errors';
 
 // This is a pathological minimum, but exercised by the unit test.
