@@ -262,7 +262,7 @@ function* loadWithoutErrorAnnotation(
         }
       } else {
         throw makeError(
-          X`Invalid compartment in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
+          X`Invalid namespace in module descriptor for specifier ${q(moduleSpecifier)} in compartment ${q(compartment.name)}`,
         );
       }
     }
