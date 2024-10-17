@@ -1655,8 +1655,8 @@ export const permitted = {
     '@@toStringTag': 'string',
   },
 
-  lockdown: HermesFn,
-  harden: { ...HermesFn, isFake: 'boolean' },
+  lockdown: fn,
+  harden: { ...fn, isFake: 'boolean' },
 
-  '%InitialGetStackString%': HermesFn,
+  '%InitialGetStackString%': fn,
 };

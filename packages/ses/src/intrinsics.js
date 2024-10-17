@@ -93,7 +93,7 @@ export const makeIntrinsicsCollector = () => {
     printHermes(`+ 13 enumerable intrinsics: ${stringifyJson(intrinsics)}`); // 13 enumerable intrinsics
     printHermes(`+ 71 Intrinsics: ${keys(intrinsics)}`); // 71 intrinsics
     let i = 0;
-    for (const [name, intrinsic] of entries(intrinsics)) {
+    for (let [name, intrinsic] of entries(intrinsics)) {
       i += 1;
       if (AsyncGeneratorFunctionInstance === undefined) {
         printHermes(
@@ -108,38 +108,33 @@ export const makeIntrinsicsCollector = () => {
         // eslint-disable-next-line no-continue
         continue;
       }
-      if (
-        !objectHasOwnProperty(intrinsic, 'prototype')
-        // || (typeof intrinsicPrototype === 'object' &&
-        // eslint-disable-next-line
-        // Object.keys(intrinsicPrototype).length === 0)
-        // However this condition does too much, it breaks the build when whitelistIntrinsics is called after
-        // SES_UNCAUGHT_EXCEPTION: (TypeError#1) Unexpected property prototype with permit %ArrayPrototype% at intrinsics.Array.prototype
-      ) {
-        // eslint-disable-next-line no-continue
-        continue;
-      }
       const permit = permitted[name];
       if (typeof permit !== 'object') {
         throw TypeError(`Expected permit object at whitelist.${name}`);
       }
       const permitPrototype = permit.prototype;
-
+      const HERMES_UNBOUND_FN_INSTANCE_PROTOTYPES = [
+        'lockdown',
+        'harden',
+        '%InitialGetStackString%',
+      ];
       if (
         typeof intrinsic === 'function' &&
         intrinsic.prototype !== undefined &&
-        permitPrototype === 'undefined' // permits.js
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        HERMES_UNBOUND_FN_INSTANCE_PROTOTYPES.includes(name)
       ) {
-        try {
-          intrinsic.prototype = undefined;
-          printHermes(
-            `Setting prototype to undefined on ${intrinsic} on name ${name}`,
-          );
-        } catch {
-          printHermes(`❌ Not setting prototype to undefined on ${name}`);
-        }
+        printHermes(
+          `-- replacing ${name} with ${name}.bind() to remove the prototype`,
+        );
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        intrinsic = intrinsic.bind(); // Bind the fn instance on Hermes to remove the prototype
       }
-
+      if (!objectHasOwnProperty(intrinsic, 'prototype')) {
+        printHermes(`-- no prototype`);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const intrinsicPrototype = intrinsic.prototype;
 
       if (!permitPrototype) {
