@@ -115,33 +115,6 @@ const runTests = (successCase, failCase) => {
       /^string "(x+)" must not be bigger than 100000$/,
     );
   }
-  // symbolNameLengthLimit
-  {
-    const specimen = Symbol.for('moderate length string');
-    successCase(specimen, M.symbol());
-    successCase(specimen, M.symbol(harden({ symbolNameLengthLimit: 40 })));
-
-    failCase(
-      specimen,
-      M.symbol(harden({ symbolNameLengthLimit: 10 })),
-      'Symbol name "moderate length string" must not be bigger than 10',
-    );
-  }
-  {
-    const specimen = Symbol.for(
-      'x'.repeat(defaultLimits.symbolNameLengthLimit + 1),
-    );
-    successCase(
-      specimen,
-      M.symbol(harden({ symbolNameLengthLimit: Infinity })),
-    );
-
-    failCase(
-      specimen,
-      M.symbol(),
-      /^Symbol name "(x+)" must not be bigger than 100$/,
-    );
-  }
   // numPropertiesLimit, propertyNameLengthLimit
   {
     const specimen = {

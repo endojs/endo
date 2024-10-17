@@ -50,7 +50,6 @@ const runTests = (t, successCase, failCase) => {
     number: (repr, kind) => `${kind} ${repr} - Must be a number`,
     bigint: (repr, kind) => `${kind} ${repr} - Must be a bigint`,
     string: (repr, kind) => `${kind} ${repr} - Must be a string`,
-    symbol: (repr, kind) => `${kind} ${repr} - Must be a symbol`,
     record: (repr, kind) => `${kind} ${repr} - Must be a copyRecord`,
     array: (repr, kind) => `${kind} ${repr} - Must be a copyArray`,
     set: (repr, kind) => `${kind} ${repr} - Must be a copySet`,

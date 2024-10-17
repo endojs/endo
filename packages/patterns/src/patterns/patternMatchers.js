@@ -7,7 +7,6 @@ import {
   makeTagged,
   passStyleOf,
   hasOwnPropertyOf,
-  nameForPassableSymbol,
   compareRank,
   getPassStyleCover,
   intersectRankCovers,
@@ -32,7 +31,6 @@ import {
   copyMapKeySet,
   checkCopyBag,
   getCopyMapEntryArray,
-  makeCopyMap,
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
@@ -66,7 +64,6 @@ let MM;
 export const defaultLimits = harden({
   decimalDigitsLimit: 100,
   stringLengthLimit: 100_000,
-  symbolNameLengthLimit: 100,
   numPropertiesLimit: 80,
   propertyNameLengthLimit: 100,
   arrayLengthLimit: 10_000,
@@ -440,7 +437,6 @@ const makePatternKit = () => {
       case 'number':
       case 'bigint':
       case 'string':
-      case 'symbol':
       case 'copySet':
       case 'copyBag':
       case 'remotable': {
@@ -979,38 +975,6 @@ const makePatternKit = () => {
   });
 
   /** @type {MatchHelper} */
-  const matchSymbolHelper = Far('match:symbol helper', {
-    checkMatches: (specimen, [limits = undefined], check) => {
-      const { symbolNameLengthLimit } = limit(limits);
-      if (!checkKind(specimen, 'symbol', check)) {
-        return false;
-      }
-      const symbolName = nameForPassableSymbol(specimen);
-
-      if (typeof symbolName !== 'string') {
-        throw Fail`internal: Passable symbol ${specimen} must have a passable name`;
-      }
-      return check(
-        symbolName.length <= symbolNameLengthLimit,
-        X`Symbol name ${q(
-          symbolName,
-        )} must not be bigger than ${symbolNameLengthLimit}`,
-      );
-    },
-
-    checkIsWellFormed: (payload, check) =>
-      checkIsWellFormedWithLimit(
-        payload,
-        harden([]),
-        check,
-        'match:symbol payload',
-      ),
-
-    getRankCover: (_matchPayload, _encodePassable) =>
-      getPassStyleCover('symbol'),
-  });
-
-  /** @type {MatchHelper} */
   const matchRemotableHelper = Far('match:remotable helper', {
     checkMatches: (specimen, remotableDesc, check) => {
       if (isKind(specimen, 'remotable')) {
@@ -1536,7 +1500,6 @@ const makePatternKit = () => {
     'match:bigint': matchBigintHelper,
     'match:nat': matchNatHelper,
     'match:string': matchStringHelper,
-    'match:symbol': matchSymbolHelper,
     'match:remotable': matchRemotableHelper,
 
     'match:lt': matchLTHelper,
@@ -1570,7 +1533,6 @@ const makePatternKit = () => {
   const BigIntShape = makeTagged('match:bigint', []);
   const NatShape = makeTagged('match:nat', []);
   const StringShape = makeTagged('match:string', []);
-  const SymbolShape = makeTagged('match:symbol', []);
   const RecordShape = makeTagged('match:recordOf', [AnyShape, AnyShape]);
   const ArrayShape = makeTagged('match:arrayOf', [AnyShape]);
   const SetShape = makeTagged('match:setOf', [AnyShape]);
@@ -1647,8 +1609,6 @@ const makePatternKit = () => {
       limits ? makeLimitsMatcher('match:nat', [limits]) : NatShape,
     string: (limits = undefined) =>
       limits ? makeLimitsMatcher('match:string', [limits]) : StringShape,
-    symbol: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
     record: (limits = undefined) =>
       limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
     // struct: A pattern that matches CopyRecords with a fixed quantity of
@@ -1934,7 +1894,6 @@ export const InterfaceGuardPayloadShape = M.splitRecord(
   {
     defaultGuards: M.or(M.undefined(), 'passable', 'raw'),
     sloppy: M.boolean(),
-    symbolMethodGuards: M.mapOf(M.symbol(), MethodGuardShape),
   },
 );
 
@@ -1959,28 +1918,16 @@ harden(assertInterfaceGuard);
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
   const { sloppy = false, defaultGuards = sloppy ? 'passable' : undefined } =
     options;
-  // For backwards compatibility, string-keyed method guards are represented in
-  // a CopyRecord. But symbol-keyed methods cannot be, so we put those in a
-  // CopyMap when present.
   /** @type {Record<string, MethodGuard>} */
   const stringMethodGuards = {};
-  /** @type {Array<[symbol, MethodGuard]>} */
-  const symbolMethodGuardsEntries = [];
   for (const key of ownKeys(methodGuards)) {
     const value = methodGuards[/** @type {string} */ (key)];
-    if (typeof key === 'symbol') {
-      symbolMethodGuardsEntries.push([key, value]);
-    } else {
-      stringMethodGuards[key] = value;
-    }
+    stringMethodGuards[key] = value;
   }
   /** @type {InterfaceGuard} */
   const result = makeTagged('guard:interfaceGuard', {
     interfaceName,
     methodGuards: stringMethodGuards,
-    ...(symbolMethodGuardsEntries.length
-      ? { symbolMethodGuards: makeCopyMap(symbolMethodGuardsEntries) }
-      : {}),
     defaultGuards,
   });
   assertInterfaceGuard(result);

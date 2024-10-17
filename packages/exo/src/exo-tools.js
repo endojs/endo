@@ -9,7 +9,6 @@ import {
   getAwaitArgGuardPayload,
   getMethodGuardPayload,
   getInterfaceGuardPayload,
-  getCopyMapEntries,
 } from '@endo/patterns';
 import { listDifference } from '@endo/common/list-difference.js';
 import { objectMap } from '@endo/common/object-map.js';
@@ -22,7 +21,7 @@ import { GET_INTERFACE_GUARD } from './get-interface.js';
  */
 
 const { apply, ownKeys } = Reflect;
-const { defineProperties, fromEntries } = Object;
+const { defineProperties } = Object;
 
 /**
  * A method guard, for inclusion in an interface guard, that does not
@@ -381,14 +380,11 @@ export const defendPrototype = (
     const {
       interfaceName,
       methodGuards: mg,
-      symbolMethodGuards,
       sloppy,
       defaultGuards: dg = sloppy ? 'passable' : defaultGuards,
     } = getInterfaceGuardPayload(interfaceGuard);
     methodGuards = harden({
       ...mg,
-      ...(symbolMethodGuards &&
-        fromEntries(getCopyMapEntries(symbolMethodGuards))),
     });
     defaultGuards = dg;
     {
