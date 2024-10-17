@@ -15,14 +15,14 @@ const nativeSuffix = ') { [native code] }';
 // patching of `Function.prototype.toString` is also globally stateful. We
 // use this top level state so that multiple calls to `tameFunctionToString` are
 // idempotent, rather than creating redundant indirections.
-let markVirtualizedNativeFunction;
+let repairVirtualizedNativeFunction;
 
 /**
  * Replace `Function.prototype.toString` with one that recognizes
  * shimmed functions as honorary native functions.
  */
 export const tameFunctionToString = () => {
-  if (markVirtualizedNativeFunction === undefined) {
+  if (repairVirtualizedNativeFunction === undefined) {
     const virtualizedNativeFunctions = new WeakSet();
 
     const tamingMethods = {
@@ -42,9 +42,9 @@ export const tameFunctionToString = () => {
       value: tamingMethods.toString,
     });
 
-    markVirtualizedNativeFunction = freeze(func =>
+    repairVirtualizedNativeFunction = freeze(func =>
       weaksetAdd(virtualizedNativeFunctions, func),
     );
   }
-  return markVirtualizedNativeFunction;
+  return repairVirtualizedNativeFunction;
 };
