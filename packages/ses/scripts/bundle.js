@@ -1,9 +1,13 @@
+/** @import {ModuleTransforms} from '../../compartment-mapper/types.js' */
+
 /* global process */
 import '../index.js';
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import { minify } from 'terser';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { getEnvironmentOption as getenv } from '@endo/env-options';
+import { hermesTransforms } from './hermesTransforms.js';
 
 lockdown();
 
@@ -16,7 +20,11 @@ const write = async (target, content) => {
   await fs.promises.writeFile(location, content);
 };
 
-const main = async () => {
+/**
+ * @param {object} [options]
+ * @param {string} [options.buildType] Suffix used to build special bundles (e.g. 'hermes')
+ */
+const writeBundle = async ({ buildType } = {}) => {
   const text = await fs.promises.readFile(
     fileURLToPath(`${root}/package.json`),
     'utf8',
@@ -24,24 +32,10 @@ const main = async () => {
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
 
-  const bundle = await makeBundle(
-    read,
-    pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
-  );
-  const versionedBundle = `// ses@${version}\n${bundle}`;
+  /** @type ModuleTransforms */
+  const moduleTransforms = {};
 
-  const { code: terse } = await minify(versionedBundle, {
-    mangle: false,
-    keep_classnames: true,
-  });
-  assert.string(terse);
-
-  console.log(`Bundle size: ${versionedBundle.length} bytes`);
-  console.log(`Minified bundle size: ${terse.length} bytes`);
-
-  await fs.promises.mkdir('dist', { recursive: true });
-
-  const bundleFilePaths = [
+  let bundleFilePaths = [
     'dist/ses.cjs',
     'dist/ses.mjs',
     'dist/ses.umd.js',
@@ -49,7 +43,37 @@ const main = async () => {
     'dist/lockdown.mjs',
     'dist/lockdown.umd.js',
   ];
-  const terseFilePaths = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
+  let terseFilePaths = ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
+
+  if (buildType === 'hermes') {
+    bundleFilePaths = ['dist/ses-hermes.cjs'];
+    terseFilePaths = [];
+    Object.assign(moduleTransforms, hermesTransforms);
+  }
+
+  const bundle = await makeBundle(
+    read,
+    pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
+    { moduleTransforms },
+  );
+  const versionedBundle = `// ses@${version}\n${bundle}`;
+
+  console.log(`-- Building '${buildType}' version of SES --`);
+  console.log(`Bundle size: ${versionedBundle.length} bytes`);
+
+  /** @type {string|undefined} */
+  let terse;
+  if (terseFilePaths.length) {
+    const { code } = await minify(versionedBundle, {
+      mangle: false,
+      keep_classnames: true,
+    });
+    terse = code;
+    assert.string(terse);
+    console.log(`Minified bundle size: ${terse.length} bytes`);
+  }
+
+  await fs.promises.mkdir('dist', { recursive: true });
 
   await Promise.all([
     ...bundleFilePaths.map(dest => write(dest, versionedBundle)),
@@ -80,6 +104,11 @@ const main = async () => {
     fileURLToPath(new URL(destDTS, root)),
   );
   console.log(`Copied ${sourceDTS} to ${destDTS}`);
+};
+
+const main = async () => {
+  const buildType = getenv('SES_BUILD_TYPE', 'vanilla');
+  await writeBundle({ buildType });
 };
 
 main().catch(err => {
