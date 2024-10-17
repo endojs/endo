@@ -21,7 +21,9 @@ func main() {
 	}
 
 	var opts struct {
-		Eval []string `short:"e"`
+		Eval              []string `short:"e"`
+		Bundle            []string `short:"b"`
+		PrecompiledBundle []string `short:"B"`
 	}
 
 	args, err := flags.ParseArgs(&opts, os.Args)
@@ -94,8 +96,47 @@ func main() {
 		// fmt.Printf("> %s (%s)\n", res.Body, txt)
 	}
 
+	importBundle := func(path string, native bool) {
+		// TODO err handling
+		wd, _ := os.Getwd()
+		absPath := filepath.Join(wd, path)
+		location := fmt.Sprintf("file://%s", absPath)
+
+		responseCh := make(chan Message, 1)
+		body := struct {
+			Method   string `json:"method"`
+			Location string `json:"location"`
+			Native   bool   `json:"native"`
+		}{
+			Method:   "importBundle",
+			Location: location,
+			Native:   native,
+		}
+		bodyBytes, _ := json.Marshal(&body)
+		supervisor.Deliver(ctx, Message{
+			Headers: Headers{
+				Type: "system",
+				Sync: true,
+				To:   xsnapId,
+				From: -1,
+				Port: 1,
+			},
+			Body:       append(bodyBytes, 1),
+			ResponseCh: responseCh,
+		})
+		<-responseCh
+		// txt, _ := json.Marshal(res.Headers)
+		// fmt.Printf("> %s (%s)\n", res.Body, txt)
+	}
+
 	for _, arg := range opts.Eval {
 		evalSource(arg)
+	}
+	for _, arg := range opts.PrecompiledBundle {
+		importBundle(arg, false)
+	}
+	for _, arg := range opts.Bundle {
+		importBundle(arg, true)
 	}
 	for _, arg := range args[1:] {
 		importModule(arg)

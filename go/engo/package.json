@@ -3,12 +3,13 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/import-bundle": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {
-    "@endo/base64": "workspace:^",
     "@endo/bundle-source": "workspace:^"
   },
   "scripts": {
