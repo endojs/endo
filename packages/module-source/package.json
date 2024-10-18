@@ -22,7 +22,10 @@
   "type": "module",
   "main": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "xs": "./src-xs/index.js",
+      "default": "./index.js"
+    },
     "./shim.js": "./shim.js",
     "./package.json": "./package.json"
   },
@@ -35,7 +38,8 @@
     "lint:types": "tsc",
     "lint:eslint": "eslint .",
     "lint-fix": "eslint --fix .",
-    "test": "ava"
+    "test": "ava",
+    "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js"
   },
   "dependencies": {
     "@agoric/babel-generator": "^7.17.6",
