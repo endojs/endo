@@ -1,5 +1,16 @@
 User-visible changes to `@endo/import-bundle`:
 
+# Next release
+
+Experimental:
+
+- Adds a `__native__: true` option that indicates that the application will
+  fall through to the native implementation of Compartment, currently only
+  available on XS, which lacks support for precompiled module sources (as exist
+  in many archived applications, particularly Agoric smart contract bundles)
+  and instead supports loading modules from original sources (which is not
+  possible at runtime on XS).
+
 # v1.3.0 (2024-10-10)
 
 - Adds support for `endoScript` format bundles.

@@ -1,11 +1,43 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next release
+
+Experimental:
+
+- The module `@endo/compartment-mapper/import-archive-parsers.js` does not
+  support modules in archives in their original ESM (`mjs`) or CommonJS (`cjs`)
+  formats because they entrain Babel and a full JavaScript lexer that are
+  not suitable for use in all environments, specifically XS.
+  This version introduces an elective
+  `@endo/compartment-mapper/import-archive-all-parsers.js` that has all of the
+  precompiled module parsers (`pre-cjs-json` and `pre-mjs-json`) that Endo's
+  bundler currently produces by default and additionally parsers for original
+  sources (`mjs`, `cjs`).
+  Also, provided the `xs` package condition,
+  `@endo/compartment-mapper/import-archive-parsers.js` now falls through to the
+  native `ModuleSource` and safely includes `mjs` and `cjs` without entraining
+  Babel, but is only supported in conjunction with the `__native__` option
+  for `Compartment`, `importArchive`, `parseArchive`, and `importBundle`.
+  With the `node` package condition (present by default when running ESM on
+  `node`), `@endo/compartment-mapper/import-archive-parsers.js` also now
+  includes `mjs` and `cjs` by entraining Babel, which performs adequately on
+  that platform.
+
 # v1.3.0 (2024-10-10)
 
 - Adds support for dynamic requires in CommonJS modules. This requires specific
   configuration to be passed in (including new read powers), and is _not_
   enabled by default. See the signature of `loadFromMap()` in `import-lite.js`
   for details.
+
+Experimental:
+
+- Adds a `__native__: true` option to all paths to import, that indicates that
+  the application will fall through to the native implementation of
+  Compartment, currently only available on XS, which lacks support for
+  precompiled module sources (as exist in many archived applications,
+  particularly Agoric smart contract bundles) and instead supports loading
+  modules from original sources (which is not possible at runtime on XS).
 
 # v1.2.0 (2024-07-30)
 
