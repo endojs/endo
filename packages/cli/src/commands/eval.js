@@ -19,7 +19,7 @@ export const evalCommand = async ({
         return [name, name];
       }
       if (pair.length > 2) {
-        throw new Error(
+        throw Error(
           `Specify either a name endowmentName:pet-name, got: ${JSON.stringify(
             name,
           )}`,
