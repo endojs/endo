@@ -797,3 +797,12 @@ test.failing('should support export of defaulted extraction', t => {
   `);
   t.pass();
 });
+
+test.failing('should support export const object with default', t => {
+  const _ = new ModuleSource(`
+    export const {
+      x = undefined,
+    } = globalThis;
+  `);
+  t.pass();
+});
