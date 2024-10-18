@@ -21,7 +21,7 @@ expectType<'bigint'>(passStyleOf(1n));
 expectType<'symbol'>(passStyleOf(Symbol.for('foo')));
 expectType<'null'>(passStyleOf(null));
 expectType<'promise'>(passStyleOf(Promise.resolve()));
-expectType<'error'>(passStyleOf(new Error()));
+expectType<'error'>(passStyleOf(Error()));
 expectType<'tagged'>(passStyleOf(copyTagged));
 expectType<'copyArray'>(passStyleOf([]));
 expectType<'copyRecord'>(passStyleOf({}));
