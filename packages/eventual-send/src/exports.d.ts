@@ -6,6 +6,7 @@ import type { HandledPromiseConstructor } from './types.d.ts';
 //
 
 export type {
+  Callable,
   RemotableBrand,
   DataOnly,
   FarRef,
