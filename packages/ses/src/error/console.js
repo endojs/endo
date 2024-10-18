@@ -210,6 +210,8 @@ const ErrorInfo = {
   MESSAGE: 'ERROR_MESSAGE:',
   CAUSE: 'cause:',
   ERRORS: 'errors:',
+  ERROR: 'error:',
+  SUPPRESSED: 'suppressed:',
 };
 freeze(ErrorInfo);
 
@@ -357,6 +359,7 @@ export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       // @ts-expect-error AggregateError has an `errors` property.
       logErrorInfo(severity, error, ErrorInfo.ERRORS, error.errors, subErrors);
     }
+    // TODO SuppressedError
     for (const noteLogArgs of noteLogArgsArray) {
       logErrorInfo(severity, error, ErrorInfo.NOTE, noteLogArgs, subErrors);
     }
