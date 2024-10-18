@@ -523,7 +523,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
+"@endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
   dependencies:
@@ -9151,6 +9151,7 @@ __metadata:
   dependencies:
     "@endo/compartment-mapper": "workspace:^"
     "@endo/env-options": "workspace:^"
+    "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/module-source": "workspace:^"
     "@endo/test262-runner": "workspace:^"
     ava: "npm:^6.1.3"
