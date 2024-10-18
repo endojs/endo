@@ -40,6 +40,77 @@ test('module map primed with module source descriptor with virtual module source
   t.is(index.default, 42);
 });
 
+test('module map primed with module source descriptor with no-imports virtual module source', async t => {
+  const compartment = new Compartment({
+    modules: {
+      './index.js': {
+        source: {},
+      },
+    },
+    resolveHook: specifier => specifier,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  await t.throwsAsync(() => compartment.import('./index.js'), {
+    message: /Invalid module source: 'imports' must be an array/,
+  });
+});
+
+test('module map primed with module source descriptor with imports-with-non-string virtual module source', async t => {
+  const compartment = new Compartment({
+    modules: {
+      './index.js': {
+        source: {
+          imports: [1],
+        },
+      },
+    },
+    resolveHook: specifier => specifier,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  await t.throwsAsync(() => compartment.import('./index.js'), {
+    message: /Invalid module source: 'imports' must be an array of strings/,
+  });
+});
+
+test('module map primed with module source descriptor with no-exports virtual module source', async t => {
+  const compartment = new Compartment({
+    modules: {
+      './index.js': {
+        source: {
+          imports: [],
+        },
+      },
+    },
+    resolveHook: specifier => specifier,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  await t.throwsAsync(() => compartment.import('./index.js'), {
+    message: /Invalid module source: 'exports' must be an array/,
+  });
+});
+
+test('module map primed with module source descriptor with no-execute virtual module source', async t => {
+  const compartment = new Compartment({
+    modules: {
+      './index.js': {
+        source: {
+          imports: [],
+          exports: [],
+        },
+      },
+    },
+    resolveHook: specifier => specifier,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+  await t.throwsAsync(() => compartment.import('./index.js'), {
+    message: /Invalid module source/,
+  });
+});
+
 test('module map primed with parent compartment module source descriptor with string reference to parent compartment', async t => {
   const parent = new Compartment({
     modules: {
