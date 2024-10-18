@@ -3,6 +3,11 @@ User-visible changes in `@endo/marshal`:
 # v1.5.1 (2024-07-30)
 
 - `deeplyFulfilled` moved from @endo/marshal to @endo/pass-style. @endo/marshal still reexports it, to avoid breaking old importers. But importers should be upgraded to import `deeplyFulfilled` directly from @endo/pass-style.
+- JavaScript's relational comparison operators like `<` compare strings by lexicographic UTF16 code unit order, which exposes an internal representational detail not relevant to the string's meaning as a Unicode string. Previously, `compareRank` and associated functions compared strings using this JavaScript-native comparison. Now `compareRank` and associated functions compare strings by lexicographic Unicode Code Point order. ***This change only affects strings containing so-called supplementary characters, i.e., those whose Unicode character code does not fit in 16 bits***.
+  - This release does not change the `encodePassable` encoding. But now, when we say it is order preserving, we need to be careful about which order we mean. `encodePassable` is rank-order preserving when the encoded strings are compared using `compareRank`.
+  - The key order of strings defined by the @endo/patterns module is still defined to be the same as the rank ordering of those strings. So this release changes key order among strings to also be lexicographic comparison of Unicode Code Points. To accommodate this change, you may need to adapt applications that relied on key-order being the same as JS native order. This could include the use of any patterns expressing key inequality tests, like `M.gte(string)`.
+  - These string ordering changes brings Endo into conformance with any string ordering components of the OCapN standard.
+  - To accommodate these change, you may need to adapt applications that relied on rank-order or key-order being the same as JS native order. You may need to resort any data that had previously been rank sorted using the prior `compareRank` function. You may need to revisit any use of patterns like `M.gte(string)` expressing inequalities over strings.
 
 # v1.3.0 (2024-02-22)
 
