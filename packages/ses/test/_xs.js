@@ -19,7 +19,11 @@ import 'ses';
 // eslint-disable-next-line import/no-unresolved
 import precompiledModuleSource from '../tmp/_meaning.pre-mjs.json';
 
-lockdown();
+lockdown({
+  errorTaming: 'unsafe',
+  errorTrapping: 'none',
+  stackFiltering: 'verbose',
+});
 
 // spot checks
 assert(Object.isFrozen(Object));
