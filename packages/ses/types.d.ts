@@ -190,6 +190,24 @@ export interface AssertMakeErrorOptions {
   errors?: Error[];
 
   /**
+   * Normally only used when the ErrorConstuctor is `SuppressedError`, to
+   * represent the error exiting a disposal context where an error also happens
+   * during disposing. But `makeError` allows it on any error.
+   * This is represented by a public `error` data property on the error,
+   * not a hidden annotation.
+   */
+  error?: Error;
+
+  /**
+   * Normally only used when the ErrorConstuctor is `SuppressedError`, to
+   * represent an error happens during a disposing that is itself caused
+   * by an error. But `makeError` allows it on any error.
+   * This is represented by a public `suppressed` data property on the error,
+   * not a hidden annotation.
+   */
+  suppressed?: Error;
+
+  /**
    * Defaults to true. If true, `makeError` will apply `sanitizeError`
    * to the error before returning it. See the comments on
    * {@link sanitizeError}.
@@ -264,7 +282,8 @@ interface StringablePayload {
  */
 export type GenericErrorConstructor =
   | ErrorConstructor
-  | AggregateErrorConstructor;
+  | AggregateErrorConstructor
+  | SuppressedErrorConstructor;
 
 /**
  * To make an `assert` which terminates some larger unit of computation

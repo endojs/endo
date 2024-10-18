@@ -50,6 +50,7 @@ export const {
   SyntaxError,
   TypeError,
   AggregateError,
+  SuppressedError,
 } = globalThis;
 
 export const {
