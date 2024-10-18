@@ -10,7 +10,7 @@ import {
 } from '@endo/pass-style';
 
 /**
- * @import {CopyRecord, PassStyle, Passable, RemotableObject as Remotable} from '@endo/pass-style'
+ * @import {CopyRecord, PassStyle, Passable, RemotableObject as Remotable, ByteArray} from '@endo/pass-style'
  */
 
 import { b, q, Fail } from '@endo/errors';
@@ -462,6 +462,17 @@ const decodeLegacyArray = (encoded, decodePassable, skip = 0) => {
   return harden(elements);
 };
 
+/**
+ * @param {ByteArray} byteArray
+ * @param {(byteArray: ByteArray) => string} _encodePassable
+ * @returns {string}
+ */
+const encodeByteArray = (byteArray, _encodePassable) => {
+  // TODO implement
+  Fail`encodePassable(copyData) not yet implemented: ${byteArray}`;
+  return ''; // Just for the type
+};
+
 const encodeRecord = (record, encodeArray, encodePassable) => {
   const names = recordNames(record);
   const values = recordValues(record, names);
@@ -625,6 +636,9 @@ const makeInnerEncode = (encodeStringSuffix, encodeArray, options) => {
       }
       case 'copyArray': {
         return encodeArray(passable, innerEncode);
+      }
+      case 'byteArray': {
+        return encodeByteArray(passable, innerEncode);
       }
       case 'copyRecord': {
         return encodeRecord(passable, encodeArray, innerEncode);
@@ -870,6 +884,7 @@ export const passStylePrefixes = {
   tagged: ':',
   promise: '?',
   copyArray: '[^',
+  byteArray: 'a',
   boolean: 'b',
   number: 'f',
   bigint: 'np',
