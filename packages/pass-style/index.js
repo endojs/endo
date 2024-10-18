@@ -12,13 +12,6 @@ export { getErrorConstructor, isErrorLike } from './src/error.js';
 export { getInterfaceOf } from './src/remotable.js';
 
 export {
-  assertPassableSymbol,
-  isPassableSymbol,
-  nameForPassableSymbol,
-  passableSymbolForName,
-} from './src/symbol.js';
-
-export {
   isWellFormedString,
   assertWellFormedString,
   assertPassableString,
