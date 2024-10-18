@@ -98,25 +98,36 @@ export const makeIntrinsicsCollector = () => {
       if (typeof permit !== 'object') {
         throw TypeError(`Expected permit object at whitelist.${name}`);
       }
-      const namePrototype = permit.prototype;
-      if (!namePrototype) {
+      const permitPrototype = permit.prototype;
+
+      // Bypass Hermes bug, fixed in: https://github.com/facebook/hermes/commit/00f18c89c720e1c34592bb85a1a8d311e6e99599
+      if (
+        typeof intrinsic === 'function' &&
+        intrinsic.prototype !== undefined &&
+        permitPrototype === 'undefined' // permits.js
+      ) {
+        intrinsic.prototype = undefined;
+      }
+
+      const intrinsicPrototype = intrinsic.prototype;
+
+      if (!permitPrototype) {
         throw TypeError(`${name}.prototype property not whitelisted`);
       }
       if (
-        typeof namePrototype !== 'string' ||
-        !objectHasOwnProperty(permitted, namePrototype)
+        typeof permitPrototype !== 'string' ||
+        !objectHasOwnProperty(permitted, permitPrototype)
       ) {
         throw TypeError(`Unrecognized ${name}.prototype whitelist entry`);
       }
-      const intrinsicPrototype = intrinsic.prototype;
-      if (objectHasOwnProperty(intrinsics, namePrototype)) {
-        if (intrinsics[namePrototype] !== intrinsicPrototype) {
-          throw TypeError(`Conflicting bindings of ${namePrototype}`);
+      if (objectHasOwnProperty(intrinsics, permitPrototype)) {
+        if (intrinsics[permitPrototype] !== intrinsicPrototype) {
+          throw TypeError(`Conflicting bindings of ${permitPrototype}`);
         }
         // eslint-disable-next-line no-continue
         continue;
       }
-      intrinsics[namePrototype] = intrinsicPrototype;
+      intrinsics[permitPrototype] = intrinsicPrototype;
     }
   };
   freeze(completePrototypes);
