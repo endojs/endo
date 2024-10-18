@@ -55,6 +55,8 @@ export const trivialComparator = (left, right) =>
 const passStyleRanks = /** @type {PassStyleRanksRecord} */ (
   fromEntries(
     entries(passStylePrefixes)
+      // TODO Until byteArray prefix is chosen
+      .filter(([_style, prefixes]) => prefixes.length >= 1)
       // Sort entries by ascending prefix.
       .sort(([_leftStyle, leftPrefixes], [_rightStyle, rightPrefixes]) => {
         return trivialComparator(leftPrefixes, rightPrefixes);
@@ -208,6 +210,26 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         // If all matching elements were tied, then according to their lengths.
         // If array X is a prefix of array Y, then X has an earlier rank than Y.
         return comparator(left.length, right.length);
+      }
+      case 'byteArray': {
+        const leftArray = new Uint8Array(left.slice(0));
+        const rightArray = new Uint8Array(right.slice(0));
+        const byteLen = Math.min(left.byteLength, right.byteLength);
+        for (let i = 0; i < byteLen; i += 1) {
+          const leftByte = leftArray[i];
+          const rightByte = rightArray[i];
+          if (leftByte < rightByte) {
+            return -1;
+          }
+          if (leftByte > rightByte) {
+            return 1;
+          }
+        }
+        // If all corresponding bytes are the same,
+        // then according to their lengths.
+        // Thus, if the data of ByteArray X is a prefix of
+        // the data of ByteArray Y, then X is smaller than Y.
+        return comparator(left.byteLength, right.byteLength);
       }
       case 'tagged': {
         // Lexicographic by `[Symbol.toStringTag]` then `.payload`.
