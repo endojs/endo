@@ -12,13 +12,16 @@ These include a shim for [Hardened JavaScript][SES], an [ECMA TC-39
 standards track proposal][SES Proposal] to make JavaScript a safer and more
 suitable platform for plugin systems.
 
-Agoric and MetaMask rely on Hardened JavaScript and the [SES shim][SES] as part
-of systems that sandbox third-party plugins or smart contracts and mitigate
-supply chain attacks for production web applications, web extensions, and build
-systems.
+[Agoric][] and [MetaMask][] rely on Hardened JavaScript and the [SES shim][SES]
+as part of systems that sandbox third-party plugins or smart contracts and
+mitigate supply chain attacks for production web applications, web extensions,
+and build systems.
 
-[![Agoric Logo](https://github.com/endojs/endo/raw/master/packages/ses/docs/agoric-x100.png)](https://agoric.com/)
-[![MetaMask Logo](https://github.com/endojs/endo/raw/master/packages/ses/docs/metamask-x100.png)](https://metamask.io/)
+[![Agoric Logo](https://github.com/endojs/endo/raw/master/packages/ses/docs/agoric-x100.png)][Agoric]
+[![MetaMask Logo](https://github.com/endojs/endo/raw/master/packages/ses/docs/metamask-x100.png)][MetaMask]
+
+[Agoric]: https://agoric.com/
+[MetaMask]: https://metamask.io/
 
 Endo protects program integrity both in-process and in distributed systems.
 Hardened JavaScript protects local integrity, defending an application against
