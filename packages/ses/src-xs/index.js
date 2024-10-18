@@ -445,6 +445,7 @@ globalThis.Compartment = FERAL_EVAL(compartmentShim)(
 );
 
 globalThis.lockdown = options => {
+  globalThis.print && print('shim lockdown', JSON.stringify(options));
   const hardenIntrinsics = repairIntrinsics(options);
   hardenIntrinsics();
   // Replace global Compartment with a version that is hardened and hardens
