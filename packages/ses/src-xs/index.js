@@ -94,6 +94,7 @@ const adapterFunctions = {
   importNow(specifier) {
     const fields = weakmapGet(privateFields, this);
     if (fields === undefined) {
+      globalThis.print && print(new TypeError('where am i?').stack);
       throw new TypeError('compartment.importNow: this is not a compartment');
     }
     const { delegateNative } = fields;
