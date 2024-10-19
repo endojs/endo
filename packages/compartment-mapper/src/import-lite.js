@@ -150,6 +150,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
       modules,
       transforms,
       __shimTransforms__,
+      __native__,
       Compartment,
       importHook: exitModuleImportHook,
     } = options;
@@ -199,6 +200,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         transforms,
         syncModuleTransforms,
         __shimTransforms__,
+        __native__,
         Compartment,
       }));
     } else {
@@ -214,6 +216,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         moduleTransforms,
         syncModuleTransforms,
         __shimTransforms__,
+        __native__,
         Compartment,
       }));
     }

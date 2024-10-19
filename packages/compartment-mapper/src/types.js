@@ -440,6 +440,7 @@ export {};
  * @property {object} [globals]
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
+ * @property {boolean} [__native__] Use native Compartment and native
  * @property {Record<string, object>} [modules]
  * @property {ExitModuleImportHook} [importHook]
  * @property {Record<string, object>} [attenuations]
@@ -480,6 +481,8 @@ export {};
  * @property {LanguageForExtension} [languageForExtension]
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {SyncModuleTransforms} [syncModuleTransforms]
+ * @property {boolean} [__native__] Use native Compartment and native
+ * ModuleSource (XS only at time of writing)
  * @property {boolean} [archiveOnly]
  */
 

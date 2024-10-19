@@ -373,6 +373,7 @@ export const parseArchive = async (
       modules,
       transforms,
       __shimTransforms__,
+      __native__,
       Compartment,
       importHook: exitModuleImportHook,
     } = options || {};
@@ -399,6 +400,7 @@ export const parseArchive = async (
       modules,
       transforms,
       __shimTransforms__,
+      __native__,
       Compartment,
     });
 
