@@ -877,6 +877,9 @@ export const passStylePrefixes = {
   string: 's',
   null: 'v',
   symbol: 'y',
+  // Because Array.prototype.sort puts undefined values at the end without
+  // passing them to a comparison function, undefined MUST be the last
+  // category.
   undefined: 'z',
 };
 Object.setPrototypeOf(passStylePrefixes, null);

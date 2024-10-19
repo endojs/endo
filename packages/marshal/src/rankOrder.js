@@ -275,15 +275,6 @@ export const assertRankSorted = (sorted, compare) =>
 harden(assertRankSorted);
 
 /**
- * TODO SECURITY BUG: https://github.com/Agoric/agoric-sdk/issues/4260
- * sortByRank currently uses `Array.prototype.sort` directly, and
- * so only works correctly when given a `compare` function that considers
- * `undefined` strictly bigger (`>`) than everything else. This is
- * because `Array.prototype.sort` bizarrely moves all `undefined`s to
- * the end of the array regardless, without consulting the `compare`
- * function. This is a genuine bug for us NOW because sometimes we sort
- * in reverse order by passing a reversed rank comparison function.
- *
  * @template {Passable} T
  * @param {Iterable<T>} passables
  * @param {RankCompare} compare
@@ -301,7 +292,20 @@ export const sortByRank = (passables, compare) => {
   }
   const unsorted = [...passables];
   unsorted.forEach(harden);
-  const sorted = harden(unsorted.sort(compare));
+  const sorted = unsorted.sort(compare);
+  // For reverse comparison, move `undefined` values from the end to the start.
+  // Note that passStylePrefixes (@see {@link ./encodePassable.js}) MUST NOT
+  // sort any category after `undefined`.
+  if (compare(true, undefined) > 0) {
+    let i = sorted.length - 1;
+    while (i >= 0 && sorted[i] === undefined) i -= 1;
+    const n = sorted.length - i - 1;
+    if (n > 0 && n < sorted.length) {
+      sorted.copyWithin(n, 0);
+      sorted.fill(/** @type {T} */ (undefined), 0, n);
+    }
+  }
+  harden(sorted);
   const subMemoOfSorted = memoOfSorted.get(compare);
   assert(subMemoOfSorted !== undefined);
   subMemoOfSorted.add(sorted);
