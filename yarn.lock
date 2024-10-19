@@ -523,6 +523,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/hardened262@workspace:packages/hardened262":
+  version: 0.0.0-use.local
+  resolution: "@endo/hardened262@workspace:packages/hardened262"
+  dependencies:
+    "@endo/lockdown": "workspace:^"
+    "@endo/module-source": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "npm:^6.1.3"
+    c8: "npm:^7.14.0"
+    ses: "workspace:^"
+    test262-stream: "npm:^1.4.0"
+    tsd: "npm:^0.30.7"
+    typescript: "npm:~5.6.1-rc"
+  languageName: unknown
+  linkType: soft
+
 "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
@@ -9880,7 +9896,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"test262-stream@npm:^1.3.0":
+"test262-stream@npm:^1.3.0, test262-stream@npm:^1.4.0":
   version: 1.4.0
   resolution: "test262-stream@npm:1.4.0"
   dependencies:
