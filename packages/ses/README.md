@@ -301,7 +301,7 @@ const c1 = new Compartment({
     const moduleLocation = locate(moduleSpecifier);
     const moduleText = await retrieve(moduleLocation);
     return {
-        source: new ModuleSource(moduleText, moduleLocation);
+        source: new ModuleSource(moduleText, moduleLocation)
     };
   },
   __options__: true, // temporary migration affordance
