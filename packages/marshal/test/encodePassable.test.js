@@ -17,7 +17,7 @@ import { unsortedSample } from './_marshal-test-data.js';
 
 const statelessEncodePassableLegacy = makeEncodePassable();
 
-const makeSimplePassableKit = ({ stateless = false } = {}) => {
+const makeSimplePassableKit = ({ statelessSuffix } = {}) => {
   let count = 0n;
   const encodingFromVal = new Map();
   const valFromEncoding = new Map();
@@ -40,17 +40,18 @@ const makeSimplePassableKit = ({ stateless = false } = {}) => {
     return val;
   };
 
-  const encoders = stateless
-    ? {
-        encodeRemotable: r => 'r',
-        encodePromise: p => '?',
-        encodeError: err => '!',
-      }
-    : {
-        encodeRemotable: r => encodeSpecial('r', r),
-        encodePromise: p => encodeSpecial('?', p),
-        encodeError: err => encodeSpecial('!', err),
-      };
+  const encoders =
+    statelessSuffix !== undefined
+      ? {
+          encodeRemotable: r => `r${statelessSuffix}`,
+          encodePromise: p => `?${statelessSuffix}`,
+          encodeError: err => `!${statelessSuffix}`,
+        }
+      : {
+          encodeRemotable: r => encodeSpecial('r', r),
+          encodePromise: p => encodeSpecial('?', p),
+          encodeError: err => encodeSpecial('!', err),
+        };
   const encodePassableLegacy = makeEncodePassable({ ...encoders });
   const encodePassableCompact = makeEncodePassable({
     ...encoders,
@@ -336,7 +337,28 @@ test('compact custom encoding validity constraints', t => {
   }
 });
 
-const orderInvariants = (x, y, statelessEncodePassable) => {
+// TODO: Make a common utility for finding the first difference between iterables.
+// import { firstDiff } from '...';
+// const firstStringDiff = (a, b) => firstDiff(a, b, { getIncrement: ch => ch.length });
+// const commonStringPrefix = (a, b) => a.substring(0, firstStringDiff(a, b).index);
+const commonStringPrefix = (str1, str2) => {
+  // Co-iterate over *code points*.
+  const iter1 = str1[Symbol.iterator]();
+  const iter2 = str2[Symbol.iterator]();
+  // ...but track a *code unit* index for extracting a substring at the end.
+  let i = 0;
+  for (;;) {
+    const { value: char1 } = iter1.next();
+    const { value: char2 } = iter2.next();
+    if (char1 !== char2 || char1 === undefined) {
+      return str1.substring(0, i);
+    }
+    // ...because some code points consist of a two-code-unit surrogate pair.
+    i += char1.length;
+  }
+};
+
+const orderInvariants = (x, y, statelessEncode1, statelessEncode2) => {
   const rankComp = compareRank(x, y);
   const fullComp = compareFull(x, y);
   if (rankComp !== 0) {
@@ -352,10 +374,14 @@ const orderInvariants = (x, y, statelessEncodePassable) => {
       rankComp === fullComp ||
       Fail`with fullComp ${fullComp}, expected rankComp 0 or matching: ${rankComp} for ${x} vs. ${y}`;
   }
-  const ex = statelessEncodePassable(x);
-  const ey = statelessEncodePassable(y);
-  const encComp = compareRank(ex, ey);
+  const ex = statelessEncode1(x);
+  const ey = statelessEncode1(y);
   if (fullComp !== 0) {
+    // Comparability of encodings stops at the first incomparable special rank
+    // (remotable/promise/error).
+    const exPrefix = commonStringPrefix(ex, statelessEncode2(x));
+    const eyPrefix = commonStringPrefix(ey, statelessEncode2(y));
+    const encComp = compareRank(exPrefix, eyPrefix);
     encComp === 0 ||
       encComp === fullComp ||
       Fail`with fullComp ${fullComp}, expected matching stateless encComp: ${encComp} for ${x} as ${ex} vs. ${y} as ${ey}`;
@@ -380,7 +406,7 @@ test('original encoding round-trips', testRoundTrip, pickLegacy);
 test('small encoding round-trips', testRoundTrip, pickCompact);
 
 const testBigInt = test.macro(async (t, pickEncode) => {
-  const kit = makeSimplePassableKit({ stateless: true });
+  const kit = makeSimplePassableKit({ statelessSuffix: '' });
   const encodePassable = pickEncode(kit);
   await fc.assert(
     fc.property(fc.bigInt(), fc.bigInt(), (x, y) => {
@@ -403,18 +429,20 @@ test(
 );
 
 const testOrderInvariants = test.macro(async (t, pickEncode) => {
-  const kit = makeSimplePassableKit({ stateless: true });
-  const statelessEncodePassable = pickEncode(kit);
+  const kit1 = makeSimplePassableKit({ statelessSuffix: '' });
+  const statelessEncode1 = pickEncode(kit1);
+  const kit2 = makeSimplePassableKit({ statelessSuffix: '.' });
+  const statelessEncode2 = pickEncode(kit2);
 
   for (const x of unsortedSample) {
     for (const y of unsortedSample) {
-      orderInvariants(x, y, statelessEncodePassable);
+      orderInvariants(x, y, statelessEncode1, statelessEncode2);
     }
   }
 
   await fc.assert(
     fc.property(arbPassable, arbPassable, (x, y) => {
-      return orderInvariants(x, y, statelessEncodePassable);
+      return orderInvariants(x, y, statelessEncode1, statelessEncode2);
     }),
   );
 
