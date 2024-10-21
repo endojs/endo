@@ -8,7 +8,7 @@ a form that SES can use to emulate and confine JavaScript modules (ESMs, the
 
 ```js
 import 'ses';
-import { ModuleSource } from '@endo/module-source`;
+import { ModuleSource } from '@endo/module-source';
 
 const c1 = new Compartment({}, {}, {
   name: "first compartment",
