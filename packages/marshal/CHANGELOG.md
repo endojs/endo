@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.6.1](https://github.com/endojs/endo/compare/@endo/marshal@2.0.0...@endo/marshal@1.6.1) (2024-10-22)
+
+
+### Bug Fixes
+
+* **marshal:** Manually intervene in choice of semver for 1.6.0 instead of 2.0.0 ([c242c28](https://github.com/endojs/endo/commit/c242c28a68d1af29475150e44b5f3e9d0feda8cd))
+
+
+
 ## [1.6.0](https://github.com/endojs/endo/compare/@endo/marshal@1.5.4...@endo/marshal@1.6.0) (2024-10-22)
 
 

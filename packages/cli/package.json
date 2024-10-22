@@ -1,6 +1,6 @@
 {
   "name": "@endo/cli",
-  "version": "2.3.4",
+  "version": "2.3.5",
   "private": true,
   "description": "Endo command line interface",
   "keywords": [],
