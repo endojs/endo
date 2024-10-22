@@ -156,28 +156,27 @@ export {};
  * Returns `-1`, `0`, or `1` depending on whether the rank of `left`
  * is respectively before, tied-with, or after the rank of `right`.
  *
- * This comparison function is valid as argument to
- * `Array.prototype.sort`. This is sometimes described as a "total order"
- * but, depending on your definitions, this is technically incorrect because
- * it may return `0` to indicate that two distinguishable elements such as
- * `-0` and `0` are tied (i.e., are in the same equivalence class
- * for the purposes of this ordering). If each such equivalence class is
- * a *rank* and ranks are disjoint, then this "rank order" is a
- * true total order over these ranks. In mathematics this goes by several
- * other names such as "total preorder".
+ * As a total preorder, this comparison function is valid as an argument to
+ * `Array.prototype.sort` but may return `0` to indicate that two
+ * distinguishable elements such as `-0` and `0` are tied (i.e., are in the same
+ * equivalence class for the purposes of this ordering). If each such
+ * equivalence class is
+ * a *rank* and ranks are disjoint, then this "rank order" is a true total order
+ * over these ranks.
  *
  * This function establishes a total rank order over all passables.
  * To do so it makes arbitrary choices, such as that all strings
- * are after all numbers. Thus, this order is not intended to be
- * used directly as a comparison with useful semantics. However, it must be
- * closely enough related to such comparisons to aid in implementing
- * lookups based on those comparisons. For example, in order to get a total
- * order among ranks, we put `NaN` after all other JavaScript "number" values
- * (i.e., IEEE 754 floating-point values). But otherwise, we rank JavaScript
- * numbers by signed magnitude, with `0` and `-0` tied. A semantically useful
- * ordering would also compare magnitudes, and so agree with the rank ordering
- * of all values other than `NaN`. An array sorted by rank would enable range
- * queries by magnitude.
+ * are after all numbers, and thus is not intended to be used directly as a
+ * comparison with useful semantics.
+ * However, it must be closely enough related to such comparisons to aid in
+ * implementing lookups based on those comparisons.
+ * For example, in order to get a total order over ranks, we put `NaN` after all
+ * other JavaScript "number" values (i.e., IEEE 754 floating-point values) but
+ * otherwise rank JavaScript numbers by signed magnitude, with `0` and `-0`
+ * tied, as would a semantically useful ordering such as `KeyCompare` in
+ * {@link ../../patterns}.
+ * Likewise, an array sorted by rank would enable range queries by magnitude.
+ *
  * @param {any} left
  * @param {any} right
  * @returns {RankComparison}
@@ -185,16 +184,38 @@ export {};
 
 /**
  * @typedef {RankCompare} FullCompare
- * A `FullCompare` function satisfies all the invariants stated below for
- * `RankCompare`'s relation with KeyCompare.
- * In addition, its equality is as precise as the `KeyCompare`
- * comparison defined below, in that, for all Keys `x` and `y`,
- * `FullCompare(x, y) === 0` iff `KeyCompare(x, y) === 0`.
+ * A function that refines `RankCompare` into a total order over its inputs by
+ * making arbitrary choices about the relative ordering of values within the
+ * same rank.
+ * Like `RankCompare` but even more strongly, it is expected to agree with a
+ * `KeyCompare` (@see {@link ../../patterns}) where they overlap ---
+ * `FullCompare(key1, key2) === 0` iff `KeyCompare(key1, key2) === 0`.
+ */
+
+/**
+ * @typedef {-1 | 0 | 1 | NaN} PartialComparison
+ * The result of a `PartialCompare` function that defines a meaningful and
+ * meaningfully precise partial order in which incomparable values are
+ * represented by `NaN`. See `PartialCompare`.
+ */
+
+/**
+ * @template [T=any]
+ * @callback PartialCompare
+ * A function that implements a partial order --- defining relative position
+ * between values but leaving some pairs incomparable (for example, subsets over
+ * sets is a partial order in which {} precedes {x} and {y}, which are mutually
+ * incomparable but both precede {x, y}). As with the rank ordering produced by
+ * `RankCompare`, -1, 0, and 1 respectively mean "less than", "equivalent to",
+ * and "greater than". NaN means "incomparable" --- the first value is not less,
+ * equivalent, or greater than the second.
  *
- * For non-keys a `FullCompare` should be exactly as imprecise as
- * `RankCompare`. For example, both will treat all errors as in the same
- * equivalence class. Both will treat all promises as in the same
- * equivalence class. Both will order taggeds the same way, which is admittedly
- * weird, as some taggeds will be considered keys and other taggeds will be
- * considered non-keys.
+ * By using NaN for "incomparable", the normal equivalence for using
+ * the return value in a comparison is preserved.
+ * `PartialCompare(left, right) >= 0` iff `left` is greater than or equivalent
+ * to `right` in the partial ordering.
+ *
+ * @param {T} left
+ * @param {T} right
+ * @returns {PartialComparison}
  */

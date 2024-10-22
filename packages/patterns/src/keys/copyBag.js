@@ -14,8 +14,8 @@ import { X } from '@endo/errors';
 
 /**
  * @import {Passable} from '@endo/pass-style'
- * @import {Checker} from '@endo/marshal'
- * @import {CopyBag, Key, FullCompare} from '../types.js'
+ * @import {Checker, FullCompare} from '@endo/marshal'
+ * @import {CopyBag, Key} from '../types.js'
  */
 
 /**

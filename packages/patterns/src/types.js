@@ -5,7 +5,12 @@ export {};
 // NB: as of TS 5.5 nightly, TS thinks RankCover and Checker "is declared but never read" but they are
 /**
  * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Primitive, RemotableObject} from '@endo/pass-style';
- * @import {RankCompare, RankCover} from '@endo/marshal';
+ * @import {PartialCompare, PartialComparison, RankCompare, RankCover} from '@endo/marshal';
+ */
+
+// Re-exported types.
+/**
+ * @typedef {import('@endo/marshal').FullCompare} FullCompare
  */
 
 /**
@@ -143,61 +148,17 @@ export {};
  */
 
 /**
- * @typedef {RankCompare} FullCompare
- * A `FullCompare` function satisfies all the invariants stated below for
- * `RankCompare`'s relation with KeyCompare.
- * In addition, its equality is as precise as the `KeyCompare`
- * comparison defined below, in that, for all Keys `x` and `y`,
- * `FullCompare(x, y) === 0` iff `KeyCompare(x, y) === 0`.
- *
- * For non-Key inputs, a `FullCompare` should be exactly as imprecise as
- * `RankCompare`. For example, both will treat all errors as in the same
- * equivalence class. Both will treat all promises as in the same
- * equivalence class. Both will order tagged records the same way, which is
- * admittedly weird because some (such as CopySets, CopyBags, and CopyMaps)
- * will be considered Keys while others will be considered non-Keys.
- */
-
-/**
- * @typedef {object} RankComparatorKit
- * @property {RankCompare} comparator
- * @property {RankCompare} antiComparator
- */
-
-/**
- * @typedef {object} FullComparatorKit
- * @property {FullCompare} comparator
- * @property {FullCompare} antiComparator
- */
-
-/**
- * @typedef {-1 | 0 | 1 | NaN} KeyComparison
+ * @typedef {PartialComparison} KeyComparison
  * The result of a `KeyCompare` function that defines a meaningful
  * and meaningfully precise partial order of Key values. See `KeyCompare`.
  */
 
 /**
- * @callback KeyCompare
- * `compareKeys` implements a partial order over Keys --- it defines relative
- * position between two Keys but leaves some pairs incomparable (for example,
- * subsets over sets is a partial order in which {} precedes {x} and {y}, which
- * are mutually incomparable but both precede {x, y}). As with the rank ordering
- * produced by `compareRank`, -1, 0, and 1 respectively mean "less than",
- * "equivalent to", and "greater than". NaN means "incomparable" --- the first
- * key is not less, equivalent, or greater than the second.
- *
- * By using NaN for "incomparable", the normal equivalence for using
- * the return value in a comparison is preserved.
- * `compareKeys(left, right) >= 0` iff `left` is greater than or
- * equivalent to `right` in the partial ordering.
- *
+ * @typedef {PartialCompare<Key>} KeyCompare
+ * A function that implements a partial order over Keys.
  * Key order (a partial order) and rank order (a total preorder) are
  * co-designed to support efficient range search for Key-based queries
  * (@see {@link ../README.md#rank-order-and-key-order}).
- *
- * @param {Key} left
- * @param {Key} right
- * @returns {KeyComparison}
  */
 
 /**

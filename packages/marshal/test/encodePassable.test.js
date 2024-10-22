@@ -5,91 +5,68 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { fc } from '@fast-check/ava';
 import { Remotable } from '@endo/pass-style';
 import { arbPassable } from '@endo/pass-style/tools.js';
-import { Fail, q } from '@endo/errors';
+import { assert, Fail, q, b } from '@endo/errors';
 
 import {
   makePassableKit,
   makeEncodePassable,
   makeDecodePassable,
 } from '../src/encodePassable.js';
-import { compareRank, makeComparatorKit } from '../src/rankOrder.js';
+import { compareRank, makeFullOrderComparatorKit } from '../src/rankOrder.js';
 import { unsortedSample } from './_marshal-test-data.js';
 
-const buffers = {
-  __proto__: null,
-  r: [],
-  '?': [],
-  '!': [],
-};
-const resetBuffers = () => {
-  buffers.r = [];
-  buffers['?'] = [];
-  buffers['!'] = [];
-};
-const cursors = {
-  __proto__: null,
-  r: 0,
-  '?': 0,
-  '!': 0,
-};
-const resetCursors = () => {
-  cursors.r = 0;
-  cursors['?'] = 0;
-  cursors['!'] = 0;
-};
+const statelessEncodePassableLegacy = makeEncodePassable();
 
-const encodeThing = (prefix, r) => {
-  buffers[prefix].push(r);
-  // With this encoding, all things with the same prefix have the same rank
-  return prefix;
+const makeSimplePassableKit = ({ statelessSuffix } = {}) => {
+  let count = 0n;
+  const encodingFromVal = new Map();
+  const valFromEncoding = new Map();
+
+  const encodeSpecial = (prefix, val) => {
+    const foundEncoding = encodingFromVal.get(val);
+    if (foundEncoding) return foundEncoding;
+    count += 1n;
+    const template = statelessEncodePassableLegacy(count);
+    const encoding = prefix + template.substring(1);
+    encodingFromVal.set(val, encoding);
+    valFromEncoding.set(encoding, val);
+    return encoding;
+  };
+  const decodeSpecial = (prefix, e) => {
+    e.startsWith(prefix) ||
+      Fail`expected encoding ${q(e)} to start with ${b(prefix)}`;
+    const val =
+      valFromEncoding.get(e) || Fail`no object found while decoding ${q(e)}`;
+    return val;
+  };
+
+  const encoders =
+    statelessSuffix !== undefined
+      ? {
+          encodeRemotable: r => `r${statelessSuffix}`,
+          encodePromise: p => `?${statelessSuffix}`,
+          encodeError: err => `!${statelessSuffix}`,
+        }
+      : {
+          encodeRemotable: r => encodeSpecial('r', r),
+          encodePromise: p => encodeSpecial('?', p),
+          encodeError: err => encodeSpecial('!', err),
+        };
+  const encodePassableLegacy = makeEncodePassable({ ...encoders });
+  const encodePassableCompact = makeEncodePassable({
+    ...encoders,
+    format: 'compactOrdered',
+  });
+  const decodePassable = makeDecodePassable({
+    decodeRemotable: e => decodeSpecial('r', e),
+    decodePromise: e => decodeSpecial('?', e),
+    decodeError: e => decodeSpecial('!', e),
+  });
+
+  return { encodePassableLegacy, encodePassableCompact, decodePassable };
 };
-
-const decodeThing = (prefix, e) => {
-  prefix === e ||
-    Fail`expected encoding ${q(e)} to simply be the prefix ${q(prefix)}`;
-  (cursors[prefix] >= 0 && cursors[prefix] < buffers[prefix].length) ||
-    Fail`while decoding ${q(e)}, expected cursors[${q(prefix)}], i.e., ${q(
-      cursors[prefix],
-    )} <= ${q(buffers[prefix].length)}`;
-  const thing = buffers[prefix][cursors[prefix]];
-  cursors[prefix] += 1;
-  return thing;
-};
-
-const compareRemotables = (x, y) =>
-  compareRank(encodeThing('r', x), encodeThing('r', y));
-
-const encodePassableInternal = makeEncodePassable({
-  encodeRemotable: r => encodeThing('r', r),
-  encodePromise: p => encodeThing('?', p),
-  encodeError: er => encodeThing('!', er),
-});
-const encodePassableInternal2 = makeEncodePassable({
-  encodeRemotable: r => encodeThing('r', r),
-  encodePromise: p => encodeThing('?', p),
-  encodeError: er => encodeThing('!', er),
-  format: 'compactOrdered',
-});
-
-const encodePassable = passable => {
-  resetBuffers();
-  return encodePassableInternal(passable);
-};
-const encodePassable2 = passable => {
-  resetBuffers();
-  return encodePassableInternal2(passable);
-};
-
-const decodePassableInternal = makeDecodePassable({
-  decodeRemotable: e => decodeThing('r', e),
-  decodePromise: e => decodeThing('?', e),
-  decodeError: e => decodeThing('!', e),
-});
-
-const decodePassable = encoded => {
-  resetCursors();
-  return decodePassableInternal(encoded);
-};
+const pickLegacy = kit => kit.encodePassableLegacy;
+const pickCompact = kit => kit.encodePassableCompact;
 
 test('makePassableKit output shape', t => {
   const kit = makePassableKit();
@@ -133,7 +110,7 @@ test(
   (...args) => makePassableKit(...args).encodePassable,
 );
 
-const { comparator: compareFull } = makeComparatorKit(compareRemotables);
+const { comparator: compareFull } = makeFullOrderComparatorKit();
 
 const asNumber = new Float64Array(1);
 const asBits = new BigUint64Array(asNumber.buffer);
@@ -171,6 +148,11 @@ const goldenPairs = harden([
 ]);
 
 test('golden round trips', t => {
+  const {
+    encodePassableLegacy: encodePassable,
+    encodePassableCompact: encodePassable2,
+    decodePassable,
+  } = makeSimplePassableKit({ stateless: true });
   for (const [k, e] of goldenPairs) {
     t.is(encodePassable(k), e, 'does k encode as expected');
     t.is(encodePassable2(k), `~${e}`, 'does k small-encode as expected');
@@ -258,13 +240,14 @@ test('capability encoding', t => {
 });
 
 test('compact string validity', t => {
-  t.notThrows(() => decodePassableInternal('~sa"z'));
-  t.notThrows(() => decodePassableInternal('~sa!!z'));
+  const { decodePassable } = makeSimplePassableKit({ stateless: true });
+  t.notThrows(() => decodePassable('~sa"z'));
+  t.notThrows(() => decodePassable('~sa!!z'));
   const specialEscapes = ['!_', '!|', '_@', '__'];
   for (const prefix of ['!', '_']) {
     for (let cp = 0; cp <= 0x7f; cp += 1) {
       const esc = `${prefix}${String.fromCodePoint(cp)}`;
-      const tryDecode = () => decodePassableInternal(`~sa${esc}z`);
+      const tryDecode = () => decodePassable(`~sa${esc}z`);
       if (esc.match(/![!-@]/) || specialEscapes.includes(esc)) {
         t.notThrows(tryDecode, `valid string escape: ${JSON.stringify(esc)}`);
       } else {
@@ -276,7 +259,7 @@ test('compact string validity', t => {
       }
     }
     t.throws(
-      () => decodePassableInternal(`~sa${prefix}`),
+      () => decodePassable(`~sa${prefix}`),
       { message: /invalid string escape/ },
       `unterminated ${JSON.stringify(prefix)} escape`,
     );
@@ -285,7 +268,7 @@ test('compact string validity', t => {
     const ch = String.fromCodePoint(cp);
     const uCode = cp.toString(16).padStart(4, '0').toUpperCase();
     t.throws(
-      () => decodePassableInternal(`~sa${ch}z`),
+      () => decodePassable(`~sa${ch}z`),
       { message: /invalid string escape/ },
       `disallowed string control character: U+${uCode} ${JSON.stringify(ch)}`,
     );
@@ -293,6 +276,7 @@ test('compact string validity', t => {
 });
 
 test('compact custom encoding validity constraints', t => {
+  const { encodePassableCompact } = makeSimplePassableKit();
   const encodings = new Map();
   const dynamicEncoder = obj => encodings.get(obj);
   const dynamicEncodePassable = makeEncodePassable({
@@ -332,11 +316,11 @@ test('compact custom encoding validity constraints', t => {
       'custom encoding containing an invalid string escape is acceptable',
     );
     t.notThrows(
-      makeTryEncode(`${sigil}${encodePassableInternal2(harden([]))}`),
+      makeTryEncode(`${sigil}${encodePassableCompact(harden([]))}`),
       'custom encoding containing an empty array is acceptable',
     );
     t.notThrows(
-      makeTryEncode(`${sigil}${encodePassableInternal2(harden(['foo', []]))}`),
+      makeTryEncode(`${sigil}${encodePassableCompact(harden(['foo', []]))}`),
       'custom encoding containing a non-empty array is acceptable',
     );
 
@@ -353,31 +337,61 @@ test('compact custom encoding validity constraints', t => {
   }
 });
 
-const orderInvariants = (x, y) => {
+// TODO: Make a common utility for finding the first difference between iterables.
+// import { firstDiff } from '...';
+// const firstStringDiff = (a, b) => firstDiff(a, b, { getIncrement: ch => ch.length });
+// const commonStringPrefix = (a, b) => a.substring(0, firstStringDiff(a, b).index);
+const commonStringPrefix = (str1, str2) => {
+  // Co-iterate over *code points*.
+  const iter1 = str1[Symbol.iterator]();
+  const iter2 = str2[Symbol.iterator]();
+  // ...but track a *code unit* index for extracting a substring at the end.
+  let i = 0;
+  for (;;) {
+    const { value: char1 } = iter1.next();
+    const { value: char2 } = iter2.next();
+    if (char1 !== char2 || char1 === undefined) {
+      return str1.substring(0, i);
+    }
+    // ...because some code points consist of a two-code-unit surrogate pair.
+    i += char1.length;
+  }
+};
+
+const orderInvariants = (x, y, statelessEncode1, statelessEncode2) => {
   const rankComp = compareRank(x, y);
   const fullComp = compareFull(x, y);
   if (rankComp !== 0) {
     Object.is(rankComp, fullComp) ||
-      Fail`with rankComp ${rankComp}, expected matching fullComp: ${fullComp} for ${x} ${y}`;
+      Fail`with rankComp ${rankComp}, expected matching fullComp: ${fullComp} for ${x} vs. ${y}`;
   }
   if (fullComp === 0) {
     Object.is(rankComp, 0) ||
-      Fail`with fullComp 0, expected matching rankComp: ${rankComp} for ${x} ${y}`;
+      Fail`with fullComp 0, expected matching rankComp: ${rankComp} for ${x} vs. ${y}`;
   } else {
+    assert(fullComp !== 0);
     rankComp === 0 ||
       rankComp === fullComp ||
-      Fail`with fullComp ${fullComp}, expected 0 or matching rankComp: ${rankComp} for ${x} ${y}`;
+      Fail`with fullComp ${fullComp}, expected rankComp 0 or matching: ${rankComp} for ${x} vs. ${y}`;
   }
-  const ex = encodePassable(x);
-  const ey = encodePassable(y);
-  const encComp = compareRank(ex, ey);
+  const ex = statelessEncode1(x);
+  const ey = statelessEncode1(y);
   if (fullComp !== 0) {
-    Object.is(encComp, fullComp) ||
-      Fail`with fullComp ${fullComp}, expected matching encComp: ${encComp} for ${ex} ${ey}`;
+    // Comparability of encodings stops at the first incomparable special rank
+    // (remotable/promise/error).
+    const exPrefix = commonStringPrefix(ex, statelessEncode2(x));
+    const eyPrefix = commonStringPrefix(ey, statelessEncode2(y));
+    const encComp = compareRank(exPrefix, eyPrefix);
+    encComp === 0 ||
+      encComp === fullComp ||
+      Fail`with fullComp ${fullComp}, expected matching stateless encComp: ${encComp} for ${x} as ${ex} vs. ${y} as ${ey}`;
   }
 };
 
-const testRoundTrip = test.macro(async (t, encode) => {
+const testRoundTrip = test.macro(async (t, pickEncode) => {
+  const kit = makeSimplePassableKit();
+  const encode = pickEncode(kit);
+  const { decodePassable } = kit;
   await fc.assert(
     fc.property(arbPassable, n => {
       const en = encode(n);
@@ -388,39 +402,60 @@ const testRoundTrip = test.macro(async (t, encode) => {
     }),
   );
 });
-test('original encoding round-trips', testRoundTrip, encodePassable);
-test('small encoding round-trips', testRoundTrip, encodePassable2);
+test('original encoding round-trips', testRoundTrip, pickLegacy);
+test('small encoding round-trips', testRoundTrip, pickCompact);
 
-test('BigInt encoding comparison corresponds with numeric comparison', async t => {
+const testBigInt = test.macro(async (t, pickEncode) => {
+  const kit = makeSimplePassableKit({ statelessSuffix: '' });
+  const encodePassable = pickEncode(kit);
   await fc.assert(
-    fc.property(fc.bigInt(), fc.bigInt(), (a, b) => {
-      const ea = encodePassable(a);
-      const eb = encodePassable(b);
-      t.is(a < b, ea < eb);
-      t.is(a > b, ea > eb);
+    fc.property(fc.bigInt(), fc.bigInt(), (x, y) => {
+      const ex = encodePassable(x);
+      const ey = encodePassable(y);
+      t.is(x < y, ex < ey);
+      t.is(x > y, ex > ey);
     }),
   );
 });
+test(
+  'original BigInt encoding comparison corresponds with numeric comparison',
+  testBigInt,
+  pickLegacy,
+);
+test(
+  'small BigInt encoding comparison corresponds with numeric comparison',
+  testBigInt,
+  pickCompact,
+);
 
-test('Passable encoding corresponds to rankOrder', async t => {
-  await fc.assert(
-    fc.property(arbPassable, arbPassable, (a, b) => {
-      return orderInvariants(a, b);
-    }),
-  );
-  // Ensure at least one ava assertion.
-  t.pass();
-});
+const testOrderInvariants = test.macro(async (t, pickEncode) => {
+  const kit1 = makeSimplePassableKit({ statelessSuffix: '' });
+  const statelessEncode1 = pickEncode(kit1);
+  const kit2 = makeSimplePassableKit({ statelessSuffix: '.' });
+  const statelessEncode2 = pickEncode(kit2);
 
-// The following is logically like the test above, but rather than relying on
-// the heuristic generation of fuzzing test cases, it always checks everything
-// in `sample`.
-test('Also test against all enumerated in sample', t => {
-  for (let i = 0; i < unsortedSample.length; i += 1) {
-    for (let j = i; j < unsortedSample.length; j += 1) {
-      orderInvariants(unsortedSample[i], unsortedSample[j]);
+  for (const x of unsortedSample) {
+    for (const y of unsortedSample) {
+      orderInvariants(x, y, statelessEncode1, statelessEncode2);
     }
   }
+
+  await fc.assert(
+    fc.property(arbPassable, arbPassable, (x, y) => {
+      return orderInvariants(x, y, statelessEncode1, statelessEncode2);
+    }),
+  );
+
   // Ensure at least one ava assertion.
   t.pass();
 });
+test(
+  'original passable encoding corresponds to rankOrder',
+  testOrderInvariants,
+  pickLegacy,
+);
+test(
+  'small passable encoding corresponds to rankOrder',
+  testOrderInvariants,
+  pickCompact,
+);

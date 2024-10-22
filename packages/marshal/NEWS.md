@@ -1,5 +1,9 @@
 User-visible changes in `@endo/marshal`:
 
+# Next release
+
+- `compareRank` now short-circuits upon encountering remotables to compare, considering the inputs to be tied for the same rank regardless of what would otherwise be visited later in their respective data structures. This ensures that a `fullCompare` which does distinguish remotables will be a refinement of `compareRank`, rather than disagreeing about whether or not two values share a rank ([#2588](https://github.com/endojs/endo/issues/2588)).
+
 # v1.5.1 (2024-07-30)
 
 - `deeplyFulfilled` moved from @endo/marshal to @endo/pass-style. @endo/marshal still reexports it, to avoid breaking old importers. But importers should be upgraded to import `deeplyFulfilled` directly from @endo/pass-style.

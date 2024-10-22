@@ -9,8 +9,8 @@ import { assertNoDuplicates, makeSetOfElements } from './copySet.js';
 
 /**
  * @import {Passable} from '@endo/pass-style';
- * @import {RankCompare} from '@endo/marshal'
- * @import {FullCompare, KeyComparison} from '../types.js'
+ * @import {FullCompare, RankCompare} from '@endo/marshal'
+ * @import {KeyComparison} from '../types.js'
  */
 
 // TODO share more code with keycollection-operators.js.

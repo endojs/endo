@@ -1,12 +1,21 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import { fc } from '@fast-check/ava';
 import { makeTagged, getTag, passStyleOf } from '@endo/marshal';
+import {
+  arbKey,
+  exampleAlice,
+  exampleBob,
+  exampleCarol,
+} from '@endo/pass-style/tools.js';
+import { Fail, q } from '@endo/errors';
 import {
   isCopySet,
   assertCopySet,
   makeCopySet,
   getCopySetKeys,
 } from '../src/keys/checkKey.js';
+import { keyEQ } from '../src/keys/compareKeys.js';
 import {
   setIsSuperset,
   setIsDisjoint,
@@ -18,6 +27,8 @@ import {
 import { M, matches } from '../src/patterns/patternMatchers.js';
 
 import '../src/types.js';
+
+/** @import { Key } from '../src/types.js'; */
 
 const assertIsCopySet = (t, s) => {
   t.is(passStyleOf(s), 'tagged');
@@ -85,7 +96,7 @@ test('key uniqueness', t => {
 // TODO: incorporate fast-check for property-based testing that construction
 // reverse rank sorts keys and validation rejects any other key order.
 
-test('operations', t => {
+test('operations on golden inputs', t => {
   const x = makeCopySet(['b', 'a', 'c']);
   const y = makeCopySet(['a', 'b']);
   const z = makeCopySet(['c', 'b']);
@@ -104,6 +115,16 @@ test('operations', t => {
   t.assert(setIsDisjoint(xMy, y));
 
   t.assert(setIsSuperset(x, y));
+  const twoCohorts = [
+    [exampleAlice, 'z'],
+    [exampleBob, 'z'],
+    [exampleCarol, 'a'],
+  ];
+  t.assert(
+    setIsSuperset(makeCopySet(twoCohorts), makeCopySet(twoCohorts.slice(-1))),
+    'superset with many items in one rank cohort (issue #2588)',
+  );
+
   t.assert(matches(x, yUz));
   t.assert(matches(x, M.gt(y)));
   t.assert(matches(x, M.gt(z)));
@@ -117,6 +138,30 @@ test('operations', t => {
   t.deepEqual(z, makeTagged('copySet', ['c', 'b']));
   t.deepEqual(xMy, makeTagged('copySet', ['c']));
   t.deepEqual(yIz, makeTagged('copySet', ['b']));
+});
+
+test('setIsSuperset', async t => {
+  await fc.assert(
+    fc.property(
+      fc.uniqueArray(arbKey, { comparator: keyEQ }),
+      fc.infiniteStream(fc.boolean()),
+      /**
+       * @param {Key[]} arr an array of unique Key values
+       * @param {Iterator<boolean>} keepSeq a sequence of booleans for filtering
+       *   arr into a subset
+       */
+      (arr, keepSeq) => {
+        // Filter out the subset and assert that setIsSuperset recognizes it as
+        // such.
+        const sub = arr.filter(() => keepSeq.next().value);
+        setIsSuperset(makeCopySet(arr), makeCopySet(sub)) ||
+          Fail`${q(sub)} must be a subset of ${q(arr)}`;
+      },
+    ),
+  );
+
+  // Ensure at least one ava assertion.
+  t.pass();
 });
 
 test('matching', t => {

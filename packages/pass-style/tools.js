@@ -10,6 +10,8 @@ export {
   exampleBob,
   exampleCarol,
   arbString,
+  arbKeyLeaf,
   arbLeaf,
+  arbKey,
   arbPassable,
 } from './tools/arb-passable.js';

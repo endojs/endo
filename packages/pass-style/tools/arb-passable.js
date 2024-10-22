@@ -14,7 +14,7 @@ export const exampleCarol = Far('carol', {});
 
 export const arbString = fc.oneof(fc.string(), fc.fullUnicodeString());
 
-export const arbLeaf = fc.oneof(
+const keyableLeaves = [
   fc.constantFrom(null, undefined, false, true),
   arbString,
   arbString.map(s => Symbol.for(s)),
@@ -31,22 +31,43 @@ export const arbLeaf = fc.oneof(
   fc.constantFrom(-0, NaN, Infinity, -Infinity),
   fc.record({}),
   fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
+];
+
+export const arbKeyLeaf = fc.oneof(...keyableLeaves);
+
+export const arbLeaf = fc.oneof(
+  ...keyableLeaves,
   arbString.map(s => Error(s)),
   // unresolved promise
   fc.constant(new Promise(() => {})),
 );
+
+const { keyDag } = fc.letrec(tie => {
+  return {
+    keyDag: fc.oneof(
+      { withCrossShrink: true },
+      arbKeyLeaf,
+      fc.array(tie('keyDag')),
+      fc.dictionary(
+        arbString.filter(s => s !== 'then'),
+        tie('keyDag'),
+      ),
+    ),
+  };
+});
 
 const { arbDag } = fc.letrec(tie => {
   return {
     arbDag: fc.oneof(
       { withCrossShrink: true },
       arbLeaf,
-      tie('arbDag').map(v => Promise.resolve(v)),
       fc.array(tie('arbDag')),
       fc.dictionary(
         arbString.filter(s => s !== 'then'),
         tie('arbDag'),
       ),
+      // A promise for a passable.
+      tie('arbDag').map(v => Promise.resolve(v)),
       // A tagged value, either of arbitrary type with arbitrary payload
       // or of known type with arbitrary or explicitly valid payload.
       // Ordered by increasing complexity.
@@ -110,6 +131,11 @@ const { arbDag } = fc.letrec(tie => {
 });
 
 /**
- * A factory for arbitrary passables
+ * A factory for arbitrary keys.
+ */
+export const arbKey = keyDag.map(x => harden(x));
+
+/**
+ * A factory for arbitrary passables.
  */
 export const arbPassable = arbDag.map(x => harden(x));

@@ -8,7 +8,7 @@ import {
 
 /**
  * @import {Passable, PassStyle} from '@endo/pass-style'
- * @import {FullCompare, RankCompare, RankCover} from './types.js'
+ * @import {FullCompare, PartialCompare, PartialComparison, RankCompare, RankCover} from './types.js'
  */
 
 const { entries, fromEntries, setPrototypeOf, is } = Object;
@@ -101,15 +101,16 @@ const memoOfSorted = new WeakMap();
 const comparatorMirrorImages = new WeakMap();
 
 /**
- * @param {RankCompare=} compareRemotables
- * An option to create a comparator in which an internal order is
- * assigned to remotables. This defaults to a comparator that
- * always returns `0`, meaning that all remotables are tied
- * for the same rank.
+ * @param {PartialCompare} [compareRemotables]
+ * A comparator for assigning an internal order to remotables.
+ * It defaults to a function that always returns `NaN`, meaning that all
+ * remotables are incomparable and should tie for the same rank by
+ * short-circuiting without further refinement (e.g., not only are `r1` and `r2`
+ * tied, but so are `[r1, 0]` and `[r2, "x"]`).
  * @returns {RankComparatorKit}
  */
-export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
-  /** @type {RankCompare} */
+export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
+  /** @type {PartialCompare} */
   const comparator = (left, right) => {
     if (sameValueZero(left, right)) {
       return 0;
@@ -191,10 +192,9 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         if (result !== 0) {
           return result;
         }
-        return comparator(
-          recordValues(left, leftNames),
-          recordValues(right, rightNames),
-        );
+        const leftValues = recordValues(left, leftNames);
+        const rightValues = recordValues(right, rightNames);
+        return comparator(leftValues, rightValues);
       }
       case 'copyArray': {
         // Lexicographic
@@ -225,14 +225,20 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
   };
 
   /** @type {RankCompare} */
-  const antiComparator = (x, y) => comparator(y, x);
+  const outerComparator = (x, y) =>
+    // When the inner comparator returns NaN to indicate incomparability,
+    // replace that with 0 to indicate a tie.
+    /** @type {Exclude<PartialComparison, NaN>} */ (comparator(x, y) || 0);
 
-  memoOfSorted.set(comparator, new WeakSet());
+  /** @type {RankCompare} */
+  const antiComparator = (x, y) => outerComparator(y, x);
+
+  memoOfSorted.set(outerComparator, new WeakSet());
   memoOfSorted.set(antiComparator, new WeakSet());
-  comparatorMirrorImages.set(comparator, antiComparator);
-  comparatorMirrorImages.set(antiComparator, comparator);
+  comparatorMirrorImages.set(outerComparator, antiComparator);
+  comparatorMirrorImages.set(antiComparator, outerComparator);
 
-  return harden({ comparator, antiComparator });
+  return harden({ comparator: outerComparator, antiComparator });
 };
 /**
  * @param {RankCompare} comparator
@@ -275,15 +281,6 @@ export const assertRankSorted = (sorted, compare) =>
 harden(assertRankSorted);
 
 /**
- * TODO SECURITY BUG: https://github.com/Agoric/agoric-sdk/issues/4260
- * sortByRank currently uses `Array.prototype.sort` directly, and
- * so only works correctly when given a `compare` function that considers
- * `undefined` strictly bigger (`>`) than everything else. This is
- * because `Array.prototype.sort` bizarrely moves all `undefined`s to
- * the end of the array regardless, without consulting the `compare`
- * function. This is a genuine bug for us NOW because sometimes we sort
- * in reverse order by passing a reversed rank comparison function.
- *
  * @template {Passable} T
  * @param {Iterable<T>} passables
  * @param {RankCompare} compare
@@ -301,7 +298,20 @@ export const sortByRank = (passables, compare) => {
   }
   const unsorted = [...passables];
   unsorted.forEach(harden);
-  const sorted = harden(unsorted.sort(compare));
+  const sorted = unsorted.sort(compare);
+  // For reverse comparison, move `undefined` values from the end to the start.
+  // Note that passStylePrefixes (@see {@link ./encodePassable.js}) MUST NOT
+  // sort any category after `undefined`.
+  if (compare(true, undefined) > 0) {
+    let i = sorted.length - 1;
+    while (i >= 0 && sorted[i] === undefined) i -= 1;
+    const n = sorted.length - i - 1;
+    if (n > 0 && n < sorted.length) {
+      sorted.copyWithin(n, 0);
+      sorted.fill(/** @type {T} */ (undefined), 0, n);
+    }
+  }
+  harden(sorted);
   const subMemoOfSorted = memoOfSorted.get(compare);
   assert(subMemoOfSorted !== undefined);
   subMemoOfSorted.add(sorted);
