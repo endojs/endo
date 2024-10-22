@@ -1,12 +1,25 @@
 User-visible changes in `@endo/marshal`:
 
-# Next release
+# v1.6.0 (2024-10-22)
 
-- `compareRank` now short-circuits upon encountering remotables to compare, considering the inputs to be tied for the same rank regardless of what would otherwise be visited later in their respective data structures. This ensures that a `fullCompare` which does distinguish remotables will be a refinement of `compareRank`, rather than disagreeing about whether or not two values share a rank ([#2588](https://github.com/endojs/endo/issues/2588)).
+- `compareRank` now short-circuits upon encountering remotables to compare,
+  considering the inputs to be tied for the same rank regardless of what would
+  otherwise be visited later in their respective data structures. This ensures
+  that a `fullCompare` which does distinguish remotables will be a refinement
+  of `compareRank`, rather than disagreeing about whether or not two values
+  share a rank ([#2588](https://github.com/endojs/endo/issues/2588)).
+
+  This change is a bug fix for all purposes off-chain, but will frustrate
+  deterministic replay.
+  So, because of this change and probably many others, the supervisor bundle
+  of vats on chain will need to be created from historical versions, not according
+  to the semantic version of the library.
 
 # v1.5.1 (2024-07-30)
 
-- `deeplyFulfilled` moved from @endo/marshal to @endo/pass-style. @endo/marshal still reexports it, to avoid breaking old importers. But importers should be upgraded to import `deeplyFulfilled` directly from @endo/pass-style.
+- `deeplyFulfilled` moved from @endo/marshal to @endo/pass-style. @endo/marshal
+  still reexports it, to avoid breaking old importers. But importers should be
+  upgraded to import `deeplyFulfilled` directly from @endo/pass-style.
 
 # v1.3.0 (2024-02-22)
 

@@ -1,6 +1,6 @@
 {
   "name": "@endo/marshal",
-  "version": "1.5.4",
+  "version": "1.6.0",
   "description": "marshal: encoding and deconding of Passable subgraphs",
   "type": "module",
   "main": "index.js",
