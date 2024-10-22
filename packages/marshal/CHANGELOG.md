@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/endojs/endo/compare/@endo/marshal@1.5.4...@endo/marshal@2.0.0) (2024-10-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **marshal:** Update compareRank to terminate comparability at the first remotable (#2597)
+
+### Bug Fixes
+
+* **marshal:** Update compareRank to terminate comparability at the first remotable ([#2597](https://github.com/endojs/endo/issues/2597)) ([1dea84d](https://github.com/endojs/endo/commit/1dea84d316eb412d864042ffb08b4b6420092a7c)), closes [#2588](https://github.com/endojs/endo/issues/2588)
+
+
+
 ### [1.5.4](https://github.com/endojs/endo/compare/@endo/marshal@1.5.3...@endo/marshal@1.5.4) (2024-10-10)
 
 **Note:** Version bump only for package @endo/marshal

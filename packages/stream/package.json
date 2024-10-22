@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "Foundation for async iterators as streams",
   "keywords": [
     "endo",

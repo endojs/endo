@@ -1,6 +1,6 @@
 {
   "name": "@endo/evasive-transform",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Source transforms to evade SES censorship",
   "keywords": [
     "ses",

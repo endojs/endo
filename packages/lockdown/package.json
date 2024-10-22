@@ -1,6 +1,6 @@
 {
   "name": "@endo/lockdown",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Wrappers for hardening JavaScript for Endo",
   "type": "module",
   "main": "pre.js",

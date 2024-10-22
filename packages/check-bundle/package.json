@@ -1,6 +1,6 @@
 {
   "name": "@endo/check-bundle",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Checks the integrity of an Endo bundle.",
   "keywords": [
     "endo",

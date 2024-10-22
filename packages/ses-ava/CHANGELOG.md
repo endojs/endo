@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.2.7](https://github.com/endojs/endo/compare/@endo/ses-ava@1.2.6...@endo/ses-ava@1.2.7) (2024-10-22)
+
+
+### Bug Fixes
+
+* **ses-ava:** wrap test deeply ([#2589](https://github.com/endojs/endo/issues/2589)) ([7a991aa](https://github.com/endojs/endo/commit/7a991aa75b06fc418459b5e5d2d08f9fb73ab113))
+
+
+
 ### [1.2.6](https://github.com/endojs/endo/compare/@endo/ses-ava@1.2.5...@endo/ses-ava@1.2.6) (2024-10-10)
 
 **Note:** Version bump only for package @endo/ses-ava
