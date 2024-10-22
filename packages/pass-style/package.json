@@ -1,7 +1,7 @@
 {
   "name": "@endo/pass-style",
-  "version": "2.0.0",
-  "description": "pass-style: defines the taxonomy of Passable objects.",
+  "version": "1.4.5",
+  "description": "Defines the taxonomy of Passable objects.",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
