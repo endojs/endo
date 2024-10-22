@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.4.6](https://github.com/endojs/endo/compare/@endo/patterns@2.0.0...@endo/patterns@1.4.6) (2024-10-22)
+
+
+### Bug Fixes
+
+* **patterns:** Version 1.4.5 ([5cdb873](https://github.com/endojs/endo/commit/5cdb873cab376192e311487f16a33068a1242161))
+
+
+
 ## [1.4.5](https://github.com/endojs/endo/compare/@endo/patterns@1.4.4...@endo/patterns@1.4.5) (2024-10-22)
 
 **Also erroneously published as 2.0.0**
