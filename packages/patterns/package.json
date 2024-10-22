@@ -1,7 +1,7 @@
 {
   "name": "@endo/patterns",
-  "version": "2.0.0",
-  "description": "Description forthcoming.",
+  "version": "1.4.5",
+  "description": "Pattern matching for Passable objects, expressed as Passable data",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
