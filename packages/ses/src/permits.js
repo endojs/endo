@@ -1546,6 +1546,8 @@ export const permitted = {
     race: fn,
     reject: fn,
     resolve: fn,
+    // https://github.com/tc39/proposal-promise-try
+    try: fn,
     // https://github.com/tc39/proposal-promise-with-resolvers
     withResolvers: fn,
     '@@species': getter,
