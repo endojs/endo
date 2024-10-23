@@ -168,6 +168,8 @@ function on `globalThis`.
 ```js
 import 'ses';
 
+lockdown();
+
 const c = new Compartment({
   globals: {
     print: harden(console.log),
