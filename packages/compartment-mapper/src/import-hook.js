@@ -502,89 +502,88 @@ export const makeImportHookMaker = (
       // for lint rule
       await null;
 
-      // per-module:
+      // All importHook errors must be deferred if coming from loading dependencies
+      // identified by a parser that discovers imports heuristically.
+      try {
+        // per-module:
 
-      // In Node.js, an absolute specifier always indicates a built-in or
-      // third-party dependency.
-      // The `moduleMapHook` captures all third-party dependencies, unless
-      // we allow importing any exit.
-      if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
-        if (exitModuleImportHook) {
-          const record = await exitModuleImportHook(moduleSpecifier);
-          if (record) {
-            // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
-            // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
-            enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
-              exit: true,
-              errorHint: `Blocked in loading. ${q(
+        // In Node.js, an absolute specifier always indicates a built-in or
+        // third-party dependency.
+        // The `moduleMapHook` captures all third-party dependencies, unless
+        // we allow importing any exit.
+        if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
+          if (exitModuleImportHook) {
+            const record = await exitModuleImportHook(moduleSpecifier);
+            if (record) {
+              // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
+              // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
+              enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+                exit: true,
+                errorHint: `Blocked in loading. ${q(
+                  moduleSpecifier,
+                )} was not in the compartment map and an attempt was made to load it as a builtin`,
+              });
+              if (archiveOnly) {
+                // Return a place-holder.
+                // Archived compartments are not executed.
+                return freeze({ imports: [], exports: [], execute() {} });
+              }
+              // note it's not being marked as exit in sources
+              // it could get marked and the second pass, when the archive is being executed, would have the data
+              // to enforce which exits can be dynamically imported
+              const attenuatedRecord = await attenuateModuleHook(
                 moduleSpecifier,
-              )} was not in the compartment map and an attempt was made to load it as a builtin`,
-            });
-            if (archiveOnly) {
-              // Return a place-holder.
-              // Archived compartments are not executed.
-              return freeze({ imports: [], exports: [], execute() {} });
+                record,
+                compartmentDescriptor.policy,
+                attenuators,
+              );
+              return attenuatedRecord;
             }
-            // note it's not being marked as exit in sources
-            // it could get marked and the second pass, when the archive is being executed, would have the data
-            // to enforce which exits can be dynamically imported
-            const attenuatedRecord = await attenuateModuleHook(
-              moduleSpecifier,
-              record,
-              compartmentDescriptor.policy,
-              attenuators,
-            );
-            return attenuatedRecord;
           }
-        }
-        return deferError(
-          moduleSpecifier,
-          Error(
+          throw Error(
             `Cannot find external module ${q(
               moduleSpecifier,
             )} in package ${packageLocation}`,
-          ),
+          );
+        }
+
+        const { maybeRead } = unpackReadPowers(readPowers);
+
+        const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
+
+        const record = await asyncTrampoline(
+          chooseModuleDescriptor,
+          {
+            candidates,
+            compartmentDescriptor,
+            compartmentDescriptors,
+            compartments,
+            computeSha512,
+            moduleDescriptors,
+            moduleSpecifier,
+            packageLocation,
+            packageSources,
+            readPowers,
+            sourceMapHook,
+            strictlyRequiredForCompartment,
+          },
+          { maybeRead, parse, shouldDeferError },
         );
-      }
 
-      const { maybeRead } = unpackReadPowers(readPowers);
+        if (record) {
+          return record;
+        }
 
-      const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
-
-      const record = await asyncTrampoline(
-        chooseModuleDescriptor,
-        {
-          candidates,
-          compartmentDescriptor,
-          compartmentDescriptors,
-          compartments,
-          computeSha512,
-          moduleDescriptors,
-          moduleSpecifier,
-          packageLocation,
-          packageSources,
-          readPowers,
-          sourceMapHook,
-          strictlyRequiredForCompartment,
-        },
-        { maybeRead, parse, shouldDeferError },
-      );
-
-      if (record) {
-        return record;
-      }
-
-      return deferError(
-        moduleSpecifier,
-        // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
-        Error(
+        throw Error(
           `Cannot find file for internal module ${q(
             moduleSpecifier,
           )} (with candidates ${candidates
             .map(x => q(x))
             .join(', ')}) in package ${packageLocation}`,
-        ),
-      );
+        );
+      } catch (error) {
+        return deferError(moduleSpecifier, error);
+      }
     };
     return importHook;
   };
