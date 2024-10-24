@@ -2,7 +2,7 @@
 
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 
-/** @import { MignonicPowers } from './types.js' } */
+/** @import {MignonicPowers} from './types.js'; */
 
 /**
  * @param {object} modules

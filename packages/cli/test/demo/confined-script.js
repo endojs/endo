@@ -1,4 +1,4 @@
-/** @import {TestRoutine} from '../types */
+/** @import {TestRoutine} from '../_types.js'; */
 
 /** @type {TestRoutine} */
 export const section = async (execa, testLine) => {
