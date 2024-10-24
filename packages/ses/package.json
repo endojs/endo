@@ -55,6 +55,12 @@
         "default": "./dist/ses.cjs"
       }
     },
+    "./hermes": {
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/ses-hermes.cjs"
+      }
+    },
     "./tools.js": "./tools.js",
     "./assert-shim.js": "./assert-shim.js",
     "./lockdown-shim.js": "./lockdown-shim.js",
@@ -63,7 +69,9 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node scripts/bundle.js",
+    "build:vanilla": "node scripts/bundle.js",
+    "build:hermes": "SES_BUILD_TYPE=hermes node scripts/bundle.js",
+    "build": "yarn build:vanilla && yarn build:hermes",
     "clean": "rm -rf dist",
     "cover": "c8 ava",
     "demo": "python3 -m http.server",
@@ -74,6 +82,7 @@
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
     "test": "tsd && ava",
+    "test:hermes": "./scripts/hermes.sh",
     "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js",
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
@@ -93,6 +102,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.29.1",
+    "hermes-engine-cli": "^0.12.0",
     "prettier": "^3.2.5",
     "terser": "^5.16.6",
     "tsd": "^0.31.2",
