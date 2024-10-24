@@ -18,7 +18,7 @@ test('SharedArrayBuffer should be removed because it is not permitted', t => {
   if (have) {
     // we ideally want both of these, but the realms magic can only
     // manage one at a time (for properties that previously existed but
-    // which were removed by the whitelist check)
+    // which were removed by the permits check)
     // t.throws(() => c.evaluate('SharedArrayBuffer'), ReferenceError);
     t.is(c.evaluate('typeof SharedArrayBuffer'), 'undefined');
   }

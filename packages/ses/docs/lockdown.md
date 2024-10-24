@@ -770,7 +770,7 @@ we now step into every access to an enabled property. Every read steps into
 the enabling getter. This adds yet more noise to the debugging experience.
 
 The file [src/enablements.js](../src/enablements.js) exports three different
-whitelists definining which data properties to convert to enable override by
+lists definining which data properties to convert to enable override by
 assignment, `minEnablements`, `moderateEnablements`, and `severeEnablements`.
 
 ```js

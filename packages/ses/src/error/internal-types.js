@@ -62,7 +62,7 @@
 /**
  * @callback MakeLoggingConsoleKit
  *
- * A logging console just accumulates the contents of all whitelisted calls,
+ * A logging console just accumulates the contents of all permitted calls,
  * making them available to callers of `takeLog()`. Calling `takeLog()`
  * consumes these, so later calls to `takeLog()` will only provide a log of
  * calls that have happened since then.

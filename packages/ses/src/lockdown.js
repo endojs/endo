@@ -30,7 +30,7 @@ import {
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
-import whitelistIntrinsics from './permits-intrinsics.js';
+import removeUnpermittedIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameMathObject from './tame-math-object.js';
@@ -365,17 +365,17 @@ export const repairIntrinsics = (options = {}) => {
   tameFauxDataProperties(intrinsics);
 
   /**
-   * 2. WHITELIST to standardize the environment.
+   * 2. Enforce PERMITS on shared intrinsics
    */
 
   // Remove non-standard properties.
-  // All remaining function encountered during whitelisting are
+  // All remaining functions encountered during whitelisting are
   // branded as honorary native functions.
   reportInGroup(
     'SES Removing unpermitted intrinsics',
     reporter,
     groupReporter =>
-      whitelistIntrinsics(
+      removeUnpermittedIntrinsics(
         intrinsics,
         markVirtualizedNativeFunction,
         groupReporter,
