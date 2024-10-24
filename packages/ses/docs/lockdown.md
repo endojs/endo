@@ -27,6 +27,7 @@ Each option is explained in its own section below.
 | `consoleTaming`                  | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
 | `errorTaming`                    | `'safe'`         | `'unsafe'` `'unsafe-debug'`            | `errorInstance.stack`      ([details](#errortaming-options)) |
 | `errorTrapping`                  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
+| `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
 | `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
 | `evalTaming`                     | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
 | `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
@@ -47,6 +48,7 @@ for threading environment variables into a JavaScript program.
 | `consoleTaming`                  | `LOCKDOWN_CONSOLE_TAMING`                    |                       |
 | `errorTaming`                    | `LOCKDOWN_ERROR_TAMING`                      |                       |
 | `errorTrapping`                  | `LOCKDOWN_ERROR_TRAPPING`                    |                       |
+| `reporting`                      | `LOCKDOWN_REPORTING`                         |                       |
 | `unhandledRejectionTrapping`     | `LOCKDOWN_UNHANDLED_REJECTION_TRAPPING`      |                       |
 | `evalTaming`                     | `LOCKDOWN_EVAL_TAMING`                       |                       |
 | `stackFiltering`                 | `LOCKDOWN_STACK_FILTERING`                   |                       |
@@ -458,6 +460,53 @@ the container to exit explicitly, and we highly recommend setting
   postmortem analysis, reports and navigates away on the web.
 - `'none'`: do not install traps for uncaught exceptions. Errors are likely to
   appear as `{}` when they are reported by the default trap.
+
+## `reporting` Options
+
+**Background**: Lockdown and `repairIntrinsics` report warnings if they
+encounter unexpected but repairable variations on the shared intrinsics, which
+regularly occurs if the version of `ses` predates the introduction of new
+language features.
+With the `reporting` option, an application can mute or control the direction
+of these warnings.
+
+```js
+lockdown(); // reporting defaults to 'platform'
+// or
+lockdown({ reporting: 'platform' });
+// vs
+lockdown({ reporting: 'console' });
+// vs
+lockdown({ reporting: 'none' });
+```
+
+If `lockdown` does not receive an `reporting` option, it will respect
+`process.env.LOCKDOWN_REPORTING`.
+
+```console
+LOCKDOWN_REPORTING=platform
+LOCKDOWN_REPORTING=console
+LOCKDOWN_REPORTING=none
+```
+
+- The default behavior is `'platform'` which will detect the platform and
+  report warnings according to whether a web `console`, Node.js `console`, or
+  `print` are available.
+  The web platform is distinguished by the existence of `window` or
+  `importScripts` (WebWorker).
+  The Node.js behavior is to report all warnings to `stderr` visually
+  consistent with use of a console group.
+  SES will use `print` in the absence of a `console`.
+  Captures the platform `console` at the time `lockdown` or `repairIntrinsics`
+  are called, not at the time `ses` initializes.
+- The `'console'` option forces the web platform behavior.
+  On Node.js, this results in group labels being reported to `stdout`.
+  The global `console` can be replaced before `lockdown` so using this option
+  will drive use of `console.groupCollapsed`, `console.groupEnd`,
+  `console.warn`, and `console.error` assuming that console is suited for
+  reporting arbitrary diagnostics rather than also being suited to generate
+  machine-readable `stdout`.
+- The `'none'` option mutes warnings.
 
 ## `unhandledRejectionTrapping` Options
 

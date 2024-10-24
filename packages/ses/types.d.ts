@@ -24,6 +24,7 @@ export interface RepairOptions {
   localeTaming?: 'safe' | 'unsafe';
   consoleTaming?: 'safe' | 'unsafe';
   errorTrapping?: 'platform' | 'exit' | 'abort' | 'report' | 'none';
+  reporting?: 'platform' | 'console' | 'none';
   unhandledRejectionTrapping?: 'report' | 'none';
   errorTaming?: 'safe' | 'unsafe' | 'unsafe-debug';
   dateTaming?: 'safe' | 'unsafe'; // deprecated
