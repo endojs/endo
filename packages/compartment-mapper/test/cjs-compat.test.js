@@ -15,6 +15,8 @@ const fixtureDirname = new URL(
   import.meta.url,
 ).toString();
 
+const q = JSON.stringify;
+
 const assertFixture = (t, { namespace, testCategoryHint }) => {
   const { assertions, results } = namespace;
 
@@ -64,6 +66,22 @@ scaffold(
   fixture,
   assertFixture,
   fixtureAssertionCount,
+);
+
+// Exit module errors are also deferred
+scaffold(
+  'fixtures-cjs-compat-exit-module',
+  test,
+  fixture,
+  assertFixture,
+  fixtureAssertionCount,
+  {
+    additionalOptions: {
+      importHook: async specifier => {
+        throw Error(`${q(specifier)} is NOT an exit module.`);
+      },
+    },
+  },
 );
 
 scaffold(
