@@ -32,4 +32,14 @@ test('archives only contain compartments retained by modules', async t => {
     // Notably absent:
     // 'sweep-v1.0.0',
   ]);
+  t.deepEqual(
+    Object.keys(compartmentMap.compartments['app-v1.0.0'].modules).sort(),
+    [
+      './app.js',
+      // Notably absent: 'app',
+      'mk1',
+      // Notably absent: 'mk1/bogus.js',
+      // Notably absent: 'sweep',
+    ],
+  );
 });
