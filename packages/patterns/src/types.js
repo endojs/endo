@@ -34,9 +34,38 @@ export {};
  * CopyTaggeds recognized as Keys.
  *
  * Distributed equality is location independent.
- * The same two Keys, passed to another location, will be `keyEQ` there iff
- * they are `keyEQ` here. (`keyEQ` tests equality according to the
+ * The same two Keys, passed to another location, will be {@link keyEQ} there iff
+ * they are {@link keyEQ} here. ({@link keyEQ} tests equality according to the
  * key distributed equality semantics.)
+ *
+ * ### Rank order and key order
+ *
+ * The "key order" of `compareKeys` implements a partial order over Keys --- it defines relative position between two Keys but leaves some pairs incomparable (for example, subsets over sets is a partial order in which {} precedes {x} and {y}, which are mutually incomparable but both precede {x, y}).
+ * It is co-designed with the "rank order" (a total preorder) of `compareRank` from [`@endo/marshal`](https://www.npmjs.com/package/@endo/marshal) to support efficient range search for Key-based queries (for example, finding all entries in a map for which the key is a CopyRecord with particular fields can be implemented by selecting from rank-ordered keys those that are CopyRecords whose lexicographically greatest field is at least as big as the lexicographically greatest required field, and then filtering out matched keys that don't have the necessary shape).
+ * Both functions use `-1`, `0`, and `1` to respectively mean "less than", "equivalent to", and "greater than".
+ * `NaN` means "incomparable" --- the first key is not less than, equivalent to, or greater than the second.
+ * To keep the orders distinct when speaking informally, we use "earlier" and "later" for rank order, and "smaller" and "bigger" for key order.
+ *
+ * The key ordering of `compareKeys` refines the rank ordering of `compareRank` but leaves gaps for which a more complete "full order" relies upon rank ordering:
+ * 1. `compareKeys(X,Y) === 0` implies that `compareRank(X,Y) === 0` --- if X
+ *    is equivalent to Y in key order, then X is equivalent to Y in rank order.
+ *    But the converse does not hold; for example, Remotables `Far('X')` and
+ *    `Far('Y')` are equivalent in rank order but incomparable in key order.
+ * 2. `compareKeys(X,Y) < 0` implies that `compareRank(X,Y) < 0` --- if X is
+ *    smaller than Y in key order, then X is earlier than Y in rank order.
+ *    But the converse does not hold; for example, the record `{b: 3, a: 5}`
+ *    is earlier than the record `{b: 5, a: 3}` in rank order but they are
+ *    incomparable in key order.
+ * 3. `compareRank(X,Y) === 0` implies that `compareKeys(X,Y)` is either
+ *    0 or NaN --- Keys within the same rank are either equivalent to or
+ *    incomparable to each other in key order. But the converse does not hold;
+ *    for example, `Far('X')` and `{}` are incomparable in key order but not
+ *    equivalent in rank order.
+ * 4. `compareRank(X,Y) === 0` and `compareRank(X,Z) === 0` imply that
+ *    `compareKeys(X,Y)` and `compareKeys(X,Z)` are the same --- all Keys within
+ *    the same rank are either mutually equivalent or mutually incomparable, and
+ *    in fact only in the mutually incomparable case can the rank be said to
+ *    contain more than one key.
  */
 
 /**
@@ -61,19 +90,19 @@ export {};
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
- * non-container leaf is either a Key or a Matcher, or such leaves in isolation
+ * non-container leaf is either a Key or a {@link Matcher}, or such leaves in isolation
  * with no container.
  *
  * A Pattern acts as a declarative total predicate over Passables, where each
- * Passable is either matched or not matched by it. Every Key is also a Pattern
- * that matches only "itself", i.e., Keys that are `keyEQ` to it according to
+ * Passable is either matched or not matched by it. Every {@link Key} is also a Pattern
+ * that matches only "itself", i.e., Keys that are {@link keyEQ} to it according to
  * the key distributed equality semantics.
  *
  * Patterns cannot contain promises or errors, as these do
  * not have useful distributed equality or matching semantics. Likewise,
  * no Pattern can distinguish among promises, or distinguish among errors.
  * Patterns also cannot contain any CopyTaggeds except for those recognized as
- * CopySets, CopyBags, CopyMaps, or Matchers.
+ * {@link CopySet}s, {@link CopyBag}s, {@link CopyMap}s, or {@link Matcher}s.
  *
  * Be aware that we may recognize more CopyTaggeds over time, including
  * CopyTaggeds recognized as Patterns.
@@ -110,7 +139,7 @@ export {};
  * @typedef {CopyTagged<'copySet', K[]>} CopySet
  *
  * A Passable collection of Keys that are all mutually distinguishable
- * according to the key distributed equality semantics exposed by `keyEQ`.
+ * according to the key distributed equality semantics exposed by {@link keyEQ}.
  */
 
 /**
@@ -118,7 +147,7 @@ export {};
  * @typedef {CopyTagged<'copyBag', [K, bigint][]>} CopyBag
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
- * according to the key distributed equality semantics exposed by `keyEQ`,
+ * according to the key distributed equality semantics exposed by {@link keyEQ},
  * each with a corresponding positive cardinality.
  */
 
@@ -128,7 +157,7 @@ export {};
  * @typedef {CopyTagged<'copyMap', { keys: K[], values: V[] }>} CopyMap
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
- * according to the key distributed equality semantics exposed by `keyEQ`,
+ * according to the key distributed equality semantics exposed by {@link keyEQ},
  * each with a corresponding Passable value.
  */
 
@@ -511,6 +540,33 @@ export {};
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {CopyTagged<'guard:interfaceGuard', InterfaceGuardPayload<T>>} InterfaceGuard
+ * Characterize dynamic behavior such as method argument/response signatures and promise awaiting.
+ *
+ * The {@link @endo/exo!} package uses `InterfaceGuard`s as the first level of
+ * defense for Exo objects against malformed input.
+ *
+ * For example:
+ *
+ * ```js
+ * const AsyncSerializerI = M.interface('AsyncSerializer', {
+ *   // This interface has a single method, which is async as indicated by M.callWhen().
+ *   // The method accepts a single argument, consumed with an implied `await` as indicated by M.await(),
+ *   // and the result of that implied `await` is allowed to fulfill to any value per M.any().
+ *   // The method result is a string as indicated by M.string(),
+ *   // which is inherently wrapped in a promise by the async nature of the method.
+ *   getStringOf: M.callWhen(M.await(M.any())).returns(M.string()),
+ * });
+ * const asyncSerializer = makeExo('AsyncSerializer', AsyncSerializerI, {
+ *   // M.callWhen() delays invocation of this method implementation
+ *   // while provided argument is in a pending state
+ *   // (i.e., it is a promise that has not yet settled).
+ *   getStringOf(val) { return String(val); },
+ * });
+ *
+ * const stringP = asyncSerializer.getStringOf(Promise.resolve(42n));
+ * isPromise(stringP); // => true
+ * await stringP; // => "42"
+ * ```
  */
 
 /**
@@ -526,6 +582,8 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
+ */
+
 /**
  * @typedef {object} MethodGuardReturns
  * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
