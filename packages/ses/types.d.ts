@@ -26,8 +26,6 @@ export interface RepairOptions {
   errorTrapping?: 'platform' | 'exit' | 'abort' | 'report' | 'none';
   unhandledRejectionTrapping?: 'report' | 'none';
   errorTaming?: 'safe' | 'unsafe' | 'unsafe-debug';
-  dateTaming?: 'safe' | 'unsafe'; // deprecated
-  mathTaming?: 'safe' | 'unsafe'; // deprecated
   evalTaming?: 'safeEval' | 'unsafeEval' | 'noEval';
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
