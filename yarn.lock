@@ -202,7 +202,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -227,7 +227,7 @@ __metadata:
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     rollup: "npm:^2.79.1"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   bin:
     bundle-source: ./src/tool.js
   languageName: unknown
@@ -246,7 +246,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -269,7 +269,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -286,7 +286,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -320,7 +320,7 @@ __metadata:
     open: "npm:^9.1.0"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   bin:
     endo: ./bin/endo
   languageName: unknown
@@ -338,7 +338,7 @@ __metadata:
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -360,7 +360,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -397,7 +397,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
     ws: "npm:^8.13.0"
   languageName: unknown
   linkType: soft
@@ -414,7 +414,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -429,7 +429,7 @@ __metadata:
     ses: "workspace:^"
     ses0_18_3: "npm:ses@0.18.3"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -442,7 +442,7 @@ __metadata:
     mocha: "npm:^10.6.0"
     requireindex: "npm:~1.1.0"
     tsutils: "npm:~3.21.0"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
     typescript-eslint: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -466,7 +466,7 @@ __metadata:
     rollup: "npm:^2.79.1"
     source-map-js: "npm:^1.2.0"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -479,7 +479,7 @@ __metadata:
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -504,7 +504,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -519,7 +519,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -530,7 +530,7 @@ __metadata:
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -548,7 +548,7 @@ __metadata:
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -562,7 +562,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     ava: "npm:^6.1.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -592,7 +592,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -612,7 +612,7 @@ __metadata:
     "@fast-check/ava": "npm:^1.1.5"
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -631,7 +631,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -654,7 +654,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -670,7 +670,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -691,7 +691,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -714,7 +714,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -739,7 +739,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -757,7 +757,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -777,7 +777,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   peerDependencies:
     ava: ^5.3.0 || ^6.1.2
   languageName: unknown
@@ -792,7 +792,7 @@ __metadata:
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -814,7 +814,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -831,7 +831,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -853,7 +853,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -870,7 +870,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -888,7 +888,7 @@ __metadata:
     prettier: "npm:^3.3.3"
     ses: "workspace:^"
     test262-harness: "npm:^10.0.0"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -906,7 +906,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.29.0"
     prettier: "npm:^3.3.3"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -923,7 +923,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -940,7 +940,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
     prettier: "npm:^3.3.3"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -8955,7 +8955,7 @@ __metadata:
     type-coverage: "npm:^2.29.1"
     typedoc: "npm:^0.26.6"
     typedoc-plugin-markdown: "npm:^4.2.5"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
     typescript-eslint: "npm:^7.3.1"
     zx: "npm:^8.1.8"
   languageName: unknown
@@ -9158,7 +9158,7 @@ __metadata:
     prettier: "npm:^3.3.3"
     terser: "npm:^5.16.6"
     tsd: "npm:^0.31.2"
-    typescript: "npm:~5.6.2"
+    typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
 
@@ -10266,13 +10266,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:~5.6.2":
-  version: 5.6.2
-  resolution: "typescript@npm:5.6.2"
+"typescript@npm:~5.6.3":
+  version: 5.6.3
+  resolution: "typescript@npm:5.6.3"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/3ed8297a8c7c56b7fec282532503d1ac795239d06e7c4966b42d4330c6cf433a170b53bcf93a130a7f14ccc5235de5560df4f1045eb7f3550b46ebed16d3c5e5
+  checksum: 10c0/44f61d3fb15c35359bc60399cb8127c30bae554cd555b8e2b46d68fa79d680354b83320ad419ff1b81a0bdf324197b29affe6cc28988cd6a74d4ac60c94f9799
   languageName: node
   linkType: hard
 
@@ -10286,13 +10286,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A~5.6.2#optional!builtin<compat/typescript>":
-  version: 5.6.2
-  resolution: "typescript@patch:typescript@npm%3A5.6.2#optional!builtin<compat/typescript>::version=5.6.2&hash=74658d"
+"typescript@patch:typescript@npm%3A~5.6.3#optional!builtin<compat/typescript>":
+  version: 5.6.3
+  resolution: "typescript@patch:typescript@npm%3A5.6.3#optional!builtin<compat/typescript>::version=5.6.3&hash=8c6c40"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/e6c1662e4852e22fe4bbdca471dca3e3edc74f6f1df043135c44a18a7902037023ccb0abdfb754595ca9028df8920f2f8492c00fc3cbb4309079aae8b7de71cd
+  checksum: 10c0/7c9d2e07c81226d60435939618c91ec2ff0b75fbfa106eec3430f0fcf93a584bc6c73176676f532d78c3594fe28a54b36eb40b3d75593071a7ec91301533ace7
   languageName: node
   linkType: hard
 
