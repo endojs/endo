@@ -269,6 +269,7 @@ function* chooseModuleDescriptor(
   for (const candidateSpecifier of candidates) {
     const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
     if (candidateModuleDescriptor !== undefined) {
+      candidateModuleDescriptor.retained = true;
       const { compartment: candidateCompartmentName = packageLocation } =
         candidateModuleDescriptor;
       const candidateCompartment = compartments[candidateCompartmentName];
@@ -339,6 +340,7 @@ function* chooseModuleDescriptor(
       // module specifier than the requested one.
       if (candidateSpecifier !== moduleSpecifier) {
         moduleDescriptors[moduleSpecifier] = {
+          retained: true,
           module: candidateSpecifier,
           compartment: packageLocation,
         };

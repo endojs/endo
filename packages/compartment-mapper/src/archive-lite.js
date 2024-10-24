@@ -148,22 +148,25 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
   const result = create(null);
   for (const compartmentName of keys(compartmentRenames)) {
     const compartment = compartments[compartmentName];
-    const { name, label, retained, policy } = compartment;
-    if (retained) {
+    const { name, label, retained: compartmentRetained, policy } = compartment;
+    if (compartmentRetained) {
       // rename module compartments
       /** @type {Record<string, ModuleDescriptor>} */
       const modules = create(null);
       const compartmentModules = compartment.modules;
       if (compartment.modules) {
         for (const name of keys(compartmentModules).sort()) {
-          const module = compartmentModules[name];
-          if (module.compartment !== undefined) {
-            modules[name] = {
-              ...module,
-              compartment: compartmentRenames[module.compartment],
-            };
-          } else {
-            modules[name] = module;
+          const { retained: moduleRetained, ...retainedModule } =
+            compartmentModules[name];
+          if (moduleRetained) {
+            if (retainedModule.compartment !== undefined) {
+              modules[name] = {
+                ...retainedModule,
+                compartment: compartmentRenames[retainedModule.compartment],
+              };
+            } else {
+              modules[name] = retainedModule;
+            }
           }
         }
       }

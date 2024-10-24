@@ -1,5 +1,10 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next version
+
+- Omits unused module descriptors from `compartment-map.json` in archived
+  applications, potentially reducing file sizes.
+
 # v1.3.0 (2024-10-10)
 
 - Adds support for dynamic requires in CommonJS modules. This requires specific
