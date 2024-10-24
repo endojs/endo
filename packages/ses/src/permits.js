@@ -282,7 +282,12 @@ export const AsyncFunctionInstance = {
 
 // Aliases
 const fn = FunctionInstance;
-const hermesFn = { ...FunctionInstance, prototype: 'undefined' }; // Bypass Hermes bug, fixed in: https://github.com/facebook/hermes/commit/00f18c89c720e1c34592bb85a1a8d311e6e99599
+// Bypass Hermes bugs, fixed in:
+// - https://github.com/facebook/hermes/commit/c42491de94aff479e5e83c073eff96a6261da080
+// - https://github.com/facebook/hermes/commit/00f18c89c720e1c34592bb85a1a8d311e6e99599
+// Expect additional Function Properties of the Global Object proposed by SES to have non-standard prototype properties set to undefined.
+// This includes arrow functions (lockdown and harden) and object literal methods (%InitialGetStackString%).
+const hermesFn = { ...FunctionInstance, prototype: 'undefined' };
 const asyncFn = AsyncFunctionInstance;
 
 const getter = {

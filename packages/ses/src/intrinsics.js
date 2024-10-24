@@ -100,12 +100,14 @@ export const makeIntrinsicsCollector = () => {
       }
       const permitPrototype = permit.prototype;
 
-      // Bypass Hermes bug, fixed in: https://github.com/facebook/hermes/commit/00f18c89c720e1c34592bb85a1a8d311e6e99599
       if (
         typeof intrinsic === 'function' &&
         intrinsic.prototype !== undefined &&
         permitPrototype === 'undefined' // permits.js
       ) {
+        // Set intrinsics that are additional function properties of the global Object proposed by SES to have non-standard prototype properties set to undefined.
+        // Set Hermes additional function intrinsics proposed by SES containing non-standard prototypes to undefined.
+        // This includes arrow functions (lockdown and harden) and object literal methods (%InitialGetStackString%).
         intrinsic.prototype = undefined;
       }
 
