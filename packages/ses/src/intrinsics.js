@@ -98,25 +98,38 @@ export const makeIntrinsicsCollector = () => {
       if (typeof permit !== 'object') {
         throw TypeError(`Expected permit object at whitelist.${name}`);
       }
-      const namePrototype = permit.prototype;
-      if (!namePrototype) {
+      const permitPrototype = permit.prototype;
+
+      if (
+        typeof intrinsic === 'function' &&
+        intrinsic.prototype !== undefined &&
+        permitPrototype === 'undefined' // permits.js
+      ) {
+        // Set intrinsics that are additional function properties of the global Object proposed by SES to have non-standard prototype properties set to undefined.
+        // Set Hermes additional function intrinsics proposed by SES containing non-standard prototypes to undefined.
+        // This includes arrow functions (lockdown and harden) and object literal methods (%InitialGetStackString%).
+        intrinsic.prototype = undefined;
+      }
+
+      const intrinsicPrototype = intrinsic.prototype;
+
+      if (!permitPrototype) {
         throw TypeError(`${name}.prototype property not whitelisted`);
       }
       if (
-        typeof namePrototype !== 'string' ||
-        !objectHasOwnProperty(permitted, namePrototype)
+        typeof permitPrototype !== 'string' ||
+        !objectHasOwnProperty(permitted, permitPrototype)
       ) {
         throw TypeError(`Unrecognized ${name}.prototype whitelist entry`);
       }
-      const intrinsicPrototype = intrinsic.prototype;
-      if (objectHasOwnProperty(intrinsics, namePrototype)) {
-        if (intrinsics[namePrototype] !== intrinsicPrototype) {
-          throw TypeError(`Conflicting bindings of ${namePrototype}`);
+      if (objectHasOwnProperty(intrinsics, permitPrototype)) {
+        if (intrinsics[permitPrototype] !== intrinsicPrototype) {
+          throw TypeError(`Conflicting bindings of ${permitPrototype}`);
         }
         // eslint-disable-next-line no-continue
         continue;
       }
-      intrinsics[namePrototype] = intrinsicPrototype;
+      intrinsics[permitPrototype] = intrinsicPrototype;
     }
   };
   freeze(completePrototypes);
