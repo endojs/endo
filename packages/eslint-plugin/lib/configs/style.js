@@ -1,5 +1,9 @@
 module.exports = {
-  extends: ['airbnb-base', 'plugin:jsdoc/recommended', 'prettier'],
+  extends: [
+    'airbnb-base',
+    'plugin:jsdoc/recommended-typescript-flavor',
+    'prettier',
+  ],
   rules: {
     quotes: [
       'error',
