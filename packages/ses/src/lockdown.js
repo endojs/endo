@@ -58,8 +58,10 @@ import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
 import { shimArrayBufferTransfer } from './shim-arraybuffer-transfer.js';
+import { inConsoleGroup, adaptExternalConsole } from './console.js';
 
 /** @import {LockdownOptions} from '../types.js' */
+/** @import {ExternalConsole} from './console-types.js' */
 
 const { Fail, details: X, quote: q } = assert;
 
@@ -165,6 +167,9 @@ export const repairIntrinsics = (options = {}) => {
     errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit" | undefined} */ (
       getenv('LOCKDOWN_ERROR_TRAPPING', 'platform')
     ),
+    reporting = /** @type {"platform" | "console" | "none"} */ (
+      getenv('LOCKDOWN_REPORTING', 'platform')
+    ),
     unhandledRejectionTrapping = /** @type {"none" | "report" | undefined} */ (
       getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report')
     ),
@@ -207,6 +212,8 @@ export const repairIntrinsics = (options = {}) => {
   const extraOptionsNames = ownKeys(extraOptions);
   extraOptionsNames.length === 0 ||
     Fail`lockdown(): non supported option ${q(extraOptionsNames)}`;
+
+  const externalConsole = adaptExternalConsole(reporting);
 
   priorRepairIntrinsics === undefined ||
     // eslint-disable-next-line @endo/no-polymorphic-call
@@ -363,7 +370,16 @@ export const repairIntrinsics = (options = {}) => {
   // Remove non-standard properties.
   // All remaining function encountered during whitelisting are
   // branded as honorary native functions.
-  whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
+  inConsoleGroup(
+    'SES Removing unpermitted intrinsics',
+    externalConsole,
+    internalConsole =>
+      whitelistIntrinsics(
+        intrinsics,
+        markVirtualizedNativeFunction,
+        internalConsole,
+      ),
+  );
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
@@ -425,7 +441,17 @@ export const repairIntrinsics = (options = {}) => {
     // therefore before vetted shims rather than afterwards. It is not
     // clear yet which is better.
     // @ts-ignore enablePropertyOverrides does its own input validation
-    enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
+    inConsoleGroup(
+      'SES Enabling property overrides',
+      externalConsole,
+      internalConsole =>
+        enablePropertyOverrides(
+          intrinsics,
+          overrideTaming,
+          internalConsole,
+          overrideDebug,
+        ),
+    );
     if (legacyRegeneratorRuntimeTaming === 'unsafe-ignore') {
       tameRegeneratorRuntime();
     }

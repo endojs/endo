@@ -1,30 +1,6 @@
 import test from 'ava';
-import '../../index.js';
+import './_prepare-with-extra-intrinsics.js';
 import { assertLogs } from './_throws-and-logs.js';
-
-const { defineProperties } = Object;
-const { apply } = Reflect;
-
-const originalIsArray = Array.isArray;
-
-defineProperties(Array, {
-  extraRemovableDataProperty: {
-    value: 'extra removable data property',
-    configurable: true,
-  },
-  isArray: {
-    value: function isArrayWithCleanablePrototype(...args) {
-      return apply(originalIsArray, this, args);
-    },
-  },
-  // To ensure that the test below remains tolerant of future engines
-  // adding unexpected properties, causing extra warnings on removal.
-  // See https://github.com/endojs/endo/issues/1973
-  anotherOne: {
-    value: `another removable property`,
-    configurable: true,
-  },
-});
 
 const logRecordMatches = (logRecord, goldenRecord) =>
   Array.isArray(logRecord) &&
@@ -73,9 +49,9 @@ const compareLogs = (t, log, goldenLog) => {
 test('permit removal warnings', t => {
   assertLogs(
     t,
-    () => lockdown(),
+    () => lockdown({ reporting: 'console' }),
     [
-      ['groupCollapsed', 'Removing unpermitted intrinsics'],
+      ['groupCollapsed', 'SES Removing unpermitted intrinsics'],
       ['warn', 'Removing intrinsics.Array.isArray.prototype'],
       [
         'warn',
