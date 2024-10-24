@@ -57,6 +57,7 @@
   "dependencies": {
     "@endo/cjs-module-analyzer": "workspace:^",
     "@endo/module-source": "workspace:^",
+    "@endo/regexp-escape": "workspace:^",
     "@endo/trampoline": "workspace:^",
     "@endo/zip": "workspace:^",
     "ses": "workspace:^"
