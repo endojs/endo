@@ -56,6 +56,8 @@ import { unpackReadPowers } from './powers.js';
 
 const { freeze, assign, create, fromEntries, entries, keys } = Object;
 
+const defaultCompartment = Compartment;
+
 /**
  * We attempt to produce compartment maps that are consistent regardless of
  * whether the packages were originally laid out on disk for development or
@@ -266,6 +268,7 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
+    Compartment = defaultCompartment,
   } = options;
 
   const parserForLanguage = freeze(
@@ -309,6 +312,7 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     parserForLanguage,
     languageForExtension,
     archiveOnly: true,
+    Compartment,
   });
   await compartment.load(entryModuleSpecifier);
   if (policy) {
