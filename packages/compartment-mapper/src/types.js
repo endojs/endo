@@ -883,6 +883,7 @@ export {};
  * @property {Record<string, ParserImplementation>} [parserForLanguage]
  * @property {LanguageForExtension} [languageForExtension]
  * @property {ExitModuleImportNowHook} [importNowHook]
+ * @property {typeof Compartment} [Compartment]
  */
 
 /**
