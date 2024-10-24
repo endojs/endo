@@ -58,8 +58,10 @@ import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
 import { shimArrayBufferTransfer } from './shim-arraybuffer-transfer.js';
+import { inConsoleGroup, adaptExternalConsole } from './console.js';
 
 /** @import {LockdownOptions} from '../types.js' */
+/** @import {ExternalConsole} from './console-types.js' */
 
 const { Fail, details: X, quote: q } = assert;
 
@@ -162,19 +164,24 @@ export const repairIntrinsics = (options = {}) => {
 
   const {
     errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
-    errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit" | undefined} */ (
+    errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit"} */ (
       getenv('LOCKDOWN_ERROR_TRAPPING', 'platform')
     ),
-    unhandledRejectionTrapping = /** @type {"none" | "report" | undefined} */ (
+    reporting = /** @type {"platform" | "console" | "none"} */ (
+      getenv('LOCKDOWN_REPORTING', 'platform')
+    ),
+    unhandledRejectionTrapping = /** @type {"none" | "report"} */ (
       getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report')
     ),
     regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
     localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
 
-    consoleTaming = /** @type {'unsafe' | 'safe' | undefined} */ (
+    consoleTaming = /** @type {'unsafe' | 'safe'} */ (
       getenv('LOCKDOWN_CONSOLE_TAMING', 'safe')
     ),
-    overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
+    overrideTaming = /** @type {'moderate' | 'min' | 'severe'} */ (
+      getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate')
+    ),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
     evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safeEval'),
@@ -207,6 +214,8 @@ export const repairIntrinsics = (options = {}) => {
   const extraOptionsNames = ownKeys(extraOptions);
   extraOptionsNames.length === 0 ||
     Fail`lockdown(): non supported option ${q(extraOptionsNames)}`;
+
+  const externalConsole = adaptExternalConsole(reporting);
 
   priorRepairIntrinsics === undefined ||
     // eslint-disable-next-line @endo/no-polymorphic-call
@@ -363,7 +372,16 @@ export const repairIntrinsics = (options = {}) => {
   // Remove non-standard properties.
   // All remaining function encountered during whitelisting are
   // branded as honorary native functions.
-  whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
+  inConsoleGroup(
+    'SES Removing unpermitted intrinsics',
+    externalConsole,
+    internalConsole =>
+      whitelistIntrinsics(
+        intrinsics,
+        markVirtualizedNativeFunction,
+        internalConsole,
+      ),
+  );
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
@@ -425,7 +443,17 @@ export const repairIntrinsics = (options = {}) => {
     // therefore before vetted shims rather than afterwards. It is not
     // clear yet which is better.
     // @ts-ignore enablePropertyOverrides does its own input validation
-    enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
+    inConsoleGroup(
+      'SES Enabling property overrides',
+      externalConsole,
+      internalConsole =>
+        enablePropertyOverrides(
+          intrinsics,
+          overrideTaming,
+          internalConsole,
+          overrideDebug,
+        ),
+    );
     if (legacyRegeneratorRuntimeTaming === 'unsafe-ignore') {
       tameRegeneratorRuntime();
     }
