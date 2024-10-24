@@ -163,22 +163,24 @@ export const repairIntrinsics = (options = {}) => {
 
   const {
     errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
-    errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit" | undefined} */ (
+    errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit"} */ (
       getenv('LOCKDOWN_ERROR_TRAPPING', 'platform')
     ),
     reporting = /** @type {"platform" | "console" | "none"} */ (
       getenv('LOCKDOWN_REPORTING', 'platform')
     ),
-    unhandledRejectionTrapping = /** @type {"none" | "report" | undefined} */ (
+    unhandledRejectionTrapping = /** @type {"none" | "report"} */ (
       getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report')
     ),
     regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
     localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
 
-    consoleTaming = /** @type {'unsafe' | 'safe' | undefined} */ (
+    consoleTaming = /** @type {'unsafe' | 'safe'} */ (
       getenv('LOCKDOWN_CONSOLE_TAMING', 'safe')
     ),
-    overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
+    overrideTaming = /** @type {'moderate' | 'min' | 'severe'} */ (
+      getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate')
+    ),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
     evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safeEval'),
