@@ -22,13 +22,6 @@ module.exports = {
     'prefer-regex-literals': 'off',
     'no-else-return': 'off',
     'no-console': 'off',
-    'no-unused-vars': [
-      'error',
-      {
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-      },
-    ],
     'no-return-assign': 'off',
     'no-param-reassign': 'off',
     'no-promise-executor-return': 'off', // common to return setTimeout(), we know the value won't be accessible
