@@ -1549,6 +1549,8 @@ export const permitted = {
     // https://github.com/tc39/proposal-promise-with-resolvers
     withResolvers: fn,
     '@@species': getter,
+    // https://github.com/tc39/proposal-promise-try
+    try: fn,
   },
 
   '%PromisePrototype%': {
