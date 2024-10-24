@@ -61,13 +61,14 @@ export {};
  * `package.json`, there is a corresponding module descriptor.
  *
  * @typedef {object} ModuleDescriptor
- * @property {string=} [compartment]
+ * @property {string} [compartment]
  * @property {string} [module]
  * @property {string} [location]
  * @property {Language} [parser]
  * @property {string} [sha512] in base 16, hex
  * @property {string} [exit]
  * @property {string} [deferredError]
+ * @property {boolean} [retained]
  */
 
 /**
