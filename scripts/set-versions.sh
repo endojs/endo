@@ -12,8 +12,8 @@ VERSIONSHASH=$(git hash-object -w --stdin)
 
 (
   echo package.json
-  yarn workspaces --json info |
-  jq -r '.data | fromjson | .[].location | "\(.)/package.json"' || true
+  npm query .workspace |
+  jq -r '.[].location | "\(.)/package.json"'
 ) | while read PACKAGEJSON; do
   PACKAGEJSONHASH=$(
     jq --slurpfile versions <(git cat-file blob "$VERSIONSHASH") '
