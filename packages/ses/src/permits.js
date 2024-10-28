@@ -270,6 +270,9 @@ export const FunctionInstance = {
   // Do not specify "prototype" here, since only Function instances that can
   // be used as a constructor have a prototype property. For constructors,
   // since prototype properties are instance-specific, we define it there.
+  // Older versions of Hermes contain a non-standard prototype, noted below in 'hermesFn'.
+  // This is fixed fully in Static Hermes: https://github.com/facebook/hermes/tree/static_h
+  // See: https://speakerdeck.com/tmikov2023/optimizing-with-static-hermes-chain-react-2024
 };
 
 // AsyncFunction Instances
@@ -281,6 +284,14 @@ export const AsyncFunctionInstance = {
 
 // Aliases
 const fn = FunctionInstance;
+// Bypass Hermes bugs, fixed in:
+// - https://github.com/facebook/hermes/commit/c42491de94aff479e5e83c073eff96a6261da080 (hermes: v0.13.0)
+// - https://github.com/facebook/hermes/commit/00f18c89c720e1c34592bb85a1a8d311e6e99599 (sh_stable, static_h)
+// Expect Additional Properties of the Global Object (Annex B) proposed by SES,
+// that are function instances defined as arrow functions ('lockdown' and 'harden')
+// and concise methods ('%InitialGetStackString%'), to have their non-standard
+// prototype properties set to `undefined` in intrinsics.js when completing prototypes.
+const hermesFn = { ...FunctionInstance, prototype: 'undefined' };
 const asyncFn = AsyncFunctionInstance;
 
 const getter = {
@@ -1643,8 +1654,8 @@ export const permitted = {
     '@@toStringTag': 'string',
   },
 
-  lockdown: fn,
-  harden: { ...fn, isFake: 'boolean' },
+  lockdown: hermesFn,
+  harden: { ...hermesFn, isFake: 'boolean' },
 
-  '%InitialGetStackString%': fn,
+  '%InitialGetStackString%': hermesFn,
 };
