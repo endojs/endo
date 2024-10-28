@@ -63,28 +63,23 @@ import {
 } from './commons.js';
 
 /**
+ * @import {Reporter} from './reporting-types.js'
+ */
+
+/**
  * whitelistIntrinsics()
  * Removes all non-allowed properties found by recursively and
  * reflectively walking own property chains.
  *
  * @param {object} intrinsics
  * @param {(object) => void} markVirtualizedNativeFunction
+ * @param {Reporter} reporter
  */
 export default function whitelistIntrinsics(
   intrinsics,
   markVirtualizedNativeFunction,
+  { warn, error },
 ) {
-  let groupStarted = false;
-  const inConsoleGroup = (level, ...args) => {
-    if (!groupStarted) {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      console.groupCollapsed('Removing unpermitted intrinsics');
-      groupStarted = true;
-    }
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    return console[level](...args);
-  };
-
   // These primitives are allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
@@ -294,7 +289,7 @@ export default function whitelistIntrinsics(
         // that we are removing it so we know to look into it, as happens when
         // the language evolves new features to existing intrinsics.
         if (subPermit !== false) {
-          inConsoleGroup('warn', `Removing ${subPath}`);
+          warn(`Removing ${subPath}`);
         }
         try {
           delete obj[prop];
@@ -303,17 +298,14 @@ export default function whitelistIntrinsics(
             if (typeof obj === 'function' && prop === 'prototype') {
               obj.prototype = undefined;
               if (obj.prototype === undefined) {
-                inConsoleGroup(
-                  'warn',
-                  `Tolerating undeletable ${subPath} === undefined`,
-                );
+                warn(`Tolerating undeletable ${subPath} === undefined`);
                 // eslint-disable-next-line no-continue
                 continue;
               }
             }
-            inConsoleGroup('error', `failed to delete ${subPath}`, err);
+            error(`failed to delete ${subPath}`, err);
           } else {
-            inConsoleGroup('error', `deleting ${subPath} threw`, err);
+            error(`deleting ${subPath} threw`, err);
           }
           throw err;
         }
@@ -321,14 +313,7 @@ export default function whitelistIntrinsics(
     }
   }
 
-  try {
-    // Start path with 'intrinsics' to clarify that properties are not
-    // removed from the global object by the whitelisting operation.
-    visitProperties('intrinsics', intrinsics, permitted);
-  } finally {
-    if (groupStarted) {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      console.groupEnd();
-    }
-  }
+  // Start path with 'intrinsics' to clarify that properties are not
+  // removed from the global object by the whitelisting operation.
+  visitProperties('intrinsics', intrinsics, permitted);
 }
