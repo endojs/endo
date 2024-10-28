@@ -121,7 +121,7 @@ export const setGlobalObjectMutableProperties = (
     ),
   );
 
-  // TODO These should still be tamed according to the whitelist before
+  // TODO These should still be tamed according to the permits before
   // being made available.
   for (const [name, value] of entries(perCompartmentGlobals)) {
     defineProperty(globalObject, name, {

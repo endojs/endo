@@ -15,7 +15,7 @@ defineProperty(Symbol, 'dummy', {
   configurable: false,
 });
 
-// Since %SharedSymbol%.dummy is not even mentioned on the whitelist,
+// Since %SharedSymbol%.dummy is not even mentioned on the permits,
 // this test should also print on the console:
 // > Removing intrinsics.%SharedSymbol%.dummy
 lockdown();

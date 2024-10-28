@@ -16,8 +16,8 @@ import {
  * `Symbol` constructor on constructed compartments.
  *
  * Starting these properties as configurable assumes two succeeding phases of
- * processing: A whitelisting phase, that
- * removes all properties not on the whitelist (which requires them to be
+ * processing: A permit enforcement phase, that
+ * removes all properties not on the permits (which requires them to be
  * configurable) and a global hardening step that freezes all primordials,
  * returning these properties to their expected non-configurable status.
  *

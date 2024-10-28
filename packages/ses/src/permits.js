@@ -6,7 +6,7 @@ import { arrayPush } from './commons.js';
 /** @import {GenericErrorConstructor} from '../types.js' */
 
 /**
- * @file Exports {@code whitelist}, a recursively defined
+ * @file Exports {@code permits}, a recursively defined
  * JSON record enumerating all intrinsics and their properties
  * according to ECMA specs.
  *
@@ -32,7 +32,7 @@ export const constantProperties = {
  * universalPropertyNames
  * Properties of all global objects.
  * Must be powerless.
- * Maps from property name to the intrinsic name in the whitelist.
+ * Maps from property name to the intrinsic name in the permits.
  */
 export const universalPropertyNames = {
   // *** Function Properties of the Global Object
@@ -115,7 +115,7 @@ export const universalPropertyNames = {
  * Those found only on the initial global, i.e., the global of the
  * start compartment, as well as any compartments created before lockdown.
  * These may provide much of the power provided by the original.
- * Maps from property name to the intrinsic name in the whitelist.
+ * Maps from property name to the intrinsic name in the permits.
  */
 export const initialGlobalPropertyNames = {
   // *** Constructor Properties of the Global Object
@@ -125,7 +125,7 @@ export const initialGlobalPropertyNames = {
   RegExp: '%InitialRegExp%',
 
   // Omit `Symbol`, because we want the original to appear on the
-  // start compartment without passing through the whitelist mechanism, since
+  // start compartment without passing through the permits mechanism, since
   // we want to preserve all its properties, even if we never heard of them.
   // Symbol: '%InitialSymbol%',
 
@@ -149,7 +149,7 @@ export const initialGlobalPropertyNames = {
  * sharedGlobalPropertyNames
  * Those found only on the globals of new compartments created after lockdown,
  * which must therefore be powerless.
- * Maps from property name to the intrinsic name in the whitelist.
+ * Maps from property name to the intrinsic name in the permits.
  */
 export const sharedGlobalPropertyNames = {
   // *** Constructor Properties of the Global Object
@@ -168,7 +168,7 @@ export const sharedGlobalPropertyNames = {
  * uniqueGlobalPropertyNames
  * Those made separately for each global, including the initial global
  * of the start compartment.
- * Maps from property name to the intrinsic name in the whitelist
+ * Maps from property name to the intrinsic name in the permits
  * (which is currently always the same).
  */
 export const uniqueGlobalPropertyNames = {
@@ -228,18 +228,18 @@ export { NativeErrors };
  *     blacklisted and simply removed. Properties not mentioned
  *     are also considered blacklisted and are removed.
  * <li>A string value equal to a primitive ("number", "string", etc),
- *     in which case the property is whitelisted if its value property
+ *     in which case the property is permitted if its value property
  *     is typeof the given type. For example, {@code "Infinity"} leads to
  *     "number" and property values that fail {@code typeof "number"}.
  *     are removed.
  * <li>A string value equal to an intinsic name ("ObjectPrototype",
- *     "Array", etc), in which case the property whitelisted if its
+ *     "Array", etc), in which case the property permitted if its
  *     value property is equal to the value of the corresponfing
  *     intrinsics. For example, {@code Map.prototype} leads to
  *     "MapPrototype" and the property is removed if its value is
  *     not equal to %MapPrototype%
  * <li>Another record, in which case this property is simply
- *     whitelisted and that next record represents the disposition of
+ *     permitted and that next record represents the disposition of
  *     the object which is its value. For example, {@code "Object"}
  *     leads to another record explaining what properties {@code
  *     "Object"} may have and how each such property should be treated.
@@ -1496,7 +1496,7 @@ export const permitted = {
   //
   // We will likely change this to add a property to Promise called
   // Promise.delegate and put static methods on it, which will necessitate
-  // another whitelist change to update to the current proposed standard.
+  // another permits change to update to the current proposed standard.
   HandledPromise: {
     '[[Proto]]': 'Promise',
     applyFunction: fn,

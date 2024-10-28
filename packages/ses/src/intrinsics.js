@@ -28,7 +28,7 @@ const isFunction = obj => typeof obj === 'function';
 // Like defineProperty, but throws if it would modify an existing property.
 // We use this to ensure that two conflicting attempts to define the same
 // property throws, causing SES initialization to fail. Otherwise, a
-// conflict between, for example, two of SES's internal whitelists might
+// conflict between, for example, two of SES's internal permits might
 // get masked as one overwrites the other. Accordingly, the thrown error
 // complains of a "Conflicting definition".
 function initProperty(obj, name, desc) {
@@ -82,7 +82,7 @@ export const makeIntrinsicsCollector = () => {
   freeze(addIntrinsics);
 
   // For each intrinsic, if it has a `.prototype` property, use the
-  // whitelist to find out the intrinsic name for that prototype and add it
+  // permits to find out the intrinsic name for that prototype and add it
   // to the intrinsics.
   const completePrototypes = () => {
     for (const [name, intrinsic] of entries(intrinsics)) {
@@ -96,17 +96,17 @@ export const makeIntrinsicsCollector = () => {
       }
       const permit = permitted[name];
       if (typeof permit !== 'object') {
-        throw TypeError(`Expected permit object at whitelist.${name}`);
+        throw TypeError(`Expected permit object at permits.${name}`);
       }
       const namePrototype = permit.prototype;
       if (!namePrototype) {
-        throw TypeError(`${name}.prototype property not whitelisted`);
+        throw TypeError(`${name}.prototype property not permitted`);
       }
       if (
         typeof namePrototype !== 'string' ||
         !objectHasOwnProperty(permitted, namePrototype)
       ) {
-        throw TypeError(`Unrecognized ${name}.prototype whitelist entry`);
+        throw TypeError(`Unrecognized ${name}.prototype permits entry`);
       }
       const intrinsicPrototype = intrinsic.prototype;
       if (objectHasOwnProperty(intrinsics, namePrototype)) {
@@ -155,7 +155,7 @@ export const makeIntrinsicsCollector = () => {
 /**
  * getGlobalIntrinsics()
  * Doesn't tame, delete, or modify anything. Samples globalObject to create an
- * intrinsics record containing only the whitelisted global variables, listed
+ * intrinsics record containing only the permitted global variables, listed
  * by the intrinsic names appropriate for new globals, i.e., the globals of
  * newly constructed compartments.
  *

@@ -26,7 +26,7 @@ import {
 /** @import {Reporter} from './reporting-types.js' */
 
 /**
- * For a special set of properties defined in the `enablement` whitelist,
+ * For a special set of properties defined in the `enablement` list,
  * `enablePropertyOverrides` ensures that the effect of freezing does not
  * suppress the ability to override these properties on derived objects by
  * simple assignment.
