@@ -1,0 +1,10 @@
+test/Compartment/ModuleSource/bindings/name.js
+test/Compartment/ModuleSource/needsImport/name.js
+test/Compartment/ModuleSource/needsImportMeta/name.js
+test/Compartment/constructor/resolveHook.js
+test/Compartment/prototype/Symbol.toStringTag-lockdown.js
+test/Compartment/prototype/Symbol.toStringTag.js
+test/Compartment/prototype/globalThis/defaults.js
+test/harden/frozen.js
+test/harden/private-field.js
+test/harden/stamp.js
