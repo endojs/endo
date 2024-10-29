@@ -89,6 +89,7 @@
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
     "test": "tsd && ava",
+    "test:hermes": "./scripts/hermes-test.sh",
     "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
@@ -108,6 +109,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.29.1",
+    "hermes-engine-cli": "^0.12.0",
     "prettier": "^3.3.3",
     "terser": "^5.16.6",
     "tsd": "^0.31.2",
