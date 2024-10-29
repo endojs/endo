@@ -28,7 +28,7 @@
     "prepack": "tsc --build tsconfig.build.json",
     "test262": "yarn build && node scripts/test.js",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
-    "test:xs": "exit 0"
+    "test:xs": "xargs node scripts/test.js -f onlySesXs -f onlyLockdown < baseline/sesXs-lockdown-ok"
   },
   "dependencies": {
     "@endo/compartment-mapper": "workspace:^",
