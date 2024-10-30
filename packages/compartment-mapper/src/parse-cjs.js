@@ -51,7 +51,15 @@ export const parseCjs = (
       readPowers,
     });
 
-    functor(require, moduleExports, module, filename, dirname);
+    // In CommonJS, the top-level `this` is the `module.exports` object.
+    functor.call(
+      moduleExports,
+      require,
+      moduleExports,
+      module,
+      filename,
+      dirname,
+    );
 
     afterExecute();
   };
