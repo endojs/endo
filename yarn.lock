@@ -4958,6 +4958,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"engo@workspace:go/engo":
+  version: 0.0.0-use.local
+  resolution: "engo@workspace:go/engo"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/bundle-source": "workspace:^"
+    "@endo/compartment-mapper": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/import-bundle": "workspace:^"
+    ses: "workspace:^"
+  languageName: unknown
+  linkType: soft
+
 "enquirer@npm:~2.3.6":
   version: 2.3.6
   resolution: "enquirer@npm:2.3.6"
