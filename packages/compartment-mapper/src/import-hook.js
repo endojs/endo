@@ -7,6 +7,7 @@
  */
 
 // @ts-check
+
 /**
  * @import {
  *   ImportHook,
@@ -17,7 +18,7 @@
  * @import {
  *   CompartmentDescriptor,
  *   ChooseModuleDescriptorOperators,
- *   ChooseModuleDescriptorOptions,
+ *   ChooseModuleDescriptorParams,
  *   ChooseModuleDescriptorYieldables,
  *   ExitModuleImportHook,
  *   FindRedirectParams,
@@ -243,7 +244,7 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
  *
  * @template {ChooseModuleDescriptorOperators} Operators Type of operators (sync
  * or async)
- * @param {ChooseModuleDescriptorOptions} options Options/context
+ * @param {ChooseModuleDescriptorParams} options Options/context
  * @param {Operators} operators Operators
  * @returns {Generator<ChooseModuleDescriptorYieldables,
  * StaticModuleType|undefined, Awaited<ChooseModuleDescriptorYieldables>>}
@@ -725,7 +726,8 @@ export function makeImportNowHookMaker(
       }
 
       if (exitModuleImportNowHook) {
-        // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
+        // This hook is responsible for ensuring that the moduleSpecifier
+        // actually refers to an exit module.
         const exitRecord = exitModuleImportNowHook(
           moduleSpecifier,
           packageLocation,

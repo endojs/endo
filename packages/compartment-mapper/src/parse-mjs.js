@@ -2,11 +2,13 @@
 
 // @ts-check
 
+/** @import {ParseFn} from './types.js' */
+
 import { ModuleSource } from '@endo/module-source';
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseMjs = (
   bytes,
   _specifier,

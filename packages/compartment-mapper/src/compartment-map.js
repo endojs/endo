@@ -3,6 +3,8 @@
 // @ts-check
 import { assertPackagePolicy } from './policy-format.js';
 
+/** @import {CompartmentMapDescriptor} from './types.js' */
+
 // TODO convert to the new `||` assert style.
 // Deferred because this file pervasively uses simple template strings rather than
 // template strings tagged with `assert.details` (aka `X`), and uses
@@ -471,7 +473,7 @@ const assertEntry = (allegedEntry, url) => {
 /**
  * @param {unknown} allegedCompartmentMap
  * @param {string} [url]
- * @returns {asserts allegedCompartmentMap is import('./types.js').CompartmentMapDescriptor}
+ * @returns {asserts allegedCompartmentMap is CompartmentMapDescriptor}
  */
 
 export const assertCompartmentMap = (

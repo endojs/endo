@@ -4,6 +4,8 @@
 
 // @ts-check
 
+/** @import {ParseFn} from './types.js' */
+
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 
 const textEncoder = new TextEncoder();
@@ -15,7 +17,7 @@ const freeze = Object.freeze;
 const noopExecute = () => {};
 freeze(noopExecute);
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseArchiveCjs = (
   bytes,
   _specifier,

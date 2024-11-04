@@ -5,6 +5,8 @@
 
 // @ts-check
 
+/** @import {ParseFn} from './types.js' */
+
 /**
  * TypeScript cannot be relied upon to deal with the nuances of Readonly, so we
  * borrow the pass-through type definition of harden here.
@@ -15,7 +17,7 @@ const freeze = Object.freeze;
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseText = (bytes, _specifier, _location, _packageLocation) => {
   const text = textDecoder.decode(bytes);
 

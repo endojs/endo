@@ -14,23 +14,28 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-/** @import {ImportHook} from 'ses' */
-/** @import {ModuleExportsNamespace} from 'ses' */
-/** @import {StaticModuleType} from 'ses' */
-/** @import {Application} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {ComputeSourceLocationHook} from './types.js' */
-/** @import {ComputeSourceMapLocationHook} from './types.js' */
-/** @import {ExecuteFn} from './types.js' */
-/** @import {ExitModuleImportHook} from './types.js' */
-/** @import {HashFn} from './types.js' */
-/** @import {ImportHookMaker} from './types.js' */
-/** @import {LanguageForExtension} from './types.js' */
-/** @import {LoadArchiveOptions} from './types.js' */
-/** @import {ParserForLanguage} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {SomeObject} from './types.js' */
+/**
+ * @import {
+ *   ImportHook,
+ *   StaticModuleType,
+ * } from 'ses';
+ * @import {
+ *   Application,
+ *   CompartmentDescriptor,
+ *   ComputeSourceLocationHook,
+ *   ComputeSourceMapLocationHook,
+ *   ExecuteFn,
+ *   ExitModuleImportHook,
+ *   HashFn,
+ *   ImportHookMaker,
+ *   LoadArchiveOptions,
+ *   ParseArchiveOptions,
+ *   ParserForLanguage,
+ *   ReadFn,
+ *   ReadPowers,
+ *   SomeObject,
+ * } from './types.js'
+ */
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
@@ -230,24 +235,10 @@ const makeArchiveImportHookMaker = (
   return makeImportHook;
 };
 
-// Have to give it a name to capture the external meaning of Compartment
-// Otherwise @param {typeof Compartment} takes the Compartment to mean
-// the const variable defined within the function.
-/** @typedef {typeof Compartment} CompartmentConstructor */
-
 /**
  * @param {Uint8Array} archiveBytes
  * @param {string} [archiveLocation]
- * @param {object} [options]
- * @param {string} [options.expectedSha512]
- * @param {HashFn} [options.computeSha512]
- * @param {Record<string, unknown>} [options.modules]
- * @param {ExitModuleImportHook} [options.importHook]
- * @param {CompartmentConstructor} [options.Compartment]
- * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
- * @param {ComputeSourceMapLocationHook} [options.computeSourceMapLocation]
- * @param {ParserForLanguage} [options.parserForLanguage]
- * @param {LanguageForExtension} [options.languageForExtension]
+ * @param {ParseArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
 export const parseArchive = async (

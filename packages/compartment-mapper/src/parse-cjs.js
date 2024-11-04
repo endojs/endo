@@ -4,6 +4,8 @@
 
 // @ts-check
 
+/** @import {ParseFn} from './types.js' */
+
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 
@@ -11,7 +13,7 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseCjs = (
   bytes,
   _specifier,

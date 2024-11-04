@@ -15,6 +15,16 @@
  */
 // @ts-check
 
+/**
+ * @import {
+ *   ArchiveOptions,
+ *   ReadFn,
+ *   ReadPowers,
+ *   HashPowers,
+ *   WriteFn,
+ * } from './types.js'
+ */
+
 import { defaultParserForLanguage } from './archive-parsers.js';
 import { mapNodeModules } from './node-modules.js';
 import {
@@ -26,12 +36,6 @@ import {
 } from './archive-lite.js';
 
 const { assign, create, freeze } = Object;
-
-/** @import {ArchiveOptions} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {HashPowers} from './types.js' */
-/** @import {WriteFn} from './types.js' */
 
 /**
  * Add the default parserForLanguage option.

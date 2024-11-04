@@ -31,17 +31,21 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {ArchiveOptions} from './types.js' */
-/** @import {ArchiveWriter} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {ModuleDescriptor} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {CaptureSourceLocationHook} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {HashPowers} from './types.js' */
-/** @import {Sources} from './types.js' */
-/** @import {WriteFn} from './types.js' */
+/**
+ * @import {
+ *   ArchiveLiteOptions,
+ *   ArchiveWriter,
+ *   CaptureSourceLocationHook,
+ *   CompartmentDescriptor,
+ *   CompartmentMapDescriptor,
+ *   HashPowers,
+ *   ModuleDescriptor,
+ *   ReadFn,
+ *   ReadPowers,
+ *   Sources,
+ *   WriteFn,
+ * } from './types.js'
+ */
 
 import { writeZip } from '@endo/zip';
 import { resolve } from './node-module-specifier.js';
@@ -306,7 +310,7 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
 /**
  * @param {ReadFn | ReadPowers} powers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ArchiveOptions} [options]
+ * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<{sources: Sources, compartmentMapBytes: Uint8Array, sha512?: string}>}
  */
 const digestFromMap = async (powers, compartmentMap, options = {}) => {
@@ -407,7 +411,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
 /**
  * @param {ReadFn | ReadPowers} powers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ArchiveOptions} [options]
+ * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<{bytes: Uint8Array, sha512?: string}>}
  */
 export const makeAndHashArchiveFromMap = async (
@@ -432,7 +436,7 @@ export const makeAndHashArchiveFromMap = async (
 /**
  * @param {ReadFn | ReadPowers} powers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ArchiveOptions} [options]
+ * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
 export const makeArchiveFromMap = async (powers, compartmentMap, options) => {
@@ -447,7 +451,7 @@ export const makeArchiveFromMap = async (powers, compartmentMap, options) => {
 /**
  * @param {ReadFn | ReadPowers} powers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ArchiveOptions} [options]
+ * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
 export const mapFromMap = async (powers, compartmentMap, options) => {
@@ -462,7 +466,7 @@ export const mapFromMap = async (powers, compartmentMap, options) => {
 /**
  * @param {HashPowers} powers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ArchiveOptions} [options]
+ * @param {ArchiveLiteOptions} [options]
  * @returns {Promise<string>}
  */
 export const hashFromMap = async (powers, compartmentMap, options) => {
@@ -480,7 +484,7 @@ export const hashFromMap = async (powers, compartmentMap, options) => {
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ArchiveOptions} [options]
+ * @param {ArchiveLiteOptions} [options]
  */
 export const writeArchiveFromMap = async (
   write,

@@ -4,8 +4,7 @@
 
 // @ts-check
 
-/** @import {SomePackagePolicy} from './types.js' */
-/** @import {SomePolicy} from './types.js' */
+/** @import {SomePackagePolicy, SomePolicy} from './types.js' */
 
 const { entries, keys } = Object;
 const { isArray } = Array;
@@ -209,7 +208,7 @@ export const assertPackagePolicy = (allegedPackagePolicy, path, url) => {
  * It also moonlights as a type guard.
  *
  * @param {unknown} allegedPolicy - Alleged `Policy` to test
- * @returns {asserts allegedPolicy is SomePolicy|undefined}
+ * @returns {asserts allegedPolicy is (SomePolicy | undefined)}
  */
 export const assertPolicy = allegedPolicy => {
   if (allegedPolicy === undefined) {

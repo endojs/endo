@@ -6,12 +6,14 @@
 
 // @ts-check
 
+/** @import {ParseFn} from './types.js' */
+
 import { parseLocatedJson } from './json.js';
 import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parsePreCjs = (
   bytes,
   _specifier,

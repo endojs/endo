@@ -1,17 +1,22 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {StaticModuleType} from 'ses' */
-
-/** @import {ArchiveOptions} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {CompartmentSources} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
-/** @import {PrecompiledStaticModuleInterface} from 'ses' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {Sources} from './types.js' */
-/** @import {WriteFn} from './types.js' */
+/**
+ * @import {
+ *   StaticModuleType,
+ *   PrecompiledStaticModuleInterface
+ * } from 'ses'
+ * @import {
+ *   ArchiveOptions,
+ *   CompartmentDescriptor,
+ *   CompartmentSources,
+ *   MaybeReadPowers,
+ *   ReadFn,
+ *   ReadPowers,
+ *   Sources,
+ *   WriteFn,
+ * } from './types.js'
+ */
 
 /**
  * @typedef {object} BundlerKit

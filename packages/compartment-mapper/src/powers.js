@@ -7,13 +7,17 @@
 
 // @ts-check
 
-/** @import {CanonicalFn} from './types.js' */
-/** @import {ReadNowPowers} from './types.js' */
-/** @import {ReadNowPowersProp} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
-/** @import {MaybeReadFn} from './types.js' */
+/**
+ * @import {
+ *   CanonicalFn,
+ *   ReadNowPowers,
+ *   ReadNowPowersProp,
+ *   ReadFn,
+ *   ReadPowers,
+ *   MaybeReadPowers,
+ *   MaybeReadFn,
+ * } from './types.js'
+ */
 
 const { freeze } = Object;
 

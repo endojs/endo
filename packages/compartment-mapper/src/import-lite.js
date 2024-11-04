@@ -16,17 +16,21 @@
 
 // @ts-check
 /* eslint no-shadow: "off" */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {SyncImportLocationOptions} from './types.js' */
-/** @import {ImportNowHookMaker} from './types.js' */
-/** @import {ModuleTransforms} from './types.js' */
-/** @import {ReadNowPowers} from './types.js' */
-/** @import {Application} from './types.js' */
-/** @import {ImportLocationOptions} from './types.js' */
-/** @import {ExecuteFn} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {SomeObject} from './types.js' */
+
+/**
+ * @import {
+ *   CompartmentMapDescriptor,
+ *   SyncImportLocationOptions,
+ *   ImportNowHookMaker,
+ *   ReadNowPowers,
+ *   Application,
+ *   ImportLocationOptions,
+ *   ExecuteFn,
+ *   ReadFn,
+ *   ReadPowers,
+ *   SomeObject,
+ * } from './types.js'
+ */
 
 import { link } from './link.js';
 import {

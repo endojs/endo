@@ -6,11 +6,13 @@
 
 // @ts-check
 
+/** @import {ParseFn} from './types.js' */
+
 import { parseLocatedJson } from './json.js';
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parsePreMjs = (
   bytes,
   _specifier,

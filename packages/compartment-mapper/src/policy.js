@@ -3,15 +3,19 @@
 
 // @ts-check
 
-/** @import {Policy} from './types.js' */
-/** @import {PackagePolicy} from './types.js' */
-/** @import {AttenuationDefinition} from './types.js' */
-/** @import {PackageNamingKit} from './types.js' */
-/** @import {DeferredAttenuatorsProvider} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {Attenuator} from './types.js' */
-/** @import {SomePolicy} from './types.js' */
-/** @import {SomePackagePolicy} from './types.js' */
+/**
+ * @import {
+ *   Policy,
+ *   PackagePolicy,
+ *   AttenuationDefinition,
+ *   PackageNamingKit,
+ *   DeferredAttenuatorsProvider,
+ *   CompartmentDescriptor,
+ *   Attenuator,
+ *   SomePolicy,
+ *   SomePackagePolicy,
+ * } from './types.js'
+ */
 
 import {
   getAttenuatorFromDefinition,
