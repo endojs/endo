@@ -11,9 +11,9 @@ const textDecoder = new TextDecoder();
 /** @type {import('./types.js').ParseFn} */
 export const parseArchiveMjs = (
   bytes,
-  specifier,
+  _specifier,
   sourceUrl,
-  packageLocation,
+  _packageLocation,
   options = {},
 ) => {
   const { sourceMap, sourceMapHook } = options;

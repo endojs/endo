@@ -18,7 +18,7 @@ freeze(noopExecute);
 /** @type {import('./types.js').ParseFn} */
 export const parseArchiveCjs = (
   bytes,
-  specifier,
+  _specifier,
   location,
   _packageLocation,
 ) => {
