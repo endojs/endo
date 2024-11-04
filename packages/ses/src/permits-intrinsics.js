@@ -24,7 +24,7 @@
 // Typically, this module will not be used directly, but via the
 // [lockdown-shim] which handles all necessary repairs and taming in SES.
 //
-// In the whitelist, the `prototype`, `__proto__`, and `constructor` must be
+// In the permits, the `prototype`, `__proto__`, and `constructor` must be
 // specified and point to top level entries in the map. For example,
 // `Object.__proto__` leads to `FunctionPrototype` which is a top level entry
 // in the map.
@@ -34,14 +34,14 @@
 //      `Error.stackTraceLimit` leads to 'number'),
 //    * the name of an intrinsic,
 //    * an internal constant(for example, `eval` leads to `fn` which
-//      is an alias for `FunctionInstance`, a record that whitelist all
+//      is an alias for `FunctionInstance`, a record that permits all
 //      properties allowed on such instance).
 //    * false, a property to be removed that we know about.
 //
 // All unlisted properties are also removed. But for the ones that are removed
 // because they are unlisted, as opposed to `false`, we also print their
 // name to the console as a useful diagnostic, possibly provoking an expansion
-// of the whitelist.
+// of the permits.
 
 import { permitted, FunctionInstance, isAccessorPermit } from './permits.js';
 import {
@@ -63,28 +63,22 @@ import {
 } from './commons.js';
 
 /**
- * whitelistIntrinsics()
+ * @import {Reporter} from './reporting-types.js'
+ */
+
+/**
  * Removes all non-allowed properties found by recursively and
  * reflectively walking own property chains.
  *
  * @param {object} intrinsics
- * @param {(object) => void} markVirtualizedNativeFunction
+ * @param {(virtualizedNativeFunction: object) => void} markVirtualizedNativeFunction
+ * @param {Reporter} reporter
  */
-export default function whitelistIntrinsics(
+export default function removeUnpermittedIntrinsics(
   intrinsics,
   markVirtualizedNativeFunction,
+  { warn, error },
 ) {
-  let groupStarted = false;
-  const inConsoleGroup = (level, ...args) => {
-    if (!groupStarted) {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      console.groupCollapsed('Removing unpermitted intrinsics');
-      groupStarted = true;
-    }
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    return console[level](...args);
-  };
-
   // These primitives are allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
@@ -148,7 +142,7 @@ export default function whitelistIntrinsics(
 
     // Assert: protoName, if provided, is a string.
     if (protoName !== undefined && typeof protoName !== 'string') {
-      throw TypeError(`Malformed whitelist permit ${path}.__proto__`);
+      throw TypeError(`Malformed permit ${path}.__proto__`);
     }
 
     // If permit not specified, default to Object.prototype.
@@ -164,7 +158,7 @@ export default function whitelistIntrinsics(
 
   /*
    * isAllowedPropertyValue()
-   * Whitelist a single property value against a permit.
+   * enforce permit for a single property value.
    */
   function isAllowedPropertyValue(path, value, prop, permit) {
     if (typeof permit === 'object') {
@@ -192,7 +186,7 @@ export default function whitelistIntrinsics(
 
         if (objectHasOwnProperty(intrinsics, permit)) {
           if (value !== intrinsics[permit]) {
-            throw TypeError(`Does not match whitelist ${path}`);
+            throw TypeError(`Does not match permit for ${path}`);
           }
           return true;
         }
@@ -294,7 +288,7 @@ export default function whitelistIntrinsics(
         // that we are removing it so we know to look into it, as happens when
         // the language evolves new features to existing intrinsics.
         if (subPermit !== false) {
-          inConsoleGroup('warn', `Removing ${subPath}`);
+          warn(`Removing ${subPath}`);
         }
         try {
           delete obj[prop];
@@ -303,17 +297,14 @@ export default function whitelistIntrinsics(
             if (typeof obj === 'function' && prop === 'prototype') {
               obj.prototype = undefined;
               if (obj.prototype === undefined) {
-                inConsoleGroup(
-                  'warn',
-                  `Tolerating undeletable ${subPath} === undefined`,
-                );
+                warn(`Tolerating undeletable ${subPath} === undefined`);
                 // eslint-disable-next-line no-continue
                 continue;
               }
             }
-            inConsoleGroup('error', `failed to delete ${subPath}`, err);
+            error(`failed to delete ${subPath}`, err);
           } else {
-            inConsoleGroup('error', `deleting ${subPath} threw`, err);
+            error(`deleting ${subPath} threw`, err);
           }
           throw err;
         }
@@ -321,14 +312,7 @@ export default function whitelistIntrinsics(
     }
   }
 
-  try {
-    // Start path with 'intrinsics' to clarify that properties are not
-    // removed from the global object by the whitelisting operation.
-    visitProperties('intrinsics', intrinsics, permitted);
-  } finally {
-    if (groupStarted) {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      console.groupEnd();
-    }
-  }
+  // Start path with 'intrinsics' to clarify that properties are not
+  // removed from the global object by the permitting operation.
+  visitProperties('intrinsics', intrinsics, permitted);
 }

@@ -107,7 +107,7 @@ const assertConditions = (conditions, url) => {
  * @param {string} url
  */
 const assertCompartmentModule = (allegedModule, path, url) => {
-  const { compartment, module, ...extra } = allegedModule;
+  const { compartment, module, retained, ...extra } = allegedModule;
   assertEmptyObject(
     extra,
     `${path} must not have extra properties, got ${q({
@@ -125,6 +125,13 @@ const assertCompartmentModule = (allegedModule, path, url) => {
     'string',
     `${path}.module must be a string, got ${q(module)} in ${q(url)}`,
   );
+  if (retained !== undefined) {
+    assert.typeof(
+      retained,
+      'boolean',
+      `${path}.retained must be a boolean, got ${q(retained)} in ${q(url)}`,
+    );
+  }
 };
 
 /**

@@ -112,6 +112,8 @@ const makeModuleMapHook = (
 
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
+      moduleDescriptor.retained = true;
+
       // "foreignCompartmentName" refers to the compartment which
       // may differ from the current compartment
       const {
@@ -193,6 +195,7 @@ const makeModuleMapHook = (
         // a moduleMapHook when we assemble compartments from the resulting
         // archive.
         moduleDescriptors[moduleSpecifier] = {
+          retained: true,
           compartment: foreignCompartmentName,
           module: foreignModuleSpecifier,
         };

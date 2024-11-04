@@ -1,5 +1,28 @@
 User-visible changes in `ses`:
 
+# Next release
+
+- Permit [Promise.try](https://github.com/tc39/proposal-promise-try),
+  since it has reached Stage 4.
+
+- Adds a `reporting` option to `lockdown` and `repairIntrinsics`.
+
+  The default behavior is `"platform"` which will detect the platform and
+  report warnings according to whether a web `console`, Node.js `console`, or
+  `print` are available.
+  The web platform is distinguished by the existence of `window` or
+  `importScripts` (WebWorker).
+  The Node.js behavior is to report all warnings to `stderr` visually
+  consistent with use of a console group.
+  SES will use `print` in the absence of a `console`.
+  Captures the platform `console` at the time `lockdown` or `repairIntrinsics`
+  are called, not at the time `ses` initializes.
+
+  The `"console"` option forces the web platform behavior.
+  On Node.js, this results in group labels being reported to `stdout`.
+
+  The `"none"` option mutes warnings.
+
 # v1.9.0 (2024-10-10)
 
 - On platforms without

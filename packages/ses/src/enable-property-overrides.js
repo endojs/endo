@@ -23,8 +23,10 @@ import {
   severeEnablements,
 } from './enablements.js';
 
+/** @import {Reporter} from './reporting-types.js' */
+
 /**
- * For a special set of properties defined in the `enablement` whitelist,
+ * For a special set of properties defined in the `enablement` list,
  * `enablePropertyOverrides` ensures that the effect of freezing does not
  * suppress the ability to override these properties on derived objects by
  * simple assignment.
@@ -75,11 +77,13 @@ import {
  *
  * @param {Record<string, any>} intrinsics
  * @param {'min' | 'moderate' | 'severe'} overrideTaming
+ * @param {Reporter} reporter
  * @param {Iterable<string | symbol>} [overrideDebug]
  */
 export default function enablePropertyOverrides(
   intrinsics,
   overrideTaming,
+  { warn },
   overrideDebug = [],
 ) {
   const debugProperties = new Set(overrideDebug);
@@ -109,8 +113,7 @@ export default function enablePropertyOverrides(
               this[prop] = newValue;
             } else {
               if (isDebug) {
-                // eslint-disable-next-line @endo/no-polymorphic-call
-                console.error(TypeError(`Override property ${prop}`));
+                warn(TypeError(`Override property ${prop}`));
               }
               defineProperty(this, prop, {
                 value: newValue,

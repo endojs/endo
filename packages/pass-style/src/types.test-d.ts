@@ -3,7 +3,7 @@ import { expectAssignable, expectType, expectNotType } from 'tsd';
 import { Far } from './make-far.js';
 import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
-import { CopyTagged, Passable, PassStyle } from './types.js';
+import type { CopyTagged, Passable, PassStyle } from './types.js';
 import { PASS_STYLE } from './passStyle-helpers.js';
 
 const remotable = Far('foo', {});

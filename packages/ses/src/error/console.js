@@ -31,7 +31,7 @@ import {
 // For our internal debugging purposes, uncomment
 // const internalDebugConsole = console;
 
-// The whitelists of console methods, from:
+// The permitted console methods, from:
 // Whatwg "living standard" https://console.spec.whatwg.org/
 // Node https://nodejs.org/dist/latest-v14.x/docs/api/console.html
 // MDN https://developer.mozilla.org/en-US/docs/Web/API/Console_API
@@ -110,7 +110,7 @@ export const consoleOtherMethods = freeze([
 ]);
 
 /** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-const consoleWhitelist = freeze([
+const consoleMethodPermits = freeze([
   ...consoleLevelMethods,
   ...consoleOtherMethods,
 ]);
@@ -118,8 +118,8 @@ const consoleWhitelist = freeze([
 /**
  * consoleOmittedProperties is currently unused. I record and maintain it here
  * with the intention that it be treated like the `false` entries in the main
- * SES whitelist: that seeing these on the original console is expected, but
- * seeing anything else that's outside the whitelist is surprising and should
+ * SES permits: that seeing these on the original console is expected, but
+ * seeing anything else that's outside the permits is surprising and should
  * provide a diagnostic.
  *
  * const consoleOmittedProperties = freeze([
@@ -158,7 +158,7 @@ export const makeLoggingConsoleKit = (
   let logArray = [];
 
   const loggingConsole = fromEntries(
-    arrayMap(consoleWhitelist, ([name, _]) => {
+    arrayMap(consoleMethodPermits, ([name, _]) => {
       // Use an arrow function so that it doesn't come with its own name in
       // its printed form. Instead, we're hoping that tooling uses only
       // the `.name` property set below.
@@ -508,11 +508,11 @@ freeze(defineCausalConsoleFromLogger);
 /** @type {FilterConsole} */
 export const filterConsole = (baseConsole, filter, _topic = undefined) => {
   // TODO do something with optional topic string
-  const whitelist = arrayFilter(
-    consoleWhitelist,
+  const methodPermits = arrayFilter(
+    consoleMethodPermits,
     ([name, _]) => name in baseConsole,
   );
-  const methods = arrayMap(whitelist, ([name, severity]) => {
+  const methods = arrayMap(methodPermits, ([name, severity]) => {
     /**
      * @param {...any} args
      */
