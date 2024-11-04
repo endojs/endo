@@ -61,6 +61,7 @@ import {
   ownKeys,
   symbolKeyFor,
 } from './commons.js';
+import { cauterizeProperty } from './cauterize-property.js';
 
 /**
  * @import {Reporter} from './reporting-types.js'
@@ -279,35 +280,10 @@ export default function removeUnpermittedIntrinsics(
       const subPermit = getSubPermit(obj, permit, propString);
 
       if (!subPermit || !isAllowedProperty(subPath, obj, prop, subPermit)) {
-        // Either the object lacks a permit or the object doesn't match the
-        // permit.
-        // If the permit is specifically false, not merely undefined,
-        // this is a property we expect to see because we know it exists in
-        // some environments and we have expressly decided to exclude it.
-        // Any other disallowed property is one we have not audited and we log
-        // that we are removing it so we know to look into it, as happens when
-        // the language evolves new features to existing intrinsics.
-        if (subPermit !== false) {
-          warn(`Removing ${subPath}`);
-        }
-        try {
-          delete obj[prop];
-        } catch (err) {
-          if (prop in obj) {
-            if (typeof obj === 'function' && prop === 'prototype') {
-              obj.prototype = undefined;
-              if (obj.prototype === undefined) {
-                warn(`Tolerating undeletable ${subPath} === undefined`);
-                // eslint-disable-next-line no-continue
-                continue;
-              }
-            }
-            error(`failed to delete ${subPath}`, err);
-          } else {
-            error(`deleting ${subPath} threw`, err);
-          }
-          throw err;
-        }
+        cauterizeProperty(obj, prop, subPermit === false, subPath, {
+          warn,
+          error,
+        });
       }
     }
   }

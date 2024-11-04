@@ -1,3 +1,4 @@
+import { cauterizeProperty } from './cauterize-property.js';
 import {
   TypeError,
   WeakSet,
@@ -100,7 +101,15 @@ export const makeIntrinsicsCollector = () => {
       }
       const namePrototype = permit.prototype;
       if (!namePrototype) {
-        throw TypeError(`${name}.prototype property not permitted`);
+        cauterizeProperty(
+          intrinsic,
+          'prototype',
+          false,
+          `${name}.prototype`,
+          console, // TODO should be a proper Reporter
+        );
+        // eslint-disable-next-line no-continue
+        continue;
       }
       if (
         typeof namePrototype !== 'string' ||
