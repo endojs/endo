@@ -56,27 +56,37 @@ export async function bundleZipBase64(
 
   const entry = url.pathToFileURL(pathResolve(startFilename));
 
-  const { sourceMapHook, sourceMapJobs, moduleTransforms, parserForLanguage } =
-    makeBundlingKit(
-      {
-        pathResolve,
-        userInfo,
-        platform,
-        env,
-        computeSha512,
-      },
-      {
-        cacheSourceMaps,
-        noTransforms,
-        elideComments,
-        commonDependencies,
-      },
-    );
+  const {
+    sourceMapHook,
+    sourceMapJobs,
+    moduleTransforms,
+    parserForLanguage,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+  } = makeBundlingKit(
+    {
+      pathResolve,
+      userInfo,
+      platform,
+      env,
+      computeSha512,
+    },
+    {
+      cacheSourceMaps,
+      noTransforms,
+      elideComments,
+      commonDependencies,
+    },
+  );
 
   const compartmentMap = await mapNodeModules(powers, entry, {
     dev,
     conditions,
     commonDependencies,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
   });
 
   const { bytes, sha512 } = await makeAndHashArchiveFromMap(
