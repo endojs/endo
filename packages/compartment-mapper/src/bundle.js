@@ -305,7 +305,6 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
-    languageForExtension,
   });
   await compartment.load(entryModuleSpecifier);
 

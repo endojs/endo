@@ -26,7 +26,6 @@ import type {
   CompartmentSources,
   ExecuteOptions,
   ExitModuleImportNowHook,
-  LanguageForExtensionOption,
   ModuleTransforms,
   ParseFn,
   ParserForLanguage,
@@ -45,8 +44,7 @@ export type LinkOptions = {
   moduleTransforms?: ModuleTransforms;
   syncModuleTransforms?: SyncModuleTransforms;
   archiveOnly?: boolean;
-} & ExecuteOptions &
-  LanguageForExtensionOption;
+} & ExecuteOptions;
 
 export type LinkResult = {
   compartment: Compartment;

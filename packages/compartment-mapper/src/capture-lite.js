@@ -263,21 +263,18 @@ const captureCompartmentMap = (compartmentMap, sources) => {
 export const captureFromMap = async (powers, compartmentMap, options = {}) => {
   const {
     moduleTransforms,
+    syncModuleTransforms,
     modules: exitModules = {},
     searchSuffixes = undefined,
     importHook: exitModuleImportHook = undefined,
     policy = undefined,
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
     Compartment = defaultCompartment,
   } = options;
 
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
-  );
-  const languageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
   );
 
   const { read, computeSha512 } = unpackReadPowers(powers);
@@ -312,8 +309,8 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     resolve,
     makeImportHook,
     moduleTransforms,
+    syncModuleTransforms,
     parserForLanguage,
-    languageForExtension,
     archiveOnly: true,
     Compartment,
   });

@@ -42,7 +42,6 @@ export type ParseArchiveOptions = Partial<{
   ModulesOption &
   CompartmentOption &
   ParserForLanguageOption &
-  LanguageForExtensionOption &
   ExitModuleImportHookOption;
 
 export type LoadArchiveOptions = ParseArchiveOptions;
@@ -204,7 +203,6 @@ type SyncImportingOptions = ModulesOption &
 
 type LinkingOptions = ParserForLanguageOption &
   CompartmentOption &
-  LanguageForExtensionOption &
   SyncModuleTransformsOption &
   ModuleTransformsOption;
 

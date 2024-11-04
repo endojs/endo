@@ -322,14 +322,10 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     policy = undefined,
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
   } = options;
 
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
-  );
-  const languageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
   );
 
   const { read, computeSha512 } = unpackReadPowers(powers);
@@ -365,7 +361,6 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
-    languageForExtension,
     archiveOnly: true,
   });
   await compartment.load(entryModuleSpecifier);

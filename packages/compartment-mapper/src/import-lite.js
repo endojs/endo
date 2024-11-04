@@ -95,14 +95,10 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
   } = options;
 
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
-  );
-  const languageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
   );
 
   /**
@@ -199,7 +195,6 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         makeImportHook,
         makeImportNowHook,
         parserForLanguage,
-        languageForExtension,
         globals,
         transforms,
         syncModuleTransforms,
@@ -213,7 +208,6 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
       ({ compartment, pendingJobsPromise } = link(compartmentMap, {
         makeImportHook,
         parserForLanguage,
-        languageForExtension,
         globals,
         transforms,
         moduleTransforms,

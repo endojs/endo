@@ -259,14 +259,10 @@ export const parseArchive = async (
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
   } = options;
 
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
-  );
-  const languageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
   );
 
   const archive = new ZipReader(archiveBytes, { name: archiveLocation });
@@ -343,7 +339,6 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
-      languageForExtension,
       modules: Object.fromEntries(
         Object.keys(modules || {}).map(specifier => {
           return [specifier, { namespace: {} }];
@@ -390,7 +385,6 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
-      languageForExtension,
       globals,
       modules,
       transforms,
@@ -425,7 +419,6 @@ export const loadArchive = async (
     modules,
     computeSourceMapLocation,
     parserForLanguage,
-    languageForExtension,
   } = options;
   const archiveBytes = await read(archiveLocation);
   return parseArchive(archiveBytes, archiveLocation, {
@@ -435,7 +428,6 @@ export const loadArchive = async (
     modules,
     computeSourceMapLocation,
     parserForLanguage,
-    languageForExtension,
   });
 };
 
