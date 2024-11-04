@@ -1,5 +1,12 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next release
+
+- Fixes an issue where errors thrown from exit module hooks (`importHook`) would
+  be thrown at parse-time instead of at runtime. Such errors will now be thrown
+  at runtime, as expected. To those who expected the previous behavior: if you
+  exist, please exercise caution when upgrading.
+
 # v1.3.0 (2024-10-10)
 
 - Adds support for dynamic requires in CommonJS modules. This requires specific
