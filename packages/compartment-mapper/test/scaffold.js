@@ -90,6 +90,10 @@ export function scaffold(
     conditions = tags,
     searchSuffixes = undefined,
     commonDependencies = undefined,
+    parserForLanguage = undefined,
+    languageForExtension = undefined,
+    commonjsLanguageForExtension = undefined,
+    moduleLanguageForExtension = undefined,
     additionalOptions = {},
   } = {},
 ) {
@@ -133,6 +137,10 @@ export function scaffold(
       conditions: new Set(['development', ...(conditions || [])]),
       searchSuffixes,
       commonDependencies,
+      parserForLanguage,
+      languageForExtension,
+      commonjsLanguageForExtension,
+      moduleLanguageForExtension,
       ...additionalOptions,
     });
     const { namespace } = await application.import({
@@ -156,6 +164,10 @@ export function scaffold(
       conditions: new Set(['development', ...(conditions || [])]),
       searchSuffixes,
       commonDependencies,
+      parserForLanguage,
+      languageForExtension,
+      commonjsLanguageForExtension,
+      moduleLanguageForExtension,
       ...additionalOptions,
     });
     return namespace;
@@ -173,6 +185,10 @@ export function scaffold(
         conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
       const application = await parseArchive(archive, '<unknown>', {
@@ -185,6 +201,8 @@ export function scaffold(
           }),
         ),
         Compartment,
+        parserForLanguage,
+        ...additionalOptions,
       });
       const { namespace } = await application.import({
         globals: { ...globals, ...addGlobals },
@@ -209,6 +227,10 @@ export function scaffold(
         conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
       const prefixArchive = new Uint8Array(archive.length + 10);
@@ -217,6 +239,8 @@ export function scaffold(
       const application = await parseArchive(prefixArchive, '<unknown>', {
         modules,
         Compartment,
+        parserForLanguage,
+        ...additionalOptions,
       });
       const { namespace } = await application.import({
         globals: { ...globals, ...addGlobals },
@@ -253,11 +277,17 @@ export function scaffold(
         conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
       const application = await loadArchive(fakeRead, 'app.agar', {
         modules,
         Compartment,
+        parserForLanguage,
+        ...additionalOptions,
       });
       const { namespace } = await application.import({
         globals: { ...globals, ...addGlobals },
@@ -306,6 +336,10 @@ export function scaffold(
         searchSuffixes,
         commonDependencies,
         sourceMapHook,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -314,6 +348,7 @@ export function scaffold(
         modules,
         Compartment,
         computeSourceMapLocation,
+        parserForLanguage,
         ...additionalOptions,
       });
 
@@ -341,6 +376,10 @@ export function scaffold(
         conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -349,6 +388,10 @@ export function scaffold(
         conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -361,6 +404,7 @@ export function scaffold(
           conditions: new Set(['development', ...(conditions || [])]),
           computeSha512,
           expectedSha512,
+          parserForLanguage,
           ...additionalOptions,
         },
       );
@@ -378,6 +422,10 @@ export function scaffold(
         conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -386,6 +434,10 @@ export function scaffold(
         conditions: new Set(['development', ...(conditions || [])]),
         searchSuffixes,
         commonDependencies,
+        parserForLanguage,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -403,6 +455,7 @@ export function scaffold(
           parseArchive(corruptArchive, 'app.agar', {
             computeSha512,
             expectedSha512,
+            parserForLanguage,
             ...additionalOptions,
           }),
         {

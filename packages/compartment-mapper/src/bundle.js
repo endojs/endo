@@ -235,6 +235,8 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
+    commonjsLanguageForExtension: commonjsLanguageForExtensionOption = {},
+    moduleLanguageForExtension: moduleLanguageForExtensionOption = {},
   } = options || {};
   const conditions = new Set(conditionsOption);
 
@@ -247,6 +249,12 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   );
   const languageForExtension = Object.freeze(
     Object.assign(Object.create(null), languageForExtensionOption),
+  );
+  const commonjsLanguageForExtension = Object.freeze(
+    Object.assign(Object.create(null), commonjsLanguageForExtensionOption),
+  );
+  const moduleLanguageForExtension = Object.freeze(
+    Object.assign(Object.create(null), moduleLanguageForExtensionOption),
   );
 
   const {
@@ -266,7 +274,13 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     conditions,
     packageDescriptor,
     moduleSpecifier,
-    { dev, commonDependencies },
+    {
+      dev,
+      commonDependencies,
+      languageForExtension,
+      commonjsLanguageForExtension,
+      moduleLanguageForExtension,
+    },
   );
 
   const {
