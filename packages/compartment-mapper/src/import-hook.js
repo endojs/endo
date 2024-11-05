@@ -183,13 +183,15 @@ const findRedirect = ({
 
 /**
  * @param {object} params
- * @param {Record<string, any>=} params.modules
+ * @param {Record<string, any>} [params.modules]
  * @param {ExitModuleImportHook} [params.exitModuleImportHook]
+ * @param {string} params.entryCompartmentName
  * @returns {ExitModuleImportHook|undefined}
  */
 export const exitModuleImportHookMaker = ({
   modules = undefined,
   exitModuleImportHook = undefined,
+  entryCompartmentName,
 }) => {
   if (!modules && !exitModuleImportHook) {
     return undefined;
@@ -207,7 +209,10 @@ export const exitModuleImportHookMaker = ({
       });
     }
     if (exitModuleImportHook) {
-      return exitModuleImportHook(specifier);
+      // The entryCompartmentName is a file URL when constructing an archive or
+      // importing from a file system, but is merely a zip archive root
+      // directory name when importing from an archive.
+      return exitModuleImportHook(specifier, entryCompartmentName);
     }
     return undefined;
   };
@@ -518,7 +523,10 @@ export const makeImportHookMaker = (
         // we allow importing any exit.
         if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
           if (exitModuleImportHook) {
-            const record = await exitModuleImportHook(moduleSpecifier);
+            const record = await exitModuleImportHook(
+              moduleSpecifier,
+              packageLocation,
+            );
             if (record) {
               // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
               // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.

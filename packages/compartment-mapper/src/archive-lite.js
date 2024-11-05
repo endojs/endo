@@ -346,6 +346,7 @@ const digestFromMap = async (powers, compartmentMap, options = {}) => {
   const consolidatedExitModuleImportHook = exitModuleImportHookMaker({
     modules: exitModules,
     exitModuleImportHook,
+    entryCompartmentName,
   });
 
   const makeImportHook = makeImportHookMaker(read, entryCompartmentName, {

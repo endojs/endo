@@ -270,10 +270,12 @@ type ModuleTransformResult = {
 
 export type ExitModuleImportHook = (
   specifier: string,
+  packageLocation: string,
 ) => Promise<ThirdPartyStaticModuleInterface | undefined>;
 
 export type ExitModuleImportNowHook = (
   specifier: string,
+  packageLocation: string,
 ) => ThirdPartyStaticModuleInterface | undefined;
 
 export type ComputeSourceLocationHook = (

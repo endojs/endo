@@ -161,6 +161,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
       modules,
       exitModuleImportHook,
+      entryCompartmentName,
     });
     const makeImportHook = makeImportHookMaker(
       readPowers,
