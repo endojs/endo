@@ -13,14 +13,14 @@ import { objectHasOwnProperty } from './commons.js';
  * If the property to be deleted is a function's `.prototype` property, this
  * will normally be because the function was supposed to be a
  * - builtin method or non-constructor function
- * = arrow function
+ * - arrow function
  * - concise method
  *
  * all of whom are not supposed to have a `.prototype` property. Nevertheless,
  * on some platforms (like older versions of Hermes), or as a result of
  * some shim-based mods to the primordials (like core-js?), some of these
  * functions may accidentally be more like `function` functions with
- * an undeletable `.prototype` property. In add these case, if we can
+ * an undeletable `.prototype` property. In these cases, if we can
  * set the value of that bogus `.prototype` property to `undefined`,
  * we do so, issuing a warning, rather than failing to initialize ses.
  *
