@@ -4,6 +4,11 @@ User-visible changes to `@endo/compartment-mapper`:
 
 - Omits unused module descriptors from `compartment-map.json` in archived
   applications, potentially reducing file sizes.
+- Fixes an issue where errors thrown from exit module hooks (`importHook`) would
+  be thrown at parse-time when the parser uses heuristic import analysis
+  _instead of_ at runtime. Such errors will now be thrown at runtime, as
+  originally intended. To those who expected the previous behavior: if you
+  exist, please exercise caution when upgrading.
 
 # v1.3.0 (2024-10-10)
 
