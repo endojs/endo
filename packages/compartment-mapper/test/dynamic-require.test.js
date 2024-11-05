@@ -391,7 +391,7 @@ test('sync module transforms work with dynamic require support', async t => {
 
 test('sync module transforms work without dynamic require support', async t => {
   const fixture = new URL(
-    'fixtures-cjs-compat/node_modules/app/index.js',
+    'fixtures-dynamic/node_modules/static-app/index.js',
     import.meta.url,
   ).toString();
 
@@ -413,5 +413,5 @@ test('sync module transforms work without dynamic require support', async t => {
     syncModuleTransforms,
   });
 
-  t.true(transformCount === 29);
+  t.is(transformCount, 2);
 });
