@@ -79,7 +79,7 @@ export const installExternalReferenceController = (
     return exports.get(localSlot);
   };
 
-  const makeCaptpImportExportTables = () => {
+  const makeCapTPImportExportTables = () => {
     return {
       makeSlotForValue: registerExport,
       makeValueForSlot: (slot, iface) => {
@@ -108,13 +108,13 @@ export const installExternalReferenceController = (
     registerExport,
     unregisterExport,
     lookupExport,
-    makeCaptpImportExportTables,
+    makeCapTPImportExportTables,
   };
 };
 
 export const makeCaptpOptionsForExtRefController = controller => {
   const captpOptions = {
-    makeCaptpImportExportTables: controller.makeCaptpImportExportTables,
+    makeCapTPImportExportTables: controller.makeCapTPImportExportTables,
   };
   return captpOptions;
 };

@@ -25,6 +25,12 @@ export const makeCustomDurableKindWithContext = (
     cleanup: customCleanup = undefined,
   },
 ) => {
+  if (!customMake) {
+    throw new Error('makeCustomDurableKindWithContext - "make" function is required');
+  }
+  if (!customReanimate) {
+    throw new Error('makeCustomDurableKindWithContext - "reanimate" function is required');
+  }
   const { vrm, fakeStuff } = fakeVomKit;
   const store = zone.mapStore('controller');
   const instanceData = zone.mapStore('data');
@@ -93,6 +99,13 @@ export const makeCustomDurableKindWithZone = (
     cleanup: customCleanup = undefined,
   },
 ) => {
+  if (!customMake) {
+    throw new Error('makeCustomDurableKindWithZone - "make" function is required');
+  }
+  if (!customReanimate) {
+    throw new Error('makeCustomDurableKindWithZone - "reanimate" function is required');
+  }
+
   const { vrm, fakeStuff } = fakeVomKit;
   const store = zone.mapStore('controller');
   const dataZone = zone.subZone('instances');
@@ -126,6 +139,7 @@ export const makeCustomDurableKindWithZone = (
     const value = customMake(instanceZone, ...args);
     // register the slot with the value, so it can be stored
     fakeStuff.registerEntry(instanceSlot, value, false);
+    return value;
   };
 
   const reanimate = instanceSlot => {
