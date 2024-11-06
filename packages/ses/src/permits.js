@@ -6,7 +6,7 @@ import { arrayPush } from './commons.js';
 /** @import {GenericErrorConstructor} from '../types.js' */
 
 /**
- * @file Exports {@code permits}, a recursively defined
+ * @module Exports {@code permits}, a recursively defined
  * JSON record enumerating all intrinsics and their properties
  * according to ECMA specs.
  *

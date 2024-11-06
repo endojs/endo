@@ -1,5 +1,5 @@
 /**
- * @file Describes the portion of a compartment map dedicated to narrowing
+ * @module Describes the portion of a compartment map dedicated to narrowing
  * or attenuating the powers available to each compartment.
  */
 

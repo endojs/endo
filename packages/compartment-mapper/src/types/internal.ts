@@ -1,5 +1,5 @@
 /**
- * @file Internal types of the compartment mapper that need not be visible to
+ * @module Internal types of the compartment mapper that need not be visible to
  * consumers.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @file These types describe the schema of a `compartment-map.json`, which
+ * @module These types describe the schema of a `compartment-map.json`, which
  * in turn describes how to load and link an application from storage, like a
  * file system, web host, or zip archive.
  */

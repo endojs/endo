@@ -1,5 +1,5 @@
 /**
- * @file Helpers relevant to any TypeScript project.
+ * @module Helpers relevant to any TypeScript project.
  */
 
 /** Any object. All objects. Not `null`, though. */
