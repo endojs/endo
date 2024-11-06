@@ -26,7 +26,6 @@
  *   ParserImplementation,
  *   ShouldDeferError,
  * } from './types.js'
- * @import {ERef} from '@endo/eventual-send'
  */
 
 import { makeMapParsers } from './map-parser.js';
@@ -45,7 +44,7 @@ const { allSettled } = Promise;
 
 /**
  * @template T
- * @type {(iterable: Iterable<ERef<T>>) => Promise<Array<PromiseSettledResult<T>>>}
+ * @type {(iterable: Iterable<Promise<T>>) => Promise<Array<PromiseSettledResult<T>>>}
  */
 const promiseAllSettled = allSettled.bind(Promise);
 
