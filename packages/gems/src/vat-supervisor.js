@@ -211,6 +211,7 @@ export const makeVatSupervisor = (label, vatState) => {
     incubate,
     registerIncubation,
     registerClass,
+    defineClass,
     defineJsClass,
     fakeStore,
     fakeVomKit,
