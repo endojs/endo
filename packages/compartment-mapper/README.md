@@ -204,36 +204,14 @@ does not exist, to the `index.js` file in the directory with the same name.
 > `fetch` global, in conjunction with usable values for `import.meta.url` in
 > ECMAScript modules or `__dirname` and `__filename` in CommonJS modules.
 
+## Language Extensions
+
 Officially beginning with Node.js 14, Node.js treats `.mjs` files as ECMAScript
 modules and `.cjs` files as CommonJS modules.
 The `.js` extension indicates a CommonJS module by default, to maintain
 backward compatibility.
 However, packages that have a `type` property that explicitly says `module`
 will treat a `.js` file as an ECMAScript module.
-
-This unforunately conflicts with packages written to work with the ECMAScript
-module system emulator in the `esm` package on npm, which allows every file
-with the `js` extension to be an ECMAScript module that presents itself to
-Node.js as a CommonJS module.
-To overcome such obstacles, the compartment mapper will accept a non-standard
-`parsers` property in `package.json` that maps file extensions, specifically
-`js` to the corresponding language name, one of `mjs` for ECMAScript modules,
-`cjs` for CommonJS modules, and `json` for JSON modules.
-All other language names are reserved and the defaults for files with the
-extensions `cjs`, `mjs`, `json`, `text`, and `bytes` default to the language of
-the same name unless overridden.
-JSON modules export a default object resulting from the conventional JSON.parse
-of the module's UTF-8 encoded bytes.
-Text modules export a default string from the module's UTF-8 encoded bytes.
-Bytes modules export a default ArrayBuffer capturing the module's bytes.
-If compartment mapper sees `parsers`, it ignores `type`, so these can
-contradict where using the `esm` emulator requires.
-
-```json
-{
-  "parsers": {"js": "mjs"}
-}
-```
 
 Many Node.js applications using CommonJS modules expect to be able to `require`
 a JSON file like `package.json`.
@@ -252,9 +230,47 @@ As of Node.js 14, Node does not support loading ECMAScript modules from
 CommonJS modules, so using this feature may limit compatibility with the
 Node.js platform.
 
-> TODO A future version may introduce language plugins, so a package may state
-> that files with a particular extension are either parsed or linked with
-> another module.
+The compartment mapper supports language plugins.
+The languages supported by default are:
+
+- `mjs` for ECMAScript modules,
+- `cjs` for CommonJS modules,
+- `json` for JSON modules,
+- `text` for UTF-8 encoded text files,
+- `bytes` for any file, exporting a `Uint8Array` as `default`,
+- `pre-mjs-json` for pre-compiled ECMAScript modules captured as JSON in
+  archives, and
+- `pre-cjs-json` for pre-compiled CommonJS modules captured as JSON in
+  archives.
+
+The compartment mapper accepts extensions to this set of languages with
+the `parserForLanguage` option supported by many functions.
+See `src/types/external.ts` for the type and expected behavior for
+parsers.
+
+These language identifiers are keys for the `moduleTransforms` and
+`syncModuleTransforms` options, which may map each language to a transform
+function.
+The language identifiers are also the values for a `languageForExtension`,
+`moduleLanguageForExtension`, and `commonjsLanguageForExtension` options to
+configure additional extension-to-language mappings for a module and its
+transitive dependencies.
+
+For any package that has `type` set to `"module"` in its `package.json`,
+`moduleLangaugeForExtension` will precede `languageForExtension`.
+Packages with `type` set to `"commonjs"` or simply not set,
+`commonjsLanguageForExtension` will precede `languageForExtension`.
+This provides an hook for mapping TypeScript's `.ts` to either `.cts` or
+`.mts`.
+
+In the scope any given package, the `parsers` property in `package.json` may
+override the extension-to-language mapping.
+
+```json
+{
+  "parsers": { "png": "bytes" }
+}
+```
 
 > TODO
 >
