@@ -1,4 +1,4 @@
-/* Extracts the extension from a URL pathname. */
+/** @module Extracts the extension from a URL pathname. */
 
 // @ts-check
 

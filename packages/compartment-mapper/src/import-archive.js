@@ -1,4 +1,5 @@
-/* Provides functions for evaluating modules in an archive (a zip file
+/**
+ * @module Provides functions for evaluating modules in an archive (a zip file
  * with a `compartment-map.json` and a file for a module and each of its
  * transitive dependencies.)
  *

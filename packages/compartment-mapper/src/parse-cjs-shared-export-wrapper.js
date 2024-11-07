@@ -1,4 +1,5 @@
-/* Provides shared functionality for {@link parse-cjs.js} and {@link
+/**
+ * @module Provides shared functionality for {@link parse-cjs.js} and {@link
  * parse-archive-cjs.js} toward importing or archiving CommonJS as a virtual
  * module source.
  */

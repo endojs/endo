@@ -1,5 +1,6 @@
-/* Provides language behavior (parser) for importing CommonJS as a virtual
- * module source.
+/**
+ * @module Provides language behavior (parser) for importing CommonJS as a
+ * virtual module source.
  */
 
 // @ts-check

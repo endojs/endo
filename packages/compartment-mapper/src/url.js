@@ -1,4 +1,5 @@
-/* Minimal support for URL manipulation beyond what most hosts provide
+/**
+ * @module Minimal support for URL manipulation beyond what most hosts provide
  * natively, used to normalize URLs before capturing them in a platform- and
  * location-agnostic archive.
  */

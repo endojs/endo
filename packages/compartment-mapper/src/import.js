@@ -1,6 +1,7 @@
-/* Provides functions for evaluating a module and its transitive
- * dependencies given the URL of the entry module and assuming packages
- * laid out according to the `node_modules` conventions.
+/**
+ * @module Provides functions for evaluating a module and its transitive
+ * dependencies given the URL of the entry module and assuming packages laid
+ * out according to the `node_modules` conventions.
  *
  * To import modules according to any other convention, use `import-lite.js`
  * and provide a compartment map with a custom analog to `mapNodeModules` from

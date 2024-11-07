@@ -1,4 +1,6 @@
-/* Provides the linking behavior shared by all Compartment Mapper workflows.
+/**
+ * @module Provides the linking behavior shared by all Compartment Mapper
+ * workflows.
  * This involves creating and configuring compartments according to the
  * specifications in a compartment map, and is suitable for compartment maps
  * that just outline the locations of compartments and their inter-linkage and

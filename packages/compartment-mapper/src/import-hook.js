@@ -1,6 +1,8 @@
-/* Provides the implementation of each compartment's `importHook` when using
- * `import.js`, `import-lite.js`, `archive.js`, or `archive-lite.js`.
- * However, `import-archive.js` and `import-archive-lite.js` use their own variant.
+/**
+ * @module Provides the implementation of each compartment's `importHook` when
+ * using `import.js`, `import-lite.js`, `archive.js`, or `archive-lite.js`.
+ * However, `import-archive.js` and `import-archive-lite.js` use their own
+ * variant.
  *
  * For building archives, these import hooks create a table of all the modules
  * in a "working set" of transitive dependencies.

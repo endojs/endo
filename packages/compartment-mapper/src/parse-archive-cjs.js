@@ -1,4 +1,5 @@
-/* Provides language behavior for analyzing, pre-compiling, and storing
+/**
+ * @module Provides language behavior for analyzing, pre-compiling, and storing
  * CommonJS modules for an archive.
  */
 

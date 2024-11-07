@@ -1,4 +1,5 @@
-/* Provides mechanisms for creating archives (zip files with a
+/**
+ * @module Provides mechanisms for creating archives (zip files with a
  * `compartmeent-map.json` and a file for every static dependency of an entry
  * module).
  *

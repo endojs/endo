@@ -1,6 +1,7 @@
-/* Provides language-behaviors for importing a module as a document that
- * exports itself as a string based on a UTF-8 interpretation of the module's
- * text.
+/**
+ * @module Provides language-behaviors for importing a module as a document
+ * that exports itself as a string based on a UTF-8 interpretation of the
+ * module's text.
  */
 
 // @ts-check

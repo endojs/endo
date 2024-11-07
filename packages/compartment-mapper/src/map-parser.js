@@ -1,8 +1,6 @@
 /**
- * Exports {@link makeMapParsers}, which creates a function which matches a
+ * @module Exports {@link makeMapParsers}, which creates a function which matches a
  * module to a parser based on reasons.
- *
- * @module
  */
 
 // @ts-check

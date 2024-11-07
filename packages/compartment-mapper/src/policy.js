@@ -1,4 +1,5 @@
-/* Provides mechanisms for interacting with Compartment Map runtime policies.
+/**
+ * @module Provides mechanisms for interacting with Compartment Map runtime policies.
  */
 
 // @ts-check

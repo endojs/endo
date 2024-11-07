@@ -1,5 +1,6 @@
-/* Provides functions for evaluating a module and its transitive dependencies
- * given a partially completed compartment map.
+/**
+ * @module Provides functions for evaluating a module and its transitive
+ * dependencies given a partially completed compartment map.
  * The compartment map needs to describe every reachable compartment, where to
  * find modules in that compartment, and how to link modules between
  * compartments, but does not need to capture a module descriptor for every

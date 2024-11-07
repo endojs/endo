@@ -1,4 +1,4 @@
-/* Provides language behavior (a parser) for importing ESM. */
+/** @module Provides language behavior (a parser) for importing ESM. */
 
 // @ts-check
 

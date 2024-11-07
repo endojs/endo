@@ -1,4 +1,5 @@
-/* Provides language behavior for analyzing, pre-compiling, and storing ESM
+/**
+ * @module Provides language behavior for analyzing, pre-compiling, and storing ESM
  * modules for an archive.
  */
 // @ts-check

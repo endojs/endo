@@ -1,4 +1,4 @@
-/* Provides language support for importing JSON modules. */
+/** @module Provides language support for importing JSON modules. */
 
 // @ts-check
 

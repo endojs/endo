@@ -1,4 +1,5 @@
 /**
+ * @module
  * This module provides {@link captureFromMap}, which only "captures" the
  * compartment map descriptors and sources from a partially completed
  * compartment map--_without_ creating an archive. The resulting compartment map
@@ -24,8 +25,6 @@
  * contain original sources, so to import the archive with
  * `src/import-archive-lite.js`, you will need to provide the archive parsers
  * and entrain a runtime dependency on Babel.
- *
- * @module
  */
 
 // @ts-check
