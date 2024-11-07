@@ -1,7 +1,5 @@
 /** @module Provides language support for importing JSON modules. */
 
-// @ts-check
-
 /**
  * @import {Harden} from 'ses'
  * @import {ParseFn, ParserImplementation} from './types.js'

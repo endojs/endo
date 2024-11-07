@@ -6,8 +6,6 @@
  * maintaining backward-compatibility with older accepted usage patterns.
  */
 
-// @ts-check
-
 /**
  * @import {
  *   CanonicalFn,

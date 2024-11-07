@@ -4,8 +4,6 @@
  * location-agnostic archive.
  */
 
-// @ts-check
-
 // Derrived from https://github.com/junosuarez/url-relative
 //
 // Copyright (c) MMXV jden jason@denizac.org

@@ -1,6 +1,5 @@
 /* Validates a compartment map against its schema. */
 
-// @ts-check
 import { assertPackagePolicy } from './policy-format.js';
 
 /** @import {CompartmentMapDescriptor} from './types.js' */

@@ -4,8 +4,6 @@
  * module source.
  */
 
-// @ts-check
-
 /** @import {ReadFn, ReadPowers} from './types.js' */
 
 import { findInvalidReadNowPowersProps, isReadNowPowers } from './powers.js';

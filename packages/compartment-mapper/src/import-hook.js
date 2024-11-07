@@ -8,8 +8,6 @@
  * in a "working set" of transitive dependencies.
  */
 
-// @ts-check
-
 /**
  * @import {
  *   ImportHook,

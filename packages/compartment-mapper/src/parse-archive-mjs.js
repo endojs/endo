@@ -2,7 +2,6 @@
  * @module Provides language behavior for analyzing, pre-compiling, and storing ESM
  * modules for an archive.
  */
-// @ts-check
 
 /** @import {ParseFn} from './types.js' */
 

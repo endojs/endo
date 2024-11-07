@@ -8,8 +8,6 @@
  * dependencies of their entry module.
  */
 
-// @ts-check
-
 /**
  * @import {ModuleMapHook} from 'ses'
  * @import {

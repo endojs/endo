@@ -3,8 +3,6 @@
  * module that exports the bytes of that file.
  */
 
-// @ts-check
-
 /** @import {Harden} from 'ses' */
 /** @import {ParseFn} from './types.js' */
 

@@ -6,8 +6,6 @@
  * `exports`.
  */
 
-// @ts-check
-
 /** @import {ParseFn} from './types.js' */
 
 import { parseLocatedJson } from './json.js';

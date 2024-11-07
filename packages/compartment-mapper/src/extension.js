@@ -1,7 +1,5 @@
 /** @module Extracts the extension from a URL pathname. */
 
-// @ts-check
-
 /**
  * `parseExtension` returns the file extension for the given URL, or an empty
  * string if the path has no extension.

@@ -27,7 +27,6 @@
  * and entrain a runtime dependency on Babel.
  */
 
-// @ts-check
 /* eslint no-shadow: 0 */
 
 /**

@@ -5,8 +5,6 @@
  * imported by the SES shim without entraining a dependency on Babel.
  */
 
-// @ts-check
-
 /** @import {ParseFn} from './types.js' */
 
 import { parseLocatedJson } from './json.js';

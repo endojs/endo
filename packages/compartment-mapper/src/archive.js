@@ -14,7 +14,6 @@
  * for cases like XS native Compartments where pre-compilation is not
  * necessary or where the dependency on Babel can be dererred to runtime.
  */
-// @ts-check
 
 /**
  * @import {

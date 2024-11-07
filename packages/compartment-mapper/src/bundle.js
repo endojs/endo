@@ -1,4 +1,3 @@
-// @ts-check
 /* eslint no-shadow: 0 */
 
 /**

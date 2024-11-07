@@ -3,8 +3,6 @@
  * virtual module source.
  */
 
-// @ts-check
-
 /** @import {ParseFn} from './types.js' */
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';

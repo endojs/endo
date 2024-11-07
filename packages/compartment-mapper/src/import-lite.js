@@ -15,7 +15,6 @@
  * `@endo/compartment-mapper/import-parsers.js` or similar.
  */
 
-// @ts-check
 /* eslint no-shadow: "off" */
 
 /**

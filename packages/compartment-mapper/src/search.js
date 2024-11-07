@@ -3,8 +3,6 @@
  * packages according to the Node.js `node_modules` convention.
  */
 
-// @ts-check
-
 /**
  * @import {
  *   ReadFn,

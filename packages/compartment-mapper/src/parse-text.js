@@ -4,8 +4,6 @@
  * module's text.
  */
 
-// @ts-check
-
 /** @import {ParseFn} from './types.js' */
 
 /**

@@ -1,5 +1,4 @@
 /* eslint-disable no-shadow */
-// @ts-check
 /* eslint-disable import/no-dynamic-require */
 
 /**

@@ -1,7 +1,5 @@
 /** @module Provides language behavior (a parser) for importing ESM. */
 
-// @ts-check
-
 /** @import {ParseFn} from './types.js' */
 
 import { ModuleSource } from '@endo/module-source';

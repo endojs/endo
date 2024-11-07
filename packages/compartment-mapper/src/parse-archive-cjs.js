@@ -3,8 +3,6 @@
  * CommonJS modules for an archive.
  */
 
-// @ts-check
-
 /** @import {ParseFn} from './types.js' */
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';

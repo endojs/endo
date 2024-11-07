@@ -3,8 +3,6 @@
  * variable policies for each compartment.
  */
 
-// @ts-check
-
 /** @import {SomePackagePolicy, SomePolicy} from './types.js' */
 
 const { entries, keys } = Object;

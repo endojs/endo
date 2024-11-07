@@ -3,8 +3,6 @@
  * module to a parser based on reasons.
  */
 
-// @ts-check
-
 /**
  * @import {
  *   LanguageForExtension,

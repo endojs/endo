@@ -28,7 +28,6 @@
  * web platform makes further progress on virtual module loaers.
  */
 
-// @ts-check
 /* eslint no-shadow: 0 */
 
 /**

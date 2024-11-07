@@ -7,8 +7,6 @@
  * virtualized file systems like zip files.
  */
 
-// @ts-check
-
 /**
  * @import {
  *   CryptoInterface,

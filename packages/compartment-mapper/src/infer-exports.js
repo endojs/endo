@@ -6,8 +6,6 @@
  * `"browser"`, `"imports"`, and `"exports"` properties in a `package.json`.
  */
 
-// @ts-check
-
 /** @import {LanguageForExtension} from './types.js' */
 
 import { join, relativize } from './node-module-specifier.js';

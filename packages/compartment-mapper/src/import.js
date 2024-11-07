@@ -11,8 +11,6 @@
  * for most cases.
  */
 
-// @ts-check
-
 /**
  * @import {
  *   Application,

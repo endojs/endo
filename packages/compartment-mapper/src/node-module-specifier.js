@@ -4,8 +4,6 @@
  * This is a kind of path math that is platform-agnostic.
  */
 
-// @ts-check
-
 // q, as in quote, for error messages.
 const q = JSON.stringify;
 

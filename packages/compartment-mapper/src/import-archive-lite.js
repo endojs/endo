@@ -12,7 +12,6 @@
  * `@endo/compartment-mapper/archive-parsers.js`.
  */
 
-// @ts-check
 /* eslint no-shadow: "off" */
 
 /**

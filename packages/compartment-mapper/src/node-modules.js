@@ -9,7 +9,6 @@
  * for transitive dependencies.
  */
 
-// @ts-check
 /* eslint no-shadow: 0 */
 
 /**

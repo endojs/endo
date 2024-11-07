@@ -14,8 +14,6 @@
  * dependency on Babel.
  */
 
-// @ts-check
-
 /**
  * @import {
  *   Application,
