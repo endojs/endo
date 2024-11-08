@@ -1,6 +1,7 @@
-/* Provides functions for evaluating a module and its transitive
- * dependencies given the URL of the entry module and assuming packages
- * laid out according to the `node_modules` conventions.
+/**
+ * @module Provides functions for evaluating a module and its transitive
+ * dependencies given the URL of the entry module and assuming packages laid
+ * out according to the `node_modules` conventions.
  *
  * To import modules according to any other convention, use `import-lite.js`
  * and provide a compartment map with a custom analog to `mapNodeModules` from
@@ -10,24 +11,26 @@
  * for most cases.
  */
 
-// @ts-check
+/**
+ * @import {
+ *   Application,
+ *   SyncImportLocationOptions,
+ *   ImportLocationOptions,
+ *   SyncArchiveOptions,
+ *   LoadLocationOptions,
+ *   SomeObject,
+ *   ReadNowPowers,
+ *   ArchiveOptions,
+ *   ReadFn,
+ *   ReadPowers,
+ * } from './types.js'
+ */
 
 import { defaultParserForLanguage } from './import-parsers.js';
 import { mapNodeModules } from './node-modules.js';
 import { loadFromMap } from './import-lite.js';
 
 const { assign, create, freeze } = Object;
-
-/** @import {Application} from './types.js' */
-/** @import {ImportLocationOptions} from './types.js' */
-/** @import {SyncArchiveOptions} from './types.js' */
-/** @import {LoadLocationOptions} from './types.js' */
-/** @import {SyncImportLocationOptions} from './types.js' */
-/** @import {SomeObject} from './types.js' */
-/** @import {ReadNowPowers} from './types.js' */
-/** @import {ArchiveOptions} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
 
 /**
  * Add the default parserForLanguage option.
@@ -111,7 +114,7 @@ export const loadLocation = async (
 /**
  * @param {ReadPowers|ReadFn|ReadNowPowers} readPowers
  * @param {string} moduleLocation
- * @param {ImportLocationOptions} [options]
+ * @param {ImportLocationOptions|SyncImportLocationOptions} [options]
  * @returns {Promise<SomeObject>} the object of the imported modules exported
  * names.
  */

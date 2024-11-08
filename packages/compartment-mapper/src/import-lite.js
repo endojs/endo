@@ -1,5 +1,6 @@
-/* Provides functions for evaluating a module and its transitive dependencies
- * given a partially completed compartment map.
+/**
+ * @module Provides functions for evaluating a module and its transitive
+ * dependencies given a partially completed compartment map.
  * The compartment map needs to describe every reachable compartment, where to
  * find modules in that compartment, and how to link modules between
  * compartments, but does not need to capture a module descriptor for every
@@ -14,19 +15,22 @@
  * `@endo/compartment-mapper/import-parsers.js` or similar.
  */
 
-// @ts-check
 /* eslint no-shadow: "off" */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {SyncImportLocationOptions} from './types.js' */
-/** @import {ImportNowHookMaker} from './types.js' */
-/** @import {ModuleTransforms} from './types.js' */
-/** @import {ReadNowPowers} from './types.js' */
-/** @import {Application} from './types.js' */
-/** @import {ImportLocationOptions} from './types.js' */
-/** @import {ExecuteFn} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {SomeObject} from './types.js' */
+
+/**
+ * @import {
+ *   CompartmentMapDescriptor,
+ *   SyncImportLocationOptions,
+ *   ImportNowHookMaker,
+ *   ReadNowPowers,
+ *   Application,
+ *   ImportLocationOptions,
+ *   ExecuteFn,
+ *   ReadFn,
+ *   ReadPowers,
+ *   SomeObject,
+ * } from './types.js'
+ */
 
 import { link } from './link.js';
 import {
@@ -156,6 +160,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
       modules,
       exitModuleImportHook,
+      entryCompartmentName,
     });
     const makeImportHook = makeImportHookMaker(
       readPowers,

@@ -1,17 +1,19 @@
-/* Provides language-specific behavior for importing pre-compiled CommonJS.
+/**
+ * @module Provides language-specific behavior for importing pre-compiled
+ * CommonJS.
  * Pre-compiled CommonJS is a module in JSON format that describes its imports,
  * exports, and source to execute in the presence of `require`, `module`, and
  * `exports`.
  */
 
-// @ts-check
+/** @import {ParseFn} from './types.js' */
 
 import { parseLocatedJson } from './json.js';
 import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parsePreCjs = (
   bytes,
   _specifier,

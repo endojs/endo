@@ -1,7 +1,7 @@
 import { toStringTagSymbol, iteratorSymbol } from './commons.js';
 
 /**
- * @file Exports {@code enablements}, a recursively defined
+ * @module Exports {@code enablements}, a recursively defined
  * JSON record defining the optimum set of intrinsics properties
  * that need to be "repaired" before hardening is applied on
  * enviromments subject to the override mistake.

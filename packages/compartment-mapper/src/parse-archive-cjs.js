@@ -1,8 +1,9 @@
-/* Provides language behavior for analyzing, pre-compiling, and storing
+/**
+ * @module Provides language behavior for analyzing, pre-compiling, and storing
  * CommonJS modules for an archive.
  */
 
-// @ts-check
+/** @import {ParseFn} from './types.js' */
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 
@@ -15,10 +16,10 @@ const freeze = Object.freeze;
 const noopExecute = () => {};
 freeze(noopExecute);
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseArchiveCjs = (
   bytes,
-  specifier,
+  _specifier,
   location,
   _packageLocation,
 ) => {

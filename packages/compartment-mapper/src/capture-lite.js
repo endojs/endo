@@ -1,4 +1,5 @@
 /**
+ * @module
  * This module provides {@link captureFromMap}, which only "captures" the
  * compartment map descriptors and sources from a partially completed
  * compartment map--_without_ creating an archive. The resulting compartment map
@@ -24,21 +25,22 @@
  * contain original sources, so to import the archive with
  * `src/import-archive-lite.js`, you will need to provide the archive parsers
  * and entrain a runtime dependency on Babel.
- *
- * @module
  */
 
-// @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {CaptureOptions} from './types.js' */
-/** @import {Sources} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {ModuleDescriptor} from './types.js' */
-/** @import {CaptureResult} from './types.js' */
+/**
+ * @import {
+ *   CaptureLiteOptions,
+ *   CaptureResult,
+ *   CompartmentDescriptor,
+ *   CompartmentMapDescriptor,
+ *   ModuleDescriptor,
+ *   ReadFn,
+ *   ReadPowers,
+ *   Sources,
+ * } from './types.js'
+ */
 
 import {
   assertCompartmentMap,
@@ -255,7 +257,7 @@ const captureCompartmentMap = (compartmentMap, sources) => {
 /**
  * @param {ReadFn | ReadPowers} powers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {CaptureOptions} [options]
+ * @param {CaptureLiteOptions} [options]
  * @returns {Promise<CaptureResult>}
  */
 export const captureFromMap = async (powers, compartmentMap, options = {}) => {
@@ -291,6 +293,7 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
   const consolidatedExitModuleImportHook = exitModuleImportHookMaker({
     modules: exitModules,
     exitModuleImportHook,
+    entryCompartmentName,
   });
 
   const makeImportHook = makeImportHookMaker(read, entryCompartmentName, {

@@ -1,4 +1,5 @@
-/* Provides mechanisms for creating archives (zip files with a
+/**
+ * @module Provides mechanisms for creating archives (zip files with a
  * `compartmeent-map.json` and a file for every static dependency of an entry
  * module).
  *
@@ -13,7 +14,16 @@
  * for cases like XS native Compartments where pre-compilation is not
  * necessary or where the dependency on Babel can be dererred to runtime.
  */
-// @ts-check
+
+/**
+ * @import {
+ *   ArchiveOptions,
+ *   ReadFn,
+ *   ReadPowers,
+ *   HashPowers,
+ *   WriteFn,
+ * } from './types.js'
+ */
 
 import { defaultParserForLanguage } from './archive-parsers.js';
 import { mapNodeModules } from './node-modules.js';
@@ -26,12 +36,6 @@ import {
 } from './archive-lite.js';
 
 const { assign, create, freeze } = Object;
-
-/** @import {ArchiveOptions} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {HashPowers} from './types.js' */
-/** @import {WriteFn} from './types.js' */
 
 /**
  * Add the default parserForLanguage option.

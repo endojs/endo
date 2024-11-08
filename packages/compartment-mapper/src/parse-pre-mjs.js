@@ -1,16 +1,17 @@
-/* Provides language-specific behaviors for importing pre-compiled ESM.
+/**
+ * @module Provides language-specific behaviors for importing pre-compiled ESM.
  * Pre-compiling or translating ESM from a module to a script with a
  * calling-convention is necessary to prepare an archive so that it can be
  * imported by the SES shim without entraining a dependency on Babel.
  */
 
-// @ts-check
+/** @import {ParseFn} from './types.js' */
 
 import { parseLocatedJson } from './json.js';
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parsePreMjs = (
   bytes,
   _specifier,

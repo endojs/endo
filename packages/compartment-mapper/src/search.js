@@ -1,12 +1,15 @@
-/* Provides the behavior for `node-modules.js` to find modules and packages
- * according to the Node.js `node_modules` convention.
+/**
+ * @module Provides the behavior for `node-modules.js` to find modules and
+ * packages according to the Node.js `node_modules` convention.
  */
 
-// @ts-check
-
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
+/**
+ * @import {
+ *   ReadFn,
+ *   ReadPowers,
+ *   MaybeReadPowers,
+ * } from './types.js'
+ */
 
 import { relativize } from './node-module-specifier.js';
 import { relative } from './url.js';

@@ -1,19 +1,21 @@
-/* Provides language behavior for analyzing, pre-compiling, and storing ESM
+/**
+ * @module Provides language behavior for analyzing, pre-compiling, and storing ESM
  * modules for an archive.
  */
-// @ts-check
+
+/** @import {ParseFn} from './types.js' */
 
 import { ModuleSource } from '@endo/module-source';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseArchiveMjs = (
   bytes,
-  specifier,
+  _specifier,
   sourceUrl,
-  packageLocation,
+  _packageLocation,
   options = {},
 ) => {
   const { sourceMap, sourceMapHook } = options;

@@ -1,6 +1,7 @@
-/* Provides functions for constructing a compartment map that has a compartment
- * descriptor corresponding to every reachable package from an entry module and
- * how to create links between them.
+/**
+ * @module Provides functions for constructing a compartment map that has a
+ * compartment descriptor corresponding to every reachable package from an
+ * entry module and how to create links between them.
  * The resulting compartment map does not describe individual modules but does
  * capture every usable route between packages including those generalized by
  * wildcard expansion.
@@ -8,23 +9,27 @@
  * for transitive dependencies.
  */
 
-// @ts-check
 /* eslint no-shadow: 0 */
 
-/** @import {CanonicalFn} from './types.js' */
-/** @import {CompartmentMapForNodeModulesOptions} from './types.js' */
-/** @import {SomePolicy} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {CompartmentMapDescriptor} from './types.js' */
-/** @import {Language} from './types.js' */
-/** @import {LanguageForExtension} from './types.js' */
-/** @import {MaybeReadFn} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
-/** @import {ModuleDescriptor} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {ScopeDescriptor} from './types.js' */
-/** @import {SomePackagePolicy} from './types.js' */
+/**
+ * @import {
+ *   CanonicalFn,
+ *   CompartmentDescriptor,
+ *   CompartmentMapDescriptor,
+ *   CompartmentMapForNodeModulesOptions,
+ *   Language,
+ *   LanguageForExtension,
+ *   MapNodeModulesOptions,
+ *   MaybeReadFn,
+ *   MaybeReadPowers,
+ *   ModuleDescriptor,
+ *   ReadFn,
+ *   ReadPowers,
+ *   ScopeDescriptor,
+ *   SomePackagePolicy,
+ *   SomePolicy,
+ * } from './types.js'
+ */
 
 /**
  * The graph is an intermediate object model that the functions of this module
@@ -808,12 +813,7 @@ export const compartmentMapForNodeModules = async (
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {object} [options]
- * @param {Set<string>} [options.tags] deprecated in favor of `conditions`
- * @param {Set<string>} [options.conditions]
- * @param {boolean} [options.dev]
- * @param {object} [options.commonDependencies]
- * @param {object} [options.policy]
+ * @param {MapNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const mapNodeModules = async (

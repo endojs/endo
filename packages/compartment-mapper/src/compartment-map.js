@@ -1,7 +1,8 @@
 /* Validates a compartment map against its schema. */
 
-// @ts-check
 import { assertPackagePolicy } from './policy-format.js';
+
+/** @import {CompartmentMapDescriptor} from './types.js' */
 
 // TODO convert to the new `||` assert style.
 // Deferred because this file pervasively uses simple template strings rather than
@@ -471,7 +472,7 @@ const assertEntry = (allegedEntry, url) => {
 /**
  * @param {unknown} allegedCompartmentMap
  * @param {string} [url]
- * @returns {asserts allegedCompartmentMap is import('./types.js').CompartmentMapDescriptor}
+ * @returns {asserts allegedCompartmentMap is CompartmentMapDescriptor}
  */
 
 export const assertCompartmentMap = (

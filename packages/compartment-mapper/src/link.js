@@ -1,4 +1,6 @@
-/* Provides the linking behavior shared by all Compartment Mapper workflows.
+/**
+ * @module Provides the linking behavior shared by all Compartment Mapper
+ * workflows.
  * This involves creating and configuring compartments according to the
  * specifications in a compartment map, and is suitable for compartment maps
  * that just outline the locations of compartments and their inter-linkage and
@@ -6,11 +8,10 @@
  * dependencies of their entry module.
  */
 
-// @ts-check
-
-/** @import {ModuleMapHook} from 'ses' */
 /**
+ * @import {ModuleMapHook} from 'ses'
  * @import {
+ *   AsyncParseFn,
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
  *   ImportNowHookMaker,
@@ -19,13 +20,11 @@
  *   LinkResult,
  *   ModuleDescriptor,
  *   ParseFn,
- *   ParseFnAsync,
  *   ParserForLanguage,
  *   ParserImplementation,
  *   ShouldDeferError,
  * } from './types.js'
  */
-/** @import {ERef} from '@endo/eventual-send' */
 
 import { makeMapParsers } from './map-parser.js';
 import { resolve as resolveFallback } from './node-module-specifier.js';
@@ -43,7 +42,7 @@ const { allSettled } = Promise;
 
 /**
  * @template T
- * @type {(iterable: Iterable<ERef<T>>) => Promise<Array<PromiseSettledResult<T>>>}
+ * @type {(iterable: Iterable<Promise<T>>) => Promise<Array<PromiseSettledResult<T>>>}
  */
 const promiseAllSettled = allSettled.bind(Promise);
 
@@ -302,7 +301,7 @@ export const link = (
       location,
       name,
       parsers: languageForExtensionOverrides = {},
-      types: languageForModuleSpecifierOverrides = {},
+      types: languageForModuleSpecifier = {},
     } = compartmentDescriptor;
 
     // this is for retaining the correct type inference about these values
@@ -315,10 +314,6 @@ export const link = (
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
-    /** @type {Record<string, string>} */
-    const languageForModuleSpecifier = freeze(
-      assign(create(null), languageForModuleSpecifierOverrides),
-    );
     /** @type {LanguageForExtension} */
     const languageForExtension = freeze(
       assign(
@@ -327,10 +322,9 @@ export const link = (
         languageForExtensionOverrides,
       ),
     );
-
     // TS is kind of dumb about this, so we can use a type assertion to avoid a
     // pointless ternary.
-    const parse = /** @type {ParseFn|ParseFnAsync} */ (
+    const parse = /** @type {ParseFn|AsyncParseFn} */ (
       mapParsers(languageForExtension, languageForModuleSpecifier)
     );
 

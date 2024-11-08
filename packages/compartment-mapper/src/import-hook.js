@@ -1,12 +1,13 @@
-/* Provides the implementation of each compartment's `importHook` when using
- * `import.js`, `import-lite.js`, `archive.js`, or `archive-lite.js`.
- * However, `import-archive.js` and `import-archive-lite.js` use their own variant.
+/**
+ * @module Provides the implementation of each compartment's `importHook` when
+ * using `import.js`, `import-lite.js`, `archive.js`, or `archive-lite.js`.
+ * However, `import-archive.js` and `import-archive-lite.js` use their own
+ * variant.
  *
  * For building archives, these import hooks create a table of all the modules
  * in a "working set" of transitive dependencies.
  */
 
-// @ts-check
 /**
  * @import {
  *   ImportHook,
@@ -17,7 +18,7 @@
  * @import {
  *   CompartmentDescriptor,
  *   ChooseModuleDescriptorOperators,
- *   ChooseModuleDescriptorOptions,
+ *   ChooseModuleDescriptorParams,
  *   ChooseModuleDescriptorYieldables,
  *   ExitModuleImportHook,
  *   FindRedirectParams,
@@ -180,13 +181,15 @@ const findRedirect = ({
 
 /**
  * @param {object} params
- * @param {Record<string, any>=} params.modules
+ * @param {Record<string, any>} [params.modules]
  * @param {ExitModuleImportHook} [params.exitModuleImportHook]
+ * @param {string} params.entryCompartmentName
  * @returns {ExitModuleImportHook|undefined}
  */
 export const exitModuleImportHookMaker = ({
   modules = undefined,
   exitModuleImportHook = undefined,
+  entryCompartmentName,
 }) => {
   if (!modules && !exitModuleImportHook) {
     return undefined;
@@ -204,7 +207,10 @@ export const exitModuleImportHookMaker = ({
       });
     }
     if (exitModuleImportHook) {
-      return exitModuleImportHook(specifier);
+      // The entryCompartmentName is a file URL when constructing an archive or
+      // importing from a file system, but is merely a zip archive root
+      // directory name when importing from an archive.
+      return exitModuleImportHook(specifier, entryCompartmentName);
     }
     return undefined;
   };
@@ -243,7 +249,7 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
  *
  * @template {ChooseModuleDescriptorOperators} Operators Type of operators (sync
  * or async)
- * @param {ChooseModuleDescriptorOptions} options Options/context
+ * @param {ChooseModuleDescriptorParams} options Options/context
  * @param {Operators} operators Operators
  * @returns {Generator<ChooseModuleDescriptorYieldables,
  * StaticModuleType|undefined, Awaited<ChooseModuleDescriptorYieldables>>}
@@ -515,7 +521,10 @@ export const makeImportHookMaker = (
         // we allow importing any exit.
         if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
           if (exitModuleImportHook) {
-            const record = await exitModuleImportHook(moduleSpecifier);
+            const record = await exitModuleImportHook(
+              moduleSpecifier,
+              packageLocation,
+            );
             if (record) {
               // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
               // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
@@ -725,7 +734,8 @@ export function makeImportNowHookMaker(
       }
 
       if (exitModuleImportNowHook) {
-        // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
+        // This hook is responsible for ensuring that the moduleSpecifier
+        // actually refers to an exit module.
         const exitRecord = exitModuleImportNowHook(
           moduleSpecifier,
           packageLocation,

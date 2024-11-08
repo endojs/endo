@@ -1,9 +1,10 @@
-/* Provides language-behaviors for importing a module as a document that
- * exports itself as a string based on a UTF-8 interpretation of the module's
- * text.
+/**
+ * @module Provides language-behaviors for importing a module as a document
+ * that exports itself as a string based on a UTF-8 interpretation of the
+ * module's text.
  */
 
-// @ts-check
+/** @import {ParseFn} from './types.js' */
 
 /**
  * TypeScript cannot be relied upon to deal with the nuances of Readonly, so we
@@ -15,7 +16,7 @@ const freeze = Object.freeze;
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseText = (bytes, _specifier, _location, _packageLocation) => {
   const text = textDecoder.decode(bytes);
 

@@ -1,5 +1,3 @@
-// @ts-check
-
 import 'ses';
 import fs from 'node:fs';
 import url from 'node:url';

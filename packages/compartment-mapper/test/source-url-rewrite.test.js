@@ -1,4 +1,3 @@
-// @ts-check
 import 'ses';
 import test from 'ava';
 import fs from 'fs';

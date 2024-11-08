@@ -1,9 +1,12 @@
 /* eslint-disable no-shadow */
-// @ts-check
 /* eslint-disable import/no-dynamic-require */
 
-/** @import {ExitModuleImportNowHook, Policy} from '../src/types.js' */
-/** @import {SyncModuleTransforms} from '../src/types.js' */
+/**
+ * @import {
+ *   ExitModuleImportNowHook, Policy,
+ *   SyncModuleTransforms,
+ * } from '../src/types.js'
+ */
 
 import 'ses';
 import test from 'ava';

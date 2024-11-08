@@ -1,5 +1,4 @@
-/* Annotates JSON parse exceptions with the location of the source. */
-// @ts-check
+/** @module Annotates JSON parse exceptions with the location of the source. */
 
 /**
  * Parses JSON and, if necessary, throws exceptions that include the location
