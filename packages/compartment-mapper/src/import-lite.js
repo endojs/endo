@@ -95,6 +95,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
+    Compartment: LoadCompartmentOption = Compartment,
   } = options;
 
   const parserForLanguage = freeze(
@@ -150,7 +151,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption = LoadCompartmentOption,
       importHook: exitModuleImportHook,
     } = options;
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
@@ -199,7 +200,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         transforms,
         syncModuleTransforms,
         __shimTransforms__,
-        Compartment,
+        Compartment: CompartmentOption,
       }));
     } else {
       // sync module transforms are allowed, because they are "compatible"
@@ -213,7 +214,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         moduleTransforms,
         syncModuleTransforms,
         __shimTransforms__,
-        Compartment,
+        Compartment: CompartmentOption,
       }));
     }
 

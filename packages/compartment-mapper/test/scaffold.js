@@ -13,6 +13,13 @@ import {
   importArchive,
   hashLocation,
 } from '../index.js';
+
+import { mapNodeModules } from '../src/node-modules.js';
+import { loadFromMap, importFromMap } from '../src/import-lite.js';
+import { makeArchiveFromMap } from '../src/archive-lite.js';
+import { defaultParserForLanguage } from '../src/import-parsers.js';
+import { defaultParserForLanguage as defaultArchiveParserForLanguage } from '../src/archive-parsers.js';
+
 import { makeReadPowers } from '../src/node-powers.js';
 
 export const readPowers = makeReadPowers({
@@ -151,6 +158,93 @@ export function scaffold(
     });
     return namespace;
   });
+
+  wrap(test, 'Location')(
+    `${name} / mapNodeModules / importFromMap`,
+    async (t, Compartment) => {
+      t.plan(fixtureAssertionCount);
+      await setup();
+
+      const languages = Object.keys({
+        ...defaultParserForLanguage,
+        ...parserForLanguage,
+      });
+
+      const map = await mapNodeModules(readPowers, fixture, {
+        languages,
+        policy,
+        modules,
+        Compartment,
+        conditions: new Set(['development', ...(conditions || [])]),
+        commonDependencies,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
+        ...additionalOptions,
+      });
+
+      const { namespace } = await importFromMap(readPowers, map, {
+        globals: { ...globals, ...addGlobals },
+        policy,
+        modules,
+        Compartment,
+        searchSuffixes,
+        parserForLanguage: {
+          ...defaultParserForLanguage,
+          ...parserForLanguage,
+        },
+        ...additionalOptions,
+      });
+
+      return namespace;
+    },
+  );
+
+  wrap(test, 'Location')(
+    `${name} / mapNodeModules / loadFromMap / import`,
+    async (t, Compartment) => {
+      t.plan(fixtureAssertionCount);
+      await setup();
+
+      const languages = Object.keys({
+        ...defaultParserForLanguage,
+        ...parserForLanguage,
+      });
+
+      const map = await mapNodeModules(readPowers, fixture, {
+        languages,
+        policy,
+        modules,
+        Compartment,
+        conditions: new Set(['development', ...(conditions || [])]),
+        commonDependencies,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
+        ...additionalOptions,
+      });
+
+      const app = await loadFromMap(readPowers, map, {
+        policy,
+        Compartment,
+        searchSuffixes,
+        parserForLanguage: {
+          ...defaultParserForLanguage,
+          ...parserForLanguage,
+        },
+        ...additionalOptions,
+      });
+
+      const { namespace } = await app.import({
+        globals: { ...globals, ...addGlobals },
+        modules,
+        Compartment,
+        ...additionalOptions,
+      });
+
+      return namespace;
+    },
+  );
 
   wrap(test, 'Location')(`${name} / importLocation`, async (t, Compartment) => {
     t.plan(fixtureAssertionCount);
@@ -361,6 +455,61 @@ export function scaffold(
         );
       }
 
+      return namespace;
+    },
+  );
+
+  wrap(test, 'Archive')(
+    `${name} / mapNodeModules / makeArchiveFromMap / importArchive`,
+    async (t, Compartment) => {
+      t.plan(fixtureAssertionCount);
+      await setup();
+
+      const languages = Object.keys({
+        ...defaultArchiveParserForLanguage,
+        ...parserForLanguage,
+      });
+
+      const map = await mapNodeModules(readPowers, fixture, {
+        policy,
+        conditions: new Set(['development', ...(conditions || [])]),
+        commonDependencies,
+        languages,
+        languageForExtension,
+        commonjsLanguageForExtension,
+        moduleLanguageForExtension,
+        ...additionalOptions,
+      });
+
+      const archive = await makeArchiveFromMap(readPowers, map, {
+        modules,
+        policy,
+        searchSuffixes,
+        parserForLanguage: {
+          ...defaultArchiveParserForLanguage,
+          ...parserForLanguage,
+        },
+        ...additionalOptions,
+      });
+      const application = await parseArchive(archive, '<unknown>', {
+        modules: Object.fromEntries(
+          Object.keys(modules).map((specifier, index) => {
+            // Replacing the namespace with an arbitrary index ensures that the
+            // parse phase does not depend on the type or values of the exit module
+            // set.
+            return [specifier, index];
+          }),
+        ),
+        Compartment,
+        parserForLanguage,
+        ...additionalOptions,
+      });
+      const { namespace } = await application.import({
+        globals: { ...globals, ...addGlobals },
+        modules,
+        Compartment,
+        ...additionalOptions,
+      });
       return namespace;
     },
   );

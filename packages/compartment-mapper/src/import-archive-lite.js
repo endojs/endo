@@ -46,8 +46,6 @@ import { assertCompartmentMap } from './compartment-map.js';
 import { exitModuleImportHookMaker } from './import-hook.js';
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 
-const DefaultCompartment = Compartment;
-
 const { Fail, quote: q } = assert;
 
 const textDecoder = new TextDecoder();
@@ -255,7 +253,7 @@ export const parseArchive = async (
     expectedSha512 = undefined,
     computeSourceLocation = undefined,
     computeSourceMapLocation = undefined,
-    Compartment = DefaultCompartment,
+    Compartment: CompartmentParseOption = Compartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
@@ -344,7 +342,7 @@ export const parseArchive = async (
           return [specifier, { namespace: {} }];
         }),
       ),
-      Compartment,
+      Compartment: CompartmentParseOption,
     });
 
     await pendingJobsPromise;
@@ -363,7 +361,7 @@ export const parseArchive = async (
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption = CompartmentParseOption,
       importHook: exitModuleImportHook,
     } = options || {};
 
@@ -389,7 +387,7 @@ export const parseArchive = async (
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption,
     });
 
     await pendingJobsPromise;
