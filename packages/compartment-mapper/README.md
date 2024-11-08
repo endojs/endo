@@ -263,6 +263,13 @@ Packages with `type` set to `"commonjs"` or simply not set,
 This provides an hook for mapping TypeScript's `.ts` to either `.cts` or
 `.mts`.
 
+The analogous `workspaceLanguageForExtension`,
+`workspaceCommonjsLanguageForExtension`, and
+`workspaceModuleLanguageForExtension` options apply more specifically for
+packages that are not under a `node_modules` directory, indicating that they
+are in the set of linked workspaces and have not been built or published to
+npm.
+
 In the scope any given package, the `parsers` property in `package.json` may
 override the extension-to-language mapping.
 
