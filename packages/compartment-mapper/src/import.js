@@ -83,6 +83,9 @@ export const loadLocation = async (
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     ...otherOptions
   } = assignParserForLanguage(options);
   // conditions are not present in SyncArchiveOptions
@@ -96,6 +99,9 @@ export const loadLocation = async (
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     languages,
   });
   return loadFromMap(readPowers, compartmentMap, {

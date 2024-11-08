@@ -237,6 +237,11 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     languageForExtension: languageForExtensionOption = {},
     commonjsLanguageForExtension: commonjsLanguageForExtensionOption = {},
     moduleLanguageForExtension: moduleLanguageForExtensionOption = {},
+    workspaceLanguageForExtension: workspaceLanguageForExtensionOption = {},
+    workspaceCommonjsLanguageForExtension:
+      workspaceCommonjsLanguageForExtensionOption = {},
+    workspaceModuleLanguageForExtension:
+      workspaceModuleLanguageForExtensionOption = {},
   } = options || {};
   const conditions = new Set(conditionsOption);
 
@@ -255,6 +260,21 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   );
   const moduleLanguageForExtension = Object.freeze(
     Object.assign(Object.create(null), moduleLanguageForExtensionOption),
+  );
+  const workspaceLanguageForExtension = Object.freeze(
+    Object.assign(Object.create(null), workspaceLanguageForExtensionOption),
+  );
+  const workspaceCommonjsLanguageForExtension = Object.freeze(
+    Object.assign(
+      Object.create(null),
+      workspaceCommonjsLanguageForExtensionOption,
+    ),
+  );
+  const workspaceModuleLanguageForExtension = Object.freeze(
+    Object.assign(
+      Object.create(null),
+      workspaceModuleLanguageForExtensionOption,
+    ),
   );
 
   const {
@@ -280,6 +300,9 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
       languageForExtension,
       commonjsLanguageForExtension,
       moduleLanguageForExtension,
+      workspaceLanguageForExtension,
+      workspaceCommonjsLanguageForExtension,
+      workspaceModuleLanguageForExtension,
     },
   );
 

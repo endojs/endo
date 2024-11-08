@@ -71,10 +71,22 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
   commonDependencies: Record<string, string>;
   /** Maps extensions to languages for all packages, like `txt` to `text` */
   languageForExtension: LanguageForExtension;
-  /** Maps extensions to languages for all type=module packages */
+  /** Maps additional extensions to languages for all type=module packages */
   moduleLanguageForExtension: LanguageForExtension;
-  /** Maps extensions to languages for all type=commonjs packages (default) */
+  /** Maps additional extensions to languages for all type=commonjs packages (default) */
   commonjsLanguageForExtension: LanguageForExtension;
+  /** Maps extensions to languages for packages not under node_modules */
+  workspaceLanguageForExtension: LanguageForExtension;
+  /**
+   * Maps additional extensions to languages for all type=module packages that
+   * are not under node_modules
+   */
+  workspaceModuleLanguageForExtension: LanguageForExtension;
+  /**
+   * Maps additional extensions to languages for all type=commonjs packages
+   * (default)
+   */
+  workspaceCommonjsLanguageForExtension: LanguageForExtension;
   /**
    * Accounts for languages not present as values in any of the extension to
    * language mappings.

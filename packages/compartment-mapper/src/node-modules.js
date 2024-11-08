@@ -61,6 +61,8 @@
  * @typedef {object} LanguageOptions
  * @property {LanguageForExtension} commonjsLanguageForExtension
  * @property {LanguageForExtension} moduleLanguageForExtension
+ * @property {LanguageForExtension} workspaceCommonjsLanguageForExtension
+ * @property {LanguageForExtension} workspaceModuleLanguageForExtension
  * @property {Set<string>} languages
  */
 
@@ -217,11 +219,21 @@ const defaultModuleLanguageForExtension = /** @type {const} */ ({
  * @returns {Record<string, string>}
  */
 const inferParsers = (descriptor, location, languageOptions) => {
+  let { moduleLanguageForExtension, commonjsLanguageForExtension } =
+    languageOptions;
   const {
     languages,
-    moduleLanguageForExtension,
-    commonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
   } = languageOptions;
+
+  // Select languageForExtension options based on whether they are physically
+  // under node_modules, indicating that they have not been built for npm,
+  // so any languages that compile to JavaScript may need additional parsers.
+  if (!location.includes('/node_modules/')) {
+    moduleLanguageForExtension = workspaceModuleLanguageForExtension;
+    commonjsLanguageForExtension = workspaceCommonjsLanguageForExtension;
+  }
 
   const {
     type,
@@ -771,6 +783,9 @@ const translateGraph = (
  *   'languageForExtension' |
  *   'moduleLanguageForExtension' |
  *   'commonjsLanguageForExtension' |
+ *   'workspaceLanguageForExtension' |
+ *   'workspaceModuleLanguageForExtension' |
+ *   'workspaceCommonjsLanguageForExtension' |
  *   'languages'
  * >} options
  */
@@ -778,6 +793,11 @@ const makeLanguageOptions = ({
   languageForExtension: additionalLanguageForExtension = {},
   moduleLanguageForExtension: additionalModuleLanguageForExtension = {},
   commonjsLanguageForExtension: additionalCommonjsLanguageForExtension = {},
+  workspaceLanguageForExtension: additionalWorkspaceLanguageForExtension = {},
+  workspaceModuleLanguageForExtension:
+    additionalWorkspaceModuleLanguageForExtension = {},
+  workspaceCommonjsLanguageForExtension:
+    additionalWorkspaceCommonjsLanguageForExtension = {},
   languages: additionalLanguages = [],
 }) => {
   const commonjsLanguageForExtension = {
@@ -792,10 +812,28 @@ const makeLanguageOptions = ({
     ...defaultModuleLanguageForExtension,
     ...additionalModuleLanguageForExtension,
   };
+  const workspaceCommonjsLanguageForExtension = {
+    ...defaultLanguageForExtension,
+    ...additionalLanguageForExtension,
+    ...defaultCommonjsLanguageForExtension,
+    ...additionalCommonjsLanguageForExtension,
+    ...additionalWorkspaceLanguageForExtension,
+    ...additionalWorkspaceCommonjsLanguageForExtension,
+  };
+  const workspaceModuleLanguageForExtension = {
+    ...defaultLanguageForExtension,
+    ...additionalLanguageForExtension,
+    ...defaultModuleLanguageForExtension,
+    ...additionalModuleLanguageForExtension,
+    ...additionalWorkspaceLanguageForExtension,
+    ...additionalWorkspaceModuleLanguageForExtension,
+  };
 
   const languages = new Set([
     ...Object.values(moduleLanguageForExtension),
     ...Object.values(commonjsLanguageForExtension),
+    ...Object.values(workspaceModuleLanguageForExtension),
+    ...Object.values(workspaceCommonjsLanguageForExtension),
     ...additionalLanguages,
   ]);
 
@@ -803,6 +841,8 @@ const makeLanguageOptions = ({
     languages,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
   };
 };
 

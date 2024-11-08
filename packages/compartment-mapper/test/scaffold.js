@@ -101,6 +101,9 @@ export function scaffold(
     languageForExtension = undefined,
     commonjsLanguageForExtension = undefined,
     moduleLanguageForExtension = undefined,
+    workspaceLanguageForExtension = undefined,
+    workspaceCommonjsLanguageForExtension = undefined,
+    workspaceModuleLanguageForExtension = undefined,
     additionalOptions = {},
   } = {},
 ) {
@@ -148,6 +151,9 @@ export function scaffold(
       languageForExtension,
       commonjsLanguageForExtension,
       moduleLanguageForExtension,
+      workspaceLanguageForExtension,
+      workspaceCommonjsLanguageForExtension,
+      workspaceModuleLanguageForExtension,
       ...additionalOptions,
     });
     const { namespace } = await application.import({
@@ -180,6 +186,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -221,6 +230,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -262,6 +274,9 @@ export function scaffold(
       languageForExtension,
       commonjsLanguageForExtension,
       moduleLanguageForExtension,
+      workspaceLanguageForExtension,
+      workspaceCommonjsLanguageForExtension,
+      workspaceModuleLanguageForExtension,
       ...additionalOptions,
     });
     return namespace;
@@ -283,6 +298,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
       const application = await parseArchive(archive, '<unknown>', {
@@ -325,6 +343,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
       const prefixArchive = new Uint8Array(archive.length + 10);
@@ -375,6 +396,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
       const application = await loadArchive(fakeRead, 'app.agar', {
@@ -434,6 +458,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -478,6 +505,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -529,6 +559,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -541,6 +574,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -575,6 +611,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 
@@ -587,6 +626,9 @@ export function scaffold(
         languageForExtension,
         commonjsLanguageForExtension,
         moduleLanguageForExtension,
+        workspaceLanguageForExtension,
+        workspaceCommonjsLanguageForExtension,
+        workspaceModuleLanguageForExtension,
         ...additionalOptions,
       });
 

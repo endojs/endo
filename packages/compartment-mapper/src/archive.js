@@ -90,6 +90,9 @@ export const makeArchive = async (powers, moduleLocation, options = {}) => {
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     parserForLanguage,
     languages,
     ...otherOptions
@@ -102,6 +105,9 @@ export const makeArchive = async (powers, moduleLocation, options = {}) => {
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     languages,
   });
 
@@ -130,6 +136,9 @@ export const mapLocation = async (powers, moduleLocation, options = {}) => {
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     ...otherOptions
   } = assignParserForLanguage(options);
 
@@ -142,6 +151,9 @@ export const mapLocation = async (powers, moduleLocation, options = {}) => {
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
   });
 
   return mapFromMap(powers, compartmentMap, {
@@ -169,6 +181,9 @@ export const hashLocation = async (powers, moduleLocation, options = {}) => {
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     ...otherOptions
   } = assignParserForLanguage(options);
 
@@ -181,6 +196,9 @@ export const hashLocation = async (powers, moduleLocation, options = {}) => {
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
   });
 
   return hashFromMap(powers, compartmentMap, {
@@ -215,6 +233,9 @@ export const writeArchive = async (
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     ...otherOptions
   } = assignParserForLanguage(options);
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
@@ -225,6 +246,9 @@ export const writeArchive = async (
     languageForExtension,
     commonjsLanguageForExtension,
     moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     languages,
   });
   return writeArchiveFromMap(
