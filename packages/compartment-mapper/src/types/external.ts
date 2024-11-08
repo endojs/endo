@@ -52,10 +52,20 @@ export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
 type MapNodeModulesOptionsOmitPolicy = Partial<{
   /** @deprecated renamed `conditions` to be consistent with Node.js */
   tags: Set<string>;
+  /**
+   * Conditions for package `"imports"` and `"exports"`.
+   * The `"development"` condition also implies that `devDependencies` of the
+   * entry package should be reachable.
+   * Common conditions include `"node"`, `"browser"`, `"require"`, `"import"`,
+   * and `"default"`.
+   * The conditions `"import"`, `"default"`, and `"endo"` need not be
+   * specified.
+   */
   conditions: Set<string>;
   /**
-   * @deprecated Whether to make the devDependencies of the entry package
-   * accessible, implied by the `development` condition.
+   * @deprecated add `"development"` to the `conditions` Set option.
+   * Including `devDependencies` has been subsumed by implication
+   * of having the `"development"` condition.
    */
   dev: boolean;
   /** Dependencies to make reachable from any package */
@@ -66,7 +76,7 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * Accounts for languages not present as values in any of the extension to
    * language mappings.
    * For higher level functions like `importLocation`, these are inferred
-   * from the `parses`.
+   * from the `parserForLanguage` option.
    */
   languages: Array<Language>;
 }>;
