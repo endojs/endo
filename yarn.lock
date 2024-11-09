@@ -227,6 +227,7 @@ __metadata:
     c8: "npm:^7.14.0"
     eslint: "npm:^8.57.0"
     rollup: "npm:^2.79.1"
+    ts-blank-space: "npm:^0.4.1"
     typescript: "npm:~5.6.3"
   bin:
     bundle-source: ./src/tool.js
@@ -9790,6 +9791,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ts-blank-space@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "ts-blank-space@npm:0.4.1"
+  dependencies:
+    typescript: "npm:5.1.6 - 5.6.x"
+  checksum: 10c0/dd8b48eed43af36d0bc1490117e2351e6a7105e463af2e86e4881003139ca3a8c139647470412c299334ba2c2badaf32c4fe6c78e98c2de8a19481e462de58e9
+  languageName: node
+  linkType: hard
+
 "tsconfig-paths@npm:^3.15.0":
   version: 3.15.0
   resolution: "tsconfig-paths@npm:3.15.0"
@@ -10047,7 +10057,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:>=3 < 6, typescript@npm:~5.6.3":
+"typescript@npm:5.1.6 - 5.6.x, typescript@npm:>=3 < 6, typescript@npm:~5.6.3":
   version: 5.6.3
   resolution: "typescript@npm:5.6.3"
   bin:
@@ -10057,7 +10067,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A>=3 < 6#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A~5.6.3#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A5.1.6 - 5.6.x#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A>=3 < 6#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A~5.6.3#optional!builtin<compat/typescript>":
   version: 5.6.3
   resolution: "typescript@patch:typescript@npm%3A5.6.3#optional!builtin<compat/typescript>::version=5.6.3&hash=8c6c40"
   bin:
