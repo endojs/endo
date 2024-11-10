@@ -24,6 +24,10 @@ import {
   permitted,
 } from './permits.js';
 
+/**
+ * @import {Reporter} from './reporting-types.js'
+ */
+
 const isFunction = obj => typeof obj === 'function';
 
 // Like defineProperty, but throws if it would modify an existing property.
@@ -72,7 +76,10 @@ function sampleGlobals(globalObject, newPropertyNames) {
   return newIntrinsics;
 }
 
-export const makeIntrinsicsCollector = () => {
+/**
+ * @param {Reporter} reporter
+ */
+export const makeIntrinsicsCollector = reporter => {
   /** @type {Record<any, any>} */
   const intrinsics = create(null);
   let pseudoNatives;
@@ -106,7 +113,7 @@ export const makeIntrinsicsCollector = () => {
           'prototype',
           false,
           `${name}.prototype`,
-          console, // TODO should be a proper Reporter
+          reporter,
         );
         // eslint-disable-next-line no-continue
         continue;
@@ -173,9 +180,10 @@ export const makeIntrinsicsCollector = () => {
  * *original* unsafe (feral, untamed) bindings of these global variables.
  *
  * @param {object} globalObject
+ * @param {Reporter} [reporter] defaults to `console`
  */
-export const getGlobalIntrinsics = globalObject => {
-  const { addIntrinsics, finalIntrinsics } = makeIntrinsicsCollector();
+export const getGlobalIntrinsics = (globalObject, reporter = console) => {
+  const { addIntrinsics, finalIntrinsics } = makeIntrinsicsCollector(reporter);
 
   addIntrinsics(sampleGlobals(globalObject, sharedGlobalPropertyNames));
 

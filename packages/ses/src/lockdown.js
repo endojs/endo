@@ -281,7 +281,7 @@ export const repairIntrinsics = (options = {}) => {
   const markVirtualizedNativeFunction = tameFunctionToString();
 
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
-    makeIntrinsicsCollector();
+    makeIntrinsicsCollector(reporter);
 
   // @ts-expect-error __hardenTaming__ could be any string
   const tamedHarden = tameHarden(safeHarden, __hardenTaming__);

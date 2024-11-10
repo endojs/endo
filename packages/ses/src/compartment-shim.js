@@ -8,6 +8,7 @@ const markVirtualizedNativeFunction = tameFunctionToString();
 // @ts-ignore Compartment is definitely on globalThis.
 globalThis.Compartment = makeCompartmentConstructor(
   makeCompartmentConstructor,
+  // TODO pass a proper reporter as second arg to `getGlobalIntrinsics`?
   getGlobalIntrinsics(globalThis),
   markVirtualizedNativeFunction,
 );
