@@ -95,14 +95,11 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
+    Compartment: LoadCompartmentOption = Compartment,
   } = options;
 
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
-  );
-  const languageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
   );
 
   /**
@@ -154,7 +151,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption = LoadCompartmentOption,
       importHook: exitModuleImportHook,
     } = options;
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
@@ -199,12 +196,11 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         makeImportHook,
         makeImportNowHook,
         parserForLanguage,
-        languageForExtension,
         globals,
         transforms,
         syncModuleTransforms,
         __shimTransforms__,
-        Compartment,
+        Compartment: CompartmentOption,
       }));
     } else {
       // sync module transforms are allowed, because they are "compatible"
@@ -213,13 +209,12 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
       ({ compartment, pendingJobsPromise } = link(compartmentMap, {
         makeImportHook,
         parserForLanguage,
-        languageForExtension,
         globals,
         transforms,
         moduleTransforms,
         syncModuleTransforms,
         __shimTransforms__,
-        Compartment,
+        Compartment: CompartmentOption,
       }));
     }
 

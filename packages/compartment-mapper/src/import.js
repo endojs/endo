@@ -42,7 +42,8 @@ const assignParserForLanguage = (options = {}) => {
   const parserForLanguage = freeze(
     assign(create(null), defaultParserForLanguage, parserForLanguageOption),
   );
-  return { ...rest, parserForLanguage };
+  const languages = Object.keys(parserForLanguage);
+  return { ...rest, parserForLanguage, languages };
 };
 
 /**
@@ -72,7 +73,21 @@ export const loadLocation = async (
   moduleLocation,
   options = {},
 ) => {
-  const { dev, tags, commonDependencies, policy } = options;
+  const {
+    dev,
+    tags,
+    commonDependencies,
+    policy,
+    parserForLanguage,
+    languages,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    ...otherOptions
+  } = assignParserForLanguage(options);
   // conditions are not present in SyncArchiveOptions
   const conditions =
     'conditions' in options ? options.conditions || tags : tags;
@@ -81,12 +96,18 @@ export const loadLocation = async (
     conditions,
     commonDependencies,
     policy,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    languages,
   });
-  return loadFromMap(
-    readPowers,
-    compartmentMap,
-    assignParserForLanguage(options),
-  );
+  return loadFromMap(readPowers, compartmentMap, {
+    parserForLanguage,
+    ...otherOptions,
+  });
 };
 
 /**

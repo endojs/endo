@@ -11,15 +11,14 @@
 /**
  * @import {ModuleMapHook} from 'ses'
  * @import {
- *   AsyncParseFn,
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
  *   ImportNowHookMaker,
- *   LanguageForExtension,
  *   LinkOptions,
  *   LinkResult,
  *   ModuleDescriptor,
  *   ParseFn,
+ *   AsyncParseFn,
  *   ParserForLanguage,
  *   ParserImplementation,
  *   ShouldDeferError,
@@ -254,7 +253,6 @@ export const link = (
     makeImportHook,
     makeImportNowHook = impossibleImportNowHookMaker,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
     globals = {},
     transforms = [],
     moduleTransforms,
@@ -279,10 +277,6 @@ export const link = (
 
   const pendingJobs = [];
 
-  /** @type {LanguageForExtension} */
-  const defaultLanguageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
-  );
   /** @type {ParserForLanguage} */
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
@@ -300,7 +294,7 @@ export const link = (
     const {
       location,
       name,
-      parsers: languageForExtensionOverrides = {},
+      parsers: languageForExtension = {},
       types: languageForModuleSpecifier = {},
     } = compartmentDescriptor;
 
@@ -314,14 +308,6 @@ export const link = (
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
-    /** @type {LanguageForExtension} */
-    const languageForExtension = freeze(
-      assign(
-        create(null),
-        defaultLanguageForExtension,
-        languageForExtensionOverrides,
-      ),
-    );
     // TS is kind of dumb about this, so we can use a type assertion to avoid a
     // pointless ternary.
     const parse = /** @type {ParseFn|AsyncParseFn} */ (

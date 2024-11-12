@@ -46,8 +46,6 @@ import { assertCompartmentMap } from './compartment-map.js';
 import { exitModuleImportHookMaker } from './import-hook.js';
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 
-const DefaultCompartment = Compartment;
-
 const { Fail, quote: q } = assert;
 
 const textDecoder = new TextDecoder();
@@ -255,18 +253,14 @@ export const parseArchive = async (
     expectedSha512 = undefined,
     computeSourceLocation = undefined,
     computeSourceMapLocation = undefined,
-    Compartment = DefaultCompartment,
+    Compartment: CompartmentParseOption = Compartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
   } = options;
 
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
-  );
-  const languageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
   );
 
   const archive = new ZipReader(archiveBytes, { name: archiveLocation });
@@ -343,13 +337,12 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
-      languageForExtension,
       modules: Object.fromEntries(
         Object.keys(modules || {}).map(specifier => {
           return [specifier, { namespace: {} }];
         }),
       ),
-      Compartment,
+      Compartment: CompartmentParseOption,
     });
 
     await pendingJobsPromise;
@@ -368,7 +361,7 @@ export const parseArchive = async (
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption = CompartmentParseOption,
       importHook: exitModuleImportHook,
     } = options || {};
 
@@ -390,12 +383,11 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
-      languageForExtension,
       globals,
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption,
     });
 
     await pendingJobsPromise;
@@ -425,7 +417,6 @@ export const loadArchive = async (
     modules,
     computeSourceMapLocation,
     parserForLanguage,
-    languageForExtension,
   } = options;
   const archiveBytes = await read(archiveLocation);
   return parseArchive(archiveBytes, archiveLocation, {
@@ -435,7 +426,6 @@ export const loadArchive = async (
     modules,
     computeSourceMapLocation,
     parserForLanguage,
-    languageForExtension,
   });
 };
 

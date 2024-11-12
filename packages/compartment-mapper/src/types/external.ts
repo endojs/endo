@@ -42,7 +42,6 @@ export type ParseArchiveOptions = Partial<{
   ModulesOption &
   CompartmentOption &
   ParserForLanguageOption &
-  LanguageForExtensionOption &
   ExitModuleImportHookOption;
 
 export type LoadArchiveOptions = ParseArchiveOptions;
@@ -72,6 +71,22 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
   commonDependencies: Record<string, string>;
   /** Maps extensions to languages for all packages, like `txt` to `text` */
   languageForExtension: LanguageForExtension;
+  /** Maps additional extensions to languages for all type=module packages */
+  moduleLanguageForExtension: LanguageForExtension;
+  /** Maps additional extensions to languages for all type=commonjs packages (default) */
+  commonjsLanguageForExtension: LanguageForExtension;
+  /** Maps extensions to languages for packages not under node_modules */
+  workspaceLanguageForExtension: LanguageForExtension;
+  /**
+   * Maps additional extensions to languages for all type=module packages that
+   * are not under node_modules
+   */
+  workspaceModuleLanguageForExtension: LanguageForExtension;
+  /**
+   * Maps additional extensions to languages for all type=commonjs packages
+   * (default)
+   */
+  workspaceCommonjsLanguageForExtension: LanguageForExtension;
   /**
    * Accounts for languages not present as values in any of the extension to
    * language mappings.
@@ -200,7 +215,6 @@ type SyncImportingOptions = ModulesOption &
 
 type LinkingOptions = ParserForLanguageOption &
   CompartmentOption &
-  LanguageForExtensionOption &
   SyncModuleTransformsOption &
   ModuleTransformsOption;
 

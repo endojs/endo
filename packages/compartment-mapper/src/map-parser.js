@@ -101,6 +101,14 @@ const makeExtensionParser = (
     ) {
       language = languageForModuleSpecifier[specifier];
     } else {
+      // We should revisit this design decision:
+      // Defaulting the language to the extension conflates those namespaces.
+      // So, a transform keyed by extension can be used to coerce a language
+      // (e.g., .mts to mjs) as a shorthand for configuring a parser for that
+      // extension that pre-processes the file before handing off to the
+      // parser.
+      // But, this forces us to support the case of using weird language
+      // names like pre-mjs-json as valid, unconfigured extensions.
       language = languageForExtension[extension] || extension;
     }
 

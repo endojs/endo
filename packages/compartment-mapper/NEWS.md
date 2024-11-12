@@ -2,6 +2,19 @@ User-visible changes to `@endo/compartment-mapper`:
 
 # Next version
 
+- Adds options `languageForExtension`, `moduleLanguageForExtension`,
+  `commonjsLanguageForExtension`, and `languages` to `mapNodeModules` and
+  `compartmentMapForNodeModules` allowing for certain mappings from extension
+  (e.g., `ts`) to language (e.g., `mts` or `cts`) to depend on the each
+  package’s `type` in the way we already vary `js` between `cjs` and `mjs`.
+  These options enter through the high level functions including `makeArchive`
+  and `importLocation`.
+- The new options `workspaceLanguageForExtension`,
+  `workspaceModuleLanguageForExtension`, and
+  `workspaceCommonjsLanguageForExtension` apply like the above except more
+  specifically and for packages that are not physically located under a
+  `node_modules` directory, indicating that JavaScript has not yet been
+  generated from any non-JavaScript source files.
 - Omits unused module descriptors from `compartment-map.json` in archived
   applications, potentially reducing file sizes.
 - Fixes an issue where errors thrown from exit module hooks (`importHook`) would

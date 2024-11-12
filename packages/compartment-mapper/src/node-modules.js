@@ -58,6 +58,15 @@
  */
 
 /**
+ * @typedef {object} LanguageOptions
+ * @property {LanguageForExtension} commonjsLanguageForExtension
+ * @property {LanguageForExtension} moduleLanguageForExtension
+ * @property {LanguageForExtension} workspaceCommonjsLanguageForExtension
+ * @property {LanguageForExtension} workspaceModuleLanguageForExtension
+ * @property {Set<string>} languages
+ */
+
+/**
  * @typedef {Record<string, {spec: string, alias: string}>} CommonDependencyDescriptors
  */
 
@@ -189,83 +198,83 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const defaultLanguages = /** @type {const} */ ([
-  'mjs',
-  'cjs',
-  'json',
-  'text',
-  'bytes',
-]);
-const defaultUncontroversialParsers = /** @type {const} */ ({
-  cjs: 'cjs',
+const defaultLanguageForExtension = /** @type {const} */ ({
   mjs: 'mjs',
+  cjs: 'cjs',
   json: 'json',
   text: 'text',
   bytes: 'bytes',
 });
-const defaultCommonParsers = /** @type {const} */ ({
+const defaultCommonjsLanguageForExtension = /** @type {const} */ ({
   js: 'cjs',
-  ...defaultUncontroversialParsers,
 });
-const defaultModuleParsers = /** @type {const} */ ({
+const defaultModuleLanguageForExtension = /** @type {const} */ ({
   js: 'mjs',
-  ...defaultUncontroversialParsers,
 });
 
 /**
  * @param {object} descriptor
  * @param {string} location
- * @param {object} [options]
- * @param {readonly string[]|string[]} [options.languages]
- * @param {Record<string, string>} [options.uncontroversialParsers]
- * @param {Record<string, string>} [options.commonParsers]
- * @param {Record<string, string>} [options.moduleParsers]
+ * @param {LanguageOptions} languageOptions
  * @returns {Record<string, string>}
  */
-const inferParsers = (
-  descriptor,
-  location,
-  {
-    languages = defaultLanguages,
-    uncontroversialParsers = defaultUncontroversialParsers,
-    commonParsers = defaultCommonParsers,
-    moduleParsers = defaultModuleParsers,
-  } = {},
-) => {
-  const { type, module, parsers } = descriptor;
-  let additionalParsers = Object.create(null);
-  if (parsers !== undefined) {
-    if (typeof parsers !== 'object') {
-      throw Error(
-        `Cannot interpret parser map ${JSON.stringify(
-          parsers,
-        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
-      );
-    }
-    const invalidLanguages = values(parsers).filter(
-      language => !languages.includes(language),
-    );
-    if (invalidLanguages.length > 0) {
-      throw Error(
-        `Cannot interpret parser map language values ${JSON.stringify(
-          invalidLanguages,
-        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
-      );
-    }
-    additionalParsers = { ...uncontroversialParsers, ...parsers };
+const inferParsers = (descriptor, location, languageOptions) => {
+  let { moduleLanguageForExtension, commonjsLanguageForExtension } =
+    languageOptions;
+  const {
+    languages,
+    workspaceModuleLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+  } = languageOptions;
+
+  // Select languageForExtension options based on whether they are physically
+  // under node_modules, indicating that they have not been built for npm,
+  // so any languages that compile to JavaScript may need additional parsers.
+  if (!location.includes('/node_modules/')) {
+    moduleLanguageForExtension = workspaceModuleLanguageForExtension;
+    commonjsLanguageForExtension = workspaceCommonjsLanguageForExtension;
   }
+
+  const {
+    type,
+    module,
+    parsers: packageLanguageForExtension = {},
+  } = descriptor;
+
+  // Validate package-local "parsers"
+  if (
+    typeof packageLanguageForExtension !== 'object' ||
+    packageLanguageForExtension === null
+  ) {
+    throw Error(
+      `Cannot interpret parser map ${JSON.stringify(
+        packageLanguageForExtension,
+      )} of package at ${location}, must be an object mapping file extensions to corresponding languages (for example, mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
+    );
+  }
+  const invalidLanguages = values(packageLanguageForExtension).filter(
+    language => !languages.has(language),
+  );
+  if (invalidLanguages.length > 0) {
+    throw Error(
+      `Cannot interpret parser map language values ${JSON.stringify(
+        invalidLanguages,
+      )} of package at ${location}, must be an object mapping file extensions to corresponding languages (for example, mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
+    );
+  }
+
   if (type === 'module' || module !== undefined) {
-    return { ...moduleParsers, ...additionalParsers };
+    return { ...moduleLanguageForExtension, ...packageLanguageForExtension };
   }
   if (type === 'commonjs') {
-    return { ...commonParsers, ...additionalParsers };
+    return { ...commonjsLanguageForExtension, ...packageLanguageForExtension };
   }
   if (type !== undefined) {
     throw Error(
       `Cannot infer parser map for package of type ${type} at ${location}`,
     );
   }
-  return { ...commonParsers, ...additionalParsers };
+  return { ...commonjsLanguageForExtension, ...packageLanguageForExtension };
 };
 
 /**
@@ -286,6 +295,7 @@ const inferParsers = (
  * @param {Set<string>} conditions
  * @param {boolean | undefined} dev
  * @param {CommonDependencyDescriptors} commonDependencyDescriptors
+ * @param {LanguageOptions} languageOptions
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {Array<string>} logicalPath
  * @returns {Promise<undefined>}
@@ -299,6 +309,7 @@ const graphPackage = async (
   conditions,
   dev,
   commonDependencyDescriptors,
+  languageOptions,
   preferredPackageLogicalPathMap = new Map(),
   logicalPath = [],
 ) => {
@@ -368,6 +379,7 @@ const graphPackage = async (
         name,
         conditions,
         preferredPackageLogicalPathMap,
+        languageOptions,
         childLogicalPath,
         optional,
         commonDependencyDescriptors,
@@ -399,6 +411,12 @@ const graphPackage = async (
     types,
   );
 
+  const parsers = inferParsers(
+    packageDescriptor,
+    packageLocation,
+    languageOptions,
+  );
+
   Object.assign(result, {
     name,
     path: logicalPath,
@@ -408,7 +426,7 @@ const graphPackage = async (
     internalAliases,
     dependencyLocations,
     types,
-    parsers: inferParsers(packageDescriptor, packageLocation),
+    parsers,
   });
 
   await Promise.all(
@@ -462,6 +480,7 @@ const graphPackage = async (
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} conditions
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
+ * @param {LanguageOptions} languageOptions
  * @param {Array<string>} [childLogicalPath]
  * @param {boolean} [optional] - whether the dependency is optional
  * @param {object} [commonDependencyDescriptors] - dependencies to be added to all packages
@@ -475,6 +494,7 @@ const gatherDependency = async (
   name,
   conditions,
   preferredPackageLogicalPathMap,
+  languageOptions,
   childLogicalPath = [],
   optional = false,
   commonDependencyDescriptors = undefined,
@@ -511,6 +531,7 @@ const gatherDependency = async (
     conditions,
     false,
     commonDependencyDescriptors,
+    languageOptions,
     preferredPackageLogicalPathMap,
     childLogicalPath,
   );
@@ -533,7 +554,8 @@ const gatherDependency = async (
  * package.json, which was already read when searching for the package.json.
  * @param {boolean|undefined} dev - whether to use devDependencies from this package (and
  * only this package).
- * @param {Record<string,string>} [commonDependencies] - dependencies to be added to all packages
+ * @param {Record<string,string>} commonDependencies - dependencies to be added to all packages
+ * @param {LanguageOptions} languageOptions
  */
 const graphPackages = async (
   maybeRead,
@@ -542,7 +564,8 @@ const graphPackages = async (
   conditions,
   mainPackageDescriptor,
   dev,
-  commonDependencies = {},
+  commonDependencies,
+  languageOptions,
 ) => {
   const memo = create(null);
   /**
@@ -599,6 +622,7 @@ const graphPackages = async (
     conditions,
     dev,
     commonDependencyDescriptors,
+    languageOptions,
   );
   return graph;
 };
@@ -755,6 +779,74 @@ const translateGraph = (
 };
 
 /**
+ * @param {Pick<MapNodeModulesOptions,
+ *   'languageForExtension' |
+ *   'moduleLanguageForExtension' |
+ *   'commonjsLanguageForExtension' |
+ *   'workspaceLanguageForExtension' |
+ *   'workspaceModuleLanguageForExtension' |
+ *   'workspaceCommonjsLanguageForExtension' |
+ *   'languages'
+ * >} options
+ */
+const makeLanguageOptions = ({
+  languageForExtension: additionalLanguageForExtension = {},
+  moduleLanguageForExtension: additionalModuleLanguageForExtension = {},
+  commonjsLanguageForExtension: additionalCommonjsLanguageForExtension = {},
+  workspaceLanguageForExtension: additionalWorkspaceLanguageForExtension = {},
+  workspaceModuleLanguageForExtension:
+    additionalWorkspaceModuleLanguageForExtension = {},
+  workspaceCommonjsLanguageForExtension:
+    additionalWorkspaceCommonjsLanguageForExtension = {},
+  languages: additionalLanguages = [],
+}) => {
+  const commonjsLanguageForExtension = {
+    ...defaultLanguageForExtension,
+    ...additionalLanguageForExtension,
+    ...defaultCommonjsLanguageForExtension,
+    ...additionalCommonjsLanguageForExtension,
+  };
+  const moduleLanguageForExtension = {
+    ...defaultLanguageForExtension,
+    ...additionalLanguageForExtension,
+    ...defaultModuleLanguageForExtension,
+    ...additionalModuleLanguageForExtension,
+  };
+  const workspaceCommonjsLanguageForExtension = {
+    ...defaultLanguageForExtension,
+    ...additionalLanguageForExtension,
+    ...defaultCommonjsLanguageForExtension,
+    ...additionalCommonjsLanguageForExtension,
+    ...additionalWorkspaceLanguageForExtension,
+    ...additionalWorkspaceCommonjsLanguageForExtension,
+  };
+  const workspaceModuleLanguageForExtension = {
+    ...defaultLanguageForExtension,
+    ...additionalLanguageForExtension,
+    ...defaultModuleLanguageForExtension,
+    ...additionalModuleLanguageForExtension,
+    ...additionalWorkspaceLanguageForExtension,
+    ...additionalWorkspaceModuleLanguageForExtension,
+  };
+
+  const languages = new Set([
+    ...Object.values(moduleLanguageForExtension),
+    ...Object.values(commonjsLanguageForExtension),
+    ...Object.values(workspaceModuleLanguageForExtension),
+    ...Object.values(workspaceCommonjsLanguageForExtension),
+    ...additionalLanguages,
+  ]);
+
+  return {
+    languages,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+  };
+};
+
+/**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} packageLocation
  * @param {Set<string>} conditions
@@ -771,8 +863,10 @@ export const compartmentMapForNodeModules = async (
   moduleSpecifier,
   options = {},
 ) => {
-  const { dev = undefined, commonDependencies, policy } = options;
+  const { dev = undefined, commonDependencies = {}, policy } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
+  const languageOptions = makeLanguageOptions(options);
+
   const graph = await graphPackages(
     maybeRead,
     canonical,
@@ -781,6 +875,7 @@ export const compartmentMapForNodeModules = async (
     packageDescriptor,
     dev,
     commonDependencies,
+    languageOptions,
   );
 
   if (policy) {
@@ -821,13 +916,7 @@ export const mapNodeModules = async (
   moduleLocation,
   options = {},
 ) => {
-  const {
-    tags = new Set(),
-    conditions = tags,
-    dev = undefined,
-    commonDependencies,
-    policy,
-  } = options;
+  const { tags = new Set(), conditions = tags, ...otherOptions } = options;
 
   const {
     packageLocation,
@@ -847,6 +936,6 @@ export const mapNodeModules = async (
     conditions,
     packageDescriptor,
     moduleSpecifier,
-    { dev, commonDependencies, policy },
+    otherOptions,
   );
 };
