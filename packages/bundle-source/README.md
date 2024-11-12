@@ -57,6 +57,25 @@ with `@preserve`, `@copyright`, `@license` pragmas or the Internet Explorer
 Comment elision does not strip comments entirely.
 The syntax to begin or end comments remains.
 
+## TypeScript type erasure
+
+TypeScript modules with the `.ts`, `.mts`, and `.cts` extensions in
+packages that are not under a `node_modules` directory are automatically
+converted to JavaScript through type erasure using
+[`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/).
+
+This will not function for packages that are published as their original
+TypeScript sources, as is consistent with `node
+--experimental-strip-types`.
+This will also not function properly for TypeScript modules that have
+[runtime impacting syntax](https://github.com/bloomberg/ts-blank-space/blob/main/docs/unsupported_syntax.md),
+such as `enum`.
+
+This also does not support importing a `.ts` file using the corresponding
+imaginary, generated module with a `.js` extension.
+Use this feature in conjunction with
+[`--allowImportingTsExtensions`](https://www.typescriptlang.org/tsconfig/#allowImportingTsExtensions).
+
 ## Source maps
 
 With the `moduleFormat` of `endoZipBase64`, the bundler can generate source

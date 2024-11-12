@@ -54,29 +54,39 @@ export async function bundleScript(
 
   const entry = url.pathToFileURL(pathResolve(startFilename));
 
-  const { sourceMapHook, sourceMapJobs, moduleTransforms, parserForLanguage } =
-    makeBundlingKit(
-      {
-        pathResolve,
-        userInfo,
-        platform,
-        env,
-        computeSha512,
-      },
-      {
-        cacheSourceMaps,
-        noTransforms,
-        elideComments,
-        commonDependencies,
-        dev,
-      },
-    );
+  const {
+    sourceMapHook,
+    sourceMapJobs,
+    moduleTransforms,
+    parserForLanguage,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+  } = makeBundlingKit(
+    {
+      pathResolve,
+      userInfo,
+      platform,
+      env,
+      computeSha512,
+    },
+    {
+      cacheSourceMaps,
+      noTransforms,
+      elideComments,
+      commonDependencies,
+      dev,
+    },
+  );
 
   const source = await makeBundle(powers, entry, {
     dev,
     conditions,
     commonDependencies,
     parserForLanguage,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
     moduleTransforms,
     sourceMapHook,
   });

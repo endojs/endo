@@ -125,10 +125,13 @@ export const makeBundlingKit = (
   };
 
   let parserForLanguage = transparentParserForLanguage;
+
   let moduleTransforms = {};
+
   if (!noTransforms) {
     parserForLanguage = transformingParserForLanguage;
     moduleTransforms = {
+      ...moduleTransforms,
       async mjs(
         sourceBytes,
         specifier,
@@ -162,9 +165,47 @@ export const makeBundlingKit = (
     };
   }
 
+  const mtsParser = {
+    async parse(sourceBytes, ...rest) {
+      const { default: tsBlankSpace } = await import('ts-blank-space');
+      const sourceText = textDecoder.decode(sourceBytes);
+      const objectText = tsBlankSpace(sourceText);
+      const objectBytes = textEncoder.encode(objectText);
+      return parserForLanguage.mjs.parse(objectBytes, ...rest);
+    },
+    heuristicImports: false,
+    synchronous: false,
+  };
+
+  const ctsParser = {
+    async parse(sourceBytes, ...rest) {
+      const { default: tsBlankSpace } = await import('ts-blank-space');
+      const sourceText = textDecoder.decode(sourceBytes);
+      const objectText = tsBlankSpace(sourceText);
+      const objectBytes = textEncoder.encode(objectText);
+      return parserForLanguage.cjs.parse(objectBytes, ...rest);
+    },
+    heuristicImports: true,
+    synchronous: false,
+  };
+
+  parserForLanguage = { ...parserForLanguage, mts: mtsParser, cts: ctsParser };
+
   const sourceMapHook = (sourceMap, sourceDescriptor) => {
     sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
   };
 
-  return { sourceMapHook, sourceMapJobs, moduleTransforms, parserForLanguage };
+  const workspaceLanguageForExtension = { mts: 'mts', cts: 'cts' };
+  const workspaceModuleLanguageForExtension = { ts: 'mts' };
+  const workspaceCommonjsLanguageForExtension = { ts: 'cts' };
+
+  return {
+    sourceMapHook,
+    sourceMapJobs,
+    moduleTransforms,
+    parserForLanguage,
+    workspaceLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+  };
 };

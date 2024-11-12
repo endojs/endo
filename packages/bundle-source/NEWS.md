@@ -1,5 +1,15 @@
 User-visible changes to `@endo/bundle-source`:
 
+# Next release
+
+- Adds support for TypeScript type erasure using
+  [`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/) applied to
+  TypeScript modules with `.ts`, `.mts`, and `.cts` extensions, for any package
+  that is not under a `node_modules` directory, immitating `node
+  --experimental-strip-types`.
+  As with `.js` extensions, the behavior of `.ts` is either consistent with
+  `.mts` or `.cts` depending on the `type` in `package.json`.
+
 # v3.4.0 (2024-08-27)
 
 - Adds support for `--elide-comments` (`-e`) that blanks out the interior of

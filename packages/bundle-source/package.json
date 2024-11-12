@@ -35,7 +35,8 @@
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
-    "rollup": "^2.79.1"
+    "rollup": "^2.79.1",
+    "ts-blank-space": "^0.4.1"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
