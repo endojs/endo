@@ -1,3 +1,4 @@
+import { cauterizeProperty } from './cauterize-property.js';
 import {
   TypeError,
   WeakSet,
@@ -22,6 +23,10 @@ import {
   universalPropertyNames,
   permitted,
 } from './permits.js';
+
+/**
+ * @import {Reporter} from './reporting-types.js'
+ */
 
 const isFunction = obj => typeof obj === 'function';
 
@@ -71,7 +76,10 @@ function sampleGlobals(globalObject, newPropertyNames) {
   return newIntrinsics;
 }
 
-export const makeIntrinsicsCollector = () => {
+/**
+ * @param {Reporter} reporter
+ */
+export const makeIntrinsicsCollector = reporter => {
   /** @type {Record<any, any>} */
   const intrinsics = create(null);
   let pseudoNatives;
@@ -100,7 +108,15 @@ export const makeIntrinsicsCollector = () => {
       }
       const namePrototype = permit.prototype;
       if (!namePrototype) {
-        throw TypeError(`${name}.prototype property not permitted`);
+        cauterizeProperty(
+          intrinsic,
+          'prototype',
+          false,
+          `${name}.prototype`,
+          reporter,
+        );
+        // eslint-disable-next-line no-continue
+        continue;
       }
       if (
         typeof namePrototype !== 'string' ||
@@ -164,9 +180,11 @@ export const makeIntrinsicsCollector = () => {
  * *original* unsafe (feral, untamed) bindings of these global variables.
  *
  * @param {object} globalObject
+ * @param {Reporter} reporter
  */
-export const getGlobalIntrinsics = globalObject => {
-  const { addIntrinsics, finalIntrinsics } = makeIntrinsicsCollector();
+export const getGlobalIntrinsics = (globalObject, reporter) => {
+  // TODO pass a proper reporter to `makeIntrinsicsCollector`
+  const { addIntrinsics, finalIntrinsics } = makeIntrinsicsCollector(reporter);
 
   addIntrinsics(sampleGlobals(globalObject, sharedGlobalPropertyNames));
 

@@ -2,6 +2,9 @@ import test from 'ava';
 import '../index.js';
 
 // See https://github.com/zloirock/core-js/issues/1092
+// Does not detect https://github.com/endojs/endo/issues/2598 because
+// `push` is not toplevel.
+// See tolerate-empty-prototype-toplevel.test.js
 const originalPush = Array.prototype.push;
 // eslint-disable-next-line no-extend-native
 Array.prototype.push = function push(...args) {
