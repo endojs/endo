@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.0](https://github.com/endojs/endo/compare/ses@1.9.1...ses@1.10.0) (2024-11-13)
+
+
+### Features
+
+* **ses:** Lockdown reporting option ([81b86ac](https://github.com/endojs/endo/commit/81b86ac3c3d804c0542f63c1e50040ca468960d0)), closes [#2608](https://github.com/endojs/endo/issues/2608)
+* **ses:** permit Promise.prototype.try ([#2609](https://github.com/endojs/endo/issues/2609)) ([d37a434](https://github.com/endojs/endo/commit/d37a43427452bb9e0376006ef5d2d013176433af)), closes [#2607](https://github.com/endojs/endo/issues/2607)
+
+
+### Bug Fixes
+
+* **ses:** Clarify lockdown types ([cf7f299](https://github.com/endojs/endo/commit/cf7f299e4f9dc0ea2ed271ecb91b66cf2792b1ed))
+* **ses:** fix [#2598](https://github.com/endojs/endo/issues/2598) with cauterizeProperty reuse ([#2624](https://github.com/endojs/endo/issues/2624)) ([d13bf9c](https://github.com/endojs/endo/commit/d13bf9c6b083f04fa7f5983fb4f4a07cd263abe9)), closes [#1221](https://github.com/endojs/endo/issues/1221) [#1221](https://github.com/endojs/endo/issues/1221) [#1221](https://github.com/endojs/endo/issues/1221) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563) [#2334](https://github.com/endojs/endo/issues/2334) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563) [#2563](https://github.com/endojs/endo/issues/2563) [#1221](https://github.com/endojs/endo/issues/1221) [#2563](https://github.com/endojs/endo/issues/2563)
+
+
+
 ### [1.9.1](https://github.com/endojs/endo/compare/ses@1.9.0...ses@1.9.1) (2024-10-22)
 
 **Note:** Version bump only for package ses
