@@ -1,6 +1,6 @@
 User-visible changes in `ses`:
 
-# Next release
+# v1.10.0 (2024-11-13)
 
 - Permit [Promise.try](https://github.com/tc39/proposal-promise-try),
   since it has reached Stage 4.

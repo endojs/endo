@@ -1,6 +1,6 @@
 User-visible changes to `@endo/compartment-mapper`:
 
-# Next version
+# v1.4.0 (2024-11-13)
 
 - Adds options `languageForExtension`, `moduleLanguageForExtension`,
   `commonjsLanguageForExtension`, and `languages` to `mapNodeModules` and

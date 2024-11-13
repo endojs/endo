@@ -1,6 +1,6 @@
 User-visible changes to `@endo/bundle-source`:
 
-# Next release
+# v3.5.0 (2024-11-13)
 
 - Adds support for TypeScript type erasure using
   [`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/) applied to
