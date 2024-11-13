@@ -77,9 +77,9 @@ function sampleGlobals(globalObject, newPropertyNames) {
 }
 
 /**
- * @param {Reporter} [reporter] defaults to `console`
+ * @param {Reporter} reporter
  */
-export const makeIntrinsicsCollector = (reporter = console) => {
+export const makeIntrinsicsCollector = reporter => {
   /** @type {Record<any, any>} */
   const intrinsics = create(null);
   let pseudoNatives;
@@ -180,10 +180,11 @@ export const makeIntrinsicsCollector = (reporter = console) => {
  * *original* unsafe (feral, untamed) bindings of these global variables.
  *
  * @param {object} globalObject
+ * @param {Reporter} reporter
  */
-export const getGlobalIntrinsics = globalObject => {
+export const getGlobalIntrinsics = (globalObject, reporter) => {
   // TODO pass a proper reporter to `makeIntrinsicsCollector`
-  const { addIntrinsics, finalIntrinsics } = makeIntrinsicsCollector();
+  const { addIntrinsics, finalIntrinsics } = makeIntrinsicsCollector(reporter);
 
   addIntrinsics(sampleGlobals(globalObject, sharedGlobalPropertyNames));
 

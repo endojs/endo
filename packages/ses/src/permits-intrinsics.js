@@ -78,7 +78,7 @@ import { cauterizeProperty } from './cauterize-property.js';
 export default function removeUnpermittedIntrinsics(
   intrinsics,
   markVirtualizedNativeFunction,
-  { warn, error },
+  reporter,
 ) {
   // These primitives are allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
@@ -280,10 +280,7 @@ export default function removeUnpermittedIntrinsics(
       const subPermit = getSubPermit(obj, permit, propString);
 
       if (!subPermit || !isAllowedProperty(subPath, obj, prop, subPermit)) {
-        cauterizeProperty(obj, prop, subPermit === false, subPath, {
-          warn,
-          error,
-        });
+        cauterizeProperty(obj, prop, subPermit === false, subPath, reporter);
       }
     }
   }

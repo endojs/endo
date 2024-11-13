@@ -9,6 +9,6 @@ const markVirtualizedNativeFunction = tameFunctionToString();
 globalThis.Compartment = makeCompartmentConstructor(
   makeCompartmentConstructor,
   // TODO pass a proper reporter as second arg to `getGlobalIntrinsics`?
-  getGlobalIntrinsics(globalThis),
+  getGlobalIntrinsics(globalThis, console),
   markVirtualizedNativeFunction,
 );
