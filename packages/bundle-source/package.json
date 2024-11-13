@@ -1,6 +1,6 @@
 {
   "name": "@endo/bundle-source",
-  "version": "3.4.2",
+  "version": "3.5.0",
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",

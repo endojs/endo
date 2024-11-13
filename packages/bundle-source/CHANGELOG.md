@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.5.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.4.2...@endo/bundle-source@3.5.0) (2024-11-13)
+
+
+### Features
+
+* **bundle-source:** Support TypeScript type erasure ([88a4fb4](https://github.com/endojs/endo/commit/88a4fb46ea4908457a88b806919f1559eadd262a))
+
+
+
 ### [3.4.2](https://github.com/endojs/endo/compare/@endo/bundle-source@3.4.1...@endo/bundle-source@3.4.2) (2024-10-22)
 
 **Note:** Version bump only for package @endo/bundle-source

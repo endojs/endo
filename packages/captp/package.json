@@ -1,6 +1,6 @@
 {
   "name": "@endo/captp",
-  "version": "4.4.2",
+  "version": "4.4.3",
   "description": "Capability Transfer Protocol for distributed objects",
   "type": "module",
   "keywords": [

@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.3.1...@endo/compartment-mapper@1.4.0) (2024-11-13)
+
+
+### Features
+
+* **compartment-mapper:** add Compartment option to captureFromMap ([1ac2156](https://github.com/endojs/endo/commit/1ac2156ae46f9b94ac39cd8b241d0f1ac16f5cce))
+* **compartment-mapper:** Collect unretained module descriptors ([e3b310d](https://github.com/endojs/endo/commit/e3b310d4bd4ddd859d4606a87b6bb2c063831d75))
+* **compartment-mapper:** languageForExtensions options but parameterized on package type ([c31c31f](https://github.com/endojs/endo/commit/c31c31fc258f8b733b677216d492b7655af45c0d))
+* **compartment-mapper:** Workspace language-for-extension options ([389de7b](https://github.com/endojs/endo/commit/389de7b6f9ff4b191f17c442199c289f12c5b855))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** Defer all importHook errors when importing a… ([#2610](https://github.com/endojs/endo/issues/2610)) ([28999e8](https://github.com/endojs/endo/commit/28999e8a2da209c28b217f096dc2fb8080898e9a))
+* **compartment-mapper:** Relax ERef to Promise ([169b9fa](https://github.com/endojs/endo/commit/169b9fa17864618b89963aba40dff717946c9ca6))
+* **compartment-mapper:** Thread compartment name to all exit import hooks ([abd1ddd](https://github.com/endojs/endo/commit/abd1ddd48ae1dc3a3ad134a5fa2bedb0600ce412))
+* **compartment-mapper:** top-level "this" is "module.exports" ([#2620](https://github.com/endojs/endo/issues/2620)) ([a923f4e](https://github.com/endojs/endo/commit/a923f4e864b2975b46f7c20bcc7c702ac0d5287d))
+
+
+
 ### [1.3.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.3.0...@endo/compartment-mapper@1.3.1) (2024-10-22)
 
 **Note:** Version bump only for package @endo/compartment-mapper
