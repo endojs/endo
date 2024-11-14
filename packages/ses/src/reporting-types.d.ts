@@ -6,8 +6,8 @@ export type Reporter = {
 };
 
 export type GroupReporter = Reporter & {
-  groupCollapsed: (label: string) => void;
-  groupEnd: () => void;
+  groupCollapsed?: (label: string) => void;
+  groupEnd?: () => void;
 };
 
 // Console implements GroupReporter
