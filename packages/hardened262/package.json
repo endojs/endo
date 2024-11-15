@@ -1,0 +1,93 @@
+{
+  "name": "@endo/hardened262",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tests for Hardened JavaScript in test262 format",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/skel#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/hardened262"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {},
+  "scripts": {
+    "build": "node scripts/generate-preludes.js",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-check": "yarn lint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc",
+    "postpack": "git clean -f '*.d.ts*'",
+    "prepack": "tsc --build tsconfig.build.json",
+    "test262": "yarn build && node scripts/test.js",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "xargs node scripts/test.js -f onlySesXs -f onlyLockdown < baseline/sesXs-lockdown-ok"
+  },
+  "dependencies": {
+    "@endo/compartment-mapper": "workspace:^",
+    "@endo/module-source": "workspace:^",
+    "ses": "workspace:^",
+    "test262-stream": "^1.4.0"
+  },
+  "devDependencies": {
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "^6.1.3",
+    "babel-eslint": "^10.1.0",
+    "c8": "^7.14.0",
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-import": "^2.29.1",
+    "tsd": "^0.31.2",
+    "typescript": "~5.6.3"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "harness",
+      "test"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "**/*{js,js}"
+        ],
+        "rules": {
+          "@endo/no-nullish-coalescing": "off"
+        }
+      }
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.*",
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
