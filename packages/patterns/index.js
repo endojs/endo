@@ -73,6 +73,7 @@ export {
   getInterfaceGuardPayload,
   getInterfaceMethodKeys,
 } from './src/patterns/getGuardPayloads.js';
+export { mustCompress, mustDecompress } from './src/patterns/compress.js';
 
 // eslint-disable-next-line import/export
 export * from './src/types.js';
