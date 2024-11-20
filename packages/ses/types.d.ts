@@ -27,8 +27,14 @@ export interface RepairOptions {
   reporting?: 'platform' | 'console' | 'none';
   unhandledRejectionTrapping?: 'report' | 'none';
   errorTaming?: 'safe' | 'unsafe' | 'unsafe-debug';
-  dateTaming?: 'safe' | 'unsafe'; // deprecated
-  mathTaming?: 'safe' | 'unsafe'; // deprecated
+  /**
+   * @deprecated Deprecated and does nothing. In the future specifying it will be an error.
+   */
+  dateTaming?: 'safe' | 'unsafe';
+  /**
+   * @deprecated Deprecated and does nothing. In the future specifying it will be an error.
+   */
+  mathTaming?: 'safe' | 'unsafe';
   evalTaming?: 'safeEval' | 'unsafeEval' | 'noEval';
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';

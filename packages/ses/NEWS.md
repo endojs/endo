@@ -1,5 +1,9 @@
 User-visible changes in `ses`:
 
+# Next version
+
+- Specifying the long discontinued `mathTaming` or `dateTaming` options logs a warning.
+
 # v1.10.0 (2024-11-13)
 
 - Permit [Promise.try](https://github.com/tc39/proposal-promise-try),
