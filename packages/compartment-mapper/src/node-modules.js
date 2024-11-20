@@ -360,7 +360,7 @@ const graphPackage = async (
   for (const name of Object.keys(optionalDependencies)) {
     optionals.add(name);
   }
-  if (dev !== undefined && dev !== null ? dev : conditions.has('development')) {
+  if (dev) {
     assign(allDependencies, devDependencies);
   }
 
@@ -849,7 +849,7 @@ const makeLanguageOptions = ({
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} packageLocation
- * @param {Set<string>} conditions
+ * @param {Set<string>} conditionsOption
  * @param {object} packageDescriptor
  * @param {string} moduleSpecifier
  * @param {CompartmentMapForNodeModulesOptions} [options]
@@ -858,14 +858,21 @@ const makeLanguageOptions = ({
 export const compartmentMapForNodeModules = async (
   readPowers,
   packageLocation,
-  conditions,
+  conditionsOption,
   packageDescriptor,
   moduleSpecifier,
   options = {},
 ) => {
-  const { dev = undefined, commonDependencies = {}, policy } = options;
+  const { dev = false, commonDependencies = {}, policy } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
+
+  const conditions = new Set(conditionsOption || []);
+
+  // dev is only set for the entry package, and implied by the development
+  // condition.
+  // The dev option is deprecated in favor of using conditions, since that
+  // covers more intentional behaviors of the development mode.
 
   const graph = await graphPackages(
     maybeRead,
@@ -873,7 +880,7 @@ export const compartmentMapForNodeModules = async (
     packageLocation,
     conditions,
     packageDescriptor,
-    dev,
+    dev || (conditions && conditions.has('development')),
     commonDependencies,
     languageOptions,
   );
