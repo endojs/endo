@@ -19,7 +19,7 @@ import {
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from './global-object.js';
-import { assert, assertEqual } from './error/assert.js';
+import { assert, assertEqual, q } from './error/assert.js';
 import { sharedGlobalPropertyNames } from './permits.js';
 import { load, loadNow } from './module-load.js';
 import { link } from './module-link.js';
@@ -27,7 +27,7 @@ import { getDeferredExports } from './module-proxy.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
-/** @import {ModuleDescriptor} from '../types.js' */
+/** @import {ModuleDescriptor, ModuleExportsNamespace} from '../types.js' */
 
 // moduleAliases associates every public module exports namespace with its
 // corresponding compartment and specifier so they can be used to link modules
@@ -297,6 +297,43 @@ export const makeCompartmentConstructor = (
 
     assign(globalObject, endowments);
 
+    /**
+     * In support dynamic import in a module source loaded by this compartment,
+     * like `await import(importSpecifier)`, induces this compartment to import
+     * a module, returning a promise for the resulting module exports
+     * namespace.
+     * Unlike `compartment.import`, never creates a box object for the
+     * namespace as that behavior is deprecated and inconsistent with the
+     * standard behavior of dynamic import.
+     * Obliges the caller to resolve import specifiers to their corresponding
+     * full specifier.
+     * That is, every module must have its own dynamic import function that
+     * closes over the surrounding module's full module specifier and calls
+     * through to this function.
+     * @param {string} fullSpecifier - A full specifier is a key in the
+     * compartment's module memo.
+     * The method `compartment.import` accepts a full specifier, but dynamic
+     * import accepts an import specifier and resolves it to a full specifier
+     * relative to the calling module's full specifier.
+     * @returns {Promise<ModuleExportsNamespace>}
+     */
+    const compartmentImport = async fullSpecifier => {
+      if (typeof resolveHook !== 'function') {
+        throw new TypeError(
+          `Compartment does not support dynamic import: no configured resolveHook for compartment ${q(name)}`,
+        );
+      }
+      await load(privateFields, moduleAliases, this, fullSpecifier);
+      const { execute, exportsProxy } = link(
+        privateFields,
+        moduleAliases,
+        this,
+        fullSpecifier,
+      );
+      execute();
+      return exportsProxy;
+    };
+
     weakmapSet(privateFields, this, {
       name: `${name}`,
       globalTransforms,
@@ -314,6 +351,7 @@ export const makeCompartmentConstructor = (
       instances,
       parentCompartment,
       noNamespaceBox,
+      compartmentImport,
     });
   }
 
