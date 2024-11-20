@@ -49,6 +49,7 @@ function makeModulePlugins(options) {
     reexportMap,
     liveExportMap,
     importMeta,
+    dynamicImport,
   } = options;
 
   if (sourceType !== 'module') {
@@ -286,6 +287,7 @@ function makeModulePlugins(options) {
         CallExpression(path) {
           // import(FOO) -> $h_import(FOO)
           if (path.node.callee.type === 'Import') {
+            dynamicImport.present = true;
             path.node.callee = hiddenIdentifier(h.HIDDEN_IMPORT);
           }
         },
