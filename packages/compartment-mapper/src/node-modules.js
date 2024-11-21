@@ -296,6 +296,7 @@ const inferParsers = (descriptor, location, languageOptions) => {
  * @param {boolean | undefined} dev
  * @param {CommonDependencyDescriptors} commonDependencyDescriptors
  * @param {LanguageOptions} languageOptions
+ * @param {boolean} strict
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {Array<string>} logicalPath
  * @returns {Promise<undefined>}
@@ -310,6 +311,7 @@ const graphPackage = async (
   dev,
   commonDependencyDescriptors,
   languageOptions,
+  strict,
   preferredPackageLogicalPathMap = new Map(),
   logicalPath = [],
 ) => {
@@ -344,14 +346,18 @@ const graphPackage = async (
     devDependencies = {},
   } = packageDescriptor;
   const allDependencies = {};
-  assign(allDependencies, commonDependencyDescriptors);
-  for (const [name, { spec }] of Object.entries(commonDependencyDescriptors)) {
-    allDependencies[name] = spec;
+  for (const [name, descriptor] of Object.entries(
+    commonDependencyDescriptors,
+  )) {
+    if (Object(descriptor) === descriptor) {
+      const { spec } = descriptor;
+      allDependencies[name] = spec;
+    }
   }
   assign(allDependencies, dependencies);
   assign(allDependencies, peerDependencies);
-  for (const [name, { optional }] of Object.entries(peerDependenciesMeta)) {
-    if (optional) {
+  for (const [name, meta] of Object.entries(peerDependenciesMeta)) {
+    if (Object(meta) === meta && meta.optional) {
       optionals.add(name);
     }
   }
@@ -380,6 +386,7 @@ const graphPackage = async (
         conditions,
         preferredPackageLogicalPathMap,
         languageOptions,
+        strict,
         childLogicalPath,
         optional,
         commonDependencyDescriptors,
@@ -481,6 +488,7 @@ const graphPackage = async (
  * @param {Set<string>} conditions
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {LanguageOptions} languageOptions
+ * @param {boolean} strict
  * @param {Array<string>} [childLogicalPath]
  * @param {boolean} [optional] - whether the dependency is optional
  * @param {object} [commonDependencyDescriptors] - dependencies to be added to all packages
@@ -495,6 +503,7 @@ const gatherDependency = async (
   conditions,
   preferredPackageLogicalPathMap,
   languageOptions,
+  strict,
   childLogicalPath = [],
   optional = false,
   commonDependencyDescriptors = undefined,
@@ -507,7 +516,7 @@ const gatherDependency = async (
   );
   if (dependency === undefined) {
     // allow the dependency to be missing if optional
-    if (optional) {
+    if (optional || !strict) {
       return;
     }
     throw Error(`Cannot find dependency ${name} for ${packageLocation}`);
@@ -532,6 +541,7 @@ const gatherDependency = async (
     false,
     commonDependencyDescriptors,
     languageOptions,
+    strict,
     preferredPackageLogicalPathMap,
     childLogicalPath,
   );
@@ -556,6 +566,7 @@ const gatherDependency = async (
  * only this package).
  * @param {Record<string,string>} commonDependencies - dependencies to be added to all packages
  * @param {LanguageOptions} languageOptions
+ * @param {boolean} strict
  */
 const graphPackages = async (
   maybeRead,
@@ -566,6 +577,7 @@ const graphPackages = async (
   dev,
   commonDependencies,
   languageOptions,
+  strict,
 ) => {
   const memo = create(null);
   /**
@@ -623,6 +635,7 @@ const graphPackages = async (
     dev,
     commonDependencyDescriptors,
     languageOptions,
+    strict,
   );
   return graph;
 };
@@ -863,7 +876,12 @@ export const compartmentMapForNodeModules = async (
   moduleSpecifier,
   options = {},
 ) => {
-  const { dev = false, commonDependencies = {}, policy } = options;
+  const {
+    dev = false,
+    commonDependencies = {},
+    policy,
+    strict = false,
+  } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
 
@@ -883,6 +901,7 @@ export const compartmentMapForNodeModules = async (
     dev || (conditions && conditions.has('development')),
     commonDependencies,
     languageOptions,
+    strict,
   );
 
   if (policy) {

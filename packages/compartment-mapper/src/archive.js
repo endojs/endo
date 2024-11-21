@@ -85,6 +85,7 @@ export const makeArchive = async (powers, moduleLocation, options = {}) => {
     dev,
     tags,
     conditions = tags,
+    strict = false,
     commonDependencies,
     policy,
     languageForExtension,
@@ -99,6 +100,7 @@ export const makeArchive = async (powers, moduleLocation, options = {}) => {
   } = assignParserForLanguage(options);
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
@@ -129,6 +131,7 @@ export const mapLocation = async (powers, moduleLocation, options = {}) => {
     dev,
     tags,
     conditions = tags,
+    strict = false,
     commonDependencies,
     policy,
     parserForLanguage,
@@ -144,6 +147,7 @@ export const mapLocation = async (powers, moduleLocation, options = {}) => {
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
@@ -174,6 +178,7 @@ export const hashLocation = async (powers, moduleLocation, options = {}) => {
     dev,
     tags,
     conditions = tags,
+    strict = false,
     commonDependencies,
     policy,
     parserForLanguage,
@@ -189,6 +194,7 @@ export const hashLocation = async (powers, moduleLocation, options = {}) => {
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
@@ -226,6 +232,7 @@ export const writeArchive = async (
     dev,
     tags,
     conditions = tags,
+    strict = false,
     commonDependencies,
     policy,
     parserForLanguage,
@@ -240,6 +247,7 @@ export const writeArchive = async (
   } = assignParserForLanguage(options);
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,

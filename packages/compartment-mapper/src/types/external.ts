@@ -67,6 +67,13 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * of having the `"development"` condition.
    */
   dev: boolean;
+  /**
+   * Indicates that the node_modules tree should fail to map if it does not
+   * strictly reach every expected package.
+   * By default, unreachable packages are simply omitted from the map,
+   * which defers some errors to when modules load.
+   */
+  strict: boolean;
   /** Dependencies to make reachable from any package */
   commonDependencies: Record<string, string>;
   /** Maps extensions to languages for all packages, like `txt` to `text` */
