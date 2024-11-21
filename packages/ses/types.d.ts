@@ -558,12 +558,12 @@ declare global {
 
     // Deprecated:
     constructor(
-      globals?: Record<string, any> | undefined,
+      globals?: Record<PropertyKey, any> | undefined,
       modules?: Record<string, ModuleDescriptor>,
       options?: CompartmentOptions,
     );
 
-    get globalThis(): Record<string, any>;
+    get globalThis(): Record<PropertyKey, any>;
 
     get name(): string;
 
