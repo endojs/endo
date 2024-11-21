@@ -157,7 +157,7 @@ scaffold(
   'workspaceModuleLanguageForExtension should not be available in commonjs package',
   test,
   new URL(
-    'fixtures-language-for-extension/package/commonjs-app/module.xsonp',
+    'fixtures-language-for-extension/packages/commonjs-app/module.xsonp',
     import.meta.url,
   ).href,
   assertions,
