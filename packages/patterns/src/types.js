@@ -501,8 +501,6 @@ export {};
  *   interfaceName: string,
  *   methodGuards:
  *     Omit<T, symbol> & Partial<{ [K in Extract<keyof T, symbol>]: never }>,
- *   symbolMethodGuards?:
- *     CopyMap<Extract<keyof T, symbol>, T[Extract<keyof T, symbol>]>,
  *   defaultGuards?: DefaultGuardType,
  *   sloppy?: boolean,
  * }} InterfaceGuardPayload

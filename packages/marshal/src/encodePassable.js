@@ -5,8 +5,6 @@ import {
   passStyleOf,
   assertRecord,
   isErrorLike,
-  nameForPassableSymbol,
-  passableSymbolForName,
 } from '@endo/pass-style';
 
 /**
@@ -617,12 +615,6 @@ const makeInnerEncode = (encodeStringSuffix, encodeArray, options) => {
       case 'promise': {
         return encodePromise(passable, innerEncode);
       }
-      case 'symbol': {
-        // Strings and symbols share encoding logic.
-        const name = nameForPassableSymbol(passable);
-        assert.typeof(name, 'string');
-        return `y${encodeStringSuffix(name)}`;
-      }
       case 'copyArray': {
         return encodeArray(passable, innerEncode);
       }
@@ -708,11 +700,6 @@ const makeInnerDecode = (decodeStringSuffix, decodeArray, options) => {
       }
       case '!': {
         return decodeError(getSuffix(encoded, skip), innerDecode);
-      }
-      case 'y': {
-        // Strings and symbols share decoding logic.
-        const name = decodeStringSuffix(getSuffix(encoded, skip + 1));
-        return passableSymbolForName(name);
       }
       case '[':
       case '^': {
@@ -876,7 +863,6 @@ export const passStylePrefixes = {
   remotable: 'r',
   string: 's',
   null: 'v',
-  symbol: 'y',
   // Because Array.prototype.sort puts undefined values at the end without
   // passing them to a comparison function, undefined MUST be the last
   // category.

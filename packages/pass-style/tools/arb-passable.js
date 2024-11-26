@@ -17,15 +17,6 @@ export const arbString = fc.oneof(fc.string(), fc.fullUnicodeString());
 const keyableLeaves = [
   fc.constantFrom(null, undefined, false, true),
   arbString,
-  arbString.map(s => Symbol.for(s)),
-  // primordial symbols and registered lookalikes
-  fc.constantFrom(
-    ...Object.getOwnPropertyNames(Symbol).flatMap(k => {
-      const v = Symbol[k];
-      if (typeof v !== 'symbol') return [];
-      return [v, Symbol.for(k), Symbol.for(`@@${k}`)];
-    }),
-  ),
   fc.bigInt(),
   fc.integer(),
   fc.constantFrom(-0, NaN, Infinity, -Infinity),

@@ -19,8 +19,7 @@ export type PrimitiveStyle =
   | 'boolean'
   | 'number'
   | 'bigint'
-  | 'string'
-  | 'symbol';
+  | 'string';
 
 export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
 
@@ -64,7 +63,7 @@ export type PassByRef =
  * and is classified by PassStyle:
  *   * Atomic primitive values have a PrimitiveStyle (PassStyle
  *     'undefined' | 'null' | 'boolean' | 'number' | 'bigint'
- *     | 'string' | 'symbol'). (Passable considers `void` to be `undefined`.)
+ *     | 'string'). (Passable considers `void` to be `undefined`.)
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
@@ -101,7 +100,6 @@ export type PassStyleOf = {
   (p: boolean): 'boolean';
   (p: number): 'number';
   (p: bigint): 'bigint';
-  (p: symbol): 'symbol';
   (p: null): 'null';
   (p: Promise<any>): 'promise';
   (p: Error): 'error';
