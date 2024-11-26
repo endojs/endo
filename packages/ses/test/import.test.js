@@ -4,6 +4,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
+import { ModuleSource } from '@endo/module-source';
 import '../index.js';
 import { resolveNode, makeNodeImporter } from './_node.js';
 import { makeImporter, makeStaticRetriever } from './_import-commons.js';
@@ -599,4 +600,22 @@ test('importMetaHook and meta from record', async t => {
 
   const { default: metaurl } = await compartment.import('./index.js');
   t.is(metaurl, 'https://example.com/index.js?foo');
+});
+
+test('dynamic import from source', async t => {
+  const c = new Compartment({
+    __options__: true,
+    __noNamespaceBox__: true,
+    resolveHook: s => s,
+    modules: {
+      '-': {
+        source: new ModuleSource(`
+          export const dynamic = import('-');
+        `),
+      },
+    },
+  });
+  const namespace = await c.import('-');
+  const namespace2 = await namespace.dynamic;
+  t.is(namespace, namespace2);
 });

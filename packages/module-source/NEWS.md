@@ -2,6 +2,10 @@ User-visible changes in `@endo/module-source`:
 
 # Next release
 
+- Supports dynamic `import` within a `ModuleSource` in conjunction with
+  a related change in `ses`.
+  For example, `await import(specifier)` can now call through to the
+  surrounding compartment's `importHook` to load and evaluate further modules.
 - Provides an XS-specific variant of `@endo/module-source` that adapts the
   native `ModuleSource` instead of entraining Babel.
 

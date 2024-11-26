@@ -41,6 +41,7 @@ const makeCreateStaticRecord = transformSource =>
       hoistedDecls: [],
       importSources: Object.create(null),
       importDecls: [],
+      dynamicImport: { present: false },
       // enables passing import.meta usage hints up.
       importMeta: { present: false },
     };
@@ -103,6 +104,7 @@ const makeCreateStaticRecord = transformSource =>
   imports: ${h.HIDDEN_IMPORTS}, \
   liveVar: ${h.HIDDEN_LIVE}, \
   onceVar: ${h.HIDDEN_ONCE}, \
+  import: ${h.HIDDEN_IMPORT}, \
   importMeta: ${h.HIDDEN_META}, \
 }) => (function () { 'use strict'; \
   ${preamble} \
@@ -119,6 +121,7 @@ const makeCreateStaticRecord = transformSource =>
       liveExportMap: freeze(sourceOptions.liveExportMap),
       fixedExportMap: freeze(sourceOptions.fixedExportMap),
       reexportMap: freeze(sourceOptions.reexportMap),
+      needsImport: sourceOptions.dynamicImport.present,
       needsImportMeta: sourceOptions.importMeta.present,
       functorSource,
     });

@@ -2,7 +2,11 @@ User-visible changes in `ses`:
 
 # Next version
 
-- Specifying the long discontinued `mathTaming` or `dateTaming` options logs a warning.
+- Adds support for dynamic `import` in conjunction with an update to
+  `@endo/module-source`.
+
+- Specifying the long-discontinued `mathTaming` or `dateTaming` options logs a
+  warning.
 
 # v1.10.0 (2024-11-13)
 

@@ -93,6 +93,7 @@ export function scaffold(
     addGlobals = {},
     policy,
     knownFailure = false,
+    knownArchiveFailure = false,
     tags = undefined,
     conditions = tags,
     strict = false,
@@ -111,7 +112,10 @@ export function scaffold(
   // wrapping each time allows for convenient use of test.only
   const wrap = (testFunc, testCategoryHint) => (title, implementation) => {
     // mark as known failure if available (but fallback to support test.only)
-    if (knownFailure) {
+    if (
+      knownFailure ||
+      (knownArchiveFailure && testCategoryHint === 'Archive')
+    ) {
       testFunc = testFunc.failing || testFunc;
     }
     return testFunc(title, async t => {

@@ -1,3 +1,5 @@
+/** @import {ModuleExportsNamespace} from '../types.js' */
+
 import { assert } from './error/assert.js';
 import { getDeferredExports } from './module-proxy.js';
 import {
@@ -131,13 +133,15 @@ export const makeModuleInstance = (
     __fixedExportMap__: fixedExportMap = {},
     __liveExportMap__: liveExportMap = {},
     __reexportMap__: reexportMap = {},
+    __needsImport__: needsImport = false,
     __needsImportMeta__: needsImportMeta = false,
     __syncModuleFunctor__,
   } = moduleSource;
 
   const compartmentFields = weakmapGet(privateFields, compartment);
 
-  const { __shimTransforms__, importMetaHook } = compartmentFields;
+  const { __shimTransforms__, resolveHook, importMetaHook, compartmentImport } =
+    compartmentFields;
 
   const { exportsProxy, exportsTarget, activate } = getDeferredExports(
     compartment,
@@ -169,6 +173,14 @@ export const makeModuleInstance = (
   }
   if (needsImportMeta && importMetaHook) {
     importMetaHook(moduleSpecifier, importMeta);
+  }
+
+  /** @type {(fullSpecifier: string) => Promise<ModuleExportsNamespace>} */
+  let dynamicImport;
+  if (needsImport) {
+    /** @param {string} importSpecifier */
+    dynamicImport = async importSpecifier =>
+      compartmentImport(resolveHook(importSpecifier, moduleSpecifier));
   }
 
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
@@ -462,6 +474,7 @@ export const makeModuleInstance = (
             imports: freeze(imports),
             onceVar: freeze(onceVar),
             liveVar: freeze(liveVar),
+            import: dynamicImport,
             importMeta,
           }),
         );
