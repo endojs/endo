@@ -1,5 +1,20 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next release
+
+- `mapNodeModules` and all functions that use it now tolerate the absence of
+  expected packages.
+  These packages are now omitted from the generated package skeleton map.
+  So, loading a physically missing module now occurs during the load phase
+  instead of the mapping phase.
+- Adds a `strict` option to all functions that `mapNodeModules` to restore old
+  behavior, which produces an error early if, for example, a non-optional
+  peer dependency is missing.
+  Peer dependencies are strictly required unless `peerDependenciesMeta` has an
+  object with a truthy `optional` entry.
+  Correct interpretation of `peerDependencies` is not distributed evenly, so
+  this behavior is no longer the default.
+
 # v1.4.0 (2024-11-13)
 
 - Adds options `languageForExtension`, `moduleLanguageForExtension`,

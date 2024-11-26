@@ -76,6 +76,7 @@ export const loadLocation = async (
   const {
     dev,
     tags,
+    strict,
     commonDependencies,
     policy,
     parserForLanguage,
@@ -93,6 +94,7 @@ export const loadLocation = async (
     'conditions' in options ? options.conditions || tags : tags;
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
