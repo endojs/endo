@@ -524,7 +524,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
+"@endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
   dependencies:
@@ -709,6 +709,7 @@ __metadata:
     "@endo/env-options": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
+    "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
