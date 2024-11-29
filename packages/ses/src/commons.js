@@ -418,6 +418,9 @@ const getAsyncGeneratorFunctionInstance = () => {
       // However React Native provides a `console` implementation when setting up error handling:
       // https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/Core/InitializeCore.js
       return undefined;
+    } else if (error.name === 'EvalError') {
+      // eslint-disable-next-line no-empty-function
+      return async function* AsyncGeneratorFunctionInstance() {};
     } else {
       throw error;
     }
