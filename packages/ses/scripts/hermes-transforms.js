@@ -50,6 +50,17 @@ const asyncArrowEliminator = {
   },
 };
 
+const destroyAsyncGenerators = path => {
+  if (path.node.async && path.node.generator) {
+    path.replaceWith(t.identifier('undefined'));
+  }
+};
+
+const asyncGeneratorDestroyer = {
+  FunctionExpression: destroyAsyncGenerators,
+  FunctionDeclaration: destroyAsyncGenerators,
+};
+
 export const hermesTransforms = {
   mjs: async (
     sourceBytes,
@@ -60,6 +71,7 @@ export const hermesTransforms = {
   ) => {
     const transforms = {
       ...asyncArrowEliminator,
+      ...asyncGeneratorDestroyer,
       // Some transforms might be added based on the specifier later
     };
 
