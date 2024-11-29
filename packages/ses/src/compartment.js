@@ -47,6 +47,7 @@ import {
   assign,
   defineProperties,
   identity,
+  functionBind,
   promiseThen,
   toStringTagSymbol,
   weakmapGet,
@@ -359,24 +360,29 @@ export const makeCompartmentConstructor = (
      * The method `compartment.import` accepts a full specifier, but dynamic
      * import accepts an import specifier and resolves it to a full specifier
      * relative to the calling module's full specifier.
+     * @param compartment - The `compartment` reference, to avoid relying on upper-scope `this`
      * @returns {Promise<ModuleExportsNamespace>}
      */
-    const compartmentImport = async fullSpecifier => {
-      if (typeof resolveHook !== 'function') {
-        throw TypeError(
-          `Compartment does not support dynamic import: no configured resolveHook for compartment ${q(name)}`,
+    const compartmentImport = functionBind(
+      async (compartment, fullSpecifier) => {
+        if (typeof resolveHook !== 'function') {
+          throw TypeError(
+            `Compartment does not support dynamic import: no configured resolveHook for compartment ${q(name)}`,
+          );
+        }
+        await load(privateFields, moduleAliases, compartment, fullSpecifier);
+        const { execute, exportsProxy } = link(
+          privateFields,
+          moduleAliases,
+          compartment,
+          fullSpecifier,
         );
-      }
-      await load(privateFields, moduleAliases, this, fullSpecifier);
-      const { execute, exportsProxy } = link(
-        privateFields,
-        moduleAliases,
-        this,
-        fullSpecifier,
-      );
-      execute();
-      return exportsProxy;
-    };
+        execute();
+        return exportsProxy;
+      },
+      null,
+      this,
+    );
 
     weakmapSet(privateFields, this, {
       name: `${name}`,
