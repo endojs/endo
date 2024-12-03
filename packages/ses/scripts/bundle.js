@@ -29,7 +29,7 @@ const writeBundle = async ({ buildType } = {}) => {
   const packageJson = JSON.parse(text);
   const version = packageJson.version;
 
-  let moduleTransforms;
+  let syncModuleTransforms;
 
   let bundleFilePaths = [
     'dist/ses.cjs',
@@ -44,13 +44,13 @@ const writeBundle = async ({ buildType } = {}) => {
   if (buildType === 'hermes') {
     bundleFilePaths = ['dist/ses-hermes.cjs'];
     terseFilePaths = [];
-    moduleTransforms = hermesTransforms;
+    syncModuleTransforms = hermesTransforms;
   }
 
   const bundle = await makeBundle(
     read,
     pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
-    { moduleTransforms },
+    { syncModuleTransforms },
   );
   const versionedBundle = `// ses@${version}\n${bundle}`;
 
