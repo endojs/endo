@@ -246,7 +246,7 @@ jobs:
         run: yarn build
 
       - name: Run SES/Hermes smoke test
-        run: yarn lerna run test:hermes
+        run: yarn test:hermes
 
   viable-release:
     name: viable-release
