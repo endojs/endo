@@ -46,13 +46,13 @@ const writeBundle = async ({ buildType } = {}) => {
       ? []
       : ['dist/ses.umd.min.js', 'dist/lockdown.umd.min.js'];
 
-  const moduleTransforms =
+  const syncModuleTransforms =
     buildType === 'hermes' ? hermesTransforms : undefined;
 
   const bundle = await makeBundle(
     read,
     pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
-    { moduleTransforms },
+    { syncModuleTransforms },
   );
   const versionedBundle = `// ses@${version}\n${bundle}`;
 

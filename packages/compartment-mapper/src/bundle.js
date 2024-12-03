@@ -325,6 +325,7 @@ export const makeFunctorFromMap = async (
 ) => {
   const {
     moduleTransforms,
+    syncModuleTransforms,
     searchSuffixes,
     sourceMapHook = undefined,
     useEvaluate = false,
@@ -399,6 +400,7 @@ export const makeFunctorFromMap = async (
     resolve,
     makeImportHook,
     moduleTransforms,
+    syncModuleTransforms,
     parserForLanguage,
   });
   await compartment.load(entryModuleSpecifier);
