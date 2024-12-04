@@ -78,7 +78,7 @@
     "timeout": "2m"
   },
   "dependencies": {
-    "@babel/generator": "~7.26.2",
+    "@babel/generator": "^7.26.3",
     "@babel/parser": "~7.26.2",
     "@babel/traverse": "~7.25.9",
     "source-map-js": "^1.2.0"
