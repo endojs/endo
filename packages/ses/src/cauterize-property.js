@@ -23,6 +23,9 @@ import { objectHasOwnProperty } from './commons.js';
  * an undeletable `.prototype` property. In these cases, if we can
  * set the value of that bogus `.prototype` property to `undefined`,
  * we do so, issuing a warning, rather than failing to initialize ses.
+ * Finally we also tolerate functions with undeletable `.caller` and
+ * `.arguments` properties to conclude removing unpermitted intrinsics
+ * on Hermes.
  *
  * @param {object} obj
  * @param {PropertyKey} prop
@@ -59,6 +62,13 @@ export const cauterizeProperty = (
           warn(`Tolerating undeletable ${subPath} === undefined`);
           return;
         }
+      }
+      if (
+        typeof obj === 'function' &&
+        (prop === 'caller' || prop === 'arguments')
+      ) {
+        warn(`Tolerating undeletable ${subPath}`);
+        return;
       }
       error(`failed to delete ${subPath}`, err);
     } else {
