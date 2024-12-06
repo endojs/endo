@@ -1,3 +1,40 @@
+/**
+ * @module Provides the mechanism to create a Compartment constructor that
+ * can provide either shim-specific or native XS features depending on
+ * the __native__ constructor option.
+ * This is necessary because a native Compartment can handle native ModuleSource
+ * but cannot handle shim-specific pre-compiled ModuleSources like the JSON
+ * representation of a module that Compartment Mapper can put in bundles.
+ * Pre-compiling ModuleSource during bundling helps avoid paying the cost
+ * of importing Babel and transforming ESM syntax to a form that can be
+ * confined by the shim, which is prohibitively expensive for a web runtime
+ * and for XS _without this adapter_.
+ *
+ * Since any invocation of the Compartment constructor may occur standing
+ * on a native-flavor or shim-flavor compartment, we create parallel compartment
+ * constructor trees for compartments created with the Compartment constructor
+ * of a specific compartment.
+ *
+ * A compartment's importHook, importNowHook, moduleMapHook, and the modules
+ * map itself may provide module descriptors that address another compartment,
+ * using a compartment instance as a token indicating the compartment the
+ * module should be loaded or initialized in.
+ * Consequently, the compartment instance must be a suitable token for the
+ * underlying native-flavor or shim-flavor compartment.
+ * We are not in a position to fidddle with the native compartments behavior,
+ * so adapted compartments use the identity of the native compartment.
+ * We replace all of the methods of the native compartment prototype with
+ * thunks that choose behavior based on whether the compartment was
+ * constructed with the __native__ option.
+ * The SES shim associates a compartment with its private fields using a weak
+ * map exported by ../src/compartment.js and held closely by ses by the
+ * enforcement of explicit exports in package.json, since Node.js 12.11.0.
+ *
+ * Evaluating ./compartment.js does not have global side-effects.
+ * We defer modification of the global environment until the evaluation
+ * of ./compartment-shim.js.
+ */
+
 // @ts-check
 /* eslint-disable no-underscore-dangle */
 /// <reference types="ses">
@@ -6,8 +43,10 @@ import {
   Map,
   TypeError,
   WeakMap,
+  arrayFlatMap,
   assign,
   defineProperties,
+  identity,
   promiseThen,
   toStringTagSymbol,
   weakmapGet,
@@ -171,7 +210,9 @@ defineProperties(InertCompartment, {
  * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
  * @param {Record<string, any>} intrinsics
  * @param {(object: object) => void} markVirtualizedNativeFunction
- * @param {Compartment} [parentCompartment]
+ * @param {object} [options]
+ * @param {Compartment} [options.parentCompartment]
+ * @param {boolean} [options.enforceNew]
  * @returns {Compartment['constructor']}
  */
 
@@ -184,7 +225,7 @@ defineProperties(InertCompartment, {
 // positional arguments, this function detects the temporary sigil __options__
 // on the first argument and coerces compartments arguments into a single
 // compartments object.
-const compartmentOptions = (...args) => {
+export const compartmentOptions = (...args) => {
   if (args.length === 0) {
     return {};
   }
@@ -229,10 +270,10 @@ export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   markVirtualizedNativeFunction,
-  parentCompartment = undefined,
+  { parentCompartment = undefined, enforceNew = false } = {},
 ) => {
   function Compartment(...args) {
-    if (new.target === undefined) {
+    if (enforceNew && new.target === undefined) {
       throw TypeError(
         "Class constructor Compartment cannot be invoked without 'new'",
       );
@@ -252,7 +293,10 @@ export const makeCompartmentConstructor = (
       importMetaHook,
       __noNamespaceBox__: noNamespaceBox = false,
     } = compartmentOptions(...args);
-    const globalTransforms = [...transforms, ...__shimTransforms__];
+    const globalTransforms = arrayFlatMap(
+      [transforms, __shimTransforms__],
+      identity,
+    );
     const endowments = { __proto__: null, ...endowmentsOption };
     const moduleMap = { __proto__: null, ...moduleMapOption };
 
@@ -319,7 +363,7 @@ export const makeCompartmentConstructor = (
      */
     const compartmentImport = async fullSpecifier => {
       if (typeof resolveHook !== 'function') {
-        throw new TypeError(
+        throw TypeError(
           `Compartment does not support dynamic import: no configured resolveHook for compartment ${q(name)}`,
         );
       }

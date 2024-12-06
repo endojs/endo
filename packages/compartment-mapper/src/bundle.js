@@ -117,8 +117,14 @@ const sortedModules = (
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
       const { record, parser, deferredError, bytes } = source;
-      assert(parser !== undefined);
-      assert(bytes !== undefined);
+      assert(
+        bytes !== undefined,
+        `No bytes for ${moduleSpecifier} in ${compartmentName}`,
+      );
+      assert(
+        parser !== undefined,
+        `No parser for ${moduleSpecifier} in ${compartmentName}`,
+      );
       if (deferredError) {
         throw Error(
           `Cannot bundle: encountered deferredError ${deferredError}`,
