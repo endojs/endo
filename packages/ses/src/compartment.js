@@ -42,6 +42,7 @@
 
 import {
   Map,
+  Object,
   TypeError,
   WeakMap,
   arrayFlatMap,
