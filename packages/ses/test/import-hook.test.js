@@ -106,7 +106,7 @@ test('import hook returns parent compartment module source reference with differ
             imports: [],
             exports: ['meaning'],
             execute() {
-              throw new Error('should not execute');
+              throw Error('should not execute');
             },
           },
         };
@@ -472,7 +472,7 @@ test('module map hook precedes import hook', async t => {
       return undefined;
     },
     importHook() {
-      throw new Error('not reached');
+      throw Error('not reached');
     },
     __noNamespaceBox__: true,
     __options__: true,
