@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush } from './commons.js';
+import { arrayPush, getOwnPropertyNames, arrayForEach } from './commons.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
@@ -298,6 +298,22 @@ const accessor = {
   get: fn,
   set: fn,
 };
+
+// eslint-disable-next-line func-names
+const strict = function () {
+  'use strict';
+};
+
+arrayForEach(getOwnPropertyNames(strict), prop => {
+  try {
+    strict[prop];
+  } catch (e) {
+    // https://github.com/facebook/hermes/blob/main/test/hermes/function-non-strict.js
+    if (e.message === 'Restricted in strict mode') {
+      FunctionInstance[prop] = accessor;
+    }
+  }
+});
 
 export const isAccessorPermit = permit => {
   return permit === getter || permit === accessor;
