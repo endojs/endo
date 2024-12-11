@@ -28,6 +28,10 @@ import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { formatId } from '../src/formula-identifier.js';
 import { idFromLocator, parseLocator } from '../src/locator.js';
 
+/**
+ * @import {EReturn} from '@endo/eventual-send';
+ */
+
 const cryptoPowers = makeCryptoPowers(crypto);
 
 const { raw } = String;
@@ -227,7 +231,7 @@ test.beforeEach(t => {
 
 test.afterEach.always(async t => {
   await Promise.allSettled(
-    /** @type {Awaited<ReturnType<prepareConfig>>[]} */ (t.context).flatMap(
+    /** @type {EReturn<typeof prepareConfig>[]} */ (t.context).flatMap(
       ({ cancel, cancelled, config }) => {
         cancel(Error('teardown'));
         return [cancelled, stop(config)];

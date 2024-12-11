@@ -288,7 +288,7 @@ export default makeE;
  * @typedef {(
  *   ReturnType<T> extends PromiseLike<infer U>                       // if function returns a promise
  *     ? T                                                            // return the function
- *     : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>  // make it return a promise
+ *     : (...args: Parameters<T>) => Promise<EReturn<T>>  // make it return a promise
  * )} ECallable
  */
 
