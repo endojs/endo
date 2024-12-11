@@ -277,6 +277,13 @@ export default makeE;
  */
 
 /**
+ * The awaited return type of a function.
+ *
+ * @template {(...args: any[]) => any} T
+ * @typedef {T extends (...args: any[]) => infer R ? Awaited<R> : never} EReturn
+ */
+
+/**
  * @template {import('./types.js').Callable} T
  * @typedef {(
  *   ReturnType<T> extends PromiseLike<infer U>                       // if function returns a promise
