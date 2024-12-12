@@ -18,6 +18,9 @@
  *   SyncModuleTransform,
  *   SyncModuleTransforms
  * } from './types.js';
+ * @import {
+ *   EReturn
+ * } from '@endo/eventual-send';
  */
 
 import { syncTrampoline, asyncTrampoline } from '@endo/trampoline';
@@ -82,7 +85,7 @@ const makeExtensionParser = (
    * @param {string} location
    * @param {string} packageLocation
    * @param {*} options
-   * @returns {Generator<ReturnType<ModuleTransform>|ReturnType<SyncModuleTransform>, ParseResult, Awaited<ReturnType<ModuleTransform>|ReturnType<SyncModuleTransform>>>}
+   * @returns {Generator<ReturnType<ModuleTransform>|ReturnType<SyncModuleTransform>, ParseResult, EReturn<ModuleTransform|SyncModuleTransform>>}
    */
   function* getParserGenerator(
     bytes,

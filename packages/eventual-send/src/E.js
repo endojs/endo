@@ -254,8 +254,11 @@ export default makeE;
 /** @typedef {ReturnType<makeE>} EProxy */
 
 /**
- * Creates a type that accepts both near and marshalled references that were
- * returned from `Remotable` or `Far`, and also promises for such references.
+ * Declare an object that is potentially a far reference of type Primary whose
+ * auxilliary data has type Local.  This should be used only for consumers of
+ * Far objects in arguments and declarations; the only creators of Far objects
+ * are distributed object creator components like the `Far` or `Remotable`
+ * functions.
  *
  * @template Primary The type of the primary reference.
  * @template [Local=DataOnly<Primary>] The local properties of the object.
@@ -274,6 +277,16 @@ export default makeE;
  * @see {@link https://github.com/microsoft/TypeScript/issues/31394}
  * @template T
  * @typedef {PromiseLike<T> | T} ERef
+ * Declare that `T` may or may not be a Promise.  This should be used only for
+ * consumers of arguments and declarations; return values should specifically be
+ * `Promise<T>` or `T` itself.
+ */
+
+/**
+ * The awaited return type of a function.
+ *
+ * @template {(...args: any[]) => any} T
+ * @typedef {T extends (...args: any[]) => infer R ? Awaited<R> : never} EReturn
  */
 
 /**
@@ -281,7 +294,7 @@ export default makeE;
  * @typedef {(
  *   ReturnType<T> extends PromiseLike<infer U>                       // if function returns a promise
  *     ? T                                                            // return the function
- *     : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>  // make it return a promise
+ *     : (...args: Parameters<T>) => Promise<EReturn<T>>  // make it return a promise
  * )} ECallable
  */
 
@@ -399,8 +412,9 @@ export default makeE;
  */
 
 /**
- * Type for an object that must only be invoked with E.  It supports a given
- * interface but declares all the functions as asyncable.
+ * Declare a near object that must only be invoked with E, even locally.  It
+ * supports the `T` interface but additionally permits `T`'s methods to return
+ * `PromiseLike`s even if `T` declares them as only synchronous.
  *
  * @template T
  * @typedef {(

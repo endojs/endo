@@ -1,7 +1,7 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals */
 import { expectType } from 'tsd';
 import { E } from '../test/_get-hp.js';
-import type { ERef, FarRef } from './exports.js';
+import type { ERef, EReturn, FarRef } from './exports.js';
 
 // Check the legacy ERef type
 const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
@@ -20,6 +20,19 @@ const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
   // @ts-expect-error - calling a directly is not typed, but works.
   a.bar();
 };
+
+// EReturn
+{
+  const makeFoo = async () => 'foo' as const;
+  expectType<Promise<'foo'>>(makeFoo());
+  type Foo = EReturn<typeof makeFoo>;
+  expectType<Foo>('foo');
+
+  const fooP = Promise.resolve('foo' as const);
+  expectType<Promise<'foo'>>(fooP);
+  // @ts-expect-error takes only functions
+  EReturn<typeof fooP>;
+}
 
 // FarRef<T>
 const foo2 = async (a: FarRef<{ bar(): string; baz: number }>) => {
