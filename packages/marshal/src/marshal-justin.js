@@ -399,8 +399,10 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             Fail`error cause not yet implemented in marshal-justin`;
           name !== `AggregateError` ||
             Fail`AggregateError not yet implemented in marshal-justin`;
+          // TODO SuppressedError
           errors === undefined ||
             Fail`error errors not yet implemented in marshal-justin`;
+          // TODO error,suppressed
           return out.next(`${name}(${quote(message)})`);
         }
 
