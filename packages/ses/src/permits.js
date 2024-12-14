@@ -33,6 +33,10 @@ export const constantProperties = {
  * Properties of all global objects.
  * Must be powerless.
  * Maps from property name to the intrinsic name in the permits.
+ * Co-maintain with `module.exports.globals` of
+ * `eslint-plugin/lib/configs/recommended.js`.
+ * TODO align better with `globals` to make
+ * co-maintenance easier.
  */
 export const universalPropertyNames = {
   // *** Function Properties of the Global Object
@@ -88,6 +92,11 @@ export const universalPropertyNames = {
   AsyncIterator: 'AsyncIterator',
   // https://github.com/endojs/endo/issues/550
   AggregateError: 'AggregateError',
+
+  // https://github.com/tc39/proposal-explicit-resource-management
+  AsyncDisposableStack: 'AsyncDisposableStack',
+  DisposableStack: 'DisposableStack',
+  SuppressedError: 'SuppressedError',
 
   // *** Other Properties of the Global Object
 
@@ -207,11 +216,18 @@ const NativeErrors = [
   // Commented out to accommodate platforms prior to AggregateError.
   // Instead, conditional push below.
   // AggregateError,
+  // Likewise https://github.com/tc39/proposal-explicit-resource-management
+  // SuppressedError,
 ];
 
 if (typeof AggregateError !== 'undefined') {
   // Conditional, to accommodate platforms prior to AggregateError
   arrayPush(NativeErrors, AggregateError);
+}
+
+if (typeof SuppressedError !== 'undefined') {
+  // Conditional, to accommodate platforms prior to SuppressedError
+  arrayPush(NativeErrors, SuppressedError);
 }
 
 export { NativeErrors };
@@ -537,8 +553,10 @@ export const permitted = {
   '%SharedSymbol%': {
     // Properties of the Symbol Constructor
     '[[Proto]]': '%FunctionPrototype%',
+    // https://github.com/tc39/proposal-explicit-resource-management
     asyncDispose: 'symbol',
     asyncIterator: 'symbol',
+    // https://github.com/tc39/proposal-explicit-resource-management
     dispose: 'symbol',
     for: fn,
     hasInstance: 'symbol',
@@ -608,7 +626,7 @@ export const permitted = {
     // Seen on FF and XS
     stack: accessor,
     // Superfluously present in some versions of V8.
-    // https://github.com/tc39/notes/blob/master/meetings/2021-10/oct-26.md#:~:text=However%2C%20Chrome%2093,and%20node%2016.11.
+    // https://github.com/tc39/notes/blob/main/meetings/2021-10/oct-26.md#tightening-host-restrictions-to-improve-testing
     cause: false,
   },
 
@@ -622,6 +640,8 @@ export const permitted = {
   URIError: NativeError('%URIErrorPrototype%'),
   // https://github.com/endojs/endo/issues/550
   AggregateError: NativeError('%AggregateErrorPrototype%'),
+  // https://github.com/tc39/proposal-explicit-resource-management
+  SuppressedError: NativeError('%SuppressedErrorPrototype%'),
 
   '%EvalErrorPrototype%': NativeErrorPrototype('EvalError'),
   '%RangeErrorPrototype%': NativeErrorPrototype('RangeError'),
@@ -631,6 +651,8 @@ export const permitted = {
   '%URIErrorPrototype%': NativeErrorPrototype('URIError'),
   // https://github.com/endojs/endo/issues/550
   '%AggregateErrorPrototype%': NativeErrorPrototype('AggregateError'),
+  // https://github.com/tc39/proposal-explicit-resource-management
+  '%SuppressedErrorPrototype%': NativeErrorPrototype('SuppressedError'),
 
   // *** Numbers and Dates
 
@@ -1293,6 +1315,44 @@ export const permitted = {
   SharedArrayBuffer: false, // UNSAFE and purposely suppressed.
   '%SharedArrayBufferPrototype%': false, // UNSAFE and purposely suppressed.
 
+  // https://github.com/tc39/proposal-explicit-resource-management
+  DisposableStack: {
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%DisposableStackPrototype%',
+  },
+
+  // https://github.com/tc39/proposal-explicit-resource-management
+  '%DisposableStackPrototype%': {
+    constructor: 'DisposableStack',
+    adopt: fn,
+    defer: fn,
+    dispose: fn,
+    disposed: getter,
+    move: fn,
+    use: fn,
+    '@@dispose': fn,
+    '@@toStringTag': 'string',
+  },
+
+  // https://github.com/tc39/proposal-explicit-resource-management
+  AsyncDisposableStack: {
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%AsyncDisposableStackPrototype%',
+  },
+
+  // https://github.com/tc39/proposal-explicit-resource-management
+  '%AsyncDisposableStackPrototype%': {
+    constructor: 'AsyncDisposableStack',
+    adopt: fn,
+    defer: fn,
+    disposeAsync: fn,
+    disposed: getter,
+    move: fn,
+    use: fn,
+    '@@asyncDispose': fn,
+    '@@toStringTag': 'string',
+  },
+
   DataView: {
     // Properties of the DataView Constructor
     '[[Proto]]': '%FunctionPrototype%',
@@ -1373,8 +1433,8 @@ export const permitted = {
     '@@toStringTag': 'string',
     // https://github.com/tc39/proposal-async-iterator-helpers
     toAsync: fn,
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
-    '@@dispose': false,
+    // https://github.com/tc39/proposal-explicit-resource-management
+    '@@dispose': fn,
   },
 
   // https://github.com/tc39/proposal-iterator-helpers
@@ -1417,8 +1477,8 @@ export const permitted = {
     every: fn,
     find: fn,
     '@@toStringTag': 'string',
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
-    '@@asyncDispose': false,
+    // https://github.com/tc39/proposal-explicit-resource-management
+    '@@asyncDispose': fn,
   },
 
   // https://github.com/tc39/proposal-async-iterator-helpers
