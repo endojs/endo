@@ -480,7 +480,7 @@ lockdown({ reporting: 'console' });
 lockdown({ reporting: 'none' });
 ```
 
-If `lockdown` does not receive an `reporting` option, it will respect
+If `lockdown` does not receive a `reporting` option, it will respect
 `process.env.LOCKDOWN_REPORTING`.
 
 ```console
@@ -852,7 +852,7 @@ mistake, set the options as follows:
 }
 ```
 
-If `lockdown` does not receive a `regExpTaming` option, it will respect
+If `lockdown` does not receive an `overrideDebug` option, it will respect
 `process.env.LOCKDOWN_OVERRIDE_DEBUG`, a comma-separated list of property names
 on shared intrinsics to replace with debugger accessors.
 
