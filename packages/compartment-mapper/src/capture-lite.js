@@ -123,7 +123,7 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     searchSuffixes,
     entryCompartmentName,
     entryModuleSpecifier,
-    exitModuleImportHook: consolidatedExitModuleImportHook,
+    importHook: consolidatedExitModuleImportHook,
     sourceMapHook,
   });
   // Induce importHook to record all the necessary modules to import the given module specifier.

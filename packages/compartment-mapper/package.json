@@ -39,6 +39,10 @@
     },
     "./import-archive-all-parsers.js": "./import-archive-all-parsers.js",
     "./bundle.js": "./bundle.js",
+    "./functor.js": "./functor.js",
+    "./functor-lite.js": "./functor-lite.js",
+    "./script.js": "./script.js",
+    "./script-lite.js": "./script-lite.js",
     "./node-powers.js": "./node-powers.js",
     "./node-modules.js": "./node-modules.js",
     "./package.json": "./package.json"

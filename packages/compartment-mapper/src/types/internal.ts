@@ -14,7 +14,6 @@ import type {
   ModuleDescriptor,
 } from './compartment-map-schema.js';
 import type {
-  HashFn,
   MaybeReadFn,
   MaybeReadNowFn,
   ReadFn,
@@ -22,10 +21,13 @@ import type {
 } from './powers.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
 import type {
+  ArchiveOnlyOption,
   AsyncParseFn,
   CompartmentSources,
+  ComputeSha512Option,
   ExecuteOptions,
-  ExitModuleImportNowHook,
+  ExitModuleImportHookOption,
+  ExitModuleImportNowHookOption,
   LogOptions,
   ModuleTransforms,
   ParseFn,
@@ -44,9 +46,9 @@ export type LinkOptions = {
   parserForLanguage?: ParserForLanguage;
   moduleTransforms?: ModuleTransforms;
   syncModuleTransforms?: SyncModuleTransforms;
-  archiveOnly?: boolean;
   __native__?: boolean;
-} & ExecuteOptions;
+} & ArchiveOnlyOption &
+  ExecuteOptions;
 
 export type LinkResult = {
   compartment: Compartment;
@@ -62,14 +64,26 @@ export type ResolveHook = (
 
 export type ShouldDeferError = (language: Language | undefined) => boolean;
 
-export type MakeImportNowHookMakerOptions = Partial<{
-  sources: Sources;
-  compartmentDescriptors: Record<string, CompartmentDescriptor>;
-  computeSha512: HashFn;
-  exitModuleImportNowHook: ExitModuleImportNowHook;
-}> &
+export type MakeImportHookMakersOptions = {
+  entryCompartmentName: string;
+  entryModuleSpecifier: string;
+  /**
+   * For depositing captured sources.
+   */
+  sources?: Sources;
+  /**
+   * For depositing captured compartment descriptors.
+   */
+  compartmentDescriptors?: Record<string, CompartmentDescriptor>;
+} & ComputeSha512Option &
   SearchSuffixesOption &
+  ArchiveOnlyOption &
   SourceMapHookOption;
+
+export type MakeImportHookMakerOptions = MakeImportHookMakersOptions &
+  ExitModuleImportHookOption;
+export type MakeImportNowHookMakerOptions = MakeImportHookMakersOptions &
+  ExitModuleImportNowHookOption;
 
 export type ImportHookMaker = (params: {
   packageLocation: string;
@@ -119,16 +133,19 @@ export type ChooseModuleDescriptorParams = {
   /** All compartments */
   compartments: Record<string, Compartment>;
   packageSources: CompartmentSources;
-  /** Function to compute SHA-512 hash */
-  computeSha512?: HashFn;
   readPowers: ReadPowers | ReadFn;
+  /**
+   * Whether to embed a sourceURL in applicable compiled sources.
+   * Should be false for archives and bundles, but true for runtime.
+   */
   sourceMapHook?: SourceMapHook;
   /**
    * Function returning a set of module names (scoped to the compartment) whose
    * parser is not using heuristics to determine imports.
    */
   strictlyRequiredForCompartment: (compartmentName: string) => Set<string>;
-};
+} & ComputeSha512Option &
+  ArchiveOnlyOption;
 
 type SyncChooseModuleDescriptorOperators = {
   /**

@@ -25,6 +25,7 @@
  *   HashFn,
  *   ImportHookMaker,
  *   ImportNowHookMaker,
+ *   MakeImportHookMakerOptions,
  *   MakeImportNowHookMakerOptions,
  *   ModuleDescriptor,
  *   ParseResult,
@@ -267,11 +268,13 @@ function* chooseModuleDescriptor(
     packageLocation,
     packageSources,
     readPowers,
+    archiveOnly,
     sourceMapHook,
     strictlyRequiredForCompartment,
   },
   { maybeRead, parse, shouldDeferError = () => false },
 ) {
+  const { sourceDirname } = compartmentDescriptor;
   for (const candidateSpecifier of candidates) {
     const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
     if (candidateModuleDescriptor !== undefined) {
@@ -327,6 +330,7 @@ function* chooseModuleDescriptor(
           packageLocation,
           {
             readPowers,
+            archiveOnly,
             sourceMapHook:
               sourceMapHook &&
               (nextSourceMapObject => {
@@ -378,6 +382,7 @@ function* chooseModuleDescriptor(
       packageSources[candidateSpecifier] = {
         location: packageRelativeLocation,
         sourceLocation: moduleLocation,
+        sourceDirname,
         parser,
         bytes: transformedBytes,
         record: concreteRecord,
@@ -400,22 +405,7 @@ function* chooseModuleDescriptor(
 /**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
- * @param {object} options
- * @param {Sources} [options.sources]
- * @param {Record<string, CompartmentDescriptor>} [options.compartmentDescriptors]
- * @param {boolean} [options.archiveOnly]
- * @param {HashFn} [options.computeSha512]
- * @param {Array<string>} [options.searchSuffixes] - Suffixes to search if the
- * unmodified specifier is not found.
- * Pass [] to emulate Node.js' strict behavior.
- * The default handles Node.js' CommonJS behavior.
- * Unlike Node.js, the Compartment Mapper lifts CommonJS up, more like a
- * bundler, and does not attempt to vary the behavior of resolution depending
- * on the language of the importing module.
- * @param {string} options.entryCompartmentName
- * @param {string} options.entryModuleSpecifier
- * @param {ExitModuleImportHook} [options.exitModuleImportHook]
- * @param {SourceMapHook} [options.sourceMapHook]
+ * @param {MakeImportHookMakerOptions} options
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -430,7 +420,7 @@ export const makeImportHookMaker = (
     sourceMapHook = undefined,
     entryCompartmentName,
     entryModuleSpecifier,
-    exitModuleImportHook = undefined,
+    importHook: exitModuleImportHook = undefined,
   },
 ) => {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
@@ -575,6 +565,7 @@ export const makeImportHookMaker = (
             packageLocation,
             packageSources,
             readPowers,
+            archiveOnly,
             sourceMapHook,
             strictlyRequiredForCompartment,
           },
@@ -617,8 +608,9 @@ export function makeImportNowHookMaker(
     compartmentDescriptors = create(null),
     computeSha512 = undefined,
     searchSuffixes = nodejsConventionSearchSuffixes,
+    archiveOnly = false,
     sourceMapHook = undefined,
-    exitModuleImportNowHook,
+    importNowHook: exitModuleImportNowHook = undefined,
   },
 ) {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
@@ -720,6 +712,7 @@ export function makeImportNowHookMaker(
           packageLocation,
           packageSources,
           readPowers,
+          archiveOnly,
           sourceMapHook,
           strictlyRequiredForCompartment,
         },
