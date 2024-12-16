@@ -6,7 +6,7 @@
  *   PrecompiledStaticModuleInterface
  * } from 'ses'
  * @import {
- *   ArchiveOptions,
+ *   BundleOptions,
  *   CompartmentDescriptor,
  *   CompartmentSources,
  *   MaybeReadPowers,
@@ -57,6 +57,8 @@
  * @template {unknown} SpecificModuleSource
  * @callback GetBundlerKit
  * @param {BundleModule<SpecificModuleSource>} module
+ * @param {object} params
+ * @param {string} [params.useNamedEvaluate]
  * @returns {BundlerKit}
  */
 
@@ -203,8 +205,12 @@ const getRuntime = language =>
     ? bundlerSupportForLanguage[language].runtime
     : `/*unknown language:${language}*/`;
 
-/** @param {BundleModule<unknown>} module */
-const getBundlerKitForModule = module => {
+/**
+ * @param {BundleModule<unknown>} module
+ * @param {object} params
+ * @param {string} [params.useNamedEvaluate]
+ */
+const getBundlerKitForModule = (module, params) => {
   const language = module.parser;
   assert(language !== undefined);
   if (bundlerSupportForLanguage[language] === undefined) {
@@ -219,13 +225,13 @@ const getBundlerKitForModule = module => {
     };
   }
   const { getBundlerKit } = bundlerSupportForLanguage[language];
-  return getBundlerKit(module);
+  return getBundlerKit(module, params);
 };
 
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
+ * @param {BundleOptions} [options]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (readPowers, moduleLocation, options) => {
@@ -239,6 +245,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     searchSuffixes,
     commonDependencies,
     sourceMapHook = undefined,
+    useNamedEvaluate = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
     commonjsLanguageForExtension: commonjsLanguageForExtensionOption = {},
@@ -282,6 +289,10 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
       workspaceModuleLanguageForExtensionOption,
     ),
   );
+
+  const bundlerKitParams = {
+    useNamedEvaluate,
+  };
 
   const {
     packageLocation,
@@ -377,7 +388,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
       }),
     );
     parsersInUse.add(module.parser);
-    module.bundlerKit = getBundlerKitForModule(module);
+    module.bundlerKit = getBundlerKitForModule(module, bundlerKitParams);
   }
 
   const bundle = `\
@@ -441,7 +452,7 @@ ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
  * @param {ReadFn} read
  * @param {string} bundleLocation
  * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
+ * @param {BundleOptions} [options]
  */
 export const writeBundle = async (
   write,

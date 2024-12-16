@@ -53,19 +53,28 @@ function observeImports(map, importName, importIndex) {
 /** @type {BundlerSupport<PrecompiledModuleSource>} */
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: {
-      __syncModuleProgram__,
-      __fixedExportMap__ = {},
-      __liveExportMap__ = {},
-      __reexportMap__ = {},
-      reexports,
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      record: {
+        __syncModuleProgram__,
+        __fixedExportMap__ = {},
+        __liveExportMap__ = {},
+        __reexportMap__ = {},
+        reexports,
+      },
     },
-  }) {
+    { useNamedEvaluate = undefined },
+  ) {
     return {
-      getFunctor: () => `\
+      getFunctor:
+        useNamedEvaluate !== undefined
+          ? () => `\
+// === functors[${index}] ===
+${useNamedEvaluate}(${JSON.stringify(__syncModuleProgram__)}),
+`
+          : () => `\
 // === functors[${index}] ===
 ${__syncModuleProgram__},
 `,
