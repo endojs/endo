@@ -131,6 +131,14 @@ export type SyncArchiveLiteOptions = SyncOrAsyncArchiveOptions &
 export type ArchiveOptions = Omit<MapNodeModulesOptions, 'language'> &
   ArchiveLiteOptions;
 
+export type BundleOptions = ArchiveOptions & {
+  /**
+   * Evaluates individual module functors in-place so stack traces represent
+   * original source locations better.
+   */
+  useNamedEvaluate?: string;
+};
+
 export type SyncArchiveOptions = Omit<MapNodeModulesOptions, 'languages'> &
   SyncArchiveLiteOptions;
 
