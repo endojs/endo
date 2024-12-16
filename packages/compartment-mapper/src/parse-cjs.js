@@ -41,7 +41,7 @@ export const parseCjs = (
    */
   const execute = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
-      `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
+      `(function (require, exports, module, __filename, __dirname) { ${source} })\n`,
     );
 
     const { require, moduleExports, module, afterExecute } = wrap({
