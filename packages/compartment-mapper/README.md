@@ -134,6 +134,44 @@ object with an `import({ globals?, modules? })` method.
 `loadArchive` and `parseArchive` do not run the archived program,
 so they can be used to check the hash of a program without running it.
 
+# Bundles
+
+From `@endo/compartment-mapper/bundle.js`, the `makeBundle` function is similar
+to `makeArchive` but generates a string of JavaScript suitable for `eval`.
+We use this "bundle" format to bootstrap an environment up to the point it can
+call `importArchive`, so bundles are at least suitable for creating a script
+that subsumes `ses`, `@endo/compartment-mapper/import-archive.js`, and other
+parts of Endo, but is not as feature-complete as `importArchive`.
+
+```
+import url from 'url';
+import fs from 'fs';
+import { makeBundle } from "@endo/compartment-mapper/bundle.js";
+import { makeReadPowers } from '../node-powers.js';
+const readPowers = makeReadPowers({ fs, url });
+const bundle = await makeBundle(readPowers, moduleLocation, options);
+```
+
+It should be sufficient to evaluate `bundle`.
+The completion value of evaluation is the emulated exports namespace of the
+entry module.
+
+Bundles can include ESM, CJS, and JSON modules, but no other module languages
+like bytes or text.
+
+:warning: Bundles do not support [live
+bindings](https://developer.mozilla.org/en-US/docs/Glossary/Binding), dynamic
+`import`, or `import.meta`.
+Bundles do not isolate modules to a compartment.
+
+`makeBundle` accepts all the options of `makeArchive` and:
+
+- `useNamedEvaluate` (`string`, typically `"eval"`): By default, a bundle has
+  an array of functions for each bundled module.
+  With the `useNamedEvaluate`, the bundle will instead capture a string for
+  each module function and use the named `eval` function to rehydrate them.
+  This can make the line numbers in stack traces more useful.
+
 # Package Descriptors
 
 The compartment mapper uses [Compartments], one for each Node.js package your
@@ -598,7 +636,6 @@ The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMa
 >
 > Endo policy support is intended to reach parity with LavaMoat's policy.json.
 > Policy generation may be ported to Endo.
-
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [Compartments]: ../ses/README.md#compartment

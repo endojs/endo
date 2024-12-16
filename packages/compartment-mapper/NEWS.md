@@ -1,5 +1,11 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next release
+
+- Adds a `useNestedEvaluate` option to `makeBundle` so that a bundle
+  can evaluate each individual module separately, preserving line numbers
+  in stack traces.
+
 # v1.5.0 (2025-01-23)
 
 - `mapNodeModules` and all functions that use it now tolerate the absence of
@@ -14,6 +20,10 @@ User-visible changes to `@endo/compartment-mapper`:
   object with a truthy `optional` entry.
   Correct interpretation of `peerDependencies` is not distributed evenly, so
   this behavior is no longer the default.
+- Adds a `useNamedEvaluate` option to `makeBundle`, which creates bundles that
+  use the named evaluate function to create each module functor at runtime,
+  such that the generated code preserves the line numbers that appear in stack
+  traces.
 
 Experimental:
 

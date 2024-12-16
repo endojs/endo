@@ -69,6 +69,54 @@ test('bundles work', async t => {
   t.deepEqual(log, expectedLog);
 });
 
+test('using named evaluate bundles work', async t => {
+  const bundle = await makeBundle(read, fixture, {
+    useNamedEvaluate: 'nestedEvaluate',
+  });
+  const log = [];
+  const print = entry => {
+    log.push(entry);
+  };
+  const compartment = new Compartment({
+    globals: {
+      print,
+      nestedEvaluate(source) {
+        return compartment.evaluate(source);
+      },
+    },
+    __options__: true,
+  });
+  compartment.evaluate(bundle);
+  t.deepEqual(log, expectedLog);
+});
+
+test('using named evaluate bundles preserve error line numbers', async t => {
+  const bundle = await makeBundle(read, fixture, {
+    useNamedEvaluate: 'nestedEvaluate',
+  });
+  const log = [];
+  const print = entry => {
+    log.push(entry);
+  };
+  const compartment = new Compartment({
+    globals: {
+      print,
+      nestedEvaluate(source) {
+        return compartment.evaluate(source);
+      },
+    },
+    __options__: true,
+  });
+  const { raise } = compartment.evaluate(bundle);
+  let error = null;
+  try {
+    raise();
+  } catch (_error) {
+    error = _error;
+  }
+  t.assert(error.stack.includes(':4:'));
+});
+
 test('equivalent archive behaves the same as bundle', async t => {
   const log = [];
   const print = entry => {

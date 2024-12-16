@@ -61,15 +61,24 @@ function wrapCjsFunctor(num) {
 /** @type {BundlerSupport<CjsModuleSource>} */
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: { cjsFunctor, exports: exportsList = {} },
-  }) {
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      record: { cjsFunctor, exports: exportsList = {} },
+    },
+    { useNamedEvaluate = undefined },
+  ) {
     const importsMap = JSON.stringify(indexedImports);
 
     return {
-      getFunctor: () => `\
+      getFunctor:
+        useNamedEvaluate !== undefined
+          ? () => `\
+// === functors[${index}] ===
+${useNamedEvaluate}(${JSON.stringify(cjsFunctor)}),
+`
+          : () => `\
 // === functors[${index}] ===
 ${cjsFunctor},
 `,
