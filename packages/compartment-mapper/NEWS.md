@@ -14,6 +14,10 @@ User-visible changes to `@endo/compartment-mapper`:
   object with a truthy `optional` entry.
   Correct interpretation of `peerDependencies` is not distributed evenly, so
   this behavior is no longer the default.
+- Adds a `useNamedEvaluate` option to `makeBundle`, which creates bundles that
+  use the named evaluate function to create each module functor at runtime,
+  such that the generated code preserves the line numbers that appear in stack
+  traces.
 
 Experimental:
 
