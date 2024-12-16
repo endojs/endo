@@ -320,7 +320,7 @@ However, with SES with the `'safe'` or `'unsafe'` settings of
 which is the one line of JavaScript the TypeScript compiled to.
 We would like to fix this while preserving safety, but have not yet done so.
 
-Instead, we introduce the `'unsafe-debug'` setting, which sarifices
+Instead, we introduce the `'unsafe-debug'` setting, which sacrifices
 more security to restore this pleasant Node behavior.
 Where `'safe'` and `'unsafe'` endangers only confidentiality, `'unsafe-debug'` also
 endangers intergrity. For development and debugging purposes ***only***,
