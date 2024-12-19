@@ -103,7 +103,7 @@ test('a custom parser may implement policy enforcement (allowed)', async t => {
               compartmentDescriptor.policy.options &&
               compartmentDescriptor.policy.options.markdown !== true)
           ) {
-            throw new Error(`Markdown parsing not allowed for ${q(specifier)}`);
+            throw Error(`Markdown parsing not allowed for ${q(specifier)}`);
           }
 
           return {
@@ -173,7 +173,7 @@ test('a custom parser may implement policy enforcement (disallowed)', async t =>
               compartmentDescriptor.policy.options &&
               compartmentDescriptor.policy.options.markdown !== true)
           ) {
-            throw new Error(`Markdown parsing not allowed for ${q(specifier)}`);
+            throw Error(`Markdown parsing not allowed for ${q(specifier)}`);
           }
 
           return {
