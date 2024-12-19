@@ -85,14 +85,14 @@ export type Passable<
 > = void | Primitive | Container<PC, E> | PC | E;
 
 export type Container<PC extends PassableCap, E extends Error> =
-  | CopyArrayI<PC, E>
-  | CopyRecordI<PC, E>
-  | CopyTaggedI<PC, E>;
-interface CopyArrayI<PC extends PassableCap, E extends Error>
+  | CopyArrayCommon<PC, E>
+  | CopyRecordCommon<PC, E>
+  | CopyTaggedCommon<PC, E>;
+interface CopyArrayCommon<PC extends PassableCap, E extends Error>
   extends CopyArray<Passable<PC, E>> {}
-interface CopyRecordI<PC extends PassableCap, E extends Error>
+interface CopyRecordCommon<PC extends PassableCap, E extends Error>
   extends CopyRecord<Passable<PC, E>> {}
-interface CopyTaggedI<PC extends PassableCap, E extends Error>
+interface CopyTaggedCommon<PC extends PassableCap, E extends Error>
   extends CopyTagged<string, Passable<PC, E>> {}
 
 export type PassStyleOf = {
