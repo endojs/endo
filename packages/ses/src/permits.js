@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush, getOwnPropertyNames, arrayForEach } from './commons.js';
+import { arrayPush, arrayForEach } from './commons.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
@@ -304,7 +304,8 @@ const strict = function () {
   'use strict';
 };
 
-arrayForEach(getOwnPropertyNames(strict), prop => {
+// TODO Remove this once we no longer support the Hermes that needed this.
+arrayForEach(['caller', 'arguments'], prop => {
   try {
     strict[prop];
   } catch (e) {
