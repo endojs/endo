@@ -548,6 +548,11 @@ const gatherDependency = async (
 };
 
 /**
+ * The name used by a root entry compartment that has no `name` in its package descriptor.
+ */
+export const ANONYMOUS_COMPARTMENT = '<ANONYMOUS>';
+
+/**
  * graphPackages returns a graph whose keys are nominally URLs, one per
  * package, with values that are label: (an informative Compartment name, built
  * as ${name}@${version}), dependencies: (a list of URLs), and exports: (an
@@ -619,6 +624,15 @@ const graphPackages = async (
       spec,
       alias,
     };
+  }
+
+  /**
+   * If the entry package descriptor has no `name`, we need to put _something_
+   * in there to pass compartment map validation (go find
+   * `assertCompartmentMap()`).
+   */
+  if (!packageDescriptor.name) {
+    packageDescriptor.name = ANONYMOUS_COMPARTMENT;
   }
 
   const graph = create(null);
