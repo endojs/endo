@@ -49,6 +49,17 @@ module.exports = {
     // RESM does not support ?? nor ?. operators, so we must avoid them expressly.
     '@endo/no-optional-chaining': 'error',
     '@endo/no-nullish-coalescing': 'error',
+    '@typescript-eslint/naming-convention': [
+      'error',
+      {
+        selector: 'interface',
+        format: ['PascalCase'],
+        custom: {
+          regex: '.*I$',
+          match: false
+        }
+      },
+    ],
   },
   overrides: [
     {
