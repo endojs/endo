@@ -56,8 +56,8 @@ module.exports = {
         format: ['PascalCase'],
         custom: {
           regex: '.*I$',
-          match: false
-        }
+          match: false,
+        },
       },
     ],
   },
