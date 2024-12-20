@@ -150,7 +150,7 @@ test('module map primed with parent compartment module source reference with dif
           imports: [],
           exports: ['meaning'],
           execute() {
-            throw new Error('should not execute');
+            throw Error('should not execute');
           },
         },
       },
@@ -387,7 +387,7 @@ test('module map precedes module map hook', t => {
       },
     },
     moduleMapHook() {
-      throw new Error('not reached');
+      throw Error('not reached');
     },
     __options__: true,
   });

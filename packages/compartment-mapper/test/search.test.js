@@ -6,7 +6,7 @@ const makeFakeReadPowers = files => {
     async read(location) {
       const bytes = files[location];
       if (bytes === undefined) {
-        throw new Error(`File not found: ${location}`);
+        throw Error(`File not found: ${location}`);
       }
       return bytes;
     },
