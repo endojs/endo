@@ -233,8 +233,19 @@ type LinkingOptions = ParserForLanguageOption &
  * The result of `captureFromMap`.
  */
 export type CaptureResult = {
+  /**
+   * Normalized `CompartmentMapDescriptor`
+   */
   captureCompartmentMap: CompartmentMapDescriptor;
+  /**
+   * Sources found in the `CompartmentMapDescriptor`
+   */
   captureSources: Sources;
+
+  /**
+   * A record of renamed {@link CompartmentDescriptor CompartmentDescriptors}
+   * from _new_ to _original_ name
+   */
   compartmentRenames: Record<string, string>;
 };
 

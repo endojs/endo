@@ -8,7 +8,7 @@ import { mapNodeModules } from '../src/node-modules.js';
 import { makeReadPowers } from '../src/node-powers.js';
 import { defaultParserForLanguage } from '../src/import-parsers.js';
 
-const { keys, entries, fromEntries } = Object;
+const { keys } = Object;
 
 test('captureFromMap() should resolve with a CaptureResult', async t => {
   t.plan(5);
@@ -26,10 +26,6 @@ test('captureFromMap() should resolve with a CaptureResult', async t => {
       parserForLanguage: defaultParserForLanguage,
     });
 
-  const renames = fromEntries(
-    entries(compartmentRenames).map(([filepath, id]) => [id, filepath]),
-  );
-
   t.deepEqual(
     keys(captureSources).sort(),
     ['bundle', 'bundle-dep-v0.0.0'],
@@ -37,7 +33,7 @@ test('captureFromMap() should resolve with a CaptureResult', async t => {
   );
 
   t.deepEqual(
-    keys(renames).sort(),
+    keys(compartmentRenames).sort(),
     ['bundle', 'bundle-dep-v0.0.0'],
     'compartmentRenames must contain same compartment names as in captureCompartmentMap',
   );
@@ -82,14 +78,11 @@ test('captureFromMap() should round-trip sources based on parsers', async t => {
     },
   );
 
-  const renames = fromEntries(
-    entries(compartmentRenames).map(([filepath, id]) => [id, filepath]),
-  );
   const decoder = new TextDecoder();
   // the actual source depends on the value of `parserForLanguage` above
   const actual = decoder.decode(captureSources.bundle['./icando.cjs'].bytes);
   const expected = await fs.promises.readFile(
-    path.join(url.fileURLToPath(renames.bundle), 'icando.cjs'),
+    path.join(url.fileURLToPath(compartmentRenames.bundle), 'icando.cjs'),
     'utf-8',
   );
   t.is(actual, expected, 'Source code should not be pre-compiled');
