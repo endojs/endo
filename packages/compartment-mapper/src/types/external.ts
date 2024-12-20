@@ -230,12 +230,52 @@ type LinkingOptions = ParserForLanguageOption &
 // ////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * Result of `digestCompartmentMap()`
+ */
+export interface DigestResult {
+  /**
+   * Normalized `CompartmentMapDescriptor`
+   */
+  compartmentMap: CompartmentMapDescriptor;
+
+  /**
+   * Sources found in the `CompartmentMapDescriptor`
+   */
+  sources: Sources;
+
+  /**
+   * A record of renamed {@link CompartmentDescriptor CompartmentDescriptors}
+   * from _new_ to _original_ name
+   */
+  newToOldCompartmentNames: Record<string, string>;
+
+  /**
+   * A record of renamed {@link CompartmentDescriptor CompartmentDescriptors}
+   * from _original_ to _new_ name
+   */
+  oldToNewCompartmentNames: Record<string, string>;
+
+  /**
+   * Alias for `newToOldCompartmentNames`
+   * @deprecated Use {@link newToOldCompartmentNames} instead.
+   */
+  compartmentRenames: Record<string, string>;
+}
+
+/**
  * The result of `captureFromMap`.
  */
-export type CaptureResult = {
-  captureCompartmentMap: CompartmentMapDescriptor;
-  captureSources: Sources;
-  compartmentRenames: Record<string, string>;
+export type CaptureResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
+  captureCompartmentMap: DigestResult['compartmentMap'];
+  captureSources: DigestResult['sources'];
+};
+
+/**
+ * The result of `makeArchiveCompartmentMap`
+ */
+export type ArchiveResult = Omit<DigestResult, 'compartmentMap' | 'sources'> & {
+  archiveCompartmentMap: DigestResult['compartmentMap'];
+  archiveSources: DigestResult['sources'];
 };
 
 /**
