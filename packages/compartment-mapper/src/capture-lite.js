@@ -250,7 +250,12 @@ const captureCompartmentMap = (compartmentMap, sources) => {
   return {
     captureCompartmentMap,
     captureSources,
-    compartmentRenames,
+    compartmentRenames: fromEntries(
+      entries(compartmentRenames).map(([oldName, newName]) => [
+        newName,
+        oldName,
+      ]),
+    ),
   };
 };
 
