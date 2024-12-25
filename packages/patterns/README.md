@@ -20,7 +20,7 @@ See {@link PatternMatchers} for more on `M.splitRecord()`, `M.number()`, and oth
 
 `M` also has {@link GuardMakers} methods to make {@link InterfaceGuard}s that use Patterns to characterize dynamic behavior such as method argument/response signatures and promise awaiting. The {@link @endo/exo!} package uses `InterfaceGuard`s as the first level of defense for Exo objects against malformed input.
 
-_For best rendering, use the [Endo reference docs](https://endojs.github.io/) site._
+_For best rendering, use the [Endo reference docs](https://endojs.github.io/endo) site._
 
 ## Key Equality, Containers
 
