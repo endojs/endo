@@ -3,6 +3,8 @@
 /** @import {PrecompiledModuleSource} from 'ses' */
 /** @import {BundlerSupport} from './bundle.js' */
 
+import { join } from './node-module-specifier.js';
+
 /** quotes strings */
 const q = JSON.stringify;
 
@@ -57,6 +59,8 @@ export default {
     {
       index,
       indexedImports,
+      moduleSpecifier,
+      sourceDirname,
       record: {
         __syncModuleProgram__,
         __fixedExportMap__ = {},
@@ -65,18 +69,22 @@ export default {
         reexports,
       },
     },
-    { useNamedEvaluate = undefined },
+    { useNamedEvaluate = undefined, sourceUrlPrefix = undefined },
   ) {
+    let functor = __syncModuleProgram__;
+    if (useNamedEvaluate !== undefined) {
+      let sourceUrl = join(sourceDirname, moduleSpecifier);
+      if (sourceUrlPrefix !== undefined) {
+        sourceUrl = `${sourceUrlPrefix}${sourceUrl}`;
+      }
+      functor = `${functor}\n//*/\n//# sourceURL=${sourceUrl}\n`;
+      functor = JSON.stringify(functor);
+      functor = `(globalThis.${useNamedEvaluate} || eval)(${functor})`;
+    }
     return {
-      getFunctor:
-        useNamedEvaluate !== undefined
-          ? () => `\
+      getFunctor: () => `\
 // === functors[${index}] ===
-${useNamedEvaluate}(${JSON.stringify(__syncModuleProgram__)}),
-`
-          : () => `\
-// === functors[${index}] ===
-${__syncModuleProgram__},
+${functor},
 `,
       getCells: () => `\
     {
