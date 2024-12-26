@@ -44,6 +44,7 @@
  * @typedef {object} Node
  * @property {string} label
  * @property {string} name
+ * @property {string} sourceDirname
  * @property {Array<string>} path
  * @property {Array<string>} logicalPath
  * @property {boolean} explicitExports
@@ -99,12 +100,16 @@ const resolveLocation = (rel, abs) => {
   return new URL(rel, abs).toString();
 };
 
+// Exported for testing:
 /**
  * @param {string} location
  * @returns {string}
  */
-const basename = location => {
-  const { pathname } = new URL(location);
+export const basename = location => {
+  let { pathname } = new URL(location);
+  if (pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
   const index = pathname.lastIndexOf('/');
   if (index < 0) {
     return pathname;
@@ -424,10 +429,13 @@ const graphPackage = async (
     languageOptions,
   );
 
+  const sourceDirname = basename(packageLocation);
+
   Object.assign(result, {
     name,
     path: logicalPath,
     label: `${name}${version ? `-v${version}` : ''}`,
+    sourceDirname,
     explicitExports: exportsDescriptor !== undefined,
     externalAliases,
     internalAliases,
@@ -676,6 +684,7 @@ const translateGraph = (
       name,
       path,
       label,
+      sourceDirname,
       dependencyLocations,
       internalAliases,
       parsers,
@@ -770,6 +779,7 @@ const translateGraph = (
       name,
       path,
       location: dependeeLocation,
+      sourceDirname,
       modules: moduleDescriptors,
       scopes,
       parsers,

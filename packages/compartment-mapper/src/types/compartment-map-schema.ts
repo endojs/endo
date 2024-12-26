@@ -35,6 +35,11 @@ export type EntryDescriptor = {
  */
 export type CompartmentDescriptor = {
   label: string;
+  /**
+   * name of the parent directory of the package from which the compartment is derrived,
+   * for purposes of generating sourceURL comments that are most likely to unite with the original sources in an IDE workspace.
+   */
+  sourceDirname?: string;
   /** shortest path of dependency names to this compartment */
   path?: Array<string>;
   /**

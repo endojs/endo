@@ -137,6 +137,12 @@ export type BundleOptions = ArchiveOptions & {
    * original source locations better.
    */
   useNamedEvaluate?: string;
+  /**
+   * A prefix for the sourceURL comment in each module format that supports
+   * sourceURL comments.
+   * Requires useNamedEvaluate for effect.
+   */
+  sourceUrlPrefix?: string;
 };
 
 export type SyncArchiveOptions = Omit<MapNodeModulesOptions, 'languages'> &
@@ -301,6 +307,21 @@ export type ModuleSource = Partial<{
   location: string;
   /** fully qualified location */
   sourceLocation: string;
+  /**
+   * directory name of the original source.
+   * This is safe to capture in a compartment map because it is _unlikely_ to
+   * vary between hosts.
+   * Package managers tend to drop a package in a consistently named location.
+   * If entry package is in a workspace, git enforces consistency.
+   * If entry package is the root of a repository, we rely on the developer
+   * to name the package consistently and suffer an inconsistent integrity hash
+   * otherwise.
+   * We do not currently capture this property in a compartment map because the
+   * schema validator currently (2024) deployed to Agoric blockchains does not
+   * tolerate compartment maps with unknown properties.
+   * https://github.com/endojs/endo/issues/2671
+   */
+  sourceDirname: string;
   bytes: Uint8Array;
   /** in lowercase base-16 (hexadecimal) */
   sha512: string;
