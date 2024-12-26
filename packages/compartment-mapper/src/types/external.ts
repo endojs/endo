@@ -133,6 +133,16 @@ export type ArchiveOptions = Omit<MapNodeModulesOptions, 'language'> &
 
 export type BundleOptions = ArchiveOptions & {
   /**
+   * Format of the bundle for purposes of importing modules from the surronding
+   * environment.
+   * The default can be CommonJS or ESM but depends on neither `require` nor `import`
+   * for external modules, but errors early if the entrained modules need to import
+   * a host module.
+   * Specifying `cjs` makes `require` available for modules outside the bundle
+   * (exits to the import graph).
+   */
+  format?: 'cjs';
+  /**
    * Evaluates individual module functors in-place so stack traces represent
    * original source locations better.
    */
