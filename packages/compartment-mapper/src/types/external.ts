@@ -313,7 +313,11 @@ export type CompartmentSources = Record<string, ModuleSource>;
 export type ModuleSource = Partial<{
   /** module loading error deferred to later stage */
   deferredError: string;
-  /** package-relative location */
+  /**
+   * package-relative location.
+   * Not suitable for capture in an archive or bundle since it varies from host
+   * to host and would frustrate integrity hash checks.
+   */
   location: string;
   /** fully qualified location */
   sourceLocation: string;
