@@ -44,6 +44,7 @@
  * @property {string} key
  * @property {string} compartmentName
  * @property {string} moduleSpecifier
+ * @property {string} sourceDirname
  * @property {string} parser
  * @property {StaticModuleType & SpecificModuleSource} record
  * @property {Record<string, string>} resolvedImports
@@ -59,6 +60,7 @@
  * @param {BundleModule<SpecificModuleSource>} module
  * @param {object} params
  * @param {string} [params.useNamedEvaluate]
+ * @param {string} [params.sourceUrlPrefix]
  * @returns {BundlerKit}
  */
 
@@ -118,7 +120,8 @@ const sortedModules = (
 
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
-      const { record, parser, deferredError, bytes } = source;
+      const { record, parser, deferredError, bytes, sourceDirname } =
+        source;
       assert(
         bytes !== undefined,
         `No bytes for ${moduleSpecifier} in ${compartmentName}`,
@@ -126,6 +129,10 @@ const sortedModules = (
       assert(
         parser !== undefined,
         `No parser for ${moduleSpecifier} in ${compartmentName}`,
+      );
+      assert(
+        sourceDirname !== undefined,
+        `No sourceDirname for ${moduleSpecifier} in ${compartmentName}`,
       );
       if (deferredError) {
         throw Error(
@@ -151,6 +158,7 @@ const sortedModules = (
           key,
           compartmentName,
           moduleSpecifier,
+          sourceDirname,
           parser,
           record,
           resolvedImports,
@@ -209,6 +217,7 @@ const getRuntime = language =>
  * @param {BundleModule<unknown>} module
  * @param {object} params
  * @param {string} [params.useNamedEvaluate]
+ * @param {string} [params.sourceUrlPrefix]
  */
 const getBundlerKitForModule = (module, params) => {
   const language = module.parser;
@@ -246,6 +255,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     commonDependencies,
     sourceMapHook = undefined,
     useNamedEvaluate = undefined,
+    sourceUrlPrefix = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
     commonjsLanguageForExtension: commonjsLanguageForExtensionOption = {},
@@ -292,6 +302,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
 
   const bundlerKitParams = {
     useNamedEvaluate,
+    sourceUrlPrefix,
   };
 
   const {

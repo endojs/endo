@@ -5,6 +5,8 @@
 
 /** @typedef {VirtualModuleSource & {cjsFunctor: string}} CjsModuleSource */
 
+import { join } from './node-module-specifier.js';
+
 /** quotes strings */
 const q = JSON.stringify;
 
@@ -65,22 +67,29 @@ export default {
     {
       index,
       indexedImports,
+      moduleSpecifier,
+      sourceDirname,
       record: { cjsFunctor, exports: exportsList = {} },
     },
-    { useNamedEvaluate = undefined },
+    { useNamedEvaluate = undefined, sourceUrlPrefix = undefined },
   ) {
     const importsMap = JSON.stringify(indexedImports);
 
+    let functor = cjsFunctor;
+    if (useNamedEvaluate !== undefined) {
+      let sourceUrl = join(sourceDirname, moduleSpecifier);
+      if (sourceUrlPrefix !== undefined) {
+        sourceUrl = `${sourceUrlPrefix}${sourceUrl}`;
+      }
+      functor = `${functor}\n//*/\n//# sourceURL=${sourceUrl}\n`;
+      functor = JSON.stringify(functor);
+      functor = `(globalThis.${useNamedEvaluate} || eval)(${functor})`;
+    }
+
     return {
-      getFunctor:
-        useNamedEvaluate !== undefined
-          ? () => `\
+      getFunctor: () => `\
 // === functors[${index}] ===
-${useNamedEvaluate}(${JSON.stringify(cjsFunctor)}),
-`
-          : () => `\
-// === functors[${index}] ===
-${cjsFunctor},
+${functor},
 `,
       getCells: () => `\
     {
