@@ -482,8 +482,8 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   }
 
   const bundle = `\
-'use strict';
 (functors => {
+  'use strict';
 
   const cell = (name, value = undefined) => {
     const observers = [];
@@ -553,7 +553,10 @@ ${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
 ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 
   return cells[cells.length - 1]['*'].get();
-})([${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}]);
+})
+(
+[${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
+])
 `;
 
   return bundle;
