@@ -43,7 +43,7 @@ function observeImports(map, importName, importIndex) {
   for (const [name, observers] of map.get(importName)) {
     const cell = cells[importIndex][name];
     if (cell === undefined) {
-      throw new ReferenceError(\`Cannot import name \${name}\`);
+      throw new ReferenceError(\`Cannot import name \${name} (has \${Object.getOwnPropertyNames(cells[importIndex]).join(', ')})\`);
     }
     for (const observer of observers) {
       cell.observe(observer);
