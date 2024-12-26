@@ -1,3 +1,4 @@
+import 'ses';
 import url from 'url';
 import test from '@endo/ses-ava/prepare-endo.js';
 
@@ -15,11 +16,14 @@ test(`external require('fs')`, async t => {
     'nestedEvaluate',
   );
 
-  const myRequire = mod => t.is(mod, 'fs', 'required fs module');
+  const myRequire = mod => {
+    t.is(mod, 'fs', 'required fs module');
+    return { readFileSync() {} };
+  };
 
   const nestedEvaluate = src => {
     // console.log('========== evaluating', src);
-    return evaluate(src, { nestedEvaluate, require: myRequire });
+    return evaluate(src, { nestedEvaluate, require: myRequire, assert });
   };
   // console.log(src1);
   const srcMap1 = `(${src1})`;
