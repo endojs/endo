@@ -23,6 +23,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * @typedef GenerateAstOptionsWithSourceMap
  * @property {string} [source]
  * @property {string} sourceUrl - If present, we will generate a source map
+ * @property {string} [sourceMap] - If present, the generated source map will be a transform over the given source map.
  * @internal
  */
 
@@ -40,7 +41,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * provided to the options.
  *
  * @template {string|undefined} [SourceUrl=undefined]
- * @typedef {{code: string, map: SourceUrl extends string ? import('source-map-js').RawSourceMap : never}} TransformedResult
+ * @typedef {{code: string, map: SourceUrl extends string ? string : never}} TransformedResult
  * @internal
  */
 
@@ -69,12 +70,16 @@ export const generate =
       // TODO Use options?.sourceUrl when resolved:
       // https://github.com/Agoric/agoric-sdk/issues/8671
       const sourceUrl = options ? options.sourceUrl : undefined;
+      const inputSourceMap =
+        options && 'sourceMap' in options ? options.sourceMap : undefined;
       const source = options ? options.source : undefined;
       const result = generator(
         ast,
         {
           sourceFileName: sourceUrl,
           sourceMaps: Boolean(sourceUrl),
+          // @ts-expect-error Property missing on versioned types
+          inputSourceMap,
           retainLines: true,
           ...(source === undefined
             ? {}

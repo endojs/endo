@@ -61,7 +61,6 @@ test('evadeCensor() - successful source transform w/ source map & unmapping', as
   const { sourceMap, source } = t.context;
   const { code, map } = evadeCensorSync(source, {
     sourceMap,
-    useLocationUnmap: true,
   });
 
   t.snapshot(stripLinefeeds(code));
@@ -73,7 +72,6 @@ test('evadeCensor() - successful source transform w/ source map, source URL & un
   const { code, map } = evadeCensorSync(source, {
     sourceMap,
     sourceUrl,
-    useLocationUnmap: true,
   });
 
   t.snapshot(stripLinefeeds(code));

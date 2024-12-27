@@ -26,9 +26,8 @@ const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
  * Apparently coerces all comments to block comments.
  *
  * @param {import('@babel/types').Comment} node
- * @param {import('./location-unmapper.js').LocationUnmapper} [unmapLoc]
  */
-export function evadeComment(node, unmapLoc) {
+export function evadeComment(node) {
   node.type = 'CommentBlock';
   // Within comments...
   node.value = node.value
@@ -42,9 +41,6 @@ export function evadeComment(node, unmapLoc) {
     .replace(IMPORT_RE, 'IMPORT$2')
     // ...replace end-of-comment markers
     .replace(/\*\//g, '*X/');
-  if (unmapLoc) {
-    unmapLoc(node.loc);
-  }
 }
 
 /**
@@ -73,17 +69,13 @@ const markedForPreservation = comment => {
  * displacing lines or columns in the transformed code.
  *
  * @param {import('@babel/types').Comment} node
- * @param {import('./location-unmapper.js').LocationUnmapper} [unmapLoc]
  */
-export const elideComment = (node, unmapLoc) => {
+export const elideComment = node => {
   if (node.type === 'CommentBlock') {
     if (!markedForPreservation(node.value)) {
       node.value = node.value.replace(/[^\n]+\n/g, '\n').replace(/[^\n]/g, ' ');
     }
   } else {
     node.value = '';
-  }
-  if (unmapLoc) {
-    unmapLoc(node.loc);
   }
 };

@@ -16,11 +16,11 @@ import { generate } from './generate.js';
  * Options for {@link evadeCensorSync}
  *
  * @typedef EvadeCensorOptions
- * @property {string|import('source-map-js').RawSourceMap} [sourceMap] - Original source map in JSON string or object form
+ * @property {string} [sourceMap] - Original source map in JSON string or object form
  * @property {string} [sourceUrl] - URL or filepath of the original source in `code`
- * @property {boolean} [useLocationUnmap] - Enable location unmapping. Only applies if `sourceMap` was provided
  * @property {boolean} [elideComments] - Replace comments with an ellipsis but preserve interior newlines.
  * @property {import('./parse-ast.js').SourceType} [sourceType] - Module source type
+ * @property {boolean} [useLocationUnmap] - deprecated, vestigial
  * @public
  */
 
@@ -30,9 +30,6 @@ import { generate } from './generate.js';
  * If the `sourceUrl` option is provided, the `map` property of the fulfillment
  * value will be a source map object; otherwise it will be `undefined`.
  *
- * If the `sourceMap` option is _not_ provided, the `useLocationUnmap` option
- * will have no effect.
- *
  * @template {EvadeCensorOptions} T
  * @param {string} source - Source code to transform
  * @param {T} [options] - Options for the transform
@@ -40,12 +37,9 @@ import { generate } from './generate.js';
  * @public
  */
 export function evadeCensorSync(source, options) {
-  // TODO Use options ?? {} when resolved:
-  // https://github.com/Agoric/agoric-sdk/issues/8671
   const {
     sourceMap,
     sourceUrl,
-    useLocationUnmap,
     sourceType,
     elideComments = false,
   } = options || {};
@@ -56,21 +50,10 @@ export function evadeCensorSync(source, options) {
     sourceType,
   });
 
-  const sourceMapJson =
-    typeof sourceMap === 'string' ? sourceMap : JSON.stringify(sourceMap);
-
-  if (sourceMap && useLocationUnmap) {
-    transformAst(ast, {
-      sourceMap: sourceMapJson,
-      useLocationUnmap,
-      elideComments,
-    });
-  } else {
-    transformAst(ast, { elideComments });
-  }
+  transformAst(ast, { elideComments });
 
   if (sourceUrl) {
-    return generate(ast, { source, sourceUrl });
+    return generate(ast, { source, sourceUrl, sourceMap });
   }
   return generate(ast, { source });
 }
@@ -80,9 +63,6 @@ export function evadeCensorSync(source, options) {
  *
  * If the `sourceUrl` option is provided, the `map` property of the fulfillment
  * value will be a source map object; otherwise it will be `undefined`.
- *
- * If the `sourceMap` option is _not_ provided, the `useLocationUnmap` option
- * will have no effect.
  *
  * @template {EvadeCensorOptions} T
  * @param {string} source - Source code to transform
