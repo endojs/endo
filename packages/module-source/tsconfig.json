@@ -7,6 +7,8 @@
     "*.js",
     "*.ts",
     "src",
-    "test"
+    "src-xs",
+    // to omit test/fixtures/
+    "test/*.*"
   ]
 }
