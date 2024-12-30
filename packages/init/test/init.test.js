@@ -13,9 +13,11 @@ test('default init hardens', async t => {
   t.is(a.prop, 'init');
   harden(a);
   t.true(Object.isFrozen(a));
+  // @ts-expect-error XXX Node interface munging
   t.throws(() => (a.prop = 123), { instanceOf: TypeError });
   t.is(a.prop, 'init');
   Object.freeze(a);
+  // @ts-expect-error XXX Node interface munging
   t.throws(() => (a.prop = 456), { instanceOf: TypeError });
   t.is(a.prop, 'init');
 });
