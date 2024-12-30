@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
 import { resolveNode } from './_node.js';

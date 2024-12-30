@@ -1,3 +1,4 @@
+// @ts-nocheck
 // This is a test fixture for minimal spot checks of the XS-specific variant of
 // SES.
 // The script ../scripts/generate-test-xs.js generates the _meaning.pre-mjs.json

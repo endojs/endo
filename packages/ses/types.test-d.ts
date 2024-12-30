@@ -2,8 +2,6 @@
 import { expectType } from 'tsd';
 import type { Assert } from 'ses';
 
-import { equal as nassert } from 'node:assert/strict';
-
 // Lockdown
 
 lockdown();

@@ -135,10 +135,12 @@ export type ModuleMapHook = (
   moduleSpecifier: string,
 ) => ModuleDescriptor | undefined;
 export type ImportHook = (moduleSpecifier: string) => Promise<ModuleDescriptor>;
-export type ImportNowHook = (moduleSpecifier: string) => ModuleDescriptor;
+export type ImportNowHook = (
+  moduleSpecifier: string,
+) => ModuleDescriptor | undefined;
 export type ImportMetaHook = (
   moduleSpecifier: string,
-  importMeta: Object,
+  importMeta: ImportMeta,
 ) => void;
 
 export interface CompartmentOptions {

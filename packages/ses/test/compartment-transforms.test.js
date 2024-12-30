@@ -1,3 +1,4 @@
+// @ts-nocheck
 import '../index.js';
 import './_lockdown-safe.js';
 import { ModuleSource } from '@endo/module-source';

@@ -8,6 +8,7 @@ test('Function.prototype.constructor', t => {
   // eslint-disable-next-line no-new-func
   t.notThrows(() => Function(''));
 
+  // @ts-expect-error intentional error
   // eslint-disable-next-line no-proto
   t.throws(() => Error.__proto__.constructor(''), { instanceOf: TypeError });
   t.throws(() => Function.prototype.constructor(''), { instanceOf: TypeError });

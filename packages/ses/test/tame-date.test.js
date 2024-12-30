@@ -16,7 +16,9 @@ test('lockdown start Date is powerful', t => {
 });
 
 test('lockdown Date.prototype.constructor is powerless', t => {
-  const SharedDate = Date.prototype.constructor;
+  const SharedDate = /** @type {DateConstructor} */ (
+    Date.prototype.constructor
+  );
   t.not(Date, SharedDate);
 
   t.throws(() => SharedDate.now(), {

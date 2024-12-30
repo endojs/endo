@@ -1,3 +1,4 @@
+// @ts-nocheck
 // These tests exercise the Compartment moduleMapHook.
 
 /* eslint max-lines: 0 */

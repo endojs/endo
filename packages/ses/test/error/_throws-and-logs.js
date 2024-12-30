@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global globalThis */
 
 import { freeze, getPrototypeOf } from '../../src/commons.js';

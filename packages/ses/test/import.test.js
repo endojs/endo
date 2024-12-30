@@ -1,3 +1,4 @@
+// @ts-nocheck
 // These tests exercise the Compartment import interface and linkage
 // between compartments, and Compartment endowments.
 

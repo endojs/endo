@@ -12,5 +12,6 @@ test('an', t => {
   t.is(an('Object'), 'an Object');
   // coerce non-objects to strings.
   // non-letters are treated as non-vowels
+  // @ts-expect-error XXX typedef
   t.is(an({}), 'a [object Object]');
 });

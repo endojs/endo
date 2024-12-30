@@ -4,6 +4,7 @@ import test from 'ava';
 import '../index.js';
 
 test('shimmed globalThis.process', t => {
+  /** @type {any} */
   const process = {};
   Object.defineProperty(globalThis, 'process', {
     value: process,
@@ -11,6 +12,7 @@ test('shimmed globalThis.process', t => {
     writable: false,
   });
   t.is(globalThis.process, process);
+  // @ts-expect-error modified
   t.is(globalThis.process.on, undefined);
   lockdown({
     consoleTaming: 'safe',
@@ -18,5 +20,6 @@ test('shimmed globalThis.process', t => {
     unhandledRejectionTrapping: 'report',
   });
   t.is(globalThis.process, process);
+  // @ts-expect-error modified
   t.is(globalThis.process.on, undefined);
 });

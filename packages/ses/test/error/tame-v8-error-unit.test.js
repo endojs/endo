@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import tameErrorConstructor from '../../src/error/tame-error-constructor.js';
 
