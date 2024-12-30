@@ -1,18 +1,18 @@
-import type { Execa } from 'execa';
+import type { ExecaMethod } from 'execa';
 
 export type Expectation = {
   stdout: RegExp | string | undefined;
   stderr?: RegExp | string | undefined;
 };
 export type TestCommand = (
-  command: ReturnType<Execa>,
+  command: ReturnType<ExecaMethod>,
   expectation: Expectation,
 ) => Promise<true>;
 export type TestRoutine = (
-  execa: Execa,
+  execa: ExecaMethod,
   testCommnd: TestCommand,
 ) => Promise<void>;
 export type Context = {
-  setup: (execa: Execa) => Promise<void>;
-  teardown?: (execa: Execa) => Promise<void>;
+  setup: (execa: ExecaMethod) => Promise<void>;
+  teardown?: (execa: ExecaMethod) => Promise<void>;
 };
