@@ -51,6 +51,7 @@ class ExoAbstractPoint extends ExoBaseClass {
   static implements = ExoPointI;
 
   toString() {
+    // @ts-expect-error Property 'self' does not exist on type
     const { self } = this;
     return `<${self.getX()},${self.getY()}>`;
   }
@@ -75,6 +76,7 @@ class ExoPoint extends ExoAbstractPoint {
 
   getX() {
     const {
+      // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
       state: { x },
     } = this;
     return x;
@@ -82,12 +84,14 @@ class ExoPoint extends ExoAbstractPoint {
 
   getY() {
     const {
+      // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
       state: { y },
     } = this;
     return y;
   }
 
   setY(newY) {
+    // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
     const { state } = this;
     state.y = newY;
   }
@@ -139,6 +143,7 @@ class ExoWobblyPoint extends ExoPoint {
 
   getX() {
     const {
+      // @ts-expect-error Property 'state' does not exist on type 'ExoPoint'.
       state: { getWobble },
     } = this;
     return super.getX() + getWobble();
