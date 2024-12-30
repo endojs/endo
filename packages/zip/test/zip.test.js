@@ -19,6 +19,7 @@ test('zip round trip', async t => {
 
   const reader = new ZipReader(writer.snapshot());
   const text = textDecoder.decode(reader.read('hello/hello.txt'));
+  // @ts-expect-error undefined if file not found
   const { mode, date } = reader.stat('hello/hello.txt');
 
   t.is(text, 'Hello, World!\n', 'text should match');
