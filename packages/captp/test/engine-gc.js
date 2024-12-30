@@ -1,6 +1,5 @@
 /* global globalThis */
 export const detectEngineGC = async () => {
-  /** @type {() => void} */
   const globalGC = globalThis.gc;
   if (typeof globalGC === 'function') {
     return globalGC;
