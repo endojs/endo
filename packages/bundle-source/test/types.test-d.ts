@@ -1,6 +1,6 @@
 /* eslint-disable  */
 import { expectType } from 'tsd';
-import { type BundleSourceResult } from '../src';
+import { type BundleSourceResult } from '../src/types.js';
 
 expectType<BundleSourceResult<'endoZipBase64'>>({
   moduleFormat: 'endoZipBase64',

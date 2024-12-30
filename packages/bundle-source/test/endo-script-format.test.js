@@ -5,16 +5,12 @@ import * as url from 'url';
 import bundleSource from '../src/index.js';
 
 /**
- * @template {Partial<object>} Options
  * @param {string} entry
- * @param {Options} options
+ * @param {import('../src/types.js').BundleOptions<'endoScript'>} options
  */
 const generate = async (entry, options = {}) => {
   const entryPath = url.fileURLToPath(new URL(entry, import.meta.url));
-  return bundleSource(entryPath, {
-    format: 'endoScript',
-    ...options,
-  });
+  return bundleSource(entryPath, { format: 'endoScript', ...options });
 };
 
 test('endo script format', async t => {
