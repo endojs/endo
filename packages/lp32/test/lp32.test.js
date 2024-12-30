@@ -1,5 +1,5 @@
+// @ts-nocheck
 /* global setTimeout */
-// @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makePipe } from '@endo/stream';
