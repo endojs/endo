@@ -1,3 +1,4 @@
+// @ts-nocheck
 import babelParser from '@babel/parser';
 import { makeLocationUnmapper } from '../src/location-unmapper.js';
 import { test } from './_prepare-test-env-ava-fixture.js';
