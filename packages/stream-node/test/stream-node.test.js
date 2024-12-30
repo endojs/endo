@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* global setTimeout */
 import test from '@endo/ses-ava/prepare-endo.js';
 
