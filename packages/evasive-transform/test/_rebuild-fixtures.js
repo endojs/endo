@@ -12,7 +12,6 @@
 
 import { rollup } from 'rollup';
 import commonjs from '@rollup/plugin-commonjs';
-// @ts-expect-error xxx typedefs
 import resolve from '@rollup/plugin-node-resolve';
 import path from 'node:path';
 import url from 'node:url';

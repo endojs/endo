@@ -7,7 +7,6 @@
         "../../node_modules/@types/babel__generator"
       ],
     },
-    "strict": true,
     "allowSyntheticDefaultImports": true
   },
   "include": [
