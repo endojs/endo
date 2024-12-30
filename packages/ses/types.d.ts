@@ -583,7 +583,9 @@ declare global {
 
     evaluate(code: string, options?: CompartmentEvaluateOptions): any;
 
-    import(specifier: string): Promise<{ namespace: ModuleExportsNamespace }>;
+    import(
+      specifier: string | null,
+    ): Promise<{ namespace: ModuleExportsNamespace }>;
 
     load(specifier: string): Promise<void>;
 

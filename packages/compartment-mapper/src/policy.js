@@ -173,10 +173,7 @@ export const getPolicyForPackage = (namingKit, policy) => {
   }
   const canonicalName = generateCanonicalName(namingKit);
   if (canonicalName === ATTENUATORS_COMPARTMENT) {
-    return {
-      defaultAttenuator: policy.defaultAttenuator,
-      packages: 'any',
-    };
+    return { defaultAttenuator: policy.defaultAttenuator, packages: 'any' };
   }
   if (policy.resources && policy.resources[canonicalName] !== undefined) {
     return policy.resources[canonicalName];
@@ -258,6 +255,11 @@ export const makeDeferredAttenuatorsProvider = (
     // At the time of this function being called, attenuators compartment won't
     // exist yet, we need to defer looking them up in the compartment to the
     // time of the import function being called.
+    /**
+     *
+     * @param {string | null} attenuatorSpecifier
+     * @returns {Promise<Attenuator>}
+     */
     importAttenuator = async attenuatorSpecifier => {
       if (!attenuatorSpecifier) {
         if (!defaultAttenuator) {
@@ -272,9 +274,7 @@ export const makeDeferredAttenuatorsProvider = (
     };
   }
 
-  return {
-    import: importAttenuator,
-  };
+  return { import: importAttenuator };
 };
 
 /**

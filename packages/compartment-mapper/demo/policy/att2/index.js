@@ -1,3 +1,4 @@
+// @ts-nocheck
 console.log('Attenuator2 imported');
 
 const { create, assign, fromEntries, entries, defineProperties } = Object;
