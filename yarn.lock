@@ -257,7 +257,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -345,7 +345,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -362,7 +362,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -396,7 +396,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.31.0"
     execa: "npm:^9.3.0"
     open: "npm:^9.1.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   bin:
@@ -436,7 +436,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -473,7 +473,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
     ws: "npm:^8.13.0"
@@ -491,7 +491,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -577,7 +577,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -664,7 +664,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -709,7 +709,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -732,7 +732,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -748,7 +748,7 @@ __metadata:
     eslint-config-airbnb-base: "npm:^15.0.0"
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -769,7 +769,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -790,7 +790,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     tsd: "npm:^0.31.2"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -826,7 +826,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -851,7 +851,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -868,7 +868,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -889,7 +889,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   peerDependencies:
@@ -927,7 +927,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -944,7 +944,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -966,7 +966,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -983,7 +983,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     ses: "workspace:^"
     test262-harness: "npm:^10.0.0"
     typescript: "npm:~5.6.3"
@@ -1002,7 +1002,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     tsd: "npm:^0.31.2"
     typescript: "npm:~5.6.3"
   languageName: unknown
@@ -1020,7 +1020,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -1037,7 +1037,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     typescript: "npm:~5.6.3"
   languageName: unknown
   linkType: soft
@@ -9884,12 +9884,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:^3.3.3":
-  version: 3.3.3
-  resolution: "prettier@npm:3.3.3"
+"prettier@npm:^3.5.3":
+  version: 3.5.3
+  resolution: "prettier@npm:3.5.3"
   bin:
     prettier: bin/prettier.cjs
-  checksum: 10c0/b85828b08e7505716324e4245549b9205c0cacb25342a030ba8885aba2039a115dbcf75a0b7ca3b37bc9d101ee61fab8113fc69ca3359f2a226f1ecc07ad2e26
+  checksum: 10c0/3880cb90b9dc0635819ab52ff571518c35bd7f15a6e80a2054c05dbc8a3aa6e74f135519e91197de63705bcb38388ded7e7230e2178432a1468005406238b877
   languageName: node
   linkType: hard
 
@@ -10549,7 +10549,7 @@ __metadata:
     eslint-plugin-import: "npm:^2.31.0"
     eslint-plugin-jsdoc: "npm:^50.6.1"
     lerna: "npm:^8.1.8"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     type-coverage: "npm:^2.29.1"
     typedoc: "npm:^0.26.6"
     typedoc-plugin-markdown: "npm:^4.2.5"
@@ -10781,7 +10781,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
     hermes-engine-cli: "npm:^0.12.0"
-    prettier: "npm:^3.3.3"
+    prettier: "npm:^3.5.3"
     terser: "npm:^5.16.6"
     tsd: "npm:^0.31.2"
     typescript: "npm:~5.6.3"
