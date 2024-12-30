@@ -2,7 +2,7 @@
   "name": "@endo/no-trapping-shim",
   "version": "0.1.0",
   "private": true,
-  "description": null,
+  "description": "shim and ponyfill for no-trapping integrity level",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -20,6 +20,7 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./shim.js": "./shim.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -35,10 +36,7 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@endo/lockdown": "workspace:^",
-    "@endo/ses-ava": "workspace:^",
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "tsd": "^0.31.2",
