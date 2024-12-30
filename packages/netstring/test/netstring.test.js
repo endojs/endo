@@ -1,5 +1,5 @@
+// @ts-nocheck
 /* global setTimeout */
-// @ts-check
 
 import '@endo/init/debug.js';
 
