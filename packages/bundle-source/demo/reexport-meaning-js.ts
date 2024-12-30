@@ -1,3 +1,4 @@
+// @ts-nocheck
 export { meaning } from './meaning.js';
 
 if ((0).toFixed.apply<Number, String>(1) === false) {

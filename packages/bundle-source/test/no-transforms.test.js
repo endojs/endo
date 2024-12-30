@@ -11,6 +11,7 @@ test('no-transforms applies no transforms', async t => {
   const entryPath = url.fileURLToPath(
     new URL(`../demo/circular/a.js`, import.meta.url),
   );
+  // @ts-expect-error Property 'endoZipBase64' does not exist on type '{ moduleFormat: "endoScript"; source: string; } | { moduleFormat: "endoZipBase64"; endoZipBase64: string; endoZipBase64Sha512: string; } | { moduleFormat: "nestedEvaluate"; source: string; sourceMap: string; } | { ...; }'.
   const { endoZipBase64 } = await bundleSource(entryPath, {
     moduleFormat: 'endoZipBase64',
     noTransforms: true,
