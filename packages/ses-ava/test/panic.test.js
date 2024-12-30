@@ -16,6 +16,7 @@ import { PanicEndowmentSymbol, panic, lastResortError } from '@endo/panic';
 const badError = Error('Should exit');
 
 test('panic first resort', async t => {
+  // @ts-expect-error XXX unique symbol
   t.is(PanicEndowmentSymbol, Symbol.for('@endo panic'));
 
   let firstResortHappened = false;
@@ -43,6 +44,7 @@ test('panic using process.abort', t => {
 
   let secondResortHappened = false;
   let catchHappened = false;
+  // @ts-expect-error mock
   globalThis.process ||= {};
   globalThis.process.abort = () => {
     secondResortHappened = true;
@@ -60,6 +62,7 @@ test('panic using process.abort', t => {
 
 test('panic last resort', t => {
   delete globalThis[PanicEndowmentSymbol];
+  // @ts-expect-error 'abort' is not optional on 'process'
   delete globalThis.process.abort;
 
   let catchHappened = false;
