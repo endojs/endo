@@ -148,9 +148,9 @@ test('evadeCensor with elideComments preserves automatically-inserted-semicolon 
   t.is((0, eval)(object.code), undefined);
 });
 
-test('evadeCensor with stripComments preserves automatically-inserted-semicolon (ASI)', t => {
+test('evadeCensor with elideComments preserves automatically-inserted-semicolon (ASI)', t => {
   t.log(
-    'There is no stripComments option. This is a trip-fall in case this is attempted.',
+    'There is no elideComments option. This is a trip-fall in case this is attempted.',
   );
   const comment = `
     (() => {
@@ -159,7 +159,7 @@ test('evadeCensor with stripComments preserves automatically-inserted-semicolon 
     })();
   `;
   const object = evadeCensorSync(comment, {
-    stripComments: true,
+    elideComments: true,
   });
   t.is((0, eval)(comment), undefined);
   t.is((0, eval)(object.code), undefined);
