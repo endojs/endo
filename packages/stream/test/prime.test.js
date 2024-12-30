@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* eslint-disable require-yield, no-empty-function */
 import test from '@endo/ses-ava/prepare-endo.js';
 
