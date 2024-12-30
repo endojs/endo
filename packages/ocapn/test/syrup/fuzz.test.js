@@ -16,7 +16,7 @@ function fuzzyString(budget, random) {
   // if (partition < 0.125) {
   //   // string with lots of unicode
   //   return Array(length)
-  //     .fill()
+  //     .fill(undefined)
   //     .map(() => String.fromCharCode(random() * random() * 65536))
   //     .join('');
   if (partition < 0.25) {
