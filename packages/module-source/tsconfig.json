@@ -6,7 +6,9 @@
   "include": [
     "*.js",
     "*.ts",
+    "scripts",
     "src",
+    "src-xs",
     "test"
   ]
 }
