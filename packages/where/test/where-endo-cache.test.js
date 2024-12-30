@@ -3,6 +3,7 @@ import { whereEndoCache } from '../index.js';
 
 test('windows', t => {
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('win32', {
       LOCALAPPDATA: 'C:\\Users\\Alice\\AppData\\Local',
       APPDATA: 'IGNOREME',
@@ -14,6 +15,7 @@ test('windows', t => {
     'LOCALAPPDATA has highest precedence for locating the Endo cache on Windows.',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('win32', {
       APPDATA: 'C:\\Users\\Alice\\AppData',
       USERPROFILE: 'IGNOREME',
@@ -24,6 +26,7 @@ test('windows', t => {
     'Infer LOCALAPPDATA from APPDATA',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('win32', {
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'C:\\',
@@ -33,6 +36,7 @@ test('windows', t => {
     'Infer LOCALAPPDATA from USERPROFILE',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('win32', {
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
@@ -55,6 +59,7 @@ test('windows', t => {
 
 test('darwin', t => {
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('darwin', {
       XDG_CACHE_HOME: '/Users/alice/.config',
       HOME: 'IGNOREME',
@@ -63,6 +68,7 @@ test('darwin', t => {
     'Prioritize XDG environment if provided, even on a Mac',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('darwin', {
       HOME: '/Users/alice',
     }),
@@ -84,6 +90,7 @@ test('darwin', t => {
 
 test('linux', t => {
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('linux', {
       XDG_CACHE_HOME: '/var/cache/users/alice',
       USER: 'IGNOREME',
@@ -93,6 +100,7 @@ test('linux', t => {
     'Prioritize XDG environment location for caches',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoCache('linux', {
       USER: 'IGNOREME',
       HOME: '/Users/alice',
