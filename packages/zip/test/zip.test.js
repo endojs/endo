@@ -1,4 +1,6 @@
 import test from 'ava';
+import assert from 'node:assert';
+
 import '../src/types.js';
 import { ZipWriter } from '../src/writer.js';
 import { ZipReader } from '../src/reader.js';
@@ -19,7 +21,11 @@ test('zip round trip', async t => {
 
   const reader = new ZipReader(writer.snapshot());
   const text = textDecoder.decode(reader.read('hello/hello.txt'));
-  const { mode, date } = reader.stat('hello/hello.txt');
+  const result = reader.stat('hello/hello.txt');
+  assert(result);
+  const { mode, date } = result;
+  // XXX would use optional chaining but it's currently forbidding 2025-05-28
+  assert(date);
 
   t.is(text, 'Hello, World!\n', 'text should match');
   t.is(mode, 0o600, 'mode should match');
