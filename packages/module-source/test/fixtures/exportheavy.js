@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable */
 console.error("This is a code sample for trying out babel transforms, it's not meant to be run");
 
