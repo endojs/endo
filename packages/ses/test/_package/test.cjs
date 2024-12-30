@@ -1,3 +1,5 @@
+// @ts-nocheck
+/* eslint-disable */
 // node test.cjs
 
 // this is a polyfill for globalThis (eg node v10 and earlier)

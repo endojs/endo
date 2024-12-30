@@ -24,6 +24,7 @@ test('Compartment class', t => {
   );
 
   t.throws(
+    // @ts-expect-error intentional error
     () => Compartment(),
     { instanceOf: TypeError },
     'Compartment must not support the [[Call]] method',

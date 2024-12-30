@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global Buffer */
 import test from 'ava';
 import url from 'url';

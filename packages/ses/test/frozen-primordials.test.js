@@ -12,6 +12,7 @@ test('check if override-protected primordials are frozen', t => {
   t.truthy(Object.isFrozen(Object.prototype.toString));
 
   const desc = getOwnPropertyDescriptor(Object.prototype, 'toString');
+  // @ts-expect-error
   t.is(desc.get.originalValue, Object.prototype.toString);
 });
 

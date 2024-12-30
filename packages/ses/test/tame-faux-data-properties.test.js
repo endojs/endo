@@ -25,6 +25,7 @@ test('unit test tameFauxDataProperty', t => {
   );
 
   t.is(
+    // @ts-expect-error Expected more arguments
     tfdp({
       get foo() {
         return 'bar';
@@ -38,6 +39,7 @@ test('unit test tameFauxDataProperty', t => {
   );
 
   t.is(
+    // @ts-expect-error Expected more arguments
     tfdp({
       get foo() {
         return 'bar';
@@ -111,6 +113,7 @@ test('unit test tameFauxDataProperty', t => {
   );
 
   const desc4 = getOwnPropertyDescriptor(subject4, 'foo');
+  assert(desc4);
   t.deepEqual(
     desc4,
     {

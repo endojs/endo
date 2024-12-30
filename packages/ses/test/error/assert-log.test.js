@@ -353,6 +353,7 @@ test('assert.quote', t => {
     ],
     { wrapWithCausal: true },
   );
+  /** @type {any[]} */
   const list = ['a', 'b', 'c'];
   throwsAndLogs(t, () => assert.fail(X`${q(list)}`), /\["a","b","c"\]/, [
     ['log', 'Caught', Error],
@@ -401,6 +402,7 @@ test('assert.bare', t => {
 
 test('assert.quote as best efforts stringify', t => {
   t.is(`${q('baz')}`, '"baz"');
+  /** @type {any[]} */
   const list = ['a', 'b', 'c'];
   t.is(`${q(list)}`, '["a","b","c"]');
   const repeat = { x: list, y: list };
@@ -480,6 +482,7 @@ test('assert.quote as best efforts stringify', t => {
 
 // See https://github.com/endojs/endo/issues/729
 test('printing detailsToken', t => {
+  // @ts-expect-error intentional error
   t.throws(() => makeError({ __proto__: null }), {
     message: 'unrecognized details {}',
   });
@@ -506,6 +509,7 @@ test('assert.quote tolerates always throwing exotic', t => {
    * throw. Potentially useful in many other tests. TODO put somewhere reusable
    * by other tests.
    */
+  // @ts-expect-error
   const alwaysThrowProxy = new Proxy({ __proto__: null }, alwaysThrowHandler);
 
   t.is(`${q(alwaysThrowProxy)}`, '[Something that failed to stringify]');

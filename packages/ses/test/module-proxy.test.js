@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import { keys, seal, isExtensible } from '../src/commons.js';
 import { deferExports } from '../src/module-proxy.js';

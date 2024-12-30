@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import { createSloppyGlobalsScopeTerminator } from '../src/sloppy-globals-scope-terminator.js';
 

@@ -192,7 +192,7 @@ test('module exports namespace as an object', async t => {
     'object',
     'property descriptor for defined export must be an object',
   );
-  t.is(desc.set, undefined, 'constant export must not be writeable');
+  t.is(desc?.set, undefined, 'constant export must not be writeable');
 
   t.is(
     Object.getPrototypeOf(namespace),
@@ -639,6 +639,7 @@ test('importMetaHook and meta from record', async t => {
       }),
       importMetaHook: (_moduleSpecifier, meta) => {
         meta.url += '?foo';
+        // @ts-expect-error unconventional
         meta.isStillMutableHopefully = 1;
       },
     },

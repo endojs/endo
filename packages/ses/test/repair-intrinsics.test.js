@@ -1,3 +1,4 @@
+// @ts-nocheck
 /// <reference types="ses"/>
 /* global globalThis */
 
