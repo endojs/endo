@@ -10,7 +10,8 @@ const { details: X } = assert;
 if (typeof window !== 'undefined') {
   // Let the browser detect when the tests are done.
   /* eslint-disable-next-line no-undef */
-  window.testDonePromise = new Promise(resolve => {
+  /** @type {any} */ (window).testDonePromise = new Promise(resolve => {
+    // @ts-expect-error FIXME onFinish does not exist
     test.onFinish(() => {
       // Allow the summary to be printed.
       setTimeout(resolve, 1);
@@ -35,6 +36,7 @@ test('handlers are always async', async t => {
       return 'ful';
     },
   };
+  /** @type {any} */
   let resolver2;
   const ep2 = new HandledPromise(resolve => (resolver2 = resolve), {
     applyMethod(p, fn, args) {
@@ -48,6 +50,7 @@ test('handlers are always async', async t => {
       return ep2;
     },
   };
+  /** @type {any} */
   let resolveWithPresence;
   const ep = new HandledPromise((_, _2, rwp) => {
     resolveWithPresence = rwp;
@@ -250,6 +253,7 @@ test('new HandledPromise expected errors', async t => {
   }
 
   // First resolve succeeds.
+  /** @type {any} */
   let resolveWithPresence;
   const p = new HandledPromise((_, _2, rwp) => (resolveWithPresence = rwp));
   const obj = resolveWithPresence(handler);

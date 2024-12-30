@@ -29,6 +29,7 @@ const testDeepStacksE = test.macro({
     const p = alice.test(loggerDescription);
     return p.catch(reason => {
       t.true(reason instanceof Error);
+      // @ts-expect-error unknown
       const log = getLogger(t);
       log('expected failure', reason);
     });

@@ -22,6 +22,7 @@ test('sufficiently hardened', t => {
     for (const key of ownKeys(val)) {
       const keyPath = path.concat(key);
       const desc = getOwnPropertyDescriptor(val, key);
+      assert(desc);
       t.true(
         ownKeys(desc).includes('value'),
         `${q(keyPath)} is a data property`,
@@ -80,6 +81,7 @@ test('no local stalls', async t => {
     },
   };
 
+  /** @type {any} */
   let resolve;
   const p = new HandledPromise(r => (resolve = r));
   resolve(target);
