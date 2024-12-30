@@ -82,7 +82,7 @@ export async function bundleScript(
   );
 
   let source = await makeBundle(powers, entry, {
-    dev,
+    dev: dev || moduleFormat === 'nestedEvaluate' || moduleFormat === 'getExport',
     conditions,
     commonDependencies,
     parserForLanguage,
