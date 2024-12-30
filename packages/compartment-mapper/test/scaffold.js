@@ -1,3 +1,4 @@
+// @ts-nocheck
 import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -22,11 +23,7 @@ import { defaultParserForLanguage as defaultArchiveParserForLanguage } from '../
 
 import { makeReadPowers } from '../src/node-powers.js';
 
-export const readPowers = makeReadPowers({
-  fs,
-  crypto,
-  url,
-});
+export const readPowers = makeReadPowers({ fs, crypto, url });
 
 export const sanitizePaths = (text = '', tolerateLineChange = false) => {
   if (tolerateLineChange) {
@@ -74,9 +71,7 @@ export async function setup() {
     const utility = await loadLocation(readPowers, builtinLocation);
     const { namespace } = await utility.import({ globals });
     // We pass the builtin module into the module map.
-    modules = {
-      builtin: namespace,
-    };
+    modules = { builtin: namespace };
   }
   return { modules, globals };
 }
@@ -88,7 +83,9 @@ export function scaffold(
   assertFixture,
   fixtureAssertionCount,
   {
-    onError,
+    onError = /** @type {undefined | (t, {error, title}) => void} */ (
+      undefined
+    ),
     shouldFailBeforeArchiveOperations = false,
     addGlobals = {},
     policy,
@@ -667,9 +664,7 @@ export function scaffold(
             parserForLanguage,
             ...additionalOptions,
           }),
-        {
-          message: /compartment map failed a SHA-512 integrity check/,
-        },
+        { message: /compartment map failed a SHA-512 integrity check/ },
       );
     });
   }

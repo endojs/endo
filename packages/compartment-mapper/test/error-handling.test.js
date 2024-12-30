@@ -82,7 +82,7 @@ scaffold(
   assertFixture,
   1,
   {
-    onError: (t, { error, _title }) => {
+    onError: (t, { error }) => {
       t.regex(error.message, /obviouslymissing/);
     },
     shouldFailBeforeArchiveOperations: false,
@@ -96,7 +96,7 @@ scaffold(
   assertFixture,
   1,
   {
-    onError: (t, { error, _title }) => {
+    onError: (t, { error }) => {
       t.assert(!error);
     },
     shouldFailBeforeArchiveOperations: false,
