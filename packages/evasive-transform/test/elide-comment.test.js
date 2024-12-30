@@ -97,9 +97,7 @@ test('evadeCensor with elideComments preserves jsdoc @copyright comments', t => 
   const comment = `/**
    * @copyright
    */`;
-  const object = evadeCensorSync(comment, {
-    elideComments: true,
-  });
+  const object = evadeCensorSync(comment, { elideComments: true });
   t.is(object.code, comment);
 });
 
@@ -169,12 +167,10 @@ test('evadeCensor with stripComments preserves automatically-inserted-semicolon 
     })();
   `;
   const object = evadeCensorSync(comment, {
-    // @ts-expect-error no such thing
-    stripComments: true,
+    elideComments: true,
     sourceType: 'script',
   });
   t.is((0, eval)(comment), undefined);
-  // @ts-expect-error should not be a thing
   t.is((0, eval)(object.code), undefined);
 });
 
