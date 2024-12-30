@@ -15,9 +15,7 @@ lockdown();
 
 const start = url.fileURLToPath(new URL('start.js', import.meta.url));
 
-const bundle = await bundleSource(start, {
-  cacheSourceMaps: true,
-});
+const bundle = await bundleSource(start, {});
 await importBundle(
   bundle,
   {

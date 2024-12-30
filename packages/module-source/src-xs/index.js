@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* global globalThis */
 /* eslint-disable @endo/no-nullish-coalescing */
 

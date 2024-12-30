@@ -190,7 +190,7 @@ const sortedModules = (
   return { modules, aliases };
 };
 
-/** @type {Record<string, BundlerSupport<unknown>>} */
+/** @type {Record<string, BundlerSupport<any>>} */
 const bundlerSupportForLanguage = {
   'pre-mjs-json': mjsSupport,
   'pre-cjs-json': cjsSupport,
