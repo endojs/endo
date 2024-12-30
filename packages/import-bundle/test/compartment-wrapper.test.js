@@ -56,6 +56,7 @@ test('wrap', t => {
     inescapableGlobalProperties,
   );
   const endowments = { console };
+  // @ts-expect-error Only a void function can be called with the 'new' keyword.
   const c1 = new WrappedCompartment(endowments);
   check(t, c1, 'c1');
 

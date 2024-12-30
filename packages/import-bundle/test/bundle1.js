@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global globalThis endow1 */
 
 import { bundle2Add, bundle2Transform, bundle2ReadGlobal } from './bundle2.js';
