@@ -11,8 +11,13 @@ const dynamicConfig = {
 // https://github.com/microsoft/TypeScript/issues/30751
 const rootTsProjectGlob = './tsconfig.eslint-full.json';
 const parserOptions = {
+  useProjectService: true,
+  sourceType: 'module',
+  projectService: {
+    allowDefaultProject: ['*.js'],
+    defaultProject: 'tsconfig.json',
+  },
   tsconfigRootDir: path.join(__dirname, '../../../..'),
-  EXPERIMENTAL_useProjectService: true,
   project: [rootTsProjectGlob],
 };
 
