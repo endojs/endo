@@ -1,3 +1,4 @@
+// @ts-nocheck
 import text from './text.text';
 import bytes from './bytes.bytes';
 import uint32 from './uint32.uint32';

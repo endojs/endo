@@ -11,6 +11,7 @@ const fixtureLocation = new URL(
   import.meta.url,
 ).toString();
 
+// @ts-expect-error XXX Node interface munging
 const readPowers = makeReadPowers({ fs, crypto, url });
 
 test('rewrite source url', async t => {

@@ -6,6 +6,7 @@ import test from 'ava';
 import { loadLocation } from '../src/import.js';
 import { makeReadPowers } from '../src/node-powers.js';
 
+// @ts-expect-error XXX Node interface munging
 const readPowers = makeReadPowers({ fs, url });
 const { read } = readPowers;
 

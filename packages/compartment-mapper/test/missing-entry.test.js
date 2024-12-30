@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { makeAndHashArchive } from '../archive.js';
 import { makeReadPowers } from '../node-powers.js';
 
+// @ts-expect-error XXX Node interface munging
 const readPowers = makeReadPowers({ fs, url, crypto });
 
 test('missing entry', async t => {

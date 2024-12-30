@@ -17,6 +17,7 @@ import url from 'node:url';
 import { importLocation } from '../src/import.js';
 import { makeReadNowPowers } from '../src/node-powers.js';
 
+// @ts-expect-error XXX Node interface munging
 const readPowers = makeReadNowPowers({ fs, url, path });
 const { freeze, keys, assign } = Object;
 

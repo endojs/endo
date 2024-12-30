@@ -19,6 +19,7 @@ export const parseJsonp = (bytes, _specifier, _location, _packageLocation) => {
     const compartment = new Compartment({
       __options__: true,
       globals: harden({
+        // @ts-expect-error
         exports(value) {
           exports.default = value;
         },

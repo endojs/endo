@@ -1,3 +1,4 @@
+// @ts-nocheck
 import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -88,7 +89,7 @@ export function scaffold(
   assertFixture,
   fixtureAssertionCount,
   {
-    onError,
+    onError = /** @type {(t, {error, title})} */ (undefined),
     shouldFailBeforeArchiveOperations = false,
     addGlobals = {},
     policy,

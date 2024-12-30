@@ -11,6 +11,7 @@ const fixture = new URL(
   import.meta.url,
 ).toString();
 
+// @ts-expect-error XXX Node interface munging
 const { read } = makeReadPowers({ fs, url });
 
 const expectedLog = [
