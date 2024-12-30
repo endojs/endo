@@ -3,7 +3,9 @@
   "compilerOptions": {
     "allowJs": true,
     "paths": {
-      "@agoric/babel-generator": ["../../node_modules/@types/babel__generator"],
+      "@agoric/babel-generator": [
+        "../../node_modules/@types/babel__generator"
+      ],
     },
     "strict": true,
     "allowSyntheticDefaultImports": true
@@ -11,7 +13,7 @@
   "include": [
     "*.js",
     "*.ts",
-    "src/**/*.js",
-    "src/**/*.ts"
+    "src",
+    "test"
   ]
 }
