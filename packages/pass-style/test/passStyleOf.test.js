@@ -229,6 +229,7 @@ test('passStyleOf testing remotables', t => {
 
   const tagRecord1 = harden(makeTagishRecord('Alleged: manually constructed'));
   const farObj1 = hardenToBeSuppressTrapping({ __proto__: tagRecord1 });
+  // @ts-expect-error XXX PassStyleOf
   t.is(passStyleOf(farObj1), 'remotable');
 
   const tagRecord2 = makeTagishRecord('Alleged: tagRecord not hardened');
@@ -246,6 +247,7 @@ test('passStyleOf testing remotables', t => {
    */
   const farObj2 = freezeToBeSuppressTrapping({ __proto__: tagRecord2 });
   if (harden.isFake) {
+    // @ts-expect-error XXX PassStyleOf
     t.is(passStyleOf(farObj2), 'remotable');
   } else {
     t.throws(() => passStyleOf(farObj2), {
@@ -256,10 +258,12 @@ test('passStyleOf testing remotables', t => {
 
   const tagRecord3 = harden(makeTagishRecord('Alleged: both manually frozen'));
   const farObj3 = hardenToBeSuppressTrapping({ __proto__: tagRecord3 });
+  // @ts-expect-error XXX PassStyleOf
   t.is(passStyleOf(farObj3), 'remotable');
 
   const tagRecord4 = harden(makeTagishRecord('Remotable'));
   const farObj4 = hardenToBeSuppressTrapping({ __proto__: tagRecord4 });
+  // @ts-expect-error XXX PassStyleOf
   t.is(passStyleOf(farObj4), 'remotable');
 
   const tagRecord5 = harden(makeTagishRecord('Not alleging'));
@@ -272,6 +276,7 @@ test('passStyleOf testing remotables', t => {
   const tagRecord6 = harden(makeTagishRecord('Alleged: manually constructed'));
   const farObjProto6 = hardenToBeSuppressTrapping({ __proto__: tagRecord6 });
   const farObj6 = hardenToBeSuppressTrapping({ __proto__: farObjProto6 });
+  // @ts-expect-error XXX PassStyleOf
   t.is(passStyleOf(farObj6), 'remotable', 'tagRecord grandproto is accepted');
 
   // Our current agoric-sdk plans for far classes are to create a class-like
@@ -492,6 +497,7 @@ test('Allow toStringTag overrides', t => {
   t.is(`${q(alice)}`, '"[DebugName: Allison]"');
 
   const carol = hardenToBeSuppressTrapping({ __proto__: alice });
+  // @ts-expect-error XXX PassStyleOf
   t.is(passStyleOf(carol), 'remotable');
   t.is(`${carol}`, '[object DebugName: Allison]');
   t.is(`${q(carol)}`, '"[DebugName: Allison]"');
@@ -500,6 +506,7 @@ test('Allow toStringTag overrides', t => {
     __proto__: carol,
     [Symbol.toStringTag]: 'DebugName: Robert',
   });
+  // @ts-expect-error XXX PassStyleOf
   t.is(passStyleOf(bob), 'remotable');
   t.is(`${bob}`, '[object DebugName: Robert]');
   t.is(`${q(bob)}`, '"[DebugName: Robert]"');

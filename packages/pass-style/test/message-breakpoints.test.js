@@ -1,3 +1,4 @@
+// @ts-nocheck
 import './_prepare-breakpoints.js';
 import test from '@endo/ses-ava/prepare-endo.js';
 
