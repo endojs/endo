@@ -17,7 +17,7 @@ function fuzzyString(budget, random) {
   // if (partition < 0.125) {
   //   // string with lots of unicode
   //   return Array(length)
-  //     .fill()
+  //     .fill(undefined)
   //     .map(() => String.fromCharCode(random() * random() * 65536))
   //     .join('');
   if (partition < 0.25) {
@@ -26,13 +26,13 @@ function fuzzyString(budget, random) {
   } else if (partition < 0.5) {
     // string mostly printable
     return Array(length)
-      .fill()
+      .fill(undefined)
       .map(() => String.fromCharCode(random() * 128))
       .join('');
   } else {
     // lower-case strings
     return Array(length)
-      .fill()
+      .fill(undefined)
       .map(() => String.fromCharCode('a'.charCodeAt(0) + random() * 26))
       .join('');
   }
@@ -49,7 +49,7 @@ function largeFuzzySyrupable(budget, random) {
     // bigint
     return BigInt(
       Array(length)
-        .fill()
+        .fill(undefined)
         .map(() => `${Math.floor(random() * 10)}`)
         .join(''),
     );
@@ -60,7 +60,7 @@ function largeFuzzySyrupable(budget, random) {
     // array
     return (
       new Array(length)
-        .fill()
+        .fill(undefined)
         // Recursion is a thing, yo.
         // eslint-disable-next-line no-use-before-define
         .map(() => fuzzySyrupable(budget / length, random))
@@ -68,7 +68,7 @@ function largeFuzzySyrupable(budget, random) {
   } else {
     // object
     return Object.fromEntries(
-      new Array(length).fill().map(() => [
+      new Array(length).fill(undefined).map(() => [
         fuzzyString(20, random),
         // Recursion is a thing, yo.
         // eslint-disable-next-line no-use-before-define
