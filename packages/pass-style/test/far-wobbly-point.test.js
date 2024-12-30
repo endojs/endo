@@ -66,6 +66,7 @@ const assertMethodNames = (t, obj, names) => {
 
 test('FarPoint instances', t => {
   const pt = new FarPoint(3, 5);
+  // @ts-expect-error xxx typedef
   t.is(passStyleOf(pt), 'remotable');
   t.assert(pt instanceof FarPoint);
   assertMethodNames(t, pt, [
@@ -106,6 +107,7 @@ test('FarWobblyPoint inheritance', t => {
   const wpt = new FarWobblyPoint(3, 5, getWobble);
   t.assert(wpt instanceof FarWobblyPoint);
   t.assert(wpt instanceof FarPoint);
+  // @ts-expect-error xxx typedef
   t.is(passStyleOf(wpt), 'remotable');
   assertMethodNames(t, wpt, [
     GET_METHOD_NAMES,

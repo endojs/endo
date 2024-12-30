@@ -16,6 +16,7 @@ test('safe promise loophole', t => {
 
   {
     const p2 = Promise.resolve('p2');
+    // @ts-expect-error intentional
     p2.silly = 'silly own property';
     t.throws(() => passStyleOf(harden(p2)), {
       message: '"[Promise]" - Must not have any own properties: ["silly"]',
