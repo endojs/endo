@@ -2,6 +2,10 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { q } from '@endo/errors';
+import {
+  hardenOrSuppressTrapping,
+  freezeOrSuppressTrapping,
+} from 'ses/nonTrappingShimAdapter.js';
 
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far, ToFarFunction } from '../src/make-far.js';
@@ -13,35 +17,7 @@ const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   global.harden
 );
 
-const { getPrototypeOf, defineProperty, freeze } = Object;
-/**
- * Local alias of `harden` to eventually be switched to whatever applies
- * the suppress-trapping integrity trait. For the shim at
- * https://github.com/endojs/endo/pull/2673
- * that is `suppressTrapping`, which is why we choose that name for the
- * placeholder here. But it is a separate definition so these aliased uses
- * do not yet depend on the final name.
- *
- * TODO Once we do have support for an explicit `suppressTrapping` operation,
- * we should import that instead, and if necessary rename all uses to that
- * operation's final name.
- */
-const hardenToBeSuppressTrapping = harden;
-
-/**
- * Local alias of `freeze` to eventually be switched to whatever applies
- * the suppress-trapping integrity trait. For the shim at
- * https://github.com/endojs/endo/pull/2673
- * that is `suppressTrapping`, which is why we choose that name for the
- * placeholder here. But it is a separate definition so these aliased uses
- * do not yet depend on the final name.
- *
- * TODO Once we do have support for an explicit `suppressTrapping` operation,
- * we should import that instead, and if necessary rename all uses to that
- * operation's final name.
- */
-const freezeToBeSuppressTrapping = freeze;
-
+const { getPrototypeOf, defineProperty } = Object;
 const { ownKeys } = Reflect;
 
 test('passStyleOf basic success cases', t => {
@@ -224,23 +200,15 @@ test('passStyleOf testing remotables', t => {
   t.is(passStyleOf(Far('foo', () => 'far function')), 'remotable');
 
   const tagRecord1 = harden(makeTagishRecord('Alleged: manually constructed'));
-  const farObj1 = hardenToBeSuppressTrapping({ __proto__: tagRecord1 });
+  const farObj1 = hardenOrSuppressTrapping({ __proto__: tagRecord1 });
   t.is(passStyleOf(farObj1), 'remotable');
 
   const tagRecord2 = makeTagishRecord('Alleged: tagRecord not hardened');
   /**
    * Do not freeze `tagRecord2` in order to test that an object with
    * a non-frozen __proto__ is not passable.
-   *
-   * TODO In order to run this test before we have explicit support for a
-   * non-trapping integrity trait, we have to `freeze` here but not `harden`.
-   * However, once we do have that support, and `passStyleOf` checks that
-   * its argument is also non-trapping, we still need to avoid `harden`
-   * because that would also harden `__proto__`. So we will need to
-   * explicitly make this non-trapping, which we cannot yet express.
-   * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
    */
-  const farObj2 = freezeToBeSuppressTrapping({ __proto__: tagRecord2 });
+  const farObj2 = freezeOrSuppressTrapping({ __proto__: tagRecord2 });
   if (harden.isFake) {
     t.is(passStyleOf(farObj2), 'remotable');
   } else {
@@ -251,23 +219,23 @@ test('passStyleOf testing remotables', t => {
   }
 
   const tagRecord3 = harden(makeTagishRecord('Alleged: both manually frozen'));
-  const farObj3 = hardenToBeSuppressTrapping({ __proto__: tagRecord3 });
+  const farObj3 = hardenOrSuppressTrapping({ __proto__: tagRecord3 });
   t.is(passStyleOf(farObj3), 'remotable');
 
   const tagRecord4 = harden(makeTagishRecord('Remotable'));
-  const farObj4 = hardenToBeSuppressTrapping({ __proto__: tagRecord4 });
+  const farObj4 = hardenOrSuppressTrapping({ __proto__: tagRecord4 });
   t.is(passStyleOf(farObj4), 'remotable');
 
   const tagRecord5 = harden(makeTagishRecord('Not alleging'));
-  const farObj5 = hardenToBeSuppressTrapping({ __proto__: tagRecord5 });
+  const farObj5 = hardenOrSuppressTrapping({ __proto__: tagRecord5 });
   t.throws(() => passStyleOf(farObj5), {
     message:
       /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented/,
   });
 
   const tagRecord6 = harden(makeTagishRecord('Alleged: manually constructed'));
-  const farObjProto6 = hardenToBeSuppressTrapping({ __proto__: tagRecord6 });
-  const farObj6 = hardenToBeSuppressTrapping({ __proto__: farObjProto6 });
+  const farObjProto6 = hardenOrSuppressTrapping({ __proto__: tagRecord6 });
+  const farObj6 = hardenOrSuppressTrapping({ __proto__: farObjProto6 });
   t.is(passStyleOf(farObj6), 'remotable', 'tagRecord grandproto is accepted');
 
   // Our current agoric-sdk plans for far classes are to create a class-like
@@ -321,7 +289,7 @@ test('passStyleOf testing remotables', t => {
   const tagRecordA1 = harden(
     makeTagishRecord('Alleged: null-proto tagRecord proto', null),
   );
-  const farObjA1 = hardenToBeSuppressTrapping({ __proto__: tagRecordA1 });
+  const farObjA1 = hardenOrSuppressTrapping({ __proto__: tagRecordA1 });
   t.throws(
     () => passStyleOf(farObjA1),
     { message: unusualTagRecordProtoMessage },
@@ -331,8 +299,8 @@ test('passStyleOf testing remotables', t => {
   const tagRecordA2 = harden(
     makeTagishRecord('Alleged: null-proto tagRecord grandproto', null),
   );
-  const farObjProtoA2 = hardenToBeSuppressTrapping({ __proto__: tagRecordA2 });
-  const farObjA2 = hardenToBeSuppressTrapping({ __proto__: farObjProtoA2 });
+  const farObjProtoA2 = hardenOrSuppressTrapping({ __proto__: tagRecordA2 });
+  const farObjA2 = hardenOrSuppressTrapping({ __proto__: farObjProtoA2 });
   t.throws(
     () => passStyleOf(farObjA2),
     { message: unusualTagRecordProtoMessage },
@@ -346,10 +314,10 @@ test('passStyleOf testing remotables', t => {
   const fauxTagRecordB = harden(
     makeTagishRecord('Alleged: manually constructed', harden({})),
   );
-  const farObjProtoB = hardenToBeSuppressTrapping({
+  const farObjProtoB = hardenOrSuppressTrapping({
     __proto__: fauxTagRecordB,
   });
-  const farObjB = hardenToBeSuppressTrapping({ __proto__: farObjProtoB });
+  const farObjB = hardenOrSuppressTrapping({ __proto__: farObjProtoB });
   t.throws(() => passStyleOf(farObjB), {
     message:
       'cannot serialize Remotables with non-methods like "Symbol(passStyle)" in "[Alleged: manually constructed]"',
@@ -360,7 +328,7 @@ test('passStyleOf testing remotables', t => {
   );
   Object.defineProperty(farObjProtoWithExtra, 'extra', { value: () => {} });
   harden(farObjProtoWithExtra);
-  const badFarObjExtraProtoProp = hardenToBeSuppressTrapping({
+  const badFarObjExtraProtoProp = hardenOrSuppressTrapping({
     __proto__: farObjProtoWithExtra,
   });
   t.throws(() => passStyleOf(badFarObjExtraProtoProp), {
@@ -426,7 +394,7 @@ test('remotables - safety from the gibson042 attack', t => {
    * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
    */
   const makeInput = () =>
-    freezeToBeSuppressTrapping({ __proto__: mercurialProto });
+    freezeOrSuppressTrapping({ __proto__: mercurialProto });
   const input1 = makeInput();
   const input2 = makeInput();
 
@@ -487,12 +455,12 @@ test('Allow toStringTag overrides', t => {
   t.is(`${alice}`, '[object DebugName: Allison]');
   t.is(`${q(alice)}`, '"[DebugName: Allison]"');
 
-  const carol = hardenToBeSuppressTrapping({ __proto__: alice });
+  const carol = hardenOrSuppressTrapping({ __proto__: alice });
   t.is(passStyleOf(carol), 'remotable');
   t.is(`${carol}`, '[object DebugName: Allison]');
   t.is(`${q(carol)}`, '"[DebugName: Allison]"');
 
-  const bob = hardenToBeSuppressTrapping({
+  const bob = hardenOrSuppressTrapping({
     __proto__: carol,
     [Symbol.toStringTag]: 'DebugName: Robert',
   });

@@ -37,7 +37,8 @@
     "@endo/env-options": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
-    "@endo/promise-kit": "workspace:^"
+    "@endo/promise-kit": "workspace:^",
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "@endo/init": "workspace:^",

@@ -4,6 +4,7 @@
 /** @import {PassStyle} from './types.js' */
 
 import { X, q } from '@endo/errors';
+import { isFrozenOrIsNonTrapping } from 'ses/nonTrappingShimAdapter.js';
 
 const { isArray } = Array;
 const { prototype: functionPrototype } = Function;
@@ -167,6 +168,9 @@ const makeCheckTagRecord = checkProto => {
           CX(check)`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
         (!!check && CX(check)`A tagRecord must be frozen: ${tagRecord}`)) &&
+      (isFrozenOrIsNonTrapping(tagRecord) ||
+        (!!check &&
+          CX(check)`A tagRecord must be non-trapping: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
         (!!check && CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
       checkPassStyle(
