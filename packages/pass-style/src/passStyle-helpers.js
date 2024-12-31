@@ -11,8 +11,10 @@ const {
   getOwnPropertyDescriptor,
   getPrototypeOf,
   hasOwnProperty: objectHasOwnProperty,
-  isFrozen,
   prototype: objectPrototype,
+  isFrozen,
+  // @ts-expect-error TS does not yet have `isNonTrapping` on ObjectConstructor
+  isNonTrapping = isFrozen,
 } = Object;
 const { apply } = Reflect;
 const { toStringTag: toStringTagSymbol } = Symbol;
@@ -167,6 +169,9 @@ const makeCheckTagRecord = checkProto => {
           CX(check)`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
         (!!check && CX(check)`A tagRecord must be frozen: ${tagRecord}`)) &&
+      (isNonTrapping(tagRecord) ||
+        (!!check &&
+          CX(check)`A tagRecord must be non-trapping: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
         (!!check && CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
       checkPassStyle(

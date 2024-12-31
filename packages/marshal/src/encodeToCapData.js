@@ -31,6 +31,8 @@ const {
   entries,
   fromEntries,
   freeze,
+  // @ts-expect-error TS doesn't see this on ObjectConstructor
+  suppressTrapping = freeze,
 } = Object;
 
 /**
@@ -176,10 +178,10 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
             // We harden the entire capData encoding before we return it.
             // `encodeToCapData` requires that its input be Passable, and
             // therefore hardened.
-            // The `freeze` here is needed anyway, because the `rest` is
+            // The `suppressTrapping` here is needed anyway, because the `rest` is
             // freshly constructed by the `...` above, and we're using it
             // as imput in another call to `encodeToCapData`.
-            result.rest = encodeToCapDataRecur(freeze(rest));
+            result.rest = encodeToCapDataRecur(suppressTrapping(rest));
           }
           return result;
         }

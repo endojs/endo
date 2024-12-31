@@ -30,7 +30,6 @@ import {
   apply,
   arrayForEach,
   defineProperty,
-  freeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getPrototypeOf,
@@ -49,6 +48,8 @@ import {
   FERAL_STACK_GETTER,
   FERAL_STACK_SETTER,
   isError,
+  isFrozen,
+  suppressTrapping,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -128,6 +129,10 @@ const freezeTypedArray = array => {
  * @returns {Harden}
  */
 export const makeHardener = () => {
+  // TODO Get the native hardener to suppressTrapping at each step,
+  // rather than freeze. Until then, we cannot use it, which is *expensive*!
+  // TODO Comment out the following to skip the native hardener.
+  //
   // Use a native hardener if possible.
   if (typeof globalThis.harden === 'function') {
     const safeHarden = globalThis.harden;
@@ -182,8 +187,17 @@ export const makeHardener = () => {
         // Also throws if the object is an ArrayBuffer or any TypedArray.
         if (isTypedArray(obj)) {
           freezeTypedArray(obj);
+          if (isFrozen(obj)) {
+            // After `freezeTypedArray`, the typed array might actually be
+            // frozen if
+            // - it has no indexed properties
+            // - it is backed by an Immutable ArrayBuffer as proposed.
+            // In either case, this makes it a candidate to be made
+            // non-trapping.
+            suppressTrapping(obj);
+          }
         } else {
-          freeze(obj);
+          suppressTrapping(obj);
         }
 
         // we rely upon certain commitments of Object.freeze and proxies here

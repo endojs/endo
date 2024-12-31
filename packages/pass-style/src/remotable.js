@@ -24,9 +24,11 @@ const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {
   getPrototypeOf,
-  isFrozen,
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
+  isFrozen,
+  // @ts-expect-error TS does not yet have `isNonTrapping` on ObjectConstructor
+  isNonTrapping = isFrozen,
 } = Object;
 
 /**
@@ -154,10 +156,13 @@ const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  if (!isFrozen(val)) {
-    return (
-      !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
-    );
+  if (!isNonTrapping(val)) {
+    if (!isFrozen(val)) {
+      return (
+        !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
+      );
+    }
+    return !!check && CX(check)`cannot serialize trapping objects like ${val}`;
   }
   // eslint-disable-next-line no-use-before-define
   if (!RemotableHelper.canBeValid(val, check)) {

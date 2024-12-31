@@ -31,7 +31,13 @@ import { assertPassableString } from './string.js';
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 
 const { ownKeys } = Reflect;
-const { isFrozen, getOwnPropertyDescriptors, values } = Object;
+const {
+  getOwnPropertyDescriptors,
+  values,
+  isFrozen,
+  // @ts-expect-error TS does not yet have `isNonTrapping` on ObjectConstructor
+  isNonTrapping = isFrozen,
+} = Object;
 
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
@@ -143,14 +149,17 @@ const makePassStyleOf = passStyleHelpers => {
           if (inner === null) {
             return 'null';
           }
-          if (!isFrozen(inner)) {
-            assert.fail(
-              // TypedArrays get special treatment in harden()
-              // and a corresponding special error message here.
-              isTypedArray(inner)
-                ? X`Cannot pass mutable typed arrays like ${inner}.`
-                : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
-            );
+          if (!isNonTrapping(inner)) {
+            if (!isFrozen(inner)) {
+              throw assert.fail(
+                // TypedArrays get special treatment in harden()
+                // and a corresponding special error message here.
+                isTypedArray(inner)
+                  ? X`Cannot pass mutable typed arrays like ${inner}.`
+                  : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
+              );
+            }
+            throw Fail`Cannot pass trapping objects like ${inner}`;
           }
           if (isPromise(inner)) {
             assertSafePromise(inner);
@@ -177,8 +186,12 @@ const makePassStyleOf = passStyleHelpers => {
           return 'remotable';
         }
         case 'function': {
-          isFrozen(inner) ||
-            Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+          if (!isNonTrapping(inner)) {
+            if (!isFrozen(inner)) {
+              throw Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+            }
+            throw Fail`Cannot pass trapping objects like ${inner}. Use harden()`;
+          }
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
           remotableHelper.assertValid(inner, passStyleOfRecur);
