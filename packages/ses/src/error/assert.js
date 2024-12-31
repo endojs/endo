@@ -305,7 +305,6 @@ export const sanitizeError = error => {
     );
   }
   for (const name of ownKeys(error)) {
-    // @ts-expect-error TS still confused by symbols as property names
     const desc = descs[name];
     if (desc && objectHasOwnProperty(desc, 'get')) {
       defineProperty(error, name, {
