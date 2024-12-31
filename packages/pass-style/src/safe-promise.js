@@ -6,7 +6,26 @@ import { assertChecker, hasOwnPropertyOf, CX } from './passStyle-helpers.js';
 
 /** @import {Checker} from './types.js' */
 
-const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor } = Object;
+const {
+  getPrototypeOf,
+  getOwnPropertyDescriptor,
+  isFrozen,
+
+  // The following is commented out due to
+  // https://github.com/endojs/endo/issues/2094
+  // TODO Once fixed, comment this back in and remove the workaround
+  // immediately below.
+  //
+  // // https://github.com/endojs/endo/pull/2673
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // isNonTrapping = isFrozen,
+} = Object;
+
+// workaround for https://github.com/endojs/endo/issues/2094
+// See commented out code and note immediately above.
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const isNonTrapping = Object.isNonTrapping || isFrozen;
+
 const { ownKeys } = Reflect;
 const { toStringTag } = Symbol;
 
@@ -88,7 +107,7 @@ const checkPromiseOwnKeys = (pr, check) => {
     if (
       typeof val === 'object' &&
       val !== null &&
-      isFrozen(val) &&
+      isNonTrapping(val) &&
       getPrototypeOf(val) === Object.prototype
     ) {
       const subKeys = ownKeys(val);
@@ -133,6 +152,7 @@ const checkPromiseOwnKeys = (pr, check) => {
 const checkSafePromise = (pr, check) => {
   return (
     (isFrozen(pr) || CX(check)`${pr} - Must be frozen`) &&
+    (isNonTrapping(pr) || CX(check)`${pr} - Must be non-trapping`) &&
     (isPromise(pr) || CX(check)`${pr} - Must be a promise`) &&
     (getPrototypeOf(pr) === Promise.prototype ||
       CX(check)`${pr} - Must inherit from Promise.prototype: ${q(

@@ -31,7 +31,25 @@ import { assertPassableString } from './string.js';
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 
 const { ownKeys } = Reflect;
-const { isFrozen, getOwnPropertyDescriptors, values } = Object;
+const {
+  getOwnPropertyDescriptors,
+  values,
+  isFrozen,
+
+  // The following is commented out due to
+  // https://github.com/endojs/endo/issues/2094
+  // TODO Once fixed, comment this back in and remove the workaround
+  // immediately below.
+  //
+  // // https://github.com/endojs/endo/pull/2673
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // isNonTrapping = isFrozen,
+} = Object;
+
+// workaround for https://github.com/endojs/endo/issues/2094
+// See commented out code and note immediately above.
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const isNonTrapping = Object.isNonTrapping || isFrozen;
 
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
@@ -143,14 +161,17 @@ const makePassStyleOf = passStyleHelpers => {
           if (inner === null) {
             return 'null';
           }
-          if (!isFrozen(inner)) {
-            assert.fail(
-              // TypedArrays get special treatment in harden()
-              // and a corresponding special error message here.
-              isTypedArray(inner)
-                ? X`Cannot pass mutable typed arrays like ${inner}.`
-                : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
-            );
+          if (!isNonTrapping(inner)) {
+            if (!isFrozen(inner)) {
+              throw assert.fail(
+                // TypedArrays get special treatment in harden()
+                // and a corresponding special error message here.
+                isTypedArray(inner)
+                  ? X`Cannot pass mutable typed arrays like ${inner}.`
+                  : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
+              );
+            }
+            throw Fail`Cannot pass trapping objects like ${inner}`;
           }
           if (isPromise(inner)) {
             assertSafePromise(inner);
@@ -177,8 +198,12 @@ const makePassStyleOf = passStyleHelpers => {
           return 'remotable';
         }
         case 'function': {
-          isFrozen(inner) ||
-            Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+          if (!isNonTrapping(inner)) {
+            if (!isFrozen(inner)) {
+              throw Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
+            }
+            throw Fail`Cannot pass trapping objects like ${inner}. Use harden()`;
+          }
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
           remotableHelper.assertValid(inner, passStyleOfRecur);

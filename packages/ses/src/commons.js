@@ -14,6 +14,8 @@
 /* global globalThis */
 /* eslint-disable no-restricted-globals */
 
+import './sham-non-trapping/non-trapping-shim.js';
+
 // We cannot use globalThis as the local name since it would capture the
 // lexical name.
 const universalThis = globalThis;
@@ -75,7 +77,24 @@ export const {
   setPrototypeOf,
   values,
   fromEntries,
+  // The following is commented out due to
+  // https://github.com/endojs/endo/issues/2094
+  // TODO Once fixed, comment this back in and remove the workaround
+  // immediately below.
+  //
+  // // https://github.com/endojs/endo/pull/2673
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // isNonTrapping = isFrozen,
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // suppressTrapping = freeze,
 } = Object;
+
+// workaround for https://github.com/endojs/endo/issues/2094
+// See commented out code and note immediately above.
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const isNonTrapping = Object.isNonTrapping || isFrozen;
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const suppressTrapping = Object.suppressTrapping || freeze;
 
 export const {
   species: speciesSymbol,
@@ -125,6 +144,9 @@ export const {
   ownKeys,
   preventExtensions: reflectPreventExtensions,
   set: reflectSet,
+  // https://github.com/endojs/endo/pull/2673
+  isNonTrapping: reflectIsNonTrapping,
+  suppressTrapping: reflectSuppressTrapping,
 } = Reflect;
 
 export const { isArray, prototype: arrayPrototype } = Array;

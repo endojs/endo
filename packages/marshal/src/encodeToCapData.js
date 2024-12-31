@@ -31,7 +31,21 @@ const {
   entries,
   fromEntries,
   freeze,
+
+  // The following is commented out due to
+  // https://github.com/endojs/endo/issues/2094
+  // TODO Once fixed, comment this back in and remove the workaround
+  // immediately below.
+  //
+  // // https://github.com/endojs/endo/pull/2673
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // suppressTrapping = freeze,
 } = Object;
+
+// workaround for https://github.com/endojs/endo/issues/2094
+// See commented out code and note immediately above.
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const suppressTrapping = Object.suppressTrapping || freeze;
 
 /**
  * Special property name that indicates an encoding that needs special
@@ -176,10 +190,10 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
             // We harden the entire capData encoding before we return it.
             // `encodeToCapData` requires that its input be Passable, and
             // therefore hardened.
-            // The `freeze` here is needed anyway, because the `rest` is
+            // The `suppressTrapping` here is needed anyway, because the `rest` is
             // freshly constructed by the `...` above, and we're using it
             // as imput in another call to `encodeToCapData`.
-            result.rest = encodeToCapDataRecur(freeze(rest));
+            result.rest = encodeToCapDataRecur(suppressTrapping(rest));
           }
           return result;
         }
