@@ -608,6 +608,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
+    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -691,7 +692,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/non-trapping-shim@workspace:packages/non-trapping-shim":
+"@endo/non-trapping-shim@workspace:^, @endo/non-trapping-shim@workspace:packages/non-trapping-shim":
   version: 0.0.0-use.local
   resolution: "@endo/non-trapping-shim@workspace:packages/non-trapping-shim"
   dependencies:
@@ -755,6 +756,7 @@ __metadata:
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.31.0"
     prettier: "npm:^3.5.3"
+    ses: "workspace:^"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
@@ -9805,6 +9807,7 @@ __metadata:
     "@endo/env-options": "workspace:^"
     "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/module-source": "workspace:^"
+    "@endo/non-trapping-shim": "workspace:^"
     "@endo/test262-runner": "workspace:^"
     ava: "npm:^6.4.1"
     babel-eslint: "npm:^10.1.0"

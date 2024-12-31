@@ -513,6 +513,9 @@ export const permitted = {
     groupBy: fn,
     // Seen on QuickJS
     __getClass: false,
+    // https://github.com/endojs/endo/pull/2673
+    isNonTrapping: fn,
+    suppressTrapping: fn,
   },
 
   '%ObjectPrototype%': {
@@ -1713,6 +1716,9 @@ export const permitted = {
     set: fn,
     setPrototypeOf: fn,
     '@@toStringTag': 'string',
+    // https://github.com/endojs/endo/pull/2673
+    isNonTrapping: fn,
+    suppressTrapping: fn,
   },
 
   Proxy: {
