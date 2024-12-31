@@ -1,6 +1,7 @@
 /// <reference types="ses"/>
 
 import { Fail, q } from '@endo/errors';
+import { isFrozenOrIsNonTrapping } from 'ses/nonTrappingShimAdapter.js';
 import {
   assertChecker,
   canBeMethod,
@@ -24,7 +25,6 @@ const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {
   getPrototypeOf,
-  isFrozen,
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
 } = Object;
@@ -154,7 +154,7 @@ const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  if (!isFrozen(val)) {
+  if (!isFrozenOrIsNonTrapping(val)) {
     return (
       !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
     );

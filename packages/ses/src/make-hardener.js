@@ -30,7 +30,6 @@ import {
   apply,
   arrayForEach,
   defineProperty,
-  freeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getPrototypeOf,
@@ -49,8 +48,28 @@ import {
   FERAL_STACK_GETTER,
   FERAL_STACK_SETTER,
   isError,
+  isFrozen,
+  freeze,
+  suppressTrapping as optSuppressTrapping,
 } from './commons.js';
 import { assert } from './error/assert.js';
+
+// Just the freezeOrSuppressTrapping portion of nonTrappingShimAdapter.js
+// broken out because `harden` is not yet defined, so we cannot yet import it.
+
+/**
+ * Local alias of `freeze` to eventually be switched to whatever applies
+ * the suppress-trapping integrity trait.
+ */
+const freezeOrSuppressTrapping = optSuppressTrapping || freeze;
+
+/**
+ * The current native hardened in question, from XS, does not suppress trapping.
+ * So, it is only ok to use it if this vat has not opted into
+ * shimming the non-trapping trait. If it has, and we therefore avoid the
+ * native hardener, this is likely *expensive*.
+ */
+const okToUseNativeHardener = optSuppressTrapping === undefined;
 
 /**
  * @import {Harden} from '../types.js'
@@ -128,10 +147,11 @@ const freezeTypedArray = array => {
  * @returns {Harden}
  */
 export const makeHardener = () => {
-  // Use a native hardener if possible.
   if (typeof globalThis.harden === 'function') {
-    const safeHarden = globalThis.harden;
-    return safeHarden;
+    if (okToUseNativeHardener) {
+      const safeHarden = globalThis.harden;
+      return safeHarden;
+    }
   }
 
   const hardened = new WeakSet();
@@ -182,8 +202,17 @@ export const makeHardener = () => {
         // Also throws if the object is an ArrayBuffer or any TypedArray.
         if (isTypedArray(obj)) {
           freezeTypedArray(obj);
+          if (isFrozen(obj)) {
+            // After `freezeTypedArray`, the typed array might actually be
+            // frozen if
+            // - it has no indexed properties
+            // - it is backed by an Immutable ArrayBuffer as proposed.
+            // In either case, this makes it a candidate to be made
+            // non-trapping.
+            freezeOrSuppressTrapping(obj);
+          }
         } else {
-          freeze(obj);
+          freezeOrSuppressTrapping(obj);
         }
 
         // we rely upon certain commitments of Object.freeze and proxies here

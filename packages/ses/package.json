@@ -67,6 +67,7 @@
       "default": "./compartment-shim.js"
     },
     "./console-shim.js": "./console-shim.js",
+    "./nonTrappingShimAdapter.js": "./nonTrappingShimAdapter.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -85,7 +86,8 @@
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
-    "@endo/env-options": "workspace:^"
+    "@endo/env-options": "workspace:^",
+    "@endo/non-trapping-shim": "workspace:^"
   },
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",
