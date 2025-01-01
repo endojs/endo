@@ -128,11 +128,14 @@ const freezeTypedArray = array => {
  * @returns {Harden}
  */
 export const makeHardener = () => {
-  // Use a native hardener if possible.
-  if (typeof globalThis.harden === 'function') {
-    const safeHarden = globalThis.harden;
-    return safeHarden;
-  }
+  // TODO Get the native hardener to suppressTrapping at each step,
+  // rather than freeze. Until then, it is *expensive*!
+  //
+  // // Use a native hardener if possible.
+  // if (typeof globalThis.harden === 'function') {
+  //   const safeHarden = globalThis.harden;
+  //   return safeHarden;
+  // }
 
   const hardened = new WeakSet();
 
