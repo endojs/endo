@@ -13,7 +13,7 @@ const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   global.harden
 );
 
-const { getPrototypeOf, defineProperty } = Object;
+const { getPrototypeOf, defineProperty, freeze } = Object;
 const { ownKeys } = Reflect;
 
 test('passStyleOf basic success cases', t => {
@@ -193,16 +193,22 @@ test('passStyleOf testing remotables', t => {
 
   const tagRecord1 = harden(makeTagishRecord('Alleged: manually constructed'));
   /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  const farObj1 = harden({
-    __proto__: tagRecord1,
-  });
+  const farObj1 = harden({ __proto__: tagRecord1 });
   t.is(passStyleOf(farObj1), 'remotable');
 
   const tagRecord2 = makeTagishRecord('Alleged: tagRecord not hardened');
-  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  const farObj2 = Object.freeze({
-    __proto__: tagRecord2,
-  });
+  /**
+   * TODO In order to run this test before we have explicit support for a
+   * non-trapping integrity trait, we have to `freeze` here but not `harden`.
+   * However, once we do have that support, and `passStyleOf` checks that
+   * its argument is also non-trapping, we still need to avoid `harden`
+   * because that would also hardden `__proto__`. So we will need to
+   * explicitly make this non-trapping, which we cannot yet express.
+   * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+   *
+   * @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385
+   */
+  const farObj2 = freeze({ __proto__: tagRecord2 });
   if (harden.isFake) {
     t.is(passStyleOf(farObj2), 'remotable');
   } else {
@@ -212,39 +218,27 @@ test('passStyleOf testing remotables', t => {
     });
   }
 
-  const tagRecord3 = Object.freeze(
-    makeTagishRecord('Alleged: both manually frozen'),
-  );
+  const tagRecord3 = harden(makeTagishRecord('Alleged: both manually frozen'));
   /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  const farObj3 = Object.freeze({
-    __proto__: tagRecord3,
-  });
+  const farObj3 = harden({ __proto__: tagRecord3 });
   t.is(passStyleOf(farObj3), 'remotable');
 
   const tagRecord4 = harden(makeTagishRecord('Remotable'));
   /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  const farObj4 = harden({
-    __proto__: tagRecord4,
-  });
+  const farObj4 = harden({ __proto__: tagRecord4 });
   t.is(passStyleOf(farObj4), 'remotable');
 
   const tagRecord5 = harden(makeTagishRecord('Not alleging'));
-  const farObj5 = harden({
-    __proto__: tagRecord5,
-  });
+  const farObj5 = harden({ __proto__: tagRecord5 });
   t.throws(() => passStyleOf(farObj5), {
     message:
       /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented/,
   });
 
   const tagRecord6 = harden(makeTagishRecord('Alleged: manually constructed'));
-  const farObjProto6 = harden({
-    __proto__: tagRecord6,
-  });
+  const farObjProto6 = harden({ __proto__: tagRecord6 });
   /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  const farObj6 = harden({
-    __proto__: farObjProto6,
-  });
+  const farObj6 = harden({ __proto__: farObjProto6 });
   t.is(passStyleOf(farObj6), 'remotable', 'tagRecord grandproto is accepted');
 
   // Our current agoric-sdk plans for far classes are to create a class-like
@@ -323,12 +317,8 @@ test('passStyleOf testing remotables', t => {
   const fauxTagRecordB = harden(
     makeTagishRecord('Alleged: manually constructed', harden({})),
   );
-  const farObjProtoB = harden({
-    __proto__: fauxTagRecordB,
-  });
-  const farObjB = harden({
-    __proto__: farObjProtoB,
-  });
+  const farObjProtoB = harden({ __proto__: fauxTagRecordB });
+  const farObjB = harden({ __proto__: farObjProtoB });
   t.throws(() => passStyleOf(farObjB), {
     message:
       'cannot serialize Remotables with non-methods like "Symbol(passStyle)" in "[Alleged: manually constructed]"',
@@ -387,7 +377,16 @@ test('remotables - safety from the gibson042 attack', t => {
     },
   );
 
-  const makeInput = () => Object.freeze({ __proto__: mercurialProto });
+  /**
+   * TODO In order to run this test before we have explicit support for a
+   * non-trapping integrity trait, we have to `freeze` here but not `harden`.
+   * However, once we do have that support, and `passStyleOf` checks that
+   * its argument is also non-trapping, we still need to avoid `harden`
+   * because that would also hardden `__proto__`. So we will need to
+   * explicitly make this non-trapping, which we cannot yet express.
+   * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+   */
+  const makeInput = () => freeze({ __proto__: mercurialProto });
   const input1 = makeInput();
   const input2 = makeInput();
 
