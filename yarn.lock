@@ -702,9 +702,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/no-trapping-shim@workspace:packages/no-trapping-shim":
+"@endo/non-trapping-shim@workspace:packages/non-trapping-shim":
   version: 0.0.0-use.local
-  resolution: "@endo/no-trapping-shim@workspace:packages/no-trapping-shim"
+  resolution: "@endo/non-trapping-shim@workspace:packages/non-trapping-shim"
   dependencies:
     ava: "npm:^6.1.3"
     c8: "npm:^7.14.0"
