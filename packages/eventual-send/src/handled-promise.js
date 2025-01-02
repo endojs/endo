@@ -309,6 +309,9 @@ export const makeHandledPromise = () => {
         if (proxyOpts) {
           const {
             handler: proxyHandler,
+            // The proxy target can be frozen but should not be hardened
+            // so it remains trapping.
+            // See https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
             target: proxyTarget,
             revokerCallback,
           } = proxyOpts;

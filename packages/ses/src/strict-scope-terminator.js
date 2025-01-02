@@ -7,11 +7,17 @@ import {
   freeze,
   getOwnPropertyDescriptors,
   globalThis,
-  immutableObject,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
 const { Fail, quote: q } = assert;
+
+/**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const onlyFrozenObject = freeze(create(null));
 
 /**
  * alwaysThrowHandler
@@ -21,7 +27,7 @@ const { Fail, quote: q } = assert;
  * create one and share it between all Proxy handlers.
  */
 export const alwaysThrowHandler = new Proxy(
-  immutableObject,
+  onlyFrozenObject,
   freeze({
     get(_shadow, prop) {
       Fail`Please report unexpected scope handler trap: ${q(String(prop))}`;
@@ -88,6 +94,6 @@ export const strictScopeTerminatorHandler = freeze(
 );
 
 export const strictScopeTerminator = new Proxy(
-  immutableObject,
+  onlyFrozenObject,
   strictScopeTerminatorHandler,
 );
