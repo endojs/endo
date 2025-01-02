@@ -198,7 +198,6 @@ export const defineExoClassFromJSClass = constructor => {
       return Reflect.construct(constructor, args, new.target);
     }
     const target = makeTarget();
-    defineProperty(target, 'prototype', { value: constructor.prototype });
     const pending = {
       makeContext,
       registerHooks: [registerContext],
