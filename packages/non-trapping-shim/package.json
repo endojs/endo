@@ -1,8 +1,8 @@
 {
-  "name": "@endo/no-trapping-shim",
+  "name": "@endo/non-trapping-shim",
   "version": "0.1.0",
   "private": true,
-  "description": "shim and ponyfill for no-trapping integrity level",
+  "description": "shim and ponyfill for non-trapping integrity trait",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -10,7 +10,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/no-trapping-shim"
+    "directory": "packages/non-trapping-shim"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
