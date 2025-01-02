@@ -58,7 +58,7 @@ test('Data can contain far functions', t => {
   const arrow = Far('arrow', a => a + 1);
   t.is(passStyleOf(harden({ x: 8, foo: arrow })), 'copyRecord');
   const mightBeMethod = a => a + 1;
-  t.throws(() => passStyleOf(freeze({ x: 8, foo: mightBeMethod })), {
+  t.throws(() => passStyleOf(harden({ x: 8, foo: mightBeMethod })), {
     message: /Remotables with non-methods like "x" /,
   });
 });
