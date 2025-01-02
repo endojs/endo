@@ -6,7 +6,7 @@ import '../shim.js';
 
 const { freeze, isFrozen } = Object;
 
-test('no-trapping-pony', async t => {
+test('non-trapping-pony', async t => {
   const specimen = { foo: 8 };
 
   const sillyHandler = freeze({
@@ -17,13 +17,13 @@ test('no-trapping-pony', async t => {
 
   const safeProxy = new Proxy(specimen, sillyHandler);
 
-  t.false(Reflect.isNoTrapping(specimen));
+  t.false(Reflect.isNonTrapping(specimen));
   t.false(isFrozen(specimen));
   t.deepEqual(safeProxy.foo, [specimen, 'foo', safeProxy]);
 
   t.true(Reflect.suppressTrapping(specimen));
 
-  t.true(Reflect.isNoTrapping(specimen));
+  t.true(Reflect.isNonTrapping(specimen));
   t.true(isFrozen(specimen));
   t.deepEqual(safeProxy.foo, 8);
 });

@@ -4,48 +4,48 @@ const OriginalProxy = Proxy;
 const { freeze, defineProperty, hasOwn } = OriginalObject;
 const { apply, construct, ownKeys } = OriginalReflect;
 
-const noTrappingSet = new WeakSet();
+const nonTrappingSet = new WeakSet();
 
 const proxyHandlerMap = new WeakMap();
 
 const isPrimitive = specimen => OriginalObject(specimen) !== specimen;
 
 /**
- * Corresponds to the internal function shared by `Object.isNoTrapping` and
- * `Reflect.isNoTrapping`.
+ * Corresponds to the internal function shared by `Object.isNonTrapping` and
+ * `Reflect.isNonTrapping`.
  *
  * @param {any} specimen
  * @param {boolean} shouldThrow
  * @returns {boolean}
  */
-const isNoTrappingInternal = (specimen, shouldThrow) => {
-  if (noTrappingSet.has(specimen)) {
+const isNonTrappingInternal = (specimen, shouldThrow) => {
+  if (nonTrappingSet.has(specimen)) {
     return true;
   }
   if (!proxyHandlerMap.has(specimen)) {
     return false;
   }
   const [target, handler] = proxyHandlerMap.get(specimen);
-  if (isNoTrappingInternal(target, shouldThrow)) {
-    noTrappingSet.add(specimen);
+  if (isNonTrappingInternal(target, shouldThrow)) {
+    nonTrappingSet.add(specimen);
     return true;
   }
-  const trap = handler.isNoTrapping;
+  const trap = handler.isNonTrapping;
   if (trap === undefined) {
     return false;
   }
   const result = apply(trap, handler, [target]);
-  const ofTarget = isNoTrappingInternal(target, shouldThrow);
+  const ofTarget = isNonTrappingInternal(target, shouldThrow);
   if (result !== ofTarget) {
     if (shouldThrow) {
       throw TypeError(
-        `'isNoTrapping' proxy trap does not reflect 'isNoTrapping' of proxy target (which is '${ofTarget}')`,
+        `'isNonTrapping' proxy trap does not reflect 'isNonTrapping' of proxy target (which is '${ofTarget}')`,
       );
     }
     return false;
   }
   if (result) {
-    noTrappingSet.add(specimen);
+    nonTrappingSet.add(specimen);
   }
   return result;
 };
@@ -59,49 +59,49 @@ const isNoTrappingInternal = (specimen, shouldThrow) => {
  * @returns {boolean}
  */
 const suppressTrappingInternal = (specimen, shouldThrow) => {
-  if (noTrappingSet.has(specimen)) {
+  if (nonTrappingSet.has(specimen)) {
     return true;
   }
   freeze(specimen);
   if (!proxyHandlerMap.has(specimen)) {
-    noTrappingSet.add(specimen);
+    nonTrappingSet.add(specimen);
     return true;
   }
   const [target, handler] = proxyHandlerMap.get(specimen);
-  if (isNoTrappingInternal(target, shouldThrow)) {
-    noTrappingSet.add(specimen);
+  if (isNonTrappingInternal(target, shouldThrow)) {
+    nonTrappingSet.add(specimen);
     return true;
   }
   const trap = handler.suppressTrapping;
   if (trap === undefined) {
     const result = suppressTrappingInternal(target, shouldThrow);
     if (result) {
-      noTrappingSet.add(specimen);
+      nonTrappingSet.add(specimen);
     }
     return result;
   }
   const result = apply(trap, handler, [target]);
-  const ofTarget = isNoTrappingInternal(target, shouldThrow);
+  const ofTarget = isNonTrappingInternal(target, shouldThrow);
   if (result !== ofTarget) {
     if (shouldThrow) {
       throw TypeError(
-        `'suppressTrapping' proxy trap does not reflect 'isNoTrapping' of proxy target (which is '${ofTarget}')`,
+        `'suppressTrapping' proxy trap does not reflect 'isNonTrapping' of proxy target (which is '${ofTarget}')`,
       );
     }
     return false;
   }
   if (result) {
-    noTrappingSet.add(specimen);
+    nonTrappingSet.add(specimen);
   }
   return result;
 };
 
 export const extraReflectMethods = freeze({
-  isNoTrapping(target) {
+  isNonTrapping(target) {
     if (isPrimitive(target)) {
-      throw TypeError('Reflect.isNoTrapping called on non-object');
+      throw TypeError('Reflect.isNonTrapping called on non-object');
     }
-    return isNoTrappingInternal(target, false);
+    return isNonTrappingInternal(target, false);
   },
   suppressTrapping(target) {
     if (isPrimitive(target)) {
@@ -112,11 +112,11 @@ export const extraReflectMethods = freeze({
 });
 
 export const extraObjectMethods = freeze({
-  isNoTrapping(target) {
+  isNonTrapping(target) {
     if (isPrimitive(target)) {
       return true;
     }
-    return isNoTrappingInternal(target, true);
+    return isNonTrappingInternal(target, true);
   },
   suppressTrapping(target) {
     if (isPrimitive(target)) {
@@ -125,7 +125,7 @@ export const extraObjectMethods = freeze({
     if (suppressTrappingInternal(target, true)) {
       return target;
     }
-    throw TypeError('preventExtensions trap returned falsy');
+    throw TypeError('suppressTrapping trap returned falsy');
   },
 });
 
@@ -167,6 +167,17 @@ ObjectPlus.prototype = OriginalObject.prototype;
 addExtras(ObjectPlus, OriginalObject, extraObjectMethods);
 export { ObjectPlus };
 
+/**
+ * A way to store the `originalHandler` on the `handlerPlus` without
+ * possible conflict with an future trap name.
+ *
+ * Normally, we'd use a WeakMap for this, so the property is also
+ * undiscoverable. But in this case, the `handlerPlus` objects are
+ * safely encapsulated within this module, so no one is in a position to
+ * discovery this property by inspection.
+ */
+const ORIGINAL_HANDLER = Symbol('OriginalHandler');
+
 const metaHandler = freeze({
   get(_, trapName, handlerPlus) {
     /**
@@ -182,7 +193,7 @@ const metaHandler = freeze({
      * @param {any[]} rest
      */
     const trapPlus = freeze((target, ...rest) => {
-      if (isNoTrappingInternal(target, true)) {
+      if (isNonTrappingInternal(target, true)) {
         defineProperty(handlerPlus, trapName, {
           value: undefined,
           writable: false,
@@ -198,7 +209,7 @@ const metaHandler = freeze({
             configurable: true,
           });
         }
-        const { originalHandler } = handlerPlus;
+        const { [ORIGINAL_HANDLER]: originalHandler } = handlerPlus;
         const trap = originalHandler[trapName];
         if (trap !== undefined) {
           // Note that whether `trap === undefined` can change dynamically,
@@ -225,7 +236,7 @@ const metaHandler = freeze({
  *
  * @param {ProxyHandler<any>} originalHandler
  * @returns {ProxyHandler<any> & {
- *   isNoTrapping: (target: any) => boolean,
+ *   isNonTrapping: (target: any) => boolean,
  *   suppressTrapping: (target: any) => boolean,
  *   originalHandler: ProxyHandler<any>
  * }}
@@ -233,19 +244,11 @@ const metaHandler = freeze({
 const makeHandlerPlus = originalHandler => ({
   // @ts-expect-error TS does not know what this __proto__ is doing
   __proto__: new OriginalProxy({}, metaHandler),
-  // relies on there never being a trap named `originalHandler`.
-  originalHandler,
+  [ORIGINAL_HANDLER]: originalHandler,
 });
 
-/**
- * In the shim, `ProxyPlus` replaces the global `Proxy`.
- *
- * @type {ProxyConstructor}
- */
-// @ts-expect-error We reject non-new calls in the body
-const ProxyPlus = function Proxy(target, handler) {
-  // @ts-expect-error Yes, we mean to compare these.
-  if (new.target !== ProxyPlus) {
+const ProxyInternal = function Proxy(target, handler) {
+  if (new.target !== ProxyInternal) {
     if (new.target === undefined) {
       throw TypeError('Proxy constructor requires "new"');
     }
@@ -256,10 +259,18 @@ const ProxyPlus = function Proxy(target, handler) {
   proxyHandlerMap.set(proxy, [target, handler]);
   return proxy;
 };
-// The `OriginalProxy` is both constructible (i.e., responsive to `new`) and
-// lacks a `prototype` property. The closest we can come to this is to set
-// `ProxyPlus.prototype` to `undefined`
-ProxyPlus.prototype = undefined;
+
+/**
+ * In the shim, `ProxyPlus` replaces the global `Proxy`.
+ *
+ * We use `bind` as the only way for user code to produce a
+ * constructible function (i.e., one that responds to `new`) without a
+ * `.prototype` property.
+ *
+ * @type {ProxyConstructor}
+ */
+const ProxyPlus = ProxyInternal.bind(undefined);
+
 ProxyPlus.revocable = (target, handler) => {
   const handlerPlus = makeHandlerPlus(handler);
   const { proxy, revoke } = OriginalProxy.revocable(target, handlerPlus);
@@ -267,7 +278,7 @@ ProxyPlus.revocable = (target, handler) => {
   return {
     proxy,
     revoke() {
-      if (isNoTrappingInternal(target, true)) {
+      if (isNonTrappingInternal(target, true)) {
         throw TypeError('Cannot revoke non-trapping proxy');
       }
       revoke();
