@@ -2,7 +2,7 @@ import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
 const { details: X, quote: q, Fail, error: makeError } = assert;
-const { assign, create } = Object;
+const { assign, create, freeze } = Object;
 
 /**
  * @import { HandledPromiseConstructor } from './types.js';
@@ -10,7 +10,12 @@ const { assign, create } = Object;
 
 const onSend = makeMessageBreakpointTester('ENDO_SEND_BREAKPOINTS');
 
-/** @type {ProxyHandler<any>} */
+/**
+ * While the resulting proxy can be frozen, it refuses to be made non-trapping
+ * and so cannot be hardened once harden implies non-trapping.
+ *
+ * @type {ProxyHandler<any>}
+ */
 const baseFreezableProxyHandler = {
   set(_target, _prop, _value) {
     return false;
@@ -22,6 +27,10 @@ const baseFreezableProxyHandler = {
     return false;
   },
   deleteProperty(_target, _prop) {
+    return false;
+  },
+  // @ts-expect-error suppressTrapping is not yet in the TS ProxyHandler
+  suppressTrapping(_target) {
     return false;
   },
 };
@@ -171,6 +180,13 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
  * @param {HandledPromiseConstructor} HandledPromise
  */
 const makeE = HandledPromise => {
+  // Note the use of `freeze` rather than `harden` below. This is because
+  // `harden` will imply no-trapping, and we depend on proxies with these
+  // almost-empty targets to remain trapping for traps `get`, `apply`, and `set`
+  // which can still be interesting even when the target is frozen.
+  // `get` and `has`, if not naming an own property, are still general traps,
+  // which we rely on. `apply`, surprisingly perhaps, is free to ignore the
+  // target's call behavior and just do its own thing instead.
   return harden(
     assign(
       /**
@@ -182,8 +198,12 @@ const makeE = HandledPromise => {
        * @param {T} x target for method/function call
        * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
        */
-      // @ts-expect-error XXX typedef
-      x => harden(new Proxy(() => {}, makeEProxyHandler(x, HandledPromise))),
+      x =>
+        // @ts-expect-error XXX typedef
+        new Proxy(
+          freeze(() => {}),
+          makeEProxyHandler(x, HandledPromise),
+        ),
       {
         /**
          * E.get(x) returns a proxy on which you can get arbitrary properties.
@@ -198,8 +218,9 @@ const makeE = HandledPromise => {
          */
         get: x =>
           // @ts-expect-error XXX typedef
-          harden(
-            new Proxy(create(null), makeEGetProxyHandler(x, HandledPromise)),
+          new Proxy(
+            freeze(create(null)),
+            makeEGetProxyHandler(x, HandledPromise),
           ),
 
         /**
@@ -224,8 +245,9 @@ const makeE = HandledPromise => {
          */
         sendOnly: x =>
           // @ts-expect-error XXX typedef
-          harden(
-            new Proxy(() => {}, makeESendOnlyProxyHandler(x, HandledPromise)),
+          new Proxy(
+            freeze(() => {}),
+            makeESendOnlyProxyHandler(x, HandledPromise),
           ),
 
         /**

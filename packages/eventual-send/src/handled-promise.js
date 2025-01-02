@@ -312,16 +312,29 @@ export const makeHandledPromise = () => {
             target: proxyTarget,
             revokerCallback,
           } = proxyOpts;
+
+          // While the resulting proxy can be frozen, by default,
+          // it refuses to be made non-trapping and so cannot be hardened
+          // once harden implies non-trapping.
+          // However, we allow proxyOpts.proxyHandler to explicitly override
+          // this default `suppressTrapping`.
+          // TODO Should we allow this override?
+          const fullProxyHandler = {
+            suppressTrapping(_target) {
+              return false;
+            },
+            ...proxyHandler,
+          };
           if (revokerCallback) {
             // Create a proxy and its revoke function.
             const { proxy, revoke } = Proxy.revocable(
               proxyTarget,
-              proxyHandler,
+              fullProxyHandler,
             );
             presence = proxy;
             revokerCallback(revoke);
           } else {
-            presence = new Proxy(proxyTarget, proxyHandler);
+            presence = new Proxy(proxyTarget, fullProxyHandler);
           }
         } else {
           // Default presence.

@@ -3,13 +3,18 @@ import {
   create,
   freeze,
   getOwnPropertyDescriptors,
-  immutableObject,
   reflectSet,
 } from './commons.js';
 import {
   strictScopeTerminatorHandler,
   alwaysThrowHandler,
 } from './strict-scope-terminator.js';
+
+/**
+ * Once harden implies non-trapping, this must not be hardened, and so
+ * should not be shared outside this module.
+ */
+const onlyFrozenObject = freeze(create(null));
 
 /*
  * createSloppyGlobalsScopeTerminator()
@@ -45,7 +50,7 @@ export const createSloppyGlobalsScopeTerminator = globalObject => {
   );
 
   const sloppyGlobalsScopeTerminator = new Proxy(
-    immutableObject,
+    onlyFrozenObject,
     sloppyGlobalsScopeTerminatorHandler,
   );
 

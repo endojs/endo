@@ -200,7 +200,7 @@ test('passStyleOf testing remotables', t => {
 
   const tagRecord2 = makeTagishRecord('Alleged: tagRecord not hardened');
   /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  const farObj2 = Object.freeze({
+  const farObj2 = harden({
     __proto__: tagRecord2,
   });
   if (harden.isFake) {
@@ -212,11 +212,9 @@ test('passStyleOf testing remotables', t => {
     });
   }
 
-  const tagRecord3 = Object.freeze(
-    makeTagishRecord('Alleged: both manually frozen'),
-  );
+  const tagRecord3 = harden(makeTagishRecord('Alleged: both manually frozen'));
   /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  const farObj3 = Object.freeze({
+  const farObj3 = harden({
     __proto__: tagRecord3,
   });
   t.is(passStyleOf(farObj3), 'remotable');
@@ -387,7 +385,7 @@ test('remotables - safety from the gibson042 attack', t => {
     },
   );
 
-  const makeInput = () => Object.freeze({ __proto__: mercurialProto });
+  const makeInput = () => harden({ __proto__: mercurialProto });
   const input1 = makeInput();
   const input2 = makeInput();
 

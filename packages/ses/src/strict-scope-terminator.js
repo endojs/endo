@@ -7,11 +7,16 @@ import {
   freeze,
   getOwnPropertyDescriptors,
   globalThis,
-  immutableObject,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
 const { Fail, quote: q } = assert;
+
+/**
+ * Once harden implies non-trapping, this must not be hardened, and so
+ * should not be shared outside this module.
+ */
+const onlyFrozenObject = freeze(create(null));
 
 /**
  * alwaysThrowHandler
@@ -21,7 +26,7 @@ const { Fail, quote: q } = assert;
  * create one and share it between all Proxy handlers.
  */
 export const alwaysThrowHandler = new Proxy(
-  immutableObject,
+  onlyFrozenObject,
   freeze({
     get(_shadow, prop) {
       Fail`Please report unexpected scope handler trap: ${q(String(prop))}`;
@@ -34,6 +39,11 @@ export const alwaysThrowHandler = new Proxy(
  * scopeTerminatorHandler manages a strictScopeTerminator Proxy which serves as
  * the final scope boundary that will always return "undefined" in order
  * to prevent access to "start compartment globals".
+ *
+ * While the resulting proxy can be frozen, it refuses to be made non-trapping
+ * and so cannot be hardened once harden implies non-trapping.
+ *
+ * @type {ProxyHandler<any>}
  */
 const scopeProxyHandlerProperties = {
   get(_shadow, _prop) {
@@ -75,6 +85,10 @@ const scopeProxyHandlerProperties = {
   ownKeys(_shadow) {
     return [];
   },
+
+  suppressTrapping(_target) {
+    return false;
+  },
 };
 
 // The scope handler's prototype is a proxy that throws if any trap other
@@ -88,6 +102,6 @@ export const strictScopeTerminatorHandler = freeze(
 );
 
 export const strictScopeTerminator = new Proxy(
-  immutableObject,
+  onlyFrozenObject,
   strictScopeTerminatorHandler,
 );
