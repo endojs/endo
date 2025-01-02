@@ -1,5 +1,5 @@
 /* global globalThis */
-import { ReflectPlus, ObjectPlus, ProxyPlus } from './src/no-trapping-pony.js';
+import { ReflectPlus, ObjectPlus, ProxyPlus } from './src/non-trapping-pony.js';
 
 globalThis.Reflect = ReflectPlus;
 
