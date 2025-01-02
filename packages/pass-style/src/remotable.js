@@ -24,10 +24,9 @@ const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {
   getPrototypeOf,
+  isFrozen,
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
-  // @ts-expect-error TS does not yet have `isNoTrapping` on ObjectConstructor
-  isNoTrapping,
 } = Object;
 
 /**
@@ -155,7 +154,7 @@ const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  if (!isNoTrapping(val)) {
+  if (!isFrozen(val)) {
     return (
       !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
     );

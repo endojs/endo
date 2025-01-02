@@ -6,11 +6,9 @@ import { assertChecker, hasOwnPropertyOf, CX } from './passStyle-helpers.js';
 
 /** @import {Checker} from './types.js' */
 
-const {
+const { isFrozen,
   getPrototypeOf,
   getOwnPropertyDescriptor,
-  // @ts-expect-error TS does not yet have `isNoTrapping` on ObjectConstructor
-  isNoTrapping,
 } = Object;
 const { ownKeys } = Reflect;
 const { toStringTag } = Symbol;
@@ -93,7 +91,7 @@ const checkPromiseOwnKeys = (pr, check) => {
     if (
       typeof val === 'object' &&
       val !== null &&
-      isNoTrapping(val) &&
+      isFrozen(val) &&
       getPrototypeOf(val) === Object.prototype
     ) {
       const subKeys = ownKeys(val);
@@ -137,7 +135,7 @@ const checkPromiseOwnKeys = (pr, check) => {
  */
 const checkSafePromise = (pr, check) => {
   return (
-    (isNoTrapping(pr) || CX(check)`${pr} - Must be frozen`) &&
+    (isFrozen(pr) || CX(check)`${pr} - Must be frozen`) &&
     (isPromise(pr) || CX(check)`${pr} - Must be a promise`) &&
     (getPrototypeOf(pr) === Promise.prototype ||
       CX(check)`${pr} - Must inherit from Promise.prototype: ${q(
