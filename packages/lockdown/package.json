@@ -19,7 +19,7 @@
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'",
-    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
+    "postpack": "git clean -fX '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
     "ses": "workspace:^"
