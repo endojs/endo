@@ -9,13 +9,14 @@
 /* eslint-disable max-classes-per-file */
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import { Fail, q } from '@endo/errors';
+import { objectMap } from '@endo/common/object-map.js';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { passStyleOf, Far, GET_METHOD_NAMES } from '@endo/pass-style';
 import { M } from '@endo/patterns';
 
-import { Fail, q } from '@endo/errors';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
-import { defineExoClass } from '../src/exo-makers.js';
+import { defineExoClass, defineExoClassKit } from '../src/exo-makers.js';
 
 const { apply } = Reflect;
 
@@ -39,6 +40,16 @@ harden(ExoBaseClass);
 const defineExoClassFromJSClass = klass =>
   defineExoClass(klass.name, klass.implements, klass.init, klass.prototype);
 harden(defineExoClassFromJSClass);
+
+// Need an example use.
+// eslint-disable-next-line no-unused-vars
+const defineExoClassKitFromJSClassKit = (name, init, klassKit) =>
+  defineExoClassKit(
+    name,
+    objectMap(klassKit, klass => klass.implements),
+    init,
+    objectMap(klassKit, klass => klass.prototype),
+  );
 
 const ExoPointI = M.interface('ExoPoint', {
   toString: M.call().returns(M.string()),
