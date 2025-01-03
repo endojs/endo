@@ -270,6 +270,7 @@ const ProxyInternal = function Proxy(target, handler) {
  * @type {ProxyConstructor}
  */
 const ProxyPlus = ProxyInternal.bind(undefined);
+defineProperty(ProxyPlus, 'name', { value: 'Proxy' });
 
 ProxyPlus.revocable = (target, handler) => {
   const handlerPlus = makeHandlerPlus(handler);
