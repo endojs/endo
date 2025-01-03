@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global globalThis, $262 */
 
 // Use a package self-reference to go through the "exports" resolution

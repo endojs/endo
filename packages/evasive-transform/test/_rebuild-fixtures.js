@@ -30,6 +30,7 @@ for await (const fixture of FIXTURES) {
       ),
     ),
     treeshake: false,
+    // @ts-expect-error xxx typedefs
     plugins: [resolve({ preferBuiltins: true }), commonjs()],
   });
 

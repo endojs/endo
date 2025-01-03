@@ -33,6 +33,7 @@ test('test env options present', t => {
     message:
       'Environment option named "BAD", if present, must have a corresponding string value, got ["not a string"]',
   });
+  // @ts-expect-error intentional error
   t.throws(() => getEnvironmentOption('WORSE', ['none']), {
     message: 'Environment option default setting ["none"] must be a string.',
   });

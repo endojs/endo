@@ -13,6 +13,7 @@ const { keys, entries, fromEntries } = Object;
 test('captureFromMap() should resolve with a CaptureResult', async t => {
   t.plan(5);
 
+  // @ts-expect-error XXX Node interface munging
   const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-0/node_modules/bundle/main.js',
@@ -65,6 +66,7 @@ test('captureFromMap() should resolve with a CaptureResult', async t => {
 });
 
 test('captureFromMap() should round-trip sources based on parsers', async t => {
+  // @ts-expect-error XXX Node interface munging
   const readPowers = makeReadPowers({ fs, url });
   const moduleLocation = `${new URL(
     'fixtures-0/node_modules/bundle/main.js',

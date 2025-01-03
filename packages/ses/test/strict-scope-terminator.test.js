@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import { strictScopeTerminator } from '../src/strict-scope-terminator.js';
 

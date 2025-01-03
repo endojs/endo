@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { evadeCensorSync } from '../src/index.js';
 import { test } from './_prepare-test-env-ava-fixture.js';
 

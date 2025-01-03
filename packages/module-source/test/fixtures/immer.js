@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable */
 // Copyright (c) 2017 Michel Weststrate
 // copied from https://npmfs.com/package/immer/9.0.6/dist/immer.esm.js

@@ -871,7 +871,7 @@ export const makeCapTP = (
   };
 
   // Abort a connection.
-  const abort = (reason = undefined) => {
+  const abort = reason => {
     dispatch({ type: 'CTP_DISCONNECT', epoch, reason });
   };
 

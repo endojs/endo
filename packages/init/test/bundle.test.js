@@ -11,6 +11,7 @@ import { makeArchive } from '@endo/compartment-mapper';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 test('Can be bundled', async t => {
+  // @ts-expect-error XXX Node interface munging
   const powers = makeReadPowers({ fs, url, crypto });
 
   await t.notThrowsAsync(() =>

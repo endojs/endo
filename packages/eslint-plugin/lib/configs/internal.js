@@ -11,8 +11,13 @@ const dynamicConfig = {
 // https://github.com/microsoft/TypeScript/issues/30751
 const rootTsProjectGlob = './tsconfig.eslint-full.json';
 const parserOptions = {
+  useProjectService: true,
+  sourceType: 'module',
+  projectService: {
+    allowDefaultProject: ['*.js'],
+    defaultProject: 'tsconfig.json',
+  },
   tsconfigRootDir: path.join(__dirname, '../../../..'),
-  EXPERIMENTAL_useProjectService: true,
   project: [rootTsProjectGlob],
 };
 
@@ -28,12 +33,14 @@ dynamicConfig.overrides.push({
   parserOptions,
   rules,
 });
-// Downgrade restrict-plus-operands to a warning for test files
-// until we have time to clean them up.
 dynamicConfig.overrides.push({
   files: ['**/test/**/*.{js,ts}'],
   rules: {
+    // Downgrade restrict-plus-operands to a warning for test files
+    // until we have time to clean them up.
     '@typescript-eslint/restrict-plus-operands': 'warn',
+    // XXX override for RESM concession below
+    '@endo/no-optional-chaining': 'off',
   },
 });
 

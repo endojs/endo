@@ -66,7 +66,6 @@ test('no-import-expression regexp', t => {
     () => rejectImportExpressions(multiline),
     { instanceOf: SyntaxError },
     'possible import expression rejected around line 2',
-    'multiline',
   );
   t.throws(
     () => rejectImportExpressions(spread),
@@ -196,7 +195,6 @@ test('no-eval-expression regexp', t => {
     () => rejectSomeDirectEvalExpressions(multiline),
     { instanceOf: SyntaxError },
     'possible direct eval expression rejected around line 2',
-    'multiline',
   );
 
   // mentioning eval() in a comment *should* be safe, but requires a full

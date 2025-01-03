@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global Iterator */
 import './_enforce-cjs-strict.js';
 import './_core-js-configuration.js';

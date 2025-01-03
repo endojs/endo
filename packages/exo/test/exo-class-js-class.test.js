@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable max-classes-per-file */
 /* eslint-disable class-methods-use-this */
 import test from '@endo/ses-ava/prepare-endo.js';

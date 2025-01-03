@@ -88,8 +88,9 @@ test('invalid encodings', t => {
   ];
   for (const [badInput, message] of badInputs) {
     t.throws(
+      // @ts-expect-error intentional error
       () => decodeBase64(badInput),
-      message && { message },
+      message ? { message } : undefined,
       `${badInput} is rejected`,
     );
   }

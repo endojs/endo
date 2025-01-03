@@ -37,7 +37,8 @@ export const make = () => {
   };
 
   /**
-   * @type {NameHub['write']}
+   * @param {string[]} petNamePath
+   * @param {string} id
    */
   const write = async (petNamePath, id) => {
     const petName = parsePetNamePath(petNamePath);

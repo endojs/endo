@@ -1,3 +1,4 @@
+// @ts-nocheck
 // This script regenerates app.agar, an archived application generated
 // from the test fixtures.
 // This should be done *manually*, *rarely* and *deliberately*.

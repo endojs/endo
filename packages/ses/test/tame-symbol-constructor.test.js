@@ -22,7 +22,7 @@ lockdown();
 
 test('Symbol cleaned by permits', t => {
   t.true('dummy' in Symbol);
-  t.false(gopd(Symbol, 'iterator').configurable);
+  t.false(gopd(Symbol, 'iterator')?.configurable);
   t.false(isExtensible(Symbol));
   t.true(isFrozen(Symbol));
   t.not(Symbol.constructor, Symbol);
@@ -32,7 +32,7 @@ test('Symbol cleaned by permits', t => {
   t.is(Symbol.prototype, SharedSymbol.prototype);
 
   t.false('dummy' in SharedSymbol);
-  t.false(gopd(SharedSymbol, 'iterator').configurable);
+  t.false(gopd(SharedSymbol, 'iterator')?.configurable);
   t.false(isExtensible(SharedSymbol));
   t.true(isFrozen(SharedSymbol));
   t.is(SharedSymbol.prototype.constructor, SharedSymbol);

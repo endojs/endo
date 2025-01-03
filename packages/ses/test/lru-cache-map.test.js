@@ -4,7 +4,7 @@ import test from 'ava';
 import { makeLRUCacheMap } from '../src/make-lru-cachemap.js';
 
 test('makeLRUCacheMap', t => {
-  /** @type {WeakMap<{}, number>} */
+  /** @type {WeakMap<{}, string>} */
   const lruMap = makeLRUCacheMap(2);
   const assertNoEntry = key => {
     t.is(lruMap.has(key), false);

@@ -38,6 +38,7 @@ test('test amplify defineExoClass fails', t => {
 });
 
 test('test amplify defineExoClassKit', t => {
+  /** @type {any} */
   let amp;
   const makeCounterKit = defineExoClassKit(
     'Counter',

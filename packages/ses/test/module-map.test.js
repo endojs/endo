@@ -1,3 +1,4 @@
+// @ts-nocheck
 // These tests exercise the Compartment module map.
 
 import test from 'ava';

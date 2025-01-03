@@ -9,6 +9,7 @@ import bundleSource from '@endo/bundle-source';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { importBundle } from '../src/index.js';
 
+// @ts-expect-error XXX Node interface munging
 const { read } = makeReadPowers({ fs, url, crypto });
 
 function transform1(src) {

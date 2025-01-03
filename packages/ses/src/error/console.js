@@ -35,7 +35,7 @@ import {
  * https://tc39.es/ecma262/multipage/syntax-directed-operations.html#sec-runtime-semantics-namedevaluation
  * Instead, we hope that tooling uses only the explicit `name` property.
  *
- * @template {function} T
+ * @template {Function} T
  * @param {string} name
  * @param {T} fn
  * @returns {T}

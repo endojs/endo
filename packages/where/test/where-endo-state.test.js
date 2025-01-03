@@ -3,6 +3,7 @@ import { whereEndoState } from '../index.js';
 
 test('windows', t => {
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('win32', {
       LOCALAPPDATA: 'C:\\Users\\Alice\\AppData\\Local',
       APPDATA: 'IGNOREME',
@@ -14,6 +15,7 @@ test('windows', t => {
     'Use LOCALAPPDATA for Endo state if available',
   );
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('win32', {
       APPDATA: 'C:\\Users\\Alice\\AppData',
       USERPROFILE: 'IGNOREME',
@@ -24,6 +26,7 @@ test('windows', t => {
     'Infer LOCALAPPDATA from APPDATA if necessary and possible',
   );
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('win32', {
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'IGNOREME',
@@ -33,6 +36,7 @@ test('windows', t => {
     'Infer LOCALAPPDATA from USERPROFILE if necessary and possible',
   );
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('win32', {
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
@@ -55,6 +59,7 @@ test('windows', t => {
 
 test('darwin', t => {
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('darwin', {
       XDG_STATE_HOME: '/Users/alice/.local/state',
       XDG_CONFIG_HOME: 'IGNOREME',
@@ -64,6 +69,7 @@ test('darwin', t => {
     'Favor XDG state home over Darwin conventions if provided by the user',
   );
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('darwin', {
       HOME: '/Users/alice',
     }),
@@ -85,6 +91,7 @@ test('darwin', t => {
 
 test('linux', t => {
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('linux', {
       XDG_STATE_HOME: '/Users/alice/.local/state',
       XDG_CONFIG_HOME: 'IGNOREME',
@@ -94,6 +101,7 @@ test('linux', t => {
     'Use XDG state home if provided by the user',
   );
   t.is(
+    // @ts-expect-error Expected 3 arguments, but got 2.
     whereEndoState('linux', {
       HOME: '/Users/alice',
     }),

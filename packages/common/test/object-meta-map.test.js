@@ -11,6 +11,7 @@ test('test objectMetaMap', async t => {
         ? undefined
         : {
             ...desc,
+            // @ts-expect-error desc.value possibly undefined
             value: desc.value * 2,
             enumerable: false,
           },

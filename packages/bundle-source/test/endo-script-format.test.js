@@ -9,6 +9,7 @@ import bundleSource from '../src/index.js';
  * @param {string} entry
  * @param {Options} options
  */
+// @ts-expect-error 'Options' could be instantiated with a different subtype of constraint 'Partial<any>'.
 const generate = async (entry, options = {}) => {
   const entryPath = url.fileURLToPath(new URL(entry, import.meta.url));
   return bundleSource(entryPath, {

@@ -159,6 +159,7 @@ test('evadeCensor with stripComments preserves automatically-inserted-semicolon 
     })();
   `;
   const object = evadeCensorSync(comment, {
+    // @ts-expect-error intentional
     stripComments: true,
   });
   t.is((0, eval)(comment), undefined);

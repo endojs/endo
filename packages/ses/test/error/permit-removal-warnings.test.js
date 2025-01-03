@@ -14,7 +14,7 @@ const logRecordMatches = (logRecord, goldenRecord) =>
  * Specialized for the test below.
  * See https://github.com/endojs/endo/issues/1973
  *
- * @param {Implementation} t
+ * @param {import('ava').ExecutionContext} t
  * @param {any[][]} log
  * @param {any[][]} goldenLog
  */

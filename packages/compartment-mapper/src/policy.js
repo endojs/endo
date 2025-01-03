@@ -257,7 +257,7 @@ export const makeDeferredAttenuatorsProvider = (
     // time of the import function being called.
     /**
      *
-     * @param {string} attenuatorSpecifier
+     * @param {string | null} attenuatorSpecifier
      * @returns {Promise<Attenuator>}
      */
     importAttenuator = async attenuatorSpecifier => {

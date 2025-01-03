@@ -9,14 +9,16 @@ test('E reexports', async t => {
 });
 
 test('E.when', async t => {
+  /** @type {any} */
   let stash;
   await E.when(123, val => (stash = val));
   t.is(stash, 123, `onfulfilled handler fires`);
   let raised;
   // eslint-disable-next-line prefer-promise-reject-errors
   await E.when(Promise.reject('foo'), undefined, val => (raised = val));
-  t.assert(raised, 'foo', 'onrejected handler fires');
+  t.assert(raised, 'onrejected handler fires');
 
+  /** @type {any} */
   let ret;
   let exc;
   await E.when(
@@ -28,6 +30,7 @@ test('E.when', async t => {
   t.is(exc, undefined, 'onrejected option does not fire');
 
   let ret2;
+  /** @type {any} */
   let exc2;
   await E.when(
     // eslint-disable-next-line prefer-promise-reject-errors
@@ -77,6 +80,7 @@ test('E call missing method', async t => {
       return 2 * n;
     },
   };
+  // @ts-expect-error intentional error
   await t.throwsAsync(() => E(x).triple(6), {
     message: 'target has no method "triple", has ["double"]',
   });
@@ -93,6 +97,7 @@ test('E call missing inherited methods', async t => {
       return 2 * n;
     },
   });
+  // @ts-expect-error intentional error
   await t.throwsAsync(() => E(x).triple(6), {
     message: 'target has no method "triple", has ["double","half"]',
   });
@@ -121,6 +126,7 @@ test('E call missing class methods', async t => {
   }
   harden(X2);
   const x = new X2();
+  // @ts-expect-error intentional error
   await t.throwsAsync(() => E(x).triple(6), {
     message:
       'target has no method "triple", has ["[Symbol(half)]","constructor","double","quadruple","quarter"]',
@@ -136,6 +142,7 @@ test('E sendOnly call missing method', async t => {
     },
   };
 
+  // @ts-expect-error intentional error
   const result = E.sendOnly(counter).decr(210);
   t.is(result, undefined, 'return is undefined as expected');
   await null;
@@ -148,6 +155,7 @@ test('E call undefined method', async t => {
       return 2 * n;
     },
   };
+  // @ts-expect-error intentional error
   await t.throwsAsync(() => E(x)(6), {
     message: 'Cannot invoke target as a function; typeof target is "object"',
   });
@@ -155,12 +163,14 @@ test('E call undefined method', async t => {
 
 test('E invoke a non-method', async t => {
   const x = { double: 24 };
+  // @ts-expect-error intentional error
   await t.throwsAsync(() => E(x).double(6), {
     message: 'invoked method "double" is not a function; it is a "number"',
   });
 });
 
 test('E method call undefined receiver', async t => {
+  // @ts-expect-error intentional error
   await t.throwsAsync(() => E(undefined).double(6), {
     message: 'Cannot deliver "double" to target; typeof target is "undefined"',
   });

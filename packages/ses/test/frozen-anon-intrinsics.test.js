@@ -13,7 +13,7 @@ test.before(() => {
 test('arguments.callee getter is frozen', t => {
   t.truthy(
     Object.isFrozen(
-      Object.getOwnPropertyDescriptor(makeArguments(), 'callee').get,
+      Object.getOwnPropertyDescriptor(makeArguments(), 'callee')?.get,
     ),
   );
 });

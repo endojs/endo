@@ -26,7 +26,7 @@ test('map reader', async (/** @type {import('ava').Assertions} */ t) => {
       t.is(done, false);
       t.is(actual, undefined);
     }
-    const { done, value: actual } = await produceTo.return();
+    const { done, value: actual } = await produceTo.return(undefined);
     t.is(done, true);
     t.is(actual, undefined);
   };
@@ -39,7 +39,7 @@ test('map reader', async (/** @type {import('ava').Assertions} */ t) => {
       t.is(done, false);
       t.deepEqual(expected, actual);
     }
-    const { done, value: actual } = await consumeFrom.return();
+    const { done, value: actual } = await consumeFrom.return(undefined);
     t.is(done, true);
     t.is(actual, undefined);
   };
