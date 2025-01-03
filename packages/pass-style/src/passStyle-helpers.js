@@ -4,6 +4,7 @@
 /** @import {PassStyle} from './types.js' */
 
 import { X, q } from '@endo/errors';
+import { extraObjectMethods } from '@endo/non-trapping-shim';
 
 const { isArray } = Array;
 const { prototype: functionPrototype } = Function;
@@ -11,11 +12,12 @@ const {
   getOwnPropertyDescriptor,
   getPrototypeOf,
   hasOwnProperty: objectHasOwnProperty,
-  isFrozen,
   prototype: objectPrototype,
+  isFrozen,
 } = Object;
 const { apply } = Reflect;
 const { toStringTag: toStringTagSymbol } = Symbol;
+const { isNonTrapping } = extraObjectMethods;
 
 const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
 const typedArrayToStringTagDesc = getOwnPropertyDescriptor(
@@ -167,6 +169,9 @@ const makeCheckTagRecord = checkProto => {
           CX(check)`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
         (!!check && CX(check)`A tagRecord must be frozen: ${tagRecord}`)) &&
+      (isNonTrapping(tagRecord) ||
+        (!!check &&
+          CX(check)`A tagRecord must be non-trapping: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
         (!!check && CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
       checkPassStyle(

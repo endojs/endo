@@ -45,6 +45,7 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/nat": "workspace:^",
+    "@endo/non-trapping-shim": "^0.1.0",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },

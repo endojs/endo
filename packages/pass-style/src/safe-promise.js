@@ -2,13 +2,15 @@
 
 import { isPromise } from '@endo/promise-kit';
 import { q } from '@endo/errors';
+import { extraObjectMethods } from '@endo/non-trapping-shim';
 import { assertChecker, hasOwnPropertyOf, CX } from './passStyle-helpers.js';
 
 /** @import {Checker} from './types.js' */
 
-const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor } = Object;
+const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 const { ownKeys } = Reflect;
 const { toStringTag } = Symbol;
+const { isNonTrapping } = extraObjectMethods;
 
 /**
  * @param {Promise} pr The value to examine
@@ -88,7 +90,7 @@ const checkPromiseOwnKeys = (pr, check) => {
     if (
       typeof val === 'object' &&
       val !== null &&
-      isFrozen(val) &&
+      isNonTrapping(val) &&
       getPrototypeOf(val) === Object.prototype
     ) {
       const subKeys = ownKeys(val);
@@ -132,7 +134,7 @@ const checkPromiseOwnKeys = (pr, check) => {
  */
 const checkSafePromise = (pr, check) => {
   return (
-    (isFrozen(pr) || CX(check)`${pr} - Must be frozen`) &&
+    (isNonTrapping(pr) || CX(check)`${pr} - Must be frozen`) &&
     (isPromise(pr) || CX(check)`${pr} - Must be a promise`) &&
     (getPrototypeOf(pr) === Promise.prototype ||
       CX(check)`${pr} - Must inherit from Promise.prototype: ${q(
