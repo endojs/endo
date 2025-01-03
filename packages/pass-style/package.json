@@ -37,6 +37,7 @@
     "@endo/env-options": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/non-trapping-shim": "^0.1.0",
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {

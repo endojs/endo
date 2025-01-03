@@ -1,6 +1,7 @@
 /// <reference types="ses"/>
 
 import { Fail, q } from '@endo/errors';
+import { extraObjectMethods } from '@endo/non-trapping-shim';
 import {
   assertChecker,
   canBeMethod,
@@ -24,10 +25,10 @@ const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {
   getPrototypeOf,
-  isFrozen,
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
 } = Object;
+const { isNonTrapping } = extraObjectMethods;
 
 /**
  * @param {InterfaceSpec} iface
@@ -154,7 +155,7 @@ const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  if (!isFrozen(val)) {
+  if (!isNonTrapping(val)) {
     return (
       !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
     );

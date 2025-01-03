@@ -85,7 +85,8 @@
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
-    "@endo/env-options": "workspace:^"
+    "@endo/env-options": "workspace:^",
+    "@endo/non-trapping-shim": "^0.1.0"
   },
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",

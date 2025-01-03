@@ -6,6 +6,8 @@
 // encodes to CapData, a JSON-representable data structure, and leaves it to
 // the caller (`marshal.js`) to stringify it.
 
+import { X, Fail, q } from '@endo/errors';
+import { extraObjectMethods } from '@endo/non-trapping-shim';
 import {
   passStyleOf,
   isErrorLike,
@@ -17,7 +19,6 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
-import { X, Fail, q } from '@endo/errors';
 
 /** @import {Passable, RemotableObject} from '@endo/pass-style' */
 /** @import {Encoding, EncodingUnion} from './types.js' */
@@ -30,8 +31,8 @@ const {
   is,
   entries,
   fromEntries,
-  freeze,
 } = Object;
+const { suppressTrapping } = extraObjectMethods;
 
 /**
  * Special property name that indicates an encoding that needs special
@@ -176,10 +177,10 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
             // We harden the entire capData encoding before we return it.
             // `encodeToCapData` requires that its input be Passable, and
             // therefore hardened.
-            // The `freeze` here is needed anyway, because the `rest` is
+            // The `suppressTrapping` here is needed anyway, because the `rest` is
             // freshly constructed by the `...` above, and we're using it
             // as imput in another call to `encodeToCapData`.
-            result.rest = encodeToCapDataRecur(freeze(rest));
+            result.rest = encodeToCapDataRecur(suppressTrapping(rest));
           }
           return result;
         }

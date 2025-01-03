@@ -2,6 +2,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { q } from '@endo/errors';
+import { extraObjectMethods } from '@endo/non-trapping-shim';
 
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far, ToFarFunction } from '../src/make-far.js';
@@ -13,8 +14,9 @@ const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   global.harden
 );
 
-const { getPrototypeOf, defineProperty, freeze } = Object;
+const { getPrototypeOf, defineProperty } = Object;
 const { ownKeys } = Reflect;
+const { suppressTrapping } = extraObjectMethods;
 
 test('passStyleOf basic success cases', t => {
   // Test in same order as `passStyleOf` for easier maintenance.
@@ -208,7 +210,7 @@ test('passStyleOf testing remotables', t => {
    *
    * @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385
    */
-  const farObj2 = freeze({ __proto__: tagRecord2 });
+  const farObj2 = suppressTrapping({ __proto__: tagRecord2 });
   if (harden.isFake) {
     t.is(passStyleOf(farObj2), 'remotable');
   } else {
@@ -386,7 +388,7 @@ test('remotables - safety from the gibson042 attack', t => {
    * explicitly make this non-trapping, which we cannot yet express.
    * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
    */
-  const makeInput = () => freeze({ __proto__: mercurialProto });
+  const makeInput = () => suppressTrapping({ __proto__: mercurialProto });
   const input1 = makeInput();
   const input2 = makeInput();
 
