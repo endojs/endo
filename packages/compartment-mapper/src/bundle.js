@@ -6,7 +6,7 @@
  *   PrecompiledStaticModuleInterface
  * } from 'ses'
  * @import {
- *   ArchiveOptions,
+ *   BundleOptions,
  *   CompartmentDescriptor,
  *   CompartmentSources,
  *   MaybeReadPowers,
@@ -42,8 +42,10 @@
  * @template {unknown} SpecificModuleSource
  * @typedef {object} BundleModule
  * @property {string} key
+ * @property {string} exit
  * @property {string} compartmentName
  * @property {string} moduleSpecifier
+ * @property {string} sourceDirname
  * @property {string} parser
  * @property {StaticModuleType & SpecificModuleSource} record
  * @property {Record<string, string>} resolvedImports
@@ -54,9 +56,21 @@
  */
 
 /**
+ * @typedef {object} BundleExit
+ * @property {string} exit
+ * @property {number} index
+ * @property {BundlerKit} bundlerKit
+ * @property {Record<string, number>} indexedImports
+ * @property {Record<string, string>} resolvedImports
+ */
+
+/**
  * @template {unknown} SpecificModuleSource
  * @callback GetBundlerKit
  * @param {BundleModule<SpecificModuleSource>} module
+ * @param {object} params
+ * @param {string} [params.useNamedEvaluate]
+ * @param {string} [params.sourceUrlPrefix]
  * @returns {BundlerKit}
  */
 
@@ -85,16 +99,34 @@ const textEncoder = new TextEncoder();
 const { quote: q } = assert;
 
 /**
+ * @param {BundleExit} source
+ * @returns {BundlerKit}
+ */
+const makeCjsExitBundlerKit = ({ exit, index }) => ({
+  getFunctor: () => `\
+// === functors[${index}] ===
+null,
+`,
+  getCells: () => `\
+    namespaceCells(require(${JSON.stringify(exit)})),
+`,
+  getReexportsWiring: () => '',
+  getFunctorCall: () => ``,
+});
+
+/**
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, CompartmentSources>} compartmentSources
  * @param {string} entryCompartmentName
  * @param {string} entryModuleSpecifier
+ * @param {Array<string>} exitModuleSpecifiers
  */
 const sortedModules = (
   compartmentDescriptors,
   compartmentSources,
   entryCompartmentName,
   entryModuleSpecifier,
+  exitModuleSpecifiers,
 ) => {
   /** @type {BundleModule<unknown>[]} */
   const modules = [];
@@ -102,6 +134,17 @@ const sortedModules = (
   const aliases = new Map();
   /** @type {Set<string>} seen */
   const seen = new Set();
+
+  for (const exit of exitModuleSpecifiers) {
+    modules.push({
+      key: exit,
+      exit,
+      // @ts-expect-error
+      index: undefined,
+      // @ts-expect-error
+      bundlerKit: null,
+    });
+  }
 
   /**
    * @param {string} compartmentName
@@ -116,7 +159,11 @@ const sortedModules = (
 
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
-      const { record, parser, deferredError, bytes } = source;
+      const { record, parser, deferredError, bytes, sourceDirname, exit } =
+        source;
+      if (exit !== undefined) {
+        return exit;
+      }
       assert(
         bytes !== undefined,
         `No bytes for ${moduleSpecifier} in ${compartmentName}`,
@@ -124,6 +171,10 @@ const sortedModules = (
       assert(
         parser !== undefined,
         `No parser for ${moduleSpecifier} in ${compartmentName}`,
+      );
+      assert(
+        sourceDirname !== undefined,
+        `No sourceDirname for ${moduleSpecifier} in ${compartmentName}`,
       );
       if (deferredError) {
         throw Error(
@@ -149,6 +200,7 @@ const sortedModules = (
           key,
           compartmentName,
           moduleSpecifier,
+          sourceDirname,
           parser,
           record,
           resolvedImports,
@@ -203,8 +255,13 @@ const getRuntime = language =>
     ? bundlerSupportForLanguage[language].runtime
     : `/*unknown language:${language}*/`;
 
-/** @param {BundleModule<unknown>} module */
-const getBundlerKitForModule = module => {
+/**
+ * @param {BundleModule<unknown>} module
+ * @param {object} params
+ * @param {string} [params.useNamedEvaluate]
+ * @param {string} [params.sourceUrlPrefix]
+ */
+const getBundlerKitForModule = (module, params) => {
   const language = module.parser;
   assert(language !== undefined);
   if (bundlerSupportForLanguage[language] === undefined) {
@@ -219,13 +276,13 @@ const getBundlerKitForModule = module => {
     };
   }
   const { getBundlerKit } = bundlerSupportForLanguage[language];
-  return getBundlerKit(module);
+  return getBundlerKit(module, params);
 };
 
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
+ * @param {BundleOptions} [options]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (readPowers, moduleLocation, options) => {
@@ -239,6 +296,9 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     searchSuffixes,
     commonDependencies,
     sourceMapHook = undefined,
+    useNamedEvaluate = undefined,
+    sourceUrlPrefix = undefined,
+    format = undefined,
     parserForLanguage: parserForLanguageOption = {},
     languageForExtension: languageForExtensionOption = {},
     commonjsLanguageForExtension: commonjsLanguageForExtensionOption = {},
@@ -250,6 +310,12 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
       workspaceModuleLanguageForExtensionOption = {},
   } = options || {};
   const conditions = new Set(conditionsOption);
+
+  /** @type {((module: BundleExit) => BundlerKit) | undefined} */
+  let makeExitBundlerKit;
+  if (format === 'cjs') {
+    makeExitBundlerKit = makeCjsExitBundlerKit;
+  }
 
   const parserForLanguage = Object.freeze(
     Object.assign(
@@ -282,6 +348,11 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
       workspaceModuleLanguageForExtensionOption,
     ),
   );
+
+  const bundlerKitParams = {
+    useNamedEvaluate,
+    sourceUrlPrefix,
+  };
 
   const {
     packageLocation,
@@ -316,8 +387,28 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     compartments,
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
   } = compartmentMap;
+  /** @type {string[]} */
+  const exitModuleSpecifiers = [];
   /** @type {Sources} */
   const sources = Object.create(null);
+
+  /**
+   * @param {string} moduleSpecifier
+   * @param {string} compartmentName
+   */
+  const exitModuleImportHook =
+    format !== undefined
+      ? async (moduleSpecifier, compartmentName) => {
+          const compartmentSources =
+            sources[compartmentName] || Object.create(null);
+          sources[compartmentName] = compartmentSources;
+          compartmentSources[moduleSpecifier] = {
+            exit: moduleSpecifier,
+          };
+          exitModuleSpecifiers.push(moduleSpecifier);
+          return { imports: [], exports: [], execute() {} };
+        }
+      : undefined;
 
   const makeImportHook = makeImportHookMaker(read, packageLocation, {
     sources,
@@ -326,6 +417,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     entryCompartmentName,
     entryModuleSpecifier,
     sourceMapHook,
+    exitModuleImportHook,
   });
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
@@ -342,6 +434,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     sources,
     entryCompartmentName,
     entryModuleSpecifier,
+    exitModuleSpecifiers,
   );
 
   // Create an index of modules so we can resolve import specifiers to the
@@ -354,35 +447,43 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
   }
   const parsersInUse = new Set();
   for (const module of modules) {
-    module.indexedImports = Object.fromEntries(
-      Object.entries(module.resolvedImports).map(([importSpecifier, key]) => {
-        // UNTIL https://github.com/endojs/endo/issues/1514
-        // Prefer: key = aliases.get(key) ?? key;
-        const alias = aliases.get(key);
-        if (alias != null) {
-          key = alias;
-        }
-        const module = modulesByKey[key];
-        if (module === undefined) {
-          throw new Error(
-            `Unable to locate module for key ${q(key)} import specifier ${q(
-              importSpecifier,
-            )} in ${q(module.moduleSpecifier)} of compartment ${q(
-              module.compartmentName,
-            )}`,
-          );
-        }
-        const { index } = module;
-        return [importSpecifier, index];
-      }),
-    );
-    parsersInUse.add(module.parser);
-    module.bundlerKit = getBundlerKitForModule(module);
+    if (module.exit !== undefined) {
+      if (makeExitBundlerKit === undefined) {
+        // makeExitBundlerKit must have been provided to makeImportHookMaker for any modules with an exit property to have been created.
+        throw TypeError('Unreachable');
+      }
+      module.bundlerKit = makeExitBundlerKit(module);
+    } else {
+      module.indexedImports = Object.fromEntries(
+        Object.entries(module.resolvedImports).map(([importSpecifier, key]) => {
+          // UNTIL https://github.com/endojs/endo/issues/1514
+          // Prefer: key = aliases.get(key) ?? key;
+          const alias = aliases.get(key);
+          if (alias != null) {
+            key = alias;
+          }
+          const module = modulesByKey[key];
+          if (module === undefined) {
+            throw new Error(
+              `Unable to locate module for key ${q(key)} import specifier ${q(
+                importSpecifier,
+              )} in ${q(module.moduleSpecifier)} of compartment ${q(
+                module.compartmentName,
+              )}`,
+            );
+          }
+          const { index } = module;
+          return [importSpecifier, index];
+        }),
+      );
+      parsersInUse.add(module.parser);
+      module.bundlerKit = getBundlerKitForModule(module, bundlerKitParams);
+    }
   }
 
   const bundle = `\
-'use strict';
 (functors => {
+  'use strict';
 
   const cell = (name, value = undefined) => {
     const observers = [];
@@ -403,6 +504,28 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
       enumerable: true,
     });
   };
+
+${
+  exitModuleSpecifiers.length > 0
+    ? `\
+  const namespaceCells = namespace => Object.fromEntries(
+    Object.getOwnPropertyNames(namespace)
+    .map(name => [name, {
+      get() {
+        return Reflect.get(namespace, name);
+      },
+      set() {
+        throw new TypeError('Non-writable export');
+      },
+      observe(observer) {
+        observer(Reflect.get(namespace, name));
+      },
+      enumerable: true,
+    }])
+  );
+`
+    : ''
+}\
 
   const cells = [
 ${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
@@ -430,7 +553,10 @@ ${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
 ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 
   return cells[cells.length - 1]['*'].get();
-})([${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}]);
+})
+(
+[${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
+])
 `;
 
   return bundle;
@@ -441,7 +567,7 @@ ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
  * @param {ReadFn} read
  * @param {string} bundleLocation
  * @param {string} moduleLocation
- * @param {ArchiveOptions} [options]
+ * @param {BundleOptions} [options]
  */
 export const writeBundle = async (
   write,

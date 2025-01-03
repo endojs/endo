@@ -1,5 +1,5 @@
 // 1
 // 2
-throw Error('here'); // 3
+throw Error('expected line number'); // 3
 // 4
 // 5

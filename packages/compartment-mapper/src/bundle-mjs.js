@@ -3,6 +3,8 @@
 /** @import {PrecompiledModuleSource} from 'ses' */
 /** @import {BundlerSupport} from './bundle.js' */
 
+import { join } from './node-module-specifier.js';
+
 /** quotes strings */
 const q = JSON.stringify;
 
@@ -41,7 +43,7 @@ function observeImports(map, importName, importIndex) {
   for (const [name, observers] of map.get(importName)) {
     const cell = cells[importIndex][name];
     if (cell === undefined) {
-      throw new ReferenceError(\`Cannot import name \${name}\`);
+      throw new ReferenceError(\`Cannot import name \${name} (has \${Object.getOwnPropertyNames(cells[importIndex]).join(', ')})\`);
     }
     for (const observer of observers) {
       cell.observe(observer);
@@ -53,21 +55,36 @@ function observeImports(map, importName, importIndex) {
 /** @type {BundlerSupport<PrecompiledModuleSource>} */
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: {
-      __syncModuleProgram__,
-      __fixedExportMap__ = {},
-      __liveExportMap__ = {},
-      __reexportMap__ = {},
-      reexports,
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      moduleSpecifier,
+      sourceDirname,
+      record: {
+        __syncModuleProgram__,
+        __fixedExportMap__ = {},
+        __liveExportMap__ = {},
+        __reexportMap__ = {},
+        reexports,
+      },
     },
-  }) {
+    { useNamedEvaluate = undefined, sourceUrlPrefix = undefined },
+  ) {
+    let functor = __syncModuleProgram__;
+    if (useNamedEvaluate !== undefined) {
+      let sourceUrl = join(sourceDirname, moduleSpecifier);
+      if (sourceUrlPrefix !== undefined) {
+        sourceUrl = `${sourceUrlPrefix}${sourceUrl}`;
+      }
+      functor = `${functor}\n//*/\n//# sourceURL=${sourceUrl}\n`;
+      functor = JSON.stringify(functor);
+      functor = `(globalThis.${useNamedEvaluate} || eval)(${functor})`;
+    }
     return {
       getFunctor: () => `\
 // === functors[${index}] ===
-${__syncModuleProgram__},
+${functor},
 `,
       getCells: () => `\
     {

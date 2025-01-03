@@ -206,6 +206,8 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
         policy,
         // `scopes`, `types`, and `parsers` are not necessary since every
         // loadable module is captured in `modules`.
+        // `sourceDirname` might be useful, but we are not yet positioned
+        // to make backward-compatible additional properties on compartment-map.
       };
     }
   }

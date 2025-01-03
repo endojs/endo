@@ -16,6 +16,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
 
 /**
  * @param {string} startFilename
+ * @param {'endoScript' | 'nestedEvaluate' | 'getExport'} moduleFormat
  * @param {object} [options]
  * @param {boolean} [options.dev]
  * @param {boolean} [options.cacheSourceMaps]
@@ -31,6 +32,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  */
 export async function bundleScript(
   startFilename,
+  moduleFormat,
   options = {},
   grantedPowers = {},
 ) {
@@ -79,7 +81,7 @@ export async function bundleScript(
     },
   );
 
-  const source = await makeBundle(powers, entry, {
+  let source = await makeBundle(powers, entry, {
     dev,
     conditions,
     commonDependencies,
@@ -89,13 +91,22 @@ export async function bundleScript(
     workspaceModuleLanguageForExtension,
     moduleTransforms,
     sourceMapHook,
+    useNamedEvaluate:
+      moduleFormat === 'nestedEvaluate' ? 'nestedEvaluate' : undefined,
+    sourceUrlPrefix: '/bundled-source/.../',
+    format: moduleFormat === 'nestedEvaluate' ? 'cjs' : undefined,
   });
+
+  if (moduleFormat === 'getExport' || moduleFormat === 'nestedEvaluate') {
+    source = `() => ${source}`;
+  }
 
   await Promise.all(sourceMapJobs);
 
   return harden({
-    moduleFormat: /** @type {const} */ ('endoScript'),
+    moduleFormat,
     source,
-    // TODO sourceMap
+    // TODO
+    sourceMap: '',
   });
 }
