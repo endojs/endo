@@ -43,7 +43,7 @@ export const makeRemoteControlProvider = localNodeId => {
           // TODO: For the case where we leave a peer wedged half-open, we
           // will need health checks.
           Promise.resolve(
-            proposedCancel(new Error('Already accepted a connection.')),
+            proposedCancel(Error('Already accepted a connection.')),
           ).then(proposedDispose);
           return accepted(remoteGateway, cancelCurrent, currentCancelled);
         },
@@ -95,7 +95,7 @@ export const makeRemoteControlProvider = localNodeId => {
                 // so cancel the inbound.
                 Promise.resolve(
                   proposedCancel(
-                    new Error(
+                    Error(
                       'Connection refused: already connected (crossed hellos, connect bias)',
                     ),
                   ),
@@ -144,7 +144,7 @@ export const makeRemoteControlProvider = localNodeId => {
                 // We receive an inbound connection.
                 // Ditch our outbound connection.
                 cancelCurrent(
-                  new Error(
+                  Error(
                     'Connection abandoned: accepted new connection (crossed hellos, accept bias)',
                   ),
                 );

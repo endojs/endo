@@ -11,7 +11,7 @@ const makeFakeGateway = () =>
     M.interface('FakeGateway', {}, { defaultGuards: 'passable' }),
     {
       provide() {
-        throw new Error('Fake gateway provides nothing');
+        throw Error('Fake gateway provides nothing');
       },
     },
   );
@@ -29,7 +29,7 @@ test('remote control connects from initial state and propagates cancellation', a
   );
   t.is(receivedBobGateway, bobGateway);
 
-  cancelBob(new Error('Peer cancelled'));
+  cancelBob(Error('Peer cancelled'));
   await t.throwsAsync(() => bobCancelled);
 });
 
@@ -41,7 +41,7 @@ test('remote control accepts from initial state and propagates cancellation', as
 
   bobRemoteControl.accept(bobGateway, cancelBob, bobCancelled);
 
-  cancelBob(new Error('Peer cancelled'));
+  cancelBob(Error('Peer cancelled'));
   await t.throwsAsync(() => bobCancelled);
 });
 
@@ -61,7 +61,7 @@ test('remote control connect uses existing connection after accept', async t => 
   );
   t.is(finalBobGateway, bobGateway1);
 
-  cancelBob1(new Error('Peer cancelled'));
+  cancelBob1(Error('Peer cancelled'));
   await t.throwsAsync(() => bob1Cancelled);
   await t.throwsAsync(() => bob2Cancelled);
 });
@@ -89,7 +89,7 @@ test('remote control drops outbound connect when accepting from lower id', async
   );
   t.is(finalBobGateway, bobGateway1);
 
-  cancelBob3(new Error('Peer cancelled'));
+  cancelBob3(Error('Peer cancelled'));
   await t.throwsAsync(() => bob1Cancelled);
   await t.throwsAsync(() => bob2Cancelled);
   await t.throwsAsync(() => bob3Cancelled);
@@ -115,7 +115,7 @@ test('remote control keeps outbound connect when accepting from higher id', asyn
   );
   t.is(finalBobGateway, bobGateway2);
 
-  cancelBob3(new Error('Peer cancelled'));
+  cancelBob3(Error('Peer cancelled'));
   await t.throwsAsync(() => bob2Cancelled);
   await t.throwsAsync(() => bob3Cancelled);
 });
@@ -139,7 +139,7 @@ test('remote control reuses existing connection when reconnecting', async t => {
   );
   t.is(bobGateway2, bobGateway1);
 
-  cancelBob1(new Error('Peer cancelled'));
+  cancelBob1(Error('Peer cancelled'));
   await t.throwsAsync(() => bob1Cancelled);
   await t.throwsAsync(() => bob2Cancelled);
 });
@@ -156,7 +156,7 @@ test('remote control establishes new connection when reconnecting after disconne
     bob1Cancelled,
     disposeBob1,
   );
-  cancelBob1(new Error('Disconnect'));
+  cancelBob1(Error('Disconnect'));
   await t.throwsAsync(() => bob1Cancelled);
   // Depending on the interleaving of events, it is possible that we need to
   // wait for the remote control to asynchronously transition to the initial
@@ -181,7 +181,7 @@ test('remote control establishes new connection when reconnecting after disconne
   );
   t.is(bobGateway3, bobGateway2);
 
-  cancelBob2(new Error('Peer cancelled'));
+  cancelBob2(Error('Peer cancelled'));
   await t.throwsAsync(() => bob2Cancelled);
   await t.throwsAsync(() => bob3Cancelled);
 });
@@ -206,7 +206,7 @@ test('remote control accept after accept', async t => {
   );
   t.is(bobGateway3, bobGateway1);
 
-  cancelBob1(new Error('Peer cancelled'));
+  cancelBob1(Error('Peer cancelled'));
   await t.throwsAsync(() => bob1Cancelled);
   await t.throwsAsync(() => bob2Cancelled);
 });
@@ -232,7 +232,7 @@ test('remote control connects first, ignores second, entagles cancellation of se
   );
   t.is(receivedBobGateway2, bobGateway1);
 
-  cancelBob2(new Error('Peer cancelled'));
+  cancelBob2(Error('Peer cancelled'));
   await t.throwsAsync(() => bob1Cancelled);
   await t.throwsAsync(() => bob2Cancelled);
 });
@@ -261,7 +261,7 @@ test('remote control connects first, ignores second, entagles cancellation of fi
   );
   t.is(receivedBobGateway2, bobGateway1);
 
-  cancelBob1(new Error('Peer cancelled'));
+  cancelBob1(Error('Peer cancelled'));
   await t.throwsAsync(() => bob1Cancelled);
   await t.throwsAsync(() => bob2Cancelled);
 });
@@ -298,7 +298,7 @@ test('remote control connects first, ignores second and third, entagles cancella
   );
   t.is(receivedBobGateway3, bobGateway1);
 
-  cancelBob1(new Error('Peer cancelled'));
+  cancelBob1(Error('Peer cancelled'));
 
   await t.throwsAsync(() => bob1Cancelled);
   await t.throwsAsync(() => bob2Cancelled);
