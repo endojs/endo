@@ -3,13 +3,19 @@ import {
   create,
   freeze,
   getOwnPropertyDescriptors,
-  immutableObject,
   reflectSet,
 } from './commons.js';
 import {
   strictScopeTerminatorHandler,
   alwaysThrowHandler,
 } from './strict-scope-terminator.js';
+
+/**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const onlyFrozenObject = freeze(create(null));
 
 /*
  * createSloppyGlobalsScopeTerminator()
@@ -45,7 +51,7 @@ export const createSloppyGlobalsScopeTerminator = globalObject => {
   );
 
   const sloppyGlobalsScopeTerminator = new Proxy(
-    immutableObject,
+    onlyFrozenObject,
     sloppyGlobalsScopeTerminatorHandler,
   );
 

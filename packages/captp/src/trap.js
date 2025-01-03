@@ -1,5 +1,7 @@
 // Lifted mostly from `@endo/eventual-send/src/E.js`.
 
+const { freeze } = Object;
+
 /**
  * Default implementation of Trap for near objects.
  *
@@ -62,11 +64,21 @@ const TrapProxyHandler = (x, trapImpl) => {
  */
 export const makeTrap = trapImpl => {
   const Trap = x => {
+    /**
+     * `freeze` but not `harden` the proxy target so it remains trapping.
+     * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+     */
+    const target = freeze(() => {});
     const handler = TrapProxyHandler(x, trapImpl);
-    return harden(new Proxy(() => {}, handler));
+    return new Proxy(target, handler);
   };
 
   const makeTrapGetterProxy = x => {
+    /**
+     * `freeze` but not `harden` the proxy target so it remains trapping.
+     * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+     */
+    const target = freeze(Object.create(null));
     const handler = harden({
       ...baseFreezableProxyHandler,
       has(_target, _prop) {
@@ -77,7 +89,7 @@ export const makeTrap = trapImpl => {
         return trapImpl.get(x, prop);
       },
     });
-    return new Proxy(Object.create(null), handler);
+    return new Proxy(target, handler);
   };
   Trap.get = makeTrapGetterProxy;
 

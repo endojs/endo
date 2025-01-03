@@ -270,12 +270,6 @@ export const getConstructorOf = fn =>
   reflectGet(getPrototypeOf(fn), 'constructor');
 
 /**
- * immutableObject
- * An immutable (frozen) empty object that is safe to share.
- */
-export const immutableObject = freeze(create(null));
-
-/**
  * isObject tests whether a value is an object.
  * Today, this is equivalent to:
  *

@@ -2,7 +2,7 @@ import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
 const { details: X, quote: q, Fail, error: makeError } = assert;
-const { assign, create } = Object;
+const { assign, create, freeze } = Object;
 
 /**
  * @import { HandledPromiseConstructor } from './types.js';
@@ -171,6 +171,16 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
  * @param {HandledPromiseConstructor} HandledPromise
  */
 const makeE = HandledPromise => {
+  /**
+   * `freeze` but not `harden` the proxy target so it remains trapping.
+   * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+   */
+  const funcTarget = freeze(() => {});
+  /**
+   * `freeze` but not `harden` the proxy target so it remains trapping.
+   * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+   */
+  const objTarget = freeze(create(null));
   return harden(
     assign(
       /**
@@ -183,7 +193,7 @@ const makeE = HandledPromise => {
        * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
        */
       // @ts-expect-error XXX typedef
-      x => harden(new Proxy(() => {}, makeEProxyHandler(x, HandledPromise))),
+      x => new Proxy(funcTarget, makeEProxyHandler(x, HandledPromise)),
       {
         /**
          * E.get(x) returns a proxy on which you can get arbitrary properties.
@@ -196,11 +206,8 @@ const makeE = HandledPromise => {
          * @returns {EGetters<LocalRecord<T>>} property get proxy
          * @readonly
          */
-        get: x =>
-          // @ts-expect-error XXX typedef
-          harden(
-            new Proxy(create(null), makeEGetProxyHandler(x, HandledPromise)),
-          ),
+        // @ts-expect-error XXX typedef
+        get: x => new Proxy(objTarget, makeEGetProxyHandler(x, HandledPromise)),
 
         /**
          * E.resolve(x) converts x to a handled promise. It is
@@ -224,9 +231,7 @@ const makeE = HandledPromise => {
          */
         sendOnly: x =>
           // @ts-expect-error XXX typedef
-          harden(
-            new Proxy(() => {}, makeESendOnlyProxyHandler(x, HandledPromise)),
-          ),
+          new Proxy(funcTarget, makeESendOnlyProxyHandler(x, HandledPromise)),
 
         /**
          * E.when(x, res, rej) is equivalent to
