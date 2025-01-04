@@ -187,6 +187,8 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
         // work. If we allow sortable symbol keys, this will need to
         // become more interesting.
         const names = ownKeys(passable).sort();
+        // TODO either delete or at-ts-expect-error
+        // @ts-ignore
         return fromEntries(
           names.map(name => [name, encodeToCapDataRecur(passable[name])]),
         );

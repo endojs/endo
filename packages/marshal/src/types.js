@@ -22,6 +22,8 @@ export {};
 
 /**
  * @template T
+ * TODO either delete or at-ts-expect-error
+ * // @ts-ignore
  * @typedef {{ '@qclass': T }} EncodingClass
  */
 
