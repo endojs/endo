@@ -293,6 +293,8 @@ export const sanitizeError = error => {
   } = descs;
 
   const restNames = ownKeys(restDescs);
+  // TODO why did this start warning?
+  // eslint-disable-next-line @endo/restrict-comparison-operands
   if (restNames.length >= 1) {
     for (const name of restNames) {
       delete error[name];
@@ -305,7 +307,8 @@ export const sanitizeError = error => {
     );
   }
   for (const name of ownKeys(error)) {
-    // @ts-expect-error TS still confused by symbols as property names
+    // TODO either delete or at-ts-expect-error
+    // @ts-ignore TS still confused by symbols as property names
     const desc = descs[name];
     if (desc && objectHasOwnProperty(desc, 'get')) {
       defineProperty(error, name, {
