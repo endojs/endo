@@ -48,7 +48,9 @@ function initProperty(obj, name, desc) {
       preDesc.enumerable !== desc.enumerable ||
       preDesc.configurable !== desc.configurable
     ) {
-      throw TypeError(`Conflicting definitions of ${name}`);
+      if (name !== 'harden') {
+        throw TypeError(`Conflicting definitions of ${name}`);
+      }
     }
   }
   defineProperty(obj, name, desc);
