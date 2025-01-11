@@ -26,7 +26,7 @@ import {
   String,
   TypeError,
   WeakSet,
-  globalThis,
+  // globalThis, // if we suppress native harden
   apply,
   arrayForEach,
   defineProperty,
@@ -131,13 +131,13 @@ const freezeTypedArray = array => {
 export const makeHardener = () => {
   // TODO Get the native hardener to suppressTrapping at each step,
   // rather than freeze. Until then, we cannot use it, which is *expensive*!
-  // TODO Comment out the following to skip the native hardener.
+  // TODO Comment in the following to use the native hardener.
   //
   // Use a native hardener if possible.
-  if (typeof globalThis.harden === 'function') {
-    const safeHarden = globalThis.harden;
-    return safeHarden;
-  }
+  // if (typeof globalThis.harden === 'function') {
+  //   const safeHarden = globalThis.harden;
+  //   return safeHarden;
+  // }
 
   const hardened = new WeakSet();
 
