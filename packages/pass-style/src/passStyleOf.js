@@ -35,9 +35,21 @@ const {
   getOwnPropertyDescriptors,
   values,
   isFrozen,
-  // @ts-expect-error TS does not yet have `isNonTrapping` on ObjectConstructor
-  isNonTrapping = isFrozen,
+
+  // The following is commented out due to
+  // https://github.com/endojs/endo/issues/2094
+  // TODO Once fixed, comment this back in and remove the workaround
+  // immediately below.
+  //
+  // // https://github.com/endojs/endo/pull/2673
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // isNonTrapping = isFrozen,
 } = Object;
+
+// workaround for https://github.com/endojs/endo/issues/2094
+// See commented out code and note immediately above.
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const isNonTrapping = Object.isNonTrapping || isFrozen;
 
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
