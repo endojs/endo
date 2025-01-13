@@ -122,17 +122,7 @@ test('TypedArray on Immutable ArrayBuffer shim limitations', t => {
   t.is(ta3.byteLength, 0);
 });
 
-test('Standard buf.transfer(newLength) behavior baseline', t => {
-  if (!('transfer' in ArrayBuffer.prototype)) {
-    // Will happen on Node <= 20
-    const msg =
-      'skip when platform does not yet implement ArrayBuffer.prototype.transfer';
-    t.pass(msg);
-    t.log(msg);
-    return;
-  }
-  // Will happen on Node >= 22
-  t.log('ArrayBuffer.prototype.transfer exists');
+const testTransfer = t => {
   const ta12 = new Uint8Array([3, 4, 5]);
   const ab12 = ta12.buffer;
   t.is(ab12.byteLength, 3);
@@ -154,7 +144,13 @@ test('Standard buf.transfer(newLength) behavior baseline', t => {
   t.is(ab13.byteLength, 0);
   const ta3 = new Uint8Array(ab3);
   t.deepEqual([...ta3], [3, 4]);
-});
+};
+
+{
+  // `transfer` is absent in Node <= 20. Present in Node >= 22
+  const maybeTest = 'transfer' in ArrayBuffer.prototype ? test : test.skip;
+  maybeTest('Standard buf.transfer(newLength) behavior baseline', testTransfer);
+}
 
 test('Analogous buf.transferToImmutable(newLength) shim', t => {
   const ta12 = new Uint8Array([3, 4, 5]);
