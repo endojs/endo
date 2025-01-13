@@ -1,14 +1,10 @@
 /* eslint-disable no-restricted-globals */
-import { TypeError, freeze } from './commons.js';
+import { freeze } from './commons.js';
 
 /** @import {Harden} from '../types.js'; */
 
 /** @type {(safeHarden: Harden, hardenTaming: 'safe' | 'unsafe') => Harden} */
 export const tameHarden = (safeHarden, hardenTaming) => {
-  if (hardenTaming !== 'safe' && hardenTaming !== 'unsafe') {
-    throw TypeError(`unrecognized fakeHardenOption ${hardenTaming}`);
-  }
-
   if (hardenTaming === 'safe') {
     return safeHarden;
   }

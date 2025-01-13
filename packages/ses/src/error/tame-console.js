@@ -41,10 +41,6 @@ export const tameConsole = (
   unhandledRejectionTrapping = 'report',
   optGetStackString = undefined,
 ) => {
-  consoleTaming === 'safe' ||
-    consoleTaming === 'unsafe' ||
-    failFast(`unrecognized consoleTaming ${consoleTaming}`);
-
   let loggedErrorHandler;
   if (optGetStackString === undefined) {
     loggedErrorHandler = defaultHandler;

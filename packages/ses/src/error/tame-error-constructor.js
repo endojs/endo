@@ -1,6 +1,5 @@
 import {
   FERAL_ERROR,
-  TypeError,
   apply,
   construct,
   defineProperties,
@@ -36,16 +35,6 @@ export default function tameErrorConstructor(
   errorTaming = 'safe',
   stackFiltering = 'concise',
 ) {
-  if (
-    errorTaming !== 'safe' &&
-    errorTaming !== 'unsafe' &&
-    errorTaming !== 'unsafe-debug'
-  ) {
-    throw TypeError(`unrecognized errorTaming ${errorTaming}`);
-  }
-  if (stackFiltering !== 'concise' && stackFiltering !== 'verbose') {
-    throw TypeError(`unrecognized stackFiltering ${stackFiltering}`);
-  }
   const ErrorPrototype = FERAL_ERROR.prototype;
 
   const { captureStackTrace: originalCaptureStackTrace } = FERAL_ERROR;
