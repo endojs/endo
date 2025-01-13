@@ -168,19 +168,41 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
   });
 
 /**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * This is safe to share between proxy instances because they are encapsulated
+ * within the proxy.
+ * - Before stabilize/suppressTrapping, this is safe
+ *   because they are already frozen, and so they cannot be damaged by the
+ *   proxies that encapsulate them.
+ * - After stabilize/suppressTrapping, this is safe because the only damage
+ *   that could be done would be by stabilize/suppressTrapping. These proxies
+ *   do not explicitly provide such a trap, and thus will use the default
+ *   behavior which is to refuse to be made non-trapping.
+ *
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const funcTarget = freeze(() => {});
+
+/**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * This is safe to share between proxy instances because they are encapsulated
+ * within the proxy.
+ * - Before stabilize/suppressTrapping, this is safe
+ *   because they are already frozen, and so they cannot be damaged by the
+ *   proxies that encapsulate them.
+ * - After stabilize/suppressTrapping, this is safe because the only damage
+ *   that could be done would be by stabilize/suppressTrapping. These proxies
+ *   do not explicitly provide such a trap, and thus will use the default
+ *   behavior which is to refuse to be made non-trapping.
+ *
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const objTarget = freeze(create(null));
+
+/**
  * @param {HandledPromiseConstructor} HandledPromise
  */
 const makeE = HandledPromise => {
-  /**
-   * `freeze` but not `harden` the proxy target so it remains trapping.
-   * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
-   */
-  const funcTarget = freeze(() => {});
-  /**
-   * `freeze` but not `harden` the proxy target so it remains trapping.
-   * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
-   */
-  const objTarget = freeze(create(null));
   return harden(
     assign(
       /**
