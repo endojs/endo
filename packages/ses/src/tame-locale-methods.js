@@ -44,9 +44,6 @@ const nonLocaleCompare = tamedMethods.localeCompare;
 const numberToString = tamedMethods.toString;
 
 export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
-  if (localeTaming !== 'safe' && localeTaming !== 'unsafe') {
-    throw TypeError(`unrecognized localeTaming ${localeTaming}`);
-  }
   if (localeTaming === 'unsafe') {
     return;
   }
