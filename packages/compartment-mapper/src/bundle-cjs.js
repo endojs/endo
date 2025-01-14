@@ -5,6 +5,8 @@
 
 /** @typedef {VirtualModuleSource & {cjsFunctor: string}} CjsModuleSource */
 
+import { join } from './node-module-specifier.js';
+
 /** quotes strings */
 const q = JSON.stringify;
 
@@ -61,17 +63,33 @@ function wrapCjsFunctor(num) {
 /** @type {BundlerSupport<CjsModuleSource>} */
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: { cjsFunctor, exports: exportsList = {} },
-  }) {
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      moduleSpecifier,
+      sourceDirname,
+      record: { cjsFunctor, exports: exportsList = {} },
+    },
+    { useNamedEvaluate = undefined, sourceUrlPrefix = undefined },
+  ) {
     const importsMap = JSON.stringify(indexedImports);
+
+    let functor = cjsFunctor;
+    if (useNamedEvaluate !== undefined) {
+      let sourceUrl = join(sourceDirname, moduleSpecifier);
+      if (sourceUrlPrefix !== undefined) {
+        sourceUrl = `${sourceUrlPrefix}${sourceUrl}`;
+      }
+      functor = `${functor}\n//*/\n//# sourceURL=${sourceUrl}\n`;
+      functor = JSON.stringify(functor);
+      functor = `(globalThis.${useNamedEvaluate} || eval)(${functor})`;
+    }
 
     return {
       getFunctor: () => `\
 // === functors[${index}] ===
-${cjsFunctor},
+${functor},
 `,
       getCells: () => `\
     {

@@ -272,6 +272,7 @@ function* chooseModuleDescriptor(
   },
   { maybeRead, parse, shouldDeferError = () => false },
 ) {
+  const { sourceDirname } = compartmentDescriptor;
   for (const candidateSpecifier of candidates) {
     const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
     if (candidateModuleDescriptor !== undefined) {
@@ -378,6 +379,7 @@ function* chooseModuleDescriptor(
       packageSources[candidateSpecifier] = {
         location: packageRelativeLocation,
         sourceLocation: moduleLocation,
+        sourceDirname,
         parser,
         bytes: transformedBytes,
         record: concreteRecord,
