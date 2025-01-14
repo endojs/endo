@@ -1,7 +1,8 @@
 import test from 'ava';
 import {
   transferBufferToImmutable,
-  // isBufferImmutable,
+  isBufferImmutable,
+  sliceBufferToImmutable,
 } from '../index.js';
 
 const { isFrozen, getPrototypeOf } = Object;
@@ -123,4 +124,83 @@ test('TypedArray on Immutable ArrayBuffer ponyfill limitations', t => {
   t.is(iab.byteLength, 2);
   const ta3 = new Uint8Array(iab);
   t.is(ta3.byteLength, 0);
+});
+
+const testTransfer = t => {
+  const ta12 = new Uint8Array([3, 4, 5]);
+  const ab12 = ta12.buffer;
+  t.is(ab12.byteLength, 3);
+  t.deepEqual([...ta12], [3, 4, 5]);
+
+  const ab2 = ab12.transfer(5);
+  t.false(isBufferImmutable(ab2));
+  t.is(ab2.byteLength, 5);
+  t.is(ab12.byteLength, 0);
+  const ta2 = new Uint8Array(ab2);
+  t.deepEqual([...ta2], [3, 4, 5, 0, 0]);
+
+  const ta13 = new Uint8Array([3, 4, 5]);
+  const ab13 = ta13.buffer;
+
+  const ab3 = ab13.transfer(2);
+  t.false(isBufferImmutable(ab3));
+  t.is(ab3.byteLength, 2);
+  t.is(ab13.byteLength, 0);
+  const ta3 = new Uint8Array(ab3);
+  t.deepEqual([...ta3], [3, 4]);
+};
+
+{
+  // `transfer` is absent in Node <= 20. Present in Node >= 22
+  const maybeTest = 'transfer' in ArrayBuffer.prototype ? test : test.skip;
+  maybeTest('Standard buf.transfer(newLength) behavior baseline', testTransfer);
+}
+
+test('Analogous transferBufferToImmutable(buf, newLength) ponyfill', t => {
+  const ta12 = new Uint8Array([3, 4, 5]);
+  const ab12 = ta12.buffer;
+  t.is(ab12.byteLength, 3);
+  t.deepEqual([...ta12], [3, 4, 5]);
+
+  const ab2 = transferBufferToImmutable(ab12, 5);
+  t.true(isBufferImmutable(ab2));
+  t.is(ab2.byteLength, 5);
+  t.is(ab12.byteLength, 0);
+  // slice needed due to ponyfill limitations.
+  const ta2 = new Uint8Array(ab2.slice());
+  t.deepEqual([...ta2], [3, 4, 5, 0, 0]);
+
+  const ta13 = new Uint8Array([3, 4, 5]);
+  const ab13 = ta13.buffer;
+
+  const ab3 = transferBufferToImmutable(ab13, 2);
+  t.true(isBufferImmutable(ab3));
+  t.is(ab3.byteLength, 2);
+  t.is(ab13.byteLength, 0);
+  // slice needed due to ponyfill limitations.
+  const ta3 = new Uint8Array(ab3.slice());
+  t.deepEqual([...ta3], [3, 4]);
+});
+
+test('sliceBufferToImmutable ponyfill', t => {
+  const ta12 = new Uint8Array([3, 4, 5]);
+  const ab12 = ta12.buffer;
+  t.is(ab12.byteLength, 3);
+  t.deepEqual([...ta12], [3, 4, 5]);
+
+  const ab2 = sliceBufferToImmutable(ab12, 1, 5);
+  t.true(isBufferImmutable(ab2));
+  t.is(ab2.byteLength, 2);
+  t.is(ab12.byteLength, 3);
+  // slice needed due to ponyfill limitations.
+  const ta2 = new Uint8Array(ab2.slice());
+  t.deepEqual([...ta2], [4, 5]);
+
+  const ab3 = sliceBufferToImmutable(ab2, 1, 2);
+  t.true(isBufferImmutable(ab3));
+  t.is(ab3.byteLength, 1);
+  t.is(ab2.byteLength, 2);
+  // slice needed due to ponyfill limitations.
+  const ta3 = new Uint8Array(ab3.slice());
+  t.deepEqual([...ta3], [5]);
 });
