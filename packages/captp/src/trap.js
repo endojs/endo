@@ -59,26 +59,32 @@ const TrapProxyHandler = (x, trapImpl) => {
 };
 
 /**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ *
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const funcTarget = freeze(() => {});
+
+/**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ *
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const objTarget = freeze({ __proto__: null });
+
+/**
  * @param {import('./types.js').TrapImpl} trapImpl
  * @returns {import('./ts-types.js').Trap}
  */
 export const makeTrap = trapImpl => {
   const Trap = x => {
-    /**
-     * `freeze` but not `harden` the proxy target so it remains trapping.
-     * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
-     */
-    const target = freeze(() => {});
     const handler = TrapProxyHandler(x, trapImpl);
-    return new Proxy(target, handler);
+    return new Proxy(funcTarget, handler);
   };
 
   const makeTrapGetterProxy = x => {
-    /**
-     * `freeze` but not `harden` the proxy target so it remains trapping.
-     * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
-     */
-    const target = freeze(Object.create(null));
     const handler = harden({
       ...baseFreezableProxyHandler,
       has(_target, _prop) {
@@ -89,7 +95,7 @@ export const makeTrap = trapImpl => {
         return trapImpl.get(x, prop);
       },
     });
-    return new Proxy(target, handler);
+    return new Proxy(objTarget, handler);
   };
   Trap.get = makeTrapGetterProxy;
 
