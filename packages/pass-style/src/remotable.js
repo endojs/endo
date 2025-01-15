@@ -24,10 +24,24 @@ const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {
   getPrototypeOf,
-  isFrozen,
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
+  isFrozen,
+
+  // The following is commented out due to
+  // https://github.com/endojs/endo/issues/2094
+  // TODO Once fixed, comment this back in and remove the workaround
+  // immediately below.
+  //
+  // // https://github.com/endojs/endo/pull/2673
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // isNonTrapping = isFrozen,
 } = Object;
+
+// workaround for https://github.com/endojs/endo/issues/2094
+// See commented out code and note immediately above.
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const isNonTrapping = Object.isNonTrapping || isFrozen;
 
 /**
  * @param {InterfaceSpec} iface
@@ -154,10 +168,13 @@ const checkRemotable = (val, check) => {
   if (confirmedRemotables.has(val)) {
     return true;
   }
-  if (!isFrozen(val)) {
-    return (
-      !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
-    );
+  if (!isNonTrapping(val)) {
+    if (!isFrozen(val)) {
+      return (
+        !!check && CX(check)`cannot serialize non-frozen objects like ${val}`
+      );
+    }
+    return !!check && CX(check)`cannot serialize trapping objects like ${val}`;
   }
   // eslint-disable-next-line no-use-before-define
   if (!RemotableHelper.canBeValid(val, check)) {

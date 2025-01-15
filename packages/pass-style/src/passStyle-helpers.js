@@ -11,9 +11,24 @@ const {
   getOwnPropertyDescriptor,
   getPrototypeOf,
   hasOwnProperty: objectHasOwnProperty,
-  isFrozen,
   prototype: objectPrototype,
+  isFrozen,
+
+  // The following is commented out due to
+  // https://github.com/endojs/endo/issues/2094
+  // TODO Once fixed, comment this back in and remove the workaround
+  // immediately below.
+  //
+  // // https://github.com/endojs/endo/pull/2673
+  // // @ts-expect-error TS does not yet have this on ObjectConstructor.
+  // isNonTrapping = isFrozen,
 } = Object;
+
+// workaround for https://github.com/endojs/endo/issues/2094
+// See commented out code and note immediately above.
+// @ts-expect-error TS does not yet have this on ObjectConstructor.
+export const isNonTrapping = Object.isNonTrapping || isFrozen;
+
 const { apply } = Reflect;
 const { toStringTag: toStringTagSymbol } = Symbol;
 
@@ -167,6 +182,9 @@ const makeCheckTagRecord = checkProto => {
           CX(check)`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
         (!!check && CX(check)`A tagRecord must be frozen: ${tagRecord}`)) &&
+      (isNonTrapping(tagRecord) ||
+        (!!check &&
+          CX(check)`A tagRecord must be non-trapping: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
         (!!check && CX(check)`An array cannot be a tagRecord: ${tagRecord}`)) &&
       checkPassStyle(
