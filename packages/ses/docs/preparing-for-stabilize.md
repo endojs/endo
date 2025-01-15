@@ -5,7 +5,7 @@ The [Stabilize proposal](https://github.com/tc39/proposal-stabilize) is currentl
 - ***overridable***: would mitigate the assignment-override mistake by enabling non-writable properties inherited from an object with this trait to be overridden by property assignment on an inheriting object.
 - ***non-trapping***: would mitigate proxy-based reentrancy hazards by having a proxy whose target carries this trait never trap to its handler, but rather just perform the default action directly on this non-trapping target.
 
-Draft PR [feat(non-trapping-shim): ponyfill and shim for the non-trapping integrity trait #2673](https://github.com/endojs/endo/pull/2673) is a ponyfill and shim for this non-trapping integrity trait. The names it introduces are placeholders, since the bikeshedding process for these names has not yet concluded.
+Draft PR [feat(non-trapping-shim): shim of the non-trapping integrity trait #2673](https://github.com/endojs/endo/pull/2673) is a shim for this non-trapping integrity trait. The names it introduces are placeholders, since the bikeshedding process for these names has not yet concluded.
 
 Draft PR [feat(ses,pass-style): use non-trapping integrity trait for safety #2675](https://github.com/endojs/endo/pull/2675) uses this support for the non-trapping integity trait to mitigate reentrancy attacks from hardened objects, expecially passable copy-data objects like copyLists, copyRecords, and taggeds. To do so, it makes two fundamental changes:
 - Where `harden` made the object at every step frozen, that PR changes `harden` to also make those objects non-trapping.
