@@ -11,7 +11,8 @@ const wellKnownSymbolNames = new Map(
       name => typeof name === 'string' && typeof Symbol[name] === 'symbol',
     )
     .filter(name => {
-      // @ts-expect-error It doesn't know name cannot be a symbol
+      // TODO either delete or at-ts-expect-error
+      // @ts-ignore It doesn't know name cannot be a symbol
       !name.startsWith('@@') ||
         Fail`Did not expect Symbol to have a symbol-valued property name starting with "@@" ${q(
           name,
