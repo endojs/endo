@@ -13,7 +13,7 @@ const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   global.harden
 );
 
-const { getPrototypeOf, defineProperty, freeze, suppressTrapping } = Object;
+const { getPrototypeOf, defineProperty, suppressTrapping } = Object;
 const { ownKeys } = Reflect;
 
 test('passStyleOf basic success cases', t => {

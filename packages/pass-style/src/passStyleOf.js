@@ -159,7 +159,7 @@ const makePassStyleOf = passStyleHelpers => {
                   : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
               );
             }
-            throw Fail`Cannot pass non-trapping objects like ${inner}`;
+            throw Fail`Cannot pass trapping objects like ${inner}`;
           }
           if (isPromise(inner)) {
             assertSafePromise(inner);
