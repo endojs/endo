@@ -2,7 +2,7 @@
   "name": "@endo/non-trapping-shim",
   "version": "0.1.0",
   "private": true,
-  "description": "shim and ponyfill for non-trapping integrity trait",
+  "description": "shim of the non-trapping integrity trait",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -19,7 +19,6 @@
   "main": "./index.js",
   "module": "./index.js",
   "exports": {
-    ".": "./index.js",
     "./shim.js": "./shim.js",
     "./package.json": "./package.json"
   },
