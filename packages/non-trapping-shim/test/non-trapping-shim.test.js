@@ -6,7 +6,7 @@ import '../shim.js';
 
 const { freeze, isFrozen } = Object;
 
-test('non-trapping-pony', async t => {
+test('non-trapping-shim', async t => {
   const specimen = { foo: 8 };
 
   const sillyHandler = freeze({

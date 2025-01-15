@@ -1,3 +1,8 @@
+// The exports of this ponyfill should only be used internally to this package
+// for separate unit testing, and for building the shim. The eval-twin
+// problems https://github.com/endojs/endo/issues/1583 with using a ponyfill
+// of this package are fatal, and so only the shim should be used externally.
+
 const OriginalObject = Object;
 const OriginalReflect = Reflect;
 const OriginalProxy = Proxy;
