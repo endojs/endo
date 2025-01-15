@@ -13,9 +13,10 @@ import {
 /**
  * `freeze` but not `harden` the proxy target so it remains trapping.
  * Thus, it should not be shared outside this module.
+ *
  * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
  */
-const onlyFrozenObject = freeze(create(null));
+const objTarget = freeze({ __proto__: null });
 
 /*
  * createSloppyGlobalsScopeTerminator()
@@ -51,7 +52,7 @@ export const createSloppyGlobalsScopeTerminator = globalObject => {
   );
 
   const sloppyGlobalsScopeTerminator = new Proxy(
-    onlyFrozenObject,
+    objTarget,
     sloppyGlobalsScopeTerminatorHandler,
   );
 

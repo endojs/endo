@@ -27,6 +27,8 @@ const badArrayHandler = harden({
 
 /**
  * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ *
  * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
  */
 const arrayTarget = freeze(/** @type {any[]} */ ([]));
