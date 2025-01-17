@@ -74,3 +74,15 @@ dist/
 api-docs
 
 .aider*
+
+# ts build cache
+*.tsbuildinfo
+
+# ignore all declarations and mappings, but allow the "*.types.d{m,c,t}s"
+# convention below to make it easier to track new declaration files as needed
+*.d.ts*
+*.d.mts*
+*.d.cts*
+!*.types.d.ts
+!*.types.d.mts
+!*.types.d.cts
