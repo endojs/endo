@@ -20,7 +20,7 @@ export const make = () => {
    */
   const parsePetNamePath = petNamePath => {
     if (!Array.isArray(petNamePath) || petNamePath.length !== 1) {
-      throw new Error(`Unexpected pet name path ${q(petNamePath)}`);
+      throw Error(`Unexpected pet name path ${q(petNamePath)}`);
     }
     return petNamePath[0];
   };
@@ -31,7 +31,7 @@ export const make = () => {
   const expectGetId = petName => {
     const id = nameToId.get(petName);
     if (id === undefined) {
-      throw new Error(`Unknown pet name ${q(petName)}`);
+      throw Error(`Unknown pet name ${q(petName)}`);
     }
     return id;
   };

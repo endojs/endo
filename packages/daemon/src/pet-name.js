@@ -14,7 +14,7 @@ export const isPetName = petName => validNamePattern.test(petName);
  */
 export const assertPetName = petName => {
   if (typeof petName !== 'string' || !isPetName(petName)) {
-    throw new Error(`Invalid pet name ${q(petName)}`);
+    throw Error(`Invalid pet name ${q(petName)}`);
   }
 };
 
@@ -23,7 +23,7 @@ export const assertPetName = petName => {
  */
 export const assertPetNamePath = petNamePath => {
   if (!Array.isArray(petNamePath) || petNamePath.length < 1) {
-    throw new Error(`Invalid pet name path`);
+    throw Error(`Invalid pet name path`);
   }
   for (const petName of petNamePath) {
     assertPetName(petName);

@@ -116,7 +116,7 @@ export const makeHttpPowers = ({ http, ws }) => {
 
         socket.on('message', (bytes, isBinary) => {
           if (!isBinary) {
-            abort(new Error('expected binary'));
+            abort(Error('expected binary'));
             return;
           }
           // TODO Ignoring back-pressure signal:
@@ -171,7 +171,7 @@ export const makeHttpPowers = ({ http, ws }) => {
           cancelled.catch(() => server.close());
           const address = server.address();
           if (address === null || typeof address === 'string') {
-            reject(new Error('expected listener to be assigned a port'));
+            reject(Error('expected listener to be assigned a port'));
           } else {
             resolve(address.port);
           }

@@ -88,12 +88,12 @@ export const servePrivatePortHttp = (
 
         const host = request.headers.host;
         if (host === undefined) {
-          throw new Error('Host header required');
+          throw Error('Host header required');
         }
         const match =
           /^([0-9a-f]{32})\.endo\.localhost:([1-9][0-9]{0,4})$/.exec(host);
         if (match === null) {
-          throw new Error(`Invalid host ${host}`);
+          throw Error(`Invalid host ${host}`);
         }
         const [_, formulaNumber, portNumber] = match;
         // eslint-disable-next-line no-use-before-define
