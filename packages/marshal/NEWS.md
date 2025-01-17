@@ -1,5 +1,9 @@
 User-visible changes in `@endo/marshal`:
 
+# Next release
+
+TODO explain `SuppressedError` support
+
 # v1.6.0 (2024-10-22)
 
 - `compareRank` now short-circuits upon encountering remotables to compare,

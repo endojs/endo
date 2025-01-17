@@ -22,3 +22,5 @@ test('aggregate error console demo', t => {
   console.log('log1', a1);
   t.is(a1.cause, e2);
 });
+
+// TODO SuppressedError
