@@ -14,6 +14,34 @@ const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
 );
 
 const { getPrototypeOf, defineProperty, freeze } = Object;
+/**
+ * Local alias of `harden` to eventually be switched to whatever applies
+ * the suppress-trapping integrity trait. For the shim at
+ * https://github.com/endojs/endo/pull/2673
+ * that is `suppressTrapping`, which is why we choose that name for the
+ * placeholder here. But it is a separate definition so these aliased uses
+ * do not yet depend on the final name.
+ *
+ * TODO Once we do have support for an explicit `suppressTrapping` operation,
+ * we should import that instead, and if necessary rename all uses to that
+ * operation's final name.
+ */
+const hardenToBeSuppressTrapping = harden;
+
+/**
+ * Local alias of `harden` to eventually be switched to whatever applies
+ * the suppress-trapping integrity trait. For the shim at
+ * https://github.com/endojs/endo/pull/2673
+ * that is `suppressTrapping`, which is why we choose that name for the
+ * placeholder here. But it is a separate definition so these aliased uses
+ * do not yet depend on the final name.
+ *
+ * TODO Once we do have support for an explicit `suppressTrapping` operation,
+ * we should import that instead, and if necessary rename all uses to that
+ * operation's final name.
+ */
+const freezeToBeSuppressTrapping = freeze;
+
 const { ownKeys } = Reflect;
 
 test('passStyleOf basic success cases', t => {
@@ -196,10 +224,7 @@ test('passStyleOf testing remotables', t => {
   t.is(passStyleOf(Far('foo', () => 'far function')), 'remotable');
 
   const tagRecord1 = harden(makeTagishRecord('Alleged: manually constructed'));
-  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObj1 = harden({ __proto__: tagRecord1 });
+  const farObj1 = hardenToBeSuppressTrapping({ __proto__: tagRecord1 });
   t.is(passStyleOf(farObj1), 'remotable');
 
   const tagRecord2 = makeTagishRecord('Alleged: tagRecord not hardened');
@@ -214,10 +239,8 @@ test('passStyleOf testing remotables', t => {
    * because that would also harden `__proto__`. So we will need to
    * explicitly make this non-trapping, which we cannot yet express.
    * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
-   *
-   * @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385
    */
-  const farObj2 = freeze({ __proto__: tagRecord2 });
+  const farObj2 = freezeToBeSuppressTrapping({ __proto__: tagRecord2 });
   if (harden.isFake) {
     t.is(passStyleOf(farObj2), 'remotable');
   } else {
@@ -228,36 +251,23 @@ test('passStyleOf testing remotables', t => {
   }
 
   const tagRecord3 = harden(makeTagishRecord('Alleged: both manually frozen'));
-  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObj3 = harden({ __proto__: tagRecord3 });
+  const farObj3 = hardenToBeSuppressTrapping({ __proto__: tagRecord3 });
   t.is(passStyleOf(farObj3), 'remotable');
 
   const tagRecord4 = harden(makeTagishRecord('Remotable'));
-  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObj4 = harden({ __proto__: tagRecord4 });
+  const farObj4 = hardenToBeSuppressTrapping({ __proto__: tagRecord4 });
   t.is(passStyleOf(farObj4), 'remotable');
 
   const tagRecord5 = harden(makeTagishRecord('Not alleging'));
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObj5 = harden({ __proto__: tagRecord5 });
+  const farObj5 = hardenToBeSuppressTrapping({ __proto__: tagRecord5 });
   t.throws(() => passStyleOf(farObj5), {
     message:
       /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented/,
   });
 
   const tagRecord6 = harden(makeTagishRecord('Alleged: manually constructed'));
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObjProto6 = harden({ __proto__: tagRecord6 });
-  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObj6 = harden({ __proto__: farObjProto6 });
+  const farObjProto6 = hardenToBeSuppressTrapping({ __proto__: tagRecord6 });
+  const farObj6 = hardenToBeSuppressTrapping({ __proto__: farObjProto6 });
   t.is(passStyleOf(farObj6), 'remotable', 'tagRecord grandproto is accepted');
 
   // Our current agoric-sdk plans for far classes are to create a class-like
@@ -311,9 +321,7 @@ test('passStyleOf testing remotables', t => {
   const tagRecordA1 = harden(
     makeTagishRecord('Alleged: null-proto tagRecord proto', null),
   );
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObjA1 = harden({ __proto__: tagRecordA1 });
+  const farObjA1 = hardenToBeSuppressTrapping({ __proto__: tagRecordA1 });
   t.throws(
     () => passStyleOf(farObjA1),
     { message: unusualTagRecordProtoMessage },
@@ -323,12 +331,8 @@ test('passStyleOf testing remotables', t => {
   const tagRecordA2 = harden(
     makeTagishRecord('Alleged: null-proto tagRecord grandproto', null),
   );
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObjProtoA2 = harden({ __proto__: tagRecordA2 });
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObjA2 = harden({ __proto__: farObjProtoA2 });
+  const farObjProtoA2 = hardenToBeSuppressTrapping({ __proto__: tagRecordA2 });
+  const farObjA2 = hardenToBeSuppressTrapping({ __proto__: farObjProtoA2 });
   t.throws(
     () => passStyleOf(farObjA2),
     { message: unusualTagRecordProtoMessage },
@@ -342,12 +346,10 @@ test('passStyleOf testing remotables', t => {
   const fauxTagRecordB = harden(
     makeTagishRecord('Alleged: manually constructed', harden({})),
   );
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObjProtoB = harden({ __proto__: fauxTagRecordB });
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const farObjB = harden({ __proto__: farObjProtoB });
+  const farObjProtoB = hardenToBeSuppressTrapping({
+    __proto__: fauxTagRecordB,
+  });
+  const farObjB = hardenToBeSuppressTrapping({ __proto__: farObjProtoB });
   t.throws(() => passStyleOf(farObjB), {
     message:
       'cannot serialize Remotables with non-methods like "Symbol(passStyle)" in "[Alleged: manually constructed]"',
@@ -358,9 +360,9 @@ test('passStyleOf testing remotables', t => {
   );
   Object.defineProperty(farObjProtoWithExtra, 'extra', { value: () => {} });
   harden(farObjProtoWithExtra);
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const badFarObjExtraProtoProp = harden({ __proto__: farObjProtoWithExtra });
+  const badFarObjExtraProtoProp = hardenToBeSuppressTrapping({
+    __proto__: farObjProtoWithExtra,
+  });
   t.throws(() => passStyleOf(badFarObjExtraProtoProp), {
     message: 'Unexpected properties on Remotable Proto ["extra"]',
   });
@@ -484,18 +486,12 @@ test('Allow toStringTag overrides', t => {
   t.is(`${alice}`, '[object DebugName: Allison]');
   t.is(`${q(alice)}`, '"[DebugName: Allison]"');
 
-  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const carol = harden({ __proto__: alice });
+  const carol = hardenToBeSuppressTrapping({ __proto__: alice });
   t.is(passStyleOf(carol), 'remotable');
   t.is(`${carol}`, '[object DebugName: Allison]');
   t.is(`${q(carol)}`, '"[DebugName: Allison]"');
 
-  /** @type {any} UNTIL https://github.com/microsoft/TypeScript/issues/38385 */
-  // TODO Once we have support for explicit non-trapping, this should change
-  // from `harden` to `suppressTrapping` or `stabilize`.
-  const bob = harden({
+  const bob = hardenToBeSuppressTrapping({
     __proto__: carol,
     [Symbol.toStringTag]: 'DebugName: Robert',
   });
