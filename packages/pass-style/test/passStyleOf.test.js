@@ -29,7 +29,7 @@ const { getPrototypeOf, defineProperty, freeze } = Object;
 const hardenToBeSuppressTrapping = harden;
 
 /**
- * Local alias of `harden` to eventually be switched to whatever applies
+ * Local alias of `freeze` to eventually be switched to whatever applies
  * the suppress-trapping integrity trait. For the shim at
  * https://github.com/endojs/endo/pull/2673
  * that is `suppressTrapping`, which is why we choose that name for the
@@ -425,7 +425,8 @@ test('remotables - safety from the gibson042 attack', t => {
    * explicitly make this non-trapping, which we cannot yet express.
    * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
    */
-  const makeInput = () => freeze({ __proto__: mercurialProto });
+  const makeInput = () =>
+    freezeToBeSuppressTrapping({ __proto__: mercurialProto });
   const input1 = makeInput();
   const input2 = makeInput();
 
