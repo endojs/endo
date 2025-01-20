@@ -165,7 +165,11 @@ export const transferBufferToImmutable = (buffer, newLength = undefined) => {
 
 export const isBufferImmutable = buffer => {
   try {
-    // @ts-expect-error Getter should be typed as this-sensitive
+    // TODO The following directive line should either be removed or
+    // turned back into an at-ts-expect-error. We made it into an
+    // at-ts-ignore because we were getting inconsistent reports.
+    // See https://github.com/endojs/endo/pull/2673#issuecomment-2566711810
+    // @ts-ignore Getter should be typed as this-sensitive
     return apply(isImmutableGetter, buffer, []);
   } catch (err) {
     if (err instanceof TypeError) {
@@ -179,7 +183,11 @@ export const isBufferImmutable = buffer => {
 
 const sliceBuffer = (buffer, start = undefined, end = undefined) => {
   try {
-    // @ts-expect-error We know it is really there
+    // TODO The following directive line should either be removed or
+    // turned back into an at-ts-expect-error. We made it into an
+    // at-ts-ignore because we were getting inconsistent reports.
+    // See https://github.com/endojs/endo/pull/2673#issuecomment-2566711810
+    // @ts-ignore We know it is really there
     return apply(sliceOfImmutable, buffer, [start, end]);
   } catch (err) {
     if (err instanceof TypeError) {

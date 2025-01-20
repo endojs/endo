@@ -238,9 +238,14 @@ export const makeHardener = () => {
                     // NOTE: Calls getter during harden, which seems dangerous.
                     // But we're only calling the problematic getter whose
                     // hazards we think we understand.
-                    // @ts-expect-error TS should know FERAL_STACK_GETTER
-                    // cannot be `undefined` here.
+                    //
+                    // TODO The following directive line should either be removed or
+                    // turned back into an at-ts-expect-error. We made it into an
+                    // at-ts-ignore because we were getting inconsistent reports.
+                    // See https://github.com/endojs/endo/pull/2673#issuecomment-2566711810
                     // See https://github.com/endojs/endo/pull/2232#discussion_r1575179471
+                    // @ts-ignore TS should know FERAL_STACK_GETTER
+                    // cannot be `undefined` here.
                     value: apply(FERAL_STACK_GETTER, obj, []),
                   });
                 }

@@ -187,6 +187,11 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
         // work. If we allow sortable symbol keys, this will need to
         // become more interesting.
         const names = ownKeys(passable).sort();
+        // TODO The following directive line should either be removed or
+        // turned back into an at-ts-expect-error. We made it into an
+        // at-ts-ignore because we were getting inconsistent reports.
+        // See https://github.com/endojs/endo/pull/2673#issuecomment-2566711810
+        // @ts-ignore Apparent confusion about `@qclass`
         return fromEntries(
           names.map(name => [name, encodeToCapDataRecur(passable[name])]),
         );
