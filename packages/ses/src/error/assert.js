@@ -293,6 +293,11 @@ export const sanitizeError = error => {
   } = descs;
 
   const restNames = ownKeys(restDescs);
+  // TODO vscode mouse hover shows that TS knows that `restNames` is an
+  // array and therefore that `restNames.length` is a number.
+  // But this isn't a TS error anyway, it seems to be an eslint error.
+  // I have no idea what eslint's type checking theory is.
+  // eslint-disable-next-line @endo/restrict-comparison-operands
   if (restNames.length >= 1) {
     for (const name of restNames) {
       delete error[name];
@@ -305,7 +310,11 @@ export const sanitizeError = error => {
     );
   }
   for (const name of ownKeys(error)) {
-    // @ts-expect-error TS still confused by symbols as property names
+    // TODO The following directive line should either be removed or
+    // turned back into an at-ts-expect-error. We made it into an
+    // at-ts-ignore because we were getting inconsistent reports.
+    // See https://github.com/endojs/endo/pull/2673#issuecomment-2566711810
+    // @ts-ignore TS still confused by symbols as property names
     const desc = descs[name];
     if (desc && objectHasOwnProperty(desc, 'get')) {
       defineProperty(error, name, {
