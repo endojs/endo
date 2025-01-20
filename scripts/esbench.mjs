@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -223,14 +223,20 @@ const { addCleanup, cleanup } = (() => {
   const cleanups = [];
   return {
     addCleanup: callback => {
-      cleanups.unshift(callback);
+      cleanups.push(callback);
     },
-    cleanup: async () => {
-      const settlements = await Promise.allSettled(
-        cleanups.map(async callback => callback()),
-      );
-      for (const { status, reason } of settlements) {
-        if (status !== 'fulfilled') raiseError(reason);
+    cleanup: () => {
+      while (cleanups.length) {
+        const callback = cleanups.pop();
+        try {
+          const result = callback();
+          if (result && typeof result.then === 'function') {
+            const name = callback.name || `<anonymous ${callback}>`;
+            throw Error(`cleanup ${name} was not synchronous!`);
+          }
+        } catch (err) {
+          raiseError(err);
+        }
       }
     },
   };
@@ -423,6 +429,9 @@ const parseArgs = (argv, fail) => {
 };
 
 const main = async argv => {
+  for (const fatal of ['SIGINT', 'SIGQUIT', 'SIGTERM']) {
+    process.on(fatal, cleanup);
+  }
   const failArg = (msg, usage = USAGE.replace(/\n {3}.*/g, '')) => {
     process.exitCode = EX_USAGE;
     throw makeSimpleError(`${msg}\n\n${usage}`);
@@ -902,7 +911,7 @@ const main = async argv => {
 
   // Write the script to a temp file.
   const tmpDir = mkdtempSync(pathJoin(tmpdir(), 'esbench-'));
-  addCleanup(() => rmSync(tmpDir, { force: true, recursive: true }));
+  addCleanup(rmSync.bind(undefined, tmpDir, { force: true, recursive: true }));
   const tmpName = pathJoin(tmpDir, 'script.js');
   writeFileSync(tmpName, script, { flush: true });
 
@@ -912,11 +921,57 @@ const main = async argv => {
   const child = spawn(cmd[0], [...cmd.slice(1), ...cmdOptions, tmpName], {
     stdio: ['ignore', 'inherit', 'inherit'],
   });
+  // Don't orphan eshost descendants.
+  // https://github.com/bterlson/eshost-cli/issues/94
+  const cleanupChild = (child => {
+    const { pid: cmdPid } = child;
+    const childDone = () => child.exitCode !== null;
+    const execOpts = { stdio: 'pipe', encoding: 'utf8' };
+    const pids = Object.create(null);
+    const findPids = () => {
+      if (childDone()) return;
+      try {
+        const stdout = execSync(`pstree -p ${cmdPid}`, execOpts);
+        // Prefer the first appearance of each name in output like:
+        //   eshost(1000)-+-node(1001)-+-bash(1002)---d8(1003)-+-{d8}(1004)
+        //                |            |                       |-{d8}(1005)
+        //                |            |                       `-{d8}(1006)
+        //                |            |-spidermonkey(1007)
+        //                |            `-{node}(1008)
+        //                `-{eshost}(1009)
+        const descendants = [
+          ...stdout.matchAll(/(\w[\w-]*)(?:[^\w-]+)([0-9]+)/g),
+        ].slice(1);
+        for (const [_, name, pid] of descendants) pids[name] ||= pid;
+      } catch (_err) {}
+    };
+    const findPidsJobID = setTimeout(findPids, 1000);
+
+    const killSubprocesses = () => {
+      clearTimeout(findPidsJobID);
+      if (Object.values(pids).length === 0) findPids();
+      const pidsStr = Object.values(pids).join(' ');
+      if (childDone() && !pidsStr) return;
+      const killCmds = [
+        `kill ${pidsStr} || [ ":${pidsStr}" != : ] && kill -l`,
+        `pkill -P ${cmdPid}`,
+        `taskkill /pid ${cmdPid} /T /F`,
+      ];
+      for (const killCmd of killCmds) {
+        try {
+          execSync(killCmd, execOpts);
+          break;
+        } catch (_err) {}
+      }
+    };
+    return killSubprocesses;
+  })(child);
+  addCleanup(cleanupChild);
   child.on('error', err => {
     if (err.code === 'ENOENT') {
-      raiseError(`missing required dependency ${cmd}`, EX_NOT_FOUND);
+      raiseError(`missing required dependency ${cmd[0]}`, EX_NOT_FOUND);
     } else if (err.code === 'EACCES') {
-      raiseError(`could not spawn ${cmd}`, EX_NOT_EXECUTABLE);
+      raiseError(`could not spawn ${cmd[0]}`, EX_NOT_EXECUTABLE);
     } else {
       raiseError(err);
     }
