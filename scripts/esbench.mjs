@@ -120,11 +120,13 @@ const shellTokenize = simpleCommand => {
   // whitespace) with dummy placeholders, but remember them.
   const extracts = [];
   const splittable = simpleCommand.replaceAll(
-    /[\\](.)|'([^']*)'|"((?:[^\\"]|\\.)*)"|(?:(^|[ \t\n])#[^\n]*)/gs,
+    /[\\](.)|'([^'']*)'|"((?:[^\\""]|\\.)*)"|(?:(^|[ \t\n])#[^\n]*)/gs,
     (_s, escaped, singleQuoted, doubleQuoted, beforeComment) => {
       if (beforeComment !== undefined) return beforeComment;
       extracts.push(
-        escaped || singleQuoted || doubleQuoted.replaceAll(/\\(.)/gs, '$1'),
+        escaped ||
+          singleQuoted ||
+          doubleQuoted.replaceAll(/\\(?:([$``""\\])|\n)/g, '$1'),
       );
       return '\\@';
     },
@@ -195,7 +197,7 @@ const toSource = (value, space) =>
   // null-prototype (ensuring that absent fields are undefined).
   JSON.stringify(value, undefined, space)
     // Escape "{" in strings to avoid confusing later replacements.
-    .replaceAll(/"(\\.|[^\\"])*"/gs, s => s.replaceAll('{', '\\x7B'))
+    .replaceAll(/"([^\\""]|\\.)*"/gs, s => s.replaceAll('{', '\\x7B'))
     .replaceAll('"__proto__":', '["__proto__"]:')
     .replaceAll('{', '{__proto__: null,')
     // Restore "{".
@@ -432,7 +434,7 @@ const main = async argv => {
   for (const fatal of ['SIGINT', 'SIGQUIT', 'SIGTERM']) {
     process.on(fatal, cleanup);
   }
-  const failArg = (msg, usage = USAGE.replace(/\n {3}.*/g, '')) => {
+  const failArg = (msg, usage = USAGE.replace(/\n {3}.*|\n+$/g, '')) => {
     process.exitCode = EX_USAGE;
     throw makeSimpleError(`${msg}\n\n${usage}`);
   };
@@ -504,9 +506,12 @@ const main = async argv => {
           return stdout.toString();
         };
     inits = await Promise.all(rawInits.map(preprocess));
-    const isModuleLike = rawInits.some(code =>
-      code.match(/^\s*(import|export)(\s*[*{"']|\s+[\p{ID_Start}$_])/mu),
-    );
+    // Module code is always strict, so prefix it with a Use Strict Directive
+    // (this import/export detection heuristic will also catch some non-module
+    // code, but so be it).
+    const importOrExportPatt =
+      /^\s*(import|export)(\s*[*{"''"](?:.*?[}])?|\s+[\p{ID_Start}$_])/mu;
+    const isModuleLike = rawInits.some(code => code.match(importOrExportPatt));
     if (isModuleLike) inits.unshift('"use strict"');
   }
 
