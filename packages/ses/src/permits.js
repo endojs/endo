@@ -98,10 +98,6 @@ export const universalPropertyNames = {
   // TODO ShadowRealm
   // ShadowRealm: 'ShadowRealm',
 
-  // https://github.com/tc39/proposal-source-phase-imports
-  // TODO %AbstractModuleSource%, ModuleSource?
-  // ModuleSource: 'ModuleSource',
-
   // *** Other Properties of the Global Object
 
   JSON: 'JSON',
