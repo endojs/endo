@@ -108,7 +108,7 @@ const makeCjsExitBundlerKit = ({ exit, index }) => ({
 null,
 `,
   getCells: () => `\
-    namespaceCells(require(${JSON.stringify(exit)})),
+    namespaceCells(tryRequire(${JSON.stringify(exit)})),
 `,
   getReexportsWiring: () => '',
   getFunctorCall: () => ``,
@@ -506,6 +506,13 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
 ${
   exitModuleSpecifiers.length > 0
     ? `\
+  const tryRequire = specifier => {
+    if (typeof require !== 'function') {
+      throw new Error('Cannot import host module: ' + specifier);
+    }
+    return require(specifier);
+  };
+
   const namespaceCells = namespace => Object.fromEntries(
     Object.getOwnPropertyNames(namespace)
     .map(name => [name, {
