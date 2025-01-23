@@ -1,6 +1,6 @@
 User-visible changes to `@endo/compartment-mapper`:
 
-# Next release
+# v1.5.0 (2025-01-23)
 
 - `mapNodeModules` and all functions that use it now tolerate the absence of
   expected packages.

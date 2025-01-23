@@ -1,6 +1,6 @@
 User-visible changes in `ses`:
 
-# Next release
+# v1.11.0 (2025-01-23)
 
 - Adds support for dynamic `import` in conjunction with an update to
   `@endo/module-source`.
