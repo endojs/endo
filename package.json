@@ -9,7 +9,7 @@
   },
   "packageManager": "yarn@4.5.1",
   "devDependencies": {
-    "@jessie.js/eslint-plugin": "^0.4.1",
+    "@jessie.js/eslint-plugin": "^0.4.2",
     "@octokit/core": "^3.4.0",
     "@types/node": "^20.9.0",
     "ava": "^6.1.3",
