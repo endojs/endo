@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.4.0...@endo/compartment-mapper@1.5.0) (2025-01-24)
+
+
+### Features
+
+* **compartment-mapper:** Export all parsers ([c5f5d43](https://github.com/endojs/endo/commit/c5f5d433b1df60ef0f74b1a5458675a4e37806e0))
+* **compartment-mapper:** more renames returned from captureFromMap / makeArchiveCompartmentMap ([630592d](https://github.com/endojs/endo/commit/630592d38824316479255453cf49a646a9ff0e75))
+* **compartment-mapper:** Relax package discovery ([ab885a2](https://github.com/endojs/endo/commit/ab885a226eb05eb715df9da05c63c11731abf494))
+* **compartment-mapper:** Thread native flag to opt-in for native XS runtime modules ([aa1e77f](https://github.com/endojs/endo/commit/aa1e77f9af62dca40a357e92fd869ecdb8a35379))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** Development condition only implies devDependencies for entry package ([b7d7b23](https://github.com/endojs/endo/commit/b7d7b2388308e23217dc7d126ba081c465cf4b1f))
+* **compartment-mapper:** Fix path for language for extension test ([99a1cb5](https://github.com/endojs/endo/commit/99a1cb5e960fa62c2dab49ff0724162710730330))
+* **compartment-mapper:** Qualify dynamic import test failure cases ([f470696](https://github.com/endojs/endo/commit/f4706960afef22b98780ca4cbffe6ccf82ed9b1b))
+
+
+
 ## [1.4.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.3.1...@endo/compartment-mapper@1.4.0) (2024-11-13)
 
 

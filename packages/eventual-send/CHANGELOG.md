@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.8...@endo/eventual-send@1.3.0) (2025-01-24)
+
+
+### Features
+
+* EReturn type ([5aefe10](https://github.com/endojs/endo/commit/5aefe1032be33c70c097663a86f240c857dcd2a1))
+
+
+
 ### [1.2.8](https://github.com/endojs/endo/compare/@endo/eventual-send@1.2.7...@endo/eventual-send@1.2.8) (2024-11-13)
 
 **Note:** Version bump only for package @endo/eventual-send

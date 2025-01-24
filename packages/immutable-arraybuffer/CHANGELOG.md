@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.3](https://github.com/endojs/endo/compare/@endo/immutable-arraybuffer@0.2.2...@endo/immutable-arraybuffer@0.2.3) (2025-01-24)
+
+
+### Bug Fixes
+
+* **immutable-arraybuffer:** update to recent spec ([#2688](https://github.com/endojs/endo/issues/2688)) ([daa1e2b](https://github.com/endojs/endo/commit/daa1e2b59894600fea1f1669fa84d14ce307789e))
+
+
+
 ### [0.2.2](https://github.com/endojs/endo/compare/@endo/immutable-arraybuffer@0.2.1...@endo/immutable-arraybuffer@0.2.2) (2024-11-13)
 
 **Note:** Version bump only for package @endo/immutable-arraybuffer

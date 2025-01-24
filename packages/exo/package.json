@@ -1,6 +1,6 @@
 {
   "name": "@endo/exo",
-  "version": "1.5.7",
+  "version": "1.5.8",
   "description": "exo: remotable objects protected by interface guards.",
   "keywords": [],
   "author": "Endo contributors",
