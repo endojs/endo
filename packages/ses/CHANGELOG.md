@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0](https://github.com/endojs/endo/compare/ses@1.10.0...ses@1.11.0) (2025-01-24)
+
+
+### Features
+
+* **ses:** Add XS variant of shim ([f6c8456](https://github.com/endojs/endo/commit/f6c84566bb6a698709dc3474726000f07b94f3db))
+* **ses:** Permit legacy properties of ModuleSource shim ([75f2461](https://github.com/endojs/endo/commit/75f2461acc7f53ed448f11fa5b12360109dc364f))
+* **ses:** restrict dynamic permit on Hermes ([14731fe](https://github.com/endojs/endo/commit/14731feff0b335809c5fd846a0ba73ffb7b000f7))
+* **ses:** Support dynamic import ([e56cc04](https://github.com/endojs/endo/commit/e56cc040414d0228cd24bbe2d0e2c8a8a595ae51))
+
+
+### Bug Fixes
+
+* **ses:** Consistently name console methods ([fa7a1c4](https://github.com/endojs/endo/commit/fa7a1c44b48563f0762479469d3d03bc42710c47)), closes [#2643](https://github.com/endojs/endo/issues/2643)
+* **ses:** removeUnpermittedIntrinsics on Hermes via dynamic permit at runtime ([1c61fb5](https://github.com/endojs/endo/commit/1c61fb57feb9d312a302508f521621d375cd9cbc))
+* **ses:** update permits for stage 2.7.4 proposals ([#2693](https://github.com/endojs/endo/issues/2693)) ([35d5ea2](https://github.com/endojs/endo/commit/35d5ea202593362a16b16c466ae69b5f6939c539))
+* **ses:** warn on unsupported lockdownOptions mathTaming + dateTaming ([8ed8a8b](https://github.com/endojs/endo/commit/8ed8a8befb883c390db37a22b0482844590bacd1))
+* **ses:** widen type of globalThis in Compartment ([#2644](https://github.com/endojs/endo/issues/2644)) ([ff6a5ab](https://github.com/endojs/endo/commit/ff6a5ab147822b2b7d87761b9eeeafef808645e2))
+* **ses:** XS accommodations for console groupEnd absence ([fd70235](https://github.com/endojs/endo/commit/fd70235cb697b8c75d4e61d6b017f11d708798ad))
+
+
+
 ## [1.10.0](https://github.com/endojs/endo/compare/ses@1.9.1...ses@1.10.0) (2024-11-13)
 
 

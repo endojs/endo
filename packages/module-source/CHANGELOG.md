@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/endojs/endo/compare/@endo/module-source@1.1.2...@endo/module-source@1.2.0) (2025-01-24)
+
+
+### Features
+
+* **module-source:** Specialize for XS native ModuleSource ([53e5109](https://github.com/endojs/endo/commit/53e5109efa151e1c5d9ddd242cea8e6f906ceb48))
+* **module-source:** Support for dynamic import ([25414d6](https://github.com/endojs/endo/commit/25414d6fb0dc2570c0013d8f58597498c3d6fb21))
+
+
+
 ### [1.1.2](https://github.com/endojs/endo/compare/@endo/module-source@1.1.1...@endo/module-source@1.1.2) (2024-11-13)
 
 **Note:** Version bump only for package @endo/module-source

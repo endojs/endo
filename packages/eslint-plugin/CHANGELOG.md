@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.3.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.2.3...@endo/eslint-plugin@2.3.0) (2025-01-24)
+
+
+### Features
+
+* **ses:** Add XS variant of shim ([f6c8456](https://github.com/endojs/endo/commit/f6c84566bb6a698709dc3474726000f07b94f3db))
+
+
+
 ### [2.2.3](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.2.2...@endo/eslint-plugin@2.2.3) (2024-11-13)
 
 **Note:** Version bump only for package @endo/eslint-plugin

@@ -1,6 +1,6 @@
 {
   "name": "@endo/import-bundle",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "load modules created by @endo/bundle-source",
   "keywords": [],
   "author": "Endo contributors",

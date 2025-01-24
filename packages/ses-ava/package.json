@@ -1,6 +1,6 @@
 {
   "name": "@endo/ses-ava",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "Virtualize Ava's test to work better under SES.",
   "keywords": [
     "ses",
