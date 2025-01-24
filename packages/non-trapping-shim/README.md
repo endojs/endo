@@ -1,4 +1,4 @@
-# Shim for Non-trapping Integrity Trait
+# Opt-in Shim for Non-trapping Integrity Trait
 
 Emulates support for the non-trapping integrity trait from the
 [Stabilize proposal](https://github.com/tc39/proposal-stabilize).
@@ -11,4 +11,11 @@ This package is currently organized internally as a ponyfill, and a shim based o
 
 See https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md for guidance on how to prepare for the changes that will be introduced by this proposal.
 
-TODO: More explanation.
+## Opt-in env-option `SES_NON_TRAPPING_SHIM`
+
+To cope with various compat problems in linking code that uses or assumes this shim to code that does not, we have made this shim opt-in via the env-option `SES_NON_TRAPPING_SHIM`. This has two settings, `'enabled'` and the default `'disabled'`. As with all env options, this is represented at the property `process.env.SES_NON_TRAPPING_SHIM`, which typically represents the environment variable `SES_NON_TRAPPING_SHIM`. Thus, if nothing else sets `process.env.SES_NON_TRAPPING_SHIM`, you can opt-in at the shell level by
+```sh
+$ export SES_NON_TRAPPING_SHIM=enabled
+```
+
+When not opted into, importing the shim has no effect.

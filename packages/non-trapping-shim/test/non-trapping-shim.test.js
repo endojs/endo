@@ -1,3 +1,4 @@
+import '../prepare-enable-shim.js';
 // Uses 'ava' rather than @endo/ses-ava to avoid worries about cyclic
 // dependencies. We will need similar tests is higher level packages, in order
 // to test compat with ses and ses-ava.
