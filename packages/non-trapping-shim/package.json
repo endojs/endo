@@ -20,6 +20,7 @@
   "module": "./index.js",
   "exports": {
     "./shim.js": "./shim.js",
+    "./prepare-enable-shim.js": "./prepare-enable-shim.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -34,6 +35,9 @@
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@endo/env-options": "workspace:^"
   },
   "devDependencies": {
     "ava": "^6.1.3",
