@@ -20,10 +20,9 @@ const isPrimitive = specimen => OriginalObject(specimen) !== specimen;
  * `Reflect.isNonTrapping`.
  *
  * @param {any} specimen
- * @param {boolean} shouldThrow
  * @returns {boolean}
  */
-const isNonTrappingInternal = (specimen, shouldThrow) => {
+const isNonTrappingInternal = specimen => {
   if (nonTrappingSet.has(specimen)) {
     return true;
   }
@@ -31,7 +30,7 @@ const isNonTrappingInternal = (specimen, shouldThrow) => {
     return false;
   }
   const [target, handler] = proxyHandlerMap.get(specimen);
-  if (isNonTrappingInternal(target, shouldThrow)) {
+  if (isNonTrappingInternal(target)) {
     nonTrappingSet.add(specimen);
     return true;
   }
@@ -40,14 +39,11 @@ const isNonTrappingInternal = (specimen, shouldThrow) => {
     return false;
   }
   const result = apply(trap, handler, [target]);
-  const ofTarget = isNonTrappingInternal(target, shouldThrow);
+  const ofTarget = isNonTrappingInternal(target);
   if (result !== ofTarget) {
-    if (shouldThrow) {
-      throw TypeError(
-        `'isNonTrapping' proxy trap does not reflect 'isNonTrapping' of proxy target (which is '${ofTarget}')`,
-      );
-    }
-    return false;
+    throw TypeError(
+      `'isNonTrapping' proxy trap does not reflect 'isNonTrapping' of proxy target (which is '${ofTarget}')`,
+    );
   }
   if (result) {
     nonTrappingSet.add(specimen);
@@ -60,10 +56,9 @@ const isNonTrappingInternal = (specimen, shouldThrow) => {
  * `Reflect.suppressTrapping`.
  *
  * @param {any} specimen
- * @param {boolean} shouldThrow
  * @returns {boolean}
  */
-const suppressTrappingInternal = (specimen, shouldThrow) => {
+const suppressTrappingInternal = specimen => {
   if (nonTrappingSet.has(specimen)) {
     return true;
   }
@@ -73,27 +68,24 @@ const suppressTrappingInternal = (specimen, shouldThrow) => {
     return true;
   }
   const [target, handler] = proxyHandlerMap.get(specimen);
-  if (isNonTrappingInternal(target, shouldThrow)) {
+  if (isNonTrappingInternal(target)) {
     nonTrappingSet.add(specimen);
     return true;
   }
   const trap = handler.suppressTrapping;
   if (trap === undefined) {
-    const result = suppressTrappingInternal(target, shouldThrow);
+    const result = suppressTrappingInternal(target);
     if (result) {
       nonTrappingSet.add(specimen);
     }
     return result;
   }
   const result = apply(trap, handler, [target]);
-  const ofTarget = isNonTrappingInternal(target, shouldThrow);
+  const ofTarget = isNonTrappingInternal(target);
   if (result !== ofTarget) {
-    if (shouldThrow) {
-      throw TypeError(
-        `'suppressTrapping' proxy trap does not reflect 'isNonTrapping' of proxy target (which is '${ofTarget}')`,
-      );
-    }
-    return false;
+    throw TypeError(
+      `'suppressTrapping' proxy trap does not reflect 'isNonTrapping' of proxy target (which is '${ofTarget}')`,
+    );
   }
   if (result) {
     nonTrappingSet.add(specimen);
@@ -106,13 +98,13 @@ export const extraReflectMethods = freeze({
     if (isPrimitive(target)) {
       throw TypeError('Reflect.isNonTrapping called on non-object');
     }
-    return isNonTrappingInternal(target, false);
+    return isNonTrappingInternal(target);
   },
   suppressTrapping(target) {
     if (isPrimitive(target)) {
       throw TypeError('Reflect.suppressTrapping called on non-object');
     }
-    return suppressTrappingInternal(target, false);
+    return suppressTrappingInternal(target);
   },
 });
 
@@ -121,13 +113,13 @@ export const extraObjectMethods = freeze({
     if (isPrimitive(target)) {
       return true;
     }
-    return isNonTrappingInternal(target, true);
+    return isNonTrappingInternal(target);
   },
   suppressTrapping(target) {
     if (isPrimitive(target)) {
       return target;
     }
-    if (suppressTrappingInternal(target, true)) {
+    if (suppressTrappingInternal(target)) {
       return target;
     }
     throw TypeError('suppressTrapping trap returned falsy');
@@ -198,7 +190,7 @@ const metaHandler = freeze({
      * @param {any[]} rest
      */
     const trapPlus = freeze((target, ...rest) => {
-      if (isNonTrappingInternal(target, true)) {
+      if (isNonTrappingInternal(target)) {
         defineProperty(handlerPlus, trapName, {
           value: undefined,
           writable: false,
@@ -284,7 +276,7 @@ ProxyPlus.revocable = (target, handler) => {
   return {
     proxy,
     revoke() {
-      if (isNonTrappingInternal(target, true)) {
+      if (isNonTrappingInternal(target)) {
         throw TypeError('Cannot revoke non-trapping proxy');
       }
       revoke();
