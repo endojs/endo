@@ -45,7 +45,7 @@ Options:
   --init-file PATH, -f PATH
   --init-module IDENTIFIER, -M IDENTIFIER
     Code to execute once, before anything else (including setup, which runs once
-    per measurement iteration).
+    per observation).
     Each use is subject to independent preprocessing for isolated evaluation.
     Example: --init \\
       'import { foo } from "/path/to/module.js"; globalThis.foo = foo;'
@@ -64,8 +64,8 @@ Options:
     Define an argument to be used with varying values against each snippet,
     visible to both setup and snippet code.
     If VALUES is not present, the argument will use successive scaling integers
-    starting at 0 until that value exceeds MAX or a measurement exceeds the
-    budget (whichever comes first). Only one scaling argument is allowed.
+    starting at 0 until that value exceeds MAX or a single observation exceeds
+    the budget (whichever comes first). Only one scaling argument is allowed.
     If VALUES is present, it is interpreted as a list with elements separated by
     either SEP or (if SEP is not present) commas or (if SEP is present but
     empty) any combination of spaces, tabs, and/or line feeds.
@@ -76,8 +76,8 @@ Options:
     Example: --arg flag:foo,bar,baz
 
   --setup CODE, -s CODE
-    Code to execute once per measurement iteration, before one or more copies of
-    a snippet. Has access to argument variables, which can be used to exercise
+    Code to execute once per observation, before one or more repetitions of a
+    snippet. Has access to argument variables, which can be used to exercise
     related scenarios such as matching vs. not matching or increasing scale.
     Declarations in setup code are visible to snippet code, and there is always
     an implicit \`let result;\` declaration.
@@ -861,7 +861,7 @@ const main = async argv => {
      * @param {string} code
      * @param {SnippetMemory} data
      */
-    const makeTimer = (code, data) => {
+    const makeProbe = async (code, data) => {
       data.i += 1;
       const { label, i, n } = data;
       // Suffix embedded binding names to make them unguessable and
@@ -950,7 +950,7 @@ const main = async argv => {
       `;
       push(ctorArgs, body);
       const inner = defineName(label || 'dynamic', construct(ctor, ctorArgs));
-      const timer = async (args, getTimestamp = now) => {
+      const takeObservation = async (args, getTimestamp = now) => {
         const token = Symbol();
         const powers = { dummy, now: getTimestamp, token };
         const result = await apply(inner, undefined, appended(args, powers));
@@ -960,24 +960,24 @@ const main = async argv => {
         }
         return { awaited, duration: tF - t1, resolution: t1 - t0 };
       };
-      return timer;
+      return takeObservation;
     };
 
     /** @type {Record<PropertyKey, SnippetMemory>} */
     const dataByKey = create(null);
     /** Take a sample ({@link https://en.wikipedia.org/wiki/Sampling_(statistics)}). */
-    const sample = async (key, label, code, budget, args) => {
+    const takeSample = async (key, label, code, budget, args) => {
       const data = (dataByKey[key] ||= { label, i: 0, n: 1 });
 
-      // Make a timer function with repetition count tuned to foster
-      // durations of (30 +/- 20) increments of timer resolution.
-      let timer,
+      // Tune repetition count to foster durations of (30 +/- 20) increments
+      // of timer resolution.
+      let takeObservation,
         duration,
         resolution = Infinity;
       for (let a = 1, b = Infinity, n = data.n; ; n = max(a, min(n, b))) {
         data.n = n;
-        timer = makeTimer(code, data);
-        const firstData = await timer(args);
+        takeObservation = await makeProbe(code, data);
+        const firstData = await takeObservation(args);
         ({ duration } = firstData);
         // Ignore clock discontinuities that we can detect.
         if (firstData.resolution <= 0 || duration < 0) continue;
@@ -997,17 +997,17 @@ const main = async argv => {
         }
         if (a >= b) {
           data.n = max(1, b);
-          timer = makeTimer(code, data);
+          takeObservation = await makeProbe(code, data);
           duration = undefined;
           break;
         }
       }
 
-      // Collect data from the timer.
+      // Collect observations.
       const samples = duration ? [duration] : [];
       let totalDuration = duration || 0;
       while (totalDuration < budget) {
-        const { duration } = await timer(args);
+        const { duration } = await takeObservation(args);
         samples.push(duration);
         totalDuration += duration;
       }
@@ -1015,7 +1015,7 @@ const main = async argv => {
     };
 
     // For each non-final scaling value and each combination of non-scaling
-    // arguments, collect samples from the snippets in random order.
+    // arguments, sample the snippets in random order.
     const argCombos = ifEmpty(crossJoin(values(nonScalingArgs)), [[]]);
     const snippetIdxs = map(snippets, (_, i) => i);
     const liveSnippetsForCombo = map(argCombos, () => slice(snippetIdxs));
@@ -1032,7 +1032,7 @@ const main = async argv => {
           if (k < 0) continue;
           const { 0: label, 1: code } = snippets[snippetIdx];
           const resolvedArgs = appended(argCombos[i], scale);
-          const data = await sample(
+          const data = await takeSample(
             snippetIdx,
             label,
             code,
