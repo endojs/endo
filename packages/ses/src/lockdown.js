@@ -59,6 +59,7 @@ import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
 import { shimArrayBufferTransfer } from './shim-arraybuffer-transfer.js';
 import { reportInGroup, chooseReporter } from './reporting.js';
+import { assertDirectEvalAvailable } from './stuff-we-extracted.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -99,38 +100,6 @@ const safeHarden = makeHardener();
 // of every call agree.  With experience, we have observed that lockdown should
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
-
-const assertDirectEvalAvailable = () => {
-  let allowed = false;
-  try {
-    allowed = FERAL_FUNCTION(
-      'eval',
-      'SES_changed',
-      `\
-        eval("SES_changed = true");
-        return SES_changed;
-      `,
-    )(FERAL_EVAL, false);
-    // If we get here and SES_changed stayed false, that means the eval was sloppy
-    // and indirect, which generally creates a new global.
-    // We are going to throw an exception for failing to initialize SES, but
-    // good neighbors clean up.
-    if (!allowed) {
-      delete globalThis.SES_changed;
-    }
-  } catch (_error) {
-    // We reach here if eval is outright forbidden by a Content Security Policy.
-    // We allow this for SES usage that delegates the responsibility to isolate
-    // guest code to production code generation.
-    allowed = true;
-  }
-  if (!allowed) {
-    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
-    throw TypeError(
-      `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
-    );
-  }
-};
 
 /**
  * @param {LockdownOptions} [options]
@@ -242,7 +211,9 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  assertDirectEvalAvailable();
+  if (rename_me_something_notOnHermes()) {
+    assertDirectEvalAvailable();
+  }
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
@@ -415,6 +386,8 @@ export const repairIntrinsics = (options = {}) => {
       markVirtualizedNativeFunction,
     );
   } else if (evalTaming === 'safeEval') {
+    // HERMES BOOKMARK
+    // this thing may rely on direct eval
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
     setGlobalObjectEvaluators(
       globalThis,

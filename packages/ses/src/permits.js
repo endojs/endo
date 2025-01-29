@@ -6,6 +6,7 @@ import {
   arrayForEach,
   getOwnPropertyDescriptor,
 } from './commons.js';
+import { dynamicFunctionPermitsAdjustments } from './stuff-we-extracted.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
@@ -303,33 +304,10 @@ const accessor = {
   set: fn,
 };
 
-// TODO Remove this once we no longer support Hermes.
-// While all engines have a ThrowTypeError accessor for fields not permitted in strict mode, some (Hermes 0.12) put that accessor in unexpected places. We can't clean them up because they're non-configurable. Therefore we're checking for identity with specCompliantThrowTypeError and dynamically adding permits for those.
 // eslint-disable-next-line func-names
-const specCompliantThrowTypeError = (function () {
-  'use strict';
 
-  // eslint-disable-next-line prefer-rest-params
-  const desc = getOwnPropertyDescriptor(arguments, 'callee');
-  return desc && desc.get;
-})();
-if (specCompliantThrowTypeError) {
-  // eslint-disable-next-line func-names
-  const strict = function () {
-    'use strict';
-  };
-  arrayForEach(['caller', 'arguments'], prop => {
-    const desc = getOwnPropertyDescriptor(strict, prop);
-    if (
-      desc &&
-      desc.configurable === false &&
-      desc.get &&
-      desc.get === specCompliantThrowTypeError
-    ) {
-      FunctionInstance[prop] = accessor;
-    }
-  });
-}
+// TODO Remove this once we no longer support Hermes.
+dynamicFunctionPermitsAdjustments({ FunctionInstance, accessor });
 
 export const isAccessorPermit = permit => {
   return permit === getter || permit === accessor;

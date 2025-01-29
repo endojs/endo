@@ -111,7 +111,8 @@ export const setGlobalObjectMutableProperties = (
   const perCompartmentGlobals = {
     globalThis: globalObject,
   };
-
+  // BOOKMARK HERMES
+  // Compartment creation
   perCompartmentGlobals.Compartment = freeze(
     makeCompartmentConstructor(
       makeCompartmentConstructor,
