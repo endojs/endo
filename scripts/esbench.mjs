@@ -31,7 +31,17 @@ Options:
   --budget SECONDS, -b SECONDS
     How much time to spend sampling each (...arguments, snippet) tuple (e.g., a
     budget of 0 takes just one observation per tuple before stopping).
-    Defaults to 10.
+    Defaults to 3.
+
+  --repetitions N, -r N
+    How many copies of each snippet constitute an observation. If not explicitly
+    specified, it is tuned for each (...arguments, snippet) tuple to an
+    value based on timer resolution t_e such that n observation duration is
+    approximately 30 * t_e.
+
+  --warmup N, -w N
+    How many initial observations of each (...arguments, snippet) tuple to
+    ignore (e.g., to allow for interpreter optimization passes). Defaults to 0.
 
   --async, --no-async
     Evaluate each snippet as an expression to be awaited, or suppress such
@@ -299,6 +309,8 @@ const INIT_OPTION_NAMES = [
  * @property {boolean} dump
  * @property {string[]} cmdOptions
  * @property {number} budget in milliseconds
+ * @property {number} [repetitionCount]
+ * @property {number} warmupCount
  * @property {boolean} [awaitSnippets]
  * @property {boolean} asModule
  * @property {string[]} inits
@@ -322,8 +334,10 @@ const parseArgs = (argv, fail) => {
 
   let dump = false;
   let cmdOptions = [];
+  let budget = 3;
+  let repetitionCount = undefined;
+  let warmupCount = 0;
   let awaitSnippets = undefined;
-  let budget = 10;
   let asModule = false;
   let inits = [];
   let preprocessor = undefined;
@@ -453,6 +467,14 @@ const parseArgs = (argv, fail) => {
     } else if (opt === '--budget' || opt === '-b') {
       budget = parseNumber(takeValue());
       budget >= 0 || fail(`${opt} requires a non-negative number`);
+    } else if (opt === '--repetitions' || opt === '-r') {
+      repetitionCount = parseNumber(takeValue());
+      (repetitionCount > 0 && Number.isInteger(repetitionCount)) ||
+        fail(`${opt} requires a positive integer`);
+    } else if (opt === '--warmup' || opt === '-w') {
+      warmupCount = parseNumber(takeValue());
+      (warmupCount >= 0 && Number.isInteger(warmupCount)) ||
+        fail(`${opt} requires a non-negative integer`);
     } else if (opt === '--async' || opt === '--no-async') {
       awaitSnippets = opt === '--async';
     } else if (opt === '--module' || opt === '-m') {
@@ -498,6 +520,8 @@ const parseArgs = (argv, fail) => {
     cmdOptions,
     // Convert seconds to milliseconds.
     budget: budget * 1000,
+    repetitionCount,
+    warmupCount,
     awaitSnippets,
     asModule,
     inits,
@@ -523,6 +547,8 @@ const main = async argv => {
     dump,
     cmdOptions,
     budget,
+    repetitionCount,
+    warmupCount,
     awaitSnippets,
     asModule,
     inits: rawInits,
@@ -602,6 +628,8 @@ const main = async argv => {
   const config = {
     awaitSnippets,
     budget,
+    repetitionCount,
+    warmupCount,
     args,
     scalingArg,
     setup: setups.join(';\n'),
@@ -765,6 +793,8 @@ const main = async argv => {
     const {
       awaitSnippets,
       budget,
+      repetitionCount,
+      warmupCount,
       init,
       args,
       scalingArg,
@@ -857,8 +887,10 @@ const main = async argv => {
      *
      * @param {string} code
      * @param {SnippetMemory} data
+     * @param {number} [warmupCount]
+     * @param {unknown[]} [warmupArgs]
      */
-    const makeProbe = async (code, data) => {
+    const makeProbe = async (code, data, warmupCount = 0, warmupArgs = []) => {
       data.i += 1;
       const { label, i, n } = data;
       // Suffix embedded binding names to make them unguessable and
@@ -957,58 +989,91 @@ const main = async argv => {
         }
         return { awaited, duration: tF - t1, resolution: t1 - t0 };
       };
+      for (let i = 0; i < warmupCount; i += 1) {
+        await takeObservation(warmupArgs);
+      }
       return takeObservation;
     };
 
     /** @type {Record<PropertyKey, SnippetMemory>} */
     const dataByKey = create(null);
     /** Take a sample ({@link https://en.wikipedia.org/wiki/Sampling_(statistics)}). */
-    const takeSample = async (key, label, code, budget, args) => {
+    const takeSample = async (key, label, code, config, args, restarts = 0) => {
       const data = (dataByKey[key] ||= { label, i: 0, n: 1 });
+      const { budget, repetitionCount, warmupCount } = config;
+      const minN = warmupCount > 0 ? data.n : 1;
 
-      // Tune repetition count to foster durations of (30 +/- 20) increments
-      // of timer resolution.
-      let takeObservation,
-        duration,
-        resolution = Infinity;
-      for (let a = 1, b = Infinity, n = data.n; ; n = max(a, min(n, b))) {
-        data.n = n;
-        takeObservation = await makeProbe(code, data);
-        const firstData = await takeObservation(args);
-        ({ duration } = firstData);
-        // Ignore clock discontinuities that we can detect.
-        if (firstData.resolution <= 0 || duration < 0) continue;
-        resolution = min(resolution, firstData.resolution);
-        if (duration < 10 * resolution) {
-          a = n + 1;
-          if (duration > 0) {
-            n = ceil((n / duration) * 30 * resolution);
+      let takeObservation;
+      let resolution = Infinity;
+      let totalDuration = 0;
+      if (repetitionCount) {
+        data.n = repetitionCount;
+        takeObservation = await makeProbe(code, data, warmupCount, args);
+      } else {
+        // Tune repetition count to foster durations of (30 +/- 20) increments
+        // of timer resolution.
+        for (let a = minN, b = Infinity, n = data.n; ; n = max(a, min(n, b))) {
+          data.n = n;
+          takeObservation = await makeProbe(code, data, warmupCount, args);
+          const { duration: obsDur, resolution: obsRes } =
+            await takeObservation(args);
+          // Ignore clock discontinuities that we can detect.
+          if (obsRes <= 0 || obsDur < 0) continue;
+          resolution = min(resolution, obsRes);
+          if (obsDur < 10 * resolution) {
+            a = n + 1;
+            if (obsDur > 0) {
+              n = ceil((n / obsDur) * 30 * resolution);
+            } else {
+              n = b < Infinity ? ceil((a + b) / 2) : n * 2;
+            }
+          } else if (obsDur > 50 * resolution) {
+            b = n - 1;
+            n = ceil((n / obsDur) * 30 * resolution);
           } else {
-            n = b < Infinity ? ceil((a + b) / 2) : n * 2;
+            totalDuration = obsDur;
+            break;
           }
-        } else if (duration > 50 * resolution) {
-          b = n - 1;
-          n = ceil((n / duration) * 30 * resolution);
-        } else {
-          break;
-        }
-        if (a >= b) {
-          data.n = max(1, b);
-          takeObservation = await makeProbe(code, data);
-          duration = undefined;
-          break;
+          if (a >= b) {
+            data.n = max(minN, b);
+            takeObservation = await makeProbe(code, data, warmupCount, args);
+            break;
+          }
         }
       }
 
-      // Collect observations.
-      const samples = duration ? [duration] : [];
-      let totalDuration = duration || 0;
-      while (totalDuration < budget) {
-        const { duration } = await takeObservation(args);
-        samples.push(duration);
-        totalDuration += duration;
+      // Collect observations as budget allows (but always at least one).
+      let anyAwaited = false;
+      const durations = totalDuration ? [totalDuration] : [];
+      while (totalDuration <= budget) {
+        const {
+          awaited,
+          duration: obsDur,
+          resolution: obsRes,
+        } = await takeObservation(args);
+        anyAwaited ||= awaited;
+        if (obsRes > 0) resolution = min(resolution, obsRes);
+        // If things speed up too much during sampling, restart with more warmup
+        // (increasing at most 5 times and to a maximum of 5), expecting
+        // repetitions to also increase.
+        if (!repetitionCount && obsDur < 5 * resolution && restarts < 5) {
+          data.n += 1;
+          const clipped = min(durations.length + 1, 5);
+          const newWarmupCount = max(clipped, warmupCount);
+          const newConfig = { ...config, warmupCount: newWarmupCount };
+          return takeSample(key, label, code, newConfig, args, restarts + 1);
+        }
+        durations.push(obsDur);
+        totalDuration += obsDur;
       }
-      return { n: data.n, totalDuration, samples };
+      return {
+        awaited: anyAwaited,
+        finalRepetitionCount: data.n,
+        resolution,
+        totalDuration,
+        durations,
+        restarts,
+      };
     };
 
     // For each non-final scaling value and each combination of non-scaling
@@ -1029,23 +1094,28 @@ const main = async argv => {
           if (k < 0) continue;
           const { 0: label, 1: code } = snippets[snippetIdx];
           const resolvedArgs = appended(argCombos[i], scale);
+          const samplingConfig = { budget, repetitionCount, warmupCount };
           const data = await takeSample(
             snippetIdx,
             label,
             code,
-            budget,
+            samplingConfig,
             resolvedArgs,
           );
-          const { n, totalDuration, samples } = data;
+          const {
+            finalRepetitionCount: n,
+            totalDuration,
+            durations,
+          } = data;
           push(output, {
             label,
             i: snippetIdx,
             data,
             line: `${label || code} (${stringSlice(stringify(resolvedArgs), 1, -1)}) ${
-              (samples.length * n) / totalDuration
-            } ops/ms after ${samples.length} ${n}-count samples`,
+              (durations.length * n) / totalDuration
+            } ops/ms after ${durations.length} ${n}-count samples`,
           });
-          if (samples.length < 2 || samples[1] >= budget * 2) {
+          if (durations.length < 2 || durations[1] >= budget * 2) {
             const keep = (_label, index) => index !== k;
             liveSnippetsForCombo[i] = filter(liveSnippetsForCombo[i], keep);
             if (liveSnippetsForCombo[i].length === 0) {
@@ -1059,6 +1129,7 @@ const main = async argv => {
       }
       if (C <= 0) break;
     }
+    return;
   }
   const benchmarkFnSource = dedent(['  ' + benchmark.toString()]);
   const script = dedent`
