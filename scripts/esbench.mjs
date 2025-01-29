@@ -19,7 +19,8 @@ Options:
     Print full help (including argument descriptions) to standard output.
 
   --dump
-    Rather than writing a script and invoking it, dump it to standard output.
+    Rather than writing a script and invoking it, dump it to standard output
+    for later use in e.g. CPU/GC/heap profiling.
 
   --host NAME_PATTERN[,NAME_PATTERN]..., -h NAME_PATTERN[,NAME_PATTERN]...
   --hostGroup TYPE_PATTERN[,TYPE_PATTERN]..., -g TYPE_PATTERN[,TYPE_PATTERN]...
@@ -27,15 +28,15 @@ Options:
     Pass-through options for the command (eshost). Each use extends the list.
     Example: --options '-c ./eshost-config.json' --host 'V8,*XS'
 
-  --async
-  --no-async
+  --budget SECONDS, -b SECONDS
+    How much time to spend sampling each (...arguments, snippet) tuple (e.g., a
+    budget of 0 takes just one observation per tuple before stopping).
+    Defaults to 10.
+
+  --async, --no-async
     Evaluate each snippet as an expression to be awaited, or suppress such
     awaiting. Note that the value of \`result\` is always inspected and (if
     found to be a thenable) awaited *unless* --no-async is specified.
-
-  --budget SECONDS, -b SECONDS
-    How much time to spend measuring each (...arguments, snippet) tuple (or 0
-    for no limit). Defaults to 10.
 
   --module, -m
     Evaluate code as a module which can therefore include dynamic \`import(...)\`
@@ -69,11 +70,12 @@ Options:
     If VALUES is present, it is interpreted as a list with elements separated by
     either SEP or (if SEP is not present) commas or (if SEP is present but
     empty) any combination of spaces, tabs, and/or line feeds.
+    As a convenience, VALUES may be preceded by ":" or "=".
     Each use adds a new dimension to the matrix of measurements.
     For future extensibility, this option's value may not include a backslash.
     Example: --arg i
     Example: --arg i~9 --arg shouldMatch,:'true false'
-    Example: --arg flag:foo,bar,baz
+    Example: --arg flag=foo,bar,baz
 
   --setup CODE, -s CODE
     Code to execute once per observation, before one or more repetitions of a
@@ -285,11 +287,7 @@ const { addCleanup, cleanup } = (() => {
   };
 })();
 
-const CMD_OPTION_NAMES = [
-  ...['--host', '-h'],
-  ...['--hostGroup', '-g'],
-  ...['--options', '-o'],
-];
+const HOST_OPTION_NAMES = [...['--host', '-h'], ...['--hostGroup', '-g']];
 const INIT_OPTION_NAMES = [
   ...['--init', '-i'],
   ...['--init-file', '-f'],
@@ -354,8 +352,8 @@ const parseArgs = (argv, fail) => {
   };
 
   const argPatt =
-    // NAME[~MAX|[,SEP]:VALUES]
-    /^(?<name>[^~,:]*)(?:~(?<max>.*)|(?:,(?<sep>[^:]*))?:(?<values>.*))?$/s;
+    // NAME[~MAX|[,SEP]:VALUES] or NAME[~MAX|[,SEP]=VALUES]
+    /^(?<name>[^~,:=]*)(?:~(?<max>.*)|(?:,(?<sep>[^:=]*))?[:=](?<values>.*))?$/s;
   const argIdPatt = /^[\p{ID_Start}$_][\p{ID_Continue}$]*$/u;
   const pushArg = (opt, def) => {
     const parts = def.match(argPatt)?.groups || fail(`invalid ${opt} ${def}`);
@@ -448,16 +446,15 @@ const parseArgs = (argv, fail) => {
       return /** @type {any} */ ({ help: true });
     } else if (opt === '--dump') {
       dump = true;
-    } else if (CMD_OPTION_NAMES.includes(opt)) {
-      if (opt !== '--options' && opt !== '-o') {
-        cmdOptions.push(opt);
-      }
+    } else if (HOST_OPTION_NAMES.includes(opt)) {
+      cmdOptions.push(opt, takeValue());
+    } else if (opt === '--options' || opt === '-o') {
       for (const arg of takeValue().split(IFS)) cmdOptions.push(arg);
-    } else if (opt === '--async' || opt === '--no-async') {
-      awaitSnippets = opt === '--async';
     } else if (opt === '--budget' || opt === '-b') {
       budget = parseNumber(takeValue());
       budget >= 0 || fail(`${opt} requires a non-negative number`);
+    } else if (opt === '--async' || opt === '--no-async') {
+      awaitSnippets = opt === '--async';
     } else if (opt === '--module' || opt === '-m') {
       asModule = true;
     } else if (INIT_OPTION_NAMES.includes(opt)) {
@@ -474,7 +471,7 @@ const parseArgs = (argv, fail) => {
       const def = takeValue();
       !def.includes('\\') ||
         fail(
-          `for future extensibility, ${opt} values may not include backslash`,
+          `for future extensibility, ${opt} values must not include backslash`,
         );
       pushArg(opt, def);
     } else if (opt === '--setup' || opt === '-s') {
