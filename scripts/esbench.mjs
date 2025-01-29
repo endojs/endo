@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+/// <reference types="node" />
+
 import { execSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -101,7 +103,17 @@ const JS_KEYWORDS = [
   'result',
 ];
 
+/**
+ * @template [T=unknown]
+ * @typedef {{promise: Promise<T>, resolve: (resolution: T | Promise<T>) => void, reject: (reason: unknown) => void}} PromiseKit
+ */
+
+/**
+ * @template T
+ * @returns {PromiseKit<T>}
+ */
 const makePromiseKit = () => {
+  /** @type {any} */
   let resolvers;
   const promise = new Promise((resolve, reject) => {
     resolvers = { resolve, reject };
@@ -109,14 +121,21 @@ const makePromiseKit = () => {
   return { promise, ...resolvers };
 };
 
+/** @type {(str: string) => number} */
 const parseNumber = str => (/[0-9]/.test(str) ? +str : NaN);
 
-const q = str => JSON.stringify(str);
+/** @type {(value: unknown) => string} */
+const q = value => JSON.stringify(value);
 
-// shellTokenize lexes a simple command into POSIX tokens as if there were no
-// no expansion or substitution (i.e., applying special treatment to backslash
-// and quote characters but not to dollar signs or backticks).
-// https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_03
+/**
+ * Split a simple command into POSIX tokens as if there were no expansion or
+ * substitution (i.e., applying special treatment to backslash and quote
+ * characters but not to dollar signs or backticks).
+ * https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_03
+ *
+ * @param {string} simpleCommand
+ * @returns {string[]}
+ */
 const shellTokenize = simpleCommand => {
   // Replace special sequences (i.e., those that might contain literal
   // whitespace) with dummy placeholders, but remember them.
@@ -142,16 +161,32 @@ const shellTokenize = simpleCommand => {
   return tokens;
 };
 
-// spawnKit launches a child process, feeds it standard input, and returns a
-// promise for the result.
+/**
+ * @typedef {object} SpawnResult
+ * @property {number | null} status
+ * @property {Buffer | null} stdout
+ * @property {Buffer | null} stderr
+ * @property {string | null} signal
+ * @property {Error | null} error
+ */
+
+/**
+ * Launch a child process with optional standard input.
+ *
+ * @param { string[] } cmd
+ * @param { {input?: Parameters<typeof Readable.from>[0]} & Parameters<typeof spawn>[2] } options
+ * @returns { Promise<SpawnResult & ({error: Error} | {status: number} | {signal: string})> }
+ */
 const spawnKit = async ([cmd, ...args], { input, ...options } = {}) => {
   const child = spawn(cmd, args, options);
+  /** @type {{stdout: Buffer[], stderr: Buffer[]}} */
   const outChunks = { stdout: [], stderr: [] };
   const exitKit = makePromiseKit();
   const inKit = child.stdin && makePromiseKit();
   const outKit = child.stdout && makePromiseKit();
   const errKit = child.stderr && makePromiseKit();
   // cf. https://nodejs.org/docs/latest/api/child_process.html#child_processspawnsynccommand-args-options
+  /** @type {SpawnResult} */
   const result = {
     status: null,
     stdout: null,
@@ -162,34 +197,38 @@ const spawnKit = async ([cmd, ...args], { input, ...options } = {}) => {
   child.on('error', err => {
     result.error = err;
     // An exit event *might* be coming, so wait a tick.
-    setImmediate(() => exitKit.resolve());
+    setImmediate(() => exitKit.resolve(undefined));
   });
   child.on('exit', (exitCode, signal) => {
     result.status = exitCode;
     result.signal = signal;
-    exitKit.resolve();
+    exitKit.resolve(undefined);
   });
-  const rejectOnError = (emitter, kit, msg) =>
+  /** @type {(emitter: import('node:events').EventEmitter, kit: PromiseKit, msg: string) => void} */
+  const rejectOnError = (emitter, kit, msg) => {
     emitter.on('error', err => kit.reject(Error(msg, { cause: err })));
-  for (const [label, stream, chunks, kit] of [
+  };
+  /** @typedef {[string, Readable, Buffer[], PromiseKit]} ReadableKit */
+  for (const [label, stream, chunks, kit] of /** @type {ReadableKit[]} */ ([
     ['stdout', child.stdout, outChunks.stdout, outKit],
     ['stderr', child.stderr, outChunks.stderr, errKit],
-  ]) {
+  ])) {
     if (!stream) continue;
     rejectOnError(stream, kit, `failed reading from ${q(cmd)} ${label}`);
     stream.on('data', chunk => chunks.push(chunk));
-    stream.on('end', () => kit.resolve());
+    stream.on('end', () => kit.resolve(undefined));
   }
-  if (child.stdin) {
+  if (child.stdin && inKit) {
     rejectOnError(child.stdin, inKit, `failed writing to ${q(cmd)} stdin`);
     Readable.from(input || []).pipe(child.stdin);
-    child.stdin.on('finish', () => inKit.resolve());
+    child.stdin.on('finish', () => inKit.resolve(undefined));
   } else if (input) {
     throw Error(`missing ${q(cmd)} stdin`);
   }
   await Promise.all([exitKit, inKit, outKit, errKit].map(kit => kit?.promise));
   if (outKit) result.stdout = Buffer.concat(outChunks.stdout);
   if (errKit) result.stderr = Buffer.concat(outChunks.stderr);
+  // @ts-expect-error result will satisfy one of the error/status/signal constraints
   return result;
 };
 
@@ -257,6 +296,29 @@ const INIT_OPTION_NAMES = [
   ...['--init-module', '-M'],
 ];
 
+/**
+ * @typedef {object} CliOptions
+ * @property {boolean} dump
+ * @property {string[]} cmdOptions
+ * @property {number} budget in milliseconds
+ * @property {boolean} [awaitSnippets]
+ * @property {boolean} asModule
+ * @property {string[]} inits
+ * @property {string} [preprocessor] command for bundling JavaScript module
+ *   code into script code, e.g. `esbuild --bundle --format=iife`
+ * @property {Record<string, string[] | number[] | { max: number }>} args
+ *   named arguments with their corresponding values for the snippets
+ * @property {string} [scalingArg] the key in `args` naming the argument that
+ *   provides successive scaling integers
+ * @property {string[]} setups
+ * @property {Array<[label: null | string, code: string]>} snippets
+ */
+
+/**
+ * @param {string[]} argv starting after $0
+ * @param {(msg: string) => never} fail
+ * @returns {CliOptions & {help: boolean}}
+ */
 const parseArgs = (argv, fail) => {
   // DEFAULT VALUES
 
@@ -383,7 +445,7 @@ const parseArgs = (argv, fail) => {
     };
 
     if (opt === '--help' || opt === '--help-full') {
-      return { help: true };
+      return /** @type {any} */ ({ help: true });
     } else if (opt === '--dump') {
       dump = true;
     } else if (CMD_OPTION_NAMES.includes(opt)) {
@@ -434,11 +496,12 @@ const parseArgs = (argv, fail) => {
   }
 
   return {
+    help: false,
     dump,
     cmdOptions,
-    awaitSnippets,
     // Convert seconds to milliseconds.
     budget: budget * 1000,
+    awaitSnippets,
     asModule,
     inits,
     preprocessor,
@@ -453,16 +516,17 @@ const main = async argv => {
   for (const fatal of ['SIGINT', 'SIGQUIT', 'SIGTERM']) {
     process.on(fatal, cleanup);
   }
-  const failArg = (msg, usage = USAGE.replace(/\n {3}.*|\n+$/g, '')) => {
+  const usageSummary = USAGE.replace(/\n {3}.*|\n+$/g, '');
+  const failArg = msg => {
     process.exitCode = EX_USAGE;
-    throw makeSimpleError(`${msg}\n\n${usage}`);
+    throw makeSimpleError(`${msg}\n\n${usageSummary}`);
   };
   const {
     help,
     dump,
     cmdOptions,
-    awaitSnippets,
     budget,
+    awaitSnippets,
     asModule,
     inits: rawInits,
     preprocessor,
@@ -482,6 +546,7 @@ const main = async argv => {
   // Preprocess init code.
   let inits = [...rawInits];
   if (rawInits.length > 0) {
+    /** @type {undefined | string[]} */
     let cmd;
     if (preprocessor) {
       cmd = shellTokenize(preprocessor);
@@ -500,7 +565,8 @@ const main = async argv => {
           }).then(result => ({ npxCmd, ...result })),
         ),
       );
-      const bestResult = settlements.find(
+      /** @typedef {Extract<typeof settlements[number], {status: 'fulfilled'}>} FoundBundler */
+      const bestResult = /** @type {FoundBundler[]} */ (settlements).find(
         ({ status, value }) => status === 'fulfilled' && value.status === 0,
       )?.value;
       if (bestResult) cmd = [...npx, ...bestResult.npxCmd];
@@ -512,17 +578,18 @@ const main = async argv => {
           const { status: exitCode, stdout, stderr } = result;
           if (exitCode !== 0) {
             const { signal: exitSignal, error } = result;
-            const wrappedErr = Error(
-              `preprocess with ${q(cmd)} failed: ${stderr.toString()}`,
+            const err = Error(
+              `preprocess with ${q(cmd)} failed: ${stderr?.toString()}`,
               { cause: error },
             );
+            const wrappedErr = /** @type {any} */ (err);
             wrappedErr.exitCode = exitCode;
             wrappedErr.exitSignal = exitSignal;
             wrappedErr.stdout = stdout && stdout.toString();
             wrappedErr.stderr = stderr && stderr.toString();
             throw wrappedErr;
           }
-          return stdout.toString();
+          return /** @type {any} */ (stdout).toString();
         };
     inits = await Promise.all(rawInits.map(preprocess));
     // Module code is always strict, so prefix it with a Use Strict Directive
@@ -555,7 +622,7 @@ const main = async argv => {
     const split = call.bind(String.prototype.split);
     const regexpDescriptors = getOwnPropertyDescriptors(RegExp.prototype);
     Reflect.ownKeys(regexpDescriptors).forEach(key => {
-      const desc = regexpDescriptors[key];
+      const desc = regexpDescriptors[/** @type {any} */ (key)];
       desc.configurable = false;
       if (desc.writable) desc.writable = false;
     });
@@ -666,7 +733,10 @@ const main = async argv => {
       unshift,
     } = arrayPowers;
     const numberPowers = uncurryMethods(Number);
-    const { toExponential, toString: numberToString } = numberPowers;
+    const { toExponential } = numberPowers;
+    const numberToString = /** @type {(x: number, base?: number) => string} */ (
+      numberPowers.toString
+    );
     const stringPowers = uncurryMethods(String);
     const { padEnd, repeat, split, slice: stringSlice } = stringPowers;
     const { exec: regexpExec, [Symbol.replace]: regexpReplace } =
@@ -719,21 +789,42 @@ const main = async argv => {
       dedent = (strings, ...subs) =>
         apply(raw, undefined, prepended(subs, { raw: strings })),
     } = powers;
-    // prepended(arr, ...items) returns [...items, ...arr].
+    /**
+     * prepended(arr, ...items) returns [...items, ...arr].
+     *
+     * @template T=unknown
+     * @param {T[]} arr
+     * @param {...T} items
+     * @returns {T[]}
+     */
     const prepended = (arr, ...items) => {
       const arr2 = slice(arr);
       for (let i = items.length - 1; i >= 0; i -= 1) unshift(arr2, items[i]);
       return arr2;
     };
+    /** @type {typeof prepended} */
     const appended = (arr, ...items) => {
       const arr2 = slice(arr);
       for (let i = 0; i < items.length; i += 1) push(arr2, items[i]);
       return arr2;
     };
-    // ifEmpty maps a nonempty array to itself and an empty array to a substitute.
+    /**
+     * Map a nonempty array to itself and an empty array to a substitute.
+     *
+     * @template T=unknown
+     * @param {T[]} arr
+     * @param {T[]} sub
+     * @returns {T[]}
+     */
     const ifEmpty = (arr, sub) => (arr.length === 0 ? sub : arr);
-    // crossJoin returns the Cartesian product of input arrays (replacing an empty
-    // input with [undefined]) as an array of arrays.
+    /**
+     * Return the Cartesian product of input arrays (replacing an empty input
+     * with [undefined]) as an array of arrays.
+     *
+     * @template T=unknown
+     * @param {T[][]} arrays
+     * @returns {T[][]}
+     */
     const crossJoin = arrays => {
       if (arrays.length === 0) return [];
       const arr0 = ifEmpty(arrays[0], [undefined]);
@@ -741,7 +832,7 @@ const main = async argv => {
       const suffixes = ifEmpty(crossJoin(rest), [[]]);
       return flatMap(arr0, val => map(suffixes, rest => prepended(rest, val)));
     };
-    // shuffle performs an in-place Fisher-Yates shuffle.
+    /** Perform an in-place Fisher-Yates shuffle. */
     const shuffle = arr =>
       forEach(arr, (v, i, arr) => {
         const j = i + floor(random() * (arr.length - i));
@@ -758,11 +849,21 @@ const main = async argv => {
     // A final scale argument is always present, but might not be named.
     if (scalingArg !== undefined) push(argNames, scalingArg);
 
-    // makeTimer returns a function that reports metrics for a single execution of
-    // repeated code.
+    /**
+     * @typedef SnippetMemory
+     * @property {string | null} label
+     * @property {number} i probe construction counter
+     * @property {number} n most recent repetition count
+     */
+    /**
+     * Return a function for measuring a single execution of repeated code.
+     *
+     * @param {string} code
+     * @param {SnippetMemory} data
+     */
     const makeTimer = (code, data) => {
       data.i += 1;
-      const { i, n } = data;
+      const { label, i, n } = data;
       // Suffix embedded binding names to make them unguessable and
       // collision-resistant against input and unique against runtime
       // compilation optimizations.
@@ -831,6 +932,7 @@ const main = async argv => {
         const ${v.t0} = ${v.now}();
         let ${v.t1} = ${v.t0};
         for (; ${v.t1} === ${v.t0}; ${v.t1} = ${v.now}()) {}
+        // Note that this block is not a \`for\` body.
         {
           let ${join(hideFromCode, ', ')};
           {
@@ -847,10 +949,7 @@ const main = async argv => {
         };
       `;
       push(ctorArgs, body);
-      const inner = defineName(
-        data.label || 'dynamic',
-        construct(ctor, ctorArgs),
-      );
+      const inner = defineName(label || 'dynamic', construct(ctor, ctorArgs));
       const timer = async (args, getTimestamp = now) => {
         const token = Symbol();
         const powers = { dummy, now: getTimestamp, token };
@@ -864,7 +963,9 @@ const main = async argv => {
       return timer;
     };
 
+    /** @type {Record<PropertyKey, SnippetMemory>} */
     const dataByKey = create(null);
+    /** Take a sample ({@link https://en.wikipedia.org/wiki/Sampling_(statistics)}). */
     const sample = async (key, label, code, budget, args) => {
       const data = (dataByKey[key] ||= { label, i: 0, n: 1 });
 
@@ -973,7 +1074,7 @@ const main = async argv => {
 
     // Invoke the async function with a logging catch handler that is
     // immune to later manipulation of Array/Object/Promise/console/etc.
-    // Basically, spell \`(fn)(...args).catch(die)\`
+    // Basically, spell \`((fn)(...args)).catch(die)\`
     // as \`Promise.prototype.catch.call(...reverseArgs(die, (fn)(...args)))\`.
     // (we can't use console.error because V8 defines one that swallows all input)
     Promise.prototype.catch.call(...(
@@ -1032,7 +1133,7 @@ const main = async argv => {
   const cleanupChild = (child => {
     const { pid: cmdPid } = child;
     const childDone = () => child.exitCode !== null;
-    const execOpts = { stdio: 'pipe', encoding: 'utf8' };
+    const execOpts = /** @type {const} */ ({ stdio: 'pipe', encoding: 'utf8' });
     const pids = Object.create(null);
     const findPids = () => {
       if (childDone()) return;
@@ -1073,7 +1174,8 @@ const main = async argv => {
     return killSubprocesses;
   })(child);
   addCleanup(cleanupChild);
-  child.on('error', err => {
+  /** @type {(err: Error & {code: string}) => void} */
+  const onError = err => {
     if (err.code === 'ENOENT') {
       raiseError(`missing required dependency ${cmd[0]}`, EX_NOT_FOUND);
     } else if (err.code === 'EACCES') {
@@ -1082,10 +1184,11 @@ const main = async argv => {
       raiseError(err);
     }
     doneKit.reject(err);
-  });
+  };
+  child.on('error', onError);
   child.on('exit', (exitCode, signal) => {
     process.exitCode ||= exitCode || (signal ? 1 : 0);
-    doneKit.resolve();
+    doneKit.resolve(undefined);
   });
   return doneKit.promise;
 };
