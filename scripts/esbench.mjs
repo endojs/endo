@@ -102,12 +102,14 @@ const JS_KEYWORDS = [
 ];
 
 const makePromiseKit = () => {
-  let resolve, reject;
-  const promise = new Promise((...fns) => ([resolve, reject] = fns));
-  return { promise, resolve, reject };
+  let resolvers;
+  const promise = new Promise((resolve, reject) => {
+    resolvers = { resolve, reject };
+  });
+  return { promise, ...resolvers };
 };
 
-const parseNumber = str => (/[0-9]/.test(str || '') ? Number(str) : NaN);
+const parseNumber = str => (/[0-9]/.test(str) ? +str : NaN);
 
 const q = str => JSON.stringify(str);
 
@@ -272,6 +274,18 @@ const parseArgs = (argv, fail) => {
 
   // HELPERS
 
+  const AsyncFunction = Function(
+    'try { return (async () => {}).constructor; } catch (_err) {}',
+  )();
+  const isValidSyntax = (code, validators = [AsyncFunction, Function]) => {
+    return validators.some(ctor => {
+      try {
+        ctor(code);
+        return true;
+      } catch (_err) {}
+    });
+  };
+
   let readStdin = () => {
     readStdin = () => fail('duplicate `-`; stdin cannot be read twice!');
     return readFileSync(0, 'utf8');
@@ -294,12 +308,11 @@ const parseArgs = (argv, fail) => {
       const values = valuesStr.split((sep ?? ',') || IFS);
       new Set(values).size === values.length ||
         fail(`argument ${q(name)} VALUES has duplicates`);
-      // If every value is a normal-looking numeric string with no
-      // unnecessary leading whitespace or zero, try promoting them all
-      // to actual numbers.
-      const numberValues = values.map(v =>
-        /^-?(?:[1-9]|0[^0-9]|0$|[.])/.test(v) ? parseNumber(v) : NaN,
-      );
+      // If every value round-trips through parseNumber, accept the coercion.
+      const numberValues = values.map(v => {
+        const n = parseNumber(v);
+        return `${n}` === v ? n : NaN;
+      });
       args[name] = numberValues.some(v => isNaN(v)) ? values : numberValues;
     } else {
       // Represent scaling arguments as { max: number } objects.
@@ -315,13 +328,23 @@ const parseArgs = (argv, fail) => {
 
   const snippetPatt = /^(?:(?<label>[^:]*):)?(?<code>.*)/s;
   const pushSnippet = def => {
-    const { label: rawLabel, code } =
+    let { label, code } =
       def.match(snippetPatt)?.groups || fail(`bad snippet ${def}`);
-    const label = rawLabel || null;
-    label === null ||
+    // If the definition was pure code that happened to include a colon,
+    // put back the incorrectly extracted label.
+    if (code !== '-' && !isValidSyntax(code) && code !== def) {
+      code = def;
+      label = undefined;
+    }
+    if (label) {
       snippets.every(([otherLabel]) => otherLabel !== label) ||
-      fail(`duplicate snippet label ${q(label)}`);
-    snippets.push([label, code === '-' ? readStdin() : code]);
+        fail(`duplicate snippet label ${q(label)}`);
+    } else {
+      label = null;
+    }
+    if (code === '-') code = readStdin();
+    isValidSyntax(code) || fail(`syntax error in snippet ${def}`);
+    snippets.push([label, code]);
   };
 
   // PROCESSING
@@ -394,11 +417,7 @@ const parseArgs = (argv, fail) => {
       pushArg(opt, def);
     } else if (opt === '--setup' || opt === '-s') {
       const setup = takeValue();
-      try {
-        Function(setup);
-      } catch (_err) {
-        fail(`syntax error in setup ${setup}`);
-      }
+      isValidSyntax(setup) || fail(`syntax error in setup ${setup}`);
       setups.push(setup);
     } else {
       fail(`unknown option ${opt}`);
@@ -525,18 +544,28 @@ const main = async argv => {
     snippets,
     r: randomBytes(16).toString('hex'),
   };
-  // makeDedent robustly makes a dedent function from primordials.
+  /** Robustly make a dedent tag function from primordials. */
   function makeDedent() {
+    const { getOwnPropertyDescriptors, defineProperties, seal } = Object;
     const { call } = Function.prototype;
     const join = call.bind(Array.prototype.join);
     const push = call.bind(Array.prototype.push);
     const exec = call.bind(RegExp.prototype.exec);
-    const replace = call.bind(String.prototype.replace);
+    const stringSlice = call.bind(String.prototype.slice);
     const split = call.bind(String.prototype.split);
+    const regexpDescriptors = getOwnPropertyDescriptors(RegExp.prototype);
+    Reflect.ownKeys(regexpDescriptors).forEach(key => {
+      const desc = regexpDescriptors[key];
+      desc.configurable = false;
+      if (desc.writable) desc.writable = false;
+    });
+    const sealedRegexp = patt =>
+      seal(defineProperties(RegExp(patt), regexpDescriptors));
+    const rNonSpace = sealedRegexp(/\S/.source);
     const dedent = (strings, ...subs) => {
       const parts = [];
       for (let rIndent, i = 0; i < strings.length; i += 1) {
-        if (i > 0) push(parts, '' + subs[i - 1]);
+        if (i > 0) push(parts, `${subs[i - 1]}`);
 
         // Split each string into lines, immediately consuming the first unless it
         // might include initial indentation in strings[0].
@@ -549,13 +578,15 @@ const main = async argv => {
           const line = lines[j];
           const more = j < lines.length - 1;
           if (!rIndent) {
-            const m = exec(/\S/, line) || (!more && { index: line.length });
-            if (m) rIndent = RegExp(replace('^\\s{1,n}', 'n', m.index));
+            const m =
+              exec(rNonSpace, line) || (!more && { index: line.length });
+            if (m && m.index) rIndent = sealedRegexp(`^\\s{1,${m.index}}`);
           }
 
           // Skip an isolated initial line feed in strings[0].
           push(parts, i > 0 || j > start ? '\n' : '');
-          push(parts, rIndent ? replace(line, rIndent, '') : line);
+          const found = rIndent && exec(rIndent, line);
+          push(parts, found ? stringSlice(line, found[0].length) : line);
         }
       }
       return join(parts, '');
@@ -565,44 +596,65 @@ const main = async argv => {
   const dedent = makeDedent();
   async function benchmark(
     // Extract as parameters identifiers that should have been keywords.
-    { undefined, Infinity, NaN, ...infrastructure },
+    { undefined, Infinity = 1 / 0, NaN = +'NaN', ...powers },
     config,
   ) {
-    // Capture primordials to be robust against manipulation in init/setup/etc.
+    // Validate captured primitives and capture further primordials to be robust
+    // against manipulation in init/setup/etc.
     // This is probably paranoid, but we *do* want to benchmark shims/polyfills/etc.
-    [undefined, Infinity, NaN] = [void 0, 1 / 0, +'NaN'];
-    const { print, Array, Function, RegExp } = infrastructure;
+    if (undefined !== void 0) throw 'Error: bad `undefined`!';
+    if (Infinity !== 1 / 0) throw 'Error: bad `Infinity`!';
+    if (NaN === NaN) throw 'Error: bad `NaN`!';
+    // Capture callables for later use.
+    const { Function, Symbol } = globalThis;
     const AsyncFunction = Function(
       'try { return (async () => {}).constructor; } catch (_err) {}',
     )();
+    const { from: arrayFrom } = Array;
     const { now } = Date;
     const { stringify } = JSON;
     const { ceil, floor, max, min, random } = Math;
     const { isFinite } = Number;
-    const { create, entries, keys, values } = Object;
-    const { apply, construct, defineProperty, ownKeys } = Reflect;
+    const { create, isSealed } = Object;
+    const { entries, getOwnPropertyDescriptors, keys, values } = Object;
+    const { defineProperties, freeze, seal, setPrototypeOf } = Object;
+    const { apply, construct, ownKeys } = Reflect;
     const { raw } = String;
+    const fullArray = (n, value) => {
+      const sparse = setPrototypeOf({ length: n }, null);
+      return arrayFrom(sparse, () => value);
+    };
+    const defineName = (name, fn) =>
+      defineProperties(fn, { name: { value: name } });
+    const uncurryThis = fn => {
+      const uncurried = defineName(
+        `unbound ${fn.name || ''}`,
+        (receiver, ...args) => apply(fn, receiver, args),
+      );
+      return uncurried;
+    };
     // Avoid Object.fromEntries, which reads its argument as an iterable and is
-    // therefore susceptible to replacement of Array.prototype[Symbol.iterator].
+    // therefore susceptible to replacement of Array.prototype[Symbol.iterator]
+    // (and for the same reason, also avoid array destructuring like
+    // `([k, v]) => ...`).
     const assignEntries = (entries, obj = {}) => {
       for (let i = 0; i < entries.length; i += 1) {
         obj[entries[i][0]] = entries[i][1];
       }
       return obj;
     };
-    const freeMethods = ({ prototype: proto }) => {
-      const discardOrGenerateEntry = name => {
-        try {
-          return [[name, Function.prototype.call.bind(proto[name])]];
-        } catch (_err) {
-          return [];
-        }
+    const uncurryMethods = ({ prototype: proto }) => {
+      const makeEntryOrDiscard = name => {
+        const method = proto[name];
+        return name !== 'constructor' && typeof method === 'function'
+          ? [[name, uncurryThis(method)]]
+          : [];
       };
-      return assignEntries(ownKeys(proto).flatMap(discardOrGenerateEntry));
+      return assignEntries(ownKeys(proto).flatMap(makeEntryOrDiscard));
     };
+    const arrayPowers = uncurryMethods(Array);
     const {
       indexOf,
-      fill,
       filter,
       flatMap,
       forEach,
@@ -612,27 +664,61 @@ const main = async argv => {
       slice,
       sort,
       unshift,
-    } = freeMethods(Array);
-    const { toString: numberToString } = freeMethods(Number);
-    const { repeat, replace, split, slice: stringSlice } = freeMethods(String);
-    const { exec } = freeMethods(RegExp);
+    } = arrayPowers;
+    const numberPowers = uncurryMethods(Number);
+    const { toExponential, toString: numberToString } = numberPowers;
+    const stringPowers = uncurryMethods(String);
+    const { padEnd, repeat, split, slice: stringSlice } = stringPowers;
+    const { exec: regexpExec, [Symbol.replace]: regexpReplace } =
+      uncurryMethods(RegExp);
 
-    const { awaitSnippets, budget, init, args, scalingArg, setup, snippets } =
-      config;
+    // Primordially, String.prototype.replace [[Get]]s %Symbol.replace%, and
+    // RegExp.prototype[%Symbol.replace%] [[Get]]s "flags" and "exec" (and
+    // transitively "hasIndices"/"global"/"ignoreCase"/etc.), so a
+    // tamper-resistant `replace` function must be written manually.
+    // This one requires its search argument to be a regular expression, upon
+    // which it copies own properties from the primordial prototype.
+    const regexpDescriptors = getOwnPropertyDescriptors(RegExp.prototype);
+    forEach(ownKeys(regexpDescriptors), key => {
+      const desc = regexpDescriptors[key];
+      desc.configurable = false;
+      if (desc.writable) desc.writable = false;
+    });
+    const replace = (str, re, replacer) => {
+      if (!isSealed(re)) seal(defineProperties(re, regexpDescriptors));
+      return regexpReplace(re, str, replacer);
+    };
+    const exec = (re, str) => {
+      if (!isSealed(re)) seal(defineProperties(re, regexpDescriptors));
+      return regexpExec(re, str);
+    };
+
+    const rFracPrefix = /0?[.]/g;
+
+    const {
+      awaitSnippets,
+      budget,
+      init,
+      args,
+      scalingArg,
+      setup,
+      snippets,
+    } = config;
     const randomHex = byteLen => {
-      let s = replace(numberToString(random(), 16), /0?\W/g, '') || '0';
+      let s = replace(numberToString(random(), 16), rFracPrefix, '') || '0';
       if (s.length < byteLen * 2) s += randomHex(byteLen - (s.length >> 1));
       return stringSlice(s, 0, byteLen * 2);
     };
     const { r = randomHex(16) } = config;
 
     // dummy is an object with no extractable properties.
-    const dummy = Object.freeze(create(null));
+    const dummy = freeze(create(null));
     // dedent with String.raw is safe but incorrect.
     const {
+      print,
       dedent = (strings, ...subs) =>
         apply(raw, undefined, prepended(subs, { raw: strings })),
-    } = infrastructure;
+    } = powers;
     // prepended(arr, ...items) returns [...items, ...arr].
     const prepended = (arr, ...items) => {
       const arr2 = slice(arr);
@@ -666,8 +752,12 @@ const main = async argv => {
     init();
 
     const nonScalingArgs = assignEntries(
-      filter(entries(args), ([name, _arr]) => name !== scalingArg),
+      filter(entries(args), ({ 0: name }) => name !== scalingArg),
     );
+    const argNames = keys(nonScalingArgs);
+    // A final scale argument is always present, but might not be named.
+    if (scalingArg !== undefined) push(argNames, scalingArg);
+
     // makeTimer returns a function that reports metrics for a single execution of
     // repeated code.
     const makeTimer = (code, data) => {
@@ -676,27 +766,38 @@ const main = async argv => {
       // Suffix embedded binding names to make them unguessable and
       // collision-resistant against input and unique against runtime
       // compilation optimizations.
-      const v = { now: '', dummy: '', i: '', t0: '', t1: '', tF: '' };
-      forEach(entries(v), ([name]) => (v[name] = join([name, r, i], '_')));
+      const _ = '';
+      const capNamesRecord = { dummy: _, now: _, token: _ };
+      const capNames = keys(capNamesRecord);
+      const v = {
+        // powers and capabilities
+        ...capNamesRecord,
+        // bookkeeping
+        ...{ awaited: _, i: _, t0: _, t1: _, tF: _ },
+      };
+      forEach(keys(v), name => {
+        v[name] = join([name, r, i], '_');
+      });
       let ctor = Function;
       let repeatable = code + ';';
       let hideFromCode = values(v);
       if (awaitSnippets === true) {
         ctor = AsyncFunction;
         if (!ctor) throw 'Error: missing AsyncFunction constructor!';
-        repeatable = 'await (' + code + ');';
-      } else if (awaitSnippets === undefined && AsyncFunction) {
-        ctor = AsyncFunction;
-        repeatable =
-          code +
-          `; if (typeof (result || ${v.dummy}).then === 'function') await result;`;
-        hideFromCode = flatMap(entries(v), ([k, as]) =>
-          k === 'dummy' ? [] : [as],
-        );
+        repeatable = `await (${code});`;
+      } else if (awaitSnippets === undefined) {
+        ctor = AsyncFunction || Function;
+        const isThenable = `typeof (result || ${v.dummy}).then === 'function'`;
+        const handleThenable = `${v.awaited} = true; await result;`;
+        repeatable = `${code}; if (${isThenable}) { ${handleThenable} }`;
+        hideFromCode = filter(hideFromCode, name => {
+          const baseName = split(name, '_')[0];
+          return baseName !== 'awaited' && baseName !== 'dummy';
+        });
       }
       // To avoid a size explosion, limit the repeated code to 1000 instances
       // inside a loop body plus a literal remainder.
-      const R = n => fill(Array(n), repeatable);
+      const R = n => fullArray(n, repeatable);
       const repeats =
         n <= 1000
           ? R(n)
@@ -707,24 +808,29 @@ const main = async argv => {
                 join(R(1000), '\n')
               }\n}`,
             );
-      // A scale argument is always present, but might not be named.
-      const ctorArgs = keys(nonScalingArgs);
-      if (scalingArg !== undefined) push(ctorArgs, scalingArg);
+      const ctorArgs = slice(argNames);
       // Shadow `arguments` to avoid leaking infrastructure details.
       push(ctorArgs, '...arguments');
       const body = dedent`
-        const { now: ${v.now}, dummy: ${v.dummy} } =
-          arguments[arguments.length - 1];
+        // Consume capabilities into variables with suffixed names.
+        const {
+          ${join(
+            map(capNames, name => `${name}: ${v[name]}`),
+            ', ',
+          )}
+        } = arguments[arguments.length - 1];
         arguments.length = 0;
         let ${v.i}, result;
+        let ${v.awaited} = false;
 
         // --setup
         ${setup};
+        result = undefined;
 
         // Find a clock edge, then measure n snippet repetitions.
         const ${v.t0} = ${v.now}();
         let ${v.t1} = ${v.t0};
-        for (; ${v.t1} === ${v.t0}; ${v.t1} = ${v.now}());
+        for (; ${v.t1} === ${v.t0}; ${v.t1} = ${v.now}()) {}
         {
           let ${join(hideFromCode, ', ')};
           {
@@ -735,29 +841,25 @@ const main = async argv => {
         return {
           result,
           ${join(
-            map(entries(v), ([k, as]) => k + ': ' + as),
+            map(entries(v), ({ 0: k, 1: as }) => `${k}: ${as}`),
             ',\n  ',
           )},
         };
       `;
       push(ctorArgs, body);
-      const inner = construct(ctor, ctorArgs);
-      if (data.label) {
-        defineProperty(inner, 'name', {
-          value: data.label,
-          writable: false,
-          enumerable: false,
-          configurable: true,
-        });
-      }
-      // The final item in `args` must supply the `now` function used
-      // for getting current time in milliseconds.
-      const timer = async args => {
-        const { now: nowIn } = args[args.length - 1];
-        const result = await apply(inner, undefined, args);
-        const { now: nowOut, t0, t1, tF } = result;
-        if (nowOut !== nowIn) throw 'Error: early return ' + stringify(result);
-        return { duration: tF - t1, resolution: t1 - t0 };
+      const inner = defineName(
+        data.label || 'dynamic',
+        construct(ctor, ctorArgs),
+      );
+      const timer = async (args, getTimestamp = now) => {
+        const token = Symbol();
+        const powers = { dummy, now: getTimestamp, token };
+        const result = await apply(inner, undefined, appended(args, powers));
+        const { token: tokenOut, awaited, t0, t1, tF } = result;
+        if (tokenOut !== token) {
+          throw `Error: early return ${stringify(result)}`;
+        }
+        return { awaited, duration: tF - t1, resolution: t1 - t0 };
       };
       return timer;
     };
@@ -765,7 +867,6 @@ const main = async argv => {
     const dataByKey = create(null);
     const sample = async (key, label, code, budget, args) => {
       const data = (dataByKey[key] ||= { label, i: 0, n: 1 });
-      const fullArgs = appended(args, { now, dummy });
 
       // Make a timer function with repetition count tuned to foster
       // durations of (30 +/- 20) increments of timer resolution.
@@ -775,7 +876,7 @@ const main = async argv => {
       for (let a = 1, b = Infinity, n = data.n; ; n = max(a, min(n, b))) {
         data.n = n;
         timer = makeTimer(code, data);
-        const firstData = await timer(fullArgs);
+        const firstData = await timer(args);
         ({ duration } = firstData);
         // Ignore clock discontinuities that we can detect.
         if (firstData.resolution <= 0 || duration < 0) continue;
@@ -805,7 +906,7 @@ const main = async argv => {
       const samples = duration ? [duration] : [];
       let totalDuration = duration || 0;
       while (totalDuration < budget) {
-        const { duration } = await timer(fullArgs);
+        const { duration } = await timer(args);
         samples.push(duration);
         totalDuration += duration;
       }
@@ -889,9 +990,9 @@ const main = async argv => {
 
     (${benchmarkFnSource})(
 
-    // infrastructure
+    // infrastructure powers
     {
-      ...{ print, Array, Function, RegExp },
+      print,
       dedent: (${makeDedent})(),
     },
 
