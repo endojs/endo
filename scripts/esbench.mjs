@@ -94,7 +94,23 @@ Options:
     Declarations in setup code are visible to snippet code, and there is always
     an implicit \`let result;\` declaration.
     Example: -ai --setup 'const str = "Lorem ipsum dolor sit amet, ".repeat(i);'
+
+  --template FORMAT, -t FORMAT
+    How to format results for each snippet. FORMAT can be "json" for a JSON dump
+    of { label, code, argNames, args, data }, "text" for a readable string, or
+    the contents of a non-trivial JavaScript template that can take advantage of
+    variables \`snippet\` { label, code }, \`argNames\`, \`args\`, \`data\`
+    { sampleSize, awaited, repetitionCount, totalOpCount, totalDuration,
+    durations, restartCount }, \`metaStats\` { opsPerMilliRange: [min, max] },
+    \`i\`, \`allResults\` Array<{snippetIdx, details}>
+    (all durations in milliseconds).
+    None of the built-in formats are guaranteed to remain stable over time.
+    Defaults to "text".
+    Example: -t '\${snippet.label || snippet.code} \${args} \${' \\
+      'data.totalDuration * 1e6 / data.totalOpCount} ns/op'
 `.trimStart();
+
+const { getOwnPropertyDescriptor: getOwnPD } = Object;
 
 const EX_USAGE = 64;
 const EX_NOT_EXECUTABLE = 126;
@@ -304,6 +320,36 @@ const INIT_OPTION_NAMES = [
   ...['--init-module', '-M'],
 ];
 
+const RESULTS_TEMPLATES = {
+  json: '${powers.stringify({ ...snippet, argNames, args, data })}',
+  // $label  [$args] {sync,async} $x ops/ms ($y ns/op) after $n $m-count observations
+  //   [($r restarts)]
+  text: `$\{(${String(
+    (powers, i, results, metaStats, snippet, argNames, args, data) => {
+      const { format, formatEng, getLabel, pluralize } = powers;
+      const pickBestFormatter = ({ 0: a, 1: b }) =>
+        a >= 0.009 && b < 9999.5 ? format : formatEng;
+      const filterNonEmpty = arr => powers.filter(arr, x => x);
+      const spaceJoin = arr => powers.join(filterNonEmpty(arr), ' ');
+
+      const argCount = argNames.length;
+      const labelWidth = powers.max(
+        powers.map(results, result => getLabel(result.details.snippet).length),
+      );
+      const formatRate = pickBestFormatter(metaStats.opsPerMilliRange);
+      return spaceJoin([
+        powers.String.padEnd(getLabel(snippet), labelWidth),
+        argCount === 0 ? '' : powers.stringify(powers.slice(args, 0, argCount)),
+        data.awaited ? 'async' : 'sync',
+        `${formatRate(data.totalOpCount / data.totalDuration)} ops/ms`,
+        `(${formatEng((data.totalDuration * 1e6) / data.totalOpCount)} ns/op)`,
+        `after ${data.sampleSize} ${data.repetitionCount}-count observations`,
+        (n => (n ? `(${pluralize(n, 'restart')})` : ''))(data.restartCount),
+      ]);
+    },
+  )})(powers, i, results, metaStats, snippet, argNames, args, data)}`,
+};
+
 /**
  * @typedef {object} CliOptions
  * @property {boolean} dump
@@ -321,6 +367,7 @@ const INIT_OPTION_NAMES = [
  * @property {string} [scalingArg] the key in `args` naming the argument that
  *   provides successive scaling integers
  * @property {string[]} setups
+ * @property {string} resultsTemplate
  * @property {Array<[label: null | string, code: string]>} snippets
  */
 
@@ -344,6 +391,7 @@ const parseArgs = (argv, fail) => {
   let args = Object.create(null);
   let scalingArg;
   let setups = [];
+  let resultsTemplate = RESULTS_TEMPLATES.text;
   let snippets = [];
 
   // HELPERS
@@ -500,6 +548,19 @@ const parseArgs = (argv, fail) => {
       const setup = takeValue();
       isValidSyntax(setup) || fail(`syntax error in setup ${setup}`);
       setups.push(setup);
+    } else if (opt === '--template' || opt === '-t') {
+      resultsTemplate = takeValue();
+      const standardTemplatePD = getOwnPD(RESULTS_TEMPLATES, resultsTemplate);
+      if (standardTemplatePD) {
+        resultsTemplate = standardTemplatePD.value;
+      } else {
+        isValidSyntax(`return \`${resultsTemplate}\`;`, [Function]) ||
+          fail(`syntax error in template \`${resultsTemplate}\``);
+        /^(?:[^\\]|\\.)*[$][{].*?[}]/s.test(resultsTemplate) ||
+          fail(
+            `no substitutions in template ${resultsTemplate}, did you forget a wrapping \${...}?`,
+          );
+      }
     } else {
       fail(`unknown option ${opt}`);
     }
@@ -529,6 +590,7 @@ const parseArgs = (argv, fail) => {
     args,
     scalingArg,
     setups,
+    resultsTemplate,
     snippets,
   };
 };
@@ -556,6 +618,7 @@ const main = async argv => {
     args,
     scalingArg,
     setups,
+    resultsTemplate,
     snippets,
   } = parseArgs(argv, failArg);
   if (help) {
@@ -633,6 +696,7 @@ const main = async argv => {
     args,
     scalingArg,
     setup: setups.join(';\n'),
+    resultsTemplate,
     snippets,
     r: randomBytes(16).toString('hex'),
   };
@@ -705,7 +769,7 @@ const main = async argv => {
     const { from: arrayFrom } = Array;
     const { now } = Date;
     const { stringify } = JSON;
-    const { ceil, floor, max, min, random } = Math;
+    const { ceil, floor, max, min, random, round } = Math;
     const { isFinite } = Number;
     const { create, isSealed } = Object;
     const { entries, getOwnPropertyDescriptors, keys, values } = Object;
@@ -788,7 +852,12 @@ const main = async argv => {
       return regexpExec(re, str);
     };
 
+    const rDashPrefix = /^-*/;
     const rFracPrefix = /0?[.]/g;
+    const rNonSemiTail = /[^;]$/;
+    const rTailDigits = /.(9*)$/;
+    const rZeroTail = /0+$/;
+    const rExpFormat = /^(-?)([0-9]+)(?:[.]([0-9]+))?e([+-][0-9]+)/;
 
     const {
       awaitSnippets,
@@ -799,6 +868,7 @@ const main = async argv => {
       args,
       scalingArg,
       setup,
+      resultsTemplate,
       snippets,
     } = config;
     const randomHex = byteLen => {
@@ -875,6 +945,104 @@ const main = async argv => {
     const argNames = keys(nonScalingArgs);
     // A final scale argument is always present, but might not be named.
     if (scalingArg !== undefined) push(argNames, scalingArg);
+
+    const stringFullSlice = (s, i, j, ch) =>
+      padEnd(stringSlice(s, i, j), j - i, ch);
+    const incrementDigits = n =>
+      replace(n, rTailDigits, (m, t) => `${+m[0] + 1}${repeat('0', t.length)}`);
+    /**
+     * Typographically format a number with bounded fraction digits >= 0.
+     *
+     * @param {number} x
+     * @param {number} [maxFracDigits] must be an integer >= 0
+     * @param {number} [minFracDigits] must be an integer >= 0 and <= maxFracDigits
+     */
+    const format = (x, maxFracDigits = 2, minFracDigits = 0) => {
+      const { 1: sign, 2: a, 3: b, 4: e } = exec(rExpFormat, toExponential(x));
+      let iLength = max(0, +e + 1);
+      let digits = `${padEnd('', -1 - e, '0')}${a}${b || ''}`;
+      const lsp = iLength + maxFracDigits;
+      if (digits.length > lsp && digits[lsp] >= '5') {
+        const n = stringSlice(digits, 0, lsp) || '9';
+        digits = incrementDigits(n);
+        if (digits.length > n.length) iLength += 1;
+      }
+      const iPart = stringFullSlice(digits, 0, iLength, '0');
+      const fDigits = stringSlice(digits, iLength, iLength + maxFracDigits);
+      const fMin = stringFullSlice(fDigits, 0, minFracDigits, '0');
+      const fTail = replace(stringSlice(fDigits, minFracDigits), rZeroTail, '');
+      const fPart = `${fMin}${fTail}`;
+      return `${sign}${iPart || 0}${fPart && '.' + fPart}`;
+    };
+    /**
+     * Typographically format a number in engineering notation with
+     * extraDigits + 1 significant digits (i.e., `$i[.$f]e{+,-}$e` with $e
+     * evenly divisible by 3).
+     *
+     * @param {number} x
+     * @param {number} [extraDigits] must be an integer >= 0
+     */
+    const formatEng = (x, extraDigits = 2) => {
+      const { 1: sign, 2: a, 3: b, 4: e } = exec(rExpFormat, toExponential(x));
+      let digits = `${a}${b || ''}`;
+      let lsp = extraDigits + 1;
+      if (digits.length > lsp && digits[lsp] >= '5') {
+        const n = stringSlice(digits, 0, lsp);
+        digits = incrementDigits(n);
+        if (digits.length > n.length) lsp += 1;
+      }
+      digits = stringFullSlice(digits, 0, 1 + extraDigits, '0');
+      const iExcess = lsp - extraDigits - 1;
+      const shift = (((+e + iExcess) % 3) + 3) % 3;
+      const iPart = stringFullSlice(digits, 0, 1 + shift, '0');
+      const fPart = stringSlice(digits, 1 + shift, 1 + extraDigits);
+      const eFinal = +e + iExcess - shift;
+      const ePlus = eFinal >= 0 ? '+' : '';
+      return `${sign}${iPart}${fPart && '.' + fPart}e${ePlus}${eFinal}`;
+    };
+    /**
+     * Pluralize `$count $noun` according to English conventions (suffix
+     * modifications to $noun iff $count !== 1).
+     *
+     * @param {number} count must be an integer >= 0
+     * @param {string} noun
+     * @param {string} [s] to append when count !== 1, with each leading ASCII
+     *   dash `-` representing removal of a trailing character from noun (e.g.,
+     *   `pluralize(2, "index", "--ices") === "2 indices"`).
+     */
+    const pluralize = (count, noun, s = 's') => {
+      if (count === 1) return `${count} ${noun}`;
+      const i = exec(rDashPrefix, s)[0].length;
+      const p = stringSlice(noun, 0, -i || undefined) + stringSlice(s, i);
+      return `${count} ${p}`;
+    };
+    const formatResultsPowers = {
+      ...{ format, formatEng, pluralize },
+      getLabel: snippet =>
+        snippet.label || replace(snippet.code, rNonSemiTail, '$&;'),
+      ...{ exec, filter, join, map, replace, slice, stringify },
+      min: arr => apply(min, undefined, arr),
+      max: arr => apply(max, undefined, arr),
+      Array: arrayPowers,
+      Number: numberPowers,
+      String: stringPowers,
+    };
+    const formatResultsBody = dedent`
+      try {
+        const { metaStats, snippet, argNames, args, data } = details;
+        return \`${resultsTemplate}\`;
+      } catch (err) {
+        print(powers.stringify(details));
+        throw err;
+      }
+    `;
+    const formatResults = Function(
+      'details',
+      'i',
+      'results',
+      'powers',
+      formatResultsBody,
+    );
 
     /**
      * @typedef SnippetMemory
@@ -1087,34 +1255,46 @@ const main = async argv => {
       for (let i = 0; i < argCombos.length; i += 1) {
         if (!liveSnippetsForCombo[i]) continue;
         shuffle(snippetIdxs);
-        const output = [];
+        const results = [];
+        let minOpsPerMilli = Infinity;
+        let maxOpsPerMilli = 0;
         for (let j = 0; j < snippetIdxs.length; j += 1) {
           const snippetIdx = snippetIdxs[j];
           const k = indexOf(liveSnippetsForCombo[i] || [], snippetIdx);
           if (k < 0) continue;
           const { 0: label, 1: code } = snippets[snippetIdx];
+          const snippet = { label, code };
           const resolvedArgs = appended(argCombos[i], scale);
           const samplingConfig = { budget, repetitionCount, warmupCount };
-          const data = await takeSample(
+          const {
+            awaited,
+            finalRepetitionCount,
+            totalDuration,
+            durations,
+            restarts: restartCount,
+          } = await takeSample(
             snippetIdx,
             label,
             code,
             samplingConfig,
             resolvedArgs,
           );
-          const {
-            finalRepetitionCount: n,
+          const sampleSize = durations.length;
+          const totalOpCount = sampleSize * finalRepetitionCount;
+          const data = {
+            sampleSize,
+            awaited,
+            repetitionCount: finalRepetitionCount,
+            totalOpCount,
             totalDuration,
             durations,
-          } = data;
-          push(output, {
-            label,
-            i: snippetIdx,
-            data,
-            line: `${label || code} (${stringSlice(stringify(resolvedArgs), 1, -1)}) ${
-              (durations.length * n) / totalDuration
-            } ops/ms after ${durations.length} ${n}-count samples`,
-          });
+            restartCount,
+          };
+          const opsPerMilli = totalOpCount / totalDuration;
+          minOpsPerMilli = min(minOpsPerMilli, opsPerMilli);
+          maxOpsPerMilli = max(maxOpsPerMilli, opsPerMilli);
+          const details = { snippet, argNames, args: resolvedArgs, data };
+          push(results, { snippetIdx, details });
           if (durations.length < 2 || durations[1] >= budget * 2) {
             const keep = (_label, index) => index !== k;
             liveSnippetsForCombo[i] = filter(liveSnippetsForCombo[i], keep);
@@ -1124,8 +1304,14 @@ const main = async argv => {
             }
           }
         }
-        sort(output, (a, b) => a.i - b.i);
-        forEach(output, ({ line }) => print(line));
+        sort(results, (a, b) => a.snippetIdx - b.snippetIdx);
+        const metaStats = {
+          opsPerMilliRange: [minOpsPerMilli, maxOpsPerMilli],
+        };
+        for (let j = 0; j < results.length; j += 1) {
+          const details = { metaStats, ...results[j].details };
+          print(formatResults(details, j, results, formatResultsPowers));
+        }
       }
       if (C <= 0) break;
     }
