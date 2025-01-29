@@ -954,7 +954,7 @@ const main = async argv => {
 
     const killSubprocesses = () => {
       clearTimeout(findPidsJobID);
-      if (Object.values(pids).length === 0) findPids();
+      findPids();
       const pidsStr = Object.values(pids).join(' ');
       if (childDone() && !pidsStr) return;
       const killCmds = [
