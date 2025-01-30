@@ -65,7 +65,7 @@ Options:
     Example: --init-module 'data:text/javascript,delete globalThis.harden;'
     Example: --init-module semver
 
-  --init-preprocessor, -p
+  --init-preprocessor COMMAND, -p COMMAND
     A command to invoke for bundling init code.
     If not explicitly specified, it will default to something reasonable like
     \`npx esbuild --bundle --format=iife\` or
