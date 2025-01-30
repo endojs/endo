@@ -50,7 +50,7 @@ Options:
 
   --module, -m
     Evaluate code as a module which can therefore include dynamic \`import(...)\`
-    expressions.
+    expressions. Implemented as a pass-through option.
 
   --init CODE, -i CODE
   --init-file PATH, -f PATH
@@ -363,7 +363,6 @@ const RESULTS_TEMPLATES = {
  * @property {number} [repetitionCount]
  * @property {number} warmupCount
  * @property {boolean} [awaitSnippets]
- * @property {boolean} asModule
  * @property {string[]} inits
  * @property {string} [preprocessor] command for bundling JavaScript module
  *   code into script code, e.g. `esbuild --bundle --format=iife`
@@ -390,7 +389,6 @@ const parseArgs = (argv, fail) => {
   let repetitionCount = undefined;
   let warmupCount = 0;
   let awaitSnippets = undefined;
-  let asModule = false;
   let inits = [];
   let preprocessor = undefined;
   let args = Object.create(null);
@@ -531,7 +529,7 @@ const parseArgs = (argv, fail) => {
     } else if (opt === '--async' || opt === '--no-async') {
       awaitSnippets = opt === '--async';
     } else if (opt === '--module' || opt === '-m') {
-      asModule = true;
+      commandOptions.push(opt);
     } else if (INIT_OPTION_NAMES.includes(opt)) {
       let code = takeValue();
       if (opt === '--init-file' || opt === '-f') {
@@ -589,7 +587,6 @@ const parseArgs = (argv, fail) => {
     repetitionCount,
     warmupCount,
     awaitSnippets,
-    asModule,
     inits,
     preprocessor,
     args,
@@ -617,7 +614,6 @@ const main = async argv => {
     repetitionCount,
     warmupCount,
     awaitSnippets,
-    asModule,
     inits: rawInits,
     preprocessor,
     args,
@@ -1383,7 +1379,7 @@ const main = async argv => {
 
   // Spawn `eshost $tmpName` with null stdin and direct access to stdout/stderr.
   const doneKit = makePromiseKit();
-  const cmd = ['eshost', '--raw', ...(asModule ? ['-m'] : [])];
+  const cmd = ['eshost', '--raw'];
   const child = spawn(cmd[0], [...cmd.slice(1), ...cmdOptions, tmpName], {
     stdio: ['ignore', 'inherit', 'inherit'],
   });
