@@ -108,6 +108,11 @@ Options:
     Defaults to "text".
     Example: -t '\${snippet.label || snippet.code} \${args} \${' \\
       'data.totalDuration * 1e6 / data.totalOpCount} ns/op'
+
+Example: ${self} \\
+  -h V8 --arg length:10,100,1000 \\
+  fill:'Array(length).fill(9)'
+  from:'Array.from({ length }, () => 9)'
 `.trimStart();
 
 const { getOwnPropertyDescriptor: getOwnPD } = Object;
