@@ -39,7 +39,7 @@ export function dynamicFunctionPermitsAdjustments({
   }
 }
 
-const assertDirectEvalThatWorks = () => {
+export const assertDirectEvalAvailable = () => {
   let allowed = false;
   let evaluatorsBlocked = false;
   try {
@@ -71,7 +71,3 @@ const assertDirectEvalThatWorks = () => {
     );
   }
 };
-
-const assertDirectEvalToothless = () => {};
-
-export const assertDirectEvalAvailable = assertDirectEvalToothless;

@@ -158,6 +158,10 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
+    // legacyHermesEvalTaming = /** @type { 'safe' | 'unsafe' } */ getenv(
+      // 'LOCKDOWN_LEGACY_HERMES_EVAL_TAMING',
+      // 'safe',
+    // ),
     legacyRegeneratorRuntimeTaming = getenv(
       'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
       'safe',
@@ -173,6 +177,8 @@ export const repairIntrinsics = (options = {}) => {
     Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
 
   evalTaming === 'unsafeEval' ||
+    // evalTaming === 'legacyHermesEval' ||
+    // evalTaming === 'unsupportedLegacyHermesLocalModeDirectEval' ||
     evalTaming === 'safeEval' ||
     evalTaming === 'noEval' ||
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
@@ -211,7 +217,7 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  if (rename_me_something_notOnHermes()) {
+  if (evalTaming !== 'legacyHermesEval') {
     assertDirectEvalAvailable();
   }
 
@@ -379,6 +385,10 @@ export const repairIntrinsics = (options = {}) => {
     markVirtualizedNativeFunction,
   });
 
+  // - evalTaming only affects the start compartment
+  // - we're supporting only lockdown on hermes, not compartment
+  // - new evalTaming option?
+  // - new lockdown option?
   if (evalTaming === 'noEval') {
     setGlobalObjectEvaluators(
       globalThis,
