@@ -22,6 +22,11 @@ Options:
     Rather than writing a script and invoking it, dump it to standard output
     for later use in e.g. CPU/GC/heap profiling.
 
+  --command COMMAND, -c COMMAND
+    The command to invoke for running benchmarks. Expected to support every
+    pass-through option and interpret its final argument as a path to a script
+    to execute. Defaults to \`eshost --raw\`.
+
   --host NAME_PATTERN[,NAME_PATTERN]..., -h NAME_PATTERN[,NAME_PATTERN]...
   --hostGroup TYPE_PATTERN[,TYPE_PATTERN]..., -g TYPE_PATTERN[,TYPE_PATTERN]...
   --options OPTIONS, -o OPTIONS
@@ -358,7 +363,8 @@ const RESULTS_TEMPLATES = {
 /**
  * @typedef {object} CliOptions
  * @property {boolean} dump
- * @property {string[]} cmdOptions
+ * @property {string} command
+ * @property {string[]} commandOptions
  * @property {number} budget in milliseconds
  * @property {number} [repetitionCount]
  * @property {number} warmupCount
@@ -384,7 +390,8 @@ const parseArgs = (argv, fail) => {
   // DEFAULT VALUES
 
   let dump = false;
-  let cmdOptions = [];
+  let command = 'eshost --raw';
+  let commandOptions = [];
   let budget = 3;
   let repetitionCount = undefined;
   let warmupCount = 0;
@@ -511,10 +518,12 @@ const parseArgs = (argv, fail) => {
       return /** @type {any} */ ({ help: true });
     } else if (opt === '--dump') {
       dump = true;
+    } else if (opt === '--command' || opt === '-c') {
+      command = takeValue();
     } else if (HOST_OPTION_NAMES.includes(opt)) {
-      cmdOptions.push(opt, takeValue());
+      commandOptions.push(opt, takeValue());
     } else if (opt === '--options' || opt === '-o') {
-      for (const arg of takeValue().split(IFS)) cmdOptions.push(arg);
+      for (const arg of takeValue().split(IFS)) commandOptions.push(arg);
     } else if (opt === '--budget' || opt === '-b') {
       budget = parseNumber(takeValue());
       budget >= 0 || fail(`${opt} requires a non-negative number`);
@@ -581,7 +590,8 @@ const parseArgs = (argv, fail) => {
   return {
     help: false,
     dump,
-    cmdOptions,
+    command,
+    commandOptions,
     // Convert seconds to milliseconds.
     budget: budget * 1000,
     repetitionCount,
@@ -609,7 +619,8 @@ const main = async argv => {
   const {
     help,
     dump,
-    cmdOptions,
+    command,
+    commandOptions,
     budget,
     repetitionCount,
     warmupCount,
@@ -1379,8 +1390,8 @@ const main = async argv => {
 
   // Spawn `eshost $tmpName` with null stdin and direct access to stdout/stderr.
   const doneKit = makePromiseKit();
-  const cmd = ['eshost', '--raw'];
-  const child = spawn(cmd[0], [...cmd.slice(1), ...cmdOptions, tmpName], {
+  const cmd = command.split(IFS);
+  const child = spawn(cmd[0], [...cmd.slice(1), ...commandOptions, tmpName], {
     stdio: ['ignore', 'inherit', 'inherit'],
   });
   // Don't orphan eshost descendants.
