@@ -2,9 +2,7 @@
 /* global process */
 
 // Establish a perimeter:
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/lockdown/commit-debug.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import url from 'url';
