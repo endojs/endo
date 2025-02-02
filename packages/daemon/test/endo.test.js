@@ -2,6 +2,9 @@
 /* global process */
 
 // Establish a perimeter:
+// TODO should this
+//   import '@endo/init/debug.js';
+// rather than the following three lines?
 import 'ses';
 import '@endo/eventual-send/shim.js';
 import '@endo/lockdown/commit-debug.js';
