@@ -89,6 +89,15 @@ export const universalPropertyNames = {
   // https://github.com/endojs/endo/issues/550
   AggregateError: 'AggregateError',
 
+  // https://github.com/tc39/proposal-explicit-resource-management
+  // TODO DisposableStack, AsyncDisposableStack
+  // DisposableStack: 'DisposableStack',
+  // AsyncDisposableStack: 'AsyncDisposableStack',
+
+  // https://tc39.es/proposal-shadowrealm/
+  // TODO ShadowRealm
+  // ShadowRealm: 'ShadowRealm',
+
   // *** Other Properties of the Global Object
 
   JSON: 'JSON',
@@ -143,6 +152,10 @@ export const initialGlobalPropertyNames = {
   // TODO https://github.com/Agoric/SES-shim/issues/551
   // Need initial WeakRef and FinalizationGroup in
   // start compartment only.
+
+  // TODO Temporal
+  // https://github.com/tc39/proposal-temporal
+  // Temporal: '%InitialTemporal%' // with Temporal.Now
 };
 
 /**
@@ -162,6 +175,10 @@ export const sharedGlobalPropertyNames = {
   // *** Other Properties of the Global Object
 
   Math: '%SharedMath%',
+
+  // TODO Temporal
+  // https://github.com/tc39/proposal-temporal
+  // Temporal: '%SharedTemporal%' // without Temporal.Now
 };
 
 /**
@@ -411,6 +428,11 @@ const CommonMath = {
   tan: fn,
   tanh: fn,
   trunc: fn,
+  // https://github.com/tc39/proposal-float16array
+  f16round: fn,
+  // https://github.com/tc39/proposal-math-sum
+  sumPrecise: fn,
+
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
   idiv: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
@@ -473,7 +495,6 @@ export const permitted = {
     getOwnPropertyNames: fn,
     getOwnPropertySymbols: fn,
     getPrototypeOf: fn,
-    hasOwn: fn,
     is: fn,
     isExtensible: fn,
     isFrozen: fn,
@@ -484,6 +505,8 @@ export const permitted = {
     seal: fn,
     setPrototypeOf: fn,
     values: fn,
+    // https://github.com/tc39/proposal-accessible-object-hasownproperty
+    hasOwn: fn,
     // https://github.com/tc39/proposal-array-grouping
     groupBy: fn,
     // Seen on QuickJS
@@ -555,9 +578,7 @@ export const permitted = {
   '%SharedSymbol%': {
     // Properties of the Symbol Constructor
     '[[Proto]]': '%FunctionPrototype%',
-    asyncDispose: 'symbol',
     asyncIterator: 'symbol',
-    dispose: 'symbol',
     for: fn,
     hasInstance: 'symbol',
     isConcatSpreadable: 'symbol',
@@ -573,6 +594,10 @@ export const permitted = {
     toPrimitive: 'symbol',
     toStringTag: 'symbol',
     unscopables: 'symbol',
+    // https://github.com/tc39/proposal-explicit-resource-management
+    asyncDispose: 'symbol',
+    // https://github.com/tc39/proposal-explicit-resource-management
+    dispose: 'symbol',
     // Seen at core-js https://github.com/zloirock/core-js#ecmascript-symbol
     useSimple: false,
     // Seen at core-js https://github.com/zloirock/core-js#ecmascript-symbol
@@ -601,6 +626,8 @@ export const permitted = {
     stackTraceLimit: accessor,
     // Non standard, v8 only, used by several, tamed to accessor
     prepareStackTrace: accessor,
+    // https://github.com/tc39/proposal-is-error
+    isError: fn,
   },
 
   '%SharedError%': {
@@ -613,6 +640,8 @@ export const permitted = {
     stackTraceLimit: accessor,
     // Non standard, v8 only, used by several, tamed to accessor
     prepareStackTrace: accessor,
+    // https://github.com/tc39/proposal-is-error
+    isError: fn,
   },
 
   '%ErrorPrototype%': {
@@ -641,6 +670,10 @@ export const permitted = {
   // https://github.com/endojs/endo/issues/550
   AggregateError: NativeError('%AggregateErrorPrototype%'),
 
+  // TODO SuppressedError
+  // https://github.com/tc39/proposal-explicit-resource-management
+  // SuppressedError: NativeError('%SuppressedErrorPrototype%'),
+
   '%EvalErrorPrototype%': NativeErrorPrototype('EvalError'),
   '%RangeErrorPrototype%': NativeErrorPrototype('RangeError'),
   '%ReferenceErrorPrototype%': NativeErrorPrototype('ReferenceError'),
@@ -649,6 +682,13 @@ export const permitted = {
   '%URIErrorPrototype%': NativeErrorPrototype('URIError'),
   // https://github.com/endojs/endo/issues/550
   '%AggregateErrorPrototype%': NativeErrorPrototype('AggregateError'),
+  // TODO AggregateError .errors
+
+  // TODO SuppressedError
+  // https://github.com/tc39/proposal-explicit-resource-management
+  // '%SuppressedErrorPrototype%': NativeErrorPrototype('SuppressedError'),
+  // TODO SuppressedError .error
+  // TODO SuppressedError .suppressed
 
   // *** Numbers and Dates
 
@@ -827,7 +867,6 @@ export const permitted = {
   '%StringPrototype%': {
     // Properties of the String Prototype Object
     length: 'number',
-    at: fn,
     charAt: fn,
     charCodeAt: fn,
     codePointAt: fn,
@@ -861,6 +900,13 @@ export const permitted = {
     trimStart: fn,
     valueOf: fn,
     '@@iterator': fn,
+    // Failed tc39 proposal
+    // https://github.com/tc39/proposal-relative-indexing-method
+    at: fn,
+    // https://github.com/tc39/proposal-is-usv-string
+    isWellFormed: fn,
+    toWellFormed: fn,
+    unicodeSets: fn,
 
     // Annex B: Additional Properties of the String.prototype Object
     substr: fn,
@@ -881,10 +927,6 @@ export const permitted = {
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     compare: false,
-    // https://github.com/tc39/proposal-is-usv-string
-    isWellFormed: fn,
-    toWellFormed: fn,
-    unicodeSets: fn,
     // Seen on QuickJS
     __quote: false,
   },
@@ -900,6 +942,8 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%RegExpPrototype%',
     '@@species': getter,
+    // https://github.com/tc39/proposal-regex-escaping
+    escape: fn,
 
     // The https://github.com/tc39/proposal-regexp-legacy-features
     // are all optional, unsafe, and omitted
@@ -929,6 +973,8 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%RegExpPrototype%',
     '@@species': getter,
+    // https://github.com/tc39/proposal-regex-escaping
+    escape: fn,
   },
 
   '%RegExpPrototype%': {
@@ -975,7 +1021,7 @@ export const permitted = {
     prototype: '%ArrayPrototype%',
     '@@species': getter,
 
-    // Stage 3:
+    // Failed tc39 proposal
     // https://tc39.es/proposal-relative-indexing-method/
     at: fn,
     // https://tc39.es/proposal-array-from-async/
@@ -984,7 +1030,6 @@ export const permitted = {
 
   '%ArrayPrototype%': {
     // Properties of the Array Prototype Object
-    at: fn,
     length: 'number',
     concat: fn,
     constructor: 'Array',
@@ -1032,6 +1077,7 @@ export const permitted = {
       keys: 'boolean',
       values: 'boolean',
       // Failed tc39 proposal
+      // https://tc39.es/proposal-relative-indexing-method/
       // Seen on FF Nightly 88.0a1
       at: 'boolean',
       // See https://github.com/tc39/proposal-array-find-from-last
@@ -1059,6 +1105,9 @@ export const permitted = {
     group: fn, // Not in proposal? Where?
     groupToMap: fn, // Not in proposal? Where?
     groupBy: fn,
+    // Failed tc39 proposal
+    // https://tc39.es/proposal-relative-indexing-method/
+    at: fn,
   },
 
   '%ArrayIteratorPrototype%': {
@@ -1080,7 +1129,6 @@ export const permitted = {
   },
 
   '%TypedArrayPrototype%': {
-    at: fn,
     buffer: getter,
     byteLength: getter,
     byteOffset: getter,
@@ -1113,6 +1161,9 @@ export const permitted = {
     values: fn,
     '@@iterator': fn,
     '@@toStringTag': getter,
+    // Failed tc39 proposal
+    // https://tc39.es/proposal-relative-indexing-method/
+    at: fn,
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
@@ -1370,6 +1421,11 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%IteratorPrototype%',
     from: fn,
+    // https://github.com/tc39/proposal-joint-iteration
+    zip: fn,
+    zipKeyed: fn,
+    // https://github.com/tc39/proposal-iterator-sequencing
+    concat: fn,
   },
 
   '%IteratorPrototype%': {
@@ -1391,6 +1447,7 @@ export const permitted = {
     '@@toStringTag': 'string',
     // https://github.com/tc39/proposal-async-iterator-helpers
     toAsync: fn,
+    // https://github.com/tc39/proposal-explicit-resource-management
     // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
     '@@dispose': false,
   },
@@ -1435,6 +1492,7 @@ export const permitted = {
     every: fn,
     find: fn,
     '@@toStringTag': 'string',
+    // https://github.com/tc39/proposal-explicit-resource-management
     // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
     '@@asyncDispose': false,
   },

@@ -1075,14 +1075,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jessie.js/eslint-plugin@npm:^0.4.1":
-  version: 0.4.1
-  resolution: "@jessie.js/eslint-plugin@npm:0.4.1"
+"@jessie.js/eslint-plugin@npm:^0.4.2":
+  version: 0.4.2
+  resolution: "@jessie.js/eslint-plugin@npm:0.4.2"
   dependencies:
     requireindex: "npm:~1.1.0"
   peerDependencies:
     eslint: ">=8.53.0"
-  checksum: 10c0/bfe471dd5e5895b6d8e88c365db776f3cc3caf17590466a5eccb08eb18d6c8d0e6c1f71cb5eb024c982e33f9741549fb0828960340eb72f059bb9f3d3b96b76e
+  checksum: 10c0/1ca3b6ed78a91c8ce014897ebe4cf9ff54f130c24010e35e9d678902c2a0ec81fb2b18679e91d52a6b9b3dc3fc3ed442fc93b3cbd4dc98a8a1617c19ac688b90
   languageName: node
   linkType: hard
 
@@ -8763,7 +8763,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@jessie.js/eslint-plugin": "npm:^0.4.1"
+    "@jessie.js/eslint-plugin": "npm:^0.4.2"
     "@octokit/core": "npm:^3.4.0"
     "@types/node": "npm:^20.9.0"
     ava: "npm:^6.1.3"

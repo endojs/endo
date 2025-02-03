@@ -121,3 +121,82 @@ test('TypedArray on Immutable ArrayBuffer shim limitations', t => {
   const ta3 = new Uint8Array(iab);
   t.is(ta3.byteLength, 0);
 });
+
+const testTransfer = t => {
+  const ta12 = new Uint8Array([3, 4, 5]);
+  const ab12 = ta12.buffer;
+  t.is(ab12.byteLength, 3);
+  t.deepEqual([...ta12], [3, 4, 5]);
+
+  const ab2 = ab12.transfer(5);
+  t.false(ab2.immutable);
+  t.is(ab2.byteLength, 5);
+  t.is(ab12.byteLength, 0);
+  const ta2 = new Uint8Array(ab2);
+  t.deepEqual([...ta2], [3, 4, 5, 0, 0]);
+
+  const ta13 = new Uint8Array([3, 4, 5]);
+  const ab13 = ta13.buffer;
+
+  const ab3 = ab13.transfer(2);
+  t.false(ab3.immutable);
+  t.is(ab3.byteLength, 2);
+  t.is(ab13.byteLength, 0);
+  const ta3 = new Uint8Array(ab3);
+  t.deepEqual([...ta3], [3, 4]);
+};
+
+{
+  // `transfer` is absent in Node <= 20. Present in Node >= 22
+  const maybeTest = 'transfer' in ArrayBuffer.prototype ? test : test.skip;
+  maybeTest('Standard buf.transfer(newLength) behavior baseline', testTransfer);
+}
+
+test('Analogous buf.transferToImmutable(newLength) shim', t => {
+  const ta12 = new Uint8Array([3, 4, 5]);
+  const ab12 = ta12.buffer;
+  t.is(ab12.byteLength, 3);
+  t.deepEqual([...ta12], [3, 4, 5]);
+
+  const ab2 = ab12.transferToImmutable(5);
+  t.true(ab2.immutable);
+  t.is(ab2.byteLength, 5);
+  t.is(ab12.byteLength, 0);
+  // slice needed due to ponyfill limitations.
+  const ta2 = new Uint8Array(ab2.slice());
+  t.deepEqual([...ta2], [3, 4, 5, 0, 0]);
+
+  const ta13 = new Uint8Array([3, 4, 5]);
+  const ab13 = ta13.buffer;
+
+  const ab3 = ab13.transferToImmutable(2);
+  t.true(ab3.immutable);
+  t.is(ab3.byteLength, 2);
+  t.is(ab13.byteLength, 0);
+  // slice needed due to ponyfill limitations.
+  const ta3 = new Uint8Array(ab3.slice());
+  t.deepEqual([...ta3], [3, 4]);
+});
+
+test('sliceToImmutable shim', t => {
+  const ta12 = new Uint8Array([3, 4, 5]);
+  const ab12 = ta12.buffer;
+  t.is(ab12.byteLength, 3);
+  t.deepEqual([...ta12], [3, 4, 5]);
+
+  const ab2 = ab12.sliceToImmutable(1, 5);
+  t.true(ab2.immutable);
+  t.is(ab2.byteLength, 2);
+  t.is(ab12.byteLength, 3);
+  // slice needed due to ponyfill limitations.
+  const ta2 = new Uint8Array(ab2.slice());
+  t.deepEqual([...ta2], [4, 5]);
+
+  const ab3 = ab2.sliceToImmutable(1, 2);
+  t.true(ab3.immutable);
+  t.is(ab3.byteLength, 1);
+  t.is(ab2.byteLength, 2);
+  // slice needed due to ponyfill limitations.
+  const ta3 = new Uint8Array(ab3.slice());
+  t.deepEqual([...ta3], [5]);
+});

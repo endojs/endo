@@ -320,7 +320,7 @@ However, with SES with the `'safe'` or `'unsafe'` settings of
 which is the one line of JavaScript the TypeScript compiled to.
 We would like to fix this while preserving safety, but have not yet done so.
 
-Instead, we introduce the `'unsafe-debug'` setting, which sarifices
+Instead, we introduce the `'unsafe-debug'` setting, which sacrifices
 more security to restore this pleasant Node behavior.
 Where `'safe'` and `'unsafe'` endangers only confidentiality, `'unsafe-debug'` also
 endangers intergrity. For development and debugging purposes ***only***,
@@ -480,7 +480,7 @@ lockdown({ reporting: 'console' });
 lockdown({ reporting: 'none' });
 ```
 
-If `lockdown` does not receive an `reporting` option, it will respect
+If `lockdown` does not receive a `reporting` option, it will respect
 `process.env.LOCKDOWN_REPORTING`.
 
 ```console
@@ -852,7 +852,7 @@ mistake, set the options as follows:
 }
 ```
 
-If `lockdown` does not receive a `regExpTaming` option, it will respect
+If `lockdown` does not receive an `overrideDebug` option, it will respect
 `process.env.LOCKDOWN_OVERRIDE_DEBUG`, a comma-separated list of property names
 on shared intrinsics to replace with debugger accessors.
 

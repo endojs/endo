@@ -1,6 +1,6 @@
 User-visible changes in `@endo/module-source`:
 
-# Next release
+# v1.2.0 (2025-01-23)
 
 - Supports dynamic `import` within a `ModuleSource` in conjunction with
   a related change in `ses`.
