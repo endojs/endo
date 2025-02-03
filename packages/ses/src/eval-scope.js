@@ -56,6 +56,7 @@ const { Fail } = assert;
 // `revokeAccessToUnsafeEval` or even simply `revoke`.
 // These recovery routines are expressed inline in the safe evaluator.
 
+// TODO (hermes): does this rely on direct eval?
 export const makeEvalScopeKit = () => {
   const evalScope = create(null);
   const oneTimeEvalProperties = freeze({

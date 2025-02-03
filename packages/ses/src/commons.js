@@ -435,3 +435,15 @@ const getAsyncGeneratorFunctionInstance = () => {
  */
 export const AsyncGeneratorFunctionInstance =
   getAsyncGeneratorFunctionInstance();
+
+/**
+ * Print on Hermes VM
+ * @param  {...any} args Arguments to print
+ */
+export const printHermes = (...args) => {
+  if (AsyncGeneratorFunctionInstance === undefined) {
+    // @ts-expect-error ts(2554)
+    // eslint-disable-next-line no-undef
+    print(args);
+  }
+};

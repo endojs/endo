@@ -102,10 +102,10 @@ and subject to breaking changes that will not be signaled by semver.
   behavior will be enabled by default with the next major version of SES.
 
 - Adds support for module descriptors better aligned with XS.
-  Compartments use module desriptors to load and link modules.
+  Compartments use module descriptors to load and link modules.
   The importHook, importNowHook, and moduleMapHook all return module descriptors
   (sometimes promises for module descriptors).
-  The modules option or argument to the Compatment constructor has module
+  The modules option or argument to the Compartment constructor has module
   descriptors for all its values.
   - `{record, specifier, compartment}` should become `{source: record,
     specifier, compartment}`.

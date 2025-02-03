@@ -98,6 +98,7 @@ export const makeEvaluate = context => {
             ${moduleLexicalOptimizer}
             return function() {
               'use strict';
+              // TODO (hermes): does this rely on direct eval?
               return eval(arguments[0]);
             };
           }

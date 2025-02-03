@@ -38,7 +38,7 @@ exactly the function call that it looks like: it does a normal function call to
 whatever it is that this `eval` evaluated to.
 
 Under SES as proposed and as natively implemented, we would preserve exactly
-these sematics. However, this is not feasible for the SES-shim. The SES-shim
+these semantics. However, this is not feasible for the SES-shim. The SES-shim
 necessarily replaces the `eval` global with its own safe emulation of the
 original eval function, which is therefore not the same as the original eval
 function. Therefore, any occurrences of the direct eval expression under the

@@ -613,6 +613,9 @@ function foo(code) {
 
 If you perform a direct eval, you cannot hide your internal authorities from the code being evaluated.
 
+In "sloppy mode" JavaScript, direct eval can also configure the scope it appears in with new
+variables.
+
 In contrast, an *indirect eval* only gets the global scope, not the local scope. In a hardened
 environment, indirect eval is a useful and common tool. The evaluated code can only access global
 objects, and those are all safe (and frozen). The only bad thing an indirect eval can do is consume

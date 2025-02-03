@@ -11,6 +11,7 @@ export const makeEvalFunction = safeEvaluate => {
   // TypeError: eval is not a constructor"), but which still accepts a
   // 'this' binding.
   const newEval = {
+    // TODO (hermes): does this rely on direct eval?
     eval(source) {
       if (typeof source !== 'string') {
         // As per the runtime semantic of PerformEval [ECMAScript 18.2.1.1]:

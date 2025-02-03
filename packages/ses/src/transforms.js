@@ -12,7 +12,7 @@ import {
 import { getSourceURL } from './get-source-url.js';
 
 /**
- * Find the first occurence of the given pattern and return
+ * Find the first occurrence of the given pattern and return
  * the location as the approximate line number.
  *
  * @param {string} src
@@ -58,7 +58,7 @@ const htmlCommentPattern = new FERAL_REG_EXP(`(?:${'<'}!--|--${'>'})`, 'g');
  * character strings explicitly.
  *
  * We do not write the regexp in a straightforward way, so that an
- * apparennt html comment does not appear in this file. Thus, we avoid
+ * apparent html comment does not appear in this file. Thus, we avoid
  * rejection by the overly eager rejectDangerousSources.
  *
  * @param {string} src
@@ -85,7 +85,7 @@ export const rejectHtmlComments = src => {
  * outside of a comment or literal string, in source code where the JS
  * parser makes no special case for html comments (like module source code).
  * In that case, this evasion preserves the meaning of the program, though it
- * does change the souce column numbers on each effected line.
+ * does change the source column numbers on each effected line.
  *
  * If the html comment appeared in a literal (a string literal, regexp literal,
  * or a template literal), then this evasion will change the meaning of the
@@ -175,6 +175,7 @@ export const evadeImportExpressionTest = src => {
 
 // /////////////////////////////////////////////////////////////////////////////
 
+// TODO (hermes): does this rely on direct eval?
 const someDirectEvalPattern = new FERAL_REG_EXP(
   '(^|[^.])\\beval(\\s*\\()',
   'g',
@@ -182,7 +183,7 @@ const someDirectEvalPattern = new FERAL_REG_EXP(
 
 /**
  * Heuristically reject some text that seems to contain a direct eval
- * expression, with both false positives and false negavives. To reject without
+ * expression, with both false positives and false negatives. To reject without
  * parsing, `rejectSomeDirectEvalExpressions` may will also reject some other
  * text as well. It may also accept source text that contains a direct eval
  * written oddly, such as `(eval)(src)`. This false negative is not a security

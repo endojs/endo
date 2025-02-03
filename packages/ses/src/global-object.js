@@ -19,7 +19,7 @@ import { constantProperties, universalPropertyNames } from './permits.js';
  * guest programs, we cannot emulate the proper behavior.
  * With this shim, assigning Symbol.unscopables causes the given lexical
  * names to fall through to the terminal scope proxy.
- * But, we can install this setter to prevent a program from proceding on
+ * But, we can install this setter to prevent a program from proceeding on
  * this false assumption.
  *
  * @param {object} globalObject
@@ -111,8 +111,7 @@ export const setGlobalObjectMutableProperties = (
   const perCompartmentGlobals = {
     globalThis: globalObject,
   };
-  // BOOKMARK HERMES
-  // Compartment creation
+  // TODO (hermes): Compartment created here? if yes, make conditional on (legacyHermesTaming === 'safe')
   perCompartmentGlobals.Compartment = freeze(
     makeCompartmentConstructor(
       makeCompartmentConstructor,
