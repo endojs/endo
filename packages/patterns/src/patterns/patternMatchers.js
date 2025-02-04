@@ -1259,6 +1259,65 @@ const makePatternKit = () => {
   });
 
   /** @type {MatchHelper} */
+  const matchHasHelper = Far('match:has helper', {
+    checkMatches: (
+      specimen,
+      [elementPatt, countPatt, limits = undefined],
+      check,
+    ) => {
+      let count = 0n;
+      const kind = kindOf(specimen, check);
+      switch (kind) {
+        case 'copyArray': {
+          for (const element of specimen) {
+            if (matches(element, elementPatt)) {
+              count += 1n;
+            }
+          }
+          break;
+        }
+        case 'copySet': {
+          for (const element of specimen.payload) {
+            if (matches(element, elementPatt)) {
+              count += 1n;
+            }
+          }
+          break;
+        }
+        case 'copyBag': {
+          for (const [element, num] of specimen.payload) {
+            if (matches(element, elementPatt)) {
+              count += num;
+            }
+          }
+          break;
+        }
+        default: {
+          return check(false, X`unexpected ${q(kind)}`);
+        }
+      }
+      const { decimalDigitsLimit } = limit(limits);
+      return (
+        applyLabelingError(
+          checkDecimalDigitsLimit,
+          [count, decimalDigitsLimit, check],
+          `${kind} matches`,
+        ) && checkMatches(count, countPatt, check, `${kind} matches`)
+      );
+    },
+
+    checkIsWellFormed: (payload, check) =>
+      checkIsWellFormedWithLimit(
+        payload,
+        harden([MM.pattern(), MM.pattern()]),
+        check,
+        'match:has payload',
+      ),
+
+    getRankCover: () => getPassStyleCover('tagged'),
+  });
+
+  /** @type {MatchHelper} */
   const matchMapOfHelper = Far('match:mapOf helper', {
     checkMatches: (
       specimen,
@@ -1548,6 +1607,7 @@ const makePatternKit = () => {
     'match:recordOf': matchRecordOfHelper,
     'match:setOf': matchSetOfHelper,
     'match:bagOf': matchBagOfHelper,
+    'match:has': matchHasHelper,
     'match:mapOf': matchMapOfHelper,
     'match:splitArray': matchSplitArrayHelper,
     'match:splitRecord': matchSplitRecordHelper,
@@ -1702,6 +1762,8 @@ const makePatternKit = () => {
       makeLimitsMatcher('match:setOf', [keyPatt, limits]),
     bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
       makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
+    has: (elementPatt = M.any(), countPatt = MM.gte(1n), limits = undefined) =>
+      makeLimitsMatcher('match:has', [elementPatt, countPatt, limits]),
     mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
       makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
     splitArray: (base, optional = undefined, rest = undefined) =>
