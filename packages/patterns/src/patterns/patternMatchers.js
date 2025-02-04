@@ -1,5 +1,11 @@
+/* eslint-disable @endo/no-optional-chaining */
 // @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
+import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
+import { identChecker } from '@endo/common/ident-checker.js';
+import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
+import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
+import { listDifference } from '@endo/common/list-difference.js';
 import {
   assertChecker,
   Far,
@@ -8,6 +14,8 @@ import {
   passStyleOf,
   hasOwnPropertyOf,
   nameForPassableSymbol,
+} from '@endo/pass-style';
+import {
   compareRank,
   getPassStyleCover,
   intersectRankCovers,
@@ -15,12 +23,7 @@ import {
   recordNames,
   recordValues,
 } from '@endo/marshal';
-import { identChecker } from '@endo/common/ident-checker.js';
-import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
-import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
-import { listDifference } from '@endo/common/list-difference.js';
 
-import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
 import {
   assertKey,
@@ -33,12 +36,14 @@ import {
   checkCopyBag,
   getCopyMapEntryArray,
   makeCopyMap,
+  makeCopySet,
+  makeCopyBag,
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
 /**
- * @import {Checker, CopyRecord, CopyTagged, Passable} from '@endo/pass-style'
- * @import {ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js'
+ * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style'
+ * @import {CopySet, CopyBag, ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js'
  * @import {MatchHelper, PatternKit} from './types.js'
  */
 
@@ -1258,6 +1263,230 @@ const makePatternKit = () => {
     getRankCover: () => getPassStyleCover('tagged'),
   });
 
+  /**
+   * @param {CopyArray} elements
+   * @param {Pattern} elementPatt
+   * @param {bigint} bound Must be >= 1n
+   * @param {CopyArray} [inResults]
+   * @param {CopyArray} [outResults]
+   * @param {Checker} [check]
+   * @returns {boolean}
+   */
+  const elementsHasSplit = (
+    elements,
+    elementPatt,
+    bound,
+    inResults = undefined,
+    outResults = undefined,
+    check = identChecker,
+  ) => {
+    let count = 0n;
+    // Since this feature is motivated by ERTP's use on
+    // non-fungible (`set`, `copySet`) amounts,
+    // their arrays store their elements in decending lexicographic order.
+    // But this function has to make some choice amoung equally good minimal
+    // results. It is more intuitive for the choice to be the first `bound`
+    // matching elements in ascending lexicigraphic order, rather than
+    // decending. Thus we iterate `elements` in reverse order.
+    for (let i = elements.length - 1; i >= 0; i -= 1) {
+      const element = elements[i];
+      if (count < bound) {
+        if (matches(element, elementPatt)) {
+          count += 1n;
+          inResults?.push(element);
+        } else {
+          outResults?.push(element);
+        }
+      } else if (outResults === undefined) {
+        break;
+      } else {
+        outResults.push(element);
+      }
+    }
+    return check(
+      count >= bound,
+      X`Has only ${q(count)} matches, but needs ${q(bound)}`,
+    );
+  };
+
+  /**
+   * @param {CopyArray<[Key, bigint]>} pairs
+   * @param {Pattern} elementPatt
+   * @param {bigint} bound Must be >= 1n
+   * @param {CopyArray<[Key, bigint]>} [inResults]
+   * @param {CopyArray<[Key, bigint]>} [outResults]
+   * @param {Checker} [check]
+   * @returns {boolean}
+   */
+  const pairsHasSplit = (
+    pairs,
+    elementPatt,
+    bound,
+    inResults = undefined,
+    outResults = undefined,
+    check = identChecker,
+  ) => {
+    let count = 0n;
+    // Since this feature is motivated by ERTP's use on
+    // semi-fungible (`copyBag`) amounts,
+    // their arrays store their elements in decending lexicographic order.
+    // But this function has to make some choice amoung equally good minimal
+    // results. It is more intuitive for the choice to be the first `bound`
+    // matching elements in ascending lexicigraphic order, rather than
+    // decending. Thus we iterate `pairs` in reverse order.
+    for (let i = pairs.length - 1; i >= 0; i -= 1) {
+      const [element, num] = pairs[i];
+      const numRest = bound - count;
+      if (numRest >= 1n) {
+        if (matches(element, elementPatt)) {
+          if (num <= numRest) {
+            count += num;
+            inResults?.push([element, num]);
+          } else {
+            const numIn = numRest;
+            count += numIn;
+            inResults?.push([element, numRest]);
+            outResults?.push([element, num - numRest]);
+          }
+        } else {
+          outResults?.push([element, num]);
+        }
+      } else if (outResults === undefined) {
+        break;
+      } else {
+        outResults.push([element, num]);
+      }
+    }
+    return check(
+      count >= bound,
+      X`Has only ${q(count)} matches, but needs ${q(bound)}`,
+    );
+  };
+
+  /**
+   * @typedef {CopyArray | CopySet | CopyBag} Container
+   * @param {Container} specimen
+   * @param {Pattern} elementPatt
+   * @param {bigint} bound Must be >= 1n
+   * @param {boolean} [needInResults]
+   * @param {boolean} [needOutResults]
+   * @param {Checker} [check]
+   * @returns {[Container | undefined, Container | undefined] | false}
+   */
+  const containerHasSplit = (
+    specimen,
+    elementPatt,
+    bound,
+    needInResults = false,
+    needOutResults = false,
+    check = identChecker,
+  ) => {
+    const inResults = needInResults ? [] : undefined;
+    const outResults = needOutResults ? [] : undefined;
+    const kind = kindOf(specimen);
+    switch (kind) {
+      case 'copyArray': {
+        if (
+          !elementsHasSplit(
+            specimen,
+            elementPatt,
+            bound,
+            inResults,
+            outResults,
+            check,
+          )
+        ) {
+          // check logic already performed by elementsHasSplit
+          return false;
+        }
+        return [inResults, outResults];
+      }
+      case 'copySet': {
+        if (
+          !elementsHasSplit(
+            specimen.payload,
+            elementPatt,
+            bound,
+            inResults,
+            outResults,
+            check,
+          )
+        ) {
+          return false;
+        }
+        return [
+          inResults && makeCopySet(inResults),
+          outResults && makeCopySet(outResults),
+        ];
+      }
+      case 'copyBag': {
+        if (
+          !pairsHasSplit(
+            specimen.payload,
+            elementPatt,
+            bound,
+            inResults,
+            outResults,
+            check,
+          )
+        ) {
+          return false;
+        }
+        return [
+          inResults && makeCopyBag(inResults),
+          outResults && makeCopyBag(outResults),
+        ];
+      }
+      default: {
+        return check(false, X`unexpected ${q(kind)}`);
+      }
+    }
+  };
+
+  /** @type {MatchHelper} */
+  const matchContainerHasHelper = Far('M.containerHas helper', {
+    /**
+     * @param {CopyArray | CopySet | CopyBag} specimen
+     * @param {[Pattern, bigint, Limits?]} payload
+     * @param {Checker} check
+     */
+    checkMatches: (
+      specimen,
+      [elementPatt, bound, limits = undefined],
+      check,
+    ) => {
+      const kind = kindOf(specimen, check);
+      const { decimalDigitsLimit } = limit(limits);
+      if (
+        !applyLabelingError(
+          checkDecimalDigitsLimit,
+          [bound, decimalDigitsLimit, check],
+          `${kind} matches`,
+        )
+      ) {
+        return false;
+      }
+      return !!containerHasSplit(
+        specimen,
+        elementPatt,
+        bound,
+        false,
+        false,
+        check,
+      );
+    },
+
+    checkIsWellFormed: (payload, check) =>
+      checkIsWellFormedWithLimit(
+        payload,
+        harden([MM.pattern(), MM.gte(1n)]),
+        check,
+        'M.containerHas payload',
+      ),
+
+    getRankCover: () => getPassStyleCover('tagged'),
+  });
+
   /** @type {MatchHelper} */
   const matchMapOfHelper = Far('match:mapOf helper', {
     checkMatches: (
@@ -1548,6 +1777,7 @@ const makePatternKit = () => {
     'match:recordOf': matchRecordOfHelper,
     'match:setOf': matchSetOfHelper,
     'match:bagOf': matchBagOfHelper,
+    'match:containerHas': matchContainerHasHelper,
     'match:mapOf': matchMapOfHelper,
     'match:splitArray': matchSplitArrayHelper,
     'match:splitRecord': matchSplitRecordHelper,
@@ -1702,6 +1932,8 @@ const makePatternKit = () => {
       makeLimitsMatcher('match:setOf', [keyPatt, limits]),
     bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
       makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
+    containerHas: (elementPatt = M.any(), countPatt = 1n, limits = undefined) =>
+      makeLimitsMatcher('match:containerHas', [elementPatt, countPatt, limits]),
     mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
       makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
     splitArray: (base, optional = undefined, rest = undefined) =>
@@ -1763,6 +1995,7 @@ const makePatternKit = () => {
     getRankCover,
     M,
     kindOf,
+    containerHasSplit,
   });
 };
 
@@ -1781,6 +2014,7 @@ export const {
   getRankCover,
   M,
   kindOf,
+  containerHasSplit,
 } = makePatternKit();
 
 MM = M;

@@ -199,6 +199,10 @@ const runTests = (t, successCase, failCase) => {
 
     successCase(specimen, M.arrayOf(M.number()));
 
+    successCase(specimen, M.containerHas(3));
+    successCase(specimen, M.containerHas(3, 1n));
+    successCase(specimen, M.containerHas(M.number(), 2n));
+
     failCase(specimen, [4, 3], '[3,4] - Must be: [4,3]');
     failCase(specimen, [3], '[3,4] - Must be: [3]');
     failCase(
@@ -226,6 +230,12 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.arrayOf(M.string()),
       '[0]: number 3 - Must be a string',
+    );
+
+    failCase(
+      specimen,
+      M.containerHas('c'),
+      'Has only "[0n]" matches, but needs "[1n]"',
     );
   }
   {
@@ -419,6 +429,10 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.lte(makeCopySet([3, 4, 5])));
     successCase(specimen, M.setOf(M.number()));
 
+    successCase(specimen, M.containerHas(3));
+    successCase(specimen, M.containerHas(3, 1n));
+    successCase(specimen, M.containerHas(M.number(), 2n));
+
     failCase(specimen, makeCopySet([]), '"[copySet]" - Must be: "[copySet]"');
     failCase(
       specimen,
@@ -439,6 +453,12 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.setOf(M.string()),
       'set elements[0]: number 4 - Must be a string',
+    );
+
+    failCase(
+      specimen,
+      M.containerHas('c'),
+      'Has only "[0n]" matches, but needs "[1n]"',
     );
   }
   {
@@ -472,6 +492,14 @@ const runTests = (t, successCase, failCase) => {
     );
     successCase(specimen, M.bagOf(M.string()));
     successCase(specimen, M.bagOf(M.string(), M.lt(5n)));
+    successCase(specimen, M.bagOf(M.string(), M.gte(2n)));
+
+    successCase(specimen, M.containerHas('a'));
+    successCase(specimen, M.containerHas('a', 2n));
+    successCase(specimen, M.containerHas(M.string(), 5n));
+    successCase(specimen, M.containerHas('a', 1n));
+    successCase(specimen, M.containerHas('a'));
+    successCase(specimen, M.containerHas('b', 2n));
 
     failCase(
       specimen,
@@ -499,15 +527,11 @@ const runTests = (t, successCase, failCase) => {
       'bag keys[0]: string "b" - Must be a boolean',
     );
     failCase(specimen, M.bagOf('b'), 'bag keys[1]: "a" - Must be: "b"');
+
     failCase(
       specimen,
-      M.bagOf(M.any(), M.gt(5n)),
-      'bag counts[0]: "[3n]" - Must be > "[5n]"',
-    );
-    failCase(
-      specimen,
-      M.bagOf(M.any(), M.gt(2n)),
-      'bag counts[1]: "[2n]" - Must be > "[2n]"',
+      M.containerHas('c'),
+      'Has only "[0n]" matches, but needs "[1n]"',
     );
   }
   {
@@ -866,5 +890,18 @@ test('well formed patterns', t => {
   // @ts-expect-error purposeful type violation for testing
   t.throws(() => M.remotable(88), {
     message: 'match:remotable payload: label: number 88 - Must be a string',
+  });
+
+  t.throws(() => M.containerHas('c', 0n), {
+    message: 'M.containerHas payload: [1]: "[0n]" - Must be >= "[1n]"',
+  });
+  // @ts-expect-error purposeful type violation for testing
+  t.throws(() => M.containerHas('c', M.nat()), {
+    message:
+      'M.containerHas payload: [1]: A passable tagged "match:nat" is not a key: "[match:nat]"',
+  });
+  // @ts-expect-error purposeful type violation for testing
+  t.throws(() => M.containerHas(3, 1), {
+    message: 'M.containerHas payload: [1]: 1 - Must be >= "[1n]"',
   });
 });
