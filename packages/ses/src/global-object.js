@@ -75,6 +75,7 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * @param {Function} args.makeCompartmentConstructor
  * @param {(object) => void} args.markVirtualizedNativeFunction
  * @param {Compartment} [args.parentCompartment]
+ * @param args.legacyHermesTaming
  */
 export const setGlobalObjectMutableProperties = (
   globalObject,
@@ -84,6 +85,7 @@ export const setGlobalObjectMutableProperties = (
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
     parentCompartment,
+    legacyHermesTaming,
   },
 ) => {
   for (const [name, intrinsicName] of entries(universalPropertyNames)) {
@@ -111,18 +113,21 @@ export const setGlobalObjectMutableProperties = (
   const perCompartmentGlobals = {
     globalThis: globalObject,
   };
-  // TODO (hermes): Compartment created here? if yes, make conditional on (legacyHermesTaming === 'safe')
-  perCompartmentGlobals.Compartment = freeze(
-    makeCompartmentConstructor(
-      makeCompartmentConstructor,
-      intrinsics,
-      markVirtualizedNativeFunction,
-      {
-        parentCompartment,
-        enforceNew: true,
-      },
-    ),
-  );
+  // safe: function Compartment() { [native code] }
+  // unsafe: function Compartment(a0) { [bytecode] }
+  if (legacyHermesTaming === 'safe') {
+    perCompartmentGlobals.Compartment = freeze(
+      makeCompartmentConstructor(
+        makeCompartmentConstructor,
+        intrinsics,
+        markVirtualizedNativeFunction,
+        {
+          parentCompartment,
+          enforceNew: true,
+        },
+      ),
+    );
+  }
 
   // TODO These should still be tamed according to the permits before
   // being made available.

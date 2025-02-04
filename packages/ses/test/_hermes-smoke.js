@@ -6,7 +6,7 @@
  * Test calling SES lockdown.
  */
 const testLockdown = () => {
-  lockdown();
+  lockdown({ legacyHermesTaming: 'unsafe' });
 };
 
 /**
@@ -47,3 +47,9 @@ async function testCompartmentHooks() {
 }
 
 testLockdown();
+
+// TODO (hermes): Compartment should be undefined with { legacyHermesTaming: 'unsafe' }
+// safe: function Compartment() { [native code] }
+// unsafe: function Compartment(a0) { [bytecode] }
+// eslint-disable-next-line no-undef
+print(globalThis.Compartment);

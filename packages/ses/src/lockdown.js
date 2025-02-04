@@ -157,7 +157,7 @@ export const repairIntrinsics = (options = {}) => {
       debugName => debugName !== '',
     ),
     legacyHermesTaming = /** @type { 'safe' | 'unsafe' } */ (
-      getenv('LOCKDOWN_LEGACY_HERMES_TAMING', 'none')
+      getenv('LOCKDOWN_LEGACY_HERMES_TAMING', 'safe')
     ),
     legacyRegeneratorRuntimeTaming = getenv(
       'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
@@ -170,7 +170,7 @@ export const repairIntrinsics = (options = {}) => {
   } = options;
 
   legacyHermesTaming === 'safe' ||
-    legacyRegeneratorRuntimeTaming === 'unsafe' ||
+    legacyHermesTaming === 'unsafe' ||
     Fail`lockdown(): non supported option legacyHermesTaming: ${q(legacyHermesTaming)}`;
 
   legacyRegeneratorRuntimeTaming === 'safe' ||
@@ -384,6 +384,7 @@ export const repairIntrinsics = (options = {}) => {
     newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
+    legacyHermesTaming,
   });
 
   if (evalTaming === 'noEval') {
