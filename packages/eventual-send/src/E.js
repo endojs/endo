@@ -195,6 +195,14 @@ const makeE = HandledPromise => {
        * method calls returns a promise. The method will be invoked on whatever
        * 'x' designates (or resolves to) in a future turn, not this one.
        *
+       * An example call would be
+       *
+       * E(zoe).install(bundle)
+       *   .then(installationHandle => { ... })
+       *   .catch(err => { ... });
+       *
+       *  See https://endojs.github.io/endo/functions/_endo_far.E.html for details.
+       *
        * @template T
        * @param {T} x target for method/function call
        * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
