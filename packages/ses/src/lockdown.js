@@ -220,11 +220,6 @@ export const repairIntrinsics = (options = {}) => {
 
   if (legacyHermesTaming === 'safe') {
     assertDirectEvalAvailable();
-  } else if (legacyHermesTaming === 'unsafe') {
-    warn(`Removing Compartment on legacy Hermes.`);
-    globalThis.testCompartmentHooks = undefined;
-    // @ts-ignore Compartment does exist on globalThis
-    delete globalThis.Compartment;
   }
 
   /**
@@ -390,6 +385,13 @@ export const repairIntrinsics = (options = {}) => {
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
   });
+
+  // Remove Compartment on Hermes after setGlobalObjectMutableProperties
+  if (legacyHermesTaming === 'unsafe') {
+    globalThis.testCompartmentHooks = undefined;
+    // @ts-ignore Compartment does exist on globalThis
+    delete globalThis.Compartment;
+  }
 
   if (evalTaming === 'noEval') {
     setGlobalObjectEvaluators(
