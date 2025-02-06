@@ -389,7 +389,6 @@ export const repairIntrinsics = (options = {}) => {
     newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
-    legacyHermesTaming,
   });
 
   if (evalTaming === 'noEval') {
