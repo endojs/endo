@@ -222,7 +222,7 @@ export const repairIntrinsics = (options = {}) => {
     assertDirectEvalAvailable();
   } else if (legacyHermesTaming === 'unsafe') {
     warn(`Removing Compartment on legacy Hermes.`);
-    delete globalThis.testCompartmentHooks;
+    globalThis.testCompartmentHooks = undefined;
     // @ts-ignore Compartment does exist on globalThis
     delete globalThis.Compartment;
   }
@@ -398,9 +398,9 @@ export const repairIntrinsics = (options = {}) => {
       markVirtualizedNativeFunction,
     );
   } else if (evalTaming === 'safeEval') {
-    // TODO (hermes): does this rely on direct eval? no
-    // also evalTaming only affects start compartment (not supporting now on hermes)
-    // make-safe-evaluator.js: no direct eval usage
+    // safeEvaluate is never called on Hermes
+    // otherwise we'd be running makeEvaluate
+    // (quad with backflip that calls eval(arguments[0]))
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
     setGlobalObjectEvaluators(
       globalThis,
