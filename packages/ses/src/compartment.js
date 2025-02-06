@@ -266,6 +266,8 @@ export const compartmentOptions = (...args) => {
   }
 };
 
+// globalThis: Promise,testCompartmentHooks (no lockdown,repairIntrinsics,Compartment,assert)
+
 /** @type {MakeCompartmentConstructor} */
 export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
@@ -406,6 +408,8 @@ export const makeCompartmentConstructor = (
   }
 
   Compartment.prototype = CompartmentPrototype;
+
+  // globalThis: Promise,testCompartmentHooks,lockdown,repairIntrinsics (no Compartment,assert)
 
   return Compartment;
 };

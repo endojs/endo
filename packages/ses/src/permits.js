@@ -1,11 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import {
-  arrayPush,
-  arrayForEach,
-  getOwnPropertyDescriptor,
-} from './commons.js';
+import { arrayPush } from './commons.js';
 import { dynamicFunctionPermitsAdjustments } from './stuff-we-extracted.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */

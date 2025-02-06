@@ -75,7 +75,7 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * @param {Function} args.makeCompartmentConstructor
  * @param {(object) => void} args.markVirtualizedNativeFunction
  * @param {Compartment} [args.parentCompartment]
- * @param args.legacyHermesTaming
+ * @param {object} [args.legacyHermesTaming]
  */
 export const setGlobalObjectMutableProperties = (
   globalObject,

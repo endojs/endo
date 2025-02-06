@@ -103,6 +103,8 @@ const safeHarden = makeHardener();
  * @param {LockdownOptions} [options]
  */
 export const repairIntrinsics = (options = {}) => {
+  // globalThis: Promise,testCompartmentHooks,lockdown,repairIntrinsics,Compartment,assert (no console)
+
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -194,13 +196,11 @@ export const repairIntrinsics = (options = {}) => {
   const { warn } = reporter;
 
   if (dateTaming !== undefined) {
-    // eslint-disable-next-line no-console
     warn(
       `SES The 'dateTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
     );
   }
   if (mathTaming !== undefined) {
-    // eslint-disable-next-line no-console
     warn(
       `SES The 'mathTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
     );
@@ -220,6 +220,11 @@ export const repairIntrinsics = (options = {}) => {
 
   if (legacyHermesTaming === 'safe') {
     assertDirectEvalAvailable();
+  } else if (legacyHermesTaming === 'unsafe') {
+    warn(`Removing Compartment on legacy Hermes.`);
+    delete globalThis.testCompartmentHooks;
+    // @ts-ignore Compartment does exist on globalThis
+    delete globalThis.Compartment;
   }
 
   /**
