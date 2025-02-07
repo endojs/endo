@@ -11,7 +11,11 @@ const wellKnownSymbolNames = new Map(
       name => typeof name === 'string' && typeof Symbol[name] === 'symbol',
     )
     .filter(name => {
-      // @ts-expect-error It doesn't know name cannot be a symbol
+      // TODO The following directive line should either be removed or
+      // turned back into an at-ts-expect-error. We made it into an
+      // at-ts-ignore because we were getting inconsistent reports.
+      // See https://github.com/endojs/endo/pull/2673#issuecomment-2566711810
+      // @ts-ignore It doesn't know name cannot be a symbol
       !name.startsWith('@@') ||
         Fail`Did not expect Symbol to have a symbol-valued property name starting with "@@" ${q(
           name,
