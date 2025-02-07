@@ -6,8 +6,8 @@ const { isFrozen } = Object;
 
 const nonTrappingShimOption = getEnvironmentOption(
   'SES_NON_TRAPPING_SHIM',
-  'disabled',
-  ['enabled'],
+  'enabled',
+  ['disabled'],
 );
 
 if (nonTrappingShimOption === 'enabled') {
