@@ -4,7 +4,12 @@
 
 import { isPromise } from '@endo/promise-kit';
 import { X, Fail, q, annotateError, makeError } from '@endo/errors';
-import { isObject, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
+import {
+  isObject,
+  isTypedArray,
+  PASS_STYLE,
+  assertChecker,
+} from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
 import { CopyRecordHelper } from './copyRecord.js';
@@ -61,6 +66,21 @@ const makeHelperTable = passStyleHelpers => {
   }
 
   return harden(HelperTable);
+};
+
+/**
+ * The `assertRestValid` assumes that the `canBeValid` check has already passed.
+ * Contexts where we cannot assume that should call `assertValid` instead,
+ * which checks both conditions in the right order.
+ *
+ * @param {PassStyleHelper} helper
+ * @param {any} candidate
+ * @param {(val: any) => PassStyle} passStyleOfRecur
+ * @returns {void}
+ */
+const assertValid = (helper, candidate, passStyleOfRecur) => {
+  helper.canBeValid(candidate, assertChecker);
+  helper.assertRestValid(candidate, passStyleOfRecur);
 };
 
 /**
@@ -164,16 +184,16 @@ const makePassStyleOf = passStyleHelpers => {
             const helper = HelperTable[passStyleTag];
             helper !== undefined ||
               Fail`Unrecognized PassStyle: ${q(passStyleTag)}`;
-            helper.assertValid(inner, passStyleOfRecur);
+            assertValid(helper, inner, passStyleOfRecur);
             return /** @type {PassStyle} */ (passStyleTag);
           }
           for (const helper of passStyleHelpers) {
             if (helper.canBeValid(inner)) {
-              helper.assertValid(inner, passStyleOfRecur);
+              helper.assertRestValid(inner, passStyleOfRecur);
               return helper.styleName;
             }
           }
-          remotableHelper.assertValid(inner, passStyleOfRecur);
+          assertValid(remotableHelper, inner, passStyleOfRecur);
           return 'remotable';
         }
         case 'function': {
@@ -181,7 +201,7 @@ const makePassStyleOf = passStyleHelpers => {
             Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
-          remotableHelper.assertValid(inner, passStyleOfRecur);
+          assertValid(remotableHelper, inner, passStyleOfRecur);
           return 'remotable';
         }
         default: {

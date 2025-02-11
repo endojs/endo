@@ -9,12 +9,16 @@ import {
   checkPassStyle,
 } from './passStyle-helpers.js';
 
+/**
+ * @import {PassStyleHelper} from './internal-types.js'
+ */
+
 const { ownKeys } = Reflect;
 const { getOwnPropertyDescriptors } = Object;
 
 /**
  *
- * @type {import('./internal-types.js').PassStyleHelper}
+ * @type {PassStyleHelper}
  */
 export const TaggedHelper = harden({
   styleName: 'tagged',
@@ -22,7 +26,7 @@ export const TaggedHelper = harden({
   canBeValid: (candidate, check = undefined) =>
     checkPassStyle(candidate, candidate[PASS_STYLE], 'tagged', check),
 
-  assertValid: (candidate, passStyleOfRecur) => {
+  assertRestValid: (candidate, passStyleOfRecur) => {
     checkTagRecord(candidate, 'tagged', assertChecker);
 
     // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
