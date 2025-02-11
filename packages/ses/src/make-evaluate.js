@@ -1,6 +1,6 @@
 // @ts-check
 
-import { FERAL_FUNCTION, arrayJoin, apply } from './commons.js';
+import { FERAL_FUNCTION, arrayJoin, apply, printHermes } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
 
 /**
@@ -31,6 +31,7 @@ function buildOptimizer(constants, name) {
  * @param {object} context.scopeTerminator
  */
 export const makeEvaluate = context => {
+  printHermes('makeEvaluate');
   const { globalObjectConstants, moduleLexicalConstants } = getScopeConstants(
     context.globalObject,
     context.moduleLexicals,
@@ -80,6 +81,10 @@ export const makeEvaluate = context => {
   //   `evalScope`. Any further reference to 'eval' in the evaluate string will
   //   get the tamed evaluator from the `globalObject`, if any.
 
+  printHermes(`trying to eval('any-string') on Hermes after lockdown...`);
+  printHermes(`running evaluateFactory (quad 'with' backflips)...`);
+  printHermes(`SyntaxError on Hermes, 'with' is an invalid statement.`);
+
   // TODO https://github.com/endojs/endo/issues/816
   // The optimizer currently runs under sloppy mode, and although we doubt that
   // there is any vulnerability introduced just by running the optimizer
@@ -105,6 +110,13 @@ export const makeEvaluate = context => {
       }
     }
   `);
+
+  // After lockdown, eval('any-string') breaks here, Hermes does not support 'with':
+  // Uncaught SyntaxError: 2:5:invalid statement encountered.
+
+  // We cannot simply skip the with statements and return eval(arguments[0]), even in strict mode:
+  // Uncaught Error: handler did not reset allowNextEvalToBeUnsafe (a RangeError)
+  // on make-safe-evaluator (not eval-scope)
 
   return apply(evaluateFactory, context, []);
 };

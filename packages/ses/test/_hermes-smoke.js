@@ -47,3 +47,8 @@ async function testCompartmentHooks() {
 }
 
 testLockdown();
+
+print(eval(5));
+print(eval(5 + 5));
+
+print(eval('1+1'));

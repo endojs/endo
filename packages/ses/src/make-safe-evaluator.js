@@ -1,7 +1,13 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import { apply, arrayFlatMap, freeze, identity } from './commons.js';
+import {
+  apply,
+  arrayFlatMap,
+  freeze,
+  identity,
+  printHermes,
+} from './commons.js';
 import { strictScopeTerminator } from './strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
 import { makeEvalScopeKit } from './eval-scope.js';
@@ -47,6 +53,7 @@ export const makeSafeEvaluator = ({
   let evaluate;
   const provideEvaluate = () => {
     if (!evaluate) {
+      printHermes('!evaluate');
       evaluate = makeEvaluate(evaluateContext);
     }
   };
@@ -57,6 +64,8 @@ export const makeSafeEvaluator = ({
    * @param {Array<import('./lockdown.js').Transform>} [options.localTransforms]
    */
   const safeEvaluate = (source, options) => {
+    printHermes('safeEvaluate');
+    // only called on strings
     const { localTransforms = [] } = options || {};
     provideEvaluate();
 

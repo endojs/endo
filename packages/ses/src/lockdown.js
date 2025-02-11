@@ -400,9 +400,6 @@ export const repairIntrinsics = (options = {}) => {
       markVirtualizedNativeFunction,
     );
   } else if (evalTaming === 'safeEval') {
-    // safeEvaluate is never called on Hermes
-    // otherwise we'd be running makeEvaluate
-    // (quad with backflip that calls eval(arguments[0]))
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
     setGlobalObjectEvaluators(
       globalThis,

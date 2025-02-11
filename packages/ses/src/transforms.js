@@ -175,7 +175,8 @@ export const evadeImportExpressionTest = src => {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-// TODO (hermes): does this rely on direct eval?
+// None of these exported tests or transforms in this file run on Hermes.
+// The transforms are pushed on compartment-evaluate only.
 const someDirectEvalPattern = new FERAL_REG_EXP(
   '(^|[^.])\\beval(\\s*\\()',
   'g',

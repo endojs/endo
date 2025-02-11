@@ -1,3 +1,5 @@
+import { printHermes } from './commons.js';
+
 /**
  * makeEvalFunction()
  * A safe version of the native eval function which relies on
@@ -11,8 +13,8 @@ export const makeEvalFunction = safeEvaluate => {
   // TypeError: eval is not a constructor"), but which still accepts a
   // 'this' binding.
   const newEval = {
-    // TODO (hermes): does this rely on direct eval?
     eval(source) {
+      printHermes('source', typeof source, source);
       if (typeof source !== 'string') {
         // As per the runtime semantic of PerformEval [ECMAScript 18.2.1.1]:
         // If Type(source) is not String, return source.
@@ -20,6 +22,10 @@ export const makeEvalFunction = safeEvaluate => {
         // rule. Track.
         return source;
       }
+      // safeEvaluate breaks on strings e.g. eval('1+1') on Hermes, due to unsupported 'with'.
+      // TODO (hermes): (legacyHermesTaming === 'unsafe') throw Error:
+      // 'SES does not support strings on legacy Hermes unsupported eval(), see: https://github.com/facebook/hermes/issues/1056'
+      // Disabling safeEvaluate is not enough, since returning the source string is not evaluating it.
       return safeEvaluate(source);
     },
   }.eval;
