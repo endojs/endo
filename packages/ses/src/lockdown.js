@@ -398,6 +398,7 @@ export const repairIntrinsics = (options = {}) => {
       globalThis,
       noEvalEvaluate,
       markVirtualizedNativeFunction,
+      // legacyHermesTaming // this would currently suppress SES_NO_EVAL and throw TypeError instead
     );
   } else if (evalTaming === 'safeEval') {
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
@@ -405,11 +406,13 @@ export const repairIntrinsics = (options = {}) => {
       globalThis,
       safeEvaluate,
       markVirtualizedNativeFunction,
+      legacyHermesTaming,
     );
   } else if (evalTaming === 'unsafeEval') {
     // Leave eval function and Function constructor of the initial compartment in-tact.
     // Other compartments will not have access to these evaluators unless a guest program
     // escapes containment.
+    // Hermes eval left in-tact, string args work.
   }
 
   /**

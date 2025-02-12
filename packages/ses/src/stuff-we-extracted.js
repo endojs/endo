@@ -66,8 +66,13 @@ export const assertDirectEvalAvailable = () => {
   }
   if (!allowed && !evaluatorsBlocked) {
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
-    throw TypeError(
-      `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
-    );
+    // throw TypeError(
+    //   `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
+    // );
+    // TODO (hermes): (legacyHermesTaming === 'safe')
+    //     throw TypeError(
+    //       `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)
+    // See: https://github.com/facebook/hermes/issues/957`,
+    //     );
   }
 };

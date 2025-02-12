@@ -6,7 +6,7 @@
  * Test calling SES lockdown.
  */
 const testLockdown = () => {
-  lockdown({ legacyHermesTaming: 'unsafe' });
+  lockdown({ legacyHermesTaming: 'unsafe', evalTaming: 'safeEval' });
 };
 
 /**
@@ -48,7 +48,15 @@ async function testCompartmentHooks() {
 
 testLockdown();
 
-print(eval(5));
-print(eval(5 + 5));
+// print(eval(1)); // safeEval: ok
+// print(eval(1 + 1)); // safeEval: ok
+print(eval('2+2')); // safeEval: throw TypeError, unsafeEval: ok
+print(new Function('', 'return 42')); // safeEval: throw TypeError, unsafeEval: ok
+// calls make-function-constructor, evaluates a string
 
-print(eval('1+1'));
+// print((() => 42)()); // safeEval: ok
+// print(
+//   (function () {
+//     return 42;
+//   })(),
+// ); // safeEval: ok

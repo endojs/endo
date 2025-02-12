@@ -145,14 +145,16 @@ export const setGlobalObjectMutableProperties = (
  * @param {object} globalObject
  * @param {Function} evaluator
  * @param {(object) => void} markVirtualizedNativeFunction
+ * @param {string} [legacyHermesTaming]
  */
 export const setGlobalObjectEvaluators = (
   globalObject,
   evaluator,
   markVirtualizedNativeFunction,
+  legacyHermesTaming,
 ) => {
   {
-    const f = freeze(makeEvalFunction(evaluator));
+    const f = freeze(makeEvalFunction(evaluator, legacyHermesTaming));
     markVirtualizedNativeFunction(f);
     defineProperty(globalObject, 'eval', {
       value: f,
