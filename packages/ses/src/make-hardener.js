@@ -56,8 +56,6 @@ import { assert } from './error/assert.js';
  * @import {Harden} from '../types.js'
  */
 
-const { constructor: TypedArray } = typedArrayPrototype;
-
 // Obtain the string tag accessor of of TypedArray so we can indirectly use the
 // TypedArray brand check it employs.
 const typedArrayToStringTag = getOwnPropertyDescriptor(
@@ -75,10 +73,6 @@ assert(getTypedArrayToStringTag);
  * @param {unknown} object
  */
 export const isTypedArray = object => {
-  if (!(object instanceof TypedArray)) {
-    // quicker reject for typical case
-    return false;
-  }
   // The object must pass a brand check or toStringTag will return undefined.
   const tag = apply(getTypedArrayToStringTag, object, []);
   return tag !== undefined;
