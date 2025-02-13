@@ -1,5 +1,13 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# Next release
+
+- `mapNodeModules`, `importLocation` and `loadLocation` now accept a `log`
+  option for users to define a custom logging function. As of this writing,
+  _only `mapNodeModules`_ will potentially call this function if provided.
+  Expansion of log messaging and support for the `log` option in more APIs is
+  expected _in the future_.
+
 # v1.5.0 (2025-01-23)
 
 - `mapNodeModules` and all functions that use it now tolerate the absence of
