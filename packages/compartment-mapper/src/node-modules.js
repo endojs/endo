@@ -17,57 +17,27 @@
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
  *   CompartmentMapForNodeModulesOptions,
- *   Language,
  *   LanguageForExtension,
  *   MapNodeModulesOptions,
  *   MaybeReadFn,
  *   MaybeReadPowers,
- *   ModuleDescriptor,
+ *   PackageDescriptor,
+ *   ReadDescriptorFn,
  *   ReadFn,
  *   ReadPowers,
- *   ScopeDescriptor,
  *   SomePackagePolicy,
  *   SomePolicy,
  * } from './types.js'
- */
-
-/**
- * The graph is an intermediate object model that the functions of this module
- * build by exploring the `node_modules` tree dropped by tools like npm and
- * consumed by tools like Node.js.
- * This gets translated finally into a compartment map.
- *
- * @typedef {Record<string, Node>} Graph
- */
-
-/**
- * @typedef {object} Node
- * @property {string} label
- * @property {string} name
- * @property {Array<string>} path
- * @property {Array<string>} logicalPath
- * @property {boolean} explicitExports
- * @property {Record<string, string>} internalAliases
- * @property {Record<string, string>} externalAliases
- * @property {Record<string, string>} dependencyLocations - from module name to
- * location in storage.
- * @property {LanguageForExtension} parsers - the parser for
- * modules based on their extension.
- * @property {Record<string, Language>} types - the parser for specific
- * modules.
- */
-
-/**
- * @typedef {object} LanguageOptions
- * @property {LanguageForExtension} commonjsLanguageForExtension
- * @property {LanguageForExtension} moduleLanguageForExtension
- * @property {LanguageForExtension} workspaceCommonjsLanguageForExtension
- * @property {LanguageForExtension} workspaceModuleLanguageForExtension
- * @property {Set<string>} languages
- */
-
-/**
- * @typedef {Record<string, {spec: string, alias: string}>} CommonDependencyDescriptors
+ * @import {
+ *   Graph,
+ *   Node,
+ *   LanguageOptions,
+ *   CommonDependencyDescriptors,
+ *   GatherDependencyOptions,
+ *   GraphPackageOptions,
+ *   GraphPackagesOptions,
+ *   PackageDetails,
+ * } from './types/node-modules.js'
  */
 
 import { pathCompare } from './compartment-map.js';
@@ -145,27 +115,19 @@ const readDescriptorWithMemo = async (memo, maybeRead, packageLocation) => {
 };
 
 /**
- * @callback ReadDescriptorFn
- * @param {string} packageLocation
- * @returns {Promise<object>}
- */
-
-/**
- * findPackage behaves as Node.js to find third-party modules by searching
+ * `findPackage` behaves as Node.js to find third-party modules by searching
  * parent to ancestor directories for a `node_modules` directory that contains
  * the name.
+ *
  * Node.js does not actually require these to be packages, but in practice,
- * these are the locations that pakcage managers drop a package so Node.js can
+ * these are the locations that package managers drop a package so Node.js can
  * find it efficiently.
  *
  * @param {ReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {string} directory
  * @param {string} name
- * @returns {Promise<{
- *   packageLocation: string,
- *   packageDescriptor: object,
- * } | undefined>}
+ * @returns {Promise<PackageDetails|undefined>}
  */
 const findPackage = async (readDescriptor, canonical, directory, name) => {
   await null;
@@ -198,6 +160,7 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
+/** @satisfies {LanguageForExtension} */
 const defaultLanguageForExtension = /** @type {const} */ ({
   mjs: 'mjs',
   cjs: 'cjs',
@@ -205,15 +168,19 @@ const defaultLanguageForExtension = /** @type {const} */ ({
   text: 'text',
   bytes: 'bytes',
 });
+
+/** @satisfies {LanguageForExtension} */
 const defaultCommonjsLanguageForExtension = /** @type {const} */ ({
   js: 'cjs',
 });
+
+/** @satisfies {LanguageForExtension} */
 const defaultModuleLanguageForExtension = /** @type {const} */ ({
   js: 'mjs',
 });
 
 /**
- * @param {object} descriptor
+ * @param {PackageDescriptor} descriptor
  * @param {string} location
  * @param {LanguageOptions} languageOptions
  * @returns {Record<string, string>}
@@ -278,7 +245,7 @@ const inferParsers = (descriptor, location, languageOptions) => {
 };
 
 /**
- * graphPackage and gatherDependency are mutually recursive functions that
+ * `graphPackage` and {@link gatherDependency} are mutually recursive functions that
  * gather the metadata for a package and its transitive dependencies.
  * The keys of the graph are the locations of the package descriptors.
  * The metadata include a label (which is informative and not necessarily
@@ -289,16 +256,12 @@ const inferParsers = (descriptor, location, languageOptions) => {
  * @param {ReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {Graph} graph
- * @param {object} packageDetails
- * @param {string} packageDetails.packageLocation
- * @param {object} packageDetails.packageDescriptor
+ * @param {PackageDetails} packageDetails
  * @param {Set<string>} conditions
  * @param {boolean | undefined} dev
- * @param {CommonDependencyDescriptors} commonDependencyDescriptors
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict
- * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
- * @param {Array<string>} logicalPath
+ * @param {GraphPackageOptions} options
  * @returns {Promise<undefined>}
  */
 const graphPackage = async (
@@ -309,11 +272,13 @@ const graphPackage = async (
   { packageLocation, packageDescriptor },
   conditions,
   dev,
-  commonDependencyDescriptors,
   languageOptions,
   strict,
-  preferredPackageLogicalPathMap = new Map(),
-  logicalPath = [],
+  {
+    commonDependencyDescriptors = {},
+    preferredPackageLogicalPathMap = new Map(),
+    logicalPath = [],
+  } = {},
 ) => {
   if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
@@ -330,11 +295,12 @@ const graphPackage = async (
     );
   }
 
-  const result = {};
-  graph[packageLocation] = /** @type {Node} */ (result);
+  const result = /** @type {Node} */ ({});
+  graph[packageLocation] = result;
 
-  /** @type {Record<string, string>} */
+  /** @type {Node['dependencyLocations']} */
   const dependencyLocations = {};
+  /** @type {ReturnType<typeof gatherDependency>[]} */
   const children = [];
   const optionals = new Set();
   const {
@@ -387,17 +353,23 @@ const graphPackage = async (
         preferredPackageLogicalPathMap,
         languageOptions,
         strict,
-        childLogicalPath,
-        optional,
-        commonDependencyDescriptors,
+        {
+          childLogicalPath,
+          optional,
+          commonDependencyDescriptors,
+        },
       ),
     );
   }
 
   const { version = '', exports: exportsDescriptor } = packageDescriptor;
-  /** @type {Record<string, Language>} */
+  /** @type {Node['types']} */
   const types = {};
 
+  /**
+   * @param {string} path
+   * @returns {Promise<PackageDescriptor>}
+   */
   const readDescriptorUpwards = async path => {
     const location = resolveLocation(path, packageLocation);
     // readDescriptor coming from above is memoized, so this is not awfully slow
@@ -405,9 +377,9 @@ const graphPackage = async (
     return data;
   };
 
-  /** @type {Record<string, string>} */
+  /** @type {Node['externalAliases']} */
   const externalAliases = {};
-  /** @type {Record<string, string>} */
+  /** @type {Node['internalAliases']} */
   const internalAliases = {};
 
   inferExportsAndAliases(
@@ -479,6 +451,8 @@ const graphPackage = async (
 };
 
 /**
+ * Adds information for the dependency of the package at `packageLocation` to the `graph` object.
+ *
  * @param {ReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {Graph} graph - the partially build graph.
@@ -488,10 +462,9 @@ const graphPackage = async (
  * @param {Set<string>} conditions
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {LanguageOptions} languageOptions
- * @param {boolean} strict
- * @param {Array<string>} [childLogicalPath]
- * @param {boolean} [optional] - whether the dependency is optional
- * @param {object} [commonDependencyDescriptors] - dependencies to be added to all packages
+ * @param {boolean} strict - If `true`, a missing dependency will throw an exception
+ * @param {GatherDependencyOptions} options
+ * @returns {Promise<void>}
  */
 const gatherDependency = async (
   readDescriptor,
@@ -504,9 +477,11 @@ const gatherDependency = async (
   preferredPackageLogicalPathMap,
   languageOptions,
   strict,
-  childLogicalPath = [],
-  optional = false,
-  commonDependencyDescriptors = undefined,
+  {
+    childLogicalPath = [],
+    optional = false,
+    commonDependencyDescriptors = {},
+  } = {},
 ) => {
   const dependency = await findPackage(
     readDescriptor,
@@ -539,34 +514,34 @@ const gatherDependency = async (
     dependency,
     conditions,
     false,
-    commonDependencyDescriptors,
     languageOptions,
     strict,
-    preferredPackageLogicalPathMap,
-    childLogicalPath,
+    {
+      commonDependencyDescriptors,
+      preferredPackageLogicalPathMap,
+      logicalPath: childLogicalPath,
+    },
   );
 };
 
 /**
- * graphPackages returns a graph whose keys are nominally URLs, one per
- * package, with values that are label: (an informative Compartment name, built
- * as ${name}@${version}), dependencies: (a list of URLs), and exports: (an
- * object whose keys are the thing being imported, and the values are the names
- * of the matching module, relative to the containing package's root, that is,
- * the URL that was used as the key of graph).
- * The URLs in dependencies will all exist as other keys of graph.
+ * Resolves with a {@link Graph} representing the packages for which
+ * {@link CompartmentDescriptor CompartmentDescriptors} will be created.
  *
  * @param {MaybeReadFn} maybeRead
  * @param {CanonicalFn} canonical
  * @param {string} packageLocation - location of the main package.
  * @param {Set<string>} conditions
- * @param {object} mainPackageDescriptor - the parsed contents of the main
- * package.json, which was already read when searching for the package.json.
- * @param {boolean|undefined} dev - whether to use devDependencies from this package (and
- * only this package).
- * @param {Record<string,string>} commonDependencies - dependencies to be added to all packages
+ * @param {PackageDescriptor} mainPackageDescriptor - the parsed contents of the
+ * main `package.json`, which was already read when searching for the
+ * `package.json`.
+ * @param {boolean|undefined} dev - whether to use devDependencies from this
+ * package (and only this package).
+ * @param {Record<string,string>} commonDependencies - dependencies to be added
+ * to all packages
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict
+ * @param {GraphPackagesOptions} options
  */
 const graphPackages = async (
   maybeRead,
@@ -582,7 +557,7 @@ const graphPackages = async (
   const memo = create(null);
   /**
    * @param {string} packageLocation
-   * @returns {Promise<object>}
+   * @returns {Promise<PackageDescriptor>}
    */
   const readDescriptor = packageLocation =>
     readDescriptorWithMemo(memo, maybeRead, packageLocation);
@@ -633,16 +608,18 @@ const graphPackages = async (
     },
     conditions,
     dev,
-    commonDependencyDescriptors,
     languageOptions,
     strict,
+    {
+      commonDependencyDescriptors,
+    },
   );
   return graph;
 };
 
 /**
- * translateGraph converts the graph returned by graph packages (above) into a
- * compartment map.
+ * `translateGraph` converts the graph returned by graph packages (above) into a
+ * {@link CompartmentMapDescriptor compartment map}.
  *
  * @param {string} entryPackageLocation
  * @param {string} entryModuleSpecifier
@@ -659,7 +636,7 @@ const translateGraph = (
   conditions,
   policy,
 ) => {
-  /** @type {Record<string, CompartmentDescriptor>} */
+  /** @type {CompartmentMapDescriptor['compartments']} */
   const compartments = Object.create(null);
 
   // For each package, build a map of all the external modules the package can
@@ -681,9 +658,9 @@ const translateGraph = (
       parsers,
       types,
     } = graph[dependeeLocation];
-    /** @type {Record<string, ModuleDescriptor>} */
+    /** @type {CompartmentDescriptor['modules']} */
     const moduleDescriptors = Object.create(null);
-    /** @type {Record<string, ScopeDescriptor>} */
+    /** @type {CompartmentDescriptor['scopes']} */
     const scopes = Object.create(null);
 
     /**
@@ -863,10 +840,11 @@ const makeLanguageOptions = ({
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} packageLocation
  * @param {Set<string>} conditionsOption
- * @param {object} packageDescriptor
+ * @param {PackageDescriptor} packageDescriptor
  * @param {string} moduleSpecifier
  * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
+ * @deprecated Use {@link mapNodeModules} instead.
  */
 export const compartmentMapForNodeModules = async (
   readPowers,
@@ -932,6 +910,11 @@ export const compartmentMapForNodeModules = async (
 };
 
 /**
+ * Creates a {@link CompartmentMapDescriptor} from the module at
+ * `moduleLocation`, considering dependencies found in `node_modules`.
+ *
+ * Locates the {@link PackageDescriptor} for the module at `moduleLocation`
+ *
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {MapNodeModulesOptions} [options]
@@ -940,10 +923,8 @@ export const compartmentMapForNodeModules = async (
 export const mapNodeModules = async (
   readPowers,
   moduleLocation,
-  options = {},
+  { tags = new Set(), conditions = tags, ...otherOptions } = {},
 ) => {
-  const { tags = new Set(), conditions = tags, ...otherOptions } = options;
-
   const {
     packageLocation,
     packageDescriptorText,
@@ -951,9 +932,8 @@ export const mapNodeModules = async (
     moduleSpecifier,
   } = await search(readPowers, moduleLocation);
 
-  const packageDescriptor = parseLocatedJson(
-    packageDescriptorText,
-    packageDescriptorLocation,
+  const packageDescriptor = /** @type {PackageDescriptor} */ (
+    parseLocatedJson(packageDescriptorText, packageDescriptorLocation)
   );
 
   return compartmentMapForNodeModules(

@@ -8,6 +8,9 @@
  *   ReadFn,
  *   ReadPowers,
  *   MaybeReadPowers,
+ *   SearchResult,
+ *   SearchDescriptorResult,
+ *   MaybeReadDescriptorFn,
  * } from './types.js'
  */
 
@@ -35,10 +38,13 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  *
  * @template T
  * @param {string} location
- * @param {(location:string)=>Promise<T|undefined>} maybeReadDescriptor
- * @returns {Promise<{data:T, directory: string, location:string, packageDescriptorLocation: string}>}
+ * @param {MaybeReadDescriptorFn<T>} maybeReadDescriptor
+ * @returns {Promise<SearchDescriptorResult<T>>}
  */
-export const searchDescriptor = async (location, maybeReadDescriptor) => {
+export const searchDescriptor = async (
+  location,
+  maybeReadDescriptor,
+) => {
   await null;
   let directory = resolveLocation('./', location);
   for (;;) {
@@ -91,17 +97,16 @@ const maybeReadDescriptorDefault = async (
  *
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
- * @returns {Promise<{
- *   packageLocation: string,
- *   packageDescriptorLocation: string,
- *   packageDescriptorText: string,
- *   moduleSpecifier: string,
- * }>}
+ * @returns {Promise<SearchResult>}
  */
-export const search = async (readPowers, moduleLocation) => {
+export const search = async (
+  readPowers,
+  moduleLocation,
+) => {
   const { data, directory, location, packageDescriptorLocation } =
-    await searchDescriptor(moduleLocation, loc =>
-      maybeReadDescriptorDefault(readPowers, loc),
+    await searchDescriptor(
+      moduleLocation,
+      loc => maybeReadDescriptorDefault(readPowers, loc),
     );
 
   if (!data) {
