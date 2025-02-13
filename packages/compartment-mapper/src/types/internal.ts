@@ -218,6 +218,11 @@ export type MakeMapParsersOptions = {
 };
 
 /**
+ * Options for `search()`
+ */
+export type SearchOptions = LogOptions;
+
+/**
  * Object fulfilled from `search()`
  */
 export interface SearchResult {
@@ -238,6 +243,11 @@ export interface SearchDescriptorResult<T> {
   location: string;
   packageDescriptorLocation: string;
 }
+
+/**
+ * Options for `searchDescriptor()`
+ */
+export type SearchDescriptorOptions = LogOptions;
 
 /**
  * A power to read a package descriptor

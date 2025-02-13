@@ -11,8 +11,8 @@ import type {
   Transform,
 } from 'ses';
 import type {
-  CompartmentMapDescriptor,
   CompartmentDescriptor,
+  CompartmentMapDescriptor,
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
@@ -48,8 +48,23 @@ export type ParseArchiveOptions = Partial<{
 
 export type LoadArchiveOptions = ParseArchiveOptions;
 
+/**
+ * Options having an optional `log` property.
+ */
+export interface LogOptions {
+  /**
+   * A logger (for logging)
+   */
+  log?: LogFn;
+}
+
+/**
+ * Options for `mapNodeModules()`
+ */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
-  PolicyOption;
+  PolicyOption &
+  LogOptions;
+
 type MapNodeModulesOptionsOmitPolicy = Partial<{
   /** @deprecated renamed `conditions` to be consistent with Node.js */
   tags: Set<string>;
@@ -115,7 +130,8 @@ export type CompartmentMapForNodeModulesOptions = Omit<
 
 export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
-  PolicyOption;
+  PolicyOption &
+  LogOptions;
 
 export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
@@ -137,15 +153,24 @@ export type SyncArchiveOptions = Omit<MapNodeModulesOptions, 'languages'> &
 /**
  * Options for `loadLocation()`
  */
-export type LoadLocationOptions = ArchiveOptions & SyncArchiveOptions;
+export type LoadLocationOptions = ArchiveOptions &
+  SyncArchiveOptions &
+  LogOptions;
 
 /**
  * Options for `importLocation()` necessary (but not sufficient--see
  * `ReadNowPowers`) for dynamic require support
  */
-export type SyncImportLocationOptions = SyncArchiveOptions & ExecuteOptions;
+export type SyncImportLocationOptions = SyncArchiveOptions &
+  ExecuteOptions &
+  LogOptions;
 
-export type ImportLocationOptions = ArchiveOptions & ExecuteOptions;
+/**
+ * Options for `importLocation()` without dynamic require support
+ */
+export type ImportLocationOptions = ArchiveOptions &
+  ExecuteOptions &
+  LogOptions;
 
 // ////////////////////////////////////////////////////////////////////////////////
 // Single Options
@@ -426,3 +451,8 @@ export type ParseFn = { isSyncParser?: true } & ((
  * ParserImplementations}
  */
 export type ParserForLanguage = Record<Language | string, ParserImplementation>;
+
+/**
+ * Generic logging function accepted by various functions.
+ */
+export type LogFn = (message: string, ...args: any[]) => void;

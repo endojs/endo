@@ -8,9 +8,11 @@
  *   ReadFn,
  *   ReadPowers,
  *   MaybeReadPowers,
+ *   SearchOptions,
  *   SearchResult,
  *   SearchDescriptorResult,
  *   MaybeReadDescriptorFn,
+ *   SearchDescriptorOptions,
  * } from './types.js'
  */
 
@@ -20,6 +22,11 @@ import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
+
+/**
+ * Default logger that does nothing
+ */
+const noop = () => {};
 
 const decoder = new TextDecoder();
 
@@ -39,11 +46,13 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  * @template T
  * @param {string} location
  * @param {MaybeReadDescriptorFn<T>} maybeReadDescriptor
+ * @param {SearchDescriptorOptions} options
  * @returns {Promise<SearchDescriptorResult<T>>}
  */
 export const searchDescriptor = async (
   location,
   maybeReadDescriptor,
+  { log: _log = noop } = {},
 ) => {
   await null;
   let directory = resolveLocation('./', location);
@@ -97,16 +106,19 @@ const maybeReadDescriptorDefault = async (
  *
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
+ * @param {SearchOptions} [options]
  * @returns {Promise<SearchResult>}
  */
 export const search = async (
   readPowers,
   moduleLocation,
+  { log = noop } = {},
 ) => {
   const { data, directory, location, packageDescriptorLocation } =
     await searchDescriptor(
       moduleLocation,
       loc => maybeReadDescriptorDefault(readPowers, loc),
+      { log },
     );
 
   if (!data) {
