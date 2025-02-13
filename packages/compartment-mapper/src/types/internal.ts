@@ -26,6 +26,7 @@ import type {
   CompartmentSources,
   ExecuteOptions,
   ExitModuleImportNowHook,
+  LogOptions,
   ModuleTransforms,
   ParseFn,
   ParserForLanguage,
@@ -215,3 +216,68 @@ export type MakeMapParsersOptions = {
    */
   syncModuleTransforms?: SyncModuleTransforms;
 };
+
+/**
+ * Object fulfilled from `search()`
+ */
+export interface SearchResult {
+  packageLocation: string;
+  packageDescriptorLocation: string;
+  packageDescriptorText: string;
+  moduleSpecifier: string;
+}
+
+/**
+ * Object fulfilled from `searchDescriptor()`
+ *
+ * @template T The datatype; may be a {@link PackageDescriptor}, blob, string, etc.
+ */
+export interface SearchDescriptorResult<T> {
+  data: T;
+  directory: string;
+  location: string;
+  packageDescriptorLocation: string;
+}
+
+/**
+ * A power to read a package descriptor
+ * @template T Format of package descriptor
+ */
+export type ReadDescriptorFn<T = PackageDescriptor> = (
+  location: string,
+) => Promise<T>;
+
+/**
+ * A power to _maybe_ read a package descriptor
+ * @template T Format of package descriptor
+ */
+export type MaybeReadDescriptorFn<T = PackageDescriptor> = (
+  location: string,
+) => Promise<T | undefined>;
+
+/**
+ * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
+ */
+export interface PackageDescriptor {
+  /**
+   * TODO: In reality, this is optional, but `graphPackage` does not consider it to be. This will need to be fixed once support for "anonymous" packages lands; see https://github.com/endojs/endo/pull/2664
+   */
+  name: string;
+  version?: string;
+  /**
+   * TODO: Update with proper type when this field is handled.
+   */
+  exports?: unknown;
+  type?: 'module' | 'commonjs';
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  bundleDependencies?: string[];
+  peerDependenciesMeta?: Record<
+    string,
+    { optional?: boolean; [k: string]: unknown }
+  >;
+
+  [k: string]: unknown;
+}
