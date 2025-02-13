@@ -31,7 +31,8 @@
     "lint:types": "tsc",
     "postpack": "git clean -f '*.d.ts*'",
     "prepack": "tsc --build tsconfig.build.json",
-    "test": "ava"
+    "test": "yarn rollup -c && eshost -h v8,xs dist/bundle.js",
+    "bench": "yarn rollup -c && node --jitless --cpu-prof dist/bundle.js"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
