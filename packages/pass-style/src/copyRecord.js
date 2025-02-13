@@ -64,11 +64,10 @@ export const CopyRecordHelper = harden({
     );
   },
 
-  assertValid: (candidate, passStyleOfRecur) => {
-    checkObjectPrototype(candidate, assertChecker);
-
-    // Validate that each own property is appropriate, data/enumerable,
-    // and has a recursively passable associated value.
+  assertRestValid: (candidate, passStyleOfRecur) => {
+    // Validate that each own property has a recursively passable associated
+    // value (we already know from canBeValid that the other constraints are
+    // satisfied).
     for (const name of ownKeys(candidate)) {
       const { value } = getOwnDataDescriptor(
         candidate,
@@ -76,7 +75,6 @@ export const CopyRecordHelper = harden({
         true,
         assertChecker,
       );
-      checkPropertyCanBeValid(candidate, name, value, assertChecker);
       passStyleOfRecur(value);
     }
   },
