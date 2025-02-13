@@ -61,6 +61,11 @@ const decoder = new TextDecoder();
 const q = JSON.stringify;
 
 /**
+ * Default logger that does nothing.
+ */
+const noop = () => {};
+
+/**
  * @param {string} rel - a relative URL
  * @param {string} abs - a fully qualified URL
  * @returns {string}
@@ -278,6 +283,7 @@ const graphPackage = async (
     commonDependencyDescriptors = {},
     preferredPackageLogicalPathMap = new Map(),
     logicalPath = [],
+    log = noop,
   } = {},
 ) => {
   if (graph[packageLocation] !== undefined) {
@@ -286,13 +292,11 @@ const graphPackage = async (
   }
 
   if (packageDescriptor.name !== name) {
-    console.warn(
-      `Package named ${q(
-        name,
-      )} does not match location ${packageLocation} got (${q(
-        packageDescriptor.name,
-      )})`,
-    );
+    log('Package name does not match location', {
+      name,
+      packageDescriptorName: packageDescriptor.name,
+      packageLocation,
+    });
   }
 
   const result = /** @type {Node} */ ({});
@@ -357,6 +361,7 @@ const graphPackage = async (
           childLogicalPath,
           optional,
           commonDependencyDescriptors,
+          log,
         },
       ),
     );
@@ -481,6 +486,7 @@ const gatherDependency = async (
     childLogicalPath = [],
     optional = false,
     commonDependencyDescriptors = {},
+    log = noop,
   } = {},
 ) => {
   const dependency = await findPackage(
@@ -520,6 +526,7 @@ const gatherDependency = async (
       commonDependencyDescriptors,
       preferredPackageLogicalPathMap,
       logicalPath: childLogicalPath,
+      log,
     },
   );
 };
@@ -553,6 +560,7 @@ const graphPackages = async (
   commonDependencies,
   languageOptions,
   strict,
+  { log = noop } = {},
 ) => {
   const memo = create(null);
   /**
@@ -612,6 +620,7 @@ const graphPackages = async (
     strict,
     {
       commonDependencyDescriptors,
+      log,
     },
   );
   return graph;
@@ -859,6 +868,7 @@ export const compartmentMapForNodeModules = async (
     commonDependencies = {},
     policy,
     strict = false,
+    log = noop,
   } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
@@ -880,6 +890,7 @@ export const compartmentMapForNodeModules = async (
     commonDependencies,
     languageOptions,
     strict,
+    { log },
   );
 
   if (policy) {
@@ -923,14 +934,14 @@ export const compartmentMapForNodeModules = async (
 export const mapNodeModules = async (
   readPowers,
   moduleLocation,
-  { tags = new Set(), conditions = tags, ...otherOptions } = {},
+  { tags = new Set(), conditions = tags, log = noop, ...otherOptions } = {},
 ) => {
   const {
     packageLocation,
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
-  } = await search(readPowers, moduleLocation);
+  } = await search(readPowers, moduleLocation, { log });
 
   const packageDescriptor = /** @type {PackageDescriptor} */ (
     parseLocatedJson(packageDescriptorText, packageDescriptorLocation)
@@ -942,6 +953,6 @@ export const mapNodeModules = async (
     conditions,
     packageDescriptor,
     moduleSpecifier,
-    otherOptions,
+    { log, ...otherOptions },
   );
 };
