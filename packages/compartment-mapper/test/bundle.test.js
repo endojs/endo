@@ -10,6 +10,10 @@ const fixture = new URL(
   'fixtures-0/node_modules/bundle/main.js',
   import.meta.url,
 ).toString();
+const fixtureUnsupported = new URL(
+  'fixtures-0/node_modules/bundle/unsupported.js',
+  import.meta.url,
+).toString();
 
 const { read } = makeReadPowers({ fs, url });
 
@@ -81,6 +85,16 @@ test('equivalent archive behaves the same as bundle', async t => {
     globals: { print },
   });
   t.deepEqual(log, expectedLog);
+});
+
+test('unsupported: live binding in bundle throws', async t => {
+  const bundle = await makeBundle(read, fixtureUnsupported);
+  const compartment = new Compartment({
+    __options__: true,
+  });
+  t.throws(() => {
+    compartment.evaluate(bundle);
+  },{message: /buzz is not defined/});
 });
 
 // This is failing because it requires support for missing dependencies.
