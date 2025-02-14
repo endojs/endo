@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush, arrayForEach } from './commons.js';
+import { arrayPush, dynamicFunctionPermitsAdjustments } from './commons.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
@@ -317,22 +317,9 @@ const accessor = {
 };
 
 // eslint-disable-next-line func-names
-const strict = function () {
-  'use strict';
-};
 
-// TODO Remove this once we no longer support the Hermes that needed this.
-arrayForEach(['caller', 'arguments'], prop => {
-  try {
-    strict[prop];
-  } catch (e) {
-    // https://github.com/facebook/hermes/blob/main/test/hermes/function-non-strict.js
-    if (e.message === 'Restricted in strict mode') {
-      // Fixed in Static Hermes: https://github.com/facebook/hermes/issues/1582
-      FunctionInstance[prop] = accessor;
-    }
-  }
-});
+// TODO Remove this once we no longer support Hermes.
+dynamicFunctionPermitsAdjustments({ FunctionInstance, accessor });
 
 export const isAccessorPermit = permit => {
   return permit === getter || permit === accessor;
