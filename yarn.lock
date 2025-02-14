@@ -5539,6 +5539,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"hermes-engine-cli@npm:^0.12.0":
+  version: 0.12.0
+  resolution: "hermes-engine-cli@npm:0.12.0"
+  checksum: 10c0/53a00336632cc7a743e9a88a5199865cf922d118f42f15bed4d2ed2fee635acd0d4d8563803b47e7c1bc2d17650281eb9188be8cfdaa25887243cfee840523be
+  languageName: node
+  linkType: hard
+
 "hosted-git-info@npm:^2.1.4":
   version: 2.8.9
   resolution: "hosted-git-info@npm:2.8.9"
@@ -8959,6 +8966,7 @@ __metadata:
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-eslint-comments: "npm:^3.2.0"
     eslint-plugin-import: "npm:^2.29.1"
+    hermes-engine-cli: "npm:^0.12.0"
     prettier: "npm:^3.3.3"
     terser: "npm:^5.16.6"
     tsd: "npm:^0.31.2"

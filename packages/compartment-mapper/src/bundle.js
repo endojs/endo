@@ -233,6 +233,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
 
   const {
     moduleTransforms,
+    syncModuleTransforms,
     dev,
     tags: tagsOption,
     conditions: conditionsOption = tagsOption,
@@ -333,6 +334,7 @@ export const makeBundle = async (readPowers, moduleLocation, options) => {
     resolve,
     makeImportHook,
     moduleTransforms,
+    syncModuleTransforms,
     parserForLanguage,
   });
   await compartment.load(entryModuleSpecifier);
