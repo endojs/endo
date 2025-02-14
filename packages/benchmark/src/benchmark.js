@@ -1,4 +1,4 @@
-const performance = { now: () => Date.now() };
+const performance = { now: () => Date.now() * 1_000_000};
 
 async function benchmark(name, t, fn, expedtedTime, iterations = 10000) {
   await null;
@@ -9,7 +9,7 @@ async function benchmark(name, t, fn, expedtedTime, iterations = 10000) {
   const end = performance.now();
   const avgTime = (end - start) / iterations;
 
-  console.log(`${name} | Average time: ${avgTime}ms`);
+  console.log(`${name} | Average time: ${avgTime}ns`);
   t.assert(
     avgTime < expedtedTime,
     `Expected ${avgTime} to be less than ${expedtedTime}`,
@@ -28,11 +28,11 @@ async function test(name, fn) {
 }
 
 function assert(condition, message = 'Assertion failed') {
-  if (!condition) throw new Error(message);
+  if (!condition) throw Error(message);
 }
 
 function truthy(value, message = 'Expected a truthy value') {
-  if (!value) throw new Error(message);
+  if (!value) throw Error(message);
 }
 
 export { benchmark, test };
