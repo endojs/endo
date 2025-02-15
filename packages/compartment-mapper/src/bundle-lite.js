@@ -14,7 +14,6 @@
  *   ReadFn,
  *   ReadPowers,
  *   Sources,
- *   WriteFn,
  * } from './types.js'
  */
 
@@ -104,7 +103,6 @@
  */
 
 import { resolve } from './node-module-specifier.js';
-import { mapNodeModules } from './node-modules.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
 import { defaultParserForLanguage } from './archive-parsers.js';
@@ -112,8 +110,6 @@ import { defaultParserForLanguage } from './archive-parsers.js';
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
 import jsonSupport from './bundle-json.js';
-
-const textEncoder = new TextEncoder();
 
 const { quote: q } = assert;
 
@@ -668,53 +664,4 @@ export const makeScriptFromMap = async (
   // Scripts go on to apply static options and execute immediately.
   const functor = await makeFunctorFromMap(readPowers, compartmentMap, options);
   return `${functor}()`;
-};
-
-/**
- * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
- * @param {string} moduleLocation
- * @param {BundleOptions} [options]
- * @returns {Promise<string>}
- */
-export const makeFunctor = async (readPowers, moduleLocation, options) => {
-  const compartmentMap = await mapNodeModules(
-    readPowers,
-    moduleLocation,
-    options,
-  );
-  return makeFunctorFromMap(readPowers, compartmentMap, options);
-};
-
-/**
- * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
- * @param {string} moduleLocation
- * @param {BundleOptions} [options]
- * @returns {Promise<string>}
- */
-export const makeScript = async (readPowers, moduleLocation, options) => {
-  const compartmentMap = await mapNodeModules(
-    readPowers,
-    moduleLocation,
-    options,
-  );
-  return makeScriptFromMap(readPowers, compartmentMap, options);
-};
-
-/**
- * @param {WriteFn} write
- * @param {ReadFn} read
- * @param {string} bundleLocation
- * @param {string} moduleLocation
- * @param {BundleOptions} [options]
- */
-export const writeScript = async (
-  write,
-  read,
-  bundleLocation,
-  moduleLocation,
-  options,
-) => {
-  const bundleString = await makeScript(read, moduleLocation, options);
-  const bundleBytes = textEncoder.encode(bundleString);
-  await write(bundleLocation, bundleBytes);
 };

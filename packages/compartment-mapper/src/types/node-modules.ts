@@ -48,6 +48,11 @@ export interface Node {
   internalAliases: Record<string, string>;
   externalAliases: Record<string, string>;
   /**
+   * The name of the original package's parent directory, for reconstructing
+   * a sourceURL that is likely to converge with the original location in an IDE.
+   */
+  sourceDirname: string;
+  /**
    * An object whose keys are the thing being imported, and the values are the
    * names of the matching module (relative to the containing package's root;
    * i.e. the URL that was used as the key of graph).

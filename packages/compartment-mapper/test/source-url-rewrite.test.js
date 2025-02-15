@@ -56,8 +56,6 @@ test('rewrite source url', async t => {
   t.assert(error);
   t.log(error.stack);
   t.assert(
-    error.stack.includes(
-      '/packages/compartment-mapper/test/fixtures-stack/index.js:3:',
-    ),
+    error.stack.includes('/compartment-mapper/test/fixtures-stack/index.js:3:'),
   );
 });
