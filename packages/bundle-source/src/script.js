@@ -7,7 +7,7 @@ import url from 'url';
 import fs from 'fs';
 import os from 'os';
 
-import { makeBundle } from '@endo/compartment-mapper/bundle.js';
+import { makeFunctor } from '@endo/compartment-mapper/functor.js';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 import { makeBundlingKit } from './endo.js';
@@ -16,6 +16,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
 
 /**
  * @param {string} startFilename
+ * @param {'endoScript' | 'nestedEvaluate' | 'getExport'} moduleFormat
  * @param {object} [options]
  * @param {boolean} [options.dev]
  * @param {boolean} [options.cacheSourceMaps]
@@ -31,6 +32,7 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  */
 export async function bundleScript(
   startFilename,
+  moduleFormat,
   options = {},
   grantedPowers = {},
 ) {
@@ -79,8 +81,9 @@ export async function bundleScript(
     },
   );
 
-  const source = await makeBundle(powers, entry, {
-    dev,
+  let source = await makeFunctor(powers, entry, {
+    dev:
+      dev || moduleFormat === 'nestedEvaluate' || moduleFormat === 'getExport',
     conditions,
     commonDependencies,
     parserForLanguage,
@@ -89,13 +92,33 @@ export async function bundleScript(
     workspaceModuleLanguageForExtension,
     moduleTransforms,
     sourceMapHook,
+    useEvaluate: moduleFormat === 'nestedEvaluate',
+    sourceUrlPrefix: '/bundled-source/.../',
+    format:
+      moduleFormat === 'nestedEvaluate' || moduleFormat === 'getExport'
+        ? 'cjs'
+        : undefined,
   });
+
+  if (moduleFormat === 'endoScript') {
+    source = `${source}()`;
+  }
+  if (moduleFormat === 'nestedEvaluate') {
+    source = `\
+(sourceUrlPrefix) => (${source})({
+  sourceUrlPrefix,
+  evaluate: typeof nestedEvaluate === 'function' ? nestedEvaluate : undefined,
+  require: typeof require === 'function' ? require : undefined,
+})
+`;
+  }
 
   await Promise.all(sourceMapJobs);
 
   return harden({
-    moduleFormat: /** @type {const} */ ('endoScript'),
+    moduleFormat,
     source,
-    // TODO sourceMap
+    // TODO
+    sourceMap: '',
   });
 }
