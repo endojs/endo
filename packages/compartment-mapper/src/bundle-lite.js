@@ -499,7 +499,8 @@ export const makeFunctorFromMap = async (
       }),
       set: freeze((newValue) => {
         value = newValue;
-        for (const observe of observers) {
+        for (let i = 0; i < observers.length; i += 1) {
+          const observe = observers[i];
           observe(value);
         }
       }),
