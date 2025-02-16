@@ -1,5 +1,4 @@
-import commonjs from '@rollup/plugin-commonjs';
-import resolve from '@rollup/plugin-node-resolve';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
 
 export default {
   input: 'test/index.test.js',
@@ -9,5 +8,5 @@ export default {
     name: 'bundle',
     sourcemap: false,
   },
-  plugins: [resolve(), commonjs()],
+  plugins: [nodeResolve()],
 };
