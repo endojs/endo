@@ -1,4 +1,4 @@
-const performance = { now: () => Date.now() * 1_000_000};
+const performance = { now: () => Date.now() * 1_000_000 };
 
 async function benchmark(name, t, fn, expedtedTime, iterations = 10000) {
   await null;
