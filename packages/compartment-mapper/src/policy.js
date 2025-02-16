@@ -240,6 +240,7 @@ export const makeDeferredAttenuatorsProvider = (
   compartments,
   compartmentDescriptors,
 ) => {
+  /** @type {DeferredAttenuatorsProvider['import']} */
   let importAttenuator;
   let defaultAttenuator;
   // Attenuators compartment is not created when there's no policy.
@@ -255,11 +256,6 @@ export const makeDeferredAttenuatorsProvider = (
     // At the time of this function being called, attenuators compartment won't
     // exist yet, we need to defer looking them up in the compartment to the
     // time of the import function being called.
-    /**
-     *
-     * @param {string} attenuatorSpecifier
-     * @returns {Promise<Attenuator>}
-     */
     importAttenuator = async attenuatorSpecifier => {
       if (!attenuatorSpecifier) {
         if (!defaultAttenuator) {
@@ -267,8 +263,9 @@ export const makeDeferredAttenuatorsProvider = (
         }
         attenuatorSpecifier = defaultAttenuator;
       }
-      const { namespace } =
-        await compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
+      const { namespace } = await compartments[ATTENUATORS_COMPARTMENT].import(
+        /** @type {string} */ (attenuatorSpecifier),
+      );
       return namespace;
     };
   }

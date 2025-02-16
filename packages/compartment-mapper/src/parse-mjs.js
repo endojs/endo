@@ -14,10 +14,10 @@ export const parseMjs = (
   _packageLocation,
   options = {},
 ) => {
-  const { sourceMap, sourceMapHook } = options;
+  const { sourceMap, sourceMapHook, archiveOnly = false } = options;
   const source = textDecoder.decode(bytes);
   const record = new ModuleSource(source, {
-    sourceUrl,
+    sourceUrl: archiveOnly ? undefined : sourceUrl,
     sourceMap,
     sourceMapUrl: sourceUrl,
     sourceMapHook,

@@ -1,7 +1,9 @@
 /* Provides ESM support for `bundle.js`. */
 
 /** @import {PrecompiledModuleSource} from 'ses' */
-/** @import {BundlerSupport} from './bundle.js' */
+/** @import {BundlerSupport} from './bundle-lite.js' */
+
+import { join } from './node-module-specifier.js';
 
 /** quotes strings */
 const q = JSON.stringify;
@@ -41,7 +43,7 @@ function observeImports(map, importName, importIndex) {
   for (const [name, observers] of map.get(importName)) {
     const cell = cells[importIndex][name];
     if (cell === undefined) {
-      throw new ReferenceError(\`Cannot import name \${name}\`);
+      throw new ReferenceError(\`Cannot import name \${name} (has \${Object.getOwnPropertyNames(cells[importIndex]).join(', ')})\`);
     }
     for (const observer of observers) {
       cell.observe(observer);
@@ -53,21 +55,30 @@ function observeImports(map, importName, importIndex) {
 /** @type {BundlerSupport<PrecompiledModuleSource>} */
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: {
-      __syncModuleProgram__,
-      __fixedExportMap__ = {},
-      __liveExportMap__ = {},
-      __reexportMap__ = {},
-      reexports,
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      moduleSpecifier,
+      sourceDirname,
+      record: {
+        __syncModuleProgram__,
+        __fixedExportMap__ = {},
+        __liveExportMap__ = {},
+        __reexportMap__ = {},
+        reexports,
+      },
     },
-  }) {
+    { useEvaluate = false },
+  ) {
+    let functor = __syncModuleProgram__;
+    if (useEvaluate) {
+      const sourceUrl = join(sourceDirname, moduleSpecifier);
+      functor = JSON.stringify([functor, sourceUrl]);
+    }
     return {
       getFunctor: () => `\
-// === functors[${index}] ===
-${__syncModuleProgram__},
+${functor},
 `,
       getCells: () => `\
     {
@@ -79,14 +90,14 @@ ${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(
       getReexportsWiring: () => {
         const mappings = reexports.map(
           importSpecifier => `\
-  Object.defineProperties(cells[${index}], Object.getOwnPropertyDescriptors(cells[${indexedImports[importSpecifier]}]));
+  defineProperties(cells[${index}], getOwnPropertyDescriptors(cells[${indexedImports[importSpecifier]}]));
 `,
         );
         // Create references for export name as newname
         const namedReexportsToProcess = Object.entries(__reexportMap__);
         if (namedReexportsToProcess.length > 0) {
           mappings.push(`
-  Object.defineProperties(cells[${index}], {${namedReexportsToProcess.map(
+  defineProperties(cells[${index}], {${namedReexportsToProcess.map(
     ([specifier, renames]) => {
       return renames.map(
         ([localName, exportedName]) =>
@@ -100,8 +111,13 @@ ${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(
         }
         return mappings.join('');
       },
-      getFunctorCall: () => `\
-  functors[${index}]({
+      getFunctorCall: () => {
+        let functorExpression = `functors[${index}]`;
+        if (useEvaluate) {
+          functorExpression = `evaluateSource(...${functorExpression})`;
+        }
+        return `\
+  ${functorExpression}({
     imports(entries) {
       const map = new Map(entries);
   ${''.concat(
@@ -120,7 +136,8 @@ ${importsCellSetter(__fixedExportMap__, index)}\
     },
     importMeta: {},
   });
-`,
+`;
+      },
     };
   },
 };

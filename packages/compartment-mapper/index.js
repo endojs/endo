@@ -16,4 +16,7 @@ export {
 } from './src/import-archive.js';
 export { search } from './src/search.js';
 export { compartmentMapForNodeModules } from './src/node-modules.js';
-export { makeBundle, writeBundle } from './src/bundle.js';
+export {
+  makeScript as makeBundle,
+  writeScript as writeBundle,
+} from './src/bundle.js';

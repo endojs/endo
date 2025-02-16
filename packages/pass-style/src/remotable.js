@@ -272,7 +272,7 @@ export const RemotableHelper = harden({
     return !!check && CX(check)`unrecognized typeof ${candidate}`;
   },
 
-  assertValid: candidate => checkRemotable(candidate, assertChecker),
+  assertRestValid: candidate => checkRemotable(candidate, assertChecker),
 
   every: (_passable, _fn) => true,
 });

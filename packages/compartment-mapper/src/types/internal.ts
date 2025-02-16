@@ -14,7 +14,6 @@ import type {
   ModuleDescriptor,
 } from './compartment-map-schema.js';
 import type {
-  HashFn,
   MaybeReadFn,
   MaybeReadNowFn,
   ReadFn,
@@ -22,10 +21,14 @@ import type {
 } from './powers.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
 import type {
+  ArchiveOnlyOption,
   AsyncParseFn,
   CompartmentSources,
+  ComputeSha512Option,
   ExecuteOptions,
-  ExitModuleImportNowHook,
+  ExitModuleImportHookOption,
+  ExitModuleImportNowHookOption,
+  LogOptions,
   ModuleTransforms,
   ParseFn,
   ParserForLanguage,
@@ -43,9 +46,9 @@ export type LinkOptions = {
   parserForLanguage?: ParserForLanguage;
   moduleTransforms?: ModuleTransforms;
   syncModuleTransforms?: SyncModuleTransforms;
-  archiveOnly?: boolean;
   __native__?: boolean;
-} & ExecuteOptions;
+} & ArchiveOnlyOption &
+  ExecuteOptions;
 
 export type LinkResult = {
   compartment: Compartment;
@@ -61,14 +64,26 @@ export type ResolveHook = (
 
 export type ShouldDeferError = (language: Language | undefined) => boolean;
 
-export type MakeImportNowHookMakerOptions = Partial<{
-  sources: Sources;
-  compartmentDescriptors: Record<string, CompartmentDescriptor>;
-  computeSha512: HashFn;
-  exitModuleImportNowHook: ExitModuleImportNowHook;
-}> &
+export type MakeImportHookMakersOptions = {
+  entryCompartmentName: string;
+  entryModuleSpecifier: string;
+  /**
+   * For depositing captured sources.
+   */
+  sources?: Sources;
+  /**
+   * For depositing captured compartment descriptors.
+   */
+  compartmentDescriptors?: Record<string, CompartmentDescriptor>;
+} & ComputeSha512Option &
   SearchSuffixesOption &
+  ArchiveOnlyOption &
   SourceMapHookOption;
+
+export type MakeImportHookMakerOptions = MakeImportHookMakersOptions &
+  ExitModuleImportHookOption;
+export type MakeImportNowHookMakerOptions = MakeImportHookMakersOptions &
+  ExitModuleImportNowHookOption;
 
 export type ImportHookMaker = (params: {
   packageLocation: string;
@@ -118,16 +133,19 @@ export type ChooseModuleDescriptorParams = {
   /** All compartments */
   compartments: Record<string, Compartment>;
   packageSources: CompartmentSources;
-  /** Function to compute SHA-512 hash */
-  computeSha512?: HashFn;
   readPowers: ReadPowers | ReadFn;
+  /**
+   * Whether to embed a sourceURL in applicable compiled sources.
+   * Should be false for archives and bundles, but true for runtime.
+   */
   sourceMapHook?: SourceMapHook;
   /**
    * Function returning a set of module names (scoped to the compartment) whose
    * parser is not using heuristics to determine imports.
    */
   strictlyRequiredForCompartment: (compartmentName: string) => Set<string>;
-};
+} & ComputeSha512Option &
+  ArchiveOnlyOption;
 
 type SyncChooseModuleDescriptorOperators = {
   /**
@@ -215,3 +233,78 @@ export type MakeMapParsersOptions = {
    */
   syncModuleTransforms?: SyncModuleTransforms;
 };
+
+/**
+ * Options for `search()`
+ */
+export type SearchOptions = LogOptions;
+
+/**
+ * Object fulfilled from `search()`
+ */
+export interface SearchResult {
+  packageLocation: string;
+  packageDescriptorLocation: string;
+  packageDescriptorText: string;
+  moduleSpecifier: string;
+}
+
+/**
+ * Object fulfilled from `searchDescriptor()`
+ *
+ * @template T The datatype; may be a {@link PackageDescriptor}, blob, string, etc.
+ */
+export interface SearchDescriptorResult<T> {
+  data: T;
+  directory: string;
+  location: string;
+  packageDescriptorLocation: string;
+}
+
+/**
+ * Options for `searchDescriptor()`
+ */
+export type SearchDescriptorOptions = LogOptions;
+
+/**
+ * A power to read a package descriptor
+ * @template T Format of package descriptor
+ */
+export type ReadDescriptorFn<T = PackageDescriptor> = (
+  location: string,
+) => Promise<T>;
+
+/**
+ * A power to _maybe_ read a package descriptor
+ * @template T Format of package descriptor
+ */
+export type MaybeReadDescriptorFn<T = PackageDescriptor> = (
+  location: string,
+) => Promise<T | undefined>;
+
+/**
+ * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
+ */
+export interface PackageDescriptor {
+  /**
+   * TODO: In reality, this is optional, but `graphPackage` does not consider it to be. This will need to be fixed once support for "anonymous" packages lands; see https://github.com/endojs/endo/pull/2664
+   */
+  name: string;
+  version?: string;
+  /**
+   * TODO: Update with proper type when this field is handled.
+   */
+  exports?: unknown;
+  type?: 'module' | 'commonjs';
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  bundleDependencies?: string[];
+  peerDependenciesMeta?: Record<
+    string,
+    { optional?: boolean; [k: string]: unknown }
+  >;
+
+  [k: string]: unknown;
+}

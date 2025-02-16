@@ -169,7 +169,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         archiveOnly: false,
         entryCompartmentName,
         entryModuleSpecifier,
-        exitModuleImportHook: compartmentExitModuleImportHook,
+        importHook: compartmentExitModuleImportHook,
       },
     );
 
@@ -188,9 +188,11 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
         /** @type {ReadNowPowers} */ (readPowers),
         entryCompartmentName,
         {
+          entryCompartmentName,
+          entryModuleSpecifier,
           compartmentDescriptors: compartmentMap.compartments,
           searchSuffixes,
-          exitModuleImportNowHook,
+          importNowHook: exitModuleImportNowHook,
         },
       );
       ({ compartment, pendingJobsPromise } = link(compartmentMap, {

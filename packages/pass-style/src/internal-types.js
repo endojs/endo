@@ -20,9 +20,9 @@ export {};
  * @property {(candidate: any, check?: Checker) => boolean} canBeValid
  * If `canBeValid` returns true, then the candidate would
  * definitely not be valid for any of the other helpers.
- * `assertValid` still needs to be called to determine if it
- * actually is valid.
+ * `assertRestValid` still needs to be called to determine if it
+ * actually is valid, but only after the `canBeValid` check has passed.
  * @property {(candidate: any,
  *             passStyleOfRecur: (val: any) => PassStyle
- *            ) => void} assertValid
+ *            ) => void} assertRestValid
  */

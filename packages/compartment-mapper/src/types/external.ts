@@ -11,8 +11,8 @@ import type {
   Transform,
 } from 'ses';
 import type {
-  CompartmentMapDescriptor,
   CompartmentDescriptor,
+  CompartmentMapDescriptor,
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
@@ -48,8 +48,23 @@ export type ParseArchiveOptions = Partial<{
 
 export type LoadArchiveOptions = ParseArchiveOptions;
 
+/**
+ * Options having an optional `log` property.
+ */
+export interface LogOptions {
+  /**
+   * A logger (for logging)
+   */
+  log?: LogFn;
+}
+
+/**
+ * Options for `mapNodeModules()`
+ */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
-  PolicyOption;
+  PolicyOption &
+  LogOptions;
+
 type MapNodeModulesOptionsOmitPolicy = Partial<{
   /** @deprecated renamed `conditions` to be consistent with Node.js */
   tags: Set<string>;
@@ -115,7 +130,8 @@ export type CompartmentMapForNodeModulesOptions = Omit<
 
 export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
-  PolicyOption;
+  PolicyOption &
+  LogOptions;
 
 export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
@@ -131,24 +147,66 @@ export type SyncArchiveLiteOptions = SyncOrAsyncArchiveOptions &
 export type ArchiveOptions = Omit<MapNodeModulesOptions, 'language'> &
   ArchiveLiteOptions;
 
+export type BundleOptions = ArchiveOptions & {
+  /**
+   * Format of the bundle for purposes of importing modules from the surrounding
+   * environment.
+   * The default can be CommonJS or ESM but depends on neither `require` nor `import`
+   * for external modules, but errors early if the entrained modules need to import
+   * a host module.
+   * Specifying `cjs` makes `require` available for modules outside the bundle
+   * (exits to the import graph).
+   */
+  format?: 'cjs';
+  /**
+   * Evaluates individual module functors in-place so stack traces represent
+   * original source locations better.
+   * The resulting script cannot be used on a web page with a no-unsafe-eval
+   * Content Security Policy.
+   */
+  useEvaluate?: boolean;
+  /**
+   * A prefix for the sourceURL comment in each module format that supports
+   * sourceURL comments.
+   * Requires `useEvaluate` for effect.
+   */
+  sourceUrlPrefix?: string;
+};
+
 export type SyncArchiveOptions = Omit<MapNodeModulesOptions, 'languages'> &
   SyncArchiveLiteOptions;
 
 /**
  * Options for `loadLocation()`
  */
-export type LoadLocationOptions = ArchiveOptions & SyncArchiveOptions;
+export type LoadLocationOptions = ArchiveOptions &
+  SyncArchiveOptions &
+  LogOptions;
 
 /**
  * Options for `importLocation()` necessary (but not sufficient--see
  * `ReadNowPowers`) for dynamic require support
  */
-export type SyncImportLocationOptions = SyncArchiveOptions & ExecuteOptions;
+export type SyncImportLocationOptions = SyncArchiveOptions &
+  ExecuteOptions &
+  LogOptions;
 
-export type ImportLocationOptions = ArchiveOptions & ExecuteOptions;
+/**
+ * Options for `importLocation()` without dynamic require support
+ */
+export type ImportLocationOptions = ArchiveOptions &
+  ExecuteOptions &
+  LogOptions;
 
 // ////////////////////////////////////////////////////////////////////////////////
 // Single Options
+
+export type ComputeSha512Option = {
+  /**
+   * For computing integrity hashes for module descriptors based on captured sources.
+   */
+  computeSha512?: HashFn;
+};
 
 export type SearchSuffixesOption = {
   /**
@@ -171,10 +229,18 @@ export type ModulesOption = {
 };
 
 export type ExitModuleImportHookOption = {
+  /**
+   * For obtaining module descriptors for modules that must be provided
+   * by the eventual runtime execution environment, asynchronously.
+   */
   importHook?: ExitModuleImportHook;
 };
 
 export type ExitModuleImportNowHookOption = {
+  /**
+   * For obtaining module descriptors for modules that must be provided
+   * by the eventual runtime execution environment, synchronusly.
+   */
   importNowHook?: ExitModuleImportNowHook;
 };
 
@@ -192,6 +258,34 @@ export type ModuleTransformsOption = {
 
 export type SyncModuleTransformsOption = {
   syncModuleTransforms?: SyncModuleTransforms;
+};
+
+export type ArchiveOnlyOption = {
+  /**
+   * Whether to prepare to create an archive or script bundle for execution
+   * elsewhere or elsewhen, as opposed to preparing to execute immediately.
+   *
+   * This has several practical effects.
+   *
+   * Archives expect to exit to potentially different host modules than the current
+   * host, but cannot instantiate those modules.
+   * For example, when preparing a bundle for execution in Node.js from within a
+   * web page, exiting to `node:fs` is appropriate but cannot be instantiated.
+   * So, the import hook will make a note of the exit and provide a stub module
+   * that throws an error if it is imported.
+   *
+   * Also, importing a module graph off a local medium immediately should
+   * inject a fully qualified source location into the module source,
+   * but sources loaded for an archive must not capture the original source
+   * location, but give the runtime an opportunity to inject a sourceURL.
+   *
+   * Also, the linker does not apply attenuations to the global environment
+   * if it is preparing to write an archive or script bundle.
+   *
+   * This option does not generally surface to users, but is set by the scenario,
+   * off for `importLocation`, on for `makeArchive` and `makeScript`.
+   */
+  archiveOnly?: boolean;
 };
 
 export type PolicyOption = {
@@ -289,10 +383,29 @@ export type CompartmentSources = Record<string, ModuleSource>;
 export type ModuleSource = Partial<{
   /** module loading error deferred to later stage */
   deferredError: string;
-  /** package-relative location */
+  /**
+   * package-relative location.
+   * Not suitable for capture in an archive or bundle since it varies from host
+   * to host and would frustrate integrity hash checks.
+   */
   location: string;
   /** fully qualified location */
   sourceLocation: string;
+  /**
+   * directory name of the original source.
+   * This is safe to capture in a compartment map because it is _unlikely_ to
+   * vary between hosts.
+   * Package managers tend to drop a package in a consistently named location.
+   * If entry package is in a workspace, git enforces consistency.
+   * If entry package is the root of a repository, we rely on the developer
+   * to name the package consistently and suffer an inconsistent integrity hash
+   * otherwise.
+   * We do not currently capture this property in a compartment map because the
+   * schema validator currently (2024) deployed to Agoric blockchains does not
+   * tolerate compartment maps with unknown properties.
+   * https://github.com/endojs/endo/issues/2671
+   */
+  sourceDirname: string;
   bytes: Uint8Array;
   /** in lowercase base-16 (hexadecimal) */
   sha512: string;
@@ -402,7 +515,8 @@ type ParseArguments = [
     sourceMapUrl: string;
     readPowers: ReadFn | ReadPowers;
     compartmentDescriptor: CompartmentDescriptor;
-  }>,
+  }> &
+    ArchiveOnlyOption,
 ];
 
 /**
@@ -426,3 +540,8 @@ export type ParseFn = { isSyncParser?: true } & ((
  * ParserImplementations}
  */
 export type ParserForLanguage = Record<Language | string, ParserImplementation>;
+
+/**
+ * Generic logging function accepted by various functions.
+ */
+export type LogFn = (message: string, ...args: any[]) => void;
