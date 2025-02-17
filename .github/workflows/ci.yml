@@ -86,6 +86,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Install Eshost Globally
+        run: yarn global add eshost
+
       # end macro
 
       - name: Run yarn build
