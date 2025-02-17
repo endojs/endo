@@ -36,6 +36,4 @@ async function test(name, fn) {
   }
 }
 
-
-
 export { benchmark, test };
