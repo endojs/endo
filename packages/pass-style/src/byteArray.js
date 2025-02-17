@@ -1,5 +1,4 @@
 import { X } from '@endo/errors';
-import { assertChecker } from './passStyle-helpers.js';
 
 const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 const { ownKeys, apply } = Reflect;
@@ -21,26 +20,18 @@ const immutableGetter = getOwnPropertyDescriptor(
 ).get;
 
 /**
- * @param {unknown} candidate
- * @param {import('./types.js').Checker} [check]
- * @returns {boolean}
- */
-const canBeValid = (candidate, check = undefined) =>
-  (candidate instanceof ArrayBuffer &&
-    // @ts-expect-error TODO How do I add it to the ArrayBuffer type?
-    candidate.immutable) ||
-  (!!check && check(false, X`Immutable ArrayBuffer expected: ${candidate}`));
-
-/**
  * @type {import('./internal-types.js').PassStyleHelper}
  */
 export const ByteArrayHelper = harden({
   styleName: 'byteArray',
 
-  canBeValid,
+  canBeValid: (candidate, check = undefined) =>
+    (candidate instanceof ArrayBuffer &&
+      // @ts-expect-error TODO How do I add it to the ArrayBuffer type?
+      candidate.immutable) ||
+    (!!check && check(false, X`Immutable ArrayBuffer expected: ${candidate}`)),
 
-  assertValid: (candidate, _passStyleOfRecur) => {
-    canBeValid(candidate, assertChecker);
+  assertRestValid: (candidate, _passStyleOfRecur) => {
     getPrototypeOf(candidate) === ImmutableArrayBufferPrototype ||
       assert.fail(X`Malformed ByteArray ${candidate}`, TypeError);
     // @ts-expect-error assume immutableGetter was found
