@@ -59,19 +59,16 @@ const assertCopyArray = (arr, optNameOfArray = 'Alleged array') => {
 harden(assertCopyArray);
 
 /**
- * @callback AssertByteArray
  * @param {Passable} arr
  * @param {string=} optNameOfArray
  * @returns {asserts arr is ByteArray}
  */
-
-/** @type {AssertByteArray} */
-const assertByteArray = (array, optNameOfArray = 'Alleged byteArray') => {
-  const passStyle = passStyleOf(array);
+const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
+  const passStyle = passStyleOf(arr);
   passStyle === 'byteArray' ||
     Fail`${q(
       optNameOfArray,
-    )} ${array} must be a pass-by-copy binary data, not ${q(passStyle)}`;
+    )} ${arr} must be a pass-by-copy binary data, not ${q(passStyle)}`;
 };
 harden(assertByteArray);
 
