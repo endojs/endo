@@ -2,15 +2,87 @@
 
 import { isPromise } from '@endo/promise-kit';
 import { q } from '@endo/errors';
-import { assertChecker, hasOwnPropertyOf, CX } from './passStyle-helpers.js';
+import { isFrozenOrIsNonTrapping } from 'ses/nonTrappingShimAdapter.js';
+import {
+  assertChecker,
+  hasOwnPropertyOf,
+  CX,
+  isObject,
+} from './passStyle-helpers.js';
 
 /** @import {Checker} from './types.js' */
 
-const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor } = Object;
+const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 const { ownKeys } = Reflect;
-const { toStringTag } = Symbol;
 
 /**
+ * Explicitly tolerate symbol-named non-configurable non-writable data
+ * property whose value is obviously harmless, such as a primitive value.
+ *
+ * The motivations are to tolerate `@@toStringTag` and those properties
+ * that might be added by Node's async_hooks. Thus, beyond primitives, the
+ * only values that must be tolerated are those safe values that might be
+ * added by async_hooks.
+ *
+ * At the time of this writing, Node's async_hooks contains the
+ * following code, which we need to tolerate if safe:
+ *
+ * ```js
+ * function destroyTracking(promise, parent) {
+ *   trackPromise(promise, parent);
+ *   const asyncId = promise[async_id_symbol];
+ *   const destroyed = { destroyed: false };
+ *   promise[destroyedSymbol] = destroyed;
+ *   registerDestroyHook(promise, asyncId, destroyed);
+ * }
+ * ```
+ *
+ * @param {object} obj
+ * @param {string|symbol} key
+ * @param {Checker} check
+ */
+const checkSafeOwnKeyOf = (obj, key, check) => {
+  const desc = getOwnPropertyDescriptor(obj, key);
+  assert(desc);
+  const quoteKey = q(String(key));
+  if (!hasOwnPropertyOf(desc, 'value')) {
+    return CX(
+      check,
+    )`Own ${quoteKey} must be a data property, not an accessor: ${obj}`;
+  }
+  const { value, writable, configurable } = desc;
+  if (writable) {
+    return CX(check)`Own ${quoteKey} must not be writable: ${obj}`;
+  }
+  if (configurable) {
+    return CX(check)`Own ${quoteKey} must not be configurable: ${obj}`;
+  }
+  if (!isObject(value)) {
+    return true;
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    isFrozenOrIsNonTrapping(value) &&
+    getPrototypeOf(value) === Object.prototype
+  ) {
+    const subKeys = ownKeys(value);
+    if (subKeys.length === 0) {
+      return true;
+    }
+
+    if (subKeys.length === 1 && subKeys[0] === 'destroyed') {
+      return checkSafeOwnKeyOf(value, 'destroyed', check);
+    }
+  }
+  return CX(
+    check,
+  )`Unexpected Node async_hooks additions: ${obj}[${quoteKey}] is ${value}`;
+};
+
+/**
+ * @see https://github.com/endojs/endo/issues/2700
  * @param {Promise} pr The value to examine
  * @param {Checker} check
  * @returns {pr is Promise} Whether it is a safe promise
@@ -22,96 +94,15 @@ const checkPromiseOwnKeys = (pr, check) => {
     return true;
   }
 
-  /**
-   * This excludes those symbol-named own properties that are also found on
-   * `Promise.prototype`, so that overrides of these properties can be
-   * explicitly tolerated if they pass the `checkSafeOwnKey` check below.
-   * In particular, we wish to tolerate
-   *   * An overriding `toStringTag` non-enumerable data property
-   *     with a string value.
-   *   * Those own properties that might be added by Node's async_hooks.
-   */
-  const unknownKeys = keys.filter(
-    key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
-  );
+  const stringKeys = keys.filter(key => typeof key !== 'symbol');
 
-  if (unknownKeys.length !== 0) {
+  if (stringKeys.length !== 0) {
     return CX(
       check,
-    )`${pr} - Must not have any own properties: ${q(unknownKeys)}`;
+    )`${pr} - Must not have any string-named own properties: ${q(stringKeys)}`;
   }
 
-  /**
-   * Explicitly tolerate a `toStringTag` symbol-named non-enumerable
-   * data property whose value is a string. Otherwise, tolerate those
-   * symbol-named properties that might be added by NodeJS's async_hooks,
-   * if they obey the expected safety properties.
-   *
-   * At the time of this writing, Node's async_hooks contains the
-   * following code, which we can safely tolerate
-   *
-   * ```js
-   * function destroyTracking(promise, parent) {
-   *   trackPromise(promise, parent);
-   *   const asyncId = promise[async_id_symbol];
-   *   const destroyed = { destroyed: false };
-   *   promise[destroyedSymbol] = destroyed;
-   *   registerDestroyHook(promise, asyncId, destroyed);
-   * }
-   * ```
-   *
-   * @param {string|symbol} key
-   */
-  const checkSafeOwnKey = key => {
-    if (key === toStringTag) {
-      // TODO should we also enforce anything on the contents of the string,
-      // such as that it must start with `'Promise'`?
-      const tagDesc = getOwnPropertyDescriptor(pr, toStringTag);
-      assert(tagDesc !== undefined);
-      return (
-        (hasOwnPropertyOf(tagDesc, 'value') ||
-          CX(
-            check,
-          )`Own @@toStringTag must be a data property, not an accessor: ${q(tagDesc)}`) &&
-        (typeof tagDesc.value === 'string' ||
-          CX(
-            check,
-          )`Own @@toStringTag value must be a string: ${q(tagDesc.value)}`) &&
-        (!tagDesc.enumerable ||
-          CX(check)`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`)
-      );
-    }
-    const val = pr[key];
-    if (val === undefined || typeof val === 'number') {
-      return true;
-    }
-    if (
-      typeof val === 'object' &&
-      val !== null &&
-      isFrozen(val) &&
-      getPrototypeOf(val) === Object.prototype
-    ) {
-      const subKeys = ownKeys(val);
-      if (subKeys.length === 0) {
-        return true;
-      }
-
-      if (
-        subKeys.length === 1 &&
-        subKeys[0] === 'destroyed' &&
-        val.destroyed === false
-      ) {
-        return true;
-      }
-    }
-    return CX(
-      check,
-    )`Unexpected Node async_hooks additions to promise: ${pr}.${q(
-      String(key),
-    )} is ${val}`;
-  };
-
-  return keys.every(checkSafeOwnKey);
+  return keys.every(key => checkSafeOwnKeyOf(pr, key, check));
 };
 
 /**
@@ -132,7 +123,7 @@ const checkPromiseOwnKeys = (pr, check) => {
  */
 const checkSafePromise = (pr, check) => {
   return (
-    (isFrozen(pr) || CX(check)`${pr} - Must be frozen`) &&
+    (isFrozenOrIsNonTrapping(pr) || CX(check)`${pr} - Must be frozen`) &&
     (isPromise(pr) || CX(check)`${pr} - Must be a promise`) &&
     (getPrototypeOf(pr) === Promise.prototype ||
       CX(check)`${pr} - Must inherit from Promise.prototype: ${q(

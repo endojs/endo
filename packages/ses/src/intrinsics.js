@@ -48,7 +48,11 @@ function initProperty(obj, name, desc) {
       preDesc.enumerable !== desc.enumerable ||
       preDesc.configurable !== desc.configurable
     ) {
-      throw TypeError(`Conflicting definitions of ${name}`);
+      if (name !== 'harden') {
+        // In case there is a native hardener but we're not using it,
+        //  because we've opted into using the non-trapping shim.
+        throw TypeError(`Conflicting definitions of ${name}`);
+      }
     }
   }
   defineProperty(obj, name, desc);
