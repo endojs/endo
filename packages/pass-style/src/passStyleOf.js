@@ -2,6 +2,7 @@
 
 /// <reference types="ses"/>
 
+import { isFrozenOrIsNonTrapping } from 'ses/nonTrappingShimAdapter.js';
 import { isPromise } from '@endo/promise-kit';
 import { X, Fail, q, annotateError, makeError } from '@endo/errors';
 import {
@@ -10,7 +11,6 @@ import {
   PASS_STYLE,
   assertChecker,
 } from './passStyle-helpers.js';
-import { isFrozenOrIsNonTrapping } from 'ses/nonTrappingShimAdapter.js';
 
 import { CopyArrayHelper } from './copyArray.js';
 import { CopyRecordHelper } from './copyRecord.js';
