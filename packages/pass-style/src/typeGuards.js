@@ -60,9 +60,9 @@ harden(assertCopyArray);
 
 /**
  * @callback AssertByteArray
- * @param {Passable} array
+ * @param {Passable} arr
  * @param {string=} optNameOfArray
- * @returns {asserts array is ByteArray}
+ * @returns {asserts arr is ByteArray}
  */
 
 /** @type {AssertByteArray} */

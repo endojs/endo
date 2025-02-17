@@ -92,7 +92,7 @@ export type Passable<
 
 export type Container<PC extends PassableCap, E extends Error> =
   | CopyArrayInterface<PC, E>
-  | ByteArrayI
+  | ByteArray
   | CopyRecordInterface<PC, E>
   | CopyTaggedInterface<PC, E>;
 interface CopyArrayInterface<PC extends PassableCap, E extends Error>
