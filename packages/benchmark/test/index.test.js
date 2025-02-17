@@ -55,4 +55,4 @@ async function runBenchmark() {
   });
 }
 
-void runBenchmark();
+runBenchmark();

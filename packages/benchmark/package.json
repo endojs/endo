@@ -35,7 +35,9 @@
     "bench": "yarn rollup -c && node --jitless --cpu-prof dist/bundle.js"
   },
   "devDependencies": {
+    "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@rollup/plugin-commonjs": "^28.0.2",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@types/rollup": "^0.54.0",

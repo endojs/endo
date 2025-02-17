@@ -4,6 +4,7 @@ async function benchmark(name, t, fn, expedtedTime, iterations = 10000) {
   await null;
   const start = performance.now();
   for (let i = 0; i < iterations; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
     await fn();
   }
   const end = performance.now();
@@ -11,9 +12,17 @@ async function benchmark(name, t, fn, expedtedTime, iterations = 10000) {
 
   console.log(`${name} | Average time: ${avgTime}ns`);
   t.assert(
-    avgTime < expedtedTime,
+    avgTime < Number(expedtedTime),
     `Expected ${avgTime} to be less than ${expedtedTime}`,
   );
+}
+
+function assert(condition, message = 'Assertion failed') {
+  if (!condition) throw Error(message);
+}
+
+function truthy(value, message = 'Expected a truthy value') {
+  if (!value) throw Error(message);
 }
 
 async function test(name, fn) {
@@ -27,12 +36,6 @@ async function test(name, fn) {
   }
 }
 
-function assert(condition, message = 'Assertion failed') {
-  if (!condition) throw Error(message);
-}
 
-function truthy(value, message = 'Expected a truthy value') {
-  if (!value) throw Error(message);
-}
 
 export { benchmark, test };

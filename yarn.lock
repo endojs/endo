@@ -210,7 +210,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/benchmark@workspace:packages/benchmark"
   dependencies:
+    "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@rollup/plugin-commonjs": "npm:^28.0.2"
     "@rollup/plugin-node-resolve": "npm:^16.0.0"
     "@types/rollup": "npm:^0.54.0"
