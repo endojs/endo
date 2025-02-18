@@ -1,6 +1,4 @@
-import { rollup } from 'rollup';
 import { resolve as pathResolve } from 'path';
-import resolvePlugin from '@rollup/plugin-node-resolve';
 import url from 'url';
 import test from '@endo/ses-ava/prepare-endo.js';
 
@@ -11,8 +9,6 @@ test('explicit authority', async t => {
     url.fileURLToPath(new URL(`../demo/dir1`, import.meta.url)),
     'getExport',
     {
-      rollup,
-      resolvePlugin,
       pathResolve,
     },
   );
