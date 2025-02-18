@@ -194,6 +194,10 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
       case 'copyArray': {
         return passable.map(encodeToCapDataRecur);
       }
+      case 'byteArray': {
+        // TODO implement
+        throw Fail`marsal of byteArray not yet implemented: ${passable}`;
+      }
       case 'tagged': {
         return {
           [QCLASS]: 'tagged',
