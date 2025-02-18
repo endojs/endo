@@ -199,6 +199,12 @@ const runTests = (t, successCase, failCase) => {
 
     successCase(specimen, M.arrayOf(M.number()));
 
+    successCase(specimen, M.has(3));
+    successCase(specimen, M.has(3, 1n));
+    successCase(specimen, M.has(M.number(), 2n));
+    successCase(specimen, M.has('c', 0n));
+    successCase(specimen, M.has('c', M.nat()));
+
     failCase(specimen, [4, 3], '[3,4] - Must be: [4,3]');
     failCase(specimen, [3], '[3,4] - Must be: [3]');
     failCase(
@@ -226,6 +232,13 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.arrayOf(M.string()),
       '[0]: number 3 - Must be a string',
+    );
+
+    failCase(specimen, M.has(3, 1), 'copyArray matches: "[1n]" - Must be: 1');
+    failCase(
+      specimen,
+      M.has('c'),
+      'copyArray matches: "[0n]" - Must be >= "[1n]"',
     );
   }
   {
@@ -419,6 +432,12 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.lte(makeCopySet([3, 4, 5])));
     successCase(specimen, M.setOf(M.number()));
 
+    successCase(specimen, M.has(3));
+    successCase(specimen, M.has(3, 1n));
+    successCase(specimen, M.has(M.number(), 2n));
+    successCase(specimen, M.has('c', 0n));
+    successCase(specimen, M.has('c', M.nat()));
+
     failCase(specimen, makeCopySet([]), '"[copySet]" - Must be: "[copySet]"');
     failCase(
       specimen,
@@ -439,6 +458,13 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.setOf(M.string()),
       'set elements[0]: number 4 - Must be a string',
+    );
+
+    failCase(specimen, M.has(3, 1), 'copySet matches: "[1n]" - Must be: 1');
+    failCase(
+      specimen,
+      M.has('c'),
+      'copySet matches: "[0n]" - Must be >= "[1n]"',
     );
   }
   {
@@ -472,6 +498,13 @@ const runTests = (t, successCase, failCase) => {
     );
     successCase(specimen, M.bagOf(M.string()));
     successCase(specimen, M.bagOf(M.string(), M.lt(5n)));
+    successCase(specimen, M.bagOf(M.string(), M.gte(2n)));
+
+    successCase(specimen, M.has('a'));
+    successCase(specimen, M.has('a', 2n));
+    successCase(specimen, M.has(M.string(), 5n));
+    successCase(specimen, M.has('c', 0n));
+    successCase(specimen, M.has('c', M.nat()));
 
     failCase(
       specimen,
@@ -508,6 +541,22 @@ const runTests = (t, successCase, failCase) => {
       specimen,
       M.bagOf(M.any(), M.gt(2n)),
       'bag counts[1]: "[2n]" - Must be > "[2n]"',
+    );
+
+    failCase(
+      specimen,
+      M.has('a', 1n),
+      'copyBag matches: "[2n]" - Must be: "[1n]"',
+    );
+    failCase(
+      specimen,
+      M.has(M.string(), M.lte(4n)),
+      'copyBag matches: "[5n]" - Must be <= "[4n]"',
+    );
+    failCase(
+      specimen,
+      M.has('c'),
+      'copyBag matches: "[0n]" - Must be >= "[1n]"',
     );
   }
   {
