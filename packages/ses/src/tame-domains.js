@@ -8,10 +8,6 @@ import {
 } from './commons.js';
 
 export function tameDomains(domainTaming = 'safe') {
-  if (domainTaming !== 'safe' && domainTaming !== 'unsafe') {
-    throw TypeError(`unrecognized domainTaming ${domainTaming}`);
-  }
-
   if (domainTaming === 'unsafe') {
     return;
   }
