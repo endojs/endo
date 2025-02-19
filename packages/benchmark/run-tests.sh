@@ -15,7 +15,7 @@ else
     INSTALL_OUTPUT=$(yarn dlx esvu install xs,v8 2>&1) || INSTALL_STATUS=$?
 fi
 
-if [[ -n "$INSTALL_STATUS" ]]; then 
+if [ -n "$INSTALL_STATUS" ]; then 
     if are_engines_installed; then
         echo "Engines installed successfully despite esvu error."
     else
@@ -25,8 +25,17 @@ if [[ -n "$INSTALL_STATUS" ]]; then
     fi
 fi
 
-yarn eshost --add "xs" xs ~/.esvu/engines/xs/xst
-yarn eshost --add "v8" d8 ~/.esvu/engines/v8/d8
+
+ls -la "$HOME/.esvu/engines"
+ls -la "$HOME/.esvu/engines/xs"
+ls -la "$HOME/.esvu/engines/v8"
+
+
+chmod +x "$HOME/.esvu/engines/xs/xst"
+chmod +x "$HOME/.esvu/engines/v8/d8"
+
+yarn eshost --add "xs" xs "$HOME/.esvu/engines/xs/xst"
+yarn eshost --add "v8" d8 "$HOME/.esvu/engines/v8/d8"
 
 yarn eshost --list
 
