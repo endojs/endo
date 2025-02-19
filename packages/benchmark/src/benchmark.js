@@ -1,13 +1,13 @@
-const performance = { now: () => Date.now() * 1_000_000 };
+const get_time = () => Date.now() * 1_000_000;
 
 async function benchmark(name, t, fn, expedtedTime, iterations = 10000) {
   await null;
-  const start = performance.now();
+  const start = get_time();
   for (let i = 0; i < iterations; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await fn();
   }
-  const end = performance.now();
+  const end = get_time();
   const avgTime = (end - start) / iterations;
 
   console.log(`${name} | Average time: ${avgTime}ns`);
