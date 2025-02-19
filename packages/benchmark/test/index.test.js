@@ -10,7 +10,7 @@ async function runBenchmark() {
       async () => {
         passStyleOf(harden({}));
       },
-      1000,
+      10000,
     );
   });
 
@@ -50,7 +50,7 @@ async function runBenchmark() {
           }),
         );
       },
-      10000,
+      100000,
     );
   });
 }

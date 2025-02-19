@@ -16,10 +16,6 @@ else
     INSTALL_OUTPU_V8=$(yarn dlx esvu install v8 2>&1) || INSTALL_STATUS_V8=$?
 fi
 
-ls -la "$HOME/.esvu/engines"
-ls -la "$HOME/.esvu/engines/xs"
-ls -la "$HOME/.esvu/engines/v8"
-
 if [ -n "$INSTALL_STATUS" ]; then 
     if are_engines_installed; then
         echo "Engines installed successfully despite esvu error."
