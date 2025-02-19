@@ -48,10 +48,14 @@ async function testCompartmentHooks() {
 
 testLockdown();
 
-// print(eval(1)); // safeEval: ok
-// print(eval(1 + 1)); // safeEval: ok
-print(eval('2+2')); // safeEval: throw TypeError, unsafeEval: ok
-print(new Function('', 'return 42')); // safeEval: throw TypeError, unsafeEval: ok
+// bin/hermes (VM): warning: Direct call to eval(), but lexical scope is not supported.
+
+print(eval(1)); // safeEval: ok
+print(eval(1 + 1)); // safeEval: ok
+
+// print(eval('1+2')); // safeEval: throw TypeError, unsafeEval: ok
+
+// print(new Function('', 'return 42')); // safeEval: throw TypeError, unsafeEval: ok
 // calls make-function-constructor, evaluates a string
 
 // print((() => 42)()); // safeEval: ok
@@ -60,3 +64,11 @@ print(new Function('', 'return 42')); // safeEval: throw TypeError, unsafeEval: 
 //     return 42;
 //   })(),
 // ); // safeEval: ok
+
+// function c() {
+//   const TEST = false;
+//   eval('TEST=true');
+//   eval('TEST');
+//   return TEST;
+// }
+// print(c()); // false
