@@ -42,6 +42,8 @@
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@types/rollup": "^0.54.0",
     "c8": "^7.14.0",
+    "eshost-cli": "^9.0.0",
+    "esvu": "^1.2.16",
     "rollup": "^4.34.6",
     "tsd": "^0.31.2",
     "typescript": "~5.6.3"

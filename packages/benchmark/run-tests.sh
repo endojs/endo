@@ -2,20 +2,36 @@
 
 set -e 
 
-echo "Running Rollup..."
-yarn rollup -c
+echo $(yarn --version)
 
-if ! command -v eshost >/dev/null 2>&1; then
-  echo "eshost not found. Installing..."
-  
-  if yarn --version | grep -q "^4"; then
-    yarn add -D eshost
-  else
-    yarn global add eshost
-  fi
+are_engines_installed() {
+    [ -d "$HOME/.esvu/engines/xs" ] && [ -d "$HOME/.esvu/engines/v8" ]
+}
 
-  export PATH="$(yarn bin):$PATH"
+if are_engines_installed; then
+    echo "Engines already installed. Skipping installation."
+else
+    echo "Installing engines..."
+    INSTALL_OUTPUT=$(yarn dlx esvu install xs,v8 2>&1) || INSTALL_STATUS=$?
 fi
 
+if [[ -n "$INSTALL_STATUS" ]]; then 
+    if are_engines_installed; then
+        echo "Engines installed successfully despite esvu error."
+    else
+        echo "Error installing XS or V8:"
+        echo "$INSTALL_OUTPUT"
+        exit 1
+    fi
+fi
+
+yarn eshost --add "xs" xs ~/.esvu/engines/xs/xst
+yarn eshost --add "v8" d8 ~/.esvu/engines/v8/d8
+
+yarn eshost --list
+
 echo "Running eshost..."
-eshost -h v8,xs dist/bundle.js
+
+yarn rollup -c
+
+yarn eshost -h xs,v8 dist/bundle.js
