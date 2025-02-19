@@ -12,8 +12,13 @@ if are_engines_installed; then
     echo "Engines already installed. Skipping installation."
 else
     echo "Installing engines..."
-    INSTALL_OUTPUT=$(yarn dlx esvu install xs,v8 2>&1) || INSTALL_STATUS=$?
+    INSTALL_OUTPU_XS=$(yarn dlx esvu install xs 2>&1) || INSTALL_STATUS_XS=$?
+    INSTALL_OUTPU_V8=$(yarn dlx esvu install v8 2>&1) || INSTALL_STATUS_V8=$?
 fi
+
+ls -la "$HOME/.esvu/engines"
+ls -la "$HOME/.esvu/engines/xs"
+ls -la "$HOME/.esvu/engines/v8"
 
 if [ -n "$INSTALL_STATUS" ]; then 
     if are_engines_installed; then
