@@ -16,12 +16,13 @@ else
     INSTALL_OUTPU_V8=$(yarn dlx esvu install v8 2>&1) || INSTALL_STATUS_V8=$?
 fi
 
-if [ -n "$INSTALL_STATUS" ]; then 
+if [ -n "$INSTALL_STATUS_XS" ] || [ -n "$INSTALL_STATUS_V8" ]; then 
     if are_engines_installed; then
         echo "Engines installed successfully despite esvu error."
     else
         echo "Error installing XS or V8:"
-        echo "$INSTALL_OUTPUT"
+        echo "$INSTALL_OUTPU_XS"
+        echo "$INSTALL_OUTPU_V8"
         exit 1
     fi
 fi
