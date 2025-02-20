@@ -102,6 +102,7 @@ const safeHarden = makeHardener();
 
 const assertDirectEvalAvailable = () => {
   let allowed = false;
+  let evaluatorsBlocked = false;
   try {
     allowed = FERAL_FUNCTION(
       'eval',
@@ -122,12 +123,13 @@ const assertDirectEvalAvailable = () => {
     // We reach here if eval is outright forbidden by a Content Security Policy.
     // We allow this for SES usage that delegates the responsibility to isolate
     // guest code to production code generation.
-    allowed = true;
+    evaluatorsBlocked = true;
   }
-  if (!allowed) {
+  if (!allowed && !evaluatorsBlocked) {
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
     throw TypeError(
-      `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
+      `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)
+Did you mean legacyHermesTaming: 'unsafe'?`,
     );
   }
 };
@@ -152,11 +154,11 @@ export const repairIntrinsics = (options = {}) => {
   // The `stackFiltering` is not a safety issue. Rather it is a tradeoff
   // between relevance and completeness of the stack frames shown on the
   // console. Setting`stackFiltering` to `'verbose'` applies no filters, providing
-  // the raw stack frames that can be quite versbose. Setting
+  // the raw stack frames that can be quite verbose. Setting
   // `stackFrameFiltering` to`'concise'` limits the display to the stack frame
   // information most likely to be relevant, eliminating distracting frames
   // such as those from the infrastructure. However, the bug you're trying to
-  // track down might be in the infrastrure, in which case the `'verbose'` setting
+  // track down might be in the infrastructure, in which case the `'verbose'` setting
   // is useful. See
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/docs/lockdown.md#stackfiltering-options)
   // for an explanation.
@@ -189,6 +191,9 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
+    legacyHermesTaming = /** @type { 'safe' | 'unsafe' } */ (
+      getenv('LOCKDOWN_LEGACY_HERMES_TAMING', 'safe')
+    ),
     legacyRegeneratorRuntimeTaming = getenv(
       'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
       'safe',
@@ -198,6 +203,10 @@ export const repairIntrinsics = (options = {}) => {
     mathTaming, // deprecated
     ...extraOptions
   } = options;
+
+  legacyHermesTaming === 'safe' ||
+    legacyHermesTaming === 'unsafe' ||
+    Fail`lockdown(): non supported option legacyHermesTaming: ${q(legacyHermesTaming)}`;
 
   legacyRegeneratorRuntimeTaming === 'safe' ||
     legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
@@ -218,13 +227,11 @@ export const repairIntrinsics = (options = {}) => {
   const { warn } = reporter;
 
   if (dateTaming !== undefined) {
-    // eslint-disable-next-line no-console
     warn(
       `SES The 'dateTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
     );
   }
   if (mathTaming !== undefined) {
-    // eslint-disable-next-line no-console
     warn(
       `SES The 'mathTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
     );
@@ -242,7 +249,14 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  assertDirectEvalAvailable();
+  if (legacyHermesTaming === 'safe') {
+    assertDirectEvalAvailable();
+  } else if (legacyHermesTaming === 'unsafe') {
+    // See https://github.com/facebook/hermes/issues/957
+    warn(
+      `SES initializing with an unoriginal intrinsic 'eval', not suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
+    );
+  }
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
@@ -408,6 +422,12 @@ export const repairIntrinsics = (options = {}) => {
     markVirtualizedNativeFunction,
   });
 
+  if (legacyHermesTaming === 'unsafe') {
+    globalThis.testCompartmentHooks = undefined;
+    // @ts-ignore Compartment does exist on globalThis
+    delete globalThis.Compartment;
+  }
+
   if (evalTaming === 'noEval') {
     setGlobalObjectEvaluators(
       globalThis,
@@ -420,6 +440,7 @@ export const repairIntrinsics = (options = {}) => {
       globalThis,
       safeEvaluate,
       markVirtualizedNativeFunction,
+      legacyHermesTaming,
     );
   } else if (evalTaming === 'unsafeEval') {
     // Leave eval function and Function constructor of the initial compartment in-tact.

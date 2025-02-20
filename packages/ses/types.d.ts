@@ -43,6 +43,13 @@ export interface RepairOptions {
   /**
    * safe (default): do nothing.
    *
+   * unsafe: skips direct-eval check and compartment.
+   *
+   */
+  legacyHermesTaming?: 'safe' | 'unsafe';
+  /**
+   * safe (default): do nothing.
+   *
    * unsafe-ignore: make %IteratorPrototype%[@@iterator] to a funky accessor which ignores all assignments.
    */
   legacyRegeneratorRuntimeTaming?: 'safe' | 'unsafe-ignore';
