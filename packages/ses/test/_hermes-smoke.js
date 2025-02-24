@@ -53,7 +53,7 @@ testLockdown();
 print(eval(1)); // safeEval: ok
 print(eval(1 + 1)); // safeEval: ok
 
-// print(eval('1+2')); // safeEval: throw TypeError, unsafeEval: ok
+print(eval('1+2')); // safeEval: throw TypeError, unsafeEval: ok
 
 // print(new Function('', 'return 42')); // safeEval: throw TypeError, unsafeEval: ok
 // calls make-function-constructor, evaluates a string
