@@ -28,9 +28,9 @@ if [ -n "$INSTALL_STATUS_XS" ] || [ -n "$INSTALL_STATUS_V8" ]; then
 fi
 
 
-ls -la "$HOME/.esvu/engines"
-ls -la "$HOME/.esvu/engines/xs"
-ls -la "$HOME/.esvu/engines/v8"
+echo $(ls -la "$HOME/.esvu/engines")
+echo $(ls -la "$HOME/.esvu/engines/xs")
+echo $(ls -la "$HOME/.esvu/engines/v8")
 
 
 chmod +x "$HOME/.esvu/engines/xs/xst"
