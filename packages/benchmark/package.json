@@ -32,7 +32,7 @@
     "postpack": "git clean -f '*.d.ts*'",
     "prepack": "tsc --build tsconfig.build.json",
     "test": "./run-tests.sh",
-    "bench": "yarn rollup -c && node --jitless --cpu-prof dist/bundle.js"
+    "cpu-prof-test": "yarn rollup -c && node --jitless --cpu-prof dist/bundle.js"
   },
   "devDependencies": {
     "@endo/init": "workspace:^",

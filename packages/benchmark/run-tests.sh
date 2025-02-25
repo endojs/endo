@@ -2,7 +2,7 @@
 
 set -e 
 
-echo $(yarn --version)
+echo "yarn version: $(yarn --version)"
 
 are_engines_installed() {
     [ -d "$HOME/.esvu/engines/xs" ] && [ -d "$HOME/.esvu/engines/v8" ]
@@ -40,8 +40,6 @@ yarn eshost --add "xs" xs "$HOME/.esvu/engines/xs/xst"
 yarn eshost --add "v8" d8 "$HOME/.esvu/engines/v8/d8"
 
 yarn eshost --list
-
-echo "Running eshost..."
 
 yarn rollup -c
 
