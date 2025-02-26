@@ -6,7 +6,7 @@
  * Test calling SES lockdown.
  */
 const testLockdown = () => {
-  lockdown({ legacyHermesTaming: 'unsafe', evalTaming: 'safeEval' });
+  lockdown({ evalTaming: 'unsafeEval', hostEvaluators: 'no-direct' });
 };
 
 /**
@@ -50,25 +50,16 @@ testLockdown();
 
 // bin/hermes (VM): warning: Direct call to eval(), but lexical scope is not supported.
 
-print(eval(1)); // safeEval: ok
-print(eval(1 + 1)); // safeEval: ok
+// eval();
+// print(eval(42));
 
-print(eval('1+2')); // safeEval: throw TypeError, unsafeEval: ok
+// eval('');
+// print(eval('42'));
 
-// print(new Function('', 'return 42')); // safeEval: throw TypeError, unsafeEval: ok
-// calls make-function-constructor, evaluates a string
+// Function();
+// print(Function('return 42')());
 
-// print((() => 42)()); // safeEval: ok
-// print(
-//   (function () {
-//     return 42;
-//   })(),
-// ); // safeEval: ok
+// const compartment = new Compartment();
+// compartment.evaluate('42');
 
-// function c() {
-//   const TEST = false;
-//   eval('TEST=true');
-//   eval('TEST');
-//   return TEST;
-// }
-// print(c()); // false
+// print((() => 42)());

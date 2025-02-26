@@ -16,6 +16,8 @@
 
 import { getEnvironmentOption as getenv } from '@endo/env-options';
 import {
+  FERAL_FUNCTION,
+  FERAL_EVAL,
   TypeError,
   arrayFilter,
   globalThis,
@@ -25,6 +27,7 @@ import {
   noEvalEvaluate,
   getOwnPropertyNames,
   getPrototypeOf,
+  printHermes,
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
@@ -57,7 +60,6 @@ import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
 import { shimArrayBufferTransfer } from './shim-arraybuffer-transfer.js';
 import { reportInGroup, chooseReporter } from './reporting.js';
-import { assertDirectEvalAvailable } from './stuff-we-extracted.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -99,12 +101,81 @@ const safeHarden = makeHardener();
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
 
+const assertDirectEval = hostEvaluators => {
+  let evalAllowed = false;
+  let functionAllowed = false;
+  let evaluatorsSuccessful = true;
+  try {
+    functionAllowed = FERAL_FUNCTION('return true')();
+    evalAllowed = FERAL_FUNCTION(
+      'eval',
+      'SES_changed',
+      `\
+        eval("SES_changed = true");
+        return SES_changed;
+      `,
+    )(FERAL_EVAL, false);
+    // If we get here and SES_changed stayed false, that means the eval was sloppy
+    // and indirect, which generally creates a new global.
+    // We are going to throw an exception for failing to initialize SES, but
+    // good neighbors clean up.
+    if (!evalAllowed) {
+      delete globalThis.SES_changed;
+    }
+  } catch (_error) {
+    // We reach here if eval is outright forbidden by a Content Security Policy.
+    // We allow this for SES usage that delegates the responsibility to isolate
+    // guest code to production code generation.
+    evaluatorsSuccessful = false;
+  }
+
+  const reporter =
+    /** @type {"platform" | "console" | "none"} */ chooseReporter(
+      // @ts-ignore
+      getenv('LOCKDOWN_REPORTING', 'platform'),
+    );
+  const { warn } = reporter;
+
+  switch (hostEvaluators) {
+    case 'all':
+      assert(
+        evalAllowed === true &&
+          functionAllowed === true &&
+          evaluatorsSuccessful === true,
+        "SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)",
+      );
+      break;
+    case 'none':
+      assert(
+        evalAllowed === false &&
+          functionAllowed === false &&
+          evaluatorsSuccessful === false,
+        '"hostEvaluators" was set to "none", but evaluators are not blocked (SES_DIRECT_EVAL)',
+      );
+      warn(
+        `SES initializing under CSP with evaluators blocked (SES_DIRECT_EVAL)`,
+      );
+      break;
+    case 'no-direct':
+      warn(
+        `SES initializing with sloppy and indirect 'eval', not suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
+      );
+      assert(
+        evalAllowed === false &&
+          functionAllowed === true &&
+          evaluatorsSuccessful === true,
+        `"hostEvaluators" was set to "no-direct", but ${evalAllowed === true ? 'direct eval is functional' : 'evaluators are not allowed'} (SES_DIRECT_EVAL)`,
+      );
+      break;
+    default:
+      throw TypeError(`Invalid hostEvaluators option ${hostEvaluators}`);
+  }
+};
+
 /**
  * @param {LockdownOptions} [options]
  */
 export const repairIntrinsics = (options = {}) => {
-  // globalThis: Promise,testCompartmentHooks,lockdown,repairIntrinsics,Compartment,assert (no console)
-
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -158,8 +229,10 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
-    legacyHermesTaming = /** @type { 'safe' | 'unsafe' } */ (
-      getenv('LOCKDOWN_LEGACY_HERMES_TAMING', 'safe')
+    // TODO: Breaking change
+    // Backwards compatible change when hostEvaluators not provided
+    hostEvaluators = /** @type { 'all' | 'none' | 'no-direct'  } */ (
+      getenv('LOCKDOWN_HOSTS_EVALUATORS', 'all')
     ),
     legacyRegeneratorRuntimeTaming = getenv(
       'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
@@ -171,20 +244,23 @@ export const repairIntrinsics = (options = {}) => {
     ...extraOptions
   } = options;
 
-  legacyHermesTaming === 'safe' ||
-    legacyHermesTaming === 'unsafe' ||
-    Fail`lockdown(): non supported option legacyHermesTaming: ${q(legacyHermesTaming)}`;
-
   legacyRegeneratorRuntimeTaming === 'safe' ||
     legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
     Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
 
   evalTaming === 'unsafeEval' ||
-    // evalTaming === 'legacyHermesSloppyDirectEval' ||
-    // evalTaming === 'unsupportedLegacyHermesLocalModeEval' ||
     evalTaming === 'safeEval' ||
     evalTaming === 'noEval' ||
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
+
+  hostEvaluators === 'all' ||
+    hostEvaluators === 'none' ||
+    hostEvaluators === 'no-direct' ||
+    Fail`lockdown(): non supported option hostEvaluators: ${q(hostEvaluators)}`;
+
+  evalTaming === 'safeEval' &&
+    hostEvaluators === 'no-direct' &&
+    Fail`lockdown(): option evalTaming: ${q(evalTaming)} is incompatible with hostEvaluators: ${q(hostEvaluators)}`;
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
@@ -218,9 +294,7 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  if (legacyHermesTaming === 'safe') {
-    assertDirectEvalAvailable();
-  }
+  assertDirectEval(hostEvaluators);
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
@@ -386,8 +460,8 @@ export const repairIntrinsics = (options = {}) => {
     markVirtualizedNativeFunction,
   });
 
-  // Remove Compartment on Hermes after setGlobalObjectMutableProperties
-  if (legacyHermesTaming === 'unsafe') {
+  // TODO: disable compartmentInstance.evaluate instead?
+  if (hostEvaluators === 'no-direct') {
     globalThis.testCompartmentHooks = undefined;
     // @ts-ignore Compartment does exist on globalThis
     delete globalThis.Compartment;
@@ -398,7 +472,6 @@ export const repairIntrinsics = (options = {}) => {
       globalThis,
       noEvalEvaluate,
       markVirtualizedNativeFunction,
-      // legacyHermesTaming // this would currently suppress SES_NO_EVAL and throw TypeError instead
     );
   } else if (evalTaming === 'safeEval') {
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
@@ -406,13 +479,11 @@ export const repairIntrinsics = (options = {}) => {
       globalThis,
       safeEvaluate,
       markVirtualizedNativeFunction,
-      legacyHermesTaming,
     );
   } else if (evalTaming === 'unsafeEval') {
     // Leave eval function and Function constructor of the initial compartment in-tact.
     // Other compartments will not have access to these evaluators unless a guest program
     // escapes containment.
-    // Hermes eval left in-tact, string args work.
   }
 
   /**

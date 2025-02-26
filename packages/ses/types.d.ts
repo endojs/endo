@@ -15,11 +15,10 @@
 // So Harden just passes the type through without modification.
 // This will occasionally conflict with the type of Object.freeze.
 // In those cases, we recommend casting the result of Object.freeze to the
-// original thawed type, as if the signature of freeze were identical to this
+// original thawn type, as if the signature of freeze were identical to this
 // version of harden.
 export type Harden = <T>(value: T) => T; // not Hardened<T>;
 
-// See https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#lockdown-options
 export interface RepairOptions {
   regExpTaming?: 'safe' | 'unsafe';
   localeTaming?: 'safe' | 'unsafe';
@@ -42,12 +41,13 @@ export interface RepairOptions {
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
   /**
-   * safe (default): do nothing.
+   * all (default): assertDirectEval.
    *
-   * unsafe: skips direct-eval check and compartment.
+   * none: CSP.
    *
+   * no-direct: skip assertDirectEval.
    */
-  legacyHermesTaming?: 'safe' | 'unsafe';
+  hostEvaluators?: 'all' | 'none' | 'unsafe';
   /**
    * safe (default): do nothing.
    *

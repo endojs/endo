@@ -9,7 +9,7 @@ import { TypeError } from './commons.js';
  * @param {Function} evaluator
  * @param legacyHermesTaming
  */
-export const makeEvalFunction = (evaluator, legacyHermesTaming) => {
+export const makeEvalFunction = evaluator => {
   // We use the concise method syntax to create an eval without a
   // [[Construct]] behavior (such that the invocation "new eval()" throws
   // TypeError: eval is not a constructor"), but which still accepts a
@@ -24,7 +24,7 @@ export const makeEvalFunction = (evaluator, legacyHermesTaming) => {
         return source;
       }
       try {
-        evaluator(source);
+        return evaluator(source);
       } catch (e) {
         if (
           e.name === 'SyntaxError' &&
@@ -36,9 +36,10 @@ export const makeEvalFunction = (evaluator, legacyHermesTaming) => {
   See: https://github.com/endojs/endo/discussions/1944
 Did you mean evalTaming: 'unsafeEval'?`,
           );
+        } else {
+          throw e;
         }
       }
-      return evaluator(source);
     },
   }.eval;
 
