@@ -27,7 +27,6 @@ import {
   noEvalEvaluate,
   getOwnPropertyNames,
   getPrototypeOf,
-  printHermes,
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
@@ -101,13 +100,13 @@ const safeHarden = makeHardener();
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
 
-const assertDirectEval = hostEvaluators => {
-  let evalAllowed = false;
+const assertDirectEval = (hostEvaluators, warn) => {
+  let directEvalAllowed = false;
   let functionAllowed = false;
-  let evaluatorsSuccessful = true;
+  let evalAllowed = true;
   try {
     functionAllowed = FERAL_FUNCTION('return true')();
-    evalAllowed = FERAL_FUNCTION(
+    directEvalAllowed = FERAL_FUNCTION(
       'eval',
       'SES_changed',
       `\
@@ -119,41 +118,31 @@ const assertDirectEval = hostEvaluators => {
     // and indirect, which generally creates a new global.
     // We are going to throw an exception for failing to initialize SES, but
     // good neighbors clean up.
-    if (!evalAllowed) {
+    if (!directEvalAllowed) {
       delete globalThis.SES_changed;
     }
   } catch (_error) {
     // We reach here if eval is outright forbidden by a Content Security Policy.
     // We allow this for SES usage that delegates the responsibility to isolate
     // guest code to production code generation.
-    evaluatorsSuccessful = false;
+    evalAllowed = false;
   }
-
-  const reporter =
-    /** @type {"platform" | "console" | "none"} */ chooseReporter(
-      // @ts-ignore
-      getenv('LOCKDOWN_REPORTING', 'platform'),
-    );
-  const { warn } = reporter;
 
   switch (hostEvaluators) {
     case 'all':
       assert(
-        evalAllowed === true &&
+        directEvalAllowed === true &&
           functionAllowed === true &&
-          evaluatorsSuccessful === true,
+          evalAllowed === true,
         "SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)",
       );
       break;
     case 'none':
       assert(
-        evalAllowed === false &&
+        directEvalAllowed === false &&
           functionAllowed === false &&
-          evaluatorsSuccessful === false,
+          evalAllowed === false,
         '"hostEvaluators" was set to "none", but evaluators are not blocked (SES_DIRECT_EVAL)',
-      );
-      warn(
-        `SES initializing under CSP with evaluators blocked (SES_DIRECT_EVAL)`,
       );
       break;
     case 'no-direct':
@@ -161,10 +150,10 @@ const assertDirectEval = hostEvaluators => {
         `SES initializing with sloppy and indirect 'eval', not suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
       );
       assert(
-        evalAllowed === false &&
+        directEvalAllowed === false &&
           functionAllowed === true &&
-          evaluatorsSuccessful === true,
-        `"hostEvaluators" was set to "no-direct", but ${evalAllowed === true ? 'direct eval is functional' : 'evaluators are not allowed'} (SES_DIRECT_EVAL)`,
+          evalAllowed === true,
+        `"hostEvaluators" was set to "no-direct", but ${directEvalAllowed === true ? 'direct eval is functional' : 'evaluators are not allowed'} (SES_DIRECT_EVAL)`,
       );
       break;
     default:
@@ -294,7 +283,7 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  assertDirectEval(hostEvaluators);
+  assertDirectEval(hostEvaluators, warn);
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
@@ -462,9 +451,9 @@ export const repairIntrinsics = (options = {}) => {
 
   // TODO: disable compartmentInstance.evaluate instead?
   if (hostEvaluators === 'no-direct') {
-    globalThis.testCompartmentHooks = undefined;
+    // globalThis.testCompartmentHooks = undefined;
     // @ts-ignore Compartment does exist on globalThis
-    delete globalThis.Compartment;
+    // delete globalThis.Compartment;
   }
 
   if (evalTaming === 'noEval') {
