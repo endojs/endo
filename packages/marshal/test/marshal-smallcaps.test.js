@@ -18,6 +18,14 @@ const harden = /** @type {import('ses').Harden & { isFake?: boolean }} */ (
   global.harden
 );
 
+// Unknown error names decode as generic Errors.
+// TODO: Remove after dropping support for pre-AggregateError implementations.
+const supportsAggregateError = typeof AggregateError !== 'undefined';
+const decodedAggregateErrorCtor = supportsAggregateError
+  ? AggregateError
+  : Error;
+const testIfAggregateError = supportsAggregateError ? test : test.skip;
+
 // this only includes the tests that do not use liveSlots
 
 /**
@@ -159,10 +167,6 @@ test('smallcaps unserialize errors', t => {
 });
 
 test('smallcaps unserialize extended errors', t => {
-  if (typeof AggregateError === 'undefined') {
-    t.pass('skip test on platforms prior to AggregateError');
-    return;
-  }
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
@@ -177,10 +181,14 @@ test('smallcaps unserialize extended errors', t => {
   const aggErr = uns(
     '#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
-  t.is(getPrototypeOf(aggErr), AggregateError.prototype); // direct instance of
+  t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.false('cause' in aggErr);
-  t.is(aggErr.errors.length, 0);
+  if (supportsAggregateError) {
+    t.is(aggErr.errors.length, 0);
+  } else {
+    t.false('errors' in aggErr);
+  }
 
   const unkErr = uns(
     '#{"#error":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
@@ -191,11 +199,7 @@ test('smallcaps unserialize extended errors', t => {
   t.false('errors' in unkErr);
 });
 
-test('smallcaps unserialize errors w recognized extensions', t => {
-  if (typeof AggregateError === 'undefined') {
-    t.pass('skip test on platforms prior to AggregateError');
-    return;
-  }
+testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
@@ -212,7 +216,7 @@ test('smallcaps unserialize errors w recognized extensions', t => {
   const aggErr = uns(
     `#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
-  t.is(getPrototypeOf(aggErr), AggregateError.prototype); // direct instance of
+  t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
   t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);

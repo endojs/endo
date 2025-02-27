@@ -5,11 +5,11 @@ const { getOwnPropertyDescriptor } = Object;
 
 lockdown();
 
-test('aggregate error', t => {
-  if (typeof AggregateError === 'undefined') {
-    t.pass('skip test on platforms prior to AggregateError');
-    return;
-  }
+// TODO: Remove after dropping support for pre-AggregateError implementations.
+const testIfAggregateError =
+  typeof AggregateError !== 'undefined' ? test : test.skip;
+
+testIfAggregateError('aggregate error', t => {
   const e1 = Error('e1');
   const e2 = Error('e2', { cause: e1 });
   const u3 = URIError('u3', { cause: e1 });
@@ -31,12 +31,8 @@ test('aggregate error', t => {
   });
 });
 
-test('Promise.any aggregate error', async t => {
+testIfAggregateError('Promise.any aggregate error', async t => {
   await null;
-  if (typeof AggregateError === 'undefined') {
-    t.pass('skip test on platforms prior to AggregateError');
-    return;
-  }
   const e1 = Error('e1');
   const e2 = Error('e2', { cause: e1 });
   const u3 = URIError('u3', { cause: e1 });
