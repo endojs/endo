@@ -260,6 +260,7 @@ export const repairIntrinsics = (options = {}) => {
 
   // Assert a regular environment where eval() and the Function() constructor are allowed to execute and direct eval() is not sloppy.
   if (hostEvaluators === 'all' && !directEvalAllowed && !csp) {
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
     throw TypeError(
       "SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)",
     );
@@ -274,9 +275,7 @@ export const repairIntrinsics = (options = {}) => {
 
   hostEvaluators === 'no-direct' &&
     assert(
-      directEvalAllowed === false &&
-        functionAllowed === true &&
-        evalAllowed === true,
+      !directEvalAllowed && evalAllowed && functionAllowed,
       `"hostEvaluators" was set to "no-direct", but ${directEvalAllowed === true ? 'direct eval is functional' : 'evaluators are not allowed to execute'} (SES_DIRECT_EVAL)`,
     );
 
