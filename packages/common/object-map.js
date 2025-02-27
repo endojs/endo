@@ -62,7 +62,7 @@ export const typedMap = /** @type {TypedMap} */ (
  * @template {Record<string, unknown>} O
  * @template R map result
  * @param {O} original
- * @param {<K extends keyof O>(value: O[K], key: K) => R} mapFn
+ * @param {<K extends string & keyof O>(value: O[K], key: K) => R} mapFn
  * @returns {{ [K in keyof O]: K extends string ? R : never }}
  */
 export const objectMap = (original, mapFn) => {
