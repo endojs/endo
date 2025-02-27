@@ -137,14 +137,32 @@ export const wrap = ({
 
   let finalExports = originalExports;
 
-  const module = freeze({
-    get exports() {
-      return finalExports;
+  const moduleHandler = {
+    get(target, prop) {
+      if (prop === 'exports') {
+        return finalExports;
+      }
+      return target[prop];
     },
-    set exports(value) {
-      finalExports = value;
+    set(target, prop, value) {
+      if (prop === 'exports') {
+        finalExports = value;
+      }
+      return true;
     },
-  });
+    defineProperty(target, prop, descriptor) {
+      if (prop === 'exports') {
+        if (has(descriptor, 'value')) {
+          finalExports = descriptor.value;
+          return true;
+        }
+        return defineProperty(target, 'exports', descriptor);
+      }
+      return defineProperty(finalExports, prop, descriptor);
+    },
+  };
+
+  const module = new Proxy({ exports: finalExports }, moduleHandler);
 
   /** @param {string} importSpecifier */
   const require = importSpecifier => {
