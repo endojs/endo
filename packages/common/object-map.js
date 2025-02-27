@@ -67,7 +67,7 @@ export const typedMap = /** @type {TypedMap} */ (
  */
 export const objectMap = (original, mapFn) => {
   const oldEntries = typedEntries(original);
-  /** @type {<K extends keyof O>(entry: [K, O[K]]) => [K, R]} */
+  /** @type {<K extends string & keyof O>(entry: [K, O[K]]) => [K, R]} */
   const mapEntry = ([k, v]) => [k, mapFn(v, k)];
   const newEntries = typedMap(oldEntries, mapEntry);
   const newObj = fromTypedEntries(newEntries);
