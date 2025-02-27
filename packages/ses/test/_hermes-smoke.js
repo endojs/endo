@@ -59,7 +59,7 @@ testLockdown();
 // Function();
 // print(Function('return 42')());
 
-const compartment = new Compartment();
+// const compartment = new Compartment();
 // compartment.evaluate('42');
 
 // print((() => 42)());

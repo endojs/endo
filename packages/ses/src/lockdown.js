@@ -100,7 +100,7 @@ const safeHarden = makeHardener();
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
 
-const assertDirectEval = (hostEvaluators, warn) => {
+const assertDirectEval = () => {
   let directEvalAllowed = false;
   let functionAllowed = false;
   let evalAllowed = true;
@@ -128,37 +128,7 @@ const assertDirectEval = (hostEvaluators, warn) => {
     evalAllowed = false;
   }
 
-  switch (hostEvaluators) {
-    case 'all':
-      assert(
-        directEvalAllowed === true &&
-          functionAllowed === true &&
-          evalAllowed === true,
-        "SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)",
-      );
-      break;
-    case 'none':
-      assert(
-        directEvalAllowed === false &&
-          functionAllowed === false &&
-          evalAllowed === false,
-        '"hostEvaluators" was set to "none", but evaluators are not blocked (SES_DIRECT_EVAL)',
-      );
-      break;
-    case 'no-direct':
-      warn(
-        `SES initializing with sloppy and indirect 'eval', not suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
-      );
-      assert(
-        directEvalAllowed === false &&
-          functionAllowed === true &&
-          evalAllowed === true,
-        `"hostEvaluators" was set to "no-direct", but ${directEvalAllowed === true ? 'direct eval is functional' : 'evaluators are not allowed'} (SES_DIRECT_EVAL)`,
-      );
-      break;
-    default:
-      throw TypeError(`Invalid hostEvaluators option ${hostEvaluators}`);
-  }
+  return { directEvalAllowed, functionAllowed, evalAllowed };
 };
 
 /**
@@ -218,10 +188,9 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
-    // TODO: Breaking change
-    // Backwards compatible change when hostEvaluators not provided
     hostEvaluators = /** @type { 'all' | 'none' | 'no-direct'  } */ (
-      getenv('LOCKDOWN_HOSTS_EVALUATORS', 'all')
+      // TODO: Breaking change, ensure backwards compatibility under CSP.
+      getenv('LOCKDOWN_HOST_EVALUATORS', 'all')
     ),
     legacyRegeneratorRuntimeTaming = getenv(
       'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
@@ -283,7 +252,33 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  assertDirectEval(hostEvaluators, warn);
+  const { directEvalAllowed, functionAllowed, evalAllowed } =
+    assertDirectEval();
+
+  // A Content Security Policy containing either a default-src or a script-src directive.
+  const csp = !evalAllowed && !functionAllowed;
+
+  // Assert a regular environment where eval() and the Function() constructor are allowed to execute and direct eval() is not sloppy.
+  if (hostEvaluators === 'all' && !directEvalAllowed && !csp) {
+    throw TypeError(
+      "SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)",
+    );
+  }
+
+  // Assert we in an environment with a CSP that does not allow APIs to execute.
+  hostEvaluators === 'none' &&
+    assert(
+      !directEvalAllowed && csp,
+      "hostEvaluators' was set to 'none', but the CSP is allowing APIs to execute (SES_DIRECT_EVAL)",
+    );
+
+  hostEvaluators === 'no-direct' &&
+    assert(
+      directEvalAllowed === false &&
+        functionAllowed === true &&
+        evalAllowed === true,
+      `"hostEvaluators" was set to "no-direct", but ${directEvalAllowed === true ? 'direct eval is functional' : 'evaluators are not allowed to execute'} (SES_DIRECT_EVAL)`,
+    );
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
@@ -451,9 +446,9 @@ export const repairIntrinsics = (options = {}) => {
 
   // TODO: disable compartmentInstance.evaluate instead?
   if (hostEvaluators === 'no-direct') {
-    // globalThis.testCompartmentHooks = undefined;
+    globalThis.testCompartmentHooks = undefined;
     // @ts-ignore Compartment does exist on globalThis
-    // delete globalThis.Compartment;
+    delete globalThis.Compartment;
   }
 
   if (evalTaming === 'noEval') {
