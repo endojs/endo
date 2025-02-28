@@ -156,13 +156,12 @@ export const wrap = ({
           finalExports = descriptor.value;
           return true;
         }
-        return defineProperty(target, 'exports', descriptor);
       }
-      return defineProperty(finalExports, prop, descriptor);
+      return false
     },
   };
 
-  const module = new Proxy({ exports: finalExports }, moduleHandler);
+  const module = new Proxy({}, moduleHandler);
 
   /** @param {string} importSpecifier */
   const require = importSpecifier => {
