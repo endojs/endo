@@ -85,7 +85,7 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --immutable
-      
+
       - name: Install Engines
         run: yarn workspace @endo/benchmark run install-engines
 
