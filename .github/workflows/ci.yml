@@ -85,6 +85,9 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --immutable
+      
+      - name: Install Engines
+        run: yarn workspace benchmark run install-engines
 
       # end macro
 
