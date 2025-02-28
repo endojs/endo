@@ -29,14 +29,8 @@ if [ -n "$INSTALL_STATUS_XS" ] || [ -n "$INSTALL_STATUS_V8" ]; then
 fi
 
 
-## Making engine binaries executable (if not already) ##
-if [ ! -x "$HOME/.esvu/bin/xs" ]; then
-    chmod +x "$HOME/.esvu/bin/xs"
-fi
-
-if [ ! -x "$HOME/.esvu/bin/v8" ]; then
-    chmod +x "$HOME/.esvu/bin/v8"
-fi
+## Making engine binaries executable ##
+chmod +x "$HOME/.esvu/bin/xs" "$HOME/.esvu/bin/v8"
 
 
 ## Adding engines to eshost (if not already) ##
