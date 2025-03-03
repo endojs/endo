@@ -137,6 +137,7 @@ export const wrap = ({
 
   let finalExports = originalExports;
 
+  // This might need some work on fidelity of the define semantics, but I feel bad about making it even more lines
   const moduleHandler = {
     get(target, prop) {
       if (prop === 'exports') {
@@ -152,12 +153,21 @@ export const wrap = ({
     },
     defineProperty(target, prop, descriptor) {
       if (prop === 'exports') {
+        if (descriptor.configurable === false) {
+          // For non-configurable properties, we must define it on the target because ECMAScript spec says so
+          defineProperty(target, prop, descriptor);
+        }
         if (has(descriptor, 'value')) {
           finalExports = descriptor.value;
           return true;
         }
+        if (has(descriptor, 'get')) {
+          finalExports = descriptor.get();
+          return true;
+        }
       }
-      return false
+      // Seems like there are no reasonable other fields anyone would define https://github.com/search?q=%22Object.defineProperty%28module%2C%22&type=code
+      return false;
     },
   };
 
