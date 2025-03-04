@@ -32,16 +32,16 @@ function logMemoryUsage(message = '') {
 
 async function test(name, fn) {
   await null;
-  console.log('\n\n')
+  console.log('\n\n');
   console.log('Running test: ', name);
-  logMemoryUsage("Memory Usage Before Test: ");
+  logMemoryUsage('Memory Usage Before Test: ');
   try {
     await fn({ assert, truthy });
     console.log(`✅ Passed`);
   } catch (err) {
     console.log(`❌ Failed: ${err.message}`);
   }
-  logMemoryUsage("Memory Usage After Test: ");
+  logMemoryUsage('Memory Usage After Test: ');
 }
 
 export { benchmark, test };
