@@ -188,3 +188,29 @@ test('inescapable global properties, zip base64 format', async t => {
   });
   t.is(ns.default, 42);
 });
+
+test('test the test format', async t => {
+  const bundle = {
+    moduleFormat: 'test',
+    [Symbol.for('exports')]: {
+      default: 42,
+    },
+  };
+  const ns = await importBundle(bundle);
+  t.is(ns.default, 42);
+  t.is(Object.prototype.toString.call(ns), '[object Module]');
+});
+
+test('test format must not round-trip via JSON', async t => {
+  const bundle = JSON.parse(
+    JSON.stringify({
+      moduleFormat: 'test',
+      [Symbol.for('exports')]: {
+        default: 42,
+      },
+    }),
+  );
+  await t.throwsAsync(importBundle(bundle), {
+    message: /Cannot import bundle with moduleFormat "test" that lacks/,
+  });
+});
