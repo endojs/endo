@@ -30,6 +30,19 @@ harden(getEnvironmentOptionsList);
 harden(environmentOptionsListHas);
         `,
   },
+  {
+    code: `
+export const { propName: exportName } = objWithPropName;
+harden(exportName);
+    `,
+  },
+  {
+    code: `
+export const [ item1, item2 ] = [fn1, fn2];
+harden(item1);
+harden(item2);
+    `,
+  },
 ];
 
 const invalid = [
@@ -178,6 +191,38 @@ environmentOptionsListHas,
 harden(getEnvironmentOption);
 harden(getEnvironmentOptionsList);
 harden(environmentOptionsListHas);
+    `,
+  },
+  {
+    code: `
+export const { propName: exportName } = objWithPropName;
+    `,
+    errors: [
+      {
+        message:
+          "Named export 'exportName' should be followed by a call to 'harden'.",
+      },
+    ],
+    output: `
+export const { propName: exportName } = objWithPropName;
+harden(exportName);
+    `,
+  },
+  {
+    code: `
+export const [ item1, item2 ] = [fn1, fn2];
+harden(item1);
+    `,
+    errors: [
+      {
+        message:
+          "Named export 'item2' should be followed by a call to 'harden'.",
+      },
+    ],
+    output: `
+export const [ item1, item2 ] = [fn1, fn2];
+harden(item2);
+harden(item1);
     `,
   },
 ];
