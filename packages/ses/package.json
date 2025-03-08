@@ -97,10 +97,10 @@
     "@endo/env-options": "workspace:^"
   },
   "devDependencies": {
-    "@babel/generator": "^7.23.6",
-    "@babel/parser": "^7.23.6",
-    "@babel/traverse": "^7.23.6",
-    "@babel/types": "^7.24.0",
+    "@babel/generator": "^7.26.3",
+    "@babel/parser": "~7.26.2",
+    "@babel/traverse": "~7.25.9",
+    "@babel/types": "~7.26.0",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/module-source": "workspace:^",
     "@endo/test262-runner": "workspace:^",

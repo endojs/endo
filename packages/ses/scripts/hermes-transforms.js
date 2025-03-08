@@ -73,16 +73,24 @@ export const hermesTransforms = {
 
     const ast = parse(sourceString, {
       sourceType: 'module',
+      tokens: true,
+      createParenthesizedExpressions: true,
     });
 
     traverse(ast, transforms, undefined, { filename: location });
 
-    const { code } = generate(ast, {
-      // Nothing being done with sourcemaps as this point
-      retainLines: true,
-      compact: true,
-      verbatim: true,
-    });
+    const { code } = generate(
+      ast,
+      {
+        // Nothing being done with sourcemaps as this point
+        // @ts-expect-error - Property currently absent on versioned types
+        experimental_preserveFormat: true,
+        preserveFormat: true,
+        retainLines: true,
+        verbatim: true,
+      },
+      sourceString,
+    );
 
     return { bytes: encoder.encode(code), parser: 'mjs', sourceMap };
   },
