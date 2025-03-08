@@ -121,20 +121,32 @@ not exist.
 ## getExport moduleFormat
 
 The most primitive `moduleFormat` is the `"getExport"` format.
-It generates source like:
+It generates a script where the completion value (last expression evaluated)
+is a function that accepts an optional `sourceUrlPrefix`.
 
 ```js
-function getExport() {
-  let exports = {};
-  const module = { exports };
-  // CommonJS source translated from the inputs.
-  ...
-  return module.exports;
-}
+cosnt { source } = await bundleSource('program.js', { format: 'getExport' });
+const exports = eval(source)();
 ```
 
-To evaluate it and obtain the resulting module namespace, you need to endow
-a `require` function to resolve external imports.
+A bundle in `getExport` format can import host modules through a
+lexically-scoped CommonJS `require` function.
+One can be endowed using a Hardened JavaScript `Compartment`.
+
+```js
+const compartment = new Compartment({
+  globals: { require },
+  __options__: true, // until SES and XS implementations converge
+});
+const exports = compartment.evaluate(source)();
+```
+
+> [!WARNING]
+> The `getExport` format was previously implemented using
+> [Rollup](https://rollupjs.org/) and is implemented with
+> `@endo/compartment-mapper/functor.js` starting with version 4 of
+> `@endo/bundle-source`.
+> See `nestedEvaluate` below for compatibility caveats.
 
 ## nestedEvaluate moduleFormat
 
@@ -145,9 +157,70 @@ to evaluate submodules in the same context as the parent function.
 The advantage of this format is that it helps preserve the filenames within
 the bundle in the event of any stack traces.
 
-Also, the toplevel `getExport(filePrefix = "/bundled-source")` accepts an
-optional `filePrefix` argument (which is prepended to relative paths for the
-bundled files) in order to help give context to stack traces.
+The completion value of a `nestedEvaluate` bundle is a function that accepts
+the `sourceUrlPrefix` for every module in the bundle, which will appear in stack
+traces and assist debuggers to find a matching source file.
+
+```js
+cosnt { source } = await bundleSource('program.js', { format: 'nestedEvaluate' });
+const compartment = new Compartment({
+  globals: {
+    require,
+    nestedEvaluate: source => compartment.evaluate(source),
+  },
+  __options__: true, // until SES and XS implementations converge
+});
+const exports = compartment.evaluate(source)('bundled-sources/.../');
+```
+
+In the absence of a `nextedEvaluate` function in lexical scope, the bundle will
+use the `eval` function in lexical scope.
+
+> [!WARNING]
+> The `nestedEvaluate` format was previously implemented using
+> [Rollup](https://rollupjs.org/) and is implemented with
+> `@endo/compartment-mapper/functor.js` starting with version 4 of
+> `@endo/bundle-source`.
+> Their behaviors are not identical.
+>
+> 1. Version 3 used different heuristics than Node.js 18 for inferring whether
+>    a module was in CommonJS format or ESM format. Version 4 does not guess,
+>    but relies on the `"type": "module"` directive in `package.json` to indicate
+>    that a `.js` extension implies ESM format, or respects the explicit `.cjs`
+>    and `.mjs` extensions.
+> 2. Version 3 supports [live
+>    bindings](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#imported_values_can_only_be_modified_by_the_exporter)
+>    and Version 4 does not.
+> 3. Version 3 can import any package that is discoverable by walking parent directories
+>    until the dependency or devDependeny is found in a `node_modules` directory.
+>    Version 4 requires that the dependent package explicitly note the dependency
+>    in `package.json`.
+> 4. Version 3 and 4 generate different text.
+>    Any treatment of that text that is sensitive to the exact shape of the
+>    text is fragile and may break even between minor and patch versions.
+> 5. Version 4 makes flags already supported by `endoZipBase64` format
+>    universal to all formats, including `dev`, `elideComments`,
+>    `noTransforms`, and `conditions`.
+
+## endoScript moduleFormat
+
+The `ses` shim uses the `endoScript` format to generate its distribution bundles,
+suitable for injecting in a web page with a `<script>` tag.
+For this format, extract the `source` from the generated JSON envelope and place
+it in a file you embed in a web page, an Agoric
+[Core Eval](https://docs.agoric.com/guides/coreeval/) script, or evaluate
+anywhere that accepts scripts.
+
+```js
+const { source } = await bundleSource('program.js', { format: 'endoScript' });
+const compartment = new Compartment();
+compartment.evaluate(source);
+```
+
+Unlike `getExport` and `nestedEvaluate`, the `dev` option to `bundleSource` is
+required for any bundle that imports `devDependencies`.
+The `endoScript` format does not support importing host modules with CommonJS
+`require`.
 
 ## endoZipBase64 moduleFormat
 

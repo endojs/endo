@@ -67,15 +67,16 @@ export function makeSanityTests(stackFiltering) {
 
     const bundle = ex1.default();
     const err = bundle.makeError('foo');
-    // console.log(err.stack);
+    // t.log(err.stack);
     t.assert(
-      stackContains(err.stack, 'encourage.js:2:'),
+      stackContains(err.stack, 'bundle-source/demo/dir1/encourage.js:2:'),
       'bundled source is in stack trace with correct line number',
     );
 
     const err2 = bundle.makeError2('bar');
+    // t.log(err2.stack);
     t.assert(
-      stackContains(err2.stack, 'index.js:8:'),
+      stackContains(err2.stack, 'bundle-source/demo/dir1/index.js:8:'),
       'bundled source is in second stack trace with correct line number',
     );
 

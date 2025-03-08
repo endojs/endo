@@ -27,29 +27,11 @@ const bundleSource = async (
       const { bundleZipBase64 } = await import('./zip-base64.js');
       return bundleZipBase64(startFilename, options, powers);
     }
+    case 'getExport':
+    case 'nestedEvaluate':
     case 'endoScript': {
       const { bundleScript } = await import('./script.js');
-      return bundleScript(startFilename, options, powers);
-    }
-    case 'getExport': {
-      const { bundleNestedEvaluateAndGetExports } = await import(
-        './nested-evaluate-and-get-exports.js'
-      );
-      return bundleNestedEvaluateAndGetExports(
-        startFilename,
-        moduleFormat,
-        powers,
-      );
-    }
-    case 'nestedEvaluate': {
-      const { bundleNestedEvaluateAndGetExports } = await import(
-        './nested-evaluate-and-get-exports.js'
-      );
-      return bundleNestedEvaluateAndGetExports(
-        startFilename,
-        moduleFormat,
-        powers,
-      );
+      return bundleScript(startFilename, moduleFormat, options, powers);
     }
     default:
       if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
