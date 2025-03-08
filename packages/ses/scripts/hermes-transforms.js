@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { parse } from '@babel/parser';
-import babelGenerate from '@agoric/babel-generator';
+import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import * as t from '@babel/types';
 
