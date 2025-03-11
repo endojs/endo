@@ -29,6 +29,8 @@ evaluated, to enforce ocap rules.
 
 The source can be bundled in a variety of "formats".
 
+### endoZipBase64
+
 By default, `bundleSource` uses a format named `endoZipBase64`, in which the
 source modules and a "compartment map" are captured in a Zip file and base-64
 encoded.
@@ -36,12 +38,18 @@ The compartment map describes how to construct a set of [Hardened
 JavaScript](https://hardenedjs.org) compartments and how to load and link the
 source modules between them.
 
+### endoScript
+
 The `endoScript` format captures the sources as a single JavaScript program
 that completes with the entry module's namespace object.
+
+### getExport
 
 The `getExport` format captures the sources as a single CommonJS-style string,
 and wrapped in a callable function that provides the `exports` and
 `module.exports` context to which the exports can be attached.
+
+### nestedEvaluate
 
 More sophisticated than `getExport` is named `nestedEvaluate`.
 In this mode, the source tree is converted into a table of evaluable strings,
@@ -58,6 +66,24 @@ option.
 Note that the `nestedEvaluate` format receives a global endowment named
 `require`, although it will only be called if the source tree imported one of
 the few modules on the `bundle-source` "external" list.
+
+### test
+
+The `test` format is useful for mocking a bundle locally for a test and is
+deliberately not serializable or passable.
+Use this format in tests to avoid the need to generate a bundle from source,
+providing instead just the exports you need returned by `importBundle`.
+
+```js
+import { importBundle, bundleTestExports } from '@endo/import-bundle';
+
+test('who tests the tests', async t => {
+  const bundle = bundleTestExports({ a: 10 });
+  const namespace = await importBundle(bundle);
+  t.is(namespace.a, 10);
+  t.is(Object.prototype.toString.call(ns), '[object Module]');
+});
+```
 
 ## Options
 

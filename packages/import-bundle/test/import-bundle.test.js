@@ -7,7 +7,9 @@ import crypto from 'crypto';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
 import bundleSource from '@endo/bundle-source';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
-import { importBundle } from '../src/index.js';
+import { importBundle, bundleTestExports } from '../src/index.js';
+
+import * as namespace from './_namespace.js';
 
 const { read } = makeReadPowers({ fs, url, crypto });
 
@@ -187,4 +189,48 @@ test('inescapable global properties, zip base64 format', async t => {
     },
   });
   t.is(ns.default, 42);
+});
+
+test('test the test format', async t => {
+  const bundle = {
+    moduleFormat: 'test',
+    [Symbol.for('exports')]: {
+      z: 43,
+      default: 42,
+      a: 41,
+    },
+  };
+  const ns = await importBundle(bundle);
+  t.is(ns.default, 42);
+  t.deepEqual(Object.keys(ns), ['a', 'default', 'z']);
+  t.is(Object.prototype.toString.call(ns), '[object Module]');
+});
+
+test('test format must not round-trip via JSON', async t => {
+  const bundle = JSON.parse(
+    JSON.stringify({
+      moduleFormat: 'test',
+      [Symbol.for('exports')]: {
+        default: 42,
+      },
+    }),
+  );
+  await t.throwsAsync(importBundle(bundle), {
+    message: /Cannot import bundle with moduleFormat "test" that lacks/,
+  });
+});
+
+test('test bundle utility should fail early for symbol keys', t => {
+  t.throws(() =>
+    bundleTestExports({
+      [Symbol.for('iterator')]: 1,
+      [Symbol.iterator]: 'a',
+    }),
+  );
+});
+
+test('bundleTestExports should accept a genuine module exports namespace', t => {
+  // Taking into account that it will have a Symbol.toStringTag.
+  bundleTestExports(namespace);
+  t.pass();
 });
