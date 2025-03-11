@@ -192,14 +192,14 @@ test('inescapable global properties, zip base64 format', async t => {
 });
 
 test('test the test format', async t => {
-  const bundle = {
+  const bundle = /** @type {const} */ ({
     moduleFormat: 'test',
     [Symbol.for('exports')]: {
       z: 43,
       default: 42,
       a: 41,
     },
-  };
+  });
   const ns = await importBundle(bundle);
   t.is(ns.default, 42);
   t.deepEqual(Object.keys(ns), ['a', 'default', 'z']);
