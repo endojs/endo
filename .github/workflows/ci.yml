@@ -15,8 +15,6 @@ on:
 
 jobs:
   lint:
-    name: lint
-
     # begin macro
 
     runs-on: ubuntu-latest
@@ -54,8 +52,6 @@ jobs:
         run: yarn docs:markdown-for-agoric-documentation-repo
 
   test:
-    name: test
-
     # begin macro
 
     runs-on: ${{ matrix.platform }}
@@ -96,8 +92,6 @@ jobs:
         run: yarn test
 
   test-async-hooks:
-    name: test-async-hooks
-
     runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
@@ -143,8 +137,6 @@ jobs:
         run: yarn test
 
   cover:
-    name: cover
-
     # begin macro
 
     runs-on: ${{ matrix.platform }}
@@ -179,8 +171,6 @@ jobs:
         run: yarn cover
 
   test262:
-    name: test262
-
     # begin macro
 
     runs-on: ${{ matrix.platform }}
@@ -215,8 +205,6 @@ jobs:
         run: exit 0 # TODO remove test262 from required tests for CI
 
   test-hermes:
-    name: test-hermes
-
     # begin macro
 
     runs-on: ${{ matrix.platform }}
@@ -250,8 +238,6 @@ jobs:
         run: yarn test:hermes
 
   viable-release:
-    name: viable-release
-
     # begin macro
 
     runs-on: ${{ matrix.platform }}
@@ -294,8 +280,6 @@ jobs:
         run: yarn lerna run --reject-cycles --concurrency 1 prepack
 
   test-xs:
-    name: test-xs
-
     # begin macro
 
     runs-on: ${{ matrix.platform }}
