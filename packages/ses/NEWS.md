@@ -1,5 +1,15 @@
 User-visible changes in `ses`:
 
+# Next release
+
+The `evalTaming:` option values are renamed
+- from `'safeEval'`, `'unsafeEval'`, and `'noEval'`
+- to `'safe-eval'`, `'unsafe-eval'`, and `'no-eval'`
+
+in order to follow the convention that lockdown option values use kebob-case
+rather than camelCase. To avoid breaking old programs during the transition,
+the old names are deprecated, but continue to work for now.
+
 # v1.11.0 (2025-01-23)
 
 - Adds support for dynamic `import` in conjunction with an update to

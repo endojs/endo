@@ -27,9 +27,9 @@ const { Fail } = assert;
 //   prepareStack(depth, () => {
 //     (eval)('');
 //   });
-//   const unsafeEval = (eval);
-//   const safeEval = (eval);
-//   const realGlobal = unsafeEval('globalThis');
+//   const unsafe-eval = (eval);
+//   const safe-eval = (eval);
+//   const realGlobal = unsafe-eval('globalThis');
 //
 // To protect against that case, we also delete `eval` from the `evalScope` in
 // a `finally` block surrounding the call to the safe evaluator.

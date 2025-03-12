@@ -3,7 +3,8 @@ import '../index.js';
 
 lockdown({ evalTaming: 'unsafeEval' });
 
-test('direct eval is possible when evalTaming is unsafe.', t => {
+// 'unsafeEval' is deprecated, but testing that it still works
+test('direct eval is possible when evalTaming is unsafeEval.', t => {
   // eslint-disable-next-line no-unused-vars
   const a = 0;
   // eslint-disable-next-line no-eval

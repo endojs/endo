@@ -29,7 +29,7 @@ Each option is explained in its own section below.
 | `errorTrapping`                  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
 | `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
 | `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
-| `evalTaming`                     | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
+| `evalTaming`                     | `'safe-eval'`    | `'unsafe-eval'` `'no-eval'`            | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
 | `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
 | `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
 | `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
@@ -574,15 +574,15 @@ The default lockdown behavior isolates all of these evaluators.
 
 Replacing the realm's initial evaluators is not necessary to ensure the
 isolation of guest code because guest code must not run in the start compartment.
-Although the code run in the start compartment is normally referred to as "trusted", we mean only that we assume it was not written maliciously. It may still be buggy, and it may be buggy in a way that is exploitable by malicious guest code. To limit the harm that such vulnerabilities can cause, the default (`"safeEval"`) setting replaces the evaluators of the start compartment with their safe alternatives.
+Although the code run in the start compartment is normally referred to as "trusted", we mean only that we assume it was not written maliciously. It may still be buggy, and it may be buggy in a way that is exploitable by malicious guest code. To limit the harm that such vulnerabilities can cause, the default (`"safe-eval"`) setting replaces the evaluators of the start compartment with their safe alternatives.
 
 However, in the shim, only the exact `eval` function from the start compartment can be used to
-perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (direct-eval is a special form rather than a function call).
+perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (the direct-eval syntax is a special form rather than a function call).
 The SES shim itself uses direct-eval internally to construct an isolated
 evaluator, so replacing the initial `eval` prevents any subsequent program
 from using the same mechanism to isolate a guest program.
 
-The `"unsafeEval"` option for `evalTaming` leaves the original `eval` in place
+The `"unsafe-eval"` option for `evalTaming` leaves the original `eval` in place
 for other isolation mechanisms like isolation code generators that work in
 tandem with SES.
 This option may be useful for web pages with an environment that allows `unsafe-eval`,
@@ -593,28 +593,28 @@ In these cases, SES cannot be responsible for maintaining the isolation of
 guest code. If you're going to use `eval`, [Trusted
 Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types) may help maintain security.
 
-The `"noEval"` option emulates a Content Security Policy that disallows
+The `"no-eval"` option emulates a Content Security Policy that disallows
 `unsafe-eval` by replacing all evaluators with functions that throw an
 exception.
 
 ```js
-lockdown(); // evalTaming defaults to 'safeEval'
+lockdown(); // evalTaming defaults to 'safe-eval'
 // or
-lockdown({ evalTaming: 'noEval' }); // disallowing calling eval like there is a CSP limitation.
+lockdown({ evalTaming: 'no-eval' }); // disallowing calling eval like there is a CSP limitation.
 // vs
 
 // Please use this option with caution.
 // You may want to use Trusted Types or Content Security Policy with this option.
-lockdown({ evalTaming: 'unsafeEval' });
+lockdown({ evalTaming: 'unsafe-eval' });
 ```
 
 If `lockdown` does not receive an `evalTaming` option, it will respect
 `process.env.LOCKDOWN_EVAL_TAMING`.
 
 ```console
-LOCKDOWN_EVAL_TAMING=safeEval
-LOCKDOWN_EVAL_TAMING=noEval
-LOCKDOWN_EVAL_TAMING=unsafeEval
+LOCKDOWN_EVAL_TAMING=safe-eval
+LOCKDOWN_EVAL_TAMING=no-eval
+LOCKDOWN_EVAL_TAMING=unsafe-eval
 ```
 
 ## `stackFiltering` Options

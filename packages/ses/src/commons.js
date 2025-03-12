@@ -320,7 +320,7 @@ export const FERAL_FUNCTION = Function;
 
 export const noEvalEvaluate = () => {
   // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_EVAL.md
-  throw TypeError('Cannot eval with evalTaming set to "noEval" (SES_NO_EVAL)');
+  throw TypeError('Cannot eval with evalTaming set to "no-eval" (SES_NO_EVAL)');
 };
 
 // ////////////////// FERAL_STACK_GETTER FERAL_STACK_SETTER ////////////////////
