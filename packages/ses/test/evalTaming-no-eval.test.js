@@ -1,10 +1,9 @@
 import test from 'ava';
 import '../index.js';
 
-lockdown({ evalTaming: 'noEval' });
+lockdown({ evalTaming: 'no-eval' });
 
-// 'noEval' is deprecated, but testing that it still works
-test('no eval when evalTaming is noEval.', t => {
+test('no eval when evalTaming is no-eval.', t => {
   // eslint-disable-next-line no-eval
   t.throws(() => eval('1+1'));
 
