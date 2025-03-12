@@ -40,6 +40,7 @@ export interface RepairOptions {
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
+  hostEvaluators?: 'all' | 'none' | 'unsafe';
   /**
    * safe (default): do nothing.
    *
