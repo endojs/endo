@@ -213,6 +213,7 @@ defineProperties(InertCompartment, {
  * @param {object} [options]
  * @param {Compartment} [options.parentCompartment]
  * @param {boolean} [options.enforceNew]
+ * @param {string} [options.hostEvaluators]
  * @returns {Compartment['constructor']}
  */
 
@@ -270,7 +271,12 @@ export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   markVirtualizedNativeFunction,
-  { parentCompartment = undefined, enforceNew = false } = {},
+  // eslint-disable-next-line default-param-last
+  {
+    parentCompartment = undefined,
+    enforceNew = false,
+    hostEvaluators = undefined,
+  } = {},
 ) => {
   function Compartment(...args) {
     if (enforceNew && new.target === undefined) {
@@ -326,6 +332,18 @@ export const makeCompartmentConstructor = (
       sloppyGlobalsMode: false,
     });
 
+    let evaluator;
+
+    if (hostEvaluators === 'no-direct') {
+      evaluator = () => {
+        throw TypeError(
+          'Compartment evaluation not supported without direct eval.',
+        );
+      };
+    } else {
+      evaluator = safeEvaluate;
+    }
+
     setGlobalObjectMutableProperties(globalObject, {
       intrinsics,
       newGlobalPropertyNames: sharedGlobalPropertyNames,
@@ -337,7 +355,7 @@ export const makeCompartmentConstructor = (
     // TODO: maybe add evalTaming to the Compartment constructor 3rd options?
     setGlobalObjectEvaluators(
       globalObject,
-      safeEvaluate,
+      evaluator,
       markVirtualizedNativeFunction,
     );
 

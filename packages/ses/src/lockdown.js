@@ -100,10 +100,29 @@ const safeHarden = makeHardener();
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
 
-const assertDirectEvalAvailable = () => {
-  let allowed = false;
+const probeHostEvaluators = () => {
+  let functionAllowed;
   try {
-    allowed = FERAL_FUNCTION(
+    functionAllowed = FERAL_FUNCTION('return true')();
+  } catch (_error) {
+    // We reach here if the Function() constructor has not been implemented by the
+    // host, or is outright forbidden by a Content Security Policy.
+    functionAllowed = false;
+  }
+
+  let evalAllowed;
+  try {
+    evalAllowed = FERAL_EVAL('true');
+  } catch (_error) {
+    // We reach here if eval() has not been implemented by the host or is forbidden.
+    // We allow this for SES usage that delegates the responsibility to isolate
+    // guest code to production code generation.
+    evalAllowed = false;
+  }
+
+  let directEvalAllowed;
+  if (functionAllowed && evalAllowed) {
+    directEvalAllowed = FERAL_FUNCTION(
       'eval',
       'SES_changed',
       `\
@@ -115,21 +134,12 @@ const assertDirectEvalAvailable = () => {
     // and indirect, which generally creates a new global.
     // We are going to throw an exception for failing to initialize SES, but
     // good neighbors clean up.
-    if (!allowed) {
+    if (!directEvalAllowed) {
       delete globalThis.SES_changed;
     }
-  } catch (_error) {
-    // We reach here if eval is outright forbidden by a Content Security Policy.
-    // We allow this for SES usage that delegates the responsibility to isolate
-    // guest code to production code generation.
-    allowed = true;
   }
-  if (!allowed) {
-    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
-    throw TypeError(
-      `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
-    );
-  }
+
+  return { functionAllowed, evalAllowed, directEvalAllowed };
 };
 
 /**
@@ -152,11 +162,11 @@ export const repairIntrinsics = (options = {}) => {
   // The `stackFiltering` is not a safety issue. Rather it is a tradeoff
   // between relevance and completeness of the stack frames shown on the
   // console. Setting`stackFiltering` to `'verbose'` applies no filters, providing
-  // the raw stack frames that can be quite versbose. Setting
+  // the raw stack frames that can be quite verbose. Setting
   // `stackFrameFiltering` to`'concise'` limits the display to the stack frame
   // information most likely to be relevant, eliminating distracting frames
   // such as those from the infrastructure. However, the bug you're trying to
-  // track down might be in the infrastrure, in which case the `'verbose'` setting
+  // track down might be in the infrastructure, in which case the `'verbose'` setting
   // is useful. See
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/docs/lockdown.md#stackfiltering-options)
   // for an explanation.
@@ -189,6 +199,10 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
+    // TODO: Remove '_legacy' when breaking change introduced (hostEvaluators: 'all' as default), where strict CSPs will require 'none'.
+    hostEvaluators = /** @type { '_legacy' | 'all' | 'none' | 'no-direct'  } */ (
+      getenv('LOCKDOWN_HOST_EVALUATORS', '_legacy')
+    ),
     legacyRegeneratorRuntimeTaming = getenv(
       'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
       'safe',
@@ -211,6 +225,17 @@ export const repairIntrinsics = (options = {}) => {
     evalTaming === 'noEval' || // deprecated
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
+  // TODO: Remove '_legacy' when breaking change introduced (hostEvaluators: 'all' as default), where strict CSPs will require 'none'.
+  hostEvaluators === '_legacy' || // deprecated
+    hostEvaluators === 'all' ||
+    hostEvaluators === 'none' ||
+    hostEvaluators === 'no-direct' ||
+    Fail`lockdown(): non supported option hostEvaluators: ${q(hostEvaluators)}`;
+
+  evalTaming === 'safeEval' &&
+    hostEvaluators === 'no-direct' &&
+    Fail`lockdown(): option evalTaming: ${q(evalTaming)} is incompatible with hostEvaluators: ${q(hostEvaluators)}`;
+
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
   const extraOptionsNames = ownKeys(extraOptions);
@@ -221,15 +246,21 @@ export const repairIntrinsics = (options = {}) => {
   const { warn } = reporter;
 
   if (dateTaming !== undefined) {
-    // eslint-disable-next-line no-console
     warn(
       `SES The 'dateTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
     );
   }
   if (mathTaming !== undefined) {
-    // eslint-disable-next-line no-console
     warn(
       `SES The 'mathTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
+    );
+  }
+  if (
+    hostEvaluators === '_legacy' // deprecated
+  ) {
+    // TODO: Remove when 'all' introduced as the new default option (breaking change).
+    warn(
+      `SES Please now use the 'hostEvaluators' option, which will default to 'all'. In the future, not specifying 'none' will fail with a strict CSP.`,
     );
   }
 
@@ -245,7 +276,40 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  assertDirectEvalAvailable();
+  const { functionAllowed, evalAllowed, directEvalAllowed } =
+    probeHostEvaluators();
+
+  // This could be a strict Content Security Policy containing either a `default-src` or a `script-src` directive, or an ES host with broken APIs.
+  const noEvaluators = !evalAllowed && !functionAllowed; // eval() itself and the Function() constructor are not allowed to execute.
+
+  hostEvaluators === 'all' &&
+    !(evalAllowed && functionAllowed) &&
+    Fail`'hostEvaluators' was set to 'all', but the Function() constructor and eval() are not allowed to execute (SES_DIRECT_EVAL)`;
+
+  hostEvaluators === 'none' &&
+    !noEvaluators &&
+    Fail`'hostEvaluators' was set to 'none', but the Function() constructor or eval() are allowed to execute (SES_DIRECT_EVAL)`;
+
+  hostEvaluators === 'no-direct' &&
+    directEvalAllowed &&
+    Fail`'hostEvaluators' was set to 'no-direct', but direct eval is available (SES_DIRECT_EVAL)`;
+
+  hostEvaluators === 'no-direct' &&
+    noEvaluators &&
+    Fail`'hostEvaluators' was set to 'no-direct', but all evaluators seem blocked (SES_DIRECT_EVAL)`;
+
+  // TODO: Remove '_legacy' when 'all' introduced as the new default option (breaking change).
+  // For backwards compatibility under '_legacy', we do not fail with a strict CSP, since directEvalAllowed remains undefined.
+  if (
+    (hostEvaluators === '_legacy' || // deprecated
+      hostEvaluators === 'all') &&
+    directEvalAllowed === false
+  ) {
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
+    throw TypeError(
+      "SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct eval (dynamically scoped eval) (SES_DIRECT_EVAL)",
+    );
+  }
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
@@ -409,6 +473,7 @@ export const repairIntrinsics = (options = {}) => {
     newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
+    hostEvaluators,
   });
 
   if (
