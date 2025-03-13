@@ -208,6 +208,6 @@ export const ErrorHelper = harden({
 
   canBeValid: checkErrorLike,
 
-  assertValid: (candidate, passStyleOfRecur) =>
+  assertRestValid: (candidate, passStyleOfRecur) =>
     checkRecursivelyPassableError(candidate, passStyleOfRecur, assertChecker),
 });

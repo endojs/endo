@@ -1,8 +1,9 @@
-/* Provides language behavior (parser) for importing CommonJS as a virtual
- * module source.
+/**
+ * @module Provides language behavior (parser) for importing CommonJS as a
+ * virtual module source.
  */
 
-// @ts-check
+/** @import {ParseFn} from './types.js' */
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
@@ -11,7 +12,7 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseCjs = (
   bytes,
   _specifier,
@@ -40,7 +41,7 @@ export const parseCjs = (
    */
   const execute = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
-      `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
+      `(function (require, exports, module, __filename, __dirname) { 'use strict'; ${source} })\n`,
     );
 
     const { require, moduleExports, module, afterExecute } = wrap({
@@ -51,7 +52,15 @@ export const parseCjs = (
       readPowers,
     });
 
-    functor(require, moduleExports, module, filename, dirname);
+    // In CommonJS, the top-level `this` is the `module.exports` object.
+    functor.call(
+      moduleExports,
+      require,
+      moduleExports,
+      module,
+      filename,
+      dirname,
+    );
 
     afterExecute();
   };

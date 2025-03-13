@@ -8,8 +8,8 @@ cd -- "$WORKDIR"
 
 (
   echo package.json
-  yarn workspaces --json info --silent |
-  jq -r '.data | fromjson | .[].location | "\(.)/package.json"' || true
+  npm query .workspace |
+  jq -r '.[].location | "\(.)/package.json"'
 ) |
 xargs jq '
   ((.dependencies // {}), (.devDependencies // {}))

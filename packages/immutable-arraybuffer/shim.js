@@ -1,11 +1,18 @@
-import { transferBufferToImmutable, isBufferImmutable } from './index.js';
+import {
+  transferBufferToImmutable,
+  isBufferImmutable,
+  sliceBufferToImmutable,
+} from './index.js';
 
 const { getOwnPropertyDescriptors, defineProperties } = Object;
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
 
 const arrayBufferMethods = {
-  transferToImmutable() {
-    return transferBufferToImmutable(this);
+  transferToImmutable(newLength = undefined) {
+    return transferBufferToImmutable(this, newLength);
+  },
+  sliceToImmutable(start = undefined, end = undefined) {
+    return sliceBufferToImmutable(this, start, end);
   },
   get immutable() {
     return isBufferImmutable(this);

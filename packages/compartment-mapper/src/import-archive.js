@@ -1,4 +1,5 @@
-/* Provides functions for evaluating modules in an archive (a zip file
+/**
+ * @module Provides functions for evaluating modules in an archive (a zip file
  * with a `compartment-map.json` and a file for a module and each of its
  * transitive dependencies.)
  *
@@ -13,7 +14,19 @@
  * dependency on Babel.
  */
 
-// @ts-check
+/**
+ * @import {
+ *   Application,
+ *   ComputeSourceLocationHook,
+ *   ComputeSourceMapLocationHook,
+ *   ExecuteOptions,
+ *   ExitModuleImportHook,
+ *   HashFn,
+ *   LoadArchiveOptions,
+ *   ReadPowers,
+ *   ParserForLanguage,
+ * } from './types.js'
+ */
 
 import { defaultParserForLanguage } from './import-archive-parsers.js';
 import {
@@ -23,16 +36,6 @@ import {
 } from './import-archive-lite.js';
 
 const { assign, create, freeze } = Object;
-
-/** @import {Application} from './types.js' */
-/** @import {ComputeSourceLocationHook} from './types.js' */
-/** @import {ComputeSourceMapLocationHook} from './types.js' */
-/** @import {ExecuteOptions} from './types.js' */
-/** @import {ExitModuleImportHook} from './types.js' */
-/** @import {HashFn} from './types.js' */
-/** @import {LoadArchiveOptions} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {ParserForLanguage} from './types.js' */
 
 // Must give the type of Compartment a name to capture the external meaning of
 // Compartment Otherwise @param {typeof Compartment} takes the Compartment to

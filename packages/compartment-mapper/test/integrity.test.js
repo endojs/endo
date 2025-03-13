@@ -1,4 +1,3 @@
-// @ts-check
 import 'ses';
 import test from 'ava';
 import { ZipReader, ZipWriter } from '@endo/zip';

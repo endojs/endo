@@ -1,4 +1,6 @@
-/* Provides the linking behavior shared by all Compartment Mapper workflows.
+/**
+ * @module Provides the linking behavior shared by all Compartment Mapper
+ * workflows.
  * This involves creating and configuring compartments according to the
  * specifications in a compartment map, and is suitable for compartment maps
  * that just outline the locations of compartments and their inter-linkage and
@@ -6,26 +8,22 @@
  * dependencies of their entry module.
  */
 
-// @ts-check
-
-/** @import {ModuleMapHook} from 'ses' */
 /**
+ * @import {ModuleMapHook} from 'ses'
  * @import {
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
  *   ImportNowHookMaker,
- *   LanguageForExtension,
  *   LinkOptions,
  *   LinkResult,
  *   ModuleDescriptor,
  *   ParseFn,
- *   ParseFnAsync,
+ *   AsyncParseFn,
  *   ParserForLanguage,
  *   ParserImplementation,
  *   ShouldDeferError,
  * } from './types.js'
  */
-/** @import {ERef} from '@endo/eventual-send' */
 
 import { makeMapParsers } from './map-parser.js';
 import { resolve as resolveFallback } from './node-module-specifier.js';
@@ -43,7 +41,7 @@ const { allSettled } = Promise;
 
 /**
  * @template T
- * @type {(iterable: Iterable<ERef<T>>) => Promise<Array<PromiseSettledResult<T>>>}
+ * @type {(iterable: Iterable<Promise<T>>) => Promise<Array<PromiseSettledResult<T>>>}
  */
 const promiseAllSettled = allSettled.bind(Promise);
 
@@ -112,6 +110,8 @@ const makeModuleMapHook = (
 
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
+      moduleDescriptor.retained = true;
+
       // "foreignCompartmentName" refers to the compartment which
       // may differ from the current compartment
       const {
@@ -193,6 +193,7 @@ const makeModuleMapHook = (
         // a moduleMapHook when we assemble compartments from the resulting
         // archive.
         moduleDescriptors[moduleSpecifier] = {
+          retained: true,
           compartment: foreignCompartmentName,
           module: foreignModuleSpecifier,
         };
@@ -252,12 +253,12 @@ export const link = (
     makeImportHook,
     makeImportNowHook = impossibleImportNowHookMaker,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
     globals = {},
     transforms = [],
     moduleTransforms,
     syncModuleTransforms,
     __shimTransforms__ = [],
+    __native__ = false,
     archiveOnly = false,
     Compartment = defaultCompartment,
   } = options;
@@ -277,10 +278,6 @@ export const link = (
 
   const pendingJobs = [];
 
-  /** @type {LanguageForExtension} */
-  const defaultLanguageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
-  );
   /** @type {ParserForLanguage} */
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
@@ -298,8 +295,8 @@ export const link = (
     const {
       location,
       name,
-      parsers: languageForExtensionOverrides = {},
-      types: languageForModuleSpecifierOverrides = {},
+      parsers: languageForExtension = {},
+      types: languageForModuleSpecifier = {},
     } = compartmentDescriptor;
 
     // this is for retaining the correct type inference about these values
@@ -312,22 +309,9 @@ export const link = (
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
-    /** @type {Record<string, string>} */
-    const languageForModuleSpecifier = freeze(
-      assign(create(null), languageForModuleSpecifierOverrides),
-    );
-    /** @type {LanguageForExtension} */
-    const languageForExtension = freeze(
-      assign(
-        create(null),
-        defaultLanguageForExtension,
-        languageForExtensionOverrides,
-      ),
-    );
-
     // TS is kind of dumb about this, so we can use a type assertion to avoid a
     // pointless ternary.
-    const parse = /** @type {ParseFn|ParseFnAsync} */ (
+    const parse = /** @type {ParseFn|AsyncParseFn} */ (
       mapParsers(languageForExtension, languageForModuleSpecifier)
     );
 
@@ -379,6 +363,7 @@ export const link = (
       transforms,
       __shimTransforms__,
       __options__: true,
+      __native__,
     });
 
     if (!archiveOnly) {

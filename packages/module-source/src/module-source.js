@@ -82,6 +82,7 @@ export function ModuleSource(source, opts = {}) {
     reexportMap,
     fixedExportMap,
     exportAlls,
+    needsImport,
     needsImportMeta,
   } = analyzeModule(source, opts);
   this.imports = freeze([...keys(imports)]);
@@ -97,6 +98,7 @@ export function ModuleSource(source, opts = {}) {
   this.__liveExportMap__ = liveExportMap;
   this.__reexportMap__ = reexportMap;
   this.__fixedExportMap__ = fixedExportMap;
+  this.__needsImport__ = needsImport;
   this.__needsImportMeta__ = needsImportMeta;
   freeze(this);
 }

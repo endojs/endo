@@ -1,12 +1,20 @@
-/* Provides the behavior for `node-modules.js` to find modules and packages
- * according to the Node.js `node_modules` convention.
+/**
+ * @module Provides the behavior for `node-modules.js` to find modules and
+ * packages according to the Node.js `node_modules` convention.
  */
 
-// @ts-check
-
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
+/**
+ * @import {
+ *   ReadFn,
+ *   ReadPowers,
+ *   MaybeReadPowers,
+ *   SearchOptions,
+ *   SearchResult,
+ *   SearchDescriptorResult,
+ *   MaybeReadDescriptorFn,
+ *   SearchDescriptorOptions,
+ * } from './types.js'
+ */
 
 import { relativize } from './node-module-specifier.js';
 import { relative } from './url.js';
@@ -14,6 +22,11 @@ import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
+
+/**
+ * Default logger that does nothing
+ */
+const noop = () => {};
 
 const decoder = new TextDecoder();
 
@@ -32,10 +45,15 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  *
  * @template T
  * @param {string} location
- * @param {(location:string)=>Promise<T|undefined>} maybeReadDescriptor
- * @returns {Promise<{data:T, directory: string, location:string, packageDescriptorLocation: string}>}
+ * @param {MaybeReadDescriptorFn<T>} maybeReadDescriptor
+ * @param {SearchDescriptorOptions} options
+ * @returns {Promise<SearchDescriptorResult<T>>}
  */
-export const searchDescriptor = async (location, maybeReadDescriptor) => {
+export const searchDescriptor = async (
+  location,
+  maybeReadDescriptor,
+  { log: _log = noop } = {},
+) => {
   await null;
   let directory = resolveLocation('./', location);
   for (;;) {
@@ -88,17 +106,19 @@ const maybeReadDescriptorDefault = async (
  *
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} moduleLocation
- * @returns {Promise<{
- *   packageLocation: string,
- *   packageDescriptorLocation: string,
- *   packageDescriptorText: string,
- *   moduleSpecifier: string,
- * }>}
+ * @param {SearchOptions} [options]
+ * @returns {Promise<SearchResult>}
  */
-export const search = async (readPowers, moduleLocation) => {
+export const search = async (
+  readPowers,
+  moduleLocation,
+  { log = noop } = {},
+) => {
   const { data, directory, location, packageDescriptorLocation } =
-    await searchDescriptor(moduleLocation, loc =>
-      maybeReadDescriptorDefault(readPowers, loc),
+    await searchDescriptor(
+      moduleLocation,
+      loc => maybeReadDescriptorDefault(readPowers, loc),
+      { log },
     );
 
   if (!data) {

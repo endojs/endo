@@ -1,8 +1,9 @@
-/* Provides language behavior for analyzing, pre-compiling, and storing
+/**
+ * @module Provides language behavior for analyzing, pre-compiling, and storing
  * CommonJS modules for an archive.
  */
 
-// @ts-check
+/** @import {ParseFn} from './types.js' */
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 
@@ -15,14 +16,17 @@ const freeze = Object.freeze;
 const noopExecute = () => {};
 freeze(noopExecute);
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseArchiveCjs = (
   bytes,
-  specifier,
+  _specifier,
   location,
   _packageLocation,
+  options = {},
 ) => {
   const source = textDecoder.decode(bytes);
+
+  const { archiveOnly = false } = options;
 
   const {
     requires: imports,
@@ -34,18 +38,20 @@ export const parseArchiveCjs = (
     exports.push('default');
   }
 
-  const cjsWrappedSource = `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n`;
+  let cjsFunctor = `(function (require, exports, module, __filename, __dirname) { 'use strict'; ${source} //*/\n})\n`;
 
   const pre = textEncoder.encode(
     JSON.stringify({
       imports,
       exports,
       reexports,
-      source: cjsWrappedSource,
+      source: cjsFunctor,
     }),
   );
 
-  const cjsFunctor = `${cjsWrappedSource}//# sourceURL=${location}\n`;
+  if (!archiveOnly) {
+    cjsFunctor = `${cjsFunctor}//# sourceURL=${location}\n`;
+  }
 
   return {
     parser: 'pre-cjs-json',

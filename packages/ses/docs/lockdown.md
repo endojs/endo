@@ -27,8 +27,9 @@ Each option is explained in its own section below.
 | `consoleTaming`                  | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
 | `errorTaming`                    | `'safe'`         | `'unsafe'` `'unsafe-debug'`            | `errorInstance.stack`      ([details](#errortaming-options)) |
 | `errorTrapping`                  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
+| `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
 | `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
-| `evalTaming`                     | `'safeEval'`     | `'unsafeEval'` `'noEval'`              | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
+| `evalTaming`                     | `'safe-eval'`    | `'unsafe-eval'` `'no-eval'`            | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
 | `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
 | `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
 | `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
@@ -47,6 +48,7 @@ for threading environment variables into a JavaScript program.
 | `consoleTaming`                  | `LOCKDOWN_CONSOLE_TAMING`                    |                       |
 | `errorTaming`                    | `LOCKDOWN_ERROR_TAMING`                      |                       |
 | `errorTrapping`                  | `LOCKDOWN_ERROR_TRAPPING`                    |                       |
+| `reporting`                      | `LOCKDOWN_REPORTING`                         |                       |
 | `unhandledRejectionTrapping`     | `LOCKDOWN_UNHANDLED_REJECTION_TRAPPING`      |                       |
 | `evalTaming`                     | `LOCKDOWN_EVAL_TAMING`                       |                       |
 | `stackFiltering`                 | `LOCKDOWN_STACK_FILTERING`                   |                       |
@@ -318,7 +320,7 @@ However, with SES with the `'safe'` or `'unsafe'` settings of
 which is the one line of JavaScript the TypeScript compiled to.
 We would like to fix this while preserving safety, but have not yet done so.
 
-Instead, we introduce the `'unsafe-debug'` setting, which sarifices
+Instead, we introduce the `'unsafe-debug'` setting, which sacrifices
 more security to restore this pleasant Node behavior.
 Where `'safe'` and `'unsafe'` endangers only confidentiality, `'unsafe-debug'` also
 endangers intergrity. For development and debugging purposes ***only***,
@@ -459,6 +461,53 @@ the container to exit explicitly, and we highly recommend setting
 - `'none'`: do not install traps for uncaught exceptions. Errors are likely to
   appear as `{}` when they are reported by the default trap.
 
+## `reporting` Options
+
+**Background**: Lockdown and `repairIntrinsics` report warnings if they
+encounter unexpected but repairable variations on the shared intrinsics, which
+regularly occurs if the version of `ses` predates the introduction of new
+language features.
+With the `reporting` option, an application can mute or control the direction
+of these warnings.
+
+```js
+lockdown(); // reporting defaults to 'platform'
+// or
+lockdown({ reporting: 'platform' });
+// vs
+lockdown({ reporting: 'console' });
+// vs
+lockdown({ reporting: 'none' });
+```
+
+If `lockdown` does not receive a `reporting` option, it will respect
+`process.env.LOCKDOWN_REPORTING`.
+
+```console
+LOCKDOWN_REPORTING=platform
+LOCKDOWN_REPORTING=console
+LOCKDOWN_REPORTING=none
+```
+
+- The default behavior is `'platform'` which will detect the platform and
+  report warnings according to whether a web `console`, Node.js `console`, or
+  `print` are available.
+  The web platform is distinguished by the existence of `window` or
+  `importScripts` (WebWorker).
+  The Node.js behavior is to report all warnings to `stderr` visually
+  consistent with use of a console group.
+  SES will use `print` in the absence of a `console`.
+  Captures the platform `console` at the time `lockdown` or `repairIntrinsics`
+  are called, not at the time `ses` initializes.
+- The `'console'` option forces the web platform behavior.
+  On Node.js, this results in group labels being reported to `stdout`.
+  The global `console` can be replaced before `lockdown` so using this option
+  will drive use of `console.groupCollapsed`, `console.groupEnd`,
+  `console.warn`, and `console.error` assuming that console is suited for
+  reporting arbitrary diagnostics rather than also being suited to generate
+  machine-readable `stdout`.
+- The `'none'` option mutes warnings.
+
 ## `unhandledRejectionTrapping` Options
 
 **Background**: Same concerns as `errorTrapping`, but in addition, SES will
@@ -525,15 +574,15 @@ The default lockdown behavior isolates all of these evaluators.
 
 Replacing the realm's initial evaluators is not necessary to ensure the
 isolation of guest code because guest code must not run in the start compartment.
-Although the code run in the start compartment is normally referred to as "trusted", we mean only that we assume it was not written maliciously. It may still be buggy, and it may be buggy in a way that is exploitable by malicious guest code. To limit the harm that such vulnerabilities can cause, the default (`"safeEval"`) setting replaces the evaluators of the start compartment with their safe alternatives.
+Although the code run in the start compartment is normally referred to as "trusted", we mean only that we assume it was not written maliciously. It may still be buggy, and it may be buggy in a way that is exploitable by malicious guest code. To limit the harm that such vulnerabilities can cause, the default (`"safe-eval"`) setting replaces the evaluators of the start compartment with their safe alternatives.
 
 However, in the shim, only the exact `eval` function from the start compartment can be used to
-perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (direct-eval is a special form rather than a function call).
+perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (the direct-eval syntax is a special form rather than a function call).
 The SES shim itself uses direct-eval internally to construct an isolated
 evaluator, so replacing the initial `eval` prevents any subsequent program
 from using the same mechanism to isolate a guest program.
 
-The `"unsafeEval"` option for `evalTaming` leaves the original `eval` in place
+The `"unsafe-eval"` option for `evalTaming` leaves the original `eval` in place
 for other isolation mechanisms like isolation code generators that work in
 tandem with SES.
 This option may be useful for web pages with an environment that allows `unsafe-eval`,
@@ -544,28 +593,28 @@ In these cases, SES cannot be responsible for maintaining the isolation of
 guest code. If you're going to use `eval`, [Trusted
 Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types) may help maintain security.
 
-The `"noEval"` option emulates a Content Security Policy that disallows
+The `"no-eval"` option emulates a Content Security Policy that disallows
 `unsafe-eval` by replacing all evaluators with functions that throw an
 exception.
 
 ```js
-lockdown(); // evalTaming defaults to 'safeEval'
+lockdown(); // evalTaming defaults to 'safe-eval'
 // or
-lockdown({ evalTaming: 'noEval' }); // disallowing calling eval like there is a CSP limitation.
+lockdown({ evalTaming: 'no-eval' }); // disallowing calling eval like there is a CSP limitation.
 // vs
 
 // Please use this option with caution.
 // You may want to use Trusted Types or Content Security Policy with this option.
-lockdown({ evalTaming: 'unsafeEval' });
+lockdown({ evalTaming: 'unsafe-eval' });
 ```
 
 If `lockdown` does not receive an `evalTaming` option, it will respect
 `process.env.LOCKDOWN_EVAL_TAMING`.
 
 ```console
-LOCKDOWN_EVAL_TAMING=safeEval
-LOCKDOWN_EVAL_TAMING=noEval
-LOCKDOWN_EVAL_TAMING=unsafeEval
+LOCKDOWN_EVAL_TAMING=safe-eval
+LOCKDOWN_EVAL_TAMING=no-eval
+LOCKDOWN_EVAL_TAMING=unsafe-eval
 ```
 
 ## `stackFiltering` Options
@@ -721,7 +770,7 @@ we now step into every access to an enabled property. Every read steps into
 the enabling getter. This adds yet more noise to the debugging experience.
 
 The file [src/enablements.js](../src/enablements.js) exports three different
-whitelists definining which data properties to convert to enable override by
+lists definining which data properties to convert to enable override by
 assignment, `minEnablements`, `moderateEnablements`, and `severeEnablements`.
 
 ```js
@@ -803,7 +852,7 @@ mistake, set the options as follows:
 }
 ```
 
-If `lockdown` does not receive a `regExpTaming` option, it will respect
+If `lockdown` does not receive an `overrideDebug` option, it will respect
 `process.env.LOCKDOWN_OVERRIDE_DEBUG`, a comma-separated list of property names
 on shared intrinsics to replace with debugger accessors.
 

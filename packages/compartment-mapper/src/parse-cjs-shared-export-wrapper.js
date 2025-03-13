@@ -1,14 +1,12 @@
-/* Provides shared functionality for {@link parse-cjs.js} and {@link
+/**
+ * @module Provides shared functionality for {@link parse-cjs.js} and {@link
  * parse-archive-cjs.js} toward importing or archiving CommonJS as a virtual
  * module source.
  */
 
+/** @import {ReadFn, ReadPowers} from './types.js' */
+
 import { findInvalidReadNowPowersProps, isReadNowPowers } from './powers.js';
-
-// @ts-check
-
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
 
 const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
@@ -20,6 +18,9 @@ const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
 
+/**
+ * @param {string} path
+ */
 const noTrailingSlash = path => {
   const l = path.length - 1;
   return path[l] === '\\' || path[l] === '/' ? path.slice(0, -1) : path;

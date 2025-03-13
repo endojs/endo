@@ -1,7 +1,8 @@
 /* Validates a compartment map against its schema. */
 
-// @ts-check
 import { assertPackagePolicy } from './policy-format.js';
+
+/** @import {CompartmentMapDescriptor} from './types.js' */
 
 // TODO convert to the new `||` assert style.
 // Deferred because this file pervasively uses simple template strings rather than
@@ -107,7 +108,7 @@ const assertConditions = (conditions, url) => {
  * @param {string} url
  */
 const assertCompartmentModule = (allegedModule, path, url) => {
-  const { compartment, module, ...extra } = allegedModule;
+  const { compartment, module, retained, ...extra } = allegedModule;
   assertEmptyObject(
     extra,
     `${path} must not have extra properties, got ${q({
@@ -125,6 +126,13 @@ const assertCompartmentModule = (allegedModule, path, url) => {
     'string',
     `${path}.module must be a string, got ${q(module)} in ${q(url)}`,
   );
+  if (retained !== undefined) {
+    assert.typeof(
+      retained,
+      'boolean',
+      `${path}.retained must be a boolean, got ${q(retained)} in ${q(url)}`,
+    );
+  }
 };
 
 /**
@@ -464,7 +472,7 @@ const assertEntry = (allegedEntry, url) => {
 /**
  * @param {unknown} allegedCompartmentMap
  * @param {string} [url]
- * @returns {asserts allegedCompartmentMap is import('./types.js').CompartmentMapDescriptor}
+ * @returns {asserts allegedCompartmentMap is CompartmentMapDescriptor}
  */
 
 export const assertCompartmentMap = (

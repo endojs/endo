@@ -9,15 +9,14 @@ export default {
     const json = JSON.stringify(JSON.parse(textDecoder.decode(bytes)));
     return {
       getFunctor: () => `\
-// === functors[${index}] ===
-(set) => set(${json}),
+${json},
 `,
       getCells: () => `\
     { default: cell('default') },
 `,
       getReexportsWiring: () => '',
       getFunctorCall: () => `\
-  functors[${index}](cells[${index}].default.set);
+  cells[${index}].default.set(functors[${index}]);
 `,
     };
   },

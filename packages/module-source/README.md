@@ -74,6 +74,15 @@ the hook returns a promise, it will be dropped and rejections will go uncaught.
 If the hook must do async work, these should be queued up as a job that the
 caller can later await.
 
+## XS Specific Variant
+
+With the `xs` condition, `@endo/module-source` will not entrain Babel and will
+just adapt the native `ModuleSource` to the older interface presented by this
+package.
+That is, the XS native `bindings` will be translated to `imports`, `exports`,
+and `reexports` getters.
+This form of `ModuleSource` ignores all options.
+
 ## Bug Disclosure
 
 Please help us practice coordinated security bug disclosure, by using the

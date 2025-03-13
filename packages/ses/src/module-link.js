@@ -76,27 +76,27 @@ function mayBeVirtualModuleSource(moduleSource) {
 function validateVirtualModuleSource(moduleSource, moduleSpecifier) {
   const { exports } = moduleSource;
   isArray(exports) ||
-    Fail`Property 'exports' of a third-party module source must be an array, got ${q(
+    Fail`Invalid module source: 'exports' of a virtual module source must be an array, got ${q(
       exports,
     )}, for module ${q(moduleSpecifier)}`;
 }
 
 function validateModuleSource(moduleSource, moduleSpecifier) {
   isObject(moduleSource) ||
-    Fail`Module sources must be of type object, got ${q(
+    Fail`Invalid module source: must be of type object, got ${q(
       moduleSource,
     )}, for module ${q(moduleSpecifier)}`;
   const { imports, exports, reexports = [] } = moduleSource;
   isArray(imports) ||
-    Fail`Property 'imports' of a module source must be an array, got ${q(
+    Fail`Invalid module source: 'imports' must be an array, got ${q(
       imports,
     )}, for module ${q(moduleSpecifier)}`;
   isArray(exports) ||
-    Fail`Property 'exports' of a precompiled module source must be an array, got ${q(
+    Fail`Invalid module source: 'exports' must be an array, got ${q(
       exports,
     )}, for module ${q(moduleSpecifier)}`;
   isArray(reexports) ||
-    Fail`Property 'reexports' of a precompiled module source must be an array if present, got ${q(
+    Fail`Invalid module source: 'reexports' must be an array if present, got ${q(
       reexports,
     )}, for module ${q(moduleSpecifier)}`;
 }
@@ -138,9 +138,7 @@ export const instantiate = (
       resolvedImports,
     );
   } else {
-    throw TypeError(
-      `importHook must provide a module source, got ${q(moduleSource)}`,
-    );
+    throw TypeError(`Invalid module source, got ${q(moduleSource)}`);
   }
 
   // Memoize.

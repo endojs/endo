@@ -52,6 +52,7 @@ The emulated immutable buffers inherit directly from an intermediate prototype w
 
 The immutable-arraybuffer shim additionally adds to `ArrayBuffer.prototype` a
 - `transferToImmutable` method trivially derived from the ponyfill's `transferBufferToImmutable`.
+- `sliceToImmutable` method trivially derived from the ponyfill's `sliceBufferToImmutable`.
 - `immutable` read-only accessor property trivially derived from the ponyfill's `isBufferImmutable`.
 
 ## Caveats

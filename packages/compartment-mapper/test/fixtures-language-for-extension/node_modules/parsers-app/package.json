@@ -1,0 +1,9 @@
+{
+  "name": "app",
+  "parsers": {
+    "xsonp": "jsonp"
+  },
+  "scripts": {
+    "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
+  }
+}

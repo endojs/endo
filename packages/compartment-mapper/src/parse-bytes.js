@@ -1,18 +1,20 @@
-/* Provides rudimentary support for treating an arbitrary file as a module that
- * exports the bytes of that file.
+/**
+ * @module Provides rudimentary support for treating an arbitrary file as a
+ * module that exports the bytes of that file.
  */
 
-// @ts-check
+/** @import {Harden} from 'ses' */
+/** @import {ParseFn} from './types.js' */
 
 /**
  * TypeScript cannot be relied upon to deal with the nuances of Readonly, so we
  * borrow the pass-through type definition of harden here.
  *
- * @type {import('ses').Harden}
+ * @type {Harden}
  */
 const freeze = Object.freeze;
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseBytes = (bytes, _specifier, _location, _packageLocation) => {
   // Snapshot ArrayBuffer
   const buffer = new ArrayBuffer(bytes.length);

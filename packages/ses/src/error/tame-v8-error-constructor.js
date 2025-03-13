@@ -19,8 +19,8 @@ import {
   TypeError,
 } from '../commons.js';
 
-// Whitelist names from https://v8.dev/docs/stack-trace-api
-// Whitelisting only the names used by error-stack-shim/src/v8StackFrames
+// Permit names from https://v8.dev/docs/stack-trace-api
+// Permiting only the names used by error-stack-shim/src/v8StackFrames
 // callSiteToFrame to shim the error stack proposal.
 const safeV8CallSiteMethodNames = [
   // suppress 'getThis' definitely
@@ -45,7 +45,7 @@ const safeV8CallSiteMethodNames = [
   'getPosition',
   'getScriptNameOrSourceURL',
 
-  'toString', // TODO replace to use only whitelisted info
+  'toString', // TODO replace to use only permitted info
 ];
 
 // TODO this is a ridiculously expensive way to attenuate callsites.

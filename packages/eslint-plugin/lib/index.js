@@ -1,5 +1,5 @@
 /**
- * @fileoverview Agoric-specific plugin
+ * @module Agoric-specific plugin
  * @author Agoric
  */
 'use strict';

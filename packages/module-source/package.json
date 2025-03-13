@@ -1,6 +1,6 @@
 {
   "name": "@endo/module-source",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Ponyfill for the SES ModuleSource and module-to-program transformer",
   "keywords": [
     "ses",
@@ -22,7 +22,10 @@
   "type": "module",
   "main": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "xs": "./src-xs/index.js",
+      "default": "./index.js"
+    },
     "./shim.js": "./shim.js",
     "./package.json": "./package.json"
   },
@@ -35,13 +38,14 @@
     "lint:types": "tsc",
     "lint:eslint": "eslint .",
     "lint-fix": "eslint --fix .",
-    "test": "ava"
+    "test": "ava",
+    "test:xs": "node scripts/generate-test-xs.js && xst tmp/test-xs.js"
   },
   "dependencies": {
-    "@agoric/babel-generator": "^7.17.6",
-    "@babel/parser": "^7.23.6",
-    "@babel/traverse": "^7.23.6",
-    "@babel/types": "^7.24.0",
+    "@babel/generator": "^7.26.3",
+    "@babel/parser": "~7.26.2",
+    "@babel/traverse": "~7.25.9",
+    "@babel/types": "~7.26.0",
     "ses": "workspace:^"
   },
   "devDependencies": {
@@ -54,8 +58,8 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.29.1",
-    "prettier": "^3.2.5",
-    "typescript": "~5.6.2"
+    "prettier": "^3.3.3",
+    "typescript": "~5.6.3"
   },
   "files": [
     "./*.d.ts",

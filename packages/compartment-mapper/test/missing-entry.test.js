@@ -1,6 +1,5 @@
 import 'ses';
 import test from 'ava';
-import path from 'path';
 import fs from 'fs';
 import url from 'url';
 import crypto from 'crypto';
@@ -11,9 +10,10 @@ import { makeReadPowers } from '../node-powers.js';
 const readPowers = makeReadPowers({ fs, url, crypto });
 
 test('missing entry', async t => {
-  const entry = url.pathToFileURL(
-    path.resolve('i-solemnly-swear-i-do-not-exist.js'),
-  );
+  const entry = new URL(
+    'fixtures-missing/i-solemnly-swear-i-do-not-exist.js',
+    import.meta.url,
+  ).href;
   await t.throwsAsync(
     makeAndHashArchive(readPowers, entry, {}).then(() => {}),
     {

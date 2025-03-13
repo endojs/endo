@@ -1,4 +1,5 @@
-/* Provides mechanisms for creating archives (zip files with a
+/**
+ * @module Provides mechanisms for creating archives (zip files with a
  * `compartmeent-map.json` and a file for every static dependency of an entry
  * module).
  *
@@ -13,7 +14,16 @@
  * for cases like XS native Compartments where pre-compilation is not
  * necessary or where the dependency on Babel can be dererred to runtime.
  */
-// @ts-check
+
+/**
+ * @import {
+ *   ArchiveOptions,
+ *   ReadFn,
+ *   ReadPowers,
+ *   HashPowers,
+ *   WriteFn,
+ * } from './types.js'
+ */
 
 import { defaultParserForLanguage } from './archive-parsers.js';
 import { mapNodeModules } from './node-modules.js';
@@ -27,12 +37,6 @@ import {
 
 const { assign, create, freeze } = Object;
 
-/** @import {ArchiveOptions} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {HashPowers} from './types.js' */
-/** @import {WriteFn} from './types.js' */
-
 /**
  * Add the default parserForLanguage option.
  * @param {ArchiveOptions} [options]
@@ -43,7 +47,8 @@ const assignParserForLanguage = (options = {}) => {
   const parserForLanguage = freeze(
     assign(create(null), defaultParserForLanguage, parserForLanguageOption),
   );
-  return { ...rest, parserForLanguage };
+  const languages = Object.keys(parserForLanguage);
+  return { ...rest, parserForLanguage, languages };
 };
 
 /**
@@ -57,12 +62,16 @@ export const makeAndHashArchive = async (
   moduleLocation,
   options = {},
 ) => {
-  const compartmentMap = await mapNodeModules(powers, moduleLocation, options);
-  return makeAndHashArchiveFromMap(
-    powers,
-    compartmentMap,
-    assignParserForLanguage(options),
-  );
+  const { parserForLanguage, languages, ...otherOptions } =
+    assignParserForLanguage(options);
+  const compartmentMap = await mapNodeModules(powers, moduleLocation, {
+    languages,
+    ...otherOptions,
+  });
+  return makeAndHashArchiveFromMap(powers, compartmentMap, {
+    parserForLanguage,
+    ...otherOptions,
+  });
 };
 
 /**
@@ -72,20 +81,43 @@ export const makeAndHashArchive = async (
  * @returns {Promise<Uint8Array>}
  */
 export const makeArchive = async (powers, moduleLocation, options = {}) => {
-  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
-
+  const {
+    dev,
+    tags,
+    conditions = tags,
+    strict = false,
+    commonDependencies,
+    policy,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    parserForLanguage,
+    languages,
+    ...otherOptions
+  } = assignParserForLanguage(options);
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    languages,
   });
 
-  return makeArchiveFromMap(
-    powers,
-    compartmentMap,
-    assignParserForLanguage(options),
-  );
+  return makeArchiveFromMap(powers, compartmentMap, {
+    parserForLanguage,
+    policy,
+    ...otherOptions,
+  });
 };
 
 /**
@@ -95,16 +127,44 @@ export const makeArchive = async (powers, moduleLocation, options = {}) => {
  * @returns {Promise<Uint8Array>}
  */
 export const mapLocation = async (powers, moduleLocation, options = {}) => {
-  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
+  const {
+    dev,
+    tags,
+    conditions = tags,
+    strict = false,
+    commonDependencies,
+    policy,
+    parserForLanguage,
+    languages,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    ...otherOptions
+  } = assignParserForLanguage(options);
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
+    languages,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
   });
 
-  return mapFromMap(powers, compartmentMap, assignParserForLanguage(options));
+  return mapFromMap(powers, compartmentMap, {
+    parserForLanguage,
+    policy,
+    ...otherOptions,
+  });
 };
 
 /**
@@ -114,16 +174,44 @@ export const mapLocation = async (powers, moduleLocation, options = {}) => {
  * @returns {Promise<string>}
  */
 export const hashLocation = async (powers, moduleLocation, options = {}) => {
-  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
+  const {
+    dev,
+    tags,
+    conditions = tags,
+    strict = false,
+    commonDependencies,
+    policy,
+    parserForLanguage,
+    languages,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    ...otherOptions
+  } = assignParserForLanguage(options);
 
   const compartmentMap = await mapNodeModules(powers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
+    languages,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
   });
 
-  return hashFromMap(powers, compartmentMap, assignParserForLanguage(options));
+  return hashFromMap(powers, compartmentMap, {
+    parserForLanguage,
+    policy,
+    ...otherOptions,
+  });
 };
 
 /**
@@ -140,18 +228,42 @@ export const writeArchive = async (
   moduleLocation,
   options = {},
 ) => {
-  const { dev, tags, conditions = tags, commonDependencies, policy } = options;
+  const {
+    dev,
+    tags,
+    conditions = tags,
+    strict = false,
+    commonDependencies,
+    policy,
+    parserForLanguage,
+    languages,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    ...otherOptions
+  } = assignParserForLanguage(options);
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
     dev,
+    strict,
     conditions,
     commonDependencies,
     policy,
+    languageForExtension,
+    commonjsLanguageForExtension,
+    moduleLanguageForExtension,
+    workspaceLanguageForExtension,
+    workspaceCommonjsLanguageForExtension,
+    workspaceModuleLanguageForExtension,
+    languages,
   });
   return writeArchiveFromMap(
     write,
     readPowers,
     archiveLocation,
     compartmentMap,
-    assignParserForLanguage(options),
+    { policy, parserForLanguage, ...otherOptions },
   );
 };

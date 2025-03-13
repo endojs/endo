@@ -1,9 +1,12 @@
 /* eslint-disable no-shadow */
-// @ts-check
 /* eslint-disable import/no-dynamic-require */
 
-/** @import {ExitModuleImportNowHook, Policy} from '../src/types.js' */
-/** @import {SyncModuleTransforms} from '../src/types.js' */
+/**
+ * @import {
+ *   ExitModuleImportNowHook, Policy,
+ *   SyncModuleTransforms,
+ * } from '../src/types.js'
+ */
 
 import 'ses';
 import test from 'ava';
@@ -391,7 +394,7 @@ test('sync module transforms work with dynamic require support', async t => {
 
 test('sync module transforms work without dynamic require support', async t => {
   const fixture = new URL(
-    'fixtures-cjs-compat/node_modules/app/index.js',
+    'fixtures-dynamic/node_modules/static-app/index.js',
     import.meta.url,
   ).toString();
 
@@ -413,5 +416,5 @@ test('sync module transforms work without dynamic require support', async t => {
     syncModuleTransforms,
   });
 
-  t.true(transformCount === 29);
+  t.is(transformCount, 2);
 });

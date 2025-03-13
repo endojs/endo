@@ -3,6 +3,7 @@ import '../index.js';
 
 lockdown({ evalTaming: 'noEval' });
 
+// 'noEval' is deprecated, but testing that it still works
 test('no eval when evalTaming is noEval.', t => {
   // eslint-disable-next-line no-eval
   t.throws(() => eval('1+1'));

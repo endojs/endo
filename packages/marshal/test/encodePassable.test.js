@@ -4,7 +4,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { fc } from '@fast-check/ava';
 import { Remotable } from '@endo/pass-style';
-import { arbPassable } from '@endo/pass-style/tools.js';
+import { makeArbitraries } from '@endo/pass-style/tools.js';
 import { assert, Fail, q, b } from '@endo/errors';
 
 import {
@@ -14,6 +14,8 @@ import {
 } from '../src/encodePassable.js';
 import { compareRank, makeFullOrderComparatorKit } from '../src/rankOrder.js';
 import { unsortedSample } from './_marshal-test-data.js';
+
+const { arbPassable } = makeArbitraries(fc);
 
 const statelessEncodePassableLegacy = makeEncodePassable();
 

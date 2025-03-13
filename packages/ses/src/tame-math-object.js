@@ -6,10 +6,7 @@ import {
   objectPrototype,
 } from './commons.js';
 
-export default function tameMathObject(mathTaming = 'safe') {
-  if (mathTaming !== 'safe' && mathTaming !== 'unsafe') {
-    throw TypeError(`unrecognized mathTaming ${mathTaming}`);
-  }
+export default function tameMathObject() {
   const originalMath = Math;
   const initialMath = originalMath; // to follow the naming pattern
 

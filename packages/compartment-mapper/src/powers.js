@@ -1,19 +1,22 @@
-/* As the interface of the Compartment Mapper evolved, it became necessary to
- * expand some function signatures that accepted a single power to one that
- * accepted a powers object.
+/**
+ * @module As the interface of the Compartment Mapper evolved, it became
+ * necessary to expand some function signatures that accepted a single power to
+ * one that accepted a powers object.
  * This module provides functions for safely unpacking I/O capabilities and
  * maintaining backward-compatibility with older accepted usage patterns.
  */
 
-// @ts-check
-
-/** @import {CanonicalFn} from './types.js' */
-/** @import {ReadNowPowers} from './types.js' */
-/** @import {ReadNowPowersProp} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
-/** @import {MaybeReadFn} from './types.js' */
+/**
+ * @import {
+ *   CanonicalFn,
+ *   ReadNowPowers,
+ *   ReadNowPowersProp,
+ *   ReadFn,
+ *   ReadPowers,
+ *   MaybeReadPowers,
+ *   MaybeReadFn,
+ * } from './types.js'
+ */
 
 const { freeze } = Object;
 

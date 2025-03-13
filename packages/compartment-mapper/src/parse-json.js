@@ -1,10 +1,9 @@
-/* Provides language support for importing JSON modules. */
+/** @module Provides language support for importing JSON modules. */
 
-// @ts-check
-
-/** @import {Harden} from 'ses' */
-/** @import {ParseFn} from './types.js' */
-/** @import {ParserImplementation} from './types.js' */
+/**
+ * @import {Harden} from 'ses'
+ * @import {ParseFn, ParserImplementation} from './types.js'
+ */
 
 import { parseLocatedJson } from './json.js';
 
@@ -21,6 +20,7 @@ const textDecoder = new TextDecoder();
 /** @type {ParseFn} */
 export const parseJson = (bytes, _specifier, location, _packageLocation) => {
   const source = textDecoder.decode(bytes);
+  /** @type {Array<string>} */
   const imports = freeze([]);
 
   /**

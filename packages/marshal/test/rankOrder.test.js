@@ -4,7 +4,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { fc } from '@fast-check/ava';
 import { makeTagged } from '@endo/pass-style';
-import { arbPassable } from '@endo/pass-style/tools.js';
+import { makeArbitraries } from '@endo/pass-style/tools.js';
 
 import { q } from '@endo/errors';
 import {
@@ -17,6 +17,8 @@ import {
   assertRankSorted,
 } from '../src/rankOrder.js';
 import { unsortedSample, sortedSample } from './_marshal-test-data.js';
+
+const { arbPassable } = makeArbitraries(fc);
 
 test('compareRank is reflexive', async t => {
   await fc.assert(

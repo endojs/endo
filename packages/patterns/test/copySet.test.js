@@ -2,12 +2,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { fc } from '@fast-check/ava';
 import { makeTagged, getTag, passStyleOf } from '@endo/marshal';
-import {
-  arbKey,
-  exampleAlice,
-  exampleBob,
-  exampleCarol,
-} from '@endo/pass-style/tools.js';
+import { makeArbitraries } from '@endo/pass-style/tools.js';
 import { Fail, q } from '@endo/errors';
 import {
   isCopySet,
@@ -27,6 +22,8 @@ import {
 import { M, matches } from '../src/patterns/patternMatchers.js';
 
 import '../src/types.js';
+
+const { arbKey, exampleAlice, exampleBob, exampleCarol } = makeArbitraries(fc);
 
 /** @import { Key } from '../src/types.js'; */
 

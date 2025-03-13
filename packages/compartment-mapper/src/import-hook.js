@@ -1,12 +1,13 @@
-/* Provides the implementation of each compartment's `importHook` when using
- * `import.js`, `import-lite.js`, `archive.js`, or `archive-lite.js`.
- * However, `import-archive.js` and `import-archive-lite.js` use their own variant.
+/**
+ * @module Provides the implementation of each compartment's `importHook` when
+ * using `import.js`, `import-lite.js`, `archive.js`, or `archive-lite.js`.
+ * However, `import-archive.js` and `import-archive-lite.js` use their own
+ * variant.
  *
  * For building archives, these import hooks create a table of all the modules
  * in a "working set" of transitive dependencies.
  */
 
-// @ts-check
 /**
  * @import {
  *   ImportHook,
@@ -17,13 +18,14 @@
  * @import {
  *   CompartmentDescriptor,
  *   ChooseModuleDescriptorOperators,
- *   ChooseModuleDescriptorOptions,
+ *   ChooseModuleDescriptorParams,
  *   ChooseModuleDescriptorYieldables,
  *   ExitModuleImportHook,
  *   FindRedirectParams,
  *   HashFn,
  *   ImportHookMaker,
  *   ImportNowHookMaker,
+ *   MakeImportHookMakerOptions,
  *   MakeImportNowHookMakerOptions,
  *   ModuleDescriptor,
  *   ParseResult,
@@ -180,13 +182,15 @@ const findRedirect = ({
 
 /**
  * @param {object} params
- * @param {Record<string, any>=} params.modules
+ * @param {Record<string, any>} [params.modules]
  * @param {ExitModuleImportHook} [params.exitModuleImportHook]
+ * @param {string} params.entryCompartmentName
  * @returns {ExitModuleImportHook|undefined}
  */
 export const exitModuleImportHookMaker = ({
   modules = undefined,
   exitModuleImportHook = undefined,
+  entryCompartmentName,
 }) => {
   if (!modules && !exitModuleImportHook) {
     return undefined;
@@ -204,7 +208,10 @@ export const exitModuleImportHookMaker = ({
       });
     }
     if (exitModuleImportHook) {
-      return exitModuleImportHook(specifier);
+      // The entryCompartmentName is a file URL when constructing an archive or
+      // importing from a file system, but is merely a zip archive root
+      // directory name when importing from an archive.
+      return exitModuleImportHook(specifier, entryCompartmentName);
     }
     return undefined;
   };
@@ -243,7 +250,7 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
  *
  * @template {ChooseModuleDescriptorOperators} Operators Type of operators (sync
  * or async)
- * @param {ChooseModuleDescriptorOptions} options Options/context
+ * @param {ChooseModuleDescriptorParams} options Options/context
  * @param {Operators} operators Operators
  * @returns {Generator<ChooseModuleDescriptorYieldables,
  * StaticModuleType|undefined, Awaited<ChooseModuleDescriptorYieldables>>}
@@ -261,14 +268,17 @@ function* chooseModuleDescriptor(
     packageLocation,
     packageSources,
     readPowers,
+    archiveOnly,
     sourceMapHook,
     strictlyRequiredForCompartment,
   },
   { maybeRead, parse, shouldDeferError = () => false },
 ) {
+  const { sourceDirname } = compartmentDescriptor;
   for (const candidateSpecifier of candidates) {
     const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
     if (candidateModuleDescriptor !== undefined) {
+      candidateModuleDescriptor.retained = true;
       const { compartment: candidateCompartmentName = packageLocation } =
         candidateModuleDescriptor;
       const candidateCompartment = compartments[candidateCompartmentName];
@@ -320,6 +330,7 @@ function* chooseModuleDescriptor(
           packageLocation,
           {
             readPowers,
+            archiveOnly,
             sourceMapHook:
               sourceMapHook &&
               (nextSourceMapObject => {
@@ -339,6 +350,7 @@ function* chooseModuleDescriptor(
       // module specifier than the requested one.
       if (candidateSpecifier !== moduleSpecifier) {
         moduleDescriptors[moduleSpecifier] = {
+          retained: true,
           module: candidateSpecifier,
           compartment: packageLocation,
         };
@@ -370,6 +382,7 @@ function* chooseModuleDescriptor(
       packageSources[candidateSpecifier] = {
         location: packageRelativeLocation,
         sourceLocation: moduleLocation,
+        sourceDirname,
         parser,
         bytes: transformedBytes,
         record: concreteRecord,
@@ -392,22 +405,7 @@ function* chooseModuleDescriptor(
 /**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
- * @param {object} options
- * @param {Sources} [options.sources]
- * @param {Record<string, CompartmentDescriptor>} [options.compartmentDescriptors]
- * @param {boolean} [options.archiveOnly]
- * @param {HashFn} [options.computeSha512]
- * @param {Array<string>} [options.searchSuffixes] - Suffixes to search if the
- * unmodified specifier is not found.
- * Pass [] to emulate Node.js' strict behavior.
- * The default handles Node.js' CommonJS behavior.
- * Unlike Node.js, the Compartment Mapper lifts CommonJS up, more like a
- * bundler, and does not attempt to vary the behavior of resolution depending
- * on the language of the importing module.
- * @param {string} options.entryCompartmentName
- * @param {string} options.entryModuleSpecifier
- * @param {ExitModuleImportHook} [options.exitModuleImportHook]
- * @param {SourceMapHook} [options.sourceMapHook]
+ * @param {MakeImportHookMakerOptions} options
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -422,7 +420,7 @@ export const makeImportHookMaker = (
     sourceMapHook = undefined,
     entryCompartmentName,
     entryModuleSpecifier,
-    exitModuleImportHook = undefined,
+    importHook: exitModuleImportHook = undefined,
   },
 ) => {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
@@ -502,89 +500,92 @@ export const makeImportHookMaker = (
       // for lint rule
       await null;
 
-      // per-module:
+      // All importHook errors must be deferred if coming from loading dependencies
+      // identified by a parser that discovers imports heuristically.
+      try {
+        // per-module:
 
-      // In Node.js, an absolute specifier always indicates a built-in or
-      // third-party dependency.
-      // The `moduleMapHook` captures all third-party dependencies, unless
-      // we allow importing any exit.
-      if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
-        if (exitModuleImportHook) {
-          const record = await exitModuleImportHook(moduleSpecifier);
-          if (record) {
-            // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
-            // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
-            enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
-              exit: true,
-              errorHint: `Blocked in loading. ${q(
-                moduleSpecifier,
-              )} was not in the compartment map and an attempt was made to load it as a builtin`,
-            });
-            if (archiveOnly) {
-              // Return a place-holder.
-              // Archived compartments are not executed.
-              return freeze({ imports: [], exports: [], execute() {} });
-            }
-            // note it's not being marked as exit in sources
-            // it could get marked and the second pass, when the archive is being executed, would have the data
-            // to enforce which exits can be dynamically imported
-            const attenuatedRecord = await attenuateModuleHook(
+        // In Node.js, an absolute specifier always indicates a built-in or
+        // third-party dependency.
+        // The `moduleMapHook` captures all third-party dependencies, unless
+        // we allow importing any exit.
+        if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
+          if (exitModuleImportHook) {
+            const record = await exitModuleImportHook(
               moduleSpecifier,
-              record,
-              compartmentDescriptor.policy,
-              attenuators,
+              packageLocation,
             );
-            return attenuatedRecord;
+            if (record) {
+              // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
+              // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
+              enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+                exit: true,
+                errorHint: `Blocked in loading. ${q(
+                  moduleSpecifier,
+                )} was not in the compartment map and an attempt was made to load it as a builtin`,
+              });
+              if (archiveOnly) {
+                // Return a place-holder.
+                // Archived compartments are not executed.
+                return freeze({ imports: [], exports: [], execute() {} });
+              }
+              // note it's not being marked as exit in sources
+              // it could get marked and the second pass, when the archive is being executed, would have the data
+              // to enforce which exits can be dynamically imported
+              const attenuatedRecord = await attenuateModuleHook(
+                moduleSpecifier,
+                record,
+                compartmentDescriptor.policy,
+                attenuators,
+              );
+              return attenuatedRecord;
+            }
           }
-        }
-        return deferError(
-          moduleSpecifier,
-          Error(
+          throw Error(
             `Cannot find external module ${q(
               moduleSpecifier,
             )} in package ${packageLocation}`,
-          ),
+          );
+        }
+
+        const { maybeRead } = unpackReadPowers(readPowers);
+
+        const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
+
+        const record = await asyncTrampoline(
+          chooseModuleDescriptor,
+          {
+            candidates,
+            compartmentDescriptor,
+            compartmentDescriptors,
+            compartments,
+            computeSha512,
+            moduleDescriptors,
+            moduleSpecifier,
+            packageLocation,
+            packageSources,
+            readPowers,
+            archiveOnly,
+            sourceMapHook,
+            strictlyRequiredForCompartment,
+          },
+          { maybeRead, parse, shouldDeferError },
         );
-      }
 
-      const { maybeRead } = unpackReadPowers(readPowers);
+        if (record) {
+          return record;
+        }
 
-      const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
-
-      const record = await asyncTrampoline(
-        chooseModuleDescriptor,
-        {
-          candidates,
-          compartmentDescriptor,
-          compartmentDescriptors,
-          compartments,
-          computeSha512,
-          moduleDescriptors,
-          moduleSpecifier,
-          packageLocation,
-          packageSources,
-          readPowers,
-          sourceMapHook,
-          strictlyRequiredForCompartment,
-        },
-        { maybeRead, parse, shouldDeferError },
-      );
-
-      if (record) {
-        return record;
-      }
-
-      return deferError(
-        moduleSpecifier,
-        // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
-        Error(
+        throw Error(
           `Cannot find file for internal module ${q(
             moduleSpecifier,
           )} (with candidates ${candidates
             .map(x => q(x))
             .join(', ')}) in package ${packageLocation}`,
-        ),
-      );
+        );
+      } catch (error) {
+        return deferError(moduleSpecifier, error);
+      }
     };
     return importHook;
   };
@@ -607,8 +608,9 @@ export function makeImportNowHookMaker(
     compartmentDescriptors = create(null),
     computeSha512 = undefined,
     searchSuffixes = nodejsConventionSearchSuffixes,
+    archiveOnly = false,
     sourceMapHook = undefined,
-    exitModuleImportNowHook,
+    importNowHook: exitModuleImportNowHook = undefined,
   },
 ) {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
@@ -710,6 +712,7 @@ export function makeImportNowHookMaker(
           packageLocation,
           packageSources,
           readPowers,
+          archiveOnly,
           sourceMapHook,
           strictlyRequiredForCompartment,
         },
@@ -724,7 +727,8 @@ export function makeImportNowHookMaker(
       }
 
       if (exitModuleImportNowHook) {
-        // this hook is responsible for ensuring that the moduleSpecifier actually refers to an exit module
+        // This hook is responsible for ensuring that the moduleSpecifier
+        // actually refers to an exit module.
         const exitRecord = exitModuleImportNowHook(
           moduleSpecifier,
           packageLocation,

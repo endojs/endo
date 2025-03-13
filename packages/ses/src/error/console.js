@@ -28,10 +28,24 @@ import {
  * @import {ErrorInfo, ErrorInfoKind, LogRecord, NoteCallback, LoggedErrorHandler, MakeCausalConsole, MakeLoggingConsoleKit} from "./internal-types.js";
  */
 
+/**
+ * Explicitly set a function's name, supporting use of arrow functions for which
+ * source text doesn't include a name and no initial name is set by
+ * NamedEvaluation
+ * https://tc39.es/ecma262/multipage/syntax-directed-operations.html#sec-runtime-semantics-namedevaluation
+ * Instead, we hope that tooling uses only the explicit `name` property.
+ *
+ * @template {Function} F
+ * @param {string} name
+ * @param {F} fn
+ * @returns {F}
+ */
+const defineName = (name, fn) => defineProperty(fn, 'name', { value: name });
+
 // For our internal debugging purposes, uncomment
 // const internalDebugConsole = console;
 
-// The whitelists of console methods, from:
+// The permitted console methods, from:
 // Whatwg "living standard" https://console.spec.whatwg.org/
 // Node https://nodejs.org/dist/latest-v14.x/docs/api/console.html
 // MDN https://developer.mozilla.org/en-US/docs/Web/API/Console_API
@@ -110,7 +124,7 @@ export const consoleOtherMethods = freeze([
 ]);
 
 /** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
-const consoleWhitelist = freeze([
+const consoleMethodPermits = freeze([
   ...consoleLevelMethods,
   ...consoleOtherMethods,
 ]);
@@ -118,8 +132,8 @@ const consoleWhitelist = freeze([
 /**
  * consoleOmittedProperties is currently unused. I record and maintain it here
  * with the intention that it be treated like the `false` entries in the main
- * SES whitelist: that seeing these on the original console is expected, but
- * seeing anything else that's outside the whitelist is surprising and should
+ * SES permits: that seeing these on the original console is expected, but
+ * seeing anything else that's outside the permits is surprising and should
  * provide a diagnostic.
  *
  * const consoleOmittedProperties = freeze([
@@ -158,17 +172,13 @@ export const makeLoggingConsoleKit = (
   let logArray = [];
 
   const loggingConsole = fromEntries(
-    arrayMap(consoleWhitelist, ([name, _]) => {
-      // Use an arrow function so that it doesn't come with its own name in
-      // its printed form. Instead, we're hoping that tooling uses only
-      // the `.name` property set below.
+    arrayMap(consoleMethodPermits, ([name, _]) => {
       /**
        * @param {...any} args
        */
-      const method = (...args) => {
+      const method = defineName(name, (...args) => {
         arrayPush(logArray, [name, ...args]);
-      };
-      defineProperty(method, 'name', { value: name });
+      });
       return [name, freeze(method)];
     }),
   );
@@ -288,8 +298,10 @@ export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
         logError(severity, subError);
       }
     } finally {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      baseConsole.groupEnd();
+      if (baseConsole.groupEnd) {
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        baseConsole.groupEnd();
+      }
     }
   };
 
@@ -368,7 +380,7 @@ export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     /**
      * @param {...any} logArgs
      */
-    const levelMethod = (...logArgs) => {
+    const levelMethod = defineName(level, (...logArgs) => {
       const subErrors = [];
       const argTags = extractErrorArgs(logArgs, subErrors);
       if (baseConsole[level]) {
@@ -377,8 +389,7 @@ export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       }
       // @ts-expect-error ConsoleProp vs LogSeverity mismatch
       logSubErrors(level, subErrors);
-    };
-    defineProperty(levelMethod, 'name', { value: level });
+    });
     return [level, freeze(levelMethod)];
   });
   const otherMethodNames = arrayFilter(
@@ -389,13 +400,12 @@ export const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     /**
      * @param {...any} args
      */
-    const otherMethod = (...args) => {
+    const otherMethod = defineName(name, (...args) => {
       // @ts-ignore
       // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole[name](...args);
       return undefined;
-    };
-    defineProperty(otherMethod, 'name', { value: name });
+    });
     return [name, freeze(otherMethod)];
   });
 
@@ -456,23 +466,21 @@ export const defineCausalConsoleFromLogger = loggedErrorHandler => {
       }
       return tlogger(...args);
     };
-    const makeNamed = (name, fn) =>
-      ({ [name]: (...args) => fn(...args) })[name];
 
     const baseConsole = fromEntries([
       ...arrayMap(consoleLevelMethods, ([name]) => [
         name,
-        makeNamed(name, logWithIndent),
+        defineName(name, (...args) => logWithIndent(...args)),
       ]),
       ...arrayMap(consoleOtherMethods, ([name]) => [
         name,
-        makeNamed(name, (...args) => logWithIndent(name, ...args)),
+        defineName(name, (...args) => logWithIndent(name, ...args)),
       ]),
     ]);
     // https://console.spec.whatwg.org/#grouping
     for (const name of ['group', 'groupCollapsed']) {
       if (baseConsole[name]) {
-        baseConsole[name] = makeNamed(name, (...args) => {
+        baseConsole[name] = defineName(name, (...args) => {
           if (args.length >= 1) {
             // Prefix the logged data with "group" or "groupCollapsed".
             logWithIndent(...args);
@@ -482,16 +490,17 @@ export const defineCausalConsoleFromLogger = loggedErrorHandler => {
           arrayPush(indents, ' ');
         });
       } else {
-        baseConsole[name] = () => {};
+        baseConsole[name] = defineName(name, () => {});
       }
     }
-    if (baseConsole.groupEnd) {
-      baseConsole.groupEnd = makeNamed('groupEnd', (...args) => {
-        arrayPop(indents);
-      });
-    } else {
-      baseConsole.groupEnd = () => {};
-    }
+    baseConsole.groupEnd = defineName(
+      'groupEnd',
+      baseConsole.groupEnd
+        ? (...args) => {
+            arrayPop(indents);
+          }
+        : () => {},
+    );
     harden(baseConsole);
     const causalConsole = makeCausalConsole(
       /** @type {VirtualConsole} */ (baseConsole),
@@ -508,22 +517,22 @@ freeze(defineCausalConsoleFromLogger);
 /** @type {FilterConsole} */
 export const filterConsole = (baseConsole, filter, _topic = undefined) => {
   // TODO do something with optional topic string
-  const whitelist = arrayFilter(
-    consoleWhitelist,
+  const methodPermits = arrayFilter(
+    consoleMethodPermits,
     ([name, _]) => name in baseConsole,
   );
-  const methods = arrayMap(whitelist, ([name, severity]) => {
+  const methods = arrayMap(methodPermits, ([name, severity]) => {
     /**
      * @param {...any} args
      */
-    const method = (...args) => {
+    const method = defineName(name, (...args) => {
       // eslint-disable-next-line @endo/no-polymorphic-call
       if (severity === undefined || filter.canLog(severity)) {
         // @ts-ignore
         // eslint-disable-next-line @endo/no-polymorphic-call
         baseConsole[name](...args);
       }
-    };
+    });
     return [name, freeze(method)];
   });
   const filteringConsole = fromEntries(methods);

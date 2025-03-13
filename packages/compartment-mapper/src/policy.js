@@ -1,17 +1,22 @@
-/* Provides mechanisms for interacting with Compartment Map runtime policies.
+/**
+ * @module Provides mechanisms for interacting with Compartment Map runtime policies.
  */
 
 // @ts-check
 
-/** @import {Policy} from './types.js' */
-/** @import {PackagePolicy} from './types.js' */
-/** @import {AttenuationDefinition} from './types.js' */
-/** @import {PackageNamingKit} from './types.js' */
-/** @import {DeferredAttenuatorsProvider} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {Attenuator} from './types.js' */
-/** @import {SomePolicy} from './types.js' */
-/** @import {SomePackagePolicy} from './types.js' */
+/**
+ * @import {
+ *   Policy,
+ *   PackagePolicy,
+ *   AttenuationDefinition,
+ *   PackageNamingKit,
+ *   DeferredAttenuatorsProvider,
+ *   CompartmentDescriptor,
+ *   Attenuator,
+ *   SomePolicy,
+ *   SomePackagePolicy,
+ * } from './types.js'
+ */
 
 import {
   getAttenuatorFromDefinition,
@@ -235,6 +240,7 @@ export const makeDeferredAttenuatorsProvider = (
   compartments,
   compartmentDescriptors,
 ) => {
+  /** @type {DeferredAttenuatorsProvider['import']} */
   let importAttenuator;
   let defaultAttenuator;
   // Attenuators compartment is not created when there's no policy.
@@ -250,11 +256,6 @@ export const makeDeferredAttenuatorsProvider = (
     // At the time of this function being called, attenuators compartment won't
     // exist yet, we need to defer looking them up in the compartment to the
     // time of the import function being called.
-    /**
-     *
-     * @param {string} attenuatorSpecifier
-     * @returns {Promise<Attenuator>}
-     */
     importAttenuator = async attenuatorSpecifier => {
       if (!attenuatorSpecifier) {
         if (!defaultAttenuator) {
@@ -262,8 +263,9 @@ export const makeDeferredAttenuatorsProvider = (
         }
         attenuatorSpecifier = defaultAttenuator;
       }
-      const { namespace } =
-        await compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
+      const { namespace } = await compartments[ATTENUATORS_COMPARTMENT].import(
+        /** @type {string} */ (attenuatorSpecifier),
+      );
       return namespace;
     };
   }

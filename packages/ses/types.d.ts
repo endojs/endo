@@ -1,5 +1,5 @@
 /**
- * @file Types of the SES environment
+ * @module Types of the SES environment
  */
 
 /* eslint-disable no-restricted-globals, vars-on-top, no-var */
@@ -24,11 +24,25 @@ export interface RepairOptions {
   localeTaming?: 'safe' | 'unsafe';
   consoleTaming?: 'safe' | 'unsafe';
   errorTrapping?: 'platform' | 'exit' | 'abort' | 'report' | 'none';
+  reporting?: 'platform' | 'console' | 'none';
   unhandledRejectionTrapping?: 'report' | 'none';
   errorTaming?: 'safe' | 'unsafe' | 'unsafe-debug';
-  dateTaming?: 'safe' | 'unsafe'; // deprecated
-  mathTaming?: 'safe' | 'unsafe'; // deprecated
-  evalTaming?: 'safeEval' | 'unsafeEval' | 'noEval';
+  /**
+   * @deprecated Deprecated and does nothing. In the future specifying it will be an error.
+   */
+  dateTaming?: 'safe' | 'unsafe';
+  /**
+   * @deprecated Deprecated and does nothing. In the future specifying it will be an error.
+   */
+  mathTaming?: 'safe' | 'unsafe';
+  evalTaming?:
+    | 'safe-eval'
+    | 'unsafe-eval'
+    | 'no-eval'
+    // deprecated
+    | 'safeEval'
+    | 'unsafeEval'
+    | 'noEval';
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
@@ -551,12 +565,12 @@ declare global {
 
     // Deprecated:
     constructor(
-      globals?: Record<string, any> | undefined,
+      globals?: Record<PropertyKey, any> | undefined,
       modules?: Record<string, ModuleDescriptor>,
       options?: CompartmentOptions,
     );
 
-    get globalThis(): Record<string, any>;
+    get globalThis(): Record<PropertyKey, any>;
 
     get name(): string;
 

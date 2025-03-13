@@ -1,30 +1,35 @@
-/* Provides adapters for Compartment Mapper I/O to the corresponding Node.js
- * implementations of those behaviors.
+/**
+ * @module Provides adapters for Compartment Mapper I/O to the corresponding
+ * Node.js implementations of those behaviors.
  *
  * The Compartment Mapper generalizes its I/O interface to allow for a wide
  * variety of I/O providers, but especially for reading and writing from
  * virtualized file systems like zip files.
  */
 
-// @ts-check
-
-/** @import {CanonicalFn} from './types.js' */
-/** @import {CryptoInterface} from './types.js' */
-/** @import {FileURLToPathFn} from './types.js' */
-/** @import {FsInterface} from './types.js' */
-/** @import {HashFn} from './types.js' */
-/** @import {IsAbsoluteFn} from './types.js' */
-/** @import {MaybeReadFn} from './types.js' */
-/** @import {MaybeReadPowers} from './types.js' */
-/** @import {PathInterface} from './types.js' */
-/** @import {PathToFileURLFn} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {RequireResolveFn} from './types.js' */
-/** @import {ReadNowPowers} from './types.js' */
-/** @import {UrlInterface} from './types.js' */
-/** @import {WritePowers} from './types.js' */
-/** @import {MaybeReadNowFn} from './types.js' */
+/**
+ * @import {
+ *   CryptoInterface,
+ *   FsInterface,
+ *   PathInterface,
+ *   UrlInterface,
+ * } from './types/node-powers.js'
+ * @import {
+ *   CanonicalFn,
+ *   FileURLToPathFn,
+ *   HashFn,
+ *   IsAbsoluteFn,
+ *   MaybeReadFn,
+ *   MaybeReadNowFn,
+ *   MaybeReadPowers,
+ *   PathToFileURLFn,
+ *   ReadFn,
+ *   ReadNowPowers,
+ *   ReadPowers,
+ *   RequireResolveFn,
+ *   WritePowers,
+ * } from './types/powers.js'
+ */
 
 import { createRequire } from 'module';
 
@@ -43,7 +48,7 @@ const fakeFileURLToPath = location => {
  * @type {PathToFileURLFn} path
  */
 const fakePathToFileURL = path => {
-  return new URL(path, 'file://').toString();
+  return new URL(path, 'file://');
 };
 
 /**
@@ -138,10 +143,10 @@ const makeReadPowersSloppy = ({
         const realPath = await fs.promises.realpath(
           fileURLToPath(location).replace(/\/$/, ''),
         );
-        return `${pathToFileURL(realPath)}/`;
+        return `${pathToFileURL(realPath).href}/`;
       } else {
         const realPath = await fs.promises.realpath(fileURLToPath(location));
-        return pathToFileURL(realPath).toString();
+        return pathToFileURL(realPath).href;
       }
     } catch {
       return location;

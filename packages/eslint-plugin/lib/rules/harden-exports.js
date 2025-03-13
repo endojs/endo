@@ -1,5 +1,5 @@
 /**
- * @fileoverview Ensure each named export is followed by a call to `harden` function
+ * @module Ensure each named export is followed by a call to `harden` function
  */
 
 'use strict';

@@ -117,11 +117,14 @@ export const setGlobalObjectMutableProperties = (
       makeCompartmentConstructor,
       intrinsics,
       markVirtualizedNativeFunction,
-      parentCompartment,
+      {
+        parentCompartment,
+        enforceNew: true,
+      },
     ),
   );
 
-  // TODO These should still be tamed according to the whitelist before
+  // TODO These should still be tamed according to the permits before
   // being made available.
   for (const [name, value] of entries(perCompartmentGlobals)) {
     defineProperty(globalObject, name, {

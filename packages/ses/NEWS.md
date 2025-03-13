@@ -2,8 +2,54 @@ User-visible changes in `ses`:
 
 # Next release
 
+The `evalTaming:` option values are renamed
+- from `'safeEval'`, `'unsafeEval'`, and `'noEval'`
+- to `'safe-eval'`, `'unsafe-eval'`, and `'no-eval'`
+
+in order to follow the convention that lockdown option values use kebob-case
+rather than camelCase. To avoid breaking old programs during the transition,
+the old names are deprecated, but continue to work for now.
+
+# v1.11.0 (2025-01-23)
+
+- Adds support for dynamic `import` in conjunction with an update to
+  `@endo/module-source`.
+
+- Specifying the long-discontinued `mathTaming` or `dateTaming` options logs a
+  warning.
+
+Incubating: Please do not rely on these features as they are under development
+and subject to breaking changes that will not be signaled by semver.
+
+- Adds support for an XS-specific variant of the SES shim that is triggered
+  with the `xs` package export condition.
+  This version of SES preserves all the features of `Compartment` provided
+  uniquely by the SES shim, but with the `__native__` constructor option,
+  loses support for importing precompiled module records and gains support
+  for native `ModuleSource`.
+
+# v1.10.0 (2024-11-13)
+
 - Permit [Promise.try](https://github.com/tc39/proposal-promise-try),
   since it has reached Stage 4.
+
+- Adds a `reporting` option to `lockdown` and `repairIntrinsics`.
+
+  The default behavior is `"platform"` which will detect the platform and
+  report warnings according to whether a web `console`, Node.js `console`, or
+  `print` are available.
+  The web platform is distinguished by the existence of `window` or
+  `importScripts` (WebWorker).
+  The Node.js behavior is to report all warnings to `stderr` visually
+  consistent with use of a console group.
+  SES will use `print` in the absence of a `console`.
+  Captures the platform `console` at the time `lockdown` or `repairIntrinsics`
+  are called, not at the time `ses` initializes.
+
+  The `"console"` option forces the web platform behavior.
+  On Node.js, this results in group labels being reported to `stdout`.
+
+  The `"none"` option mutes warnings.
 
 # v1.9.0 (2024-10-10)
 

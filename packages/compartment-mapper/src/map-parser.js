@@ -1,14 +1,7 @@
 /**
- * Exports {@link makeMapParsers}, which creates a function which matches a
+ * @module Exports {@link makeMapParsers}, which creates a function which matches a
  * module to a parser based on reasons.
- *
- * @module
  */
-
-// @ts-check
-
-import { syncTrampoline, asyncTrampoline } from '@endo/trampoline';
-import { parseExtension } from './extension.js';
 
 /**
  * @import {
@@ -19,13 +12,19 @@ import { parseExtension } from './extension.js';
  *   ModuleTransform,
  *   ModuleTransforms,
  *   ParseFn,
- *   ParseFnAsync,
+ *   AsyncParseFn,
  *   ParseResult,
  *   ParserForLanguage,
  *   SyncModuleTransform,
  *   SyncModuleTransforms
  * } from './types.js';
+ * @import {
+ *   EReturn
+ * } from '@endo/eventual-send';
  */
+
+import { syncTrampoline, asyncTrampoline } from '@endo/trampoline';
+import { parseExtension } from './extension.js';
 
 const { entries, fromEntries, keys, hasOwnProperty, values } = Object;
 const { apply } = Reflect;
@@ -64,7 +63,7 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * @param {ParserForLanguage} parserForLanguage
  * @param {ModuleTransforms} moduleTransforms
  * @param {SyncModuleTransforms} syncModuleTransforms
- * @returns {ParseFnAsync|ParseFn}
+ * @returns {AsyncParseFn|ParseFn}
  */
 const makeExtensionParser = (
   preferSynchronous,
@@ -78,14 +77,15 @@ const makeExtensionParser = (
   let transforms;
 
   /**
-   * Function returning a generator which executes a parser for a module in either sync or async context.
+   * Function returning a generator which executes a parser for a module in
+   * either sync or async context.
    *
    * @param {Uint8Array} bytes
    * @param {string} specifier
    * @param {string} location
    * @param {string} packageLocation
    * @param {*} options
-   * @returns {Generator<ReturnType<ModuleTransform>|ReturnType<SyncModuleTransform>, ParseResult, Awaited<ReturnType<ModuleTransform>|ReturnType<SyncModuleTransform>>>}
+   * @returns {Generator<ReturnType<ModuleTransform>|ReturnType<SyncModuleTransform>, ParseResult, EReturn<ModuleTransform|SyncModuleTransform>>}
    */
   function* getParserGenerator(
     bytes,
@@ -104,6 +104,14 @@ const makeExtensionParser = (
     ) {
       language = languageForModuleSpecifier[specifier];
     } else {
+      // We should revisit this design decision:
+      // Defaulting the language to the extension conflates those namespaces.
+      // So, a transform keyed by extension can be used to coerce a language
+      // (e.g., .mts to mjs) as a shorthand for configuring a parser for that
+      // extension that pre-processes the file before handing off to the
+      // parser.
+      // But, this forces us to support the case of using weird language
+      // names like pre-mjs-json as valid, unconfigured extensions.
       language = languageForExtension[extension] || extension;
     }
 
@@ -169,7 +177,7 @@ const makeExtensionParser = (
   syncParser.isSyncParser = true;
 
   /**
-   * @type {ParseFnAsync}
+   * @type {AsyncParseFn}
    */
   const asyncParser = async (
     bytes,
@@ -190,7 +198,7 @@ const makeExtensionParser = (
 
   // Unfortunately, typescript was not smart enough to figure out the return
   // type depending on a boolean in arguments, so it has to be
-  // ParseFnAsync|ParseFn
+  // AsyncParseFn|ParseFn
   if (preferSynchronous) {
     transforms = syncModuleTransforms;
     return syncParser;
@@ -233,7 +241,7 @@ const makeExtensionParser = (
  * @param {ModuleTransforms} [moduleTransforms]
  * @param {SyncModuleTransforms} [syncModuleTransforms]
  * @param {false} [preferSynchronous]
- * @returns {ParseFnAsync}
+ * @returns {AsyncParseFn}
  */
 
 /**
@@ -245,7 +253,7 @@ const makeExtensionParser = (
  * @param {ModuleTransforms} [moduleTransforms]
  * @param {SyncModuleTransforms} [syncModuleTransforms]
  * @param {boolean} [preferSynchronous] If `true`, will create a `ParseFn`
- * @returns {ParseFnAsync|ParseFn}
+ * @returns {AsyncParseFn|ParseFn}
  */
 function mapParsers(
   languageForExtension,
@@ -300,7 +308,7 @@ export const makeMapParsers = ({
    * Async `mapParsers()` function; returned when a non-synchronous parser is
    * present _or_ when `moduleTransforms` is non-empty.
    *
-   * @type {MapParsersFn<ParseFnAsync>}
+   * @type {MapParsersFn<AsyncParseFn>}
    */
   const asyncParseFn = (languageForExtension, languageForModuleSpecifier) =>
     mapParsers(

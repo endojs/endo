@@ -3,6 +3,7 @@ import '../index.js';
 
 lockdown({ evalTaming: 'safeEval' });
 
+// 'safeEval' is deprecated, but testing that it still works
 test('safe eval when evalTaming is safeEval.', t => {
   // eslint-disable-next-line no-unused-vars
   const a = 0;

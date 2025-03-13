@@ -1,12 +1,12 @@
-/* Provides language behavior (a parser) for importing ESM. */
+/** @module Provides language behavior (a parser) for importing ESM. */
 
-// @ts-check
+/** @import {ParseFn} from './types.js' */
 
 import { ModuleSource } from '@endo/module-source';
 
 const textDecoder = new TextDecoder();
 
-/** @type {import('./types.js').ParseFn} */
+/** @type {ParseFn} */
 export const parseMjs = (
   bytes,
   _specifier,
@@ -14,10 +14,10 @@ export const parseMjs = (
   _packageLocation,
   options = {},
 ) => {
-  const { sourceMap, sourceMapHook } = options;
+  const { sourceMap, sourceMapHook, archiveOnly = false } = options;
   const source = textDecoder.decode(bytes);
   const record = new ModuleSource(source, {
-    sourceUrl,
+    sourceUrl: archiveOnly ? undefined : sourceUrl,
     sourceMap,
     sourceMapUrl: sourceUrl,
     sourceMapHook,

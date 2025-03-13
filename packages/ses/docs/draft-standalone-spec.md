@@ -23,7 +23,7 @@ the default configuration of SES are
  * Omit all support for sloppy mode
  * Aside from `BigInt`, omit everything else outside the EcmaScript 2018 spec.
  * In particular, omit the `import()` and `import.meta` expressions.
- * Omit annex B (except those our whitelist allows)
+ * Omit annex B (except those `ses` explicitly permits)
  * In particular, omit the `RegExp` static properties that provide a global
    communications channel.
  * On the `Math` namespace object shared by constructed compartments:

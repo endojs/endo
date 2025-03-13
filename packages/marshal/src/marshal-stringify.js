@@ -5,6 +5,8 @@ import { makeMarshal } from './marshal.js';
 
 /** @import {Passable} from '@endo/pass-style' */
 
+const { freeze } = Object;
+
 /** @type {import('./types.js').ConvertValToSlot<any>} */
 const doNotConvertValToSlot = val =>
   Fail`Marshal's stringify rejects presences and promises ${val}`;
@@ -23,7 +25,14 @@ const badArrayHandler = harden({
   },
 });
 
-const badArray = harden(new Proxy(harden([]), badArrayHandler));
+/**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ *
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const arrayTarget = freeze(/** @type {any[]} */ ([]));
+const badArray = new Proxy(arrayTarget, badArrayHandler);
 
 const { serialize, unserialize } = makeMarshal(
   doNotConvertValToSlot,
@@ -48,7 +57,10 @@ harden(stringify);
  */
 const parse = str =>
   unserialize(
-    harden({
+    // `freeze` but not `harden` since the `badArray` proxy and its target
+    // must remain trapping.
+    // See https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+    freeze({
       body: str,
       slots: badArray,
     }),

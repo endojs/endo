@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "1.9.1",
+  "version": "1.11.0",
   "description": "Hardened JavaScript for Fearless Cooperation",
   "keywords": [
     "lockdown",
@@ -38,6 +38,7 @@
     ".": {
       "import": {
         "types": "./types.d.ts",
+        "xs": "./src-xs/index.js",
         "default": "./index.js"
       },
       "require": {
@@ -55,15 +56,29 @@
         "default": "./dist/ses.cjs"
       }
     },
+    "./hermes": {
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/ses-hermes.cjs"
+      }
+    },
     "./tools.js": "./tools.js",
     "./assert-shim.js": "./assert-shim.js",
-    "./lockdown-shim.js": "./lockdown-shim.js",
-    "./compartment-shim.js": "./compartment-shim.js",
+    "./lockdown-shim.js": {
+      "xs": "./src-xs/lockdown-shim.js",
+      "default": "./lockdown-shim.js"
+    },
+    "./compartment-shim.js": {
+      "xs": "./src-xs/compartment-shim.js",
+      "default": "./compartment-shim.js"
+    },
     "./console-shim.js": "./console-shim.js",
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node scripts/bundle.js",
+    "build:vanilla": "node scripts/bundle.js",
+    "build:hermes": "node scripts/bundle.js hermes",
+    "build": "yarn build:vanilla && yarn build:hermes",
     "clean": "rm -rf dist",
     "cover": "c8 ava",
     "demo": "python3 -m http.server",
@@ -74,16 +89,22 @@
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
     "test": "tsd && ava",
-    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js",
+    "test:hermes": "./scripts/hermes-test.sh",
+    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
     "@endo/env-options": "workspace:^"
   },
   "devDependencies": {
+    "@babel/generator": "^7.26.3",
+    "@babel/parser": "~7.26.2",
+    "@babel/traverse": "~7.25.9",
+    "@babel/types": "~7.26.0",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/module-source": "workspace:^",
     "@endo/test262-runner": "workspace:^",
+    "@types/babel__traverse": "^7.20.5",
     "ava": "^6.1.3",
     "babel-eslint": "^10.1.0",
     "c8": "^7.14.0",
@@ -93,10 +114,11 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.29.1",
-    "prettier": "^3.2.5",
+    "hermes-engine-cli": "^0.12.0",
+    "prettier": "^3.3.3",
     "terser": "^5.16.6",
     "tsd": "^0.31.2",
-    "typescript": "~5.6.2"
+    "typescript": "~5.6.3"
   },
   "files": [
     "./*.d.ts",

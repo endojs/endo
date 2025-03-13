@@ -8,10 +8,7 @@ import {
   defineProperties,
 } from './commons.js';
 
-export default function tameDateConstructor(dateTaming = 'safe') {
-  if (dateTaming !== 'safe' && dateTaming !== 'unsafe') {
-    throw TypeError(`unrecognized dateTaming ${dateTaming}`);
-  }
+export default function tameDateConstructor() {
   const OriginalDate = Date;
   const DatePrototype = OriginalDate.prototype;
 

@@ -126,17 +126,13 @@ test('causal tree', t => {
 });
 
 test('a causal tree falls silently', t => {
-  assertLogs(
-    t,
-    () => {
-      try {
-        assert(false);
-      } catch (err) {
-        t.assert(err instanceof Error);
-      }
-    },
-    [],
-  );
+  assertLogs(t, () => {
+    try {
+      assert(false);
+    } catch (err) {
+      t.assert(err instanceof Error);
+    }
+  }, []);
   assertLogs(
     t,
     () => {
@@ -149,24 +145,20 @@ test('a causal tree falls silently', t => {
     [],
     { wrapWithCausal: true },
   );
-  assertLogs(
-    t,
-    () => {
-      const fooErr = SyntaxError('foo');
-      let err1;
-      try {
-        assert.fail(X`synful ${fooErr}`);
-      } catch (e1) {
-        err1 = e1;
-      }
-      try {
-        assert.fail(X`because ${err1}`);
-      } catch (e2) {
-        t.assert(e2 instanceof Error);
-      }
-    },
-    [],
-  );
+  assertLogs(t, () => {
+    const fooErr = SyntaxError('foo');
+    let err1;
+    try {
+      assert.fail(X`synful ${fooErr}`);
+    } catch (e1) {
+      err1 = e1;
+    }
+    try {
+      assert.fail(X`because ${err1}`);
+    } catch (e2) {
+      t.assert(e2 instanceof Error);
+    }
+  }, []);
   assertLogs(
     t,
     () => {

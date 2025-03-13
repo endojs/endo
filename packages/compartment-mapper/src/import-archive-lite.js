@@ -1,4 +1,5 @@
-/* Provides functions for evaluating the modules in an archive (a zip
+/**
+ * @module Provides functions for evaluating the modules in an archive (a zip
  * file with a `compartment-map.json` and a file for each module it contains.)
  *
  * These functions do not have a bias for any particular mapping, so you will
@@ -11,26 +12,30 @@
  * `@endo/compartment-mapper/archive-parsers.js`.
  */
 
-// @ts-check
 /* eslint no-shadow: "off" */
 
-/** @import {ImportHook} from 'ses' */
-/** @import {ModuleExportsNamespace} from 'ses' */
-/** @import {StaticModuleType} from 'ses' */
-/** @import {Application} from './types.js' */
-/** @import {CompartmentDescriptor} from './types.js' */
-/** @import {ComputeSourceLocationHook} from './types.js' */
-/** @import {ComputeSourceMapLocationHook} from './types.js' */
-/** @import {ExecuteFn} from './types.js' */
-/** @import {ExitModuleImportHook} from './types.js' */
-/** @import {HashFn} from './types.js' */
-/** @import {ImportHookMaker} from './types.js' */
-/** @import {LanguageForExtension} from './types.js' */
-/** @import {LoadArchiveOptions} from './types.js' */
-/** @import {ParserForLanguage} from './types.js' */
-/** @import {ReadFn} from './types.js' */
-/** @import {ReadPowers} from './types.js' */
-/** @import {SomeObject} from './types.js' */
+/**
+ * @import {
+ *   ImportHook,
+ *   StaticModuleType,
+ * } from 'ses';
+ * @import {
+ *   Application,
+ *   CompartmentDescriptor,
+ *   ComputeSourceLocationHook,
+ *   ComputeSourceMapLocationHook,
+ *   ExecuteFn,
+ *   ExitModuleImportHook,
+ *   HashFn,
+ *   ImportHookMaker,
+ *   LoadArchiveOptions,
+ *   ParseArchiveOptions,
+ *   ParserForLanguage,
+ *   ReadFn,
+ *   ReadPowers,
+ *   SomeObject,
+ * } from './types.js'
+ */
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
@@ -40,8 +45,6 @@ import { join } from './node-module-specifier.js';
 import { assertCompartmentMap } from './compartment-map.js';
 import { exitModuleImportHookMaker } from './import-hook.js';
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
-
-const DefaultCompartment = Compartment;
 
 const { Fail, quote: q } = assert;
 
@@ -119,7 +122,10 @@ const makeArchiveImportHookMaker = (
               moduleSpecifier,
             )} was not in the archive and an attempt was made to load it as a builtin`,
           });
-          const record = await exitModuleImportHook(moduleSpecifier);
+          const record = await exitModuleImportHook(
+            moduleSpecifier,
+            packageLocation,
+          );
           if (record) {
             // note it's not being marked as exit in sources
             // it could get marked and the second pass, when the archive is being executed, would have the data
@@ -230,24 +236,10 @@ const makeArchiveImportHookMaker = (
   return makeImportHook;
 };
 
-// Have to give it a name to capture the external meaning of Compartment
-// Otherwise @param {typeof Compartment} takes the Compartment to mean
-// the const variable defined within the function.
-/** @typedef {typeof Compartment} CompartmentConstructor */
-
 /**
  * @param {Uint8Array} archiveBytes
  * @param {string} [archiveLocation]
- * @param {object} [options]
- * @param {string} [options.expectedSha512]
- * @param {HashFn} [options.computeSha512]
- * @param {Record<string, unknown>} [options.modules]
- * @param {ExitModuleImportHook} [options.importHook]
- * @param {CompartmentConstructor} [options.Compartment]
- * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
- * @param {ComputeSourceMapLocationHook} [options.computeSourceMapLocation]
- * @param {ParserForLanguage} [options.parserForLanguage]
- * @param {LanguageForExtension} [options.languageForExtension]
+ * @param {ParseArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
 export const parseArchive = async (
@@ -261,24 +253,16 @@ export const parseArchive = async (
     expectedSha512 = undefined,
     computeSourceLocation = undefined,
     computeSourceMapLocation = undefined,
-    Compartment = DefaultCompartment,
+    Compartment: CompartmentParseOption = Compartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
-    languageForExtension: languageForExtensionOption = {},
+    __native__ = false,
   } = options;
 
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
   );
-  const languageForExtension = freeze(
-    assign(create(null), languageForExtensionOption),
-  );
-
-  const compartmentExitModuleImportHook = exitModuleImportHookMaker({
-    modules,
-    exitModuleImportHook,
-  });
 
   const archive = new ZipReader(archiveBytes, { name: archiveLocation });
 
@@ -324,8 +308,14 @@ export const parseArchive = async (
 
   const {
     compartments,
-    entry: { module: moduleSpecifier },
+    entry: { module: entryModuleSpecifier, compartment: entryCompartmentName },
   } = compartmentMap;
+
+  const compartmentExitModuleImportHook = exitModuleImportHookMaker({
+    modules,
+    exitModuleImportHook,
+    entryCompartmentName,
+  });
 
   // Archive integrity checks: ensure every module is pre-loaded so its hash
   // gets checked, and ensure that every file in the archive is used, and
@@ -348,18 +338,18 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
-      languageForExtension,
       modules: Object.fromEntries(
         Object.keys(modules || {}).map(specifier => {
           return [specifier, { namespace: {} }];
         }),
       ),
-      Compartment,
+      Compartment: CompartmentParseOption,
+      __native__,
     });
 
     await pendingJobsPromise;
 
-    await compartment.load(moduleSpecifier);
+    await compartment.load(entryModuleSpecifier);
     unseen.size === 0 ||
       Fail`Archive contains extraneous files: ${q([...unseen])} in ${q(
         archiveLocation,
@@ -373,13 +363,15 @@ export const parseArchive = async (
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption = CompartmentParseOption,
+      __native__,
       importHook: exitModuleImportHook,
     } = options || {};
 
     const compartmentExitModuleImportHook = exitModuleImportHookMaker({
       modules,
       exitModuleImportHook,
+      entryCompartmentName,
     });
     const makeImportHook = makeArchiveImportHookMaker(
       get,
@@ -394,18 +386,18 @@ export const parseArchive = async (
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
-      languageForExtension,
       globals,
       modules,
       transforms,
       __shimTransforms__,
-      Compartment,
+      Compartment: CompartmentOption,
+      __native__,
     });
 
     await pendingJobsPromise;
 
     // eslint-disable-next-line dot-notation
-    return compartment['import'](moduleSpecifier);
+    return compartment['import'](entryModuleSpecifier);
   };
 
   return { import: execute, sha512 };
@@ -429,7 +421,6 @@ export const loadArchive = async (
     modules,
     computeSourceMapLocation,
     parserForLanguage,
-    languageForExtension,
   } = options;
   const archiveBytes = await read(archiveLocation);
   return parseArchive(archiveBytes, archiveLocation, {
@@ -439,7 +430,6 @@ export const loadArchive = async (
     modules,
     computeSourceMapLocation,
     parserForLanguage,
-    languageForExtension,
   });
 };
 

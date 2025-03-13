@@ -6,7 +6,6 @@
 
 import babelTraverse from '@babel/traverse';
 import { evadeComment, elideComment } from './transform-comment.js';
-import { makeLocationUnmapper } from './location-unmapper.js';
 
 // TODO The following is sufficient on Node.js, but for compatibility with
 // `node -r esm`, we must use the pattern below.
@@ -21,30 +20,14 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * Options for {@link transformAst}
  *
  * @internal
- * @typedef {TransformAstOptionsWithLocationUnmap | TransformAstOptionsWithoutSourceMap} TransformAstOptions
+ * @typedef {TransformAstOptionsWithoutSourceMap} TransformAstOptions
  */
 
 /**
  * Options for {@link transformAst}
- *
- * If `useLocationUnmap` is not `true`, `sourceMap` is unused.
  *
  * @internal
  * @typedef TransformAstOptionsWithoutSourceMap
- * @property {false} [useLocationUnmap] - Enable location unmapping
- * @property {string} [sourceMap] - Original source map
- * @property {boolean} [elideComments]
- */
-
-/**
- * Options for {@link transformAst}
- *
- * If `useLocationUnmap` is `true`, then `sourceMap` must also be present.
- *
- * @internal
- * @typedef TransformAstOptionsWithLocationUnmap
- * @property {true} useLocationUnmap - Enable location unmapping
- * @property {string} sourceMap - Original source map
  * @property {boolean} [elideComments]
  */
 
@@ -58,43 +41,25 @@ const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
  * @param {TransformAstOptions} [opts]
  * @returns {void}
  */
-export function transformAst(
-  ast,
-  { sourceMap, useLocationUnmap, elideComments = false } = {},
-) {
-  /** @type {import('./location-unmapper.js').LocationUnmapper|undefined} */
-  let unmapLoc;
-  if (sourceMap && useLocationUnmap) {
-    unmapLoc = makeLocationUnmapper(sourceMap, ast);
-  }
+export function transformAst(ast, { elideComments = false } = {}) {
   const transformComment = elideComments ? elideComment : evadeComment;
   traverse(ast, {
     enter(p) {
-      const { loc, leadingComments, innerComments, trailingComments, type } =
-        p.node;
+      const { leadingComments, innerComments, trailingComments, type } = p.node;
       // discriminated union
       if ('comments' in p.node) {
-        (p.node.comments || []).forEach(node =>
-          transformComment(node, unmapLoc),
-        );
+        (p.node.comments || []).forEach(node => transformComment(node));
       }
       // Rewrite all comments.
-      (leadingComments || []).forEach(node => transformComment(node, unmapLoc));
+      (leadingComments || []).forEach(node => transformComment(node));
       // XXX: there is no such Node having type matching /^Comment.+/ in
       // @babel/types
       if (type.startsWith('Comment')) {
         // @ts-expect-error - see above XXX
-        transformComment(p.node, unmapLoc);
+        transformComment(p.node);
       }
-      (innerComments || []).forEach(node => transformComment(node, unmapLoc));
-      // If not a comment, and we are unmapping the source maps,
-      // then do it for this location.
-      if (unmapLoc) {
-        unmapLoc(loc);
-      }
-      (trailingComments || []).forEach(node =>
-        transformComment(node, unmapLoc),
-      );
+      (innerComments || []).forEach(node => transformComment(node));
+      (trailingComments || []).forEach(node => transformComment(node));
     },
   });
 }

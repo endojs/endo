@@ -1,6 +1,6 @@
 {
   "name": "@endo/immutable-arraybuffer",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "private": true,
   "description": "Immutable ArrayBuffer",
   "keywords": [],
@@ -40,7 +40,7 @@
     "ava": "^6.1.3",
     "c8": "^7.14.0",
     "tsd": "^0.31.2",
-    "typescript": "~5.6.2"
+    "typescript": "~5.6.3"
   },
   "files": [
     "./*.d.ts",

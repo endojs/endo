@@ -2,7 +2,7 @@ import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
 const { details: X, quote: q, Fail, error: makeError } = assert;
-const { assign, create } = Object;
+const { assign, freeze } = Object;
 
 /**
  * @import { HandledPromiseConstructor } from './types.js';
@@ -168,6 +168,23 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
   });
 
 /**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ *
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const funcTarget = freeze(() => {});
+
+/**
+/**
+ * `freeze` but not `harden` the proxy target so it remains trapping.
+ * Thus, it should not be shared outside this module.
+ *
+ * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ */
+const objTarget = freeze({ __proto__: null });
+
+/**
  * @param {HandledPromiseConstructor} HandledPromise
  */
 const makeE = HandledPromise => {
@@ -178,12 +195,20 @@ const makeE = HandledPromise => {
        * method calls returns a promise. The method will be invoked on whatever
        * 'x' designates (or resolves to) in a future turn, not this one.
        *
+       * An example call would be
+       *
+       * E(zoe).install(bundle)
+       *   .then(installationHandle => { ... })
+       *   .catch(err => { ... });
+       *
+       *  See https://endojs.github.io/endo/functions/_endo_far.E.html for details.
+       *
        * @template T
        * @param {T} x target for method/function call
        * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
        */
       // @ts-expect-error XXX typedef
-      x => harden(new Proxy(() => {}, makeEProxyHandler(x, HandledPromise))),
+      x => new Proxy(funcTarget, makeEProxyHandler(x, HandledPromise)),
       {
         /**
          * E.get(x) returns a proxy on which you can get arbitrary properties.
@@ -196,11 +221,8 @@ const makeE = HandledPromise => {
          * @returns {EGetters<LocalRecord<T>>} property get proxy
          * @readonly
          */
-        get: x =>
-          // @ts-expect-error XXX typedef
-          harden(
-            new Proxy(create(null), makeEGetProxyHandler(x, HandledPromise)),
-          ),
+        // @ts-expect-error XXX typedef
+        get: x => new Proxy(objTarget, makeEGetProxyHandler(x, HandledPromise)),
 
         /**
          * E.resolve(x) converts x to a handled promise. It is
@@ -224,9 +246,7 @@ const makeE = HandledPromise => {
          */
         sendOnly: x =>
           // @ts-expect-error XXX typedef
-          harden(
-            new Proxy(() => {}, makeESendOnlyProxyHandler(x, HandledPromise)),
-          ),
+          new Proxy(funcTarget, makeESendOnlyProxyHandler(x, HandledPromise)),
 
         /**
          * E.when(x, res, rej) is equivalent to
@@ -254,8 +274,11 @@ export default makeE;
 /** @typedef {ReturnType<makeE>} EProxy */
 
 /**
- * Creates a type that accepts both near and marshalled references that were
- * returned from `Remotable` or `Far`, and also promises for such references.
+ * Declare an object that is potentially a far reference of type Primary whose
+ * auxilliary data has type Local.  This should be used only for consumers of
+ * Far objects in arguments and declarations; the only creators of Far objects
+ * are distributed object creator components like the `Far` or `Remotable`
+ * functions.
  *
  * @template Primary The type of the primary reference.
  * @template [Local=DataOnly<Primary>] The local properties of the object.
@@ -274,6 +297,16 @@ export default makeE;
  * @see {@link https://github.com/microsoft/TypeScript/issues/31394}
  * @template T
  * @typedef {PromiseLike<T> | T} ERef
+ * Declare that `T` may or may not be a Promise.  This should be used only for
+ * consumers of arguments and declarations; return values should specifically be
+ * `Promise<T>` or `T` itself.
+ */
+
+/**
+ * The awaited return type of a function.
+ *
+ * @template {(...args: any[]) => any} T
+ * @typedef {T extends (...args: any[]) => infer R ? Awaited<R> : never} EReturn
  */
 
 /**
@@ -281,7 +314,7 @@ export default makeE;
  * @typedef {(
  *   ReturnType<T> extends PromiseLike<infer U>                       // if function returns a promise
  *     ? T                                                            // return the function
- *     : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>  // make it return a promise
+ *     : (...args: Parameters<T>) => Promise<EReturn<T>>  // make it return a promise
  * )} ECallable
  */
 
@@ -399,8 +432,9 @@ export default makeE;
  */
 
 /**
- * Type for an object that must only be invoked with E.  It supports a given
- * interface but declares all the functions as asyncable.
+ * Declare a near object that must only be invoked with E, even locally.  It
+ * supports the `T` interface but additionally permits `T`'s methods to return
+ * `PromiseLike`s even if `T` declares them as only synchronous.
  *
  * @template T
  * @typedef {(

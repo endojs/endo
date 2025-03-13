@@ -24,7 +24,7 @@ const rules = {
 dynamicConfig.overrides.push({
   extends: ['plugin:@endo/recommended-requiring-type-checking'],
   files: fileGlobs,
-  excludedFiles: ['**/src/**/exports.js'],
+  excludedFiles: ['**/src*/**/exports.js'],
   parserOptions,
   rules,
 });
@@ -49,6 +49,17 @@ module.exports = {
     // RESM does not support ?? nor ?. operators, so we must avoid them expressly.
     '@endo/no-optional-chaining': 'error',
     '@endo/no-nullish-coalescing': 'error',
+    '@typescript-eslint/naming-convention': [
+      'error',
+      {
+        selector: 'interface',
+        format: ['PascalCase'],
+        custom: {
+          regex: '.*I$',
+          match: false,
+        },
+      },
+    ],
   },
   overrides: [
     {
@@ -68,6 +79,7 @@ module.exports = {
     'bundles/**',
     'coverage/**',
     'dist/**',
+    'tmp/**',
     'test262/**',
     'ava*.config.js',
   ],

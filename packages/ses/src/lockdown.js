@@ -30,7 +30,7 @@ import {
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
-import whitelistIntrinsics from './permits-intrinsics.js';
+import removeUnpermittedIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameMathObject from './tame-math-object.js';
@@ -58,6 +58,7 @@ import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
 import { shimArrayBufferTransfer } from './shim-arraybuffer-transfer.js';
+import { reportInGroup, chooseReporter } from './reporting.js';
 
 /** @import {LockdownOptions} from '../types.js' */
 
@@ -162,22 +163,27 @@ export const repairIntrinsics = (options = {}) => {
 
   const {
     errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
-    errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit" | undefined} */ (
+    errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit"} */ (
       getenv('LOCKDOWN_ERROR_TRAPPING', 'platform')
     ),
-    unhandledRejectionTrapping = /** @type {"none" | "report" | undefined} */ (
+    reporting = /** @type {"platform" | "console" | "none"} */ (
+      getenv('LOCKDOWN_REPORTING', 'platform')
+    ),
+    unhandledRejectionTrapping = /** @type {"none" | "report"} */ (
       getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report')
     ),
     regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
     localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
 
-    consoleTaming = /** @type {'unsafe' | 'safe' | undefined} */ (
+    consoleTaming = /** @type {'unsafe' | 'safe'} */ (
       getenv('LOCKDOWN_CONSOLE_TAMING', 'safe')
     ),
-    overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
+    overrideTaming = /** @type {'moderate' | 'min' | 'severe'} */ (
+      getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate')
+    ),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
-    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safeEval'),
+    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safe-eval'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
@@ -188,8 +194,8 @@ export const repairIntrinsics = (options = {}) => {
       'safe',
     ),
     __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
-    dateTaming = 'safe', // deprecated
-    mathTaming = 'safe', // deprecated
+    dateTaming, // deprecated
+    mathTaming, // deprecated
     ...extraOptions
   } = options;
 
@@ -197,9 +203,12 @@ export const repairIntrinsics = (options = {}) => {
     legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
     Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
 
-  evalTaming === 'unsafeEval' ||
-    evalTaming === 'safeEval' ||
-    evalTaming === 'noEval' ||
+  evalTaming === 'unsafe-eval' ||
+    evalTaming === 'unsafeEval' || // deprecated
+    evalTaming === 'safe-eval' ||
+    evalTaming === 'safeEval' || // deprecated
+    evalTaming === 'no-eval' ||
+    evalTaming === 'noEval' || // deprecated
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
   // Assert that only supported options were passed.
@@ -207,6 +216,22 @@ export const repairIntrinsics = (options = {}) => {
   const extraOptionsNames = ownKeys(extraOptions);
   extraOptionsNames.length === 0 ||
     Fail`lockdown(): non supported option ${q(extraOptionsNames)}`;
+
+  const reporter = chooseReporter(reporting);
+  const { warn } = reporter;
+
+  if (dateTaming !== undefined) {
+    // eslint-disable-next-line no-console
+    warn(
+      `SES The 'dateTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
+    );
+  }
+  if (mathTaming !== undefined) {
+    // eslint-disable-next-line no-console
+    warn(
+      `SES The 'mathTaming' option is deprecated and does nothing. In the future specifying it will be an error.`,
+    );
+  }
 
   priorRepairIntrinsics === undefined ||
     // eslint-disable-next-line @endo/no-polymorphic-call
@@ -273,7 +298,7 @@ export const repairIntrinsics = (options = {}) => {
   const markVirtualizedNativeFunction = tameFunctionToString();
 
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
-    makeIntrinsicsCollector();
+    makeIntrinsicsCollector(reporter);
 
   // @ts-expect-error __hardenTaming__ could be any string
   const tamedHarden = tameHarden(safeHarden, __hardenTaming__);
@@ -281,9 +306,9 @@ export const repairIntrinsics = (options = {}) => {
 
   addIntrinsics(tameFunctionConstructors());
 
-  addIntrinsics(tameDateConstructor(dateTaming));
+  addIntrinsics(tameDateConstructor());
   addIntrinsics(tameErrorConstructor(errorTaming, stackFiltering));
-  addIntrinsics(tameMathObject(mathTaming));
+  addIntrinsics(tameMathObject());
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
   addIntrinsics(shimArrayBufferTransfer());
@@ -357,13 +382,22 @@ export const repairIntrinsics = (options = {}) => {
   tameFauxDataProperties(intrinsics);
 
   /**
-   * 2. WHITELIST to standardize the environment.
+   * 2. Enforce PERMITS on shared intrinsics
    */
 
   // Remove non-standard properties.
-  // All remaining function encountered during whitelisting are
+  // All remaining functions encountered during whitelisting are
   // branded as honorary native functions.
-  whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
+  reportInGroup(
+    'SES Removing unpermitted intrinsics',
+    reporter,
+    groupReporter =>
+      removeUnpermittedIntrinsics(
+        intrinsics,
+        markVirtualizedNativeFunction,
+        groupReporter,
+      ),
+  );
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
@@ -377,23 +411,36 @@ export const repairIntrinsics = (options = {}) => {
     markVirtualizedNativeFunction,
   });
 
-  if (evalTaming === 'noEval') {
+  if (
+    evalTaming === 'no-eval' ||
+    // deprecated
+    evalTaming === 'noEval'
+  ) {
     setGlobalObjectEvaluators(
       globalThis,
       noEvalEvaluate,
       markVirtualizedNativeFunction,
     );
-  } else if (evalTaming === 'safeEval') {
+  } else if (
+    evalTaming === 'safe-eval' ||
+    // deprecated
+    evalTaming === 'safeEval'
+  ) {
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
     setGlobalObjectEvaluators(
       globalThis,
       safeEvaluate,
       markVirtualizedNativeFunction,
     );
-  } else if (evalTaming === 'unsafeEval') {
-    // Leave eval function and Function constructor of the initial compartment in-tact.
-    // Other compartments will not have access to these evaluators unless a guest program
-    // escapes containment.
+  } else if (
+    evalTaming === 'unsafe-eval' ||
+    // deprecated
+    evalTaming === 'unsafeEval'
+  ) {
+    // Leave eval function and Function constructor of the initial
+    // compartment intact.
+    // Other compartments will not have access to these evaluators unless a
+    // guest program escapes containment.
   }
 
   /**
@@ -425,7 +472,14 @@ export const repairIntrinsics = (options = {}) => {
     // therefore before vetted shims rather than afterwards. It is not
     // clear yet which is better.
     // @ts-ignore enablePropertyOverrides does its own input validation
-    enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
+    reportInGroup('SES Enabling property overrides', reporter, groupReporter =>
+      enablePropertyOverrides(
+        intrinsics,
+        overrideTaming,
+        groupReporter,
+        overrideDebug,
+      ),
+    );
     if (legacyRegeneratorRuntimeTaming === 'unsafe-ignore') {
       tameRegeneratorRuntime();
     }

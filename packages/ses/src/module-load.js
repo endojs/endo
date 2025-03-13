@@ -6,11 +6,13 @@ import {
   arrayJoin,
   arrayMap,
   arrayPush,
+  arraySome,
   create,
   freeze,
   generatorNext,
   generatorThrow,
   getOwnPropertyNames,
+  isArray,
   isObject,
   mapGet,
   mapHas,
@@ -85,14 +87,23 @@ const loadModuleSource = (
   moduleLoads,
   importMeta,
 ) => {
-  const { resolveHook } = weakmapGet(compartmentPrivateFields, compartment);
+  const { resolveHook, name: compartmentName } = weakmapGet(
+    compartmentPrivateFields,
+    compartment,
+  );
+
+  const { imports } = moduleSource;
+  if (
+    !isArray(imports) ||
+    arraySome(imports, specifier => typeof specifier !== 'string')
+  ) {
+    throw makeError(
+      X`Invalid module source: 'imports' must be an array of strings, got ${imports} for module ${q(moduleSpecifier)} of compartment ${q(compartmentName)}`,
+    );
+  }
 
   // resolve all imports relative to this referrer module.
-  const resolvedImports = resolveAll(
-    moduleSource.imports,
-    resolveHook,
-    moduleSpecifier,
-  );
+  const resolvedImports = resolveAll(imports, resolveHook, moduleSpecifier);
   const moduleRecord = freeze({
     compartment,
     moduleSource,

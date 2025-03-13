@@ -1,12 +1,12 @@
 /* eslint-disable no-restricted-globals */
 /* eslint max-lines: 0 */
 
-import { arrayPush } from './commons.js';
+import { arrayPush, arrayForEach } from './commons.js';
 
 /** @import {GenericErrorConstructor} from '../types.js' */
 
 /**
- * @file Exports {@code whitelist}, a recursively defined
+ * @module Exports {@code permits}, a recursively defined
  * JSON record enumerating all intrinsics and their properties
  * according to ECMA specs.
  *
@@ -32,7 +32,7 @@ export const constantProperties = {
  * universalPropertyNames
  * Properties of all global objects.
  * Must be powerless.
- * Maps from property name to the intrinsic name in the whitelist.
+ * Maps from property name to the intrinsic name in the permits.
  */
 export const universalPropertyNames = {
   // *** Function Properties of the Global Object
@@ -89,6 +89,15 @@ export const universalPropertyNames = {
   // https://github.com/endojs/endo/issues/550
   AggregateError: 'AggregateError',
 
+  // https://github.com/tc39/proposal-explicit-resource-management
+  // TODO DisposableStack, AsyncDisposableStack
+  // DisposableStack: 'DisposableStack',
+  // AsyncDisposableStack: 'AsyncDisposableStack',
+
+  // https://tc39.es/proposal-shadowrealm/
+  // TODO ShadowRealm
+  // ShadowRealm: 'ShadowRealm',
+
   // *** Other Properties of the Global Object
 
   JSON: 'JSON',
@@ -115,7 +124,7 @@ export const universalPropertyNames = {
  * Those found only on the initial global, i.e., the global of the
  * start compartment, as well as any compartments created before lockdown.
  * These may provide much of the power provided by the original.
- * Maps from property name to the intrinsic name in the whitelist.
+ * Maps from property name to the intrinsic name in the permits.
  */
 export const initialGlobalPropertyNames = {
   // *** Constructor Properties of the Global Object
@@ -125,7 +134,7 @@ export const initialGlobalPropertyNames = {
   RegExp: '%InitialRegExp%',
 
   // Omit `Symbol`, because we want the original to appear on the
-  // start compartment without passing through the whitelist mechanism, since
+  // start compartment without passing through the permits mechanism, since
   // we want to preserve all its properties, even if we never heard of them.
   // Symbol: '%InitialSymbol%',
 
@@ -143,13 +152,17 @@ export const initialGlobalPropertyNames = {
   // TODO https://github.com/Agoric/SES-shim/issues/551
   // Need initial WeakRef and FinalizationGroup in
   // start compartment only.
+
+  // TODO Temporal
+  // https://github.com/tc39/proposal-temporal
+  // Temporal: '%InitialTemporal%' // with Temporal.Now
 };
 
 /**
  * sharedGlobalPropertyNames
  * Those found only on the globals of new compartments created after lockdown,
  * which must therefore be powerless.
- * Maps from property name to the intrinsic name in the whitelist.
+ * Maps from property name to the intrinsic name in the permits.
  */
 export const sharedGlobalPropertyNames = {
   // *** Constructor Properties of the Global Object
@@ -162,13 +175,17 @@ export const sharedGlobalPropertyNames = {
   // *** Other Properties of the Global Object
 
   Math: '%SharedMath%',
+
+  // TODO Temporal
+  // https://github.com/tc39/proposal-temporal
+  // Temporal: '%SharedTemporal%' // without Temporal.Now
 };
 
 /**
  * uniqueGlobalPropertyNames
  * Those made separately for each global, including the initial global
  * of the start compartment.
- * Maps from property name to the intrinsic name in the whitelist
+ * Maps from property name to the intrinsic name in the permits
  * (which is currently always the same).
  */
 export const uniqueGlobalPropertyNames = {
@@ -228,18 +245,18 @@ export { NativeErrors };
  *     blacklisted and simply removed. Properties not mentioned
  *     are also considered blacklisted and are removed.
  * <li>A string value equal to a primitive ("number", "string", etc),
- *     in which case the property is whitelisted if its value property
+ *     in which case the property is permitted if its value property
  *     is typeof the given type. For example, {@code "Infinity"} leads to
  *     "number" and property values that fail {@code typeof "number"}.
  *     are removed.
  * <li>A string value equal to an intinsic name ("ObjectPrototype",
- *     "Array", etc), in which case the property whitelisted if its
+ *     "Array", etc), in which case the property permitted if its
  *     value property is equal to the value of the corresponfing
  *     intrinsics. For example, {@code Map.prototype} leads to
  *     "MapPrototype" and the property is removed if its value is
  *     not equal to %MapPrototype%
  * <li>Another record, in which case this property is simply
- *     whitelisted and that next record represents the disposition of
+ *     permitted and that next record represents the disposition of
  *     the object which is its value. For example, {@code "Object"}
  *     leads to another record explaining what properties {@code
  *     "Object"} may have and how each such property should be treated.
@@ -298,6 +315,24 @@ const accessor = {
   get: fn,
   set: fn,
 };
+
+// eslint-disable-next-line func-names
+const strict = function () {
+  'use strict';
+};
+
+// TODO Remove this once we no longer support the Hermes that needed this.
+arrayForEach(['caller', 'arguments'], prop => {
+  try {
+    strict[prop];
+  } catch (e) {
+    // https://github.com/facebook/hermes/blob/main/test/hermes/function-non-strict.js
+    if (e.message === 'Restricted in strict mode') {
+      // Fixed in Static Hermes: https://github.com/facebook/hermes/issues/1582
+      FunctionInstance[prop] = accessor;
+    }
+  }
+});
 
 export const isAccessorPermit = permit => {
   return permit === getter || permit === accessor;
@@ -393,6 +428,11 @@ const CommonMath = {
   tan: fn,
   tanh: fn,
   trunc: fn,
+  // https://github.com/tc39/proposal-float16array
+  f16round: fn,
+  // https://github.com/tc39/proposal-math-sum
+  sumPrecise: fn,
+
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
   idiv: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
@@ -455,7 +495,6 @@ export const permitted = {
     getOwnPropertyNames: fn,
     getOwnPropertySymbols: fn,
     getPrototypeOf: fn,
-    hasOwn: fn,
     is: fn,
     isExtensible: fn,
     isFrozen: fn,
@@ -466,6 +505,8 @@ export const permitted = {
     seal: fn,
     setPrototypeOf: fn,
     values: fn,
+    // https://github.com/tc39/proposal-accessible-object-hasownproperty
+    hasOwn: fn,
     // https://github.com/tc39/proposal-array-grouping
     groupBy: fn,
     // Seen on QuickJS
@@ -537,9 +578,7 @@ export const permitted = {
   '%SharedSymbol%': {
     // Properties of the Symbol Constructor
     '[[Proto]]': '%FunctionPrototype%',
-    asyncDispose: 'symbol',
     asyncIterator: 'symbol',
-    dispose: 'symbol',
     for: fn,
     hasInstance: 'symbol',
     isConcatSpreadable: 'symbol',
@@ -555,6 +594,10 @@ export const permitted = {
     toPrimitive: 'symbol',
     toStringTag: 'symbol',
     unscopables: 'symbol',
+    // https://github.com/tc39/proposal-explicit-resource-management
+    asyncDispose: 'symbol',
+    // https://github.com/tc39/proposal-explicit-resource-management
+    dispose: 'symbol',
     // Seen at core-js https://github.com/zloirock/core-js#ecmascript-symbol
     useSimple: false,
     // Seen at core-js https://github.com/zloirock/core-js#ecmascript-symbol
@@ -583,6 +626,8 @@ export const permitted = {
     stackTraceLimit: accessor,
     // Non standard, v8 only, used by several, tamed to accessor
     prepareStackTrace: accessor,
+    // https://github.com/tc39/proposal-is-error
+    isError: fn,
   },
 
   '%SharedError%': {
@@ -595,6 +640,8 @@ export const permitted = {
     stackTraceLimit: accessor,
     // Non standard, v8 only, used by several, tamed to accessor
     prepareStackTrace: accessor,
+    // https://github.com/tc39/proposal-is-error
+    isError: fn,
   },
 
   '%ErrorPrototype%': {
@@ -623,6 +670,10 @@ export const permitted = {
   // https://github.com/endojs/endo/issues/550
   AggregateError: NativeError('%AggregateErrorPrototype%'),
 
+  // TODO SuppressedError
+  // https://github.com/tc39/proposal-explicit-resource-management
+  // SuppressedError: NativeError('%SuppressedErrorPrototype%'),
+
   '%EvalErrorPrototype%': NativeErrorPrototype('EvalError'),
   '%RangeErrorPrototype%': NativeErrorPrototype('RangeError'),
   '%ReferenceErrorPrototype%': NativeErrorPrototype('ReferenceError'),
@@ -631,6 +682,13 @@ export const permitted = {
   '%URIErrorPrototype%': NativeErrorPrototype('URIError'),
   // https://github.com/endojs/endo/issues/550
   '%AggregateErrorPrototype%': NativeErrorPrototype('AggregateError'),
+  // TODO AggregateError .errors
+
+  // TODO SuppressedError
+  // https://github.com/tc39/proposal-explicit-resource-management
+  // '%SuppressedErrorPrototype%': NativeErrorPrototype('SuppressedError'),
+  // TODO SuppressedError .error
+  // TODO SuppressedError .suppressed
 
   // *** Numbers and Dates
 
@@ -809,7 +867,6 @@ export const permitted = {
   '%StringPrototype%': {
     // Properties of the String Prototype Object
     length: 'number',
-    at: fn,
     charAt: fn,
     charCodeAt: fn,
     codePointAt: fn,
@@ -843,6 +900,13 @@ export const permitted = {
     trimStart: fn,
     valueOf: fn,
     '@@iterator': fn,
+    // Failed tc39 proposal
+    // https://github.com/tc39/proposal-relative-indexing-method
+    at: fn,
+    // https://github.com/tc39/proposal-is-usv-string
+    isWellFormed: fn,
+    toWellFormed: fn,
+    unicodeSets: fn,
 
     // Annex B: Additional Properties of the String.prototype Object
     substr: fn,
@@ -863,10 +927,6 @@ export const permitted = {
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     compare: false,
-    // https://github.com/tc39/proposal-is-usv-string
-    isWellFormed: fn,
-    toWellFormed: fn,
-    unicodeSets: fn,
     // Seen on QuickJS
     __quote: false,
   },
@@ -882,6 +942,8 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%RegExpPrototype%',
     '@@species': getter,
+    // https://github.com/tc39/proposal-regex-escaping
+    escape: fn,
 
     // The https://github.com/tc39/proposal-regexp-legacy-features
     // are all optional, unsafe, and omitted
@@ -911,6 +973,8 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%RegExpPrototype%',
     '@@species': getter,
+    // https://github.com/tc39/proposal-regex-escaping
+    escape: fn,
   },
 
   '%RegExpPrototype%': {
@@ -957,7 +1021,7 @@ export const permitted = {
     prototype: '%ArrayPrototype%',
     '@@species': getter,
 
-    // Stage 3:
+    // Failed tc39 proposal
     // https://tc39.es/proposal-relative-indexing-method/
     at: fn,
     // https://tc39.es/proposal-array-from-async/
@@ -966,7 +1030,6 @@ export const permitted = {
 
   '%ArrayPrototype%': {
     // Properties of the Array Prototype Object
-    at: fn,
     length: 'number',
     concat: fn,
     constructor: 'Array',
@@ -1014,6 +1077,7 @@ export const permitted = {
       keys: 'boolean',
       values: 'boolean',
       // Failed tc39 proposal
+      // https://tc39.es/proposal-relative-indexing-method/
       // Seen on FF Nightly 88.0a1
       at: 'boolean',
       // See https://github.com/tc39/proposal-array-find-from-last
@@ -1041,6 +1105,9 @@ export const permitted = {
     group: fn, // Not in proposal? Where?
     groupToMap: fn, // Not in proposal? Where?
     groupBy: fn,
+    // Failed tc39 proposal
+    // https://tc39.es/proposal-relative-indexing-method/
+    at: fn,
   },
 
   '%ArrayIteratorPrototype%': {
@@ -1062,7 +1129,6 @@ export const permitted = {
   },
 
   '%TypedArrayPrototype%': {
-    at: fn,
     buffer: getter,
     byteLength: getter,
     byteOffset: getter,
@@ -1095,6 +1161,9 @@ export const permitted = {
     values: fn,
     '@@iterator': fn,
     '@@toStringTag': getter,
+    // Failed tc39 proposal
+    // https://tc39.es/proposal-relative-indexing-method/
+    at: fn,
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
@@ -1352,6 +1421,11 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%IteratorPrototype%',
     from: fn,
+    // https://github.com/tc39/proposal-joint-iteration
+    zip: fn,
+    zipKeyed: fn,
+    // https://github.com/tc39/proposal-iterator-sequencing
+    concat: fn,
   },
 
   '%IteratorPrototype%': {
@@ -1373,6 +1447,7 @@ export const permitted = {
     '@@toStringTag': 'string',
     // https://github.com/tc39/proposal-async-iterator-helpers
     toAsync: fn,
+    // https://github.com/tc39/proposal-explicit-resource-management
     // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
     '@@dispose': false,
   },
@@ -1417,6 +1492,7 @@ export const permitted = {
     every: fn,
     find: fn,
     '@@toStringTag': 'string',
+    // https://github.com/tc39/proposal-explicit-resource-management
     // See https://github.com/Moddable-OpenSource/moddable/issues/523#issuecomment-1942904505
     '@@asyncDispose': false,
   },
@@ -1496,7 +1572,7 @@ export const permitted = {
   //
   // We will likely change this to add a property to Promise called
   // Promise.delegate and put static methods on it, which will necessitate
-  // another whitelist change to update to the current proposed standard.
+  // another permits change to update to the current proposed standard.
   HandledPromise: {
     '[[Proto]]': 'Promise',
     applyFunction: fn,
@@ -1524,6 +1600,10 @@ export const permitted = {
     bindings: getter,
     needsImport: getter,
     needsImportMeta: getter,
+    // @endo/module-source provides a legacy interface
+    imports: getter,
+    exports: getter,
+    reexports: getter,
   },
 
   '%AbstractModuleSource%': {

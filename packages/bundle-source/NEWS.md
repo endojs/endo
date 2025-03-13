@@ -1,5 +1,25 @@
 User-visible changes to `@endo/bundle-source`:
 
+# Next release
+
+- Replaces the implementation for the `nestedEvaluate` and `getExport`
+  formats with one based on Endo's Compartment Mapper instead of Rollup,
+  in order to obviate the need to reconcile source map transforms between
+  Rollup and the underlying Babel generator.
+  As a consequence, we no longer generate a source map for the bundle, but
+  Babel ensures that we preserve line and column numbers between the original
+  source and the bundled source.
+
+# v3.5.0 (2024-11-13)
+
+- Adds support for TypeScript type erasure using
+  [`ts-blank-space`](https://bloomberg.github.io/ts-blank-space/) applied to
+  TypeScript modules with `.ts`, `.mts`, and `.cts` extensions, for any package
+  that is not under a `node_modules` directory, immitating `node
+  --experimental-strip-types`.
+  As with `.js` extensions, the behavior of `.ts` is either consistent with
+  `.mts` or `.cts` depending on the `type` in `package.json`.
+
 # v3.4.0 (2024-08-27)
 
 - Adds support for `--elide-comments` (`-e`) that blanks out the interior of

@@ -1,2 +1,2 @@
-/** @file Empty twin for .d.ts */
+/** @module Empty twin for .d.ts */
 export {};

@@ -1,25 +1,26 @@
 # Smallcaps Cheatsheet
 
-An example-based summary of the Smallcaps encoding
+An example-based summary of the Smallcaps encoding on the OCapN [Abstract Syntax](https://github.com/ocapn/ocapn/blob/28af626441da888c4a520309222e18266dd2f1f2/draft-specifications/Model.md) (as of https://github.com/ocapn/ocapn/pull/125). (TODO revise link once that PR is merged.)
 
-| Passable value  | OCapn name    | JS example          | JSON encoding        |
-| ----------------|---------------|---------------------|----------------------|
-| bigint          | Integer       | `7n`<br>`-7n`       | `"+7"`<br>`"-7"`     |
-| manifest constant | Undefined<br><br>Float64<br><br><br> | `undefined`<br>`Infinity`<br>`-Infinity`<br>`NaN`<br>`-0` | `"#undefined"`<br>`"#Infinity"`<br>`"#-Infinity"`<br>`"#NaN"`<br>`"#-0"` // unimplemented |
-| passable symbol | Symbol        | `Symbol.for('foo')`<br>`Symbol.asyncIterator` | `"%foo"`<br>`"%@@asyncIterator"` |
-| remotable       | Remotable     | `Far('foo', {})`    | `"$0.foo"`           |
-| promise         | Promise       | `Promise.resolve()` | `"&1"`               |
-| special string  | String        | `'#foo'`            | `"!#foo"`            |
-| other string    | String        | `'foo'`             | `"foo"`              |
-| other JSON scalar | Null<br>Boolean<br><br>Float64 | `null`<br>`true`<br>`false`<br>`7.1` | `null`<br>`true`<br>`false`<br>`7.1` |
-| copyArray       | List          | `[a,b]`             | `[<a>,<b>]`          |
-| copyRecord      | Struct        | `{x:a,y:b}`         | `{<x>:<a>,<y>:<b>}`  |
-| error           | Error         | `TypeError(msg)`    | `{"#error":<msg>,"name":"TypeError"}` |
-| tagged          | Tagged        | `makeTagged(t,p)`   | `{"#tag":<t>,"payload":<p>}` |
-| ?               | ByteArray     | ?                   | ?                    |
+| pass-style name  | OCapn name    | JS example            | JSON encoding        |
+| -----------------|---------------|-----------------------|----------------------|
+| undefined        | Undefined     | `undefined`           | `"#undefined"`       |
+| null             | Null          | `null`                | `null`               |
+| boolean          | Boolean       | `true`<br>`false`     | `true`<br>`false`    |
+| bigint           | Integer       | `7n`<br>`-7n`         | `"+7"`<br>`"-7"`     |
+| number           | Float64       | `Infinity`<br>`-Infinity`<br>`NaN`<br>`-0`<br>`7.1` | `"#Infinity"`<br>`"#-Infinity"`<br>`"#NaN"`<br>`"#-0"` // unimplemented<br>`7.1` |
+| string           | String        | `'#foo'`<br>`'foo'`   | `"!#foo"` // special strings<br>`"foo"` // other strings |
+| byteArray        | ByteArray     | `buf.toImmutable()`   | // undecided & unimplemented |
+| selector         | Selector      | `makeSelector('foo')` | `"%foo"` // converting from symbol |
+| copyArray        | List          | `[a,b]`               | `[<a>,<b>]`          |
+| copyRecord       | Struct        | `{x:a,y:b}`           | `{<x>:<a>,<y>:<b>}`  |
+| tagged           | Tagged        | `makeTagged(t,p)`     | `{"#tag":<t>,"payload":<p>}` |
+| remotable        | Target        | `Far('foo', {})`      | `"$0.foo"`           |
+| promise          | Promise       | `Promise.resolve()`   | `"&1"`               |
+| error            | Error         | `TypeError(msg)`      | `{"#error":<msg>,"name":"TypeError"}` |
 
 * The `-0` encoding is defined as above, but not yet implemented in JS.
-* In JS, only registered and well-known symbols are passable.
+* In JS, selectors in transition from symbols to their own representation
 * The number after `"$"` or `"&"` is an index into a separate slots array.
 * Special strings begin with any of the `!"#$%&'()*+,-` characters.
 * `<expr>` is nested encoding of `expr`.
@@ -30,5 +31,3 @@ An example-based summary of the Smallcaps encoding
 * The ByteArray encoding is not yet designed or implemented.
 
 Every JSON encoding with no special strings anywhere decodes to itself.
-
-See OCapN [Abstract Syntax](https://github.com/ocapn/ocapn/wiki/Abstract-Syntax).

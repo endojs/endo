@@ -4,6 +4,7 @@
  *
  * This module does not entrain a dependency on Babel.
  */
+
 /** @import {ParserForLanguage} from './types.js' */
 
 import parserPreCjs from './parse-pre-cjs.js';

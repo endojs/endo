@@ -11,8 +11,10 @@ attacks and some supply chain attacks.
 Since most Node.js packages do not modify objects in global scope,
 many libraries and applications work in Compartments without modification.
 
-The `importLocation` function runs a compartmentalized application off the file
-system.
+## Evaluating an application from a file system
+
+The `importLocation` function evaluates a compartmentalized application off the
+file system.
 The `globals` are properties to add to the `globalThis` in the global scope
 of the application's main package compartment.
 The `modules` are built-in modules to grant the application's main package
@@ -20,23 +22,20 @@ compartment.
 
 ```js
 import fs from "fs";
+import { fileURLToPath } from "url";
 import { importLocation } from "@endo/compartment-mapper";
 
 // ...
 
-const modules = { fs };
-const globals = { console };
+const read = async location => fs.promises.readFile(fileURLToPath(location));
 
-const read = async location =>
-  fs.promises.readFile(new URL(location).pathname);
-
-const { namespace } = await importLocation(
+const { namespace: moduleExports } = await importLocation(
   read,
-  moduleLocation,
+  moduleSpecifier,
   {
-    globals,
-    modules
-  }
+    globals: { console },
+    modules: { fs },
+  },
 );
 ```
 
@@ -46,93 +45,264 @@ The application using the compartment mapper is responsible for applying the
 necessary).
 The compartment mapper is also not coupled specifically to Node.js IO and does
 not import any powerful modules like `fs`.
-The user must provide `read` and `write` functions from whatever IO powers they
-have. These powers can be provided as individual functions or as objects
-carrying functions. `ReadPowers` has optional functions which can be used to
-unlock compatibility features. When `fileURLToPath` is available, `__dirname`
-and `__filename` will be provided to CJS modules. If `requireResolve` is
-available, it will be called whenever a CJS module calls `require.resolve()`.
+The caller must provide read powers in the first argument as either a ReadPowers
+object or as a standalone `read` function. ReadPowers has optional functions
+which can be used to unlock compatibility features. When `fileURLToPath` is
+available, `__dirname` and `__filename` will be provided to CJS modules. When
+`requireResolve` is available, it will be called whenever a CJS module calls
+[`require.resolve()`].
 
-```js
+```ts
 type ReadPowers = {
   read: (location: string) => Promise<Uint8Array>,
   canonical: (location: string) => Promise<string>,
-  computeSha512: { (bytes: Uint8Array) => string }?,
-  fileURLToPath: { (url: string | URL) => string }?,
-  pathToFileURL: { (path: string) => URL }?,
-  requireResolve: { (from: string, request: string, options?: {}) => string }?
+  computeSha512?: (bytes: Uint8Array) => string,
+  fileURLToPath?: (location: string | URL) => string,
+  pathToFileURL?: (path: string) => URL,
+  requireResolve?: (
+    fromLocation: string,
+    specifier: string,
+    options?: { paths?: string[] },
+  ) => string
 }
 ```
 
-> TODO
->
-> A future version will allow application authors to distribute their choices
-> of globals and built-in modules to third-party packages within the
+> [!NOTE]
+> TODO: A future version will allow application authors to distribute their
+> choices of globals and built-in modules to third-party packages within the
 > application, as with [LavaMoat].
 
-The `importLocation` function uses `loadLocation`.
-Using `loadLocation` directly allows for deferred execution or multiple runs
-with different globals or modules in the same process.
-Calling `loadLocation` returns an `Application` object with an
+The `importLocation` function internally uses `loadLocation`.
+Use `loadLocation` to defer execution or evaluate multiple times with varying
+globals or modules in the same process.
+`loadLocation` returns an Application object with an
 `import({ globals?, modules? })` method.
+
+## Writing an application archive
 
 Use `writeArchive` to capture an application in an archival format.
 Archives are `zip` files with a `compartment-map.json` manifest file.
 
 ```js
 import fs from "fs";
+import { fileURLToPath } from "url";
 import { writeArchive } from "@endo/compartment-mapper";
 
-const read = async location =>
-  fs.promises.readFile(new URL(location).pathname);
+const read = async location => fs.promises.readFile(fileURLToPath(location));
 const write = async (location, content) =>
-  fs.promises.writeFile(new URL(location).pathname, content);
+  fs.promises.writeFile(fileURLToPath(location), content);
 
-await writeArchive(
-  write,
-  read,
-  new URL('app.zip', import.meta.url).toString(), // the archive to write
-  new URL('app.js', import.meta.url).toString() // the application to capture
-);
+const moduleSpecifier = new URL('app.js', import.meta.url).toString();
+const archiveLocation = new URL('app.zip', import.meta.url).toString();
+
+// Write to `archiveLocation`.
+await writeArchive(write, read, archiveLocation, moduleSpecifier);
 ```
 
-The `writeArchive` function uses `makeArchive`.
+The `writeArchive` function internally uses `makeArchive`.
 Using `makeArchive` directly gives you the archive bytes.
+
+## Evaluating an application from an archive
 
 Use `importArchive` to run an application from an archive.
 Note the similarity to `importLocation`.
 
 ```js
 import fs from "fs";
+import { fileURLToPath } from "url";
 import { importArchive } from "@endo/compartment-mapper";
 
 // ...
 
-const modules = { fs };
-const globals = { console };
+const read = async location => fs.promises.readFile(fileURLToPath(location));
 
-const read = async location =>
-  fs.promises.readFile(new URL(location).pathname);
-
-const { namespace } = await importArchive(
+const { namespace: moduleExports } = await importArchive(
   read,
   archiveLocation,
   {
-    globals,
-    modules
-  }
+    globals: { console },
+    modules: { fs },
+  },
 );
 ```
 
-The `importArchive` function composes `loadArchive` and `parseArchive`.
+The `importArchive` function internally composes `loadArchive` and
+`parseArchive`.
 Use `loadArchive` to defer execution or run multiple times with varying
-globals.
+globals or modules in the same process.
 Use `parseArchive` to construct a runner from the bytes of an archive.
-The `loadArchive` and `parseArchive` functions return an `Application`
-object with an `import({ globals?, modules? })` method.
+`loadArchive` and `parseArchive` return an Application object with an
+`import({ globals?, modules? })` method.
 
-`loadArchive` and `parseArchive` do not run the archived program,
-so they can be used to check the hash of a program without running it.
+`loadArchive` and `parseArchive` do not run the archived application,
+so they can be used to safely check its hash.
+
+# Script bundles
+
+From `@endo/compartment-mapper/script.js`, the `makeScript` function is similar
+to `makeArchive` but generates a string of JavaScript suitable for `eval` or
+embedding in a web page with a `<script>`.
+Endo uses this "bundle" format to bootstrap an environment up to the point it
+can call `importArchive`, so bundles are at least suitable for creating a
+script that subsumes `ses`, `@endo/compartment-mapper/import-archive.js`, and
+other parts of Endo, but is not as feature-complete as `importArchive`.
+
+```js
+import url from "url";
+import fs from "fs";
+import { makeScript } from "@endo/compartment-mapper/script.js";
+import { makeReadPowers } from "@endo/compartment-mapper/node-powers.js";
+const readPowers = makeReadPowers({ fs, url });
+const options = {}; // if any
+const script = await makeScript(readPowers, moduleSpecifier, options);
+```
+
+The script is suitable for evaluating as a script in a web environment.
+The script is in UTF-8 format and uses non-ASCII characters, so may require
+headers or tags to specify the encoding.
+
+```html
+<meta charset="utf-8">
+<script src="script.js"></script>
+```
+
+Evaluation of `script` returns the emulated exports namespace of the entry
+module.
+
+```js
+const script = await makeScript(readPowers, moduleSpecifier, options);
+
+// This one weird trick evaluates your script in global scope instead of
+// lexical scope.
+const globalEval = eval;
+const moduleExports = globalEval(script);
+```
+
+Scripts can include ESM, CJS, and JSON modules, but no other module languages
+like bytes or text.
+
+> [!WARNING]
+> Scripts do not support [live
+> bindings](https://developer.mozilla.org/en-US/docs/Glossary/Binding), dynamic
+> `import`, or `import.meta`.
+> Scripts do not isolate modules to a compartment.
+
+`makeScript` accepts all the options of `makeArchive` and:
+
+- `sourceUrlPrefix` (string, default `""`):
+  Specifies a prefix to occur on each module's `sourceURL` comment, as injected
+  at runtime.
+  Should generally end with `/` if non-empty.
+  This can improve stack traces.
+- `format` (`"cjs"` or `undefined`, default `undefined`):
+  By default, `makeBundle` generates a bundle that can be evaluated in any
+  context.
+  By specifying `"cjs"`, the bundle can assume there is a host CommonJS
+  `require` function available for resolving modules that exit the bundle.
+  The default is `require` on `globalThis`.
+  The `require` function can be overridden with a curried runtime option.
+- `useEvaluate` (boolean, default `false`):
+  Disabled by default, for bundles that may be embedded on a web page with a
+  `no-unsafe-eval` Content Security Policy.
+  Enable for any environment that can use `eval` or other suitable evaluator
+  (like a Hardened JavaScript `Compartment`).
+
+  By default and when `useEvaluate` is explicitly `false`, the text of a module
+  includes an array of module evaluator functions.
+
+  > [!WARNING]
+  > Example is illustrative and neither a compatibility guarantee nor even
+  > precise.
+
+  ```js
+  (modules => options => {
+    /* ...linker runtime... */
+    for (const module of modules) {
+      module(/* linking convention */);
+    }
+  )([
+  // 1. bundle ./dependency.js
+  function () { /* ... */ },
+  // 2. bundle ./dependent.js
+  function () { /* ... */ },
+  ])(/* runtime options */)
+  ```
+
+  Each of these functions is generated by [Endo's emulation of a JavaScript
+  `ModuleSource`
+  constructor](https://github.com/endojs/endo/blob/master/packages/module-source/DESIGN.md),
+  which we use elsewhere in the Compartment Mapper to emulate Compartment
+  module systems at runtime, as in the Compartment Mapper's own `importArchive`.
+
+  With `useEvaluate`, the script instead embeds the text for each module as a
+  string, along with a package-relative source URL, and uses an `eval` function
+  to produce the corresponding `function`.
+
+  ```js
+  (modules => options => {
+    /* ...linker runtime... */
+    for (const [module, sourceURL] of modules) {
+      evalWithSourceURL(module, sourceURL)(/* linking convention */);
+    }
+  )([
+  // 1. bundle ./dependency.js
+  ["(function () { /* ... */ })", "bundle/dependency.js"],
+  // 2. bundle ./dependent.js
+  ["(function () { /* ... */ })", "bundle/dependent.js"],
+  ])(/* runtime options */)
+  ```
+
+  With `useEvaluate`, the bundle will instead capture a string for
+  each module function and use an indirect `eval` to revive them.
+  This can make the file locations and line numbers in stack traces more
+  useful.
+
+From `@endo/compartment-mapper/script-lite.js`, the `makeScriptFromMap` takes
+a compartment map, like that generated by `mapNodeModules` in
+`@endo/compartment-mapper/node-modules.js` instead of the entry module's
+location.
+The `-lite.js` modules, in general, do not entrain a specific compartment
+mapper.
+
+# Functor bundles
+
+From `@endo/compartment-mapper/functor.js`, the `makeFunctor` function is similar
+to `makeScript` but generates a string of JavaScript suitable for `eval` but *not*
+suitable for embedding as a script. But, the completion value of the script
+is a function that accepts runtime options and returns the entry module's emulated
+module exports namespace, adding a level of indirection.
+
+In this example, we use a Hardened JavaScript `Compartment` to confine the
+execution of the functor and its modules.
+
+```js
+const functorScript = await makeFunctor(readPowers, moduleSpecifier, options);
+const compartment = new Compartment();
+const moduleExports = compartment.evaluate(functorScript)({
+  require,
+  evaluate: compartment.evaluate,
+  sourceUrlPrefix: 'file:///Users/you/project/',
+});
+```
+
+The functor runtime options include:
+
+- `evaluate`: for functors made with `useEvaluate`,
+  specifies a function to use to evaluate each module.
+  The default evaluator is indirect `eval`.
+- `require`: for functors made with `format` of `"cjs"`, provides the behavior
+  for `require` calls that exit the bundle to the host environment.
+  Defaults to the `require` in lexical scope.
+- `sourceUrlPrefix`: specifies a prefix to occur on each module's `sourceURL` comment,
+  as injected at runtime.
+  Overrides the `sourceUrlPrefix` provided to `makeFunctor`, if any.
+
+From `@endo/compartment-mapper/functor-lite.js`, the `makeFunctorFromMap` takes
+a compartment map, like that generated by `mapNodeModules` in
+`@endo/compartment-mapper/node-modules.js` instead of the entry module's
+location.
+The `-lite.js` modules, in general, do not entrain a specific compartment
+mapper.
 
 # Package Descriptors
 
@@ -164,7 +334,7 @@ in a parent directory, under `node_modules`.
 The `main`, `browser`, and `exports` properties determine the modules each
 package exports to other compartments.
 
-The `exports` property describes [package entry points][] and can be influenced
+The `exports` property describes [package entry points] and can be influenced
 by build _conditions_.
 Currently, the only conditions supported by the compartment mapper are
 `import`, `browser`, and `endo`.
@@ -177,13 +347,11 @@ The `endo` condition only indicates that this tool is in use.
 If no `exports` apply to the root of the compartment namespace (`"."`),
 the `main` property serves as a default.
 
-> TODO
->
-> A future version may also respect the `imports` property.
+> [!NOTE]
+> TODO: A future version may also respect the `imports` property.
 
-> TODO
->
-> A future version may also respect wildcard patterns in `exports` and
+> [!NOTE]
+> TODO: A future version may also respect wildcard patterns in `exports` and
 > `imports`.
 
 The `files` property indicates all of the files in the package that
@@ -195,75 +363,94 @@ With the compartment mapper, just as in Node.js, a module specifier that has no
 extension may refer either to the file with the `js` extension, or if that file
 does not exist, to the `index.js` file in the directory with the same name.
 
-> TODO
->
-> The compartment mapper does not yet do anything with the `files` globs but a
-> future version of the compartment mapper will collect these in archives.
+> [!NOTE]
+> TODO: The compartment mapper does not yet do anything with the `files` globs
+> but a future version of the compartment mapper will collect these in archives.
 > The compartment mapper should eventually provide the means for any
 > compartment to access its own files using an attenuated `fs` module or
 > `fetch` global, in conjunction with usable values for `import.meta.url` in
 > ECMAScript modules or `__dirname` and `__filename` in CommonJS modules.
 
-Officially beginning with Node.js 14, Node.js treats `.mjs` files as ECMAScript
-modules and `.cjs` files as CommonJS modules.
+## Language Extensions
+
+Node.js version 14 or greater treats `.mjs` files as ECMAScript modules and
+`.cjs` files as CommonJS modules.
 The `.js` extension indicates a CommonJS module by default, to maintain
 backward compatibility.
-However, packages that have a `type` property that explicitly says `module`
-will treat a `.js` file as an ECMAScript module.
-
-This unforunately conflicts with packages written to work with the ECMAScript
-module system emulator in the `esm` package on npm, which allows every file
-with the `js` extension to be an ECMAScript module that presents itself to
-Node.js as a CommonJS module.
-To overcome such obstacles, the compartment mapper will accept a non-standard
-`parsers` property in `package.json` that maps file extensions, specifically
-`js` to the corresponding language name, one of `mjs` for ECMAScript modules,
-`cjs` for CommonJS modules, and `json` for JSON modules.
-All other language names are reserved and the defaults for files with the
-extensions `cjs`, `mjs`, `json`, `text`, and `bytes` default to the language of
-the same name unless overridden.
-JSON modules export a default object resulting from the conventional JSON.parse
-of the module's UTF-8 encoded bytes.
-Text modules export a default string from the module's UTF-8 encoded bytes.
-Bytes modules export a default ArrayBuffer capturing the module's bytes.
-If compartment mapper sees `parsers`, it ignores `type`, so these can
-contradict where using the `esm` emulator requires.
-
-```json
-{
-  "parsers": {"js": "mjs"}
-}
-```
+However, packages with `type` "module" will treat a `.js` file as an ECMAScript
+module.
 
 Many Node.js applications using CommonJS modules expect to be able to `require`
 a JSON file like `package.json`.
-The compartment mapper supports loading JSON modules from any type of module.
-As of Node.js 14, Node does not support importing JSON using ECMAScript
-`import` directives, so using this feature may limit compatibility with the
-Node.js platform.
+The compartment mapper therefore supports loading JSON modules from any type of
+module, but using this feature may limit compatibility with the Node.js platform
+(in which importing a JSON module requires [import attributes] including
+`type: "json"`).
 
 The compartment mapper supports loading CommonJS modules from ECMAScript
-modules as well as ECMAScript modules importing CommonJS modules.
+modules as well as loading ECMAScript modules from CommonJS modules.
 This presumes that the CommonJS modules exclusively use `require` calls with a
 single string argument, where `require` is not lexically bound, to declare
 their shallow dependencies, so that these modules and their transitive
 dependencies can be loaded before any module executes.
-As of Node.js 14, Node does not support loading ECMAScript modules from
-CommonJS modules, so using this feature may limit compatibility with the
-Node.js platform.
+Use of this feature may limit compatibility with the Node.js platform, which did
+not support loading ECMAScript modules from CommonJS modules until version 22.
 
-> TODO A future version may introduce language plugins, so a package may state
-> that files with a particular extension are either parsed or linked with
-> another module.
+The compartment mapper supports language plugins.
+The languages supported by default are:
 
-> TODO
->
-> The compartment mapper may elect to respect some properties specified for
-> import maps.
+- `mjs` for ECMAScript modules,
+- `cjs` for CommonJS modules,
+- `json` for JSON modules,
+- `text` for UTF-8 encoded text files,
+- `bytes` for any file, exporting a `Uint8Array` as `default`,
+- `pre-mjs-json` for pre-compiled ECMAScript modules captured as JSON in
+  archives, and
+- `pre-cjs-json` for pre-compiled CommonJS modules captured as JSON in
+  archives.
 
-> TODO
->
-> A future version of the compartment mapper may add support for
+The compartment mapper accepts extensions to this set of languages with
+the `parserForLanguage` option supported by many functions.
+See [src/types/external.ts](./src/types/external.ts) for the type and expected
+behavior of parsers.
+
+These language identifiers are keys for the `moduleTransforms` and
+`syncModuleTransforms` options, which may map each language to a transform
+function.
+The language identifiers are also the values for a `languageForExtension`,
+`moduleLanguageForExtension`, and `commonjsLanguageForExtension` options to
+configure additional extension-to-language mappings for a module and its
+transitive dependencies.
+
+For any package that has `type` set to "module" in its `package.json`,
+`moduleLangaugeForExtension` will precede `languageForExtension`.
+For any packages with `type` set to "commonjs" or simply not set,
+`commonjsLanguageForExtension` will precede `languageForExtension`.
+This provides an hook for mapping TypeScript's `.ts` to either `.cts` or
+`.mts`.
+
+The analogous `workspaceLanguageForExtension`,
+`workspaceCommonjsLanguageForExtension`, and
+`workspaceModuleLanguageForExtension` options apply more specifically for
+packages that are not under a `node_modules` directory, indicating that they
+are in the set of linked workspaces and have not been built or published to
+npm.
+
+In the scope any given package, the `parsers` property in `package.json` may
+override the extension-to-language mapping.
+
+```json
+{
+  "parsers": { "png": "bytes" }
+}
+```
+
+> [!NOTE]
+> TODO: The compartment mapper may elect to respect some properties specified
+> for import maps.
+
+> [!NOTE]
+> TODO: A future version of the compartment mapper may add support for
 > source-to-source translation in the scope of a package or compartment.
 > This would be expressed in `package.json` using a property like
 > `translate` that would contain a map from file extension
@@ -277,10 +464,10 @@ Node.js platform.
 > non-browser compartment during bundling, so the translator can be excluded
 > from the production application and archived applications.
 
-> TODO
->
-> The compartment mapper may also add support for compartment map plugins that
-> would recognize packages in `devDependencies` that need to introduce globals.
+> [!NOTE]
+> TODO: The compartment mapper may also add support for compartment map plugins
+> that would recognize packages in `devDependencies` that need to introduce
+> globals.
 > For example, _packages_ that use JSX and a virtual DOM would be able to add a
 > module-to-module translator and endow the compartment with the `h` the
 > translated modules need.
@@ -305,27 +492,43 @@ These will be appended to each module from the archive, for debugging purposes.
 The `@endo/bundle-source` and `@endo/import-bundle` tools integrate source maps
 for an end-to-end debugging experience.
 
+# XS (experimental)
+
+The Compartment Mapper can use native XS `Compartment` and `ModuleSource` under
+certain conditions:
+
+1. The application must be an XS script that was compiled with the `xs`
+  package condition.
+  This causes `ses`, `@endo/module-source`, and `@endo/import-bundle` to
+  provide slightly different implementations that can fall through to native
+  behavior.
+2. The application must opt-in with the `__native__: true` option on any
+  of the compartment mapper methods that import modules like `importLocation`
+  and `importArchive`.
+
 # Design
 
-Each of the workflows the compartment mapper executes a portion of one sequence
+Each workflow of the compartment mapper executes a portion of a sequence
 of underlying internals.
 
-* search (`search.js`): Scan the parent directories of a given `moduleLocation`
-  until successfully finding and reading a `package.json` for the containing
-  application.
-* map compartments from Node.js packages (`node-modules.js`): Find and gather
-  all the `package.json` files for the application's transitive dependencies.
+* search ([search.js](./src/search.js)): Scan the parent directories of a given
+  `moduleSpecifier` until successfully finding and reading a `package.json` for
+  the containing application.
+* map compartments from Node.js packages
+  ([node-modules.js](./src/node-modules.js)): Find and gather all the
+  `package.json` files for the application's transitive dependencies.
   Use these to construct a compartment map describing how to construct a
   `Compartment` for each application package and how to link the modules each
   exports in the compartments that import them.
-* load compartments (`archive.js`): Using `compartment.load`, or
-  implicitly through `compartment.import`, create a module graph for the
+* load compartments ([archive.js](./src/archive.js)): Using `compartment.load`,
+  or implicitly through `compartment.import`, create a module graph for the
   application's entire working set.
   When creating an archive, this does not execute any of the modules.
   The compartment mapper uses the compartments and a special `importHook` that
   records the text of every module the main module needed.
-* import modules (`import.js`, `import-archive.js`): Actually execute the
-  working set.
+* import modules ([import.js](./src/import.js),
+  [import-archive.js](./src/import-archive.js)): Actually execute the working
+  set.
 
 Around this sequence, we can enter late or depart early to store or retrieve an
 archive.
@@ -412,7 +615,7 @@ type Compartment = {
   scopes: ScopeMap,
   // The name of the realm to run the compartment within.
   // The default is a single frozen realm that has no name.
-  realm: RealmName? // TODO
+  realm?: RealmName // TODO
 };
 
 // Location is the URL relative to the compartment-map.json's
@@ -434,10 +637,10 @@ type CompartmentModule = {
   // TODO an absent compartment name may imply either
   // that the module is an internal alias of the
   // same compartment, or given by the user.
-  compartment: CompartmentName?,
+  compartment?: CompartmentName,
   // The name of the module in the foreign compartment's
   // module namespace:
-  module: ExternalModuleSpecifier?,
+  module?: ExternalModuleSpecifier,
 };
 
 // FileLocation is a URL for a module's file relative to the location of the
@@ -557,13 +760,14 @@ The rules defined by policy get preserved in the compartment map and enforced in
 
 The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMask's [LavaMoat] generates a `policy.json` file that serves the same purposes, using a tool called TOFU: _trust on first use_.
 
-> TODO
->
-> Endo policy support is intended to reach parity with LavaMoat's policy.json.
+> [!NOTE]
+> TODO: Endo policy support is intended to reach parity with LavaMoat's
+> policy.json.
 > Policy generation may be ported to Endo.
-
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [Compartments]: ../ses/README.md#compartment
   [Policy Demo]: ./demo/policy/README.md
+  [import attributes]: https://nodejs.org/docs/latest/api/esm.html#import-attributes
   [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
+  [`require.resolve()`]: https://nodejs.org/docs/latest/api/modules.html#requireresolverequest-options

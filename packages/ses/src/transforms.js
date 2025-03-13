@@ -248,7 +248,8 @@ export const mandatoryTransforms = source => {
  * @returns {string}
  */
 export const applyTransforms = (source, transforms) => {
-  for (const transform of transforms) {
+  for (let i = 0, l = transforms.length; i < l; i += 1) {
+    const transform = transforms[i];
     source = transform(source);
   }
   return source;

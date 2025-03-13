@@ -33,14 +33,14 @@ const isRemotable = remotable => passStyleOf(remotable) === 'remotable';
 harden(isRemotable);
 
 /**
- * @param {any} array
+ * @param {any} arr
  * @param {string=} optNameOfArray
- * @returns {asserts array is CopyArray<any>}
+ * @returns {asserts arr is CopyArray<any>}
  */
-const assertCopyArray = (array, optNameOfArray = 'Alleged array') => {
-  const passStyle = passStyleOf(array);
+const assertCopyArray = (arr, optNameOfArray = 'Alleged array') => {
+  const passStyle = passStyleOf(arr);
   passStyle === 'copyArray' ||
-    Fail`${q(optNameOfArray)} ${array} must be a pass-by-copy array, not ${q(
+    Fail`${q(optNameOfArray)} ${arr} must be a pass-by-copy array, not ${q(
       passStyle,
     )}`;
 };
