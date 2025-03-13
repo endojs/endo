@@ -3,6 +3,9 @@
 /* eslint-disable no-await-in-loop, no-bitwise, no-throw-literal */
 
 // Establish a perimeter:
+// TODO should this
+//   import '@endo/init';
+// rather than the following three lines?
 import 'ses';
 import '@endo/eventual-send/shim.js';
 import '@endo/lockdown/commit.js';
