@@ -19,10 +19,10 @@ export type FsInterface = {
  * The portion of the "node:url" module needed to normalize paths to fully
  * qualified file URLs, as used by the compartment mapper internally.
  */
-export type UrlInterface = {
-  fileURLToPath: (location: string | URL) => string;
-  pathToFileURL: (location: string) => URL;
-};
+export interface UrlInterface {
+  fileURLToPath: typeof import('node:url').fileURLToPath;
+  pathToFileURL: typeof import('node:url').pathToFileURL;
+}
 
 /**
  * The portion of the "node:path" module needed to support dynamic-require for

@@ -1,7 +1,3 @@
-// XXX Omit from typecheck for TypeScript packages depending upon
-// import-bundle.
-// TODO https://github.com/endojs/endo/issues/1254
-// @ts-nocheck
 /* global globalThis */
 /// <reference types="ses"/>
 
@@ -10,9 +6,27 @@ import { decodeBase64 } from '@endo/base64';
 import { Fail } from '@endo/errors';
 import { wrapInescapableCompartment } from './compartment-wrapper.js';
 
-// importBundle takes the output of bundle-source, and returns a namespace
-// object (with .default, and maybe other properties for named exports)
+/**
+ * The bundle importer is designed for (serializable) source modules but can
+ * accomodate native module exports (unserializable) too in a 'test' format.
+ * @typedef {import('@endo/bundle-source').ModuleFormat | 'test'} ImportableBundleFormat
+ */
 
+/**
+ * The bundle importer is designed for (serializable) source modules but can
+ * accomodate native module exports (unserializable) too in a 'test' format.
+ * @typedef {import('@endo/bundle-source').BundleSourceResult<any> | {moduleFormat: 'test'}} ImportableBundle
+ */
+
+/**
+ * importBundle takes the output of `bundleSource` or `bundleTestExports`, and returns a namespace
+ * object (with .default, and maybe other properties for named exports)
+ *
+ * @param {ImportableBundle} bundle
+ * @param {object} [options]
+ * @param {object} [powers]
+ * @returns {Promise<Record<string, any>>}
+ */
 export async function importBundle(bundle, options = {}, powers = {}) {
   await null;
   const {
@@ -56,8 +70,10 @@ export async function importBundle(bundle, options = {}, powers = {}) {
 
   let compartment;
 
+  assert('moduleFormat' in bundle);
   const { moduleFormat } = bundle;
   if (moduleFormat === 'endoZipBase64') {
+    assert('endoZipBase64' in bundle);
     const { endoZipBase64 } = bundle;
     const bytes = decodeBase64(endoZipBase64);
     const archive = await parseArchive(bytes, bundleUrl, {
@@ -71,7 +87,6 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     const { namespace } = await archive['import']({
       globals: endowments,
       __shimTransforms__: transforms,
-      // @ts-expect-error TS2740 missing properties from type
       Compartment: CompartmentToUse,
     });
     // namespace.default has the default export
@@ -131,8 +146,9 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     );
   }
 
+  assert('source' in bundle);
   let { source } = bundle;
-  const { sourceMap } = bundle;
+  const sourceMap = 'sourceMap' in bundle ? bundle.sourceMap : '';
   if (moduleFormat === 'getExport') {
     // The 'getExport' format is a string which defines a wrapper function
     // named `getExport()`. This function provides a `module` to the
@@ -142,7 +158,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     // (making it an expression). We also want to append the `sourceMap`
     // comment so `evaluate` can attach useful debug information. Finally, to
     // extract the namespace object, we need to invoke this function.
-    source = `(${source})\n${sourceMap || ''}`;
+    source = `(${source})\n${sourceMap}`;
   } else if (moduleFormat === 'nestedEvaluate') {
     // The 'nestedEvaluate' format is similar, except the wrapper function
     // (now named `getExportWithNestedEvaluate`) wraps more than a single
@@ -155,7 +171,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     // module. The sourceMap name for other modules will be derived from
     // `filePrefix` and the relative import path of each module.
     endowments.nestedEvaluate = src => compartment.evaluate(src);
-    source = `(${source})\n${sourceMap || ''}`;
+    source = `(${source})\n${sourceMap}`;
   } else if (moduleFormat === 'endoScript') {
     // The 'endoScript' format is just a script.
   } else {

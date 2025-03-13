@@ -1,9 +1,9 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { encodeBase64 } from '@endo/base64';
-import fs from 'fs';
-import url from 'url';
-import crypto from 'crypto';
+import fs from 'node:fs';
+import url from 'node:url';
+import crypto from 'node:crypto';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
 import bundleSource from '@endo/bundle-source';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
@@ -192,14 +192,14 @@ test('inescapable global properties, zip base64 format', async t => {
 });
 
 test('test the test format', async t => {
-  const bundle = {
+  const bundle = /** @type {const} */ ({
     moduleFormat: 'test',
     [Symbol.for('exports')]: {
       z: 43,
       default: 42,
       a: 41,
     },
-  };
+  });
   const ns = await importBundle(bundle);
   t.is(ns.default, 42);
   t.deepEqual(Object.keys(ns), ['a', 'default', 'z']);
