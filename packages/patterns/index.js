@@ -65,6 +65,8 @@ export {
   assertMethodGuard,
   assertInterfaceGuard,
   kindOf,
+  elementsHasSplit,
+  pairsHasSplit,
 } from './src/patterns/patternMatchers.js';
 
 export {
