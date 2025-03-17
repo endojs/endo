@@ -205,8 +205,12 @@ export const repairIntrinsics = (options = {}) => {
     overrideTaming = /** @type {'moderate' | 'min' | 'severe'} */ (
       getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate', ['min', 'severe'])
     ),
-    stackFiltering = /** @type {'safe' | 'unsafe'} */ (
-      getenv('LOCKDOWN_STACK_FILTERING', 'concise', ['verbose'])
+    stackFiltering = /** @type {'concise' | 'omit-frames' | 'shorten-paths' | 'verbose'} */ (
+      getenv('LOCKDOWN_STACK_FILTERING', 'concise', [
+        'omit-frames',
+        'shorten-paths',
+        'verbose',
+      ])
     ),
     domainTaming = /** @type {'safe' | 'unsafe'} */ (
       getenv('LOCKDOWN_DOMAIN_TAMING', 'safe', ['unsafe'])

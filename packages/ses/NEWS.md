@@ -27,10 +27,19 @@ User-visible changes in `ses`
 
   Also `ses/hermes` can now be hooked into bundlers such as Metro to run Hardened JS.
 
+# Next release
+
+- Two new `stackFiltering:` options are added
+  - `'omit-frames'` -- Only omit likely uninteresting frames. Keep original paths.
+  - `'shorten-paths'` -- Only shorten paths to text likely clickable in an IDE
+
+  This fills out the matrix of what should have been orthogonal options.
+  The existing `'concise'` setting both omits likely uninteresting frames and
+  shortens their paths. The existing `'verbose'` setting does neither.
+
 # v1.12.0 (2025-03-11)
 
-- The `evalTaming:` option values are renamed:
-
+- The `evalTaming:` option values are renamed
   - from `'safeEval'`, `'unsafeEval'`, and `'noEval'`
   - to `'safe-eval'`, `'unsafe-eval'`, and `'no-eval'`
 
