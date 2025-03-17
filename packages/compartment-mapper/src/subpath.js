@@ -4,6 +4,19 @@ const { isArray } = Array;
 const { hasOwn, create, entries } = Object;
 
 /**
+ * @import {
+ *   SubpathReplacer,
+ *   SubpathMapping,
+ *   SubpathParts,
+ *   Trie,
+ *   TrieNode,
+ *   SubpathEntries,
+ *   Pattern,
+ *   Replacement
+ * } from './types/subpath.js'
+ */
+
+/**
  * Path wildcard character
  */
 const WILDCARD = '*';
@@ -17,17 +30,6 @@ const PATH_SEP = '/';
  * Greedy magic globstar; unsupported
  */
 const GLOBSTAR = '**';
-
-/**
- * @typedef TrieNode
- * @property {SubpathParts|null} value
- * @property {Record<string, TrieNode>} children
- */
-
-/**
- * @typedef Trie
- * @property {TrieNode} root
- */
 
 /**
  * @param {string} pattern a subpath pattern of asterisk-delimited literals
@@ -65,23 +67,53 @@ export const makeSubpathReplacer = (pattern, replacement) => {
  * @implements {TrieNode}
  */
 export class PathTrieNode {
-  /** @type {SubpathParts|null} */
+  /**
+   * @type {SubpathParts | null}
+   */
   value;
 
   /**
    * Mapping of path parts ("prefixes") to child {@link PathTrieNode}s
    *
    * @type {Record<string, PathTrieNode>}
+   * @readonly
    */
   children;
 
   /**
-   *
-   * @param {SubpathParts|null} [value=null]
+   * @param {SubpathParts|null} [value]
    */
-  constructor(value = null) {
+  constructor(value) {
     this.children = create(null);
-    this.value = value;
+    this.value = value ?? null;
+  }
+
+  /**
+   * Sets the internal value
+   * @overload
+   * @param {string[]} patternParts String parts of pattern
+   * @param {string[]} replacementParts String parts of replacement
+   * @returns {void}
+   */
+
+  /**
+   * Sets the internal value to "no value"
+   * @overload
+   * @param {null} [value] No value
+   * @returns {void}
+   */
+
+  /**
+   * Sets the internal value
+   * @param {string[]|null} [patternParts]
+   * @param {string[]} [replacementParts]
+   * @returns {void}
+   */
+  setValue(patternParts, replacementParts) {
+    this.value =
+      patternParts && replacementParts
+        ? { patternParts, replacementParts }
+        : null;
   }
 
   /**
@@ -100,21 +132,56 @@ export class PathTrieNode {
 }
 
 /**
+ * Container for a root node in a Trie
+ *
  * @internal
  * @implements {Trie}
  */
 export class PathTrie {
-  /** @type {PathTrieNode} */
+  /**
+   * Root node; should not be replaced
+   *
+   * @type {PathTrieNode}
+   * @readonly
+   */
   root;
 
-  constructor() {
-    this.root = new PathTrieNode();
+  /**
+   * Assigns the {@link PathTrie.root root node}.
+   *
+   * @param {PathTrieNode} [root] If not provided, an empty `PathTrieNode` will be created as the root node
+   */
+
+  constructor(root) {
+    this.root = root ?? new PathTrieNode();
+  }
+
+  /**
+   * Given a JSON string `trie`, create a {@link PathTrie} from it
+   *
+   * @param {string} trieString
+   * @returns {PathTrie}
+   */
+  static fromJSON(trieString) {
+    return JSON.parse(trieString, revivePathTrie);
+  }
+
+  /**
+   * Given a `Trie` object, create a {@link PathTrie} from it
+   *
+   * @param {Trie} trie
+   * @returns {PathTrie}
+   */
+  static fromTrie(trie) {
+    // TODO: This is not efficient; it should re-create a `PathTrie` by walking the `Trie` object recursively (if we care)
+    return PathTrie.fromJSON(JSON.stringify(trie));
   }
 
   /**
    *
-   * @param {string} pattern
-   * @param {string} replacement
+   * @param {Pattern} pattern
+   * @param {Replacement} replacement
+   * @returns {void}
    */
   insert(pattern, replacement) {
     let node = this.root;
@@ -124,33 +191,41 @@ export class PathTrie {
     for (const part of patternParts) {
       node = node.appendChild(part, new PathTrieNode());
     }
-    node.value = { replacementParts, patternParts };
+    node.setValue(patternParts, replacementParts);
   }
 
   /**
    * Recursive search implementation
    *
-   * @param {PathTrieNode} node
-   * @param {string[]} textParts
-   * @param {number} offset
-   * @returns {SubpathParts|null}
+   * @param {PathTrieNode} startNode `PathTrieNode` to start searching from
+   * @param {string[]} searchPatternPart Array of string parts of a search pattern
+   * @param {number} searchPatternOffset Current offset in the `searchPatternPart` array
+   * @returns {SubpathParts|null} Resulting replacement and original pattern
    */
-  #search(node, textParts, offset = 0) {
-    if (offset === textParts.length) {
-      return node.value;
+  #search(startNode, searchPatternPart, searchPatternOffset = 0) {
+    if (searchPatternOffset === searchPatternPart.length) {
+      return startNode.value;
     }
 
-    const part = textParts[offset];
+    const part = searchPatternPart[searchPatternOffset];
 
-    if (hasOwn(node.children, part)) {
-      const result = this.#search(node.children[part], textParts, offset + 1);
+    if (hasOwn(startNode.children, part)) {
+      const result = this.#search(
+        startNode.children[part],
+        searchPatternPart,
+        searchPatternOffset + 1,
+      );
       if (result) {
         return result;
       }
     }
 
-    if (hasOwn(node.children, WILDCARD)) {
-      return this.#search(node.children[WILDCARD], textParts, offset + 1);
+    if (hasOwn(startNode.children, WILDCARD)) {
+      return this.#search(
+        startNode.children[WILDCARD],
+        searchPatternPart,
+        searchPatternOffset + 1,
+      );
     }
 
     return null;
@@ -161,33 +236,13 @@ export class PathTrie {
    *
    * Returns `null` if pattern not matched
    *
-   * @param {string} pattern Pattern to match
+   * @param {string} searchPattern Pattern to match
    * @returns {SubpathParts|null}
    */
-  search(pattern) {
-    return this.#search(this.root, pattern.split(PATH_SEP));
+  search(searchPattern) {
+    return this.#search(this.root, searchPattern.split(PATH_SEP));
   }
 }
-
-/**
- * @typedef SubpathParts
- * @property {string[]} replacementParts
- * @property {string[]} patternParts
- */
-
-/**
- * Function which replaces a specifier with the corresponding replacement path if possible
- *
- * @callback SubpathReplacer
- * @param {string} text Text to match (generally a package-relative path)
- * @returns {string | null} `null` if no replacement found
- */
-
-/**
- * Acceptable input for {@link makeMultiSubpathReplacer}
- *
- * @typedef {Record<string, string>|[pattern: string, replacement: string][]} SubpathMapping
- */
 
 /**
  * Factory for a {@link SubpathReplacer}
@@ -198,7 +253,9 @@ export class PathTrie {
 export const makeMultiSubpathReplacer = mapping => {
   const trie = new PathTrie();
 
-  const mappingEntries = isArray(mapping) ? mapping : entries(mapping);
+  const mappingEntries = /** @type {SubpathEntries} */ (
+    isArray(mapping) ? mapping : entries(mapping)
+  );
   for (const [pattern, replacement] of mappingEntries) {
     if (pattern.includes(GLOBSTAR)) {
       throw new TypeError(
@@ -275,11 +332,9 @@ export const revivePathTrie = (_key, value) => {
   // TODO: This is flimsy as hell. Either use a standard format for instantiating classes from JSON or just throw some sort of round-trippable special bit on the classes
 
   if (value && typeof value === 'object') {
-    if (value.root && value.root.children) {
-      const pathTrie = new PathTrie();
-      pathTrie.root = convertTrieNode(value.root);
-      return pathTrie;
-    } else if (value.children) {
+    if (hasOwn(value, 'root')) {
+      return new PathTrie(convertTrieNode(value.root));
+    } else if (hasOwn(value, 'children')) {
       return convertTrieNode(value);
     }
   }

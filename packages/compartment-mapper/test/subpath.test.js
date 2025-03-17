@@ -125,12 +125,23 @@ test('makeMultiSubpathReplacer - handles array input', t => {
   t.is(replaceSubpath('c/f/g'), null);
 });
 
-test('PathTrie - should be revivable', t => {
+test('PathTrie.fromJSON - should create a PathTrie from JSON string', t => {
+  t.plan(3);
+  const trie = new PathTrie();
+  trie.insert('a/*/c', 'x/*/z');
+  const trie1JsonString = JSON.stringify(trie);
+  const trie2 = PathTrie.fromJSON(trie1JsonString);
+  t.deepEqual(trie1JsonString, JSON.stringify(trie2));
+  t.true(trie2 instanceof PathTrie);
+  t.true(trie2.root instanceof PathTrieNode);
+});
+
+test('PathTrie.fromTrie - should create a PathTrie from Trie object', t => {
   t.plan(3);
   const trie = new PathTrie();
   trie.insert('a/*/c', 'x/*/z');
   const trie1Json = JSON.stringify(trie);
-  const trie2 = JSON.parse(trie1Json, revivePathTrie);
+  const trie2 = PathTrie.fromTrie(JSON.parse(trie1Json));
   t.deepEqual(trie1Json, JSON.stringify(trie2));
   t.true(trie2 instanceof PathTrie);
   t.true(trie2.root instanceof PathTrieNode);
