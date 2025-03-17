@@ -30,7 +30,7 @@ Each option is explained in its own section below.
 | `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
 | `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
 | `evalTaming`                     | `'safe-eval'`    | `'unsafe-eval'` `'no-eval'`            | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
-| `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
+| `stackFiltering`                 | `'concise'`      | `'omit-frames'` `'shorten-paths'` `'verbose'`  | deep stacks signal/noise   ([details](#stackfiltering-options)) |
 | `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
 | `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
 | `domainTaming`                   | `'safe'`         | `'unsafe'`                             | Node.js `domain` module    ([details](#domaintaming-options)) |
@@ -238,7 +238,7 @@ with the Node `console`, we advise you to also set `overrideTaming: 'min'` so
 that no builtin `constructor` properties are turned into accessors.
 
 Examples from
-[test-deep-send.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/test-deep-send.js)
+[deep-send.test.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/deep-send.test.js)
 of the eventual-send shim:
 
 <details>
@@ -247,19 +247,19 @@ of the eventual-send shim:
     expected failure (Error#1)
     Nested error
       Error#1: Wut?
-        at Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)
+        at Object.bar (packages/eventual-send/test/deep-send.test.js:13:21)
 
       Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
       Error#1 ERROR_NOTE: Rejection from: (Error#3) : 1 . 1
       Nested 2 errors under Error#1
         Error#2: Event: 1.1
-          at Object.foo (packages/eventual-send/test/test-deep-send.js:17:28)
+          at Object.foo (packages/eventual-send/test/deep-send.test.js:17:28)
 
         Error#2 ERROR_NOTE: Caused by: (Error#3)
         Nested error under Error#2
           Error#3: Event: 0.1
-            at Object.test (packages/eventual-send/test/test-deep-send.js:21:22)
-            at packages/eventual-send/test/test-deep-send.js:25:19
+            at Object.test (packages/eventual-send/test/deep-send.test.js:21:22)
+            at packages/eventual-send/test/deep-send.test.js:25:19
             at async Promise.all (index 0)
 </details>
 
@@ -267,7 +267,7 @@ of the eventual-send shim:
   <summary>Expand for { consoleTaming: 'unsafe', overrideTaming: 'min' } log output</summary>
 
     expected failure [Error: Wut?
-      at Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)]
+      at Object.bar (packages/eventual-send/test/deep-send.test.js:13:21)]
 </details>
 
 ## `errorTaming` Options
@@ -658,7 +658,11 @@ bugs.
 ```js
 lockdown(); // stackFiltering defaults to 'concise'
 // or
-lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info
+lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info. Omit likely uninteresting frames. Shorten paths to likely clickable strings in an IDE
+// vs
+lockdown({ stackFiltering: 'omit-frames' }); // Only omit likely uninteresting frames. Preserve original paths
+// vs
+lockdown({ stackFiltering: 'shorten-paths' }); // Preserve original frames. shorten their paths to likely clickable strings in an IDE.
 // vs
 lockdown({ stackFiltering: 'verbose' }); // Console shows full deep stacks
 ```
@@ -668,6 +672,8 @@ If `lockdown` does not receive a `stackFiltering` option, it will respect
 
 ```console
 LOCKDOWN_STACK_FILTERING=concise
+LOCKDOWN_STACK_FILTERING=omit-frames
+LOCKDOWN_STACK_FILTERING=shorten-paths
 LOCKDOWN_STACK_FILTERING=verbose
 ```
 
@@ -684,12 +690,12 @@ that information is no longer an extraneous distraction. Sometimes the noise
 you filter out actually contains the signal you're looking for. The
 `'verbose'` setting shows, on the console, the full raw stack information
 for each level of the deep stacks.
-Either setting of `stackFiltering` setting is safe. Stack information will
+Any setting of `stackFiltering` is safe. Stack information will
 or will not be available from error objects according to the `errorTaming`
 option and the platform error behavior.
 
 Examples from
-[test-deep-send.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/test-deep-send.js)
+[deep-send.test.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/deep-send.test.js)
 of the eventual-send shim:
 <details>
   <summary>Expand for { stackFiltering: 'concise' } log output</summary>
@@ -697,19 +703,19 @@ of the eventual-send shim:
     expected failure (Error#1)
     Nested error
       Error#1: Wut?
-        at Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)
+        at Object.bar (packages/eventual-send/test/deep-send.test.js:13:21)
 
       Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
       Error#1 ERROR_NOTE: Rejection from: (Error#3) : 1 . 1
       Nested 2 errors under Error#1
         Error#2: Event: 1.1
-          at Object.foo (packages/eventual-send/test/test-deep-send.js:17:28)
+          at Object.foo (packages/eventual-send/test/deep-send.test.js:17:28)
 
         Error#2 ERROR_NOTE: Caused by: (Error#3)
         Nested error under Error#2
           Error#3: Event: 0.1
-            at Object.test (packages/eventual-send/test/test-deep-send.js:21:22)
-            at packages/eventual-send/test/test-deep-send.js:25:19
+            at Object.test (packages/eventual-send/test/deep-send.test.js:21:22)
+            at packages/eventual-send/test/deep-send.test.js:25:19
             at async Promise.all (index 0)
 </details>
 
@@ -721,7 +727,7 @@ of the eventual-send shim:
       Error#1: Wut?
         at makeError (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/install-ses/node_modules/ses/dist/ses.cjs:2976:17)
         at Function.fail (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/install-ses/node_modules/ses/dist/ses.cjs:3109:19)
-        at Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)
+        at Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/deep-send.test.js:13:21)
         at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:388:23
         at Object.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:353:14)
         at doIt (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:395:67)
@@ -738,7 +744,7 @@ of the eventual-send shim:
           at handle (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:396:27)
           at Function.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:312:14)
           at Proxy.&lt;anonymous&gt; (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/E.js:37:49)
-          at Object.foo (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:17:28)
+          at Object.foo (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/deep-send.test.js:17:28)
           at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:388:23
           at Object.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:353:14)
           at doIt (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:395:67)
@@ -754,8 +760,8 @@ of the eventual-send shim:
             at handle (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:396:27)
             at Function.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:312:14)
             at Proxy.<anonymous> (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/E.js:37:49)
-            at Object.test (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:21:22)
-            at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:25:19
+            at Object.test (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/deep-send.test.js:21:22)
+            at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/deep-send.test.js:25:19
             at Test.callFn (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/test.js:610:21)
             at Test.run (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/test.js:623:23)
             at Runner.runSingle (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/runner.js:280:33)
