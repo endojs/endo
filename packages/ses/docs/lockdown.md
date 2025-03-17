@@ -30,7 +30,7 @@ Each option is explained in its own section below.
 | `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
 | `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
 | `evalTaming`                     | `'safe-eval'`    | `'unsafe-eval'` `'no-eval'`            | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
-| `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
+| `stackFiltering`                 | `'concise'`      | `'omit-frames'` `'shorten-paths'` `'verbose'`  | deep stacks signal/noise   ([details](#stackfiltering-options)) |
 | `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
 | `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
 | `domainTaming`                   | `'safe'`         | `'unsafe'`                             | Node.js `domain` module    ([details](#domaintaming-options)) |
@@ -633,7 +633,11 @@ bugs.
 ```js
 lockdown(); // stackFiltering defaults to 'concise'
 // or
-lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info
+lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info. Omit likely uninteresting frames. Shorten paths to likely clickable strings in an IDE
+// vs
+lockdown({ stackFiltering: 'omit-frames' }); // Only omit likely uninteresting frames. Preserve original paths
+// vs
+lockdown({ stackFiltering: 'shorten-paths' }); // Preserve original frames. shorten their paths to likely clickable strings in an IDE.
 // vs
 lockdown({ stackFiltering: 'verbose' }); // Console shows full deep stacks
 ```
@@ -643,6 +647,8 @@ If `lockdown` does not receive a `stackFiltering` option, it will respect
 
 ```console
 LOCKDOWN_STACK_FILTERING=concise
+LOCKDOWN_STACK_FILTERING=omit-frames
+LOCKDOWN_STACK_FILTERING=shorten-paths
 LOCKDOWN_STACK_FILTERING=verbose
 ```
 
@@ -659,7 +665,7 @@ that information is no longer an extraneous distraction. Sometimes the noise
 you filter out actually contains the signal you're looking for. The
 `'verbose'` setting shows, on the console, the full raw stack information
 for each level of the deep stacks.
-Either setting of `stackFiltering` setting is safe. Stack information will
+Any setting of `stackFiltering` is safe. Stack information will
 or will not be available from error objects according to the `errorTaming`
 option and the platform error behavior.
 

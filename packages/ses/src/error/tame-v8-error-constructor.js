@@ -120,7 +120,19 @@ export const filterFileName = fileName => {
 //
 // See thread starting at
 // https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
-const CALLSITE_ELLIPSES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
+const CALLSITE_ELLIPSIS_PATTERN1 = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
+
+// The ad-hoc rule of the current pattern is that any likely-file-path or
+// likely url-path prefix consisting of `.../` should get dropped.
+// Anything to the left of the likely path text is kept.
+// Everything to the right of `.../` is kept. Thus
+// `'Object.bar (.../eventual-send/test/test-deep-send.js:13:21)'`
+// simplifies to
+// `'Object.bar (eventual-send/test/test-deep-send.js:13:21)'`.
+//
+// See thread starting at
+// https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
+const CALLSITE_ELLIPSIS_PATTERN2 = /^((?:.*[( ])?)\.\.\.\/(.+)$/;
 
 // The ad-hoc rule of the current pattern is that any likely-file-path or
 // likely url-path prefix, ending in a `/` and prior to `package/` should get
@@ -134,14 +146,28 @@ const CALLSITE_ELLIPSES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
 // lerna.
 const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
 
+// The ad-hoc rule of the current pattern is that any likely-file-path or
+// likely url-path prefix of the form `file://` but not `file:///` gets
+// dropped.
+// Anything to the left of the likely path prefix text is kept. Everything to
+// the right of `file://` is kept. Thus
+// `'Object.bar (file:///Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)'` is unchanged but
+// `'Object.bar (file://test/test-deep-send.js:13:21)'`
+
+// simplifies to
+// `'Object.bar (test/test-deep-send.js:13:21)'`.
+const CALLSITE_FILE_2SLASH_PATTERN = /^((?:.*[( ])?)file:\/\/([^/].*)$/;
+
 // The use of these callSite patterns below assumes that any match will bind
 // capture groups containing the parts of the original string we want
 // to keep. The parts outside those capture groups will be dropped from concise
 // stacks.
 // TODO Enable users to configure CALLSITE_PATTERNS via `lockdown` options.
 const CALLSITE_PATTERNS = [
-  CALLSITE_ELLIPSES_PATTERN,
+  CALLSITE_ELLIPSIS_PATTERN1,
+  CALLSITE_ELLIPSIS_PATTERN2,
   CALLSITE_PACKAGES_PATTERN,
+  CALLSITE_FILE_2SLASH_PATTERN,
 ];
 
 // For a stack frame that should be included in a concise stack trace, if
@@ -149,6 +175,9 @@ const CALLSITE_PATTERNS = [
 // possibly-shorter stringified stack frame that should be shown instead.
 // Exported only so it can be unit tested.
 // TODO Move so that it applies not just to v8.
+/**
+ * @param {string} callSiteString
+ */
 export const shortenCallSiteString = callSiteString => {
   for (const filter of CALLSITE_PATTERNS) {
     const match = regexpExec(filter, callSiteString);
@@ -175,18 +204,24 @@ export const tameV8ErrorConstructor = (
 
   const originalCaptureStackTrace = OriginalError.captureStackTrace;
 
+  const omitFrames =
+    stackFiltering === 'concise' || stackFiltering === 'omit-frames';
+
+  const shortenPaths =
+    stackFiltering === 'concise' || stackFiltering === 'shorten-paths';
+
   // const callSiteFilter = _callSite => true;
   const callSiteFilter = callSite => {
-    if (stackFiltering === 'verbose') {
-      return true;
+    if (omitFrames) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      return filterFileName(callSite.getFileName());
     }
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    return filterFileName(callSite.getFileName());
+    return true;
   };
 
   const callSiteStringifier = callSite => {
     let callSiteString = `${callSite}`;
-    if (stackFiltering === 'concise') {
+    if (shortenPaths) {
       callSiteString = shortenCallSiteString(callSiteString);
     }
     return `\n  at ${callSiteString}`;

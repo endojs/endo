@@ -15,8 +15,10 @@ lockdown({
   // the current relevant environment variable setting. To get results
   // independent of that, always uncomment one setting for each switch.
   //
-  stackFiltering: 'concise', // Default. Hide infrastructure, shorten paths
-  // stackFiltering: 'verbose', // Include `assert` infrastructure
+  stackFiltering: 'concise', // Default. Omit likely uninteresting frames. Shorten paths
+  // stackFiltering: 'omit-frames', // Only omit infrastructure frames
+  // stackFiltering: 'shorten-paths', // Only shorten paths
+  // stackFiltering: 'verbose', // Original frames with original paths
   consoleTaming: 'safe', // Default. Console with access to redacted info
   // consoleTaming: 'unsafe', // Host console lacks access to redacted info
   // errorTaming: 'safe', // Default. Hide redacted info on error

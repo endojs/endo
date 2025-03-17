@@ -21,13 +21,13 @@ lockdown({
   // NOTE TO REVIEWERS: If you see the following line commented out,
   // this may be a development accident that should be fixed before merging.
   //
-  errorTaming: 'unsafe-debug',
+  errorTaming: 'unsafe',
 
   // The default `{stackFiltering: 'concise'}` setting usually makes for a
   // better debugging experience, by severely reducing the noisy distractions
   // of the normal verbose stack traces. Which is why we comment
-  // out the `'verbose'` setting is commented out below. However, some
-  // tools look for the full filename that it expects in order
+  // out the other settings below. However, some
+  // tools look for the full filename path that it expects in order
   // to fetch the source text for diagnostics,
   //
   // Another reason for not commenting it out: The cause
@@ -36,10 +36,14 @@ lockdown({
   // uncomment out the following line. But please do not commit it in that
   // state.
   //
-  // NOTE TO REVIEWERS: If you see the following line *not* commented out,
-  // this may be a development accident that MUST be fixed before merging.
+  // NOTE TO REVIEWERS: If you see the `stackFiltering` settings *not*
+  // commented out below, this may be a development accident that MUST be
+  // fixed before merging.
   //
-  // stackFiltering: 'verbose',
+  // stackFiltering: 'concise', // Omit frames and shorten paths
+  // stackFiltering: 'omit-frames', // Only omit frames. Do not shorten paths
+  // stackFiltering: 'shorten-paths', // Only shorten paths. Do not omit frames
+  // stackFiltering: 'verbose', // Do not omit frames or shorten paths
 
   // The default `{overrideTaming: 'moderate'}` setting does not hurt the
   // debugging experience much. But it will introduce noise into, for example,
