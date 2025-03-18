@@ -1,15 +1,16 @@
 import test from 'ava';
 import '../index.js';
 
-lockdown({ evalTaming: 'noEval' });
+lockdown({ evalTaming: 'unsafe-eval' });
 
-// 'noEval' is deprecated, but testing that it still works
-test('no eval when evalTaming is noEval.', t => {
+test('direct eval is possible when evalTaming is unsafe-eval.', t => {
+  // eslint-disable-next-line no-unused-vars
+  const a = 0;
   // eslint-disable-next-line no-eval
-  t.throws(() => eval('1+1'));
+  t.is(eval('a'), 0);
 
-  const compartment = new Compartment();
   // should not throw
+  const compartment = new Compartment();
   compartment.evaluate('(1, eval)("1 + 1")');
   // eslint-disable-next-line no-eval
   t.is(eval.toString(), 'function eval() { [native code] }');

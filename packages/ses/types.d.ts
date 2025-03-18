@@ -35,7 +35,14 @@ export interface RepairOptions {
    * @deprecated Deprecated and does nothing. In the future specifying it will be an error.
    */
   mathTaming?: 'safe' | 'unsafe';
-  evalTaming?: 'safeEval' | 'unsafeEval' | 'noEval';
+  evalTaming?:
+    | 'safe-eval'
+    | 'unsafe-eval'
+    | 'no-eval'
+    // deprecated
+    | 'safeEval'
+    | 'unsafeEval'
+    | 'noEval';
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;

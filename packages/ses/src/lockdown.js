@@ -183,7 +183,7 @@ export const repairIntrinsics = (options = {}) => {
     ),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
-    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safeEval'),
+    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safe-eval'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
@@ -203,9 +203,12 @@ export const repairIntrinsics = (options = {}) => {
     legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
     Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
 
-  evalTaming === 'unsafeEval' ||
-    evalTaming === 'safeEval' ||
-    evalTaming === 'noEval' ||
+  evalTaming === 'unsafe-eval' ||
+    evalTaming === 'unsafeEval' || // deprecated
+    evalTaming === 'safe-eval' ||
+    evalTaming === 'safeEval' || // deprecated
+    evalTaming === 'no-eval' ||
+    evalTaming === 'noEval' || // deprecated
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
   // Assert that only supported options were passed.
@@ -408,23 +411,36 @@ export const repairIntrinsics = (options = {}) => {
     markVirtualizedNativeFunction,
   });
 
-  if (evalTaming === 'noEval') {
+  if (
+    evalTaming === 'no-eval' ||
+    // deprecated
+    evalTaming === 'noEval'
+  ) {
     setGlobalObjectEvaluators(
       globalThis,
       noEvalEvaluate,
       markVirtualizedNativeFunction,
     );
-  } else if (evalTaming === 'safeEval') {
+  } else if (
+    evalTaming === 'safe-eval' ||
+    // deprecated
+    evalTaming === 'safeEval'
+  ) {
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
     setGlobalObjectEvaluators(
       globalThis,
       safeEvaluate,
       markVirtualizedNativeFunction,
     );
-  } else if (evalTaming === 'unsafeEval') {
-    // Leave eval function and Function constructor of the initial compartment in-tact.
-    // Other compartments will not have access to these evaluators unless a guest program
-    // escapes containment.
+  } else if (
+    evalTaming === 'unsafe-eval' ||
+    // deprecated
+    evalTaming === 'unsafeEval'
+  ) {
+    // Leave eval function and Function constructor of the initial
+    // compartment intact.
+    // Other compartments will not have access to these evaluators unless a
+    // guest program escapes containment.
   }
 
   /**
