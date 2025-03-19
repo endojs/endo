@@ -55,7 +55,7 @@ function isNat(allegedNum) {
  */
 function Nat(allegedNum) {
   if (typeof allegedNum === 'bigint') {
-    if (allegedNum < 0) {
+    if (allegedNum < 0n) {
       throw RangeError(`${allegedNum} is negative`);
     }
     return allegedNum;

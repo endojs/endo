@@ -380,6 +380,13 @@ export {};
  * `countPatt` is expected to rarely be useful,
  * but is provided to minimize surprise.
  *
+ * @property {(elementPatt?: Pattern,
+ *             bound?: bigint,
+ *             limits?: Limits
+ * ) => Matcher} containerHas
+ * Matches any array, CopySet, or CopyBag in which the bigint number of
+ * elements that match `elementPatt` is >= `bound` (which defaults to `1n`).
+ *
  * @property {(keyPatt?: Pattern,
  *             valuePatt?: Pattern,
  *             limits?: Limits

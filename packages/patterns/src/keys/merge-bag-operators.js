@@ -8,7 +8,6 @@ import { q, Fail } from '@endo/errors';
 import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
 
 /**
- * @import {Passable} from '@endo/pass-style';
  * @import {FullCompare, RankCompare} from '@endo/marshal'
  * @import {Key} from '../types.js'
  */
