@@ -36,9 +36,7 @@ test('endowments prototypically inherited properties are not mentionable', t => 
     __options__: true,
   });
 
-  t.throws(() => compartment.evaluate('hello'), {
-    message: /hello is not defined/,
-  });
+  t.is(compartment.evaluate('hello'), undefined);
 });
 
 test('endowments prototypically inherited properties are not enumerable', t => {

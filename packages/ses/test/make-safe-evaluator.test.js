@@ -4,17 +4,29 @@ import test from 'ava';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
 test('safeEvaluate - default (non-sloppy, no moduleLexicals)', t => {
-  t.plan(6);
+  t.plan(7);
 
   const globalObject = { abc: 123 };
   const { safeEvaluate: evaluate } = makeSafeEvaluator({ globalObject });
 
   t.is(evaluate('typeof def'), 'undefined', 'typeof non declared global');
 
-  t.throws(
-    () => evaluate('def'),
-    { instanceOf: ReferenceError },
-    'non declared global cause a reference error',
+  // Expected to be undefined in sloppy mode.
+  t.is(
+    evaluate(
+      'def',
+      undefined,
+      'non-declared global is undefined in sloppy mode',
+    ),
+  );
+  // Known deviation from fidelity to Hardened JavaScript:
+  // In strict mode, an undeclared lexical name should produce a ReferenceError.
+  t.is(
+    evaluate(
+      '(() => { "use strict"; return def; })()',
+      undefined,
+      'non-declared global is undefined in strict mode',
+    ),
   );
 
   t.is(evaluate('abc'), 123, 'globals can be referenced');
@@ -61,9 +73,9 @@ test('safeEvaluate - module lexicals', t => {
 
   t.is(endowedEvaluate('abc'), 123, 'module lexicals can be referenced');
   t.is(endowedEvaluate('abc += 333'), 456, 'module lexicals can be mutated');
-  t.throws(
-    () => evaluate('abc'),
-    { instanceOf: ReferenceError },
+  t.is(
+    evaluate('abc'),
+    undefined,
     'module lexicals do not affect other evaluate scopes with same globalObject (do not persist)',
   );
 });

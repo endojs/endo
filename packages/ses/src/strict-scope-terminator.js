@@ -6,7 +6,6 @@ import {
   create,
   freeze,
   getOwnPropertyDescriptors,
-  globalThis,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -55,7 +54,7 @@ const scopeProxyHandlerProperties = {
 
   has(_shadow, prop) {
     // we must at least return true for all properties on the realm globalThis
-    return prop in globalThis;
+    return true;
   },
 
   // note: this is likely a bug of safari

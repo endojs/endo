@@ -13,7 +13,7 @@ test('SES compartment does not see primal realm names', t => {
   // eslint-disable-next-line no-unused-vars
   const hidden = 1;
   const c = new Compartment();
-  t.throws(() => c.evaluate('hidden+1'), { instanceOf: ReferenceError });
+  t.is(c.evaluate('hidden'), undefined);
 });
 
 test('SES compartment also has compartments', t => {
