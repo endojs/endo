@@ -3,9 +3,7 @@
 /* eslint-disable no-await-in-loop, no-bitwise, no-throw-literal */
 
 // Establish a perimeter:
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/lockdown/commit.js';
+import '@endo/init';
 
 import fs from 'fs';
 import url from 'url';
