@@ -135,16 +135,7 @@ export const wrap = ({
     },
   });
 
-  let finalExports = originalExports;
-
-  const module = freeze({
-    get exports() {
-      return finalExports;
-    },
-    set exports(value) {
-      finalExports = value;
-    },
-  });
+  const module = { exports: originalExports };
 
   /** @param {string} importSpecifier */
   const require = importSpecifier => {
@@ -192,6 +183,7 @@ export const wrap = ({
   freeze(require);
 
   const afterExecute = () => {
+    const finalExports = module.exports; // in case it's a getter, only call it once
     const exportsHaveBeenOverwritten = finalExports !== originalExports;
     // Promotes keys from redefined module.export to top level namespace for import *
     // Note: We could do it less consistently but closer to how node does it if we iterated over exports detected by

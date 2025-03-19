@@ -2,6 +2,8 @@ User-visible changes to `@endo/compartment-mapper`:
 
 # Next release
 
+- Accommodates CommonJS modules that use `defineProperty` on `exports`.
+
 - Divides the role of `makeBundle` into `makeScript` and `makeFunctor`.
   The new `makeScript` replaces `makeBundle` without breaking changes,
   producing a JavaScript string that is suitable as a `<script>` tag in a web
