@@ -22,7 +22,7 @@ test('scope behavior - lookup behavior', t => {
   t.is(evaluate('globalThis'), undefined);
   t.is(evaluate('eval'), undefined);
   t.is(evaluate('realmGlobalProp'), undefined);
-  t.throws(() => evaluate('missingProp'), { instanceOf: ReferenceError });
+  t.is(evaluate('missingProp'), undefined);
 
   t.is(evaluate('globalProp'), globalObject.globalProp);
   t.is(evaluate('lexicalProp'), moduleLexicals.lexicalProp);
@@ -279,7 +279,7 @@ test('scope behavior - strict vs sloppy locally non-existing global set', t => {
   t.notThrows(() => evaluateSloppy('missingRealmGlobalProp = 456'));
 });
 
-test('scope behavior - realm globalThis property info leak', t => {
+test('scope behavior - no realm globalThis property info leak', t => {
   t.plan(8);
 
   const globalObject = {};
@@ -287,31 +287,27 @@ test('scope behavior - realm globalThis property info leak', t => {
     globalObject,
   });
 
-  t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
-  t.throws(() => evaluate('missingRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('eventuallyAssignedRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
+  const unvaryingAssertions = () => {
+    t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
+    t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
+    // Known loss of fidelity to native Hardened JavaScript: we expect a
+    // ReferenceError for accessing a missing lexical name.
+    t.is(evaluate('missingRealmGlobalProp'), undefined);
+    t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
+  };
+
+  unvaryingAssertions();
 
   globalThis.eventuallyAssignedRealmGlobalProp = {};
   t.teardown(() => {
     delete globalThis.eventuallyAssignedRealmGlobalProp;
   });
 
-  t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
-  t.throws(() => evaluate('missingRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
+  unvaryingAssertions();
 });
 
 test('scope behavior - Symbol.unscopables fidelity test', t => {
-  t.plan(33);
+  t.plan(41);
 
   const globalObject = {
     Symbol,
@@ -325,49 +321,31 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
     globalObject,
   });
 
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('typeof localProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
-  t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
+  const unvaryingAssertions = () => {
+    t.is(evaluate('typeof localProp'), 'undefined');
+    t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
+    t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
+    t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
-  // Known compromise in fidelity of the emulated script environment:
-  t.throws(() => evaluate('localProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('missingRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('eventuallyAssignedRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
+    // Known compromise in fidelity of the emulated script environment:
+    // In a native Hardened JavaScript, we would expect these to throw
+    // ReferenceError.
+    t.is(evaluate('localProp'), undefined);
+    t.is(evaluate('eventuallyAssignedLocalProp'), undefined);
+    t.is(evaluate('missingRealmGlobalProp'), undefined);
+    t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
+  };
 
+  unvaryingAssertions();
+
+  // Compartment should not be sensitive to existence of a host globalThis
+  // property.
   globalThis.eventuallyAssignedRealmGlobalProp = {};
   t.teardown(() => {
     delete globalThis.eventuallyAssignedRealmGlobalProp;
   });
 
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('typeof localProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
-  t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
-
-  // Known compromise in fidelity of the emulated script environment:
-  t.throws(() => evaluate('localProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('missingRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
+  unvaryingAssertions();
 
   evaluate(
     'this[Symbol.unscopables] = { eventuallyAssignedRealmGlobalProp: true, localProp: true, eventuallyAssignedLocalProp: true }',
@@ -375,31 +353,17 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   // after property is created on globalObject, assignment is evaluated to
   // test if it is affected by the Symbol.unscopables configuration
   globalObject.eventuallyAssignedLocalProp = null;
-  // Known compromise in fidelity of the emulated script environment:
+
+  unvaryingAssertions();
+
+  // Known compromise in fidelity to native Hardened JavaScript:
+  // We expect implicit assignment on globalThis to fail in strict mode but not
+  // in sloppy mode.
   t.throws(() => evaluate('eventuallyAssignedLocalProp = {}'), {
     instanceOf: ReferenceError,
   });
 
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('typeof localProp'), 'undefined');
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
-  t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
-
-  // Known compromise in fidelity of the emulated script environment:
-  t.throws(() => evaluate('localProp'), {
-    instanceOf: ReferenceError,
-  });
-  // Known compromise in fidelity of the emulated script environment:
-  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('missingRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
+  unvaryingAssertions();
 
   // move "Symbol.unscopables" to prototype
   delete globalObject[Symbol.unscopables];
@@ -410,24 +374,5 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
     eventuallyAssignedLocalProp: true,
   };
 
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('typeof localProp'), 'undefined');
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
-  t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
-  t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
-
-  // Known compromise in fidelity of the emulated script environment:
-  t.throws(() => evaluate('localProp'), {
-    instanceOf: ReferenceError,
-  });
-  // Known compromise in fidelity of the emulated script environment:
-  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
-    instanceOf: ReferenceError,
-  });
-  t.throws(() => evaluate('missingRealmGlobalProp'), {
-    instanceOf: ReferenceError,
-  });
-  // Known compromise in fidelity of the emulated script environment:
-  t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
+  unvaryingAssertions();
 });

@@ -6,14 +6,14 @@ import test from 'ava';
 import { makeEvalFunction } from '../src/make-eval-function.js';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
-test('makeEvalFunction - leak', t => {
+test('makeEvalFunction - no leak', t => {
   t.plan(8);
 
   const globalObject = {};
   const { safeEvaluate } = makeSafeEvaluator({ globalObject });
   const safeEval = makeEvalFunction(safeEvaluate);
 
-  t.throws(() => safeEval('none'), { instanceOf: ReferenceError });
+  t.is(safeEval('none'), undefined);
   t.is(safeEval('this.none'), undefined);
 
   globalThis.none = 5;

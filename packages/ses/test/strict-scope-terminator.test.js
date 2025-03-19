@@ -1,13 +1,13 @@
 import test from 'ava';
 import { strictScopeTerminator } from '../src/strict-scope-terminator.js';
 
-test('strictScopeTerminator/get - always has start compartment properties but they are undefined', t => {
+test('strictScopeTerminator/get - has all properties and they are undefined', t => {
   t.plan(4);
 
   t.is(Reflect.has(strictScopeTerminator, 'eval'), true);
   t.is(Reflect.get(strictScopeTerminator, 'eval'), undefined);
 
-  t.is(Reflect.has(strictScopeTerminator, 'xyz'), false);
+  t.is(Reflect.has(strictScopeTerminator, 'xyz'), true);
   t.is(Reflect.get(strictScopeTerminator, 'xyz'), undefined);
 });
 
@@ -30,7 +30,7 @@ test('strictScopeTerminator/getPrototypeOf - has null prototype', t => {
   t.is(Reflect.getPrototypeOf(strictScopeTerminator), null);
 });
 
-test('strictScopeTerminator/getOwnPropertyDescriptor - always has start compartment properties but provides no prop desc', t => {
+test('strictScopeTerminator/getOwnPropertyDescriptor - traps all properties and provides no prop desc', t => {
   t.plan(9);
 
   const originalWarn = console.warn;
@@ -46,7 +46,7 @@ test('strictScopeTerminator/getOwnPropertyDescriptor - always has start compartm
     undefined,
   );
   t.is(didWarn, 1);
-  t.is(Reflect.has(strictScopeTerminator, 'xyz'), false);
+  t.is(Reflect.has(strictScopeTerminator, 'xyz'), true);
   t.is(didWarn, 1);
   t.is(
     Reflect.getOwnPropertyDescriptor(strictScopeTerminator, 'xyz'),

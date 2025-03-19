@@ -10,18 +10,8 @@ test('indirect eval is possible', t => {
 
 test('SharedArrayBuffer should be removed because it is not permitted', t => {
   const c = new Compartment();
-  // we seem to manage both of these for properties that never existed
-  // in the first place
-  t.throws(() => c.evaluate('XYZ'), { instanceOf: ReferenceError });
-  t.is(c.evaluate('typeof XYZ'), 'undefined');
-  const have = typeof SharedArrayBuffer !== 'undefined';
-  if (have) {
-    // we ideally want both of these, but the realms magic can only
-    // manage one at a time (for properties that previously existed but
-    // which were removed by the permits check)
-    // t.throws(() => c.evaluate('SharedArrayBuffer'), ReferenceError);
-    t.is(c.evaluate('typeof SharedArrayBuffer'), 'undefined');
-  }
+  t.is(c.evaluate('typeof SharedArrayBuffer'), 'undefined');
+  t.is(c.evaluate('SharedArrayBuffer'), undefined);
 });
 
 test('remove RegExp.prototype.compile', t => {
