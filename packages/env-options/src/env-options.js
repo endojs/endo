@@ -50,11 +50,13 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
    * Gets an environment option by name and returns the option value or the
    * given default.
    *
+   * @template {string} D
+   * @template {string | undefined} [O=undefined]
    * @param {string} optionName
-   * @param {string} defaultSetting
-   * @param {string[]} [optOtherValues]
-   * If provided, the option value must be included or match `defaultSetting`.
-   * @returns {string}
+   * @param {D} defaultSetting
+   * @param {(readonly string[]) & (readonly O[])} [optOtherValues]
+   *   If provided, the option value must be included or match `defaultSetting`.
+   * @returns {O extends undefined ? string : (D | O)}
    */
   const getEnvironmentOption = (
     optionName,
@@ -95,7 +97,7 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
       Fail`Unrecognized ${q(optionName)} value ${q(
         setting,
       )}. Expected one of ${q([defaultSetting, ...optOtherValues])}`;
-    return setting;
+    return /** @type {O extends undefined ? string : (O | D)} */ (setting);
   };
   freeze(getEnvironmentOption);
 
