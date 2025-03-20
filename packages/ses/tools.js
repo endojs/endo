@@ -23,3 +23,5 @@ export const scopeTerminators = freeze({
   strictScopeTerminator,
   createSloppyGlobalsScopeTerminator,
 });
+
+export * as Permits from './src/permits.js';
