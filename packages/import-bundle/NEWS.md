@@ -1,6 +1,6 @@
 User-visible changes to `@endo/import-bundle`:
 
-# Next release
+# v1.4.0 (2025-03-11)
 
 - Adds support for `test` format bundles, which simply return a promise for an
   object that resembles a module exports namespace with the objects specified
