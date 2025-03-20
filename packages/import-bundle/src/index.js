@@ -22,10 +22,11 @@ import { wrapInescapableCompartment } from './compartment-wrapper.js';
  * importBundle takes the output of `bundleSource` or `bundleTestExports`, and returns a namespace
  * object (with .default, and maybe other properties for named exports)
  *
+ * @template [T=any]
  * @param {ImportableBundle} bundle
  * @param {object} [options]
  * @param {object} [powers]
- * @returns {Promise<Record<string, any>>}
+ * @returns {Promise<T>}
  */
 export async function importBundle(bundle, options = {}, powers = {}) {
   await null;
