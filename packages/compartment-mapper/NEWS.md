@@ -1,6 +1,6 @@
 User-visible changes to `@endo/compartment-mapper`:
 
-# Next release
+# v1.6.0 (2025-03-11)
 
 - Accommodates CommonJS modules that use `defineProperty` on `exports`.
 

@@ -1,6 +1,6 @@
 User-visible changes to `@endo/bundle-source`:
 
-# Next release
+# v4.0.0 (2025-03-19)
 
 - Replaces the implementation for the `nestedEvaluate` and `getExport`
   formats with one based on Endo's Compartment Mapper instead of Rollup,

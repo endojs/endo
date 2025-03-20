@@ -1,6 +1,6 @@
 User-visible changes in `@endo/evasive-transform`:
 
-# Next release
+# v1.4.0 (2025-03-11)
 
 - Adds a `sourceMap` option so that the generated sourcemap can project back to
   the original source code without `unmapLoc`.

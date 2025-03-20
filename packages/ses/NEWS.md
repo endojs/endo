@@ -1,14 +1,23 @@
 User-visible changes in `ses`:
 
-# Next release
+# v1.12.0 (2025-03-11)
 
-The `evalTaming:` option values are renamed
-- from `'safeEval'`, `'unsafeEval'`, and `'noEval'`
-- to `'safe-eval'`, `'unsafe-eval'`, and `'no-eval'`
+- The `evalTaming:` option values are renamed:
 
-in order to follow the convention that lockdown option values use kebob-case
-rather than camelCase. To avoid breaking old programs during the transition,
-the old names are deprecated, but continue to work for now.
+  - from `'safeEval'`, `'unsafeEval'`, and `'noEval'`
+  - to `'safe-eval'`, `'unsafe-eval'`, and `'no-eval'`
+
+  in order to follow the convention that lockdown option values use kebob-case
+  rather than camelCase. To avoid breaking old programs during the transition,
+  the old names are deprecated, but continue to work for now.
+
+- Evaluating a non-lexical name that is also absent on the global object of a
+  compartment no longer throws a `ReferenceError` and instead produces
+  `undefined` because it proves impossible to do so without revealing what
+  properties exist on the host `globalThis` to compartmentalized code with a
+  shim.
+  This is a divergence from the expected behavior of a native Hardened
+  JavaScript implementation, like XS.
 
 # v1.11.0 (2025-01-23)
 
