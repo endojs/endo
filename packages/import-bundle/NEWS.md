@@ -6,6 +6,8 @@ User-visible changes to `@endo/import-bundle`:
   object that resembles a module exports namespace with the objects specified
   on the symbol-named property @exports, which is deliberately not JSON
   serializable or passable.
+- Exports a `typedImportBundle<ExpectedNamespaceType>` function so consumers
+  can subscribe to a narrower type.
 
 # v1.3.0 (2024-10-10)
 
