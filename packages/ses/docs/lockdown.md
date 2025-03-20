@@ -30,6 +30,7 @@ Each option is explained in its own section below.
 | `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
 | `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
 | `evalTaming`                     | `'safe-eval'`    | `'unsafe-eval'` `'no-eval'`            | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
+| `hostEvaluators`                 | `'all'`          | `'none'` `'no-direct'`                 | handling of sloppy and indirect eval ([details](#hostevaluators-options)) |
 | `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
 | `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
 | `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
@@ -51,6 +52,7 @@ for threading environment variables into a JavaScript program.
 | `reporting`                      | `LOCKDOWN_REPORTING`                         |                       |
 | `unhandledRejectionTrapping`     | `LOCKDOWN_UNHANDLED_REJECTION_TRAPPING`      |                       |
 | `evalTaming`                     | `LOCKDOWN_EVAL_TAMING`                       |                       |
+| `hostEvaluators`                 | `LOCKDOWN_HOST_EVALUATORS`                   |                       |
 | `stackFiltering`                 | `LOCKDOWN_STACK_FILTERING`                   |                       |
 | `overrideTaming`                 | `LOCKDOWN_OVERRIDE_TAMING`                   |                       |
 | `overrideDebug`                  | `LOCKDOWN_OVERRIDE_DEBUG`                    | comma separated names |
@@ -463,7 +465,7 @@ the container to exit explicitly, and we highly recommend setting
 
 ## `reporting` Options
 
-**Background**: Lockdown and `repairIntrinsics` report warnings if they
+**Background**: `lockdown` and `repairIntrinsics` report warnings if they
 encounter unexpected but repairable variations on the shared intrinsics, which
 regularly occurs if the version of `ses` predates the introduction of new
 language features.
@@ -616,6 +618,71 @@ LOCKDOWN_EVAL_TAMING=safe-eval
 LOCKDOWN_EVAL_TAMING=no-eval
 LOCKDOWN_EVAL_TAMING=unsafe-eval
 ```
+
+## `hostEvaluators` Options
+
+**Background**: Hermes is a JavaScript engine that does not yet support direct `eval()` nor the `with` statement. The SES `evalTaming` default option `"safe-eval"` uses multiple nested `with` statements to create a restricted scope chain, so on Hermes we must run under the `"unsafe-eval"` option. However SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval), which is where we introduce the `hostEvaluators` option `"no-direct"`.
+
+```js
+lockdown(); // hostEvaluators defaults to 'all' and warns `SES Please now use the 'hostEvaluators' option. In the future not specifying 'none' will error under strict CSP.` if not set
+// or
+lockdown({ hostEvaluators: 'all' }); // SES fails to initialize if direct-eval is not the original intrinsic 'eval'
+// vs
+lockdown({ hostEvaluators: 'none' }); // SES initializes when evaluators are not allowed to execute (e.g. a strict CSP)
+// vs
+lockdown({ hostEvaluators: 'no-direct' }); // SES initializes if direct-eval is not the original intrinsic 'eval' (e.g. Hermes)  
+```
+
+Further
+
+* `'all'`: asserts evaluators are allowed to execute
+* `'none'`: asserts evaluators are *not* allowed to execute
+* `'no-direct'`: asserts direct-eval is not available
+
+Hermes examples
+
+```js
+lockdown({ evalTaming: 'unsafe-eval', hostEvaluators: 'no-direct' });
+lockdown({ evalTaming: 'no-eval', hostEvaluators: 'no-direct' });
+```
+
+However, attempting `"safe-eval"` with `"no-direct"` we fail early, due to Hermes' lack of `with` statement
+
+```js
+lockdown({ evalTaming: 'safe-eval', hostEvaluators: 'no-direct' }); // Fail: `lockdown(): option { evalTaming: 'safe-eval' } is incompatible with { hostEvaluators: 'no-direct' }`
+```
+
+Since Compartments currently evaluate using `safe-eval` by default, we throw a descriptive error on attempt to `.evaluate`: `'Compartment evaluation not supported without direct eval.'` However this will only be surfaced once Compartment creation is supported on Hermes under `lockdown` (currently incompatible with `removeUnpermittedIntrinsics`).
+
+For users with a strict CSP, `hostEvaluators` defaulting to `all` is a breaking change and will error (SES_DIRECT_EVAL), so for backward-compatibility we warn instead to set it to `none`.
+
+If `lockdown` does not receive a `hostEvaluators` option, it will respect
+`process.env.LOCKDOWN_HOST_EVALUATORS`.
+
+```console
+LOCKDOWN_HOST_EVALUATORS=all
+LOCKDOWN_HOST_EVALUATORS=none
+LOCKDOWN_HOST_EVALUATORS=no-direct
+```
+
+Once Hermes engine supports direct-eval, `'no-direct'` will no longer be required.
+Currently there is an open feature request and open pull request targeting Static Hermes.
+
+* <https://github.com/facebook/hermes/issues/957>
+  * <https://github.com/facebook/hermes/pull/1515>
+
+You can also test and verify `lockdown` completing on this change by building and running Hermes on the following fork for example:
+<https://github.com/leotm/hermes/tree/ses-lockdown-test-static-hermes-compiler-vm>
+
+Once Hermes engine supports the `with` statement, `evalTaming: 'safe-eval'` will be possible.
+Currently there is an open feature request and open pull request targeting Static Hermes.
+
+* <https://github.com/facebook/hermes/issues/1056>
+  * <https://github.com/facebook/hermes/pull/1571>
+
+There is also an open alternate idea to sandbox `Compartment` _without_ the `with` statement.
+
+* <https://github.com/endojs/endo/discussions/1944>
 
 ## `stackFiltering` Options
 
