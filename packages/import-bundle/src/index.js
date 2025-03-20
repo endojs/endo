@@ -18,15 +18,18 @@ import { wrapInescapableCompartment } from './compartment-wrapper.js';
  * @typedef {import('@endo/bundle-source').BundleSourceResult<any> | {moduleFormat: 'test'}} ImportableBundle
  */
 
-/**
- * importBundle takes the output of `bundleSource` or `bundleTestExports`, and returns a namespace
- * object (with .default, and maybe other properties for named exports)
- *
- * @param {ImportableBundle} bundle
- * @param {object} [options]
- * @param {object} [powers]
- * @returns {Promise<Record<string, any>>}
- */
+// importBundle takes the output of `bundleSource` or `bundleTestExports`, and
+// returns a namespace object (with .default, and maybe other properties for
+// named exports)
+//
+// This is the intended signature but produces a type that is not suitable
+// in integration with legacy code of Agoric SDK.
+//
+// @template [T=any]
+// @param {ImportableBundle} bundle
+// @param {object} [options]
+// @param {object} [powers]
+// @returns {Promise<T>}
 export async function importBundle(bundle, options = {}, powers = {}) {
   await null;
   const {
