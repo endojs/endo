@@ -1,4 +1,5 @@
 /* eslint-disable no-use-before-define */
+import type { Checker as _Checker } from '@endo/common/ident-checker.js';
 import { PASS_STYLE } from './passStyle-helpers.js';
 
 /**
@@ -221,7 +222,4 @@ export type InterfaceSpec = string;
  *
  * See the various uses for good examples.
  */
-export type Checker = (
-  cond: boolean,
-  details?: import('ses').Details | undefined,
-) => boolean;
+export type Checker = _Checker;
