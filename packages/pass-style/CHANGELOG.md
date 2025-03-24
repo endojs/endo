@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.4.8...@endo/pass-style@1.5.0) (2025-03-24)
+
+
+### Features
+
+* **patterns:** M.containerHas(el,n) to support want patterns ([#2710](https://github.com/endojs/endo/issues/2710)) ([01529a5](https://github.com/endojs/endo/commit/01529a53fae5c4259901fdf85335013939aa09d2)), closes [#2002](https://github.com/endojs/endo/issues/2002) [#2008](https://github.com/endojs/endo/issues/2008) [#2113](https://github.com/endojs/endo/issues/2113) [#1739](https://github.com/endojs/endo/issues/1739) [#2008](https://github.com/endojs/endo/issues/2008) [#2008](https://github.com/endojs/endo/issues/2008) [#2002](https://github.com/endojs/endo/issues/2002) [#2008](https://github.com/endojs/endo/issues/2008)
+
+
+
 ### [1.4.8](https://github.com/endojs/endo/compare/@endo/pass-style@1.4.7...@endo/pass-style@1.4.8) (2025-01-24)
 
 **Note:** Version bump only for package @endo/pass-style

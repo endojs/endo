@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/endojs/endo/compare/@endo/import-bundle@1.3.3...@endo/import-bundle@1.4.0) (2025-03-24)
+
+
+### Features
+
+* **import-bundle:** Add typedImportBundle (instead of type on importBundle) ([6cf51fe](https://github.com/endojs/endo/commit/6cf51fec20ae04bebd3a1d80543ccc070aa6923c))
+* **import-bundle:** Test bundle format [#2719](https://github.com/endojs/endo/issues/2719) ([17ec018](https://github.com/endojs/endo/commit/17ec018b68f0340d24296b62b0917b9a3127a623))
+* **types:** ImportableBundle ([d9c11e1](https://github.com/endojs/endo/commit/d9c11e156c45715620ada45401923a722a8e9317))
+
+
+### Bug Fixes
+
+* **import-bundle:** Generalize type of importBundle to given generic or any ([d3304eb](https://github.com/endojs/endo/commit/d3304eb97246b5db5c36572998feefa914cf75f2))
+
+
+
 ### [1.3.3](https://github.com/endojs/endo/compare/@endo/import-bundle@1.3.2...@endo/import-bundle@1.3.3) (2025-01-24)
 
 **Note:** Version bump only for package @endo/import-bundle

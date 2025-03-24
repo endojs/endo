@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.12.0](https://github.com/endojs/endo/compare/ses@1.11.0...ses@1.12.0) (2025-03-24)
+
+
+### Features
+
+* **ses:** add AsyncGeneratorFunctionInstance to commons ([07516f5](https://github.com/endojs/endo/commit/07516f5892221258ec0d4e02848047b5ad94808a))
+* **ses:** bundle and export shim compatible with Hermes compiler ([cafc398](https://github.com/endojs/endo/commit/cafc398d91e9b8c99502e25fb6d301e0841112a9))
+* **ses:** create async arrow function transform with Babel for Hermes bundle ([654791e](https://github.com/endojs/endo/commit/654791e91c687d4c38562efc411bc90e67bb81e3))
+* **ses:** include async generators in anonymous intrinsics if supported ([56ae460](https://github.com/endojs/endo/commit/56ae46002452340b89b77943674a4e406657d915))
+* **ses:** support async generators in Hermes transform for CSP ([24bbd5c](https://github.com/endojs/endo/commit/24bbd5caff0a4d4b6478d470970c020815fb5da7))
+* **ses:** support CSP in commons AsyncGeneratorFunctionInstance ([188c5d4](https://github.com/endojs/endo/commit/188c5d4d4795effbe752c54c61177c8776333de1))
+* **ses:** tame async generator function constructors if supported ([eda8a61](https://github.com/endojs/endo/commit/eda8a61846852009ad19e6f39f6c3192ba048f99))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** sync module transforms in bundle.js ([1d29043](https://github.com/endojs/endo/commit/1d29043e8de08091b1b59059e91eba3be29983b7))
+* **ses:** Limit scope proxy exposure to discernably owned properties of host globalThis ([9ced73a](https://github.com/endojs/endo/commit/9ced73a97dc2e86caedf4cbd6c4236d4b5e9236d)), closes [#1305](https://github.com/endojs/endo/issues/1305)
+* **ses:** lockdown options should be kebob-case ([#2739](https://github.com/endojs/endo/issues/2739)) ([85483c0](https://github.com/endojs/endo/commit/85483c0fd34a9a071e0af66d362cd7e930de5bcc)), closes [#961](https://github.com/endojs/endo/issues/961) [#2690](https://github.com/endojs/endo/issues/2690) [#2723](https://github.com/endojs/endo/issues/2723) [#961](https://github.com/endojs/endo/issues/961) [#961](https://github.com/endojs/endo/issues/961) [#2723](https://github.com/endojs/endo/issues/2723) [#2690](https://github.com/endojs/endo/issues/2690)
+
+
+
 ## [1.11.0](https://github.com/endojs/endo/compare/ses@1.10.0...ses@1.11.0) (2025-01-24)
 
 
