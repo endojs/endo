@@ -1,11 +1,13 @@
 User-visible changes to `@endo/import-bundle`:
 
-# Next release
+# v1.4.0 (2025-03-11)
 
 - Adds support for `test` format bundles, which simply return a promise for an
   object that resembles a module exports namespace with the objects specified
   on the symbol-named property @exports, which is deliberately not JSON
   serializable or passable.
+- Exports a `typedImportBundle<ExpectedNamespaceType>` function so consumers
+  can subscribe to a narrower type.
 
 # v1.3.0 (2024-10-10)
 

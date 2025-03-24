@@ -1,6 +1,6 @@
 User-visible changes in `@endo/patterns`:
 
-# Next release
+# v1.5.0 (2025-03-11)
 
 - New pattern: `M.containerHas(elementPatt, bound = 1n)` motivated to support want patterns in Zoe, to pull out only `bound` number of elements that match `elementPatt`. `bound` must be a positive bigint.
 - Closely related, `@endo/patterns` now exports `containerHasSplit` to support ERTP's use of `M.containerHas` on non-fungible (`set`, `copySet`) and semifungible (`copyBag`) assets, respectively. See https://github.com/Agoric/agoric-sdk/pull/10952 .

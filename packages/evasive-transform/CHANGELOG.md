@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.3.4...@endo/evasive-transform@1.4.0) (2025-03-24)
+
+
+### Features
+
+* **evasive-transform:** Preserve format with Babel ([ee78005](https://github.com/endojs/endo/commit/ee780058d3b08a21e0eaa76f0d8fb99238295a17))
+
+
+
 ### [1.3.4](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.3.3...@endo/evasive-transform@1.3.4) (2025-01-24)
 
 **Note:** Version bump only for package @endo/evasive-transform

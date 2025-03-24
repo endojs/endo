@@ -1293,9 +1293,9 @@ const makePatternKit = () => {
       if (count < bound) {
         if (matches(element, elementPatt)) {
           count += 1n;
-          inResults?.push(element);
-        } else {
-          outResults?.push(element);
+          if (inResults) inResults.push(element);
+        } else if (outResults) {
+          outResults.push(element);
         }
       } else if (outResults === undefined) {
         break;
@@ -1341,15 +1341,15 @@ const makePatternKit = () => {
         if (matches(element, elementPatt)) {
           if (num <= numRest) {
             count += num;
-            inResults?.push([element, num]);
+            if (inResults) inResults.push([element, num]);
           } else {
             const numIn = numRest;
             count += numIn;
-            inResults?.push([element, numRest]);
-            outResults?.push([element, num - numRest]);
+            if (inResults) inResults.push([element, numRest]);
+            if (outResults) outResults.push([element, num - numRest]);
           }
-        } else {
-          outResults?.push([element, num]);
+        } else if (outResults) {
+          outResults.push([element, num]);
         }
       } else if (outResults === undefined) {
         break;

@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.3.8](https://github.com/endojs/endo/compare/@endo/cli@2.3.7...@endo/cli@2.3.8) (2025-03-24)
+
+
+### Bug Fixes
+
+* **cli:** tolerate [#2702](https://github.com/endojs/endo/issues/2702) stderr noise ([#2704](https://github.com/endojs/endo/issues/2704)) ([1bf94a1](https://github.com/endojs/endo/commit/1bf94a146bac85ad1efc1429986368f0dacf2f36))
+* **daemon,cli:** fix [#2700](https://github.com/endojs/endo/issues/2700) use endo/init to prepare async hooks ([aacefe4](https://github.com/endojs/endo/commit/aacefe4ab6266d1096db7939abbed95bbda6f4f5))
+
+
+
 ### [2.3.7](https://github.com/endojs/endo/compare/@endo/cli@2.3.6...@endo/cli@2.3.7) (2025-01-24)
 
 **Note:** Version bump only for package @endo/cli

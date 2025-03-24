@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.4.8](https://github.com/endojs/endo/compare/@endo/daemon@2.4.7...@endo/daemon@2.4.8) (2025-03-24)
+
+
+### Bug Fixes
+
+* **daemon,cli:** fix [#2700](https://github.com/endojs/endo/issues/2700) use endo/init to prepare async hooks ([aacefe4](https://github.com/endojs/endo/commit/aacefe4ab6266d1096db7939abbed95bbda6f4f5))
+
+
+
 ### [2.4.7](https://github.com/endojs/endo/compare/@endo/daemon@2.4.6...@endo/daemon@2.4.7) (2025-01-24)
 
 **Note:** Version bump only for package @endo/daemon

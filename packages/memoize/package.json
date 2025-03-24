@@ -1,6 +1,6 @@
 {
   "name": "@endo/memoize",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "Safe function memoization",
   "keywords": [],
   "author": "Endo contributors",

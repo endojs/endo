@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/endojs/endo/compare/@endo/module-source@1.2.0...@endo/module-source@1.3.0) (2025-03-24)
+
+
+### Features
+
+* **module-source:** Preserve format with Babel integration ([b97b306](https://github.com/endojs/endo/commit/b97b306a48f5166ef156a965a2ece734c956ecfb))
+
+
+
 ## [1.2.0](https://github.com/endojs/endo/compare/@endo/module-source@1.1.2...@endo/module-source@1.2.0) (2025-01-24)
 
 

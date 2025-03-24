@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.5.0...@endo/compartment-mapper@1.6.0) (2025-03-24)
+
+
+### Features
+
+* **compartment-mapper:** a simple version of allowing exports override via define semantics with little new consequences ([8e33f8c](https://github.com/endojs/endo/commit/8e33f8c8c1520e726be36b281ae686e7a95d8870))
+* **compartment-mapper:** add option for custom logger to various functions ([493b4c2](https://github.com/endojs/endo/commit/493b4c24714189c884cb5b648f876cb3ee5ad21c))
+* **compartment-mapper:** cjs - allow overwriting exports field with define semantics ([7b1785c](https://github.com/endojs/endo/commit/7b1785c8a0c93a497f22c3f2a963d2c1acc33cc7))
+* **compartment-mapper:** makeFunctor to go with makeScript from makeBundle ([ee87476](https://github.com/endojs/endo/commit/ee87476e0efcf8f6e412eec93eba5f3853ead6f3))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** Make bundled code more robust against primordial replacement/manipulation ([#2725](https://github.com/endojs/endo/issues/2725)) ([9aac805](https://github.com/endojs/endo/commit/9aac8051275d031d8d6e84c34d20aa9c3c9b64a8)), closes [/github.com/endojs/endo/pull/2707#discussion_r1953346697](https://github.com/endojs//github.com/endojs/endo/pull/2707/issues/discussion_r1953346697)
+* **compartment-mapper:** make the cjs support for `defineProperty(module, 'exports'` work ([433bfbb](https://github.com/endojs/endo/commit/433bfbb1c44f88baf852228bb012972ba2c0cbc0))
+* **compartment-mapper:** sync module transforms in bundle.js ([1d29043](https://github.com/endojs/endo/commit/1d29043e8de08091b1b59059e91eba3be29983b7))
+
+
+
 ## [1.5.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.4.0...@endo/compartment-mapper@1.5.0) (2025-01-24)
 
 

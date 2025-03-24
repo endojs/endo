@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.0.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.5.1...@endo/bundle-source@4.0.0) (2025-03-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **bundle-source:** * This change replaces the implementation of getExport
+and nestedEvaluate bundle formats in some ways that are not strictly
+backward-compatible.
+First, the Rollup implementation used different
+heuristics to distinguish a CommonJS module from an ESM, and the new
+algorithm is more in line with precedent as set in Node.js 18.
+Second, the Endo implementation does not support live export bindings.
+Third, the Endo implementation does not tolerate missing dependencies
+or devDependencies.
+Any treatment on the generated source that is not just evaluation is
+fragile and likely to break, and although we make no guarantees about
+stability of the generated string, this change definitely frustrates
+some usage in practice, which we have already addressed in Agoric SDK.
+This change preserves the assumption that getExport and nestedEvaluate
+may reach for devDependencies of the entry package by default.
+
+### Features
+
+* **bundle-source:** Replace getExport and nestedEvaluate implementations with endoScript implementation ([aae5655](https://github.com/endojs/endo/commit/aae5655f889ca2b504096eccfbede0be0dcf22ac))
+
+
+
 ### [3.5.1](https://github.com/endojs/endo/compare/@endo/bundle-source@3.5.0...@endo/bundle-source@3.5.1) (2025-01-24)
 
 **Note:** Version bump only for package @endo/bundle-source
