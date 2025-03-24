@@ -1,14 +1,26 @@
-User-visible changes in `ses`:
+<!-- markdownlint-disable MD041 -->
+
+User-visible changes in `ses`
 
 # Next release
 
 The `evalTaming:` option values are renamed
+
 - from `'safeEval'`, `'unsafeEval'`, and `'noEval'`
 - to `'safe-eval'`, `'unsafe-eval'`, and `'no-eval'`
 
-in order to follow the convention that lockdown option values use kebob-case
+in order to follow the convention that lockdown option values use kebab-case
 rather than camelCase. To avoid breaking old programs during the transition,
 the old names are deprecated, but continue to work for now.
+
+The `hostEvaluators` option is introduced
+
+- `all` the new default that assumes evaluators aren't blocked
+- `none` now required if all evaluators are blocked (e.g. with a strict CSP)
+- `no-direct` to initialize SES on hosts with no direct eval available (e.g. Hermes)
+
+To avoid breaking old programs during the transition, we default under-the-hood to
+deprecated option _legacy_, which works as before, but warns users.
 
 # v1.11.0 (2025-01-23)
 
