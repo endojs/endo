@@ -6,7 +6,7 @@
  * Test calling SES lockdown.
  */
 const testLockdown = () => {
-  lockdown();
+  lockdown({ evalTaming: 'no-eval' });
 };
 
 testLockdown();
