@@ -114,9 +114,9 @@ export const filterFileName = fileName => {
 // likely url-path prefix, ending in a `/.../` should get dropped.
 // Anything to the left of the likely path text is kept.
 // Everything to the right of `/.../` is kept. Thus
-// `'Object.bar (/vat-v1/.../eventual-send/test/test-deep-send.js:13:21)'`
+// `'Object.bar (/vat-v1/.../eventual-send/test/deep-send.test.js:13:21)'`
 // simplifies to
-// `'Object.bar (eventual-send/test/test-deep-send.js:13:21)'`.
+// `'Object.bar (eventual-send/test/deep-send.test.js:13:21)'`.
 //
 // See thread starting at
 // https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
@@ -126,9 +126,9 @@ const CALLSITE_ELLIPSIS_PATTERN1 = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
 // likely url-path prefix consisting of `.../` should get dropped.
 // Anything to the left of the likely path text is kept.
 // Everything to the right of `.../` is kept. Thus
-// `'Object.bar (.../eventual-send/test/test-deep-send.js:13:21)'`
+// `'Object.bar (.../eventual-send/test/deep-send.test.js:13:21)'`
 // simplifies to
-// `'Object.bar (eventual-send/test/test-deep-send.js:13:21)'`.
+// `'Object.bar (eventual-send/test/deep-send.test.js:13:21)'`.
 //
 // See thread starting at
 // https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
@@ -139,9 +139,9 @@ const CALLSITE_ELLIPSIS_PATTERN2 = /^((?:.*[( ])?)\.\.\.\/(.+)$/;
 // dropped.
 // Anything to the left of the likely path prefix text is kept. `package/` and
 // everything to its right is kept. Thus
-// `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)'`
+// `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/deep-send.test.js:13:21)'`
 // simplifies to
-// `'Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)'`.
+// `'Object.bar (packages/eventual-send/test/deep-send.test.js:13:21)'`.
 // Note that `/packages/` is a convention for monorepos encouraged by
 // lerna.
 const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
@@ -151,11 +151,11 @@ const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
 // dropped.
 // Anything to the left of the likely path prefix text is kept. Everything to
 // the right of `file://` is kept. Thus
-// `'Object.bar (file:///Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)'` is unchanged but
-// `'Object.bar (file://test/test-deep-send.js:13:21)'`
+// `'Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/test/deep-send.test.js:13:21)'` is unchanged but
+// `'Object.bar (file://test/deep-send.test.js:13:21)'`
 
 // simplifies to
-// `'Object.bar (test/test-deep-send.js:13:21)'`.
+// `'Object.bar (test/deep-send.test.js:13:21)'`.
 const CALLSITE_FILE_2SLASH_PATTERN = /^((?:.*[( ])?)file:\/\/([^/].*)$/;
 
 // The use of these callSite patterns below assumes that any match will bind
