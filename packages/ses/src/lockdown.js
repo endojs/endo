@@ -100,7 +100,7 @@ const safeHarden = makeHardener();
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
 
-const assertDirectEvalAvailable = () => {
+const assertDirectEvalAvailable = evalTaming => {
   let allowed = false;
   try {
     allowed = FERAL_FUNCTION(
@@ -124,7 +124,7 @@ const assertDirectEvalAvailable = () => {
     // guest code to production code generation.
     allowed = true;
   }
-  if (!allowed) {
+  if (!allowed && evalTaming !== 'no-eval') {
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
     throw TypeError(
       `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
@@ -245,7 +245,7 @@ export const repairIntrinsics = (options = {}) => {
   // trace retained:
   priorRepairIntrinsics.stack;
 
-  assertDirectEvalAvailable();
+  assertDirectEvalAvailable(evalTaming);
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
