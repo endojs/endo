@@ -51,10 +51,6 @@ test('permit removal warnings', t => {
     t,
     () => lockdown({ reporting: 'console' }),
     [
-      [
-        'warn',
-        "SES Please now use the 'hostEvaluators' option, which will default to 'all'. In the future, not specifying 'none' will fail with a strict CSP.",
-      ],
       ['groupCollapsed', 'SES Removing unpermitted intrinsics'],
       ['warn', 'Removing intrinsics.Array.isArray.prototype'],
       [

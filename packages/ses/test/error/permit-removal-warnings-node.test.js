@@ -39,11 +39,6 @@ test('node reporting to stderr with indented group', async t => {
   const stderrLines = stderrText.trim().split('\n');
 
   // Group label for removing unpermitted intrinsics
-  t.is(
-    stderrLines.shift(),
-    "SES Please now use the 'hostEvaluators' option, which will default to 'all'. In the future, not specifying 'none' will fail with a strict CSP.",
-  );
-  // Group label for removing unpermitted intrinsics
   t.is(stderrLines.shift(), 'SES Removing unpermitted intrinsics');
   // And all remaining lines have exactly a two space indent
   t.assert(stderrLines.every(line => /^\s{2}\w/.test(line)));

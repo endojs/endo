@@ -213,7 +213,7 @@ defineProperties(InertCompartment, {
  * @param {object} [options]
  * @param {Compartment} [options.parentCompartment]
  * @param {boolean} [options.enforceNew]
- * @param {string} [options.hostEvaluators]
+ * @param {string} [options.evalTaming]
  * @returns {Compartment['constructor']}
  */
 
@@ -275,7 +275,7 @@ export const makeCompartmentConstructor = (
   {
     parentCompartment = undefined,
     enforceNew = false,
-    hostEvaluators = undefined,
+    evalTaming = undefined,
   } = {},
 ) => {
   function Compartment(...args) {
@@ -334,7 +334,7 @@ export const makeCompartmentConstructor = (
 
     let evaluator;
 
-    if (hostEvaluators === 'no-direct') {
+    if (evalTaming === 'unsafe-no-direct') {
       evaluator = () => {
         throw TypeError(
           'Compartment evaluation not supported without direct eval.',
