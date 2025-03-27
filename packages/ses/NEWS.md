@@ -1,4 +1,12 @@
-User-visible changes in `ses`:
+<!-- markdownlint-disable MD041 -->
+
+User-visible changes in `ses`
+
+# v1.13.0 (2025-XX-XX)
+
+The `evalTaming:` option `safe-eval` now can only throw error `SES_DIRECT_EVAL`.
+This allows SES to initialize with `unsafe-eval` or `no-eval` on hosts with no
+direct eval available (e.g. Hermes) for a successful lockdown.
 
 # v1.12.0 (2025-03-11)
 
