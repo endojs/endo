@@ -25,6 +25,8 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {boolean} [options.elideComments]
  * @param {string[]} [options.conditions]
  * @param {Record<string, string>} [options.commonDependencies]
+ * @param {(specifier: string, packageLocation: string) => Promise<import('@endo/compartment-mapper/src/types').ThirdPartyStaticModuleInterface | undefined>} [options.importHook]
+ *
  * @param {object} [grantedPowers]
  * @param {(bytes: string | Uint8Array) => string} [grantedPowers.computeSha512]
  * @param {typeof import('path)['resolve']} [grantedPowers.pathResolve]
@@ -44,6 +46,7 @@ export async function bundleZipBase64(
     elideComments = false,
     conditions = [],
     commonDependencies,
+    importHook,
   } = options;
   const powers = { ...readPowers, ...grantedPowers };
   const {
@@ -96,6 +99,7 @@ export async function bundleZipBase64(
       parserForLanguage,
       moduleTransforms,
       sourceMapHook,
+      importHook,
     },
   );
   assert(sha512);
