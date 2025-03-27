@@ -21,14 +21,8 @@ User-visible changes in `ses`
   This is a divergence from the expected behavior of a native Hardened
   JavaScript implementation, like XS.
 
-The `hostEvaluators` option is introduced
-
-- `all` the new default that assumes evaluators aren't blocked
-- `none` now required if all evaluators are blocked (e.g. with a strict CSP)
-- `no-direct` to initialize SES on hosts with no direct eval available (e.g. Hermes)
-
-To avoid breaking old programs during the transition, we default under-the-hood to
-deprecated option _legacy_, which works as before, but warns users.
+Also the new `unsafe-no-direct` option has been added to to initialize SES on
+hosts with no direct eval available (e.g. Hermes).
 
 # v1.11.0 (2025-01-23)
 

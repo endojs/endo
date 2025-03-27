@@ -75,7 +75,7 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * @param {Function} args.makeCompartmentConstructor
  * @param {(object) => void} args.markVirtualizedNativeFunction
  * @param {Compartment} [args.parentCompartment]
- * @param {string} [args.hostEvaluators]
+ * @param {string} [args.evalTaming]
  */
 export const setGlobalObjectMutableProperties = (
   globalObject,
@@ -85,7 +85,7 @@ export const setGlobalObjectMutableProperties = (
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
     parentCompartment,
-    hostEvaluators,
+    evalTaming,
   },
 ) => {
   for (const [name, intrinsicName] of entries(universalPropertyNames)) {
@@ -123,7 +123,7 @@ export const setGlobalObjectMutableProperties = (
         parentCompartment,
         enforceNew: true,
       },
-      hostEvaluators,
+      evalTaming,
     ),
   );
 

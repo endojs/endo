@@ -39,19 +39,16 @@ export interface RepairOptions {
     | 'safe-eval'
     | 'unsafe-eval'
     | 'no-eval'
+    | 'unsafe-no-direct'
     // deprecated
     | 'safeEval'
     | 'unsafeEval'
     | 'noEval';
+
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
-  hostEvaluators?:
-    | '_legacy' // deprecated
-    | 'all'
-    | 'none'
-    | 'unsafe';
   /**
    * safe (default): do nothing.
    *
