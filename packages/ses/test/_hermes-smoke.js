@@ -8,7 +8,7 @@
  * Test calling SES lockdown.
  */
 const testLockdown = () => {
-  lockdown({ evalTaming: 'unsafe-no-direct' });
+  lockdown({ evalTaming: 'unsafe-eval' });
 };
 
 testLockdown();

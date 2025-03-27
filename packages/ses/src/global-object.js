@@ -19,7 +19,7 @@ import { constantProperties, universalPropertyNames } from './permits.js';
  * guest programs, we cannot emulate the proper behavior.
  * With this shim, assigning Symbol.unscopables causes the given lexical
  * names to fall through to the terminal scope proxy.
- * But, we can install this setter to prevent a program from proceeding on
+ * But, we can install this setter to prevent a program from proceding on
  * this false assumption.
  *
  * @param {object} globalObject
@@ -75,7 +75,6 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * @param {Function} args.makeCompartmentConstructor
  * @param {(object) => void} args.markVirtualizedNativeFunction
  * @param {Compartment} [args.parentCompartment]
- * @param {string} [args.evalTaming]
  */
 export const setGlobalObjectMutableProperties = (
   globalObject,
@@ -85,7 +84,6 @@ export const setGlobalObjectMutableProperties = (
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
     parentCompartment,
-    evalTaming,
   },
 ) => {
   for (const [name, intrinsicName] of entries(universalPropertyNames)) {
@@ -123,7 +121,6 @@ export const setGlobalObjectMutableProperties = (
         parentCompartment,
         enforceNew: true,
       },
-      evalTaming,
     ),
   );
 

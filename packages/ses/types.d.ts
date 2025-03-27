@@ -39,12 +39,10 @@ export interface RepairOptions {
     | 'safe-eval'
     | 'unsafe-eval'
     | 'no-eval'
-    | 'unsafe-no-direct'
     // deprecated
     | 'safeEval'
     | 'unsafeEval'
     | 'noEval';
-
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;

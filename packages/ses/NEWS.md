@@ -2,6 +2,12 @@
 
 User-visible changes in `ses`
 
+# v1.13.0 (2025-XX-XX)
+
+The `evalTaming:` option `safe-eval` now can only throw error `SES_DIRECT_EVAL`.
+This allows SES to initialize with `unsafe-eval` or `no-eval` on hosts with no
+direct eval available (e.g. Hermes) for a successful lockdown.
+
 # v1.12.0 (2025-03-11)
 
 - The `evalTaming:` option values are renamed:
@@ -20,9 +26,6 @@ User-visible changes in `ses`
   shim.
   This is a divergence from the expected behavior of a native Hardened
   JavaScript implementation, like XS.
-
-Also the new `unsafe-no-direct` option has been added to to initialize SES on
-hosts with no direct eval available (e.g. Hermes).
 
 # v1.11.0 (2025-01-23)
 

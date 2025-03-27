@@ -20,22 +20,22 @@ compatibility vs better tool compatibility.
 
 Each option is explained in its own section below.
 
-| option                           | default setting  | other settings                                  | about |
-|----------------------------------|------------------|-------------------------------------------------|-------|
-| `regExpTaming`                   | `'safe'`         | `'unsafe'`                                      | `RegExp.prototype.compile` ([details](#regexptaming-options)) |
-| `localeTaming`                   | `'safe'`         | `'unsafe'`                                      | `toLocaleString`           ([details](#localetaming-options)) |
-| `consoleTaming`                  | `'safe'`         | `'unsafe'`                                      | deep stacks                ([details](#consoletaming-options)) |
-| `errorTaming`                    | `'safe'`         | `'unsafe'` `'unsafe-debug'`                     | `errorInstance.stack`      ([details](#errortaming-options)) |
-| `errorTrapping`                  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'`          | handling of uncaught exceptions ([details](#errortrapping-options)) |
-| `reporting`                      | `'platform'`     | `'console'` `'none'`                            | where to report warnings ([details](#reporting-options))
-| `unhandledRejectionTrapping`     | `'report'`       | `'none'`                                        | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
-| `evalTaming`                     | `'safe-eval'`    | `'unsafe-eval'` `'no-eval'` `'unsafe-no-direct'`| `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
-| `stackFiltering`                 | `'concise'`      | `'verbose'`                                     | deep stacks signal/noise   ([details](#stackfiltering-options)) |
-| `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                           | override mistake antidote  ([details](#overridetaming-options)) |
-| `overrideDebug`                  | `[]`             | array of property names                         | detect override mistake    ([details](#overridedebug-options)) |
-| `domainTaming`                   | `'safe'`         | `'unsafe'`                                      | Node.js `domain` module    ([details](#domaintaming-options)) |
-| `legacyRegeneratorRuntimeTaming` | `'safe'`         | `'unsafe-ignore'`                               | regenerator-runtime ([details](#legacyregeneratorruntimetaming-options)) |
-| `__hardenTaming__`               | `'safe'`         | `'unsafe'`                                      | Making `harden` no-op for performance in trusted environments ([details](#__hardentaming__-options)) |
+| option                           | default setting  | other settings                         | about |
+|----------------------------------|------------------|----------------------------------------|-------|
+| `regExpTaming`                   | `'safe'`         | `'unsafe'`                             | `RegExp.prototype.compile` ([details](#regexptaming-options)) |
+| `localeTaming`                   | `'safe'`         | `'unsafe'`                             | `toLocaleString`           ([details](#localetaming-options)) |
+| `consoleTaming`                  | `'safe'`         | `'unsafe'`                             | deep stacks                ([details](#consoletaming-options)) |
+| `errorTaming`                    | `'safe'`         | `'unsafe'` `'unsafe-debug'`            | `errorInstance.stack`      ([details](#errortaming-options)) |
+| `errorTrapping`                  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions ([details](#errortrapping-options)) |
+| `reporting`                      | `'platform'`     | `'console'` `'none'`                   | where to report warnings ([details](#reporting-options))
+| `unhandledRejectionTrapping`     | `'report'`       | `'none'`                               | handling of finalized unhandled rejections ([details](#unhandledrejectiontrapping-options)) |
+| `evalTaming`                     | `'safe-eval'`    | `'unsafe-eval'` `'no-eval'`            | `eval` and `Function` of the start compartment ([details](#evaltaming-options)) |
+| `stackFiltering`                 | `'concise'`      | `'verbose'`                            | deep stacks signal/noise   ([details](#stackfiltering-options)) |
+| `overrideTaming`                 | `'moderate'`     | `'min'` or `'severe'`                  | override mistake antidote  ([details](#overridetaming-options)) |
+| `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
+| `domainTaming`                   | `'safe'`         | `'unsafe'`                             | Node.js `domain` module    ([details](#domaintaming-options)) |
+| `legacyRegeneratorRuntimeTaming` | `'safe'`         | `'unsafe-ignore'`                      | regenerator-runtime ([details](#legacyregeneratorruntimetaming-options)) |
+| `__hardenTaming__`               | `'safe'`         | `'unsafe'`                             | Making `harden` no-op for performance in trusted environments ([details](#__hardentaming__-options)) |
 
 In the absence of any of these options in lockdown arguments, lockdown will
 attempt to read these options from `process.env`, using the Node.js convention
@@ -606,18 +606,15 @@ lockdown({ evalTaming: 'no-eval' }); // disallowing calling eval like there is a
 // Please use this option with caution.
 // You may want to use Trusted Types or Content Security Policy with this option.
 lockdown({ evalTaming: 'unsafe-eval' });
-
-vs
-lockdown({ evalTaming: 'unsafe-no-direct' }); // allowing SES to initialize with no direct eval
 ```
 
-For JavaScript engines like Hermes, the `unsafe-no-direct` option is available to initialize SES.
+Also `'unsafe-eval'` and `no-eval` allow us to initialize SES when no direct eval is available.
 
-**Background**: Hermes is a JavaScript engine that does not yet support direct `eval()` nor the `with` statement. Default option `'safe-eval'` uses multiple nested `with` statements to create a restricted scope chain, which leaves `'unsafe-eval'` or `'no-eval'` options available. However SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct eval (dynamically scoped eval). `unsafe-no-direct` allows us to initialize SES when no direct 'eval' is available.
+**Background**: Hermes is a JavaScript engine that does not yet support direct `eval()` nor the `with` statement. Default option `'safe-eval'` evaluates the source using direct eval and multiple nested `with` statements to create a restricted scope chain that constructs the isolated evaluator. This leaves us with options `'unsafe-eval'` or `'no-eval'`.
 
-The `unsafe-no-direct` option will further throw a descriptive error on attempt to evaluate a compartment once supported after lockdown. Otherwise executing code containing the `with` statement on Hermes will `Uncaught SyntaxError: 2:5:invalid statement encountered` (referring to make-evaluate.js > evaluateFactory).
+Note: In the future when the Compartment global class is supported on Hermes after `lockdown`, attempting to evaluate a compartment will emit on Hermes `Uncaught SyntaxError: 2:5:invalid statement encountered` (referring to make-evaluate.js > evaluateFactory) if the `with` statement is still unsupported.
 
-Once Hermes engine supports direct eval, `'unsafe-no-direct'` will no longer be required.
+Once Hermes engine supports direct eval, the `SES_DIRECT_EVAL` error will not longer prevent SES initializing with `'safe-eval'`.
 Currently there is an open feature request and open pull request targeting Static Hermes.
 
 * <https://github.com/facebook/hermes/issues/957>
@@ -626,7 +623,7 @@ Currently there is an open feature request and open pull request targeting Stati
 You can also test and verify `lockdown` completing on this change by [building and running](https://github.com/facebook/hermes/blob/static_h/doc/BuildingAndRunning.md) Static Hermes on the following fork for example:
 <https://github.com/leotm/hermes/tree/ses-lockdown-test-static-hermes-compiler-vm>
 
-Once Hermes engine supports direct eval and the `with` statement, `'safe-eval'` will be possible.
+Once Hermes engine supports direct eval and the `with` statement, `'safe-eval'` will work.
 Currently there is an open feature request and open pull request targeting Static Hermes.
 
 * <https://github.com/facebook/hermes/issues/1056>
@@ -643,7 +640,6 @@ If `lockdown` does not receive an `evalTaming` option, it will respect
 LOCKDOWN_EVAL_TAMING=safe-eval
 LOCKDOWN_EVAL_TAMING=no-eval
 LOCKDOWN_EVAL_TAMING=unsafe-eval
-LOCKDOWN_EVAL_TAMING=unsafe-no-direct
 ```
 
 ## `stackFiltering` Options

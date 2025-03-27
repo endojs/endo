@@ -222,7 +222,6 @@ export const repairIntrinsics = (options = {}) => {
     evalTaming === 'safeEval' || // deprecated
     evalTaming === 'no-eval' ||
     evalTaming === 'noEval' || // deprecated
-    evalTaming === 'unsafe-no-direct' ||
     Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
   // Assert that only supported options were passed.
@@ -260,13 +259,9 @@ export const repairIntrinsics = (options = {}) => {
   const { functionAllowed, evalAllowed, directEvalAllowed } =
     probeHostEvaluators();
 
-  evalTaming === 'unsafe-no-direct' &&
-    directEvalAllowed === true &&
-    Fail`'evalTaming' was set to 'unsafe-no-direct', but direct eval is available (SES_DIRECT_EVAL)`;
-
   if (
     directEvalAllowed === false &&
-    (evalTaming === 'safe-eval' || evalTaming === 'unsafe-eval') &&
+    evalTaming === 'safe-eval' &&
     (functionAllowed || evalAllowed)
   ) {
     // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
@@ -437,7 +432,6 @@ export const repairIntrinsics = (options = {}) => {
     newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
-    evalTaming,
   });
 
   if (
@@ -462,7 +456,6 @@ export const repairIntrinsics = (options = {}) => {
       markVirtualizedNativeFunction,
     );
   } else if (
-    evalTaming === 'unsafe-no-direct' ||
     evalTaming === 'unsafe-eval' ||
     // deprecated
     evalTaming === 'unsafeEval'
