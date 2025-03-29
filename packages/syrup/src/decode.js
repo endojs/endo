@@ -11,13 +11,13 @@ const LIST_START = '['.charCodeAt(0);
 const LIST_END = ']'.charCodeAt(0);
 const DICT_START = '{'.charCodeAt(0);
 const DICT_END = '}'.charCodeAt(0);
-// const SET_START = '#'.charCodeAt(0);
-// const SET_END = '$'.charCodeAt(0);
+const SET_START = '#'.charCodeAt(0);
+const SET_END = '$'.charCodeAt(0);
 const BYTES_START = ':'.charCodeAt(0);
 const STRING_START = '"'.charCodeAt(0);
-// const SYMBOL_START = "'".charCodeAt(0);
-// const RECORD_START = '<'.charCodeAt(0);
-// const RECORD_END = '>'.charCodeAt(0);
+const SYMBOL_START = "'".charCodeAt(0);
+const RECORD_START = '<'.charCodeAt(0);
+const RECORD_END = '>'.charCodeAt(0);
 const TRUE = 't'.charCodeAt(0);
 const FALSE = 'f'.charCodeAt(0);
 // const SINGLE = 'F'.charCodeAt(0);
@@ -122,15 +122,20 @@ function decodeAfterInteger(bytes, integer, start, end, name) {
   );
 }
 
+function seekEndOfInteger(bytes, start, end) {
+  let at = start + 1;
+  // eslint-disable-next-line no-empty
+  for (; at < end && bytes[at] >= ZERO && bytes[at] <= NINE; at += 1) {}
+  return at;
+}
+
 /**
  * @param {Uint8Array} bytes
  * @param {number} start
  * @param {number} end
  */
 function decodeInteger(bytes, start, end) {
-  let at = start + 1;
-  // eslint-disable-next-line no-empty
-  for (; at < end && bytes[at] >= ZERO && bytes[at] <= NINE; at += 1) {}
+  const at = seekEndOfInteger(bytes, start, end);
   return {
     start: at,
     integer: BigInt(textDecoder.decode(bytes.subarray(start, at))),
@@ -143,7 +148,7 @@ function decodeInteger(bytes, start, end) {
  * @param {number} end
  * @param {string} name
  */
-function decodeArray(bytes, start, end, name) {
+function decodeList(bytes, start, end, name) {
   const list = [];
   for (;;) {
     if (start >= end) {
@@ -165,13 +170,52 @@ function decodeArray(bytes, start, end, name) {
   }
 }
 
+function seekList(bytes, start, end, name) {
+  for (;;) {
+    if (start >= end) {
+      throw Error(
+        `Unexpected end of Syrup, expected Syrup value or end of Syrup list marker "]" at index ${start} in ${name}`,
+      );
+    }
+    const cc = bytes[start];
+    if (cc === LIST_END) {
+      return {
+        start: start + 1,
+      };
+    }
+    ({ start } = seekAny(bytes, start, end, name));
+  }
+}
+
+function seekSet(bytes, start, end, name) {
+  for (;;) {
+    if (start >= end) {
+      throw Error(
+        `Unexpected end of Syrup, expected Syrup value or end of Syrup set marker "$" at index ${start} in ${name}`,
+      );
+    }
+    const cc = bytes[start];
+    if (cc === SET_END) {
+      return {
+        start: start + 1,
+      };
+    }
+    ({ start } = seekAny(bytes, start, end, name));
+  }
+}
+
+export function decodeSymbolName(bytes, start, end, name) {
+  const { value } = decodeStringlike(bytes, start, end, name);
+  return value;
+}
+
 /**
  * @param {Uint8Array} bytes
  * @param {number} start
  * @param {number} end
  * @param {string} name
  */
-function decodeString(bytes, start, end, name) {
+function decodeStringlike(bytes, start, end, name) {
   if (start >= end) {
     throw Error(
       `Unexpected end of Syrup, expected Syrup string at end of ${name}`,
@@ -181,7 +225,8 @@ function decodeString(bytes, start, end, name) {
   ({ start, integer: length } = decodeInteger(bytes, start, end));
 
   const cc = bytes[start];
-  if (cc !== STRING_START) {
+  if (cc !== STRING_START && cc !== SYMBOL_START) {
+    // TODO: error message implies this is only for dictionaries, but it's not
     throw Error(
       `Unexpected byte ${JSON.stringify(
         String.fromCharCode(cc),
@@ -206,8 +251,85 @@ function decodeString(bytes, start, end, name) {
  * @param {number} start
  * @param {number} end
  * @param {string} name
+ * @param {number} typeCode
+ * @param {string} typeName
  */
-function decodeRecord(bytes, start, end, name) {
+function seekStringOfType(bytes, start, end, name, typeCode, typeName) {
+  if (start >= end) {
+    throw Error(
+      `Unexpected end of Syrup, expected Syrup ${typeName} at end of ${name}`,
+    );
+  }
+  let length;
+  ({ start, integer: length } = decodeInteger(bytes, start, end));
+  
+  const cc = bytes[start];
+  if (cc !== typeCode) {
+    throw Error(
+      `Unexpected character ${JSON.stringify(String.fromCharCode(cc))}, Syrup ${typeName} must start with ${JSON.stringify(String.fromCharCode(typeCode))}, got ${JSON.stringify(String.fromCharCode(cc))} at index ${start} of ${name}`,
+    );
+  }
+  start += 1;
+  const subStart = start;
+  start += Number(length);
+  if (start > end) {
+    throw Error(
+      `Unexpected end of Syrup, expected ${length} bytes after index ${subStart} of ${name}`,
+    );
+  }
+  return { start };
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {number} start
+ * @param {number} end
+ * @param {string} name
+ */
+function seekString(bytes, start, end, name) {
+  return seekStringOfType(bytes, start, end, name, STRING_START, 'string');
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {number} start
+ * @param {number} end
+ * @param {string} name
+ */
+function seekSymbol(bytes, start, end, name) {
+  return seekStringOfType(bytes, start, end, name, SYMBOL_START, 'symbol');
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {number} start
+ * @param {number} end
+ * @param {string} name
+ */
+function seekBytestring(bytes, start, end, name) {
+  return seekStringOfType(bytes, start, end, name, BYTES_START, 'bytestring');
+}
+
+function seekDictionaryKey(bytes, start, end, name) {
+  const typeInfo = peekType(bytes, start, end, name);
+  if (typeInfo.type === 'string') {
+    return seekString(bytes, start, end, name);
+  }
+  if (typeInfo.type === 'symbol') {
+    return seekSymbol(bytes, start, end, name);
+  }
+  throw Error(
+    `Unexpected type ${typeInfo.type}, Syrup dictionary keys must be strings or symbols at index ${start} of ${name}`,
+  );
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {number} start
+ * @param {number} end
+ * @param {string} name
+ */
+function decodeDictionary(bytes, start, end, name) {
   const record = {};
   let priorKey = '';
   let priorKeyStart = -1;
@@ -227,7 +349,7 @@ function decodeRecord(bytes, start, end, name) {
     }
     const keyStart = start;
     let key;
-    ({ start, value: key } = decodeString(bytes, start, end, name));
+    ({ start, value: key } = decodeStringlike(bytes, start, end, name));
     const keyEnd = start;
 
     // Validate strictly non-descending keys.
@@ -273,6 +395,62 @@ function decodeRecord(bytes, start, end, name) {
   }
 }
 
+function seekDictionary(bytes, start, end, name) {
+  let priorKey = '';
+  let priorKeyStart = -1;
+  let priorKeyEnd = -1;
+  for (;;) {
+    if (start >= end) {
+      throw Error(
+        `Unexpected end of Syrup, expected Syrup string or end of Syrup dictionary marker "}" at ${start} of ${name}`,
+      );
+    }
+    const cc = bytes[start];
+    if (cc === DICT_END) {
+      return {
+        start: start + 1,
+      };
+    }
+    const keyStart = start;
+    let key;
+    console.log('seekDictionary next bytes', {start, end, name, string: textDecoder.decode(bytes.subarray(start, end))});
+    ({ start, value: key } = decodeStringlike(bytes, start, end, name));
+    const keyEnd = start;
+
+    // Validate strictly non-descending keys.
+    if (priorKeyStart !== -1) {
+      const order = compareByteArrays(
+        bytes,
+        bytes,
+        priorKeyStart,
+        priorKeyEnd,
+        keyStart,
+        keyEnd,
+      );
+      if (order === 0) {
+        throw Error(
+          `Syrup dictionary keys must be unique, got repeated ${JSON.stringify(
+            key,
+          )} at index ${start} of ${name}`,
+        );
+      } else if (order > 0) {
+        throw Error(
+          `Syrup dictionary keys must be in bytewise sorted order, got ${JSON.stringify(
+            key,
+          )} immediately after ${JSON.stringify(
+            priorKey,
+          )} at index ${start} of ${name}`,
+        );
+      }
+    }
+    priorKey = key;
+    priorKeyStart = keyStart;
+    priorKeyEnd = keyEnd;
+
+    ({ start } = seekAny(bytes, start, end, name));
+  }
+}
+
 /**
  * @param {Uint8Array} bytes
  * @param {number} start
@@ -305,6 +483,87 @@ function decodeFloat64(bytes, start, end, name) {
   return { start, value };
 }
 
+function peekTypeWithNumberPrefix(bytes, start, end, name) {
+  const at = seekEndOfInteger(bytes, start, end);
+  const typePostfix = bytes[at];
+  console.log('peekTypeWithNumberPrefix', {start, end, name, at, typePostfix, char: String.fromCharCode(typePostfix)});
+  if (typePostfix === PLUS) {
+    return { type: 'integer', start: at + 1 };
+  }
+  if (typePostfix === MINUS) {
+    return { type: 'integer', start: at + 1 };
+  }
+  // TODO: these start values are not correct bc they dont include the actual string length (?)
+  // we need to clarify what the string parser/seeker wants
+  if (typePostfix === BYTES_START) {
+    const { start: next } = seekBytestring(bytes, start, end, name);
+    return { type: 'bytestring', start: next };
+  }
+  if (typePostfix === STRING_START) {
+    const { start: next } = seekString(bytes, start, end, name);
+    return { type: 'string', start: next };
+  }
+  if (typePostfix === SYMBOL_START) {
+    const { start: next } = seekSymbol(bytes, start, end, name);
+    return { type: 'symbol', start: next };
+  }
+  throw Error(
+    `Unexpected character ${JSON.stringify(
+      String.fromCharCode(typePostfix),
+    )} at index ${start} of ${name}`,
+  );
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {number} start
+ * @param {number} end
+ * @param {string} name
+ * @returns {{type: string, start: number}}
+ */
+export function peekType(bytes, start, end, name) {
+  if (start >= end) {
+    throw Error(
+      `Unexpected end of Syrup, expected any value at index ${start} of ${name}`,
+    );
+  }
+  const cc = bytes[start];
+  console.log('peekType', {start, end, name, cc, char: String.fromCharCode(cc)});
+  if (cc === DOUBLE) {
+    return { type: 'float64', start: start + 1 };
+  }
+  if (cc >= ONE && cc <= NINE) {
+    console.log('peekType number', {start, end, name, cc, char: String.fromCharCode(cc)});
+    return peekTypeWithNumberPrefix(bytes, start, end, name);
+  }
+  if (cc === ZERO) {
+    return { type: 'integer', start: start + 1 };
+  }
+  if (cc === LIST_START) {
+    return { type: 'list', start: start + 1 };
+  }
+  if (cc === SET_START) {
+    return { type: 'set', start: start + 1 };
+  }
+  if (cc === DICT_START) {
+    return { type: 'dictionary', start: start + 1 };
+  }
+  if (cc === RECORD_START) {
+    return { type: 'record', start: start + 1 };
+  }
+  if (cc === TRUE) {
+    return { type: 'boolean', start: start + 1 };
+  }
+  if (cc === FALSE) {
+    return { type: 'boolean', start: start + 1 };
+  }
+  throw Error(
+    `Unexpected character ${JSON.stringify(
+      String.fromCharCode(cc),
+    )} at index ${start} of ${name}`,
+  );
+}
+
 /**
  * @param {Uint8Array} bytes
  * @param {number} start
@@ -319,9 +578,6 @@ function decodeAny(bytes, start, end, name) {
     );
   }
   const cc = bytes[start];
-  if (cc === DOUBLE) {
-    return decodeFloat64(bytes, start + 1, end, name);
-  }
   if (cc >= ONE && cc <= NINE) {
     let integer;
     ({ start, integer } = decodeInteger(bytes, start, end));
@@ -330,23 +586,78 @@ function decodeAny(bytes, start, end, name) {
   if (cc === ZERO) {
     return decodeAfterInteger(bytes, 0n, start + 1, end, name);
   }
-  if (cc === LIST_START) {
-    return decodeArray(bytes, start + 1, end, name);
-  }
-  if (cc === DICT_START) {
-    return decodeRecord(bytes, start + 1, end, name);
-  }
   if (cc === TRUE) {
     return { start: start + 1, value: true };
   }
   if (cc === FALSE) {
     return { start: start + 1, value: false };
   }
+  console.log('decodeAny', {start, end, name});
+  const { type, start: next } = peekType(bytes, start, end, name);
+  console.log('decodeAny', {type, next});
+  if (type === 'float64') {
+    return decodeFloat64(bytes, next, end, name);
+  }
+  if (type === 'string') {
+    return decodeStringlike(bytes, next, end, name);
+  }
+  if (type === 'bytestring') {
+    throw Error(
+      `decode Bytestrings are not yet supported.`,
+    );
+  }
+  if (type === 'symbol') {
+    throw Error(
+      `decode Symbols are not yet supported.`,
+    );
+  }
+  if (type === 'list') {
+    return decodeList(bytes, next, end, name);
+  }
+  if (type === 'set') {
+    throw Error(
+      `decode Sets are not yet supported.`,
+    );
+  }
+  if (type === 'dictionary') {
+    return decodeDictionary(bytes, next, end, name);
+  }
+  if (type === 'record') {
+    throw Error(
+      `decode Records are not yet supported.`,
+    );
+  }
   throw Error(
     `Unexpected character ${JSON.stringify(
       String.fromCharCode(cc),
     )} at index ${start} of ${name}`,
   );
+}
+
+function seekAny(bytes, start, end, name) {
+  const { type, start: next } = peekType(bytes, start, end, name);
+  // String-likes operate on the start index
+  if (type === 'symbol') {
+    return seekSymbol(bytes, start, end, name);
+  }
+  if (type === 'bytestring') {
+    console.log('seekAny bytestring', {type, next});
+    return seekBytestring(bytes, start, end, name);
+  }
+  // Non-string-likes operate on the next index
+  if (type === 'list') {
+    return seekList(bytes, next, end, name);
+  }
+  if (type === 'set') {
+    return seekSet(bytes, next, end, name);
+  }
+  if (type === 'dictionary') {
+    return seekDictionary(bytes, next, end, name);
+  }
+  console.log('seekAny fallback to decodeAny', {type, next});
+  // TODO: We want to seek to the end of the value, not decode it.
+  // Decode any provided as a fallback.
+  return decodeAny(bytes, start, end, name);
 }
 
 /**
@@ -370,4 +681,276 @@ export function decodeSyrup(bytes, options = {}) {
     );
   }
   return value;
+}
+
+class SyrupParser {
+  constructor(bytes, options) {
+    this.bytes = bytes;
+    this.state = {
+      start: options.start ?? 0,
+      end: options.end ?? bytes.byteLength,
+      name: options.name ?? '<unknown>',
+    };
+  }
+  next() {
+    const { start, end, name } = this.state;
+    console.log('next/decodeAny', {start, end, name});
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const { start: next, value } = decodeAny(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  skip() {
+    const { start, end, name } = this.state;
+    console.log('skip', {start, end, name});
+    const { start: next } = seekAny(this.bytes, start, end, name);
+    // const { start: next2 } = decodeAny(this.bytes, next, end, name);
+    // if (next2 !== next) {
+    //   throw Error(
+    //     `Unexpected length mismatch, expected ${next2} bytes, got ${next}`,
+    //   );
+    // }
+    this.state.start = next;
+  }
+  peekType() {
+    const { start, end, name } = this.state;
+    // console.log('peekType', {start, end, name});
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const { type, start: next } = peekType(this.bytes, start, end, name);
+    return { type, start: next };
+  }
+  nextType() {
+    const { start, end, name } = this.state;
+    const { type, start: next } = peekType(this.bytes, start, end, name);
+    this.state.start = next;
+    return { type, start: next };
+  }
+  enterRecord() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== RECORD_START) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(
+          String.fromCharCode(cc),
+        )} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  exitRecord() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== RECORD_END) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(String.fromCharCode(cc))}, Syrup records must end with "}", got ${JSON.stringify(String.fromCharCode(cc))} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  nextRecordLabel() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const { start: next, value } = decodeStringlike(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  enterDictionary() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== DICT_START) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(
+          String.fromCharCode(cc),
+        )} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  exitDictionary() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== DICT_END) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(
+          String.fromCharCode(cc),
+        )} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  nextDictionaryKey() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const { start: next, value } = decodeStringlike(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  nextDictionaryValue() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const { start: next, value } = decodeAny(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  *iterateDictionaryEntries() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    let next = start;
+    while (next < end) {
+      const cc = this.bytes[next];
+      if (cc === DICT_END) {
+        break;
+      }
+      const key = this.nextDictionaryKey();
+      const value = this.nextDictionaryValue();
+      yield { key, value };
+    }
+  }
+  *seekDictionaryEntries() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    let next = start;
+    while (next < end) {
+      const cc = this.bytes[next];
+      if (cc === DICT_END) {
+        this.state.start = next + 1;
+        break;
+      }
+      const { start: afterKey } = seekDictionaryKey(this.bytes, next, end, name);
+      const { start: afterValue } = seekAny(this.bytes, afterKey, end, name);
+      yield { key: next, value: afterKey, start: afterValue };
+      next = afterValue;
+      this.state.start = next;
+    }
+  }
+  enterList() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== LIST_START) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(String.fromCharCode(cc))}, Syrup lists must start with "[", got ${JSON.stringify(String.fromCharCode(cc))} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  exitList() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== LIST_END) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(String.fromCharCode(cc))}, Syrup lists must end with "]", got ${JSON.stringify(String.fromCharCode(cc))} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  nextListValue() {
+    const { start, end, name } = this.state;
+    const { start: next, value } = decodeAny(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  enterSet() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== SET_START) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(String.fromCharCode(cc))}, Syrup sets must start with "#", got ${JSON.stringify(String.fromCharCode(cc))} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  exitSet() {
+    const { start, end, name } = this.state;
+    if (end > this.bytes.byteLength) {
+      throw Error(
+        `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${this.bytes.byteLength}`,
+      );
+    }
+    const cc = this.bytes[start];
+    if (cc !== SET_END) {
+      throw Error(
+        `Unexpected character ${JSON.stringify(String.fromCharCode(cc))}, Syrup sets must end with "$", got ${JSON.stringify(String.fromCharCode(cc))} at index ${start} of ${name}`,
+      );
+    }
+    this.state.start = start + 1;
+  }
+  nextSetValue() {
+    const { start, end, name } = this.state;
+    const { start: next, value } = decodeAny(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+}
+
+export function parseSyrup(bytes, options = {}) {
+  const { start = 0, end = bytes.byteLength, name = '<unknown>' } = options;
+  if (end > bytes.byteLength) {
+    throw Error(
+      `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${bytes.byteLength}`,
+    );
+  }
+  return new SyrupParser(bytes, options);
 }
