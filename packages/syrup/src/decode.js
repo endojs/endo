@@ -1,6 +1,7 @@
 // @ts-check
 
 import { compareByteArrays } from './compare.js';
+import { SyrupSymbolFor } from './symbol.js';
 
 const MINUS = '-'.charCodeAt(0);
 const PLUS = '+'.charCodeAt(0);
@@ -114,6 +115,18 @@ function decodeAfterInteger(bytes, integer, start, end, name) {
     }
     const value = textDecoder.decode(bytes.subarray(subStart, start));
     return { start, value };
+  }
+  if (cc === SYMBOL_START) {
+    start += 1;
+    const subStart = start;
+    start += Number(integer);
+    if (start > end) {
+      throw Error(
+        `Unexpected end of Syrup, expected ${integer} bytes after symbol starting at index ${subStart} in ${name}`,
+      );
+    }
+    const value = textDecoder.decode(bytes.subarray(subStart, start));
+    return { start, value: SyrupSymbolFor(value) };
   }
   throw Error(
     `Unexpected character ${JSON.stringify(
@@ -242,8 +255,19 @@ function decodeStringlike(bytes, start, end, name) {
       `Unexpected end of Syrup, expected ${length} bytes after index ${subStart} of ${name}`,
     );
   }
-  const value = textDecoder.decode(bytes.subarray(subStart, start));
+  const stringValue = textDecoder.decode(bytes.subarray(subStart, start));
+  let value;
+  if (cc === SYMBOL_START) {
+    value = SyrupSymbolFor(stringValue);
+  } else {
+    value = stringValue;
+  }
+
   return { start, value };
+}
+
+function decodeSymbol(bytes, start, end, name) {
+  return decodeStringlike(bytes, start, end, name);
 }
 
 /**
@@ -331,7 +355,7 @@ function seekDictionaryKey(bytes, start, end, name) {
  */
 function decodeDictionary(bytes, start, end, name) {
   const record = {};
-  let priorKey = '';
+  let priorKey = undefined;
   let priorKeyStart = -1;
   let priorKeyEnd = -1;
   for (;;) {
@@ -396,7 +420,7 @@ function decodeDictionary(bytes, start, end, name) {
 }
 
 function seekDictionary(bytes, start, end, name) {
-  let priorKey = '';
+  let priorKey = undefined;
   let priorKeyStart = -1;
   let priorKeyEnd = -1;
   for (;;) {
@@ -607,9 +631,7 @@ function decodeAny(bytes, start, end, name) {
     );
   }
   if (type === 'symbol') {
-    throw Error(
-      `decode Symbols are not yet supported.`,
-    );
+    return decodeSymbol(bytes, next, end, name);
   }
   if (type === 'list') {
     return decodeList(bytes, next, end, name);

@@ -13,7 +13,7 @@ test('affirmative encode cases', t => {
     for (const cc of Array.from(actual)) {
       string += String.fromCharCode(cc);
     }
-    t.deepEqual(syrup, string, `for ${JSON.stringify(syrup)} ${value}`);
+    t.deepEqual(syrup, string, `for ${JSON.stringify(syrup)} ${String(value)}`);
   }
 });
 
