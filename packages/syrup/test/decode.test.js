@@ -13,7 +13,7 @@ test('affirmative decode cases', t => {
       bytes[i] = syrup.charCodeAt(i);
     }
     const actual = decodeSyrup(bytes);
-    t.deepEqual(actual, value, `for ${JSON.stringify(syrup)}`);
+    t.deepEqual(actual, value, `for ${String(syrup)}`);
   }
 });
 
