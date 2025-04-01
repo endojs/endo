@@ -1,4 +1,10 @@
-User-visible changes in `ses`:
+User-visible changes in `ses`
+
+# Next release
+
+- The `evalTaming:` option `safe-eval` now can only throw error `SES_DIRECT_EVAL`.
+  This allows SES to initialize with `'unsafe-eval'` or `no-eval` on hosts with no
+  direct eval available (e.g. Hermes) for a successful lockdown.
 
 # v1.12.0 (2025-03-11)
 
