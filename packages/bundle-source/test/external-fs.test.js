@@ -29,3 +29,29 @@ test(`external require('fs')`, async t => {
   const srcMap1 = `(${src1})`;
   nestedEvaluate(srcMap1)();
 });
+
+const testFsImportHookEndoZipBase64 = (name, file) => {
+  test(`bundle ${name} with endoZipBase64`, async t => {
+    // We expect the provided importHook is called with 'fs' exactly once
+    t.plan(1);
+
+    const testFile = url.fileURLToPath(new URL(file, import.meta.url));
+
+    await bundleSource(testFile, {
+      format: 'endoZipBase64',
+      importHook: async specifier => {
+        if (specifier === 'fs') {
+          t.is(specifier, 'fs', 'imported fs module');
+          return true;
+        }
+        return undefined;
+      },
+    });
+  });
+};
+
+testFsImportHookEndoZipBase64('import fs', '../demo/external-fs.js');
+testFsImportHookEndoZipBase64(
+  'transitive import fs',
+  '../demo/external-fs-transitive.js',
+);
