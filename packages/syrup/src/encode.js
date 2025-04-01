@@ -1,8 +1,10 @@
 // @ts-check
 
 import { compareByteArrays } from './compare.js';
+import { getSyrupSymbolName } from './symbol.js';
 
-const { freeze, keys } = Object;
+const { freeze } = Object;
+const { ownKeys } = Reflect;
 
 const defaultCapacity = 256;
 
@@ -54,8 +56,9 @@ function grow(buffer, increaseBy) {
 /**
  * @param {Buffer} buffer
  * @param {string} value
+ * @param {string} typeChar
  */
-function encodeString(buffer, value) {
+function encodeStringlike(buffer, value, typeChar) {
   const stringLength = value.length;
   const likelyPrefixLength = `${stringLength}`.length + 1;
   // buffer.length will be incorrect until we fix it before returning.
@@ -70,7 +73,7 @@ function encodeString(buffer, value) {
     written += chunk.written || 0;
     read += chunk.read || 0;
     if (read === stringLength) {
-      const prefix = `${written}"`; // length prefix quote suffix
+      const prefix = `${written}${typeChar}`; // length prefix, typeChar suffix
       const prefixLength = prefix.length;
       buffer.length = start;
       grow(buffer, prefixLength + written);
@@ -90,21 +93,50 @@ function encodeString(buffer, value) {
 
 /**
  * @param {Buffer} buffer
- * @param {Record<string, any>} record
- * @param {Array<string | number>} path
+ * @param {string} value
  */
-function encodeRecord(buffer, record, path) {
+function encodeString(buffer, value) {
+  encodeStringlike(buffer, value, '"');
+}
+
+/**
+ * @param {Buffer} buffer
+ * @param {string} value
+ */
+function encodeSymbol(buffer, value) {
+  encodeStringlike(buffer, value, '\'');
+}
+
+/**
+ * @param {Buffer} buffer
+ * @param {Record<string | symbol, any>} record
+ * @param {Array<string | symbol | number>} path
+ */
+function encodeDictionary(buffer, record, path) {
   const restart = buffer.length;
   const indexes = [];
-  const keyStrings = [];
+  const keys = [];
   const keyBytes = [];
 
-  for (const key of keys(record)) {
+  const encodeKey = (key) => {
+    if (typeof key === 'string') {
+      encodeString(buffer, key);
+      return;
+    }
+    if (typeof key === 'symbol') {
+      const syrupSymbol = getSyrupSymbolName(key);
+      encodeSymbol(buffer, syrupSymbol);
+      return;
+    }
+    throw TypeError(`Dictionary keys must be strings or symbols, got ${typeof key} at ${path.join('/')}`);
+  };
+
+  for (const key of ownKeys(record)) {
     const start = buffer.length;
-    encodeString(buffer, key);
+    encodeKey(key);
     const end = buffer.length;
 
-    keyStrings.push(key);
+    keys.push(key);
     keyBytes.push(buffer.bytes.subarray(start, end));
     indexes.push(indexes.length);
   }
@@ -126,10 +158,10 @@ function encodeRecord(buffer, record, path) {
   buffer.bytes[cursor] = DICT_START;
 
   for (const index of indexes) {
-    const key = keyStrings[index];
+    const key = keys[index];
     const value = record[key];
 
-    encodeString(buffer, key);
+    encodeKey(key);
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
     encodeAny(buffer, value, path, key);
@@ -142,7 +174,7 @@ function encodeRecord(buffer, record, path) {
 /**
  * @param {Buffer} buffer
  * @param {Array<any>} array
- * @param {Array<string | number>} path
+ * @param {Array<string | symbol | number>} path
  */
 function encodeArray(buffer, array, path) {
   let cursor = grow(buffer, 2 + array.length);
@@ -164,10 +196,15 @@ function encodeArray(buffer, array, path) {
 /**
  * @param {Buffer} buffer
  * @param {any} value
- * @param {Array<string | number>} path
- * @param {string | number} pathSuffix
+ * @param {Array<string | symbol | number>} path
+ * @param {string | symbol | number} pathSuffix
  */
 function encodeAny(buffer, value, path, pathSuffix) {
+  if (typeof value === 'symbol') {
+    encodeSymbol(buffer, getSyrupSymbolName(value));
+    return;
+  }
+
   if (typeof value === 'string') {
     encodeString(buffer, value);
     return;
@@ -211,7 +248,7 @@ function encodeAny(buffer, value, path, pathSuffix) {
 
   if (Object(value) === value) {
     path.push(pathSuffix);
-    encodeRecord(buffer, value, path);
+    encodeDictionary(buffer, value, path);
     path.pop();
     return;
   }
