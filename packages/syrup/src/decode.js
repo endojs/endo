@@ -992,9 +992,61 @@ class SyrupParser {
     this.state.start = next;
     return value;
   }
+  readString() {
+    const { start, end, name } = this.state;
+    const { start: next, value, typeCode } = decodeStringlike(this.bytes, start, end, name);
+    if (typeCode !== STRING_START) {
+      throw Error(`Unexpected type ${quote(typeCode)}, Syrup strings must start with ${quote(toChar(STRING_START))} at index ${start} of ${name}`);
+    }
+    this.state.start = next;
+    return value;
+  }
+  readInteger() {
+    const { start, end, name } = this.state;
+    const { start: next, value } = decodeInteger(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  readBytestring() {
+    const { start, end, name } = this.state;
+    const { start: next, value } = decodeBytestring(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  readBoolean() {
+    const { start, end, name } = this.state;
+    const { start: next, value } = decodeBoolean(this.bytes, start, end, name);
+    this.state.start = next;
+    return value;
+  }
+  readSymbolAsString() {
+    const { start, end, name } = this.state;
+    const { start: next, value, typeCode } = decodeStringlike(this.bytes, start, end, name);
+    if (typeCode !== SYMBOL_START) {
+      throw Error(`Unexpected type ${quote(typeCode)}, Syrup symbols must start with ${quote(toChar(SYMBOL_START))} at index ${start} of ${name}`);
+    }
+    this.state.start = next;
+    return value;
+  }
+  readOfType(typeString, opts = {}) {
+    switch (typeString) {
+      case 'symbol':
+        return this.readSymbolAsString();
+      case 'string':
+        return this.readString();
+      case 'integer':
+        return this.readInteger();
+      case 'bytestring':
+        return this.readBytestring();
+      case 'boolean':
+        return this.readBoolean();
+      default:
+        throw Error(`Unknown field type: ${JSON.stringify(typeString)}`);
+    }
+  }
 }
 
-export function parseSyrup(bytes, options = {}) {
+export function makeSyrupParser(bytes, options = {}) {
   const { start = 0, end = bytes.byteLength, name = '<unknown>' } = options;
   if (end > bytes.byteLength) {
     throw Error(
