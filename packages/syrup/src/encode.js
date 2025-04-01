@@ -1,5 +1,6 @@
 // @ts-check
 
+import { BufferWriter } from './buffer-writer.js';
 import { compareByteArrays } from './compare.js';
 import { getSyrupSymbolName } from './symbol.js';
 
@@ -21,126 +22,79 @@ const NAN64 = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 const textEncoder = new TextEncoder();
 
 /**
- * @typedef {object} Buffer
- * @property {Uint8Array} bytes
- * @property {DataView} data
- * @property {number} length
- */
-
-/**
- * @param {Buffer} buffer
- * @param {number} increaseBy
- * @returns {number} old length
- */
-function grow(buffer, increaseBy) {
-  const cursor = buffer.length;
-  if (increaseBy === 0) {
-    return cursor;
-  }
-  buffer.length += increaseBy;
-  let capacity = buffer.bytes.length;
-  // Expand backing storage, leaving headroom for another similar-size increase.
-  if (buffer.length + increaseBy > capacity) {
-    while (buffer.length + increaseBy > capacity) {
-      capacity *= 2;
-    }
-    const bytes = new Uint8Array(capacity);
-    const data = new DataView(bytes.buffer);
-    bytes.set(buffer.bytes.subarray(0, buffer.length), 0);
-    buffer.bytes = bytes;
-    buffer.data = data;
-  }
-  return cursor;
-}
-
-/**
- * @param {Buffer} buffer
- * @param {string} value
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
+ * @param {Uint8Array} bytes
  * @param {string} typeChar
  */
-function encodeStringlike(buffer, value, typeChar) {
-  const stringLength = value.length;
-  const likelyPrefixLength = `${stringLength}`.length + 1;
-  // buffer.length will be incorrect until we fix it before returning.
-  const start = grow(buffer, likelyPrefixLength + stringLength);
-  const likelyDataStart = start + likelyPrefixLength;
-
-  for (let remaining = value, read = 0, written = 0; ; ) {
-    const chunk = textEncoder.encodeInto(
-      remaining,
-      buffer.bytes.subarray(likelyDataStart + written),
-    );
-    written += chunk.written || 0;
-    read += chunk.read || 0;
-    if (read === stringLength) {
-      const prefix = `${written}${typeChar}`; // length prefix, typeChar suffix
-      const prefixLength = prefix.length;
-      buffer.length = start;
-      grow(buffer, prefixLength + written);
-      if (prefixLength !== likelyPrefixLength) {
-        buffer.bytes.copyWithin(start + prefixLength, likelyDataStart); // shift right
-      }
-      textEncoder.encodeInto(
-        prefix,
-        buffer.bytes.subarray(start, start + prefixLength),
-      );
-      return;
-    }
-    remaining = remaining.substring(chunk.read || 0);
-    grow(buffer, buffer.bytes.length);
-  }
+function writeStringlike(bufferWriter, bytes, typeChar) {
+  // write length prefix as ascii string
+  const length = bytes.byteLength;
+  const lengthPrefix = `${length}`;
+  bufferWriter.writeString(lengthPrefix);
+  bufferWriter.writeString(typeChar);
+  bufferWriter.write(bytes);
 }
 
 /**
- * @param {Buffer} buffer
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {string} value
  */
-function encodeString(buffer, value) {
-  encodeStringlike(buffer, value, '"');
+function writeString(bufferWriter, value) {
+  const bytes = textEncoder.encode(value);
+  writeStringlike(bufferWriter, bytes, '"');
 }
 
 /**
- * @param {Buffer} buffer
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {string} value
  */
-function encodeSymbol(buffer, value) {
-  encodeStringlike(buffer, value, '\'');
+function writeSymbol(bufferWriter, value) {
+  const bytes = textEncoder.encode(value);
+  writeStringlike(bufferWriter, bytes, '\'');
 }
 
 /**
- * @param {Buffer} buffer
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
+ * @param {Uint8Array} value
+ */
+function writeBytestring(bufferWriter, value) {
+  writeStringlike(bufferWriter, value, ':');
+}
+
+/**
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {Record<string | symbol, any>} record
  * @param {Array<string | symbol | number>} path
  */
-function encodeDictionary(buffer, record, path) {
-  const restart = buffer.length;
+function writeDictionary(bufferWriter, record, path) {
   const indexes = [];
   const keys = [];
   const keyBytes = [];
 
-  const encodeKey = (key) => {
+  const writeKey = (bufferWriter, key) => {
     if (typeof key === 'string') {
-      encodeString(buffer, key);
+      writeString(bufferWriter, key);
       return;
     }
     if (typeof key === 'symbol') {
       const syrupSymbol = getSyrupSymbolName(key);
-      encodeSymbol(buffer, syrupSymbol);
+      writeSymbol(bufferWriter, syrupSymbol);
       return;
     }
     throw TypeError(`Dictionary keys must be strings or symbols, got ${typeof key} at ${path.join('/')}`);
   };
 
+  // We need to sort the keys, so we write them to a scratch buffer first
+  const scratchWriter = new BufferWriter();
   for (const key of ownKeys(record)) {
-    const start = buffer.length;
-    encodeKey(key);
-    const end = buffer.length;
+    const start = scratchWriter.length;
+    writeKey(scratchWriter, key);
+    const end = scratchWriter.length;
 
     keys.push(key);
-    keyBytes.push(buffer.bytes.subarray(start, end));
+    keyBytes.push(scratchWriter.subarray(start, end));
     indexes.push(indexes.length);
   }
-
   indexes.sort((i, j) =>
     compareByteArrays(
       keyBytes[i],
@@ -152,116 +106,120 @@ function encodeDictionary(buffer, record, path) {
     ),
   );
 
-  buffer.length = restart;
-
-  let cursor = grow(buffer, 1);
-  buffer.bytes[cursor] = DICT_START;
-
+  // Now we write the dictionary
+  bufferWriter.writeByte(DICT_START);
   for (const index of indexes) {
     const key = keys[index];
     const value = record[key];
+    const bytes = keyBytes[index];
 
-    encodeKey(key);
+    bufferWriter.write(bytes);
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value, path, key);
+    writeAny(bufferWriter, value, path, key);
   }
-
-  cursor = grow(buffer, 1);
-  buffer.bytes[cursor] = DICT_END;
+  bufferWriter.writeByte(DICT_END);
 }
 
 /**
- * @param {Buffer} buffer
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {Array<any>} array
  * @param {Array<string | symbol | number>} path
  */
-function encodeArray(buffer, array, path) {
-  let cursor = grow(buffer, 2 + array.length);
-  buffer.length = cursor + 1;
-  buffer.bytes[cursor] = LIST_START;
+function writeList(bufferWriter, array, path) {
+  bufferWriter.writeByte(LIST_START);
 
   let index = 0;
   for (const value of array) {
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value, path, index);
+    writeAny(bufferWriter, value, path, index);
     index += 1;
   }
 
-  cursor = grow(buffer, 1);
-  buffer.bytes[cursor] = LIST_END;
+  bufferWriter.writeByte(LIST_END);
 }
 
 /**
- * @param {Buffer} buffer
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
+ * @param {number} value
+ */
+function writeDouble(bufferWriter, value) {
+  bufferWriter.writeByte(DOUBLE);
+  if (value === 0) {
+    // no-op
+  } else if (Number.isNaN(value)) {
+    // Canonicalize NaN
+    // @ts-expect-error using frozen array as Uint8Array
+    bufferWriter.write(NAN64);
+  } else {
+    bufferWriter.writeFloat64(value, false); // big end
+  }
+}
+
+/**
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
+ * @param {bigint} value
+ */
+function writeInteger(bufferWriter, value) {
+  const string = value >= 0 ? `${value}+` : `${-value}-`;
+  bufferWriter.writeString(string);
+}
+
+/**
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
+ * @param {boolean} value
+ */
+function writeBoolean(bufferWriter, value) {
+  bufferWriter.writeByte(value ? TRUE : FALSE);
+}
+
+/**
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {any} value
  * @param {Array<string | symbol | number>} path
  * @param {string | symbol | number} pathSuffix
  */
-function encodeAny(buffer, value, path, pathSuffix) {
+function writeAny(bufferWriter, value, path, pathSuffix) {
   if (typeof value === 'symbol') {
-    encodeSymbol(buffer, getSyrupSymbolName(value));
+    writeSymbol(bufferWriter, getSyrupSymbolName(value));
     return;
   }
 
   if (typeof value === 'string') {
-    encodeString(buffer, value);
+    writeString(bufferWriter, value);
     return;
   }
 
   if (typeof value === 'number') {
-    const cursor = grow(buffer, 9);
-    buffer.bytes[cursor] = DOUBLE;
-    if (value === 0) {
-      // no-op
-    } else if (Number.isNaN(value)) {
-      // Canonicalize NaN
-      buffer.bytes.set(NAN64, cursor + 1);
-    } else {
-      buffer.data.setFloat64(cursor + 1, value, false); // big end
-    }
+    writeDouble(bufferWriter, value);
     return;
   }
 
   if (typeof value === 'bigint') {
-    const string = value >= 0 ? `${value}+` : `${-value}-`;
-    const cursor = grow(buffer, string.length);
-    textEncoder.encodeInto(string, buffer.bytes.subarray(cursor));
+    writeInteger(bufferWriter, value);
     return;
   }
 
   if (value instanceof Uint8Array) {
-    const prefix = `${value.length}:`; // decimal and colon suffix
-    const cursor = grow(buffer, prefix.length + value.length);
-    textEncoder.encodeInto(prefix, buffer.bytes.subarray(cursor));
-    buffer.bytes.set(value, cursor + prefix.length);
+    writeBytestring(bufferWriter, value);
     return;
   }
 
   if (Array.isArray(value)) {
-    path.push(pathSuffix);
-    encodeArray(buffer, value, path);
-    path.pop();
+    writeList(bufferWriter, value, path);
     return;
   }
 
   if (Object(value) === value) {
     path.push(pathSuffix);
-    encodeDictionary(buffer, value, path);
+    writeDictionary(bufferWriter, value, path);
     path.pop();
     return;
   }
 
-  if (value === false) {
-    const cursor = grow(buffer, 1);
-    buffer.bytes[cursor] = FALSE;
-    return;
-  }
-
-  if (value === true) {
-    const cursor = grow(buffer, 1);
-    buffer.bytes[cursor] = TRUE;
+  if (value === true || value === false) {
+    writeBoolean(bufferWriter, value);
     return;
   }
 
@@ -278,10 +236,7 @@ function encodeAny(buffer, value, path, pathSuffix) {
  */
 export function encodeSyrup(value, options = {}) {
   const { length: capacity = defaultCapacity } = options;
-  const bytes = new Uint8Array(capacity);
-  const data = new DataView(bytes.buffer);
-  const length = 0;
-  const buffer = { bytes, data, length };
-  encodeAny(buffer, value, [], '/');
-  return buffer.bytes.subarray(0, buffer.length);
+  const bufferWriter = new BufferWriter(capacity);
+  writeAny(bufferWriter, value, [], '/');
+  return bufferWriter.subarray(0, bufferWriter.length);
 }
