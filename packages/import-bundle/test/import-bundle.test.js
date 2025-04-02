@@ -35,7 +35,10 @@ async function testBundle1(t, b1, mode, ew) {
     `ns2.f5 ${mode} ok`,
   );
 
-  const ns3 = await importBundle(b1, { endowments, transforms: [transform1] });
+  const ns3 = await importBundle(b1, {
+    endowments,
+    transforms: [transform1],
+  });
   t.is(ns3.f4('is ok'), 'substitution is ok', `ns3.f4 ${mode} ok`);
   t.is(
     ns3.f5('the bed'),
@@ -90,6 +93,46 @@ test('test import archive', async t => {
     endoZipBase64: b1EndoZipBase64,
   };
   await testBundle1(t, b1EndoZipBase64Bundle, 'endoZipBase64', endowments);
+});
+
+test('test fs import with importHook', async t => {
+  t.plan(3);
+  const testFilePath = url.fileURLToPath(
+    new URL('bundle3.js', import.meta.url),
+  );
+  const fileContents = await fs.promises.readFile(testFilePath, 'utf8');
+
+  const options = {
+    moduleFormat: 'endoZipBase64',
+    importHook: async specifier => {
+      console.log(`importHook(${specifier})`);
+      if (specifier === 'fs') {
+        t.is(specifier, 'fs');
+        return {
+          imports: [],
+          exports: ['readFileSync'],
+          execute: moduleExports => {
+            moduleExports.readFileSync = path => {
+              if (path === 'self.js') {
+                return fileContents;
+              }
+              throw new Error(`Unknown path: ${path}`);
+            };
+          },
+        };
+      }
+      return undefined; // Let the archive handle other modules
+    },
+  };
+
+  const bundle = await bundleSource(testFilePath, options);
+  const ns = await importBundle(bundle, options);
+
+  t.is(
+    ns.default.toString(),
+    fileContents,
+    'should read the file contents correctly',
+  );
 });
 
 test('test import script', async t => {

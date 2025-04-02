@@ -1,5 +1,9 @@
 User-visible changes to `@endo/import-bundle`:
 
+# Next release
+
+- The `'endoZipBase64'` moduleFormat now utilizes the `importHook` option.
+
 # v1.4.0 (2025-03-11)
 
 - Adds support for `test` format bundles, which simply return a promise for an
