@@ -8,7 +8,10 @@
  * @module
  */
 
-/** @import {LanguageForExtension} from './types.js' */
+/**
+ * @import {LanguageForExtension, PackageDescriptor} from './types.js'
+ * @import {Node} from './types/node-modules.js'
+ */
 
 import { join, relativize } from './node-module-specifier.js';
 
@@ -83,7 +86,12 @@ function* interpretExports(name, exports, conditions) {
     );
   }
   for (const [key, value] of entries(exports)) {
-    if (key.startsWith('./') || key === '.') {
+    // "./" is explicitly an invalid key, but that doesn't
+    // stop people from trying to use it.
+    if (key === './') {
+      // eslint-disable-next-line no-continue
+      continue; // or no-op
+    } else if (key.startsWith('./') || key === '.') {
       if (name === '.') {
         yield* interpretExports(key, value, conditions);
       } else {
@@ -107,10 +115,7 @@ function* interpretExports(name, exports, conditions) {
  * There may be multiple pairs for a single `name`, but they will be yielded in
  * ascending priority order, and the caller should use the last one that exists.
  *
- * @param {object} packageDescriptor - the parsed body of a package.json file.
- * @param {string} packageDescriptor.main
- * @param {string} [packageDescriptor.module]
- * @param {object} [packageDescriptor.exports]
+ * @param {PackageDescriptor} packageDescriptor - the parsed body of a package.json file.
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {LanguageForExtension} types - an object to populate
@@ -151,7 +156,7 @@ export const inferExportsEntries = function* inferExportsEntries(
  * The values are the corresponding module specifiers in the dependency
  * package's module map, like `./index.js`.
  *
- * @param {object} descriptor - the parsed body of a package.json file.
+ * @param {PackageDescriptor} descriptor - the parsed body of a package.json file.
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {LanguageForExtension} types - an object to populate
@@ -161,6 +166,14 @@ export const inferExportsEntries = function* inferExportsEntries(
 export const inferExports = (descriptor, conditions, types) =>
   fromEntries(inferExportsEntries(descriptor, conditions, types));
 
+/**
+ *
+ * @param {PackageDescriptor} descriptor
+ * @param {Node['externalAliases']} externalAliases
+ * @param {Node['internalAliases']} internalAliases
+ * @param {Set<string>} conditions
+ * @param {Record<string, string>} types
+ */
 export const inferExportsAndAliases = (
   descriptor,
   externalAliases,
