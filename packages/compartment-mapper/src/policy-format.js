@@ -13,7 +13,8 @@ const q = JSON.stringify;
 
 const ATTENUATOR_KEY = 'attenuate';
 const ATTENUATOR_PARAMS_KEY = 'params';
-const WILDCARD_POLICY_VALUE = 'any';
+export const WILDCARD_POLICY_VALUE = 'any';
+
 const POLICY_FIELDS_LOOKUP = /** @type {const} */ ([
   'builtins',
   'globals',
