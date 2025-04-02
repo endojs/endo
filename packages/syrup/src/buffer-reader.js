@@ -34,6 +34,18 @@ export class BufferReader {
     });
   }
 
+  static fromBytes(bytes) {
+    const empty = new ArrayBuffer(0);
+    const reader = new BufferReader(empty);
+    const fields = privateFieldsGet(reader);
+    fields.bytes = bytes;
+    fields.data = new DataView(bytes.buffer);
+    fields.length = bytes.length;
+    fields.index = 0;
+    fields.offset = 0;
+    return reader;
+  }
+
   /**
    * @returns {number}
    */
@@ -87,9 +99,14 @@ export class BufferReader {
   assertCanSeek(index) {
     const fields = privateFieldsGet(this);
     if (!this.canSeek(index)) {
-      throw Error(
+      const err = Error(
         `End of data reached (data length = ${fields.length}, asked index ${index}`,
       );
+      // @ts-expect-error
+      err.code = 'EOD';
+      // @ts-expect-error
+      err.index = index;
+      throw err;
     }
   }
 
@@ -124,6 +141,12 @@ export class BufferReader {
     return result;
   }
 
+  peekByte() {
+    const fields = privateFieldsGet(this);
+    this.assertCanRead(1);
+    return fields.bytes[fields.offset + fields.index];
+  }
+
   /**
    * @param {number} offset
    */
@@ -155,6 +178,13 @@ export class BufferReader {
     const result = this.peek(size);
     fields.index += size;
     return result;
+  }
+
+  /**
+   * @returns {number}
+   */
+  readByte() {
+    return this.readUint8();
   }
 
   /**
@@ -196,12 +226,36 @@ export class BufferReader {
   }
 
   /**
+   * @param {boolean=} littleEndian
+   * @returns {number}
+   */
+  readFloat64(littleEndian = false) {
+    const fields = privateFieldsGet(this);
+    this.assertCanRead(8);
+    const index = fields.offset + fields.index;
+    const value = fields.data.getFloat64(index, littleEndian);
+    fields.index += 8;
+    return value;
+  }
+
+  /**
    * @param {number} index
    * @returns {number}
    */
   byteAt(index) {
     const fields = privateFieldsGet(this);
     return fields.bytes[fields.offset + index];
+  }
+
+  /**
+   * @param {number} index
+   * @param {number} size
+   * @returns {Uint8Array}
+   */
+  bytesAt(index, size) {
+    this.assertCanSeek(index + size);
+    const fields = privateFieldsGet(this);
+    return fields.bytes.subarray(fields.offset + index, fields.offset + index + size);
   }
 
   /**

@@ -12,8 +12,12 @@ test('affirmative decode cases', t => {
     for (let i = 0; i < syrup.length; i += 1) {
       bytes[i] = syrup.charCodeAt(i);
     }
-    const actual = decodeSyrup(bytes);
-    t.deepEqual(actual, value, `for ${String(syrup)}`);
+    const desc = `for ${String(syrup)}`
+    let actual;
+    t.notThrows(() => {
+      actual = decodeSyrup(bytes);
+    }, desc);
+    t.deepEqual(actual, value, desc);
   }
 });
 
@@ -24,7 +28,7 @@ test('must not be empty', t => {
     },
     {
       message:
-        'Unexpected end of Syrup, expected any value at index 0 of known.sup',
+        'Unexpected end of Syrup at index 0 of known.sup',
     },
   );
 });
@@ -36,7 +40,7 @@ test('dictionary keys must be unique', t => {
     },
     {
       message:
-        'Syrup dictionary keys must be unique, got repeated "a" at index 10 of <unknown>',
+        'Syrup dictionary keys must be unique, got repeated "a" at index 7 of <unknown>',
     },
   );
 });
@@ -48,7 +52,7 @@ test('dictionary keys must be in bytewise order', t => {
     },
     {
       message:
-        'Syrup dictionary keys must be in bytewise sorted order, got "a" immediately after "b" at index 10 of <unknown>',
+        'Syrup dictionary keys must be in bytewise sorted order, got "a" immediately after "b" at index 7 of <unknown>',
     },
   );
 });
@@ -56,23 +60,23 @@ test('dictionary keys must be in bytewise order', t => {
 test('must reject out-of-order prefix key', t => {
   t.throws(
     () => {
-      decodeSyrup(textEncoder.encode('{1"i10+0"'));
+      decodeSyrup(textEncoder.encode('{1"i10+0"1-}'));
     },
     {
       message:
-        'Syrup dictionary keys must be in bytewise sorted order, got "" immediately after "i" at index 9 of <unknown>',
+        'Syrup dictionary keys must be in bytewise sorted order, got "" immediately after "i" at index 7 of <unknown>',
     },
   );
 });
 
-test('dictionary keys must be strings', t => {
+test('dictionary keys must be strings or symbols', t => {
   t.throws(
     () => {
       decodeSyrup(textEncoder.encode('{1+'));
     },
     {
       message:
-        'Unexpected byte "+", Syrup dictionary keys must be strings or symbols at index 2 of <unknown>',
+        'Unexpected type "integer", Syrup dictionary keys must be strings or symbols at index 1 of <unknown>',
     },
   );
 });
