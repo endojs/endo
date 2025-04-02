@@ -307,6 +307,10 @@ export interface PackageDescriptor {
     string,
     { optional?: boolean; [k: string]: unknown }
   >;
+  module?: string;
+  browser?: Record<string, string> | string;
+
+  main?: string;
 
   [k: string]: unknown;
 }
