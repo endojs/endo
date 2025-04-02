@@ -686,6 +686,7 @@ export function makeImportNowHookMaker(
 
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
+      // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
       if (isAbsolute(moduleSpecifier)) {
         const record = findRedirect({
           compartmentDescriptor,
@@ -697,6 +698,32 @@ export function makeImportNowHookMaker(
         if (record) {
           return record;
         }
+        // if there is no record found this way, we will search for it instead of considering it to be an exit module
+      } else if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
+        if (exitModuleImportNowHook) {
+          // This hook is responsible for ensuring that the moduleSpecifier
+          // actually refers to an exit module.
+          const exitRecord = exitModuleImportNowHook(
+            moduleSpecifier,
+            packageLocation,
+          );
+          if (exitRecord) {
+            // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
+            // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
+            enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+              exit: true,
+              errorHint: `Blocked in loading. ${q(
+                moduleSpecifier,
+              )} was not in the compartment map and an attempt was made to load it as a builtin`,
+            });
+            return exitRecord;
+          }
+        }
+        throw Error(
+          `Cannot find external module ${q(
+            moduleSpecifier,
+          )} in package ${packageLocation}`,
+        );
       }
 
       const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
@@ -726,21 +753,6 @@ export function makeImportNowHookMaker(
 
       if (record) {
         return record;
-      }
-
-      if (exitModuleImportNowHook) {
-        // This hook is responsible for ensuring that the moduleSpecifier
-        // actually refers to an exit module.
-        const exitRecord = exitModuleImportNowHook(
-          moduleSpecifier,
-          packageLocation,
-        );
-
-        if (!exitRecord) {
-          throw new Error(`Could not import module: ${q(moduleSpecifier)}`);
-        }
-
-        return exitRecord;
       }
 
       throw new Error(
