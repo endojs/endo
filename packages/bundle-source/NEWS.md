@@ -1,5 +1,10 @@
 User-visible changes to `@endo/bundle-source`:
 
+# Next release
+
+- The `'endoZipBase64'` moduleFormat now utilizes the `importHook` option to
+  exit dependencies whose specifiers return a truthy value.
+
 # v4.0.0 (2025-03-19)
 
 - Replaces the implementation for the `nestedEvaluate` and `getExport`
