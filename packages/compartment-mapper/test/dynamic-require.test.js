@@ -16,6 +16,7 @@ import path from 'node:path';
 import url from 'node:url';
 import { importLocation } from '../src/import.js';
 import { makeReadNowPowers } from '../src/node-powers.js';
+import { WILDCARD_POLICY_VALUE } from '../src/policy-format.js';
 
 const readPowers = makeReadNowPowers({ fs, url, path });
 const { freeze, keys, assign } = Object;
@@ -67,7 +68,9 @@ test('intra-package dynamic require works without invoking the exitModuleImportN
   /** @type {Policy} */
   const policy = {
     entry: {
-      packages: 'any',
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
     },
     resources: {
       dynamic: {
@@ -126,7 +129,9 @@ test('intra-package dynamic require with inter-package absolute path works witho
   /** @type {Policy} */
   const policy = {
     entry: {
-      packages: 'any',
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
     },
     resources: {
       sprunt: {
@@ -180,7 +185,9 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
   /** @type {Policy} */
   const policy = {
     entry: {
-      packages: 'any',
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
     },
     resources: {
       badsprunt: {
@@ -218,7 +225,9 @@ test('dynamic require fails without maybeReadNow in read powers', async t => {
       importNowHook,
       policy: {
         entry: {
-          packages: 'any',
+          packages: WILDCARD_POLICY_VALUE,
+          globals: WILDCARD_POLICY_VALUE,
+          builtins: WILDCARD_POLICY_VALUE,
         },
         resources: {
           dynamic: {
@@ -248,7 +257,9 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
       importNowHook,
       policy: {
         entry: {
-          packages: 'any',
+          packages: WILDCARD_POLICY_VALUE,
+          globals: WILDCARD_POLICY_VALUE,
+          builtins: WILDCARD_POLICY_VALUE,
         },
         resources: {
           dynamic: {
@@ -304,15 +315,14 @@ test('inter-package and exit module dynamic require works', async t => {
     importNowHook,
     policy: {
       entry: {
-        packages: 'any',
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
       },
       resources: {
         hooked: {
           packages: {
             dynamic: true,
-          },
-          builtins: {
-            cluster: true,
           },
         },
         'hooked>dynamic': {
@@ -336,6 +346,137 @@ test('inter-package and exit module dynamic require works', async t => {
 
   t.is(importNowHookCallCount, 1);
   t.deepEqual(importNowHookSpecifiers, ['cluster']);
+});
+
+test('inter-package and exit module dynamic require policy is enforced', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/hooked-app/index.js',
+    import.meta.url,
+  ).toString();
+
+  // number of times the `importNowHook` got called
+  /** @type {string[]} */
+  const importNowHookSpecifiers = [];
+
+  /** @type {ExitModuleImportNowHook} */
+  const importNowHook = (specifier, packageLocation) => {
+    importNowHookSpecifiers.push(specifier);
+    const require = Module.createRequire(
+      readPowers.fileURLToPath(packageLocation),
+    );
+    /** @type {object} */
+    const ns = require(specifier);
+    return freeze(
+      /** @type {import('ses').ThirdPartyStaticModuleInterface} */ ({
+        imports: [],
+        exports: keys(ns),
+        execute: moduleExports => {
+          moduleExports.default = ns;
+          assign(moduleExports, ns);
+        },
+      }),
+    );
+  };
+
+  await t.throwsAsync(
+    importLocation(readPowers, fixture, {
+      importNowHook,
+      policy: {
+        entry: {
+          packages: WILDCARD_POLICY_VALUE,
+          globals: WILDCARD_POLICY_VALUE,
+          // this is the only policy change
+          // builtins: WILDCARD_POLICY_VALUE,
+        },
+        resources: {
+          hooked: {
+            packages: {
+              dynamic: true,
+            },
+          },
+          'hooked>dynamic': {
+            packages: {
+              'is-ok': true,
+            },
+          },
+        },
+      },
+    }),
+    {
+      message: /not allowed by policy/,
+    },
+  );
+});
+
+test('inter-package and exit module dynamic require works ("node:"-namespaced)', async t => {
+  t.plan(3);
+
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/hooked-app-namespaced/index.js',
+    import.meta.url,
+  ).toString();
+
+  // number of times the `importNowHook` got called
+  let importNowHookCallCount = 0;
+  /** @type {string[]} */
+  const importNowHookSpecifiers = [];
+
+  /** @type {ExitModuleImportNowHook} */
+  const importNowHook = (specifier, packageLocation) => {
+    importNowHookCallCount += 1;
+    importNowHookSpecifiers.push(specifier);
+    const require = Module.createRequire(
+      readPowers.fileURLToPath(packageLocation),
+    );
+    /** @type {object} */
+    const ns = require(specifier);
+    return freeze(
+      /** @type {import('ses').ThirdPartyStaticModuleInterface} */ ({
+        imports: [],
+        exports: keys(ns),
+        execute: moduleExports => {
+          moduleExports.default = ns;
+          assign(moduleExports, ns);
+        },
+      }),
+    );
+  };
+
+  const { namespace } = await importLocation(readPowers, fixture, {
+    importNowHook,
+    policy: {
+      entry: {
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
+      },
+      resources: {
+        hooked: {
+          packages: {
+            dynamic: true,
+          },
+        },
+        'hooked>dynamic': {
+          packages: {
+            'is-ok': true,
+          },
+        },
+      },
+    },
+  });
+
+  t.deepEqual(
+    {
+      default: {
+        isOk: 1,
+      },
+      isOk: 1,
+    },
+    { ...namespace },
+  );
+
+  t.is(importNowHookCallCount, 1);
+  t.deepEqual(importNowHookSpecifiers, ['node:cluster']);
 });
 
 test('sync module transforms work with dynamic require support', async t => {
@@ -362,7 +503,9 @@ test('sync module transforms work with dynamic require support', async t => {
   /** @type {Policy} */
   const policy = {
     entry: {
-      packages: 'any',
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
     },
     resources: {
       dynamic: {
