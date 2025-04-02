@@ -56,6 +56,48 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * of the module content against the language implied by the extension or file
  * name.
  *
+ * @overload
+ * @param {true} preferSynchronous
+ * @param {Record<string, string>} languageForExtension - maps a file extension
+ * to the corresponding language.
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
+ * the type of a module is implied by package.json and should not be inferred
+ * from its extension.
+ * @param {ParserForLanguage} parserForLanguage
+ * @param {ModuleTransforms} moduleTransforms
+ * @param {SyncModuleTransforms} syncModuleTransforms
+ * @returns {ParseFn}
+ */
+
+/**
+ * Produces a `parser` that parses the content of a module according to the
+ * corresponding module language, given the extension of the module specifier
+ * and the configuration of the containing compartment. We do not yet support
+ * import assertions and we do not have a mechanism for validating the MIME type
+ * of the module content against the language implied by the extension or file
+ * name.
+ *
+ * @overload
+ * @param {false} preferSynchronous
+ * @param {Record<string, string>} languageForExtension - maps a file extension
+ * to the corresponding language.
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
+ * the type of a module is implied by package.json and should not be inferred
+ * from its extension.
+ * @param {ParserForLanguage} parserForLanguage
+ * @param {ModuleTransforms} moduleTransforms
+ * @param {SyncModuleTransforms} syncModuleTransforms
+ * @returns {AsyncParseFn}
+ */
+
+/**
+ * Produces a `parser` that parses the content of a module according to the
+ * corresponding module language, given the extension of the module specifier
+ * and the configuration of the containing compartment. We do not yet support
+ * import assertions and we do not have a mechanism for validating the MIME type
+ * of the module content against the language implied by the extension or file
+ * name.
+ *
  * @param {boolean} preferSynchronous
  * @param {Record<string, string>} languageForExtension - maps a file extension
  * to the corresponding language.
@@ -261,10 +303,12 @@ function mapParsers(
   languageForExtension,
   languageForModuleSpecifier,
   parserForLanguage,
-  moduleTransforms = {},
-  syncModuleTransforms = {},
-  preferSynchronous = false,
+  moduleTransforms,
+  syncModuleTransforms,
+  preferSynchronous,
 ) {
+  moduleTransforms = moduleTransforms || {};
+  syncModuleTransforms = syncModuleTransforms || {};
   const languageForExtensionEntries = [];
   const problems = [];
   for (const [extension, language] of entries(languageForExtension)) {
@@ -278,7 +322,7 @@ function mapParsers(
     throw Error(`No parser available for language: ${problems.join(', ')}`);
   }
   return makeExtensionParser(
-    preferSynchronous,
+    /** @type {any} */ (preferSynchronous),
     fromEntries(languageForExtensionEntries),
     languageForModuleSpecifier,
     parserForLanguage,
