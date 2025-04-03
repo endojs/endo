@@ -13,6 +13,8 @@ const LIST_START = '['.charCodeAt(0);
 const LIST_END = ']'.charCodeAt(0);
 const DICT_START = '{'.charCodeAt(0);
 const DICT_END = '}'.charCodeAt(0);
+const RECORD_START = '<'.charCodeAt(0);
+const RECORD_END = '>'.charCodeAt(0);
 const DOUBLE = 'D'.charCodeAt(0);
 const TRUE = 't'.charCodeAt(0);
 const FALSE = 'f'.charCodeAt(0);
@@ -227,6 +229,73 @@ function writeAny(bufferWriter, value, path, pathSuffix) {
   throw TypeError(`Cannot encode value ${value} at ${path.join('/')}`);
 }
 
+export class SyrupWriter {
+  constructor(bufferWriter) {
+    this.bufferWriter = bufferWriter;
+  }
+  writeSymbol(value) {
+    writeSymbol(this.bufferWriter, value);
+  }
+  writeString(value) {
+    writeString(this.bufferWriter, value);
+  }
+  writeBytestring(value) {
+    writeBytestring(this.bufferWriter, value);
+  }
+  writeBoolean(value) {
+    writeBoolean(this.bufferWriter, value);
+  }
+  writeInteger(value) {
+    writeInteger(this.bufferWriter, value);
+  }
+  writeDouble(value) {
+    writeDouble(this.bufferWriter, value);
+  }
+  // writeList(value) {
+  //   writeList(this.bufferWriter, value, []);
+  // }
+  // writeDictionary(value) {
+  //   writeDictionary(this.bufferWriter, value, []);
+  // }
+  // writeRecord(value) {
+  //   throw Error('writeRecord is not implemented');
+  // }
+  enterRecord() {
+    this.bufferWriter.writeByte(RECORD_START);
+  }
+  exitRecord() {
+    this.bufferWriter.writeByte(RECORD_END);
+  }
+  /**
+   * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'symbol'} type
+   * @param {any} value
+   */
+  writeOfType(type, value) {
+    switch (type) {
+      case 'symbol':
+        this.writeSymbol(value);
+        break;
+      case 'bytestring':
+        this.writeBytestring(value);
+        break;
+      case 'string':
+        this.writeString(value);
+        break;
+      case 'float64':
+        this.writeDouble(value);
+        break;
+      case 'integer':
+        this.writeInteger(value);
+        break;
+      case 'boolean':
+        this.writeBoolean(value);
+        break;
+      default:
+        throw Error(`writeTypeOf: unknown type ${typeof value}`);
+    }
+  }
+}
+
 /**
  * @param {any} value
  * @param {object} [options]
@@ -239,4 +308,10 @@ export function encodeSyrup(value, options = {}) {
   const bufferWriter = new BufferWriter(capacity);
   writeAny(bufferWriter, value, [], '/');
   return bufferWriter.subarray(0, bufferWriter.length);
+}
+
+export function makeSyrupWriter(options = {}) {
+  const { length: capacity = defaultCapacity } = options;
+  const bufferWriter = new BufferWriter(capacity);
+  return new SyrupWriter(bufferWriter);
 }

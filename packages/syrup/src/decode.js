@@ -399,8 +399,7 @@ class SyrupReaderStackEntry {
   }
 }
 
-
-class SyrupReader {
+export class SyrupReader {
   /**
    * @param {BufferReader} bufferReader
    * @param {object} options
@@ -516,7 +515,28 @@ class SyrupReader {
   readSymbolAsString() {
     return readSymbolAsString(this.bufferReader, this.name);
   }
-
+  /**
+   * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'symbol'} type
+   * @returns {any}
+   */
+  readOfType(type) {
+    switch (type) {
+      case 'boolean':
+        return this.readBoolean();
+      case 'integer':
+        return this.readInteger();
+      case 'float64':
+        return this.readFloat64();
+      case 'string':
+        return this.readString();
+      case 'bytestring':
+        return this.readBytestring();
+      case 'symbol':
+        return this.readSymbolAsString();
+      default:
+        throw Error(`Unexpected type ${type}`);
+    }
+  }
 }
 
 export const makeSyrupReader = (bytes, options = {}) => {

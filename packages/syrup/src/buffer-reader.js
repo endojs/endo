@@ -97,13 +97,6 @@ export class BufferReader {
    */
   canSeek(index) {
     const fields = privateFieldsGet(this);
-    if (!(index >= 0 && fields.offset + index <= fields.length))
-    console.log('CANT SEEK', {
-      index,
-      offset: fields.offset,
-      length: fields.length,
-      canSeek: index >= 0 && fields.offset + index <= fields.length,
-    });
     return index >= 0 && fields.offset + index <= fields.length;
   }
 
