@@ -1,5 +1,5 @@
 /**
- * @module Provides the mechanism to create a Compartment constructor that
+ * Provides the mechanism to create a Compartment constructor that
  * can provide either shim-specific or native XS features depending on
  * the __native__ constructor option.
  * This is necessary because a native Compartment can handle native ModuleSource
@@ -33,6 +33,8 @@
  * Evaluating ./compartment.js does not have global side-effects.
  * We defer modification of the global environment until the evaluation
  * of ./compartment-shim.js.
+ *
+ * @module
  */
 
 // @ts-check

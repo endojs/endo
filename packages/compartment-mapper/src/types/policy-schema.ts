@@ -1,6 +1,8 @@
 /**
- * @module Describes the portion of a compartment map dedicated to narrowing
+ * Describes the portion of a compartment map dedicated to narrowing
  * or attenuating the powers available to each compartment.
+ *
+ * @module
  */
 
 /* eslint-disable no-use-before-define */

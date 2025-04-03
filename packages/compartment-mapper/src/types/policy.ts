@@ -1,5 +1,7 @@
 /**
- * @module Types required for policy enforcement.
+ * Types required for policy enforcement.
+ *
+ * @module
  */
 
 /* eslint-disable no-use-before-define */

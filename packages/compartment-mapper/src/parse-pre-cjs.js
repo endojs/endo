@@ -1,9 +1,11 @@
 /**
- * @module Provides language-specific behavior for importing pre-compiled
+ * Provides language-specific behavior for importing pre-compiled
  * CommonJS.
  * Pre-compiled CommonJS is a module in JSON format that describes its imports,
  * exports, and source to execute in the presence of `require`, `module`, and
  * `exports`.
+ *
+ * @module
  */
 
 /** @import {ParseFn} from './types.js' */

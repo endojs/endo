@@ -1,7 +1,9 @@
 /**
- * @module Provides functions for interacting with Node.js module specifiers in
+ * Provides functions for interacting with Node.js module specifiers in
  * their canonical form.
  * This is a kind of path math that is platform-agnostic.
+ *
+ * @module
  */
 
 // q, as in quote, for error messages.

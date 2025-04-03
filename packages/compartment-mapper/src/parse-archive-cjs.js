@@ -1,6 +1,8 @@
 /**
- * @module Provides language behavior for analyzing, pre-compiling, and storing
+ * Provides language behavior for analyzing, pre-compiling, and storing
  * CommonJS modules for an archive.
+ *
+ * @module
  */
 
 /** @import {ParseFn} from './types.js' */

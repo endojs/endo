@@ -1,7 +1,9 @@
 /**
- * @module Minimal support for URL manipulation beyond what most hosts provide
+ * Minimal support for URL manipulation beyond what most hosts provide
  * natively, used to normalize URLs before capturing them in a platform- and
  * location-agnostic archive.
+ *
+ * @module
  */
 
 // Derrived from https://github.com/junosuarez/url-relative

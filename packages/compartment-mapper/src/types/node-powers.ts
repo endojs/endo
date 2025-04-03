@@ -1,6 +1,8 @@
 /**
- * @module These interfaces describe the powers needed in `node-powers.js` to
+ * These interfaces describe the powers needed in `node-powers.js` to
  * adapt host capabilities for the compartment mapper.
+ *
+ * @module
  */
 
 /* eslint-disable no-use-before-define */

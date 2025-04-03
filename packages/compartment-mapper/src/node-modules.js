@@ -1,5 +1,5 @@
 /**
- * @module Provides functions for constructing a compartment map that has a
+ * Provides functions for constructing a compartment map that has a
  * compartment descriptor corresponding to every reachable package from an
  * entry module and how to create links between them.
  * The resulting compartment map does not describe individual modules but does
@@ -7,6 +7,8 @@
  * wildcard expansion.
  * See {@link link} to expand a compartment map to capture module descriptors
  * for transitive dependencies.
+ *
+ * @module
  */
 
 /* eslint no-shadow: 0 */

@@ -1,5 +1,5 @@
 /**
- * @module Provides functions for evaluating the modules in an archive (a zip
+ * Provides functions for evaluating the modules in an archive (a zip
  * file with a `compartment-map.json` and a file for each module it contains.)
  *
  * These functions do not have a bias for any particular mapping, so you will
@@ -10,6 +10,8 @@
  * You will need to provide the `defaultParserForLanguage` from
  * `@endo/compartment-mapper/import-parsers.js` or
  * `@endo/compartment-mapper/archive-parsers.js`.
+ *
+ * @module
  */
 
 /* eslint no-shadow: "off" */

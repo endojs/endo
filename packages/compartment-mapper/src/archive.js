@@ -1,5 +1,5 @@
 /**
- * @module Provides mechanisms for creating archives (zip files with a
+ * Provides mechanisms for creating archives (zip files with a
  * `compartmeent-map.json` and a file for every static dependency of an entry
  * module).
  *
@@ -13,6 +13,8 @@
  * See `archive-lite.js` for a variation that does not depend on Babel
  * for cases like XS native Compartments where pre-compilation is not
  * necessary or where the dependency on Babel can be dererred to runtime.
+ *
+ * @module
  */
 
 /**

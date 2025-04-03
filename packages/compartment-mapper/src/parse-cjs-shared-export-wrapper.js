@@ -1,7 +1,9 @@
 /**
- * @module Provides shared functionality for {@link parse-cjs.js} and {@link
+ * Provides shared functionality for {@link parse-cjs.js} and {@link
  * parse-archive-cjs.js} toward importing or archiving CommonJS as a virtual
  * module source.
+ *
+ * @module
  */
 
 /** @import {ReadFn, ReadPowers} from './types.js' */
