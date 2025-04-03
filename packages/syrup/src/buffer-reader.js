@@ -34,6 +34,10 @@ export class BufferReader {
     });
   }
 
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {BufferReader}
+   */
   static fromBytes(bytes) {
     const empty = new ArrayBuffer(0);
     const reader = new BufferReader(empty);
@@ -42,7 +46,11 @@ export class BufferReader {
     fields.data = new DataView(bytes.buffer);
     fields.length = bytes.length;
     fields.index = 0;
-    fields.offset = 0;
+    fields.offset = bytes.byteOffset;
+    // Temporary check until we can handle non-zero byteOffset
+    if (fields.offset !== 0) {
+      throw Error('Cannot create BufferReader from Uint8Array with a non-zero byteOffset');
+    }
     return reader;
   }
 
@@ -89,6 +97,13 @@ export class BufferReader {
    */
   canSeek(index) {
     const fields = privateFieldsGet(this);
+    if (!(index >= 0 && fields.offset + index <= fields.length))
+    console.log('CANT SEEK', {
+      index,
+      offset: fields.offset,
+      length: fields.length,
+      canSeek: index >= 0 && fields.offset + index <= fields.length,
+    });
     return index >= 0 && fields.offset + index <= fields.length;
   }
 
