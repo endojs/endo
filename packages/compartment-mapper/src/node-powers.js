@@ -1,10 +1,12 @@
 /**
- * @module Provides adapters for Compartment Mapper I/O to the corresponding
+ * Provides adapters for Compartment Mapper I/O to the corresponding
  * Node.js implementations of those behaviors.
  *
  * The Compartment Mapper generalizes its I/O interface to allow for a wide
  * variety of I/O providers, but especially for reading and writing from
  * virtualized file systems like zip files.
+ *
+ * @module
  */
 
 /**

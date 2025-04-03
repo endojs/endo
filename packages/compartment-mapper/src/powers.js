@@ -1,9 +1,11 @@
 /**
- * @module As the interface of the Compartment Mapper evolved, it became
+ * As the interface of the Compartment Mapper evolved, it became
  * necessary to expand some function signatures that accepted a single power to
  * one that accepted a powers object.
  * This module provides functions for safely unpacking I/O capabilities and
  * maintaining backward-compatibility with older accepted usage patterns.
+ *
+ * @module
  */
 
 /**

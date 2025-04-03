@@ -1,6 +1,8 @@
 /**
- * @module Provides rudimentary support for treating an arbitrary file as a
+ * Provides rudimentary support for treating an arbitrary file as a
  * module that exports the bytes of that file.
+ *
+ * @module
  */
 
 /** @import {Harden} from 'ses' */

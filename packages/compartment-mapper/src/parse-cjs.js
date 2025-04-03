@@ -1,6 +1,8 @@
 /**
- * @module Provides language behavior (parser) for importing CommonJS as a
+ * Provides language behavior (parser) for importing CommonJS as a
  * virtual module source.
+ *
+ * @module
  */
 
 /** @import {ParseFn} from './types.js' */

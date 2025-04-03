@@ -1,6 +1,8 @@
 /**
- * @module Provides language behavior for analyzing, pre-compiling, and storing ESM
+ * Provides language behavior for analyzing, pre-compiling, and storing ESM
  * modules for an archive.
+ *
+ * @module
  */
 
 /** @import {ParseFn} from './types.js' */

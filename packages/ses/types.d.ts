@@ -1,5 +1,6 @@
 /**
- * @module Types of the SES environment
+ * Types of the SES environment
+ * @module
  */
 
 /* eslint-disable no-restricted-globals, vars-on-top, no-var */

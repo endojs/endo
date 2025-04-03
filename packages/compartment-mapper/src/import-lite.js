@@ -1,5 +1,5 @@
 /**
- * @module Provides functions for evaluating a module and its transitive
+ * Provides functions for evaluating a module and its transitive
  * dependencies given a partially completed compartment map.
  * The compartment map needs to describe every reachable compartment, where to
  * find modules in that compartment, and how to link modules between
@@ -13,6 +13,8 @@
  * The default `parserForLanguage` mapping is empty.
  * You will need to provide the `defaultParserForLanguage` from
  * `@endo/compartment-mapper/import-parsers.js` or similar.
+ *
+ * @module
  */
 
 /* eslint no-shadow: "off" */

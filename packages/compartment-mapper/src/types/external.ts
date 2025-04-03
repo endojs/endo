@@ -1,5 +1,7 @@
 /**
- * @module External types of the compartment mapper.
+ * External types of the compartment mapper.
+ *
+ * @module
  */
 
 /* eslint-disable no-use-before-define */

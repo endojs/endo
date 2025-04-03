@@ -1,5 +1,5 @@
 /**
- * @module Captures native intrinsics during initialization, so vetted shims
+ * Captures native intrinsics during initialization, so vetted shims
  * (running between initialization of SES and calling lockdown) are free to
  * modify the environment without compromising the integrity of SES. For
  * example, a vetted shim can modify Object.assign because we capture and
@@ -9,6 +9,8 @@
  * This pattern of use is enforced by eslint rules no-restricted-globals and
  * no-polymorphic-call.
  * We maintain the list of restricted globals in ../package.json.
+ *
+ * @module
  */
 
 /* global globalThis */

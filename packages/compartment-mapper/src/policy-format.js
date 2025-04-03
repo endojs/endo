@@ -1,6 +1,8 @@
 /**
- * @module Provides functions for enforcing compartment-map linkage and global
+ * Provides functions for enforcing compartment-map linkage and global
  * variable policies for each compartment.
+ *
+ * @module
  */
 
 /** @import {SomePackagePolicy, SomePolicy} from './types.js' */

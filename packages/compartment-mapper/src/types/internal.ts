@@ -1,6 +1,8 @@
 /**
- * @module Internal types of the compartment mapper that need not be visible to
+ * Internal types of the compartment mapper that need not be visible to
  * consumers.
+ *
+ * @module
  */
 
 /* eslint-disable no-use-before-define */

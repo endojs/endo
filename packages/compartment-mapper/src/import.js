@@ -1,5 +1,5 @@
 /**
- * @module Provides functions for evaluating a module and its transitive
+ * Provides functions for evaluating a module and its transitive
  * dependencies given the URL of the entry module and assuming packages laid
  * out according to the `node_modules` conventions.
  *
@@ -9,6 +9,8 @@
  *
  * The default `parserForLanguage` is `import-parsers.js`, which is suitable
  * for most cases.
+ *
+ * @module
  */
 
 /**
