@@ -305,6 +305,16 @@ const makePatternKit = () => {
   const isKind = (specimen, kind) => checkKind(specimen, kind, identChecker);
 
   /**
+   * Checks if a pattern matches only `undefined`.
+   *
+   * @param {any} patt
+   * @returns {boolean}
+   */
+  const isUndefinedPatt = patt =>
+    patt === undefined ||
+    (isKind(patt, 'match:kind') && patt.payload === 'undefined');
+
+  /**
    * @param {any} specimen
    * @param {Key} keyAsPattern
    * @param {Checker} check
@@ -777,15 +787,17 @@ const makePatternKit = () => {
           X`${specimen} - no pattern disjuncts to match: ${q(patts)}`,
         );
       }
-      if (
-        patts.length === 2 &&
-        !matches(specimen, patts[0]) &&
-        isKind(patts[0], 'match:kind') &&
-        patts[0].payload === 'undefined'
-      ) {
-        // Worth special casing the optional pattern for
-        // better error messages.
-        return checkMatches(specimen, patts[1], check);
+      // Special case disjunctions representing a single optional pattern for
+      // better error messages.
+      const binaryUndefPattIdx =
+        patts.length === 2
+          ? patts.findIndex(patt => isUndefinedPatt(patt))
+          : -1;
+      if (binaryUndefPattIdx !== -1) {
+        return (
+          specimen === undefined ||
+          checkMatches(specimen, patts[1 - binaryUndefPattIdx], check)
+        );
       }
       if (patts.some(patt => matches(specimen, patt))) {
         return true;
