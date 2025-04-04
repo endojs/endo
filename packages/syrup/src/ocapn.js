@@ -65,29 +65,22 @@ const OCapNComponentCodecs = {
 
 // OCapN Descriptors
 
-const DescSigEnvelope = new SyrupRecordCodecType(
-  'desc:sig-envelope', [
-  // TODO: union type, can be DescHandoffReceive, DescHandoffGive, ...
-  ['object', 'any'],
-  ['signature', OCapNSignature],
-])
-
-const DescImportObject = new SyrupRecordCodecType(
+export const DescImportObject = new SyrupRecordCodecType(
   'desc:import-object', [
   ['position', 'integer'],
 ])
 
-const DescImportPromise = new SyrupRecordCodecType(
+export const DescImportPromise = new SyrupRecordCodecType(
   'desc:import-promise', [
   ['position', 'integer'],
 ])
 
-const DescExport = new SyrupRecordCodecType(
+export const DescExport = new SyrupRecordCodecType(
   'desc:export', [
   ['position', 'integer'],
 ])
 
-const DescAnswer = new SyrupRecordCodecType(
+export const DescAnswer = new SyrupRecordCodecType(
   'desc:answer', [
   ['position', 'integer'],
 ])
@@ -101,20 +94,38 @@ const DescHandoffGive = new SyrupRecordCodecType(
   ['giftId', 'bytestring'],
 ])
 
+const DescSigGiveEnvelope = new SyrupRecordCodecType(
+  'desc:sig-envelope', [
+  // TODO: verify union type, can be DescHandoffReceive, DescHandoffGive, ...
+  ['object', DescHandoffGive],
+  ['signature', OCapNSignature],
+])
+
 const DescHandoffReceive = new SyrupRecordCodecType(
   'desc:handoff-receive', [
   ['receivingSession', 'bytestring'],
   ['receivingSide', 'bytestring'],
   ['handoffCount', 'integer'],
-  ['signedGive', DescSigEnvelope],
+  ['signedGive', DescSigGiveEnvelope],
 ])
 
+const DescSigReceiveEnvelope = new SyrupRecordCodecType(
+  'desc:sig-envelope', [
+  // TODO: verify union type, can be DescHandoffReceive, DescHandoffGive, ...
+  ['object', DescHandoffReceive],
+  ['signature', OCapNSignature],
+])
+
+
+// Note: this may only be useful for testing
 const OCapNDescriptorCodecs = {
   OCapNNode,
   OCapNSturdyRef,
   OCapNPublicKey,
   OCapNSignature,
-  DescSigEnvelope,
+  DescSigGiveEnvelope,
+  // TODO: ambiguous record label for DescSigGiveEnvelope and DescSigReceiveEnvelope
+  // DescSigReceiveEnvelope,
   DescImportObject,
   DescImportPromise,
   DescExport,
@@ -160,6 +171,7 @@ const OpDeliverOnly = new SyrupRecordCodecType(
   'op:deliver-only', [
   ['to', OCapNDeliverTargetCodec],
   // TODO: list type, can include OCapNSturdyRef, ...
+  // see https://github.com/ocapn/ocapn/blob/main/implementation-guide/Implementation%20Guide.md#stage-2-promises-opdeliver-oplisten
   ['args', 'list'],
 ])
 
@@ -167,6 +179,7 @@ const OpDeliver = new SyrupRecordCodecType(
   'op:deliver', [
   ['to', OCapNDeliverTargetCodec],
   // TODO: list type, can be DescSigEnvelope
+  // see https://github.com/ocapn/ocapn/blob/main/implementation-guide/Implementation%20Guide.md#stage-2-promises-opdeliver-oplisten
   ['args', 'list'],
   ['answerPosition', 'integer'],
   ['resolveMeDesc', OCapNResolveMeDescCodec],
