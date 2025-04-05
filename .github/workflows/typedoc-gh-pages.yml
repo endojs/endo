@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v4
+      - uses: actions/configure-pages@v5
       # Without this, setup-node errors on mismatched yarn versions
       - run: corepack enable
       # Without this the inter-package imports don't resolve
