@@ -28,9 +28,25 @@ const makeImport = (position) => {
   return `<${sym('desc:import-object')}${int(position)}>`;
 }
 
+const makeDescGive = (receiverKey, exporterLocation, session, gifterSide, giftId) => {
+  return `<${sym('desc:handoff-give')}${receiverKey}${exporterLocation}${bts(session)}${gifterSide}${bts(giftId)}>`;
+}
+
+const makeSigEnvelope = (object, signature) => {
+  return `<${sym('desc:sig-envelope')}${object}${signature}>`;
+}
+
+const makeHandoffReceive = (recieverSession, recieverSide, handoffCount, descGive, signature) => {
+  const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
+  return `<${sym('desc:handoff-receive')}${bts(recieverSession)}${bts(recieverSide)}${int(handoffCount)}${signedGiveEnvelope}>`;
+}
+
 const strToUint8Array = (str) => {
   return new Uint8Array(str.split('').map(c => c.charCodeAt(0)));
 }
+
+// I made up these syrup values by hand, they may be wrong, sorry.
+// Would like external test data for this.
 
 export const componentsTable = [
   {
@@ -42,11 +58,6 @@ export const componentsTable = [
       s: new Uint8Array([0x32])
     }
   },
-];
-
-// I made up these syrup values by hand, they may be wrong, sorry.
-// Would like external test data for this.
-export const descriptorsTable = [
   {
     syrup: `<10'ocapn-node3'tcp1:0f>`,
     value: {
@@ -76,42 +87,12 @@ export const descriptorsTable = [
       scheme: 'ecc',
       curve: 'Ed25519',
       flags: 'eddsa',
-      q: new Uint8Array([0x31])
+      q: strToUint8Array('1')
     }
   },
-  // any
-  // {
-  //   syrup: '<17\'desc:sig-envelope123+>',
-  //   value: {
-  //     type: 'desc:sig-envelope',
-  //     object: {
-  //       type: 'desc:handoff-give',
-  //       receiverKey: {
-  //         type: 'public-key',
-  //         scheme: 'ed25519',
-  //         curve: 'ed25519',
-  //         flags: 'ed25519',
-  //         q: new Uint8Array(32)
-  //       },
-  //       exporterLocation: {
-  //         type: 'ocapn-node',
-  //         transport: 'tcp',
-  //         address: '127.0.0.1',
-  //         hints: false
-  //       },
-  //       session: new Uint8Array(32),
-  //       gifterSide: {
-  //         type: 'public-key',
-  //         scheme: 'ed25519',
-  //         curve: 'ed25519',
-  //         flags: 'ed25519',
-  //         q: new Uint8Array(32)
-  //       },
-  //       giftId: new Uint8Array(32)
-  //     },
-  //     signature: new Uint8Array(32)
-  //   }
-  // },
+];
+
+export const descriptorsTable = [
   {
     syrup: `<18'desc:import-object123+>`,
     value: {
@@ -162,8 +143,102 @@ export const descriptorsTable = [
       giftId: new Uint8Array([0x34, 0x35, 0x36])
     }
   },
-  // TODO: desc:handoff-receive, needs desc:sig-envelope
-  // { syrup: `<${sym('desc:handoff-receive')}${bts('123')}${bts('456')}${int(1)}${makeSig()}>`, value: { type: 'desc:handoff-receive', receivingSession: '123', receivingSide: '456' } },
+  {
+    syrup: `<${sym('desc:sig-envelope')}${makeDescGive(
+      makePubKey('ed25519', 'ed25519', 'ed25519', '123'),
+      makeNode('tcp', '127.0.0.1', false),
+      '123',
+      makePubKey('ed25519', 'ed25519', 'ed25519', '123'),
+      '123'
+    )}${makeSig('eddsa', '1', '2')}>`,
+    value: {
+      type: 'desc:sig-envelope',
+      object: {
+        type: 'desc:handoff-give',
+        receiverKey: {
+          type: 'public-key',
+          scheme: 'ed25519',
+          curve: 'ed25519',
+          flags: 'ed25519',
+          q: strToUint8Array('123')
+        },
+        exporterLocation: {
+          type: 'ocapn-node',
+          transport: 'tcp',
+          address: strToUint8Array('127.0.0.1'),
+          hints: false
+        },
+        session: strToUint8Array('123'),
+        gifterSide: {
+          type: 'public-key',
+          scheme: 'ed25519',
+          curve: 'ed25519',
+          flags: 'ed25519',
+          q: strToUint8Array('123')
+        },
+        giftId: strToUint8Array('123')
+      },
+      signature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: strToUint8Array('1'),
+        s: strToUint8Array('2')
+      }
+    }
+  },
+  // handoff receive
+  {
+    syrup: `<${sym('desc:handoff-receive')}${bts('123')}${bts('456')}${int(1)}${makeSigEnvelope(
+      makeDescGive(
+        makePubKey('ecc', 'Ed25519', 'eddsa', '123'),
+        makeNode('tcp', '456', false),
+        '789',
+        makePubKey('ecc', 'Ed25519', 'eddsa', 'abc'),
+        'def'
+      ),
+      makeSig('eddsa', '1', '2')
+    )}>`,
+    value: {
+      type: 'desc:handoff-receive',
+      receivingSession: strToUint8Array('123'),
+      receivingSide: strToUint8Array('456'),
+      handoffCount: 1n,
+      signedGive: {
+        type: 'desc:sig-envelope',
+        object: {
+          type: 'desc:handoff-give',
+          receiverKey: {
+            type: 'public-key',
+            scheme: 'ecc',
+            curve: 'Ed25519',
+            flags: 'eddsa',
+            q: strToUint8Array('123')
+          },
+          exporterLocation: {
+            type: 'ocapn-node',
+            transport: 'tcp',
+            address: strToUint8Array('456'),
+            hints: false
+          },
+          session: strToUint8Array('789'),
+          gifterSide: {
+            type: 'public-key',
+            scheme: 'ecc',
+            curve: 'Ed25519',
+            flags: 'eddsa',
+            q: strToUint8Array('abc')
+          },
+          giftId: strToUint8Array('def')
+        },
+        signature: {
+          type: 'sig-val',
+          scheme: 'eddsa',
+          r: strToUint8Array('1'),
+          s: strToUint8Array('2')
+        }
+      }
+    }
+  }
 ];
 
 export const operationsTable = [
@@ -188,9 +263,9 @@ export const operationsTable = [
   },
   {
     // <op:deliver-only <desc:export 0>               ; Remote bootstrap object
-    //                ['deposit-gift                ; Symbol "deposit-gift"
-    //                 42                           ; gift-id, a positive integer
-    //                 <desc:import-object ...>]>   ; remote object being shared
+    //                  ['deposit-gift                ; Symbol "deposit-gift"
+    //                   42                           ; gift-id, a positive integer
+    //                   <desc:import-object ...>]>   ; remote object being shared
     syrup: `<${sym('op:deliver-only')}${makeExport(0)}${list([sym('deposit-gift'), int(42), makeImport(1)])}>`,
     value: {
       type: 'op:deliver-only',
@@ -245,7 +320,10 @@ export const operationsTable = [
     //              swiss-number]           ; Argument 2: Binary Data
     //             3                        ; Answer position: positive integer
     //             <desc:import-object 5>>  ; object exported by us at position 5 should provide the answer
-    syrup: `<${sym('op:deliver')}${makeExport(0)}${list([sym('fetch'), bts('swiss-number')])}${int(3)}${makeImport(5)}>`,
+    syrup: `<${sym('op:deliver')}${makeExport(0)}${list([
+      sym('fetch'),
+      bts('swiss-number')
+    ])}${int(3)}${makeImport(5)}>`,
     value: {
       type: 'op:deliver',
       to: { type: 'desc:export', position: 0n },
@@ -254,6 +332,81 @@ export const operationsTable = [
       resolveMeDesc: {
         type: 'desc:import-object',
         position: 5n
+      }
+    }
+  },
+  {
+    // <op:deliver <desc:export 0>           ; Remote bootstrap object
+    //             [withdraw-gift            ; Argument 1: Symbol "withdraw-gift"
+    //              <desc:handoff-receive>]  ; Argument 2: desc:handoff-receive
+    //             1                         ; Answer position: Positive integer or false
+    //             <desc:import-object 3>>   ; The object exported (by us) at position 3, should receive the gift.
+    syrup: `<${sym('op:deliver')}${makeExport(0)}${list([
+      sym('withdraw-gift'),
+      makeHandoffReceive(
+        '123',
+        '456',
+        1,
+        makeDescGive(
+          makePubKey('ecc', 'Ed25519', 'eddsa', '123'),
+          makeNode('tcp', '456', false),
+          '789',
+          makePubKey('ecc', 'Ed25519', 'eddsa', 'abc'),
+          'def'
+        ),
+        makeSig('eddsa', '1', '2')
+      )
+    ])}${int(1)}${makeImport(3)}>`,
+    value: {
+      type: 'op:deliver',
+      to: { type: 'desc:export', position: 0n },
+      args: [
+        'withdraw-gift',
+        {
+          type: 'desc:handoff-receive',
+          receivingSession: strToUint8Array('123'),
+          receivingSide: strToUint8Array('456'),
+          handoffCount: 1n,
+          signedGive: {
+            type: 'desc:sig-envelope',
+            object: {
+              type: 'desc:handoff-give',
+              receiverKey: {
+                type: 'public-key',
+                scheme: 'ecc',
+                curve: 'Ed25519',
+                flags: 'eddsa',
+                q: strToUint8Array('123')
+              },
+              exporterLocation: {
+                type: 'ocapn-node',
+                transport: 'tcp',
+                address: strToUint8Array('456'),
+                hints: false
+              },
+              session: strToUint8Array('789'),
+              gifterSide: {
+                type: 'public-key',
+                scheme: 'ecc',
+                curve: 'Ed25519',
+                flags: 'eddsa',
+                q: strToUint8Array('abc')
+              },
+              giftId: strToUint8Array('def')
+            },
+            signature: {
+              type: 'sig-val',
+              scheme: 'eddsa',
+              r: strToUint8Array('1'),
+              s: strToUint8Array('2')
+            }
+          },
+        }
+      ],
+      answerPosition: 1n,
+      resolveMeDesc: {
+        type: 'desc:import-object',
+        position: 3n
       }
     }
   }

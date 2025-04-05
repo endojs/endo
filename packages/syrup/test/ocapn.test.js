@@ -3,9 +3,11 @@
 import test from 'ava';
 import { makeSyrupReader } from '../src/decode.js';
 import { makeSyrupWriter } from '../src/encode.js';
-import { OCapNComponentUnionCodec, OCapNDescriptorUnionCodec, OCapNMessageUnionCodec } from '../src/ocapn.js';
+import { OCapNComponentUnionCodec } from '../src/ocapn/components.js';
+import { OCapNDescriptorUnionCodec } from '../src/ocapn/descriptors.js';
+import { OCapNMessageUnionCodec } from '../src/ocapn/operations.js';
 import { componentsTable, descriptorsTable, operationsTable } from './_ocapn.js';
-import { OCapNPassableUnionCodec } from '../src/passable.js';
+import { OCapNPassableUnionCodec } from '../src/ocapn/passable.js'; 
 
 const textEncoder = new TextEncoder();
 const sym = (s) => `${s.length}'${s}`;

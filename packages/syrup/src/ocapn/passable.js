@@ -1,5 +1,5 @@
-import { RecordUnionCodec, SimpleSyrupCodecType, SyrupBooleanCodec, SyrupIntegerCodec, SyrupDoubleCodec, SyrupSymbolCodec, SyrupStringCodec, SyrupBytestringCodec, SyrupListCodec, CustomRecordCodec, CustomUnionCodecType, SyrupAnyCodec, SyrupStructuredRecordCodecType } from './codec.js';
-import { DescImportObject, DescImportPromise, DescExport, DescAnswer } from './import-export.js';
+import { RecordUnionCodec, SimpleSyrupCodecType, SyrupBooleanCodec, SyrupIntegerCodec, SyrupDoubleCodec, SyrupSymbolCodec, SyrupStringCodec, SyrupBytestringCodec, SyrupListCodec, CustomRecordCodec, CustomUnionCodecType, SyrupAnyCodec, SyrupStructuredRecordCodecType } from '../codec.js';
+import { DescImportObject, DescImportPromise, DescExport, DescAnswer, DescHandoffGive, DescHandoffReceive } from './descriptors.js';
 
 // OCapN Passable Atoms
 
@@ -111,6 +111,10 @@ const OCapNPassableRecordUnionCodec = new RecordUnionCodec({
   DescImportObject,
   DescImportPromise,
   DescAnswer,
+  DescHandoffGive,
+  DescHandoffReceive,
+  // DescSigGiveEnvelope,
+  // DescSigReceiveEnvelope,
   OCapNErrorCodec,
 });
 
