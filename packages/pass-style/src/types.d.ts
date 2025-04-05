@@ -1,4 +1,5 @@
 /* eslint-disable no-use-before-define */
+import type { Checker as _Checker } from '@endo/common/ident-checker.js';
 import { PASS_STYLE } from './passStyle-helpers.js';
 
 /**
@@ -113,6 +114,7 @@ export type PassStyleOf = {
   (p: { [key: string]: any }): 'copyRecord';
   (p: any): PassStyle;
 };
+
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
@@ -136,6 +138,7 @@ export type PassStyleOf = {
  * any potential proxies.
  */
 export type PureData = Passable<never, never>;
+
 /**
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
@@ -147,10 +150,12 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
   'remotable',
   I
 >;
+
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
 export type PassableCap = Promise<any> | RemotableObject;
+
 /**
  * A Passable sequence of Passable values.
  */
@@ -160,6 +165,7 @@ export type CopyArray<T extends Passable = any> = Array<T>;
  * A Passable dictionary in which each key is a string and each value is Passable.
  */
 export type CopyRecord<T extends Passable = any> = Record<string, T>;
+
 /**
  * A Passable "tagged record" with semantics specific to the tag identified in
  * the `[Symbol.toStringTag]` property (such as 'copySet', 'copyBag',
@@ -174,6 +180,7 @@ export type CopyTagged<
 > = PassStyled<'tagged', Tag> & {
   payload: Payload;
 };
+
 /**
  * This is an interface specification.
  * For now, it is just a string, but we retain the option to make it `PureData`.
@@ -181,6 +188,7 @@ export type CopyTagged<
  * that are not supposed to be able to communicate.
  */
 export type InterfaceSpec = string;
+
 /**
  * Internal to a useful pattern for writing checking logic
  * (a "checkFoo" function) that can be used to implement a predicate
@@ -197,7 +205,4 @@ export type InterfaceSpec = string;
  *
  * See the various uses for good examples.
  */
-export type Checker = (
-  cond: boolean,
-  details?: import('ses').Details | undefined,
-) => boolean;
+export type Checker = _Checker;
