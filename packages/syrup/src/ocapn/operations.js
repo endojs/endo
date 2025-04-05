@@ -126,11 +126,6 @@ const OpGcAnswer = new SyrupStructuredRecordCodecType(
   ['answerPosition', 'integer'],
 ])
 
-const OpGcSession = new SyrupStructuredRecordCodecType(
-  'op:gc-session', [
-  ['session', 'bytestring'],
-])
-
 export const OCapNMessageUnionCodec = new RecordUnionCodec({
   OpStartSession,
   OpDeliverOnly,
@@ -140,7 +135,6 @@ export const OCapNMessageUnionCodec = new RecordUnionCodec({
   OpListen,
   OpGcExport,
   OpGcAnswer,
-  OpGcSession,
 });
 
 export const readOCapNMessage = (syrupReader) => {

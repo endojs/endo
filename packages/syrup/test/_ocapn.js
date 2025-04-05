@@ -496,12 +496,4 @@ export const operationsTable = [
       answerPosition: 1n
     }
   },
-  {
-    // <op:gc-session session>  ; session: bytestring
-    syrup: `<${sym('op:gc-session')}${bts('session')}>`,
-    value: {
-      type: 'op:gc-session',
-      session: strToUint8Array('session')
-    }
-  }
 ];
