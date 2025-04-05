@@ -1,3 +1,4 @@
+const quote = JSON.stringify;
 
 export class SyrupCodec {
   /**
@@ -217,7 +218,7 @@ export class RecordUnionCodec extends SyrupCodec {
     const label = syrupReader.readSymbolAsString();
     const recordCodec = this.recordTable[label];
     if (!recordCodec) {
-      throw Error(`Unknown record type: ${label}`);
+      throw Error(`Unexpected record type: ${quote(label)}`);
     }
     const result = recordCodec.unmarshalBody(syrupReader);
     syrupReader.exitRecord();
@@ -227,7 +228,7 @@ export class RecordUnionCodec extends SyrupCodec {
     const { type } = value;
     const recordCodec = this.recordTable[type];
     if (!recordCodec) {
-      throw Error(`Unknown record type: ${type}`);
+      throw Error(`Unexpected record type: ${quote(type)}`);
     }
     recordCodec.marshal(value, syrupWriter);
   }

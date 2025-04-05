@@ -57,5 +57,5 @@ test('error on unknown record type in passable', t => {
   const syrupReader = makeSyrupReader(syrupBytes, { name: 'unknown record type' });
   t.throws(() => {
     codec.unmarshal(syrupReader);
-  }, { message: 'Unknown record type: unknown-record-type' });
+  }, { message: 'Unexpected record type: "unknown-record-type"' });
 });

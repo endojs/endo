@@ -24,8 +24,12 @@ const makeExport = (position) => {
   return `<${sym('desc:export')}${int(position)}>`;
 }
 
-const makeImport = (position) => {
+const makeImportObj = (position) => {
   return `<${sym('desc:import-object')}${int(position)}>`;
+}
+
+const makeImportPromise = (position) => {
+  return `<${sym('desc:import-promise')}${int(position)}>`;
 }
 
 const makeDescGive = (receiverKey, exporterLocation, session, gifterSide, giftId) => {
@@ -242,10 +246,39 @@ export const descriptorsTable = [
 ];
 
 export const operationsTable = [
-  { syrup: '<8\'op:abort7"explode>', value: { type: 'op:abort', reason: 'explode' } },
+  {
+    // <op:start-session captp-version             ; String value
+    //                   session-pubkey            ; CapTP public key value
+    //                   acceptable-location       ; OCapN Reference type
+    //                   acceptable-location-sig>  ; CapTP signature
+    syrup: `<${sym('op:start-session')}${str('captp-v1')}${makePubKey('ecc', 'Ed25519', 'eddsa', '123')}${makeNode('tcp', '127.0.0.1', false)}${makeSig('eddsa', '1', '2')}>`,
+    value: {
+      type: 'op:start-session',
+      captpVersion: 'captp-v1',
+      sessionPublicKey: {
+        type: 'public-key',
+        scheme: 'ecc',
+        curve: 'Ed25519',
+        flags: 'eddsa',
+        q: strToUint8Array('123')
+      },
+      location: {
+        type: 'ocapn-node',
+        transport: 'tcp',
+        address: strToUint8Array('127.0.0.1'),
+        hints: false
+      },
+      locationSignature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: strToUint8Array('1'),
+        s: strToUint8Array('2')
+      }
+    }
+  },
   {
     // <op:deliver-only <desc:export 1> ['fulfill <desc:import-object 1>]>
-    syrup: `<${sym('op:deliver-only')}${makeExport(1)}${list([sym('fulfill'), makeImport(1)])}>`,
+    syrup: `<${sym('op:deliver-only')}${makeExport(1)}${list([sym('fulfill'), makeImportObj(1)])}>`,
     value: {
       type: 'op:deliver-only',
       to: {
@@ -266,7 +299,7 @@ export const operationsTable = [
     //                  ['deposit-gift                ; Symbol "deposit-gift"
     //                   42                           ; gift-id, a positive integer
     //                   <desc:import-object ...>]>   ; remote object being shared
-    syrup: `<${sym('op:deliver-only')}${makeExport(0)}${list([sym('deposit-gift'), int(42), makeImport(1)])}>`,
+    syrup: `<${sym('op:deliver-only')}${makeExport(0)}${list([sym('deposit-gift'), int(42), makeImportObj(1)])}>`,
     value: {
       type: 'op:deliver-only',
       to: {
@@ -282,7 +315,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver <desc:export 5> ['make-car-factory] 3 <desc:import-object 15>>
-    syrup: `<${sym('op:deliver')}${makeExport(5)}${list([sym('make-car-factory')])}${int(3)}${makeImport(15)}>`,
+    syrup: `<${sym('op:deliver')}${makeExport(5)}${list([sym('make-car-factory')])}${int(3)}${makeImportObj(15)}>`,
     value: {
       type: 'op:deliver',
       to: {
@@ -299,7 +332,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver <desc:export 1> ['beep] false <desc:import-object 2>>
-    syrup: `<${sym('op:deliver')}${makeExport(1)}${list([sym('beep')])}${bool(false)}${makeImport(2)}>`,
+    syrup: `<${sym('op:deliver')}${makeExport(1)}${list([sym('beep')])}${bool(false)}${makeImportObj(2)}>`,
     value: {
       type: 'op:deliver',
       to: {
@@ -323,7 +356,7 @@ export const operationsTable = [
     syrup: `<${sym('op:deliver')}${makeExport(0)}${list([
       sym('fetch'),
       bts('swiss-number')
-    ])}${int(3)}${makeImport(5)}>`,
+    ])}${int(3)}${makeImportObj(5)}>`,
     value: {
       type: 'op:deliver',
       to: { type: 'desc:export', position: 0n },
@@ -356,7 +389,7 @@ export const operationsTable = [
         ),
         makeSig('eddsa', '1', '2')
       )
-    ])}${int(1)}${makeImport(3)}>`,
+    ])}${int(1)}${makeImportObj(3)}>`,
     value: {
       type: 'op:deliver',
       to: { type: 'desc:export', position: 0n },
@@ -408,6 +441,67 @@ export const operationsTable = [
         type: 'desc:import-object',
         position: 3n
       }
+    },
+  },
+  {
+    // <op:pick <promise-pos>         ; <desc:answer | desc:import-promise>
+    //          <selected-value-pos>  ; Positive Integer
+    //          <new-answer-pos>>     ; Positive Integer
+    syrup: `<${sym('op:pick')}${makeImportPromise(1)}${int(2)}${int(3)}>`,
+    value: {
+      type: 'op:pick',
+      promisePosition: {
+        type: 'desc:import-promise',
+        position: 1n
+      },
+      selectedValuePosition: 2n,
+      newAnswerPosition: 3n
+    }
+  },
+  {
+    // <op:abort reason>  ; reason: String
+    syrup: `<${sym('op:abort')}${str('explode')}>`,
+    value: {
+      type: 'op:abort',
+      reason: 'explode'
+    }
+  },
+  {
+    // <op:listen to-desc           ; desc:export | desc:answer
+    //            listen-desc       ; desc:import-object
+    //            wants-partial?    ; boolean
+    syrup: `<${sym('op:listen')}${makeExport(1)}${makeImportObj(2)}${bool(false)}>`,
+    value: {
+      type: 'op:listen',
+      to: { type: 'desc:export', position: 1n },
+      resolveMeDesc: { type: 'desc:import-object', position: 2n },
+      wantsPartial: false
+    }
+  },
+  {
+    // <op:gc-export export-pos   ; positive integer
+    //               wire-delta>  ; positive integer
+    syrup: `<${sym('op:gc-export')}${int(1)}${int(2)}>`,
+    value: {
+      type: 'op:gc-export',
+      exportPosition: 1n,
+      wireDelta: 2n
+    }
+  },
+  {
+    // <op:gc-answer answer-pos>  ; answer-pos: positive integer
+    syrup: `<${sym('op:gc-answer')}${int(1)}>`,
+    value: {
+      type: 'op:gc-answer',
+      answerPosition: 1n
+    }
+  },
+  {
+    // <op:gc-session session>  ; session: bytestring
+    syrup: `<${sym('op:gc-session')}${bts('session')}>`,
+    value: {
+      type: 'op:gc-session',
+      session: strToUint8Array('session')
     }
   }
 ];

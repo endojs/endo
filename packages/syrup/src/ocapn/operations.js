@@ -15,13 +15,10 @@ const OpStartSession = new SyrupStructuredRecordCodecType(
   ['locationSignature', OCapNSignature],
 ])
 
-
-const OCapNDeliverResolveMeDescs = {
+const OCapNResolveMeDescCodec = new RecordUnionCodec({
   DescImportObject,
   DescImportPromise,
-}
-
-const OCapNResolveMeDescCodec = new RecordUnionCodec(OCapNDeliverResolveMeDescs);
+});
 
 const OpListen = new SyrupStructuredRecordCodecType(
   'op:listen', [
@@ -101,6 +98,18 @@ const OpDeliver = new SyrupStructuredRecordCodecType(
   ['resolveMeDesc', OCapNResolveMeDescCodec],
 ])
 
+const OCapNPromiseRefCodec = new RecordUnionCodec({
+  DescAnswer,
+  DescImportPromise,
+});
+
+const OpPick = new SyrupStructuredRecordCodecType(
+  'op:pick', [
+  ['promisePosition', OCapNPromiseRefCodec],
+  ['selectedValuePosition', 'integer'],
+  ['newAnswerPosition', 'integer'],
+])
+
 const OpAbort = new SyrupStructuredRecordCodecType(
   'op:abort', [
   ['reason', 'string'],
@@ -124,10 +133,11 @@ const OpGcSession = new SyrupStructuredRecordCodecType(
 
 export const OCapNMessageUnionCodec = new RecordUnionCodec({
   OpStartSession,
-  OpListen,
   OpDeliverOnly,
   OpDeliver,
+  OpPick,
   OpAbort,
+  OpListen,
   OpGcExport,
   OpGcAnswer,
   OpGcSession,
