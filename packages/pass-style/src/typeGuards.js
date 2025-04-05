@@ -1,7 +1,9 @@
 import { Fail, q } from '@endo/errors';
 import { passStyleOf } from './passStyleOf.js';
 
-/** @import {CopyArray, CopyRecord, Passable, RemotableObject} from './types.js' */
+/**
+ * @import {CopyArray, CopyRecord, Passable, RemotableObject, ByteArray} from './types.js'
+ */
 
 /**
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
@@ -12,6 +14,16 @@ import { passStyleOf } from './passStyleOf.js';
  */
 const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
 harden(isCopyArray);
+
+/**
+ * Check whether the argument is a pass-by-copy binary data, AKA a "byteArray"
+ * in @endo/marshal terms
+ *
+ * @param {Passable} arr
+ * @returns {arr is ByteArray}
+ */
+const isByteArray = arr => passStyleOf(arr) === 'byteArray';
+harden(isByteArray);
 
 /**
  * Check whether the argument is a pass-by-copy record, AKA a
@@ -47,6 +59,21 @@ const assertCopyArray = (arr, optNameOfArray = 'Alleged array') => {
 harden(assertCopyArray);
 
 /**
+ * @param {Passable} arr
+ * @param {string=} optNameOfArray
+ * @returns {asserts arr is ByteArray}
+ */
+const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
+  const passStyle = passStyleOf(arr);
+  passStyle === 'byteArray' ||
+    Fail`${q(
+      optNameOfArray,
+    )} ${arr} must be a pass-by-copy binary data, not ${q(passStyle)}`;
+};
+harden(assertByteArray);
+
+/**
+ * @callback AssertRecord
  * @param {any} record
  * @param {string=} optNameOfRecord
  * @returns {asserts record is CopyRecord<any>}
@@ -80,8 +107,10 @@ harden(assertRemotable);
 export {
   assertRecord,
   assertCopyArray,
+  assertByteArray,
   assertRemotable,
   isRemotable,
   isRecord,
   isCopyArray,
+  isByteArray,
 };
