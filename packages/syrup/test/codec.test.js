@@ -3,7 +3,7 @@
 import test from 'ava';
 import { makeSyrupReader } from '../src/decode.js';
 import { makeSyrupWriter } from '../src/encode.js';
-import { RecordUnionCodec, SyrupRecordCodecType, SyrupStringCodec } from '../src/codec.js';
+import { RecordUnionCodec, SyrupStringCodec, SyrupStructuredRecordCodecType } from '../src/codec.js';
 
 
 const testCodecBidirectionally = (t, codec, value) => {
@@ -22,7 +22,7 @@ test('simple string codec', t => {
 });
 
 test('basic record codec cases', t => {
-  const codec = new SyrupRecordCodecType('test', [
+  const codec = new SyrupStructuredRecordCodecType('test', [
     ['field1', 'string'],
     ['field2', 'integer'],
   ]);
@@ -36,11 +36,11 @@ test('basic record codec cases', t => {
 
 test('record union codec', t => {
   const codec = new RecordUnionCodec({
-    testA: new SyrupRecordCodecType('testA', [
+    testA: new SyrupStructuredRecordCodecType('testA', [
       ['field1', 'string'],
       ['field2', 'integer'],
     ]),
-    testB: new SyrupRecordCodecType('testB', [
+    testB: new SyrupStructuredRecordCodecType('testB', [
       ['field1', 'string'],
       ['field2', 'integer'],
     ]),

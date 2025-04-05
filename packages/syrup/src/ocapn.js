@@ -1,4 +1,6 @@
-import { SyrupRecordCodecType, SyrupCodec, RecordUnionCodec } from './codec.js';
+import { SyrupCodec, RecordUnionCodec, SyrupStructuredRecordCodecType, SimpleSyrupCodecType } from './codec.js';
+import { OCapNPassableUnionCodec } from './passable.js';
+import { DescImportObject, DescImportPromise, DescExport, DescAnswer } from './import-export.js';
 
 // OCapN Components
 
@@ -27,27 +29,27 @@ export class OCapNSignatureValueCodec extends SyrupCodec {
 const OCapNSignatureRValue = new OCapNSignatureValueCodec('r');
 const OCapNSignatureSValue = new OCapNSignatureValueCodec('s');
 
-const OCapNSignature = new SyrupRecordCodecType(
+const OCapNSignature = new SyrupStructuredRecordCodecType(
   'sig-val', [
   ['scheme', 'symbol'],
   ['r', OCapNSignatureRValue],
   ['s', OCapNSignatureSValue],
 ])
 
-const OCapNNode = new SyrupRecordCodecType(
+const OCapNNode = new SyrupStructuredRecordCodecType(
   'ocapn-node', [
   ['transport', 'symbol'],
   ['address', 'bytestring'],
   ['hints', 'boolean'],
 ])
 
-const OCapNSturdyRef = new SyrupRecordCodecType(
+const OCapNSturdyRef = new SyrupStructuredRecordCodecType(
   'ocapn-sturdyref', [
   ['node', OCapNNode],
   ['swissNum', 'string'],
 ])
 
-const OCapNPublicKey = new SyrupRecordCodecType(
+const OCapNPublicKey = new SyrupStructuredRecordCodecType(
   'public-key', [
   ['scheme', 'symbol'],
   ['curve', 'symbol'],
@@ -65,27 +67,7 @@ const OCapNComponentCodecs = {
 
 // OCapN Descriptors
 
-export const DescImportObject = new SyrupRecordCodecType(
-  'desc:import-object', [
-  ['position', 'integer'],
-])
-
-export const DescImportPromise = new SyrupRecordCodecType(
-  'desc:import-promise', [
-  ['position', 'integer'],
-])
-
-export const DescExport = new SyrupRecordCodecType(
-  'desc:export', [
-  ['position', 'integer'],
-])
-
-export const DescAnswer = new SyrupRecordCodecType(
-  'desc:answer', [
-  ['position', 'integer'],
-])
-
-const DescHandoffGive = new SyrupRecordCodecType(
+const DescHandoffGive = new SyrupStructuredRecordCodecType(
   'desc:handoff-give', [
   ['receiverKey', OCapNPublicKey],
   ['exporterLocation', OCapNNode],
@@ -94,14 +76,14 @@ const DescHandoffGive = new SyrupRecordCodecType(
   ['giftId', 'bytestring'],
 ])
 
-const DescSigGiveEnvelope = new SyrupRecordCodecType(
+const DescSigGiveEnvelope = new SyrupStructuredRecordCodecType(
   'desc:sig-envelope', [
   // TODO: verify union type, can be DescHandoffReceive, DescHandoffGive, ...
   ['object', DescHandoffGive],
   ['signature', OCapNSignature],
 ])
 
-const DescHandoffReceive = new SyrupRecordCodecType(
+const DescHandoffReceive = new SyrupStructuredRecordCodecType(
   'desc:handoff-receive', [
   ['receivingSession', 'bytestring'],
   ['receivingSide', 'bytestring'],
@@ -109,7 +91,7 @@ const DescHandoffReceive = new SyrupRecordCodecType(
   ['signedGive', DescSigGiveEnvelope],
 ])
 
-const DescSigReceiveEnvelope = new SyrupRecordCodecType(
+const DescSigReceiveEnvelope = new SyrupStructuredRecordCodecType(
   'desc:sig-envelope', [
   // TODO: verify union type, can be DescHandoffReceive, DescHandoffGive, ...
   ['object', DescHandoffReceive],
@@ -136,7 +118,7 @@ const OCapNDescriptorCodecs = {
 
 // OCapN Operations
 
-const OpStartSession = new SyrupRecordCodecType(
+const OpStartSession = new SyrupStructuredRecordCodecType(
   'op:start-session', [
   ['captpVersion', 'string'],
   ['sessionPublicKey', OCapNPublicKey],
@@ -152,7 +134,7 @@ const OCapNDeliverResolveMeDescs = {
 
 const OCapNResolveMeDescCodec = new RecordUnionCodec(OCapNDeliverResolveMeDescs);
 
-const OpListen = new SyrupRecordCodecType(
+const OpListen = new SyrupStructuredRecordCodecType(
   'op:listen', [
   ['to', DescExport],
   ['resolveMeDesc', OCapNResolveMeDescCodec],
@@ -166,42 +148,87 @@ const OCapNDeliverTargets = {
 
 const OCapNDeliverTargetCodec = new RecordUnionCodec(OCapNDeliverTargets);
 
+// Used by the deliver and deliver-only operations
+// First arg is method name, rest are Passables
+const OpDeliverArgsCodec = new SimpleSyrupCodecType({
+  unmarshal: (syrupReader) => {
+    syrupReader.enterList();
+    const result = [
+      // method name
+      syrupReader.readSymbolAsString(),
+    ];
+    while (!syrupReader.peekListEnd()) {
+      result.push(
+        OCapNPassableUnionCodec.unmarshal(syrupReader)
+      )
+    }
+    syrupReader.exitList();
+    return result;
+  },
+  marshal: ([methodName, ...args], syrupWriter) => {
+    syrupWriter.enterList();
+    syrupWriter.writeSymbol(methodName);
+    for (const arg of args) {
+      OCapNPassableUnionCodec.marshal(arg, syrupWriter);
+    }
+    syrupWriter.exitList();
+  },
+})
 
-const OpDeliverOnly = new SyrupRecordCodecType(
+const OpDeliverOnly = new SyrupStructuredRecordCodecType(
   'op:deliver-only', [
   ['to', OCapNDeliverTargetCodec],
-  // TODO: list type, can include OCapNSturdyRef, ...
-  // see https://github.com/ocapn/ocapn/blob/main/implementation-guide/Implementation%20Guide.md#stage-2-promises-opdeliver-oplisten
-  ['args', 'list'],
+  ['args', OpDeliverArgsCodec],
 ])
 
-const OpDeliver = new SyrupRecordCodecType(
+const OpDeliverAnswerCodec = new SimpleSyrupCodecType({
+  unmarshal: (syrupReader) => {
+    const typeHint = syrupReader.peekTypeHint();
+    if (typeHint === 'number-prefix') {
+      // should be an integer
+      return syrupReader.readInteger();
+    }
+    if (typeHint === 'boolean') {
+      return syrupReader.readBoolean();
+    }
+    throw Error(`Expected integer or boolean, got ${typeHint}`);
+  },
+  marshal: (value, syrupWriter) => {
+    if (typeof value === 'bigint') {
+      syrupWriter.writeInteger(value);
+    } else if (typeof value === 'boolean') {
+      syrupWriter.writeBoolean(value);
+    } else {
+      throw Error(`Expected integer or boolean, got ${typeof value}`);
+    }
+  },
+});
+
+const OpDeliver = new SyrupStructuredRecordCodecType(
   'op:deliver', [
   ['to', OCapNDeliverTargetCodec],
-  // TODO: list type, can be DescSigEnvelope
-  // see https://github.com/ocapn/ocapn/blob/main/implementation-guide/Implementation%20Guide.md#stage-2-promises-opdeliver-oplisten
-  ['args', 'list'],
-  ['answerPosition', 'integer'],
+  ['args', OpDeliverArgsCodec],
+  ['answerPosition', OpDeliverAnswerCodec],
   ['resolveMeDesc', OCapNResolveMeDescCodec],
 ])
 
-const OpAbort = new SyrupRecordCodecType(
+const OpAbort = new SyrupStructuredRecordCodecType(
   'op:abort', [
   ['reason', 'string'],
 ])
 
-const OpGcExport = new SyrupRecordCodecType(
+const OpGcExport = new SyrupStructuredRecordCodecType(
   'op:gc-export', [
   ['exportPosition', 'integer'],
   ['wireDelta', 'integer'],
 ])
 
-const OpGcAnswer = new SyrupRecordCodecType(
+const OpGcAnswer = new SyrupStructuredRecordCodecType(
   'op:gc-answer', [
   ['answerPosition', 'integer'],
 ])
 
-const OpGcSession = new SyrupRecordCodecType(
+const OpGcSession = new SyrupStructuredRecordCodecType(
   'op:gc-session', [
   ['session', 'bytestring'],
 ])

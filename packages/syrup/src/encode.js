@@ -233,6 +233,9 @@ export class SyrupWriter {
   constructor(bufferWriter) {
     this.bufferWriter = bufferWriter;
   }
+  writeAny(value) {
+    writeAny(this.bufferWriter, value, [], '/');
+  }
   writeSymbol(value) {
     writeSymbol(this.bufferWriter, value);
   }
@@ -265,6 +268,12 @@ export class SyrupWriter {
   }
   exitRecord() {
     this.bufferWriter.writeByte(RECORD_END);
+  }
+  enterList() {
+    this.bufferWriter.writeByte(LIST_START);
+  }
+  exitList() {
+    this.bufferWriter.writeByte(LIST_END);
   }
   /**
    * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'symbol'} type
