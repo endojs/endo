@@ -44,7 +44,7 @@ export interface RepairOptions {
     | 'safeEval'
     | 'unsafeEval'
     | 'noEval';
-  stackFiltering?: 'concise' | 'verbose';
+  stackFiltering?: 'concise' | 'omit-frames' | 'shorten-paths' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
