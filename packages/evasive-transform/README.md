@@ -17,11 +17,13 @@ import fs from 'node:fs/promises';
 const source = await fs.readFile('./dist/index.js', 'utf8');
 const sourceMap = await fs.readFile('./dist/index.js.map', 'utf8');
 const sourceUrl = 'index.js'; // assuming the source map references index.js
+// sourceType can be "script" (CJS) or "module" (ESM)
 const sourceType = 'script';
 
 const { code, map } = await evadeCensor(source, {
   sourceMap,
   sourceUrl,
+  // always provide a sourceType, if known!
   sourceType,
 });
 

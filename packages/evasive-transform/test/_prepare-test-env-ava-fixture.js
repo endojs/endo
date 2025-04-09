@@ -2,7 +2,19 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import url from 'url';
 
-import test from '@endo/ses-ava/prepare-endo.js';
+import someTest from '@endo/ses-ava/prepare-endo.js';
+
+/**
+ * @import {TestFn} from 'ava'
+ */
+
+/**
+ * For custom context
+ */
+const test =
+  /** @type {TestFn<{source: string, sourceMap: string, sourceUrl: string}>} */ (
+    someTest
+  );
 
 /**
  * Path to fixture's bundled source code

@@ -30,7 +30,7 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
 /**
  * Options for {@link generateCode} (no source map generated)
  *
- * @typedef GenerateAstOptionsWithoutSourceMap
+ * @typedef GenerateAstOptions
  * @property {string} [source]
  * @property {undefined} [sourceUrl] - This should be undefined or otherwise not provided
  * @internal
@@ -40,62 +40,70 @@ const generator = /** @type {typeof import('@babel/generator')['default']} */ (
  * The result of {@link generate}; depends on whether a `sourceUrl` was
  * provided to the options.
  *
- * @template {string|undefined} [SourceUrl=undefined]
- * @typedef {{code: string, map: SourceUrl extends string ? string : never}} TransformedResult
+ * @typedef {{code: string, map: undefined}} TransformedResult
+ * @internal
+ */
+
+/**
+ * The result of {@link generate}; depends on whether a `sourceUrl` was
+ * provided to the options.
+ *
+ * @typedef {TransformedResult & { map: NonNullable<import('@babel/generator').GeneratorResult['map']>}} TransformedResultWithSourceMap
  * @internal
  */
 
 /**
  * Generates new code from a Babel AST; returns code and source map
- *
- * @callback GenerateAstWithSourceMap
+ *@overload
  * @param {import('@babel/types').File} ast - Babel "File" AST
  * @param {GenerateAstOptionsWithSourceMap} options - Options for the transform
- * @returns {TransformedResult<string>}
+ * @returns {TransformedResultWithSourceMap}
+ * @internal
+ */
+
+/**
+ * Generates new code from a Babel AST; returns code only
+ *@overload
+ * @param {import('@babel/types').File} ast - Babel "File" AST
+ * @param {GenerateAstOptions} [options] - Options for the transform
+ * @returns {TransformedResult}
  * @internal
  */
 
 /**
  * Generates new code from a Babel AST; returns code only
  *
- * @callback GenerateAstWithoutSourceMap
  * @param {import('@babel/types').File} ast - Babel "File" AST
- * @param {GenerateAstOptionsWithoutSourceMap} [options] - Options for the transform
- * @returns {TransformedResult<undefined>}
+ * @param {GenerateAstOptions} [options] - Options for the transform
  * @internal
  */
-export const generate =
-  /** @type {GenerateAstWithSourceMap & GenerateAstWithoutSourceMap} */ (
-    (ast, options) => {
-      // TODO Use options?.sourceUrl when resolved:
-      // https://github.com/Agoric/agoric-sdk/issues/8671
-      const sourceUrl = options ? options.sourceUrl : undefined;
-      const inputSourceMap =
-        options && 'sourceMap' in options ? options.sourceMap : undefined;
-      const source = options ? options.source : undefined;
-      const result = generator(
-        ast,
-        {
-          sourceFileName: sourceUrl,
-          sourceMaps: Boolean(sourceUrl),
-          // @ts-expect-error Property missing on versioned types
-          inputSourceMap,
-          retainLines: true,
-          ...(source === undefined
-            ? {}
-            : { experimental_preserveFormat: true }),
-        },
-        source,
-      );
-
-      if (sourceUrl) {
-        return {
-          code: result.code,
-          map: result.map,
-        };
-      }
-      return {
-        code: result.code,
-      };
-    }
+export const generate = (ast, options) => {
+  // TODO Use options?.sourceUrl when resolved:
+  // https://github.com/Agoric/agoric-sdk/issues/8671
+  const sourceUrl = options ? options.sourceUrl : undefined;
+  const inputSourceMap =
+    options && 'sourceMap' in options ? options.sourceMap : undefined;
+  const source = options ? options.source : undefined;
+  const result = generator(
+    ast,
+    {
+      sourceFileName: sourceUrl,
+      sourceMaps: Boolean(sourceUrl),
+      // @ts-expect-error Property missing on versioned types
+      inputSourceMap,
+      retainLines: true,
+      ...(source === undefined ? {} : { experimental_preserveFormat: true }),
+    },
+    source,
   );
+
+  if (sourceUrl) {
+    return {
+      code: result.code,
+      map: result.map,
+    };
+  }
+  return {
+    code: result.code,
+  };
+};

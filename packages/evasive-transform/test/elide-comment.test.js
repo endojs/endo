@@ -35,7 +35,7 @@ test('evadeCensor with elideComments erases the interior of block comments', t =
       * Comment
       * @param {type} name
       */`,
-    { elideComments: true },
+    { elideComments: true, sourceType: 'script' },
   );
   t.is(
     object.code,
@@ -47,7 +47,10 @@ test('evadeCensor with elideComments erases the interior of block comments', t =
 });
 
 test('evadeCensor with elideComments elides line comments', t => {
-  const object = evadeCensorSync(`// hello`, { elideComments: true });
+  const object = evadeCensorSync(`// hello`, {
+    elideComments: true,
+    sourceType: 'script',
+  });
   t.is(object.code, `//`);
 });
 
@@ -64,6 +67,7 @@ test('evadeCensor with elideComments preserves jsdoc @preserve comments', t => {
    */`;
   const object = evadeCensorSync(comment, {
     elideComments: true,
+    sourceType: 'script',
   });
   t.is(object.code, comment);
 });
@@ -73,6 +77,7 @@ test('evadeCensor with elideComments preserves initial jsdoc @preserve comments'
    */`;
   const object = evadeCensorSync(comment, {
     elideComments: true,
+    sourceType: 'script',
   });
   t.is(object.code, comment);
 });
@@ -83,6 +88,7 @@ test('evadeCensor with elideComments preserves artless-but-valid jsdoc @preserve
   */`;
   const object = evadeCensorSync(comment, {
     elideComments: true,
+    sourceType: 'script',
   });
   t.is(object.code, comment);
 });
@@ -103,6 +109,7 @@ test('evadeCensor with elideComments preserves jsdoc @license comments', t => {
    */`;
   const object = evadeCensorSync(comment, {
     elideComments: true,
+    sourceType: 'script',
   });
   t.is(object.code, comment);
 });
@@ -113,6 +120,7 @@ test('evadeCensor with elideComments preserves jsdoc @cc_on comments', t => {
    */`;
   const object = evadeCensorSync(comment, {
     elideComments: true,
+    sourceType: 'script',
   });
   t.is(object.code, comment);
 });
@@ -123,6 +131,7 @@ test('evadeCensor with elideComments does not preserve jsdoc @copyrighteous comm
    */`;
   const object = evadeCensorSync(comment, {
     elideComments: true,
+    sourceType: 'script',
   });
   t.is(
     object.code,
@@ -143,6 +152,7 @@ test('evadeCensor with elideComments preserves automatically-inserted-semicolon 
   `;
   const object = evadeCensorSync(comment, {
     elideComments: true,
+    sourceType: 'script',
   });
   t.is((0, eval)(comment), undefined);
   t.is((0, eval)(object.code), undefined);
@@ -159,9 +169,12 @@ test('evadeCensor with stripComments preserves automatically-inserted-semicolon 
     })();
   `;
   const object = evadeCensorSync(comment, {
+    // @ts-expect-error no such thing
     stripComments: true,
+    sourceType: 'script',
   });
   t.is((0, eval)(comment), undefined);
+  // @ts-expect-error should not be a thing
   t.is((0, eval)(object.code), undefined);
 });
 
