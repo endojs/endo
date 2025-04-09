@@ -5,7 +5,7 @@
  */
 
 /**
- * @import {TransformedResult} from './generate.js'
+ * @import {TransformedResult, TransformedResultWithSourceMap} from './generate.js'
  */
 
 import { transformAst } from './transform-ast.js';
@@ -30,10 +30,33 @@ import { generate } from './generate.js';
  * If the `sourceUrl` option is provided, the `map` property of the fulfillment
  * value will be a source map object; otherwise it will be `undefined`.
  *
- * @template {EvadeCensorOptions} T
+ * @overload
  * @param {string} source - Source code to transform
- * @param {T} [options] - Options for the transform
- * @returns {TransformedResult<T['sourceUrl']>} Object containing new code and optionally source map object (ready for stringification)
+ * @param {EvadeCensorOptions & {sourceUrl: string}} options - Options for the transform
+ * @returns {TransformedResultWithSourceMap} Object containing new code and optionally source map object (ready for stringification)
+ * @public
+ */
+
+/**
+ * Apply SES censorship evasion transforms on the given code `source`
+ *
+ * If the `sourceUrl` option is provided, the `map` property of the fulfillment
+ * value will be a source map object; otherwise it will be `undefined`.
+ *
+ * @overload
+ * @param {string} source - Source code to transform
+ * @param {EvadeCensorOptions} [options] - Options for the transform
+ * @returns {TransformedResult} Object containing new code and optionally source map object (ready for stringification)
+ * @public
+ */
+/**
+ * Apply SES censorship evasion transforms on the given code `source`
+ *
+ * If the `sourceUrl` option is provided, the `map` property of the fulfillment
+ * value will be a source map object; otherwise it will be `undefined`.
+ *
+ * @param {string} source - Source code to transform
+ * @param {EvadeCensorOptions} [options] - Options for the transform
  * @public
  */
 export function evadeCensorSync(source, options) {
@@ -64,10 +87,34 @@ export function evadeCensorSync(source, options) {
  * If the `sourceUrl` option is provided, the `map` property of the fulfillment
  * value will be a source map object; otherwise it will be `undefined`.
  *
- * @template {EvadeCensorOptions} T
+ * @overload
  * @param {string} source - Source code to transform
- * @param {T} [options] - Options for the transform
- * @returns {Promise<TransformedResult<T['sourceUrl']>>} Object containing new code and optionally source map object (ready for stringification)
+ * @param {EvadeCensorOptions & {sourceUrl: string}} options - Options for the transform
+ * @returns {Promise<TransformedResultWithSourceMap>} Object containing new code and source map object (ready for stringification)
+ * @public
+ */
+
+/**
+ * Apply SES censorship evasion transforms on the given code `source`
+ *
+ * If the `sourceUrl` option is provided, the `map` property of the fulfillment
+ * value will be a source map object; otherwise it will be `undefined`.
+ *
+ * @overload
+ * @param {string} source - Source code to transform
+ * @param {EvadeCensorOptions} [options] - Options for the transform
+ * @returns {Promise<TransformedResult>} Object containing new code
+ * @public
+ */
+
+/**
+ * Apply SES censorship evasion transforms on the given code `source`
+ *
+ * If the `sourceUrl` option is provided, the `map` property of the fulfillment
+ * value will be a source map object; otherwise it will be `undefined`.
+ *
+ * @param {string} source - Source code to transform
+ * @param {EvadeCensorOptions} [options] - Options for the transform
  * @public
  */
 export async function evadeCensor(source, options) {

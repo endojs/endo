@@ -9,12 +9,10 @@ import * as babelParser from '@babel/parser';
 const { parse: parseBabel } = babelParser;
 
 /**
- * This is the same type as `@babel/parser`'s `ParserOptions['sourceType']`, but
+ * This is a subset of `@babel/parser`'s `ParserOptions['sourceType']`, but
  * re-implemented here for decoupling purposes.
  *
- * Still, this is likely Babel-specific.
- *
- * @typedef {'module'|'script'|'unambiguous'} SourceType
+ * @typedef {'module' | 'script'} SourceType
  * @public
  */
 
@@ -38,6 +36,7 @@ export function parseAst(source, opts = {}) {
   return parseBabel(source, {
     tokens: true,
     createParenthesizedExpressions: true,
+    allowReturnOutsideFunction: opts.sourceType === 'script',
     ...opts,
   });
 }

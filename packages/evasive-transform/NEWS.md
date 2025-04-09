@@ -1,5 +1,9 @@
 User-visible changes in `@endo/evasive-transform`:
 
+# Next release
+
+- The `sourceType` option is now restricted to `script` and `module` only. Function signature types have changed to be more precise.
+
 # v1.4.0 (2025-03-11)
 
 - Adds a `sourceMap` option so that the generated sourcemap can project back to

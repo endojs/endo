@@ -20,16 +20,25 @@ test('evadeCensor() - missing "source" arg', async t => {
 
 test('evadeCensor() - successful source transform', async t => {
   const { source } = t.context;
-  const { code, map } = evadeCensorSync(source);
+  const { code, map } = evadeCensorSync(source, { sourceType: 'script' });
 
   t.snapshot(stripLinefeeds(code));
   t.is(map, undefined);
+});
+
+test('evadeCensor() - disallowed return outside function in w/ non-script source type', async t => {
+  const { source } = t.context;
+  t.throws(() => evadeCensorSync(source), {
+    instanceOf: SyntaxError,
+    message: /'return' outside of function/,
+  });
 });
 
 test('evadeCensor() - successful source transform w/ source map', async t => {
   const { source, sourceMap } = t.context;
   const { code, map } = evadeCensorSync(source, {
     sourceMap,
+    sourceType: 'script',
   });
 
   t.snapshot(stripLinefeeds(code));
@@ -41,6 +50,7 @@ test('evadeCensor() - successful source transform w/ source map & source URL', a
   const { code, map } = evadeCensorSync(source, {
     sourceMap,
     sourceUrl,
+    sourceType: 'script',
   });
 
   t.snapshot(stripLinefeeds(code));
@@ -51,6 +61,7 @@ test('evadeCensor() - successful source transform w/ source URL', async t => {
   const { sourceUrl, source } = t.context;
   const { code, map } = evadeCensorSync(source, {
     sourceUrl,
+    sourceType: 'script',
   });
 
   t.snapshot(stripLinefeeds(code));
@@ -61,6 +72,7 @@ test('evadeCensor() - successful source transform w/ source map & unmapping', as
   const { sourceMap, source } = t.context;
   const { code, map } = evadeCensorSync(source, {
     sourceMap,
+    sourceType: 'script',
   });
 
   t.snapshot(stripLinefeeds(code));
@@ -72,6 +84,7 @@ test('evadeCensor() - successful source transform w/ source map, source URL & un
   const { code, map } = evadeCensorSync(source, {
     sourceMap,
     sourceUrl,
+    sourceType: 'script',
   });
 
   t.snapshot(stripLinefeeds(code));

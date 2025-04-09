@@ -19,3 +19,6 @@ function monkey() {
 exports.bambalam = bambalam;
 exports.monkey = monkey;
 //# sourceMappingURL=index.cjs.map
+
+// @ts-ignore
+return;
