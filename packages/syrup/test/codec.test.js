@@ -3,8 +3,11 @@
 import test from 'ava';
 import { makeSyrupReader } from '../src/decode.js';
 import { makeSyrupWriter } from '../src/encode.js';
-import { RecordUnionCodec, SyrupStringCodec, SyrupStructuredRecordCodecType } from '../src/codec.js';
-
+import {
+  RecordUnionCodec,
+  SyrupStringCodec,
+  SyrupStructuredRecordCodecType,
+} from '../src/codec.js';
 
 const testCodecBidirectionally = (t, codec, value) => {
   const writer = makeSyrupWriter();

@@ -1,52 +1,57 @@
-import { RecordUnionCodec, SyrupStructuredRecordCodecType, SimpleSyrupCodecType } from '../codec.js';
+import {
+  RecordUnionCodec,
+  SyrupStructuredRecordCodecType,
+  SimpleSyrupCodecType,
+} from '../codec.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 import { OCapNPassableUnionCodec } from './passable.js';
-import { DescImportObject, DescImportPromise, DescExport, DescAnswer } from './descriptors.js';
+import {
+  DescImportObject,
+  DescImportPromise,
+  DescExport,
+  DescAnswer,
+} from './descriptors.js';
 
 /*
  * These are OCapN Operations, they are messages that are sent between OCapN Nodes
  */
 
-const OpStartSession = new SyrupStructuredRecordCodecType(
-  'op:start-session', [
+const OpStartSession = new SyrupStructuredRecordCodecType('op:start-session', [
   ['captpVersion', 'string'],
   ['sessionPublicKey', OCapNPublicKey],
   ['location', OCapNNode],
   ['locationSignature', OCapNSignature],
-])
+]);
 
 const OCapNResolveMeDescCodec = new RecordUnionCodec({
   DescImportObject,
   DescImportPromise,
 });
 
-const OpListen = new SyrupStructuredRecordCodecType(
-  'op:listen', [
+const OpListen = new SyrupStructuredRecordCodecType('op:listen', [
   ['to', DescExport],
   ['resolveMeDesc', OCapNResolveMeDescCodec],
   ['wantsPartial', 'boolean'],
-])
+]);
 
 const OCapNDeliverTargets = {
   DescExport,
   DescAnswer,
-}
+};
 
 const OCapNDeliverTargetCodec = new RecordUnionCodec(OCapNDeliverTargets);
 
 // Used by the deliver and deliver-only operations
 // First arg is method name, rest are Passables
 const OpDeliverArgsCodec = new SimpleSyrupCodecType({
-  unmarshal: (syrupReader) => {
+  unmarshal: syrupReader => {
     syrupReader.enterList();
     const result = [
       // method name
       syrupReader.readSymbolAsString(),
     ];
     while (!syrupReader.peekListEnd()) {
-      result.push(
-        OCapNPassableUnionCodec.unmarshal(syrupReader)
-      )
+      result.push(OCapNPassableUnionCodec.unmarshal(syrupReader));
     }
     syrupReader.exitList();
     return result;
@@ -59,16 +64,15 @@ const OpDeliverArgsCodec = new SimpleSyrupCodecType({
     }
     syrupWriter.exitList();
   },
-})
+});
 
-const OpDeliverOnly = new SyrupStructuredRecordCodecType(
-  'op:deliver-only', [
+const OpDeliverOnly = new SyrupStructuredRecordCodecType('op:deliver-only', [
   ['to', OCapNDeliverTargetCodec],
   ['args', OpDeliverArgsCodec],
-])
+]);
 
 const OpDeliverAnswerCodec = new SimpleSyrupCodecType({
-  unmarshal: (syrupReader) => {
+  unmarshal: syrupReader => {
     const typeHint = syrupReader.peekTypeHint();
     if (typeHint === 'number-prefix') {
       // should be an integer
@@ -90,41 +94,36 @@ const OpDeliverAnswerCodec = new SimpleSyrupCodecType({
   },
 });
 
-const OpDeliver = new SyrupStructuredRecordCodecType(
-  'op:deliver', [
+const OpDeliver = new SyrupStructuredRecordCodecType('op:deliver', [
   ['to', OCapNDeliverTargetCodec],
   ['args', OpDeliverArgsCodec],
   ['answerPosition', OpDeliverAnswerCodec],
   ['resolveMeDesc', OCapNResolveMeDescCodec],
-])
+]);
 
 const OCapNPromiseRefCodec = new RecordUnionCodec({
   DescAnswer,
   DescImportPromise,
 });
 
-const OpPick = new SyrupStructuredRecordCodecType(
-  'op:pick', [
+const OpPick = new SyrupStructuredRecordCodecType('op:pick', [
   ['promisePosition', OCapNPromiseRefCodec],
   ['selectedValuePosition', 'integer'],
   ['newAnswerPosition', 'integer'],
-])
+]);
 
-const OpAbort = new SyrupStructuredRecordCodecType(
-  'op:abort', [
+const OpAbort = new SyrupStructuredRecordCodecType('op:abort', [
   ['reason', 'string'],
-])
+]);
 
-const OpGcExport = new SyrupStructuredRecordCodecType(
-  'op:gc-export', [
+const OpGcExport = new SyrupStructuredRecordCodecType('op:gc-export', [
   ['exportPosition', 'integer'],
   ['wireDelta', 'integer'],
-])
+]);
 
-const OpGcAnswer = new SyrupStructuredRecordCodecType(
-  'op:gc-answer', [
+const OpGcAnswer = new SyrupStructuredRecordCodecType('op:gc-answer', [
   ['answerPosition', 'integer'],
-])
+]);
 
 export const OCapNMessageUnionCodec = new RecordUnionCodec({
   OpStartSession,
@@ -137,12 +136,11 @@ export const OCapNMessageUnionCodec = new RecordUnionCodec({
   OpGcAnswer,
 });
 
-export const readOCapNMessage = (syrupReader) => {
+export const readOCapNMessage = syrupReader => {
   return OCapNMessageUnionCodec.unmarshal(syrupReader);
-}
+};
 
 export const writeOCapNMessage = (message, syrupWriter) => {
   OCapNMessageUnionCodec.marshal(message, syrupWriter);
   return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
-}
-
+};

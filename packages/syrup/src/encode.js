@@ -52,7 +52,7 @@ function writeString(bufferWriter, value) {
  */
 function writeSymbol(bufferWriter, value) {
   const bytes = textEncoder.encode(value);
-  writeStringlike(bufferWriter, bytes, '\'');
+  writeStringlike(bufferWriter, bytes, "'");
 }
 
 /**
@@ -83,7 +83,9 @@ function writeDictionary(bufferWriter, record, path) {
       writeSymbol(bufferWriter, syrupSymbol);
       return;
     }
-    throw TypeError(`Dictionary keys must be strings or symbols, got ${typeof key} at ${path.join('/')}`);
+    throw TypeError(
+      `Dictionary keys must be strings or symbols, got ${typeof key} at ${path.join('/')}`,
+    );
   };
 
   // We need to sort the keys, so we write them to a scratch buffer first
@@ -233,48 +235,51 @@ export class SyrupWriter {
   constructor(bufferWriter) {
     this.bufferWriter = bufferWriter;
   }
+
   writeAny(value) {
     writeAny(this.bufferWriter, value, [], '/');
   }
+
   writeSymbol(value) {
     writeSymbol(this.bufferWriter, value);
   }
+
   writeString(value) {
     writeString(this.bufferWriter, value);
   }
+
   writeBytestring(value) {
     writeBytestring(this.bufferWriter, value);
   }
+
   writeBoolean(value) {
     writeBoolean(this.bufferWriter, value);
   }
+
   writeInteger(value) {
     writeInteger(this.bufferWriter, value);
   }
+
   writeDouble(value) {
     writeDouble(this.bufferWriter, value);
   }
-  // writeList(value) {
-  //   writeList(this.bufferWriter, value, []);
-  // }
-  // writeDictionary(value) {
-  //   writeDictionary(this.bufferWriter, value, []);
-  // }
-  // writeRecord(value) {
-  //   throw Error('writeRecord is not implemented');
-  // }
+
   enterRecord() {
     this.bufferWriter.writeByte(RECORD_START);
   }
+
   exitRecord() {
     this.bufferWriter.writeByte(RECORD_END);
   }
+
   enterList() {
     this.bufferWriter.writeByte(LIST_START);
   }
+
   exitList() {
     this.bufferWriter.writeByte(LIST_END);
   }
+
   /**
    * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'symbol'} type
    * @param {any} value

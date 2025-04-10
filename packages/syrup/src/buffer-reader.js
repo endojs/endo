@@ -49,7 +49,9 @@ export class BufferReader {
     fields.offset = bytes.byteOffset;
     // Temporary check until we can handle non-zero byteOffset
     if (fields.offset !== 0) {
-      throw Error('Cannot create BufferReader from Uint8Array with a non-zero byteOffset');
+      throw Error(
+        'Cannot create BufferReader from Uint8Array with a non-zero byteOffset',
+      );
     }
     return reader;
   }
@@ -263,7 +265,10 @@ export class BufferReader {
   bytesAt(index, size) {
     this.assertCanSeek(index + size);
     const fields = privateFieldsGet(this);
-    return fields.bytes.subarray(fields.offset + index, fields.offset + index + size);
+    return fields.bytes.subarray(
+      fields.offset + index,
+      fields.offset + index + size,
+    );
   }
 
   /**

@@ -1,53 +1,65 @@
-const sym = (s) => `${s.length}'${s}`;
-const str = (s) => `${s.length}"${s}`;
-const bts = (s) => `${s.length}:${s}`;
-const bool = (b) => b ? 't' : 'f';
-const int = (i) => `${Math.floor(Math.abs(i))}${i < 0 ? '-' : '+'}`;
-const list = (items) => `[${items.join('')}]`;
+const sym = s => `${s.length}'${s}`;
+const str = s => `${s.length}"${s}`;
+const bts = s => `${s.length}:${s}`;
+const bool = b => (b ? 't' : 'f');
+const int = i => `${Math.floor(Math.abs(i))}${i < 0 ? '-' : '+'}`;
+const list = items => `[${items.join('')}]`;
 const makeNode = (transport, address, hints) => {
   return `<10'ocapn-node${sym(transport)}${bts(address)}${bool(hints)}>`;
-}
+};
 
 const makePubKey = (scheme, curve, flags, q) => {
   return `<${sym('public-key')}${sym(scheme)}${sym(curve)}${sym(flags)}${bts(q)}>`;
-}
+};
 
 const makeSigComp = (label, value) => {
   return `${sym(label)}${bts(value)}`;
-}
+};
 
 const makeSig = (scheme, r, s) => {
   return `<${sym('sig-val')}${sym(scheme)}${makeSigComp('r', r)}${makeSigComp('s', s)}>`;
-}
+};
 
-const makeExport = (position) => {
+const makeExport = position => {
   return `<${sym('desc:export')}${int(position)}>`;
-}
+};
 
-const makeImportObj = (position) => {
+const makeImportObj = position => {
   return `<${sym('desc:import-object')}${int(position)}>`;
-}
+};
 
-const makeImportPromise = (position) => {
+const makeImportPromise = position => {
   return `<${sym('desc:import-promise')}${int(position)}>`;
-}
+};
 
-const makeDescGive = (receiverKey, exporterLocation, session, gifterSide, giftId) => {
+const makeDescGive = (
+  receiverKey,
+  exporterLocation,
+  session,
+  gifterSide,
+  giftId,
+) => {
   return `<${sym('desc:handoff-give')}${receiverKey}${exporterLocation}${bts(session)}${gifterSide}${bts(giftId)}>`;
-}
+};
 
 const makeSigEnvelope = (object, signature) => {
   return `<${sym('desc:sig-envelope')}${object}${signature}>`;
-}
+};
 
-const makeHandoffReceive = (recieverSession, recieverSide, handoffCount, descGive, signature) => {
+const makeHandoffReceive = (
+  recieverSession,
+  recieverSide,
+  handoffCount,
+  descGive,
+  signature,
+) => {
   const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
   return `<${sym('desc:handoff-receive')}${bts(recieverSession)}${bts(recieverSide)}${int(handoffCount)}${signedGiveEnvelope}>`;
-}
+};
 
-const strToUint8Array = (str) => {
+const strToUint8Array = str => {
   return new Uint8Array(str.split('').map(c => c.charCodeAt(0)));
-}
+};
 
 // I made up these syrup values by hand, they may be wrong, sorry.
 // Would like external test data for this.
@@ -59,8 +71,8 @@ export const componentsTable = [
       type: 'sig-val',
       scheme: 'eddsa',
       r: new Uint8Array([0x31]),
-      s: new Uint8Array([0x32])
-    }
+      s: new Uint8Array([0x32]),
+    },
   },
   {
     syrup: `<10'ocapn-node3'tcp1:0f>`,
@@ -68,8 +80,8 @@ export const componentsTable = [
       type: 'ocapn-node',
       transport: 'tcp',
       address: new Uint8Array([0x30]),
-      hints: false
-    }
+      hints: false,
+    },
   },
   {
     syrup: `<15'ocapn-sturdyref${makeNode('tcp', '0', false)}${str('1')}>`,
@@ -79,10 +91,10 @@ export const componentsTable = [
         type: 'ocapn-node',
         transport: 'tcp',
         address: new Uint8Array([0x30]),
-        hints: false
+        hints: false,
       },
-      swissNum: '1'
-    }
+      swissNum: '1',
+    },
   },
   {
     syrup: makePubKey('ecc', 'Ed25519', 'eddsa', '1'),
@@ -91,8 +103,8 @@ export const componentsTable = [
       scheme: 'ecc',
       curve: 'Ed25519',
       flags: 'eddsa',
-      q: strToUint8Array('1')
-    }
+      q: strToUint8Array('1'),
+    },
   },
 ];
 
@@ -101,40 +113,48 @@ export const descriptorsTable = [
     syrup: `<18'desc:import-object123+>`,
     value: {
       type: 'desc:import-object',
-      position: 123n
-    }
+      position: 123n,
+    },
   },
   {
     syrup: `<19'desc:import-promise456+>`,
     value: {
       type: 'desc:import-promise',
-      position: 456n
-    }
+      position: 456n,
+    },
   },
   {
     syrup: `<11'desc:export123+>`,
     value: {
       type: 'desc:export',
-      position: 123n
-    }
+      position: 123n,
+    },
   },
   {
     syrup: `<11'desc:answer456+>`,
     value: {
       type: 'desc:answer',
-      position: 456n
-    }
+      position: 456n,
+    },
   },
   {
     syrup: `<${sym('desc:handoff-give')}${makePubKey('ecc', 'Ed25519', 'eddsa', '1')}${makeNode('tcp', '127.0.0.1', false)}${bts('123')}${makePubKey('ecc', 'Ed25519', 'eddsa', '2')}${bts('456')}>`,
     value: {
       type: 'desc:handoff-give',
-      receiverKey: { type: 'public-key', scheme: 'ecc', curve: 'Ed25519', flags: 'eddsa', q: new Uint8Array([0x31]) },
+      receiverKey: {
+        type: 'public-key',
+        scheme: 'ecc',
+        curve: 'Ed25519',
+        flags: 'eddsa',
+        q: new Uint8Array([0x31]),
+      },
       exporterLocation: {
         type: 'ocapn-node',
         transport: 'tcp',
-        address: new Uint8Array([0x31, 0x32, 0x37, 0x2e, 0x30, 0x2e, 0x30, 0x2e, 0x31]),
-        hints: false
+        address: new Uint8Array([
+          0x31, 0x32, 0x37, 0x2e, 0x30, 0x2e, 0x30, 0x2e, 0x31,
+        ]),
+        hints: false,
       },
       session: new Uint8Array([0x31, 0x32, 0x33]),
       gifterSide: {
@@ -142,10 +162,10 @@ export const descriptorsTable = [
         scheme: 'ecc',
         curve: 'Ed25519',
         flags: 'eddsa',
-        q: new Uint8Array([0x32])
+        q: new Uint8Array([0x32]),
       },
-      giftId: new Uint8Array([0x34, 0x35, 0x36])
-    }
+      giftId: new Uint8Array([0x34, 0x35, 0x36]),
+    },
   },
   {
     syrup: `<${sym('desc:sig-envelope')}${makeDescGive(
@@ -153,7 +173,7 @@ export const descriptorsTable = [
       makeNode('tcp', '127.0.0.1', false),
       '123',
       makePubKey('ed25519', 'ed25519', 'ed25519', '123'),
-      '123'
+      '123',
     )}${makeSig('eddsa', '1', '2')}>`,
     value: {
       type: 'desc:sig-envelope',
@@ -164,13 +184,13 @@ export const descriptorsTable = [
           scheme: 'ed25519',
           curve: 'ed25519',
           flags: 'ed25519',
-          q: strToUint8Array('123')
+          q: strToUint8Array('123'),
         },
         exporterLocation: {
           type: 'ocapn-node',
           transport: 'tcp',
           address: strToUint8Array('127.0.0.1'),
-          hints: false
+          hints: false,
         },
         session: strToUint8Array('123'),
         gifterSide: {
@@ -178,17 +198,17 @@ export const descriptorsTable = [
           scheme: 'ed25519',
           curve: 'ed25519',
           flags: 'ed25519',
-          q: strToUint8Array('123')
+          q: strToUint8Array('123'),
         },
-        giftId: strToUint8Array('123')
+        giftId: strToUint8Array('123'),
       },
       signature: {
         type: 'sig-val',
         scheme: 'eddsa',
         r: strToUint8Array('1'),
-        s: strToUint8Array('2')
-      }
-    }
+        s: strToUint8Array('2'),
+      },
+    },
   },
   // handoff receive
   {
@@ -198,9 +218,9 @@ export const descriptorsTable = [
         makeNode('tcp', '456', false),
         '789',
         makePubKey('ecc', 'Ed25519', 'eddsa', 'abc'),
-        'def'
+        'def',
       ),
-      makeSig('eddsa', '1', '2')
+      makeSig('eddsa', '1', '2'),
     )}>`,
     value: {
       type: 'desc:handoff-receive',
@@ -216,13 +236,13 @@ export const descriptorsTable = [
             scheme: 'ecc',
             curve: 'Ed25519',
             flags: 'eddsa',
-            q: strToUint8Array('123')
+            q: strToUint8Array('123'),
           },
           exporterLocation: {
             type: 'ocapn-node',
             transport: 'tcp',
             address: strToUint8Array('456'),
-            hints: false
+            hints: false,
           },
           session: strToUint8Array('789'),
           gifterSide: {
@@ -230,19 +250,19 @@ export const descriptorsTable = [
             scheme: 'ecc',
             curve: 'Ed25519',
             flags: 'eddsa',
-            q: strToUint8Array('abc')
+            q: strToUint8Array('abc'),
           },
-          giftId: strToUint8Array('def')
+          giftId: strToUint8Array('def'),
         },
         signature: {
           type: 'sig-val',
           scheme: 'eddsa',
           r: strToUint8Array('1'),
-          s: strToUint8Array('2')
-        }
-      }
-    }
-  }
+          s: strToUint8Array('2'),
+        },
+      },
+    },
+  },
 ];
 
 export const operationsTable = [
@@ -260,21 +280,21 @@ export const operationsTable = [
         scheme: 'ecc',
         curve: 'Ed25519',
         flags: 'eddsa',
-        q: strToUint8Array('123')
+        q: strToUint8Array('123'),
       },
       location: {
         type: 'ocapn-node',
         transport: 'tcp',
         address: strToUint8Array('127.0.0.1'),
-        hints: false
+        hints: false,
       },
       locationSignature: {
         type: 'sig-val',
         scheme: 'eddsa',
         r: strToUint8Array('1'),
-        s: strToUint8Array('2')
-      }
-    }
+        s: strToUint8Array('2'),
+      },
+    },
   },
   {
     // <op:deliver-only <desc:export 1> ['fulfill <desc:import-object 1>]>
@@ -283,16 +303,16 @@ export const operationsTable = [
       type: 'op:deliver-only',
       to: {
         type: 'desc:export',
-        position: 1n
+        position: 1n,
       },
       args: [
         'fulfill',
         {
           type: 'desc:import-object',
-          position: 1n
-        }
-      ]
-    }
+          position: 1n,
+        },
+      ],
+    },
   },
   {
     // <op:deliver-only <desc:export 0>               ; Remote bootstrap object
@@ -304,14 +324,10 @@ export const operationsTable = [
       type: 'op:deliver-only',
       to: {
         type: 'desc:export',
-        position: 0n
+        position: 0n,
       },
-      args: [
-        'deposit-gift',
-        42n,
-        { type: 'desc:import-object', position: 1n }
-      ]
-    }
+      args: ['deposit-gift', 42n, { type: 'desc:import-object', position: 1n }],
+    },
   },
   {
     // <op:deliver <desc:export 5> ['make-car-factory] 3 <desc:import-object 15>>
@@ -320,15 +336,15 @@ export const operationsTable = [
       type: 'op:deliver',
       to: {
         type: 'desc:export',
-        position: 5n
+        position: 5n,
       },
       args: ['make-car-factory'],
       answerPosition: 3n,
       resolveMeDesc: {
         type: 'desc:import-object',
-        position: 15n
+        position: 15n,
       },
-    }
+    },
   },
   {
     // <op:deliver <desc:export 1> ['beep] false <desc:import-object 2>>
@@ -337,15 +353,15 @@ export const operationsTable = [
       type: 'op:deliver',
       to: {
         type: 'desc:export',
-        position: 1n
+        position: 1n,
       },
       args: ['beep'],
       answerPosition: false,
       resolveMeDesc: {
         type: 'desc:import-object',
-        position: 2n
-      }
-    }
+        position: 2n,
+      },
+    },
   },
   {
     // <op:deliver <desc:export 0>          ; Remote bootstrap object
@@ -355,7 +371,7 @@ export const operationsTable = [
     //             <desc:import-object 5>>  ; object exported by us at position 5 should provide the answer
     syrup: `<${sym('op:deliver')}${makeExport(0)}${list([
       sym('fetch'),
-      bts('swiss-number')
+      bts('swiss-number'),
     ])}${int(3)}${makeImportObj(5)}>`,
     value: {
       type: 'op:deliver',
@@ -364,9 +380,9 @@ export const operationsTable = [
       answerPosition: 3n,
       resolveMeDesc: {
         type: 'desc:import-object',
-        position: 5n
-      }
-    }
+        position: 5n,
+      },
+    },
   },
   {
     // <op:deliver <desc:export 0>           ; Remote bootstrap object
@@ -385,10 +401,10 @@ export const operationsTable = [
           makeNode('tcp', '456', false),
           '789',
           makePubKey('ecc', 'Ed25519', 'eddsa', 'abc'),
-          'def'
+          'def',
         ),
-        makeSig('eddsa', '1', '2')
-      )
+        makeSig('eddsa', '1', '2'),
+      ),
     ])}${int(1)}${makeImportObj(3)}>`,
     value: {
       type: 'op:deliver',
@@ -409,13 +425,13 @@ export const operationsTable = [
                 scheme: 'ecc',
                 curve: 'Ed25519',
                 flags: 'eddsa',
-                q: strToUint8Array('123')
+                q: strToUint8Array('123'),
               },
               exporterLocation: {
                 type: 'ocapn-node',
                 transport: 'tcp',
                 address: strToUint8Array('456'),
-                hints: false
+                hints: false,
               },
               session: strToUint8Array('789'),
               gifterSide: {
@@ -423,24 +439,24 @@ export const operationsTable = [
                 scheme: 'ecc',
                 curve: 'Ed25519',
                 flags: 'eddsa',
-                q: strToUint8Array('abc')
+                q: strToUint8Array('abc'),
               },
-              giftId: strToUint8Array('def')
+              giftId: strToUint8Array('def'),
             },
             signature: {
               type: 'sig-val',
               scheme: 'eddsa',
               r: strToUint8Array('1'),
-              s: strToUint8Array('2')
-            }
+              s: strToUint8Array('2'),
+            },
           },
-        }
+        },
       ],
       answerPosition: 1n,
       resolveMeDesc: {
         type: 'desc:import-object',
-        position: 3n
-      }
+        position: 3n,
+      },
     },
   },
   {
@@ -452,19 +468,19 @@ export const operationsTable = [
       type: 'op:pick',
       promisePosition: {
         type: 'desc:import-promise',
-        position: 1n
+        position: 1n,
       },
       selectedValuePosition: 2n,
-      newAnswerPosition: 3n
-    }
+      newAnswerPosition: 3n,
+    },
   },
   {
     // <op:abort reason>  ; reason: String
     syrup: `<${sym('op:abort')}${str('explode')}>`,
     value: {
       type: 'op:abort',
-      reason: 'explode'
-    }
+      reason: 'explode',
+    },
   },
   {
     // <op:listen to-desc           ; desc:export | desc:answer
@@ -475,8 +491,8 @@ export const operationsTable = [
       type: 'op:listen',
       to: { type: 'desc:export', position: 1n },
       resolveMeDesc: { type: 'desc:import-object', position: 2n },
-      wantsPartial: false
-    }
+      wantsPartial: false,
+    },
   },
   {
     // <op:gc-export export-pos   ; positive integer
@@ -485,15 +501,15 @@ export const operationsTable = [
     value: {
       type: 'op:gc-export',
       exportPosition: 1n,
-      wireDelta: 2n
-    }
+      wireDelta: 2n,
+    },
   },
   {
     // <op:gc-answer answer-pos>  ; answer-pos: positive integer
     syrup: `<${sym('op:gc-answer')}${int(1)}>`,
     value: {
       type: 'op:gc-answer',
-      answerPosition: 1n
-    }
+      answerPosition: 1n,
+    },
   },
 ];

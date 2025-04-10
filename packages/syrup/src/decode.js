@@ -29,8 +29,8 @@ const textDecoder = new TextDecoder();
 
 const { defineProperty, freeze } = Object;
 
-const quote = (o) => JSON.stringify(o);
-const toChar = (code) => String.fromCharCode(code);
+const quote = o => JSON.stringify(o);
+const toChar = code => String.fromCharCode(code);
 
 const canonicalNaN64 = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 const canonicalZero64 = freeze([0, 0, 0, 0, 0, 0, 0, 0]);
@@ -48,7 +48,9 @@ function readBoolean(bufferReader, name) {
   if (cc === FALSE) {
     return false;
   }
-  throw Error(`Unexpected byte ${quote(toChar(cc))}, Syrup booleans must start with ${quote(toChar(TRUE))} or ${quote(toChar(FALSE))} at index ${bufferReader.index} of ${name}`);
+  throw Error(
+    `Unexpected byte ${quote(toChar(cc))}, Syrup booleans must start with ${quote(toChar(TRUE))} or ${quote(toChar(FALSE))} at index ${bufferReader.index} of ${name}`,
+  );
 }
 
 // Structure types, no value provided
@@ -98,7 +100,9 @@ function readTypeAndMaybeValue(bufferReader, name) {
   }
   // Number-prefixed types, read value
   if (cc < ZERO || cc > NINE) {
-    throw Error(`Unexpected character ${quote(toChar(cc))}, at index ${bufferReader.index} of ${name}`);
+    throw Error(
+      `Unexpected character ${quote(toChar(cc))}, at index ${bufferReader.index} of ${name}`,
+    );
   }
   // Parse number-prefix
   let end;
@@ -136,7 +140,9 @@ function readTypeAndMaybeValue(bufferReader, name) {
     const valueBytes = bufferReader.read(number);
     return { type: 'symbol', value: textDecoder.decode(valueBytes) };
   }
-  throw Error(`Unexpected character ${quote(toChar(typeByte))}, at index ${bufferReader.index} of ${name}`);
+  throw Error(
+    `Unexpected character ${quote(toChar(typeByte))}, at index ${bufferReader.index} of ${name}`,
+  );
 }
 
 /**
@@ -208,7 +214,7 @@ function readFloat64Body(bufferReader, name) {
     // @ts-expect-error canonicalNaN64 is a frozen array, not a Uint8Array
     if (!bufferReader.matchAt(start, canonicalNaN64)) {
       throw Error(`Non-canonical NaN at index ${start} of Syrup ${name}`);
-    } 
+    }
   }
 
   return value;
@@ -221,7 +227,8 @@ function readFloat64Body(bufferReader, name) {
 function readFloat64(bufferReader, name) {
   const cc = bufferReader.readByte();
   if (cc !== DOUBLE) {
-    throw Error(`Unexpected character ${quote(toChar(cc))}, at index ${bufferReader.index} of ${name}`,
+    throw Error(
+      `Unexpected character ${quote(toChar(cc))}, at index ${bufferReader.index} of ${name}`,
     );
   }
   return readFloat64Body(bufferReader, name);
@@ -239,7 +246,7 @@ function readListBody(bufferReader, name) {
       bufferReader.skip(1);
       return list;
     }
-      
+
     list.push(readAny(bufferReader, name));
   }
 }
@@ -250,9 +257,11 @@ function readListBody(bufferReader, name) {
  * @returns {any[]}
  */
 function readList(bufferReader, name) {
-  let cc = bufferReader.readByte();
+  const cc = bufferReader.readByte();
   if (cc !== LIST_START) {
-    throw Error(`Unexpected byte ${quote(toChar(cc))}, Syrup lists must start with ${quote(toChar(LIST_START))} at index ${bufferReader.index} of ${name}`);
+    throw Error(
+      `Unexpected byte ${quote(toChar(cc))}, Syrup lists must start with ${quote(toChar(LIST_START))} at index ${bufferReader.index} of ${name}`,
+    );
   }
   return readListBody(bufferReader, name);
 }
@@ -273,9 +282,10 @@ function readDictionaryKey(bufferReader, name) {
     }
     return { value, type, bytes };
   }
-  throw Error(`Unexpected type ${quote(type)}, Syrup dictionary keys must be strings or symbols at index ${start} of ${name}`);
+  throw Error(
+    `Unexpected type ${quote(type)}, Syrup dictionary keys must be strings or symbols at index ${start} of ${name}`,
+  );
 }
-
 
 /**
  * @param {BufferReader} bufferReader
@@ -283,8 +293,8 @@ function readDictionaryKey(bufferReader, name) {
  */
 function readDictionaryBody(bufferReader, name) {
   const dict = {};
-  let priorKey = undefined;
-  let priorKeyBytes = undefined;
+  let priorKey;
+  let priorKeyBytes;
   for (;;) {
     // Check for end of dictionary
     if (bufferReader.peekByte() === DICT_END) {
@@ -293,7 +303,10 @@ function readDictionaryBody(bufferReader, name) {
     }
     // Read key
     const start = bufferReader.index;
-    const { value: newKey, bytes: newKeyBytes } = readDictionaryKey(bufferReader, name);
+    const { value: newKey, bytes: newKeyBytes } = readDictionaryKey(
+      bufferReader,
+      name,
+    );
 
     // Validate strictly non-descending keys.
     if (priorKeyBytes !== undefined) {
@@ -341,9 +354,11 @@ function readDictionaryBody(bufferReader, name) {
  */
 function readDictionary(bufferReader, name) {
   const start = bufferReader.index;
-  let cc = bufferReader.readByte();
+  const cc = bufferReader.readByte();
   if (cc !== DICT_START) {
-    throw Error(`Unexpected character ${quote(toChar(cc))}, Syrup dictionaries must start with ${quote(toChar(DICT_START))} at index ${start} of ${name}`);
+    throw Error(
+      `Unexpected character ${quote(toChar(cc))}, Syrup dictionaries must start with ${quote(toChar(DICT_START))} at index ${start} of ${name}`,
+    );
   }
   return readDictionaryBody(bufferReader, name);
 }
@@ -356,7 +371,7 @@ function readDictionary(bufferReader, name) {
 export function peekTypeHint(bufferReader, name) {
   const cc = bufferReader.peekByte();
   if (cc >= ZERO && cc <= NINE) {
-    return 'number-prefix'
+    return 'number-prefix';
   }
   if (cc === TRUE || cc === FALSE) {
     return 'boolean';
@@ -407,7 +422,7 @@ function readAny(bufferReader, name) {
   if (type === 'symbol') {
     return SyrupSymbolFor(value);
   }
-  
+
   return value;
 }
 
@@ -441,15 +456,21 @@ export class SyrupReader {
     const start = this.bufferReader.index;
     const cc = this.bufferReader.readByte();
     if (cc !== expectedByte) {
-      throw Error(`Unexpected character ${quote(toChar(cc))}, expected ${quote(toChar(expectedByte))} at index ${start} of ${this.name}`);
+      throw Error(
+        `Unexpected character ${quote(toChar(cc))}, expected ${quote(toChar(expectedByte))} at index ${start} of ${this.name}`,
+      );
     }
   }
+
   /**
    * @param {string} type
    */
   #_pushStackEntry(type) {
-    this.state.stack.push(new SyrupReaderStackEntry(type, this.bufferReader.index));
+    this.state.stack.push(
+      new SyrupReaderStackEntry(type, this.bufferReader.index),
+    );
   }
+
   /**
    * @param {string} expectedType
    */
@@ -457,10 +478,14 @@ export class SyrupReader {
     const start = this.bufferReader.index;
     const stackEntry = this.state.stack.pop();
     if (!stackEntry) {
-      throw Error(`Attempted to exit ${expectedType} without entering it at index ${start} of ${this.name}`);
+      throw Error(
+        `Attempted to exit ${expectedType} without entering it at index ${start} of ${this.name}`,
+      );
     }
     if (stackEntry.type !== expectedType) {
-      throw Error(`Attempted to exit ${expectedType} while in a ${stackEntry.type} at index ${start} of ${this.name}`);
+      throw Error(
+        `Attempted to exit ${expectedType} while in a ${stackEntry.type} at index ${start} of ${this.name}`,
+      );
     }
   }
 
@@ -468,10 +493,12 @@ export class SyrupReader {
     this.#_readAndAssertByte(RECORD_START);
     this.#_pushStackEntry('record');
   }
+
   exitRecord() {
     this.#_readAndAssertByte(RECORD_END);
     this.#_popStackEntry('record');
   }
+
   peekRecordEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === RECORD_END;
@@ -481,10 +508,12 @@ export class SyrupReader {
     this.#_readAndAssertByte(DICT_START);
     this.#_pushStackEntry('dictionary');
   }
+
   exitDictionary() {
     this.#_readAndAssertByte(DICT_END);
     this.#_popStackEntry('dictionary');
   }
+
   peekDictionaryEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === DICT_END;
@@ -494,10 +523,12 @@ export class SyrupReader {
     this.#_readAndAssertByte(LIST_START);
     this.#_pushStackEntry('list');
   }
+
   exitList() {
     this.#_readAndAssertByte(LIST_END);
     this.#_popStackEntry('list');
   }
+
   peekListEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === LIST_END;
@@ -507,10 +538,12 @@ export class SyrupReader {
     this.#_readAndAssertByte(SET_START);
     this.#_pushStackEntry('set');
   }
+
   exitSet() {
     this.#_readAndAssertByte(SET_END);
     this.#_popStackEntry('set');
   }
+
   peekSetEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === SET_END;
@@ -519,24 +552,31 @@ export class SyrupReader {
   readBoolean() {
     return readBoolean(this.bufferReader, this.name);
   }
+
   readInteger() {
     return readInteger(this.bufferReader, this.name);
   }
+
   readFloat64() {
     return readFloat64(this.bufferReader, this.name);
   }
+
   readString() {
     return readString(this.bufferReader, this.name);
   }
+
   readBytestring() {
     return readBytestring(this.bufferReader, this.name);
   }
+
   readSymbolAsString() {
     return readSymbolAsString(this.bufferReader, this.name);
   }
+
   readAny() {
     return readAny(this.bufferReader, this.name);
   }
+
   /**
    * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'symbol'} type
    * @returns {any}
@@ -559,6 +599,7 @@ export class SyrupReader {
         throw Error(`Unexpected type ${type}`);
     }
   }
+
   peekTypeHint() {
     return peekTypeHint(this.bufferReader, this.name);
   }
@@ -587,7 +628,9 @@ export function decodeSyrup(bytes, options = {}) {
     return readAny(bufferReader, name);
   } catch (err) {
     if (err.code === 'EOD') {
-      const err2 = Error(`Unexpected end of Syrup at index ${bufferReader.length} of ${name}`)
+      const err2 = Error(
+        `Unexpected end of Syrup at index ${bufferReader.length} of ${name}`,
+      );
       err2.cause = err;
       throw err2;
     }

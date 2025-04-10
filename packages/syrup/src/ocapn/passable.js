@@ -1,5 +1,26 @@
-import { RecordUnionCodec, SimpleSyrupCodecType, SyrupBooleanCodec, SyrupIntegerCodec, SyrupDoubleCodec, SyrupSymbolCodec, SyrupStringCodec, SyrupBytestringCodec, SyrupListCodec, CustomRecordCodec, CustomUnionCodecType, SyrupAnyCodec, SyrupStructuredRecordCodecType } from '../codec.js';
-import { DescImportObject, DescImportPromise, DescExport, DescAnswer, DescHandoffGive, DescHandoffReceive } from './descriptors.js';
+import {
+  RecordUnionCodec,
+  SimpleSyrupCodecType,
+  SyrupBooleanCodec,
+  SyrupIntegerCodec,
+  SyrupDoubleCodec,
+  SyrupSymbolCodec,
+  SyrupStringCodec,
+  SyrupBytestringCodec,
+  SyrupListCodec,
+  CustomRecordCodec,
+  CustomUnionCodecType,
+  SyrupAnyCodec,
+  SyrupStructuredRecordCodecType,
+} from '../codec.js';
+import {
+  DescImportObject,
+  DescImportPromise,
+  DescExport,
+  DescAnswer,
+  DescHandoffGive,
+  DescHandoffReceive,
+} from './descriptors.js';
 
 // OCapN Passable Atoms
 
@@ -21,7 +42,6 @@ const NullCodec = new CustomRecordCodec('null', {
   },
 });
 
-
 const AtomCodecs = {
   undefined: UndefinedCodec,
   null: NullCodec,
@@ -33,7 +53,7 @@ const AtomCodecs = {
   symbol: SyrupSymbolCodec,
   // TODO: Pass Invariant Equality
   byteArray: SyrupBytestringCodec,
-}
+};
 
 // OCapN Passable Containers
 
@@ -57,50 +77,49 @@ const OCapNTaggedCodec = new CustomRecordCodec('desc:tagged', {
       [Symbol.for('passStyle')]: 'tagged',
       [Symbol.toStringTag]: tagName,
       value,
-    }
+    };
   },
   marshalBody(value, syrupWriter) {
     syrupWriter.writeSymbol(value.tagName);
     value.value.marshal(syrupWriter);
   },
-})
+});
 
 const ContainerCodecs = {
   list: SyrupListCodec,
   struct: OCapNStructCodec,
   tagged: OCapNTaggedCodec,
-}
+};
 
 // OCapN Reference (Capability)
 
 const OCapNTargetCodec = new RecordUnionCodec({
   DescExport,
   DescImportObject,
-})
+});
 
 const OCapNPromiseCodec = new RecordUnionCodec({
   DescImportPromise,
   DescAnswer,
-})
+});
 
 const OCapNReferenceCodecs = {
   OCapNTargetCodec,
   OCapNPromiseCodec,
-}
+};
 
 // OCapN Error
 
-const OCapNErrorCodec = new SyrupStructuredRecordCodecType(
-  'desc:error', [
+const OCapNErrorCodec = new SyrupStructuredRecordCodecType('desc:error', [
   ['message', 'string'],
-])
+]);
 
 const OCapNPassableCodecs = {
   ...AtomCodecs,
   ...ContainerCodecs,
   ...OCapNReferenceCodecs,
   ...OCapNErrorCodec,
-}
+};
 
 // all record based passables
 const OCapNPassableRecordUnionCodec = new RecordUnionCodec({
@@ -129,7 +148,7 @@ export const OCapNPassableUnionCodec = new CustomUnionCodecType({
       case 'number-prefix':
         // can be string, bytestring, symbol, integer
         // We'll return the any codec in place of those
-        return SyrupAnyCodec
+        return SyrupAnyCodec;
       case 'list':
         return ContainerCodecs.list;
       case 'record':
@@ -173,7 +192,10 @@ export const OCapNPassableUnionCodec = new CustomUnionCodecType({
       if (value[Symbol.for('passStyle')] === 'tagged') {
         return ContainerCodecs.tagged;
       }
-      if (value.type !== undefined && OCapNPassableRecordUnionCodec.supports(value.type)) {
+      if (
+        value.type !== undefined &&
+        OCapNPassableRecordUnionCodec.supports(value.type)
+      ) {
         return OCapNPassableRecordUnionCodec;
       }
       // TODO: need to distinguish OCapNReferenceCodecs and OCapNErrorCodec

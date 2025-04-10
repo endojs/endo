@@ -7,53 +7,59 @@ import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
  */
 
 export const DescImportObject = new SyrupStructuredRecordCodecType(
-  'desc:import-object', [
-  ['position', 'integer'],
-])
+  'desc:import-object',
+  [['position', 'integer']],
+);
 
 export const DescImportPromise = new SyrupStructuredRecordCodecType(
-  'desc:import-promise', [
-  ['position', 'integer'],
-])
+  'desc:import-promise',
+  [['position', 'integer']],
+);
 
-export const DescExport = new SyrupStructuredRecordCodecType(
-  'desc:export', [
+export const DescExport = new SyrupStructuredRecordCodecType('desc:export', [
   ['position', 'integer'],
-])
+]);
 
-export const DescAnswer = new SyrupStructuredRecordCodecType(
-  'desc:answer', [
+export const DescAnswer = new SyrupStructuredRecordCodecType('desc:answer', [
   ['position', 'integer'],
-])
+]);
 
 export const DescHandoffGive = new SyrupStructuredRecordCodecType(
-  'desc:handoff-give', [
-  ['receiverKey', OCapNPublicKey],
-  ['exporterLocation', OCapNNode],
-  ['session', 'bytestring'],
-  ['gifterSide', OCapNPublicKey],
-  ['giftId', 'bytestring'],
-])
+  'desc:handoff-give',
+  [
+    ['receiverKey', OCapNPublicKey],
+    ['exporterLocation', OCapNNode],
+    ['session', 'bytestring'],
+    ['gifterSide', OCapNPublicKey],
+    ['giftId', 'bytestring'],
+  ],
+);
 
 export const DescSigGiveEnvelope = new SyrupStructuredRecordCodecType(
-  'desc:sig-envelope', [
-  ['object', DescHandoffGive],
-  ['signature', OCapNSignature],
-])
+  'desc:sig-envelope',
+  [
+    ['object', DescHandoffGive],
+    ['signature', OCapNSignature],
+  ],
+);
 
 export const DescHandoffReceive = new SyrupStructuredRecordCodecType(
-  'desc:handoff-receive', [
-  ['receivingSession', 'bytestring'],
-  ['receivingSide', 'bytestring'],
-  ['handoffCount', 'integer'],
-  ['signedGive', DescSigGiveEnvelope],
-])
+  'desc:handoff-receive',
+  [
+    ['receivingSession', 'bytestring'],
+    ['receivingSide', 'bytestring'],
+    ['handoffCount', 'integer'],
+    ['signedGive', DescSigGiveEnvelope],
+  ],
+);
 
 export const DescSigReceiveEnvelope = new SyrupStructuredRecordCodecType(
-  'desc:sig-envelope', [
-  ['object', DescHandoffReceive],
-  ['signature', OCapNSignature],
-])
+  'desc:sig-envelope',
+  [
+    ['object', DescHandoffReceive],
+    ['signature', OCapNSignature],
+  ],
+);
 
 // Note: this may only be useful for testing
 export const OCapNDescriptorUnionCodec = new RecordUnionCodec({
@@ -71,11 +77,11 @@ export const OCapNDescriptorUnionCodec = new RecordUnionCodec({
   DescHandoffReceive,
 });
 
-export const readOCapDescriptor = (syrupReader) => {
+export const readOCapDescriptor = syrupReader => {
   return OCapNDescriptorUnionCodec.unmarshal(syrupReader);
-}
+};
 
 export const writeOCapDescriptor = (descriptor, syrupWriter) => {
   OCapNDescriptorUnionCodec.marshal(descriptor, syrupWriter);
   return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
-}
+};

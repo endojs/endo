@@ -6,11 +6,15 @@ import { makeSyrupWriter } from '../src/encode.js';
 import { OCapNComponentUnionCodec } from '../src/ocapn/components.js';
 import { OCapNDescriptorUnionCodec } from '../src/ocapn/descriptors.js';
 import { OCapNMessageUnionCodec } from '../src/ocapn/operations.js';
-import { componentsTable, descriptorsTable, operationsTable } from './_ocapn.js';
-import { OCapNPassableUnionCodec } from '../src/ocapn/passable.js'; 
+import {
+  componentsTable,
+  descriptorsTable,
+  operationsTable,
+} from './_ocapn.js';
+import { OCapNPassableUnionCodec } from '../src/ocapn/passable.js';
 
 const textEncoder = new TextEncoder();
-const sym = (s) => `${s.length}'${s}`;
+const sym = s => `${s.length}'${s}`;
 
 const testBidirectionally = (t, codec, syrup, value, testName) => {
   const syrupBytes = textEncoder.encode(syrup);
@@ -24,10 +28,13 @@ const testBidirectionally = (t, codec, syrup, value, testName) => {
   t.notThrows(() => {
     codec.marshal(value, syrupWriter);
   }, testName);
-  const bytes2 = syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
+  const bytes2 = syrupWriter.bufferWriter.subarray(
+    0,
+    syrupWriter.bufferWriter.length,
+  );
   const syrup2 = new TextDecoder().decode(bytes2);
   t.deepEqual(syrup2, syrup, testName);
-}
+};
 
 test('affirmative component cases', t => {
   const codec = OCapNComponentUnionCodec;
@@ -54,8 +61,13 @@ test('error on unknown record type in passable', t => {
   const codec = OCapNPassableUnionCodec;
   const syrup = `<${sym('unknown-record-type')}>`;
   const syrupBytes = textEncoder.encode(syrup);
-  const syrupReader = makeSyrupReader(syrupBytes, { name: 'unknown record type' });
-  t.throws(() => {
-    codec.unmarshal(syrupReader);
-  }, { message: 'Unexpected record type: "unknown-record-type"' });
+  const syrupReader = makeSyrupReader(syrupBytes, {
+    name: 'unknown record type',
+  });
+  t.throws(
+    () => {
+      codec.unmarshal(syrupReader);
+    },
+    { message: 'Unexpected record type: "unknown-record-type"' },
+  );
 });

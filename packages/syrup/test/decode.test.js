@@ -12,7 +12,7 @@ test('affirmative decode cases', t => {
     for (let i = 0; i < syrup.length; i += 1) {
       bytes[i] = syrup.charCodeAt(i);
     }
-    const desc = `for ${String(syrup)}`
+    const desc = `for ${String(syrup)}`;
     let actual;
     t.notThrows(() => {
       actual = decodeSyrup(bytes);
@@ -27,8 +27,7 @@ test('must not be empty', t => {
       decodeSyrup(new Uint8Array(0), { name: 'known.sup' });
     },
     {
-      message:
-        'Unexpected end of Syrup at index 0 of known.sup',
+      message: 'Unexpected end of Syrup at index 0 of known.sup',
     },
   );
 });

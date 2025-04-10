@@ -1,4 +1,8 @@
-import { RecordUnionCodec, SyrupCodec, SyrupStructuredRecordCodecType } from "../codec.js";
+import {
+  RecordUnionCodec,
+  SyrupCodec,
+  SyrupStructuredRecordCodecType,
+} from '../codec.js';
 
 /*
  * OCapN Components are used in both OCapN Messages and Descriptors
@@ -12,6 +16,7 @@ export class OCapNSignatureValueCodec extends SyrupCodec {
     super();
     this.expectedLabel = expectedLabel;
   }
+
   unmarshal(syrupReader) {
     const label = syrupReader.readSymbolAsString();
     if (label !== this.expectedLabel) {
@@ -20,6 +25,7 @@ export class OCapNSignatureValueCodec extends SyrupCodec {
     const value = syrupReader.readBytestring();
     return value;
   }
+
   marshal(value, syrupWriter) {
     syrupWriter.writeSymbol(this.expectedLabel);
     syrupWriter.writeBytestring(value);
@@ -29,34 +35,32 @@ export class OCapNSignatureValueCodec extends SyrupCodec {
 const OCapNSignatureRValue = new OCapNSignatureValueCodec('r');
 const OCapNSignatureSValue = new OCapNSignatureValueCodec('s');
 
-
-export const OCapNSignature = new SyrupStructuredRecordCodecType(
-  'sig-val', [
+export const OCapNSignature = new SyrupStructuredRecordCodecType('sig-val', [
   ['scheme', 'symbol'],
   ['r', OCapNSignatureRValue],
   ['s', OCapNSignatureSValue],
-])
+]);
 
-export const OCapNNode = new SyrupStructuredRecordCodecType(
-  'ocapn-node', [
+export const OCapNNode = new SyrupStructuredRecordCodecType('ocapn-node', [
   ['transport', 'symbol'],
   ['address', 'bytestring'],
   ['hints', 'boolean'],
-])
+]);
 
 export const OCapNSturdyRef = new SyrupStructuredRecordCodecType(
-  'ocapn-sturdyref', [
-  ['node', OCapNNode],
-  ['swissNum', 'string'],
-])
+  'ocapn-sturdyref',
+  [
+    ['node', OCapNNode],
+    ['swissNum', 'string'],
+  ],
+);
 
-export const OCapNPublicKey = new SyrupStructuredRecordCodecType(
-  'public-key', [
+export const OCapNPublicKey = new SyrupStructuredRecordCodecType('public-key', [
   ['scheme', 'symbol'],
   ['curve', 'symbol'],
   ['flags', 'symbol'],
   ['q', 'bytestring'],
-])
+]);
 
 export const OCapNComponentUnionCodec = new RecordUnionCodec({
   OCapNNode,
@@ -65,11 +69,11 @@ export const OCapNComponentUnionCodec = new RecordUnionCodec({
   OCapNSignature,
 });
 
-export const readOCapComponent = (syrupReader) => {
+export const readOCapComponent = syrupReader => {
   return OCapNComponentUnionCodec.unmarshal(syrupReader);
-}
+};
 
 export const writeOCapComponent = (component, syrupWriter) => {
   OCapNComponentUnionCodec.marshal(component, syrupWriter);
   return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
-}
+};
