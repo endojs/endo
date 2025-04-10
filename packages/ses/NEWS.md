@@ -2,9 +2,23 @@ User-visible changes in `ses`
 
 # Next release
 
-- The `evalTaming:` option `safe-eval` now can only throw error `SES_DIRECT_EVAL`.
-  This allows SES to initialize with `'unsafe-eval'` or `no-eval` on hosts with no
-  direct eval available (e.g. Hermes) for a successful lockdown.
+- The [evalTaming](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#evaltaming-options)
+  option `'safe-eval'` now can only throw error `SES_DIRECT_EVAL`.
+  This allows SES to initialize with `'unsafe-eval'` or `'no-eval'` on hosts with no
+  direct eval available such as Hermes for a successful lockdown that tolerates it's
+  language [features](https://github.com/facebook/hermes/blob/main/doc/Features.md).
+
+  The module name `ses/hermes` can now be required to call `lockdown` and
+  `repairIntrinsics` only, `Compartment` is not yet available.
+
+  It is currently compatible with Hermes [v0.12.0](https://www.npmjs.com/package/hermes-engine-cli/v/0.12.0),
+  we plan to support [v0.13.0](https://github.com/facebook/hermes/releases/tag/v0.13.0)
+  then subsequent Hermes [tags](https://github.com/facebook/hermes/tags) or side-by-side
+  versions built for React Native depending on ecosystem usage and official
+  [support](https://github.com/reactwg/react-native-releases/blob/main/docs/support.md),
+  then Static Hermes when released.
+
+  Also `ses/hermes` can now be hooked into bundlers such as Metro to run Hardened JS.
 
 # v1.12.0 (2025-03-11)
 
