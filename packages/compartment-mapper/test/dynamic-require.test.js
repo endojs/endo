@@ -561,3 +561,46 @@ test('sync module transforms work without dynamic require support', async t => {
 
   t.is(transformCount, 2);
 });
+
+test('dynamic require of missing module falls through to importNowHook', async t => {
+  // this fixture dynamically requires two local modules:
+  // 1. good.js, which exists
+  // 2. missing.js, which doesn't.
+  // in the good.js case, findRedirect returns `undefined` but we resolve via chooseModuleDescriptor before hitting the exit module import now hook
+  // in the missing.js case, findRedirect also returns `undefined` and we end up falling through to the exit module import now hook
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/invalid-app/index.js',
+    import.meta.url,
+  ).toString();
+
+  await t.throwsAsync(
+    importLocation(readPowers, fixture, {
+      policy: { entry: { builtins: 'any' }, resources: {} },
+      importNowHook: (specifier, _packageLocation) => {
+        throw new Error(`Blocked exit module: ${specifier}`);
+      },
+      // this will load the `path` builtin
+      importHook: async (specifier, packageLocation) => {
+        const require = Module.createRequire(
+          readPowers.fileURLToPath(packageLocation),
+        );
+        const ns = require(specifier);
+        return freeze(
+          /** @type {ThirdPartyStaticModuleInterface} */ ({
+            imports: [],
+            exports: keys(ns),
+            execute: moduleExports => {
+              moduleExports.default = ns;
+              assign(moduleExports, ns);
+            },
+          }),
+        );
+      },
+    }),
+    {
+      message: /Blocked exit module: .+missing\.js/,
+    },
+  );
+});
+
+// test('dynamic require of external module which imports a third module', async t => {});

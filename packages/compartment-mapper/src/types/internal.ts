@@ -213,8 +213,6 @@ export type FindRedirectParams = {
   compartments: Record<string, Compartment>;
   /* A module specifier which is an absolute path. NOT a `file://` URL. */
   absoluteModuleSpecifier: string;
-  /** Location of the compartment descriptor's package. */
-  packageLocation: string;
 };
 
 /**
