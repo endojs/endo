@@ -96,6 +96,17 @@ const nodejsConventionSearchSuffixes = [
 ];
 
 /**
+ * Computes the relative path to a module from its compartment location (including a leading `./`)
+ *
+ * @param {string} moduleSpecifierLocation Absolute path (not URL) to a module specifier
+ * @param {string} location Compartment location
+ * @returns {string} Redirect static module interface; the `specifier` prop of this value _must_ be a relative path with leading `./`
+ */
+const relativeSpecifier = (moduleSpecifierLocation, location) => {
+  return `./${moduleSpecifierLocation.replace(location, '')}`;
+};
+
+/**
  * Given a module specifier which is an absolute path, attempt to match it with
  * an existing compartment; return a {@link RedirectStaticModuleInterface} if found.
  *
@@ -108,12 +119,9 @@ const findRedirect = ({
   compartmentDescriptors,
   compartments,
   absoluteModuleSpecifier,
-  packageLocation,
 }) => {
-  const moduleSpecifierLocation = new URL(
-    absoluteModuleSpecifier,
-    packageLocation,
-  ).href;
+  const moduleSpecifierLocation = new URL(absoluteModuleSpecifier, 'file:')
+    .href;
 
   // a file:// URL string
   let someLocation = new URL('./', moduleSpecifierLocation).href;
@@ -139,7 +147,7 @@ const findRedirect = ({
       // is a dependency of the compartment descriptor
       if (compartmentDescriptor.compartments.has(location)) {
         return {
-          specifier: absoluteModuleSpecifier,
+          specifier: relativeSpecifier(moduleSpecifierLocation, location),
           compartment: compartments[location],
         };
       }
@@ -160,7 +168,7 @@ const findRedirect = ({
           },
         );
         return {
-          specifier: absoluteModuleSpecifier,
+          specifier: relativeSpecifier(moduleSpecifierLocation, location),
           compartment: compartments[location],
         };
       }
@@ -693,7 +701,6 @@ export function makeImportNowHookMaker(
           compartmentDescriptors,
           compartments,
           absoluteModuleSpecifier: moduleSpecifier,
-          packageLocation,
         });
         if (record) {
           return record;
