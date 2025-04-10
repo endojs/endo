@@ -5,8 +5,8 @@ export class SyrupCodec {
    * @param {import('./decode.js').SyrupReader} syrupReader
    * @returns {any}
    */
-  unmarshal(syrupReader) {
-    throw new Error('SyrupCodec: unmarshal must be implemented');
+  read(syrupReader) {
+    throw new Error('SyrupCodec: read must be implemented');
   }
 
   /**
@@ -14,72 +14,72 @@ export class SyrupCodec {
    * @param {import('./encode.js').SyrupWriter} syrupWriter
    * @returns {void}
    */
-  marshal(value, syrupWriter) {
-    throw new Error('SyrupCodec: marshal must be implemented');
+  write(value, syrupWriter) {
+    throw new Error('SyrupCodec: write must be implemented');
   }
 }
 
 export class SimpleSyrupCodecType extends SyrupCodec {
   /**
    * @param {object} options
-   * @param {function(any, import('./encode.js').SyrupWriter): void} options.marshal
-   * @param {function(import('./decode.js').SyrupReader): any} options.unmarshal
+   * @param {function(any, import('./encode.js').SyrupWriter): void} options.write
+   * @param {function(import('./decode.js').SyrupReader): any} options.read
    */
-  constructor({ marshal, unmarshal }) {
+  constructor({ write, read }) {
     super();
-    this.marshal = marshal;
-    this.unmarshal = unmarshal;
+    this.write = write;
+    this.read = read;
   }
 
   /**
    * @param {import('./decode.js').SyrupReader} syrupReader
    */
-  unmarshal(syrupReader) {
-    this.unmarshal(syrupReader);
+  read(syrupReader) {
+    this.read(syrupReader);
   }
 
   /**
    * @param {any} value
    * @param {import('./encode.js').SyrupWriter} syrupWriter
    */
-  marshal(value, syrupWriter) {
-    this.marshal(value, syrupWriter);
+  write(value, syrupWriter) {
+    this.write(value, syrupWriter);
   }
 }
 
 export const SyrupSymbolCodec = new SimpleSyrupCodecType({
-  marshal: (value, syrupWriter) => syrupWriter.writeSymbol(value),
-  unmarshal: syrupReader => syrupReader.readSymbolAsString(),
+  write: (value, syrupWriter) => syrupWriter.writeSymbol(value),
+  read: syrupReader => syrupReader.readSymbolAsString(),
 });
 
 export const SyrupStringCodec = new SimpleSyrupCodecType({
-  marshal: (value, syrupWriter) => syrupWriter.writeString(value),
-  unmarshal: syrupReader => syrupReader.readString(),
+  write: (value, syrupWriter) => syrupWriter.writeString(value),
+  read: syrupReader => syrupReader.readString(),
 });
 
 export const SyrupBytestringCodec = new SimpleSyrupCodecType({
-  marshal: (value, syrupWriter) => syrupWriter.writeBytestring(value),
-  unmarshal: syrupReader => syrupReader.readBytestring(),
+  write: (value, syrupWriter) => syrupWriter.writeBytestring(value),
+  read: syrupReader => syrupReader.readBytestring(),
 });
 
 export const SyrupBooleanCodec = new SimpleSyrupCodecType({
-  marshal: (value, syrupWriter) => syrupWriter.writeBoolean(value),
-  unmarshal: syrupReader => syrupReader.readBoolean(),
+  write: (value, syrupWriter) => syrupWriter.writeBoolean(value),
+  read: syrupReader => syrupReader.readBoolean(),
 });
 
 export const SyrupIntegerCodec = new SimpleSyrupCodecType({
-  marshal: (value, syrupWriter) => syrupWriter.writeInteger(value),
-  unmarshal: syrupReader => syrupReader.readInteger(),
+  write: (value, syrupWriter) => syrupWriter.writeInteger(value),
+  read: syrupReader => syrupReader.readInteger(),
 });
 
 export const SyrupDoubleCodec = new SimpleSyrupCodecType({
-  marshal: (value, syrupWriter) => syrupWriter.writeDouble(value),
-  unmarshal: syrupReader => syrupReader.readFloat64(),
+  write: (value, syrupWriter) => syrupWriter.writeDouble(value),
+  read: syrupReader => syrupReader.readFloat64(),
 });
 
 export const SyrupAnyCodec = new SimpleSyrupCodecType({
-  marshal: (value, syrupWriter) => syrupWriter.writeAny(value),
-  unmarshal: syrupReader => syrupReader.readAny(),
+  write: (value, syrupWriter) => syrupWriter.writeAny(value),
+  read: syrupReader => syrupReader.readAny(),
 });
 
 export class SyrupRecordCodecType extends SyrupCodec {
@@ -94,13 +94,13 @@ export class SyrupRecordCodecType extends SyrupCodec {
   /**
    * @param {import('./decode.js').SyrupReader} syrupReader
    */
-  unmarshal(syrupReader) {
+  read(syrupReader) {
     syrupReader.enterRecord();
     const label = syrupReader.readSymbolAsString();
     if (label !== this.label) {
       throw Error(`Expected label ${this.label}, got ${label}`);
     }
-    const result = this.unmarshalBody(syrupReader);
+    const result = this.readBody(syrupReader);
     syrupReader.exitRecord();
     return result;
   }
@@ -108,18 +108,18 @@ export class SyrupRecordCodecType extends SyrupCodec {
   /**
    * @param {import('./decode.js').SyrupReader} syrupReader
    */
-  unmarshalBody(syrupReader) {
-    throw Error('SyrupRecordCodecType: unmarshalBody must be implemented');
+  readBody(syrupReader) {
+    throw Error('SyrupRecordCodecType: readBody must be implemented');
   }
 
   /**
    * @param {any} value
    * @param {import('./encode.js').SyrupWriter} syrupWriter
    */
-  marshal(value, syrupWriter) {
+  write(value, syrupWriter) {
     syrupWriter.enterRecord();
     syrupWriter.writeSymbol(value.type);
-    this.marshalBody(value, syrupWriter);
+    this.writeBody(value, syrupWriter);
     syrupWriter.exitRecord();
   }
 
@@ -127,8 +127,8 @@ export class SyrupRecordCodecType extends SyrupCodec {
    * @param {any} value
    * @param {import('./encode.js').SyrupWriter} syrupWriter
    */
-  marshalBody(value, syrupWriter) {
-    throw Error('SyrupRecordCodecType: marshalBody must be implemented');
+  writeBody(value, syrupWriter) {
+    throw Error('SyrupRecordCodecType: writeBody must be implemented');
   }
 }
 export class SyrupStructuredRecordCodecType extends SyrupRecordCodecType {
@@ -152,7 +152,7 @@ export class SyrupStructuredRecordCodecType extends SyrupRecordCodecType {
   /**
    * @param {import('./decode.js').SyrupReader} syrupReader
    */
-  unmarshalBody(syrupReader) {
+  readBody(syrupReader) {
     const result = {};
     for (const field of this.definition) {
       const [fieldName, fieldType] = field;
@@ -162,7 +162,7 @@ export class SyrupStructuredRecordCodecType extends SyrupRecordCodecType {
         fieldValue = syrupReader.readOfType(fieldType);
       } else {
         const fieldDefinition = fieldType;
-        fieldValue = fieldDefinition.unmarshal(syrupReader);
+        fieldValue = fieldDefinition.read(syrupReader);
       }
       result[fieldName] = fieldValue;
     }
@@ -174,7 +174,7 @@ export class SyrupStructuredRecordCodecType extends SyrupRecordCodecType {
    * @param {any} value
    * @param {import('./encode.js').SyrupWriter} syrupWriter
    */
-  marshalBody(value, syrupWriter) {
+  writeBody(value, syrupWriter) {
     for (const field of this.definition) {
       const [fieldName, fieldType] = field;
       const fieldValue = value[fieldName];
@@ -182,7 +182,7 @@ export class SyrupStructuredRecordCodecType extends SyrupRecordCodecType {
         // @ts-expect-error fieldType is any string
         syrupWriter.writeOfType(fieldType, fieldValue);
       } else {
-        fieldType.marshal(fieldValue, syrupWriter);
+        fieldType.write(fieldValue, syrupWriter);
       }
     }
   }
@@ -193,13 +193,13 @@ export class CustomRecordCodec extends SyrupRecordCodecType {
   /**
    * @param {string} label
    * @param {object} options
-   * @param {function(any, import('./encode.js').SyrupWriter): void} options.marshalBody
-   * @param {function(import('./decode.js').SyrupReader): any} options.unmarshalBody
+   * @param {function(any, import('./encode.js').SyrupWriter): void} options.writeBody
+   * @param {function(import('./decode.js').SyrupReader): any} options.readBody
    */
-  constructor(label, { marshalBody, unmarshalBody }) {
+  constructor(label, { writeBody, readBody }) {
     super(label);
-    this.marshalBody = marshalBody;
-    this.unmarshalBody = unmarshalBody;
+    this.writeBody = writeBody;
+    this.readBody = readBody;
   }
 }
 
@@ -226,30 +226,30 @@ export class RecordUnionCodec extends SyrupCodec {
     return this.recordTable[label] !== undefined;
   }
 
-  unmarshal(syrupReader) {
+  read(syrupReader) {
     syrupReader.enterRecord();
     const label = syrupReader.readSymbolAsString();
     const recordCodec = this.recordTable[label];
     if (!recordCodec) {
       throw Error(`Unexpected record type: ${quote(label)}`);
     }
-    const result = recordCodec.unmarshalBody(syrupReader);
+    const result = recordCodec.readBody(syrupReader);
     syrupReader.exitRecord();
     return result;
   }
 
-  marshal(value, syrupWriter) {
+  write(value, syrupWriter) {
     const { type } = value;
     const recordCodec = this.recordTable[type];
     if (!recordCodec) {
       throw Error(`Unexpected record type: ${quote(type)}`);
     }
-    recordCodec.marshal(value, syrupWriter);
+    recordCodec.write(value, syrupWriter);
   }
 }
 
 export const SyrupListCodec = new SimpleSyrupCodecType({
-  unmarshal(syrupReader) {
+  read(syrupReader) {
     syrupReader.enterList();
     const result = [];
     while (!syrupReader.peekListEnd()) {
@@ -260,30 +260,30 @@ export const SyrupListCodec = new SimpleSyrupCodecType({
     syrupReader.exitList();
     return result;
   },
-  marshal(value, syrupWriter) {
-    throw Error('SyrupListCodec: marshal must be implemented');
+  write(value, syrupWriter) {
+    throw Error('SyrupListCodec: write must be implemented');
   },
 });
 
 export class CustomUnionCodecType extends SyrupCodec {
   /**
    * @param {object} options
-   * @param {function(import('./decode.js').SyrupReader): SyrupCodec} options.selectCodecForUnmarshal
-   * @param {function(any): SyrupCodec} options.selectCodecForMarshal
+   * @param {function(import('./decode.js').SyrupReader): SyrupCodec} options.selectCodecForRead
+   * @param {function(any): SyrupCodec} options.selectCodecForWrite
    */
-  constructor({ selectCodecForUnmarshal, selectCodecForMarshal }) {
+  constructor({ selectCodecForRead, selectCodecForWrite }) {
     super();
-    this.selectCodecForUnmarshal = selectCodecForUnmarshal;
-    this.selectCodecForMarshal = selectCodecForMarshal;
+    this.selectCodecForRead = selectCodecForRead;
+    this.selectCodecForWrite = selectCodecForWrite;
   }
 
-  unmarshal(syrupReader) {
-    const codec = this.selectCodecForUnmarshal(syrupReader);
-    return codec.unmarshal(syrupReader);
+  read(syrupReader) {
+    const codec = this.selectCodecForRead(syrupReader);
+    return codec.read(syrupReader);
   }
 
-  marshal(value, syrupWriter) {
-    const codec = this.selectCodecForMarshal(value);
-    codec.marshal(value, syrupWriter);
+  write(value, syrupWriter) {
+    const codec = this.selectCodecForWrite(value);
+    codec.write(value, syrupWriter);
   }
 }

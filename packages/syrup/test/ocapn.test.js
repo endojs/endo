@@ -21,12 +21,12 @@ const testBidirectionally = (t, codec, syrup, value, testName) => {
   const syrupReader = makeSyrupReader(syrupBytes, { name: testName });
   let result;
   t.notThrows(() => {
-    result = codec.unmarshal(syrupReader);
+    result = codec.read(syrupReader);
   }, testName);
   t.deepEqual(result, value, testName);
   const syrupWriter = makeSyrupWriter();
   t.notThrows(() => {
-    codec.marshal(value, syrupWriter);
+    codec.write(value, syrupWriter);
   }, testName);
   const bytes2 = syrupWriter.bufferWriter.subarray(
     0,
@@ -66,7 +66,7 @@ test('error on unknown record type in passable', t => {
   });
   t.throws(
     () => {
-      codec.unmarshal(syrupReader);
+      codec.read(syrupReader);
     },
     { message: 'Unexpected record type: "unknown-record-type"' },
   );

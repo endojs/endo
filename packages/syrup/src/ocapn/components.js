@@ -17,7 +17,7 @@ export class OCapNSignatureValueCodec extends SyrupCodec {
     this.expectedLabel = expectedLabel;
   }
 
-  unmarshal(syrupReader) {
+  read(syrupReader) {
     const label = syrupReader.readSymbolAsString();
     if (label !== this.expectedLabel) {
       throw Error(`Expected label ${this.expectedLabel}, got ${label}`);
@@ -26,7 +26,7 @@ export class OCapNSignatureValueCodec extends SyrupCodec {
     return value;
   }
 
-  marshal(value, syrupWriter) {
+  write(value, syrupWriter) {
     syrupWriter.writeSymbol(this.expectedLabel);
     syrupWriter.writeBytestring(value);
   }
@@ -70,10 +70,10 @@ export const OCapNComponentUnionCodec = new RecordUnionCodec({
 });
 
 export const readOCapComponent = syrupReader => {
-  return OCapNComponentUnionCodec.unmarshal(syrupReader);
+  return OCapNComponentUnionCodec.read(syrupReader);
 };
 
 export const writeOCapComponent = (component, syrupWriter) => {
-  OCapNComponentUnionCodec.marshal(component, syrupWriter);
+  OCapNComponentUnionCodec.write(component, syrupWriter);
   return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
 };

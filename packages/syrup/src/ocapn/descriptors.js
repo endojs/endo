@@ -78,10 +78,10 @@ export const OCapNDescriptorUnionCodec = new RecordUnionCodec({
 });
 
 export const readOCapDescriptor = syrupReader => {
-  return OCapNDescriptorUnionCodec.unmarshal(syrupReader);
+  return OCapNDescriptorUnionCodec.read(syrupReader);
 };
 
 export const writeOCapDescriptor = (descriptor, syrupWriter) => {
-  OCapNDescriptorUnionCodec.marshal(descriptor, syrupWriter);
+  OCapNDescriptorUnionCodec.write(descriptor, syrupWriter);
   return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
 };

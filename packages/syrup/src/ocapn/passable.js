@@ -25,19 +25,19 @@ import {
 // OCapN Passable Atoms
 
 const UndefinedCodec = new CustomRecordCodec('void', {
-  unmarshalBody(syrupReader) {
+  readBody(syrupReader) {
     return undefined;
   },
-  marshalBody(value, syrupWriter) {
+  writeBody(value, syrupWriter) {
     // body is empty
   },
 });
 
 const NullCodec = new CustomRecordCodec('null', {
-  unmarshalBody(syrupReader) {
+  readBody(syrupReader) {
     return null;
   },
-  marshalBody(value, syrupWriter) {
+  writeBody(value, syrupWriter) {
     // body is empty
   },
 });
@@ -59,16 +59,16 @@ const AtomCodecs = {
 
 // TODO: dictionary but with only string keys
 export const OCapNStructCodec = new SimpleSyrupCodecType({
-  unmarshal(syrupReader) {
-    throw Error('OCapNStructCodec: unmarshal must be implemented');
+  read(syrupReader) {
+    throw Error('OCapNStructCodec: read must be implemented');
   },
-  marshal(value, syrupWriter) {
-    throw Error('OCapNStructCodec: marshal must be implemented');
+  write(value, syrupWriter) {
+    throw Error('OCapNStructCodec: write must be implemented');
   },
 });
 
 const OCapNTaggedCodec = new CustomRecordCodec('desc:tagged', {
-  unmarshalBody(syrupReader) {
+  readBody(syrupReader) {
     const tagName = syrupReader.readSymbolAsString();
     // @ts-expect-error any type
     const value = syrupReader.readOfType('any');
@@ -79,9 +79,9 @@ const OCapNTaggedCodec = new CustomRecordCodec('desc:tagged', {
       value,
     };
   },
-  marshalBody(value, syrupWriter) {
+  writeBody(value, syrupWriter) {
     syrupWriter.writeSymbol(value.tagName);
-    value.value.marshal(syrupWriter);
+    value.value.write(syrupWriter);
   },
 });
 
@@ -138,7 +138,7 @@ const OCapNPassableRecordUnionCodec = new RecordUnionCodec({
 });
 
 export const OCapNPassableUnionCodec = new CustomUnionCodecType({
-  selectCodecForUnmarshal(syrupReader) {
+  selectCodecForRead(syrupReader) {
     const typeHint = syrupReader.peekTypeHint();
     switch (typeHint) {
       case 'boolean':
@@ -160,7 +160,7 @@ export const OCapNPassableUnionCodec = new CustomUnionCodecType({
         throw Error(`Unknown type hint: ${typeHint}`);
     }
   },
-  selectCodecForMarshal(value) {
+  selectCodecForWrite(value) {
     if (value === undefined) {
       return AtomCodecs.undefined;
     }

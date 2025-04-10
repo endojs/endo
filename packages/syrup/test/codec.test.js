@@ -11,10 +11,10 @@ import {
 
 const testCodecBidirectionally = (t, codec, value) => {
   const writer = makeSyrupWriter();
-  codec.marshal(value, writer);
+  codec.write(value, writer);
   const bytes = writer.bufferWriter.subarray(0, writer.bufferWriter.length);
   const reader = makeSyrupReader(bytes);
-  const result = codec.unmarshal(reader);
+  const result = codec.read(reader);
   t.deepEqual(result, value);
 };
 

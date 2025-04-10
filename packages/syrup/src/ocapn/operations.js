@@ -44,23 +44,23 @@ const OCapNDeliverTargetCodec = new RecordUnionCodec(OCapNDeliverTargets);
 // Used by the deliver and deliver-only operations
 // First arg is method name, rest are Passables
 const OpDeliverArgsCodec = new SimpleSyrupCodecType({
-  unmarshal: syrupReader => {
+  read: syrupReader => {
     syrupReader.enterList();
     const result = [
       // method name
       syrupReader.readSymbolAsString(),
     ];
     while (!syrupReader.peekListEnd()) {
-      result.push(OCapNPassableUnionCodec.unmarshal(syrupReader));
+      result.push(OCapNPassableUnionCodec.read(syrupReader));
     }
     syrupReader.exitList();
     return result;
   },
-  marshal: ([methodName, ...args], syrupWriter) => {
+  write: ([methodName, ...args], syrupWriter) => {
     syrupWriter.enterList();
     syrupWriter.writeSymbol(methodName);
     for (const arg of args) {
-      OCapNPassableUnionCodec.marshal(arg, syrupWriter);
+      OCapNPassableUnionCodec.write(arg, syrupWriter);
     }
     syrupWriter.exitList();
   },
@@ -72,7 +72,7 @@ const OpDeliverOnly = new SyrupStructuredRecordCodecType('op:deliver-only', [
 ]);
 
 const OpDeliverAnswerCodec = new SimpleSyrupCodecType({
-  unmarshal: syrupReader => {
+  read: syrupReader => {
     const typeHint = syrupReader.peekTypeHint();
     if (typeHint === 'number-prefix') {
       // should be an integer
@@ -83,7 +83,7 @@ const OpDeliverAnswerCodec = new SimpleSyrupCodecType({
     }
     throw Error(`Expected integer or boolean, got ${typeHint}`);
   },
-  marshal: (value, syrupWriter) => {
+  write: (value, syrupWriter) => {
     if (typeof value === 'bigint') {
       syrupWriter.writeInteger(value);
     } else if (typeof value === 'boolean') {
@@ -137,10 +137,10 @@ export const OCapNMessageUnionCodec = new RecordUnionCodec({
 });
 
 export const readOCapNMessage = syrupReader => {
-  return OCapNMessageUnionCodec.unmarshal(syrupReader);
+  return OCapNMessageUnionCodec.read(syrupReader);
 };
 
 export const writeOCapNMessage = (message, syrupWriter) => {
-  OCapNMessageUnionCodec.marshal(message, syrupWriter);
+  OCapNMessageUnionCodec.write(message, syrupWriter);
   return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
 };
