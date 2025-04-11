@@ -4,9 +4,9 @@ import test from 'ava';
 import { makeSyrupReader } from '../src/decode.js';
 import { makeSyrupWriter } from '../src/encode.js';
 import {
-  RecordUnionCodec,
-  SyrupStringCodec,
-  SyrupStructuredRecordCodecType,
+  makeRecordUnionCodec,
+  makeRecordCodecFromDefinition,
+  StringCodec,
 } from '../src/codec.js';
 
 const testCodecBidirectionally = (t, codec, value) => {
@@ -19,13 +19,13 @@ const testCodecBidirectionally = (t, codec, value) => {
 };
 
 test('simple string codec', t => {
-  const codec = SyrupStringCodec;
+  const codec = StringCodec;
   const value = 'hello';
   testCodecBidirectionally(t, codec, value);
 });
 
 test('basic record codec cases', t => {
-  const codec = new SyrupStructuredRecordCodecType('test', [
+  const codec = makeRecordCodecFromDefinition('test', [
     ['field1', 'string'],
     ['field2', 'integer'],
   ]);
@@ -38,12 +38,12 @@ test('basic record codec cases', t => {
 });
 
 test('record union codec', t => {
-  const codec = new RecordUnionCodec({
-    testA: new SyrupStructuredRecordCodecType('testA', [
+  const codec = makeRecordUnionCodec({
+    testA: makeRecordCodecFromDefinition('testA', [
       ['field1', 'string'],
       ['field2', 'integer'],
     ]),
-    testB: new SyrupStructuredRecordCodecType('testB', [
+    testB: makeRecordCodecFromDefinition('testB', [
       ['field1', 'string'],
       ['field2', 'integer'],
     ]),

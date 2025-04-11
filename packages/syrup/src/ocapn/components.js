@@ -1,68 +1,63 @@
 import {
-  RecordUnionCodec,
-  SyrupCodec,
-  SyrupStructuredRecordCodecType,
+  makeRecordCodecFromDefinition,
+  makeRecordUnionCodec,
 } from '../codec.js';
+/** @typedef {import('../codec.js').SyrupCodec} SyrupCodec */
+
+const { freeze } = Object;
 
 /*
  * OCapN Components are used in both OCapN Messages and Descriptors
  */
 
-export class OCapNSignatureValueCodec extends SyrupCodec {
-  /**
-   * @param {string} expectedLabel
-   */
-  constructor(expectedLabel) {
-    super();
-    this.expectedLabel = expectedLabel;
-  }
-
-  read(syrupReader) {
+/**
+ * @param {string} expectedLabel
+ * @returns {SyrupCodec}
+ */
+export const makeOCapNSignatureValueComponentCodec = expectedLabel => {
+  const read = syrupReader => {
     const label = syrupReader.readSymbolAsString();
-    if (label !== this.expectedLabel) {
-      throw Error(`Expected label ${this.expectedLabel}, got ${label}`);
+    if (label !== expectedLabel) {
+      throw Error(`Expected label ${expectedLabel}, got ${label}`);
     }
     const value = syrupReader.readBytestring();
     return value;
-  }
-
-  write(value, syrupWriter) {
-    syrupWriter.writeSymbol(this.expectedLabel);
+  };
+  const write = (value, syrupWriter) => {
+    syrupWriter.writeSymbol(expectedLabel);
     syrupWriter.writeBytestring(value);
-  }
-}
+  };
+  return freeze({ read, write });
+};
 
-const OCapNSignatureRValue = new OCapNSignatureValueCodec('r');
-const OCapNSignatureSValue = new OCapNSignatureValueCodec('s');
+const OCapNSignatureRValue = makeOCapNSignatureValueComponentCodec('r');
+const OCapNSignatureSValue = makeOCapNSignatureValueComponentCodec('s');
 
-export const OCapNSignature = new SyrupStructuredRecordCodecType('sig-val', [
+export const OCapNSignature = makeRecordCodecFromDefinition('sig-val', [
   ['scheme', 'symbol'],
   ['r', OCapNSignatureRValue],
   ['s', OCapNSignatureSValue],
 ]);
 
-export const OCapNNode = new SyrupStructuredRecordCodecType('ocapn-node', [
+export const OCapNNode = makeRecordCodecFromDefinition('ocapn-node', [
   ['transport', 'symbol'],
   ['address', 'bytestring'],
   ['hints', 'boolean'],
 ]);
 
-export const OCapNSturdyRef = new SyrupStructuredRecordCodecType(
-  'ocapn-sturdyref',
-  [
-    ['node', OCapNNode],
-    ['swissNum', 'string'],
-  ],
-);
+export const OCapNSturdyRef = makeRecordCodecFromDefinition('ocapn-sturdyref', [
+  ['node', OCapNNode],
+  ['swissNum', 'string'],
+]);
 
-export const OCapNPublicKey = new SyrupStructuredRecordCodecType('public-key', [
+export const OCapNPublicKey = makeRecordCodecFromDefinition('public-key', [
   ['scheme', 'symbol'],
   ['curve', 'symbol'],
   ['flags', 'symbol'],
   ['q', 'bytestring'],
 ]);
 
-export const OCapNComponentUnionCodec = new RecordUnionCodec({
+export const OCapNComponentUnionCodec = makeRecordUnionCodec({
   OCapNNode,
   OCapNSturdyRef,
   OCapNPublicKey,

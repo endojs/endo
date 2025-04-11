@@ -1,4 +1,7 @@
-import { RecordUnionCodec, SyrupStructuredRecordCodecType } from '../codec.js';
+import {
+  makeRecordCodecFromDefinition,
+  makeRecordUnionCodec,
+} from '../codec.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 
 /*
@@ -6,25 +9,25 @@ import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
  * directly in OCapN Messages and as part of Passable structures.
  */
 
-export const DescImportObject = new SyrupStructuredRecordCodecType(
+export const DescImportObject = makeRecordCodecFromDefinition(
   'desc:import-object',
   [['position', 'integer']],
 );
 
-export const DescImportPromise = new SyrupStructuredRecordCodecType(
+export const DescImportPromise = makeRecordCodecFromDefinition(
   'desc:import-promise',
   [['position', 'integer']],
 );
 
-export const DescExport = new SyrupStructuredRecordCodecType('desc:export', [
+export const DescExport = makeRecordCodecFromDefinition('desc:export', [
   ['position', 'integer'],
 ]);
 
-export const DescAnswer = new SyrupStructuredRecordCodecType('desc:answer', [
+export const DescAnswer = makeRecordCodecFromDefinition('desc:answer', [
   ['position', 'integer'],
 ]);
 
-export const DescHandoffGive = new SyrupStructuredRecordCodecType(
+export const DescHandoffGive = makeRecordCodecFromDefinition(
   'desc:handoff-give',
   [
     ['receiverKey', OCapNPublicKey],
@@ -35,7 +38,7 @@ export const DescHandoffGive = new SyrupStructuredRecordCodecType(
   ],
 );
 
-export const DescSigGiveEnvelope = new SyrupStructuredRecordCodecType(
+export const DescSigGiveEnvelope = makeRecordCodecFromDefinition(
   'desc:sig-envelope',
   [
     ['object', DescHandoffGive],
@@ -43,7 +46,7 @@ export const DescSigGiveEnvelope = new SyrupStructuredRecordCodecType(
   ],
 );
 
-export const DescHandoffReceive = new SyrupStructuredRecordCodecType(
+export const DescHandoffReceive = makeRecordCodecFromDefinition(
   'desc:handoff-receive',
   [
     ['receivingSession', 'bytestring'],
@@ -53,7 +56,7 @@ export const DescHandoffReceive = new SyrupStructuredRecordCodecType(
   ],
 );
 
-export const DescSigReceiveEnvelope = new SyrupStructuredRecordCodecType(
+export const DescSigReceiveEnvelope = makeRecordCodecFromDefinition(
   'desc:sig-envelope',
   [
     ['object', DescHandoffReceive],
@@ -62,7 +65,7 @@ export const DescSigReceiveEnvelope = new SyrupStructuredRecordCodecType(
 );
 
 // Note: this may only be useful for testing
-export const OCapNDescriptorUnionCodec = new RecordUnionCodec({
+export const OCapNDescriptorUnionCodec = makeRecordUnionCodec({
   OCapNNode,
   OCapNPublicKey,
   OCapNSignature,
