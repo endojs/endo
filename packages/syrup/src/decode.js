@@ -7,7 +7,7 @@ import { SyrupSymbolFor } from './symbol.js';
 const MINUS = '-'.charCodeAt(0);
 const PLUS = '+'.charCodeAt(0);
 const ZERO = '0'.charCodeAt(0);
-const ONE = '1'.charCodeAt(0);
+// const ONE = '1'.charCodeAt(0);
 const NINE = '9'.charCodeAt(0);
 const LIST_START = '['.charCodeAt(0);
 const LIST_END = ']'.charCodeAt(0);
@@ -95,6 +95,7 @@ function readTypeAndMaybeValue(bufferReader, name) {
     return { type: 'boolean', value: false };
   }
   if (cc === DOUBLE) {
+    // eslint-disable-next-line no-use-before-define
     const value = readFloat64Body(bufferReader, name);
     return { type: 'float64', value };
   }
@@ -246,7 +247,7 @@ function readListBody(bufferReader, name) {
       bufferReader.skip(1);
       return list;
     }
-
+    // eslint-disable-next-line no-use-before-define
     list.push(readAny(bufferReader, name));
   }
 }
@@ -256,7 +257,8 @@ function readListBody(bufferReader, name) {
  * @param {string} name
  * @returns {any[]}
  */
-function readList(bufferReader, name) {
+// eslint-disable-next-line no-underscore-dangle
+function _readList(bufferReader, name) {
   const cc = bufferReader.readByte();
   if (cc !== LIST_START) {
     throw Error(
@@ -338,6 +340,7 @@ function readDictionaryBody(bufferReader, name) {
     priorKeyBytes = newKeyBytes;
 
     // Read value and add to dictionary
+    // eslint-disable-next-line no-use-before-define
     const value = readAny(bufferReader, name);
     defineProperty(dict, newKey, {
       value,
@@ -352,7 +355,8 @@ function readDictionaryBody(bufferReader, name) {
  * @param {BufferReader} bufferReader
  * @param {string} name
  */
-function readDictionary(bufferReader, name) {
+// eslint-disable-next-line no-underscore-dangle
+function _readDictionary(bufferReader, name) {
   const start = bufferReader.index;
   const cc = bufferReader.readByte();
   if (cc !== DICT_START) {
@@ -428,12 +432,7 @@ function readAny(bufferReader, name) {
   return value;
 }
 
-class SyrupReaderStackEntry {
-  constructor(type, start) {
-    this.type = type;
-    this.start = start;
-  }
-}
+/** @typedef {{type: string, start: number}} SyrupReaderStackEntry */
 
 export class SyrupReader {
   /**
@@ -468,9 +467,7 @@ export class SyrupReader {
    * @param {string} type
    */
   #pushStackEntry(type) {
-    this.state.stack.push(
-      new SyrupReaderStackEntry(type, this.bufferReader.index),
-    );
+    this.state.stack.push({ type, start: this.bufferReader.index });
   }
 
   /**

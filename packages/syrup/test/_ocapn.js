@@ -2,6 +2,7 @@ const sym = s => `${s.length}'${s}`;
 const str = s => `${s.length}"${s}`;
 const bts = s => `${s.length}:${s}`;
 const bool = b => (b ? 't' : 'f');
+// eslint-disable-next-line @endo/restrict-comparison-operands
 const int = i => `${Math.floor(Math.abs(i))}${i < 0 ? '-' : '+'}`;
 const list = items => `[${items.join('')}]`;
 const makeNode = (transport, address, hints) => {
@@ -57,8 +58,8 @@ const makeHandoffReceive = (
   return `<${sym('desc:handoff-receive')}${bts(recieverSession)}${bts(recieverSide)}${int(handoffCount)}${signedGiveEnvelope}>`;
 };
 
-const strToUint8Array = str => {
-  return new Uint8Array(str.split('').map(c => c.charCodeAt(0)));
+const strToUint8Array = string => {
+  return new Uint8Array(string.split('').map(c => c.charCodeAt(0)));
 };
 
 // I made up these syrup values by hand, they may be wrong, sorry.

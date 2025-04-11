@@ -127,6 +127,7 @@ const OCapNErrorCodec = makeRecordCodecFromDefinition('desc:error', [
 ]);
 
 // provided for completeness
+// eslint-disable-next-line no-underscore-dangle
 const _OCapNPassableCodecs = {
   ...AtomCodecs,
   ...ContainerCodecs,

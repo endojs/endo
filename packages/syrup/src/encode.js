@@ -9,15 +9,26 @@ const { ownKeys } = Reflect;
 
 const defaultCapacity = 256;
 
+// const MINUS = '-'.charCodeAt(0);
+// const PLUS = '+'.charCodeAt(0);
+// const ZERO = '0'.charCodeAt(0);
+// const ONE = '1'.charCodeAt(0);
+// const NINE = '9'.charCodeAt(0);
 const LIST_START = '['.charCodeAt(0);
 const LIST_END = ']'.charCodeAt(0);
 const DICT_START = '{'.charCodeAt(0);
 const DICT_END = '}'.charCodeAt(0);
+// const SET_START = '#'.charCodeAt(0);
+// const SET_END = '$'.charCodeAt(0);
+// const BYTES_START = ':'.charCodeAt(0);
+// const STRING_START = '"'.charCodeAt(0);
+// const SYMBOL_START = "'".charCodeAt(0);
 const RECORD_START = '<'.charCodeAt(0);
 const RECORD_END = '>'.charCodeAt(0);
-const DOUBLE = 'D'.charCodeAt(0);
 const TRUE = 't'.charCodeAt(0);
 const FALSE = 'f'.charCodeAt(0);
+// const SINGLE = 'F'.charCodeAt(0);
+const DOUBLE = 'D'.charCodeAt(0);
 
 const NAN64 = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 
@@ -65,6 +76,26 @@ function writeBytestring(bufferWriter, value) {
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
+ * @param {string | symbol} key
+ * @param {Array<string | symbol | number>} path
+ */
+function writeDictionaryKey(bufferWriter, key, path) {
+  if (typeof key === 'string') {
+    writeString(bufferWriter, key);
+    return;
+  }
+  if (typeof key === 'symbol') {
+    const syrupSymbol = getSyrupSymbolName(key);
+    writeSymbol(bufferWriter, syrupSymbol);
+    return;
+  }
+  throw TypeError(
+    `Dictionary keys must be strings or symbols, got ${typeof key} at ${path.join('/')}`,
+  );
+}
+
+/**
+ * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {Record<string | symbol, any>} record
  * @param {Array<string | symbol | number>} path
  */
@@ -73,26 +104,11 @@ function writeDictionary(bufferWriter, record, path) {
   const keys = [];
   const keyBytes = [];
 
-  const writeKey = (bufferWriter, key) => {
-    if (typeof key === 'string') {
-      writeString(bufferWriter, key);
-      return;
-    }
-    if (typeof key === 'symbol') {
-      const syrupSymbol = getSyrupSymbolName(key);
-      writeSymbol(bufferWriter, syrupSymbol);
-      return;
-    }
-    throw TypeError(
-      `Dictionary keys must be strings or symbols, got ${typeof key} at ${path.join('/')}`,
-    );
-  };
-
   // We need to sort the keys, so we write them to a scratch buffer first
   const scratchWriter = new BufferWriter();
   for (const key of ownKeys(record)) {
     const start = scratchWriter.length;
-    writeKey(scratchWriter, key);
+    writeDictionaryKey(scratchWriter, key, path);
     const end = scratchWriter.length;
 
     keys.push(key);
