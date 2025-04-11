@@ -3,6 +3,7 @@ const quote = JSON.stringify;
 
 /** @typedef {import('./decode.js').SyrupReader} SyrupReader */
 /** @typedef {import('./encode.js').SyrupWriter} SyrupWriter */
+/** @typedef {import('./decode.js').TypeHintTypes} TypeHintTypes */
 
 /**
  * @typedef {object} SyrupCodec
@@ -199,6 +200,45 @@ export const makeUnionCodec = (selectCodecForRead, selectCodecForWrite) => {
     codec.write(value, syrupWriter);
   };
   return freeze({ read, write });
+};
+
+/** @typedef {'undefined'|'object'|'boolean'|'number'|'string'|'symbol'|'bigint'} JavascriptTypeofValueTypes */
+/** @typedef {Partial<Record<TypeHintTypes, SyrupCodec>>} TypeHintUnionReadTable */
+/** @typedef {Partial<Record<JavascriptTypeofValueTypes, SyrupCodec | ((any) => SyrupCodec)>>} TypeHintUnionWriteTable */
+
+/**
+ * @param {TypeHintUnionReadTable} readTable
+ * @param {TypeHintUnionWriteTable} writeTable
+ * @returns {SyrupCodec}
+ */
+export const makeTypeHintUnionCodec = (readTable, writeTable) => {
+  return makeUnionCodec(
+    syrupReader => {
+      const typeHint = syrupReader.peekTypeHint();
+      const codec = readTable[typeHint];
+      if (!codec) {
+        const expected = Object.keys(readTable).join(', ');
+        throw Error(
+          `Unexpected type hint ${quote(typeHint)}, expected one of ${expected}`,
+        );
+      }
+      return codec;
+    },
+    value => {
+      const codecOrGetter = writeTable[typeof value];
+      const codec =
+        typeof codecOrGetter === 'function'
+          ? codecOrGetter(value)
+          : codecOrGetter;
+      if (!codec) {
+        const expected = Object.keys(writeTable).join(', ');
+        throw Error(
+          `Unexpected value type ${quote(typeof value)}, expected one of ${expected}`,
+        );
+      }
+      return codec;
+    },
+  );
 };
 
 /**

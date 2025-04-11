@@ -363,10 +363,12 @@ function readDictionary(bufferReader, name) {
   return readDictionaryBody(bufferReader, name);
 }
 
+/** @typedef {'float64' | 'number-prefix' | 'list' | 'set' | 'dictionary' | 'record' | 'boolean'} TypeHintTypes */
+
 /**
  * @param {BufferReader} bufferReader
  * @param {string} name
- * @returns {'float64' | 'number-prefix' | 'list' | 'set' | 'dictionary' | 'record' | 'boolean'}
+ * @returns {TypeHintTypes}
  */
 export function peekTypeHint(bufferReader, name) {
   const cc = bufferReader.peekByte();

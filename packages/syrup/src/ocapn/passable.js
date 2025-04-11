@@ -10,7 +10,7 @@ import {
   makeRecordCodecFromDefinition,
   makeRecordCodec,
   makeRecordUnionCodec,
-  makeUnionCodec,
+  makeTypeHintUnionCodec,
 } from '../codec.js';
 import {
   DescImportObject,
@@ -150,57 +150,33 @@ const OCapNPassableRecordUnionCodec = makeRecordUnionCodec({
   OCapNErrorCodec,
 });
 
-export const OCapNPassableUnionCodec = makeUnionCodec(
-  // selectCodecForRead
-  syrupReader => {
-    const typeHint = syrupReader.peekTypeHint();
-    switch (typeHint) {
-      case 'boolean':
-        return AtomCodecs.boolean;
-      case 'float64':
-        return AtomCodecs.float64;
-      case 'number-prefix':
-        // can be string, bytestring, symbol, integer
-        // We'll return the any codec in place of those
-        return AnyCodec;
-      case 'list':
-        return ContainerCodecs.list;
-      case 'record':
-        // many possible matches, the union codec will select the correct one
-        return OCapNPassableRecordUnionCodec;
-      case 'dictionary':
-        return ContainerCodecs.struct;
-      default:
-        throw Error(`Unknown type hint: ${typeHint}`);
-    }
+export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
+  // syrup type hint -> codec
+  {
+    boolean: AtomCodecs.boolean,
+    float64: AtomCodecs.float64,
+    // "number-prefix" can be string, bytestring, symbol, integer
+    // TODO: should restrict further to only the types that can be passed
+    'number-prefix': AnyCodec,
+    list: ContainerCodecs.list,
+    record: OCapNPassableRecordUnionCodec,
+    dictionary: ContainerCodecs.struct,
   },
-  // selectCodecForWrite
-  value => {
-    if (value === undefined) {
-      return AtomCodecs.undefined;
-    }
-    if (value === null) {
-      return AtomCodecs.null;
-    }
-    if (typeof value === 'boolean') {
-      return AtomCodecs.boolean;
-    }
-    if (typeof value === 'number') {
-      return AtomCodecs.float64;
-    }
-    if (typeof value === 'string') {
-      return AtomCodecs.string;
-    }
-    if (typeof value === 'symbol') {
-      return AtomCodecs.symbol;
-    }
-    if (typeof value === 'bigint') {
-      return AtomCodecs.integer;
-    }
-    if (value instanceof Uint8Array) {
-      return AtomCodecs.byteArray;
-    }
-    if (typeof value === 'object') {
+  // javascript typeof value -> codec
+  {
+    undefined: AtomCodecs.undefined,
+    boolean: AtomCodecs.boolean,
+    number: AtomCodecs.float64,
+    string: AtomCodecs.string,
+    symbol: AtomCodecs.symbol,
+    bigint: AtomCodecs.integer,
+    object: value => {
+      if (value === null) {
+        return AtomCodecs.null;
+      }
+      if (value instanceof Uint8Array) {
+        return AtomCodecs.byteArray;
+      }
       if (Array.isArray(value)) {
         return ContainerCodecs.list;
       }
@@ -215,7 +191,6 @@ export const OCapNPassableUnionCodec = makeUnionCodec(
       }
       // TODO: need to distinguish OCapNReferenceCodecs and OCapNErrorCodec
       return ContainerCodecs.struct;
-    }
-    throw Error(`Unknown value: ${value}`);
+    },
   },
 );
