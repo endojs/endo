@@ -452,7 +452,7 @@ export class SyrupReader {
   /**
    * @param {number} expectedByte
    */
-  #_readAndAssertByte(expectedByte) {
+  #readAndAssertByte(expectedByte) {
     const start = this.bufferReader.index;
     const cc = this.bufferReader.readByte();
     if (cc !== expectedByte) {
@@ -465,7 +465,7 @@ export class SyrupReader {
   /**
    * @param {string} type
    */
-  #_pushStackEntry(type) {
+  #pushStackEntry(type) {
     this.state.stack.push(
       new SyrupReaderStackEntry(type, this.bufferReader.index),
     );
@@ -474,7 +474,7 @@ export class SyrupReader {
   /**
    * @param {string} expectedType
    */
-  #_popStackEntry(expectedType) {
+  #popStackEntry(expectedType) {
     const start = this.bufferReader.index;
     const stackEntry = this.state.stack.pop();
     if (!stackEntry) {
@@ -490,13 +490,13 @@ export class SyrupReader {
   }
 
   enterRecord() {
-    this.#_readAndAssertByte(RECORD_START);
-    this.#_pushStackEntry('record');
+    this.#readAndAssertByte(RECORD_START);
+    this.#pushStackEntry('record');
   }
 
   exitRecord() {
-    this.#_readAndAssertByte(RECORD_END);
-    this.#_popStackEntry('record');
+    this.#readAndAssertByte(RECORD_END);
+    this.#popStackEntry('record');
   }
 
   peekRecordEnd() {
@@ -505,13 +505,13 @@ export class SyrupReader {
   }
 
   enterDictionary() {
-    this.#_readAndAssertByte(DICT_START);
-    this.#_pushStackEntry('dictionary');
+    this.#readAndAssertByte(DICT_START);
+    this.#pushStackEntry('dictionary');
   }
 
   exitDictionary() {
-    this.#_readAndAssertByte(DICT_END);
-    this.#_popStackEntry('dictionary');
+    this.#readAndAssertByte(DICT_END);
+    this.#popStackEntry('dictionary');
   }
 
   peekDictionaryEnd() {
@@ -520,13 +520,13 @@ export class SyrupReader {
   }
 
   enterList() {
-    this.#_readAndAssertByte(LIST_START);
-    this.#_pushStackEntry('list');
+    this.#readAndAssertByte(LIST_START);
+    this.#pushStackEntry('list');
   }
 
   exitList() {
-    this.#_readAndAssertByte(LIST_END);
-    this.#_popStackEntry('list');
+    this.#readAndAssertByte(LIST_END);
+    this.#popStackEntry('list');
   }
 
   peekListEnd() {
@@ -535,13 +535,13 @@ export class SyrupReader {
   }
 
   enterSet() {
-    this.#_readAndAssertByte(SET_START);
-    this.#_pushStackEntry('set');
+    this.#readAndAssertByte(SET_START);
+    this.#pushStackEntry('set');
   }
 
   exitSet() {
-    this.#_readAndAssertByte(SET_END);
-    this.#_popStackEntry('set');
+    this.#readAndAssertByte(SET_END);
+    this.#popStackEntry('set');
   }
 
   peekSetEnd() {
