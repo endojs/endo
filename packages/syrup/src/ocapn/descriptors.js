@@ -2,6 +2,7 @@ import {
   makeRecordCodecFromDefinition,
   makeRecordUnionCodec,
 } from '../codec.js';
+import { PositiveIntegerCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 
 /*
@@ -11,20 +12,20 @@ import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 
 export const DescImportObject = makeRecordCodecFromDefinition(
   'desc:import-object',
-  [['position', 'integer']],
+  [['position', PositiveIntegerCodec]],
 );
 
 export const DescImportPromise = makeRecordCodecFromDefinition(
   'desc:import-promise',
-  [['position', 'integer']],
+  [['position', PositiveIntegerCodec]],
 );
 
 export const DescExport = makeRecordCodecFromDefinition('desc:export', [
-  ['position', 'integer'],
+  ['position', PositiveIntegerCodec],
 ]);
 
 export const DescAnswer = makeRecordCodecFromDefinition('desc:answer', [
-  ['position', 'integer'],
+  ['position', PositiveIntegerCodec],
 ]);
 
 export const DescHandoffGive = makeRecordCodecFromDefinition(
@@ -51,7 +52,7 @@ export const DescHandoffReceive = makeRecordCodecFromDefinition(
   [
     ['receivingSession', 'bytestring'],
     ['receivingSide', 'bytestring'],
-    ['handoffCount', 'integer'],
+    ['handoffCount', PositiveIntegerCodec],
     ['signedGive', DescSigGiveEnvelope],
   ],
 );

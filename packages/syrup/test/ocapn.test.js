@@ -71,3 +71,20 @@ test('error on unknown record type in passable', t => {
     { message: 'Unexpected record type: "unknown-record-type"' },
   );
 });
+
+test('descriptor fails with negative integer', t => {
+  const codec = OCapNDescriptorUnionCodec;
+  const syrup = `<${sym('desc:import-object')}1-}>`;
+  const syrupBytes = textEncoder.encode(syrup);
+  const syrupReader = makeSyrupReader(syrupBytes, {
+    name: 'import-object with negative integer',
+  });
+  t.throws(
+    () => {
+      codec.read(syrupReader);
+    },
+    {
+      message: 'PositiveIntegerCodec: value must be positive',
+    },
+  );
+});

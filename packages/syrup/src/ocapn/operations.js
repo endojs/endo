@@ -1,7 +1,9 @@
 import {
   makeRecordUnionCodec,
   makeRecordCodecFromDefinition,
+  makeTypeHintUnionCodec,
 } from '../codec.js';
+import { PositiveIntegerCodec, FalseCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 import { OCapNPassableUnionCodec } from './passable.js';
 import {
@@ -72,28 +74,17 @@ const OpDeliverOnly = makeRecordCodecFromDefinition('op:deliver-only', [
   ['args', OpDeliverArgsCodec],
 ]);
 
-const OpDeliverAnswerCodec = freeze({
-  read: syrupReader => {
-    const typeHint = syrupReader.peekTypeHint();
-    if (typeHint === 'number-prefix') {
-      // should be an integer
-      return syrupReader.readInteger();
-    }
-    if (typeHint === 'boolean') {
-      return syrupReader.readBoolean();
-    }
-    throw Error(`Expected integer or boolean, got ${typeHint}`);
+// The OpDeliver answer is either a positive integer or false
+const OpDeliverAnswerCodec = makeTypeHintUnionCodec(
+  {
+    'number-prefix': PositiveIntegerCodec,
+    boolean: FalseCodec,
   },
-  write: (value, syrupWriter) => {
-    if (typeof value === 'bigint') {
-      syrupWriter.writeInteger(value);
-    } else if (typeof value === 'boolean') {
-      syrupWriter.writeBoolean(value);
-    } else {
-      throw Error(`Expected integer or boolean, got ${typeof value}`);
-    }
+  {
+    bigint: PositiveIntegerCodec,
+    boolean: FalseCodec,
   },
-});
+);
 
 const OpDeliver = makeRecordCodecFromDefinition('op:deliver', [
   ['to', OCapNDeliverTargetCodec],
