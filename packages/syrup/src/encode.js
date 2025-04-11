@@ -2,7 +2,7 @@
 
 import { BufferWriter } from './buffer-writer.js';
 import { compareByteArrays } from './compare.js';
-import { getSyrupSymbolName } from './symbol.js';
+import { getSyrupSelectorName } from './selector.js';
 
 const { freeze } = Object;
 const { ownKeys } = Reflect;
@@ -22,7 +22,7 @@ const DICT_END = '}'.charCodeAt(0);
 // const SET_END = '$'.charCodeAt(0);
 // const BYTES_START = ':'.charCodeAt(0);
 // const STRING_START = '"'.charCodeAt(0);
-// const SYMBOL_START = "'".charCodeAt(0);
+// const SELECTOR_START = "'".charCodeAt(0);
 const RECORD_START = '<'.charCodeAt(0);
 const RECORD_END = '>'.charCodeAt(0);
 const TRUE = 't'.charCodeAt(0);
@@ -61,7 +61,7 @@ function writeString(bufferWriter, value) {
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {string} value
  */
-function writeSymbol(bufferWriter, value) {
+function writeSelector(bufferWriter, value) {
   const bytes = textEncoder.encode(value);
   writeStringlike(bufferWriter, bytes, "'");
 }
@@ -85,8 +85,8 @@ function writeDictionaryKey(bufferWriter, key, path) {
     return;
   }
   if (typeof key === 'symbol') {
-    const syrupSymbol = getSyrupSymbolName(key);
-    writeSymbol(bufferWriter, syrupSymbol);
+    const syrupSelector = getSyrupSelectorName(key);
+    writeSelector(bufferWriter, syrupSelector);
     return;
   }
   throw TypeError(
@@ -202,7 +202,7 @@ function writeBoolean(bufferWriter, value) {
  */
 function writeAny(bufferWriter, value, path, pathSuffix) {
   if (typeof value === 'symbol') {
-    writeSymbol(bufferWriter, getSyrupSymbolName(value));
+    writeSelector(bufferWriter, getSyrupSelectorName(value));
     return;
   }
 
@@ -256,8 +256,8 @@ export class SyrupWriter {
     writeAny(this.bufferWriter, value, [], '/');
   }
 
-  writeSymbol(value) {
-    writeSymbol(this.bufferWriter, value);
+  writeSelector(value) {
+    writeSelector(this.bufferWriter, value);
   }
 
   writeString(value) {
@@ -297,13 +297,13 @@ export class SyrupWriter {
   }
 
   /**
-   * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'symbol'} type
+   * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'selector'} type
    * @param {any} value
    */
   writeOfType(type, value) {
     switch (type) {
-      case 'symbol':
-        this.writeSymbol(value);
+      case 'selector':
+        this.writeSelector(value);
         break;
       case 'bytestring':
         this.writeBytestring(value);

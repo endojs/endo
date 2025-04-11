@@ -2,7 +2,7 @@ import {
   BooleanCodec,
   IntegerCodec,
   DoubleCodec,
-  SymbolCodec,
+  SelectorCodec,
   StringCodec,
   BytestringCodec,
   ListCodec,
@@ -58,7 +58,7 @@ const AtomCodecs = {
   float64: DoubleCodec,
   string: StringCodec,
   // TODO: Pass Invariant Equality
-  symbol: SymbolCodec,
+  selector: SelectorCodec,
   // TODO: Pass Invariant Equality
   byteArray: BytestringCodec,
 };
@@ -80,7 +80,7 @@ const OCapNTaggedCodec = makeRecordCodec(
   'desc:tagged',
   // readBody
   syrupReader => {
-    const tagName = syrupReader.readSymbolAsString();
+    const tagName = syrupReader.readSelectorAsString();
     // @ts-expect-error any type
     const value = syrupReader.readOfType('any');
     // TODO: Pass Invariant Equality
@@ -92,7 +92,7 @@ const OCapNTaggedCodec = makeRecordCodec(
   },
   // writeBody
   (value, syrupWriter) => {
-    syrupWriter.writeSymbol(value.tagName);
+    syrupWriter.writeSelector(value.tagName);
     value.value.write(syrupWriter);
   },
 );
@@ -156,7 +156,7 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
   {
     boolean: AtomCodecs.boolean,
     float64: AtomCodecs.float64,
-    // "number-prefix" can be string, bytestring, symbol, integer
+    // "number-prefix" can be string, bytestring, selector, integer
     // TODO: should restrict further to only the types that can be passed
     'number-prefix': AnyCodec,
     list: ContainerCodecs.list,
@@ -169,7 +169,7 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
     boolean: AtomCodecs.boolean,
     number: AtomCodecs.float64,
     string: AtomCodecs.string,
-    symbol: AtomCodecs.symbol,
+    symbol: AtomCodecs.selector,
     bigint: AtomCodecs.integer,
     object: value => {
       if (value === null) {

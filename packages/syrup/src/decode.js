@@ -2,7 +2,7 @@
 
 import { BufferReader } from './buffer-reader.js';
 import { compareByteArrays } from './compare.js';
-import { SyrupSymbolFor } from './symbol.js';
+import { SyrupSelectorFor } from './selector.js';
 
 const MINUS = '-'.charCodeAt(0);
 const PLUS = '+'.charCodeAt(0);
@@ -17,7 +17,7 @@ const SET_START = '#'.charCodeAt(0);
 const SET_END = '$'.charCodeAt(0);
 const BYTES_START = ':'.charCodeAt(0);
 const STRING_START = '"'.charCodeAt(0);
-const SYMBOL_START = "'".charCodeAt(0);
+const SELECTOR_START = "'".charCodeAt(0);
 const RECORD_START = '<'.charCodeAt(0);
 const RECORD_END = '>'.charCodeAt(0);
 const TRUE = 't'.charCodeAt(0);
@@ -53,9 +53,12 @@ function readBoolean(bufferReader, name) {
   );
 }
 
+/** @typedef {'boolean' | 'float64' | 'integer' | 'bytestring' | 'string' | 'selector'} SyrupAtomType */
+/** @typedef {'list' | 'set' | 'dictionary' | 'record'} SyrupStructuredType */
+/** @typedef {SyrupAtomType | SyrupStructuredType} SyrupType */
+
 // Structure types, no value provided
-/** @typedef {'list' | 'set' | 'dictionary' | 'record'} StructuredType */
-/** @typedef {{type: StructuredType, value: null}} ReadTypeStructuredResult */
+/** @typedef {{type: SyrupStructuredType, value: null}} ReadTypeStructuredResult */
 // Simple Atom types, value is read
 /** @typedef {{type: 'boolean', value: boolean}} ReadTypeBooleanResult */
 /** @typedef {{type: 'float64', value: number}} ReadTypeFloat64Result */
@@ -63,8 +66,8 @@ function readBoolean(bufferReader, name) {
 /** @typedef {{type: 'integer', value: bigint}} ReadTypeIntegerResult */
 /** @typedef {{type: 'bytestring', value: Uint8Array}} ReadTypeBytestringResult */
 /** @typedef {{type: 'string', value: string}} ReadTypeStringResult */
-/** @typedef {{type: 'symbol', value: string}} ReadTypeSymbolResult */
-/** @typedef {ReadTypeBooleanResult | ReadTypeFloat64Result | ReadTypeIntegerResult | ReadTypeBytestringResult | ReadTypeStringResult | ReadTypeSymbolResult} ReadTypeAtomResult */
+/** @typedef {{type: 'selector', value: string}} ReadTypeSelectorResult */
+/** @typedef {ReadTypeBooleanResult | ReadTypeFloat64Result | ReadTypeIntegerResult | ReadTypeBytestringResult | ReadTypeStringResult | ReadTypeSelectorResult} ReadTypeAtomResult */
 /**
  * @param {BufferReader} bufferReader
  * @param {string} name
@@ -136,10 +139,10 @@ function readTypeAndMaybeValue(bufferReader, name) {
     const valueBytes = bufferReader.read(number);
     return { type: 'string', value: textDecoder.decode(valueBytes) };
   }
-  if (typeByte === SYMBOL_START) {
+  if (typeByte === SELECTOR_START) {
     const number = Number.parseInt(numberString, 10);
     const valueBytes = bufferReader.read(number);
-    return { type: 'symbol', value: textDecoder.decode(valueBytes) };
+    return { type: 'selector', value: textDecoder.decode(valueBytes) };
   }
   throw Error(
     `Unexpected character ${quote(toChar(typeByte))}, at index ${bufferReader.index} of ${name}`,
@@ -148,7 +151,7 @@ function readTypeAndMaybeValue(bufferReader, name) {
 
 /**
  * @param {BufferReader} bufferReader
- * @param {'boolean' | 'integer' | 'float64' | 'string' | 'symbol' | 'bytestring'} expectedType
+ * @param {'boolean' | 'integer' | 'float64' | 'string' | 'selector' | 'bytestring'} expectedType
  * @param {string} name
  * @returns {any}
  */
@@ -184,8 +187,8 @@ function readString(bufferReader, name) {
  * @param {string} name
  * @returns {string}
  */
-function readSymbolAsString(bufferReader, name) {
-  return readAndAssertType(bufferReader, 'symbol', name);
+function readSelectorAsString(bufferReader, name) {
+  return readAndAssertType(bufferReader, 'selector', name);
 }
 
 /**
@@ -271,21 +274,21 @@ function _readList(bufferReader, name) {
 /**
  * @param {BufferReader} bufferReader
  * @param {string} name
- * @returns {{value: any, type: 'string' | 'symbol', bytes: Uint8Array}}
+ * @returns {{value: any, type: 'string' | 'selector', bytes: Uint8Array}}
  */
 function readDictionaryKey(bufferReader, name) {
   const start = bufferReader.index;
   const { value, type } = readTypeAndMaybeValue(bufferReader, name);
-  if (type === 'string' || type === 'symbol') {
+  if (type === 'string' || type === 'selector') {
     const end = bufferReader.index;
     const bytes = bufferReader.bytesAt(start, end - start);
-    if (type === 'symbol') {
-      return { value: SyrupSymbolFor(value), type, bytes };
+    if (type === 'selector') {
+      return { value: SyrupSelectorFor(value), type, bytes };
     }
     return { value, type, bytes };
   }
   throw Error(
-    `Unexpected type ${quote(type)}, Syrup dictionary keys must be strings or symbols at index ${start} of ${name}`,
+    `Unexpected type ${quote(type)}, Syrup dictionary keys must be strings or selectors at index ${start} of ${name}`,
   );
 }
 
@@ -424,9 +427,9 @@ function readAny(bufferReader, name) {
     throw Error(`readAny for Records is not yet supported.`);
   }
   // Atom types, value is already read
-  // For symbols, we need to convert the string to a symbol
-  if (type === 'symbol') {
-    return SyrupSymbolFor(value);
+  // For selectors, we need to convert the string to a selector
+  if (type === 'selector') {
+    return SyrupSelectorFor(value);
   }
 
   return value;
@@ -568,8 +571,8 @@ export class SyrupReader {
     return readBytestring(this.bufferReader, this.name);
   }
 
-  readSymbolAsString() {
-    return readSymbolAsString(this.bufferReader, this.name);
+  readSelectorAsString() {
+    return readSelectorAsString(this.bufferReader, this.name);
   }
 
   readAny() {
@@ -577,7 +580,7 @@ export class SyrupReader {
   }
 
   /**
-   * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'symbol'} type
+   * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'selector'} type
    * @returns {any}
    */
   readOfType(type) {
@@ -592,8 +595,8 @@ export class SyrupReader {
         return this.readString();
       case 'bytestring':
         return this.readBytestring();
-      case 'symbol':
-        return this.readSymbolAsString();
+      case 'selector':
+        return this.readSelectorAsString();
       default:
         throw Error(`Unexpected type ${type}`);
     }

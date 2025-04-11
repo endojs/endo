@@ -3,6 +3,7 @@ const quote = JSON.stringify;
 
 /** @typedef {import('./decode.js').SyrupReader} SyrupReader */
 /** @typedef {import('./encode.js').SyrupWriter} SyrupWriter */
+/** @typedef {import('./decode.js').SyrupType} SyrupType */
 /** @typedef {import('./decode.js').TypeHintTypes} TypeHintTypes */
 
 /**
@@ -12,9 +13,9 @@ const quote = JSON.stringify;
  */
 
 /** @type {SyrupCodec} */
-export const SymbolCodec = freeze({
-  write: (value, syrupWriter) => syrupWriter.writeSymbol(value),
-  read: syrupReader => syrupReader.readSymbolAsString(),
+export const SelectorCodec = freeze({
+  write: (value, syrupWriter) => syrupWriter.writeSelector(value),
+  read: syrupReader => syrupReader.readSelectorAsString(),
 });
 
 /** @type {SyrupCodec} */
@@ -99,7 +100,7 @@ export const makeRecordCodec = (label, readBody, writeBody) => {
    */
   const read = syrupReader => {
     syrupReader.enterRecord();
-    const actualLabel = syrupReader.readSymbolAsString();
+    const actualLabel = syrupReader.readSelectorAsString();
     if (actualLabel !== label) {
       throw Error(
         `RecordCodec: Expected label ${quote(label)}, got ${quote(actualLabel)}`,
@@ -115,7 +116,7 @@ export const makeRecordCodec = (label, readBody, writeBody) => {
    */
   const write = (value, syrupWriter) => {
     syrupWriter.enterRecord();
-    syrupWriter.writeSymbol(value.type);
+    syrupWriter.writeSelector(value.type);
     writeBody(value, syrupWriter);
     syrupWriter.exitRecord();
   };
@@ -128,7 +129,7 @@ export const makeRecordCodec = (label, readBody, writeBody) => {
   });
 };
 
-/** @typedef {Array<[string, string | SyrupCodec]>} SyrupRecordDefinition */
+/** @typedef {Array<[string, SyrupType | SyrupCodec]>} SyrupRecordDefinition */
 
 /**
  * @param {string} label
@@ -262,7 +263,7 @@ export const makeRecordUnionCodec = recordTypes => {
   };
   const read = syrupReader => {
     syrupReader.enterRecord();
-    const label = syrupReader.readSymbolAsString();
+    const label = syrupReader.readSelectorAsString();
     const recordCodec = recordTable[label];
     if (!recordCodec) {
       throw Error(`Unexpected record type: ${quote(label)}`);

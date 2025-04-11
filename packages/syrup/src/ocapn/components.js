@@ -16,7 +16,7 @@ const { freeze } = Object;
  */
 export const makeOCapNSignatureValueComponentCodec = expectedLabel => {
   const read = syrupReader => {
-    const label = syrupReader.readSymbolAsString();
+    const label = syrupReader.readSelectorAsString();
     if (label !== expectedLabel) {
       throw Error(`Expected label ${expectedLabel}, got ${label}`);
     }
@@ -24,7 +24,7 @@ export const makeOCapNSignatureValueComponentCodec = expectedLabel => {
     return value;
   };
   const write = (value, syrupWriter) => {
-    syrupWriter.writeSymbol(expectedLabel);
+    syrupWriter.writeSelector(expectedLabel);
     syrupWriter.writeBytestring(value);
   };
   return freeze({ read, write });
@@ -34,13 +34,13 @@ const OCapNSignatureRValue = makeOCapNSignatureValueComponentCodec('r');
 const OCapNSignatureSValue = makeOCapNSignatureValueComponentCodec('s');
 
 export const OCapNSignature = makeRecordCodecFromDefinition('sig-val', [
-  ['scheme', 'symbol'],
+  ['scheme', 'selector'],
   ['r', OCapNSignatureRValue],
   ['s', OCapNSignatureSValue],
 ]);
 
 export const OCapNNode = makeRecordCodecFromDefinition('ocapn-node', [
-  ['transport', 'symbol'],
+  ['transport', 'selector'],
   ['address', 'bytestring'],
   ['hints', 'boolean'],
 ]);
@@ -51,9 +51,9 @@ export const OCapNSturdyRef = makeRecordCodecFromDefinition('ocapn-sturdyref', [
 ]);
 
 export const OCapNPublicKey = makeRecordCodecFromDefinition('public-key', [
-  ['scheme', 'symbol'],
-  ['curve', 'symbol'],
-  ['flags', 'symbol'],
+  ['scheme', 'selector'],
+  ['curve', 'selector'],
+  ['flags', 'selector'],
   ['q', 'bytestring'],
 ]);
 
