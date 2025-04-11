@@ -68,14 +68,14 @@ test('must reject out-of-order prefix key', t => {
   );
 });
 
-test('dictionary keys must be strings or symbols', t => {
+test('dictionary keys must be strings or selectors', t => {
   t.throws(
     () => {
       decodeSyrup(textEncoder.encode('{1+'));
     },
     {
       message:
-        'Unexpected type "integer", Syrup dictionary keys must be strings or symbols at index 1 of <unknown>',
+        'Unexpected type "integer", Syrup dictionary keys must be strings or selectors at index 1 of <unknown>',
     },
   );
 });
