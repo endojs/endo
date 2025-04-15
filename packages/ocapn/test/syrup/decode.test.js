@@ -1,7 +1,7 @@
 // @ts-check
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { decodeSyrup } from '../../src/syrup/decode.js';
+import { decodeSyrup } from '../../src/syrup/js-representation.js';
 import { table } from './_table.js';
 
 const textEncoder = new TextEncoder();

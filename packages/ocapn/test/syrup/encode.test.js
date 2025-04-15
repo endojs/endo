@@ -1,7 +1,7 @@
 // @ts-check
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { encodeSyrup } from '../../src/syrup/encode.js';
+import { encodeSyrup } from '../../src/syrup/js-representation.js';
 import { table } from './_table.js';
 
 test('affirmative encode cases', t => {

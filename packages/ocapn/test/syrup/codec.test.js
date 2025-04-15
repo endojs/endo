@@ -98,21 +98,21 @@ test('zoo.bin', t => {
     },
     write: (value, syrupWriter) => {
       syrupWriter.enterDictionary();
-      syrupWriter.writeSelector('age');
+      syrupWriter.writeSelectorFromString('age');
       syrupWriter.writeInteger(value.age);
-      syrupWriter.writeSelector('eats');
+      syrupWriter.writeSelectorFromString('eats');
       syrupWriter.enterSet();
       for (const eat of value.eats) {
         syrupWriter.writeBytestring(textEncoder.encode(eat));
       }
       syrupWriter.exitSet();
-      syrupWriter.writeSelector('name');
+      syrupWriter.writeSelectorFromString('name');
       syrupWriter.writeString(value.name);
-      syrupWriter.writeSelector('alive?');
+      syrupWriter.writeSelectorFromString('alive?');
       syrupWriter.writeBoolean(value.alive);
-      syrupWriter.writeSelector('weight');
+      syrupWriter.writeSelectorFromString('weight');
       syrupWriter.writeFloat64(value.weight);
-      syrupWriter.writeSelector('species');
+      syrupWriter.writeSelectorFromString('species');
       syrupWriter.writeBytestring(textEncoder.encode(value.species));
       syrupWriter.exitDictionary();
     },

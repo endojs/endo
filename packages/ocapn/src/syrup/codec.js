@@ -16,8 +16,8 @@ const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
 
 /** @type {SyrupCodec} */
-export const SelectorCodec = freeze({
-  write: (value, syrupWriter) => syrupWriter.writeSelector(value),
+export const SelectorAsStringCodec = freeze({
+  write: (value, syrupWriter) => syrupWriter.writeSelectorFromString(value),
   read: syrupReader => syrupReader.readSelectorAsString(),
 });
 
@@ -51,36 +51,105 @@ export const Float64Codec = freeze({
   read: syrupReader => syrupReader.readFloat64(),
 });
 
-/** @type {SyrupCodec} */
-export const AnyCodec = freeze({
-  write: (value, syrupWriter) => syrupWriter.writeAny(value),
-  read: syrupReader => syrupReader.readAny(),
-});
+const SimpleValueCodecs = {
+  boolean: BooleanCodec,
+  integer: IntegerCodec,
+  float64: Float64Codec,
+  string: StringCodec,
+  selector: SelectorAsStringCodec,
+  bytestring: BytestringCodec,
+};
 
 /** @type {SyrupCodec} */
-export const ListCodec = freeze({
-  /**
-   * @param {SyrupReader} syrupReader
-   * @returns {any[]}
-   */
-  read(syrupReader) {
-    syrupReader.enterList();
-    const result = [];
-    while (!syrupReader.peekListEnd()) {
-      const value = syrupReader.readAny();
-      result.push(value);
+export const NumberPrefixCodec = freeze({
+  read: syrupReader => {
+    const { type, value } = syrupReader.readTypeAndMaybeValue();
+    if (
+      type !== 'integer' &&
+      type !== 'string' &&
+      type !== 'selector' &&
+      type !== 'bytestring'
+    ) {
+      throw Error(
+        'SyrupNumberPrefixCodec: read only supports integer, string, selector, and bytestring',
+      );
     }
-    syrupReader.exitList();
-    return result;
+    return value;
   },
-  /**
-   * @param {any} value
-   * @param {SyrupWriter} syrupWriter
-   */
-  write(value, syrupWriter) {
-    throw Error('SyrupListCodec: write must be implemented');
+  write: (value, syrupWriter) => {
+    if (typeof value === 'string') {
+      syrupWriter.writeString(value);
+    } else if (value instanceof Uint8Array) {
+      syrupWriter.writeBytestring(value);
+    } else if (typeof value === 'bigint') {
+      syrupWriter.writeInteger(value);
+    } else {
+      throw Error(
+        'SyrupNumberPrefixCodec: write only supports string, bigint, and bytestring',
+      );
+    }
   },
 });
+
+/**
+ * @typedef {SyrupCodec | string | function(any): SyrupCodec} ResolvableCodec
+ */
+
+/**
+ * @param {ResolvableCodec} codecOrGetter
+ * @param {any} [value]
+ * @returns {SyrupCodec}
+ * This is a helper function that resolves a codec or getter to a codec.
+ */
+const resolveCodec = (codecOrGetter, value) => {
+  if (typeof codecOrGetter === 'function') {
+    const codec = codecOrGetter(value);
+    if (typeof codec !== 'object' || codec === null) {
+      throw Error('Codec function must return a codec');
+    }
+    return codec;
+  }
+  if (typeof codecOrGetter === 'string') {
+    const codec = SimpleValueCodecs[codecOrGetter];
+    if (!codec) {
+      throw Error(
+        `Unexpected value type ${quote(codecOrGetter)}, expected one of ${Object.keys(SimpleValueCodecs).join(', ')}`,
+      );
+    }
+    return codec;
+  }
+  if (typeof codecOrGetter === 'object' && codecOrGetter !== null) {
+    return codecOrGetter;
+  }
+  throw Error(`Unexpected codec or getter ${quote(codecOrGetter)}`);
+};
+
+/**
+ * @param {SyrupCodec} childCodec
+ * @returns {SyrupCodec}
+ */
+export const makeSetCodecFromEntryCodec = childCodec => {
+  return freeze({
+    read: syrupReader => {
+      syrupReader.enterSet();
+      const result = new Set();
+      while (!syrupReader.peekSetEnd()) {
+        // eslint-disable-next-line no-use-before-define
+        const value = childCodec.read(syrupReader);
+        result.add(value);
+      }
+      syrupReader.exitSet();
+      return result;
+    },
+    write: (value, syrupWriter) => {
+      syrupWriter.enterSet();
+      for (const child of value) {
+        childCodec.write(child, syrupWriter);
+      }
+      syrupWriter.exitSet();
+    },
+  });
+};
 
 /**
  * @param {SyrupCodec} childCodec
@@ -161,7 +230,7 @@ export const makeRecordCodec = (label, labelType, readBody, writeBody) => {
   const write = (value, syrupWriter) => {
     syrupWriter.enterRecord();
     if (labelType === 'selector') {
-      syrupWriter.writeSelector(value.type);
+      syrupWriter.writeSelectorFromString(value.type);
     } else if (labelType === 'string') {
       syrupWriter.writeString(value.type);
     } else if (labelType === 'bytestring') {
@@ -196,15 +265,8 @@ export const makeRecordCodecFromDefinition = (label, labelType, definition) => {
     const result = {};
     for (const field of definition) {
       const [fieldName, fieldType] = field;
-      let fieldValue;
-      if (typeof fieldType === 'string') {
-        // @ts-expect-error fieldType is any string
-        fieldValue = syrupReader.readOfType(fieldType);
-      } else {
-        const fieldDefinition = fieldType;
-        fieldValue = fieldDefinition.read(syrupReader);
-      }
-      result[fieldName] = fieldValue;
+      const fieldCodec = resolveCodec(fieldType);
+      result[fieldName] = fieldCodec.read(syrupReader);
     }
     result.type = label;
     return result;
@@ -217,12 +279,8 @@ export const makeRecordCodecFromDefinition = (label, labelType, definition) => {
     for (const field of definition) {
       const [fieldName, fieldType] = field;
       const fieldValue = value[fieldName];
-      if (typeof fieldType === 'string') {
-        // @ts-expect-error fieldType is any string
-        syrupWriter.writeOfType(fieldType, fieldValue);
-      } else {
-        fieldType.write(fieldValue, syrupWriter);
-      }
+      const fieldCodec = resolveCodec(fieldType, fieldValue);
+      fieldCodec.write(fieldValue, syrupWriter);
     }
   };
 
@@ -255,8 +313,8 @@ export const makeUnionCodec = (selectCodecForRead, selectCodecForWrite) => {
 };
 
 /** @typedef {'undefined'|'object'|'boolean'|'number'|'string'|'symbol'|'bigint'} JavascriptTypeofValueTypes */
-/** @typedef {Partial<Record<TypeHintTypes, SyrupCodec>>} TypeHintUnionReadTable */
-/** @typedef {Partial<Record<JavascriptTypeofValueTypes, SyrupCodec | ((any) => SyrupCodec)>>} TypeHintUnionWriteTable */
+/** @typedef {Partial<Record<TypeHintTypes, ResolvableCodec>>} TypeHintUnionReadTable */
+/** @typedef {Partial<Record<JavascriptTypeofValueTypes, ResolvableCodec>>} TypeHintUnionWriteTable */
 
 /**
  * @param {TypeHintUnionReadTable} readTable
@@ -267,27 +325,25 @@ export const makeTypeHintUnionCodec = (readTable, writeTable) => {
   return makeUnionCodec(
     syrupReader => {
       const typeHint = syrupReader.peekTypeHint();
-      const codec = readTable[typeHint];
-      if (!codec) {
+      const codecRef = readTable[typeHint];
+      if (!codecRef) {
         const expected = Object.keys(readTable).join(', ');
         throw Error(
           `Unexpected type hint ${quote(typeHint)}, expected one of ${expected}`,
         );
       }
+      const codec = resolveCodec(codecRef, syrupReader);
       return codec;
     },
     value => {
       const codecOrGetter = writeTable[typeof value];
-      const codec =
-        typeof codecOrGetter === 'function'
-          ? codecOrGetter(value)
-          : codecOrGetter;
-      if (!codec) {
+      if (!codecOrGetter) {
         const expected = Object.keys(writeTable).join(', ');
         throw Error(
           `Unexpected value type ${quote(typeof value)}, expected one of ${expected}`,
         );
       }
+      const codec = resolveCodec(codecOrGetter, value);
       return codec;
     },
   );
