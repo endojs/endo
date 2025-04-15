@@ -28,10 +28,7 @@ const testBidirectionally = (t, codec, syrup, value, testName) => {
   t.notThrows(() => {
     codec.write(value, syrupWriter);
   }, testName);
-  const bytes2 = syrupWriter.bufferWriter.subarray(
-    0,
-    syrupWriter.bufferWriter.length,
-  );
+  const bytes2 = syrupWriter.getBytes();
   const syrup2 = new TextDecoder().decode(bytes2);
   t.deepEqual(syrup2, syrup, testName);
 };

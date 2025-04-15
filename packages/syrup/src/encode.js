@@ -248,68 +248,71 @@ function writeAny(bufferWriter, value, path, pathSuffix) {
 }
 
 export class SyrupWriter {
+  /** @type {BufferWriter} */
+  #bufferWriter;
+
   constructor(bufferWriter) {
-    this.bufferWriter = bufferWriter;
+    this.#bufferWriter = bufferWriter;
   }
 
   writeAny(value) {
-    writeAny(this.bufferWriter, value, [], '/');
+    writeAny(this.#bufferWriter, value, [], '/');
   }
 
   writeSelector(value) {
-    writeSelector(this.bufferWriter, value);
+    writeSelector(this.#bufferWriter, value);
   }
 
   writeString(value) {
-    writeString(this.bufferWriter, value);
+    writeString(this.#bufferWriter, value);
   }
 
   writeBytestring(value) {
-    writeBytestring(this.bufferWriter, value);
+    writeBytestring(this.#bufferWriter, value);
   }
 
   writeBoolean(value) {
-    writeBoolean(this.bufferWriter, value);
+    writeBoolean(this.#bufferWriter, value);
   }
 
   writeInteger(value) {
-    writeInteger(this.bufferWriter, value);
+    writeInteger(this.#bufferWriter, value);
   }
 
   writeFloat64(value) {
-    writeFloat64(this.bufferWriter, value);
+    writeFloat64(this.#bufferWriter, value);
   }
 
   enterRecord() {
-    this.bufferWriter.writeByte(RECORD_START);
+    this.#bufferWriter.writeByte(RECORD_START);
   }
 
   exitRecord() {
-    this.bufferWriter.writeByte(RECORD_END);
+    this.#bufferWriter.writeByte(RECORD_END);
   }
 
   enterList() {
-    this.bufferWriter.writeByte(LIST_START);
+    this.#bufferWriter.writeByte(LIST_START);
   }
 
   exitList() {
-    this.bufferWriter.writeByte(LIST_END);
+    this.#bufferWriter.writeByte(LIST_END);
   }
 
   enterDictionary() {
-    this.bufferWriter.writeByte(DICT_START);
+    this.#bufferWriter.writeByte(DICT_START);
   }
 
   exitDictionary() {
-    this.bufferWriter.writeByte(DICT_END);
+    this.#bufferWriter.writeByte(DICT_END);
   }
 
   enterSet() {
-    this.bufferWriter.writeByte(SET_START);
+    this.#bufferWriter.writeByte(SET_START);
   }
 
   exitSet() {
-    this.bufferWriter.writeByte(SET_END);
+    this.#bufferWriter.writeByte(SET_END);
   }
 
   /**
@@ -339,6 +342,10 @@ export class SyrupWriter {
       default:
         throw Error(`writeTypeOf: unknown type ${typeof value}`);
     }
+  }
+
+  getBytes() {
+    return this.#bufferWriter.subarray(0, this.#bufferWriter.length);
   }
 }
 

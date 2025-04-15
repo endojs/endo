@@ -72,5 +72,5 @@ export const readOCapComponent = syrupReader => {
 
 export const writeOCapComponent = (component, syrupWriter) => {
   OCapNComponentUnionCodec.write(component, syrupWriter);
-  return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
+  return syrupWriter.getBytes();
 };

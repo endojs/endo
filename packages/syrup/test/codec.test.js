@@ -26,7 +26,7 @@ const zooBin = Uint8Array.from(zooBinRaw);
 const testCodecBidirectionally = (t, codec, value) => {
   const writer = makeSyrupWriter();
   codec.write(value, writer);
-  const bytes = writer.bufferWriter.subarray(0, writer.bufferWriter.length);
+  const bytes = writer.getBytes();
   const reader = makeSyrupReader(bytes);
   const result = codec.read(reader);
   t.deepEqual(result, value);
@@ -159,7 +159,7 @@ test('zoo.bin', t => {
   });
   const writer = makeSyrupWriter();
   zooCodec.write(value, writer);
-  const bytes = writer.bufferWriter.subarray(0, writer.bufferWriter.length);
+  const bytes = writer.getBytes();
   const resultSyrup = textDecoder.decode(bytes);
   const originalSyrup = textDecoder.decode(zooBin);
   t.deepEqual(resultSyrup, originalSyrup);
