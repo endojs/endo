@@ -514,3 +514,10 @@ export const operationsTable = [
     },
   },
 ];
+
+export const passableTable = [
+  // order canonicalization
+  { syrup: '{0"10+1"i20+}', value: { '': 10n, i: 20n } },
+  // order canonicalization
+  { syrup: '{0"10+1"i20+}', value: { i: 20n, '': 10n } },
+];

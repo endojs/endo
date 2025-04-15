@@ -11,6 +11,7 @@ import {
   componentsTable,
   descriptorsTable,
   operationsTable,
+  passableTable,
 } from './_table.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 
@@ -55,6 +56,13 @@ test('affirmative operation cases', t => {
   }
 });
 
+test('affirmative passable cases', t => {
+  const codec = OCapNPassableUnionCodec;
+  for (const { syrup, value } of passableTable) {
+    testBidirectionally(t, codec, syrup, value, `for ${JSON.stringify(syrup)}`);
+  }
+});
+
 test('error on unknown record type in passable', t => {
   const codec = OCapNPassableUnionCodec;
   const syrup = `<${sym('unknown-record-type')}>`;
@@ -83,6 +91,42 @@ test('descriptor fails with negative integer', t => {
     },
     {
       message: 'PositiveIntegerCodec: value must be positive',
+    },
+  );
+});
+
+test('passable fails with unordered keys', t => {
+  const codec = OCapNPassableUnionCodec;
+  const syrup = '{3"dog20+3"cat10+}';
+  const syrupBytes = textEncoder.encode(syrup);
+  const syrupReader = makeSyrupReader(syrupBytes, {
+    name: 'passable with unordered keys',
+  });
+  t.throws(
+    () => {
+      codec.read(syrupReader);
+    },
+    {
+      message:
+        'OCapN Structs keys must be in bytewise sorted order, got "cat" immediately after "dog" at index 9 of passable with unordered keys',
+    },
+  );
+});
+
+test('passable fails with repeated keys', t => {
+  const codec = OCapNPassableUnionCodec;
+  const syrup = '{3"cat10+3"cat20+}';
+  const syrupBytes = textEncoder.encode(syrup);
+  const syrupReader = makeSyrupReader(syrupBytes, {
+    name: 'passable with repeated keys',
+  });
+  t.throws(
+    () => {
+      codec.read(syrupReader);
+    },
+    {
+      message:
+        'OCapN Structs must have unique keys, got repeated "cat" at index 9 of passable with repeated keys',
     },
   );
 });
