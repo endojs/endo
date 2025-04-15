@@ -278,8 +278,9 @@ function readListBody(bufferReader, name) {
  * @param {string} name
  * @returns {any[]}
  */
-// eslint-disable-next-line no-underscore-dangle
-function _readList(bufferReader, name) {
+// Provided for completeness, but not used.
+// eslint-disable-next-line no-unused-vars
+function readList(bufferReader, name) {
   const cc = bufferReader.readByte();
   if (cc !== LIST_START) {
     throw Error(
@@ -376,8 +377,9 @@ function readDictionaryBody(bufferReader, name) {
  * @param {BufferReader} bufferReader
  * @param {string} name
  */
-// eslint-disable-next-line no-underscore-dangle
-function _readDictionary(bufferReader, name) {
+// Provided for completeness, but not used.
+// eslint-disable-next-line no-unused-vars
+function readDictionary(bufferReader, name) {
   const start = bufferReader.index;
   const cc = bufferReader.readByte();
   if (cc !== DICT_START) {
