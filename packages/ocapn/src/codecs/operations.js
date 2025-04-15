@@ -1,3 +1,5 @@
+// @ts-check
+
 import {
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
@@ -75,7 +77,7 @@ const OpDeliverArgsCodec = freeze({
    */
   write: ([methodName, ...args], syrupWriter) => {
     syrupWriter.enterList();
-    syrupWriter.writeSelector(methodName);
+    syrupWriter.writeSelectorFromString(methodName);
     for (const arg of args) {
       OCapNPassableUnionCodec.write(arg, syrupWriter);
     }

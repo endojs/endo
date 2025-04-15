@@ -1,8 +1,6 @@
 // @ts-check
 
 import { BufferReader } from './buffer-reader.js';
-import { compareByteArrays } from './compare.js';
-import { SyrupSelectorFor } from './selector.js';
 
 const MINUS = '-'.charCodeAt(0);
 const PLUS = '+'.charCodeAt(0);
@@ -27,7 +25,7 @@ const FLOAT64 = 'D'.charCodeAt(0);
 
 const textDecoder = new TextDecoder();
 
-const { defineProperty, freeze } = Object;
+const { freeze } = Object;
 
 const quote = o => JSON.stringify(o);
 const toChar = code => String.fromCharCode(code);
@@ -68,10 +66,11 @@ function readBoolean(bufferReader, name) {
 /** @typedef {{type: 'string', value: string}} ReadTypeStringResult */
 /** @typedef {{type: 'selector', value: string}} ReadTypeSelectorResult */
 /** @typedef {ReadTypeBooleanResult | ReadTypeFloat64Result | ReadTypeIntegerResult | ReadTypeBytestringResult | ReadTypeStringResult | ReadTypeSelectorResult} ReadTypeAtomResult */
+/** @typedef {ReadTypeStructuredResult | ReadTypeAtomResult} ReadTypeAndMaybeValueResult */
 /**
  * @param {BufferReader} bufferReader
  * @param {string} name
- * @returns {ReadTypeStructuredResult | ReadTypeAtomResult}
+ * @returns {ReadTypeAndMaybeValueResult}
  * Reads until it can determine the type of the next value.
  */
 function readTypeAndMaybeValue(bufferReader, name) {
@@ -256,140 +255,6 @@ function readFloat64(bufferReader, name) {
   return readFloat64Body(bufferReader, name);
 }
 
-/**
- * @param {BufferReader} bufferReader
- * @param {string} name
- * @returns {any[]}
- */
-function readListBody(bufferReader, name) {
-  const list = [];
-  for (;;) {
-    if (bufferReader.peekByte() === LIST_END) {
-      bufferReader.skip(1);
-      return list;
-    }
-    // eslint-disable-next-line no-use-before-define
-    list.push(readAny(bufferReader, name));
-  }
-}
-
-/**
- * @param {BufferReader} bufferReader
- * @param {string} name
- * @returns {any[]}
- */
-// Provided for completeness, but not used.
-// eslint-disable-next-line no-unused-vars
-function readList(bufferReader, name) {
-  const cc = bufferReader.readByte();
-  if (cc !== LIST_START) {
-    throw Error(
-      `Unexpected byte ${quote(toChar(cc))}, Syrup lists must start with ${quote(toChar(LIST_START))} at index ${bufferReader.index} of ${name}`,
-    );
-  }
-  return readListBody(bufferReader, name);
-}
-
-/**
- * @param {BufferReader} bufferReader
- * @param {string} name
- * @returns {{value: any, type: 'string' | 'selector', bytes: Uint8Array}}
- */
-function readDictionaryKey(bufferReader, name) {
-  const start = bufferReader.index;
-  const { value, type } = readTypeAndMaybeValue(bufferReader, name);
-  if (type === 'string' || type === 'selector') {
-    const end = bufferReader.index;
-    const bytes = bufferReader.bytesAt(start, end - start);
-    if (type === 'selector') {
-      return { value: SyrupSelectorFor(value), type, bytes };
-    }
-    return { value, type, bytes };
-  }
-  throw Error(
-    `Unexpected type ${quote(type)}, Syrup dictionary keys must be strings or selectors at index ${start} of ${name}`,
-  );
-}
-
-/**
- * @param {BufferReader} bufferReader
- * @param {string} name
- */
-function readDictionaryBody(bufferReader, name) {
-  const dict = {};
-  let priorKey;
-  let priorKeyBytes;
-  for (;;) {
-    // Check for end of dictionary
-    if (bufferReader.peekByte() === DICT_END) {
-      bufferReader.skip(1);
-      return freeze(dict);
-    }
-    // Read key
-    const start = bufferReader.index;
-    const { value: newKey, bytes: newKeyBytes } = readDictionaryKey(
-      bufferReader,
-      name,
-    );
-
-    // Validate strictly non-descending keys.
-    if (priorKeyBytes !== undefined) {
-      const order = compareByteArrays(
-        priorKeyBytes,
-        newKeyBytes,
-        0,
-        priorKeyBytes.length,
-        0,
-        newKeyBytes.length,
-      );
-      if (order === 0) {
-        throw Error(
-          `Syrup dictionary keys must be unique, got repeated ${JSON.stringify(
-            newKey,
-          )} at index ${start} of ${name}`,
-        );
-      } else if (order > 0) {
-        throw Error(
-          `Syrup dictionary keys must be in bytewise sorted order, got ${JSON.stringify(
-            newKey,
-          )} immediately after ${JSON.stringify(
-            priorKey,
-          )} at index ${start} of ${name}`,
-        );
-      }
-    }
-    priorKey = newKey;
-    priorKeyBytes = newKeyBytes;
-
-    // Read value and add to dictionary
-    // eslint-disable-next-line no-use-before-define
-    const value = readAny(bufferReader, name);
-    defineProperty(dict, newKey, {
-      value,
-      enumerable: true,
-      writable: false,
-      configurable: false,
-    });
-  }
-}
-
-/**
- * @param {BufferReader} bufferReader
- * @param {string} name
- */
-// Provided for completeness, but not used.
-// eslint-disable-next-line no-unused-vars
-function readDictionary(bufferReader, name) {
-  const start = bufferReader.index;
-  const cc = bufferReader.readByte();
-  if (cc !== DICT_START) {
-    throw Error(
-      `Unexpected character ${quote(toChar(cc))}, Syrup dictionaries must start with ${quote(toChar(DICT_START))} at index ${start} of ${name}`,
-    );
-  }
-  return readDictionaryBody(bufferReader, name);
-}
-
 /** @typedef {'float64' | 'number-prefix' | 'list' | 'set' | 'dictionary' | 'record' | 'boolean'} TypeHintTypes */
 
 /**
@@ -426,35 +291,6 @@ export function peekTypeHint(bufferReader, name) {
   );
 }
 
-/**
- * @param {BufferReader} bufferReader
- * @param {string} name
- * @returns {any}
- */
-function readAny(bufferReader, name) {
-  const { type, value } = readTypeAndMaybeValue(bufferReader, name);
-  // Structure types, value has not been read
-  if (type === 'list') {
-    return readListBody(bufferReader, name);
-  }
-  if (type === 'set') {
-    throw Error(`readAny for Sets is not yet supported.`);
-  }
-  if (type === 'dictionary') {
-    return readDictionaryBody(bufferReader, name);
-  }
-  if (type === 'record') {
-    throw Error(`readAny for Records is not yet supported.`);
-  }
-  // Atom types, value is already read
-  // For selectors, we need to convert the string to a selector
-  if (type === 'selector') {
-    return SyrupSelectorFor(value);
-  }
-
-  return value;
-}
-
 /** @typedef {{type: string, start: number}} SyrupReaderStackEntry */
 
 export class SyrupReader {
@@ -471,6 +307,10 @@ export class SyrupReader {
       /** @type {SyrupReaderStackEntry[]} */
       stack: [],
     };
+  }
+
+  get index() {
+    return this.bufferReader.index;
   }
 
   /**
@@ -521,11 +361,17 @@ export class SyrupReader {
     this.#popStackEntry('record');
   }
 
+  /**
+   * @returns {boolean}
+   */
   peekRecordEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === RECORD_END;
   }
 
+  /**
+   * @returns {{value: string, type: 'selector'} | {value: Uint8Array, type: 'bytestring'} | {value: string, type: 'string'}}
+   */
   readRecordLabel() {
     return readRecordLabel(this.bufferReader, this.name);
   }
@@ -540,13 +386,12 @@ export class SyrupReader {
     this.#popStackEntry('dictionary');
   }
 
+  /**
+   * @returns {boolean}
+   */
   peekDictionaryEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === DICT_END;
-  }
-
-  readDictionaryKey() {
-    return readDictionaryKey(this.bufferReader, this.name);
   }
 
   enterList() {
@@ -559,6 +404,9 @@ export class SyrupReader {
     this.#popStackEntry('list');
   }
 
+  /**
+   * @returns {boolean}
+   */
   peekListEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === LIST_END;
@@ -574,64 +422,68 @@ export class SyrupReader {
     this.#popStackEntry('set');
   }
 
+  /**
+   * @returns {boolean}
+   */
   peekSetEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === SET_END;
   }
 
+  /**
+   * @returns {boolean}
+   */
   readBoolean() {
     return readBoolean(this.bufferReader, this.name);
   }
 
+  /**
+   * @returns {bigint}
+   */
   readInteger() {
     return readInteger(this.bufferReader, this.name);
   }
 
+  /**
+   * @returns {number}
+   */
   readFloat64() {
     return readFloat64(this.bufferReader, this.name);
   }
 
+  /**
+   * @returns {string}
+   */
   readString() {
     return readString(this.bufferReader, this.name);
   }
 
+  /**
+   * @returns {Uint8Array}
+   */
   readBytestring() {
     return readBytestring(this.bufferReader, this.name);
   }
 
+  /**
+   * @returns {string}
+   */
   readSelectorAsString() {
     return readSelectorAsString(this.bufferReader, this.name);
   }
 
-  readAny() {
-    return readAny(this.bufferReader, this.name);
+  /**
+   * @returns {TypeHintTypes}
+   */
+  peekTypeHint() {
+    return peekTypeHint(this.bufferReader, this.name);
   }
 
   /**
-   * @param {'boolean' | 'integer' | 'float64' | 'string' | 'bytestring' | 'selector'} type
-   * @returns {any}
+   * @returns {ReadTypeAndMaybeValueResult}
    */
-  readOfType(type) {
-    switch (type) {
-      case 'boolean':
-        return this.readBoolean();
-      case 'integer':
-        return this.readInteger();
-      case 'float64':
-        return this.readFloat64();
-      case 'string':
-        return this.readString();
-      case 'bytestring':
-        return this.readBytestring();
-      case 'selector':
-        return this.readSelectorAsString();
-      default:
-        throw Error(`Unexpected type ${type}`);
-    }
-  }
-
-  peekTypeHint() {
-    return peekTypeHint(this.bufferReader, this.name);
+  readTypeAndMaybeValue() {
+    return readTypeAndMaybeValue(this.bufferReader, this.name);
   }
 }
 
@@ -640,30 +492,3 @@ export const makeSyrupReader = (bytes, options = {}) => {
   const syrupReader = new SyrupReader(bufferReader, options);
   return syrupReader;
 };
-
-/**
- * @param {Uint8Array} bytes
- * @param {object} options
- * @param {string} [options.name]
- * @param {number} [options.start]
- * @param {number} [options.end]
- */
-export function decodeSyrup(bytes, options = {}) {
-  const { start = 0, name = '<unknown>' } = options;
-  const bufferReader = BufferReader.fromBytes(bytes);
-  if (start !== 0) {
-    bufferReader.seek(start);
-  }
-  try {
-    return readAny(bufferReader, name);
-  } catch (err) {
-    if (err.code === 'EOD') {
-      const err2 = Error(
-        `Unexpected end of Syrup at index ${bufferReader.length} of ${name}`,
-      );
-      err2.cause = err;
-      throw err2;
-    }
-    throw err;
-  }
-}

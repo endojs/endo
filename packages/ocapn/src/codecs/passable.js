@@ -1,14 +1,16 @@
+// @ts-check
+
 import {
   BooleanCodec,
   IntegerCodec,
   Float64Codec,
-  SelectorCodec,
+  SelectorAsStringCodec,
   StringCodec,
   BytestringCodec,
-  ListCodec,
-  AnyCodec,
+  NumberPrefixCodec,
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
+  makeListCodecFromEntryCodec,
 } from '../syrup/codec.js';
 import {
   makeOCapNRecordCodec,
@@ -59,7 +61,7 @@ const AtomCodecs = {
   integer: IntegerCodec,
   float64: Float64Codec,
   string: StringCodec,
-  selector: SelectorCodec,
+  selector: SelectorAsStringCodec,
   byteArray: BytestringCodec,
 };
 
@@ -109,16 +111,10 @@ const OCapNTaggedCodec = makeOCapNRecordCodec(
   },
   // writeBody
   (value, syrupWriter) => {
-    syrupWriter.writeSelector(value.tagName);
+    syrupWriter.writeSelectorFromString(value.tagName);
     value.value.write(syrupWriter);
   },
 );
-
-const ContainerCodecs = {
-  list: ListCodec,
-  struct: OCapNStructCodec,
-  tagged: OCapNTaggedCodec,
-};
 
 // OCapN Reference (Capability)
 
@@ -143,15 +139,6 @@ const OCapNErrorCodec = makeOCapNRecordCodecFromDefinition('desc:error', [
   ['message', 'string'],
 ]);
 
-// Provided for completeness, but not used.
-// eslint-disable-next-line no-unused-vars
-const OCapNPassableCodecs = {
-  ...AtomCodecs,
-  ...ContainerCodecs,
-  ...OCapNReferenceCodecs,
-  ...OCapNErrorCodec,
-};
-
 // all record based passables
 const OCapNPassableRecordUnionCodec = makeRecordUnionCodec({
   UndefinedCodec,
@@ -175,10 +162,12 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
     float64: AtomCodecs.float64,
     // "number-prefix" can be string, bytestring, selector, integer
     // TODO: should restrict further to only the types that can be passed
-    'number-prefix': AnyCodec,
-    list: ContainerCodecs.list,
+    'number-prefix': NumberPrefixCodec,
     record: OCapNPassableRecordUnionCodec,
-    dictionary: ContainerCodecs.struct,
+    // eslint-disable-next-line no-use-before-define
+    list: () => ContainerCodecs.list,
+    // eslint-disable-next-line no-use-before-define
+    dictionary: () => ContainerCodecs.struct,
   },
   // javascript typeof value -> codec
   {
@@ -196,9 +185,11 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
         return AtomCodecs.byteArray;
       }
       if (Array.isArray(value)) {
+        // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.list;
       }
       if (value[Symbol.for('passStyle')] === 'tagged') {
+        // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.tagged;
       }
       if (
@@ -208,7 +199,23 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
         return OCapNPassableRecordUnionCodec;
       }
       // TODO: need to distinguish OCapNReferenceCodecs and OCapNErrorCodec
+      // eslint-disable-next-line no-use-before-define
       return ContainerCodecs.struct;
     },
   },
 );
+
+const ContainerCodecs = {
+  list: makeListCodecFromEntryCodec(OCapNPassableUnionCodec),
+  struct: OCapNStructCodec,
+  tagged: OCapNTaggedCodec,
+};
+
+// Provided for completeness, but not used.
+// eslint-disable-next-line no-unused-vars
+const OCapNPassableCodecs = {
+  ...AtomCodecs,
+  ...ContainerCodecs,
+  ...OCapNReferenceCodecs,
+  ...OCapNErrorCodec,
+};
