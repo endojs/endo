@@ -1,7 +1,7 @@
 // @ts-check
 
-import test from 'ava';
-import { encodeSyrup } from '../src/encode.js';
+import test from '@endo/ses-ava/prepare-endo.js';
+import { encodeSyrup } from '../../src/syrup/encode.js';
 import { table } from './_table.js';
 
 test('affirmative encode cases', t => {
@@ -13,7 +13,7 @@ test('affirmative encode cases', t => {
     for (const cc of Array.from(actual)) {
       string += String.fromCharCode(cc);
     }
-    t.deepEqual(syrup, string, `for ${JSON.stringify(syrup)} ${value}`);
+    t.deepEqual(syrup, string, `for ${JSON.stringify(syrup)} ${String(value)}`);
   }
 });
 
