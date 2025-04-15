@@ -65,14 +65,31 @@ const AtomCodecs = {
 
 // OCapN Passable Containers
 
-// TODO: dictionary but with only string keys
 /** @type {SyrupCodec} */
 export const OCapNStructCodec = {
   read(syrupReader) {
-    throw Error('OCapNStructCodec: read must be implemented');
+    syrupReader.enterDictionary();
+    const result = {};
+    while (!syrupReader.peekDictionaryEnd()) {
+      // OCapN Structs are always string keys.
+      const key = syrupReader.readString();
+      // Value can be any Passable.
+      /* eslint-disable-next-line no-use-before-define */
+      const value = OCapNPassableUnionCodec.read(syrupReader);
+      result[key] = value;
+    }
+    syrupReader.exitDictionary();
+    return result;
   },
   write(value, syrupWriter) {
-    throw Error('OCapNStructCodec: write must be implemented');
+    syrupWriter.enterDictionary();
+    for (const [key, structValue] of Object.entries(value)) {
+      syrupWriter.writeString(key);
+      // Value can be any Passable.
+      /* eslint-disable-next-line no-use-before-define */
+      OCapNPassableUnionCodec.write(structValue, syrupWriter);
+    }
+    syrupWriter.exitDictionary();
   },
 };
 
