@@ -1,4 +1,4 @@
-import { SyrupSelectorFor } from '../../src/syrup/selector.js';
+import { SyrupSelectorFor } from '../../src/syrup/js-representation.js';
 
 const textEncoder = new TextEncoder();
 

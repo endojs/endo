@@ -1,3 +1,5 @@
+// @ts-check
+
 import { makeRecordUnionCodec } from '../syrup/codec.js';
 import { makeOCapNRecordCodecFromDefinition } from './util.js';
 
@@ -14,6 +16,10 @@ const { freeze } = Object;
  * @returns {SyrupCodec}
  */
 export const makeOCapNSignatureValueComponentCodec = expectedLabel => {
+  /**
+   * @param {import('../syrup/decode.js').SyrupReader} syrupReader
+   * @returns {Uint8Array}
+   */
   const read = syrupReader => {
     const label = syrupReader.readSelectorAsString();
     if (label !== expectedLabel) {
@@ -22,8 +28,12 @@ export const makeOCapNSignatureValueComponentCodec = expectedLabel => {
     const value = syrupReader.readBytestring();
     return value;
   };
+  /**
+   * @param {Uint8Array} value
+   * @param {import('../syrup/encode.js').SyrupWriter} syrupWriter
+   */
   const write = (value, syrupWriter) => {
-    syrupWriter.writeSelector(expectedLabel);
+    syrupWriter.writeSelectorFromString(expectedLabel);
     syrupWriter.writeBytestring(value);
   };
   return freeze({ read, write });
