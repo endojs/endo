@@ -28,6 +28,8 @@ import {
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 /** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 
+const quote = JSON.stringify;
+
 // OCapN Passable Atoms
 
 const UndefinedCodec = makeOCapNRecordCodec(
@@ -70,11 +72,27 @@ const AtomCodecs = {
 /** @type {SyrupCodec} */
 export const OCapNStructCodec = {
   read(syrupReader) {
+    /** @type {string | undefined} */
+    let lastKey;
     syrupReader.enterDictionary();
     const result = {};
     while (!syrupReader.peekDictionaryEnd()) {
       // OCapN Structs are always string keys.
+      const start = syrupReader.index;
       const key = syrupReader.readString();
+      if (lastKey !== undefined) {
+        if (key === lastKey) {
+          throw new Error(
+            `OCapN Structs must have unique keys, got repeated ${quote(key)} at index ${start} of ${syrupReader.name}`,
+          );
+        }
+        if (key < lastKey) {
+          throw new Error(
+            `OCapN Structs keys must be in bytewise sorted order, got ${quote(key)} immediately after ${quote(lastKey)} at index ${start} of ${syrupReader.name}`,
+          );
+        }
+      }
+      lastKey = key;
       // Value can be any Passable.
       /* eslint-disable-next-line no-use-before-define */
       const value = OCapNPassableUnionCodec.read(syrupReader);
@@ -85,11 +103,14 @@ export const OCapNStructCodec = {
   },
   write(value, syrupWriter) {
     syrupWriter.enterDictionary();
-    for (const [key, structValue] of Object.entries(value)) {
+    const keys = Object.keys(value);
+    keys.sort();
+    for (const key of keys) {
       syrupWriter.writeString(key);
       // Value can be any Passable.
+      const passable = value[key];
       /* eslint-disable-next-line no-use-before-define */
-      OCapNPassableUnionCodec.write(structValue, syrupWriter);
+      OCapNPassableUnionCodec.write(passable, syrupWriter);
     }
     syrupWriter.exitDictionary();
   },
