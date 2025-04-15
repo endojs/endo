@@ -81,8 +81,9 @@ const OCapNTaggedCodec = makeOCapNRecordCodec(
   // readBody
   syrupReader => {
     const tagName = syrupReader.readSelectorAsString();
-    // @ts-expect-error any type
-    const value = syrupReader.readOfType('any');
+    // Value can be any Passable.
+    /* eslint-disable-next-line no-use-before-define */
+    const value = OCapNPassableUnionCodec.read(syrupReader);
     return {
       [Symbol.for('passStyle')]: 'tagged',
       [Symbol.toStringTag]: tagName,
