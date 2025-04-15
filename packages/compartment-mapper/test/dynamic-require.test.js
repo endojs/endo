@@ -6,6 +6,7 @@
  *   ExitModuleImportNowHook, Policy,
  *   SyncModuleTransforms,
  * } from '../src/types.js'
+ * @import {ThirdPartyStaticModuleInterface} from 'ses'
  */
 
 import 'ses';
@@ -21,14 +22,16 @@ import { WILDCARD_POLICY_VALUE } from '../src/policy-format.js';
 const readPowers = makeReadNowPowers({ fs, url, path });
 const { freeze, keys, assign } = Object;
 
-const importNowHook = (specifier, packageLocation) => {
+/**
+ * @type {ExitModuleImportNowHook}
+ */
+const defaultImportNowHook = (specifier, packageLocation) => {
   const require = Module.createRequire(
     readPowers.fileURLToPath(packageLocation),
   );
-  /** @type {object} */
   const ns = require(specifier);
   return freeze(
-    /** @type {import('ses').ThirdPartyStaticModuleInterface} */ ({
+    /** @type {ThirdPartyStaticModuleInterface} */ ({
       imports: [],
       exports: keys(ns),
       execute: moduleExports => {
@@ -46,15 +49,15 @@ test('intra-package dynamic require works without invoking the exitModuleImportN
     import.meta.url,
   ).toString();
   let importNowHookCallCount = 0;
+  /** @type {ExitModuleImportNowHook} */
   const importNowHook = (specifier, packageLocation) => {
     importNowHookCallCount += 1;
     const require = Module.createRequire(
       readPowers.fileURLToPath(packageLocation),
     );
-    /** @type {object} */
     const ns = require(specifier);
     return freeze(
-      /** @type {import('ses').ThirdPartyStaticModuleInterface} */ ({
+      /** @type {ThirdPartyStaticModuleInterface} */ ({
         imports: [],
         exports: keys(ns),
         execute: moduleExports => {
@@ -75,7 +78,12 @@ test('intra-package dynamic require works without invoking the exitModuleImportN
     resources: {
       dynamic: {
         packages: {
-          'is-ok': true,
+          'dynamic>is-ok': true,
+        },
+      },
+      'dynamic>is-ok': {
+        packages: {
+          'dynamic>is-ok>is-not-ok': true,
         },
       },
     },
@@ -108,15 +116,15 @@ test('intra-package dynamic require with inter-package absolute path works witho
     import.meta.url,
   ).toString();
   let importNowHookCallCount = 0;
+  /** @type {ExitModuleImportNowHook} */
   const importNowHook = (specifier, packageLocation) => {
     importNowHookCallCount += 1;
     const require = Module.createRequire(
       readPowers.fileURLToPath(packageLocation),
     );
-    /** @type {object} */
     const ns = require(specifier);
     return freeze(
-      /** @type {import('ses').ThirdPartyStaticModuleInterface} */ ({
+      /** @type {ThirdPartyStaticModuleInterface} */ ({
         imports: [],
         exports: keys(ns),
         execute: moduleExports => {
@@ -169,10 +177,9 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
     const require = Module.createRequire(
       readPowers.fileURLToPath(packageLocation),
     );
-    /** @type {object} */
     const ns = require(specifier);
     return freeze(
-      /** @type {import('ses').ThirdPartyStaticModuleInterface} */ ({
+      /** @type {ThirdPartyStaticModuleInterface} */ ({
         imports: [],
         exports: keys(ns),
         execute: moduleExports => {
@@ -222,7 +229,7 @@ test('dynamic require fails without maybeReadNow in read powers', async t => {
   await t.throwsAsync(
     // @ts-expect-error bad type
     importLocation(lessPower, fixture, {
-      importNowHook,
+      importNowHook: defaultImportNowHook,
       policy: {
         entry: {
           packages: WILDCARD_POLICY_VALUE,
@@ -240,7 +247,7 @@ test('dynamic require fails without maybeReadNow in read powers', async t => {
     }),
     {
       message:
-        /Synchronous readPowers required for dynamic import of "is-ok"; missing or invalid prop\(s\): maybeReadNow/,
+        /Synchronous readPowers required for dynamic import of ".+"; missing or invalid prop\(s\): maybeReadNow/,
     },
   );
 });
@@ -254,7 +261,7 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
   await t.throwsAsync(
     // @ts-expect-error bad types
     importLocation(lessPower, fixture, {
-      importNowHook,
+      importNowHook: defaultImportNowHook,
       policy: {
         entry: {
           packages: WILDCARD_POLICY_VALUE,
@@ -272,7 +279,7 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
     }),
     {
       message:
-        /Synchronous readPowers required for dynamic import of "is-ok"; missing or invalid prop\(s\): fileURLToPath, isAbsolute/,
+        /Synchronous readPowers required for dynamic import of ".+"; missing or invalid prop\(s\): fileURLToPath, isAbsolute/,
     },
   );
 });
@@ -297,10 +304,9 @@ test('inter-package and exit module dynamic require works', async t => {
     const require = Module.createRequire(
       readPowers.fileURLToPath(packageLocation),
     );
-    /** @type {object} */
     const ns = require(specifier);
     return freeze(
-      /** @type {import('ses').ThirdPartyStaticModuleInterface} */ ({
+      /** @type {ThirdPartyStaticModuleInterface} */ ({
         imports: [],
         exports: keys(ns),
         execute: moduleExports => {
@@ -327,7 +333,12 @@ test('inter-package and exit module dynamic require works', async t => {
         },
         'hooked>dynamic': {
           packages: {
-            'is-ok': true,
+            'hooked>dynamic>is-ok': true,
+          },
+        },
+        'hooked>dynamic>is-ok': {
+          packages: {
+            'hooked>dynamic>is-ok>is-not-ok': true,
           },
         },
       },
@@ -510,7 +521,12 @@ test('sync module transforms work with dynamic require support', async t => {
     resources: {
       dynamic: {
         packages: {
-          'is-ok': true,
+          'dynamic>is-ok': true,
+        },
+      },
+      'dynamic>is-ok': {
+        packages: {
+          'dynamic>is-ok>is-not-ok': true,
         },
       },
     },
@@ -518,7 +534,7 @@ test('sync module transforms work with dynamic require support', async t => {
 
   const { namespace } = await importLocation(readPowers, fixture, {
     syncModuleTransforms,
-    importNowHook,
+    importNowHook: defaultImportNowHook,
     policy,
   });
 
@@ -542,6 +558,7 @@ test('sync module transforms work without dynamic require support', async t => {
   ).toString();
 
   let transformCount = 0;
+  const expectedCount = 3;
 
   /** @type {SyncModuleTransforms} */
   const syncModuleTransforms = {
@@ -559,7 +576,7 @@ test('sync module transforms work without dynamic require support', async t => {
     syncModuleTransforms,
   });
 
-  t.is(transformCount, 2);
+  t.is(transformCount, expectedCount);
 });
 
 test('dynamic require of missing module falls through to importNowHook', async t => {
