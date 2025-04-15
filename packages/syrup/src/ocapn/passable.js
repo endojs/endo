@@ -7,11 +7,13 @@ import {
   BytestringCodec,
   ListCodec,
   AnyCodec,
-  makeRecordCodecFromDefinition,
-  makeRecordCodec,
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
 } from '../codec.js';
+import {
+  makeOCapNRecordCodec,
+  makeOCapNRecordCodecFromDefinition,
+} from './util.js';
 import {
   DescImportObject,
   DescImportPromise,
@@ -26,7 +28,7 @@ import {
 
 // OCapN Passable Atoms
 
-const UndefinedCodec = makeRecordCodec(
+const UndefinedCodec = makeOCapNRecordCodec(
   'void',
   // readBody
   syrupReader => {
@@ -38,7 +40,7 @@ const UndefinedCodec = makeRecordCodec(
   },
 );
 
-const NullCodec = makeRecordCodec(
+const NullCodec = makeOCapNRecordCodec(
   'null',
   // readBody
   syrupReader => {
@@ -57,9 +59,7 @@ const AtomCodecs = {
   integer: IntegerCodec,
   float64: DoubleCodec,
   string: StringCodec,
-  // TODO: Pass Invariant Equality
   selector: SelectorCodec,
-  // TODO: Pass Invariant Equality
   byteArray: BytestringCodec,
 };
 
@@ -76,14 +76,13 @@ export const OCapNStructCodec = {
   },
 };
 
-const OCapNTaggedCodec = makeRecordCodec(
+const OCapNTaggedCodec = makeOCapNRecordCodec(
   'desc:tagged',
   // readBody
   syrupReader => {
     const tagName = syrupReader.readSelectorAsString();
     // @ts-expect-error any type
     const value = syrupReader.readOfType('any');
-    // TODO: Pass Invariant Equality
     return {
       [Symbol.for('passStyle')]: 'tagged',
       [Symbol.toStringTag]: tagName,
@@ -122,7 +121,7 @@ const OCapNReferenceCodecs = {
 
 // OCapN Error
 
-const OCapNErrorCodec = makeRecordCodecFromDefinition('desc:error', [
+const OCapNErrorCodec = makeOCapNRecordCodecFromDefinition('desc:error', [
   ['message', 'string'],
 ]);
 

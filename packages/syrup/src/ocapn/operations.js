@@ -1,8 +1,5 @@
-import {
-  makeRecordUnionCodec,
-  makeRecordCodecFromDefinition,
-  makeTypeHintUnionCodec,
-} from '../codec.js';
+import { makeRecordUnionCodec, makeTypeHintUnionCodec } from '../codec.js';
+import { makeOCapNRecordCodecFromDefinition } from './util.js';
 import { PositiveIntegerCodec, FalseCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 import { OCapNPassableUnionCodec } from './passable.js';
@@ -19,7 +16,7 @@ const { freeze } = Object;
  * These are OCapN Operations, they are messages that are sent between OCapN Nodes
  */
 
-const OpStartSession = makeRecordCodecFromDefinition('op:start-session', [
+const OpStartSession = makeOCapNRecordCodecFromDefinition('op:start-session', [
   ['captpVersion', 'string'],
   ['sessionPublicKey', OCapNPublicKey],
   ['location', OCapNNode],
@@ -31,7 +28,7 @@ const OCapNResolveMeDescCodec = makeRecordUnionCodec({
   DescImportPromise,
 });
 
-const OpListen = makeRecordCodecFromDefinition('op:listen', [
+const OpListen = makeOCapNRecordCodecFromDefinition('op:listen', [
   ['to', DescExport],
   ['resolveMeDesc', OCapNResolveMeDescCodec],
   ['wantsPartial', 'boolean'],
@@ -80,7 +77,7 @@ const OpDeliverArgsCodec = freeze({
   },
 });
 
-const OpDeliverOnly = makeRecordCodecFromDefinition('op:deliver-only', [
+const OpDeliverOnly = makeOCapNRecordCodecFromDefinition('op:deliver-only', [
   ['to', OCapNDeliverTargetCodec],
   ['args', OpDeliverArgsCodec],
 ]);
@@ -97,7 +94,7 @@ const OpDeliverAnswerCodec = makeTypeHintUnionCodec(
   },
 );
 
-const OpDeliver = makeRecordCodecFromDefinition('op:deliver', [
+const OpDeliver = makeOCapNRecordCodecFromDefinition('op:deliver', [
   ['to', OCapNDeliverTargetCodec],
   ['args', OpDeliverArgsCodec],
   ['answerPosition', OpDeliverAnswerCodec],
@@ -109,22 +106,22 @@ const OCapNPromiseRefCodec = makeRecordUnionCodec({
   DescImportPromise,
 });
 
-const OpPick = makeRecordCodecFromDefinition('op:pick', [
+const OpPick = makeOCapNRecordCodecFromDefinition('op:pick', [
   ['promisePosition', OCapNPromiseRefCodec],
   ['selectedValuePosition', 'integer'],
   ['newAnswerPosition', 'integer'],
 ]);
 
-const OpAbort = makeRecordCodecFromDefinition('op:abort', [
+const OpAbort = makeOCapNRecordCodecFromDefinition('op:abort', [
   ['reason', 'string'],
 ]);
 
-const OpGcExport = makeRecordCodecFromDefinition('op:gc-export', [
+const OpGcExport = makeOCapNRecordCodecFromDefinition('op:gc-export', [
   ['exportPosition', 'integer'],
   ['wireDelta', 'integer'],
 ]);
 
-const OpGcAnswer = makeRecordCodecFromDefinition('op:gc-answer', [
+const OpGcAnswer = makeOCapNRecordCodecFromDefinition('op:gc-answer', [
   ['answerPosition', 'integer'],
 ]);
 

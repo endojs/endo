@@ -18,8 +18,8 @@ const LIST_START = '['.charCodeAt(0);
 const LIST_END = ']'.charCodeAt(0);
 const DICT_START = '{'.charCodeAt(0);
 const DICT_END = '}'.charCodeAt(0);
-// const SET_START = '#'.charCodeAt(0);
-// const SET_END = '$'.charCodeAt(0);
+const SET_START = '#'.charCodeAt(0);
+const SET_END = '$'.charCodeAt(0);
 // const BYTES_START = ':'.charCodeAt(0);
 // const STRING_START = '"'.charCodeAt(0);
 // const SELECTOR_START = "'".charCodeAt(0);
@@ -294,6 +294,22 @@ export class SyrupWriter {
 
   exitList() {
     this.bufferWriter.writeByte(LIST_END);
+  }
+
+  enterDictionary() {
+    this.bufferWriter.writeByte(DICT_START);
+  }
+
+  exitDictionary() {
+    this.bufferWriter.writeByte(DICT_END);
+  }
+
+  enterSet() {
+    this.bufferWriter.writeByte(SET_START);
+  }
+
+  exitSet() {
+    this.bufferWriter.writeByte(SET_END);
   }
 
   /**

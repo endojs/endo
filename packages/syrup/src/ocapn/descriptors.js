@@ -1,7 +1,5 @@
-import {
-  makeRecordCodecFromDefinition,
-  makeRecordUnionCodec,
-} from '../codec.js';
+import { makeRecordUnionCodec } from '../codec.js';
+import { makeOCapNRecordCodecFromDefinition } from './util.js';
 import { PositiveIntegerCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 
@@ -10,25 +8,25 @@ import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
  * directly in OCapN Messages and as part of Passable structures.
  */
 
-export const DescImportObject = makeRecordCodecFromDefinition(
+export const DescImportObject = makeOCapNRecordCodecFromDefinition(
   'desc:import-object',
   [['position', PositiveIntegerCodec]],
 );
 
-export const DescImportPromise = makeRecordCodecFromDefinition(
+export const DescImportPromise = makeOCapNRecordCodecFromDefinition(
   'desc:import-promise',
   [['position', PositiveIntegerCodec]],
 );
 
-export const DescExport = makeRecordCodecFromDefinition('desc:export', [
+export const DescExport = makeOCapNRecordCodecFromDefinition('desc:export', [
   ['position', PositiveIntegerCodec],
 ]);
 
-export const DescAnswer = makeRecordCodecFromDefinition('desc:answer', [
+export const DescAnswer = makeOCapNRecordCodecFromDefinition('desc:answer', [
   ['position', PositiveIntegerCodec],
 ]);
 
-export const DescHandoffGive = makeRecordCodecFromDefinition(
+export const DescHandoffGive = makeOCapNRecordCodecFromDefinition(
   'desc:handoff-give',
   [
     ['receiverKey', OCapNPublicKey],
@@ -39,7 +37,7 @@ export const DescHandoffGive = makeRecordCodecFromDefinition(
   ],
 );
 
-export const DescSigGiveEnvelope = makeRecordCodecFromDefinition(
+export const DescSigGiveEnvelope = makeOCapNRecordCodecFromDefinition(
   'desc:sig-envelope',
   [
     ['object', DescHandoffGive],
@@ -47,7 +45,7 @@ export const DescSigGiveEnvelope = makeRecordCodecFromDefinition(
   ],
 );
 
-export const DescHandoffReceive = makeRecordCodecFromDefinition(
+export const DescHandoffReceive = makeOCapNRecordCodecFromDefinition(
   'desc:handoff-receive',
   [
     ['receivingSession', 'bytestring'],
@@ -57,7 +55,7 @@ export const DescHandoffReceive = makeRecordCodecFromDefinition(
   ],
 );
 
-export const DescSigReceiveEnvelope = makeRecordCodecFromDefinition(
+export const DescSigReceiveEnvelope = makeOCapNRecordCodecFromDefinition(
   'desc:sig-envelope',
   [
     ['object', DescHandoffReceive],

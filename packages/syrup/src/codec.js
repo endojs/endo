@@ -12,6 +12,9 @@ const quote = JSON.stringify;
  * @property {function(any, SyrupWriter): void} write
  */
 
+const textDecoder = new TextDecoder();
+const textEncoder = new TextEncoder();
+
 /** @type {SyrupCodec} */
 export const SelectorCodec = freeze({
   write: (value, syrupWriter) => syrupWriter.writeSelector(value),
@@ -80,6 +83,32 @@ export const ListCodec = freeze({
 });
 
 /**
+ * @param {SyrupCodec} childCodec
+ * @returns {SyrupCodec}
+ */
+export const makeListCodecFromEntryCodec = childCodec => {
+  return freeze({
+    read: syrupReader => {
+      syrupReader.enterList();
+      const result = [];
+      while (!syrupReader.peekListEnd()) {
+        const value = childCodec.read(syrupReader);
+        result.push(value);
+      }
+      syrupReader.exitList();
+      return result;
+    },
+    write: (value, syrupWriter) => {
+      syrupWriter.enterList();
+      for (const child of value) {
+        childCodec.write(child, syrupWriter);
+      }
+      syrupWriter.exitList();
+    },
+  });
+};
+
+/**
  * @typedef {SyrupCodec & {
  *   label: string;
  *   readBody: (SyrupReader) => any;
@@ -88,22 +117,37 @@ export const ListCodec = freeze({
  */
 
 /**
+ * @typedef {'selector' | 'string' | 'bytestring'} SyrupRecordLabelType
+ * see https://github.com/ocapn/syrup/issues/22
+ */
+
+/**
  * @param {string} label
+ * @param {SyrupRecordLabelType} labelType
  * @param {function(SyrupReader): any} readBody
  * @param {function(any, SyrupWriter): void} writeBody
  * @returns {SyrupRecordCodec}
  */
-export const makeRecordCodec = (label, readBody, writeBody) => {
+export const makeRecordCodec = (label, labelType, readBody, writeBody) => {
   /**
    * @param {SyrupReader} syrupReader
    * @returns {any}
    */
   const read = syrupReader => {
     syrupReader.enterRecord();
-    const actualLabel = syrupReader.readSelectorAsString();
-    if (actualLabel !== label) {
+    const labelInfo = syrupReader.readRecordLabel();
+    if (labelInfo.type !== labelType) {
       throw Error(
-        `RecordCodec: Expected label ${quote(label)}, got ${quote(actualLabel)}`,
+        `RecordCodec: Expected label type ${quote(labelType)} for ${quote(label)}, got ${quote(labelInfo.type)}`,
+      );
+    }
+    const labelString =
+      labelInfo.type === 'bytestring'
+        ? textDecoder.decode(labelInfo.value)
+        : labelInfo.value;
+    if (labelString !== label) {
+      throw Error(
+        `RecordCodec: Expected label ${quote(label)}, got ${quote(labelString)}`,
       );
     }
     const result = readBody(syrupReader);
@@ -116,7 +160,13 @@ export const makeRecordCodec = (label, readBody, writeBody) => {
    */
   const write = (value, syrupWriter) => {
     syrupWriter.enterRecord();
-    syrupWriter.writeSelector(value.type);
+    if (labelType === 'selector') {
+      syrupWriter.writeSelector(value.type);
+    } else if (labelType === 'string') {
+      syrupWriter.writeString(value.type);
+    } else if (labelType === 'bytestring') {
+      syrupWriter.writeBytestring(textEncoder.encode(value.type));
+    }
     writeBody(value, syrupWriter);
     syrupWriter.exitRecord();
   };
@@ -133,10 +183,11 @@ export const makeRecordCodec = (label, readBody, writeBody) => {
 
 /**
  * @param {string} label
+ * @param {SyrupRecordLabelType} labelType
  * @param {SyrupRecordDefinition} definition
  * @returns {SyrupRecordCodec}
  */
-export const makeRecordCodecFromDefinition = (label, definition) => {
+export const makeRecordCodecFromDefinition = (label, labelType, definition) => {
   /**
    * @param {SyrupReader} syrupReader
    * @returns {any}
@@ -175,7 +226,7 @@ export const makeRecordCodecFromDefinition = (label, definition) => {
     }
   };
 
-  return makeRecordCodec(label, readBody, writeBody);
+  return makeRecordCodec(label, labelType, readBody, writeBody);
 };
 
 /**
@@ -263,10 +314,14 @@ export const makeRecordUnionCodec = recordTypes => {
   };
   const read = syrupReader => {
     syrupReader.enterRecord();
-    const label = syrupReader.readSelectorAsString();
-    const recordCodec = recordTable[label];
+    const labelInfo = syrupReader.readRecordLabel();
+    const labelString =
+      labelInfo.type === 'bytestring'
+        ? textDecoder.decode(labelInfo.value)
+        : labelInfo.value;
+    const recordCodec = recordTable[labelString];
     if (!recordCodec) {
-      throw Error(`Unexpected record type: ${quote(label)}`);
+      throw Error(`Unexpected record type: ${quote(labelString)}`);
     }
     const result = recordCodec.readBody(syrupReader);
     syrupReader.exitRecord();

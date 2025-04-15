@@ -1,7 +1,6 @@
-import {
-  makeRecordCodecFromDefinition,
-  makeRecordUnionCodec,
-} from '../codec.js';
+import { makeRecordUnionCodec } from '../codec.js';
+import { makeOCapNRecordCodecFromDefinition } from './util.js';
+
 /** @typedef {import('../codec.js').SyrupCodec} SyrupCodec */
 
 const { freeze } = Object;
@@ -33,24 +32,27 @@ export const makeOCapNSignatureValueComponentCodec = expectedLabel => {
 const OCapNSignatureRValue = makeOCapNSignatureValueComponentCodec('r');
 const OCapNSignatureSValue = makeOCapNSignatureValueComponentCodec('s');
 
-export const OCapNSignature = makeRecordCodecFromDefinition('sig-val', [
+export const OCapNSignature = makeOCapNRecordCodecFromDefinition('sig-val', [
   ['scheme', 'selector'],
   ['r', OCapNSignatureRValue],
   ['s', OCapNSignatureSValue],
 ]);
 
-export const OCapNNode = makeRecordCodecFromDefinition('ocapn-node', [
+export const OCapNNode = makeOCapNRecordCodecFromDefinition('ocapn-node', [
   ['transport', 'selector'],
   ['address', 'bytestring'],
   ['hints', 'boolean'],
 ]);
 
-export const OCapNSturdyRef = makeRecordCodecFromDefinition('ocapn-sturdyref', [
-  ['node', OCapNNode],
-  ['swissNum', 'string'],
-]);
+export const OCapNSturdyRef = makeOCapNRecordCodecFromDefinition(
+  'ocapn-sturdyref',
+  [
+    ['node', OCapNNode],
+    ['swissNum', 'string'],
+  ],
+);
 
-export const OCapNPublicKey = makeRecordCodecFromDefinition('public-key', [
+export const OCapNPublicKey = makeOCapNRecordCodecFromDefinition('public-key', [
   ['scheme', 'selector'],
   ['curve', 'selector'],
   ['flags', 'selector'],

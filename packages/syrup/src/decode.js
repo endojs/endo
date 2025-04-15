@@ -194,10 +194,28 @@ function readSelectorAsString(bufferReader, name) {
 /**
  * @param {BufferReader} bufferReader
  * @param {string} name
- * @returns {string}
+ * @returns {Uint8Array}
  */
 function readBytestring(bufferReader, name) {
   return readAndAssertType(bufferReader, 'bytestring', name);
+}
+
+/**
+ * @param {BufferReader} bufferReader
+ * @param {string} name
+ * @returns {{value: string, type: 'selector'} | {value: Uint8Array, type: 'bytestring'} | {value: string, type: 'string'}}
+ * see https://github.com/ocapn/syrup/issues/22
+ */
+function readRecordLabel(bufferReader, name) {
+  const start = bufferReader.index;
+  const { value, type } = readTypeAndMaybeValue(bufferReader, name);
+  if (type === 'selector' || type === 'string' || type === 'bytestring') {
+    // @ts-expect-error type system is not smart enough
+    return { value, type };
+  }
+  throw Error(
+    `Unexpected type ${quote(type)}, Syrup record labels must be strings, selectors, or bytestrings at index ${start} of ${name}`,
+  );
 }
 
 /**
@@ -506,6 +524,10 @@ export class SyrupReader {
     return cc === RECORD_END;
   }
 
+  readRecordLabel() {
+    return readRecordLabel(this.bufferReader, this.name);
+  }
+
   enterDictionary() {
     this.#readAndAssertByte(DICT_START);
     this.#pushStackEntry('dictionary');
@@ -519,6 +541,10 @@ export class SyrupReader {
   peekDictionaryEnd() {
     const cc = this.bufferReader.peekByte();
     return cc === DICT_END;
+  }
+
+  readDictionaryKey() {
+    return readDictionaryKey(this.bufferReader, this.name);
   }
 
   enterList() {
