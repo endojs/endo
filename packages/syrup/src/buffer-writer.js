@@ -4,26 +4,14 @@
 const textEncoder = new TextEncoder();
 
 /**
- * @type {WeakMap<BufferWriter, {
+ * @typedef {{
  *   length: number,
  *   index: number,
  *   bytes: Uint8Array,
  *   data: DataView,
  *   capacity: number,
- * }>}
+ * }} BufferWriterState
  */
-const privateFields = new WeakMap();
-
-/**
- * @param {BufferWriter} self
- */
-const getPrivateFields = self => {
-  const fields = privateFields.get(self);
-  if (!fields) {
-    throw Error('BufferWriter fields are not initialized');
-  }
-  return fields;
-};
 
 const assertNatNumber = n => {
   if (Number.isSafeInteger(n) && /** @type {number} */ (n) >= 0) {
@@ -33,18 +21,21 @@ const assertNatNumber = n => {
 };
 
 export class BufferWriter {
+  /** @type {BufferWriterState} */
+  #state;
+
   /**
    * @returns {number}
    */
   get length() {
-    return getPrivateFields(this).length;
+    return this.#state.length;
   }
 
   /**
    * @returns {number}
    */
   get index() {
-    return getPrivateFields(this).index;
+    return this.#state.index;
   }
 
   /**
@@ -60,13 +51,13 @@ export class BufferWriter {
   constructor(capacity = 16) {
     const bytes = new Uint8Array(capacity);
     const data = new DataView(bytes.buffer);
-    privateFields.set(this, {
+    this.#state = {
       bytes,
       data,
       index: 0,
       length: 0,
       capacity,
-    });
+    };
   }
 
   /**
@@ -74,8 +65,8 @@ export class BufferWriter {
    */
   ensureCanSeek(required) {
     assertNatNumber(required);
-    const fields = getPrivateFields(this);
-    let capacity = fields.capacity;
+    const state = this.#state;
+    let capacity = state.capacity;
     if (capacity >= required) {
       return;
     }
@@ -84,20 +75,20 @@ export class BufferWriter {
     }
     const bytes = new Uint8Array(capacity);
     const data = new DataView(bytes.buffer);
-    bytes.set(fields.bytes.subarray(0, fields.length));
-    fields.bytes = bytes;
-    fields.data = data;
-    fields.capacity = capacity;
+    bytes.set(state.bytes.subarray(0, state.length));
+    state.bytes = bytes;
+    state.data = data;
+    state.capacity = capacity;
   }
 
   /**
    * @param {number} index
    */
   seek(index) {
-    const fields = getPrivateFields(this);
+    const state = this.#state;
     this.ensureCanSeek(index);
-    fields.index = index;
-    fields.length = Math.max(fields.index, fields.length);
+    state.index = index;
+    state.length = Math.max(state.index, state.length);
   }
 
   /**
@@ -105,19 +96,19 @@ export class BufferWriter {
    */
   ensureCanWrite(size) {
     assertNatNumber(size);
-    const fields = getPrivateFields(this);
-    this.ensureCanSeek(fields.index + size);
+    const state = this.#state;
+    this.ensureCanSeek(state.index + size);
   }
 
   /**
    * @param {Uint8Array} bytes
    */
   write(bytes) {
-    const fields = getPrivateFields(this);
+    const state = this.#state;
     this.ensureCanWrite(bytes.byteLength);
-    fields.bytes.set(bytes, fields.index);
-    fields.index += bytes.byteLength;
-    fields.length = Math.max(fields.index, fields.length);
+    state.bytes.set(bytes, state.index);
+    state.index += bytes.byteLength;
+    state.length = Math.max(state.index, state.length);
   }
 
   /**
@@ -138,23 +129,23 @@ export class BufferWriter {
   writeCopy(start, end) {
     assertNatNumber(start);
     assertNatNumber(end);
-    const fields = getPrivateFields(this);
+    const state = this.#state;
     const size = end - start;
     this.ensureCanWrite(size);
-    fields.bytes.copyWithin(fields.index, start, end);
-    fields.index += size;
-    fields.length = Math.max(fields.index, fields.length);
+    state.bytes.copyWithin(state.index, start, end);
+    state.index += size;
+    state.length = Math.max(state.index, state.length);
   }
 
   /**
    * @param {number} value
    */
   writeUint8(value) {
-    const fields = getPrivateFields(this);
+    const state = this.#state;
     this.ensureCanWrite(1);
-    fields.data.setUint8(fields.index, value);
-    fields.index += 1;
-    fields.length = Math.max(fields.index, fields.length);
+    state.data.setUint8(state.index, value);
+    state.index += 1;
+    state.length = Math.max(state.index, state.length);
   }
 
   /**
@@ -162,12 +153,11 @@ export class BufferWriter {
    * @param {boolean=} littleEndian
    */
   writeUint16(value, littleEndian) {
-    const fields = getPrivateFields(this);
+    const state = this.#state;
     this.ensureCanWrite(2);
-    const index = fields.index;
-    fields.data.setUint16(index, value, littleEndian);
-    fields.index += 2;
-    fields.length = Math.max(fields.index, fields.length);
+    state.data.setUint16(state.index, value, littleEndian);
+    state.index += 2;
+    state.length = Math.max(state.index, state.length);
   }
 
   /**
@@ -175,12 +165,11 @@ export class BufferWriter {
    * @param {boolean=} littleEndian
    */
   writeUint32(value, littleEndian) {
-    const fields = getPrivateFields(this);
+    const state = this.#state;
     this.ensureCanWrite(4);
-    const index = fields.index;
-    fields.data.setUint32(index, value, littleEndian);
-    fields.index += 4;
-    fields.length = Math.max(fields.index, fields.length);
+    state.data.setUint32(state.index, value, littleEndian);
+    state.index += 4;
+    state.length = Math.max(state.index, state.length);
   }
 
   /**
@@ -188,12 +177,11 @@ export class BufferWriter {
    * @param {boolean=} littleEndian
    */
   writeFloat64(value, littleEndian) {
-    const fields = getPrivateFields(this);
+    const state = this.#state;
     this.ensureCanWrite(8);
-    const index = fields.index;
-    fields.data.setFloat64(index, value, littleEndian);
-    fields.index += 8;
-    fields.length = Math.max(fields.index, fields.length);
+    state.data.setFloat64(state.index, value, littleEndian);
+    state.index += 8;
+    state.length = Math.max(state.index, state.length);
   }
 
   /**
@@ -210,8 +198,8 @@ export class BufferWriter {
    * @returns {Uint8Array}
    */
   subarray(begin, end) {
-    const fields = getPrivateFields(this);
-    return fields.bytes.subarray(0, fields.length).subarray(begin, end);
+    const state = this.#state;
+    return state.bytes.subarray(0, state.length).subarray(begin, end);
   }
 
   /**

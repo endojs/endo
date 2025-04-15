@@ -12,26 +12,23 @@ const q = JSON.stringify;
  * @property {number} offset
  */
 
-/** @type {WeakMap<BufferReader, BufferReaderState>} */
-const privateFields = new WeakMap();
-
-/** @type {(bufferReader: BufferReader) => BufferReaderState} */
-const privateFieldsGet = privateFields.get.bind(privateFields);
-
 export class BufferReader {
+  /** @type {BufferReaderState} */
+  #state;
+
   /**
    * @param {ArrayBuffer} buffer
    */
   constructor(buffer) {
     const bytes = new Uint8Array(buffer);
     const data = new DataView(bytes.buffer);
-    privateFields.set(this, {
+    this.#state = {
       bytes,
       data,
       length: bytes.length,
       index: 0,
       offset: 0,
-    });
+    };
   }
 
   /**
@@ -41,14 +38,14 @@ export class BufferReader {
   static fromBytes(bytes) {
     const empty = new ArrayBuffer(0);
     const reader = new BufferReader(empty);
-    const fields = privateFieldsGet(reader);
-    fields.bytes = bytes;
-    fields.data = new DataView(bytes.buffer);
-    fields.length = bytes.length;
-    fields.index = 0;
-    fields.offset = bytes.byteOffset;
+    const state = reader.#state;
+    state.bytes = bytes;
+    state.data = new DataView(bytes.buffer);
+    state.length = bytes.length;
+    state.index = 0;
+    state.offset = bytes.byteOffset;
     // Temporary check until we can handle non-zero byteOffset
-    if (fields.offset !== 0) {
+    if (state.offset !== 0) {
       throw Error(
         'Cannot create BufferReader from Uint8Array with a non-zero byteOffset',
       );
@@ -60,14 +57,14 @@ export class BufferReader {
    * @returns {number}
    */
   get length() {
-    return privateFieldsGet(this).length;
+    return this.#state.length;
   }
 
   /**
    * @returns {number}
    */
   get index() {
-    return privateFieldsGet(this).index;
+    return this.#state.index;
   }
 
   /**
@@ -81,15 +78,15 @@ export class BufferReader {
    * @param {number} offset
    */
   set offset(offset) {
-    const fields = privateFieldsGet(this);
-    if (offset > fields.data.byteLength) {
+    const state = this.#state;
+    if (offset > state.data.byteLength) {
       throw Error('Cannot set offset beyond length of underlying data');
     }
     if (offset < 0) {
       throw Error('Cannot set negative offset');
     }
-    fields.offset = offset;
-    fields.length = fields.data.byteLength - fields.offset;
+    state.offset = offset;
+    state.length = state.data.byteLength - state.offset;
   }
 
   /**
@@ -98,8 +95,8 @@ export class BufferReader {
    * index.
    */
   canSeek(index) {
-    const fields = privateFieldsGet(this);
-    return index >= 0 && fields.offset + index <= fields.length;
+    const state = this.#state;
+    return index >= 0 && state.offset + index <= state.length;
   }
 
   /**
@@ -107,10 +104,10 @@ export class BufferReader {
    * @throws {Error} an Error if the index is out of bounds.
    */
   assertCanSeek(index) {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     if (!this.canSeek(index)) {
       const err = Error(
-        `End of data reached (data length = ${fields.length}, asked index ${index}`,
+        `End of data reached (data length = ${state.length}, asked index ${index}`,
       );
       // @ts-expect-error
       err.code = 'EOD';
@@ -125,10 +122,10 @@ export class BufferReader {
    * @returns {number} prior index
    */
   seek(index) {
-    const fields = privateFieldsGet(this);
-    const restore = fields.index;
+    const state = this.#state;
+    const restore = state.index;
     this.assertCanSeek(index);
-    fields.index = index;
+    state.index = index;
     return restore;
   }
 
@@ -137,32 +134,32 @@ export class BufferReader {
    * @returns {Uint8Array}
    */
   peek(size) {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     // Clamp size.
-    size = Math.max(0, Math.min(fields.length - fields.index, size));
+    size = Math.max(0, Math.min(state.length - state.index, size));
     if (size === 0) {
       // in IE10, when using subarray(idx, idx), we get the array [0x00] instead of [].
       return new Uint8Array(0);
     }
-    const result = fields.bytes.subarray(
-      fields.offset + fields.index,
-      fields.offset + fields.index + size,
+    const result = state.bytes.subarray(
+      state.offset + state.index,
+      state.offset + state.index + size,
     );
     return result;
   }
 
   peekByte() {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     this.assertCanRead(1);
-    return fields.bytes[fields.offset + fields.index];
+    return state.bytes[state.offset + state.index];
   }
 
   /**
    * @param {number} offset
    */
   canRead(offset) {
-    const fields = privateFieldsGet(this);
-    return this.canSeek(fields.index + offset);
+    const state = this.#state;
+    return this.canSeek(state.index + offset);
   }
 
   /**
@@ -172,8 +169,8 @@ export class BufferReader {
    * @throws {Error} an Error if the offset is out of bounds.
    */
   assertCanRead(offset) {
-    const fields = privateFieldsGet(this);
-    this.assertCanSeek(fields.index + offset);
+    const state = this.#state;
+    this.assertCanSeek(state.index + offset);
   }
 
   /**
@@ -183,10 +180,10 @@ export class BufferReader {
    * @returns {Uint8Array} the raw data.
    */
   read(size) {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     this.assertCanRead(size);
     const result = this.peek(size);
-    fields.index += size;
+    state.index += size;
     return result;
   }
 
@@ -201,11 +198,11 @@ export class BufferReader {
    * @returns {number}
    */
   readUint8() {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     this.assertCanRead(1);
-    const index = fields.offset + fields.index;
-    const value = fields.data.getUint8(index);
-    fields.index += 1;
+    const index = state.offset + state.index;
+    const value = state.data.getUint8(index);
+    state.index += 1;
     return value;
   }
 
@@ -214,11 +211,11 @@ export class BufferReader {
    * @param {boolean=} littleEndian
    */
   readUint16(littleEndian) {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     this.assertCanRead(2);
-    const index = fields.offset + fields.index;
-    const value = fields.data.getUint16(index, littleEndian);
-    fields.index += 2;
+    const index = state.offset + state.index;
+    const value = state.data.getUint16(index, littleEndian);
+    state.index += 2;
     return value;
   }
 
@@ -227,11 +224,11 @@ export class BufferReader {
    * @param {boolean=} littleEndian
    */
   readUint32(littleEndian) {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     this.assertCanRead(4);
-    const index = fields.offset + fields.index;
-    const value = fields.data.getUint32(index, littleEndian);
-    fields.index += 4;
+    const index = state.offset + state.index;
+    const value = state.data.getUint32(index, littleEndian);
+    state.index += 4;
     return value;
   }
 
@@ -240,11 +237,11 @@ export class BufferReader {
    * @returns {number}
    */
   readFloat64(littleEndian = false) {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     this.assertCanRead(8);
-    const index = fields.offset + fields.index;
-    const value = fields.data.getFloat64(index, littleEndian);
-    fields.index += 8;
+    const index = state.offset + state.index;
+    const value = state.data.getFloat64(index, littleEndian);
+    state.index += 8;
     return value;
   }
 
@@ -253,8 +250,8 @@ export class BufferReader {
    * @returns {number}
    */
   byteAt(index) {
-    const fields = privateFieldsGet(this);
-    return fields.bytes[fields.offset + index];
+    const state = this.#state;
+    return state.bytes[state.offset + index];
   }
 
   /**
@@ -264,10 +261,10 @@ export class BufferReader {
    */
   bytesAt(index, size) {
     this.assertCanSeek(index + size);
-    const fields = privateFieldsGet(this);
-    return fields.bytes.subarray(
-      fields.offset + index,
-      fields.offset + index + size,
+    const state = this.#state;
+    return state.bytes.subarray(
+      state.offset + index,
+      state.offset + index + size,
     );
   }
 
@@ -275,8 +272,8 @@ export class BufferReader {
    * @param {number} offset
    */
   skip(offset) {
-    const fields = privateFieldsGet(this);
-    this.seek(fields.index + offset);
+    const state = this.#state;
+    this.seek(state.index + offset);
   }
 
   /**
@@ -284,11 +281,11 @@ export class BufferReader {
    * @returns {boolean}
    */
   expect(expected) {
-    const fields = privateFieldsGet(this);
-    if (!this.matchAt(fields.index, expected)) {
+    const state = this.#state;
+    if (!this.matchAt(state.index, expected)) {
       return false;
     }
-    fields.index += expected.length;
+    state.index += expected.length;
     return true;
   }
 
@@ -298,8 +295,8 @@ export class BufferReader {
    * @returns {boolean}
    */
   matchAt(index, expected) {
-    const fields = privateFieldsGet(this);
-    if (index + expected.length > fields.length || index < 0) {
+    const state = this.#state;
+    if (index + expected.length > state.length || index < 0) {
       return false;
     }
     for (let i = 0; i < expected.length; i += 1) {
@@ -314,10 +311,10 @@ export class BufferReader {
    * @param {Uint8Array} expected
    */
   assert(expected) {
-    const fields = privateFieldsGet(this);
+    const state = this.#state;
     if (!this.expect(expected)) {
       throw Error(
-        `Expected ${q(expected)} at ${fields.index}, got ${this.peek(
+        `Expected ${q(expected)} at ${state.index}, got ${this.peek(
           expected.length,
         )}`,
       );
@@ -329,8 +326,8 @@ export class BufferReader {
    * @returns {number}
    */
   findLast(expected) {
-    const fields = privateFieldsGet(this);
-    let index = fields.length - expected.length;
+    const state = this.#state;
+    let index = state.length - expected.length;
     while (index >= 0 && !this.matchAt(index, expected)) {
       index -= 1;
     }
