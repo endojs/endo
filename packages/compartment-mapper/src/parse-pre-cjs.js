@@ -48,7 +48,7 @@ export const parsePreCjs = (
     });
 
     // In CommonJS, the top-level `this` is the `module.exports` object.
-    functor.call(
+    const returnValue = functor.call(
       moduleExports,
       require,
       moduleExports,
@@ -57,7 +57,7 @@ export const parsePreCjs = (
       dirname,
     );
 
-    afterExecute();
+    afterExecute(returnValue);
   };
 
   return {
