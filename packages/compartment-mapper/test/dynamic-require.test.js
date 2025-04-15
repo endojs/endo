@@ -407,7 +407,12 @@ test('inter-package and exit module dynamic require policy is enforced', async t
           },
           'hooked>dynamic': {
             packages: {
-              'is-ok': true,
+              'hooked>dynamic>is-ok': true,
+            },
+          },
+          'hooked>dynamic>is-ok': {
+            packages: {
+              'hooked>dynamic>is-ok>is-not-ok': true,
             },
           },
         },
@@ -469,7 +474,12 @@ test('inter-package and exit module dynamic require works ("node:"-namespaced)',
         },
         'hooked>dynamic': {
           packages: {
-            'is-ok': true,
+            'hooked>dynamic>is-ok': true,
+          },
+        },
+        'hooked>dynamic>is-ok': {
+          packages: {
+            'hooked>dynamic>is-ok>is-not-ok': true,
           },
         },
       },
@@ -619,5 +629,3 @@ test('dynamic require of missing module falls through to importNowHook', async t
     },
   );
 });
-
-// test('dynamic require of external module which imports a third module', async t => {});

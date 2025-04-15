@@ -15,7 +15,8 @@
  *   ImportHook,
  *   ImportNowHook,
  *   RedirectStaticModuleInterface,
- *   StaticModuleType
+ *   StaticModuleType,
+ VirtualModuleSource
  * } from 'ses'
  * @import {
  *   CompartmentDescriptor,
@@ -702,19 +703,13 @@ export function makeImportNowHookMaker(
 
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
-      // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
-      if (isAbsolute(moduleSpecifier)) {
-        const record = findRedirect({
-          compartmentDescriptor,
-          compartmentDescriptors,
-          compartments,
-          absoluteModuleSpecifier: moduleSpecifier,
-        });
-        if (record) {
-          return record;
-        }
-        // if there is no record found this way, we will search for it instead of considering it to be an exit module
-      } else if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
+      /**
+       * Attempt to load the moduleSpecifier via an {@link ExitModuleImportNowHook}, if one exists.
+       *
+       * If it doesn't exist, then throw an exception.
+       * @returns {VirtualModuleSource}
+       */
+      const tryExitModuleImportNowHook = () => {
         if (exitModuleImportNowHook) {
           // This hook is responsible for ensuring that the moduleSpecifier
           // actually refers to an exit module.
@@ -733,14 +728,53 @@ export function makeImportNowHookMaker(
             });
             return exitRecord;
           }
+          throw Error(
+            `Cannot find external module ${q(
+              moduleSpecifier,
+            )} in package at ${packageLocation}`,
+          );
+        } else {
+          throw Error(
+            `Cannot find external module ${q(
+              moduleSpecifier,
+            )} from package at ${packageLocation}; try providing an importNowHook`,
+          );
         }
-        throw Error(
-          `Cannot find external module ${q(
+      };
+
+      // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
+      if (isAbsolute(moduleSpecifier)) {
+        const record = findRedirect({
+          compartmentDescriptor,
+          compartmentDescriptors,
+          compartments,
+          absoluteModuleSpecifier: moduleSpecifier,
+        });
+        if (record) {
+          return record;
+        }
+
+        // if and only if the module specifier is within the compartment can we
+        // make it a relative specifier. the following conditional avoids a try/catch
+        // since `relativeSpecifier` will throw if this condition is not met
+        if (
+          isLocationWithinCompartment(
             moduleSpecifier,
-          )} in package ${packageLocation}`,
-        );
+            compartmentDescriptor.location,
+          )
+        ) {
+          moduleSpecifier = relativeSpecifier(
+            moduleSpecifier,
+            compartmentDescriptor.location,
+          );
+        }
+      } else if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
+        // could be a builtin, which means we should not bother bouncing on the trampoline to find it.
+        return tryExitModuleImportNowHook();
       }
 
+      // we might have an absolute path here, but it might be within the compartment, so
+      // we will try to find it.
       const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
 
       const record = syncTrampoline(
@@ -770,11 +804,8 @@ export function makeImportNowHookMaker(
         return record;
       }
 
-      throw new Error(
-        `Could not import module: ${q(
-          moduleSpecifier,
-        )}; try providing an importNowHook`,
-      );
+      // at this point, we haven't found the module by guessing, so we'll try the importer-of-last-resort
+      return tryExitModuleImportNowHook();
     };
 
     return importNowHook;
