@@ -1,8 +1,8 @@
 // @ts-check
 
-import test from 'ava';
-import { decodeSyrup } from '../src/decode.js';
-import { encodeSyrup } from '../src/encode.js';
+import test from '@endo/ses-ava/prepare-endo.js';
+import { decodeSyrup } from '../../src/syrup/decode.js';
+import { encodeSyrup } from '../../src/syrup/encode.js';
 import { XorShift } from './_xorshift.js';
 
 /**
@@ -26,13 +26,13 @@ function fuzzyString(budget, random) {
   } else if (partition < 0.5) {
     // string mostly printable
     return Array(length)
-      .fill()
+      .fill(undefined)
       .map(() => String.fromCharCode(random() * 128))
       .join('');
   } else {
     // lower-case strings
     return Array(length)
-      .fill()
+      .fill(undefined)
       .map(() => String.fromCharCode('a'.charCodeAt(0) + random() * 26))
       .join('');
   }
@@ -49,7 +49,7 @@ function largeFuzzySyrupable(budget, random) {
     // bigint
     return BigInt(
       Array(length)
-        .fill()
+        .fill(undefined)
         .map(() => `${Math.floor(random() * 10)}`)
         .join(''),
     );
@@ -60,7 +60,7 @@ function largeFuzzySyrupable(budget, random) {
     // array
     return (
       new Array(length)
-        .fill()
+        .fill(undefined)
         // Recursion is a thing, yo.
         // eslint-disable-next-line no-use-before-define
         .map(() => fuzzySyrupable(budget / length, random))
@@ -68,7 +68,7 @@ function largeFuzzySyrupable(budget, random) {
   } else {
     // object
     return Object.fromEntries(
-      new Array(length).fill().map(() => [
+      new Array(length).fill(undefined).map(() => [
         fuzzyString(20, random),
         // Recursion is a thing, yo.
         // eslint-disable-next-line no-use-before-define
@@ -102,18 +102,20 @@ const defaultSeed = [0xb0b5c0ff, 0xeefacade, 0xb0b5c0ff, 0xeefacade];
 const prng = new XorShift(defaultSeed);
 const random = () => prng.random();
 
-for (let i = 0; i < 1000; i += 1) {
-  (index => {
-    const object1 = fuzzySyrupable(random() * 100, random);
-    const syrup2 = encodeSyrup(object1);
-    const desc = JSON.stringify(new TextDecoder().decode(syrup2));
-    test(`fuzz ${index}`, t => {
-      // t.log(random());
-      // t.log(object1);
-      const object3 = decodeSyrup(syrup2);
-      const syrup4 = encodeSyrup(object3);
+test('fuzz', t => {
+  for (let i = 0; i < 1000; i += 1) {
+    (index => {
+      const object1 = fuzzySyrupable(random() * 100, random);
+      const syrup2 = encodeSyrup(object1);
+      const desc = JSON.stringify(new TextDecoder().decode(syrup2));
+      let object3;
+      let syrup4;
+      t.notThrows(() => {
+        object3 = decodeSyrup(syrup2);
+        syrup4 = encodeSyrup(object3);
+      }, `fuzz ${index} for ${desc}`);
       t.deepEqual(object1, object3, desc);
       t.deepEqual(syrup2, syrup4, desc);
-    });
-  })(i);
-}
+    })(i);
+  }
+});
