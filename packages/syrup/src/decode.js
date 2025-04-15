@@ -23,7 +23,7 @@ const RECORD_END = '>'.charCodeAt(0);
 const TRUE = 't'.charCodeAt(0);
 const FALSE = 'f'.charCodeAt(0);
 // const SINGLE = 'F'.charCodeAt(0);
-const DOUBLE = 'D'.charCodeAt(0);
+const FLOAT64 = 'D'.charCodeAt(0);
 
 const textDecoder = new TextDecoder();
 
@@ -97,7 +97,7 @@ function readTypeAndMaybeValue(bufferReader, name) {
   if (cc === FALSE) {
     return { type: 'boolean', value: false };
   }
-  if (cc === DOUBLE) {
+  if (cc === FLOAT64) {
     // eslint-disable-next-line no-use-before-define
     const value = readFloat64Body(bufferReader, name);
     return { type: 'float64', value };
@@ -248,7 +248,7 @@ function readFloat64Body(bufferReader, name) {
  */
 function readFloat64(bufferReader, name) {
   const cc = bufferReader.readByte();
-  if (cc !== DOUBLE) {
+  if (cc !== FLOAT64) {
     throw Error(
       `Unexpected character ${quote(toChar(cc))}, at index ${bufferReader.index} of ${name}`,
     );
@@ -403,7 +403,7 @@ export function peekTypeHint(bufferReader, name) {
   if (cc === TRUE || cc === FALSE) {
     return 'boolean';
   }
-  if (cc === DOUBLE) {
+  if (cc === FLOAT64) {
     return 'float64';
   }
   if (cc === LIST_START) {

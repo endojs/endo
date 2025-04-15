@@ -111,7 +111,7 @@ test('zoo.bin', t => {
       syrupWriter.writeSelector('alive?');
       syrupWriter.writeBoolean(value.alive);
       syrupWriter.writeSelector('weight');
-      syrupWriter.writeDouble(value.weight);
+      syrupWriter.writeFloat64(value.weight);
       syrupWriter.writeSelector('species');
       syrupWriter.writeBytestring(textEncoder.encode(value.species));
       syrupWriter.exitDictionary();

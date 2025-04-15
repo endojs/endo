@@ -28,7 +28,7 @@ const RECORD_END = '>'.charCodeAt(0);
 const TRUE = 't'.charCodeAt(0);
 const FALSE = 'f'.charCodeAt(0);
 // const SINGLE = 'F'.charCodeAt(0);
-const DOUBLE = 'D'.charCodeAt(0);
+const FLOAT64 = 'D'.charCodeAt(0);
 
 const NAN64 = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 
@@ -164,8 +164,8 @@ function writeList(bufferWriter, array, path) {
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {number} value
  */
-function writeDouble(bufferWriter, value) {
-  bufferWriter.writeByte(DOUBLE);
+function writeFloat64(bufferWriter, value) {
+  bufferWriter.writeByte(FLOAT64);
   if (value === 0) {
     // no-op
   } else if (Number.isNaN(value)) {
@@ -212,7 +212,7 @@ function writeAny(bufferWriter, value, path, pathSuffix) {
   }
 
   if (typeof value === 'number') {
-    writeDouble(bufferWriter, value);
+    writeFloat64(bufferWriter, value);
     return;
   }
 
@@ -276,8 +276,8 @@ export class SyrupWriter {
     writeInteger(this.bufferWriter, value);
   }
 
-  writeDouble(value) {
-    writeDouble(this.bufferWriter, value);
+  writeFloat64(value) {
+    writeFloat64(this.bufferWriter, value);
   }
 
   enterRecord() {
@@ -328,7 +328,7 @@ export class SyrupWriter {
         this.writeString(value);
         break;
       case 'float64':
-        this.writeDouble(value);
+        this.writeFloat64(value);
         break;
       case 'integer':
         this.writeInteger(value);

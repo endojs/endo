@@ -46,8 +46,8 @@ export const IntegerCodec = freeze({
 });
 
 /** @type {SyrupCodec} */
-export const DoubleCodec = freeze({
-  write: (value, syrupWriter) => syrupWriter.writeDouble(value),
+export const Float64Codec = freeze({
+  write: (value, syrupWriter) => syrupWriter.writeFloat64(value),
   read: syrupReader => syrupReader.readFloat64(),
 });
 

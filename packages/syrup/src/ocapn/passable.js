@@ -1,7 +1,7 @@
 import {
   BooleanCodec,
   IntegerCodec,
-  DoubleCodec,
+  Float64Codec,
   SelectorCodec,
   StringCodec,
   BytestringCodec,
@@ -57,7 +57,7 @@ const AtomCodecs = {
   null: NullCodec,
   boolean: BooleanCodec,
   integer: IntegerCodec,
-  float64: DoubleCodec,
+  float64: Float64Codec,
   string: StringCodec,
   selector: SelectorCodec,
   byteArray: BytestringCodec,
