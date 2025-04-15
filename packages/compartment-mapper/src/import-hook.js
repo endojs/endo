@@ -24,7 +24,6 @@
  *   ChooseModuleDescriptorYieldables,
  *   ExitModuleImportHook,
  *   FindRedirectParams,
- *   HashFn,
  *   ImportHookMaker,
  *   ImportNowHookMaker,
  *   MakeImportHookMakerOptions,
@@ -33,8 +32,6 @@
  *   ParseResult,
  *   ReadFn,
  *   ReadPowers,
- *   SourceMapHook,
- *   Sources,
  *   ReadNowPowers
  * } from './types.js'
  */
