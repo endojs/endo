@@ -136,6 +136,8 @@ function readTypeAndMaybeValue(bufferReader, name) {
   if (typeByte === STRING_START) {
     const number = Number.parseInt(numberString, 10);
     const valueBytes = bufferReader.read(number);
+    // TextDecoder does not interpret surrogate pairs,
+    // so we don't need to check for invalid characters.
     return { type: 'string', value: textDecoder.decode(valueBytes) };
   }
   if (typeByte === SELECTOR_START) {
