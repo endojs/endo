@@ -2,7 +2,7 @@
 
 import test from '@endo/ses-ava/prepare-endo.js';
 import { decodeSyrup, encodeSyrup } from '../../src/syrup/js-representation.js';
-import { XorShift } from './_xorshift.js';
+import { XorShift } from '../_xorshift.js';
 
 /**
  * @param {number} budget
