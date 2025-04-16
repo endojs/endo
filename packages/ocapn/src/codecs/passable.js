@@ -116,6 +116,7 @@ export const OCapNStructCodec = {
   },
 };
 
+// <:desc:tagged :tagName value>
 const OCapNTaggedCodec = makeOCapNRecordCodec(
   'desc:tagged',
   // readBody
@@ -132,8 +133,10 @@ const OCapNTaggedCodec = makeOCapNRecordCodec(
   },
   // writeBody
   (value, syrupWriter) => {
-    syrupWriter.writeSelectorFromString(value.tagName);
-    value.value.write(syrupWriter);
+    const tagName = value[Symbol.toStringTag];
+    syrupWriter.writeSelectorFromString(tagName);
+    // eslint-disable-next-line no-use-before-define
+    OCapNPassableUnionCodec.write(value.value, syrupWriter);
   },
 );
 

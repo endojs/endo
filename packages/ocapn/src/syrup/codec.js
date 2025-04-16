@@ -230,11 +230,11 @@ export const makeRecordCodec = (label, labelType, readBody, writeBody) => {
   const write = (value, syrupWriter) => {
     syrupWriter.enterRecord();
     if (labelType === 'selector') {
-      syrupWriter.writeSelectorFromString(value.type);
+      syrupWriter.writeSelectorFromString(label);
     } else if (labelType === 'string') {
-      syrupWriter.writeString(value.type);
+      syrupWriter.writeString(label);
     } else if (labelType === 'bytestring') {
-      syrupWriter.writeBytestring(textEncoder.encode(value.type));
+      syrupWriter.writeBytestring(textEncoder.encode(label));
     }
     writeBody(value, syrupWriter);
     syrupWriter.exitRecord();

@@ -77,7 +77,8 @@ function writeBytestring(bufferWriter, value) {
 function writeFloat64(bufferWriter, value) {
   bufferWriter.writeByte(FLOAT64);
   if (value === 0) {
-    // no-op
+    // Canonicalize 0
+    bufferWriter.writeFloat64(0, false); // big end
   } else if (Number.isNaN(value)) {
     // Canonicalize NaN
     // @ts-expect-error using frozen array as Uint8Array
@@ -194,7 +195,7 @@ export class SyrupWriter {
   }
 
   getBytes() {
-    return this.#bufferWriter.subarray(0, this.#bufferWriter.length);
+    return this.#bufferWriter.subarray(0, this.#bufferWriter.index);
   }
 }
 
