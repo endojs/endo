@@ -112,3 +112,16 @@ test('must reject non-canonical -0', t => {
     message: 'Non-canonical zero at index 1 of Syrup <unknown>',
   });
 });
+
+test('invalid string characters', t => {
+  const bytes = new Uint8Array([
+    '2'.charCodeAt(0),
+    '"'.charCodeAt(0),
+    0xd8,
+    0x00,
+  ]);
+  t.notThrows(
+    () => decodeSyrup(bytes),
+    'TextDecoder does not interpret surrogate pairs',
+  );
+});

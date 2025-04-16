@@ -3,9 +3,15 @@
 import { BufferWriter } from './buffer-writer.js';
 
 const { freeze } = Object;
+const quote = JSON.stringify;
 const textEncoder = new TextEncoder();
 
 const defaultCapacity = 256;
+
+// For strings, U+D800–U+DFFF are invalid.
+// See https://github.com/ocapn/ocapn/blob/main/draft-specifications/Model.md#string
+const INVALID_STRING_CHARS_START = 0xd800;
+const INVALID_STRING_CHARS_END = 0xdfff;
 
 // const MINUS = '-'.charCodeAt(0);
 // const PLUS = '+'.charCodeAt(0);
@@ -49,7 +55,18 @@ function writeStringlike(bufferWriter, bytes, typeChar) {
  * @param {string} value
  */
 function writeString(bufferWriter, value) {
+  const start = bufferWriter.index;
   const bytes = textEncoder.encode(value);
+  const invalidChars = Array.from(value).filter(
+    char =>
+      char.charCodeAt(0) >= INVALID_STRING_CHARS_START &&
+      char.charCodeAt(0) <= INVALID_STRING_CHARS_END,
+  );
+  if (invalidChars.length > 0) {
+    throw Error(
+      `Invalid string characters ${invalidChars.map(char => quote(char)).join(', ')} in string ${quote(value)} at index ${start}`,
+    );
+  }
   writeStringlike(bufferWriter, bytes, '"');
 }
 

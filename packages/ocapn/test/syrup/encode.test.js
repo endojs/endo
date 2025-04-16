@@ -20,3 +20,11 @@ test('affirmative encode cases', t => {
 test('negative zero', t => {
   t.deepEqual(encodeSyrup(0), encodeSyrup(-0));
 });
+
+test('invalid string characters', t => {
+  const invalidString = String.fromCharCode(0xd800);
+  t.throws(() => encodeSyrup(invalidString), {
+    message:
+      'Invalid string characters "\\ud800" in string "\\ud800" at index 0',
+  });
+});

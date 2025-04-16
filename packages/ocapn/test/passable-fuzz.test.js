@@ -1,7 +1,7 @@
 // @ts-check
-// global Buffer
 
 import test from '@endo/ses-ava/prepare-endo.js';
+import { Buffer } from 'buffer';
 import { XorShift } from './_xorshift.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 import { makeSyrupWriter } from '../src/syrup/encode.js';
@@ -78,13 +78,11 @@ function largeFuzzyPassable(budget, random) {
       // Struct
       () =>
         Object.fromEntries(
-          new Array(length)
-            .fill(undefined)
-            .map(() => [
-              fuzzyString(20, random),
-              // eslint-disable-next-line no-use-before-define
-              fuzzyPassable(budget / length, random),
-            ]),
+          new Array(length).fill(undefined).map(() => [
+            fuzzyString(20, random),
+            // eslint-disable-next-line no-use-before-define
+            fuzzyPassable(budget / length, random),
+          ]),
         ),
       // Tagged
       () => ({
