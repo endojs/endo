@@ -14,9 +14,9 @@ import {
   passableTable,
 } from './_table.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
+import { sym } from './_util.js';
 
 const textEncoder = new TextEncoder();
-const sym = s => `${s.length}'${s}`;
 
 const testBidirectionally = (t, codec, syrup, value, testName) => {
   const syrupBytes = textEncoder.encode(syrup);
