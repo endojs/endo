@@ -1,38 +1,122 @@
-export const sym = s => `${s.length}'${s}`;
-export const str = s => `${s.length}"${s}`;
-export const bts = s => `${s.length}:${s}`;
+const textEncoder = new TextEncoder();
+
+/**
+ * @param {string} s
+ * @returns {string}
+ */
+export const sel = s => {
+  const b = textEncoder.encode(s);
+  return `${b.length}'${String.fromCharCode(...b)}`;
+};
+
+/**
+ * @param {string} s
+ * @returns {string}
+ */
+export const str = s => {
+  const b = textEncoder.encode(s);
+  return `${b.length}"${String.fromCharCode(...b)}`;
+};
+
+/**
+ * @param {string} s
+ * @returns {string}
+ */
+export const bts = s => {
+  const b = textEncoder.encode(s);
+  return `${b.length}:${String.fromCharCode(...b)}`;
+};
+
+/**
+ * @param {boolean} b
+ * @returns {string}
+ */
 export const bool = b => (b ? 't' : 'f');
-// eslint-disable-next-line @endo/restrict-comparison-operands
+
+/**
+ * @param {number} i
+ * @returns {string}
+ */
 export const int = i => `${Math.floor(Math.abs(i))}${i < 0 ? '-' : '+'}`;
+
+/**
+ * @param {Array<string>} items
+ * @returns {string}
+ */
 export const list = items => `[${items.join('')}]`;
+
+/**
+ * @param {string} transport
+ * @param {string} address
+ * @param {boolean} hints
+ * @returns {string}
+ */
 export const makeNode = (transport, address, hints) => {
-  return `<10'ocapn-node${sym(transport)}${bts(address)}${bool(hints)}>`;
+  return `<${sel('ocapn-node')}${sel(transport)}${bts(address)}${bool(hints)}>`;
 };
 
+/**
+ * @param {string} scheme
+ * @param {string} curve
+ * @param {string} flags
+ * @param {string} q
+ * @returns {string}
+ */
 export const makePubKey = (scheme, curve, flags, q) => {
-  return `<${sym('public-key')}${sym(scheme)}${sym(curve)}${sym(flags)}${bts(q)}>`;
+  return `<${sel('public-key')}${sel(scheme)}${sel(curve)}${sel(flags)}${bts(q)}>`;
 };
 
+/**
+ * @param {string} label
+ * @param {string} value
+ * @returns {string}
+ */
 export const makeSigComp = (label, value) => {
-  return `${sym(label)}${bts(value)}`;
+  return `${sel(label)}${bts(value)}`;
 };
 
+/**
+ * @param {string} scheme
+ * @param {string} r
+ * @param {string} s
+ * @returns {string}
+ */
 export const makeSig = (scheme, r, s) => {
-  return `<${sym('sig-val')}${sym(scheme)}${makeSigComp('r', r)}${makeSigComp('s', s)}>`;
+  return `<${sel('sig-val')}${sel(scheme)}${makeSigComp('r', r)}${makeSigComp('s', s)}>`;
 };
 
+/**
+ * @param {number} position
+ * @returns {string}
+ */
 export const makeExport = position => {
-  return `<${sym('desc:export')}${int(position)}>`;
+  return `<${sel('desc:export')}${int(position)}>`;
 };
 
+/**
+ * @param {number} position
+ * @returns {string}
+ */
 export const makeImportObj = position => {
-  return `<${sym('desc:import-object')}${int(position)}>`;
+  return `<${sel('desc:import-object')}${int(position)}>`;
 };
 
+/**
+ * @param {number} position
+ * @returns {string}
+ */
 export const makeImportPromise = position => {
-  return `<${sym('desc:import-promise')}${int(position)}>`;
+  return `<${sel('desc:import-promise')}${int(position)}>`;
 };
 
+/**
+ * @param {string} receiverKey
+ * @param {string} exporterLocation
+ * @param {string} session
+ * @param {string} gifterSide
+ * @param {string} giftId
+ * @returns {string}
+ */
 export const makeDescGive = (
   receiverKey,
   exporterLocation,
@@ -40,13 +124,26 @@ export const makeDescGive = (
   gifterSide,
   giftId,
 ) => {
-  return `<${sym('desc:handoff-give')}${receiverKey}${exporterLocation}${bts(session)}${gifterSide}${bts(giftId)}>`;
+  return `<${sel('desc:handoff-give')}${receiverKey}${exporterLocation}${bts(session)}${gifterSide}${bts(giftId)}>`;
 };
 
+/**
+ * @param {string} object
+ * @param {string} signature
+ * @returns {string}
+ */
 export const makeSigEnvelope = (object, signature) => {
-  return `<${sym('desc:sig-envelope')}${object}${signature}>`;
+  return `<${sel('desc:sig-envelope')}${object}${signature}>`;
 };
 
+/**
+ * @param {string} recieverSession
+ * @param {string} recieverSide
+ * @param {number} handoffCount
+ * @param {string} descGive
+ * @param {string} signature
+ * @returns {string}
+ */
 export const makeHandoffReceive = (
   recieverSession,
   recieverSide,
@@ -55,9 +152,13 @@ export const makeHandoffReceive = (
   signature,
 ) => {
   const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
-  return `<${sym('desc:handoff-receive')}${bts(recieverSession)}${bts(recieverSide)}${int(handoffCount)}${signedGiveEnvelope}>`;
+  return `<${sel('desc:handoff-receive')}${bts(recieverSession)}${bts(recieverSide)}${int(handoffCount)}${signedGiveEnvelope}>`;
 };
 
+/**
+ * @param {string} string
+ * @returns {Uint8Array}
+ */
 export const strToUint8Array = string => {
   return new Uint8Array(string.split('').map(c => c.charCodeAt(0)));
 };
