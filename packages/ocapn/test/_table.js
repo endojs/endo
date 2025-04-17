@@ -1,5 +1,5 @@
 import {
-  sym,
+  sel,
   str,
   bts,
   bool,
@@ -19,6 +19,10 @@ import {
 
 // I made up these syrup values by hand, they may be wrong, sorry.
 // Would like external test data for this.
+
+// Note that this approach uses strings to represent the binary syrup messages for readability,
+// but this comes with limitations. Note that special care will be needed when working
+// with binary data, such as float64 or bytestrings.
 
 export const componentsTable = [
   {
@@ -94,7 +98,7 @@ export const descriptorsTable = [
     },
   },
   {
-    syrup: `<${sym('desc:handoff-give')}${makePubKey('ecc', 'Ed25519', 'eddsa', '1')}${makeNode('tcp', '127.0.0.1', false)}${bts('123')}${makePubKey('ecc', 'Ed25519', 'eddsa', '2')}${bts('456')}>`,
+    syrup: `<${sel('desc:handoff-give')}${makePubKey('ecc', 'Ed25519', 'eddsa', '1')}${makeNode('tcp', '127.0.0.1', false)}${bts('123')}${makePubKey('ecc', 'Ed25519', 'eddsa', '2')}${bts('456')}>`,
     value: {
       type: 'desc:handoff-give',
       receiverKey: {
@@ -124,7 +128,7 @@ export const descriptorsTable = [
     },
   },
   {
-    syrup: `<${sym('desc:sig-envelope')}${makeDescGive(
+    syrup: `<${sel('desc:sig-envelope')}${makeDescGive(
       makePubKey('ed25519', 'ed25519', 'ed25519', '123'),
       makeNode('tcp', '127.0.0.1', false),
       '123',
@@ -168,7 +172,7 @@ export const descriptorsTable = [
   },
   // handoff receive
   {
-    syrup: `<${sym('desc:handoff-receive')}${bts('123')}${bts('456')}${int(1)}${makeSigEnvelope(
+    syrup: `<${sel('desc:handoff-receive')}${bts('123')}${bts('456')}${int(1)}${makeSigEnvelope(
       makeDescGive(
         makePubKey('ecc', 'Ed25519', 'eddsa', '123'),
         makeNode('tcp', '456', false),
@@ -227,7 +231,7 @@ export const operationsTable = [
     //                   session-pubkey            ; CapTP public key value
     //                   acceptable-location       ; OCapN Reference type
     //                   acceptable-location-sig>  ; CapTP signature
-    syrup: `<${sym('op:start-session')}${str('captp-v1')}${makePubKey('ecc', 'Ed25519', 'eddsa', '123')}${makeNode('tcp', '127.0.0.1', false)}${makeSig('eddsa', '1', '2')}>`,
+    syrup: `<${sel('op:start-session')}${str('captp-v1')}${makePubKey('ecc', 'Ed25519', 'eddsa', '123')}${makeNode('tcp', '127.0.0.1', false)}${makeSig('eddsa', '1', '2')}>`,
     value: {
       type: 'op:start-session',
       captpVersion: 'captp-v1',
@@ -254,7 +258,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver-only <desc:export 1> ['fulfill <desc:import-object 1>]>
-    syrup: `<${sym('op:deliver-only')}${makeExport(1)}${list([sym('fulfill'), makeImportObj(1)])}>`,
+    syrup: `<${sel('op:deliver-only')}${makeExport(1)}${list([sel('fulfill'), makeImportObj(1)])}>`,
     value: {
       type: 'op:deliver-only',
       to: {
@@ -275,7 +279,7 @@ export const operationsTable = [
     //                  ['deposit-gift                ; Symbol "deposit-gift"
     //                   42                           ; gift-id, a positive integer
     //                   <desc:import-object ...>]>   ; remote object being shared
-    syrup: `<${sym('op:deliver-only')}${makeExport(0)}${list([sym('deposit-gift'), int(42), makeImportObj(1)])}>`,
+    syrup: `<${sel('op:deliver-only')}${makeExport(0)}${list([sel('deposit-gift'), int(42), makeImportObj(1)])}>`,
     value: {
       type: 'op:deliver-only',
       to: {
@@ -287,7 +291,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver <desc:export 5> ['make-car-factory] 3 <desc:import-object 15>>
-    syrup: `<${sym('op:deliver')}${makeExport(5)}${list([sym('make-car-factory')])}${int(3)}${makeImportObj(15)}>`,
+    syrup: `<${sel('op:deliver')}${makeExport(5)}${list([sel('make-car-factory')])}${int(3)}${makeImportObj(15)}>`,
     value: {
       type: 'op:deliver',
       to: {
@@ -304,7 +308,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver <desc:export 1> ['beep] false <desc:import-object 2>>
-    syrup: `<${sym('op:deliver')}${makeExport(1)}${list([sym('beep')])}${bool(false)}${makeImportObj(2)}>`,
+    syrup: `<${sel('op:deliver')}${makeExport(1)}${list([sel('beep')])}${bool(false)}${makeImportObj(2)}>`,
     value: {
       type: 'op:deliver',
       to: {
@@ -325,8 +329,8 @@ export const operationsTable = [
     //              swiss-number]           ; Argument 2: Binary Data
     //             3                        ; Answer position: positive integer
     //             <desc:import-object 5>>  ; object exported by us at position 5 should provide the answer
-    syrup: `<${sym('op:deliver')}${makeExport(0)}${list([
-      sym('fetch'),
+    syrup: `<${sel('op:deliver')}${makeExport(0)}${list([
+      sel('fetch'),
       bts('swiss-number'),
     ])}${int(3)}${makeImportObj(5)}>`,
     value: {
@@ -346,8 +350,8 @@ export const operationsTable = [
     //              <desc:handoff-receive>]  ; Argument 2: desc:handoff-receive
     //             1                         ; Answer position: Positive integer or false
     //             <desc:import-object 3>>   ; The object exported (by us) at position 3, should receive the gift.
-    syrup: `<${sym('op:deliver')}${makeExport(0)}${list([
-      sym('withdraw-gift'),
+    syrup: `<${sel('op:deliver')}${makeExport(0)}${list([
+      sel('withdraw-gift'),
       makeHandoffReceive(
         '123',
         '456',
@@ -419,7 +423,7 @@ export const operationsTable = [
     // <op:pick <promise-pos>         ; <desc:answer | desc:import-promise>
     //          <selected-value-pos>  ; Positive Integer
     //          <new-answer-pos>>     ; Positive Integer
-    syrup: `<${sym('op:pick')}${makeImportPromise(1)}${int(2)}${int(3)}>`,
+    syrup: `<${sel('op:pick')}${makeImportPromise(1)}${int(2)}${int(3)}>`,
     value: {
       type: 'op:pick',
       promisePosition: {
@@ -432,7 +436,7 @@ export const operationsTable = [
   },
   {
     // <op:abort reason>  ; reason: String
-    syrup: `<${sym('op:abort')}${str('explode')}>`,
+    syrup: `<${sel('op:abort')}${str('explode')}>`,
     value: {
       type: 'op:abort',
       reason: 'explode',
@@ -442,7 +446,7 @@ export const operationsTable = [
     // <op:listen to-desc           ; desc:export | desc:answer
     //            listen-desc       ; desc:import-object
     //            wants-partial?    ; boolean
-    syrup: `<${sym('op:listen')}${makeExport(1)}${makeImportObj(2)}${bool(false)}>`,
+    syrup: `<${sel('op:listen')}${makeExport(1)}${makeImportObj(2)}${bool(false)}>`,
     value: {
       type: 'op:listen',
       to: { type: 'desc:export', position: 1n },
@@ -453,7 +457,7 @@ export const operationsTable = [
   {
     // <op:gc-export export-pos   ; positive integer
     //               wire-delta>  ; positive integer
-    syrup: `<${sym('op:gc-export')}${int(1)}${int(2)}>`,
+    syrup: `<${sel('op:gc-export')}${int(1)}${int(2)}>`,
     value: {
       type: 'op:gc-export',
       exportPosition: 1n,
@@ -462,7 +466,7 @@ export const operationsTable = [
   },
   {
     // <op:gc-answer answer-pos>  ; answer-pos: positive integer
-    syrup: `<${sym('op:gc-answer')}${int(1)}>`,
+    syrup: `<${sel('op:gc-answer')}${int(1)}>`,
     value: {
       type: 'op:gc-answer',
       answerPosition: 1n,

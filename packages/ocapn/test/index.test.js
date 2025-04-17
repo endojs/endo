@@ -14,7 +14,7 @@ import {
   passableTable,
 } from './_table.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
-import { sym } from './_util.js';
+import { sel } from './_util.js';
 
 const textEncoder = new TextEncoder();
 
@@ -65,7 +65,7 @@ test('affirmative passable cases', t => {
 
 test('error on unknown record type in passable', t => {
   const codec = OCapNPassableUnionCodec;
-  const syrup = `<${sym('unknown-record-type')}>`;
+  const syrup = `<${sel('unknown-record-type')}>`;
   const syrupBytes = textEncoder.encode(syrup);
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'unknown record type',
@@ -80,7 +80,7 @@ test('error on unknown record type in passable', t => {
 
 test('descriptor fails with negative integer', t => {
   const codec = OCapNDescriptorUnionCodec;
-  const syrup = `<${sym('desc:import-object')}1-}>`;
+  const syrup = `<${sel('desc:import-object')}1-}>`;
   const syrupBytes = textEncoder.encode(syrup);
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'import-object with negative integer',
