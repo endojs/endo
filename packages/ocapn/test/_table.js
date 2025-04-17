@@ -1,66 +1,21 @@
-const sym = s => `${s.length}'${s}`;
-const str = s => `${s.length}"${s}`;
-const bts = s => `${s.length}:${s}`;
-const bool = b => (b ? 't' : 'f');
-// eslint-disable-next-line @endo/restrict-comparison-operands
-const int = i => `${Math.floor(Math.abs(i))}${i < 0 ? '-' : '+'}`;
-const list = items => `[${items.join('')}]`;
-const makeNode = (transport, address, hints) => {
-  return `<10'ocapn-node${sym(transport)}${bts(address)}${bool(hints)}>`;
-};
-
-const makePubKey = (scheme, curve, flags, q) => {
-  return `<${sym('public-key')}${sym(scheme)}${sym(curve)}${sym(flags)}${bts(q)}>`;
-};
-
-const makeSigComp = (label, value) => {
-  return `${sym(label)}${bts(value)}`;
-};
-
-const makeSig = (scheme, r, s) => {
-  return `<${sym('sig-val')}${sym(scheme)}${makeSigComp('r', r)}${makeSigComp('s', s)}>`;
-};
-
-const makeExport = position => {
-  return `<${sym('desc:export')}${int(position)}>`;
-};
-
-const makeImportObj = position => {
-  return `<${sym('desc:import-object')}${int(position)}>`;
-};
-
-const makeImportPromise = position => {
-  return `<${sym('desc:import-promise')}${int(position)}>`;
-};
-
-const makeDescGive = (
-  receiverKey,
-  exporterLocation,
-  session,
-  gifterSide,
-  giftId,
-) => {
-  return `<${sym('desc:handoff-give')}${receiverKey}${exporterLocation}${bts(session)}${gifterSide}${bts(giftId)}>`;
-};
-
-const makeSigEnvelope = (object, signature) => {
-  return `<${sym('desc:sig-envelope')}${object}${signature}>`;
-};
-
-const makeHandoffReceive = (
-  recieverSession,
-  recieverSide,
-  handoffCount,
-  descGive,
-  signature,
-) => {
-  const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
-  return `<${sym('desc:handoff-receive')}${bts(recieverSession)}${bts(recieverSide)}${int(handoffCount)}${signedGiveEnvelope}>`;
-};
-
-const strToUint8Array = string => {
-  return new Uint8Array(string.split('').map(c => c.charCodeAt(0)));
-};
+import {
+  sym,
+  str,
+  bts,
+  bool,
+  int,
+  list,
+  makeSig,
+  makeNode,
+  makePubKey,
+  makeDescGive,
+  makeSigEnvelope,
+  makeHandoffReceive,
+  strToUint8Array,
+  makeExport,
+  makeImportObj,
+  makeImportPromise,
+} from './_util.js';
 
 // I made up these syrup values by hand, they may be wrong, sorry.
 // Would like external test data for this.
