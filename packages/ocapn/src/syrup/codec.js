@@ -12,7 +12,7 @@ const quote = JSON.stringify;
  * @property {function(any, SyrupWriter): void} write
  */
 
-const textDecoder = new TextDecoder();
+const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const textEncoder = new TextEncoder();
 
 /** @type {SyrupCodec} */

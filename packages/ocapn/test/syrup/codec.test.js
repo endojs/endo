@@ -14,8 +14,9 @@ import {
 
 /** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
 
-const textDecoder = new TextDecoder();
+const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const textEncoder = new TextEncoder();
+
 // zoo.bin from https://github.com/ocapn/syrup/tree/2214cbb7c0ee081699fdef64edbc2444af2bb1d2/test-data
 // eslint-disable-next-line no-underscore-dangle
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -160,7 +161,11 @@ test('zoo.bin', t => {
   const writer = makeSyrupWriter();
   zooCodec.write(value, writer);
   const bytes = writer.getBytes();
-  const resultSyrup = textDecoder.decode(bytes);
-  const originalSyrup = textDecoder.decode(zooBin);
-  t.deepEqual(resultSyrup, originalSyrup);
+  // When debugging a mismatch, its easier to compare the string representations,
+  // but requires a less-strict TextDecoder
+  // const debugDecoder = new TextDecoder('utf-8', { fatal: false })
+  // const resultSyrup = debugDecoder.decode(bytes);
+  // const originalSyrup = debugDecoder.decode(zooBin);
+  // t.deepEqual(resultSyrup, originalSyrup);
+  t.deepEqual(bytes, zooBin);
 });
