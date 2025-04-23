@@ -102,11 +102,13 @@ const prng = new XorShift(defaultSeed);
 const random = () => prng.random();
 
 test('fuzz', t => {
+  // This TextDecoder is only used for the fuzz test descriptor so we can allow invalid utf-8
+  const descDecoder = new TextDecoder('utf-8', { fatal: false });
   for (let i = 0; i < 1000; i += 1) {
     (index => {
       const object1 = fuzzySyrupable(random() * 100, random);
       const syrup2 = encodeSyrup(object1);
-      const desc = JSON.stringify(new TextDecoder().decode(syrup2));
+      const desc = JSON.stringify(descDecoder.decode(syrup2));
       let object3;
       let syrup4;
       t.notThrows(() => {

@@ -115,13 +115,15 @@ test('must reject non-canonical -0', t => {
 
 test('invalid string characters', t => {
   const bytes = new Uint8Array([
+    // type prefix: string of length 2
     '2'.charCodeAt(0),
     '"'.charCodeAt(0),
+    // invalid utf-8 encoding
     0xd8,
     0x00,
   ]);
-  t.notThrows(
-    () => decodeSyrup(bytes),
-    'TextDecoder does not interpret surrogate pairs',
-  );
+  t.throws(() => decodeSyrup(bytes), {
+    code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
+    message: 'The encoded data was not valid for encoding utf-8',
+  });
 });
