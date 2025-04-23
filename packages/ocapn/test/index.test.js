@@ -17,6 +17,7 @@ import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 import { sel } from './_util.js';
 
 const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder('utf-8', { fatal: true });
 
 const testBidirectionally = (t, codec, syrup, value, testName) => {
   const syrupBytes = textEncoder.encode(syrup);
@@ -31,7 +32,7 @@ const testBidirectionally = (t, codec, syrup, value, testName) => {
     codec.write(value, syrupWriter);
   }, testName);
   const bytes2 = syrupWriter.getBytes();
-  const syrup2 = new TextDecoder().decode(bytes2);
+  const syrup2 = textDecoder.decode(bytes2);
   t.deepEqual(syrup2, syrup, testName);
 };
 
