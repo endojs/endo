@@ -8,8 +8,6 @@ import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 import { makeSyrupWriter } from '../src/syrup/encode.js';
 import { makeSyrupReader } from '../src/syrup/decode.js';
 
-const textDecoder = new TextDecoder();
-
 /**
  * @param {number} budget
  * @param {() => number} random
@@ -147,11 +145,13 @@ const decodePassable = syrupBytes => {
 };
 
 test('fuzz', t => {
+  // This TextDecoder is only used for the fuzz test descriptor so we can allow invalid utf-8
+  const descDecoder = new TextDecoder('utf-8', { fatal: false });
   for (let i = 0; i < 1000; i += 1) {
     (index => {
       const object1 = fuzzyPassable(random() * 100, random);
       const syrupBytes2 = encodePassable(object1);
-      const syrupString2 = textDecoder.decode(syrupBytes2);
+      const syrupString2 = descDecoder.decode(syrupBytes2);
       const desc = JSON.stringify(syrupString2);
       const hexString = Buffer.from(syrupBytes2).toString('hex');
       let object3;
