@@ -9,24 +9,31 @@ import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
  */
 
 export const DescImportObject = makeOCapNRecordCodecFromDefinition(
+  'DescImportObject',
   'desc:import-object',
   [['position', PositiveIntegerCodec]],
 );
 
 export const DescImportPromise = makeOCapNRecordCodecFromDefinition(
+  'DescImportPromise',
   'desc:import-promise',
   [['position', PositiveIntegerCodec]],
 );
 
-export const DescExport = makeOCapNRecordCodecFromDefinition('desc:export', [
-  ['position', PositiveIntegerCodec],
-]);
+export const DescExport = makeOCapNRecordCodecFromDefinition(
+  'DescExport',
+  'desc:export',
+  [['position', PositiveIntegerCodec]],
+);
 
-export const DescAnswer = makeOCapNRecordCodecFromDefinition('desc:answer', [
-  ['position', PositiveIntegerCodec],
-]);
+export const DescAnswer = makeOCapNRecordCodecFromDefinition(
+  'DescAnswer',
+  'desc:answer',
+  [['position', PositiveIntegerCodec]],
+);
 
 export const DescHandoffGive = makeOCapNRecordCodecFromDefinition(
+  'DescHandoffGive',
   'desc:handoff-give',
   [
     ['receiverKey', OCapNPublicKey],
@@ -38,6 +45,7 @@ export const DescHandoffGive = makeOCapNRecordCodecFromDefinition(
 );
 
 export const DescSigGiveEnvelope = makeOCapNRecordCodecFromDefinition(
+  'DescSigGiveEnvelope',
   'desc:sig-envelope',
   [
     ['object', DescHandoffGive],
@@ -46,6 +54,7 @@ export const DescSigGiveEnvelope = makeOCapNRecordCodecFromDefinition(
 );
 
 export const DescHandoffReceive = makeOCapNRecordCodecFromDefinition(
+  'DescHandoffReceive',
   'desc:handoff-receive',
   [
     ['receivingSession', 'bytestring'],
@@ -56,6 +65,7 @@ export const DescHandoffReceive = makeOCapNRecordCodecFromDefinition(
 );
 
 export const DescSigReceiveEnvelope = makeOCapNRecordCodecFromDefinition(
+  'DescSigReceiveEnvelope',
   'desc:sig-envelope',
   [
     ['object', DescHandoffReceive],
@@ -64,20 +74,23 @@ export const DescSigReceiveEnvelope = makeOCapNRecordCodecFromDefinition(
 );
 
 // Note: this may only be useful for testing
-export const OCapNDescriptorUnionCodec = makeRecordUnionCodec({
-  OCapNNode,
-  OCapNPublicKey,
-  OCapNSignature,
-  DescSigGiveEnvelope,
-  // TODO: ambiguous record label for DescSigGiveEnvelope and DescSigReceiveEnvelope
-  // DescSigReceiveEnvelope,
-  DescImportObject,
-  DescImportPromise,
-  DescExport,
-  DescAnswer,
-  DescHandoffGive,
-  DescHandoffReceive,
-});
+export const OCapNDescriptorUnionCodec = makeRecordUnionCodec(
+  'OCapNDescriptorUnionCodec',
+  {
+    OCapNNode,
+    OCapNPublicKey,
+    OCapNSignature,
+    DescSigGiveEnvelope,
+    // TODO: ambiguous record label for DescSigGiveEnvelope and DescSigReceiveEnvelope
+    // DescSigReceiveEnvelope,
+    DescImportObject,
+    DescImportPromise,
+    DescExport,
+    DescAnswer,
+    DescHandoffGive,
+    DescHandoffReceive,
+  },
+);
 
 export const readOCapDescriptor = syrupReader => {
   return OCapNDescriptorUnionCodec.read(syrupReader);

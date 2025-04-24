@@ -107,6 +107,7 @@ export const NumberPrefixCodecWithSelectorAsSymbol = {
 
 /** @type {SyrupCodec} */
 export const AnyCodec = makeTypeHintUnionCodec(
+  'SyrupAnyCodec',
   {
     boolean: BooleanCodec,
     float64: Float64Codec,
@@ -142,8 +143,11 @@ export const AnyCodec = makeTypeHintUnionCodec(
   },
 );
 
-export const ListCodec = makeListCodecFromEntryCodec(AnyCodec);
-export const SetCodec = makeSetCodecFromEntryCodec(AnyCodec);
+export const ListCodec = makeListCodecFromEntryCodec(
+  'SyrupListCodec',
+  AnyCodec,
+);
+export const SetCodec = makeSetCodecFromEntryCodec('SyrupSetCodec', AnyCodec);
 
 /** @type {SyrupCodec} */
 const DictionaryKeyCodec = {
@@ -269,20 +273,8 @@ export const DictionaryCodec = freeze({
  * @param {number} [options.end]
  */
 export function decodeSyrup(bytes, options = {}) {
-  const { name = '<unknown>' } = options;
-  try {
-    const syrupReader = makeSyrupReader(bytes, options);
-    return AnyCodec.read(syrupReader);
-  } catch (err) {
-    if (err.code === 'EOD') {
-      const err2 = Error(
-        `Unexpected end of Syrup at index ${bytes.length} of ${name}`,
-      );
-      err2.cause = err;
-      throw err2;
-    }
-    throw err;
-  }
+  const syrupReader = makeSyrupReader(bytes, options);
+  return AnyCodec.read(syrupReader);
 }
 
 /**

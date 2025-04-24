@@ -42,19 +42,28 @@ export const makeOCapNSignatureValueComponentCodec = expectedLabel => {
 const OCapNSignatureRValue = makeOCapNSignatureValueComponentCodec('r');
 const OCapNSignatureSValue = makeOCapNSignatureValueComponentCodec('s');
 
-export const OCapNSignature = makeOCapNRecordCodecFromDefinition('sig-val', [
-  ['scheme', 'selector'],
-  ['r', OCapNSignatureRValue],
-  ['s', OCapNSignatureSValue],
-]);
+export const OCapNSignature = makeOCapNRecordCodecFromDefinition(
+  'OCapNSignatureCodec',
+  'sig-val',
+  [
+    ['scheme', 'selector'],
+    ['r', OCapNSignatureRValue],
+    ['s', OCapNSignatureSValue],
+  ],
+);
 
-export const OCapNNode = makeOCapNRecordCodecFromDefinition('ocapn-node', [
-  ['transport', 'selector'],
-  ['address', 'bytestring'],
-  ['hints', 'boolean'],
-]);
+export const OCapNNode = makeOCapNRecordCodecFromDefinition(
+  'OCapNNodeCodec',
+  'ocapn-node',
+  [
+    ['transport', 'selector'],
+    ['address', 'bytestring'],
+    ['hints', 'boolean'],
+  ],
+);
 
 export const OCapNSturdyRef = makeOCapNRecordCodecFromDefinition(
+  'OCapNSturdyRefCodec',
   'ocapn-sturdyref',
   [
     ['node', OCapNNode],
@@ -62,19 +71,27 @@ export const OCapNSturdyRef = makeOCapNRecordCodecFromDefinition(
   ],
 );
 
-export const OCapNPublicKey = makeOCapNRecordCodecFromDefinition('public-key', [
-  ['scheme', 'selector'],
-  ['curve', 'selector'],
-  ['flags', 'selector'],
-  ['q', 'bytestring'],
-]);
+export const OCapNPublicKey = makeOCapNRecordCodecFromDefinition(
+  'OCapNPublicKeyCodec',
+  'public-key',
+  [
+    ['scheme', 'selector'],
+    ['curve', 'selector'],
+    ['flags', 'selector'],
+    ['q', 'bytestring'],
+  ],
+);
 
-export const OCapNComponentUnionCodec = makeRecordUnionCodec({
-  OCapNNode,
-  OCapNSturdyRef,
-  OCapNPublicKey,
-  OCapNSignature,
-});
+// TODO: delete?
+export const OCapNComponentUnionCodec = makeRecordUnionCodec(
+  'OCapNComponentUnionCodec',
+  {
+    OCapNNode,
+    OCapNSturdyRef,
+    OCapNPublicKey,
+    OCapNSignature,
+  },
+);
 
 export const readOCapComponent = syrupReader => {
   return OCapNComponentUnionCodec.read(syrupReader);
