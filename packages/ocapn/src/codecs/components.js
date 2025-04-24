@@ -45,41 +45,41 @@ const OCapNSignatureSValue = makeOCapNSignatureValueComponentCodec('s');
 export const OCapNSignature = makeOCapNRecordCodecFromDefinition(
   'OCapNSignatureCodec',
   'sig-val',
-  [
-    ['scheme', 'selector'],
-    ['r', OCapNSignatureRValue],
-    ['s', OCapNSignatureSValue],
-  ],
+  {
+    scheme: 'selector',
+    r: OCapNSignatureRValue,
+    s: OCapNSignatureSValue,
+  },
 );
 
 export const OCapNNode = makeOCapNRecordCodecFromDefinition(
   'OCapNNodeCodec',
   'ocapn-node',
-  [
-    ['transport', 'selector'],
-    ['address', 'bytestring'],
-    ['hints', 'boolean'],
-  ],
+  {
+    transport: 'selector',
+    address: 'bytestring',
+    hints: 'boolean',
+  },
 );
 
 export const OCapNSturdyRef = makeOCapNRecordCodecFromDefinition(
   'OCapNSturdyRefCodec',
   'ocapn-sturdyref',
-  [
-    ['node', OCapNNode],
-    ['swissNum', 'string'],
-  ],
+  {
+    node: OCapNNode,
+    swissNum: 'string',
+  },
 );
 
 export const OCapNPublicKey = makeOCapNRecordCodecFromDefinition(
   'OCapNPublicKeyCodec',
   'public-key',
-  [
-    ['scheme', 'selector'],
-    ['curve', 'selector'],
-    ['flags', 'selector'],
-    ['q', 'bytestring'],
-  ],
+  {
+    scheme: 'selector',
+    curve: 'selector',
+    flags: 'selector',
+    q: 'bytestring',
+  },
 );
 
 // TODO: delete?
