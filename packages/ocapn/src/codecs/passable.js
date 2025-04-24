@@ -184,7 +184,9 @@ const OCapNReferenceCodecs = {
 const OCapNErrorCodec = makeOCapNRecordCodecFromDefinition(
   'OCapNErrorCodec',
   'desc:error',
-  [['message', 'string']],
+  {
+    message: 'string',
+  },
 );
 
 // all record based passables
