@@ -16,7 +16,7 @@
  *   ImportNowHook,
  *   RedirectStaticModuleInterface,
  *   StaticModuleType,
- VirtualModuleSource
+ *   VirtualModuleSource
  * } from 'ses'
  * @import {
  *   CompartmentDescriptor,
@@ -94,19 +94,6 @@ const nodejsConventionSearchSuffixes = [
 ];
 
 /**
- * Computes the relative path to a module from its compartment location (including a leading `./`)
- *
- * @param {string} absoluteModuleSpecifier Absolute path (not URL) to a module specifier
- * @param {string} compartmentLocation Absolute path to compartment location
- * @returns {string} Redirect static module interface; the `specifier` prop of this value _must_ be a relative path with leading `./`
- */
-const relativeSpecifier = (moduleSpecifierLocation, location) => {
-  assert(moduleSpecifierLocation.startsWith(location), 
-    `Module specifier location "${moduleSpecifierLocation}" does not start with compartment location "${location}"`);
-  return `./${moduleSpecifierLocation.substring(location.length)}`;
-};
-
-/**
  * Returns `true` if `absoluteModuleSpecifier` is within the path `compartmentLocation`.
  * @param {string} absoluteModudeSpecifier Absolute path to module specifier
  * @param {string} compartmentLocation Absolute path to compartment location
@@ -116,6 +103,21 @@ const isLocationWithinCompartment = (
   absoluteModudeSpecifier,
   compartmentLocation,
 ) => absoluteModudeSpecifier.startsWith(compartmentLocation);
+
+/**
+ * Computes the relative path to a module from its compartment location (including a leading `./`)
+ *
+ * @param {string} absoluteModuleSpecifier Absolute path (not URL) to a module specifier
+ * @param {string} compartmentLocation Absolute path to compartment location
+ * @returns {string} Redirect static module interface; the `specifier` prop of this value _must_ be a relative path with leading `./`
+ */
+const relativeSpecifier = (absoluteModuleSpecifier, compartmentLocation) => {
+  assert(
+    isLocationWithinCompartment(absoluteModuleSpecifier, compartmentLocation),
+    `Module specifier location "${absoluteModuleSpecifier}" does not start with compartment location "${compartmentLocation}"`,
+  );
+  return `./${absoluteModuleSpecifier.substring(compartmentLocation.length)}`;
+};
 
 /**
  * Given a module specifier which is an absolute path, attempt to match it with
@@ -661,6 +663,47 @@ export function makeImportNowHookMaker(
     parse,
     compartments,
   }) => {
+    /**
+     * Attempt to load the moduleSpecifier via an {@link ExitModuleImportNowHook}, if one exists.
+     *
+     * If it doesn't exist, then throw an exception.
+     * @param {string} moduleSpecifier
+     * @param {CompartmentDescriptor} compartmentDescriptor
+     * @returns {VirtualModuleSource}
+     */
+    const importExitModuleOrFail = (moduleSpecifier, compartmentDescriptor) => {
+      if (exitModuleImportNowHook) {
+        // This hook is responsible for ensuring that the moduleSpecifier
+        // actually refers to an exit module.
+        const exitRecord = exitModuleImportNowHook(
+          moduleSpecifier,
+          packageLocation,
+        );
+        if (exitRecord) {
+          // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
+          // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
+          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+            exit: true,
+            errorHint: `Blocked in loading. ${q(
+              moduleSpecifier,
+            )} was not in the compartment map and an attempt was made to load it as a builtin`,
+          });
+          return exitRecord;
+        }
+        throw Error(
+          `Cannot find external module ${q(
+            moduleSpecifier,
+          )} in package at ${packageLocation}`,
+        );
+      } else {
+        throw Error(
+          `Cannot find external module ${q(
+            moduleSpecifier,
+          )} from package at ${packageLocation}; try providing an importNowHook`,
+        );
+      }
+    };
+
     if (!('isSyncParser' in parse)) {
       return function impossibleTransformImportNowHook() {
         throw new Error(
@@ -705,45 +748,6 @@ export function makeImportNowHookMaker(
 
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
-      /**
-       * Attempt to load the moduleSpecifier via an {@link ExitModuleImportNowHook}, if one exists.
-       *
-       * If it doesn't exist, then throw an exception.
-       * @returns {VirtualModuleSource}
-       */
-      const tryExitModuleImportNowHook = () => {
-        if (exitModuleImportNowHook) {
-          // This hook is responsible for ensuring that the moduleSpecifier
-          // actually refers to an exit module.
-          const exitRecord = exitModuleImportNowHook(
-            moduleSpecifier,
-            packageLocation,
-          );
-          if (exitRecord) {
-            // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
-            // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
-            enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
-              exit: true,
-              errorHint: `Blocked in loading. ${q(
-                moduleSpecifier,
-              )} was not in the compartment map and an attempt was made to load it as a builtin`,
-            });
-            return exitRecord;
-          }
-          throw Error(
-            `Cannot find external module ${q(
-              moduleSpecifier,
-            )} in package at ${packageLocation}`,
-          );
-        } else {
-          throw Error(
-            `Cannot find external module ${q(
-              moduleSpecifier,
-            )} from package at ${packageLocation}; try providing an importNowHook`,
-          );
-        }
-      };
-
       // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
       if (isAbsolute(moduleSpecifier)) {
         const record = findRedirect({
@@ -772,7 +776,7 @@ export function makeImportNowHookMaker(
         }
       } else if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
         // could be a builtin, which means we should not bother bouncing on the trampoline to find it.
-        return tryExitModuleImportNowHook();
+        return importExitModuleOrFail(moduleSpecifier, compartmentDescriptor);
       }
 
       // we might have an absolute path here, but it might be within the compartment, so
@@ -807,7 +811,7 @@ export function makeImportNowHookMaker(
       }
 
       // at this point, we haven't found the module by guessing, so we'll try the importer-of-last-resort
-      return tryExitModuleImportNowHook();
+      return importExitModuleOrFail(moduleSpecifier, compartmentDescriptor);
     };
 
     return importNowHook;
