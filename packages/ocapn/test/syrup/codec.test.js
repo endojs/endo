@@ -40,10 +40,10 @@ test('simple string codec', t => {
 });
 
 test('basic record codec cases', t => {
-  const codec = makeRecordCodecFromDefinition('TestCodec', 'test', 'selector', [
-    ['field1', 'string'],
-    ['field2', 'integer'],
-  ]);
+  const codec = makeRecordCodecFromDefinition('TestCodec', 'test', 'selector', {
+    field1: 'string',
+    field2: 'integer',
+  });
   const value = {
     type: 'test',
     field1: 'hello',
@@ -58,19 +58,19 @@ test('record union codec', t => {
       'TestUnionACodec',
       'testA',
       'selector',
-      [
-        ['field1', 'string'],
-        ['field2', 'integer'],
-      ],
+      {
+        field1: 'string',
+        field2: 'integer',
+      },
     ),
     testB: makeRecordCodecFromDefinition(
       'TestUnionBCodec',
       'testB',
       'selector',
-      [
-        ['field1', 'string'],
-        ['field2', 'integer'],
-      ],
+      {
+        field1: 'string',
+        field2: 'integer',
+      },
     ),
   });
   const value = {
@@ -138,10 +138,10 @@ test('zoo.bin', t => {
     'ZooCodex',
     'zoo',
     'bytestring',
-    [
-      ['title', 'string'],
-      ['inhabitants', inhabitantListCodec],
-    ],
+    {
+      title: 'string',
+      inhabitants: inhabitantListCodec,
+    },
   );
 
   const reader = makeSyrupReader(zooBin, { name: 'zoo' });

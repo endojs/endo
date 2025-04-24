@@ -310,7 +310,7 @@ export const makeRecordCodec = (
   });
 };
 
-/** @typedef {Array<[string, SyrupType | SyrupCodec]>} SyrupRecordDefinition */
+/** @typedef {Record<string, SyrupType | SyrupCodec>} SyrupRecordDefinition */
 
 /**
  * @param {string} codecName
@@ -331,8 +331,7 @@ export const makeRecordCodecFromDefinition = (
    */
   const readBody = syrupReader => {
     const result = {};
-    for (const field of definition) {
-      const [fieldName, fieldType] = field;
+    for (const [fieldName, fieldType] of Object.entries(definition)) {
       const fieldCodec = resolveCodec(fieldType);
       result[fieldName] = fieldCodec.read(syrupReader);
     }
@@ -344,8 +343,7 @@ export const makeRecordCodecFromDefinition = (
    * @param {SyrupWriter} syrupWriter
    */
   const writeBody = (value, syrupWriter) => {
-    for (const field of definition) {
-      const [fieldName, fieldType] = field;
+    for (const [fieldName, fieldType] of Object.entries(definition)) {
       const fieldValue = value[fieldName];
       const fieldCodec = resolveCodec(fieldType, fieldValue);
       fieldCodec.write(fieldValue, syrupWriter);
