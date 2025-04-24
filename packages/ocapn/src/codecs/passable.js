@@ -12,6 +12,7 @@ import {
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
   makeListCodecFromEntryCodec,
+  makeCodec,
 } from '../syrup/codec.js';
 import {
   makeOCapNRecordCodec,
@@ -73,7 +74,7 @@ const AtomCodecs = {
 // OCapN Passable Containers
 
 /** @type {SyrupCodec} */
-export const OCapNStructCodec = {
+export const OCapNStructCodec = makeCodec('OCapNStructCodec', {
   read(syrupReader) {
     /** @type {string | undefined} */
     let lastKey;
@@ -117,7 +118,7 @@ export const OCapNStructCodec = {
     }
     syrupWriter.exitDictionary();
   },
-};
+});
 
 // <:desc:tagged :tagName value>
 const OCapNTaggedCodec = makeOCapNRecordCodec(
