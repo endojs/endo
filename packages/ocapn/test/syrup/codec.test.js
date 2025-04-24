@@ -40,7 +40,7 @@ test('simple string codec', t => {
 });
 
 test('basic record codec cases', t => {
-  const codec = makeRecordCodecFromDefinition('test', 'selector', [
+  const codec = makeRecordCodecFromDefinition('TestCodec', 'test', 'selector', [
     ['field1', 'string'],
     ['field2', 'integer'],
   ]);
@@ -53,15 +53,25 @@ test('basic record codec cases', t => {
 });
 
 test('record union codec', t => {
-  const codec = makeRecordUnionCodec({
-    testA: makeRecordCodecFromDefinition('testA', 'selector', [
-      ['field1', 'string'],
-      ['field2', 'integer'],
-    ]),
-    testB: makeRecordCodecFromDefinition('testB', 'selector', [
-      ['field1', 'string'],
-      ['field2', 'integer'],
-    ]),
+  const codec = makeRecordUnionCodec('TestUnionCodec', {
+    testA: makeRecordCodecFromDefinition(
+      'TestUnionACodec',
+      'testA',
+      'selector',
+      [
+        ['field1', 'string'],
+        ['field2', 'integer'],
+      ],
+    ),
+    testB: makeRecordCodecFromDefinition(
+      'TestUnionBCodec',
+      'testB',
+      'selector',
+      [
+        ['field1', 'string'],
+        ['field2', 'integer'],
+      ],
+    ),
   });
   const value = {
     type: 'testA',
@@ -119,12 +129,20 @@ test('zoo.bin', t => {
     },
   };
 
-  const inhabitantListCodec = makeListCodecFromEntryCodec(inhabitantCodec);
+  const inhabitantListCodec = makeListCodecFromEntryCodec(
+    'SyrupInhabitantListCodec',
+    inhabitantCodec,
+  );
 
-  const zooCodec = makeRecordCodecFromDefinition('zoo', 'bytestring', [
-    ['title', 'string'],
-    ['inhabitants', inhabitantListCodec],
-  ]);
+  const zooCodec = makeRecordCodecFromDefinition(
+    'ZooCodex',
+    'zoo',
+    'bytestring',
+    [
+      ['title', 'string'],
+      ['inhabitants', inhabitantListCodec],
+    ],
+  );
 
   const reader = makeSyrupReader(zooBin, { name: 'zoo' });
   const value = zooCodec.read(reader);
