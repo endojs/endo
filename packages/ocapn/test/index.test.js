@@ -14,7 +14,8 @@ import {
   passableTable,
 } from './_table.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
-import { sel } from './_util.js';
+import { sel } from './_syrup_util.js';
+import { throws } from './_util.js';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
@@ -71,12 +72,17 @@ test('error on unknown record type in passable', t => {
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'unknown record type',
   });
-  t.throws(
-    () => {
-      codec.read(syrupReader);
+  throws(t, () => codec.read(syrupReader), {
+    message:
+      'OCapNPassableCodec: read failed at index 0 of unknown record type',
+    cause: {
+      message:
+        'OCapNPassableRecordUnionCodec: read failed at index 0 of unknown record type',
+      cause: {
+        message: 'Unexpected record type: "unknown-record-type"',
+      },
     },
-    { message: 'Unexpected record type: "unknown-record-type"' },
-  );
+  });
 });
 
 test('descriptor fails with negative integer', t => {
@@ -86,14 +92,13 @@ test('descriptor fails with negative integer', t => {
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'import-object with negative integer',
   });
-  t.throws(
-    () => {
-      codec.read(syrupReader);
-    },
-    {
+  throws(t, () => codec.read(syrupReader), {
+    message:
+      'OCapNDescriptorUnionCodec: read failed at index 0 of import-object with negative integer',
+    cause: {
       message: 'PositiveIntegerCodec: value must be positive',
     },
-  );
+  });
 });
 
 test('passable fails with unordered keys', t => {
@@ -103,15 +108,14 @@ test('passable fails with unordered keys', t => {
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'passable with unordered keys',
   });
-  t.throws(
-    () => {
-      codec.read(syrupReader);
-    },
-    {
+  throws(t, () => codec.read(syrupReader), {
+    message:
+      'OCapNPassableCodec: read failed at index 0 of passable with unordered keys',
+    cause: {
       message:
         'OCapN Structs keys must be in bytewise sorted order, got "cat" immediately after "dog" at index 9 of passable with unordered keys',
     },
-  );
+  });
 });
 
 test('passable fails with repeated keys', t => {
@@ -121,13 +125,12 @@ test('passable fails with repeated keys', t => {
   const syrupReader = makeSyrupReader(syrupBytes, {
     name: 'passable with repeated keys',
   });
-  t.throws(
-    () => {
-      codec.read(syrupReader);
-    },
-    {
+  throws(t, () => codec.read(syrupReader), {
+    message:
+      'OCapNPassableCodec: read failed at index 0 of passable with repeated keys',
+    cause: {
       message:
         'OCapN Structs must have unique keys, got repeated "cat" at index 9 of passable with repeated keys',
     },
-  );
+  });
 });

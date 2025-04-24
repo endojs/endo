@@ -3,6 +3,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { decodeSyrup } from '../../src/syrup/js-representation.js';
 import { table } from './_table.js';
+import { throws } from '../_util.js';
 
 const textEncoder = new TextEncoder();
 
@@ -22,66 +23,63 @@ test('affirmative decode cases', t => {
 });
 
 test('must not be empty', t => {
-  t.throws(
-    () => {
-      decodeSyrup(new Uint8Array(0), { name: 'known.sup' });
+  throws(t, () => decodeSyrup(new Uint8Array(0), { name: 'known.sup' }), {
+    message: 'SyrupAnyCodec: read failed at index 0 of known.sup',
+    cause: {
+      message: 'End of data reached (data length = 0, asked index 1)',
     },
-    {
-      message: 'Unexpected end of Syrup at index 0 of known.sup',
-    },
-  );
+  });
 });
 
 test('dictionary keys must be unique', t => {
-  t.throws(
-    () => {
-      decodeSyrup(textEncoder.encode('{1"a10+1"a'));
-    },
-    {
+  throws(t, () => decodeSyrup(textEncoder.encode('{1"a10+1"a')), {
+    message: 'SyrupAnyCodec: read failed at index 0 of <unknown>',
+    cause: {
       message:
         'Syrup dictionary keys must be unique, got repeated "a" at index 7 of <unknown>',
     },
-  );
+  });
 });
 
 test('dictionary keys must be in bytewise order', t => {
-  t.throws(
-    () => {
-      decodeSyrup(textEncoder.encode('{1"b10+1"a'));
-    },
-    {
+  throws(t, () => decodeSyrup(textEncoder.encode('{1"b10+1"a')), {
+    message: 'SyrupAnyCodec: read failed at index 0 of <unknown>',
+    cause: {
       message:
         'Syrup dictionary keys must be in bytewise sorted order, got "a" immediately after "b" at index 7 of <unknown>',
     },
-  );
+  });
 });
 
 test('must reject out-of-order prefix key', t => {
-  t.throws(
-    () => {
-      decodeSyrup(textEncoder.encode('{1"i10+0"1-}'));
-    },
-    {
+  throws(t, () => decodeSyrup(textEncoder.encode('{1"i10+0"1-}')), {
+    message: 'SyrupAnyCodec: read failed at index 0 of <unknown>',
+    cause: {
       message:
         'Syrup dictionary keys must be in bytewise sorted order, got "" immediately after "i" at index 7 of <unknown>',
     },
-  );
+  });
 });
 
 test('dictionary keys must be strings or selectors', t => {
-  t.throws(
+  throws(
+    t,
     () => {
       decodeSyrup(textEncoder.encode('{1+'));
     },
     {
-      message:
-        'Unexpected type "integer", Syrup dictionary keys must be strings or selectors at index 1 of <unknown>',
+      message: 'SyrupAnyCodec: read failed at index 0 of <unknown>',
+      cause: {
+        message:
+          'Unexpected type "integer", Syrup dictionary keys must be strings or selectors at index 1 of <unknown>',
+      },
     },
   );
 });
 
 test('must reject non-canonical representations of NaN', t => {
-  t.throws(
+  throws(
+    t,
     () =>
       decodeSyrup(
         new Uint8Array([
@@ -97,7 +95,13 @@ test('must reject non-canonical representations of NaN', t => {
         ]),
       ),
     {
-      message: 'Non-canonical NaN at index 1 of Syrup <unknown>',
+      message: 'SyrupAnyCodec: read failed at index 0 of <unknown>',
+      cause: {
+        message: 'Float64: read failed at index 0 of <unknown>',
+        cause: {
+          message: 'Non-canonical NaN at index 1 of Syrup <unknown>',
+        },
+      },
     },
   );
 });
@@ -108,8 +112,14 @@ test('must reject non-canonical -0', t => {
   bytes[0] = 'D'.charCodeAt(0);
   data.setFloat64(1, -0);
 
-  t.throws(() => decodeSyrup(bytes), {
-    message: 'Non-canonical zero at index 1 of Syrup <unknown>',
+  throws(t, () => decodeSyrup(bytes), {
+    message: 'SyrupAnyCodec: read failed at index 0 of <unknown>',
+    cause: {
+      message: 'Float64: read failed at index 0 of <unknown>',
+      cause: {
+        message: 'Non-canonical zero at index 1 of Syrup <unknown>',
+      },
+    },
   });
 });
 
@@ -122,8 +132,11 @@ test('invalid string characters', t => {
     0xd8,
     0x00,
   ]);
-  t.throws(() => decodeSyrup(bytes), {
-    code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
-    message: 'The encoded data was not valid for encoding utf-8',
+  throws(t, () => decodeSyrup(bytes), {
+    message: 'SyrupAnyCodec: read failed at index 0 of <unknown>',
+    cause: {
+      code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
+      message: 'The encoded data was not valid for encoding utf-8',
+    },
   });
 });

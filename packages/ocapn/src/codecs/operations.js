@@ -24,30 +24,44 @@ const { freeze } = Object;
  * These are OCapN Operations, they are messages that are sent between OCapN Nodes
  */
 
-const OpStartSession = makeOCapNRecordCodecFromDefinition('op:start-session', [
-  ['captpVersion', 'string'],
-  ['sessionPublicKey', OCapNPublicKey],
-  ['location', OCapNNode],
-  ['locationSignature', OCapNSignature],
-]);
+const OpStartSession = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessageStartSessionCodec',
+  'op:start-session',
+  [
+    ['captpVersion', 'string'],
+    ['sessionPublicKey', OCapNPublicKey],
+    ['location', OCapNNode],
+    ['locationSignature', OCapNSignature],
+  ],
+);
 
-const OCapNResolveMeDescCodec = makeRecordUnionCodec({
-  DescImportObject,
-  DescImportPromise,
-});
+const OCapNResolveMeDescCodec = makeRecordUnionCodec(
+  'OCapNResolveMeDescCodec',
+  {
+    DescImportObject,
+    DescImportPromise,
+  },
+);
 
-const OpListen = makeOCapNRecordCodecFromDefinition('op:listen', [
-  ['to', DescExport],
-  ['resolveMeDesc', OCapNResolveMeDescCodec],
-  ['wantsPartial', 'boolean'],
-]);
+const OpListen = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessageListenCodec',
+  'op:listen',
+  [
+    ['to', DescExport],
+    ['resolveMeDesc', OCapNResolveMeDescCodec],
+    ['wantsPartial', 'boolean'],
+  ],
+);
 
 const OCapNDeliverTargets = {
   DescExport,
   DescAnswer,
 };
 
-const OCapNDeliverTargetCodec = makeRecordUnionCodec(OCapNDeliverTargets);
+const OCapNDeliverTargetCodec = makeRecordUnionCodec(
+  'OCapNDeliverTargetCodec',
+  OCapNDeliverTargets,
+);
 
 /** @typedef {[string, ...any[]]} OpDeliverArgs */
 
@@ -85,13 +99,18 @@ const OpDeliverArgsCodec = freeze({
   },
 });
 
-const OpDeliverOnly = makeOCapNRecordCodecFromDefinition('op:deliver-only', [
-  ['to', OCapNDeliverTargetCodec],
-  ['args', OpDeliverArgsCodec],
-]);
+const OpDeliverOnly = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessageDeliverOnlyCodec',
+  'op:deliver-only',
+  [
+    ['to', OCapNDeliverTargetCodec],
+    ['args', OpDeliverArgsCodec],
+  ],
+);
 
 // The OpDeliver answer is either a positive integer or false
 const OpDeliverAnswerCodec = makeTypeHintUnionCodec(
+  'OpDeliverAnswerCodec',
   {
     'number-prefix': PositiveIntegerCodec,
     boolean: FalseCodec,
@@ -102,47 +121,66 @@ const OpDeliverAnswerCodec = makeTypeHintUnionCodec(
   },
 );
 
-const OpDeliver = makeOCapNRecordCodecFromDefinition('op:deliver', [
-  ['to', OCapNDeliverTargetCodec],
-  ['args', OpDeliverArgsCodec],
-  ['answerPosition', OpDeliverAnswerCodec],
-  ['resolveMeDesc', OCapNResolveMeDescCodec],
-]);
+const OpDeliver = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessageDeliverCodec',
+  'op:deliver',
+  [
+    ['to', OCapNDeliverTargetCodec],
+    ['args', OpDeliverArgsCodec],
+    ['answerPosition', OpDeliverAnswerCodec],
+    ['resolveMeDesc', OCapNResolveMeDescCodec],
+  ],
+);
 
-const OCapNPromiseRefCodec = makeRecordUnionCodec({
+const OCapNPromiseRefCodec = makeRecordUnionCodec('OCapNPromiseRefCodec', {
   DescAnswer,
   DescImportPromise,
 });
 
-const OpPick = makeOCapNRecordCodecFromDefinition('op:pick', [
-  ['promisePosition', OCapNPromiseRefCodec],
-  ['selectedValuePosition', 'integer'],
-  ['newAnswerPosition', 'integer'],
-]);
+const OpPick = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessagePickCodec',
+  'op:pick',
+  [
+    ['promisePosition', OCapNPromiseRefCodec],
+    ['selectedValuePosition', 'integer'],
+    ['newAnswerPosition', 'integer'],
+  ],
+);
 
-const OpAbort = makeOCapNRecordCodecFromDefinition('op:abort', [
-  ['reason', 'string'],
-]);
+const OpAbort = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessageAbortCodec',
+  'op:abort',
+  [['reason', 'string']],
+);
 
-const OpGcExport = makeOCapNRecordCodecFromDefinition('op:gc-export', [
-  ['exportPosition', 'integer'],
-  ['wireDelta', 'integer'],
-]);
+const OpGcExport = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessageGcExportCodec',
+  'op:gc-export',
+  [
+    ['exportPosition', 'integer'],
+    ['wireDelta', 'integer'],
+  ],
+);
 
-const OpGcAnswer = makeOCapNRecordCodecFromDefinition('op:gc-answer', [
-  ['answerPosition', 'integer'],
-]);
+const OpGcAnswer = makeOCapNRecordCodecFromDefinition(
+  'OCapNMessageGcAnswerCodec',
+  'op:gc-answer',
+  [['answerPosition', 'integer']],
+);
 
-export const OCapNMessageUnionCodec = makeRecordUnionCodec({
-  OpStartSession,
-  OpDeliverOnly,
-  OpDeliver,
-  OpPick,
-  OpAbort,
-  OpListen,
-  OpGcExport,
-  OpGcAnswer,
-});
+export const OCapNMessageUnionCodec = makeRecordUnionCodec(
+  'OCapNMessageUnionCodec',
+  {
+    OpStartSession,
+    OpDeliverOnly,
+    OpDeliver,
+    OpPick,
+    OpAbort,
+    OpListen,
+    OpGcExport,
+    OpGcAnswer,
+  },
+);
 
 export const readOCapNMessage = syrupReader => {
   return OCapNMessageUnionCodec.read(syrupReader);

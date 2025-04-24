@@ -15,7 +15,7 @@ import {
   makeExport,
   makeImportObj,
   makeImportPromise,
-} from './_util.js';
+} from './_syrup_util.js';
 
 // I made up these syrup values by hand, they may be wrong, sorry.
 // Would like external test data for this.
