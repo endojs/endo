@@ -13,7 +13,7 @@ import {
   makeHandoffReceive,
   strToUint8Array,
   makeExport,
-  makeImportObj,
+  makeImportObject,
   makeImportPromise,
 } from './_syrup_util.js';
 
@@ -258,7 +258,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver-only <desc:export 1> ['fulfill <desc:import-object 1>]>
-    syrup: `<${sel('op:deliver-only')}${makeExport(1)}${list([sel('fulfill'), makeImportObj(1)])}>`,
+    syrup: `<${sel('op:deliver-only')}${makeExport(1)}${list([sel('fulfill'), makeImportObject(1)])}>`,
     value: {
       type: 'op:deliver-only',
       to: {
@@ -279,7 +279,7 @@ export const operationsTable = [
     //                  ['deposit-gift                ; Symbol "deposit-gift"
     //                   42                           ; gift-id, a positive integer
     //                   <desc:import-object ...>]>   ; remote object being shared
-    syrup: `<${sel('op:deliver-only')}${makeExport(0)}${list([sel('deposit-gift'), int(42), makeImportObj(1)])}>`,
+    syrup: `<${sel('op:deliver-only')}${makeExport(0)}${list([sel('deposit-gift'), int(42), makeImportObject(1)])}>`,
     value: {
       type: 'op:deliver-only',
       to: {
@@ -291,7 +291,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver <desc:export 5> ['make-car-factory] 3 <desc:import-object 15>>
-    syrup: `<${sel('op:deliver')}${makeExport(5)}${list([sel('make-car-factory')])}${int(3)}${makeImportObj(15)}>`,
+    syrup: `<${sel('op:deliver')}${makeExport(5)}${list([sel('make-car-factory')])}${int(3)}${makeImportObject(15)}>`,
     value: {
       type: 'op:deliver',
       to: {
@@ -308,7 +308,7 @@ export const operationsTable = [
   },
   {
     // <op:deliver <desc:export 1> ['beep] false <desc:import-object 2>>
-    syrup: `<${sel('op:deliver')}${makeExport(1)}${list([sel('beep')])}${bool(false)}${makeImportObj(2)}>`,
+    syrup: `<${sel('op:deliver')}${makeExport(1)}${list([sel('beep')])}${bool(false)}${makeImportObject(2)}>`,
     value: {
       type: 'op:deliver',
       to: {
@@ -332,7 +332,7 @@ export const operationsTable = [
     syrup: `<${sel('op:deliver')}${makeExport(0)}${list([
       sel('fetch'),
       bts('swiss-number'),
-    ])}${int(3)}${makeImportObj(5)}>`,
+    ])}${int(3)}${makeImportObject(5)}>`,
     value: {
       type: 'op:deliver',
       to: { type: 'desc:export', position: 0n },
@@ -365,7 +365,7 @@ export const operationsTable = [
         ),
         makeSig('eddsa', '1', '2'),
       ),
-    ])}${int(1)}${makeImportObj(3)}>`,
+    ])}${int(1)}${makeImportObject(3)}>`,
     value: {
       type: 'op:deliver',
       to: { type: 'desc:export', position: 0n },
@@ -446,7 +446,7 @@ export const operationsTable = [
     // <op:listen to-desc           ; desc:export | desc:answer
     //            listen-desc       ; desc:import-object
     //            wants-partial?    ; boolean
-    syrup: `<${sel('op:listen')}${makeExport(1)}${makeImportObj(2)}${bool(false)}>`,
+    syrup: `<${sel('op:listen')}${makeExport(1)}${makeImportObject(2)}${bool(false)}>`,
     value: {
       type: 'op:listen',
       to: { type: 'desc:export', position: 1n },
