@@ -41,10 +41,10 @@ function fuzzyString(budget, random) {
 }
 
 /**
- * @param {Array<() => any>} array
  * @param {() => number} random
+ * @param {Array<() => any>} array
  */
-const runRandomFrom = (array, random) => {
+const runRandomFrom = (random, array) => {
   const fn = array[Math.floor(random() * array.length)];
   return fn();
 };
@@ -55,45 +55,47 @@ const runRandomFrom = (array, random) => {
  */
 function largeFuzzyPassable(budget, random) {
   const length = Math.floor(budget);
-  return runRandomFrom(
-    [
-      // Integer
-      () =>
-        BigInt(
-          Array(length)
-            .fill(undefined)
-            .map(() => `${Math.floor(random() * 10)}`)
-            .join(''),
-        ),
-      // String
-      () => fuzzyString(length, random),
-      // List
-      () =>
-        new Array(length)
+  return runRandomFrom(random, [
+    // Integer
+    () =>
+      BigInt(
+        Array(length)
           .fill(undefined)
-          // eslint-disable-next-line no-use-before-define
-          .map(() => fuzzyPassable(budget / length, random)),
-      // Struct
-      () =>
-        Object.fromEntries(
-          new Array(length).fill(undefined).map(() => [
-            fuzzyString(20, random),
-            // eslint-disable-next-line no-use-before-define
-            fuzzyPassable(budget / length, random),
-          ]),
-        ),
-      // Tagged
-      () => ({
-        [Symbol.for('passStyle')]: 'tagged',
-        [Symbol.toStringTag]: fuzzyString(10, random),
+          .map(() => `${Math.floor(random() * 10)}`)
+          .join(''),
+      ),
+    // String
+    () => fuzzyString(length, random),
+    // List
+    () =>
+      new Array(length)
+        .fill(undefined)
         // eslint-disable-next-line no-use-before-define
-        value: fuzzyPassable(budget / 2, random),
-      }),
-      // TODO: OCapNReference
-      // TODO: OCapNError
-    ],
-    random,
-  );
+        .map(() => fuzzyPassable(budget / length, random)),
+    // Struct
+    () =>
+      Object.fromEntries(
+        new Array(length).fill(undefined).map(() => [
+          fuzzyString(20, random),
+          // eslint-disable-next-line no-use-before-define
+          fuzzyPassable(budget / length, random),
+        ]),
+      ),
+    // Tagged
+    () => ({
+      [Symbol.for('passStyle')]: 'tagged',
+      [Symbol.toStringTag]: fuzzyString(10, random),
+      // eslint-disable-next-line no-use-before-define
+      value: fuzzyPassable(budget / 2, random),
+    }),
+    // Selector
+    () => ({
+      [Symbol.for('passStyle')]: 'selector',
+      [Symbol.toStringTag]: fuzzyString(10, random),
+    }),
+    // TODO: OCapNReference
+    // TODO: OCapNError
+  ]);
 }
 
 /**
