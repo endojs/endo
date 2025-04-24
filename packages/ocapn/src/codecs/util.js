@@ -10,22 +10,33 @@ import {
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 
 /**
+ * @param {string} codecName
  * @param {string} label
  * @param {Array<[string, SyrupType | SyrupCodec]>} definition
  * @returns {SyrupRecordCodec}
  */
-export const makeOCapNRecordCodecFromDefinition = (label, definition) => {
+export const makeOCapNRecordCodecFromDefinition = (
+  codecName,
+  label,
+  definition,
+) => {
   // Syrup Records as used in OCapN are always labeled with selectors
-  return makeRecordCodecFromDefinition(label, 'selector', definition);
+  return makeRecordCodecFromDefinition(
+    codecName,
+    label,
+    'selector',
+    definition,
+  );
 };
 
 /**
+ * @param {string} codecName
  * @param {string} label
  * @param {function(SyrupReader): any} readBody
  * @param {function(any, SyrupWriter): void} writeBody
  * @returns {SyrupRecordCodec}
  */
-export const makeOCapNRecordCodec = (label, readBody, writeBody) => {
+export const makeOCapNRecordCodec = (codecName, label, readBody, writeBody) => {
   // Syrup Records as used in OCapN are always labeled with selectors
-  return makeRecordCodec(label, 'selector', readBody, writeBody);
+  return makeRecordCodec(codecName, label, 'selector', readBody, writeBody);
 };
