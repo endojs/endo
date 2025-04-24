@@ -51,7 +51,7 @@ const makeCodecReadWithErrorWrapping = (codecName, read) => {
  * @param {SyrupCodec} codec
  * @returns {SyrupCodec}
  */
-const makeCodec = (codecName, { write, read }) => {
+export const makeCodec = (codecName, { write, read }) => {
   return freeze({
     /**
      * @param {any} value

@@ -113,7 +113,11 @@ test('passable fails with unordered keys', t => {
       'OCapNPassableCodec: read failed at index 0 of passable with unordered keys',
     cause: {
       message:
-        'OCapN Structs keys must be in bytewise sorted order, got "cat" immediately after "dog" at index 9 of passable with unordered keys',
+        'OCapNStructCodec: read failed at index 0 of passable with unordered keys',
+      cause: {
+        message:
+          'OCapN Structs keys must be in bytewise sorted order, got "cat" immediately after "dog" at index 9 of passable with unordered keys',
+      },
     },
   });
 });
@@ -130,7 +134,11 @@ test('passable fails with repeated keys', t => {
       'OCapNPassableCodec: read failed at index 0 of passable with repeated keys',
     cause: {
       message:
-        'OCapN Structs must have unique keys, got repeated "cat" at index 9 of passable with repeated keys',
+        'OCapNStructCodec: read failed at index 0 of passable with repeated keys',
+      cause: {
+        message:
+          'OCapN Structs must have unique keys, got repeated "cat" at index 9 of passable with repeated keys',
+      },
     },
   });
 });
