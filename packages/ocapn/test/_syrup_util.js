@@ -97,7 +97,7 @@ export const makeExport = position => {
  * @param {number} position
  * @returns {string}
  */
-export const makeImportObj = position => {
+export const makeImportObject = position => {
   return `<${sel('desc:import-object')}${int(position)}>`;
 };
 
