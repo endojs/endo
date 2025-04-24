@@ -8,11 +8,12 @@ import {
 /** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 /** @typedef {import('../syrup/codec.js').SyrupType} SyrupType */
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
+/** @typedef {Record<string, SyrupType | SyrupCodec>} SyrupRecordDefinition */
 
 /**
  * @param {string} codecName
  * @param {string} label
- * @param {Array<[string, SyrupType | SyrupCodec]>} definition
+ * @param {SyrupRecordDefinition} definition
  * @returns {SyrupRecordCodec}
  */
 export const makeOCapNRecordCodecFromDefinition = (
