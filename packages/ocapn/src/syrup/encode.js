@@ -128,8 +128,12 @@ export class SyrupWriter {
 
   /**
    * @param {BufferWriter} bufferWriter
+   * @param {object} options
+   * @param {string} [options.name]
    */
-  constructor(bufferWriter) {
+  constructor(bufferWriter, options = {}) {
+    const { name = '<unknown>' } = options;
+    this.name = name;
     this.#bufferWriter = bufferWriter;
   }
 
