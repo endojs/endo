@@ -33,6 +33,7 @@ const quote = JSON.stringify;
 // OCapN Passable Atoms
 
 const UndefinedCodec = makeOCapNRecordCodec(
+  'UndefinedCodec',
   'void',
   // readBody
   syrupReader => {
@@ -45,6 +46,7 @@ const UndefinedCodec = makeOCapNRecordCodec(
 );
 
 const NullCodec = makeOCapNRecordCodec(
+  'NullCodec',
   'null',
   // readBody
   syrupReader => {
@@ -118,6 +120,7 @@ export const OCapNStructCodec = {
 
 // <:desc:tagged :tagName value>
 const OCapNTaggedCodec = makeOCapNRecordCodec(
+  'OCapNTaggedCodec',
   'desc:tagged',
   // readBody
   syrupReader => {
@@ -142,12 +145,12 @@ const OCapNTaggedCodec = makeOCapNRecordCodec(
 
 // OCapN Reference (Capability)
 
-const OCapNTargetCodec = makeRecordUnionCodec({
+const OCapNTargetCodec = makeRecordUnionCodec('OCapNTargetCodec', {
   DescExport,
   DescImportObject,
 });
 
-const OCapNPromiseCodec = makeRecordUnionCodec({
+const OCapNPromiseCodec = makeRecordUnionCodec('OCapNPromiseCodec', {
   DescImportPromise,
   DescAnswer,
 });
@@ -159,27 +162,33 @@ const OCapNReferenceCodecs = {
 
 // OCapN Error
 
-const OCapNErrorCodec = makeOCapNRecordCodecFromDefinition('desc:error', [
-  ['message', 'string'],
-]);
+const OCapNErrorCodec = makeOCapNRecordCodecFromDefinition(
+  'OCapNErrorCodec',
+  'desc:error',
+  [['message', 'string']],
+);
 
 // all record based passables
-const OCapNPassableRecordUnionCodec = makeRecordUnionCodec({
-  UndefinedCodec,
-  NullCodec,
-  OCapNTaggedCodec,
-  DescExport,
-  DescImportObject,
-  DescImportPromise,
-  DescAnswer,
-  DescHandoffGive,
-  DescHandoffReceive,
-  // DescSigGiveEnvelope,
-  // DescSigReceiveEnvelope,
-  OCapNErrorCodec,
-});
+const OCapNPassableRecordUnionCodec = makeRecordUnionCodec(
+  'OCapNPassableRecordUnionCodec',
+  {
+    UndefinedCodec,
+    NullCodec,
+    OCapNTaggedCodec,
+    DescExport,
+    DescImportObject,
+    DescImportPromise,
+    DescAnswer,
+    DescHandoffGive,
+    DescHandoffReceive,
+    // DescSigGiveEnvelope,
+    // DescSigReceiveEnvelope,
+    OCapNErrorCodec,
+  },
+);
 
 export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
+  'OCapNPassableCodec',
   // syrup type hint -> codec
   {
     boolean: AtomCodecs.boolean,
@@ -230,7 +239,7 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
 );
 
 const ContainerCodecs = {
-  list: makeListCodecFromEntryCodec(OCapNPassableUnionCodec),
+  list: makeListCodecFromEntryCodec('OCapNListCodec', OCapNPassableUnionCodec),
   struct: OCapNStructCodec,
   tagged: OCapNTaggedCodec,
 };
