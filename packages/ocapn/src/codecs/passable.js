@@ -4,10 +4,8 @@ import {
   BooleanCodec,
   IntegerCodec,
   Float64Codec,
-  SelectorAsStringCodec,
   StringCodec,
   BytestringCodec,
-  NumberPrefixCodec,
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
   makeListCodecFromEntryCodec,
@@ -29,6 +27,7 @@ import {
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 /** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 
+const { freeze } = Object;
 const quote = JSON.stringify;
 
 // OCapN Passable Atoms
@@ -59,6 +58,24 @@ const NullCodec = makeOCapNRecordCodec(
   },
 );
 
+const makeOCapNSelector = name => {
+  return freeze({
+    [Symbol.for('passStyle')]: 'selector',
+    [Symbol.toStringTag]: name,
+  });
+};
+
+const OCapNSelectorCodec = makeCodec('OCapNSelectorCodec', {
+  read(syrupReader) {
+    const name = syrupReader.readSelectorAsString();
+    return makeOCapNSelector(name);
+  },
+  write(value, syrupWriter) {
+    const name = value[Symbol.toStringTag];
+    syrupWriter.writeSelectorFromString(name);
+  },
+});
+
 const AtomCodecs = {
   undefined: UndefinedCodec,
   null: NullCodec,
@@ -66,7 +83,7 @@ const AtomCodecs = {
   integer: IntegerCodec,
   float64: Float64Codec,
   string: StringCodec,
-  selector: SelectorAsStringCodec,
+  selector: OCapNSelectorCodec,
   byteArray: BytestringCodec,
 };
 
@@ -188,15 +205,45 @@ const OCapNPassableRecordUnionCodec = makeRecordUnionCodec(
   },
 );
 
+const OCapNPassableNumberPrefixCodec = makeCodec(
+  'OCapNPassableNumberPrefixCodec',
+  {
+    read(syrupReader) {
+      const { type, value } = syrupReader.readTypeAndMaybeValue();
+      if (type === 'integer' || type === 'string' || type === 'bytestring') {
+        return value;
+      }
+      if (type === 'selector') {
+        return makeOCapNSelector(value);
+      }
+      throw new Error(
+        `Unexpected type ${type} for OCapNPassableNumberPrefixCodec`,
+      );
+    },
+    write(value, syrupWriter) {
+      if (typeof value === 'string') {
+        syrupWriter.writeString(value);
+      } else if (typeof value === 'bigint') {
+        syrupWriter.writeInteger(value);
+      } else if (value instanceof Uint8Array) {
+        syrupWriter.writeBytestring(value);
+      } else {
+        throw new Error(
+          `Unexpected value ${value} for OCapNPassableNumberPrefixCodec`,
+        );
+      }
+    },
+  },
+);
+
 export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
   'OCapNPassableCodec',
   // syrup type hint -> codec
   {
     boolean: AtomCodecs.boolean,
     float64: AtomCodecs.float64,
-    // "number-prefix" can be string, bytestring, selector, integer
-    // TODO: should restrict further to only the types that can be passed
-    'number-prefix': NumberPrefixCodec,
+    // "number-prefix" can be String, ByteArray (Syrup bytestring), Selector, Integer
+    'number-prefix': OCapNPassableNumberPrefixCodec,
     record: OCapNPassableRecordUnionCodec,
     // eslint-disable-next-line no-use-before-define
     list: () => ContainerCodecs.list,
@@ -225,6 +272,9 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
       if (value[Symbol.for('passStyle')] === 'tagged') {
         // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.tagged;
+      }
+      if (value[Symbol.for('passStyle')] === 'selector') {
+        return AtomCodecs.selector;
       }
       if (
         value.type !== undefined &&
