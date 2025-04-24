@@ -101,7 +101,9 @@ const nodejsConventionSearchSuffixes = [
  * @returns {string} Redirect static module interface; the `specifier` prop of this value _must_ be a relative path with leading `./`
  */
 const relativeSpecifier = (moduleSpecifierLocation, location) => {
-  return `./${moduleSpecifierLocation.replace(location, '')}`;
+  assert(moduleSpecifierLocation.startsWith(location), 
+    `Module specifier location "${moduleSpecifierLocation}" does not start with compartment location "${location}"`);
+  return `./${moduleSpecifierLocation.substring(location.length)}`;
 };
 
 /**
