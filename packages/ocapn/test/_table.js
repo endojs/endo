@@ -475,8 +475,37 @@ export const operationsTable = [
 ];
 
 export const passableTable = [
+  { syrup: `<${sel('void')}>`, value: undefined },
+  { syrup: `<${sel('null')}>`, value: null },
+  { syrup: `${bool(true)}`, value: true },
+  { syrup: `${bool(false)}`, value: false },
+  { syrup: `${int(123)}`, value: 123n },
+  { syrup: `${str('hello')}`, value: 'hello' },
+  {
+    syrup: `${bts('hello')}`,
+    value: new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+  },
+  {
+    syrup: `${sel('hello')}`,
+    value: {
+      [Symbol.for('passStyle')]: 'selector',
+      [Symbol.toStringTag]: 'hello',
+    },
+  },
+  { syrup: `${list([str('hello'), str('world')])}`, value: ['hello', 'world'] },
+  {
+    syrup: `{${str('abc')}${int(123)}${str('xyz')}${bool(true)}}`,
+    value: { abc: 123n, xyz: true },
+  },
+  {
+    syrup: `<${sel('desc:tagged')}${sel('hello')}${list([str('world')])}>`,
+    value: {
+      [Symbol.for('passStyle')]: 'tagged',
+      [Symbol.toStringTag]: 'hello',
+      value: ['world'],
+    },
+  },
   // order canonicalization
   { syrup: '{0"10+1"i20+}', value: { '': 10n, i: 20n } },
-  // order canonicalization
   { syrup: '{0"10+1"i20+}', value: { i: 20n, '': 10n } },
 ];
