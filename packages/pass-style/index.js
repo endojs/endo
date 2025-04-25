@@ -33,6 +33,8 @@ export {
 } from './src/passStyleOf.js';
 
 export { makeTagged } from './src/makeTagged.js';
+export { makeSelector } from './src/makeSelector.js';
+
 export {
   Remotable,
   Far,

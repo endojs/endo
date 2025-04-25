@@ -206,3 +206,55 @@ export const checkFunctionTagRecord = makeCheckTagRecord(
       )),
 );
 harden(checkFunctionTagRecord);
+
+/**
+ * @param {import('./types.js').PassStyled<any, any>} selectorRecord
+ * @param {PassStyle} expectedPassStyle
+ * @param {Checker} [check]
+ * @returns {boolean}
+ */
+export const checkSelectorRecord = (
+  selectorRecord,
+  expectedPassStyle,
+  check,
+) => {
+  const checkProto = (val, proto) =>
+    proto === objectPrototype ||
+    (!!check &&
+      check(
+        false,
+        X`A selectorRecord must inherit from Object.prototype: ${val}`,
+      ));
+
+  return (
+    (isObject(selectorRecord) ||
+      (!!check &&
+        CX(
+          check,
+        )`A non-object cannot be a selectorRecord: ${selectorRecord}`)) &&
+    (isFrozen(selectorRecord) ||
+      (!!check &&
+        CX(check)`A selectorRecord must be frozen: ${selectorRecord}`)) &&
+    (!isArray(selectorRecord) ||
+      (!!check &&
+        CX(check)`An array cannot be a selectorRecord: ${selectorRecord}`)) &&
+    checkPassStyle(
+      selectorRecord,
+      getOwnDataDescriptor(selectorRecord, PASS_STYLE, false, check).value,
+      expectedPassStyle,
+      check,
+    ) &&
+    (typeof getOwnDataDescriptor(
+      selectorRecord,
+      Symbol.toStringTag,
+      false,
+      check,
+    ).value === 'string' ||
+      (!!check &&
+        CX(
+          check,
+        )`A [Symbol.toStringTag]-named property must be a string: ${selectorRecord}`)) &&
+    checkProto(selectorRecord, getPrototypeOf(selectorRecord))
+  );
+};
+harden(checkSelectorRecord);

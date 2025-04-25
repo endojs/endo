@@ -26,6 +26,7 @@ import { RemotableHelper } from './remotable.js';
 import { assertPassableSymbol } from './symbol.js';
 import { assertSafePromise } from './safe-promise.js';
 import { assertPassableString } from './string.js';
+import { SelectorHelper } from './selector.js';
 
 /** @import {PassStyleHelper} from './internal-types.js' */
 /** @import {CopyArray, CopyRecord, CopyTagged, Passable} from './types.js' */
@@ -50,6 +51,7 @@ const makeHelperTable = passStyleHelpers => {
     copyArray: undefined,
     copyRecord: undefined,
     tagged: undefined,
+    selector: undefined,
     error: undefined,
     remotable: undefined,
   };
@@ -238,6 +240,7 @@ export const passStyleOf =
     CopyArrayHelper,
     CopyRecordHelper,
     TaggedHelper,
+    SelectorHelper,
     ErrorHelper,
     RemotableHelper,
   ]);

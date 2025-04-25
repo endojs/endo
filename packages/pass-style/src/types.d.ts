@@ -22,7 +22,7 @@ export type PrimitiveStyle =
   | 'string'
   | 'symbol';
 
-export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
+export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged' | 'selector';
 
 export type PassStyle =
   | PrimitiveStyle
@@ -31,7 +31,7 @@ export type PassStyle =
   | 'error'
   | 'promise';
 
-export type TaggedOrRemotable = 'tagged' | 'remotable';
+export type TaggedOrRemotable = 'tagged' | 'selector' | 'remotable';
 
 /**
  * Tagged has own [PASS_STYLE]: "tagged", [Symbol.toStringTag]: $tag.
@@ -174,6 +174,18 @@ export type CopyTagged<
 > = PassStyled<'tagged', Tag> & {
   payload: Payload;
 };
+
+/**
+ * A Passable "selector record".
+ * It must have a property with key equal to the `PASS_STYLE` export and
+ * value 'selector'
+ * and no other properties except `[Symbol.toStringTag]`.
+ */
+export type CopySelector<Tag extends string = string> = PassStyled<
+  'selector',
+  Tag
+>;
+
 /**
  * This is an interface specification.
  * For now, it is just a string, but we retain the option to make it `PureData`.

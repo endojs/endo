@@ -219,6 +219,74 @@ test('passStyleOf testing tagged records', t => {
   }
 });
 
+test('passStyleOf testing selector records', t => {
+  const makeSelectorRecordVariant = (tag, proto) => {
+    const record = Object.create(
+      proto === undefined ? Object.prototype : proto,
+      {
+        [PASS_STYLE]: { value: 'selector' },
+        [Symbol.toStringTag]: {
+          value: tag,
+          configurable: true,
+          writable: true,
+        },
+      },
+    );
+    return record;
+  };
+  t.is(passStyleOf(harden(makeSelectorRecordVariant('foo'))), 'selector');
+  t.is(passStyleOf(harden(makeSelectorRecordVariant(''))), 'selector');
+
+  for (const proto of [null, harden({})]) {
+    const selectorRecordBadProto = makeSelectorRecordVariant('bar', proto);
+    t.throws(
+      () => passStyleOf(harden(selectorRecordBadProto)),
+      { message: /A selectorRecord must inherit from Object.prototype/ },
+      `quasi-selectorRecord with ${proto} prototype`,
+    );
+  }
+
+  const selectorRecordExtra = makeSelectorRecordVariant('baz');
+  Object.defineProperty(selectorRecordExtra, 'extra', {
+    value: 'unexpected own property',
+  });
+  t.throws(() => passStyleOf(harden(selectorRecordExtra)), {
+    message: 'Unexpected properties on selector record ["extra"]',
+  });
+
+  const selectorRecordBadTags = [
+    {
+      label: 'absent',
+      message: '"[Symbol(Symbol.toStringTag)]" property expected: {}',
+    },
+    {
+      label: 'invalid-tag-number',
+      value: 0,
+      message: 'A [Symbol.toStringTag]-named property must be a string: "[0]"',
+    },
+    {
+      label: 'invalid-tag-symbol',
+      value: Symbol('invalid'),
+      message:
+        'A [Symbol.toStringTag]-named property must be a string: [Something that failed to stringify]',
+    },
+  ];
+  for (const testCase of selectorRecordBadTags) {
+    const { label, message, ...desc } = testCase;
+    const selectorRecordBadTag = makeSelectorRecordVariant('foo');
+    if (ownKeys(desc).length === 0) {
+      Reflect.deleteProperty(selectorRecordBadTag, Symbol.toStringTag);
+    } else {
+      Reflect.defineProperty(selectorRecordBadTag, Symbol.toStringTag, desc);
+    }
+    t.throws(
+      () => passStyleOf(harden(selectorRecordBadTag)),
+      { message },
+      `selector record with tag ${label} must be rejected`,
+    );
+  }
+});
+
 test('passStyleOf testing remotables', t => {
   t.is(passStyleOf(Far('foo', {})), 'remotable');
   t.is(passStyleOf(Far('foo', () => 'far function')), 'remotable');
