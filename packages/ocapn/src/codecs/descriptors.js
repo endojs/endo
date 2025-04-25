@@ -3,6 +3,9 @@ import { makeOCapNRecordCodecFromDefinition } from './util.js';
 import { PositiveIntegerCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 
+/** @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader */
+/** @typedef {import('../syrup/encode.js').SyrupWriter} SyrupWriter */
+
 /*
  * These are OCapN Descriptors, they are Passables that are used both
  * directly in OCapN Messages and as part of Passable structures.
@@ -100,11 +103,20 @@ export const OCapNDescriptorUnionCodec = makeRecordUnionCodec(
   },
 );
 
+/**
+ * @param {SyrupReader} syrupReader
+ * @returns {any}
+ */
 export const readOCapDescriptor = syrupReader => {
   return OCapNDescriptorUnionCodec.read(syrupReader);
 };
 
+/**
+ * @param {any} descriptor
+ * @param {SyrupWriter} syrupWriter
+ * @returns {Uint8Array}
+ */
 export const writeOCapDescriptor = (descriptor, syrupWriter) => {
   OCapNDescriptorUnionCodec.write(descriptor, syrupWriter);
-  return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
+  return syrupWriter.getBytes();
 };

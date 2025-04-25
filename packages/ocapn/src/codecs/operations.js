@@ -186,11 +186,20 @@ export const OCapNMessageUnionCodec = makeRecordUnionCodec(
   },
 );
 
+/**
+ * @param {SyrupReader} syrupReader
+ * @returns {any}
+ */
 export const readOCapNMessage = syrupReader => {
   return OCapNMessageUnionCodec.read(syrupReader);
 };
 
+/**
+ * @param {any} message
+ * @param {SyrupWriter} syrupWriter
+ * @returns {Uint8Array}
+ */
 export const writeOCapNMessage = (message, syrupWriter) => {
   OCapNMessageUnionCodec.write(message, syrupWriter);
-  return syrupWriter.bufferWriter.subarray(0, syrupWriter.bufferWriter.length);
+  return syrupWriter.getBytes();
 };
