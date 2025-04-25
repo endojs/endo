@@ -1,3 +1,4 @@
+import { makeTagged, makeSelector } from '../src/pass-style-helpers.js';
 import {
   sel,
   str,
@@ -487,10 +488,7 @@ export const passableTable = [
   },
   {
     syrup: `${sel('hello')}`,
-    value: {
-      [Symbol.for('passStyle')]: 'selector',
-      [Symbol.toStringTag]: 'hello',
-    },
+    value: makeSelector('hello'),
   },
   { syrup: `${list([str('hello'), str('world')])}`, value: ['hello', 'world'] },
   {
@@ -499,11 +497,7 @@ export const passableTable = [
   },
   {
     syrup: `<${sel('desc:tagged')}${sel('hello')}${list([str('world')])}>`,
-    value: {
-      [Symbol.for('passStyle')]: 'tagged',
-      [Symbol.toStringTag]: 'hello',
-      value: ['world'],
-    },
+    value: makeTagged('hello', ['world']),
   },
   // order canonicalization
   { syrup: '{0"10+1"i20+}', value: { '': 10n, i: 20n } },
