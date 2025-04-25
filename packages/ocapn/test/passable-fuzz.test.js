@@ -153,7 +153,7 @@ test('fuzz', t => {
       t.notThrows(() => {
         syrup4 = encodePassable(object3);
       }, `fuzz encode ${index} for ${desc} on ${object3}\n${hexString}`);
-      t.deepEqual(object1, object3, desc);
+      t.deepEqual(object3, object1, desc);
       t.deepEqual(syrupBytes2, syrup4, desc);
     })(i);
   }
