@@ -6,6 +6,7 @@ import { XorShift } from './_xorshift.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 import { makeSyrupWriter } from '../src/syrup/encode.js';
 import { makeSyrupReader } from '../src/syrup/decode.js';
+import { makeTagged, makeSelector } from '../src/pass-style-helpers.js';
 
 /**
  * @param {number} budget
@@ -82,17 +83,14 @@ function largeFuzzyPassable(budget, random) {
         ]),
       ),
     // Tagged
-    () => ({
-      [Symbol.for('passStyle')]: 'tagged',
-      [Symbol.toStringTag]: fuzzyString(10, random),
-      // eslint-disable-next-line no-use-before-define
-      value: fuzzyPassable(budget / 2, random),
-    }),
+    () =>
+      makeTagged(
+        fuzzyString(10, random),
+        // eslint-disable-next-line no-use-before-define
+        fuzzyPassable(budget / 2, random),
+      ),
     // Selector
-    () => ({
-      [Symbol.for('passStyle')]: 'selector',
-      [Symbol.toStringTag]: fuzzyString(10, random),
-    }),
+    () => makeSelector(fuzzyString(10, random)),
     // TODO: OCapNReference
     // TODO: OCapNError
   ]);
