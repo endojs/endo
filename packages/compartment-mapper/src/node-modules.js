@@ -192,11 +192,18 @@ const updateShortestPaths = (
           `Expected graph node ${q(node.name)} to contain a dependency location for ${q(name)}`,
         );
       }
-      updateShortestPaths(graph, packageLocation, [...logicalPath, name]);
+      updateShortestPaths(
+        graph,
+        packageLocation,
+        [...logicalPath, name],
+        preferredPackageLogicalPathMap,
+      );
     }
   }
 
-  if (node.path !== bestLogicalPath) {
+  // a path length of 0 means the node represents the eventual entry compartment.
+  // we do not want to mess with that path.
+  if (node.path.length && node.path !== bestLogicalPath) {
     node.path = bestLogicalPath;
   }
 
