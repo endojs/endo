@@ -6,55 +6,76 @@ import url from 'node:url';
 import test from 'ava';
 import { mapNodeModules } from '../src/node-modules.js';
 import { makeReadPowers } from '../src/node-powers.js';
-
 /**
- * @import {CompartmentDescriptor} from '../src/types.js'
+ * @import {CompartmentDescriptor, MaybeReadFn} from '../src/types.js'
  */
 
-const n = 50;
-for (let i = 0; i < n; i += 1) {
-  test(`mapNodeModules() should return compartment descriptors containing shortest path (iteration ${i}/${n})`, async t => {
-    t.timeout(5000);
-    /** @type {string[] | undefined} */
-    let expectedPath;
-    const readPowers = makeReadPowers({ fs, url });
-    const { maybeRead } = readPowers;
+{
+  /**
+   * We will retry the subsequent test _n_ times to assert it is deterministic.
+   * This is not a proof.
+   */
+  const shortestPathTestCount = 50;
 
-    // inserts a random delay before the read
-    readPowers.maybeRead = async specifier => {
-      await scheduler.wait(Math.random() * 50);
-      return maybeRead(specifier);
-    };
+  // `paperino` is before `pippo` when sorted alphabetically
+  const expectedShortestPath = ['paperino', 'topolino', 'goofy'];
 
-    const moduleLocation = new URL(
-      'fixtures-shortest-path/node_modules/app/index.js',
-      import.meta.url,
-    ).href;
+  const shortestPathFixture = new URL(
+    'fixtures-shortest-path/node_modules/app/index.js',
+    import.meta.url,
+  ).href;
 
-    const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
+  const readPowers = makeReadPowers({ fs, url });
+  const { maybeRead } = readPowers;
 
-    const compartmentDescriptor = Object.values(
-      compartmentMap.compartments,
-    ).find(compartment => compartment.label === 'goofy-v1.0.0');
+  /**
+   * Inserts a random delay before the read to goad it into non-determinism (which
+   * should fail)
+   * @type {MaybeReadFn}
+   */
+  readPowers.maybeRead = async specifier => {
+    await scheduler.wait(Math.random() * 50);
+    return maybeRead(specifier);
+  };
 
-    t.assert(compartmentDescriptor, 'compartment descriptor should exist');
-    // the assert() call above should mean that we do not need this type assertion,
-    // but return type of `t.assert()` is incorrect; it should use the `asserts` keyword.
+  for (let i = 0; i < shortestPathTestCount; i += 1) {
+    test(`mapNodeModules() should return compartment descriptors containing shortest path (${i}/${shortestPathTestCount})`, async t => {
+      t.plan(2);
 
-    if (expectedPath) {
+      const compartmentMap = await mapNodeModules(
+        readPowers,
+        shortestPathFixture,
+      );
+
+      const compartmentDescriptor = Object.values(
+        compartmentMap.compartments,
+      ).find(compartment => compartment.label === 'goofy-v1.0.0');
+
+      t.assert(compartmentDescriptor, 'compartment descriptor should exist');
+      // the assert() call above should mean that we do not need this type assertion,
+      // but return type of `t.assert()` is incorrect; it should use the `asserts` keyword.
+
       t.deepEqual(
         /** @type {CompartmentDescriptor} */ (compartmentDescriptor).path,
-        expectedPath,
-        `compartment descriptor should have had path: ${expectedPath.join('>')} (iteration ${i})`,
+        expectedShortestPath,
+        `compartment descriptor should have had path: ${expectedShortestPath.join('>')} (iteration ${i})`,
       );
-    } else {
-      expectedPath = /** @type {CompartmentDescriptor} */ (
-        compartmentDescriptor
-      ).path;
-      t.assert(expectedPath, 'expectedPath should exist');
-      t.log(
-        `Expected path: ${/** @type {string[]} */ (expectedPath).join('>')}`,
-      );
-    }
-  });
+    });
+  }
 }
+
+test('mapNodeModules() should not overwrite the path of the entry compartment descriptor when a cycle occurs', async t => {
+  const readPowers = makeReadPowers({ fs, url });
+
+  const moduleLocation = new URL(
+    'fixtures-shortest-path-cycle/node_modules/app/index.js',
+    import.meta.url,
+  ).href;
+
+  const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  t.deepEqual(
+    compartmentMap.compartments[compartmentMap.entry.compartment].path,
+    [],
+  );
+});
