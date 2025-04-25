@@ -72,18 +72,22 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
   tags: Set<string>;
   /**
    * Conditions for package `"imports"` and `"exports"`.
-   * The `"development"` condition also implies that `devDependencies` of the
-   * entry package should be reachable.
+   *
    * Common conditions include `"node"`, `"browser"`, `"require"`, `"import"`,
-   * and `"default"`.
-   * The conditions `"import"`, `"default"`, and `"endo"` need not be
-   * specified.
+   * and `"default"`. The conditions `"import"`, `"default"`, and `"endo"` need
+   * not be specified.
+   *
+   * _If using the `"development"` condition_ and you just need to map
+   * `devDependencies`, use the {@link MapNodeModulesOptions.dev dev} flag
+   * instead.
    */
   conditions: Set<string>;
   /**
-   * @deprecated add `"development"` to the `conditions` Set option.
-   * Including `devDependencies` has been subsumed by implication
-   * of having the `"development"` condition.
+   * If `true`, include packages from `devDependencies` in the resulting {@link CompartmentMapDescriptor}.
+   *
+   * Historically this is synonymous with the `"development"`
+   * {@link MapNodeModulesOptions.conditions condition}, but this behavior may
+   * be deprecated in a future version.
    */
   dev: boolean;
   /**
