@@ -1,6 +1,10 @@
 // @ts-check
 
-import { PASS_STYLE } from '@endo/pass-style';
+import {
+  makeTagged,
+  makeSelector,
+  passStyleOf,
+} from '../pass-style-helpers.js';
 import {
   BooleanCodec,
   IntegerCodec,
@@ -28,7 +32,6 @@ import {
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 /** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 
-const { freeze } = Object;
 const quote = JSON.stringify;
 
 // OCapN Passable Atoms
@@ -59,17 +62,10 @@ const NullCodec = makeOCapNRecordCodec(
   },
 );
 
-const makeOCapNSelector = name => {
-  return freeze({
-    [Symbol.for('passStyle')]: 'selector',
-    [Symbol.toStringTag]: name,
-  });
-};
-
 const OCapNSelectorCodec = makeCodec('OCapNSelectorCodec', {
   read(syrupReader) {
     const name = syrupReader.readSelectorAsString();
-    return makeOCapNSelector(name);
+    return makeSelector(name);
   },
   write(value, syrupWriter) {
     const name = value[Symbol.toStringTag];
@@ -147,18 +143,14 @@ const OCapNTaggedCodec = makeOCapNRecordCodec(
     // Value can be any Passable.
     /* eslint-disable-next-line no-use-before-define */
     const value = OCapNPassableUnionCodec.read(syrupReader);
-    return {
-      [PASS_STYLE]: 'tagged',
-      [Symbol.toStringTag]: tagName,
-      value,
-    };
+    return makeTagged(tagName, value);
   },
   // writeBody
   (value, syrupWriter) => {
     const tagName = value[Symbol.toStringTag];
     syrupWriter.writeSelectorFromString(tagName);
     // eslint-disable-next-line no-use-before-define
-    OCapNPassableUnionCodec.write(value.value, syrupWriter);
+    OCapNPassableUnionCodec.write(value.payload, syrupWriter);
   },
 );
 
@@ -217,7 +209,7 @@ const OCapNPassableNumberPrefixCodec = makeCodec(
         return value;
       }
       if (type === 'selector') {
-        return makeOCapNSelector(value);
+        return makeSelector(value);
       }
       throw new Error(
         `Unexpected type ${type} for OCapNPassableNumberPrefixCodec`,
@@ -272,11 +264,12 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
         // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.list;
       }
-      if (value[PASS_STYLE] === 'tagged') {
+      const passStyle = passStyleOf(value);
+      if (passStyle === 'tagged') {
         // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.tagged;
       }
-      if (value[Symbol.for('passStyle')] === 'selector') {
+      if (passStyle === 'selector') {
         return AtomCodecs.selector;
       }
       if (
