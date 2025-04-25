@@ -76,5 +76,8 @@
       "test/**/*.test.*"
     ],
     "timeout": "2m"
+  },
+  "dependencies": {
+    "@endo/pass-style": "workspace:^"
   }
 }
