@@ -126,6 +126,83 @@ const readDescriptorWithMemo = async (memo, maybeRead, packageLocation) => {
 };
 
 /**
+ * Compares `logicalPath` to the current best logical path in `preferredPackageLogicalPathMap` for `packageLocation`.
+ *
+ * If no current best path exists, it returns `logicalPath`.
+ *
+ * @template {string[]} T
+ * @template {string[]} U
+ * @param {T} logicalPath
+ * @param {string} packageLocation
+ * @param {Map<string, U>} preferredPackageLogicalPathMap
+ * @returns {T|U}
+ */
+const currentBestLogicalPath = (
+  logicalPath,
+  packageLocation,
+  preferredPackageLogicalPathMap,
+) => {
+  const theCurrentBest = preferredPackageLogicalPathMap.get(packageLocation);
+  if (theCurrentBest === undefined) {
+    return logicalPath;
+  }
+  return pathCompare(logicalPath, theCurrentBest) < 0
+    ? logicalPath
+    : theCurrentBest;
+};
+
+/**
+ * Updates the shortest paths in a subgraph of `graph` starting with `packageLocation`.
+ *
+ * This should be called upon the second (and each subsequent) visit to a graph node.
+ *
+ * @param {Graph} graph Graph
+ * @param {string} packageLocation Location of the package to start with
+ * @param {string[]} logicalPath Current path parts of the same package
+ * @param {Map<string, string[]>} [preferredPackageLogicalPathMap] Mapping of shortest known paths for each package location
+ * @returns {void}
+ */
+const updateShortestPaths = (
+  graph,
+  packageLocation,
+  logicalPath,
+  preferredPackageLogicalPathMap = new Map(),
+) => {
+  const node = graph[packageLocation];
+  if (!node) {
+    throw new ReferenceError(
+      `Cannot find package at ${packageLocation} in graph`,
+    );
+  }
+
+  const bestLogicalPath = currentBestLogicalPath(
+    logicalPath,
+    packageLocation,
+    preferredPackageLogicalPathMap,
+  );
+
+  if (bestLogicalPath === logicalPath) {
+    preferredPackageLogicalPathMap.set(packageLocation, bestLogicalPath);
+
+    for (const name of keys(node.dependencyLocations).sort()) {
+      const packageLocation = node.dependencyLocations[name];
+      if (!packageLocation) {
+        // "should never happen"
+        throw new ReferenceError(
+          `Expected graph node ${q(node.name)} to contain a dependency location for ${q(name)}`,
+        );
+      }
+      updateShortestPaths(graph, packageLocation, [...logicalPath, name]);
+    }
+  }
+
+  if (node.path !== bestLogicalPath) {
+    node.path = bestLogicalPath;
+  }
+
+  return undefined;
+};
+/**
  * `findPackage` behaves as Node.js to find third-party modules by searching
  * parent to ancestor directories for a `node_modules` directory that contains
  * the name.
@@ -293,6 +370,13 @@ const graphPackage = async (
   } = {},
 ) => {
   if (graph[packageLocation] !== undefined) {
+    updateShortestPaths(
+      graph,
+      packageLocation,
+      logicalPath,
+      preferredPackageLogicalPathMap,
+    );
+
     // Returning the promise here would create a causal cycle and stall recursion.
     return undefined;
   }
@@ -321,6 +405,7 @@ const graphPackage = async (
     optionalDependencies = {},
     devDependencies = {},
   } = packageDescriptor;
+  /** @type {Record<string, string>} */
   const allDependencies = {};
   for (const [name, descriptor] of Object.entries(
     commonDependencyDescriptors,
@@ -512,15 +597,20 @@ const gatherDependency = async (
     throw Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
   dependencyLocations[name] = dependency.packageLocation;
-  const theCurrentBest = preferredPackageLogicalPathMap.get(
+
+  const bestLogicalPath = currentBestLogicalPath(
+    childLogicalPath,
     dependency.packageLocation,
+    preferredPackageLogicalPathMap,
   );
-  if (pathCompare(childLogicalPath, theCurrentBest) < 0) {
+
+  if (bestLogicalPath === childLogicalPath) {
     preferredPackageLogicalPathMap.set(
       dependency.packageLocation,
-      childLogicalPath,
+      bestLogicalPath,
     );
   }
+
   await graphPackage(
     name,
     readDescriptor,
