@@ -32,7 +32,7 @@ harden(nameForPassableSymbol);
 const symbolAsyncIteratorDescription = Symbol.asyncIterator.description;
 
 const specialCaseAsyncIteratorSymbol =
-  getEnvironmentOption('SPECIAL_CASE_ASYNC_ITERATOR_SYMBOL', 'disabled', [
+  getEnvironmentOption('PASS_STYLE_LEGACY_ASYNC_ITERATOR_SYMBOL', 'disabled', [
     'enabled',
   ]) === 'enabled';
 
@@ -41,7 +41,7 @@ const specialCaseAsyncIteratorSymbol =
  * is `name`.
  *
  * Alternatively, to soften the transition from legacy,
- * if environment variable `SPECIAL_CASE_ASYNC_ITERATOR_SYMBOL`
+ * if environment variable `PASS_STYLE_LEGACY_ASYNC_ITERATOR_SYMBOL`
  * is `'enabled'` (not the default) and the name is either `'@@asyncIterator'`
  * or the `description` string of `Symbol.asyncIterator`, then return
  * `Symbol.asyncIterator`.
