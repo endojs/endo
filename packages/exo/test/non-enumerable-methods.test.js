@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { objectMetaMap } from '@endo/common/object-meta-map.js';
+import { testFullOrderEQ } from '@endo/marshal/tools/ava-full-order-eq.js';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import { defineExoClass } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
@@ -49,25 +50,24 @@ test('test defineExoClass', t => {
   t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
 
-  const symbolic = Symbol.for('symbolic');
   const FooI = M.interface('Foo', {
     m: M.call().returns(),
-    [symbolic]: M.call(M.boolean()).returns(),
+    m2: M.call(M.boolean()).returns(),
   });
-  t.deepEqual(getInterfaceMethodKeys(FooI), ['m', Symbol.for('symbolic')]);
+  testFullOrderEQ(t, getInterfaceMethodKeys(FooI), ['m', 'm2']);
   const makeFoo = defineExoClass(
     'Foo',
     FooI,
     () => ({}),
     denumerate({
       m() {},
-      [symbolic]() {},
+      m2() {},
     }),
   );
   const foo = makeFoo();
   t.deepEqual(foo[GET_INTERFACE_GUARD](), FooI);
-  t.throws(() => foo[symbolic]('invalid arg'), {
+  t.throws(() => foo.m2('invalid arg'), {
     message:
-      'In "[Symbol(symbolic)]" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
+      'In "m2" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
   });
 });

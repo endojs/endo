@@ -4,6 +4,7 @@
 /** @import {PassStyle} from './types.js' */
 
 import { X, q } from '@endo/errors';
+import { specialCaseAsyncIteratorSymbol } from './symbol.js';
 
 const { isArray } = Array;
 const { prototype: functionPrototype } = Function;
@@ -64,6 +65,16 @@ export const PASS_STYLE = Symbol.for('passStyle');
 export const canBeMethod = func =>
   typeof func === 'function' && !(PASS_STYLE in func);
 harden(canBeMethod);
+
+/**
+ * To ease the transition, if `PASS_STYLE_LEGACY_ASYNC_ITERATOR_SYMBOL` is
+ * `'enabled'`, then we do allow `Symbol.asyncIterator` as a method name.
+ *
+ * @param {PropertyKey} key
+ */
+export const canBeMethodName = key =>
+  typeof key === 'string' ||
+  (specialCaseAsyncIteratorSymbol && key === Symbol.asyncIterator);
 
 /**
  * Below we have a series of predicate functions and their (curried) assertion

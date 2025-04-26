@@ -13,7 +13,7 @@ import { Far } from './make-far.js';
  */
 export const mapIterable = (baseIterable, func) =>
   /** @type {Iterable<U>} */
-  Far('mapped iterable', {
+  harden({
     [Symbol.iterator]: () => {
       const baseIterator = baseIterable[Symbol.iterator]();
       return Far('mapped iterator', {
@@ -40,7 +40,7 @@ harden(mapIterable);
  */
 export const filterIterable = (baseIterable, pred) =>
   /** @type {Iterable<U>} */
-  Far('filtered iterable', {
+  harden({
     [Symbol.iterator]: () => {
       const baseIterator = baseIterable[Symbol.iterator]();
       return Far('filtered iterator', {

@@ -4,6 +4,7 @@ import { Nat } from '@endo/nat';
 import {
   getErrorConstructor,
   isObject,
+  nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
 import { q, X, Fail } from '@endo/errors';
@@ -115,8 +116,6 @@ const makeNoIndenter = () => {
 
 const identPattern = /^[a-zA-Z]\w*$/;
 harden(identPattern);
-const AtAtPrefixPattern = /^@@(.*)$/;
-harden(AtAtPrefixPattern);
 
 /**
  * @param {Encoding} encoding
@@ -314,25 +313,13 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
           assert.typeof(digits, 'string');
           return out.next(`${BigInt(digits)}n`);
         }
-        case '@@asyncIterator': {
-          // TODO deprecated. Eventually remove.
-          return out.next('Symbol.asyncIterator');
-        }
         case 'symbol': {
           const { name } = rawTree;
           assert.typeof(name, 'string');
           const sym = passableSymbolForName(name);
           assert.typeof(sym, 'symbol');
-          const registeredName = Symbol.keyFor(sym);
-          if (registeredName === undefined) {
-            const match = AtAtPrefixPattern.exec(name);
-            assert(match !== null);
-            const suffix = match[1];
-            assert(Symbol[suffix] === sym);
-            assert(identPattern.test(suffix));
-            return out.next(`Symbol.${suffix}`);
-          }
-          return out.next(`Symbol.for(${quote(registeredName)})`);
+          const name2 = nameForPassableSymbol(sym);
+          return out.next(`Symbol(${quote(name2)})`);
         }
         case 'tagged': {
           const { tag, payload } = rawTree;

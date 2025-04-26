@@ -3,6 +3,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Far } from '@endo/pass-style';
 import { stringify, parse } from '../src/marshal-stringify.js';
 import { roundTripPairs } from './_marshal-test-data.js';
+import { testFullOrderEQ } from '../tools/ava-full-order-eq.js';
 
 const { isFrozen } = Object;
 
@@ -17,7 +18,7 @@ test('stringify parse round trip pairs', t => {
     const encoding = JSON.stringify(encoded);
     t.is(str, encoding);
     const decoding = parse(str);
-    t.deepEqual(decoding, plain);
+    testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }
 });
