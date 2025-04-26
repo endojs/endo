@@ -562,6 +562,7 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/marshal": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/ses-ava": "workspace:^"
