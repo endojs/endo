@@ -175,11 +175,11 @@ test('transitional remotables', t => {
   };
 
   // For objects with Symbol-named properties
-  const symEnumData = Symbol.for('symEnumData');
-  const symEnumFunc = Symbol.for('symEnumFunc');
-  const symNonenumData = Symbol.for('symNonenumData');
-  const symNonenumFunc = Symbol.for('symNonenumFunc');
-  const symNonenumGetFunc = Symbol.for('symNonenumGetFunc');
+  const symEnumData = Symbol('symEnumData');
+  const symEnumFunc = Symbol('symEnumFunc');
+  const symNonenumData = Symbol('symNonenumData');
+  const symNonenumFunc = Symbol('symNonenumFunc');
+  const symNonenumGetFunc = Symbol('symNonenumGetFunc');
 
   function build(...opts) {
     const props = {};

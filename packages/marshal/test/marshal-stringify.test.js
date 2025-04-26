@@ -3,6 +3,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Far } from '@endo/pass-style';
 import { stringify, parse } from '../src/marshal-stringify.js';
 import { roundTripPairs } from './_marshal-test-data.js';
+import { compareRank } from '../src/rankOrder.js';
 
 const { isFrozen } = Object;
 
@@ -17,7 +18,12 @@ test('stringify parse round trip pairs', t => {
     const encoding = JSON.stringify(encoded);
     t.is(str, encoding);
     const decoding = parse(str);
-    t.deepEqual(decoding, plain);
+    // Cannot use `t.deepEqual` because it does not recognize that two
+    // unregistered symbols with the same `description` are the same in
+    // our distributed object semantics. Unfortunately, `compareRank` is
+    // too imprecise. We'd like to also test `keyEQ`, but that would violate
+    // our package layering.
+    t.is(compareRank(decoding, plain), 0);
     t.assert(isFrozen(decoding));
   }
 });

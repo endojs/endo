@@ -18,13 +18,12 @@ export const makeArbitraries = fc => {
   const keyableLeaves = [
     fc.constantFrom(null, undefined, false, true),
     arbString,
-    arbString.map(s => Symbol.for(s)),
-    // primordial symbols and registered lookalikes
+    arbString.map(s => Symbol(s)),
     fc.constantFrom(
       ...Object.getOwnPropertyNames(Symbol).flatMap(k => {
         const v = Symbol[k];
-        if (typeof v !== 'symbol') return [];
-        return [v, Symbol.for(k), Symbol.for(`@@${k}`)];
+        if (typeof v !== 'symbol' || Symbol.keyFor(v) !== undefined) return [];
+        return [v, Symbol(k), Symbol(k)];
       }),
     ),
     fc.bigInt(),

@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { objectMetaMap } from '@endo/common/object-meta-map.js';
+import { compareRank } from '@endo/marshal';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import { defineExoClass } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
@@ -49,12 +50,23 @@ test('test defineExoClass', t => {
   t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
 
-  const symbolic = Symbol.for('symbolic');
+  const symbolic = Symbol('symbolic');
   const FooI = M.interface('Foo', {
     m: M.call().returns(),
     [symbolic]: M.call(M.boolean()).returns(),
   });
-  t.deepEqual(getInterfaceMethodKeys(FooI), ['m', Symbol.for('symbolic')]);
+  // Cannot use `t.deepEqual` because it does not recognize that two
+  // unregistered symbols with the same `description` are the same in
+  // our distributed object semantics. Unfortunately, `compareRank` is
+  // too imprecise. We'd like to also test `keyEQ`, but that would violate
+  // our package layering.
+  t.is(
+    compareRank(
+      getInterfaceMethodKeys(FooI),
+      harden(['m', Symbol('symbolic')]),
+    ),
+    0,
+  );
   const makeFoo = defineExoClass(
     'Foo',
     FooI,
