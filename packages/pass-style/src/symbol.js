@@ -31,9 +31,9 @@ harden(nameForPassableSymbol);
 
 const symbolAsyncIteratorDescription = Symbol.asyncIterator.description;
 
-const specialCaseAsyncIteratorSymbol =
-  getEnvironmentOption('PASS_STYLE_LEGACY_ASYNC_ITERATOR_SYMBOL', 'disabled', [
-    'enabled',
+export const specialCaseAsyncIteratorSymbol =
+  getEnvironmentOption('PASS_STYLE_LEGACY_ASYNC_ITERATOR_SYMBOL', 'enabled', [
+    'disabled',
   ]) === 'enabled';
 
 /**
@@ -45,6 +45,11 @@ const specialCaseAsyncIteratorSymbol =
  * is `'enabled'` (not the default) and the name is either `'@@asyncIterator'`
  * or the `description` string of `Symbol.asyncIterator`, then return
  * `Symbol.asyncIterator`.
+ *
+ * NOTE: In this PR we make `'enabled'` the default, so agoric-sdk testing
+ * can switch between `#endo-branch: ` with this fork vs the "normal" fork
+ * described above. When this is `'enabled'` then `Symbol.asyncIterator`
+ * itself is still allowed as a method name.
  *
  * TODO Once we're on the other side of this transition, we will eventually
  * stop supporting this config switch.

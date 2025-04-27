@@ -11,6 +11,7 @@ import {
   isObject,
   getTag,
   CX,
+  canBeMethodName,
 } from './passStyle-helpers.js';
 
 /**
@@ -230,9 +231,11 @@ export const RemotableHelper = harden({
                 CX(check)`cannot serialize Remotables with non-methods like ${q(
                   String(key),
                 )} in ${candidate}`)) &&
-              (key !== PASS_STYLE ||
+              (canBeMethodName(key) ||
                 (!!check &&
-                  CX(check)`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`))))
+                  CX(
+                    check,
+                  )`Remotables can only have string-named methods: ${candidate}`))))
         );
       });
     } else if (typeof candidate === 'function') {
