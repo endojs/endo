@@ -50,7 +50,7 @@ const specialCaseAsyncIteratorSymbol =
  * stop supporting this config switch.
  *
  * @param {string} name
- * @returns {symbol=}
+ * @returns {symbol}
  */
 export const passableSymbolForName = name =>
   specialCaseAsyncIteratorSymbol &&
@@ -58,3 +58,13 @@ export const passableSymbolForName = name =>
     ? Symbol.asyncIterator
     : Symbol(name);
 harden(passableSymbolForName);
+
+/**
+ * An adapter to help transition to flip which symbols are passable.
+ * See `ses-utils.js` in `@agoric/internal` at
+ * https://github.com/Agoric/agoric-sdk/pull/11338
+ *
+ * @param {string} name
+ * @returns {symbol}
+ */
+export const unpassableSymbolForName = name => Symbol(name);
