@@ -229,6 +229,7 @@ test('transitional remotables', t => {
   const FAR_NOACC = /cannot serialize Remotables with accessors/;
   const FAR_ONLYMETH = /cannot serialize Remotables with non-methods/;
   const FAR_EXPLICIT = /Remotables must be explicitly declared/;
+  const FAR_SYMBOL_METHODS = /Remotables can only have string-named methods:/;
 
   // Far('iface', {})
   // all cases: pass-by-ref
@@ -237,9 +238,10 @@ test('transitional remotables', t => {
   // Far('iface', {key: func})
   // all cases: pass-by-ref
   t.deepEqual(ser(build('far', 'enumStringFunc')), yesIface);
-  t.deepEqual(ser(build('far', 'enumSymbolFunc')), yesIface);
   t.deepEqual(ser(build('far', 'nonenumStringFunc')), yesIface);
-  t.deepEqual(ser(build('far', 'nonenumSymbolFunc')), yesIface);
+
+  shouldThrow(['enumSymbolFunc'], FAR_SYMBOL_METHODS);
+  shouldThrow(['nonenumSymbolFunc'], FAR_SYMBOL_METHODS);
 
   // { key: func }
   // old: pass-by-ref without warning
@@ -247,9 +249,9 @@ test('transitional remotables', t => {
   // interim2: reject
   // final: reject
   shouldThrow(['enumStringFunc'], FAR_EXPLICIT);
-  shouldThrow(['enumSymbolFunc'], FAR_EXPLICIT);
+  shouldThrow(['enumSymbolFunc'], FAR_SYMBOL_METHODS);
   shouldThrow(['nonenumStringFunc'], FAR_EXPLICIT);
-  shouldThrow(['nonenumSymbolFunc'], FAR_EXPLICIT);
+  shouldThrow(['nonenumSymbolFunc'], FAR_SYMBOL_METHODS);
 
   // Far('iface', { key: data, key: func }) : rejected
   // (some day this might add auxilliary data, but not now

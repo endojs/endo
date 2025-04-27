@@ -235,7 +235,7 @@ export const RemotableHelper = harden({
                 (!!check &&
                   CX(
                     check,
-                  )`Remotables can only have string-named methods: ${candidate}`))))
+                  )`Remotables can only have string-named methods: ${String(key)}`))))
         );
       });
     } else if (typeof candidate === 'function') {

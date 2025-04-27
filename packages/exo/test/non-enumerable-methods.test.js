@@ -50,36 +50,29 @@ test('test defineExoClass', t => {
   t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
 
-  const symbolic = Symbol('symbolic');
   const FooI = M.interface('Foo', {
     m: M.call().returns(),
-    [symbolic]: M.call(M.boolean()).returns(),
+    m2: M.call(M.boolean()).returns(),
   });
   // Cannot use `t.deepEqual` because it does not recognize that two
   // unregistered symbols with the same `description` are the same in
   // our distributed object semantics. Unfortunately, `compareRank` is
   // too imprecise. We'd like to also test `keyEQ`, but that would violate
   // our package layering.
-  t.is(
-    compareRank(
-      getInterfaceMethodKeys(FooI),
-      harden(['m', Symbol('symbolic')]),
-    ),
-    0,
-  );
+  t.is(compareRank(getInterfaceMethodKeys(FooI), harden(['m', 'm2'])), 0);
   const makeFoo = defineExoClass(
     'Foo',
     FooI,
     () => ({}),
     denumerate({
       m() {},
-      [symbolic]() {},
+      m2() {},
     }),
   );
   const foo = makeFoo();
   t.deepEqual(foo[GET_INTERFACE_GUARD](), FooI);
-  t.throws(() => foo[symbolic]('invalid arg'), {
+  t.throws(() => foo.m2('invalid arg'), {
     message:
-      'In "[Symbol(symbolic)]" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
+      'In "m2" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
   });
 });
