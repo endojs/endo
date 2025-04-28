@@ -55,6 +55,9 @@ function writeStringlike(bufferWriter, bytes, typeChar) {
  * @param {string} value
  */
 function writeString(bufferWriter, value) {
+  if (typeof value !== 'string') {
+    throw Error(`writeString: Expected string, got ${typeof value}`);
+  }
   const start = bufferWriter.index;
   const bytes = textEncoder.encode(value);
   const invalidChars = Array.from(value).filter(
