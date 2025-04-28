@@ -89,8 +89,6 @@ export const OCapNDescriptorUnionCodec = makeRecordUnionCodec(
   'OCapNDescriptorUnionCodec',
   {
     OCapNNode,
-    OCapNPublicKey,
-    OCapNSignature,
     DescSigGiveEnvelope,
     // TODO: ambiguous record label for DescSigGiveEnvelope and DescSigReceiveEnvelope
     // DescSigReceiveEnvelope,
