@@ -112,6 +112,62 @@ const SimpleValueCodecs = {
   bytestring: BytestringCodec,
 };
 
+/**
+ * @param {string} codecName
+ * @param {string} selector
+ * @returns {SyrupCodec}
+ */
+export const makeExactSelectorCodec = (codecName, selector) => {
+  return makeCodec(codecName, {
+    read: syrupReader => {
+      const actualSelector = syrupReader.readSelectorAsString();
+      if (actualSelector !== selector) {
+        throw Error(
+          `Expected selector ${quote(selector)}, got ${quote(actualSelector)}`,
+        );
+      }
+      return actualSelector;
+    },
+    write: (value, syrupWriter) => {
+      if (typeof value !== 'string') {
+        throw Error(`Expected string, got ${typeof value}`);
+      }
+      if (value !== selector) {
+        throw Error(
+          `Expected selector ${quote(selector)}, got ${quote(value)}`,
+        );
+      }
+      syrupWriter.writeSelectorFromString(value);
+    },
+  });
+};
+
+/**
+ * @param {string} codecName
+ * @param {number} length
+ * @returns {SyrupCodec}
+ */
+export const makeExpectedLengthBytestringCodec = (codecName, length) => {
+  return makeCodec(codecName, {
+    read: syrupReader => {
+      const bytestring = syrupReader.readBytestring();
+      if (bytestring.length !== length) {
+        throw Error(`Expected length ${length}, got ${bytestring.length}`);
+      }
+      return bytestring;
+    },
+    write: (value, syrupWriter) => {
+      if (!(value instanceof Uint8Array)) {
+        throw Error(`Expected Uint8Array, got ${typeof value}`);
+      }
+      if (value.length !== length) {
+        throw Error(`Expected length ${length}, got ${value.length}`);
+      }
+      syrupWriter.writeBytestring(value);
+    },
+  });
+};
+
 /** @type {SyrupCodec} */
 export const NumberPrefixCodec = makeCodec('NumberPrefix', {
   read: syrupReader => {
@@ -180,6 +236,7 @@ const resolveCodec = (codecOrGetter, value) => {
  * @param {string} codecName
  * @param {SyrupCodec} childCodec
  * @returns {SyrupCodec}
+ * Codec for a set of items of unknown length and known entry type
  */
 export const makeSetCodecFromEntryCodec = (codecName, childCodec) => {
   return makeCodec(codecName, {
@@ -208,6 +265,7 @@ export const makeSetCodecFromEntryCodec = (codecName, childCodec) => {
  * @param {string} codecName
  * @param {SyrupCodec} childCodec
  * @returns {SyrupCodec}
+ * Codec for a list of items of unknown length and known entry type
  */
 export const makeListCodecFromEntryCodec = (codecName, childCodec) => {
   return makeCodec(codecName, {
@@ -225,6 +283,43 @@ export const makeListCodecFromEntryCodec = (codecName, childCodec) => {
       syrupWriter.enterList();
       for (const child of value) {
         childCodec.write(child, syrupWriter);
+      }
+      syrupWriter.exitList();
+    },
+  });
+};
+
+/**
+ * @param {string} codecName
+ * @param {SyrupCodec[]} listDefinition
+ * @returns {SyrupCodec}
+ * Codec for a list of items of known length and known entry type
+ */
+export const makeExactListCodec = (codecName, listDefinition) => {
+  return makeCodec(codecName, {
+    read: syrupReader => {
+      syrupReader.enterList();
+      const result = [];
+      for (const entryCodec of listDefinition) {
+        const value = entryCodec.read(syrupReader);
+        result.push(value);
+      }
+      syrupReader.exitList();
+      return result;
+    },
+    write: (value, syrupWriter) => {
+      if (!(value instanceof Array)) {
+        throw Error(`Expected array, got ${typeof value}`);
+      }
+      if (value.length !== listDefinition.length) {
+        throw Error(
+          `Expected length ${listDefinition.length}, got ${value.length}`,
+        );
+      }
+      syrupWriter.enterList();
+      for (let index = 0; index < value.length; index += 1) {
+        const entryCodec = listDefinition[index];
+        entryCodec.write(value[index], syrupWriter);
       }
       syrupWriter.exitList();
     },
