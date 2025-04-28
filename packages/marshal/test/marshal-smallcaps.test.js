@@ -4,7 +4,7 @@ import { Far, makeTagged, passStyleOf } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
 import { roundTripPairs } from './_marshal-test-data.js';
-import { compareRank } from '../src/rankOrder.js';
+import { testFullOrderEQ } from '../tools/ava-full-order-eq.js';
 
 const {
   freeze,
@@ -49,7 +49,7 @@ test('smallcaps serialize unserialize round trip half pairs', t => {
     // our distributed object semantics. Unfortunately, `compareRank` is
     // too imprecise. We'd like to also test `keyEQ`, but that would violate
     // our package layering.
-    t.is(compareRank(decoding, plain), 0);
+    testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }
 });
@@ -359,7 +359,7 @@ test('smallcaps encoding examples', t => {
     // our distributed object semantics. Unfortunately, `compareRank` is
     // too imprecise. We'd like to also test `keyEQ`, but that would violate
     // our package layering.
-    t.is(compareRank(val, val2), 0, message);
+    testFullOrderEQ(t, val, val2, message);
   };
 
   // Numbers

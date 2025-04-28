@@ -3,7 +3,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
-import { compareRank } from '@endo/marshal';
+import { testFullOrderEQ } from '@endo/marshal/tools/ava-full-order-eq.js';
 import {
   GET_INTERFACE_GUARD,
   defineExoClass,
@@ -91,7 +91,7 @@ test('test defineExoClass', t => {
   // our distributed object semantics. Unfortunately, `compareRank` is
   // too imprecise. We'd like to also test `keyEQ`, but that would violate
   // our package layering.
-  t.is(compareRank(getInterfaceMethodKeys(FooI), harden(['m', 'm2'])), 0);
+  testFullOrderEQ(t, getInterfaceMethodKeys(FooI), ['m', 'm2']);
   const makeFoo = defineExoClass('Foo', FooI, () => ({}), {
     m() {},
     m2() {},

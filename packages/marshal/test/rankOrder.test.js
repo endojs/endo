@@ -16,6 +16,7 @@ import {
   getIndexCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
+import { testFullOrderEQ } from '../tools/ava-full-order-eq.js';
 import { unsortedSample, sortedSample } from './_marshal-test-data.js';
 
 const { arbPassable } = makeArbitraries(fc);
@@ -23,7 +24,7 @@ const { arbPassable } = makeArbitraries(fc);
 test('compareRank is reflexive', async t => {
   await fc.assert(
     fc.property(arbPassable, x => {
-      return t.is(compareRank(x, x), 0);
+      return testFullOrderEQ(t, x, x);
     }),
   );
 });
@@ -108,9 +109,10 @@ test('compare and sort by rank', t => {
   assertRankSorted(sortedSample, compareRank);
   t.false(isRankSorted(unsortedSample, compareRank));
   const sorted = sortByRank(unsortedSample, compareRank);
-  t.is(
-    compareRank(sorted, sortedSample),
-    0,
+  testFullOrderEQ(
+    t,
+    sorted,
+    sortedSample,
     `Not sorted as expected: ${q(sorted)}`,
   );
 });

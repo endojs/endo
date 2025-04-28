@@ -3,7 +3,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Far } from '@endo/pass-style';
 import { stringify, parse } from '../src/marshal-stringify.js';
 import { roundTripPairs } from './_marshal-test-data.js';
-import { compareRank } from '../src/rankOrder.js';
+import { testFullOrderEQ } from '../tools/ava-full-order-eq.js';
 
 const { isFrozen } = Object;
 
@@ -23,7 +23,7 @@ test('stringify parse round trip pairs', t => {
     // our distributed object semantics. Unfortunately, `compareRank` is
     // too imprecise. We'd like to also test `keyEQ`, but that would violate
     // our package layering.
-    t.is(compareRank(decoding, plain), 0);
+    testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }
 });
