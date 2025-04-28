@@ -1,5 +1,9 @@
 import { makeFullOrderComparatorKit } from '../src/rankOrder.js';
 
+// TODO once we're on the other side of this transition, migrate all importers
+// of `testFullOrderEQ` from `@agoric/internal/tools/ava-full-order-eq.js`
+// to import instead from `@endo/marshal/tools/ava-full-order-eq.js
+
 /**
  * @import {Passable} from '@endo/pass-style';
  */
