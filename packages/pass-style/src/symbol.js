@@ -72,4 +72,4 @@ harden(passableSymbolForName);
  * @param {string} name
  * @returns {symbol}
  */
-export const unpassableSymbolForName = name => Symbol(name);
+export const unpassableSymbolForName = name => Symbol.for(name);
