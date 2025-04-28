@@ -1,3 +1,5 @@
+// @ts-check
+
 import { makeTagged, makeSelector } from '../src/pass-style-helpers.js';
 import {
   sel,
@@ -16,55 +18,67 @@ import {
   makeExport,
   makeImportObject,
   makeImportPromise,
+  record,
+  hexToUint8Array,
+  btsStr,
 } from './_syrup_util.js';
 
-// I made up these syrup values by hand, they may be wrong, sorry.
-// Would like external test data for this.
+// I made up many of these syrup values by hand, they may be wrong, sorry.
+// Other test data was taken from interactions with the OCapN python test server.
 
 // Note that this approach uses strings to represent the binary syrup messages for readability,
 // but this comes with limitations. Note that special care will be needed when working
 // with binary data, such as float64 or bytestrings.
 
+const exampleSigParamBytes = Uint8Array.from({ length: 32 }, (_, i) => i);
+const examplePubKeyQBytes = hexToUint8Array(
+  '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+);
+
 export const componentsTable = [
   {
-    syrup: `${makeSig('eddsa', '1', '2')}`,
+    syrup: makeSig(exampleSigParamBytes, exampleSigParamBytes),
     value: {
       type: 'sig-val',
       scheme: 'eddsa',
-      r: new Uint8Array([0x31]),
-      s: new Uint8Array([0x32]),
+      r: exampleSigParamBytes,
+      s: exampleSigParamBytes,
     },
   },
   {
-    syrup: `<10'ocapn-node3'tcp1:0f>`,
+    syrup: makeNode('tcp', '127.0.0.1', false),
     value: {
       type: 'ocapn-node',
       transport: 'tcp',
-      address: new Uint8Array([0x30]),
+      address: '127.0.0.1',
       hints: false,
     },
   },
   {
-    syrup: `<15'ocapn-sturdyref${makeNode('tcp', '0', false)}${str('1')}>`,
+    syrup: record(
+      'ocapn-sturdyref',
+      makeNode('tcp', '127.0.0.1', false),
+      str('1'),
+    ),
     value: {
       type: 'ocapn-sturdyref',
       node: {
         type: 'ocapn-node',
         transport: 'tcp',
-        address: new Uint8Array([0x30]),
+        address: '127.0.0.1',
         hints: false,
       },
       swissNum: '1',
     },
   },
   {
-    syrup: makePubKey('ecc', 'Ed25519', 'eddsa', '1'),
+    syrup: makePubKey(examplePubKeyQBytes),
     value: {
       type: 'public-key',
       scheme: 'ecc',
       curve: 'Ed25519',
       flags: 'eddsa',
-      q: strToUint8Array('1'),
+      q: examplePubKeyQBytes,
     },
   },
 ];
@@ -99,7 +113,14 @@ export const descriptorsTable = [
     },
   },
   {
-    syrup: `<${sel('desc:handoff-give')}${makePubKey('ecc', 'Ed25519', 'eddsa', '1')}${makeNode('tcp', '127.0.0.1', false)}${bts('123')}${makePubKey('ecc', 'Ed25519', 'eddsa', '2')}${bts('456')}>`,
+    syrup: record(
+      'desc:handoff-give',
+      makePubKey(examplePubKeyQBytes),
+      makeNode('tcp', '127.0.0.1', false),
+      btsStr('123'),
+      makePubKey(examplePubKeyQBytes),
+      btsStr('456'),
+    ),
     value: {
       type: 'desc:handoff-give',
       receiverKey: {
@@ -107,82 +128,90 @@ export const descriptorsTable = [
         scheme: 'ecc',
         curve: 'Ed25519',
         flags: 'eddsa',
-        q: new Uint8Array([0x31]),
+        q: examplePubKeyQBytes,
       },
       exporterLocation: {
         type: 'ocapn-node',
         transport: 'tcp',
-        address: new Uint8Array([
-          0x31, 0x32, 0x37, 0x2e, 0x30, 0x2e, 0x30, 0x2e, 0x31,
-        ]),
+        address: '127.0.0.1',
         hints: false,
       },
-      session: new Uint8Array([0x31, 0x32, 0x33]),
+      session: strToUint8Array('123'),
       gifterSide: {
         type: 'public-key',
         scheme: 'ecc',
         curve: 'Ed25519',
         flags: 'eddsa',
-        q: new Uint8Array([0x32]),
+        q: examplePubKeyQBytes,
       },
-      giftId: new Uint8Array([0x34, 0x35, 0x36]),
+      giftId: strToUint8Array('456'),
     },
   },
   {
-    syrup: `<${sel('desc:sig-envelope')}${makeDescGive(
-      makePubKey('ed25519', 'ed25519', 'ed25519', '123'),
-      makeNode('tcp', '127.0.0.1', false),
-      '123',
-      makePubKey('ed25519', 'ed25519', 'ed25519', '123'),
-      '123',
-    )}${makeSig('eddsa', '1', '2')}>`,
+    syrup: record(
+      'desc:sig-envelope',
+      makeDescGive(
+        makePubKey(examplePubKeyQBytes),
+        makeNode('tcp', '127.0.0.1', false),
+        strToUint8Array('123'),
+        makePubKey(examplePubKeyQBytes),
+        strToUint8Array('123'),
+      ),
+      makeSig(exampleSigParamBytes, exampleSigParamBytes),
+    ),
     value: {
       type: 'desc:sig-envelope',
       object: {
         type: 'desc:handoff-give',
         receiverKey: {
           type: 'public-key',
-          scheme: 'ed25519',
-          curve: 'ed25519',
-          flags: 'ed25519',
-          q: strToUint8Array('123'),
+          scheme: 'ecc',
+          curve: 'Ed25519',
+          flags: 'eddsa',
+          q: examplePubKeyQBytes,
         },
         exporterLocation: {
           type: 'ocapn-node',
           transport: 'tcp',
-          address: strToUint8Array('127.0.0.1'),
+          address: '127.0.0.1',
           hints: false,
         },
         session: strToUint8Array('123'),
         gifterSide: {
           type: 'public-key',
-          scheme: 'ed25519',
-          curve: 'ed25519',
-          flags: 'ed25519',
-          q: strToUint8Array('123'),
+          scheme: 'ecc',
+          curve: 'Ed25519',
+          flags: 'eddsa',
+          q: examplePubKeyQBytes,
         },
         giftId: strToUint8Array('123'),
       },
       signature: {
         type: 'sig-val',
         scheme: 'eddsa',
-        r: strToUint8Array('1'),
-        s: strToUint8Array('2'),
+        r: exampleSigParamBytes,
+        s: exampleSigParamBytes,
       },
     },
   },
   // handoff receive
   {
-    syrup: `<${sel('desc:handoff-receive')}${bts('123')}${bts('456')}${int(1)}${makeSigEnvelope(
-      makeDescGive(
-        makePubKey('ecc', 'Ed25519', 'eddsa', '123'),
-        makeNode('tcp', '456', false),
-        '789',
-        makePubKey('ecc', 'Ed25519', 'eddsa', 'abc'),
-        'def',
+    syrup: record(
+      'desc:handoff-receive',
+      btsStr('123'),
+      btsStr('456'),
+      int(1),
+      makeSigEnvelope(
+        makeDescGive(
+          makePubKey(examplePubKeyQBytes),
+          makeNode('tcp', '127.0.0.1', false),
+          strToUint8Array('789'),
+          makePubKey(examplePubKeyQBytes),
+          strToUint8Array('def'),
+        ),
+        makeSig(exampleSigParamBytes, exampleSigParamBytes),
       ),
-      makeSig('eddsa', '1', '2'),
-    )}>`,
+    ),
     value: {
       type: 'desc:handoff-receive',
       receivingSession: strToUint8Array('123'),
@@ -197,12 +226,12 @@ export const descriptorsTable = [
             scheme: 'ecc',
             curve: 'Ed25519',
             flags: 'eddsa',
-            q: strToUint8Array('123'),
+            q: examplePubKeyQBytes,
           },
           exporterLocation: {
             type: 'ocapn-node',
             transport: 'tcp',
-            address: strToUint8Array('456'),
+            address: '127.0.0.1',
             hints: false,
           },
           session: strToUint8Array('789'),
@@ -211,15 +240,15 @@ export const descriptorsTable = [
             scheme: 'ecc',
             curve: 'Ed25519',
             flags: 'eddsa',
-            q: strToUint8Array('abc'),
+            q: examplePubKeyQBytes,
           },
           giftId: strToUint8Array('def'),
         },
         signature: {
           type: 'sig-val',
           scheme: 'eddsa',
-          r: strToUint8Array('1'),
-          s: strToUint8Array('2'),
+          r: exampleSigParamBytes,
+          s: exampleSigParamBytes,
         },
       },
     },
@@ -232,7 +261,13 @@ export const operationsTable = [
     //                   session-pubkey            ; CapTP public key value
     //                   acceptable-location       ; OCapN Reference type
     //                   acceptable-location-sig>  ; CapTP signature
-    syrup: `<${sel('op:start-session')}${str('captp-v1')}${makePubKey('ecc', 'Ed25519', 'eddsa', '123')}${makeNode('tcp', '127.0.0.1', false)}${makeSig('eddsa', '1', '2')}>`,
+    syrup: record(
+      'op:start-session',
+      str('captp-v1'),
+      makePubKey(examplePubKeyQBytes),
+      makeNode('tcp', '127.0.0.1', false),
+      makeSig(exampleSigParamBytes, exampleSigParamBytes),
+    ),
     value: {
       type: 'op:start-session',
       captpVersion: 'captp-v1',
@@ -241,19 +276,19 @@ export const operationsTable = [
         scheme: 'ecc',
         curve: 'Ed25519',
         flags: 'eddsa',
-        q: strToUint8Array('123'),
+        q: examplePubKeyQBytes,
       },
       location: {
         type: 'ocapn-node',
         transport: 'tcp',
-        address: strToUint8Array('127.0.0.1'),
+        address: '127.0.0.1',
         hints: false,
       },
       locationSignature: {
         type: 'sig-val',
         scheme: 'eddsa',
-        r: strToUint8Array('1'),
-        s: strToUint8Array('2'),
+        r: exampleSigParamBytes,
+        s: exampleSigParamBytes,
       },
     },
   },
@@ -332,7 +367,7 @@ export const operationsTable = [
     //             <desc:import-object 5>>  ; object exported by us at position 5 should provide the answer
     syrup: `<${sel('op:deliver')}${makeExport(0)}${list([
       sel('fetch'),
-      bts('swiss-number'),
+      btsStr('swiss-number'),
     ])}${int(3)}${makeImportObject(5)}>`,
     value: {
       type: 'op:deliver',
@@ -354,17 +389,17 @@ export const operationsTable = [
     syrup: `<${sel('op:deliver')}${makeExport(0)}${list([
       sel('withdraw-gift'),
       makeHandoffReceive(
-        '123',
-        '456',
+        strToUint8Array('123'),
+        strToUint8Array('456'),
         1,
         makeDescGive(
-          makePubKey('ecc', 'Ed25519', 'eddsa', '123'),
-          makeNode('tcp', '456', false),
-          '789',
-          makePubKey('ecc', 'Ed25519', 'eddsa', 'abc'),
-          'def',
+          makePubKey(examplePubKeyQBytes),
+          makeNode('tcp', '127.0.0.1', false),
+          strToUint8Array('789'),
+          makePubKey(examplePubKeyQBytes),
+          strToUint8Array('def'),
         ),
-        makeSig('eddsa', '1', '2'),
+        makeSig(exampleSigParamBytes, exampleSigParamBytes),
       ),
     ])}${int(1)}${makeImportObject(3)}>`,
     value: {
@@ -386,12 +421,12 @@ export const operationsTable = [
                 scheme: 'ecc',
                 curve: 'Ed25519',
                 flags: 'eddsa',
-                q: strToUint8Array('123'),
+                q: examplePubKeyQBytes,
               },
               exporterLocation: {
                 type: 'ocapn-node',
                 transport: 'tcp',
-                address: strToUint8Array('456'),
+                address: '127.0.0.1',
                 hints: false,
               },
               session: strToUint8Array('789'),
@@ -400,15 +435,15 @@ export const operationsTable = [
                 scheme: 'ecc',
                 curve: 'Ed25519',
                 flags: 'eddsa',
-                q: strToUint8Array('abc'),
+                q: examplePubKeyQBytes,
               },
               giftId: strToUint8Array('def'),
             },
             signature: {
               type: 'sig-val',
               scheme: 'eddsa',
-              r: strToUint8Array('1'),
-              s: strToUint8Array('2'),
+              r: exampleSigParamBytes,
+              s: exampleSigParamBytes,
             },
           },
         },
@@ -473,6 +508,166 @@ export const operationsTable = [
       answerPosition: 1n,
     },
   },
+  // Below are examples from the ocapn python test suite
+  {
+    syrup: hexToUint8Array(
+      '3c3136276f703a73746172742d73657373696f6e323222696e76616c69642d76657273696f6e2d6e756d6265725b3130277075626c69632d6b65795b33276563635b352763757276653727456432353531395d5b3527666c616773352765646473615d5b31277133323af256acb7103aab95ae410a65b996f87710400ee3c5b550abe365144a6ee7fbe85d5d5d3c3130276f6361706e2d6e6f64653136277463702d74657374696e672d6f6e6c793135223132372e302e302e313a3532383031663e5b37277369672d76616c5b352765646473615b31277233323a83566b895c0b324011bd3489b13462e420aec65a7da043083970772c79953d535d5b31277333323a624a58d082f8d6265c4e9f6195d24f58ae82f0882f4d482ce91a7e70db65030e5d5d5d3e',
+    ),
+    value: {
+      type: 'op:start-session',
+      captpVersion: 'invalid-version-number',
+      sessionPublicKey: {
+        type: 'public-key',
+        scheme: 'ecc',
+        curve: 'Ed25519',
+        flags: 'eddsa',
+        q: hexToUint8Array(
+          'f256acb7103aab95ae410a65b996f87710400ee3c5b550abe365144a6ee7fbe8',
+        ),
+      },
+      location: {
+        type: 'ocapn-node',
+        transport: 'tcp-testing-only',
+        address: '127.0.0.1:52801',
+        hints: false,
+      },
+      locationSignature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: hexToUint8Array(
+          '83566b895c0b324011bd3489b13462e420aec65a7da043083970772c79953d53',
+        ),
+        s: hexToUint8Array(
+          '624a58d082f8d6265c4e9f6195d24f58ae82f0882f4d482ce91a7e70db65030e',
+        ),
+      },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3136276f703a73746172742d73657373696f6e3322312e305b3130277075626c69632d6b65795b33276563635b352763757276653727456432353531395d5b3527666c616773352765646473615d5b31277133323ad62b9fe1138b942a61bc6941d1fbf7234b8b3d104fc11c5a2a642646124e18655d5d5d3c3130276f6361706e2d6e6f64653136277463702d74657374696e672d6f6e6c793135223132372e302e302e313a3536373132663e5b37277369672d76616c5b352765646473615b31277233323a412dcecf1a2c1d02645f2b17f8cc241e7297fb2a87b4d89a2bafcbd07a0ccfab5d5b31277333323a90cf86ad2681ad0dda3f01c2302e1144cad5d6b743643383cfd7c317f77b2c0a5d5d5d3e',
+    ),
+    value: {
+      type: 'op:start-session',
+      captpVersion: '1.0',
+      sessionPublicKey: {
+        type: 'public-key',
+        scheme: 'ecc',
+        curve: 'Ed25519',
+        flags: 'eddsa',
+        q: hexToUint8Array(
+          'd62b9fe1138b942a61bc6941d1fbf7234b8b3d104fc11c5a2a642646124e1865',
+        ),
+      },
+      location: {
+        type: 'ocapn-node',
+        transport: 'tcp-testing-only',
+        address: '127.0.0.1:56712',
+        hints: false,
+      },
+      locationSignature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: hexToUint8Array(
+          '412dcecf1a2c1d02645f2b17f8cc241e7297fb2a87b4d89a2bafcbd07a0ccfab',
+        ),
+        s: hexToUint8Array(
+          '90cf86ad2681ad0dda3f01c2302e1144cad5d6b743643383cfd7c317f77b2c0a',
+        ),
+      },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3136276f703a73746172742d73657373696f6e3322312e305b3130277075626c69632d6b65795b33276563635b352763757276653727456432353531395d5b3527666c616773352765646473615d5b31277133323a4832d7d9c21fe35b4e7f1e98ff2a6a27db53dfdb951f2fd343919cd4492799af5d5d5d3c3130276f6361706e2d6e6f64653136277463702d74657374696e672d6f6e6c793135223132372e302e302e313a3536373132663e5b37277369672d76616c5b352765646473615b31277233323a0e13783b729b49111854aedf29614bb551e1e1cea5bee50246de7edf8a368d895d5b31277333323aabf38cad0063d593a7db79de3098b2653fb197b724e7589d0cd2dd8cafeb20065d5d5d3e',
+    ),
+    value: {
+      type: 'op:start-session',
+      captpVersion: '1.0',
+      sessionPublicKey: {
+        type: 'public-key',
+        scheme: 'ecc',
+        curve: 'Ed25519',
+        flags: 'eddsa',
+        q: hexToUint8Array(
+          '4832d7d9c21fe35b4e7f1e98ff2a6a27db53dfdb951f2fd343919cd4492799af',
+        ),
+      },
+      location: {
+        type: 'ocapn-node',
+        transport: 'tcp-testing-only',
+        address: '127.0.0.1:56712',
+        hints: false,
+      },
+      locationSignature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: hexToUint8Array(
+          '0e13783b729b49111854aedf29614bb551e1e1cea5bee50246de7edf8a368d89',
+        ),
+        s: hexToUint8Array(
+          'abf38cad0063d593a7db79de3098b2653fb197b724e7589d0cd2dd8cafeb2006',
+        ),
+      },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3136276f703a73746172742d73657373696f6e3322312e305b3130277075626c69632d6b65795b33276563635b352763757276653727456432353531395d5b3527666c616773352765646473615d5b31277133323ac616b5d782f394686c7ffd690e9a95d35c2cd9a685d5f09bd5304d8cf57e6ca15d5d5d3c3130276f6361706e2d6e6f64653136277463702d74657374696e672d6f6e6c793135223132372e302e302e313a3536373132663e5b37277369672d76616c5b352765646473615b31277233323a546760cbb937c5483e1d1a86f44955b4972809bfcde24ead3f13fba3fa53b6a85d5b31277333323a02cdeef01497c85585c0e848a74e614fa0b2240c97538ecb88505c81ec8036015d5d5d3e',
+    ),
+    value: {
+      type: 'op:start-session',
+      captpVersion: '1.0',
+      sessionPublicKey: {
+        type: 'public-key',
+        scheme: 'ecc',
+        curve: 'Ed25519',
+        flags: 'eddsa',
+        q: hexToUint8Array(
+          'c616b5d782f394686c7ffd690e9a95d35c2cd9a685d5f09bd5304d8cf57e6ca1',
+        ),
+      },
+      location: {
+        type: 'ocapn-node',
+        transport: 'tcp-testing-only',
+        address: '127.0.0.1:56712',
+        hints: false,
+      },
+      locationSignature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: hexToUint8Array(
+          '546760cbb937c5483e1d1a86f44955b4972809bfcde24ead3f13fba3fa53b6a8',
+        ),
+        s: hexToUint8Array(
+          '02cdeef01497c85585c0e848a74e614fa0b2240c97538ecb88505c81ec803601',
+        ),
+      },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3130276f703a64656c697665723c313127646573633a6578706f7274302b3e5b3527666574636833323a676930324931716768497750694b474b6c654351414f687079335a74595270425d663c313827646573633a696d706f72742d6f626a656374302b3e3e',
+    ),
+    value: {
+      type: 'op:deliver',
+      to: {
+        type: 'desc:export',
+        position: 0n,
+      },
+      args: [
+        'fetch',
+        hexToUint8Array(
+          '676930324931716768497750694b474b6c654351414f687079335a7459527042',
+        ),
+      ],
+      answerPosition: false,
+      resolveMeDesc: {
+        type: 'desc:import-object',
+        position: 0n,
+      },
+    },
+  },
 ];
 
 export const passableTable = [
@@ -483,7 +678,11 @@ export const passableTable = [
   { syrup: `${int(123)}`, value: 123n },
   { syrup: `${str('hello')}`, value: 'hello' },
   {
-    syrup: `${bts('hello')}`,
+    syrup: btsStr('hello'),
+    value: new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
+  },
+  {
+    syrup: bts(new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f])),
     value: new Uint8Array([0x68, 0x65, 0x6c, 0x6c, 0x6f]),
   },
   {
