@@ -86,11 +86,6 @@ test('test defineExoClass', t => {
     m: M.call().returns(),
     m2: M.call(M.boolean()).returns(),
   });
-  // Cannot use `t.deepEqual` because it does not recognize that two
-  // unregistered symbols with the same `description` are the same in
-  // our distributed object semantics. Unfortunately, `compareRank` is
-  // too imprecise. We'd like to also test `keyEQ`, but that would violate
-  // our package layering.
   testFullOrderEQ(t, getInterfaceMethodKeys(FooI), ['m', 'm2']);
   const makeFoo = defineExoClass('Foo', FooI, () => ({}), {
     m() {},

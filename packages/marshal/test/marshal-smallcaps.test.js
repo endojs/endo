@@ -44,11 +44,6 @@ test('smallcaps serialize unserialize round trip half pairs', t => {
   for (const [plain, _] of roundTripPairs) {
     const { body } = serialize(plain);
     const decoding = unserialize({ body, slots: [] });
-    // Cannot use `t.deepEqual` because it does not recognize that two
-    // unregistered symbols with the same `description` are the same in
-    // our distributed object semantics. Unfortunately, `compareRank` is
-    // too imprecise. We'd like to also test `keyEQ`, but that would violate
-    // our package layering.
     testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }
@@ -354,11 +349,6 @@ test('smallcaps encoding examples', t => {
     assertSer(val, body, slots, message);
     const val2 = unserialize(harden({ body, slots }));
     assertSer(val2, body, slots, message);
-    // Cannot use `t.deepEqual` because it does not recognize that two
-    // unregistered symbols with the same `description` are the same in
-    // our distributed object semantics. Unfortunately, `compareRank` is
-    // too imprecise. We'd like to also test `keyEQ`, but that would violate
-    // our package layering.
     testFullOrderEQ(t, val, val2, message);
   };
 

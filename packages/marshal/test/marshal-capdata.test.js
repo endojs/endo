@@ -50,11 +50,6 @@ test('serialize unserialize round trip pairs', t => {
     const encoding = JSON.stringify(encoded);
     t.is(body, encoding);
     const decoding = unserialize({ body, slots: [] });
-    // Cannot use `t.deepEqual` because it does not recognize that two
-    // unregistered symbols with the same `description` are the same in
-    // our distributed object semantics. Unfortunately, `compareRank` is
-    // too imprecise. We'd like to also test `keyEQ`, but that would violate
-    // our package layering.
     testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }

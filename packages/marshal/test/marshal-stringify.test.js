@@ -18,11 +18,6 @@ test('stringify parse round trip pairs', t => {
     const encoding = JSON.stringify(encoded);
     t.is(str, encoding);
     const decoding = parse(str);
-    // Cannot use `t.deepEqual` because it does not recognize that two
-    // unregistered symbols with the same `description` are the same in
-    // our distributed object semantics. Unfortunately, `compareRank` is
-    // too imprecise. We'd like to also test `keyEQ`, but that would violate
-    // our package layering.
     testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }
