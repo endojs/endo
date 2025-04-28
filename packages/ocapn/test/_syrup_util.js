@@ -1,4 +1,24 @@
+// @ts-check
+
 const textEncoder = new TextEncoder();
+
+/**
+ * Converts a hex string to a Uint8Array
+ * @param {string} hexString - The hex string to convert
+ * @returns {Uint8Array} The Uint8Array representation of the hex string
+ */
+export function hexToUint8Array(hexString) {
+  if (hexString.length % 2 !== 0) {
+    throw new Error(
+      `Hex string must have an even length, got ${hexString.length}`,
+    );
+  }
+  const bytes = new Uint8Array(hexString.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
+  }
+  return bytes;
+}
 
 /**
  * @param {string} s
@@ -19,12 +39,26 @@ export const str = s => {
 };
 
 /**
- * @param {string} s
+ * @param {Uint8Array} u
  * @returns {string}
  */
-export const bts = s => {
-  const b = textEncoder.encode(s);
-  return `${b.length}:${String.fromCharCode(...b)}`;
+export const bts = u => {
+  if (!(u instanceof Uint8Array)) {
+    throw Error(`Expected Uint8Array, got ${typeof u}`);
+  }
+  return `${u.length}:${String.fromCharCode(...u)}`;
+};
+
+/**
+ * @param {string} u
+ * @returns {string}
+ */
+export const btsStr = u => {
+  if (typeof u !== 'string') {
+    throw Error(`Expected string, got ${typeof u}`);
+  }
+  const bytes = textEncoder.encode(u);
+  return bts(bytes);
 };
 
 /**
@@ -46,43 +80,64 @@ export const int = i => `${Math.floor(Math.abs(i))}${i < 0 ? '-' : '+'}`;
 export const list = items => `[${items.join('')}]`;
 
 /**
+ * @param {string} label
+ * @param {Array<string>} items
+ * @returns {string}
+ */
+export const record = (label, ...items) => `<${sel(label)}${items.join('')}>`;
+
+/**
  * @param {string} transport
  * @param {string} address
  * @param {boolean} hints
  * @returns {string}
  */
 export const makeNode = (transport, address, hints) => {
-  return `<${sel('ocapn-node')}${sel(transport)}${bts(address)}${bool(hints)}>`;
+  return record('ocapn-node', sel(transport), str(address), bool(hints));
 };
 
 /**
- * @param {string} scheme
- * @param {string} curve
- * @param {string} flags
- * @param {string} q
+ * @param {Uint8Array} q
  * @returns {string}
  */
-export const makePubKey = (scheme, curve, flags, q) => {
-  return `<${sel('public-key')}${sel(scheme)}${sel(curve)}${sel(flags)}${bts(q)}>`;
+export const makePubKey = q => {
+  return list([
+    sel('public-key'),
+    list([
+      sel('ecc'),
+      list([sel('curve'), sel('Ed25519')]),
+      list([sel('flags'), sel('eddsa')]),
+      list([sel('q'), bts(q)]),
+    ]),
+  ]);
 };
 
 /**
  * @param {string} label
- * @param {string} value
+ * @param {Uint8Array} value
  * @returns {string}
  */
 export const makeSigComp = (label, value) => {
-  return `${sel(label)}${bts(value)}`;
+  return list([sel(label), bts(value)]);
 };
 
 /**
- * @param {string} scheme
- * @param {string} r
- * @param {string} s
+ * @param {Uint8Array} r
+ * @param {Uint8Array} s
+ * @param {string} [scheme]
  * @returns {string}
  */
-export const makeSig = (scheme, r, s) => {
-  return `<${sel('sig-val')}${sel(scheme)}${makeSigComp('r', r)}${makeSigComp('s', s)}>`;
+export const makeSig = (r, s, scheme = 'eddsa') => {
+  if (r.length !== 32) {
+    throw Error(`Expected r to be 32 bytes, got ${r.length}`);
+  }
+  if (s.length !== 32) {
+    throw Error(`Expected s to be 32 bytes, got ${s.length}`);
+  }
+  return list([
+    sel('sig-val'),
+    list([sel(scheme), makeSigComp('r', r), makeSigComp('s', s)]),
+  ]);
 };
 
 /**
@@ -90,7 +145,7 @@ export const makeSig = (scheme, r, s) => {
  * @returns {string}
  */
 export const makeExport = position => {
-  return `<${sel('desc:export')}${int(position)}>`;
+  return record('desc:export', int(position));
 };
 
 /**
@@ -98,7 +153,7 @@ export const makeExport = position => {
  * @returns {string}
  */
 export const makeImportObject = position => {
-  return `<${sel('desc:import-object')}${int(position)}>`;
+  return record('desc:import-object', int(position));
 };
 
 /**
@@ -106,15 +161,15 @@ export const makeImportObject = position => {
  * @returns {string}
  */
 export const makeImportPromise = position => {
-  return `<${sel('desc:import-promise')}${int(position)}>`;
+  return record('desc:import-promise', int(position));
 };
 
 /**
  * @param {string} receiverKey
  * @param {string} exporterLocation
- * @param {string} session
+ * @param {Uint8Array} session
  * @param {string} gifterSide
- * @param {string} giftId
+ * @param {Uint8Array} giftId
  * @returns {string}
  */
 export const makeDescGive = (
@@ -124,7 +179,14 @@ export const makeDescGive = (
   gifterSide,
   giftId,
 ) => {
-  return `<${sel('desc:handoff-give')}${receiverKey}${exporterLocation}${bts(session)}${gifterSide}${bts(giftId)}>`;
+  return record(
+    'desc:handoff-give',
+    receiverKey,
+    exporterLocation,
+    bts(session),
+    gifterSide,
+    bts(giftId),
+  );
 };
 
 /**
@@ -133,12 +195,12 @@ export const makeDescGive = (
  * @returns {string}
  */
 export const makeSigEnvelope = (object, signature) => {
-  return `<${sel('desc:sig-envelope')}${object}${signature}>`;
+  return record('desc:sig-envelope', object, signature);
 };
 
 /**
- * @param {string} recieverSession
- * @param {string} recieverSide
+ * @param {Uint8Array} recieverSession
+ * @param {Uint8Array} recieverSide
  * @param {number} handoffCount
  * @param {string} descGive
  * @param {string} signature
@@ -152,7 +214,13 @@ export const makeHandoffReceive = (
   signature,
 ) => {
   const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
-  return `<${sel('desc:handoff-receive')}${bts(recieverSession)}${bts(recieverSide)}${int(handoffCount)}${signedGiveEnvelope}>`;
+  return record(
+    'desc:handoff-receive',
+    bts(recieverSession),
+    bts(recieverSide),
+    int(handoffCount),
+    signedGiveEnvelope,
+  );
 };
 
 /**

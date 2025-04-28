@@ -14,6 +14,7 @@ import {
   DescExport,
   DescAnswer,
 } from './descriptors.js';
+import { makeSyrupWriter } from '../syrup/encode.js';
 
 const { freeze } = Object;
 
@@ -196,10 +197,10 @@ export const readOCapNMessage = syrupReader => {
 
 /**
  * @param {any} message
- * @param {SyrupWriter} syrupWriter
  * @returns {Uint8Array}
  */
-export const writeOCapNMessage = (message, syrupWriter) => {
+export const writeOCapNMessage = message => {
+  const syrupWriter = makeSyrupWriter();
   OCapNMessageUnionCodec.write(message, syrupWriter);
   return syrupWriter.getBytes();
 };
