@@ -1,3 +1,5 @@
+const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
+
 /**
  * @param {import('ava').Test} t
  * @param {() => void} fn
@@ -13,4 +15,47 @@ export const throws = (t, fn, errorShape) => {
     return;
   }
   t.fail('Expected error');
+};
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {{isValidUtf8: boolean, value: string | undefined}}
+ */
+export const maybeDecode = bytes => {
+  try {
+    return {
+      isValidUtf8: true,
+      value: strictTextDecoder.decode(bytes),
+    };
+  } catch (error) {
+    return {
+      isValidUtf8: false,
+      value: undefined,
+    };
+  }
+};
+
+/**
+ * @param {import('ava').Test} t
+ * @param {() => void} fn
+ * @param {string} testName
+ * @returns {void}
+ */
+export const notThrowsWithErrorUnwrapping = (t, fn, testName) => {
+  try {
+    fn();
+  } catch (error) {
+    const causes = [];
+    let current = error;
+    while (current) {
+      causes.push(current);
+      current = current.cause;
+    }
+    t.log(`Function threw for ${testName}:`);
+    for (const [index, cause] of causes.entries()) {
+      t.log(`Error chain, depth ${index}:`);
+      t.log(cause.stack);
+    }
+    t.fail(`Function threw. ${error}`);
+  }
 };

@@ -20,7 +20,7 @@ import {
 } from './_table.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 import { sel } from './_syrup_util.js';
-import { throws } from './_util.js';
+import { maybeDecode, notThrowsWithErrorUnwrapping, throws } from './_util.js';
 import {
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
@@ -32,41 +32,6 @@ import { makeOCapNListComponentUnionCodec } from '../src/codecs/util.js';
 /** @typedef {import('../src/syrup/codec.js').SyrupCodec} SyrupCodec */
 
 const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder('utf-8', { fatal: true });
-
-/**
- * @param {Uint8Array} bytes
- * @returns {{isValidUtf8: boolean, value: string | undefined}}
- */
-const maybeDecode = bytes => {
-  try {
-    return {
-      isValidUtf8: true,
-      value: textDecoder.decode(bytes),
-    };
-  } catch (error) {
-    return {
-      isValidUtf8: false,
-      value: undefined,
-    };
-  }
-};
-
-const notThrowsWithErrorUnwrapping = (t, fn, testName) => {
-  try {
-    fn();
-  } catch (error) {
-    const causes = [];
-    let current = error;
-    while (current) {
-      causes.push(current);
-      current = current.cause;
-    }
-    t.log(`Function threw for ${testName}:`);
-    t.log(causes);
-    t.fail(`Function threw. ${error}`);
-  }
-};
 
 /**
  * @param {any} t
