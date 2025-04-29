@@ -713,6 +713,65 @@ export const operationsTable = [
       ],
     },
   },
+  {
+    syrup: hexToUint8Array(
+      '3c3130276f703a64656c697665723c313127646573633a6578706f7274302b3e5b3527666574636833323a494f35386c316c61547968637267444b62457a464f4f33324d4464367a4535775d663c313827646573633a696d706f72742d6f626a656374302b3e3e',
+    ),
+    value: {
+      type: 'op:deliver',
+      to: {
+        type: 'desc:export',
+        position: 0n,
+      },
+      args: [
+        makeSelector('fetch'),
+        hexToUint8Array(
+          '494f35386c316c61547968637267444b62457a464f4f33324d4464367a453577',
+        ),
+      ],
+      answerPosition: false,
+      resolveMeDesc: {
+        type: 'desc:import-object',
+        position: 0n,
+      },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3130276f703a64656c697665723c313127646573633a6578706f7274302b3e5b3322666f6f312b66333a6261725b332262617a5d5d663c313827646573633a696d706f72742d6f626a656374312b3e3e',
+    ),
+    value: {
+      type: 'op:deliver',
+      to: {
+        type: 'desc:export',
+        position: 0n,
+      },
+      args: ['foo', 1n, false, Uint8Array.from([0x62, 0x61, 0x72]), ['baz']],
+      answerPosition: false,
+      resolveMeDesc: {
+        type: 'desc:import-object',
+        position: 1n,
+      },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3130276f703a64656c697665723c313127646573633a616e73776572312b3e5b5b332772656439277a6f6f6d72616365725d5d322b3c313827646573633a696d706f72742d6f626a656374322b3e3e',
+    ),
+    value: {
+      type: 'op:deliver',
+      to: {
+        type: 'desc:answer',
+        position: 1n,
+      },
+      args: [[makeSelector('red'), makeSelector('zoomracer')]],
+      answerPosition: 2n,
+      resolveMeDesc: {
+        type: 'desc:import-object',
+        position: 2n,
+      },
+    },
+  },
 ];
 
 export const passableTable = [
