@@ -302,7 +302,7 @@ export const operationsTable = [
         position: 1n,
       },
       args: [
-        'fulfill',
+        makeSelector('fulfill'),
         {
           type: 'desc:import-object',
           position: 1n,
@@ -322,7 +322,11 @@ export const operationsTable = [
         type: 'desc:export',
         position: 0n,
       },
-      args: ['deposit-gift', 42n, { type: 'desc:import-object', position: 1n }],
+      args: [
+        makeSelector('deposit-gift'),
+        42n,
+        { type: 'desc:import-object', position: 1n },
+      ],
     },
   },
   {
@@ -334,7 +338,7 @@ export const operationsTable = [
         type: 'desc:export',
         position: 5n,
       },
-      args: ['make-car-factory'],
+      args: [makeSelector('make-car-factory')],
       answerPosition: 3n,
       resolveMeDesc: {
         type: 'desc:import-object',
@@ -351,7 +355,7 @@ export const operationsTable = [
         type: 'desc:export',
         position: 1n,
       },
-      args: ['beep'],
+      args: [makeSelector('beep')],
       answerPosition: false,
       resolveMeDesc: {
         type: 'desc:import-object',
@@ -372,7 +376,7 @@ export const operationsTable = [
     value: {
       type: 'op:deliver',
       to: { type: 'desc:export', position: 0n },
-      args: ['fetch', strToUint8Array('swiss-number')],
+      args: [makeSelector('fetch'), strToUint8Array('swiss-number')],
       answerPosition: 3n,
       resolveMeDesc: {
         type: 'desc:import-object',
@@ -406,7 +410,7 @@ export const operationsTable = [
       type: 'op:deliver',
       to: { type: 'desc:export', position: 0n },
       args: [
-        'withdraw-gift',
+        makeSelector('withdraw-gift'),
         {
           type: 'desc:handoff-receive',
           receivingSession: strToUint8Array('123'),
@@ -656,7 +660,7 @@ export const operationsTable = [
         position: 0n,
       },
       args: [
-        'fetch',
+        makeSelector('fetch'),
         hexToUint8Array(
           '676930324931716768497750694b474b6c654351414f687079335a7459527042',
         ),
@@ -666,6 +670,47 @@ export const operationsTable = [
         type: 'desc:import-object',
         position: 0n,
       },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3130276f703a64656c697665723c313127646573633a6578706f7274302b3e5b3527666574636833323a564d44446431766f4b5761724365324776674c627862564679734e7a52507a785d663c313827646573633a696d706f72742d6f626a656374302b3e3e',
+    ),
+    value: {
+      type: 'op:deliver',
+      to: {
+        type: 'desc:export',
+        position: 0n,
+      },
+      args: [
+        makeSelector('fetch'),
+        hexToUint8Array(
+          '564d44446431766f4b5761724365324776674c627862564679734e7a52507a78',
+        ),
+      ],
+      answerPosition: false,
+      resolveMeDesc: {
+        type: 'desc:import-object',
+        position: 0n,
+      },
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3135276f703a64656c697665722d6f6e6c793c313127646573633a6578706f7274302b3e5b3c313827646573633a696d706f72742d6f626a656374312b3e5d3e',
+    ),
+    value: {
+      type: 'op:deliver-only',
+      to: {
+        type: 'desc:export',
+        position: 0n,
+      },
+      args: [
+        {
+          type: 'desc:import-object',
+          position: 1n,
+        },
+      ],
     },
   },
 ];
