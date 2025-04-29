@@ -54,17 +54,15 @@ const OpListen = makeOCapNRecordCodecFromDefinition(
   },
 );
 
-const OCapNDeliverTargets = {
-  DescExport,
-  DescAnswer,
-};
-
 const OCapNDeliverTargetCodec = makeRecordUnionCodec(
   'OCapNDeliverTargetCodec',
-  OCapNDeliverTargets,
+  {
+    DescExport,
+    DescAnswer,
+  },
 );
 
-/** @typedef {[string, ...any[]]} OpDeliverArgs */
+/** @typedef {[...any[]]} OpDeliverArgs */
 
 // Used by the deliver and deliver-only operations
 // First arg is method name, rest are Passables
@@ -76,10 +74,7 @@ const OpDeliverArgsCodec = freeze({
   read: syrupReader => {
     syrupReader.enterList();
     /** @type {OpDeliverArgs} */
-    const result = [
-      // method name
-      syrupReader.readSelectorAsString(),
-    ];
+    const result = [];
     while (!syrupReader.peekListEnd()) {
       result.push(OCapNPassableUnionCodec.read(syrupReader));
     }
@@ -90,9 +85,8 @@ const OpDeliverArgsCodec = freeze({
    * @param {OpDeliverArgs} args
    * @param {SyrupWriter} syrupWriter
    */
-  write: ([methodName, ...args], syrupWriter) => {
+  write: (args, syrupWriter) => {
     syrupWriter.enterList();
-    syrupWriter.writeSelectorFromString(methodName);
     for (const arg of args) {
       OCapNPassableUnionCodec.write(arg, syrupWriter);
     }
