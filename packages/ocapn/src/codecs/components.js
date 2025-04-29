@@ -16,6 +16,14 @@ import {
  * OCapN Components are used in both OCapN Messages and Descriptors
  */
 
+/**
+ * @typedef {object} OCapNLocation
+ * @property {'ocapn-node'} type
+ * @property {string} transport
+ * @property {string} address
+ * @property {boolean} hints
+ */
+
 export const OCapNNode = makeOCapNRecordCodecFromDefinition(
   'OCapNNodeCodec',
   'ocapn-node',
