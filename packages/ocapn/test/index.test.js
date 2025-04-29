@@ -15,53 +15,81 @@ import {
 } from './_table.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 import { sel } from './_syrup_util.js';
-import { throws } from './_util.js';
+import { throws, notThrowsWithErrorUnwrapping, maybeDecode } from './_util.js';
 
 const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder('utf-8', { fatal: true });
 
-const testBidirectionally = (t, codec, syrup, value, testName) => {
-  const syrupBytes = textEncoder.encode(syrup);
-  const syrupReader = makeSyrupReader(syrupBytes, { name: testName });
+/**
+ * @typedef {import('../src/syrup/codec.js').SyrupCodec} SyrupCodec
+ */
+
+/**
+ * @param {any} t
+ * @param {SyrupCodec} codec
+ * @param {string | Uint8Array} syrup
+ * @param {any} value
+ */
+const testBidirectionally = (t, codec, syrup, value) => {
+  // This text decoder is only for testing label purposes, so it doesn't need to be strict.
+  const descDecoder = new TextDecoder('utf-8', { fatal: false });
+  const syrupDesc =
+    typeof syrup === 'string' ? syrup : descDecoder.decode(syrup);
+  const syrupBytes =
+    typeof syrup === 'string' ? textEncoder.encode(syrup) : syrup;
+  const syrupReader = makeSyrupReader(syrupBytes, { name: syrupDesc });
   let result;
-  t.notThrows(() => {
-    result = codec.read(syrupReader);
-  }, testName);
-  t.deepEqual(result, value, testName);
+  notThrowsWithErrorUnwrapping(
+    t,
+    () => {
+      result = codec.read(syrupReader);
+    },
+    syrupDesc,
+  );
+  t.deepEqual(result, value, syrupDesc);
   const syrupWriter = makeSyrupWriter();
-  t.notThrows(() => {
-    codec.write(value, syrupWriter);
-  }, testName);
+  notThrowsWithErrorUnwrapping(
+    t,
+    () => {
+      codec.write(value, syrupWriter);
+    },
+    syrupDesc,
+  );
   const bytes2 = syrupWriter.getBytes();
-  const syrup2 = textDecoder.decode(bytes2);
-  t.deepEqual(syrup2, syrup, testName);
+  const { value: syrup2, isValidUtf8 } = maybeDecode(bytes2);
+  // We only match the syrup strings for easier debugging,
+  // and we can only do this if the syrup is valid UTF-8.
+  if (isValidUtf8) {
+    t.deepEqual(syrup2, syrupDesc, syrupDesc);
+  }
+  // Testing the bytes is what we actually care about.
+  t.deepEqual(syrupBytes, bytes2, syrupDesc);
 };
 
 test('affirmative component cases', t => {
   const codec = OCapNComponentUnionCodec;
   for (const { syrup, value } of componentsTable) {
-    testBidirectionally(t, codec, syrup, value, `for ${JSON.stringify(syrup)}`);
+    testBidirectionally(t, codec, syrup, value);
   }
 });
 
 test('affirmative descriptor cases', t => {
   const codec = OCapNDescriptorUnionCodec;
   for (const { syrup, value } of descriptorsTable) {
-    testBidirectionally(t, codec, syrup, value, `for ${JSON.stringify(syrup)}`);
+    testBidirectionally(t, codec, syrup, value);
   }
 });
 
 test('affirmative operation cases', t => {
   const codec = OCapNMessageUnionCodec;
   for (const { syrup, value } of operationsTable) {
-    testBidirectionally(t, codec, syrup, value, `for ${JSON.stringify(syrup)}`);
+    testBidirectionally(t, codec, syrup, value);
   }
 });
 
 test('affirmative passable cases', t => {
   const codec = OCapNPassableUnionCodec;
   for (const { syrup, value } of passableTable) {
-    testBidirectionally(t, codec, syrup, value, `for ${JSON.stringify(syrup)}`);
+    testBidirectionally(t, codec, syrup, value);
   }
 });
 
