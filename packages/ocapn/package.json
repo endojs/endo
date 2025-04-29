@@ -76,6 +76,8 @@
     "timeout": "2m"
   },
   "dependencies": {
-    "@endo/pass-style": "workspace:^"
+    "@endo/init": "workspace:^",
+    "@endo/pass-style": "workspace:^",
+    "@noble/curves": "^1.9.0"
   }
 }
