@@ -308,6 +308,8 @@ harden(assertRankSorted);
  * @returns {T[]}
  */
 export const sortByRank = (passables, compare) => {
+  /** @type {T[]} mutable for in-place sorting, but with hardened elements */
+  let unsorted;
   if (Array.isArray(passables)) {
     harden(passables);
     // Calling isRankSorted gives it a chance to get memoized for
@@ -316,9 +318,10 @@ export const sortByRank = (passables, compare) => {
     if (isRankSorted(passables, compare)) {
       return passables;
     }
+    unsorted = [...passables];
+  } else {
+    unsorted = Array.from(passables, harden);
   }
-  const unsorted = [...passables];
-  unsorted.forEach(harden);
   const sorted = unsorted.sort(compare);
   // For reverse comparison, move `undefined` values from the end to the start.
   // Note that passStylePrefixes (@see {@link ./encodePassable.js}) MUST NOT
