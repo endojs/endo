@@ -35,7 +35,12 @@ export const makeSelector = tagName => {
  * @param {any} selector
  * @returns {string}
  */
-export const getSelectorName = selector => selector[Symbol.toStringTag];
+export const getSelectorName = selector => {
+  if (selector[PASS_STYLE] !== 'selector') {
+    throw Error(`Selector expected, got ${typeof selector}`);
+  }
+  return selector[Symbol.toStringTag];
+};
 
 /**
  * @param {any} value
