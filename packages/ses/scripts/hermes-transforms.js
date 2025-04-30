@@ -61,11 +61,21 @@ const asyncGeneratorDestroyer = {
   FunctionDeclaration: destroyAsyncGenerators,
 };
 
+// Remove on Hermes since classes and private fields are unsupported on Hermes
+const removeImmutableArrayBufferShim = {
+  ImportDeclaration(path) {
+    if (path.node.source.value === '@endo/immutable-arraybuffer/shim.js') {
+      path.remove();
+    }
+  },
+};
+
 export const hermesTransforms = {
   mjs: (sourceBytes, specifier, location, _packageLocation, { sourceMap }) => {
     const transforms = {
       ...asyncArrowEliminator,
       ...asyncGeneratorDestroyer,
+      ...removeImmutableArrayBufferShim,
       // Some transforms might be added based on the specifier later
     };
 
