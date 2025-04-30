@@ -55,4 +55,3 @@ export const FERAL_STACK_GETTER = feralStackGetter;
  * @type {((newValue: any) => void) | undefined}
  */
 export const FERAL_STACK_SETTER = feralStackSetter;
-
