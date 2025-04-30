@@ -1,10 +1,9 @@
 // @ts-check
 
 import test from 'ava';
-import { makeHardener } from '../src/make-hardener.js';
-import { assert } from '../src/error/assert.js';
+import { makePreLockdownHardener as makeHardener } from '../src/make-hardener.js';
 
-const { quote: q } = assert;
+const q = JSON.stringify;
 
 test('makeHardener', t => {
   const h = makeHardener();
@@ -44,14 +43,14 @@ test('harden overlapping objects', t => {
   t.truthy(Object.isFrozen(o2));
 });
 
-test('harden up prototype chain', t => {
+test('do not harden up prototype chain', t => {
   const h = makeHardener();
   const a = { a: 1 };
   const b = { b: 1, __proto__: a };
   const c = { c: 1, __proto__: b };
 
   h(c);
-  t.truthy(Object.isFrozen(a));
+  t.truthy(!Object.isFrozen(a));
 });
 
 test('harden tolerates objects with null prototypes', t => {
@@ -290,7 +289,8 @@ test('harden a typed array subclass', t => {
   }
   h(Ooint8Array);
   t.truthy(Object.isFrozen(Ooint8Array.prototype));
-  t.truthy(Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
+  // pre-lockdown behavior
+  t.truthy(!Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
 
   const a = new Ooint8Array(1);
   t.is(h(a), a);
