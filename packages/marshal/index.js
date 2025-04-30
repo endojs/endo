@@ -16,6 +16,7 @@ export {
 
 export {
   trivialComparator,
+  compareNumerics,
   assertRankSorted,
   compareRank,
   isRankSorted,

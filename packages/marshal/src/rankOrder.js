@@ -8,7 +8,7 @@ import {
 
 /**
  * @import {Passable, PassStyle} from '@endo/pass-style'
- * @import {FullCompare, PartialCompare, PartialComparison, RankCompare, RankCover} from './types.js'
+ * @import {FullCompare, PartialCompare, PartialComparison, RankCompare, RankComparison, RankCover} from './types.js'
  */
 
 const { entries, fromEntries, setPrototypeOf, is } = Object;
@@ -44,9 +44,25 @@ const { entries, fromEntries, setPrototypeOf, is } = Object;
  */
 const sameValueZero = (x, y) => x === y || is(x, y);
 
+/**
+ * @deprecated use type-specific `compareNumerics` etc.
+ * @param {any} left
+ * @param {any} right
+ * @returns {RankComparison}
+ */
 export const trivialComparator = (left, right) =>
   // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
   left < right ? -1 : left === right ? 0 : 1;
+
+/**
+ * @template {number | bigint} T
+ * @param {T} left
+ * @param {T} right
+ * @returns {RankComparison}
+ */
+export const compareNumerics = (left, right) =>
+  // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
+  left < right ? -1 : left > right ? 1 : 0;
 
 /**
  * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
@@ -55,15 +71,20 @@ export const trivialComparator = (left, right) =>
 const passStyleRanks = /** @type {PassStyleRanksRecord} */ (
   fromEntries(
     entries(passStylePrefixes)
-      // Sort entries by ascending prefix.
-      .sort(([_leftStyle, leftPrefixes], [_rightStyle, rightPrefixes]) => {
-        return trivialComparator(leftPrefixes, rightPrefixes);
+      // Sort entries by ascending prefix, assuming that all prefixes are
+      // limited to the Basic Multilingual Plane (U+0000 through U+FFFF) and
+      // thus contain only code units that are equivalent to code points.
+      // In practice, they are entirely printable ASCII
+      // (0x20 SPACE through 0x7E TILDE).
+      .sort(([_aStyle, aPrefixes], [_bStyle, bPrefixes]) => {
+        // eslint-disable-next-line no-nested-ternary
+        return aPrefixes < bPrefixes ? -1 : aPrefixes > bPrefixes ? 1 : 0;
       })
       .map(([passStyle, prefixes], index) => {
-        // Cover all strings that start with any character in `prefixes`,
-        // verifying that it is sorted so that is
+        // Verify that `prefixes` is sorted, and cover all strings that start
+        // with any of its characters, i.e.
         // all s such that prefixes.at(0) ≤ s < successor(prefixes.at(-1)).
-        prefixes === [...prefixes].sort().join('') ||
+        prefixes === prefixes.split('').sort().join('') ||
           Fail`unsorted prefixes for passStyle ${q(passStyle)}: ${q(prefixes)}`;
         const cover = [
           prefixes.charAt(0),
@@ -118,7 +139,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
     const leftStyle = passStyleOf(left);
     const rightStyle = passStyleOf(right);
     if (leftStyle !== rightStyle) {
-      return trivialComparator(
+      return compareNumerics(
         passStyleRanks[leftStyle].index,
         passStyleRanks[rightStyle].index,
       );
