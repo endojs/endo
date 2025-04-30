@@ -4,43 +4,59 @@ import net from 'net';
 
 import { readOCapNMessage } from '../codecs/operations.js';
 import { makeSyrupReader } from '../syrup/decode.js';
+import { locationToLocationId } from '../client.js';
 
 const textDecoder = new TextDecoder();
 
 /**
- * @typedef {import('../cryptography.js').OCapNPublicKey} OCapNPublicKey
- * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
- * @typedef {import('../codecs/components.js').OCapNPublicKeyData} OCapNPublicKeyData
  * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
- * @typedef {import('../codecs/components.js').OCapNSignature} OCapNSignature
  * @typedef {import('./types.js').NetLayer} NetLayer
+ * @typedef {import('../client.js').Client} Client
  * @typedef {import('./types.js').Connection} Connection
  */
 
 /**
+ * @param {Client} client
  * @param {NetLayer} netlayer
  * @param {net.Socket} socket
  * @returns {Connection}
  */
-const makeConnection = (netlayer, socket) => {
-  return {
+const makeConnection = (client, netlayer, socket) => {
+  let isDestroyed = false;
+  /** @type {Connection} */
+  const connection = {
     netlayer,
     session: undefined,
-    write: bytes => {
+    get isDestroyed() {
+      return isDestroyed;
+    },
+    write(bytes) {
       socket.write(bytes);
     },
-    end: () => {
+    end() {
       socket.end();
+      connection.destroySession();
+    },
+    destroySession() {
+      isDestroyed = true;
+      // Clean up the session
+      if (connection.session) {
+        const peerLocation = connection.session.peer.location;
+        const locationId = locationToLocationId(peerLocation);
+        client.activeSessions.delete(locationId);
+        delete connection.session;
+      }
     },
   };
+  return connection;
 };
 
 /**
  * @param {object} options
- * @param {function(Connection, any): void} options.handleMessage
+ * @param {Client} options.client
  * @returns {NetLayer}
  */
-export const makeTcpNetLayer = ({ handleMessage }) => {
+export const makeTcpNetLayer = ({ client }) => {
   // Create and start TCP server
   const server = net.createServer();
 
@@ -59,7 +75,7 @@ export const makeTcpNetLayer = ({ handleMessage }) => {
 
   server.on('connection', socket => {
     console.log('Client connected to server');
-    const connection = makeConnection(netlayer, socket);
+    const connection = makeConnection(client, netlayer, socket);
 
     socket.on('data', data => {
       try {
@@ -68,7 +84,14 @@ export const makeTcpNetLayer = ({ handleMessage }) => {
           const message = readOCapNMessage(syrupReader);
           console.log('Server received message:', message);
           console.log(data.toString('hex'));
-          handleMessage(connection, message);
+          if (!connection.isDestroyed) {
+            client.handleMessage(connection, message);
+          } else {
+            console.log(
+              'Server received message after connection was destroyed',
+              message,
+            );
+          }
         }
       } catch (err) {
         console.error('Server received error:', err);
@@ -78,7 +101,12 @@ export const makeTcpNetLayer = ({ handleMessage }) => {
     });
 
     socket.on('error', err => {
-      console.error('Server socket error:', err);
+      console.error('Server socket error:', err, err.message, err.stack);
+    });
+
+    socket.on('close', () => {
+      console.log('Client disconnected from server');
+      connection.destroySession();
     });
   });
 

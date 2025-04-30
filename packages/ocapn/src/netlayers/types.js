@@ -36,6 +36,8 @@
  * @property {Session | undefined} session
  * @property {(bytes: Uint8Array) => void} write
  * @property {() => void} end
+ * @property {() => void} destroySession
+ * @property {boolean} isDestroyed
  */
 
 /**
@@ -51,5 +53,5 @@
  * Anytime the user needs to open a connection to a new peer, the user will be able
  * to check this table to see if a connection already exists, permitting
  * reuse of already established sessions.
- * @property {(connection: Connection) => void} handleMessage
+ * @property {(connection: Connection, message: any) => void} handleMessage
  */
