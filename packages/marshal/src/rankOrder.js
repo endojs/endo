@@ -190,21 +190,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
         );
       }
       case 'number': {
-        // `NaN`'s rank is after all other numbers.
-        if (Number.isNaN(left)) {
-          assert(!Number.isNaN(right));
-          return 1;
-        } else if (Number.isNaN(right)) {
-          return -1;
-        }
-        // The rank ordering of non-NaN numbers agrees with JavaScript's
-        // relational operators '<' and '>'.
-        if (left < right) {
-          return -1;
-        } else {
-          assert(left > right);
-          return 1;
-        }
+        return compareNumerics(left, right);
       }
       case 'copyRecord': {
         // Lexicographic by inverse sorted order of property names, then
