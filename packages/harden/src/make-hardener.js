@@ -26,7 +26,6 @@ import {
   String,
   TypeError,
   WeakSet,
-  globalThis,
   apply,
   arrayForEach,
   defineProperty,
@@ -34,9 +33,11 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getPrototypeOf,
+  globalThis,
+  hasOwn,
+  isError,
   isInteger,
-  isObject,
-  objectHasOwnProperty,
+  isPrimitive,
   ownKeys,
   preventExtensions,
   setAdd,
@@ -46,16 +47,12 @@ import {
   typedArrayPrototype,
   weaksetAdd,
   weaksetHas,
-  isError,
-} from '@endo/intrinsics';
+} from './commons.js';
 import { FERAL_STACK_GETTER, FERAL_STACK_SETTER } from './commons.js';
 
-/**
- * @param {any} guard
- * @returns {asserts guard}
- */
-const assert = guard => {
-  if (!guard) {
+/** @type {(condition: any) => asserts condition} */
+const assert = condition => {
+  if (!condition) {
     throw new TypeError('assertion failed');
   }
 };
@@ -71,7 +68,7 @@ const typedArrayToStringTag = getOwnPropertyDescriptor(
   typedArrayPrototype,
   toStringTagSymbol,
 );
-assert(typedArrayToStringTag !== undefined);
+assert(typedArrayToStringTag);
 const getTypedArrayToStringTag = typedArrayToStringTag.get;
 assert(getTypedArrayToStringTag);
 
@@ -135,10 +132,10 @@ const freezeTypedArray = array => {
  * Create a `harden` function.
  *
  * @template T
- * @param {boolean} ascendPrototypeChains
+ * @param {boolean} traversePrototypeChains
  * @returns {Harden<T>}
  */
-const makeHardener = ascendPrototypeChains => {
+export const makeHardener = traversePrototypeChains => {
   // Use a native hardener if possible.
   if (typeof globalThis.harden === 'function') {
     const safeHarden = globalThis.harden;
@@ -162,7 +159,7 @@ const makeHardener = ascendPrototypeChains => {
        * @param {any} val
        */
       function enqueue(val) {
-        if (!isObject(val)) {
+        if (isPrimitive(val)) {
           // ignore primitives
           return;
         }
@@ -202,7 +199,7 @@ const makeHardener = ascendPrototypeChains => {
         // get stable/immutable outbound links before a Proxy has a chance to do
         // something sneaky.
         const descs = getOwnPropertyDescriptors(obj);
-        if (ascendPrototypeChains) {
+        if (traversePrototypeChains) {
           const proto = getPrototypeOf(obj);
           enqueue(proto);
         }
@@ -219,7 +216,7 @@ const makeHardener = ascendPrototypeChains => {
           // test could be confused. We use hasOwnProperty to be sure about
           // whether 'value' is present or not, which tells us for sure that
           // this is a data property.
-          if (objectHasOwnProperty(desc, 'value')) {
+          if (hasOwn(desc, 'value')) {
             enqueue(desc.value);
           } else {
             enqueue(desc.get);
@@ -288,4 +285,4 @@ const makeHardener = ascendPrototypeChains => {
 };
 
 export const makePostLockdownHardener = () => makeHardener(true);
-export const makePreLockdownHardener = () => makeHardener(false);
+export const makePreLockdownHardener = () => makeHardener(false);;
