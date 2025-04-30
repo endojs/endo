@@ -49,8 +49,8 @@ export const DescHandoffGive = makeOCapNRecordCodecFromDefinition(
   {
     receiverKey: OCapNPublicKey,
     exporterLocation: OCapNNode,
-    session: 'bytestring',
-    gifterSide: OCapNPublicKey,
+    exporterSessionId: 'bytestring',
+    gifterSideId: 'bytestring',
     giftId: 'bytestring',
   },
 );

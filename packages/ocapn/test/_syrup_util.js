@@ -167,24 +167,24 @@ export const makeImportPromise = position => {
 /**
  * @param {string} receiverKey
  * @param {string} exporterLocation
- * @param {Uint8Array} session
- * @param {string} gifterSide
+ * @param {Uint8Array} exporterSessionId
+ * @param {Uint8Array} gifterSideId
  * @param {Uint8Array} giftId
  * @returns {string}
  */
 export const makeDescGive = (
   receiverKey,
   exporterLocation,
-  session,
-  gifterSide,
+  exporterSessionId,
+  gifterSideId,
   giftId,
 ) => {
   return record(
     'desc:handoff-give',
     receiverKey,
     exporterLocation,
-    bts(session),
-    gifterSide,
+    bts(exporterSessionId),
+    bts(gifterSideId),
     bts(giftId),
   );
 };

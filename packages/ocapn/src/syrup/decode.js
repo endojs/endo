@@ -160,7 +160,9 @@ function readAndAssertType(bufferReader, expectedType, name) {
   const start = bufferReader.index;
   const { value, type } = readTypeAndMaybeValue(bufferReader, name);
   if (type !== expectedType) {
-    throw Error(`Unexpected type ${quote(type)} at index ${start} of ${name}`);
+    throw Error(
+      `Unexpected type ${quote(type)}, expected ${quote(expectedType)} at index ${start} of ${name}`,
+    );
   }
   return value;
 }

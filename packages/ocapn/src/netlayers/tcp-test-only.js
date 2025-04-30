@@ -12,7 +12,6 @@ import {
 } from '../client.js';
 
 const { isNaN } = Number;
-const sloppyTextDecoder = new TextDecoder();
 
 /**
  * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
@@ -173,7 +172,7 @@ export const makeTcpNetLayer = ({ client }) => {
         }
       } catch (err) {
         console.error('Server received error:', err);
-        console.log('Server received data:', sloppyTextDecoder.decode(data));
+        console.log('Server received data:', data.toString('hex'));
         socket.end();
       }
     });

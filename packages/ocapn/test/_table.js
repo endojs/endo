@@ -117,9 +117,9 @@ export const descriptorsTable = [
       'desc:handoff-give',
       makePubKey(examplePubKeyQBytes),
       makeNode('tcp', '127.0.0.1', false),
-      btsStr('123'),
-      makePubKey(examplePubKeyQBytes),
-      btsStr('456'),
+      btsStr('exporter-session-id'),
+      btsStr('gifter-side-id'),
+      btsStr('gift-id'),
     ),
     value: {
       type: 'desc:handoff-give',
@@ -136,15 +136,9 @@ export const descriptorsTable = [
         address: '127.0.0.1',
         hints: false,
       },
-      session: strToUint8Array('123'),
-      gifterSide: {
-        type: 'public-key',
-        scheme: 'ecc',
-        curve: 'Ed25519',
-        flags: 'eddsa',
-        q: examplePubKeyQBytes,
-      },
-      giftId: strToUint8Array('456'),
+      exporterSessionId: strToUint8Array('exporter-session-id'),
+      gifterSideId: strToUint8Array('gifter-side-id'),
+      giftId: strToUint8Array('gift-id'),
     },
   },
   {
@@ -153,9 +147,9 @@ export const descriptorsTable = [
       makeDescGive(
         makePubKey(examplePubKeyQBytes),
         makeNode('tcp', '127.0.0.1', false),
-        strToUint8Array('123'),
-        makePubKey(examplePubKeyQBytes),
-        strToUint8Array('123'),
+        strToUint8Array('exporter-session-id'),
+        strToUint8Array('gifter-side-id'),
+        strToUint8Array('gift-id'),
       ),
       makeSig(exampleSigParamBytes, exampleSigParamBytes),
     ),
@@ -176,15 +170,9 @@ export const descriptorsTable = [
           address: '127.0.0.1',
           hints: false,
         },
-        session: strToUint8Array('123'),
-        gifterSide: {
-          type: 'public-key',
-          scheme: 'ecc',
-          curve: 'Ed25519',
-          flags: 'eddsa',
-          q: examplePubKeyQBytes,
-        },
-        giftId: strToUint8Array('123'),
+        exporterSessionId: strToUint8Array('exporter-session-id'),
+        gifterSideId: strToUint8Array('gifter-side-id'),
+        giftId: strToUint8Array('gift-id'),
       },
       signature: {
         type: 'sig-val',
@@ -205,9 +193,9 @@ export const descriptorsTable = [
         makeDescGive(
           makePubKey(examplePubKeyQBytes),
           makeNode('tcp', '127.0.0.1', false),
-          strToUint8Array('789'),
-          makePubKey(examplePubKeyQBytes),
-          strToUint8Array('def'),
+          strToUint8Array('exporter-session-id'),
+          strToUint8Array('gifter-side-id'),
+          strToUint8Array('gift-id'),
         ),
         makeSig(exampleSigParamBytes, exampleSigParamBytes),
       ),
@@ -234,15 +222,9 @@ export const descriptorsTable = [
             address: '127.0.0.1',
             hints: false,
           },
-          session: strToUint8Array('789'),
-          gifterSide: {
-            type: 'public-key',
-            scheme: 'ecc',
-            curve: 'Ed25519',
-            flags: 'eddsa',
-            q: examplePubKeyQBytes,
-          },
-          giftId: strToUint8Array('def'),
+          exporterSessionId: strToUint8Array('exporter-session-id'),
+          gifterSideId: strToUint8Array('gifter-side-id'),
+          giftId: strToUint8Array('gift-id'),
         },
         signature: {
           type: 'sig-val',
@@ -251,6 +233,37 @@ export const descriptorsTable = [
           s: exampleSigParamBytes,
         },
       },
+    },
+  },
+  // From the python test suite
+  {
+    syrup: hexToUint8Array(
+      '3c313727646573633a68616e646f66662d676976655b3130277075626c69632d6b65795b33276563635b352763757276653727456432353531395d5b3527666c616773352765646473615d5b31277133323aee6f0ea527145fa7716eae012c3897a7e7189f5ec15ecbbc28b242dac194d1d45d5d5d3c3130276f6361706e2d6e6f64653136277463702d74657374696e672d6f6e6c793135223132372e302e302e313a3631303035663e33323a2efa09d73d6ebfc89049111929454185d0a84951d7205f417e5170ca0ce856c633323af850bbc2ab01359fab54c0e310984528d5692b7579339a1ce4a161bfec3a0b82373a6d792d676966743e',
+    ),
+    value: {
+      type: 'desc:handoff-give',
+      receiverKey: {
+        type: 'public-key',
+        scheme: 'ecc',
+        curve: 'Ed25519',
+        flags: 'eddsa',
+        q: hexToUint8Array(
+          'ee6f0ea527145fa7716eae012c3897a7e7189f5ec15ecbbc28b242dac194d1d4',
+        ),
+      },
+      exporterLocation: {
+        type: 'ocapn-node',
+        transport: 'tcp-testing-only',
+        address: '127.0.0.1:61005',
+        hints: false,
+      },
+      exporterSessionId: hexToUint8Array(
+        '2efa09d73d6ebfc89049111929454185d0a84951d7205f417e5170ca0ce856c6',
+      ),
+      gifterSideId: hexToUint8Array(
+        'f850bbc2ab01359fab54c0e310984528d5692b7579339a1ce4a161bfec3a0b82',
+      ),
+      giftId: strToUint8Array('my-gift'),
     },
   },
 ];
@@ -399,9 +412,9 @@ export const operationsTable = [
         makeDescGive(
           makePubKey(examplePubKeyQBytes),
           makeNode('tcp', '127.0.0.1', false),
-          strToUint8Array('789'),
-          makePubKey(examplePubKeyQBytes),
-          strToUint8Array('def'),
+          strToUint8Array('exporter-session-id'),
+          strToUint8Array('gifter-side-id'),
+          strToUint8Array('gift-id'),
         ),
         makeSig(exampleSigParamBytes, exampleSigParamBytes),
       ),
@@ -433,15 +446,9 @@ export const operationsTable = [
                 address: '127.0.0.1',
                 hints: false,
               },
-              session: strToUint8Array('789'),
-              gifterSide: {
-                type: 'public-key',
-                scheme: 'ecc',
-                curve: 'Ed25519',
-                flags: 'eddsa',
-                q: examplePubKeyQBytes,
-              },
-              giftId: strToUint8Array('def'),
+              exporterSessionId: strToUint8Array('exporter-session-id'),
+              gifterSideId: strToUint8Array('gifter-side-id'),
+              giftId: strToUint8Array('gift-id'),
             },
             signature: {
               type: 'sig-val',
@@ -809,6 +816,58 @@ export const operationsTable = [
             hints: false,
           },
           swissNum: strToUint8Array('my-object'),
+        },
+      ],
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3135276f703a64656c697665722d6f6e6c793c313127646573633a6578706f7274312b3e5b3c313727646573633a7369672d656e76656c6f70653c313727646573633a68616e646f66662d676976655b3130277075626c69632d6b65795b33276563635b352763757276653727456432353531395d5b3527666c616773352765646473615d5b31277133323aee6f0ea527145fa7716eae012c3897a7e7189f5ec15ecbbc28b242dac194d1d45d5d5d3c3130276f6361706e2d6e6f64653136277463702d74657374696e672d6f6e6c793135223132372e302e302e313a3631303035663e33323a2efa09d73d6ebfc89049111929454185d0a84951d7205f417e5170ca0ce856c633323af850bbc2ab01359fab54c0e310984528d5692b7579339a1ce4a161bfec3a0b82373a6d792d676966743e5b37277369672d76616c5b352765646473615b31277233323aaf8535ee488efa14599e4b5a5449bff243656e5807eb176e3586126d87e298535d5b31277333323abbb8b450b1c915bc49388a42ecf9081096fbcf9445c77ca6bad5d71be52985025d5d5d3e5d3e',
+    ),
+    value: {
+      type: 'op:deliver-only',
+      to: {
+        type: 'desc:export',
+        position: 1n,
+      },
+      args: [
+        {
+          type: 'desc:sig-envelope',
+          object: {
+            type: 'desc:handoff-give',
+            receiverKey: {
+              type: 'public-key',
+              scheme: 'ecc',
+              curve: 'Ed25519',
+              flags: 'eddsa',
+              q: hexToUint8Array(
+                'ee6f0ea527145fa7716eae012c3897a7e7189f5ec15ecbbc28b242dac194d1d4',
+              ),
+            },
+            exporterLocation: {
+              type: 'ocapn-node',
+              transport: 'tcp-testing-only',
+              address: '127.0.0.1:61005',
+              hints: false,
+            },
+            exporterSessionId: hexToUint8Array(
+              '2efa09d73d6ebfc89049111929454185d0a84951d7205f417e5170ca0ce856c6',
+            ),
+            gifterSideId: hexToUint8Array(
+              'f850bbc2ab01359fab54c0e310984528d5692b7579339a1ce4a161bfec3a0b82',
+            ),
+            giftId: hexToUint8Array('6d792d67696674'),
+          },
+          signature: {
+            type: 'sig-val',
+            scheme: 'eddsa',
+            r: hexToUint8Array(
+              'af8535ee488efa14599e4b5a5449bff243656e5807eb176e3586126d87e29853',
+            ),
+            s: hexToUint8Array(
+              'bbb8b450b1c915bc49388a42ecf9081096fbcf9445c77ca6bad5d71be5298502',
+            ),
+          },
         },
       ],
     },
