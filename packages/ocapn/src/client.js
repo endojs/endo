@@ -19,10 +19,18 @@ import { getSelectorName, makeSelector } from './pass-style-helpers.js';
  * @typedef {import('./netlayers/types.js').Client} Client
  */
 
-const locationToLocationId = location => {
+/**
+ * @param {OCapNLocation} location
+ * @returns {string}
+ */
+export const locationToLocationId = location => {
   return `${location.transport}:${location.address}`;
 };
 
+/**
+ * @param {OCapNLocation} location
+ * @returns {Uint8Array}
+ */
 const getLocationBytesForSignature = location => {
   const syrupWriter = makeSyrupWriter();
   const myLocation = {
@@ -389,7 +397,7 @@ const handleSessionInitMessage = (client, connection, message) => {
       const locationId = locationToLocationId(peerLocation);
       if (activeSessions.has(locationId)) {
         // throw error
-        throw Error('Session already exists');
+        throw Error('Active session already exists');
       }
       if (outgoingSessions.has(locationId)) {
         // TODO: Check for crossed hellos, select correct session

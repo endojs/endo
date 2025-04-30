@@ -96,4 +96,4 @@ testObjectTable.set(
 );
 
 const client = makeClient({ makeDefaultSwissnumTable: () => testObjectTable });
-makeTcpNetLayer({ handleMessage: client.handleMessage });
+makeTcpNetLayer({ client });
