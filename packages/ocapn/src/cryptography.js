@@ -1,6 +1,10 @@
 // @ts-check
 
 import { ed25519 } from '@noble/curves/ed25519';
+import { sha256 } from '@noble/hashes/sha2.js';
+
+import { makeSyrupWriter } from './syrup/encode.js';
+import { OCapNPublicKey } from './codecs/components.js';
 
 /** @typedef {import('./codecs/components.js').OCapNSignature} OCapNSignature */
 /** @typedef {import('./codecs/components.js').OCapNPublicKeyData} OCapNPublicKeyData */
@@ -62,4 +66,38 @@ export const makeOCapNKeyPair = () => {
       };
     },
   };
+};
+
+/**
+ * @param {OCapNPublicKey} publicKey
+ * @returns {OCapNPublicKeyData}
+ */
+export const publicKeyToPublicKeyData = publicKey => {
+  return {
+    type: 'public-key',
+    scheme: 'ecc',
+    curve: 'Ed25519',
+    flags: 'eddsa',
+    q: publicKey.bytes,
+  };
+};
+
+/**
+ * @param {OCapNPublicKeyData} publicKeyData
+ * @returns {Uint8Array}
+ */
+const publicKeyDataToEncodedBytes = publicKeyData => {
+  const syrupWriter = makeSyrupWriter();
+  OCapNPublicKey.write(publicKeyData, syrupWriter);
+  return syrupWriter.getBytes();
+};
+
+/**
+ * @param {OCapNPublicKeyData} publicKeyData
+ * @returns {Uint8Array}
+ */
+export const makeCrossedHellosIdForPublicKeyData = publicKeyData => {
+  const publicKeyEncoded = publicKeyDataToEncodedBytes(publicKeyData);
+  // Double SHA256 hash of the public key
+  return sha256(sha256(publicKeyEncoded));
 };

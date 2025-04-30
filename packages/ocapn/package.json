@@ -37,7 +37,9 @@
   "dependencies": {
     "@endo/init": "workspace:^",
     "@endo/pass-style": "workspace:^",
-    "@noble/curves": "^1.9.0"
+    "@endo/promise-kit": "workspace:^",
+    "@noble/curves": "^1.9.0",
+    "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
