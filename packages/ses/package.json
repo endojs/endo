@@ -94,7 +94,9 @@
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
-    "@endo/env-options": "workspace:^"
+    "@endo/env-options": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/intrinsics": "workspace:^"
   },
   "devDependencies": {
     "@babel/generator": "^7.26.3",
