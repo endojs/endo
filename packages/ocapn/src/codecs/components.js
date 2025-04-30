@@ -40,7 +40,7 @@ export const OCapNSturdyRef = makeOCapNRecordCodecFromDefinition(
   'ocapn-sturdyref',
   {
     node: OCapNNode,
-    swissNum: 'string',
+    swissNum: 'bytestring',
   },
 );
 
