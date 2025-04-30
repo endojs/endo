@@ -3,10 +3,10 @@
 import {
   passStyleOf,
   getTag,
+  compareNumerics,
   compareRank,
   recordNames,
   recordValues,
-  trivialComparator,
 } from '@endo/marshal';
 import { q, Fail } from '@endo/errors';
 import {
@@ -31,7 +31,7 @@ export const setCompare = makeCompareCollection(
     s => harden(getCopySetKeys(s).map(key => [key, 1]))
   ),
   0,
-  trivialComparator,
+  compareNumerics,
 );
 harden(setCompare);
 
@@ -46,7 +46,7 @@ harden(setCompare);
 export const bagCompare = makeCompareCollection(
   getCopyBagEntries,
   0n,
-  trivialComparator,
+  compareNumerics,
 );
 harden(bagCompare);
 

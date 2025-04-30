@@ -8,9 +8,10 @@ import {
 
 /**
  * @import {Passable, PassStyle} from '@endo/pass-style'
- * @import {FullCompare, PartialCompare, PartialComparison, RankCompare, RankCover} from './types.js'
+ * @import {FullCompare, PartialCompare, PartialComparison, RankCompare, RankComparison, RankCover} from './types.js'
  */
 
+const { isNaN: NumberIsNaN } = Number;
 const { entries, fromEntries, setPrototypeOf, is } = Object;
 
 /**
@@ -44,9 +45,36 @@ const { entries, fromEntries, setPrototypeOf, is } = Object;
  */
 const sameValueZero = (x, y) => x === y || is(x, y);
 
+/**
+ * @deprecated use type-specific `compareNumerics` etc.
+ * @param {any} left
+ * @param {any} right
+ * @returns {RankComparison}
+ */
 export const trivialComparator = (left, right) =>
   // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
   left < right ? -1 : left === right ? 0 : 1;
+
+/**
+ * Compare two same-type numeric values, returning results consistent with
+ * `compareRank`'s "rank order" (i.e., treating both positive and negative zero
+ * as equal and placing NaN as self-equal after all other numbers).
+ *
+ * @template {number | bigint} T
+ * @param {T} left
+ * @param {T} right
+ * @returns {RankComparison}
+ */
+export const compareNumerics = (left, right) => {
+  // eslint-disable-next-line @endo/restrict-comparison-operands
+  if (left < right) return -1;
+  // eslint-disable-next-line @endo/restrict-comparison-operands
+  if (left > right) return 1;
+  if (NumberIsNaN(left) === NumberIsNaN(right)) return 0;
+  if (NumberIsNaN(right)) return -1;
+  assert(NumberIsNaN(left));
+  return 1;
+};
 
 /**
  * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
@@ -55,15 +83,20 @@ export const trivialComparator = (left, right) =>
 const passStyleRanks = /** @type {PassStyleRanksRecord} */ (
   fromEntries(
     entries(passStylePrefixes)
-      // Sort entries by ascending prefix.
-      .sort(([_leftStyle, leftPrefixes], [_rightStyle, rightPrefixes]) => {
-        return trivialComparator(leftPrefixes, rightPrefixes);
+      // Sort entries by ascending prefix, assuming that all prefixes are
+      // limited to the Basic Multilingual Plane (U+0000 through U+FFFF) and
+      // thus contain only code units that are equivalent to code points.
+      // In practice, they are entirely printable ASCII
+      // (0x20 SPACE through 0x7E TILDE).
+      .sort(([_aStyle, aPrefixes], [_bStyle, bPrefixes]) => {
+        // eslint-disable-next-line no-nested-ternary
+        return aPrefixes < bPrefixes ? -1 : aPrefixes > bPrefixes ? 1 : 0;
       })
       .map(([passStyle, prefixes], index) => {
-        // Cover all strings that start with any character in `prefixes`,
-        // verifying that it is sorted so that is
+        // Verify that `prefixes` is sorted, and cover all strings that start
+        // with any of its characters, i.e.
         // all s such that prefixes.at(0) ≤ s < successor(prefixes.at(-1)).
-        prefixes === [...prefixes].sort().join('') ||
+        prefixes === prefixes.split('').sort().join('') ||
           Fail`unsorted prefixes for passStyle ${q(passStyle)}: ${q(prefixes)}`;
         const cover = [
           prefixes.charAt(0),
@@ -118,7 +151,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
     const leftStyle = passStyleOf(left);
     const rightStyle = passStyleOf(right);
     if (leftStyle !== rightStyle) {
-      return trivialComparator(
+      return compareNumerics(
         passStyleRanks[leftStyle].index,
         passStyleRanks[rightStyle].index,
       );
@@ -157,21 +190,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
         );
       }
       case 'number': {
-        // `NaN`'s rank is after all other numbers.
-        if (Number.isNaN(left)) {
-          assert(!Number.isNaN(right));
-          return 1;
-        } else if (Number.isNaN(right)) {
-          return -1;
-        }
-        // The rank ordering of non-NaN numbers agrees with JavaScript's
-        // relational operators '<' and '>'.
-        if (left < right) {
-          return -1;
-        } else {
-          assert(left > right);
-          return 1;
-        }
+        return compareNumerics(left, right);
       }
       case 'copyRecord': {
         // Lexicographic by inverse sorted order of property names, then
@@ -287,6 +306,8 @@ harden(assertRankSorted);
  * @returns {T[]}
  */
 export const sortByRank = (passables, compare) => {
+  /** @type {T[]} mutable for in-place sorting, but with hardened elements */
+  let unsorted;
   if (Array.isArray(passables)) {
     harden(passables);
     // Calling isRankSorted gives it a chance to get memoized for
@@ -295,9 +316,10 @@ export const sortByRank = (passables, compare) => {
     if (isRankSorted(passables, compare)) {
       return passables;
     }
+    unsorted = [...passables];
+  } else {
+    unsorted = Array.from(passables, harden);
   }
-  const unsorted = [...passables];
-  unsorted.forEach(harden);
   const sorted = unsorted.sort(compare);
   // For reverse comparison, move `undefined` values from the end to the start.
   // Note that passStylePrefixes (@see {@link ./encodePassable.js}) MUST NOT

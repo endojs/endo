@@ -181,7 +181,7 @@ harden(generateCollectionPairEntries);
  * @template [C=KeyCollection]
  * @template [V=unknown]
  * @param {(collection: C) => Array<[Key, V]>} getEntries
- * @param {any} absentValue
+ * @param {V} absentValue
  * @param {KeyCompare} compareValues
  * @returns {(left: C, right: C) => KeyComparison}
  */
