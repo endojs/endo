@@ -95,7 +95,9 @@
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
-    "@endo/immutable-arraybuffer": "workspace:^"
+    "@endo/harden": "workspace:^",
+    "@endo/immutable-arraybuffer": "workspace:^",
+    "@endo/intrinsics": "workspace:^"
   },
   "devDependencies": {
     "@babel/generator": "^7.26.3",
