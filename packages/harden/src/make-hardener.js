@@ -35,7 +35,7 @@ import {
   getOwnPropertyDescriptors,
   getPrototypeOf,
   isInteger,
-  isObject,
+  isPrimitive,
   objectHasOwnProperty,
   ownKeys,
   preventExtensions,
@@ -50,12 +50,9 @@ import {
 } from '@endo/intrinsics';
 import { FERAL_STACK_GETTER, FERAL_STACK_SETTER } from './commons.js';
 
-/**
- * @param {any} guard
- * @returns {asserts guard}
- */
-const assert = guard => {
-  if (!guard) {
+/** @type {(condition: any) => asserts condition} */
+const assert = condition => {
+  if (!condition) {
     throw new TypeError('assertion failed');
   }
 };
@@ -71,7 +68,7 @@ const typedArrayToStringTag = getOwnPropertyDescriptor(
   typedArrayPrototype,
   toStringTagSymbol,
 );
-assert(typedArrayToStringTag !== undefined);
+assert(typedArrayToStringTag);
 const getTypedArrayToStringTag = typedArrayToStringTag.get;
 assert(getTypedArrayToStringTag);
 
@@ -135,10 +132,10 @@ const freezeTypedArray = array => {
  * Create a `harden` function.
  *
  * @template T
- * @param {boolean} ascendPrototypeChains
+ * @param {boolean} traversePrototypeChains
  * @returns {Harden<T>}
  */
-const makeHardener = ascendPrototypeChains => {
+const makeHardener = traversePrototypeChains => {
   // Use a native hardener if possible.
   if (typeof globalThis.harden === 'function') {
     const safeHarden = globalThis.harden;
@@ -162,7 +159,7 @@ const makeHardener = ascendPrototypeChains => {
        * @param {any} val
        */
       function enqueue(val) {
-        if (!isObject(val)) {
+        if (isPrimitive(val)) {
           // ignore primitives
           return;
         }
@@ -202,7 +199,7 @@ const makeHardener = ascendPrototypeChains => {
         // get stable/immutable outbound links before a Proxy has a chance to do
         // something sneaky.
         const descs = getOwnPropertyDescriptors(obj);
-        if (ascendPrototypeChains) {
+        if (traversePrototypeChains) {
           const proto = getPrototypeOf(obj);
           enqueue(proto);
         }
