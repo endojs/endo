@@ -46,11 +46,15 @@ import {
   typedArrayPrototype,
   weaksetAdd,
   weaksetHas,
-  FERAL_STACK_GETTER,
-  FERAL_STACK_SETTER,
   isError,
-} from './commons.js';
-import { assert } from './error/assert.js';
+} from '@endo/intrinsics';
+import { FERAL_STACK_GETTER, FERAL_STACK_SETTER } from './commons.js';
+
+const assert = guard => {
+  if (!guard) {
+    throw new TypeError('assertion failed');
+  }
+};
 
 /**
  * @import {Harden} from '../types.js'
@@ -125,9 +129,10 @@ const freezeTypedArray = array => {
 /**
  * Create a `harden` function.
  *
+ * @param {boolean} ascendPrototypeChains
  * @returns {Harden}
  */
-export const makeHardener = () => {
+const makeHardener = ascendPrototypeChains => {
   // Use a native hardener if possible.
   if (typeof globalThis.harden === 'function') {
     const safeHarden = globalThis.harden;
@@ -191,8 +196,10 @@ export const makeHardener = () => {
         // get stable/immutable outbound links before a Proxy has a chance to do
         // something sneaky.
         const descs = getOwnPropertyDescriptors(obj);
-        const proto = getPrototypeOf(obj);
-        enqueue(proto);
+        if (ascendPrototypeChains) {
+          const proto = getPrototypeOf(obj);
+          enqueue(proto);
+        }
 
         arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
           // The 'name' may be a symbol, and TypeScript doesn't like us to
@@ -273,3 +280,6 @@ export const makeHardener = () => {
 
   return harden;
 };
+
+export const makePostLockdownHardener = () => makeHardener(true);
+export const makePreLockdownHardener = () => makeHardener(false);
