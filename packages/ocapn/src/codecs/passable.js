@@ -28,6 +28,7 @@ import {
   DescAnswer,
   DescHandoffGive,
   DescHandoffReceive,
+  DescSigGiveEnvelope,
 } from './descriptors.js';
 
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
@@ -196,7 +197,7 @@ const OCapNPassableRecordUnionCodec = makeRecordUnionCodec(
     DescAnswer,
     DescHandoffGive,
     DescHandoffReceive,
-    // DescSigGiveEnvelope,
+    DescSigGiveEnvelope,
     // DescSigReceiveEnvelope,
     OCapNErrorCodec,
   },
