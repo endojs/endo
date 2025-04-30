@@ -10,6 +10,7 @@
 /**
  * @typedef {object} NetLayer
  * @property {OCapNLocation} location
+ * @property {(location: OCapNLocation) => Connection} connect
  */
 
 /**
@@ -31,13 +32,23 @@
  */
 
 /**
+ * @typedef {object} SelfIdentity
+ * @property {OCapNLocation} location
+ * @property {OCapNKeyPair} keyPair
+ * @property {OCapNSignature} locationSignature
+ */
+
+/**
  * @typedef {object} Connection
  * @property {NetLayer} netlayer
+ * @property {boolean} isOutgoing
+ * @property {SelfIdentity} selfIdentity
  * @property {Session | undefined} session
  * @property {(bytes: Uint8Array) => void} write
  * @property {() => void} end
  * @property {() => void} destroySession
  * @property {boolean} isDestroyed
+ * @property {() => Promise<Session>} whenSessionReady
  */
 
 /**
@@ -48,10 +59,13 @@
  * Anytime the user needs to open a connection to a new peer, the user will be able
  * to check this table to see if a connection already exists, permitting
  * reuse of already established sessions.
- * @property {Map<string, Session>} outgoingSessions
+ * @property {Map<string, Connection>} outgoingConnections
  * Used to help the user mitigate the crossed hellos problem
  * Anytime the user needs to open a connection to a new peer, the user will be able
  * to check this table to see if a connection already exists, permitting
  * reuse of already established sessions.
+ * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, message: any) => void} handleMessage
+ * @property {(location: OCapNLocation) => Connection} connect
+ * @property {(location: OCapNLocation) => Promise<any>} enlivenSturdyref
  */

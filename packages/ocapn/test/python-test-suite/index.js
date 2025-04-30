@@ -11,9 +11,10 @@ import { makeClient } from '../../src/client.js';
  */
 
 /**
+ * @param {Client} client
  * @returns {Map<string, any>}
  */
-const makeTestObjectTable = () => {
+const makeTestObjectTable = client => {
   const testObjectTable = new Map();
 
   /**
@@ -134,8 +135,28 @@ const makeTestObjectTable = () => {
     },
   );
 
+  /**
+   * Sturdyref enlivener
+   *
+   * This takes a single argument which OCapN sturdyref object. The actor should
+   * "enliven" (connect to the node and get a live reference to the object)
+   * the sturdyref and then return that to
+   *  the messager.
+   */
+  testObjectTable.set(
+    'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
+    function sturdyrefEnlivener(sturdyref) {
+      console.log('sturdyrefEnlivener called with', { sturdyref });
+      client.enlivenSturdyref(sturdyref);
+      return undefined;
+    },
+  );
+
   return testObjectTable;
 };
 
-const client = makeClient({ makeDefaultSwissnumTable: makeTestObjectTable });
-makeTcpNetLayer({ client });
+const client = makeClient({
+  makeDefaultSwissnumTable: () => makeTestObjectTable(client),
+});
+const tcpNetlayer = makeTcpNetLayer({ client });
+client.registerNetlayer(tcpNetlayer);

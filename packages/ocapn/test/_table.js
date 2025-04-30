@@ -58,7 +58,7 @@ export const componentsTable = [
     syrup: record(
       'ocapn-sturdyref',
       makeNode('tcp', '127.0.0.1', false),
-      str('1'),
+      btsStr('1'),
     ),
     value: {
       type: 'ocapn-sturdyref',
@@ -68,7 +68,7 @@ export const componentsTable = [
         address: '127.0.0.1',
         hints: false,
       },
-      swissNum: '1',
+      swissNum: strToUint8Array('1'),
     },
   },
   {
@@ -787,6 +787,30 @@ export const operationsTable = [
         position: 2n,
       },
       wantsPartial: false,
+    },
+  },
+  {
+    syrup: hexToUint8Array(
+      '3c3135276f703a64656c697665722d6f6e6c793c313127646573633a6578706f7274312b3e5b3c3135276f6361706e2d7374757264797265663c3130276f6361706e2d6e6f64653136277463702d74657374696e672d6f6e6c793135223132372e302e302e313a3635343730663e393a6d792d6f626a6563743e5d3e',
+    ),
+    value: {
+      type: 'op:deliver-only',
+      to: {
+        type: 'desc:export',
+        position: 1n,
+      },
+      args: [
+        {
+          type: 'ocapn-sturdyref',
+          node: {
+            type: 'ocapn-node',
+            transport: 'tcp-testing-only',
+            address: '127.0.0.1:65470',
+            hints: false,
+          },
+          swissNum: strToUint8Array('my-object'),
+        },
+      ],
     },
   },
 ];
