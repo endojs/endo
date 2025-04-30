@@ -11,6 +11,7 @@ import {
  * @import {FullCompare, PartialCompare, PartialComparison, RankCompare, RankComparison, RankCover} from './types.js'
  */
 
+const { isNaN: NumberIsNaN } = Number;
 const { entries, fromEntries, setPrototypeOf, is } = Object;
 
 /**
@@ -55,14 +56,25 @@ export const trivialComparator = (left, right) =>
   left < right ? -1 : left === right ? 0 : 1;
 
 /**
+ * Compare two same-type numeric values, returning results consistent with
+ * `compareRank`'s "rank order" (i.e., treating both positive and negative zero
+ * as equal and placing NaN as self-equal after all other numbers).
+ *
  * @template {number | bigint} T
  * @param {T} left
  * @param {T} right
  * @returns {RankComparison}
  */
-export const compareNumerics = (left, right) =>
-  // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
-  left < right ? -1 : left > right ? 1 : 0;
+export const compareNumerics = (left, right) => {
+  // eslint-disable-next-line @endo/restrict-comparison-operands
+  if (left < right) return -1;
+  // eslint-disable-next-line @endo/restrict-comparison-operands
+  if (left > right) return 1;
+  if (NumberIsNaN(left) === NumberIsNaN(right)) return 0;
+  if (NumberIsNaN(right)) return -1;
+  assert(NumberIsNaN(left));
+  return 1;
+};
 
 /**
  * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
