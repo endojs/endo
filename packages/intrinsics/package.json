@@ -67,7 +67,10 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
-    ]
+    ],
+    "rules": {
+      "@endo/no-polymorphic-call": "error"
+    }
   },
   "ava": {
     "files": [
