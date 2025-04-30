@@ -42,12 +42,12 @@ test('Immutable ArrayBuffer shim ops', t => {
 
   t.is(iab.maxByteLength, 2);
   if (canResize) {
-    t.is(ab1.maxByteLength, 0);
+    t.is(ab1.maxByteLength, 7);
     t.is(ab2.maxByteLength, 2);
   }
 
   if ('detached' in ab1) {
-    t.true(ab1.detached);
+    t.false(ab1.detached);
     t.false(ab2.detached);
     t.false(ab3.detached);
   }
