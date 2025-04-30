@@ -198,25 +198,16 @@ const makeSession = ({
 
 /**
  * @param {Connection} connection
- * @param {bigint | false} answerPosition
  * @param {any} resolveMeDesc
  * @param {Promise<any>} promise
+ * @param {boolean} _wantsPartial
  */
-const registerAnswer = (connection, answerPosition, resolveMeDesc, promise) => {
-  const { session } = connection;
-  if (!session) {
-    throw Error('No session');
-  }
-  if (answerPosition !== false) {
-    console.log(
-      '++ Registering answer',
-      answerPosition,
-      resolveMeDesc,
-      promise,
-    );
-    session.tables.answerTable.set(answerPosition, promise);
-  }
-
+const schedulePromiseListener = (
+  connection,
+  resolveMeDesc,
+  promise,
+  _wantsPartial,
+) => {
   const sendResolve = result => {
     // Respond with the result
     const opDeliver = {
@@ -249,6 +240,30 @@ const registerAnswer = (connection, answerPosition, resolveMeDesc, promise) => {
   };
 
   promise.then(sendResolve, sendReject);
+};
+
+/**
+ * @param {Connection} connection
+ * @param {bigint | false} answerPosition
+ * @param {any} resolveMeDesc
+ * @param {Promise<any>} promise
+ */
+const registerAnswer = (connection, answerPosition, resolveMeDesc, promise) => {
+  const { session } = connection;
+  if (!session) {
+    throw Error('No session');
+  }
+  if (answerPosition !== false) {
+    console.log(
+      '++ Registering answer',
+      answerPosition,
+      resolveMeDesc,
+      promise,
+    );
+    session.tables.answerTable.set(answerPosition, promise);
+  }
+
+  schedulePromiseListener(connection, resolveMeDesc, promise, false);
 };
 
 const maybeResolveExport = (session, target) => {
@@ -312,8 +327,14 @@ const handleActiveSessionMessage = (connection, message) => {
     }
 
     case 'op:deliver': {
-      console.log('Server received op:deliver');
       const { to, args, answerPosition, resolveMeDesc } = message;
+      console.log(
+        'Server received op:deliver',
+        to,
+        args,
+        answerPosition,
+        resolveMeDesc,
+      );
       // Handle call to the bootstrap object
       if (to.position === 0n && to.type === 'desc:export') {
         const methodName = getSelectorName(args[0]);
@@ -348,12 +369,32 @@ const handleActiveSessionMessage = (connection, message) => {
     }
 
     case 'op:deliver-only': {
-      console.log('Server received op:deliver-only');
       const { to, args } = message;
+      console.log('Server received op:deliver-only', to, args);
       const target = lookupExport(session, to);
-      console.log('Server received op:deliver-only', target, args);
       const resultP = handleLocalObjectCall(connection, target, args);
       console.log('Server processed op:deliver-only', target, args, resultP);
+      break;
+    }
+
+    case 'op:listen': {
+      const { to, resolveMeDesc, wantsPartial } = message;
+      console.log('Server received op:listen', {
+        to,
+        resolveMeDesc,
+        wantsPartial,
+      });
+      if (to.type !== 'desc:export' && to.type !== 'desc:answer') {
+        throw Error(`Invalid op:listen to: ${to}`);
+      }
+      if (
+        resolveMeDesc.type !== 'desc:import-object' &&
+        resolveMeDesc.type !== 'desc:import-promise'
+      ) {
+        throw Error(`Invalid op:listen resolveMeDesc: ${resolveMeDesc}`);
+      }
+      const resultP = lookupExport(session, to);
+      schedulePromiseListener(connection, resolveMeDesc, resultP, wantsPartial);
       break;
     }
 
