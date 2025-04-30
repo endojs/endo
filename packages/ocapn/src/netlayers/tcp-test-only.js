@@ -2,31 +2,54 @@
 
 import net from 'net';
 
+import { makePromiseKit } from '@endo/promise-kit';
 import { readOCapNMessage } from '../codecs/operations.js';
 import { makeSyrupReader } from '../syrup/decode.js';
-import { locationToLocationId } from '../client.js';
+import {
+  locationToLocationId,
+  makeSelfIdentity,
+  sendHello,
+} from '../client.js';
 
-const textDecoder = new TextDecoder();
+const { isNaN } = Number;
+const sloppyTextDecoder = new TextDecoder();
 
 /**
  * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
  * @typedef {import('./types.js').NetLayer} NetLayer
  * @typedef {import('../client.js').Client} Client
  * @typedef {import('./types.js').Connection} Connection
+ * @typedef {import('./types.js').Session} Session
  */
 
 /**
  * @param {Client} client
  * @param {NetLayer} netlayer
  * @param {net.Socket} socket
+ * @param {boolean} isOutgoing
  * @returns {Connection}
  */
-const makeConnection = (client, netlayer, socket) => {
+const makeConnection = (client, netlayer, socket, isOutgoing) => {
   let isDestroyed = false;
+  /** @type {Session | undefined} */
+  let session;
+  const { promise: whenSessionReady, resolve: setSession } = makePromiseKit();
+  const selfIdentity = makeSelfIdentity(netlayer.location);
   /** @type {Connection} */
   const connection = {
     netlayer,
-    session: undefined,
+    isOutgoing,
+    selfIdentity,
+    get session() {
+      return session;
+    },
+    set session(value) {
+      if (session) {
+        throw Error('Session already set');
+      }
+      session = value;
+      setSession(value);
+    },
     get isDestroyed() {
       return isDestroyed;
     },
@@ -46,6 +69,17 @@ const makeConnection = (client, netlayer, socket) => {
         client.activeSessions.delete(locationId);
         delete connection.session;
       }
+    },
+    async whenSessionReady() {
+      await whenSessionReady;
+      if (isDestroyed) {
+        throw Error('Connection is destroyed');
+      }
+      if (!session) {
+        // This should never happen.
+        throw Error('Session is not ready');
+      }
+      return session;
     },
   };
   return connection;
@@ -68,14 +102,58 @@ export const makeTcpNetLayer = ({ client }) => {
     hints: false,
   };
 
+  /** @type {Map<string, Connection>} */
+  const connections = new Map();
+
+  /**
+   * @param {OCapNLocation} location
+   * @returns {Connection}
+   */
+  const connect = location => {
+    console.log('Connecting to', location);
+    const [host, portStr] = location.address.split(':');
+    const port = parseInt(portStr, 10);
+    if (isNaN(port)) {
+      throw new Error(`Invalid port in address: ${location.address}`);
+    }
+    const socket = net.createConnection({ host, port });
+    // eslint-disable-next-line no-use-before-define
+    const connection = makeConnection(client, netlayer, socket, true);
+    const locationId = locationToLocationId(location);
+    client.outgoingConnections.set(locationId, connection);
+    sendHello(connection, connection.selfIdentity);
+    return connection;
+  };
+
+  /**
+   * @param {OCapNLocation} location
+   * @returns {Connection}
+   */
+  const lookupOrConnect = location => {
+    if (location.transport !== localLocation.transport) {
+      throw Error(`Unsupported transport: ${location.transport}`);
+    }
+    const connection = connections.get(location.address);
+    if (connection) {
+      return connection;
+    }
+    const newConnection = connect(location);
+    connections.set(location.address, newConnection);
+    return newConnection;
+  };
+
   /** @type {NetLayer} */
   const netlayer = {
     location: localLocation,
+    connect: lookupOrConnect,
   };
 
   server.on('connection', socket => {
-    console.log('Client connected to server');
-    const connection = makeConnection(client, netlayer, socket);
+    console.log(
+      'Client connected to server',
+      `${socket.remoteAddress}:${socket.remotePort}`,
+    );
+    const connection = makeConnection(client, netlayer, socket, false);
 
     socket.on('data', data => {
       try {
@@ -95,7 +173,7 @@ export const makeTcpNetLayer = ({ client }) => {
         }
       } catch (err) {
         console.error('Server received error:', err);
-        console.log('Server received data:', textDecoder.decode(data));
+        console.log('Server received data:', sloppyTextDecoder.decode(data));
         socket.end();
       }
     });

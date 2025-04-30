@@ -20,6 +20,7 @@ import {
   makeOCapNRecordCodec,
   makeOCapNRecordCodecFromDefinition,
 } from './util.js';
+import { OCapNSturdyRef } from './components.js';
 import {
   DescImportObject,
   DescImportPromise,
@@ -188,6 +189,7 @@ const OCapNPassableRecordUnionCodec = makeRecordUnionCodec(
     UndefinedCodec,
     NullCodec,
     OCapNTaggedCodec,
+    OCapNSturdyRef,
     DescExport,
     DescImportObject,
     DescImportPromise,
