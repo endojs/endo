@@ -772,6 +772,23 @@ export const operationsTable = [
       },
     },
   },
+  {
+    syrup: hexToUint8Array(
+      '3c39276f703a6c697374656e3c313127646573633a6578706f7274322b3e3c313827646573633a696d706f72742d6f626a656374322b3e663e',
+    ),
+    value: {
+      type: 'op:listen',
+      to: {
+        type: 'desc:export',
+        position: 2n,
+      },
+      resolveMeDesc: {
+        type: 'desc:import-object',
+        position: 2n,
+      },
+      wantsPartial: false,
+    },
+  },
 ];
 
 export const passableTable = [
