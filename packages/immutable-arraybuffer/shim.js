@@ -1,16 +1,12 @@
 import {
-  transferBufferToImmutable,
   isBufferImmutable,
   sliceBufferToImmutable,
-} from './index.js';
+} from './src/limited-pony-for-hermes.js';
 
 const { getOwnPropertyDescriptors, defineProperties } = Object;
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
 
 const arrayBufferMethods = {
-  transferToImmutable(newLength = undefined) {
-    return transferBufferToImmutable(this, newLength);
-  },
   sliceToImmutable(start = undefined, end = undefined) {
     return sliceBufferToImmutable(this, start, end);
   },
@@ -18,6 +14,12 @@ const arrayBufferMethods = {
     return isBufferImmutable(this);
   },
 };
+
+if ('transfer' in arrayBufferPrototype) {
+  console.warn(
+    'Could have use the full shim, rather than the limited one for Hermes',
+  );
+}
 
 if ('transferToImmutable' in arrayBufferPrototype) {
   // Modern shim practice frowns on conditional installation, at least for
