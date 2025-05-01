@@ -149,6 +149,40 @@ const makeDefaultCapTPImportExportTables = ({
 };
 
 /**
+ * @template T
+ * @param {Map<T, number>} specimenToRefCount
+ * @param {(specimen: T) => boolean} predicate
+ */
+const makeRefCounter = (specimenToRefCount, predicate) => {
+  /** @type {Set<T>} */
+  const seen = new Set();
+
+  return harden({
+    /**
+     * @param {T} specimen
+     * @returns {T}
+     */
+    add(specimen) {
+      if (predicate(specimen)) {
+        seen.add(specimen);
+      }
+      return specimen;
+    },
+    commit() {
+      // Increment the reference count for each seen specimen.
+      for (const specimen of seen.keys()) {
+        const numRefs = specimenToRefCount.get(specimen) || 0;
+        specimenToRefCount.set(specimen, numRefs + 1);
+      }
+      seen.clear();
+    },
+    abort() {
+      seen.clear();
+    },
+  });
+};
+
+/**
  * @typedef {object} CapTPEngineOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
@@ -247,40 +281,6 @@ export const makeCapTPEngine = (
     const p = Promise.reject(reason);
     p.catch(sink);
     return p;
-  };
-
-  /**
-   * @template T
-   * @param {Map<T, number>} specimenToRefCount
-   * @param {(specimen: T) => boolean} predicate
-   */
-  const makeRefCounter = (specimenToRefCount, predicate) => {
-    /** @type {Set<T>} */
-    const seen = new Set();
-
-    return harden({
-      /**
-       * @param {T} specimen
-       * @returns {T}
-       */
-      add(specimen) {
-        if (predicate(specimen)) {
-          seen.add(specimen);
-        }
-        return specimen;
-      },
-      commit() {
-        // Increment the reference count for each seen specimen.
-        for (const specimen of seen.keys()) {
-          const numRefs = specimenToRefCount.get(specimen) || 0;
-          specimenToRefCount.set(specimen, numRefs + 1);
-        }
-        seen.clear();
-      },
-      abort() {
-        seen.clear();
-      },
-    });
   };
 
   /** @type {Map<CapTPSlot, number>} */
