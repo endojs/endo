@@ -8,7 +8,7 @@ import { makeMarshal, QCLASS } from '@endo/marshal';
 import { X, Fail, annotateError } from '@endo/errors';
 import { makePromiseKit } from '@endo/promise-kit';
 
-import { makeCapTPEngine } from './captp-engine.js';
+import { makeCapTPEngine, reverseSlot } from './captp-engine.js';
 
 export { E };
 
@@ -97,10 +97,6 @@ export const makeCapTP = (
   /** @type {import('./captp-engine.js').MakeDispatch} */
   function makeDispatch({
     send,
-    reverseSlot,
-    exportedTrapHandlers,
-    trapIterator,
-    trapIteratorResultP,
     quietReject,
     didUnplug,
     doUnplug,
@@ -177,7 +173,7 @@ export const makeCapTP = (
           });
         };
         if (trap) {
-          exportedTrapHandlers.has(val) ||
+          engine.exportedTrapHandlers.has(val) ||
             Fail`Refused Trap(${val}) because target was not registered with makeTrapHandler`;
           assert.typeof(
             trapHost,
@@ -188,7 +184,7 @@ export const makeCapTP = (
           // We need to create a promise for the "isDone" iteration right now to
           // prevent a race with the other side.
           const resultPK = makePromiseKit();
-          trapIteratorResultP.set(questionID, resultPK.promise);
+          engine.trapIteratorResultP.set(questionID, resultPK.promise);
 
           processResult = (isReject, value) => {
             const serialized = serialize(harden(value));
@@ -200,7 +196,7 @@ export const makeCapTP = (
             }
 
             // We're ready for them to drive the iterator.
-            trapIterator.set(questionID, ait);
+            engine.trapIterator.set(questionID, ait);
             resultPK.resolve({ done: false });
           };
         }
@@ -233,7 +229,7 @@ export const makeCapTP = (
         trapHost || Fail`CTP_TRAP_ITERATE is impossible without a trapHost`;
         const { questionID, serialized } = obj;
 
-        const resultP = trapIteratorResultP.get(questionID);
+        const resultP = engine.trapIteratorResultP.get(questionID);
         resultP || Fail`CTP_TRAP_ITERATE did not expect ${questionID}`;
 
         const [method, args] = unserialize(serialized);
@@ -243,8 +239,8 @@ export const makeCapTP = (
 
           // Done with this trap iterator.
           const cleanup = () => {
-            trapIterator.delete(questionID);
-            trapIteratorResultP.delete(questionID);
+            engine.trapIterator.delete(questionID);
+            engine.trapIteratorResultP.delete(questionID);
             return harden({ done: true });
           };
 
@@ -254,7 +250,7 @@ export const makeCapTP = (
               return cleanup();
             }
 
-            const ait = trapIterator.get(questionID);
+            const ait = engine.trapIterator.get(questionID);
             if (!ait) {
               // The iterator is done, so we're done.
               return cleanup();
@@ -274,7 +270,7 @@ export const makeCapTP = (
 
         // Store the next result promise.
         const nextResultP = getNextResultP();
-        trapIteratorResultP.set(questionID, nextResultP);
+        engine.trapIteratorResultP.set(questionID, nextResultP);
 
         // Ensure that our caller handles any rejection.
         return nextResultP.then(sink);

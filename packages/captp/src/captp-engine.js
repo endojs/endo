@@ -39,7 +39,7 @@ const isThenable = maybeThenable =>
  * @param {CapTPSlot} slot
  * @returns {CapTPSlot} slot with direction reversed
  */
-const reverseSlot = slot => {
+export const reverseSlot = slot => {
   const otherDir = slot[1] === '+' ? '-' : '+';
   const revslot = `${slot[0]}${otherDir}${slot.slice(2)}`;
   return revslot;
@@ -228,15 +228,14 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>} convertSlotToVal
  * @property {RefCounter<string>} recvSlot
  * @property {RefCounter<string>} sendSlot
+ * @property {WeakSet<any>} exportedTrapHandlers
+ * @property {Map<string, Promise<IteratorResult<void, void>>>} trapIteratorResultP
+ * @property {Map<string, AsyncIterator<void, void, any>>} trapIterator
  */
 
 /**
  * @typedef {object} MakeDispatchArgs
  * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} send
- * @property {(slot: CapTPSlot) => CapTPSlot} reverseSlot
- * @property {WeakSet<any>} exportedTrapHandlers
- * @property {Map<string, Promise<IteratorResult<void, void>>>} trapIteratorResultP
- * @property {Map<string, AsyncIterator<void, void, any>>} trapIterator
  * @property {((reason?: any, returnIt?: boolean) => void)} quietReject
  * @property {() => boolean} didUnplug
  * @property {((reason?: any) => void)} doUnplug
@@ -613,10 +612,6 @@ export const makeCapTPEngine = (
 
   const dispatch = makeDispatch({
     send,
-    reverseSlot,
-    exportedTrapHandlers,
-    trapIterator,
-    trapIteratorResultP,
     quietReject,
     didUnplug: () => unplug,
     doUnplug: reason => {
@@ -727,6 +722,9 @@ export const makeCapTPEngine = (
     convertSlotToVal,
     recvSlot,
     sendSlot,
+    exportedTrapHandlers,
+    trapIterator,
+    trapIteratorResultP,
   };
 
   if (trapGuest) {
