@@ -7,7 +7,6 @@
 // This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
 // good dose of https://github.com/capnproto/capnproto/blob/master/c++/src/capnp/rpc.capnp
 import { Remotable, Far } from '@endo/marshal';
-import { HandledPromise } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 
 import { X, Fail } from '@endo/errors';
@@ -210,7 +209,6 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {() => Record<string, Record<string, number>>} getStats
  * @property {<T>(name: string, obj: T) => T} makeTrapHandler
  * @property {import('./ts-types.js').Trap | undefined} Trap
- * @property {((target: string) => RemoteKit)} makeRemoteKit
  * @property {((slot: CapTPSlot, toDecr: number) => void)} dropSlotRefs
  * @property {((questionID: string, result: any) => void)} resolveAnswer
  * @property {((questionID: string) => boolean)} hasAnswer
@@ -235,8 +233,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @param {((obj: Record<string, any>) => void)} send send a JSONable packet
  * @param {ToCapData<string>} serialize
  * @param {FromCapData<string>} unserialize
- * @param {((reason?: any, returnIt?: boolean) => void)} quietReject
- * @param {() => boolean} didUnplug
+ * @param {((target: string) => RemoteKit)} makeRemoteKit
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
@@ -245,8 +242,7 @@ export const makeCapTPEngine = (
   send,
   serialize,
   unserialize,
-  quietReject,
-  didUnplug,
+  makeRemoteKit,
   opts = {},
 ) => {
   const gcStats = {
@@ -309,94 +305,6 @@ export const makeCapTPEngine = (
   const settlers = new Map();
   /** @type {Map<string, any>} */
   const answers = new Map(); // chosen by our peer
-
-  /**
-   * @template [T=unknown]
-   * @param {string} target
-   * @returns {RemoteKit<T>}
-   * Make a remote promise for `target` (an id in the questions table)
-   */
-  const makeRemoteKit = target => {
-    /**
-     * This handler is set up such that it will transform both
-     * attribute access and method invocation of this remote promise
-     * as also being questions / remote handled promises
-     *
-     * @type {import('@endo/eventual-send').EHandler<{}>}
-     */
-    const handler = {
-      get(_o, prop) {
-        if (didUnplug() !== false) {
-          return quietReject(didUnplug());
-        }
-        // eslint-disable-next-line no-use-before-define
-        const [questionID, promise] = makeQuestion();
-        send({
-          type: 'CTP_CALL',
-          epoch,
-          questionID,
-          target,
-          method: serialize(harden([prop])),
-        });
-        return promise;
-      },
-      applyFunction(_o, args) {
-        if (didUnplug() !== false) {
-          return quietReject(didUnplug());
-        }
-        // eslint-disable-next-line no-use-before-define
-        const [questionID, promise] = makeQuestion();
-        send({
-          type: 'CTP_CALL',
-          epoch,
-          questionID,
-          target,
-          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
-          method: serialize(harden([null, args])),
-        });
-        return promise;
-      },
-      applyMethod(_o, prop, args) {
-        if (didUnplug() !== false) {
-          return quietReject(didUnplug());
-        }
-        // Support: o~.[prop](...args) remote method invocation
-        // eslint-disable-next-line no-use-before-define
-        const [questionID, promise] = makeQuestion();
-        send({
-          type: 'CTP_CALL',
-          epoch,
-          questionID,
-          target,
-          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
-          method: serialize(harden([prop, args])),
-        });
-        return promise;
-      },
-    };
-
-    /** @type {Settler<T> | undefined} */
-    let settler;
-
-    /** @type {import('@endo/eventual-send').HandledExecutor<T>} */
-    const executor = (resolve, reject, resolveWithPresence) => {
-      const s = Far('settler', {
-        resolve,
-        reject,
-        resolveWithPresence: () => resolveWithPresence(handler),
-      });
-      settler = s;
-    };
-
-    const promise = new HandledPromise(executor, handler);
-    assert(settler);
-
-    // Silence the unhandled rejection warning, but don't affect
-    // the user's handlers.
-    promise.catch(e => quietReject(e, false));
-
-    return harden({ promise, settler });
-  };
 
   const releaseSlot = slotID => {
     // We drop all the references we know about at once, since GC told us we
@@ -589,7 +497,6 @@ export const makeCapTPEngine = (
     getStats,
     makeTrapHandler,
     Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
-    makeRemoteKit,
     dropSlotRefs,
     resolveAnswer,
     hasAnswer,

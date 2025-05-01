@@ -1,10 +1,10 @@
-/** @import {RemoteKit} from '@endo/eventual-send' */
+/** @import {RemoteKit, Settler} from '@endo/eventual-send' */
 /** @import {ToCapData, FromCapData} from '@endo/marshal' */
 /** @import {CapTPSlot, TrapHost, TrapGuest} from './types.js' */
 /** @import {CapTPImportExportTables} from './captp-engine.js' */
 
-import { E } from '@endo/eventual-send';
-import { makeMarshal, QCLASS } from '@endo/marshal';
+import { E, HandledPromise } from '@endo/eventual-send';
+import { makeMarshal, QCLASS, Far } from '@endo/marshal';
 import { X, Fail, annotateError } from '@endo/errors';
 import { makePromiseKit, isPromise } from '@endo/promise-kit';
 
@@ -118,6 +118,116 @@ const makeCapTPCommsKit = ({
 };
 
 /**
+ * @template [T=unknown]
+ * @param {object} opts
+ * @param {number} opts.epoch
+ * @param {() => boolean} opts.didUnplug
+ * @param {((reason?: any, returnIt?: boolean) => void)} opts.quietReject
+ * @param {() => [CapTPSlot, Promise<any>]} opts.makeQuestion
+ * @param {((obj: Record<string, any>) => void)} opts.send
+ * @param {ToCapData<string>} opts.serialize
+ * @returns {(target: string) => RemoteKit<T>}
+ */
+const makeMakeRemoteKit = ({
+  epoch,
+  didUnplug,
+  quietReject,
+  makeQuestion,
+  send,
+  serialize,
+}) => {
+  /**
+   * @template [T=unknown]
+   * @param {string} target
+   * @returns {RemoteKit<T>}
+   * Make a remote promise for `target` (an id in the questions table)
+   */
+  const makeRemoteKit = target => {
+    /**
+     * This handler is set up such that it will transform both
+     * attribute access and method invocation of this remote promise
+     * as also being questions / remote handled promises
+     *
+     * @type {import('@endo/eventual-send').EHandler<{}>}
+     */
+    const handler = {
+      get(_o, prop) {
+        if (didUnplug() !== false) {
+          return quietReject(didUnplug());
+        }
+        // eslint-disable-next-line no-use-before-define
+        const [questionID, promise] = makeQuestion();
+        send({
+          type: 'CTP_CALL',
+          epoch,
+          questionID,
+          target,
+          method: serialize(harden([prop])),
+        });
+        return promise;
+      },
+      applyFunction(_o, args) {
+        if (didUnplug() !== false) {
+          return quietReject(didUnplug());
+        }
+        // eslint-disable-next-line no-use-before-define
+        const [questionID, promise] = makeQuestion();
+        send({
+          type: 'CTP_CALL',
+          epoch,
+          questionID,
+          target,
+          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
+          method: serialize(harden([null, args])),
+        });
+        return promise;
+      },
+      applyMethod(_o, prop, args) {
+        if (didUnplug() !== false) {
+          return quietReject(didUnplug());
+        }
+        // Support: o~.[prop](...args) remote method invocation
+        // eslint-disable-next-line no-use-before-define
+        const [questionID, promise] = makeQuestion();
+        send({
+          type: 'CTP_CALL',
+          epoch,
+          questionID,
+          target,
+          // @ts-expect-error Type 'unknown' is not assignable to type 'Passable<PassableCap, Error>'.
+          method: serialize(harden([prop, args])),
+        });
+        return promise;
+      },
+    };
+
+    /** @type {Settler<T> | undefined} */
+    let settler;
+
+    /** @type {import('@endo/eventual-send').HandledExecutor<T>} */
+    const executor = (resolve, reject, resolveWithPresence) => {
+      const s = Far('settler', {
+        resolve,
+        reject,
+        resolveWithPresence: () => resolveWithPresence(handler),
+      });
+      settler = s;
+    };
+
+    const promise = new HandledPromise(executor, handler);
+    assert(settler);
+
+    // Silence the unhandled rejection warning, but don't affect
+    // the user's handlers.
+    promise.catch(e => quietReject(e, false));
+
+    return harden({ promise, settler });
+  };
+
+  return makeRemoteKit;
+};
+
+/**
  * @typedef {object} CapTPOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
@@ -209,6 +319,16 @@ export const makeCapTP = (
     },
   );
 
+  const makeRemoteKit = makeMakeRemoteKit({
+    epoch,
+    didUnplug,
+    quietReject,
+    // eslint-disable-next-line no-use-before-define
+    makeQuestion: () => engine.makeQuestion(),
+    send,
+    serialize,
+  });
+
   /** @type {(val: Promise<unknown>, slot: CapTPSlot) => void} */
   const eagerlyForwardPromiseResolution = (val, slot) => {
     // Set up promise listener to inform other side when this promise
@@ -249,8 +369,7 @@ export const makeCapTP = (
     send,
     serialize,
     unserialize,
-    quietReject,
-    didUnplug,
+    makeRemoteKit,
     {
       ...opts,
       exportHook,
@@ -559,5 +678,6 @@ export const makeCapTP = (
     isOnlyLocal,
     getStats,
     getBootstrap,
+    makeRemoteKit,
   });
 };
