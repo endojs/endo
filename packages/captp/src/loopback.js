@@ -16,7 +16,7 @@ export { E };
  * @returns {{
  *   makeFar<T>(x: T): ERef<T>,
  *   makeNear<T>(x: T): ERef<T>,
- *   makeTrapHandler<T>(x: T): T,
+ *   makeTrapHandler<T>(name: string, obj: T): T,
  *   isOnlyNear(x: any): boolean,
  *   isOnlyFar(x: any): boolean,
  *   getNearStats(): any,
