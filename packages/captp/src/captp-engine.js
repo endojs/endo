@@ -204,7 +204,6 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {(MakeCapTPImportExportTablesOptions) => CapTPImportExportTables} [makeCapTPImportExportTables] provide external import/export tables
  *
  * @typedef {object} CapTPEngine
- * @property {() => Promise<any>} getBootstrap
  * @property {(val: unknown) => CapTPSlot | undefined} getSlotForValue
  * Gets the slot for a value, but does not register a new slot if the value is
  * unknown.
@@ -226,6 +225,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {WeakSet<any>} exportedTrapHandlers
  * @property {Map<string, Promise<IteratorResult<void, void>>>} trapIteratorResultP
  * @property {Map<string, AsyncIterator<void, void, any>>} trapIterator
+ * @property {() => [CapTPSlot, Promise<any>]} makeQuestion
  */
 
 /**
@@ -509,20 +509,6 @@ export const makeCapTPEngine = (
     return importExportTables.getImport(slot);
   }
 
-  // Get a reference to the other side's bootstrap object.
-  const getBootstrap = async () => {
-    if (didUnplug() !== false) {
-      return quietReject(didUnplug());
-    }
-    const [questionID, promise] = makeQuestion();
-    send({
-      type: 'CTP_BOOTSTRAP',
-      epoch,
-      questionID,
-    });
-    return harden(promise);
-  };
-
   const makeTrapHandler = (name, obj) => {
     const far = Far(name, obj);
     exportedTrapHandlers.add(far);
@@ -599,7 +585,6 @@ export const makeCapTPEngine = (
   // Put together our return value.
   /** @type {CapTPEngine} */
   const rets = {
-    getBootstrap,
     getSlotForValue,
     getStats,
     makeTrapHandler,
@@ -619,6 +604,7 @@ export const makeCapTPEngine = (
     exportedTrapHandlers,
     trapIterator,
     trapIteratorResultP,
+    makeQuestion,
   };
 
   if (trapGuest) {

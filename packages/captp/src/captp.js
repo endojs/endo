@@ -507,6 +507,20 @@ export const makeCapTP = (
     return dispatch;
   }
 
+  // Get a reference to the other side's bootstrap object.
+  const getBootstrap = async () => {
+    if (didUnplug() !== false) {
+      return quietReject(didUnplug());
+    }
+    const [questionID, promise] = engine.makeQuestion();
+    send({
+      type: 'CTP_BOOTSTRAP',
+      epoch,
+      questionID,
+    });
+    return harden(promise);
+  };
+
   // Set up isLocalOnly check.
   const IS_REMOTE_PUMPKIN = harden({});
   const assertValIsLocal = val => {
@@ -544,5 +558,6 @@ export const makeCapTP = (
     abort,
     isOnlyLocal,
     getStats,
+    getBootstrap,
   });
 };
