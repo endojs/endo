@@ -219,24 +219,25 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((target: string) => RemoteKit)} makeRemoteKit
  * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} dispatch
  * @property {((reason?: any) => void)} abort
+ * @property {((slot: CapTPSlot, toDecr: number) => void)} dropSlotRefs
+ * @property {((questionID: string, result: any) => void)} resolveAnswer
+ * @property {((questionID: string) => boolean)} hasAnswer
+ * @property {((questionID: string) => any)} getAnswer
+ * @property {((answerID: string, result: any) => void)} resolveQuestion
+ * @property {((answerID: string, exception: any) => void)} rejectQuestion
+ * @property {((reason: any) => void)} disconnect
  */
 
 /**
  * @typedef {object} MakeDispatchArgs
  * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} send
- * @property {Map<string, any>} answers
  * @property {ToCapData<string>} serialize
  * @property {FromCapData<string>} unserialize
  * @property {(slot: CapTPSlot) => CapTPSlot} reverseSlot
- * @property {Map<CapTPSlot, number>} slotToNumRefs
- * @property {Record<string, number>} gcStats
- * @property {CapTPImportExportTables} importExportTables
  * @property {WeakSet<any>} exportedTrapHandlers
  * @property {Map<string, Promise<IteratorResult<void, void>>>} trapIteratorResultP
  * @property {Map<string, AsyncIterator<void, void, any>>} trapIterator
- * @property {Map<CapTPSlot, Settler<unknown>>} settlers
  * @property {((reason?: any, returnIt?: boolean) => void)} quietReject
- * @property {((reason?: any) => void)} disconnectReason
  * @property {() => boolean} didUnplug
  * @property {((reason?: any) => void)} doUnplug
  * @property {Record<string, number>} sendStats
@@ -290,9 +291,6 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
   // one case.
   !(trapHost && trapGuest) ||
     Fail`CapTP ${ourId} can only be one of either trapGuest or trapHost`;
-
-  const disconnectReason = id =>
-    Error(`${JSON.stringify(id)} connection closed`);
 
   /** @type {Map<string, Promise<IteratorResult<void, void>>>} */
   const trapIteratorResultP = new Map();
@@ -629,19 +627,13 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
 
   const dispatch = makeDispatch({
     send,
-    answers,
     serialize,
     unserialize,
     reverseSlot,
-    slotToNumRefs,
-    gcStats,
-    importExportTables,
     exportedTrapHandlers,
     trapIterator,
     trapIteratorResultP,
-    settlers,
     quietReject,
-    disconnectReason,
     didUnplug: () => unplug,
     doUnplug: reason => {
       unplug = reason;
@@ -667,6 +659,69 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
     return valToSlot.get(val);
   };
 
+  /**
+   * @param {CapTPSlot} slot
+   * @param {number} toDecr
+   */
+  const dropSlotRefs = (slot, toDecr) => {
+    const numRefs = slotToNumRefs.get(slot) || 0;
+    if (numRefs > toDecr) {
+      slotToNumRefs.set(slot, numRefs - toDecr);
+    } else {
+      // We are dropping the last known reference to this slot.
+      gcStats.DROPPED += 1;
+      slotToNumRefs.delete(slot);
+      importExportTables.deleteExport(slot);
+      answers.delete(slot);
+    }
+  };
+
+  const resolveAnswer = (questionID, result) => {
+    answers.delete(questionID);
+    answers.set(questionID, result);
+  };
+
+  const hasAnswer = questionID => {
+    return answers.has(questionID);
+  };
+
+  const getAnswer = questionID => {
+    return answers.get(questionID);
+  };
+
+  const takeSettler = answerID => {
+    const settler = settlers.get(answerID);
+    if (!settler) {
+      throw Error(
+        `Got an answer to a question we have not asked. (answerID = ${answerID} )`,
+      );
+    }
+    settlers.delete(answerID);
+    return settler;
+  };
+
+  const resolveQuestion = (answerID, result) => {
+    const settler = takeSettler(answerID);
+    settler.resolve(result);
+  };
+
+  const rejectQuestion = (answerID, exception) => {
+    const settler = takeSettler(answerID);
+    settler.reject(exception);
+  };
+
+  const rejectAllQuestions = reason => {
+    for (const settler of settlers.values()) {
+      settler.reject(reason);
+    }
+  };
+
+  const disconnect = reason => {
+    // We no longer wish to subscribe to object finalization.
+    importExportTables.didDisconnect();
+    rejectAllQuestions(reason);
+  };
+
   // Put together our return value.
   /** @type {CapTPEngine} */
   const rets = {
@@ -680,6 +735,13 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
     makeRemoteKit,
     dispatch,
     abort,
+    dropSlotRefs,
+    resolveAnswer,
+    hasAnswer,
+    getAnswer,
+    resolveQuestion,
+    rejectQuestion,
+    disconnect,
   };
 
   if (trapGuest) {

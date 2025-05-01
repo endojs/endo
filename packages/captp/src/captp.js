@@ -73,25 +73,22 @@ export const makeCapTP = (
   /** @type {import('./captp-engine.js').MakeDispatch} */
   function makeDispatch({
     send,
-    answers,
     serialize,
     unserialize,
     reverseSlot,
-    slotToNumRefs,
-    gcStats,
-    importExportTables,
     exportedTrapHandlers,
     trapIterator,
     trapIteratorResultP,
-    settlers,
     quietReject,
-    disconnectReason,
     didUnplug,
     doUnplug,
     sendStats,
     recvStats,
     recvSlot,
   }) {
+    const disconnectReason = id =>
+      Error(`${JSON.stringify(id)} connection closed`);
+
     // Message handler used for CapTP dispatcher
     const handler = harden({
       // Remote is asking for bootstrap object
@@ -100,8 +97,7 @@ export const makeCapTP = (
         const bootstrap =
           typeof bootstrapObj === 'function' ? bootstrapObj(obj) : bootstrapObj;
         E.when(bootstrap, bs => {
-          // console.log('sending bootstrap', bs);
-          answers.set(questionID, bs);
+          engine.resolveAnswer(questionID, bs);
           send({
             type: 'CTP_RETURN',
             epoch,
@@ -115,18 +111,8 @@ export const makeCapTP = (
         // Ensure we are decrementing one of our exports.
         slotID[1] === '-' || Fail`Cannot drop non-exported ${slotID}`;
         const slot = reverseSlot(slotID);
-
-        const numRefs = slotToNumRefs.get(slot) || 0;
         const toDecr = Number(decRefs);
-        if (numRefs > toDecr) {
-          slotToNumRefs.set(slot, numRefs - toDecr);
-        } else {
-          // We are dropping the last known reference to this slot.
-          gcStats.DROPPED += 1;
-          slotToNumRefs.delete(slot);
-          importExportTables.deleteExport(slot);
-          answers.delete(slot);
-        }
+        engine.dropSlotRefs(slot, toDecr);
       },
       // Remote is invoking a method or retrieving a property.
       CTP_CALL(obj) {
@@ -138,8 +124,8 @@ export const makeCapTP = (
 
         const [prop, args] = unserialize(obj.method);
         let val;
-        if (answers.has(target)) {
-          val = answers.get(target);
+        if (engine.hasAnswer(target)) {
+          val = engine.getAnswer(target);
         } else {
           val = unserialize({
             body: JSON.stringify({
@@ -210,7 +196,7 @@ export const makeCapTP = (
         }
 
         // Answer with our handled promise
-        answers.set(questionID, hp);
+        engine.resolveAnswer(questionID, hp);
 
         hp
           // Process this handled promise method's result when settled.
@@ -275,34 +261,19 @@ export const makeCapTP = (
       // Answer to one of our questions.
       CTP_RETURN(obj) {
         const { result, exception, answerID } = obj;
-        const settler = settlers.get(answerID);
-        if (!settler) {
-          throw Error(
-            `Got an answer to a question we have not asked. (answerID = ${answerID} )`,
-          );
-        }
-        settlers.delete(answerID);
         if ('exception' in obj) {
-          settler.reject(unserialize(exception));
+          engine.rejectQuestion(answerID, unserialize(exception));
         } else {
-          settler.resolve(unserialize(result));
+          engine.resolveQuestion(answerID, unserialize(result));
         }
       },
       // Resolution to an imported promise
       CTP_RESOLVE(obj) {
         const { promiseID, res, rej } = obj;
-        const settler = settlers.get(promiseID);
-        if (!settler) {
-          // Not a promise we know about; maybe it was collected?
-          throw Error(
-            `Got a resolvement of a promise we have not imported. (promiseID = ${promiseID} )`,
-          );
-        }
-        settlers.delete(promiseID);
         if ('rej' in obj) {
-          settler.reject(unserialize(rej));
+          engine.rejectQuestion(promiseID, unserialize(rej));
         } else {
-          settler.resolve(unserialize(res));
+          engine.resolveQuestion(promiseID, unserialize(res));
         }
       },
       // The other side has signaled something has gone wrong.
@@ -316,11 +287,7 @@ export const makeCapTP = (
           // Deliver the object, even though we're unplugged.
           Promise.resolve(rawSend(obj)).catch(sink);
         }
-        // We no longer wish to subscribe to object finalization.
-        importExportTables.didDisconnect();
-        for (const settler of settlers.values()) {
-          settler.reject(reason);
-        }
+        engine.disconnect(reason);
       },
     });
     const validTypes = new Set(Object.keys(handler));
