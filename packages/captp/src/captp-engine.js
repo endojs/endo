@@ -15,8 +15,6 @@ import { makeTrap } from './trap.js';
 
 import { makeFinalizingMap } from './finalize.js';
 
-const WELL_KNOWN_SLOT_PROPERTIES = harden(['answerID', 'questionID', 'target']);
-
 const sink = () => {};
 harden(sink);
 
@@ -195,7 +193,6 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @typedef {object} CapTPEngineOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
- * @property {(err: any) => void} [onReject]
  * @property {number} [epoch] an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
  * @property {TrapGuest} [trapGuest] if specified, enable this CapTP (guest) to
@@ -215,8 +212,6 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {<T>(name: string, obj: T) => T} makeTrapHandler
  * @property {import('./ts-types.js').Trap | undefined} Trap
  * @property {((target: string) => RemoteKit)} makeRemoteKit
- * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} dispatch
- * @property {((reason?: any) => void)} abort
  * @property {((slot: CapTPSlot, toDecr: number) => void)} dropSlotRefs
  * @property {((questionID: string, result: any) => void)} resolveAnswer
  * @property {((questionID: string) => boolean)} hasAnswer
@@ -234,55 +229,35 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  */
 
 /**
- * @typedef {object} MakeDispatchArgs
- * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} send
- * @property {((reason?: any, returnIt?: boolean) => void)} quietReject
- * @property {() => boolean} didUnplug
- * @property {((reason?: any) => void)} doUnplug
- * @property {Record<string, number>} sendStats
- * @property {Record<string, number>} recvStats
- */
-
-/**
- * @typedef {((args: MakeDispatchArgs) => ((reason?: any) => void))} MakeDispatch
- */
-
-/**
  * Create a CapTP connection.
  *
  * @param {string} ourId our name for the current side
- * @param {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} rawSend send a JSONable packet
- * @param {MakeDispatch} makeDispatch make a handler for the CapTP
+ * @param {((obj: Record<string, any>) => void)} send send a JSONable packet
  * @param {ToCapData<string>} serialize
  * @param {FromCapData<string>} unserialize
+ * @param {((reason?: any, returnIt?: boolean) => void)} quietReject
+ * @param {() => boolean} didUnplug
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
 export const makeCapTPEngine = (
   ourId,
-  rawSend,
-  makeDispatch,
+  send,
   serialize,
   unserialize,
+  quietReject,
+  didUnplug,
   opts = {},
 ) => {
-  /** @type {Record<string, number>} */
-  const sendStats = {};
-  /** @type {Record<string, number>} */
-  const recvStats = {};
-
   const gcStats = {
     DROPPED: 0,
   };
   const getStats = () =>
     harden({
-      send: { ...sendStats },
-      recv: { ...recvStats },
       gc: { ...gcStats },
     });
 
   const {
-    onReject = err => console.error('CapTP', ourId, 'exception:', err),
     epoch = 0,
     exportHook,
     importHook,
@@ -304,23 +279,6 @@ export const makeCapTPEngine = (
   /** @type {Map<string, AsyncIterator<void, void, any>>} */
   const trapIterator = new Map();
 
-  /** @type {any} */
-  let unplug = false;
-  const quietReject = (reason = undefined, returnIt = true) => {
-    if ((unplug === false || reason !== unplug) && reason !== undefined) {
-      onReject(reason);
-    }
-    if (!returnIt) {
-      return Promise.resolve();
-    }
-
-    // Silence the unhandled rejection warning, but don't affect
-    // the user's handlers.
-    const p = Promise.reject(reason);
-    p.catch(sink);
-    return p;
-  };
-
   /** @type {Map<CapTPSlot, number>} */
   const slotToNumRefs = new Map();
 
@@ -335,28 +293,6 @@ export const makeCapTPEngine = (
     slotToNumRefs,
     slot => typeof slot === 'string' && slot[1] === '+',
   );
-
-  /**
-   * @param {Record<string, any>} obj
-   */
-  const send = obj => {
-    sendStats[obj.type] = (sendStats[obj.type] || 0) + 1;
-
-    for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
-      sendSlot.add(obj[prop]);
-    }
-    sendSlot.commit();
-
-    // Don't throw here if unplugged, just don't send.
-    if (unplug !== false) {
-      return;
-    }
-
-    // Actually send the message.
-    Promise.resolve(rawSend(obj))
-      // eslint-disable-next-line no-use-before-define
-      .catch(abort); // Abort if rawSend returned a rejection.
-  };
 
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
@@ -390,8 +326,8 @@ export const makeCapTPEngine = (
      */
     const handler = {
       get(_o, prop) {
-        if (unplug !== false) {
-          return quietReject(unplug);
+        if (didUnplug() !== false) {
+          return quietReject(didUnplug());
         }
         // eslint-disable-next-line no-use-before-define
         const [questionID, promise] = makeQuestion();
@@ -405,8 +341,8 @@ export const makeCapTPEngine = (
         return promise;
       },
       applyFunction(_o, args) {
-        if (unplug !== false) {
-          return quietReject(unplug);
+        if (didUnplug() !== false) {
+          return quietReject(didUnplug());
         }
         // eslint-disable-next-line no-use-before-define
         const [questionID, promise] = makeQuestion();
@@ -421,8 +357,8 @@ export const makeCapTPEngine = (
         return promise;
       },
       applyMethod(_o, prop, args) {
-        if (unplug !== false) {
-          return quietReject(unplug);
+        if (didUnplug() !== false) {
+          return quietReject(didUnplug());
         }
         // Support: o~.[prop](...args) remote method invocation
         // eslint-disable-next-line no-use-before-define
@@ -598,8 +534,8 @@ export const makeCapTPEngine = (
 
   // Get a reference to the other side's bootstrap object.
   const getBootstrap = async () => {
-    if (unplug !== false) {
-      return quietReject(unplug);
+    if (didUnplug() !== false) {
+      return quietReject(didUnplug());
     }
     const [questionID, promise] = makeQuestion();
     send({
@@ -608,23 +544,6 @@ export const makeCapTPEngine = (
       questionID,
     });
     return harden(promise);
-  };
-
-  const dispatch = makeDispatch({
-    send,
-    quietReject,
-    didUnplug: () => unplug,
-    doUnplug: reason => {
-      unplug = reason;
-    },
-    sendStats,
-    recvStats,
-  });
-
-  // Abort a connection.
-  /** @type {((reason?: any) => void)} */
-  const abort = (reason = undefined) => {
-    dispatch({ type: 'CTP_DISCONNECT', epoch, reason });
   };
 
   const makeTrapHandler = (name, obj) => {
@@ -709,8 +628,6 @@ export const makeCapTPEngine = (
     makeTrapHandler,
     Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
     makeRemoteKit,
-    dispatch,
-    abort,
     dropSlotRefs,
     resolveAnswer,
     hasAnswer,

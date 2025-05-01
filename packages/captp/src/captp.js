@@ -18,6 +18,106 @@ harden(sink);
 const WELL_KNOWN_SLOT_PROPERTIES = ['type', 'slots', 'body'];
 
 /**
+ * @typedef {(obj: Record<string, any>) => boolean} Dispatch
+ * @typedef {(sendStats: Record<string, number>, recvStats: Record<string, number>) => Dispatch} MakeDispatch
+ *
+ * @typedef {object} MakeCapTPCommsKitOptions
+ * @property {MakeDispatch} makeDispatch
+ * @property {(err: any) => void} onReject
+ * @property {number} epoch
+ * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} rawSend
+ * @property {((slot: CapTPSlot) => void)} addSendSlot
+ * @property {() => void} commitSendSlots
+ *
+ * @typedef {object} CapTPCommsKit
+ * @property {((obj: Record<string, any>) => void)} dispatch
+ * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} send
+ * @property {((reason?: any) => void)} abort
+ * @property {((reason?: any, returnIt?: boolean) => void)} quietReject
+ * @property {() => boolean} didUnplug
+ * @property {((reason?: any) => void)} doUnplug
+ * @property {Record<string, number>} sendStats
+ * @property {Record<string, number>} recvStats
+ */
+
+/** @type {(opts: MakeCapTPCommsKitOptions) => CapTPCommsKit} */
+const makeCapTPCommsKit = ({
+  makeDispatch,
+  onReject,
+  epoch,
+  rawSend,
+  addSendSlot,
+  commitSendSlots,
+}) => {
+  /** @type {Record<string, number>} */
+  const sendStats = {};
+  /** @type {Record<string, number>} */
+  const recvStats = {};
+
+  /** @type {any} */
+  let unplug = false;
+  const didUnplug = () => unplug;
+  const doUnplug = reason => (unplug = reason);
+
+  const quietReject = (reason = undefined, returnIt = true) => {
+    if ((unplug === false || reason !== unplug) && reason !== undefined) {
+      onReject(reason);
+    }
+    if (!returnIt) {
+      return Promise.resolve();
+    }
+
+    // Silence the unhandled rejection warning, but don't affect
+    // the user's handlers.
+    const p = Promise.reject(reason);
+    p.catch(sink);
+    return p;
+  };
+
+  /**
+   * @param {Record<string, any>} obj
+   */
+  const send = obj => {
+    sendStats[obj.type] = (sendStats[obj.type] || 0) + 1;
+
+    for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
+      addSendSlot(obj[prop]);
+    }
+    commitSendSlots();
+
+    // Don't throw here if unplugged, just don't send.
+    if (unplug !== false) {
+      return;
+    }
+
+    // Actually send the message.
+    Promise.resolve(rawSend(obj))
+      // eslint-disable-next-line no-use-before-define
+      .catch(abort); // Abort if rawSend returned a rejection.
+  };
+
+  // Return a dispatch function.
+  const dispatch = makeDispatch(sendStats, recvStats);
+
+  // Abort a connection.
+  const abort = (reason = undefined) => {
+    dispatch({ type: 'CTP_DISCONNECT', epoch, reason });
+  };
+
+  // Can't harden stats.
+  return {
+    dispatch,
+    send,
+    abort,
+    quietReject,
+    didUnplug,
+    doUnplug,
+    sendStats,
+    recvStats,
+  };
+};
+
+/**
  * @typedef {object} CapTPOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
@@ -60,7 +160,32 @@ export const makeCapTP = (
   bootstrapObj = undefined,
   opts = {},
 ) => {
-  const { epoch = 0, trapHost } = opts;
+  const {
+    onReject = err => console.error('CapTP', ourId, 'exception:', err),
+    epoch = 0,
+    trapHost,
+  } = opts;
+
+  const {
+    dispatch,
+    sendStats,
+    recvStats,
+    abort,
+    send,
+    didUnplug,
+    doUnplug,
+    quietReject,
+  } = makeCapTPCommsKit({
+    rawSend,
+    // eslint-disable-next-line no-use-before-define
+    makeDispatch,
+    onReject,
+    epoch,
+    // eslint-disable-next-line no-use-before-define
+    addSendSlot: slot => engine.sendSlot.add(slot),
+    // eslint-disable-next-line no-use-before-define
+    commitSendSlots: () => engine.sendSlot.commit(),
+  });
 
   /**
    * convertValToSlot and convertSlotToVal both perform side effects,
@@ -86,23 +211,21 @@ export const makeCapTP = (
 
   const engine = makeCapTPEngine(
     ourId,
-    rawSend,
-    // eslint-disable-next-line no-use-before-define
-    makeDispatch,
+    send,
     serialize,
     unserialize,
+    quietReject,
+    didUnplug,
     opts,
   );
 
-  /** @type {import('./captp-engine.js').MakeDispatch} */
-  function makeDispatch({
-    send,
-    quietReject,
-    didUnplug,
-    doUnplug,
+  /** @type {MakeDispatch} */
+  function makeDispatch(
+    // eslint-disable-next-line no-shadow
     sendStats,
+    // eslint-disable-next-line no-shadow
     recvStats,
-  }) {
+  ) {
     const disconnectReason = id =>
       Error(`${JSON.stringify(id)} connection closed`);
 
@@ -313,7 +436,8 @@ export const makeCapTP = (
       recvStats[t] = 0;
     }
 
-    /** @type {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} */
+    /** @type {Dispatch} */
+    // eslint-disable-next-line no-shadow
     const dispatch = obj => {
       try {
         validTypes.has(obj.type) || Fail`unknown message type ${obj.type}`;
@@ -367,10 +491,20 @@ export const makeCapTP = (
     }
   };
 
+  const getStats = () =>
+    harden({
+      send: { ...sendStats },
+      recv: { ...recvStats },
+      ...engine.getStats(),
+    });
+
   return harden({
     ...engine,
     serialize,
     unserialize,
+    dispatch,
+    abort,
     isOnlyLocal,
+    getStats,
   });
 };
