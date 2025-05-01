@@ -6,7 +6,7 @@
 import { E } from '@endo/eventual-send';
 import { makeMarshal, QCLASS } from '@endo/marshal';
 import { X, Fail, annotateError } from '@endo/errors';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makePromiseKit, isPromise } from '@endo/promise-kit';
 
 import { makeCapTPEngine, reverseSlot } from './captp-engine.js';
 
@@ -209,6 +209,41 @@ export const makeCapTP = (
     },
   );
 
+  /** @type {(val: Promise<unknown>, slot: CapTPSlot) => void} */
+  const eagerlyForwardPromiseResolution = (val, slot) => {
+    // Set up promise listener to inform other side when this promise
+    // is fulfilled/broken
+    const promiseID = reverseSlot(slot);
+    const resolved = result =>
+      send({
+        type: 'CTP_RESOLVE',
+        promiseID,
+        res: serialize(harden(result)),
+      });
+    const rejected = reason =>
+      send({
+        type: 'CTP_RESOLVE',
+        promiseID,
+        rej: serialize(harden(reason)),
+      });
+    E.when(
+      val,
+      resolved,
+      rejected,
+      // Propagate internal errors as rejections.
+    ).catch(rejected);
+  };
+
+  /** @type {(val: unknown, slot: CapTPSlot) => void} */
+  const exportHook = (val, slot) => {
+    if (opts.exportHook) {
+      opts.exportHook(val, slot);
+    }
+    if (isPromise(val)) {
+      eagerlyForwardPromiseResolution(val, slot);
+    }
+  };
+
   const engine = makeCapTPEngine(
     ourId,
     send,
@@ -216,7 +251,10 @@ export const makeCapTP = (
     unserialize,
     quietReject,
     didUnplug,
-    opts,
+    {
+      ...opts,
+      exportHook,
+    },
   );
 
   /** @type {MakeDispatch} */

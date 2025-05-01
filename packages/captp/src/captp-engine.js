@@ -7,7 +7,7 @@
 // This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
 // good dose of https://github.com/capnproto/capnproto/blob/master/c++/src/capnp/rpc.capnp
 import { Remotable, Far } from '@endo/marshal';
-import { E, HandledPromise } from '@endo/eventual-send';
+import { HandledPromise } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 
 import { X, Fail } from '@endo/errors';
@@ -433,29 +433,6 @@ export const makeCapTPEngine = (
       }
       if (exportHook) {
         exportHook(val, slot);
-      }
-      if (isPromise(val)) {
-        // Set up promise listener to inform other side when this promise
-        // is fulfilled/broken
-        const promiseID = reverseSlot(slot);
-        const resolved = result =>
-          send({
-            type: 'CTP_RESOLVE',
-            promiseID,
-            res: serialize(harden(result)),
-          });
-        const rejected = reason =>
-          send({
-            type: 'CTP_RESOLVE',
-            promiseID,
-            rej: serialize(harden(reason)),
-          });
-        E.when(
-          val,
-          resolved,
-          rejected,
-          // Propagate internal errors as rejections.
-        ).catch(rejected);
       }
       // Now record the export in both valToSlot and slotToVal so we can look it
       // up from either the value or the slot name later.
