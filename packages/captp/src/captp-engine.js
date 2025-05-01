@@ -6,11 +6,11 @@
 
 // This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
 // good dose of https://github.com/capnproto/capnproto/blob/master/c++/src/capnp/rpc.capnp
-import { Remotable, Far, makeMarshal, QCLASS } from '@endo/marshal';
+import { Remotable, Far, makeMarshal } from '@endo/marshal';
 import { E, HandledPromise } from '@endo/eventual-send';
-import { isPromise, makePromiseKit } from '@endo/promise-kit';
+import { isPromise } from '@endo/promise-kit';
 
-import { X, Fail, annotateError } from '@endo/errors';
+import { X, Fail } from '@endo/errors';
 import { makeTrap } from './trap.js';
 
 import { makeFinalizingMap } from './finalize.js';
@@ -213,20 +213,39 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  */
 
 /**
+ * @typedef {object} MakeHandlerArgs
+ * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} send
+ * @property {Map<string, any>} answers
+ * @property {ToCapData<string>} serialize
+ * @property {FromCapData<string>} unserialize
+ * @property {(slot: CapTPSlot) => CapTPSlot} reverseSlot
+ * @property {Map<CapTPSlot, number>} slotToNumRefs
+ * @property {Record<string, number>} gcStats
+ * @property {CapTPImportExportTables} importExportTables
+ * @property {WeakSet<any>} exportedTrapHandlers
+ * @property {Map<string, Promise<IteratorResult<void, void>>>} trapIteratorResultP
+ * @property {Map<string, AsyncIterator<void, void, any>>} trapIterator
+ * @property {Map<CapTPSlot, Settler<unknown>>} settlers
+ * @property {((reason?: any, returnIt?: boolean) => void)} quietReject
+ * @property {((reason?: any) => void)} disconnectReason
+ * @property {() => boolean} didUnplug
+ * @property {((reason?: any) => void)} doUnplug
+ */
+
+/**
+ * @typedef {((args: MakeHandlerArgs) => Record<string, (obj: Record<string, any>) => void>)} MakeHandler
+ */
+
+/**
  * Create a CapTP connection.
  *
  * @param {string} ourId our name for the current side
  * @param {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} rawSend send a JSONable packet
- * @param {any} bootstrapObj the object to export to the other side
+ * @param {MakeHandler} makeHandler make a handler for the CapTP
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
-export const makeCapTPEngine = (
-  ourId,
-  rawSend,
-  bootstrapObj = undefined,
-  opts = {},
-) => {
+export const makeCapTPEngine = (ourId, rawSend, makeHandler, opts = {}) => {
   /** @type {Record<string, number>} */
   const sendStats = {};
   /** @type {Record<string, number>} */
@@ -580,238 +599,6 @@ export const makeCapTPEngine = (
     return importExportTables.getImport(slot);
   }
 
-  // Message handler used for CapTP dispatcher
-  const handler = {
-    // Remote is asking for bootstrap object
-    CTP_BOOTSTRAP(obj) {
-      const { questionID } = obj;
-      const bootstrap =
-        typeof bootstrapObj === 'function' ? bootstrapObj(obj) : bootstrapObj;
-      E.when(bootstrap, bs => {
-        // console.log('sending bootstrap', bs);
-        answers.set(questionID, bs);
-        send({
-          type: 'CTP_RETURN',
-          epoch,
-          answerID: questionID,
-          result: serialize(bs),
-        });
-      });
-    },
-    CTP_DROP(obj) {
-      const { slotID, decRefs = 0 } = obj;
-      // Ensure we are decrementing one of our exports.
-      slotID[1] === '-' || Fail`Cannot drop non-exported ${slotID}`;
-      const slot = reverseSlot(slotID);
-
-      const numRefs = slotToNumRefs.get(slot) || 0;
-      const toDecr = Number(decRefs);
-      if (numRefs > toDecr) {
-        slotToNumRefs.set(slot, numRefs - toDecr);
-      } else {
-        // We are dropping the last known reference to this slot.
-        gcStats.DROPPED += 1;
-        slotToNumRefs.delete(slot);
-        importExportTables.deleteExport(slot);
-        answers.delete(slot);
-      }
-    },
-    // Remote is invoking a method or retrieving a property.
-    CTP_CALL(obj) {
-      // questionId: Remote promise (for promise pipelining) this call is
-      //   to fulfill
-      // target: Slot id of the target to be invoked.  Checks against
-      //   answers first; otherwise goes through unserializer
-      const { questionID, target, trap } = obj;
-
-      const [prop, args] = unserialize(obj.method);
-      let val;
-      if (answers.has(target)) {
-        val = answers.get(target);
-      } else {
-        val = unserialize({
-          body: JSON.stringify({
-            [QCLASS]: 'slot',
-            index: 0,
-          }),
-          slots: [target],
-        });
-      }
-
-      /** @type {(isReject: boolean, value: any) => void} */
-      let processResult = (isReject, value) => {
-        // Serialize the result.
-        let serial;
-        try {
-          serial = serialize(harden(value));
-        } catch (error) {
-          // Promote serialization errors to rejections.
-          isReject = true;
-          serial = serialize(harden(error));
-        }
-
-        send({
-          type: 'CTP_RETURN',
-          epoch,
-          answerID: questionID,
-          [isReject ? 'exception' : 'result']: serial,
-        });
-      };
-      if (trap) {
-        exportedTrapHandlers.has(val) ||
-          Fail`Refused Trap(${val}) because target was not registered with makeTrapHandler`;
-        assert.typeof(
-          trapHost,
-          'function',
-          X`CapTP cannot answer Trap(${val}) without a trapHost function`,
-        );
-
-        // We need to create a promise for the "isDone" iteration right now to
-        // prevent a race with the other side.
-        const resultPK = makePromiseKit();
-        trapIteratorResultP.set(questionID, resultPK.promise);
-
-        processResult = (isReject, value) => {
-          const serialized = serialize(harden(value));
-          const ait = trapHost([isReject, serialized]);
-          if (!ait) {
-            // One-shot, no async iterator.
-            resultPK.resolve({ done: true });
-            return;
-          }
-
-          // We're ready for them to drive the iterator.
-          trapIterator.set(questionID, ait);
-          resultPK.resolve({ done: false });
-        };
-      }
-
-      // If `args` is supplied, we're applying a method or function...
-      // otherwise this is property access
-      let hp;
-      if (!args) {
-        hp = HandledPromise.get(val, prop);
-      } else if (prop === null) {
-        hp = HandledPromise.applyFunction(val, args);
-      } else {
-        hp = HandledPromise.applyMethod(val, prop, args);
-      }
-
-      // Answer with our handled promise
-      answers.set(questionID, hp);
-
-      hp
-        // Process this handled promise method's result when settled.
-        .then(
-          fulfilment => processResult(false, fulfilment),
-          reason => processResult(true, reason),
-        )
-        // Propagate internal errors as rejections.
-        .catch(reason => processResult(true, reason));
-    },
-    // Have the host serve more of the reply.
-    CTP_TRAP_ITERATE: obj => {
-      trapHost || Fail`CTP_TRAP_ITERATE is impossible without a trapHost`;
-      const { questionID, serialized } = obj;
-
-      const resultP = trapIteratorResultP.get(questionID);
-      resultP || Fail`CTP_TRAP_ITERATE did not expect ${questionID}`;
-
-      const [method, args] = unserialize(serialized);
-
-      const getNextResultP = async () => {
-        const result = await resultP;
-
-        // Done with this trap iterator.
-        const cleanup = () => {
-          trapIterator.delete(questionID);
-          trapIteratorResultP.delete(questionID);
-          return harden({ done: true });
-        };
-
-        // We want to ensure we clean up the iterator in case of any failure.
-        try {
-          if (!result || result.done) {
-            return cleanup();
-          }
-
-          const ait = trapIterator.get(questionID);
-          if (!ait) {
-            // The iterator is done, so we're done.
-            return cleanup();
-          }
-
-          // Drive the next iteration.
-          return await ait[method](...args);
-        } catch (e) {
-          cleanup();
-          if (!e) {
-            Fail`trapGuest expected trapHost AsyncIterator(${questionID}) to be done, but it wasn't`;
-          }
-          annotateError(e, X`trapHost AsyncIterator(${questionID}) threw`);
-          throw e;
-        }
-      };
-
-      // Store the next result promise.
-      const nextResultP = getNextResultP();
-      trapIteratorResultP.set(questionID, nextResultP);
-
-      // Ensure that our caller handles any rejection.
-      return nextResultP.then(sink);
-    },
-    // Answer to one of our questions.
-    CTP_RETURN(obj) {
-      const { result, exception, answerID } = obj;
-      const settler = settlers.get(answerID);
-      if (!settler) {
-        throw Error(
-          `Got an answer to a question we have not asked. (answerID = ${answerID} )`,
-        );
-      }
-      settlers.delete(answerID);
-      if ('exception' in obj) {
-        settler.reject(unserialize(exception));
-      } else {
-        settler.resolve(unserialize(result));
-      }
-    },
-    // Resolution to an imported promise
-    CTP_RESOLVE(obj) {
-      const { promiseID, res, rej } = obj;
-      const settler = settlers.get(promiseID);
-      if (!settler) {
-        // Not a promise we know about; maybe it was collected?
-        throw Error(
-          `Got a resolvement of a promise we have not imported. (promiseID = ${promiseID} )`,
-        );
-      }
-      settlers.delete(promiseID);
-      if ('rej' in obj) {
-        settler.reject(unserialize(rej));
-      } else {
-        settler.resolve(unserialize(res));
-      }
-    },
-    // The other side has signaled something has gone wrong.
-    // Pull the plug!
-    CTP_DISCONNECT(obj) {
-      const { reason = disconnectReason(ourId) } = obj;
-      if (unplug === false) {
-        // Reject with the original reason.
-        quietReject(obj.reason, false);
-        unplug = reason;
-        // Deliver the object, even though we're unplugged.
-        Promise.resolve(rawSend(obj)).catch(sink);
-      }
-      // We no longer wish to subscribe to object finalization.
-      importExportTables.didDisconnect();
-      for (const settler of settlers.values()) {
-        settler.reject(reason);
-      }
-    },
-  };
-
   // Get a reference to the other side's bootstrap object.
   const getBootstrap = async () => {
     if (unplug !== false) {
@@ -825,8 +612,27 @@ export const makeCapTPEngine = (
     });
     return harden(promise);
   };
-  harden(handler);
 
+  const handler = makeHandler({
+    send,
+    answers,
+    serialize,
+    unserialize,
+    reverseSlot,
+    slotToNumRefs,
+    gcStats,
+    importExportTables,
+    exportedTrapHandlers,
+    trapIterator,
+    trapIteratorResultP,
+    settlers,
+    quietReject,
+    disconnectReason,
+    didUnplug: () => unplug,
+    doUnplug: reason => {
+      unplug = reason;
+    },
+  });
   const validTypes = new Set(Object.keys(handler));
   for (const t of validTypes.keys()) {
     sendStats[t] = 0;
