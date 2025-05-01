@@ -2,6 +2,13 @@ User-visible changes in `ses`
 
 # Next release
 
+- Uses the `@endo/immutable-arraybuffer` shim to add `ArrayBuffer.p.immutable`, `ArrayBuffer.p.transferToImmutable`, and `ArrayBuffer.p.sliceToImmutable` to ses, in order to emulate the [Immutable ArrayBuffer proposal](https://github.com/tc39/proposal-immutable-arraybuffer). These make an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer` this shim's ArrayBuffer-like object cannot be transfered or cloned between JS threads.
+  - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this shim's ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
+  - The shim depends on the platform providing either `structuredClone` or `Array.prototype.transfer`. Node <= 16 and provides neither, causing the shim to fail to initialize, and therefore SES to fail to initialize on such platforms.
+  - Current Hermes has even stronger constraints, lacking `structuredClone`, `transfer`, private fields, and even `class` syntax. This requires other coping strategies. See https://github.com/endojs/endo/pull/2785
+  - Even after the upcoming `transferToImmutable` proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See https://github.com/endojs/endo/pull/2311#discussion_r1632607527 . It will require a later manual step to delete the shim or have it avoid overriting a platform implementation, after manual analysis of the compat implications.
+
 - The [evalTaming](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#evaltaming-options)
   option `'safe-eval'` now can only throw error `SES_DIRECT_EVAL`.
   This allows SES to initialize with `'unsafe-eval'` or `'no-eval'` on hosts with no
