@@ -201,8 +201,10 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((reason?: any) => void)} abort
  * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} dispatch
  * @property {() => Promise<any>} getBootstrap
+ * @property {(val: unknown) => CapTPSlot | undefined} getSlotForValue
+ * Gets the slot for a value, but does not register a new slot if the value is
+ * unknown.
  * @property {() => Record<string, Record<string, number>>} getStats
- * @property {(val: unknown) => boolean} isOnlyLocal
  * @property {ToCapData<string>} serialize
  * @property {FromCapData<string>} unserialize
  * @property {<T>(name: string, obj: T) => T} makeTrapHandler
@@ -517,28 +519,6 @@ export const makeCapTPEngine = (
 
     return slot;
   }
-
-  const IS_REMOTE_PUMPKIN = harden({});
-  const assertValIsLocal = val => {
-    const slot = valToSlot.get(val);
-    if (slot && slot[1] === '-') {
-      throw IS_REMOTE_PUMPKIN;
-    }
-  };
-
-  const { serialize: assertOnlyLocal } = makeMarshal(assertValIsLocal);
-  const isOnlyLocal = specimen => {
-    // Try marshalling the object, but throw on references to remote objects.
-    try {
-      assertOnlyLocal(harden(specimen));
-      return true;
-    } catch (e) {
-      if (e === IS_REMOTE_PUMPKIN) {
-        return false;
-      }
-      throw e;
-    }
-  };
 
   /**
    * Generate a new question in the questions table and set up a new
@@ -893,14 +873,18 @@ export const makeCapTPEngine = (
     return far;
   };
 
+  const getSlotForValue = val => {
+    return valToSlot.get(val);
+  };
+
   // Put together our return value.
   /** @type {CapTPEngine} */
   const rets = {
     abort,
     dispatch,
     getBootstrap,
+    getSlotForValue,
     getStats,
-    isOnlyLocal,
     serialize,
     unserialize,
     makeTrapHandler,

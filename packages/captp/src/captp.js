@@ -3,6 +3,8 @@
 /** @import {CapTPSlot, TrapHost, TrapGuest} from './types.js' */
 /** @import {CapTPImportExportTables} from './captp-engine.js' */
 
+import { makeMarshal } from '@endo/marshal';
+
 import { makeCapTPEngine } from './captp-engine.js';
 
 export { E } from '@endo/eventual-send';
@@ -50,5 +52,32 @@ export const makeCapTP = (
   bootstrapObj = undefined,
   opts = {},
 ) => {
-  return makeCapTPEngine(ourId, rawSend, bootstrapObj, opts);
+  const engine = makeCapTPEngine(ourId, rawSend, bootstrapObj, opts);
+
+  // Set up isLocalOnly check.
+  const IS_REMOTE_PUMPKIN = harden({});
+  const assertValIsLocal = val => {
+    const slot = engine.getSlotForValue(val);
+    if (slot && slot[1] === '-') {
+      throw IS_REMOTE_PUMPKIN;
+    }
+  };
+  const { serialize: assertOnlyLocal } = makeMarshal(assertValIsLocal);
+  const isOnlyLocal = specimen => {
+    // Try marshalling the object, but throw on references to remote objects.
+    try {
+      assertOnlyLocal(harden(specimen));
+      return true;
+    } catch (e) {
+      if (e === IS_REMOTE_PUMPKIN) {
+        return false;
+      }
+      throw e;
+    }
+  };
+
+  return harden({
+    ...engine,
+    isOnlyLocal,
+  });
 };
