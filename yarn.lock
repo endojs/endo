@@ -831,6 +831,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/path-compare@workspace:packages/path-compare":
+  version: 0.0.0-use.local
+  resolution: "@endo/path-compare@workspace:packages/path-compare"
+  dependencies:
+    ava: "npm:^6.1.3"
+    c8: "npm:^7.14.0"
+    tsd: "npm:^0.31.2"
+    typescript: "npm:~5.8.3"
+  languageName: unknown
+  linkType: soft
+
 "@endo/patterns@workspace:^, @endo/patterns@workspace:packages/patterns":
   version: 0.0.0-use.local
   resolution: "@endo/patterns@workspace:packages/patterns"
