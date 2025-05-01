@@ -62,19 +62,41 @@ export const makeCapTP = (
 ) => {
   const { epoch = 0, trapHost } = opts;
 
+  /**
+   * convertValToSlot and convertSlotToVal both perform side effects,
+   * populating the c-lists (imports/exports/questions/answers) upon
+   * marshalling/unmarshalling.  As we traverse the datastructure representing
+   * the message, we discover what we need to import/export and send relevant
+   * messages across the wire.
+   */
+  const { serialize, unserialize } = makeMarshal(
+    // eslint-disable-next-line no-use-before-define
+    val => engine.convertValToSlot(val),
+    // eslint-disable-next-line no-use-before-define
+    (slot, iface) => engine.convertSlotToVal(slot, iface),
+    {
+      marshalName: `captp:${ourId}`,
+      // TODO Temporary hack.
+      // See https://github.com/Agoric/agoric-sdk/issues/2780
+      errorIdNum: 20000,
+      // TODO: fix captp to be compatible with smallcaps
+      serializeBodyFormat: 'capdata',
+    },
+  );
+
   const engine = makeCapTPEngine(
     ourId,
     rawSend,
     // eslint-disable-next-line no-use-before-define
     makeDispatch,
+    serialize,
+    unserialize,
     opts,
   );
 
   /** @type {import('./captp-engine.js').MakeDispatch} */
   function makeDispatch({
     send,
-    serialize,
-    unserialize,
     reverseSlot,
     exportedTrapHandlers,
     trapIterator,
@@ -352,6 +374,8 @@ export const makeCapTP = (
 
   return harden({
     ...engine,
+    serialize,
+    unserialize,
     isOnlyLocal,
   });
 };

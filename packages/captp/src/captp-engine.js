@@ -6,7 +6,7 @@
 
 // This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
 // good dose of https://github.com/capnproto/capnproto/blob/master/c++/src/capnp/rpc.capnp
-import { Remotable, Far, makeMarshal } from '@endo/marshal';
+import { Remotable, Far } from '@endo/marshal';
 import { E, HandledPromise } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 
@@ -212,8 +212,6 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * Gets the slot for a value, but does not register a new slot if the value is
  * unknown.
  * @property {() => Record<string, Record<string, number>>} getStats
- * @property {ToCapData<string>} serialize
- * @property {FromCapData<string>} unserialize
  * @property {<T>(name: string, obj: T) => T} makeTrapHandler
  * @property {import('./ts-types.js').Trap | undefined} Trap
  * @property {((target: string) => RemoteKit)} makeRemoteKit
@@ -226,13 +224,13 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((answerID: string, result: any) => void)} resolveQuestion
  * @property {((answerID: string, exception: any) => void)} rejectQuestion
  * @property {((reason: any) => void)} disconnect
+ * @property {import('@endo/marshal').ConvertValToSlot<CapTPSlot>} convertValToSlot
+ * @property {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>} convertSlotToVal
  */
 
 /**
  * @typedef {object} MakeDispatchArgs
  * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} send
- * @property {ToCapData<string>} serialize
- * @property {FromCapData<string>} unserialize
  * @property {(slot: CapTPSlot) => CapTPSlot} reverseSlot
  * @property {WeakSet<any>} exportedTrapHandlers
  * @property {Map<string, Promise<IteratorResult<void, void>>>} trapIteratorResultP
@@ -255,10 +253,19 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @param {string} ourId our name for the current side
  * @param {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} rawSend send a JSONable packet
  * @param {MakeDispatch} makeDispatch make a handler for the CapTP
+ * @param {ToCapData<string>} serialize
+ * @param {FromCapData<string>} unserialize
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
-export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
+export const makeCapTPEngine = (
+  ourId,
+  rawSend,
+  makeDispatch,
+  serialize,
+  unserialize,
+  opts = {},
+) => {
   /** @type {Record<string, number>} */
   const sendStats = {};
   /** @type {Record<string, number>} */
@@ -350,28 +357,6 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
       // eslint-disable-next-line no-use-before-define
       .catch(abort); // Abort if rawSend returned a rejection.
   };
-
-  /**
-   * convertValToSlot and convertSlotToVal both perform side effects,
-   * populating the c-lists (imports/exports/questions/answers) upon
-   * marshalling/unmarshalling.  As we traverse the datastructure representing
-   * the message, we discover what we need to import/export and send relevant
-   * messages across the wire.
-   */
-  const { serialize, unserialize } = makeMarshal(
-    // eslint-disable-next-line no-use-before-define
-    convertValToSlot,
-    // eslint-disable-next-line no-use-before-define
-    convertSlotToVal,
-    {
-      marshalName: `captp:${ourId}`,
-      // TODO Temporary hack.
-      // See https://github.com/Agoric/agoric-sdk/issues/2780
-      errorIdNum: 20000,
-      // TODO: fix captp to be compatible with smallcaps
-      serializeBodyFormat: 'capdata',
-    },
-  );
 
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
@@ -627,8 +612,6 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
 
   const dispatch = makeDispatch({
     send,
-    serialize,
-    unserialize,
     reverseSlot,
     exportedTrapHandlers,
     trapIterator,
@@ -728,8 +711,6 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
     getBootstrap,
     getSlotForValue,
     getStats,
-    serialize,
-    unserialize,
     makeTrapHandler,
     Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
     makeRemoteKit,
@@ -742,6 +723,8 @@ export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
     resolveQuestion,
     rejectQuestion,
     disconnect,
+    convertValToSlot,
+    convertSlotToVal,
   };
 
   if (trapGuest) {
