@@ -226,6 +226,8 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((reason: any) => void)} disconnect
  * @property {import('@endo/marshal').ConvertValToSlot<CapTPSlot>} convertValToSlot
  * @property {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>} convertSlotToVal
+ * @property {RefCounter<string>} recvSlot
+ * @property {RefCounter<string>} sendSlot
  */
 
 /**
@@ -240,7 +242,6 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((reason?: any) => void)} doUnplug
  * @property {Record<string, number>} sendStats
  * @property {Record<string, number>} recvStats
- * @property {RefCounter<string>} recvSlot
  */
 
 /**
@@ -623,7 +624,6 @@ export const makeCapTPEngine = (
     },
     sendStats,
     recvStats,
-    recvSlot,
   });
 
   // Abort a connection.
@@ -725,6 +725,8 @@ export const makeCapTPEngine = (
     disconnect,
     convertValToSlot,
     convertSlotToVal,
+    recvSlot,
+    sendSlot,
   };
 
   if (trapGuest) {

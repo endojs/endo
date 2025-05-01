@@ -106,7 +106,6 @@ export const makeCapTP = (
     doUnplug,
     sendStats,
     recvStats,
-    recvSlot,
   }) {
     const disconnectReason = id =>
       Error(`${JSON.stringify(id)} connection closed`);
@@ -333,14 +332,14 @@ export const makeCapTP = (
         }
 
         for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
-          recvSlot.add(obj[prop]);
+          engine.recvSlot.add(obj[prop]);
         }
         fn(obj);
-        recvSlot.commit();
+        engine.recvSlot.commit();
 
         return true;
       } catch (e) {
-        recvSlot.abort();
+        engine.recvSlot.abort();
         quietReject(e, false);
 
         return false;
