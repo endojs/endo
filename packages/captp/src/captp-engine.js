@@ -150,8 +150,17 @@ const makeDefaultCapTPImportExportTables = ({
 
 /**
  * @template T
+ * @typedef {object} RefCounter<T>
+ * @property {((specimen: T) => T)} add
+ * @property {() => void} commit
+ * @property {() => void} abort
+ */
+
+/**
+ * @template T
  * @param {Map<T, number>} specimenToRefCount
  * @param {(specimen: T) => boolean} predicate
+ * @returns {RefCounter<T>}
  */
 const makeRefCounter = (specimenToRefCount, predicate) => {
   /** @type {Set<T>} */
@@ -198,8 +207,6 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {(MakeCapTPImportExportTablesOptions) => CapTPImportExportTables} [makeCapTPImportExportTables] provide external import/export tables
  *
  * @typedef {object} CapTPEngine
- * @property {((reason?: any) => void)} abort
- * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} dispatch
  * @property {() => Promise<any>} getBootstrap
  * @property {(val: unknown) => CapTPSlot | undefined} getSlotForValue
  * Gets the slot for a value, but does not register a new slot if the value is
@@ -210,10 +217,12 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {<T>(name: string, obj: T) => T} makeTrapHandler
  * @property {import('./ts-types.js').Trap | undefined} Trap
  * @property {((target: string) => RemoteKit)} makeRemoteKit
+ * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} dispatch
+ * @property {((reason?: any) => void)} abort
  */
 
 /**
- * @typedef {object} MakeHandlerArgs
+ * @typedef {object} MakeDispatchArgs
  * @property {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} send
  * @property {Map<string, any>} answers
  * @property {ToCapData<string>} serialize
@@ -230,10 +239,13 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {((reason?: any) => void)} disconnectReason
  * @property {() => boolean} didUnplug
  * @property {((reason?: any) => void)} doUnplug
+ * @property {Record<string, number>} sendStats
+ * @property {Record<string, number>} recvStats
+ * @property {RefCounter<string>} recvSlot
  */
 
 /**
- * @typedef {((args: MakeHandlerArgs) => Record<string, (obj: Record<string, any>) => void>)} MakeHandler
+ * @typedef {((args: MakeDispatchArgs) => ((reason?: any) => void))} MakeDispatch
  */
 
 /**
@@ -241,11 +253,11 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  *
  * @param {string} ourId our name for the current side
  * @param {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} rawSend send a JSONable packet
- * @param {MakeHandler} makeHandler make a handler for the CapTP
+ * @param {MakeDispatch} makeDispatch make a handler for the CapTP
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
-export const makeCapTPEngine = (ourId, rawSend, makeHandler, opts = {}) => {
+export const makeCapTPEngine = (ourId, rawSend, makeDispatch, opts = {}) => {
   /** @type {Record<string, number>} */
   const sendStats = {};
   /** @type {Record<string, number>} */
@@ -307,11 +319,13 @@ export const makeCapTPEngine = (ourId, rawSend, makeHandler, opts = {}) => {
   /** @type {Map<CapTPSlot, number>} */
   const slotToNumRefs = new Map();
 
+  /** @type {RefCounter<string>} */
   const recvSlot = makeRefCounter(
     slotToNumRefs,
     slot => typeof slot === 'string' && slot[1] === '-',
   );
 
+  /** @type {RefCounter<string>} */
   const sendSlot = makeRefCounter(
     slotToNumRefs,
     slot => typeof slot === 'string' && slot[1] === '+',
@@ -613,7 +627,7 @@ export const makeCapTPEngine = (ourId, rawSend, makeHandler, opts = {}) => {
     return harden(promise);
   };
 
-  const handler = makeHandler({
+  const dispatch = makeDispatch({
     send,
     answers,
     serialize,
@@ -632,43 +646,13 @@ export const makeCapTPEngine = (ourId, rawSend, makeHandler, opts = {}) => {
     doUnplug: reason => {
       unplug = reason;
     },
+    sendStats,
+    recvStats,
+    recvSlot,
   });
-  const validTypes = new Set(Object.keys(handler));
-  for (const t of validTypes.keys()) {
-    sendStats[t] = 0;
-    recvStats[t] = 0;
-  }
-
-  // Return a dispatch function.
-  const dispatch = obj => {
-    try {
-      validTypes.has(obj.type) || Fail`unknown message type ${obj.type}`;
-
-      recvStats[obj.type] += 1;
-      if (unplug !== false) {
-        return false;
-      }
-      const fn = handler[obj.type];
-      if (!fn) {
-        return false;
-      }
-
-      for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
-        recvSlot.add(obj[prop]);
-      }
-      fn(obj);
-      recvSlot.commit();
-
-      return true;
-    } catch (e) {
-      recvSlot.abort();
-      quietReject(e, false);
-
-      return false;
-    }
-  };
 
   // Abort a connection.
+  /** @type {((reason?: any) => void)} */
   const abort = (reason = undefined) => {
     dispatch({ type: 'CTP_DISCONNECT', epoch, reason });
   };
@@ -686,8 +670,6 @@ export const makeCapTPEngine = (ourId, rawSend, makeHandler, opts = {}) => {
   // Put together our return value.
   /** @type {CapTPEngine} */
   const rets = {
-    abort,
-    dispatch,
     getBootstrap,
     getSlotForValue,
     getStats,
@@ -696,6 +678,8 @@ export const makeCapTPEngine = (ourId, rawSend, makeHandler, opts = {}) => {
     makeTrapHandler,
     Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
     makeRemoteKit,
+    dispatch,
+    abort,
   };
 
   if (trapGuest) {

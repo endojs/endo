@@ -15,6 +15,8 @@ export { E };
 const sink = () => {};
 harden(sink);
 
+const WELL_KNOWN_SLOT_PROPERTIES = ['type', 'slots', 'body'];
+
 /**
  * @typedef {object} CapTPOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
@@ -64,12 +66,12 @@ export const makeCapTP = (
     ourId,
     rawSend,
     // eslint-disable-next-line no-use-before-define
-    makeHandler,
+    makeDispatch,
     opts,
   );
 
-  /** @type {import('./captp-engine.js').MakeHandler} */
-  function makeHandler({
+  /** @type {import('./captp-engine.js').MakeDispatch} */
+  function makeDispatch({
     send,
     answers,
     serialize,
@@ -86,9 +88,12 @@ export const makeCapTP = (
     disconnectReason,
     didUnplug,
     doUnplug,
+    sendStats,
+    recvStats,
+    recvSlot,
   }) {
     // Message handler used for CapTP dispatcher
-    return harden({
+    const handler = harden({
       // Remote is asking for bootstrap object
       CTP_BOOTSTRAP(obj) {
         const { questionID } = obj;
@@ -318,6 +323,42 @@ export const makeCapTP = (
         }
       },
     });
+    const validTypes = new Set(Object.keys(handler));
+    for (const t of validTypes.keys()) {
+      sendStats[t] = 0;
+      recvStats[t] = 0;
+    }
+
+    /** @type {((obj: Record<string, any>) => void) | ((obj: Record<string, any>) => PromiseLike<void>)} */
+    const dispatch = obj => {
+      try {
+        validTypes.has(obj.type) || Fail`unknown message type ${obj.type}`;
+
+        recvStats[obj.type] += 1;
+        if (didUnplug() !== false) {
+          return false;
+        }
+        const fn = handler[obj.type];
+        if (!fn) {
+          return false;
+        }
+
+        for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
+          recvSlot.add(obj[prop]);
+        }
+        fn(obj);
+        recvSlot.commit();
+
+        return true;
+      } catch (e) {
+        recvSlot.abort();
+        quietReject(e, false);
+
+        return false;
+      }
+    };
+
+    return dispatch;
   }
 
   // Set up isLocalOnly check.
