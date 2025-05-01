@@ -11,8 +11,11 @@ export const exampleAlice = Far('alice', {});
 export const exampleBob = Far('bob', {});
 export const exampleCarol = Far('carol', {});
 
-/** @param {typeof import('@fast-check/ava').fc} fc */
-export const makeArbitraries = fc => {
+/**
+ * @param {typeof import('@fast-check/ava').fc} fc
+ * @param {Array<'byteArray'>} [exclusions]
+ */
+export const makeArbitraries = (fc, exclusions = []) => {
   const arbString = fc.oneof(fc.string(), fc.fullUnicodeString());
 
   const keyableLeaves = [
@@ -29,6 +32,14 @@ export const makeArbitraries = fc => {
     ),
     fc.bigInt(),
     fc.integer(),
+    // Using `sliceToImmutable` rather than `transferToImmutable` only
+    // because we may go through a phase where only `sliceToImmutable` is
+    // provided when the shim is run on Hermes.
+    // See https://github.com/endojs/endo/pull/2785
+    // @ts-expect-error How can the shim add to the `ArrayBuffer` type?
+    ...[fc.uint8Array().map(arr => arr.buffer.sliceToImmutable())].filter(
+      () => !exclusions.includes('byteArray'),
+    ),
     fc.constantFrom(-0, NaN, Infinity, -Infinity),
     fc.record({}),
     fc.constantFrom(exampleAlice, exampleBob, exampleCarol),

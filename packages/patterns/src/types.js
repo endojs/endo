@@ -90,8 +90,8 @@ export {};
  *
  * Patterns are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
- * non-container leaf is either a Key or a {@link Matcher}, or such leaves in isolation
- * with no container.
+ * non-container leaf is either a Key or a {@link Matcher}, or such leaves in
+ * isolation with no container.
  *
  * A Pattern acts as a declarative total predicate over Passables, where each
  * Passable is either matched or not matched by it. Every {@link Key} is also a Pattern
@@ -205,6 +205,7 @@ export {};
  * @property {number} numPropertiesLimit
  * @property {number} propertyNameLengthLimit
  * @property {number} arrayLengthLimit
+ * @property {number} byteLengthLimit
  * @property {number} numSetElementsLimit
  * @property {number} numUniqueBagElementsLimit
  * @property {number} numMapEntriesLimit
@@ -296,6 +297,9 @@ export {};
  *
  * @property {(limits?: Limits) => Matcher} array
  * Matches any CopyArray, subject to limits.
+ *
+ * @property {(limits?: Limits) => Matcher} bytes
+ * Matches any ByteArray, subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} set
  * Matches any CopySet, subject to limits.

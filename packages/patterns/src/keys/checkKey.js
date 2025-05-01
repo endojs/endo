@@ -108,6 +108,13 @@ const keyMemo = new WeakSet();
  */
 export const checkKey = (val, check) => {
   if (!isObject(val)) {
+    // TODO!!! Once we switch `symbol` to be represented by an object type,
+    // it will no longer fall into the `!isObject` camp, just as byteArrays
+    // are "primitive" in the distributed object system but are still
+    // objects at the JS level.
+    // TODO: look for other uses of `isObject` at the pass-style level
+    // or above that might be misclassifying this way.
+    //
     // TODO There is not yet a checkPassable, but perhaps there should be.
     // If that happens, we should call it here instead.
     assertPassable(val);
@@ -543,6 +550,14 @@ const checkKeyInternal = (val, check) => {
 
   const passStyle = passStyleOf(val);
   switch (passStyle) {
+    case 'symbol': // anticipating a JS object representation of a passable symbol
+    case 'byteArray': // passable primitive, with js object representation.
+    case 'remotable': {
+      // Any Primitive or Remotable is a Key, and `checkKey` covers those that
+      // are represented in JS as *language* primitives while this covers the
+      // remainder.
+      return true;
+    }
     case 'copyRecord': {
       // A copyRecord is a key iff all its children are keys
       return Object.values(val).every(checkIt);
@@ -576,10 +591,6 @@ const checkKeyInternal = (val, check) => {
           );
         }
       }
-    }
-    case 'remotable': {
-      // All remotables are keys.
-      return true;
     }
     case 'error':
     case 'promise': {

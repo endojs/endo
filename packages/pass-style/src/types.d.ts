@@ -3,15 +3,18 @@ import { PASS_STYLE } from './passStyle-helpers.js';
 
 /**
  * Matches any [primitive value](https://developer.mozilla.org/en-US/docs/Glossary/Primitive).
+ * TODO This now represents passable primitives, some of which are represented
+ * in JS as JS objects, not JS primitives.
  */
 export type Primitive =
-  | null
   | undefined
-  | string
-  | number
+  | null
   | boolean
-  | symbol
-  | bigint;
+  | number
+  | bigint
+  | string
+  | ByteArray
+  | symbol; // TODO we'll need to stop using the JS symbol type here.
 
 export type PrimitiveStyle =
   | 'undefined'
@@ -20,6 +23,7 @@ export type PrimitiveStyle =
   | 'number'
   | 'bigint'
   | 'string'
+  | 'byteArray'
   | 'symbol';
 
 export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
@@ -116,16 +120,16 @@ export type PassStyleOf = {
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
- * PureData is an arbitrary composition of primitive values into CopyArray
- * and/or
- * CopyRecord and/or CopyTagged containers (or a single primitive value with no
- * container), and is fully pass-by-copy.
+ * PureData is an arbitrary composition of primitive values into CopyArray,
+ * CopyRecord, and/or CopyTagged containers
+ * (or a single primitive value with no container), and is fully pass-by-copy.
  *
- * This restriction assures absence of side effects and interleaving risks *given*
- * that none of the containers can be a Proxy instance.
+ * This restriction assures absence of side effects and interleaving risks
+ * *given* that none of the containers can be a Proxy instance.
  * TODO SECURITY BUG we plan to enforce this, giving PureData the same security
  * properties as the proposed
  * [Records and Tuples](https://github.com/tc39/proposal-record-tuple).
+ * (TODO update to point at the non-trapping shim)
  *
  * Given this (currently counter-factual) assumption, a PureData value cannot
  * be used as a communications channel,
@@ -155,6 +159,11 @@ export type PassableCap = Promise<any> | RemotableObject;
  * A Passable sequence of Passable values.
  */
 export type CopyArray<T extends Passable = any> = Array<T>;
+
+/**
+ * A hardened immutable ArrayBuffer.
+ */
+export type ByteArray = ArrayBuffer;
 
 /**
  * A Passable dictionary in which each key is a string and each value is Passable.

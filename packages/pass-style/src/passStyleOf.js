@@ -12,6 +12,7 @@ import {
 } from './passStyle-helpers.js';
 
 import { CopyArrayHelper } from './copyArray.js';
+import { ByteArrayHelper } from './byteArray.js';
 import { CopyRecordHelper } from './copyRecord.js';
 import { TaggedHelper } from './tagged.js';
 import {
@@ -31,23 +32,20 @@ import { assertPassableString } from './string.js';
 /** @import {CopyArray, CopyRecord, CopyTagged, Passable} from './types.js' */
 /** @import {PassStyle} from './types.js' */
 /** @import {PassStyleOf} from './types.js' */
-/** @import {PrimitiveStyle} from './types.js' */
-
-/** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 
 const { ownKeys } = Reflect;
 const { isFrozen, getOwnPropertyDescriptors, values } = Object;
 
 /**
+ * @template {Record<PassStyle, PassStyleHelper>} HelpersRecord
  * @param {PassStyleHelper[]} passStyleHelpers
- * @returns {Record<HelperPassStyle, PassStyleHelper> }
+ * @returns {HelpersRecord}
  */
-
 const makeHelperTable = passStyleHelpers => {
-  /** @type {Record<HelperPassStyle, any> & {__proto__: null}} */
   const HelperTable = {
     __proto__: null,
     copyArray: undefined,
+    byteArray: undefined,
     copyRecord: undefined,
     tagged: undefined,
     error: undefined,
@@ -65,7 +63,9 @@ const makeHelperTable = passStyleHelpers => {
       Fail`missing helper for ${q(styleName)}`;
   }
 
-  return harden(HelperTable);
+  return /** @type {HelpersRecord} */ (
+    /** @type {unknown} */ (harden(HelperTable))
+  );
 };
 
 /**
@@ -236,6 +236,7 @@ export const passStyleOf =
   (globalThis && globalThis[PassStyleOfEndowmentSymbol]) ||
   makePassStyleOf([
     CopyArrayHelper,
+    ByteArrayHelper,
     CopyRecordHelper,
     TaggedHelper,
     ErrorHelper,

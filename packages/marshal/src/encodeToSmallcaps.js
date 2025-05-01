@@ -229,6 +229,10 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
       case 'copyArray': {
         return passable.map(encodeToSmallcapsRecur);
       }
+      case 'byteArray': {
+        // TODO implement
+        throw Fail`marsal of byteArray not yet implemented: ${passable}`;
+      }
       case 'tagged': {
         return {
           '#tag': encodeToSmallcapsRecur(getTag(passable)),

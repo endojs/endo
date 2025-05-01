@@ -46,12 +46,11 @@ const { entries, fromEntries, setPrototypeOf, is } = Object;
 const sameValueZero = (x, y) => x === y || is(x, y);
 
 /**
- * @deprecated use type-specific `compareNumerics` etc.
  * @param {any} left
  * @param {any} right
  * @returns {RankComparison}
  */
-export const trivialComparator = (left, right) =>
+const trivialComparator = (left, right) =>
   // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
   left < right ? -1 : left === right ? 0 : 1;
 
@@ -88,9 +87,8 @@ const passStyleRanks = /** @type {PassStyleRanksRecord} */ (
       // thus contain only code units that are equivalent to code points.
       // In practice, they are entirely printable ASCII
       // (0x20 SPACE through 0x7E TILDE).
-      .sort(([_aStyle, aPrefixes], [_bStyle, bPrefixes]) => {
-        // eslint-disable-next-line no-nested-ternary
-        return aPrefixes < bPrefixes ? -1 : aPrefixes > bPrefixes ? 1 : 0;
+      .sort(([_leftStyle, leftPrefixes], [_rightStyle, rightPrefixes]) => {
+        return trivialComparator(leftPrefixes, rightPrefixes);
       })
       .map(([passStyle, prefixes], index) => {
         // Verify that `prefixes` is sorted, and cover all strings that start
@@ -227,6 +225,41 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
         // If all matching elements were tied, then according to their lengths.
         // If array X is a prefix of array Y, then X has an earlier rank than Y.
         return comparator(left.length, right.length);
+      }
+      case 'byteArray': {
+        // ByteArrays compare by shortlex.
+        // - first, if they are of unequal length, then the shorter is less.
+        // - then, among byteArrays of equal length, by lexicographic comparison
+        //   of their bytes in ascending order.
+        const { byteLength: leftLen } = left;
+        const { byteLength: rightLen } = right;
+        if (leftLen < rightLen) {
+          return -1;
+        }
+        if (leftLen > rightLen) {
+          return 1;
+        }
+
+        // Account for gaps in the @endo/immutable-arraybuffer shim.
+        const leftArray =
+          Object.getPrototypeOf(left) === ArrayBuffer.prototype
+            ? new Uint8Array(left)
+            : new Uint8Array(left.slice(0));
+        const rightArray =
+          Object.getPrototypeOf(right) === ArrayBuffer.prototype
+            ? new Uint8Array(right)
+            : new Uint8Array(right.slice(0));
+        for (let i = 0; i < leftLen; i += 1) {
+          const leftByte = leftArray[i];
+          const rightByte = rightArray[i];
+          if (leftByte < rightByte) {
+            return -1;
+          }
+          if (leftByte > rightByte) {
+            return 1;
+          }
+        }
+        return 0;
       }
       case 'tagged': {
         // Lexicographic by `[Symbol.toStringTag]` then `.payload`.

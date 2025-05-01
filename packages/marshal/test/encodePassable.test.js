@@ -15,7 +15,7 @@ import {
 import { compareRank, makeFullOrderComparatorKit } from '../src/rankOrder.js';
 import { unsortedSample } from './_marshal-test-data.js';
 
-const { arbPassable } = makeArbitraries(fc);
+const { arbPassable } = makeArbitraries(fc, ['byteArray']);
 
 const statelessEncodePassableLegacy = makeEncodePassable();
 
