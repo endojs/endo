@@ -2,11 +2,10 @@
 import { PASS_STYLE } from './passStyle-helpers.js';
 
 /**
- * Matches any [primitive value](https://developer.mozilla.org/en-US/docs/Glossary/Primitive).
- * TODO This now represents passable primitives, some of which are represented
- * in JS as JS objects, not JS primitives.
+ * JS values that correspond to ocapn Atoms, most of which are JS primitives,
+ * but some of which are represented as JS object.
  */
-export type Primitive =
+export type Atom =
   | undefined
   | null
   | boolean
@@ -14,9 +13,9 @@ export type Primitive =
   | bigint
   | string
   | ByteArray
-  | symbol; // TODO we'll need to stop using the JS symbol type here.
+  | symbol;
 
-export type PrimitiveStyle =
+export type AtomStyle =
   | 'undefined'
   | 'null'
   | 'boolean'
@@ -26,10 +25,23 @@ export type PrimitiveStyle =
   | 'byteArray'
   | 'symbol';
 
+/**
+ * @deprecated Use `Atom` instead, which is also the ocapn name. Now that
+ * ByteArray has been added, this category no longer corresponds to
+ * JS primitives, We also expect to move  to a passable-symbol representation
+ * as a JS object, not a JS primitive
+ */
+export type Primitive = Atom;
+
+/**
+ * @deprecated Use `AtomStyle` instead. See `Atom` vs `Primitive`.
+ */
+export type PrimitiveStyle = AtomStyle;
+
 export type ContainerStyle = 'copyRecord' | 'copyArray' | 'tagged';
 
 export type PassStyle =
-  | PrimitiveStyle
+  | AtomStyle
   | ContainerStyle
   | 'remotable'
   | 'error'
@@ -49,12 +61,7 @@ export type PassStyled<S extends TaggedOrRemotable, I extends InterfaceSpec> = {
 
 export type ExtractStyle<P extends PassStyled<any, any>> = P[typeof PASS_STYLE];
 
-export type PassByCopy =
-  | Primitive
-  | Error
-  | CopyArray
-  | CopyRecord
-  | CopyTagged;
+export type PassByCopy = Atom | Error | CopyArray | CopyRecord | CopyTagged;
 
 export type PassByRef =
   | RemotableObject
@@ -66,9 +73,10 @@ export type PassByRef =
  * remain
  * stable (even if some components are proxies; see PureData restriction below),
  * and is classified by PassStyle:
- *   * Atomic primitive values have a PrimitiveStyle (PassStyle
+ *   * Atomic values have an AtomStyle (PassStyle
  *     'undefined' | 'null' | 'boolean' | 'number' | 'bigint'
- *     | 'string' | 'symbol'). (Passable considers `void` to be `undefined`.)
+ *     | 'string' | 'byteArray' | 'symbol').
+ *     (Passable considers `void` to be `undefined`.)
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle 'copyArray'), or
  *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
@@ -86,7 +94,7 @@ export type PassByRef =
 export type Passable<
   PC extends PassableCap = PassableCap,
   E extends Error = Error,
-> = void | Primitive | Container<PC, E> | PC | E;
+> = void | Atom | Container<PC, E> | PC | E;
 
 export type Container<PC extends PassableCap, E extends Error> =
   | CopyArrayInterface<PC, E>
@@ -120,9 +128,9 @@ export type PassStyleOf = {
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
- * PureData is an arbitrary composition of primitive values into CopyArray,
+ * PureData is an arbitrary composition of Atoms into CopyArray,
  * CopyRecord, and/or CopyTagged containers
- * (or a single primitive value with no container), and is fully pass-by-copy.
+ * (or a single Atom with no container), and is fully pass-by-copy.
  *
  * This restriction assures absence of side effects and interleaving risks
  * *given* that none of the containers can be a Proxy instance.

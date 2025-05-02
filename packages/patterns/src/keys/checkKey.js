@@ -1,66 +1,32 @@
 /// <reference types="ses"/>
 
+import { X, q, Fail } from '@endo/errors';
+import { identChecker } from '@endo/common/ident-checker.js';
 import {
   assertChecker,
-  assertPassable,
   Far,
   getTag,
-  isObject,
   makeTagged,
   passStyleOf,
+  isAtom,
+} from '@endo/pass-style';
+import {
   compareAntiRank,
   makeFullOrderComparatorKit,
   sortByRank,
 } from '@endo/marshal';
-import { identChecker } from '@endo/common/ident-checker.js';
 
-import { X, q, Fail } from '@endo/errors';
 import { checkElements, makeSetOfElements } from './copySet.js';
 import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 
 const { ownKeys } = Reflect;
 
 /**
- * @import {Passable, Primitive} from '@endo/pass-style'
- * @import {Checker} from '@endo/marshal'
+ * @import {Passable, Atom, Checker} from '@endo/pass-style'
  * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js'
  */
 
-// ////////////////// Primitive and Scalar keys ////////////////////////////////
-
-/**
- * @param {Passable} val
- * @param {Checker} check
- * @returns {boolean}
- */
-const checkPrimitiveKey = (val, check) => {
-  if (isObject(val)) {
-    return (
-      check !== identChecker &&
-      check(false, X`A ${q(typeof val)} cannot be a primitive: ${val}`)
-    );
-  }
-  // TODO There is not yet a checkPassable, but perhaps there should be.
-  // If that happens, we should call it here instead.
-  assertPassable(val);
-  return true;
-};
-
-/**
- * @param {any} val
- * @returns {val is Primitive}
- */
-export const isPrimitiveKey = val => checkPrimitiveKey(val, identChecker);
-harden(isPrimitiveKey);
-
-/**
- * @param {Passable} val
- * @returns {asserts val is Primitive}
- */
-export const assertPrimitiveKey = val => {
-  checkPrimitiveKey(val, assertChecker);
-};
-harden(assertPrimitiveKey);
+// ////////////////// Atom and Scalar keys ////////////////////////////////
 
 /**
  * @param {any} val
@@ -68,7 +34,7 @@ harden(assertPrimitiveKey);
  * @returns {boolean}
  */
 export const checkScalarKey = (val, check) => {
-  if (isPrimitiveKey(val)) {
+  if (isAtom(val)) {
     return true;
   }
   const passStyle = passStyleOf(val);
@@ -107,17 +73,7 @@ const keyMemo = new WeakSet();
  * @returns {boolean}
  */
 export const checkKey = (val, check) => {
-  if (!isObject(val)) {
-    // TODO!!! Once we switch `symbol` to be represented by an object type,
-    // it will no longer fall into the `!isObject` camp, just as byteArrays
-    // are "primitive" in the distributed object system but are still
-    // objects at the JS level.
-    // TODO: look for other uses of `isObject` at the pass-style level
-    // or above that might be misclassifying this way.
-    //
-    // TODO There is not yet a checkPassable, but perhaps there should be.
-    // If that happens, we should call it here instead.
-    assertPassable(val);
+  if (isAtom(val)) {
     return true;
   }
   // @ts-expect-error narrowed
@@ -541,6 +497,8 @@ harden(makeCopyMap);
 // //////////////////////// Keys Recur /////////////////////////////////////////
 
 /**
+ * `checkKeyInternal` is only called if `val` is Passable but is not an Atom.
+ *
  * @param {any} val
  * @param {Checker} check
  * @returns {boolean}
@@ -550,12 +508,8 @@ const checkKeyInternal = (val, check) => {
 
   const passStyle = passStyleOf(val);
   switch (passStyle) {
-    case 'symbol': // anticipating a JS object representation of a passable symbol
-    case 'byteArray': // passable primitive, with js object representation.
     case 'remotable': {
-      // Any Primitive or Remotable is a Key, and `checkKey` covers those that
-      // are represented in JS as *language* primitives while this covers the
-      // remainder.
+      // A remotable is a ScalarKey but not an Atom, so we pick it up here.
       return true;
     }
     case 'copyRecord': {

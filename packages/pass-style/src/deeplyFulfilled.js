@@ -1,9 +1,10 @@
 import { X, q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
-import { getTag, isObject } from './passStyle-helpers.js';
+import { getTag } from './passStyle-helpers.js';
 import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
+import { isAtom } from './typeGuards.js';
 
 /**
  * @import {Passable, ByteArray, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
@@ -82,7 +83,7 @@ export const deeplyFulfilled = async val => {
   // and fix if possible.
   // https://github.com/endojs/endo/issues/1257 may be relevant.
 
-  if (!isObject(val)) {
+  if (isAtom(val)) {
     return /** @type {DeeplyAwaited<T>} */ (val);
   }
   if (isPromise(val)) {
@@ -106,7 +107,7 @@ export const deeplyFulfilled = async val => {
       return E.when(Promise.all(valPs), vals => harden(vals));
     }
     case 'byteArray': {
-      const bytes = /** @type {ByteArray} */ (val);
+      const bytes = /** @type {ByteArray} */ (/** @type {unknown} */ (val));
       // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
       return bytes;
     }

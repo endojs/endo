@@ -47,6 +47,8 @@ export {
   isRemotable,
   isRecord,
   isCopyArray,
+  isAtom,
+  assertAtom,
 } from './src/typeGuards.js';
 
 export * from './src/deeplyFulfilled.js';
