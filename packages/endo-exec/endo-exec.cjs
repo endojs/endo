@@ -6,24 +6,14 @@
   // Trim off the Node.js interpreter name.
   const [_nodeJS, endoExec, ...args] = process.argv;
 
-  const script = endoExec.endsWith('endo-exec.cjs') ? args.shift() : endoExec;
+  const script =
+    endoExec && endoExec.endsWith('endo-exec.cjs') ? args.shift() : endoExec;
   assert(script, `Usage: ${endoExec} SCRIPT [ARGS...]`);
 
-  const url = await import('url');
-  const mod = new URL(script, url.pathToFileURL('./')).href;
-
-  // Execute the `main` import if there is one.
-  const { main } = await import(mod);
-  let resultP;
-  if (typeof main === 'function') {
-    resultP = main(harden({ argv: [script, ...args] }));
-  }
-
-  const result = await resultP;
-  if (Number.isSafeInteger(result)) {
-    // Specify an exit code.
-    process.exitCode = result;
-  }
+  const { runFirstMain } = await import('endo-exec/run-first-main.js');
+  await runFirstMain({
+    process: harden({ argv: [script, ...args], env: { ...process.env } }),
+  });
 })().catch(error => {
   console.error(error);
   if (process.exitCode === 0) {

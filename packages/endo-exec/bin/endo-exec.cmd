@@ -1,1 +1,1 @@
-    @node %~dp0\..\endo-exec.cjs %*
+@node %~dp0\..\endo-exec.cjs %*

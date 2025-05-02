@@ -5,7 +5,7 @@
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/cli#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/endo-exec#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"
@@ -16,7 +16,8 @@
   "type": "module",
   "exports": {
     ".": "./index.js",
-    "./endo-exec.cjs": "./endo-exec.cjs"
+    "./endo-exec.cjs": "./endo-exec.cjs",
+    "./run-first-main.js": "./run-first-main.js"
   },
   "main": "./endo-exec.cjs",
   "bin": "./bin/endo-exec",

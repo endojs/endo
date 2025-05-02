@@ -3,3 +3,9 @@ import '@endo/init/legacy.js';
 
 // Asynchronously run the exported main function.
 import './endo-exec.cjs';
+
+/**
+ * @typedef {(
+ *  powers: { process: { argv: string[], env: Record<string, string> } }
+ * ) => Promise<any>} Main
+ */

@@ -1,7 +1,12 @@
 #! /usr/bin/env endo-exec
 import 'zx/globals';
 
-export const main = async ({ argv: [script, file] }) => {
+/** @type {import('endo-exec').Main} */
+export const main = async ({
+  process: {
+    argv: [script, file],
+  },
+}) => {
   echo`Hello, world (from ${script})!`;
   await $`head -5 ${file}`;
 };
