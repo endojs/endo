@@ -1,28 +1,18 @@
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
-/** @import {ToCapData, FromCapData} from '@endo/marshal' */
-/** @import {CapTPSlot, TrapHost, TrapGuest, TrapImpl} from './types.js' */
+/** @import {CapTPSlot} from './types.js' */
 
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 
 // This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
 // good dose of https://github.com/capnproto/capnproto/blob/master/c++/src/capnp/rpc.capnp
-import { Remotable, Far } from '@endo/marshal';
+import { Remotable } from '@endo/marshal';
 import { isPromise } from '@endo/promise-kit';
 
-import { X, Fail } from '@endo/errors';
-import { makeTrap } from './trap.js';
-
+import { Fail } from '@endo/errors';
 import { makeFinalizingMap } from './finalize.js';
 
 const sink = () => {};
 harden(sink);
-
-/**
- * @param {any} maybeThenable
- * @returns {boolean}
- */
-const isThenable = maybeThenable =>
-  maybeThenable && typeof maybeThenable.then === 'function';
 
 /**
  * Reverse slot direction.
@@ -194,21 +184,15 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
  * @property {number} [epoch] an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
- * @property {TrapGuest} [trapGuest] if specified, enable this CapTP (guest) to
- * use Trap(target) to block while the recipient (host) resolves and
- * communicates the response to the message
- * @property {TrapHost} [trapHost] if specified, enable this CapTP (host) to serve
- * objects marked with makeTrapHandler to synchronous clients (guests)
  * @property {boolean} [gcImports] if true, aggressively garbage collect imports
  * @property {(MakeCapTPImportExportTablesOptions) => CapTPImportExportTables} [makeCapTPImportExportTables] provide external import/export tables
+ * @property {WeakSet<any>} [exportedTrapHandlers]
  *
  * @typedef {object} CapTPEngine
  * @property {(val: unknown) => CapTPSlot | undefined} getSlotForValue
  * Gets the slot for a value, but does not register a new slot if the value is
  * unknown.
  * @property {() => Record<string, Record<string, number>>} getStats
- * @property {<T>(name: string, obj: T) => T} makeTrapHandler
- * @property {import('./ts-types.js').Trap | undefined} Trap
  * @property {((slot: CapTPSlot, toDecr: number) => void)} dropSlotRefs
  * @property {((questionID: string, result: any) => void)} resolveAnswer
  * @property {((questionID: string) => boolean)} hasAnswer
@@ -220,10 +204,8 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>} convertSlotToVal
  * @property {RefCounter<string>} recvSlot
  * @property {RefCounter<string>} sendSlot
- * @property {WeakSet<any>} exportedTrapHandlers
- * @property {Map<string, Promise<IteratorResult<void, void>>>} trapIteratorResultP
- * @property {Map<string, AsyncIterator<void, void, any>>} trapIterator
  * @property {() => [CapTPSlot, Promise<any>]} makeQuestion
+ * @property {() => string} takeNextQuestionID
  */
 
 /**
@@ -231,20 +213,11 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  *
  * @param {string} ourId our name for the current side
  * @param {((obj: Record<string, any>) => void)} send send a JSONable packet
- * @param {ToCapData<string>} serialize
- * @param {FromCapData<string>} unserialize
  * @param {((target: string) => RemoteKit)} makeRemoteKit
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
-export const makeCapTPEngine = (
-  ourId,
-  send,
-  serialize,
-  unserialize,
-  makeRemoteKit,
-  opts = {},
-) => {
+export const makeCapTPEngine = (ourId, send, makeRemoteKit, opts = {}) => {
   const gcStats = {
     DROPPED: 0,
   };
@@ -257,23 +230,10 @@ export const makeCapTPEngine = (
     epoch = 0,
     exportHook,
     importHook,
-    trapGuest,
-    trapHost,
     gcImports = false,
     makeCapTPImportExportTables = makeDefaultCapTPImportExportTables,
+    exportedTrapHandlers = new WeakSet(),
   } = opts;
-
-  // It's a hazard to have trapGuest and trapHost both enabled, as we may
-  // encounter deadlock.  Without a lot more bookkeeping, we can't detect it for
-  // more general networks of CapTPs, but we are conservative for at least this
-  // one case.
-  !(trapHost && trapGuest) ||
-    Fail`CapTP ${ourId} can only be one of either trapGuest or trapHost`;
-
-  /** @type {Map<string, Promise<IteratorResult<void, void>>>} */
-  const trapIteratorResultP = new Map();
-  /** @type {Map<string, AsyncIterator<void, void, any>>} */
-  const trapIterator = new Map();
 
   /** @type {Map<CapTPSlot, number>} */
   const slotToNumRefs = new Map();
@@ -292,7 +252,6 @@ export const makeCapTPEngine = (
 
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
-  const exportedTrapHandlers = new WeakSet();
 
   // Used to construct slot names for questions.
   // In this version of CapTP we use strings for export/import slot names.
@@ -384,6 +343,12 @@ export const makeCapTPEngine = (
     return [sendSlot.add(slotID), promise];
   };
 
+  // Used by the trap mechanism.
+  const takeNextQuestionID = () => {
+    lastQuestionID += 1;
+    return `q-${lastQuestionID}`;
+  };
+
   /**
    * Set up import
    *
@@ -416,12 +381,6 @@ export const makeCapTPEngine = (
     recvSlot.add(slot);
     return importExportTables.getImport(slot);
   }
-
-  const makeTrapHandler = (name, obj) => {
-    const far = Far(name, obj);
-    exportedTrapHandlers.add(far);
-    return far;
-  };
 
   const getSlotForValue = val => {
     return valToSlot.get(val);
@@ -495,8 +454,6 @@ export const makeCapTPEngine = (
   const rets = {
     getSlotForValue,
     getStats,
-    makeTrapHandler,
-    Trap: /** @type {import('./ts-types.js').Trap | undefined} */ (undefined),
     dropSlotRefs,
     resolveAnswer,
     hasAnswer,
@@ -508,117 +465,9 @@ export const makeCapTPEngine = (
     convertSlotToVal,
     recvSlot,
     sendSlot,
-    exportedTrapHandlers,
-    trapIterator,
-    trapIteratorResultP,
     makeQuestion,
+    takeNextQuestionID,
   };
-
-  if (trapGuest) {
-    assert.typeof(trapGuest, 'function', X`opts.trapGuest must be a function`);
-
-    // Create the Trap proxy maker.
-    const makeTrapImpl =
-      implMethod =>
-      (val, ...implArgs) => {
-        Promise.resolve(val) !== val ||
-          Fail`Trap(${val}) target cannot be a promise`;
-
-        const slot = valToSlot.get(val);
-        // TypeScript confused about `||` control flow so use `if` instead
-        // https://github.com/microsoft/TypeScript/issues/50739
-        if (!(slot && slot[1] === '-')) {
-          Fail`Trap(${val}) target was not imported`;
-        }
-        // @ts-expect-error TypeScript confused by `Fail` too?
-        slot[0] === 't' ||
-          Fail`Trap(${val}) imported target was not created with makeTrapHandler`;
-
-        // Send a "trap" message.
-        lastQuestionID += 1;
-        const questionID = `q-${lastQuestionID}`;
-
-        // Encode the "method" parameter of the CTP_CALL.
-        let method;
-        switch (implMethod) {
-          case 'get': {
-            const [prop] = implArgs;
-            method = serialize(harden([prop]));
-            break;
-          }
-          case 'applyFunction': {
-            const [args] = implArgs;
-            method = serialize(harden([null, args]));
-            break;
-          }
-          case 'applyMethod': {
-            const [prop, args] = implArgs;
-            method = serialize(harden([prop, args]));
-            break;
-          }
-          default: {
-            Fail`Internal error; unrecognized implMethod ${implMethod}`;
-          }
-        }
-
-        // Set up the trap call with its identifying information and a way to send
-        // messages over the current CapTP data channel.
-        const [isException, serialized] = trapGuest({
-          trapMethod: implMethod,
-          // @ts-expect-error TypeScript confused by `Fail` too?
-          slot,
-          trapArgs: implArgs,
-          startTrap: () => {
-            // Send the call metadata over the connection.
-            send({
-              type: 'CTP_CALL',
-              epoch,
-              trap: true, // This is the magic marker.
-              questionID,
-              target: slot,
-              method,
-            });
-
-            // Return an IterationObserver.
-            const makeIteratorMethod =
-              (iteratorMethod, done) =>
-              (...args) => {
-                send({
-                  type: 'CTP_TRAP_ITERATE',
-                  epoch,
-                  questionID,
-                  serialized: serialize(harden([iteratorMethod, args])),
-                });
-                return harden({ done, value: undefined });
-              };
-            return harden({
-              next: makeIteratorMethod('next', false),
-              return: makeIteratorMethod('return', true),
-              throw: makeIteratorMethod('throw', true),
-            });
-          },
-        });
-
-        const value = unserialize(serialized);
-        !isThenable(value) ||
-          Fail`Trap(${val}) reply cannot be a Thenable; have ${value}`;
-
-        if (isException) {
-          throw value;
-        }
-        return value;
-      };
-
-    /** @type {TrapImpl} */
-    const trapImpl = {
-      applyFunction: makeTrapImpl('applyFunction'),
-      applyMethod: makeTrapImpl('applyMethod'),
-      get: makeTrapImpl('get'),
-    };
-    harden(trapImpl);
-
-    rets.Trap = makeTrap(trapImpl);
-  }
 
   return harden(rets);
 };

@@ -1,6 +1,7 @@
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
 /** @import {ToCapData, FromCapData} from '@endo/marshal' */
-/** @import {CapTPSlot, TrapHost, TrapGuest} from './types.js' */
+/** @import {CapTPSlot, TrapHost, TrapGuest, TrapImpl} from './types.js' */
+/** @import {Trap} from './ts-types.js' */
 /** @import {CapTPImportExportTables} from './captp-engine.js' */
 
 import { E, HandledPromise } from '@endo/eventual-send';
@@ -9,11 +10,19 @@ import { X, Fail, annotateError } from '@endo/errors';
 import { makePromiseKit, isPromise } from '@endo/promise-kit';
 
 import { makeCapTPEngine, reverseSlot } from './captp-engine.js';
+import { makeTrap } from './trap.js';
 
 export { E };
 
 const sink = () => {};
 harden(sink);
+
+/**
+ * @param {any} maybeThenable
+ * @returns {boolean}
+ */
+const isThenable = maybeThenable =>
+  maybeThenable && typeof maybeThenable.then === 'function';
 
 const WELL_KNOWN_SLOT_PROPERTIES = ['type', 'slots', 'body'];
 
@@ -274,7 +283,15 @@ export const makeCapTP = (
     onReject = err => console.error('CapTP', ourId, 'exception:', err),
     epoch = 0,
     trapHost,
+    trapGuest,
   } = opts;
+
+  // It's a hazard to have trapGuest and trapHost both enabled, as we may
+  // encounter deadlock.  Without a lot more bookkeeping, we can't detect it for
+  // more general networks of CapTPs, but we are conservative for at least this
+  // one case.
+  !(trapHost && trapGuest) ||
+    Fail`CapTP ${ourId} can only be one of either trapGuest or trapHost`;
 
   const {
     dispatch,
@@ -354,6 +371,18 @@ export const makeCapTP = (
     ).catch(rejected);
   };
 
+  /** @type {Map<string, Promise<IteratorResult<void, void>>>} */
+  const trapIteratorResultP = new Map();
+  /** @type {Map<string, AsyncIterator<void, void, any>>} */
+  const trapIterator = new Map();
+  const exportedTrapHandlers = new WeakSet();
+
+  const makeTrapHandler = (name, obj) => {
+    const far = Far(name, obj);
+    exportedTrapHandlers.add(far);
+    return far;
+  };
+
   /** @type {(val: unknown, slot: CapTPSlot) => void} */
   const exportHook = (val, slot) => {
     if (opts.exportHook) {
@@ -364,17 +393,11 @@ export const makeCapTP = (
     }
   };
 
-  const engine = makeCapTPEngine(
-    ourId,
-    send,
-    serialize,
-    unserialize,
-    makeRemoteKit,
-    {
-      ...opts,
-      exportHook,
-    },
-  );
+  const engine = makeCapTPEngine(ourId, send, makeRemoteKit, {
+    ...opts,
+    exportHook,
+    exportedTrapHandlers,
+  });
 
   /** @type {MakeDispatch} */
   function makeDispatch(
@@ -453,7 +476,7 @@ export const makeCapTP = (
           });
         };
         if (trap) {
-          engine.exportedTrapHandlers.has(val) ||
+          exportedTrapHandlers.has(val) ||
             Fail`Refused Trap(${val}) because target was not registered with makeTrapHandler`;
           assert.typeof(
             trapHost,
@@ -464,7 +487,7 @@ export const makeCapTP = (
           // We need to create a promise for the "isDone" iteration right now to
           // prevent a race with the other side.
           const resultPK = makePromiseKit();
-          engine.trapIteratorResultP.set(questionID, resultPK.promise);
+          trapIteratorResultP.set(questionID, resultPK.promise);
 
           processResult = (isReject, value) => {
             const serialized = serialize(harden(value));
@@ -476,7 +499,7 @@ export const makeCapTP = (
             }
 
             // We're ready for them to drive the iterator.
-            engine.trapIterator.set(questionID, ait);
+            trapIterator.set(questionID, ait);
             resultPK.resolve({ done: false });
           };
         }
@@ -509,7 +532,7 @@ export const makeCapTP = (
         trapHost || Fail`CTP_TRAP_ITERATE is impossible without a trapHost`;
         const { questionID, serialized } = obj;
 
-        const resultP = engine.trapIteratorResultP.get(questionID);
+        const resultP = trapIteratorResultP.get(questionID);
         resultP || Fail`CTP_TRAP_ITERATE did not expect ${questionID}`;
 
         const [method, args] = unserialize(serialized);
@@ -519,8 +542,8 @@ export const makeCapTP = (
 
           // Done with this trap iterator.
           const cleanup = () => {
-            engine.trapIterator.delete(questionID);
-            engine.trapIteratorResultP.delete(questionID);
+            trapIterator.delete(questionID);
+            trapIteratorResultP.delete(questionID);
             return harden({ done: true });
           };
 
@@ -530,7 +553,7 @@ export const makeCapTP = (
               return cleanup();
             }
 
-            const ait = engine.trapIterator.get(questionID);
+            const ait = trapIterator.get(questionID);
             if (!ait) {
               // The iterator is done, so we're done.
               return cleanup();
@@ -550,7 +573,7 @@ export const makeCapTP = (
 
         // Store the next result promise.
         const nextResultP = getNextResultP();
-        engine.trapIteratorResultP.set(questionID, nextResultP);
+        trapIteratorResultP.set(questionID, nextResultP);
 
         // Ensure that our caller handles any rejection.
         return nextResultP.then(sink);
@@ -669,7 +692,7 @@ export const makeCapTP = (
       ...engine.getStats(),
     });
 
-  return harden({
+  const captp = {
     ...engine,
     serialize,
     unserialize,
@@ -679,5 +702,114 @@ export const makeCapTP = (
     getStats,
     getBootstrap,
     makeRemoteKit,
-  });
+    makeTrapHandler,
+    Trap: /** @type {Trap | undefined} */ (undefined),
+  };
+
+  if (trapGuest) {
+    assert.typeof(trapGuest, 'function', X`opts.trapGuest must be a function`);
+
+    // Create the Trap proxy maker.
+    const makeTrapImpl =
+      implMethod =>
+      (val, ...implArgs) => {
+        Promise.resolve(val) !== val ||
+          Fail`Trap(${val}) target cannot be a promise`;
+
+        const slot = engine.getSlotForValue(val);
+        // TypeScript confused about `||` control flow so use `if` instead
+        // https://github.com/microsoft/TypeScript/issues/50739
+        if (!(slot && slot[1] === '-')) {
+          Fail`Trap(${val}) target was not imported`;
+        }
+        // @ts-expect-error TypeScript confused by `Fail` too?
+        slot[0] === 't' ||
+          Fail`Trap(${val}) imported target was not created with makeTrapHandler`;
+
+        // Send a "trap" message.
+        const questionID = engine.takeNextQuestionID();
+
+        // Encode the "method" parameter of the CTP_CALL.
+        let method;
+        switch (implMethod) {
+          case 'get': {
+            const [prop] = implArgs;
+            method = serialize(harden([prop]));
+            break;
+          }
+          case 'applyFunction': {
+            const [args] = implArgs;
+            method = serialize(harden([null, args]));
+            break;
+          }
+          case 'applyMethod': {
+            const [prop, args] = implArgs;
+            method = serialize(harden([prop, args]));
+            break;
+          }
+          default: {
+            Fail`Internal error; unrecognized implMethod ${implMethod}`;
+          }
+        }
+
+        // Set up the trap call with its identifying information and a way to send
+        // messages over the current CapTP data channel.
+        const [isException, serialized] = trapGuest({
+          trapMethod: implMethod,
+          // @ts-expect-error TypeScript confused by `Fail` too?
+          slot,
+          trapArgs: implArgs,
+          startTrap: () => {
+            // Send the call metadata over the connection.
+            send({
+              type: 'CTP_CALL',
+              epoch,
+              trap: true, // This is the magic marker.
+              questionID,
+              target: slot,
+              method,
+            });
+
+            // Return an IterationObserver.
+            const makeIteratorMethod =
+              (iteratorMethod, done) =>
+              (...args) => {
+                send({
+                  type: 'CTP_TRAP_ITERATE',
+                  epoch,
+                  questionID,
+                  serialized: serialize(harden([iteratorMethod, args])),
+                });
+                return harden({ done, value: undefined });
+              };
+            return harden({
+              next: makeIteratorMethod('next', false),
+              return: makeIteratorMethod('return', true),
+              throw: makeIteratorMethod('throw', true),
+            });
+          },
+        });
+
+        const value = unserialize(serialized);
+        !isThenable(value) ||
+          Fail`Trap(${val}) reply cannot be a Thenable; have ${value}`;
+
+        if (isException) {
+          throw value;
+        }
+        return value;
+      };
+
+    /** @type {TrapImpl} */
+    const trapImpl = {
+      applyFunction: makeTrapImpl('applyFunction'),
+      applyMethod: makeTrapImpl('applyMethod'),
+      get: makeTrapImpl('get'),
+    };
+    harden(trapImpl);
+
+    captp.Trap = makeTrap(trapImpl);
+  }
+
+  return harden(captp);
 };
