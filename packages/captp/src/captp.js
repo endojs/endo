@@ -393,9 +393,14 @@ export const makeCapTP = (
     }
   };
 
-  const engine = makeCapTPEngine(ourId, send, makeRemoteKit, {
+  const exportCollectedHook = (slotID, decRefs) => {
+    send({ type: 'CTP_DROP', slotID, decRefs, epoch });
+  };
+
+  const engine = makeCapTPEngine(ourId, makeRemoteKit, {
     ...opts,
     exportHook,
+    exportCollectedHook,
     exportedTrapHandlers,
   });
 

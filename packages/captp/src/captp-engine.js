@@ -182,8 +182,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @typedef {object} CapTPEngineOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
- * @property {number} [epoch] an integer tag to attach to all messages in order to
- * assist in ignoring earlier defunct instance's messages
+ * @property {(slotID: CapTPSlot, decRefs: number) => void} [exportCollectedHook]
  * @property {boolean} [gcImports] if true, aggressively garbage collect imports
  * @property {(MakeCapTPImportExportTablesOptions) => CapTPImportExportTables} [makeCapTPImportExportTables] provide external import/export tables
  * @property {WeakSet<any>} [exportedTrapHandlers]
@@ -212,12 +211,11 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * Create a CapTP connection.
  *
  * @param {string} ourId our name for the current side
- * @param {((obj: Record<string, any>) => void)} send send a JSONable packet
  * @param {((target: string) => RemoteKit)} makeRemoteKit
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
-export const makeCapTPEngine = (ourId, send, makeRemoteKit, opts = {}) => {
+export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
   const gcStats = {
     DROPPED: 0,
   };
@@ -227,9 +225,9 @@ export const makeCapTPEngine = (ourId, send, makeRemoteKit, opts = {}) => {
     });
 
   const {
-    epoch = 0,
     exportHook,
     importHook,
+    exportCollectedHook,
     gcImports = false,
     makeCapTPImportExportTables = makeDefaultCapTPImportExportTables,
     exportedTrapHandlers = new WeakSet(),
@@ -270,7 +268,9 @@ export const makeCapTPEngine = (ourId, send, makeRemoteKit, opts = {}) => {
     // don't need them anymore.
     const decRefs = slotToNumRefs.get(slotID) || 0;
     slotToNumRefs.delete(slotID);
-    send({ type: 'CTP_DROP', slotID, decRefs, epoch });
+    if (exportCollectedHook) {
+      exportCollectedHook(slotID, decRefs);
+    }
   };
 
   const importExportTables = makeCapTPImportExportTables({
