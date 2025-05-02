@@ -1,8 +1,10 @@
-import { Fail, q } from '@endo/errors';
+import { Fail, q, X } from '@endo/errors';
+import { identChecker } from '@endo/common/ident-checker.js';
 import { passStyleOf } from './passStyleOf.js';
+import { assertChecker } from './passStyle-helpers.js';
 
 /**
- * @import {CopyArray, CopyRecord, Passable, RemotableObject, ByteArray} from './types.js'
+ * @import {CopyArray, CopyRecord, Passable, RemotableObject, ByteArray, Checker, Atom} from './types.js'
  */
 
 /**
@@ -12,7 +14,7 @@ import { passStyleOf } from './passStyleOf.js';
  * @param {any} arr
  * @returns {arr is CopyArray<any>}
  */
-const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
+export const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
 harden(isCopyArray);
 
 /**
@@ -22,7 +24,7 @@ harden(isCopyArray);
  * @param {Passable} arr
  * @returns {arr is ByteArray}
  */
-const isByteArray = arr => passStyleOf(arr) === 'byteArray';
+export const isByteArray = arr => passStyleOf(arr) === 'byteArray';
 harden(isByteArray);
 
 /**
@@ -32,7 +34,7 @@ harden(isByteArray);
  * @param {any} record
  * @returns {record is CopyRecord<any>}
  */
-const isRecord = record => passStyleOf(record) === 'copyRecord';
+export const isRecord = record => passStyleOf(record) === 'copyRecord';
 harden(isRecord);
 
 /**
@@ -41,7 +43,7 @@ harden(isRecord);
  * @param {Passable} remotable
  * @returns {remotable is RemotableObject}
  */
-const isRemotable = remotable => passStyleOf(remotable) === 'remotable';
+export const isRemotable = remotable => passStyleOf(remotable) === 'remotable';
 harden(isRemotable);
 
 /**
@@ -49,7 +51,7 @@ harden(isRemotable);
  * @param {string=} optNameOfArray
  * @returns {asserts arr is CopyArray<any>}
  */
-const assertCopyArray = (arr, optNameOfArray = 'Alleged array') => {
+export const assertCopyArray = (arr, optNameOfArray = 'Alleged array') => {
   const passStyle = passStyleOf(arr);
   passStyle === 'copyArray' ||
     Fail`${q(optNameOfArray)} ${arr} must be a pass-by-copy array, not ${q(
@@ -63,7 +65,7 @@ harden(assertCopyArray);
  * @param {string=} optNameOfArray
  * @returns {asserts arr is ByteArray}
  */
-const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
+export const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
   const passStyle = passStyleOf(arr);
   passStyle === 'byteArray' ||
     Fail`${q(
@@ -78,7 +80,7 @@ harden(assertByteArray);
  * @param {string=} optNameOfRecord
  * @returns {asserts record is CopyRecord<any>}
  */
-const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
+export const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
   const passStyle = passStyleOf(record);
   passStyle === 'copyRecord' ||
     Fail`${q(optNameOfRecord)} ${record} must be a pass-by-copy record, not ${q(
@@ -92,7 +94,7 @@ harden(assertRecord);
  * @param {string=} optNameOfRemotable
  * @returns {asserts remotable is RemotableObject}
  */
-const assertRemotable = (
+export const assertRemotable = (
   remotable,
   optNameOfRemotable = 'Alleged remotable',
 ) => {
@@ -104,13 +106,51 @@ const assertRemotable = (
 };
 harden(assertRemotable);
 
-export {
-  assertRecord,
-  assertCopyArray,
-  assertByteArray,
-  assertRemotable,
-  isRemotable,
-  isRecord,
-  isCopyArray,
-  isByteArray,
+/**
+ * @param {Passable} val
+ * @param {Checker} check
+ * @returns {boolean}
+ */
+const checkAtom = (val, check) => {
+  // TODO There is not yet a checkPassable, but perhaps there should be.
+  // If that happens, we should call it here instead. As it is now,
+  // any non-passable will be rejected by `passStyleOf` with a thrown
+  // error.
+  const passStyle = passStyleOf(val);
+  switch (passStyle) {
+    case 'undefined':
+    case 'null':
+    case 'boolean':
+    case 'number':
+    case 'bigint':
+    case 'string':
+    case 'byteArray':
+    case 'symbol': {
+      // The AtomStyle cases
+      return true;
+    }
+    default: {
+      // The other PassStyle cases
+      return (
+        check !== identChecker &&
+        check(false, X`A ${q(passStyle)} cannot be an atom: ${val}`)
+      );
+    }
+  }
 };
+
+/**
+ * @param {any} val
+ * @returns {val is Atom}
+ */
+export const isAtom = val => checkAtom(val, identChecker);
+harden(isAtom);
+
+/**
+ * @param {Passable} val
+ * @returns {asserts val is Atom}
+ */
+export const assertAtom = val => {
+  checkAtom(val, assertChecker);
+};
+harden(assertAtom);

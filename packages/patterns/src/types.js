@@ -4,7 +4,7 @@ export {};
 
 // NB: as of TS 5.5 nightly, TS thinks RankCover and Checker "is declared but never read" but they are
 /**
- * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Primitive, RemotableObject} from '@endo/pass-style';
+ * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Atom, RemotableObject} from '@endo/pass-style';
  * @import {PartialCompare, PartialComparison, RankCompare, RankCover} from '@endo/marshal';
  */
 
@@ -69,7 +69,7 @@ export {};
  */
 
 /**
- * @typedef {Primitive | RemotableObject} ScalarKey
+ * @typedef {Atom | RemotableObject} ScalarKey
  */
 
 /**
