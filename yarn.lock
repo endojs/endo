@@ -779,8 +779,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
+    "@endo/errors": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
+    "@endo/marshal": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"

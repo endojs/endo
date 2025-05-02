@@ -78,7 +78,9 @@
     "timeout": "2m"
   },
   "dependencies": {
+    "@endo/errors": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/marshal": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@noble/curves": "^1.9.0",
