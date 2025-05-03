@@ -7,7 +7,7 @@ import '@endo/init';
 
 import fs from 'fs';
 import url from 'url';
-import { spawn } from 'child_process';
+import { spawn as ambientSpawn } from 'child_process';
 
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
@@ -55,7 +55,7 @@ export const main = async rawArgs => {
     .command('exec -- <script> [args...]')
     .action(async (script, args, _cmd) => {
       return new Promise((resolve, reject) => {
-        const cp = spawn('endo-exec', [script, ...args], {
+        const cp = ambientSpawn('endo-exec', [script, ...args], {
           stdio: 'inherit',
         });
         cp.on('error', reject);
