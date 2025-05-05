@@ -61,7 +61,8 @@ const assert = guard => {
 };
 
 /**
- * @import {Harden} from '../types.js'
+ * @template T
+ * @typedef {(value: T) => T} Harden
  */
 
 // Obtain the string tag accessor of of TypedArray so we can indirectly use the
