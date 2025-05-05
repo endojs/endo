@@ -10,7 +10,8 @@
     "./tools/prepare-unicode-code-point-order.js": "./tools/prepare-unicode-code-point-order.js",
     "./tools/prepare-utf16-code-unit-order.js": "./tools/prepare-utf16-code-unit-order.js",
     "./tools/prepare-error-if-order-choice-matters.js": "./tools/prepare-error-if-order-choice-matters.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./tools/*": "./tools/*"
   },
   "directories": {
     "test": "test"
