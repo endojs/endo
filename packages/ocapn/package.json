@@ -35,6 +35,9 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0"
   },
+  "dependencies": {
+    "@endo/pass-style": "workspace:^"
+  },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",

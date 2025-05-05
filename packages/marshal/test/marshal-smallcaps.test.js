@@ -1,6 +1,12 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import { Far, makeTagged, passStyleOf } from '@endo/pass-style';
+import {
+  Far,
+  makeTagged,
+  passableSymbolForName,
+  passStyleOf,
+  unpassableSymbolForName,
+} from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
 import { roundTripPairs } from './_marshal-test-data.js';
@@ -62,7 +68,7 @@ test('smallcaps serialize static data', t => {
   t.deepEqual(ser(-0), { body: '#0', slots: [] });
   t.deepEqual(ser(-0), ser(0));
   // unregistered symbols
-  t.throws(() => ser(Symbol('sym2')), {
+  t.throws(() => ser(unpassableSymbolForName('sym2')), {
     // An anonymous symbol is not Passable
     message: /Only registered symbols or well-known symbols are passable:/,
   });
@@ -372,9 +378,9 @@ test('smallcaps encoding examples', t => {
 
   // Symbols
   assertRoundTrip(Symbol.iterator, '#"%@@iterator"', [], 'well known symbol');
-  assertRoundTrip(Symbol.for('foo'), '#"%foo"', [], 'reg symbol');
+  assertRoundTrip(passableSymbolForName('foo'), '#"%foo"', [], 'reg symbol');
   assertRoundTrip(
-    Symbol.for('@@foo'),
+    passableSymbolForName('@@@@foo'),
     '#"%@@@@foo"',
     [],
     'reg symbol that looks well known',

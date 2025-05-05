@@ -1,7 +1,13 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { q } from '@endo/errors';
-import { passStyleOf, Remotable, Far, getInterfaceOf } from '@endo/pass-style';
+import {
+  passStyleOf,
+  Remotable,
+  Far,
+  getInterfaceOf,
+  PASS_STYLE,
+} from '@endo/pass-style';
 
 import { makeMarshal } from '../src/marshal.js';
 
@@ -65,7 +71,7 @@ test('Remotable/getInterfaceOf', t => {
   });
 });
 
-const GOOD_PASS_STYLE = Symbol.for('passStyle');
+const GOOD_PASS_STYLE = PASS_STYLE;
 const BAD_PASS_STYLE = Symbol('passStyle');
 
 const testRecord = ({
@@ -87,7 +93,6 @@ const testRecord = ({
 
 const goodRemotableProto = testRecord();
 
-// @ts-expect-error We're testing bad things anyway
 const badRemotableProto1 = testRecord({ styleSymbol: BAD_PASS_STYLE });
 
 const badRemotableProto2 = testRecord({ styleString: 'string' });

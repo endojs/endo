@@ -1,6 +1,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { objectMetaMap } from '@endo/common/object-meta-map.js';
+import { passableSymbolForName } from '@endo/pass-style';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import { defineExoClass } from '../src/exo-makers.js';
 import { GET_INTERFACE_GUARD } from '../src/get-interface.js';
@@ -49,12 +50,15 @@ test('test defineExoClass', t => {
   t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
 
-  const symbolic = Symbol.for('symbolic');
+  const symbolic = passableSymbolForName('symbolic');
   const FooI = M.interface('Foo', {
     m: M.call().returns(),
     [symbolic]: M.call(M.boolean()).returns(),
   });
-  t.deepEqual(getInterfaceMethodKeys(FooI), ['m', Symbol.for('symbolic')]);
+  t.deepEqual(getInterfaceMethodKeys(FooI), [
+    'm',
+    passableSymbolForName('symbolic'),
+  ]);
   const makeFoo = defineExoClass(
     'Foo',
     FooI,

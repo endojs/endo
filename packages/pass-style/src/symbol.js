@@ -93,12 +93,11 @@ harden(AtAtPrefixPattern);
  *      yet, so throw.
  *
  * @param {string} name
- * @returns {symbol=}
+ * @returns {symbol}
  */
 export const passableSymbolForName = name => {
-  if (typeof name !== 'string') {
-    return undefined;
-  }
+  typeof name === 'string' ||
+    Fail`${q(name)} must be a string, not ${q(typeof name)}`;
   const match = AtAtPrefixPattern.exec(name);
   if (match) {
     const suffix = match[1];
@@ -115,3 +114,9 @@ export const passableSymbolForName = name => {
   return Symbol.for(name);
 };
 harden(passableSymbolForName);
+
+/**
+ * @param {string} name
+ * @returns {symbol}
+ */
+export const unpassableSymbolForName = name => Symbol(name);

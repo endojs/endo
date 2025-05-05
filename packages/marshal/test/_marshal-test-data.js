@@ -1,4 +1,4 @@
-import { makeTagged } from '@endo/pass-style';
+import { makeTagged, passableSymbolForName } from '@endo/pass-style';
 import {
   exampleAlice,
   exampleBob,
@@ -52,9 +52,9 @@ export const roundTripPairs = harden([
   [Symbol.asyncIterator, { '@qclass': 'symbol', name: '@@asyncIterator' }],
   [Symbol.match, { '@qclass': 'symbol', name: '@@match' }],
   // Registered symbols
-  [Symbol.for('foo'), { '@qclass': 'symbol', name: 'foo' }],
+  [passableSymbolForName('foo'), { '@qclass': 'symbol', name: 'foo' }],
   // Registered symbol hilbert hotel
-  [Symbol.for('@@foo'), { '@qclass': 'symbol', name: '@@@@foo' }],
+  [passableSymbolForName('@@@@foo'), { '@qclass': 'symbol', name: '@@@@foo' }],
 
   // Normal json reviver cannot make properties with undefined values
   [[undefined], [{ '@qclass': 'undefined' }]],
@@ -80,7 +80,7 @@ export const roundTripPairs = harden([
 
   // errors
   [
-    Error(),
+    Error(''),
     {
       '@qclass': 'error',
       message: '',
@@ -181,10 +181,13 @@ export const jsonJustinPairs = harden([
   ['{"@qclass":"-Infinity"}', '-Infinity'],
   ['{"@qclass":"bigint","digits":"4"}', '4n'],
   ['{"@qclass":"bigint","digits":"9007199254740993"}', '9007199254740993n'],
-  ['{"@qclass":"symbol","name":"@@asyncIterator"}', 'Symbol.asyncIterator'],
-  ['{"@qclass":"symbol","name":"@@match"}', 'Symbol.match'],
-  ['{"@qclass":"symbol","name":"foo"}', 'Symbol.for("foo")'],
-  ['{"@qclass":"symbol","name":"@@@@foo"}', 'Symbol.for("@@foo")'],
+  [
+    '{"@qclass":"symbol","name":"@@asyncIterator"}',
+    'passableSymbolForName("@@asyncIterator")',
+  ],
+  ['{"@qclass":"symbol","name":"@@match"}', 'passableSymbolForName("@@match")'],
+  ['{"@qclass":"symbol","name":"foo"}', 'passableSymbolForName("foo")'],
+  ['{"@qclass":"symbol","name":"@@@@foo"}', 'passableSymbolForName("@@@@foo")'],
 
   // Arrays and objects
   ['[{"@qclass":"undefined"}]', '[undefined]'],
@@ -264,11 +267,11 @@ export const unsortedSample = harden([
   [5],
   exampleAlice,
   [],
-  Symbol.for('foo'),
+  passableSymbolForName('foo'),
   Error('not erroneous'),
-  Symbol.for('@@foo'),
+  passableSymbolForName('@@@@foo'),
   [5, { bar: 5 }],
-  Symbol.for(''),
+  passableSymbolForName(''),
   false,
   exampleCarol,
   [exampleCarol, 'm'],
@@ -385,10 +388,10 @@ export const sortedSample = harden([
   'foo',
 
   null,
-  Symbol.for(''),
-  Symbol.for('@@foo'),
+  passableSymbolForName(''),
+  passableSymbolForName('@@@@foo'),
   Symbol.isConcatSpreadable,
-  Symbol.for('foo'),
+  passableSymbolForName('foo'),
 
   undefined,
   undefined,

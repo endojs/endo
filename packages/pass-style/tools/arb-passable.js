@@ -2,6 +2,7 @@
 import '../src/types.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
+import { passableSymbolForName } from '../src/symbol.js';
 
 /**
  * The only elements with identity. Everything else should be equal
@@ -21,13 +22,17 @@ export const makeArbitraries = (fc, exclusions = []) => {
   const keyableLeaves = [
     fc.constantFrom(null, undefined, false, true),
     arbString,
-    arbString.map(s => Symbol.for(s)),
+    arbString
+      // TODO Once we flip symbol representation, we should revisit everywhere
+      // we make a special case of "@@". It may no longer be appropriate.
+      .filter(s => !s.startsWith('@@'))
+      .map(s => passableSymbolForName(s)),
     // primordial symbols and registered lookalikes
     fc.constantFrom(
       ...Object.getOwnPropertyNames(Symbol).flatMap(k => {
         const v = Symbol[k];
         if (typeof v !== 'symbol') return [];
-        return [v, Symbol.for(k), Symbol.for(`@@${k}`)];
+        return [v, passableSymbolForName(k), passableSymbolForName(`@@@@${k}`)];
       }),
     ),
     fc.bigInt(),

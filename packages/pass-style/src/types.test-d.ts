@@ -5,6 +5,7 @@ import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
 import type { CopyTagged, Passable, PassStyle } from './types.js';
 import { PASS_STYLE } from './passStyle-helpers.js';
+import { passableSymbolForName } from './symbol.js';
 
 const remotable = Far('foo', {});
 
@@ -18,7 +19,7 @@ expectType<'string'>(passStyleOf('str'));
 expectType<'boolean'>(passStyleOf(true));
 expectType<'number'>(passStyleOf(1));
 expectType<'bigint'>(passStyleOf(1n));
-expectType<'symbol'>(passStyleOf(Symbol.for('foo')));
+expectType<'symbol'>(passStyleOf(passableSymbolForName('foo')));
 expectType<'null'>(passStyleOf(null));
 expectType<'promise'>(passStyleOf(Promise.resolve()));
 expectType<'error'>(passStyleOf(new Error()));
