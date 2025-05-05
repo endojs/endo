@@ -2,6 +2,12 @@
 import { PASS_STYLE } from './passStyle-helpers.js';
 
 /**
+ * A passable ByteArray is a hardened immutable ArrayBuffer with normal
+ * inheritance and to extra properties.
+ */
+export type ByteArray = ArrayBuffer;
+
+/**
  * JS values that correspond to ocapn Atoms, most of which are JS primitives,
  * but some of which are represented as JS object.
  */
@@ -132,7 +138,6 @@ export type PassStyleOf = {
   (p: Error): 'error';
   (p: CopyTagged): 'tagged';
   (p: any[]): 'copyArray';
-  (p: Iterable<any>): 'remotable';
   (p: Iterator<any, any, undefined>): 'remotable';
   <T extends PassStyled<PassStyleMarker, any>>(p: T): ExtractStyle<T>;
   (p: { [key: string]: any }): 'copyRecord';
@@ -176,10 +181,9 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 >;
 
 /**
- * Abstract remotable method names to its own type in preparation of
- * (TODO) further restricting it in a later PR.
+ * TODO this should really be any `string` except not `then` or `constructor`.
  */
-export type RemotableMethodName = string | symbol;
+export type RemotableMethodName = string;
 
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
@@ -190,11 +194,6 @@ export type PassableCap = Promise<any> | RemotableObject;
  * A Passable sequence of Passable values.
  */
 export type CopyArray<T extends Passable = any> = Array<T>;
-
-/**
- * A hardened immutable ArrayBuffer.
- */
-export type ByteArray = ArrayBuffer;
 
 /**
  * A Passable dictionary in which each key is a string and each value is Passable.
