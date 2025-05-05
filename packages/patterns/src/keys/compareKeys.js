@@ -57,8 +57,11 @@ harden(bagCompare);
 /**
  * A unique local value that is guaranteed to not exist in any inbound data
  * structure (which would not be the case if we used `Symbol.for`).
+ * Note that `ABSENT` is not passable, and so only exists at the JS level of
+ * abstraction, not pass-style.
  */
 const ABSENT = Symbol('absent');
+
 /**
  * CopyMap X is smaller than CopyMap Y iff all of these conditions hold:
  * 1. X and Y are both Keys (i.e., neither contains non-comparable data).

@@ -3,6 +3,10 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { q } from '@endo/errors';
 
+import {
+  passableSymbolForName,
+  unpassableSymbolForName,
+} from '../src/symbol.js';
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far, ToFarFunction } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
@@ -52,7 +56,7 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(true), 'boolean');
   t.is(passStyleOf(33), 'number');
   t.is(passStyleOf(33n), 'bigint');
-  t.is(passStyleOf(Symbol.for('foo')), 'symbol');
+  t.is(passStyleOf(passableSymbolForName('foo')), 'symbol');
   t.is(passStyleOf(Symbol.iterator), 'symbol');
   t.is(passStyleOf(null), 'null');
   t.is(passStyleOf(harden(Promise.resolve(null))), 'promise');
@@ -79,7 +83,7 @@ test('some passStyleOf rejections', t => {
       'Passable Error must have an own "message" string property: "[Error: ]"',
   });
 
-  t.throws(() => passStyleOf(Symbol('unique')), {
+  t.throws(() => passStyleOf(unpassableSymbolForName('unique')), {
     message:
       /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
   });

@@ -1,6 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import { passStyleOf, Far } from '@endo/pass-style';
+import { passStyleOf, Far, unpassableSymbolForName } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { roundTripPairs } from './_marshal-test-data.js';
 
@@ -68,9 +68,9 @@ test('serialize static data', t => {
   t.deepEqual(ser(-0), { body: '0', slots: [] });
   t.deepEqual(ser(-0), ser(0));
   // unregistered symbols
-  t.throws(() => ser(Symbol('sym2')), {
-    // An anonymous symbol is not Passable
-    message: /Only registered symbols or well-known symbols are passable:/,
+  t.throws(() => ser(unpassableSymbolForName('sym2')), {
+    message:
+      'Only registered symbols or well-known symbols are passable: "[Symbol(sym2)]"',
   });
 
   const cd = ser(harden([1, 2]));
