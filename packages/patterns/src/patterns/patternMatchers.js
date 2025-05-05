@@ -41,7 +41,6 @@ import {
   confirmCopyMap,
   copyMapKeySet,
   confirmCopyBag,
-  makeCopyMap,
   makeCopySet,
   makeCopyBag,
   getCopyMapEntries,
@@ -2227,7 +2226,6 @@ export const InterfaceGuardPayloadShape = M.splitRecord(
   {
     defaultGuards: M.or(M.undefined(), 'passable', 'raw'),
     sloppy: M.boolean(),
-    symbolMethodGuards: M.mapOf(M.symbol(), MethodGuardShape),
   },
 );
 
@@ -2258,22 +2256,14 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
   /** @type {Record<string, MethodGuard>} */
   const stringMethodGuards = {};
   /** @type {Array<[symbol, MethodGuard]>} */
-  const symbolMethodGuardsEntries = [];
   for (const key of ownKeys(methodGuards)) {
     const value = methodGuards[/** @type {string} */ (key)];
-    if (typeof key === 'symbol') {
-      symbolMethodGuardsEntries.push([key, value]);
-    } else {
-      stringMethodGuards[key] = value;
-    }
+    stringMethodGuards[key] = value;
   }
   /** @type {InterfaceGuard} */
   const result = makeTagged('guard:interfaceGuard', {
     interfaceName,
     methodGuards: stringMethodGuards,
-    ...(symbolMethodGuardsEntries.length
-      ? { symbolMethodGuards: makeCopyMap(symbolMethodGuardsEntries) }
-      : {}),
     defaultGuards,
   });
   assertInterfaceGuard(result);

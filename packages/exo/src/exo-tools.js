@@ -9,7 +9,6 @@ import {
   getAwaitArgGuardPayload,
   getMethodGuardPayload,
   getInterfaceGuardPayload,
-  getCopyMapEntries,
 } from '@endo/patterns';
 import { listDifference } from '@endo/common/list-difference.js';
 import { objectMap } from '@endo/common/object-map.js';
@@ -24,7 +23,7 @@ import { GET_INTERFACE_GUARD } from './get-interface.js';
  */
 
 const { apply, ownKeys } = Reflect;
-const { defineProperties, fromEntries, hasOwn } = Object;
+const { defineProperties, hasOwn } = Object;
 
 /**
  * A method guard, for inclusion in an interface guard, that does not
@@ -361,20 +360,7 @@ export const defendPrototype = (
   interfaceGuard = undefined,
 ) => {
   const prototype = {};
-  const methodNames = getRemotableMethodNames(behaviorMethods).filter(
-    // By ignoring any method that seems to be a constructor, we can use a
-    // class.prototype as a behaviorMethods.
-    key => {
-      if (key !== 'constructor') {
-        return true;
-      }
-      const constructor = behaviorMethods.constructor;
-      return !(
-        constructor.prototype &&
-        constructor.prototype.constructor === constructor
-      );
-    },
-  );
+  const methodNames = getRemotableMethodNames(behaviorMethods);
   /** @type {Record<RemotableMethodName, MethodGuard> | undefined} */
   let methodGuards;
   /** @type {DefaultGuardType} */
@@ -383,14 +369,11 @@ export const defendPrototype = (
     const {
       interfaceName,
       methodGuards: mg,
-      symbolMethodGuards,
       sloppy,
       defaultGuards: dg = sloppy ? 'passable' : undefined,
     } = getInterfaceGuardPayload(interfaceGuard);
     methodGuards = harden({
       ...mg,
-      ...(symbolMethodGuards &&
-        fromEntries(getCopyMapEntries(symbolMethodGuards))),
     });
     defaultGuards = dg;
     {
