@@ -16,11 +16,8 @@
  * } from './types.js'
  */
 
-import {
-  assertCompartmentMap,
-  pathCompare,
-  stringCompare,
-} from './compartment-map.js';
+import { pathCompare, stringCompare } from '@endo/path-compare';
+import { assertCompartmentMap } from './compartment-map.js';
 
 const { create, fromEntries, entries, keys } = Object;
 
