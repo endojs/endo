@@ -128,7 +128,8 @@ test('getCopyMapEntries', t => {
   t.deepEqual([...getCopyMapEntries(m)], getCopyMapEntryArray(m));
   const entriesIterable = getCopyMapEntries(m);
   t.throws(() => passStyleOf(entriesIterable), {
-    message: 'Remotables must be explicitly declared: {}',
+    message:
+      'Remotables can only have string-named methods other than "then" and "constuctor": "Symbol(Symbol.iterator)"',
   });
   const entriesIterator = entriesIterable[Symbol.iterator]();
   t.is(passStyleOf(entriesIterator), 'remotable');
