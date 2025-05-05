@@ -1,6 +1,6 @@
 # @endo/path-compare
 
-> A particular algorithm for comparing string arrays
+> [Shortlex](https://en.wikipedia.org/wiki/Shortlex_order)-based comparison of string arrays
 
 ## Overview
 
