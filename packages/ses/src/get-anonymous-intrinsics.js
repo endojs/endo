@@ -168,9 +168,17 @@ export const getAnonymousIntrinsics = () => {
   }
 
   const ab = new ArrayBuffer(0);
-  // @ts-expect-error TODO How do I add transferToImmutable to ArrayBuffer type?
-  // eslint-disable-next-line @endo/no-polymorphic-call
-  const iab = ab.transferToImmutable();
+  let iab;
+  // @ts-expect-error see below
+  if (typeof ab.transferToImmutable === 'function') {
+    // @ts-expect-error TODO How do I add transferToImmutable to ArrayBuffer type?
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    iab = ab.transferToImmutable(); // Note: Unavailable on Hermes
+  } else {
+    // @ts-expect-error TODO How do I add sliceToImmutable to ArrayBuffer type?
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    iab = ab.sliceToImmutable();
+  }
   const iabProto = getPrototypeOf(iab);
   if (iabProto !== ArrayBuffer.prototype) {
     // In a native implementation, these will be the same prototype
@@ -179,3 +187,4 @@ export const getAnonymousIntrinsics = () => {
 
   return intrinsics;
 };
+``;
