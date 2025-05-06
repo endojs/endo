@@ -61,11 +61,23 @@ const asyncGeneratorDestroyer = {
   FunctionDeclaration: destroyAsyncGenerators,
 };
 
+const immutableArrayBufferPonyfier = {
+  ImportDeclaration(path) {
+    // Class with private fields and `transferToImmutable`, incompatible with Hermes
+    if (path.node.source.value === '@endo/immutable-arraybuffer/shim.js') {
+      // Class with private fields perfectly emulated as a `function` with the encapsulated `buffers` WeakMap
+      // and `transferToImmutable` omitted, compatible with Hermes
+      path.node.source.value = '@endo/immutable-arraybuffer/shim-pony.js';
+    }
+  },
+};
+
 export const hermesTransforms = {
   mjs: (sourceBytes, specifier, location, _packageLocation, { sourceMap }) => {
     const transforms = {
       ...asyncArrowEliminator,
       ...asyncGeneratorDestroyer,
+      ...immutableArrayBufferPonyfier,
       // Some transforms might be added based on the specifier later
     };
 
