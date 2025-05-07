@@ -2,12 +2,7 @@
 
 import net from 'net';
 
-import { makePromiseKit } from '@endo/promise-kit';
-import {
-  locationToLocationId,
-  makeSelfIdentity,
-  sendHello,
-} from '../client/index.js';
+import { makeSelfIdentity, sendHello } from '../client/index.js';
 
 const { isNaN } = Number;
 
@@ -28,33 +23,19 @@ const bufferToBytes = buffer => {
  */
 
 /**
- * @param {Client} client
  * @param {NetLayer} netlayer
  * @param {net.Socket} socket
  * @param {boolean} isOutgoing
  * @returns {Connection}
  */
-const makeConnection = (client, netlayer, socket, isOutgoing) => {
+const makeConnection = (netlayer, socket, isOutgoing) => {
   let isDestroyed = false;
-  /** @type {Session | undefined} */
-  let session;
-  const { promise: whenSessionReady, resolve: setSession } = makePromiseKit();
   const selfIdentity = makeSelfIdentity(netlayer.location);
   /** @type {Connection} */
-  const connection = {
+  const connection = harden({
     netlayer,
     isOutgoing,
     selfIdentity,
-    get session() {
-      return session;
-    },
-    set session(value) {
-      if (session) {
-        throw Error('Session already set');
-      }
-      session = value;
-      setSession(value);
-    },
     get isDestroyed() {
       return isDestroyed;
     },
@@ -62,31 +43,10 @@ const makeConnection = (client, netlayer, socket, isOutgoing) => {
       socket.write(bytes);
     },
     end() {
-      socket.end();
-      connection.destroySession();
-    },
-    destroySession() {
       isDestroyed = true;
-      // Clean up the session
-      if (connection.session) {
-        const peerLocation = connection.session.peer.location;
-        const locationId = locationToLocationId(peerLocation);
-        client.activeSessions.delete(locationId);
-        delete connection.session;
-      }
+      socket.end();
     },
-    async whenSessionReady() {
-      await whenSessionReady;
-      if (isDestroyed) {
-        throw Error('Connection is destroyed');
-      }
-      if (!session) {
-        // This should never happen.
-        throw Error('Session is not ready');
-      }
-      return session;
-    },
-  };
+  });
   return connection;
 };
 
@@ -153,9 +113,7 @@ export const makeTcpNetLayer = async ({
     }
     const socket = net.createConnection({ host, port: remotePort });
     // eslint-disable-next-line no-use-before-define
-    const connection = makeConnection(client, netlayer, socket, true);
-    const locationId = locationToLocationId(location);
-    client.outgoingConnections.set(locationId, connection);
+    const connection = makeConnection(netlayer, socket, true);
 
     socket.on('data', data => {
       const bytes = bufferToBytes(data);
@@ -207,7 +165,7 @@ export const makeTcpNetLayer = async ({
       'Client connected to server',
       `${socket.remoteAddress}:${socket.remotePort}`,
     );
-    const connection = makeConnection(client, netlayer, socket, false);
+    const connection = makeConnection(netlayer, socket, false);
 
     socket.on('data', data => {
       try {
@@ -233,7 +191,7 @@ export const makeTcpNetLayer = async ({
 
     socket.on('close', () => {
       logger.info('Client disconnected from server');
-      connection.destroySession();
+      client.handleConnectionClose(connection);
     });
   });
 
