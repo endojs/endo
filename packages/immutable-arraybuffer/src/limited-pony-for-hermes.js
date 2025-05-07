@@ -107,7 +107,7 @@ export const isBufferImmutable = buffer => buffers.has(buffer);
  * @param {ArrayBuffer} buffer The original buffer.
  * @param {number} [start] The start index.
  * @param {number} [end] The end index.
- * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+ * @returns {Partial<Omit<ArrayBuffer, 'slice'>>} The sliced immutable ArrayBuffer.
  */
 export const sliceBufferToImmutable = (
   buffer,
@@ -118,9 +118,6 @@ export const sliceBufferToImmutable = (
   if (realBuffer === undefined) {
     realBuffer = buffer;
   }
-  // Type 'ImmutableArrayBufferInternal' is missing the following properties from type 'ArrayBuffer':
-  // transfer, transferToFixedLength, [Symbol.toStringTag]
-  // @ts-expect-error TS2739
   return new ImmutableArrayBufferInternal(
     arrayBufferSlice(realBuffer, start, end),
   );
