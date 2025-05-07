@@ -109,7 +109,7 @@ harden(assertRemotable);
 /**
  * @param {Passable} val
  * @param {Checker} check
- * @returns {boolean}
+ * @returns {val is Atom}
  */
 const checkAtom = (val, check) => {
   // TODO There is not yet a checkPassable, but perhaps there should be.
