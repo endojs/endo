@@ -54,3 +54,6 @@ NEWPKGJSONHASH=$(
 )
 
 git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
+
+# update license to reflect the current year
+sed -i '' -e "s/\[yyyy\]\ \[name\ of\ copyright\ owner\]/$(date '+%Y') Endo Contributors/g" "packages/$NAME/LICENSE"
