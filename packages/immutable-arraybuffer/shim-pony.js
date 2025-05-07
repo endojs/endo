@@ -18,11 +18,11 @@ const arrayBufferMethods = {
   },
 };
 
-// if ('transfer' in arrayBufferPrototype) {
-//   console.warn(
-//     'Could have use the full shim, rather than the limited one for Hermes',
-//   );
-// }
+if ('transfer' in arrayBufferPrototype) {
+  console.warn(
+    'Could have use the full shim, rather than the limited one for Hermes',
+  );
+}
 
 if ('transferToImmutable' in arrayBufferPrototype) {
   // Modern shim practice frowns on conditional installation, at least for
