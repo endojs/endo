@@ -1,8 +1,7 @@
 /// <reference types="ses"/>
 
+import { passStyleOf, getTag } from '@endo/pass-style';
 import {
-  passStyleOf,
-  getTag,
   compareNumerics,
   compareRank,
   recordNames,
@@ -12,7 +11,7 @@ import { q, Fail } from '@endo/errors';
 import {
   assertKey,
   getCopyBagEntries,
-  getCopyMapEntryArray,
+  getCopyMapEntries,
   getCopySetKeys,
 } from './checkKey.js';
 import { makeCompareCollection } from './keycollection-operators.js';
@@ -72,7 +71,7 @@ const ABSENT = Symbol('absent');
  */
 // eslint-disable-next-line no-underscore-dangle
 const _mapCompare = makeCompareCollection(
-  getCopyMapEntryArray,
+  getCopyMapEntries,
   ABSENT,
   (leftValue, rightValue) => {
     if (leftValue === ABSENT && rightValue === ABSENT) {
