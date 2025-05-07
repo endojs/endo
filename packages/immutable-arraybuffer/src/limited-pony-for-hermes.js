@@ -5,13 +5,13 @@ const { slice } = arrayBufferPrototype;
 
 // Based on the real `../index.js` but lives within the restrictions of
 // current Hermes:
-// - No class syntax. Therefore also no private fields.
-// - no `ArrayBuffer.prototype.transfer`
-// - `structuredClone`
+// - No class syntax, therefore also no private fields
+// - No `ArrayBuffer.prototype.transfer`
+// - No `structuredClone`
 //
 // Within these restrictions we cannot emulate `transferToImmutable`, so
 // we omit it from the pony. We can emulate `sliceToImmutable` using
-// a different technique than used by `index.js`. The omission of
+// a different technique than used by the original. The omission of
 // `transferToImmutable` will be visible, enabling feature detection.
 // We perfectly emulate the `class` with a `function` function.
 // We perfectly emulate the private `this.#buffer` private field with
@@ -29,7 +29,7 @@ const arrayBufferSlice = (realBuffer, start = undefined, end = undefined) =>
   apply(slice, realBuffer, [start, end]);
 
 /**
- * emulate the `this.#buffer` private field, including its use as a brand check.
+ * Emulates the `this.#buffer` private field, including its use as a brand check.
  * Maps from all and only emulated Immutable ArrayBuffers to real ArrayBuffers.
  */
 const buffers = new WeakMap();
@@ -43,8 +43,7 @@ const getBuffer = immuAB => {
 
 /**
  * Emulates the encapsulated `ImmutableArrayBufferInternal` class constructor
- * from `../index.js`
- * except this function takes the `realBuffer` which its instance
+ * from the original except this function takes the `realBuffer` which its instance
  * encapsulates. Security demands that it has exclusive access to `realBuffer`
  * it is given, which its callers must ensure.
  *
