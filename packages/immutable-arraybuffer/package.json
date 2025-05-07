@@ -1,9 +1,13 @@
 {
   "name": "@endo/immutable-arraybuffer",
-  "version": "0.2.4",
-  "private": true,
-  "description": "Immutable ArrayBuffer",
-  "keywords": [],
+  "version": "1.0.0",
+  "description": "Immutable ArrayBuffer (the shim!)",
+  "keywords": [
+    "immutable",
+    "arraybuffer",
+    "typedarray",
+    "shim"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/immutable-arraybuffer#readme",
