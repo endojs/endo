@@ -60,9 +60,6 @@ export const makeIteratorRef = iterable => {
       }
       return harden({ done: true, value: undefined });
     },
-    [Symbol.asyncIterator]() {
-      return this;
-    },
   });
 };
 

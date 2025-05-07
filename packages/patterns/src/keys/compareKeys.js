@@ -1,8 +1,7 @@
 /// <reference types="ses"/>
 
+import { passStyleOf, getTag } from '@endo/pass-style';
 import {
-  passStyleOf,
-  getTag,
   compareNumerics,
   compareRank,
   recordNames,

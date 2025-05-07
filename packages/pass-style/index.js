@@ -9,7 +9,7 @@ export {
 
 export { getErrorConstructor, isErrorLike } from './src/error.js';
 
-export { getInterfaceOf } from './src/remotable.js';
+export { getInterfaceOf, getRemotableMethodNames } from './src/remotable.js';
 
 export {
   assertPassableSymbol,
