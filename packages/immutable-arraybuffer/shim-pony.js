@@ -20,7 +20,7 @@ const arrayBufferMethods = {
 
 if ('transfer' in arrayBufferPrototype) {
   console.warn(
-    'Could have use the full shim, rather than the limited one for Hermes',
+    'Could have used the full shim, rather than the limited one for Hermes',
   );
 }
 
