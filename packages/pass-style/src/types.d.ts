@@ -163,6 +163,12 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 >;
 
 /**
+ * Abstract remotable method names to its own type in preparation of restricting
+ * it in a later PR.
+ */
+export type RemotableMethodName = string | symbol;
+
+/**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
 export type PassableCap = Promise<any> | RemotableObject;
