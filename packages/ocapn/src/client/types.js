@@ -5,12 +5,14 @@
  * @typedef {import('../cryptography.js').OCapNPublicKey} OCapNPublicKey
  * @typedef {import('../cryptography.js').OCapNSignature} OCapNSignature
  * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
+ * @typedef {import('./ocapn.js').OCapN} OCapN
  */
 
 /**
  * @typedef {object} NetLayer
  * @property {OCapNLocation} location
  * @property {(location: OCapNLocation) => Connection} connect
+ * @property {() => void} shutdown
  */
 
 /**
@@ -29,6 +31,7 @@
  * @property {OCapNKeyPair} self.keyPair
  * @property {OCapNLocation} self.location
  * @property {OCapNSignature} self.locationSignature
+ * @property {OCapN} ocapn
  */
 
 /**
@@ -52,7 +55,16 @@
  */
 
 /**
+ * @typedef {object} Logger
+ * @property {(...args: any[]) => void} log
+ * @property {(...args: any[]) => void} error
+ * @property {(...args: any[]) => void} info
+ */
+
+/**
  * @typedef {object} Client
+ * @property {Logger} logger
+ * @property {string} debugLabel
  * @property {() => Map<string, any>} makeDefaultSwissnumTable
  * @property {Map<string, Session>} activeSessions
  * Used to store a session once it's been fully initiated and set up.
@@ -65,7 +77,7 @@
  * to check this table to see if a connection already exists, permitting
  * reuse of already established sessions.
  * @property {(netlayer: NetLayer) => void} registerNetlayer
- * @property {(connection: Connection, message: any) => void} handleMessage
+ * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(location: OCapNLocation) => Connection} connect
- * @property {(location: OCapNLocation) => Promise<any>} enlivenSturdyref
+ * @property {() => void} shutdown
  */

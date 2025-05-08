@@ -213,7 +213,7 @@ const resolveCodec = (codecOrGetter, value) => {
   if (typeof codecOrGetter === 'function') {
     const codec = codecOrGetter(value);
     if (typeof codec !== 'object' || codec === null) {
-      throw Error('Codec function must return a codec');
+      throw Error(`Codec function must return a codec, got ${typeof codec}`);
     }
     return codec;
   }
@@ -481,9 +481,13 @@ export const makeUnionCodec = (
   });
 };
 
-/** @typedef {'undefined'|'object'|'boolean'|'number'|'string'|'symbol'|'bigint'} JavascriptTypeofValueTypes */
+/** @typedef {'undefined'|'object'|'function'|'boolean'|'number'|'string'|'symbol'|'bigint'} JavascriptTypeofValueTypes */
 /** @typedef {Partial<Record<TypeHintTypes, ResolvableCodec>>} TypeHintUnionReadTable */
 /** @typedef {Partial<Record<JavascriptTypeofValueTypes, ResolvableCodec>>} TypeHintUnionWriteTable */
+
+const isResolvableCodec = codec => {
+  return codec && (typeof codec === 'object' || typeof codec === 'function');
+};
 
 /**
  * @param {string} codecName
@@ -492,13 +496,33 @@ export const makeUnionCodec = (
  * @returns {SyrupCodec}
  */
 export const makeTypeHintUnionCodec = (codecName, readTable, writeTable) => {
+  let badCodecEntry = Object.entries(readTable).find(
+    ([_, codec]) => !isResolvableCodec(codec),
+  );
+  if (badCodecEntry) {
+    const badCodecName = badCodecEntry[0];
+    throw Error(
+      `${codecName}: readTable contains non-codec entry ${badCodecName}`,
+    );
+  }
+  badCodecEntry = Object.entries(writeTable).find(
+    ([_, codec]) => !isResolvableCodec(codec),
+  );
+  if (badCodecEntry) {
+    const badCodecName = badCodecEntry[0];
+    throw Error(
+      `${codecName}: writeTable contains non-codec entry ${badCodecName}`,
+    );
+  }
   return makeUnionCodec(
     codecName,
     syrupReader => {
       const typeHint = syrupReader.peekTypeHint();
       const codecRef = readTable[typeHint];
       if (!codecRef) {
-        const expected = Object.keys(readTable).join(', ');
+        const expected = Object.keys(readTable)
+          .map(key => quote(key))
+          .join(', ');
         throw Error(
           `Unexpected type hint ${quote(typeHint)}, expected one of ${expected}`,
         );
@@ -509,7 +533,9 @@ export const makeTypeHintUnionCodec = (codecName, readTable, writeTable) => {
     value => {
       const codecOrGetter = writeTable[typeof value];
       if (!codecOrGetter) {
-        const expected = Object.keys(writeTable).join(', ');
+        const expected = Object.keys(writeTable)
+          .map(key => quote(key))
+          .join(', ');
         throw Error(
           `Unexpected value type ${quote(typeof value)}, expected one of ${expected}`,
         );
@@ -557,7 +583,9 @@ export const makeRecordUnionCodec = (codecName, recordTypes) => {
         : labelInfo.value;
     const recordCodec = recordTable[labelString];
     if (!recordCodec) {
-      throw Error(`Unexpected record type: ${quote(labelString)}`);
+      throw Error(
+        `${codecName}: Unexpected record type: ${quote(labelString)}`,
+      );
     }
     const result = recordCodec.readBody(syrupReader);
     syrupReader.exitRecord();
@@ -568,9 +596,12 @@ export const makeRecordUnionCodec = (codecName, recordTypes) => {
    * @param {SyrupWriter} syrupWriter
    */
   const write = (value, syrupWriter) => {
+    if (typeof value !== 'object' || value === null) {
+      throw Error(`${codecName}: Expected object, got ${typeof value}`);
+    }
     const recordCodec = recordTable[value.type];
     if (!recordCodec) {
-      throw Error(`Unexpected record type: ${quote(value.type)}`);
+      throw Error(`${codecName}: Unexpected record type: ${quote(value.type)}`);
     }
     recordCodec.write(value, syrupWriter);
   };
