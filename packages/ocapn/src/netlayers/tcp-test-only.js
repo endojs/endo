@@ -3,22 +3,28 @@
 import net from 'net';
 
 import { makePromiseKit } from '@endo/promise-kit';
-import { readOCapNMessage } from '../codecs/operations.js';
-import { makeSyrupReader } from '../syrup/decode.js';
 import {
   locationToLocationId,
   makeSelfIdentity,
   sendHello,
-} from '../client.js';
+} from '../client/index.js';
 
 const { isNaN } = Number;
 
 /**
+ * @param {Buffer} buffer
+ * @returns {Uint8Array}
+ */
+const bufferToBytes = buffer => {
+  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+};
+
+/**
  * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
- * @typedef {import('./types.js').NetLayer} NetLayer
- * @typedef {import('../client.js').Client} Client
- * @typedef {import('./types.js').Connection} Connection
- * @typedef {import('./types.js').Session} Session
+ * @typedef {import('../client/types.js').NetLayer} NetLayer
+ * @typedef {import('../client/index.js').Client} Client
+ * @typedef {import('../client/types.js').Connection} Connection
+ * @typedef {import('../client/types.js').Session} Session
  */
 
 /**
@@ -87,17 +93,47 @@ const makeConnection = (client, netlayer, socket, isOutgoing) => {
 /**
  * @param {object} options
  * @param {Client} options.client
- * @returns {NetLayer}
+ * @param {number} [options.specifiedPort]
+ * @param {string} [options.specifiedHostname]
+ * @returns {Promise<NetLayer>}
  */
-export const makeTcpNetLayer = ({ client }) => {
+export const makeTcpNetLayer = async ({
+  client,
+  specifiedPort = 0,
+  specifiedHostname = '127.0.0.1',
+}) => {
+  const { logger } = client;
+
   // Create and start TCP server
   const server = net.createServer();
+
+  /**
+   * @returns {Promise<void>}
+   */
+  const listen = () => {
+    return new Promise((resolve, reject) => {
+      server.listen(specifiedPort, specifiedHostname, err => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  };
+
+  await listen();
+  const addressInfo = server.address();
+  if (typeof addressInfo !== 'object' || addressInfo === null) {
+    throw Error('Unnexpected Server Address Info');
+  }
+  const { address, port } = addressInfo;
 
   /** @type {OCapNLocation} */
   const localLocation = {
     type: 'ocapn-node',
     transport: 'tcp-testing-only',
-    address: '127.0.0.1:22046',
+    address: `${address}:${port}`,
     hints: false,
   };
 
@@ -109,17 +145,28 @@ export const makeTcpNetLayer = ({ client }) => {
    * @returns {Connection}
    */
   const connect = location => {
-    console.log('Connecting to', location);
+    logger.info('Connecting to', location);
     const [host, portStr] = location.address.split(':');
-    const port = parseInt(portStr, 10);
-    if (isNaN(port)) {
+    const remotePort = parseInt(portStr, 10);
+    if (isNaN(remotePort)) {
       throw new Error(`Invalid port in address: ${location.address}`);
     }
-    const socket = net.createConnection({ host, port });
+    const socket = net.createConnection({ host, port: remotePort });
     // eslint-disable-next-line no-use-before-define
     const connection = makeConnection(client, netlayer, socket, true);
     const locationId = locationToLocationId(location);
     client.outgoingConnections.set(locationId, connection);
+
+    socket.on('data', data => {
+      const bytes = bufferToBytes(data);
+      client.handleMessageData(connection, bytes);
+    });
+
+    socket.on('error', err => {
+      logger.error('Socket error:', err, err.message, err.stack);
+      connection.end();
+    });
+
     sendHello(connection, connection.selfIdentity);
     return connection;
   };
@@ -141,14 +188,22 @@ export const makeTcpNetLayer = ({ client }) => {
     return newConnection;
   };
 
-  /** @type {NetLayer} */
-  const netlayer = {
-    location: localLocation,
-    connect: lookupOrConnect,
+  const shutdown = () => {
+    server.close();
+    for (const connection of connections.values()) {
+      connection.end();
+    }
   };
 
+  /** @type {NetLayer} */
+  const netlayer = harden({
+    location: localLocation,
+    connect: lookupOrConnect,
+    shutdown,
+  });
+
   server.on('connection', socket => {
-    console.log(
+    logger.info(
       'Client connected to server',
       `${socket.remoteAddress}:${socket.remotePort}`,
     );
@@ -156,44 +211,30 @@ export const makeTcpNetLayer = ({ client }) => {
 
     socket.on('data', data => {
       try {
-        const syrupReader = makeSyrupReader(data);
-        while (syrupReader.index < data.length) {
-          const message = readOCapNMessage(syrupReader);
-          console.log('Server received message:', message);
-          console.log(data.toString('hex'));
-          if (!connection.isDestroyed) {
-            client.handleMessage(connection, message);
-          } else {
-            console.log(
-              'Server received message after connection was destroyed',
-              message,
-            );
-          }
+        const bytes = bufferToBytes(data);
+        if (!connection.isDestroyed) {
+          client.handleMessageData(connection, bytes);
+        } else {
+          logger.info(
+            'Server received message after connection was destroyed',
+            bytes,
+          );
         }
       } catch (err) {
-        console.error('Server received error:', err);
-        console.log('Server received data:', data.toString('hex'));
+        logger.error('Server received error:', err);
+        logger.info('Server received data:', data.toString('hex'));
         socket.end();
       }
     });
 
     socket.on('error', err => {
-      console.error('Server socket error:', err, err.message, err.stack);
+      logger.error('Server socket error:', err, err.message, err.stack);
     });
 
     socket.on('close', () => {
-      console.log('Client disconnected from server');
+      logger.info('Client disconnected from server');
       connection.destroySession();
     });
-  });
-
-  // Start listening before creating the client
-  server.listen(22046, '127.0.0.1', err => {
-    if (err) {
-      console.error('Server error:', err);
-    } else {
-      console.log('Server listening on port 22046');
-    }
   });
 
   return netlayer;
