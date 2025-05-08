@@ -1,3 +1,5 @@
+import test from '@endo/ses-ava/prepare-endo.js';
+
 const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
 
 /**
@@ -35,6 +37,20 @@ export const maybeDecode = bytes => {
   }
 };
 
+const logErrorCauseChain = (t, error, testName) => {
+  const causes = [];
+  let current = error;
+  while (current) {
+    causes.push(current);
+    current = current.cause;
+  }
+  t.log(`Function threw for ${testName}:`);
+  for (const [index, cause] of causes.entries()) {
+    t.log(`Error chain, depth ${index}:`);
+    t.log(cause.stack);
+  }
+};
+
 /**
  * @param {import('ava').Test} t
  * @param {() => void} fn
@@ -45,17 +61,38 @@ export const notThrowsWithErrorUnwrapping = (t, fn, testName) => {
   try {
     fn();
   } catch (error) {
-    const causes = [];
-    let current = error;
-    while (current) {
-      causes.push(current);
-      current = current.cause;
-    }
-    t.log(`Function threw for ${testName}:`);
-    for (const [index, cause] of causes.entries()) {
-      t.log(`Error chain, depth ${index}:`);
-      t.log(cause.stack);
-    }
+    logErrorCauseChain(t, error, testName);
     t.fail(`Function threw. ${error}`);
   }
+};
+
+/**
+ * @param {import('ava').Test} t
+ * @param {() => Promise<void>} asyncFn
+ * @param {string} testName
+ * @returns {void}
+ */
+export const notThrowsWithErrorUnwrappingAsync = async (
+  t,
+  asyncFn,
+  testName,
+) => {
+  try {
+    // eslint-disable-next-line @jessie.js/safe-await-separator
+    await asyncFn(t);
+  } catch (error) {
+    logErrorCauseChain(t, error, testName);
+    t.fail(`Function threw. ${error}`);
+  }
+};
+
+export const testWithErrorUnwrapping = (testName, fn) => {
+  return test(testName, t => {
+    return notThrowsWithErrorUnwrappingAsync(t, fn, testName);
+  });
+};
+testWithErrorUnwrapping.only = (testName, fn) => {
+  return test.only(testName, t => {
+    return notThrowsWithErrorUnwrappingAsync(t, fn, testName);
+  });
 };

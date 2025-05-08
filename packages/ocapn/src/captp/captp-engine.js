@@ -71,7 +71,6 @@ const makeDefaultCapTPImportExportTables = ({
   );
 
   let lastExportID = 0;
-  let lastPromiseID = 0;
 
   /**
    * Called when we have encountered a new value that needs to be assigned a slot.
@@ -86,8 +85,8 @@ const makeDefaultCapTPImportExportTables = ({
       // This is a promise, so we're going to increment the lastPromiseID
       // and use that to construct the slot name.  Promise slots are prefaced
       // with 'p+'.
-      lastPromiseID += 1;
-      slot = `p+${lastPromiseID}`;
+      lastExportID += 1;
+      slot = `p+${lastExportID}`;
     } else {
       // Since this isn't a promise, we instead increment the lastExportId and
       // use that to construct the slot name.  Non-promises are prefaced with
@@ -205,6 +204,15 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @property {RefCounter<string>} sendSlot
  * @property {() => [CapTPSlot, Promise<any>]} makeQuestion
  * @property {() => string} takeNextQuestionID
+ * @property {((val: unknown, slot: CapTPSlot) => void)} registerExport
+ * @property {((val: unknown, slot: CapTPSlot) => void)} registerImport
+ * @property {((questionID: string) => Settler<any>)} takeSettler
+ * @property {((slot: CapTPSlot) => any)} getExport
+ *  * Gets the value for a slot, but does not create a new value if the slot is
+ * unknown.
+ * @property {((slot: CapTPSlot) => any)} getImport
+ *  * Gets the value for a slot, but does not create a new value if the slot is
+ * unknown.
  */
 
 /**
@@ -298,13 +306,13 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
       } else {
         slot = importExportTables.makeSlotForValue(val);
       }
-      if (exportHook) {
-        exportHook(val, slot);
-      }
       // Now record the export in both valToSlot and slotToVal so we can look it
       // up from either the value or the slot name later.
       valToSlot.set(val, slot);
       importExportTables.markAsExported(slot, val);
+      if (exportHook) {
+        exportHook(val, slot);
+      }
     }
 
     // At this point, the value is guaranteed to be exported, so return the
@@ -354,9 +362,7 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
    *
    * @type {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>}
    */
-  function convertSlotToVal(theirSlot, iface = undefined) {
-    const slot = reverseSlot(theirSlot);
-
+  function convertSlotToVal(slot, iface = undefined) {
     if (slot[1] === '+') {
       importExportTables.hasExport(slot) || Fail`Unknown export ${slot}`;
       return importExportTables.getExport(slot);
@@ -366,15 +372,15 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
         iface = `Alleged: Presence ${ourId} ${slot}`;
       }
       const { val, settler } = importExportTables.makeValueForSlot(slot, iface);
-      if (importHook) {
-        importHook(val, slot);
-      }
       if (slot[0] === 'p') {
         // A new promise
         settlers.set(slot, settler);
       }
       importExportTables.markAsImported(slot, val);
       valToSlot.set(val, slot);
+      if (importHook) {
+        importHook(val, slot);
+      }
     }
 
     // If we imported this slot, mark it as one our peer exported.
@@ -404,7 +410,6 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
   };
 
   const resolveAnswer = (questionID, result) => {
-    answers.delete(questionID);
     answers.set(questionID, result);
   };
 
@@ -449,6 +454,51 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
     rejectAllQuestions(reason);
   };
 
+  // This is a bad idea, bc the slot could conflict with a future export.
+  const registerExport = (val, slot) => {
+    const isRemote = slot[1] === '-';
+    if (isRemote) {
+      throw new Error('Cannot register a remote as an export');
+    }
+    if (exportedTrapHandlers.has(val)) {
+      throw new Error('Cannot register a trap as an export');
+    }
+    if (valToSlot.has(val)) {
+      throw new Error('Cannot register an already exported value');
+    }
+    if (importExportTables.hasExport(slot)) {
+      throw new Error('Cannot register an already exported slot');
+    }
+    if (exportHook) {
+      exportHook(val, slot);
+    }
+    importExportTables.markAsExported(slot, val);
+    valToSlot.set(val, slot);
+  };
+
+  const registerImport = (val, slot) => {
+    const isLocal = slot[1] === '+';
+    if (isLocal) {
+      throw new Error('Cannot register a local as an import');
+    }
+    if (importExportTables.hasImport(slot)) {
+      throw new Error('Cannot register an already imported slot');
+    }
+    if (valToSlot.has(val)) {
+      throw new Error('Cannot register an already imported value');
+    }
+    importExportTables.markAsImported(slot, val);
+    valToSlot.set(val, slot);
+  };
+
+  const getExport = slot => {
+    return importExportTables.getExport(slot);
+  };
+
+  const getImport = slot => {
+    return importExportTables.getImport(slot);
+  };
+
   // Put together our return value.
   /** @type {CapTPEngine} */
   const rets = {
@@ -467,6 +517,11 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
     sendSlot,
     makeQuestion,
     takeNextQuestionID,
+    registerExport,
+    registerImport,
+    takeSettler,
+    getExport,
+    getImport,
   };
 
   return harden(rets);

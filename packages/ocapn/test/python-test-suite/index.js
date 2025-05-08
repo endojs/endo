@@ -2,13 +2,11 @@
 
 import '@endo/init';
 
+import { E } from '@endo/eventual-send';
 import { getSelectorName } from '../../src/pass-style-helpers.js';
 import { makeTcpNetLayer } from '../../src/netlayers/tcp-test-only.js';
-import { makeClient } from '../../src/client.js';
-
-/**
- * @typedef {import('../../src/client.js').RemoteObjectHelper} RemoteObjectHelper
- */
+import { makeClient } from '../../src/client/index.js';
+import { OCapNFar } from '../../src/client/ocapn.js';
 
 /**
  * @param {Client} client
@@ -43,26 +41,21 @@ const makeTestObjectTable = client => {
    */
   testObjectTable.set(
     'JadQ0++RzsD4M+40uLxTWVaVqM10DcBJ',
-    function carFactoryBuilder() {
-      const factoryBuilderCallHelper = /** @type {RemoteObjectHelper} */ (this);
-
+    OCapNFar('carFactoryBuilder', () => {
       /**
        * @param {[model: any, color: any]} carSpec
        */
-      function carFactory(carSpec) {
+      return OCapNFar('carFactory', carSpec => {
         console.log('carFactory called with', { carSpec });
-        const carFactoryCallHelper = /** @type {RemoteObjectHelper} */ (this);
 
         const [colorSelector, modelSelector] = carSpec;
         const color = getSelectorName(colorSelector);
         const model = getSelectorName(modelSelector);
         const car = () => `Vroom! I am a ${color} ${model} car!`;
 
-        return carFactoryCallHelper.registerExport(car);
-      }
-
-      return factoryBuilderCallHelper.registerExport(carFactory);
-    },
+        return OCapNFar('car', car);
+      });
+    }),
   );
 
   /**
@@ -75,9 +68,9 @@ const makeTestObjectTable = client => {
    */
   testObjectTable.set(
     'IO58l1laTyhcrgDKbEzFOO32MDd6zE5w',
-    async function echoGc(...args) {
+    OCapNFar('echoGc', async function echoGc(...args) {
       return args;
-    },
+    }),
   );
 
   /**
@@ -94,10 +87,10 @@ const makeTestObjectTable = client => {
    */
   testObjectTable.set(
     'VMDDd1voKWarCe2GvgLbxbVFysNzRPzx',
-    function greeter(remoteObject) {
-      const callHelper = /** @type {RemoteObjectHelper} */ (this);
-      callHelper.deliver(remoteObject, 'Hello');
-    },
+    OCapNFar('greeter', remoteObject => {
+      console.log('greeter called with', { remoteObject });
+      return E(remoteObject)('Hello');
+    }),
   );
 
   /**
@@ -110,9 +103,7 @@ const makeTestObjectTable = client => {
    */
   testObjectTable.set(
     'IokCxYmMj04nos2JN1TDoY1bT8dXh6Lr',
-    function promiseResolver() {
-      const callHelper = /** @type {RemoteObjectHelper} */ (this);
-
+    OCapNFar('promiseResolver', () => {
       let resolve;
       let reject;
       const promise = new Promise((res, rej) => {
@@ -120,43 +111,47 @@ const makeTestObjectTable = client => {
         reject = rej;
       });
 
-      const resolver = {
+      const resolver = OCapNFar('Resolver', {
         fulfill: value => {
           console.log('resolver.fulfill called with', { value });
           resolve(value);
         },
-        break: error => {
-          console.log('resolver.break called with', { error });
-          reject(error);
+        break: reason => {
+          console.log('resolver.break called with', { reason });
+          reject(reason);
         },
-      };
+      });
 
-      return [promise, resolver].map(callHelper.registerExport);
-    },
+      return [promise, resolver];
+    }),
   );
 
-  /**
-   * Sturdyref enlivener
-   *
-   * This takes a single argument which OCapN sturdyref object. The actor should
-   * "enliven" (connect to the node and get a live reference to the object)
-   * the sturdyref and then return that to
-   *  the messager.
-   */
-  testObjectTable.set(
-    'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
-    function sturdyrefEnlivener(sturdyref) {
-      console.log('sturdyrefEnlivener called with', { sturdyref });
-      client.enlivenSturdyref(sturdyref);
-      return undefined;
-    },
-  );
+  // /**
+  //  * Sturdyref enlivener
+  //  *
+  //  * This takes a single argument which OCapN sturdyref object. The actor should
+  //  * "enliven" (connect to the node and get a live reference to the object)
+  //  * the sturdyref and then return that to
+  //  *  the messager.
+  //  */
+  // testObjectTable.set(
+  //   'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
+  //   function sturdyrefEnlivener(sturdyref) {
+  //     console.log('sturdyrefEnlivener called with', { sturdyref });
+  //     client.enlivenSturdyref(sturdyref);
+  //     return undefined;
+  //   },
+  // );
 
   return testObjectTable;
 };
 
-const client = makeClient({
-  makeDefaultSwissnumTable: () => makeTestObjectTable(client),
-});
-const tcpNetlayer = makeTcpNetLayer({ client });
-client.registerNetlayer(tcpNetlayer);
+const start = async () => {
+  const client = makeClient({
+    makeDefaultSwissnumTable: () => makeTestObjectTable(client),
+  });
+  const tcpNetlayer = await makeTcpNetLayer({ client, specifiedPort: 22046 });
+  client.registerNetlayer(tcpNetlayer);
+};
+
+start();
