@@ -67,7 +67,7 @@ const immutableArrayBufferPonyfier = {
     if (path.node.source.value === '@endo/immutable-arraybuffer/shim.js') {
       // Class with private fields perfectly emulated as a `function` with the encapsulated `buffers` WeakMap
       // and `transferToImmutable` omitted, compatible with Hermes
-      path.node.source.value = '@endo/immutable-arraybuffer/shim-pony.js';
+      path.node.source.value = '@endo/immutable-arraybuffer/shim-hermes.js';
     }
   },
 };
