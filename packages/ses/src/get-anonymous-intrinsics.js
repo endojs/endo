@@ -187,4 +187,3 @@ export const getAnonymousIntrinsics = () => {
 
   return intrinsics;
 };
-``;
