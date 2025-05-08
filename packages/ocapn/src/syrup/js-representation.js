@@ -6,6 +6,7 @@ import {
   BytestringCodec,
   Float64Codec,
   IntegerCodec,
+  makeCodec,
   makeListCodecFromEntryCodec,
   makeSetCodecFromEntryCodec,
   makeTypeHintUnionCodec,
@@ -118,6 +119,8 @@ export const AnyCodec = makeTypeHintUnionCodec(
     set: () => SetCodec,
     // eslint-disable-next-line no-use-before-define
     dictionary: () => DictionaryCodec,
+    // eslint-disable-next-line no-use-before-define
+    record: () => RecordCodec,
   },
   {
     boolean: BooleanCodec,
@@ -135,6 +138,10 @@ export const AnyCodec = makeTypeHintUnionCodec(
       } else if (value instanceof Uint8Array) {
         return BytestringCodec;
       } else if (typeof value === 'object' && value !== null) {
+        if (value[Symbol.toStringTag] === 'Record') {
+          // eslint-disable-next-line no-use-before-define
+          return RecordCodec;
+        }
         // eslint-disable-next-line no-use-before-define
         return DictionaryCodec;
       }
@@ -262,6 +269,28 @@ export const DictionaryCodec = freeze({
       AnyCodec.write(entry, syrupWriter);
     }
     syrupWriter.exitDictionary();
+  },
+});
+
+const RecordCodec = makeCodec('SyrupRecordCodec', {
+  read: syrupReader => {
+    const values = [];
+    syrupReader.enterRecord();
+    const label = syrupReader.readSelectorAsString();
+    while (!syrupReader.peekRecordEnd()) {
+      const value = AnyCodec.read(syrupReader);
+      values.push(value);
+    }
+    syrupReader.exitRecord();
+    return { [Symbol.toStringTag]: 'Record', label, values };
+  },
+  write: (value, syrupWriter) => {
+    syrupWriter.enterRecord();
+    syrupWriter.writeSelectorFromString(value.label);
+    for (const entry of value.values) {
+      AnyCodec.write(entry, syrupWriter);
+    }
+    syrupWriter.exitRecord();
   },
 });
 

@@ -20,6 +20,15 @@ export function hexToUint8Array(hexString) {
   return bytes;
 }
 
+export const exampleSigParamBytes = Uint8Array.from(
+  { length: 32 },
+  (_, i) => i,
+);
+export const examplePubKeyQBytes = Uint8Array.from(
+  { length: 32 },
+  (_, i) => i * 2,
+);
+
 /**
  * @param {string} s
  * @returns {string}
