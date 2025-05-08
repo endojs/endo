@@ -7,10 +7,14 @@ const { getOwnPropertyDescriptors, defineProperties } = Object;
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
 
 const arrayBufferMethods = {
+  /**
+   * Creates an immutable slice of the given buffer.
+   * @this {ArrayBuffer} buffer The original buffer.
+   * @param {number} [start] The start index.
+   * @param {number} [end] The end index.
+   * @returns {Partial<Omit<ArrayBuffer, 'slice'>>} The sliced immutable ArrayBuffer.
+   */
   sliceToImmutable(start = undefined, end = undefined) {
-    // Argument of type '{ sliceToImmutable(start?: undefined, end?: undefined): ArrayBuffer; readonly immutable: boolean; }' is not assignable to parameter of type 'ArrayBuffer'.
-    // Type '{ sliceToImmutable(start?: undefined, end?: undefined): ArrayBuffer; readonly immutable: boolean; }' is missing the following properties from type 'ArrayBuffer': byteLength, slice, maxByteLength, resizable, and 5 more.ts(2345)
-    // @ts-expect-error TS2345
     return sliceBufferToImmutable(this, start, end);
   },
   get immutable() {
