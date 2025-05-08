@@ -33,7 +33,8 @@
     "prepack": "tsc --build tsconfig.build.json",
     "install-engines": "./install-engines.sh",
     "test": "./run-tests.sh",
-    "cpu-prof-test": "yarn rollup -c && node --jitless --cpu-prof dist/bundle.js"
+    "cpu-prof-test": "yarn rollup -c && node --jitless --cpu-prof dist/bundle.js",
+    "test:node": "yarn rollup -c && node dist/bundle.js"
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
