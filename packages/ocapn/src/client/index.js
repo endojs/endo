@@ -12,8 +12,12 @@
  * @typedef {import('./types.js').NetLayer} NetLayer
  * @typedef {import('./types.js').SelfIdentity} SelfIdentity
  * @typedef {import('./types.js').Logger} Logger
+ * @typedef {import('./types.js').LocationId} LocationId
+ * @typedef {import('./types.js').PendingSession} PendingSession
+ * @typedef {import('./types.js').SessionManager} SessionManager
  * @typedef {import('./ocapn.js').OCapN} OCapN
  */
+import { makePromiseKit } from '@endo/promise-kit';
 import { makeSyrupWriter } from '../syrup/encode.js';
 import {
   readOcapnHandshakeMessage,
@@ -33,7 +37,7 @@ import { decodeSyrup } from '../syrup/js-representation.js';
 
 /**
  * @param {OCapNLocation} location
- * @returns {string}
+ * @returns {LocationId}
  */
 export const locationToLocationId = location => {
   return `${location.transport}:${location.address}`;
@@ -72,6 +76,7 @@ export const makeSelfIdentity = myLocation => {
  * @param {OCapNSignature} options.peerLocationSig
  * @param {() =>Map<string, any>} [options.makeDefaultSwissnumTable]
  * @param {OCapN} options.ocapn
+ * @param {Connection} options.connection
  * @returns {Session}
  */
 const makeSession = ({
@@ -81,12 +86,14 @@ const makeSession = ({
   peerLocationSig,
   makeDefaultSwissnumTable = () => new Map(),
   ocapn,
+  connection,
 }) => {
   const { keyPair, location, locationSignature } = selfIdentity;
   const importTable = new Map();
   const exportTable = new Map();
   const answerTable = new Map();
-  return {
+  return harden({
+    connection,
     ocapn,
     tables: {
       swissnumTable: makeDefaultSwissnumTable(),
@@ -105,7 +112,7 @@ const makeSession = ({
       location,
       locationSignature,
     },
-  };
+  });
 };
 
 /**
@@ -183,19 +190,20 @@ const compareSessionKeysForCrossedHellos = (
 };
 
 /**
- * @param {Client} client
+ * @param {Logger} logger
+ * @param {SessionManager} sessionManager
  * @param {Connection} connection
  * @param {any} message
+ * @param {() => Map<string, any>} makeDefaultSwissnumTable
  */
-const handleSessionHandshakeMessage = (client, connection, message) => {
-  if (connection.session) {
-    throw Error('Session already exists');
-  }
-  const { activeSessions, outgoingConnections } = client;
-
-  client.logger.info(
-    `${client.debugLabel}: handling handshake message of type ${message.type}`,
-  );
+const handleSessionHandshakeMessage = (
+  logger,
+  sessionManager,
+  connection,
+  message,
+  makeDefaultSwissnumTable,
+) => {
+  logger.info(`handling handshake message of type ${message.type}`);
   switch (message.type) {
     case 'op:start-session': {
       const {
@@ -216,7 +224,7 @@ const handleSessionHandshakeMessage = (client, connection, message) => {
         return;
       }
       const locationId = locationToLocationId(peerLocation);
-      if (activeSessions.has(locationId)) {
+      if (sessionManager.getActiveSession(locationId)) {
         // throw error
         throw Error('Active session already exists');
       }
@@ -230,7 +238,7 @@ const handleSessionHandshakeMessage = (client, connection, message) => {
       );
       // Handle invalid location signature
       if (!peerLocationSigValid) {
-        client.logger.info('>> Server received NOT VALID location signature');
+        logger.info('>> Server received NOT VALID location signature');
         const opAbort = {
           type: 'op:abort',
           reason: 'Invalid location signature',
@@ -239,10 +247,11 @@ const handleSessionHandshakeMessage = (client, connection, message) => {
         connection.write(bytes);
         return;
       }
-      client.logger.info('>> Server received VALID location signature');
+      logger.info('>> Server received VALID location signature');
 
       // Check for crossed hellos
-      const outgoingConnection = outgoingConnections.get(locationId);
+      const outgoingConnection =
+        sessionManager.getOutgoingConnection(locationId);
       if (
         outgoingConnection !== undefined &&
         outgoingConnection !== connection
@@ -261,6 +270,7 @@ const handleSessionHandshakeMessage = (client, connection, message) => {
         const bytes = writeOcapnHandshakeMessage(opAbort);
         connectionToClose.write(bytes);
         connectionToClose.end();
+        sessionManager.deleteConnection(connectionToClose);
 
         // If the incomming connection is the one that was just closed, we're done.
         if (incommingConnection === connectionToClose) {
@@ -274,23 +284,17 @@ const handleSessionHandshakeMessage = (client, connection, message) => {
       } else {
         // We've received a hello, so we need to send our own
         // Send our op:start-session
-        client.logger.info('Server sending op:start-session');
+        logger.info('Server sending op:start-session');
         sendHello(connection, connection.selfIdentity);
       }
 
       // Create session
-      const { makeDefaultSwissnumTable } = client;
       const { selfIdentity } = connection;
       const bootstrapObj = makeBootstrapObject(
-        client.debugLabel,
+        'bootstrap',
         makeDefaultSwissnumTable,
       );
-      const ocapn = makeOCapN(
-        client.logger,
-        connection,
-        bootstrapObj,
-        client.debugLabel,
-      );
+      const ocapn = makeOCapN(logger, connection, bootstrapObj, 'ocapn');
       const session = makeSession({
         selfIdentity,
         peerLocation,
@@ -298,17 +302,18 @@ const handleSessionHandshakeMessage = (client, connection, message) => {
         peerLocationSig,
         makeDefaultSwissnumTable,
         ocapn,
+        connection,
       });
-      client.logger.info(`session established`);
-      connection.session = session;
-      activeSessions.set(locationId, session);
+      logger.info(`session established`);
+      sessionManager.resolveSession(locationId, connection, session);
 
       break;
     }
 
     case 'op:abort': {
-      client.logger.info('Server received op:abort', message.reason);
+      logger.info('Server received op:abort', message.reason);
       connection.end();
+      sessionManager.deleteConnection(connection);
       break;
     }
 
@@ -319,50 +324,131 @@ const handleSessionHandshakeMessage = (client, connection, message) => {
 };
 
 /**
- * @param {Client} client
+ * @param {Logger} logger
+ * @param {SessionManager} sessionManager
  * @param {Connection} connection
  * @param {Uint8Array} data
+ * @param {() => Map<string, any>} makeDefaultSwissnumTable
  */
-const handleMessageData = (client, connection, data) => {
+const handleHandshakeMessageData = (
+  logger,
+  sessionManager,
+  connection,
+  data,
+  makeDefaultSwissnumTable,
+) => {
   try {
-    if (connection.session) {
-      const { ocapn } = connection.session;
-      ocapn.dispatchMessageData(data);
-      // return handleActiveSessionMessage(connection, data);
-    } else {
-      const syrupReader = makeSyrupReader(data);
-      while (syrupReader.index < data.length) {
-        const start = syrupReader.index;
-        let message;
-        try {
-          message = readOcapnHandshakeMessage(syrupReader);
-        } catch (err) {
-          const problematicBytes = data.slice(start);
-          const syrupMessage = decodeSyrup(problematicBytes);
-          client.logger.error(
-            `${client.debugLabel}: Message decode error:`,
-            err,
-            'while reading',
-            syrupMessage,
-          );
-          connection.end();
-          throw err;
-        }
-        if (!connection.isDestroyed) {
-          handleSessionHandshakeMessage(client, connection, message);
-        } else {
-          client.logger.info(
-            'Server received message after connection was destroyed',
-            message,
-          );
-        }
+    const syrupReader = makeSyrupReader(data);
+    while (syrupReader.index < data.length) {
+      const start = syrupReader.index;
+      let message;
+      try {
+        message = readOcapnHandshakeMessage(syrupReader);
+      } catch (err) {
+        const problematicBytes = data.slice(start);
+        const syrupMessage = decodeSyrup(problematicBytes);
+        logger.error(
+          `Message decode error:`,
+          err,
+          'while reading',
+          syrupMessage,
+        );
+        connection.end();
+        throw err;
+      }
+      if (!connection.isDestroyed) {
+        handleSessionHandshakeMessage(
+          logger,
+          sessionManager,
+          connection,
+          message,
+          makeDefaultSwissnumTable,
+        );
+      } else {
+        logger.info(
+          'Server received message after connection was destroyed',
+          message,
+        );
       }
     }
   } catch (err) {
-    client.logger.error(`${client.debugLabel}: Server error:`, err);
+    logger.error(`Server error:`, err);
     connection.end();
     throw err;
   }
+};
+
+/**
+ * @returns {SessionManager}
+ */
+const makeSessionManager = () => {
+  /** @type {Map<LocationId, Session>} */
+  const activeSessions = new Map();
+  /** @type {Map<LocationId, PendingSession>} */
+  const pendingSessions = new Map();
+  /** @type {Map<Connection, Session>} */
+  const connectionToSession = new Map();
+
+  /** @type {SessionManager} */
+  return harden({
+    getActiveSession: locationId => activeSessions.get(locationId),
+    getOutgoingConnection: locationId => {
+      const pendingSession = pendingSessions.get(locationId);
+      if (pendingSession === undefined) {
+        return undefined;
+      }
+      return pendingSession.outgoingConnection;
+    },
+    getSessionForConnection: connection => {
+      return connectionToSession.get(connection);
+    },
+    deleteConnection: connection => {
+      connectionToSession.delete(connection);
+    },
+    getPendingSessionPromise: locationId => {
+      const pendingSession = pendingSessions.get(locationId);
+      if (pendingSession === undefined) {
+        return undefined;
+      }
+      return pendingSession.promise;
+    },
+    resolveSession: (locationId, connection, session) => {
+      if (activeSessions.has(locationId)) {
+        throw Error(
+          `Unable to resolve session for ${locationId}. Active session already exists.`,
+        );
+      }
+      activeSessions.set(locationId, session);
+      connectionToSession.set(connection, session);
+      const pendingSession = pendingSessions.get(locationId);
+      if (pendingSession !== undefined) {
+        pendingSession.resolve(session);
+        pendingSessions.delete(locationId);
+      }
+    },
+    makePendingSession: (locationId, outgoingConnection) => {
+      if (activeSessions.has(locationId)) {
+        throw Error(
+          `Active session for location already exists: ${locationId}`,
+        );
+      }
+      if (pendingSessions.has(locationId)) {
+        throw Error(
+          `Pending session for location already exists: ${locationId}`,
+        );
+      }
+      const { promise, resolve, reject } = makePromiseKit();
+      /** @type {PendingSession} */
+      const pendingSession = harden({
+        outgoingConnection,
+        promise,
+        resolve,
+        reject,
+      });
+      pendingSessions.set(locationId, pendingSession);
+      return pendingSession;
+    },
+  });
 };
 
 /**
@@ -377,10 +463,6 @@ export const makeClient = ({
   debugLabel = 'ocapn',
   verbose = false,
 } = {}) => {
-  /** @type {Map<string, Session>} */
-  const activeSessions = new Map();
-  /** @type {Map<string, Connection>} */
-  const outgoingConnections = new Map();
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
 
@@ -391,12 +473,33 @@ export const makeClient = ({
     info: (...args) => verbose && console.info(`${debugLabel}:`, ...args),
   });
 
+  const sessionManager = makeSessionManager();
+
+  /**
+   * @param {OCapNLocation} location
+   * @returns {Promise<Session>}
+   * Establishes a new session but initiating a connection.
+   */
+  const establishSession = location => {
+    const netlayer = netlayers.get(location.transport);
+    if (!netlayer) {
+      throw Error(
+        `Netlayer not registered for transport: ${location.transport}`,
+      );
+    }
+    const connection = netlayer.connect(location);
+    const locationId = locationToLocationId(location);
+    const pendingSession = sessionManager.makePendingSession(
+      locationId,
+      connection,
+    );
+    return pendingSession.promise;
+  };
+
   /** @type {Client} */
   const client = {
     debugLabel,
     logger,
-    activeSessions,
-    outgoingConnections,
     makeDefaultSwissnumTable,
     /**
      * @param {NetLayer} netlayer
@@ -414,22 +517,54 @@ export const makeClient = ({
      */
     handleMessageData(connection, data) {
       client.logger.info(`handleMessageData called`);
-      handleMessageData(client, connection, data);
+      const session = sessionManager.getSessionForConnection(connection);
+      if (session) {
+        const { ocapn } = session;
+        ocapn.dispatchMessageData(data);
+      } else {
+        handleHandshakeMessageData(
+          logger,
+          sessionManager,
+          connection,
+          data,
+          makeDefaultSwissnumTable,
+        );
+      }
+    },
+    /**
+     * @param {Connection} connection
+     * @param {Error} reason
+     */
+    handleConnectionClose(connection, reason) {
+      client.logger.info(`handleConnectionClose called`, { reason });
+      const session = sessionManager.getSessionForConnection(connection);
+      if (session) {
+        const { ocapn } = session;
+        ocapn.abort(reason);
+        sessionManager.deleteConnection(connection);
+      }
     },
     /**
      * @param {OCapNLocation} location
-     * @returns {Connection}
+     * @returns {Promise<Session>}
      */
-    connect(location) {
-      client.logger.info(`connect called with`, { location });
-      const netlayer = netlayers.get(location.transport);
-      if (!netlayer) {
-        throw Error(
-          `Netlayer not registered for transport: ${location.transport}`,
-        );
+    provideSession(location) {
+      client.logger.info(`provideSession called with`, { location });
+      const locationId = locationToLocationId(location);
+      // Get existing session.
+      const activeSession = sessionManager.getActiveSession(locationId);
+      if (activeSession) {
+        return Promise.resolve(activeSession);
       }
-      const connection = netlayer.connect(location);
-      return connection;
+      // Get existing pending session.
+      const pendingSession =
+        sessionManager.getPendingSessionPromise(locationId);
+      if (pendingSession) {
+        return pendingSession;
+      }
+      // Connect and establish a new session.
+      const newSessionPromise = establishSession(location);
+      return newSessionPromise;
     },
     shutdown() {
       client.logger.info(`shutdown called`);

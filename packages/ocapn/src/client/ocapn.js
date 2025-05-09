@@ -1,6 +1,7 @@
 // @ts-check
 
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
+/** @import {RemotableObject} from '@endo/marshal' */
 /** @import {CapTPSlot} from '../captp/types.js' */
 
 /**
@@ -25,7 +26,7 @@ import { decodeSyrup } from '../syrup/js-representation.js';
 /**
  * @typedef {OcapNFarObject<{resolve: (value: any) => void, break: (reason: any) => void}>} LocalResolver
  * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
- * @typedef {(slot: CapTPSlot) => RemoteKit} MakeRemoteResolver
+ * @typedef {(slot: CapTPSlot) => RemotableObject<"Alleged: resolver">} MakeRemoteResolver
  */
 
 const sink = harden(() => {});
