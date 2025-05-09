@@ -54,7 +54,7 @@ if (transfer) {
 
 /**
  * This class only exists as an artifact of this ponyfill and shim,
- * as a convience for imperfectly emulating the
+ * as a convenience for imperfectly emulating the
  * *Immutable ArrayBuffer* proposal, which would not have this class.
  * In the proposal,
  * `transferToImmutable` makes a new `ArrayBuffer` that inherits directly from
