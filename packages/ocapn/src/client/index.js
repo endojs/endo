@@ -1,0 +1,578 @@
+// @ts-check
+
+/**
+ * @typedef {import('../cryptography.js').OCapNPublicKey} OCapNPublicKey
+ * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
+ * @typedef {import('../codecs/components.js').OCapNPublicKeyData} OCapNPublicKeyData
+ * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
+ * @typedef {import('../codecs/components.js').OCapNSignature} OCapNSignature
+ * @typedef {import('./types.js').Session} Session
+ * @typedef {import('./types.js').Connection} Connection
+ * @typedef {import('./types.js').Client} Client
+ * @typedef {import('./types.js').NetLayer} NetLayer
+ * @typedef {import('./types.js').SelfIdentity} SelfIdentity
+ * @typedef {import('./types.js').Logger} Logger
+ * @typedef {import('./types.js').LocationId} LocationId
+ * @typedef {import('./types.js').PendingSession} PendingSession
+ * @typedef {import('./types.js').SessionManager} SessionManager
+ * @typedef {import('./ocapn.js').OCapN} OCapN
+ */
+import { makePromiseKit } from '@endo/promise-kit';
+import { makeSyrupWriter } from '../syrup/encode.js';
+import {
+  readOcapnHandshakeMessage,
+  writeOcapnHandshakeMessage,
+} from '../codecs/operations.js';
+import {
+  makeCrossedHellosIdForPublicKeyData,
+  makeOCapNKeyPair,
+  makeOCapNPublicKey,
+  publicKeyToPublicKeyData,
+} from '../cryptography.js';
+import { OCapNMyLocation } from '../codecs/components.js';
+import { compareByteArrays } from '../syrup/compare.js';
+import { OCapNFar, makeOCapN } from './ocapn.js';
+import { makeSyrupReader } from '../syrup/decode.js';
+import { decodeSyrup } from '../syrup/js-representation.js';
+
+/**
+ * @param {OCapNLocation} location
+ * @returns {LocationId}
+ */
+export const locationToLocationId = location => {
+  return `${location.transport}:${location.address}`;
+};
+
+/**
+ * @param {OCapNLocation} location
+ * @returns {Uint8Array}
+ */
+const getLocationBytesForSignature = location => {
+  const syrupWriter = makeSyrupWriter();
+  const myLocation = {
+    type: 'my-location',
+    location,
+  };
+  OCapNMyLocation.write(myLocation, syrupWriter);
+  return syrupWriter.getBytes();
+};
+
+/**
+ * @param {OCapNLocation} myLocation
+ * @returns {SelfIdentity}
+ */
+export const makeSelfIdentity = myLocation => {
+  const keyPair = makeOCapNKeyPair();
+  const myLocationBytes = getLocationBytesForSignature(myLocation);
+  const myLocationSig = keyPair.sign(myLocationBytes);
+  return { keyPair, location: myLocation, locationSignature: myLocationSig };
+};
+
+/**
+ * @param {object} options
+ * @param {SelfIdentity} options.selfIdentity
+ * @param {OCapNLocation} options.peerLocation
+ * @param {OCapNPublicKey} options.peerPublicKey
+ * @param {OCapNSignature} options.peerLocationSig
+ * @param {() =>Map<string, any>} [options.makeDefaultSwissnumTable]
+ * @param {OCapN} options.ocapn
+ * @param {Connection} options.connection
+ * @returns {Session}
+ */
+const makeSession = ({
+  selfIdentity,
+  peerLocation,
+  peerPublicKey,
+  peerLocationSig,
+  makeDefaultSwissnumTable = () => new Map(),
+  ocapn,
+  connection,
+}) => {
+  const { keyPair, location, locationSignature } = selfIdentity;
+  const importTable = new Map();
+  const exportTable = new Map();
+  const answerTable = new Map();
+  return harden({
+    connection,
+    ocapn,
+    tables: {
+      swissnumTable: makeDefaultSwissnumTable(),
+      importTable,
+      exportTable,
+      exportCount: 1n,
+      answerTable,
+    },
+    peer: {
+      publicKey: peerPublicKey,
+      location: peerLocation,
+      locationSignature: peerLocationSig,
+    },
+    self: {
+      keyPair,
+      location,
+      locationSignature,
+    },
+  });
+};
+
+/**
+ * @param {Connection} connection
+ * @param {any} mySessionData
+ */
+export const sendHello = (connection, mySessionData) => {
+  const { keyPair, location, locationSignature } = mySessionData;
+  const opStartSession = {
+    type: 'op:start-session',
+    captpVersion: '1.0',
+    sessionPublicKey: publicKeyToPublicKeyData(keyPair.publicKey),
+    location,
+    locationSignature,
+  };
+  const bytes = writeOcapnHandshakeMessage(opStartSession);
+  connection.write(bytes);
+};
+
+/**
+ * @param {string} label
+ * @param {() => Map<string, any>} makeDefaultSwissnumTable
+ * @returns {any}
+ */
+const makeBootstrapObject = (label, makeDefaultSwissnumTable) => {
+  const swissnumTable = makeDefaultSwissnumTable();
+  const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
+  return OCapNFar(`${label}:bootstrap`, {
+    /**
+     * @param {Uint8Array} swissnum
+     * @returns {Promise<any>}
+     */
+    fetch: swissnum => {
+      const swissnumString = swissnumDecoder.decode(swissnum);
+      const object = swissnumTable.get(swissnumString);
+      if (!object) {
+        throw Error(
+          `${label}: Bootstrap fetch: Unknown swissnum for sturdyref: ${swissnumString}`,
+        );
+      }
+      return object;
+    },
+  });
+};
+
+/**
+ * @param {Connection} outgoingConnection
+ * @param {Connection} incommingConnection
+ * @param {OCapNPublicKeyData} incommingPublicKey
+ * @returns {{ preferredConnection: Connection, connectionToClose: Connection }}
+ */
+const compareSessionKeysForCrossedHellos = (
+  outgoingConnection,
+  incommingConnection,
+  incommingPublicKey,
+) => {
+  const outgoingPublicKey = publicKeyToPublicKeyData(
+    outgoingConnection.selfIdentity.keyPair.publicKey,
+  );
+  const outgoingId = makeCrossedHellosIdForPublicKeyData(outgoingPublicKey);
+  const incommingId = makeCrossedHellosIdForPublicKeyData(incommingPublicKey);
+  const result = compareByteArrays(
+    outgoingId,
+    incommingId,
+    0,
+    outgoingId.length,
+    0,
+    incommingId.length,
+  );
+  const [preferredConnection, connectionToClose] =
+    result > 0
+      ? [outgoingConnection, incommingConnection]
+      : [incommingConnection, outgoingConnection];
+  return { preferredConnection, connectionToClose };
+};
+
+/**
+ * @param {Logger} logger
+ * @param {SessionManager} sessionManager
+ * @param {Connection} connection
+ * @param {any} message
+ * @param {() => Map<string, any>} makeDefaultSwissnumTable
+ */
+const handleSessionHandshakeMessage = (
+  logger,
+  sessionManager,
+  connection,
+  message,
+  makeDefaultSwissnumTable,
+) => {
+  logger.info(`handling handshake message of type ${message.type}`);
+  switch (message.type) {
+    case 'op:start-session': {
+      const {
+        captpVersion,
+        sessionPublicKey,
+        location: peerLocation,
+        locationSignature: peerLocationSig,
+      } = message;
+      // Handle invalid version
+      if (captpVersion !== '1.0') {
+        // send op abort
+        const opAbort = {
+          type: 'op:abort',
+          reason: 'invalid-version',
+        };
+        const bytes = writeOcapnHandshakeMessage(opAbort);
+        connection.write(bytes);
+        return;
+      }
+      const locationId = locationToLocationId(peerLocation);
+      if (sessionManager.getActiveSession(locationId)) {
+        // throw error
+        throw Error('Active session already exists');
+      }
+
+      // Check if the location signature is valid
+      const peerPublicKey = makeOCapNPublicKey(sessionPublicKey.q);
+      const peerLocationBytes = getLocationBytesForSignature(peerLocation);
+      const peerLocationSigValid = peerPublicKey.verify(
+        peerLocationBytes,
+        peerLocationSig,
+      );
+      // Handle invalid location signature
+      if (!peerLocationSigValid) {
+        logger.info('>> Server received NOT VALID location signature');
+        const opAbort = {
+          type: 'op:abort',
+          reason: 'Invalid location signature',
+        };
+        const bytes = writeOcapnHandshakeMessage(opAbort);
+        connection.write(bytes);
+        return;
+      }
+      logger.info('>> Server received VALID location signature');
+
+      // Check for crossed hellos
+      const outgoingConnection =
+        sessionManager.getOutgoingConnection(locationId);
+      if (
+        outgoingConnection !== undefined &&
+        outgoingConnection !== connection
+      ) {
+        const incommingConnection = connection;
+        const { connectionToClose } = compareSessionKeysForCrossedHellos(
+          outgoingConnection,
+          incommingConnection,
+          sessionPublicKey,
+        );
+        // Close the non-preferred connection
+        const opAbort = {
+          type: 'op:abort',
+          reason: 'Crossed hellos mitigated',
+        };
+        const bytes = writeOcapnHandshakeMessage(opAbort);
+        connectionToClose.write(bytes);
+        connectionToClose.end();
+        sessionManager.deleteConnection(connectionToClose);
+
+        // If the incomming connection is the one that was just closed, we're done.
+        if (incommingConnection === connectionToClose) {
+          return;
+        }
+      }
+
+      // Send our hello if we haven't already
+      if (connection.isOutgoing) {
+        // We've already sent our hello, so our session data is already set
+      } else {
+        // We've received a hello, so we need to send our own
+        // Send our op:start-session
+        logger.info('Server sending op:start-session');
+        sendHello(connection, connection.selfIdentity);
+      }
+
+      // Create session
+      const { selfIdentity } = connection;
+      const bootstrapObj = makeBootstrapObject(
+        'bootstrap',
+        makeDefaultSwissnumTable,
+      );
+      const ocapn = makeOCapN(logger, connection, bootstrapObj, 'ocapn');
+      const session = makeSession({
+        selfIdentity,
+        peerLocation,
+        peerPublicKey,
+        peerLocationSig,
+        makeDefaultSwissnumTable,
+        ocapn,
+        connection,
+      });
+      logger.info(`session established`);
+      sessionManager.resolveSession(locationId, connection, session);
+
+      break;
+    }
+
+    case 'op:abort': {
+      logger.info('Server received op:abort', message.reason);
+      connection.end();
+      sessionManager.deleteConnection(connection);
+      break;
+    }
+
+    default: {
+      throw Error(`Unknown message type: ${message.type}`);
+    }
+  }
+};
+
+/**
+ * @param {Logger} logger
+ * @param {SessionManager} sessionManager
+ * @param {Connection} connection
+ * @param {Uint8Array} data
+ * @param {() => Map<string, any>} makeDefaultSwissnumTable
+ */
+const handleHandshakeMessageData = (
+  logger,
+  sessionManager,
+  connection,
+  data,
+  makeDefaultSwissnumTable,
+) => {
+  try {
+    const syrupReader = makeSyrupReader(data);
+    while (syrupReader.index < data.length) {
+      const start = syrupReader.index;
+      let message;
+      try {
+        message = readOcapnHandshakeMessage(syrupReader);
+      } catch (err) {
+        const problematicBytes = data.slice(start);
+        const syrupMessage = decodeSyrup(problematicBytes);
+        logger.error(
+          `Message decode error:`,
+          err,
+          'while reading',
+          syrupMessage,
+        );
+        connection.end();
+        throw err;
+      }
+      if (!connection.isDestroyed) {
+        handleSessionHandshakeMessage(
+          logger,
+          sessionManager,
+          connection,
+          message,
+          makeDefaultSwissnumTable,
+        );
+      } else {
+        logger.info(
+          'Server received message after connection was destroyed',
+          message,
+        );
+      }
+    }
+  } catch (err) {
+    logger.error(`Server error:`, err);
+    connection.end();
+    throw err;
+  }
+};
+
+/**
+ * @returns {SessionManager}
+ */
+const makeSessionManager = () => {
+  /** @type {Map<LocationId, Session>} */
+  const activeSessions = new Map();
+  /** @type {Map<LocationId, PendingSession>} */
+  const pendingSessions = new Map();
+  /** @type {Map<Connection, Session>} */
+  const connectionToSession = new Map();
+
+  /** @type {SessionManager} */
+  return harden({
+    getActiveSession: locationId => activeSessions.get(locationId),
+    getOutgoingConnection: locationId => {
+      const pendingSession = pendingSessions.get(locationId);
+      if (pendingSession === undefined) {
+        return undefined;
+      }
+      return pendingSession.outgoingConnection;
+    },
+    getSessionForConnection: connection => {
+      return connectionToSession.get(connection);
+    },
+    deleteConnection: connection => {
+      connectionToSession.delete(connection);
+    },
+    getPendingSessionPromise: locationId => {
+      const pendingSession = pendingSessions.get(locationId);
+      if (pendingSession === undefined) {
+        return undefined;
+      }
+      return pendingSession.promise;
+    },
+    resolveSession: (locationId, connection, session) => {
+      if (activeSessions.has(locationId)) {
+        throw Error(
+          `Unable to resolve session for ${locationId}. Active session already exists.`,
+        );
+      }
+      activeSessions.set(locationId, session);
+      connectionToSession.set(connection, session);
+      const pendingSession = pendingSessions.get(locationId);
+      if (pendingSession !== undefined) {
+        pendingSession.resolve(session);
+        pendingSessions.delete(locationId);
+      }
+    },
+    makePendingSession: (locationId, outgoingConnection) => {
+      if (activeSessions.has(locationId)) {
+        throw Error(
+          `Active session for location already exists: ${locationId}`,
+        );
+      }
+      if (pendingSessions.has(locationId)) {
+        throw Error(
+          `Pending session for location already exists: ${locationId}`,
+        );
+      }
+      const { promise, resolve, reject } = makePromiseKit();
+      /** @type {PendingSession} */
+      const pendingSession = harden({
+        outgoingConnection,
+        promise,
+        resolve,
+        reject,
+      });
+      pendingSessions.set(locationId, pendingSession);
+      return pendingSession;
+    },
+  });
+};
+
+/**
+ * @param {object} [options]
+ * @param {() => Map<string, any>} [options.makeDefaultSwissnumTable]
+ * @param {string} [options.debugLabel]
+ * @param {boolean} [options.verbose]
+ * @returns {Client}
+ */
+export const makeClient = ({
+  makeDefaultSwissnumTable = () => new Map(),
+  debugLabel = 'ocapn',
+  verbose = false,
+} = {}) => {
+  /** @type {Map<string, NetLayer>} */
+  const netlayers = new Map();
+
+  /** @type {Logger} */
+  const logger = harden({
+    log: (...args) => console.log(`${debugLabel}:`, ...args),
+    error: (...args) => console.error(`${debugLabel}:`, ...args),
+    info: (...args) => verbose && console.info(`${debugLabel}:`, ...args),
+  });
+
+  const sessionManager = makeSessionManager();
+
+  /**
+   * @param {OCapNLocation} location
+   * @returns {Promise<Session>}
+   * Establishes a new session but initiating a connection.
+   */
+  const establishSession = location => {
+    const netlayer = netlayers.get(location.transport);
+    if (!netlayer) {
+      throw Error(
+        `Netlayer not registered for transport: ${location.transport}`,
+      );
+    }
+    const connection = netlayer.connect(location);
+    const locationId = locationToLocationId(location);
+    const pendingSession = sessionManager.makePendingSession(
+      locationId,
+      connection,
+    );
+    return pendingSession.promise;
+  };
+
+  /** @type {Client} */
+  const client = {
+    debugLabel,
+    logger,
+    makeDefaultSwissnumTable,
+    /**
+     * @param {NetLayer} netlayer
+     */
+    registerNetlayer(netlayer) {
+      const { transport } = netlayer.location;
+      if (netlayers.has(transport)) {
+        throw Error(`Netlayer already registered for transport: ${transport}`);
+      }
+      netlayers.set(transport, netlayer);
+    },
+    /**
+     * @param {Connection} connection
+     * @param {Uint8Array} data
+     */
+    handleMessageData(connection, data) {
+      client.logger.info(`handleMessageData called`);
+      const session = sessionManager.getSessionForConnection(connection);
+      if (session) {
+        const { ocapn } = session;
+        ocapn.dispatchMessageData(data);
+      } else {
+        handleHandshakeMessageData(
+          logger,
+          sessionManager,
+          connection,
+          data,
+          makeDefaultSwissnumTable,
+        );
+      }
+    },
+    /**
+     * @param {Connection} connection
+     * @param {Error} reason
+     */
+    handleConnectionClose(connection, reason) {
+      client.logger.info(`handleConnectionClose called`, { reason });
+      const session = sessionManager.getSessionForConnection(connection);
+      if (session) {
+        const { ocapn } = session;
+        ocapn.abort(reason);
+        sessionManager.deleteConnection(connection);
+      }
+    },
+    /**
+     * @param {OCapNLocation} location
+     * @returns {Promise<Session>}
+     */
+    provideSession(location) {
+      client.logger.info(`provideSession called with`, { location });
+      const locationId = locationToLocationId(location);
+      // Get existing session.
+      const activeSession = sessionManager.getActiveSession(locationId);
+      if (activeSession) {
+        return Promise.resolve(activeSession);
+      }
+      // Get existing pending session.
+      const pendingSession =
+        sessionManager.getPendingSessionPromise(locationId);
+      if (pendingSession) {
+        return pendingSession;
+      }
+      // Connect and establish a new session.
+      const newSessionPromise = establishSession(location);
+      return newSessionPromise;
+    },
+    shutdown() {
+      client.logger.info(`shutdown called`);
+      for (const netlayer of netlayers.values()) {
+        netlayer.shutdown();
+      }
+    },
+  };
+
+  return client;
+};

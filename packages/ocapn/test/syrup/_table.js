@@ -2,10 +2,23 @@ import { SyrupSelectorFor } from '../../src/syrup/js-representation.js';
 
 const textEncoder = new TextEncoder();
 
+const stringFromBytes = bytes => {
+  return bytes.map(c => String.fromCharCode(c)).join('');
+};
+
 export const table = [
   { syrup: '0+', value: 0n },
   { syrup: '1+', value: 1n },
   { syrup: '1-', value: -1n },
+  { syrup: '1-', value: -1n },
+  {
+    syrup: `D${stringFromBytes([0xff, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])}`,
+    value: -Infinity,
+  },
+  {
+    syrup: `D${stringFromBytes([0x7f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])}`,
+    value: Infinity,
+  },
   { syrup: 't', value: true },
   { syrup: 'f', value: false },
   { syrup: '5"hello', value: 'hello' },

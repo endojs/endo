@@ -5,6 +5,7 @@ import {
   BytestringCodec,
   Float64Codec,
   IntegerCodec,
+  makeCodec,
   makeListCodecFromEntryCodec,
   makeSetCodecFromEntryCodec,
   makeTypeHintUnionCodec,
@@ -106,6 +107,7 @@ export const NumberPrefixCodecWithSelectorAsSymbol = {
 
 /** @type {SyrupCodec} */
 export const AnyCodec = makeTypeHintUnionCodec(
+  'SyrupAnyCodec',
   {
     boolean: BooleanCodec,
     float64: Float64Codec,
@@ -116,6 +118,8 @@ export const AnyCodec = makeTypeHintUnionCodec(
     set: () => SetCodec,
     // eslint-disable-next-line no-use-before-define
     dictionary: () => DictionaryCodec,
+    // eslint-disable-next-line no-use-before-define
+    record: () => RecordCodec,
   },
   {
     boolean: BooleanCodec,
@@ -133,6 +137,10 @@ export const AnyCodec = makeTypeHintUnionCodec(
       } else if (value instanceof Uint8Array) {
         return BytestringCodec;
       } else if (typeof value === 'object' && value !== null) {
+        if (value[Symbol.toStringTag] === 'Record') {
+          // eslint-disable-next-line no-use-before-define
+          return RecordCodec;
+        }
         // eslint-disable-next-line no-use-before-define
         return DictionaryCodec;
       }
@@ -141,8 +149,11 @@ export const AnyCodec = makeTypeHintUnionCodec(
   },
 );
 
-export const ListCodec = makeListCodecFromEntryCodec(AnyCodec);
-export const SetCodec = makeSetCodecFromEntryCodec(AnyCodec);
+export const ListCodec = makeListCodecFromEntryCodec(
+  'SyrupListCodec',
+  AnyCodec,
+);
+export const SetCodec = makeSetCodecFromEntryCodec('SyrupSetCodec', AnyCodec);
 
 /** @type {SyrupCodec} */
 const DictionaryKeyCodec = {
@@ -260,6 +271,28 @@ export const DictionaryCodec = freeze({
   },
 });
 
+const RecordCodec = makeCodec('SyrupRecordCodec', {
+  read: syrupReader => {
+    const values = [];
+    syrupReader.enterRecord();
+    const label = syrupReader.readSelectorAsString();
+    while (!syrupReader.peekRecordEnd()) {
+      const value = AnyCodec.read(syrupReader);
+      values.push(value);
+    }
+    syrupReader.exitRecord();
+    return { [Symbol.toStringTag]: 'Record', label, values };
+  },
+  write: (value, syrupWriter) => {
+    syrupWriter.enterRecord();
+    syrupWriter.writeSelectorFromString(value.label);
+    for (const entry of value.values) {
+      AnyCodec.write(entry, syrupWriter);
+    }
+    syrupWriter.exitRecord();
+  },
+});
+
 /**
  * @param {Uint8Array} bytes
  * @param {object} options
@@ -268,20 +301,8 @@ export const DictionaryCodec = freeze({
  * @param {number} [options.end]
  */
 export function decodeSyrup(bytes, options = {}) {
-  const { name = '<unknown>' } = options;
-  try {
-    const syrupReader = makeSyrupReader(bytes, options);
-    return AnyCodec.read(syrupReader);
-  } catch (err) {
-    if (err.code === 'EOD') {
-      const err2 = Error(
-        `Unexpected end of Syrup at index ${bytes.length} of ${name}`,
-      );
-      err2.cause = err;
-      throw err2;
-    }
-    throw err;
-  }
+  const syrupReader = makeSyrupReader(bytes, options);
+  return AnyCodec.read(syrupReader);
 }
 
 /**
