@@ -47,14 +47,14 @@ export type PassStyle =
   | 'error'
   | 'promise';
 
-export type TaggedOrRemotable = 'tagged' | 'remotable';
+export type PassStyleMarker = 'tagged' | 'remotable';
 
 /**
  * Tagged has own [PASS_STYLE]: "tagged", [Symbol.toStringTag]: $tag.
  *
  * Remotable has a prototype chain in which the penultimate object has own [PASS_STYLE]: "remotable", [Symbol.toStringTag]: $iface (where both $tag and $iface must be strings, and the latter must either be "Remotable" or start with "Alleged: " or "DebugName: ").
  */
-export type PassStyled<S extends TaggedOrRemotable, I extends InterfaceSpec> = {
+export type PassStyled<S extends PassStyleMarker, I extends InterfaceSpec> = {
   [PASS_STYLE]: S;
   [Symbol.toStringTag]: I;
 };
@@ -121,10 +121,11 @@ export type PassStyleOf = {
   (p: any[]): 'copyArray';
   (p: Iterable<any>): 'remotable';
   (p: Iterator<any, any, undefined>): 'remotable';
-  <T extends PassStyled<TaggedOrRemotable, any>>(p: T): ExtractStyle<T>;
+  <T extends PassStyled<PassStyleMarker, any>>(p: T): ExtractStyle<T>;
   (p: { [key: string]: any }): 'copyRecord';
   (p: any): PassStyle;
 };
+
 /**
  * A Passable is PureData when its entire data structure is free of PassableCaps
  * (remotables and promises) and error objects.
@@ -148,6 +149,7 @@ export type PassStyleOf = {
  * any potential proxies.
  */
 export type PureData = Passable<never, never>;
+
 /**
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
@@ -159,10 +161,12 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
   'remotable',
   I
 >;
+
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
 export type PassableCap = Promise<any> | RemotableObject;
+
 /**
  * A Passable sequence of Passable values.
  */
@@ -177,6 +181,7 @@ export type ByteArray = ArrayBuffer;
  * A Passable dictionary in which each key is a string and each value is Passable.
  */
 export type CopyRecord<T extends Passable = any> = Record<string, T>;
+
 /**
  * A Passable "tagged record" with semantics specific to the tag identified in
  * the `[Symbol.toStringTag]` property (such as 'copySet', 'copyBag',
@@ -191,6 +196,7 @@ export type CopyTagged<
 > = PassStyled<'tagged', Tag> & {
   payload: Payload;
 };
+
 /**
  * This is an interface specification.
  * For now, it is just a string, but we retain the option to make it `PureData`.
@@ -198,6 +204,7 @@ export type CopyTagged<
  * that are not supposed to be able to communicate.
  */
 export type InterfaceSpec = string;
+
 /**
  * Internal to a useful pattern for writing checking logic
  * (a "checkFoo" function) that can be used to implement a predicate

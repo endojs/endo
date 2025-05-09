@@ -4,6 +4,7 @@ import { Nat } from '@endo/nat';
 import {
   getErrorConstructor,
   isObject,
+  nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
 import { q, X, Fail } from '@endo/errors';
@@ -323,7 +324,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
           assert.typeof(name, 'string');
           const sym = passableSymbolForName(name);
           assert.typeof(sym, 'symbol');
-          const registeredName = Symbol.keyFor(sym);
+          const registeredName = nameForPassableSymbol(sym);
           if (registeredName === undefined) {
             const match = AtAtPrefixPattern.exec(name);
             assert(match !== null);
@@ -332,7 +333,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             assert(identPattern.test(suffix));
             return out.next(`Symbol.${suffix}`);
           }
-          return out.next(`Symbol.for(${quote(registeredName)})`);
+          return out.next(`passableSymbolForName(${quote(registeredName)})`);
         }
         case 'tagged': {
           const { tag, payload } = rawTree;
