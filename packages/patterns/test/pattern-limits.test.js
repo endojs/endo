@@ -117,7 +117,7 @@ const runTests = (successCase, failCase) => {
   }
   // symbolNameLengthLimit
   {
-    const specimen = Symbol.for('moderate length string');
+    const specimen = Symbol('moderate length string');
     successCase(specimen, M.symbol());
     successCase(specimen, M.symbol(harden({ symbolNameLengthLimit: 40 })));
 
@@ -128,7 +128,7 @@ const runTests = (successCase, failCase) => {
     );
   }
   {
-    const specimen = Symbol.for(
+    const specimen = Symbol(
       'x'.repeat(defaultLimits.symbolNameLengthLimit + 1),
     );
     successCase(

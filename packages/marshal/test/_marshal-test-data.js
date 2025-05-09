@@ -49,12 +49,10 @@ export const roundTripPairs = harden([
   [9007199254740993n, { '@qclass': 'bigint', digits: '9007199254740993' }],
 
   // Well known symbols
-  [Symbol.asyncIterator, { '@qclass': 'symbol', name: '@@asyncIterator' }],
-  [Symbol.match, { '@qclass': 'symbol', name: '@@match' }],
-  // Registered symbols
-  [Symbol.for('foo'), { '@qclass': 'symbol', name: 'foo' }],
-  // Registered symbol hilbert hotel
-  [Symbol.for('@@foo'), { '@qclass': 'symbol', name: '@@@@foo' }],
+  [Symbol.asyncIterator, { '@qclass': 'symbol', name: 'Symbol.asyncIterator' }],
+  [Symbol.match, { '@qclass': 'symbol', name: 'Symbol.match' }],
+  // Unregistered symbols
+  [Symbol('foo'), { '@qclass': 'symbol', name: 'foo' }],
 
   // Normal json reviver cannot make properties with undefined values
   [[undefined], [{ '@qclass': 'undefined' }]],
@@ -80,7 +78,7 @@ export const roundTripPairs = harden([
 
   // errors
   [
-    Error(),
+    Error(''),
     {
       '@qclass': 'error',
       message: '',
@@ -181,10 +179,13 @@ export const jsonJustinPairs = harden([
   ['{"@qclass":"-Infinity"}', '-Infinity'],
   ['{"@qclass":"bigint","digits":"4"}', '4n'],
   ['{"@qclass":"bigint","digits":"9007199254740993"}', '9007199254740993n'],
-  ['{"@qclass":"symbol","name":"@@asyncIterator"}', 'Symbol.asyncIterator'],
-  ['{"@qclass":"symbol","name":"@@match"}', 'Symbol.match'],
-  ['{"@qclass":"symbol","name":"foo"}', 'Symbol.for("foo")'],
-  ['{"@qclass":"symbol","name":"@@@@foo"}', 'Symbol.for("@@foo")'],
+  [
+    '{"@qclass":"symbol","name":"Symbol.asyncIterator"}',
+    'Symbol("Symbol.asyncIterator")',
+  ],
+  ['{"@qclass":"symbol","name":"Symbol.match"}', 'Symbol("Symbol.match")'],
+  ['{"@qclass":"symbol","name":"foo"}', 'Symbol("foo")'],
+  ['{"@qclass":"symbol","name":"@@foo"}', 'Symbol("@@foo")'],
 
   // Arrays and objects
   ['[{"@qclass":"undefined"}]', '[undefined]'],
@@ -264,11 +265,11 @@ export const unsortedSample = harden([
   [5],
   exampleAlice,
   [],
-  Symbol.for('foo'),
+  Symbol('foo'),
   Error('not erroneous'),
-  Symbol.for('@@foo'),
+  Symbol('@@foo'),
   [5, { bar: 5 }],
-  Symbol.for(''),
+  Symbol(''),
   false,
   exampleCarol,
   [exampleCarol, 'm'],
@@ -385,10 +386,10 @@ export const sortedSample = harden([
   'foo',
 
   null,
-  Symbol.for(''),
-  Symbol.for('@@foo'),
+  Symbol(''),
+  Symbol('@@foo'),
   Symbol.isConcatSpreadable,
-  Symbol.for('foo'),
+  Symbol('foo'),
 
   undefined,
   undefined,

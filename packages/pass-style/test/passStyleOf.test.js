@@ -52,7 +52,7 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(true), 'boolean');
   t.is(passStyleOf(33), 'number');
   t.is(passStyleOf(33n), 'bigint');
-  t.is(passStyleOf(Symbol.for('foo')), 'symbol');
+  t.is(passStyleOf(Symbol('foo')), 'symbol');
   t.is(passStyleOf(Symbol.iterator), 'symbol');
   t.is(passStyleOf(null), 'null');
   t.is(passStyleOf(harden(Promise.resolve(null))), 'promise');
@@ -79,9 +79,8 @@ test('some passStyleOf rejections', t => {
       'Passable Error must have an own "message" string property: "[Error: ]"',
   });
 
-  t.throws(() => passStyleOf(Symbol('unique')), {
-    message:
-      /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
+  t.throws(() => passStyleOf(Symbol.for('unique')), {
+    message: 'Only unregistered symbols are passable: "[Symbol(unique)]"',
   });
   if (harden.isFake) {
     t.is(passStyleOf({}), 'copyRecord');

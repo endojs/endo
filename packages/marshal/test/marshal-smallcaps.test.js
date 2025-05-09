@@ -4,6 +4,7 @@ import { Far, makeTagged, passStyleOf } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
 import { roundTripPairs } from './_marshal-test-data.js';
+import { testFullOrderEQ } from '../tools/ava-full-order-eq.js';
 
 const {
   freeze,
@@ -43,7 +44,7 @@ test('smallcaps serialize unserialize round trip half pairs', t => {
   for (const [plain, _] of roundTripPairs) {
     const { body } = serialize(plain);
     const decoding = unserialize({ body, slots: [] });
-    t.deepEqual(decoding, plain);
+    testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }
 });
@@ -62,9 +63,8 @@ test('smallcaps serialize static data', t => {
   t.deepEqual(ser(-0), { body: '#0', slots: [] });
   t.deepEqual(ser(-0), ser(0));
   // unregistered symbols
-  t.throws(() => ser(Symbol('sym2')), {
-    // An anonymous symbol is not Passable
-    message: /Only registered symbols or well-known symbols are passable:/,
+  t.throws(() => ser(Symbol.for('sym2')), {
+    message: 'Only unregistered symbols are passable: "[Symbol(sym2)]"',
   });
 
   const cd = ser(harden([1, 2]));
@@ -349,7 +349,7 @@ test('smallcaps encoding examples', t => {
     assertSer(val, body, slots, message);
     const val2 = unserialize(harden({ body, slots }));
     assertSer(val2, body, slots, message);
-    t.deepEqual(val, val2, message);
+    testFullOrderEQ(t, val, val2, message);
   };
 
   // Numbers
@@ -371,11 +371,16 @@ test('smallcaps encoding examples', t => {
   assertRoundTrip('%escaped', `#"!%escaped"`, [], 'escaped %');
 
   // Symbols
-  assertRoundTrip(Symbol.iterator, '#"%@@iterator"', [], 'well known symbol');
-  assertRoundTrip(Symbol.for('foo'), '#"%foo"', [], 'reg symbol');
   assertRoundTrip(
-    Symbol.for('@@foo'),
-    '#"%@@@@foo"',
+    Symbol.iterator,
+    '#"%Symbol.iterator"',
+    [],
+    'well known symbol',
+  );
+  assertRoundTrip(Symbol('foo'), '#"%foo"', [], 'reg symbol');
+  assertRoundTrip(
+    Symbol('foo'),
+    '#"%foo"',
     [],
     'reg symbol that looks well known',
   );
