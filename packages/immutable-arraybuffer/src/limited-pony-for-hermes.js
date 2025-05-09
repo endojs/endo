@@ -41,28 +41,8 @@ const getBuffer = immuAB => {
   throw TypeError('Not an emulated Immutable ArrayBuffer');
 };
 
-/**
- * Emulates the encapsulated `ImmutableArrayBufferInternal` class constructor
- * from the original except this function takes the `realBuffer` which its instance
- * encapsulates. Security demands that it has exclusive access to `realBuffer`
- * it is given, which its callers must ensure.
- *
- * @param {ArrayBuffer} realBuffer
- */
-const ImmutableArrayBufferInternal = function ImmutableArrayBufferInternal(
-  realBuffer,
-) {
-  if (new.target === undefined) {
-    throw TypeError(
-      'internal: ImmutableArrayBufferInternal must be called with "new"',
-    );
-  }
-  buffers.set(this, realBuffer);
-};
-
-// Omits `constructor` so `ImmutableArrayBufferInternal` "constructor" function
-// remains encapsulated.
-ImmutableArrayBufferInternal.prototype = {
+// Omits `constructor` so `Array.prototype.constructor` is inherited.
+const ImmutableArrayBufferInternalPrototype = {
   __proto__: arrayBufferPrototype,
   get byteLength() {
     return getBuffer(this).byteLength;
@@ -95,10 +75,24 @@ ImmutableArrayBufferInternal.prototype = {
     throw TypeError('Cannot resize an immutable ArrayBuffer');
   },
 };
-// Since it should not escape, this `freeze` is just belt-and-suspenders.
-// `freeze` is shallow, so `ImmutableArrayBufferInternal.prototype` remains
-// unfrozen.
-Object.freeze(ImmutableArrayBufferInternal);
+
+/**
+ * Emulates the encapsulated `ImmutableArrayBufferInternal` class constructor
+ * from the original except this function takes the `realBuffer` which its
+ * result encapsulates. Security demands that this result has exclusive access
+ * to the `realBuffer` it is given, which its callers must ensure.
+ *
+ * @param {ArrayBuffer} realBuffer
+ * @returns {ArrayBuffer}
+ */
+const makeImmutableArrayBufferInternal = realBuffer => {
+  const result = { __proto__: ImmutableArrayBufferInternalPrototype };
+  buffers.set(result, realBuffer);
+  return /** @type {ArrayBuffer} */ (/** @type {unknown} */ (result));
+};
+// Since `makeImmutableArrayBufferInternal` MUST not escape,
+// this `freeze` is just belt-and-suspenders.
+Object.freeze(makeImmutableArrayBufferInternal);
 
 export const isBufferImmutable = buffer => buffers.has(buffer);
 
@@ -107,7 +101,7 @@ export const isBufferImmutable = buffer => buffers.has(buffer);
  * @param {ArrayBuffer} buffer The original buffer.
  * @param {number} [start] The start index.
  * @param {number} [end] The end index.
- * @returns {Partial<Omit<ArrayBuffer, 'slice'>>} The sliced immutable ArrayBuffer.
+ * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
  */
 export const sliceBufferToImmutable = (
   buffer,
@@ -118,7 +112,7 @@ export const sliceBufferToImmutable = (
   if (realBuffer === undefined) {
     realBuffer = buffer;
   }
-  return new ImmutableArrayBufferInternal(
+  return makeImmutableArrayBufferInternal(
     arrayBufferSlice(realBuffer, start, end),
   );
 };

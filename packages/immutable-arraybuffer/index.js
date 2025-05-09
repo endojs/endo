@@ -142,6 +142,13 @@ const {
 
 setPrototypeOf(immutableArrayBufferPrototype, arrayBufferPrototype);
 
+/**
+ * Transfer the contents to a new Immutable ArrayBuffer
+ *
+ * @param {ArrayBuffer} buffer The original buffer.
+ * @param {number} [newLength] The start index.
+ * @returns {ArrayBuffer}
+ */
 export const transferBufferToImmutable = (buffer, newLength = undefined) => {
   if (newLength !== undefined) {
     if (transfer) {
@@ -160,7 +167,8 @@ export const transferBufferToImmutable = (buffer, newLength = undefined) => {
       }
     }
   }
-  return new ImmutableArrayBufferInternal(buffer);
+  const result = new ImmutableArrayBufferInternal(buffer);
+  return /** @type {ArrayBuffer} */ (/** @type {unknown} */ (result));
 };
 
 export const isBufferImmutable = buffer => {
@@ -177,6 +185,14 @@ export const isBufferImmutable = buffer => {
   }
 };
 
+/**
+ * Enforces that `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
+ *
+ * @param {ArrayBuffer} buffer
+ * @param {number} [start]
+ * @param {number} [end]
+ * @returns {ArrayBuffer}
+ */
 const sliceBuffer = (buffer, start = undefined, end = undefined) => {
   try {
     // @ts-expect-error We know it is really there
@@ -189,6 +205,14 @@ const sliceBuffer = (buffer, start = undefined, end = undefined) => {
   }
 };
 
+/**
+ * Creates an immutable slice of the given buffer.
+ *
+ * @param {ArrayBuffer} buffer The original buffer.
+ * @param {number} [start] The start index.
+ * @param {number} [end] The end index.
+ * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+ */
 export const sliceBufferToImmutable = (
   buffer,
   start = undefined,
