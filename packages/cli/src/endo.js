@@ -7,6 +7,7 @@ import '@endo/init';
 
 import fs from 'fs';
 import url from 'url';
+import { spawn as ambientSpawn } from 'child_process';
 
 import { Command } from 'commander';
 import { prompt } from './prompt.js';
@@ -47,7 +48,23 @@ export const main = async rawArgs => {
     packageDescriptorPath,
   );
   const packageDescriptor = JSON.parse(packageDescriptorBytes);
+
   program.name('endo').version(packageDescriptor.version);
+
+  program
+    .command('exec -- <script> [args...]')
+    .action(async (script, args, _cmd) => {
+      return new Promise((resolve, reject) => {
+        const cp = ambientSpawn('endo-exec', [script, ...args], {
+          stdio: 'inherit',
+        });
+        cp.on('error', reject);
+        cp.on('close', code => {
+          process.exitCode = code;
+          resolve(code);
+        });
+      });
+    });
 
   program
     .command('install [filePath]')
