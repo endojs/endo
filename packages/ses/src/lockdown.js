@@ -176,28 +176,43 @@ export const repairIntrinsics = (options = {}) => {
   // for an explanation.
 
   const {
-    errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
+    errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe', [
+      'unsafe',
+      'unsafe-debug',
+    ]),
     errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit"} */ (
-      getenv('LOCKDOWN_ERROR_TRAPPING', 'platform')
+      getenv('LOCKDOWN_ERROR_TRAPPING', 'platform', [
+        'none',
+        'report',
+        'abort',
+        'exit',
+      ])
     ),
     reporting = /** @type {"platform" | "console" | "none"} */ (
-      getenv('LOCKDOWN_REPORTING', 'platform')
+      getenv('LOCKDOWN_REPORTING', 'platform', ['console', 'none'])
     ),
     unhandledRejectionTrapping = /** @type {"none" | "report"} */ (
-      getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report')
+      getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report', ['none'])
     ),
-    regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
-    localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
+    regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe', ['unsafe']),
+    localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe', ['unsafe']),
 
     consoleTaming = /** @type {'unsafe' | 'safe'} */ (
-      getenv('LOCKDOWN_CONSOLE_TAMING', 'safe')
+      getenv('LOCKDOWN_CONSOLE_TAMING', 'safe', ['unsafe'])
     ),
     overrideTaming = /** @type {'moderate' | 'min' | 'severe'} */ (
-      getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate')
+      getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate', ['min', 'severe'])
     ),
-    stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
-    domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
-    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safe-eval'),
+    stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise', ['verbose']),
+    domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe', ['unsafe']),
+    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safe-eval', [
+      'unsafe-eval',
+      'no-eval',
+      // deprecated
+      'safeEval',
+      'unsafeEval',
+      'noEval',
+    ]),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
@@ -206,24 +221,13 @@ export const repairIntrinsics = (options = {}) => {
     legacyRegeneratorRuntimeTaming = getenv(
       'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
       'safe',
+      ['unsafe-ignore'],
     ),
-    __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
+    __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe', ['unsafe']),
     dateTaming, // deprecated
     mathTaming, // deprecated
     ...extraOptions
   } = options;
-
-  legacyRegeneratorRuntimeTaming === 'safe' ||
-    legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
-    Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
-
-  evalTaming === 'unsafe-eval' ||
-    evalTaming === 'unsafeEval' || // deprecated
-    evalTaming === 'safe-eval' ||
-    evalTaming === 'safeEval' || // deprecated
-    evalTaming === 'no-eval' ||
-    evalTaming === 'noEval' || // deprecated
-    Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.

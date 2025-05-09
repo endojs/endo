@@ -1,4 +1,4 @@
-import { TypeError, functionBind, globalThis } from './commons.js';
+import { functionBind, globalThis } from './commons.js';
 import { assert } from './error/assert.js';
 
 /**
@@ -50,9 +50,6 @@ const mute = () => {};
 export const chooseReporter = reporting => {
   if (reporting === 'none') {
     return makeReportPrinter(mute);
-  }
-  if (reporting !== 'platform' && reporting !== 'console') {
-    throw new TypeError(`Invalid lockdown reporting option: ${reporting}`);
   }
   if (
     reporting === 'console' ||

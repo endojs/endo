@@ -8,9 +8,6 @@ import {
 } from './commons.js';
 
 export default function tameRegExpConstructor(regExpTaming = 'safe') {
-  if (regExpTaming !== 'safe' && regExpTaming !== 'unsafe') {
-    throw TypeError(`unrecognized regExpTaming ${regExpTaming}`);
-  }
   const RegExpPrototype = FERAL_REG_EXP.prototype;
 
   const makeRegExpConstructor = (_ = {}) => {
