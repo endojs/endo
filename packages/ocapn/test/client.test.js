@@ -41,7 +41,7 @@ const makeTestClientPair = async makeDefaultSwissnumTable => {
     clientA.shutdown();
     clientB.shutdown();
   };
-  const { ocapn: ocapnA } = await clientA.connect(locationB).whenSessionReady();
+  const { ocapn: ocapnA } = await clientA.provideSession(locationB);
   const bootstrapB = await ocapnA.getBootstrap();
   return { clientA, clientB, locationB, shutdownBoth, ocapnA, bootstrapB };
 };
