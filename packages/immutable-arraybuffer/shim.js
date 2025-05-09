@@ -8,18 +8,35 @@ const { getOwnPropertyDescriptors, defineProperties } = Object;
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
 
 const arrayBufferMethods = {
+  /**
+   * Transfer the contents to a new Immutable ArrayBuffer
+   *
+   * @this {ArrayBuffer} buffer The original buffer.
+   * @param {number} [newLength] The start index.
+   * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+   */
   transferToImmutable(newLength = undefined) {
     return transferBufferToImmutable(this, newLength);
   },
+
+  /**
+   * Creates an immutable slice of the given buffer.
+   *
+   * @this {ArrayBuffer} buffer The original buffer.
+   * @param {number} [start] The start index.
+   * @param {number} [end] The end index.
+   * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+   */
   sliceToImmutable(start = undefined, end = undefined) {
     return sliceBufferToImmutable(this, start, end);
   },
+
   get immutable() {
     return isBufferImmutable(this);
   },
 };
 
-if ('transferToImmutable' in arrayBufferPrototype) {
+if ('sliceToImmutable' in arrayBufferPrototype) {
   // Modern shim practice frowns on conditional installation, at least for
   // proposals prior to stage 3. This is so changes to the proposal since
   // an old shim was distributed don't need to worry about the proposal
@@ -31,7 +48,7 @@ if ('transferToImmutable' in arrayBufferPrototype) {
   // by `lockdown`, then this precludes overwriting as expected. However, for
   // this case, the following warning text will be confusing.
   console.warn(
-    'About to overwrite a prior implementation of "transferToImmutable"',
+    'About to overwrite a prior implementation of "sliceToImmutable"',
   );
 }
 
