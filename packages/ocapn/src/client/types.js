@@ -6,6 +6,9 @@
  * @typedef {import('../cryptography.js').OCapNSignature} OCapNSignature
  * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
  * @typedef {import('./ocapn.js').OCapN} OCapN
+ 
+/**
+ * @typedef {string} LocationId
  */
 
 /**
@@ -13,6 +16,14 @@
  * @property {OCapNLocation} location
  * @property {(location: OCapNLocation) => Connection} connect
  * @property {() => void} shutdown
+ */
+
+/**
+ * @typedef {object} PendingSession
+ * @property {Connection | undefined} outgoingConnection
+ * @property {Promise<Session>} promise
+ * @property {(session: Session) => void} resolve
+ * @property {(reason?: Error) => void} reject
  */
 
 /**
@@ -32,6 +43,7 @@
  * @property {OCapNLocation} self.location
  * @property {OCapNSignature} self.locationSignature
  * @property {OCapN} ocapn
+ * @property {Connection} connection
  */
 
 /**
@@ -46,12 +58,9 @@
  * @property {NetLayer} netlayer
  * @property {boolean} isOutgoing
  * @property {SelfIdentity} selfIdentity
- * @property {Session | undefined} session
  * @property {(bytes: Uint8Array) => void} write
  * @property {() => void} end
- * @property {() => void} destroySession
  * @property {boolean} isDestroyed
- * @property {() => Promise<Session>} whenSessionReady
  */
 
 /**
@@ -62,22 +71,24 @@
  */
 
 /**
+ * @typedef {object} SessionManager
+ * @property {(location: LocationId) => Session | undefined} getActiveSession
+ * @property {(location: LocationId) => Connection | undefined} getOutgoingConnection
+ * @property {(location: LocationId) => Promise<Session> | undefined} getPendingSessionPromise
+ * @property {(connection: Connection) => Session | undefined} getSessionForConnection
+ * @property {(location: LocationId, connection: Connection) => PendingSession} makePendingSession
+ * @property {(location: LocationId, connection: Connection, session: Session) => void} resolveSession
+ * @property {(connection: Connection) => void} deleteConnection
+ */
+
+/**
  * @typedef {object} Client
  * @property {Logger} logger
  * @property {string} debugLabel
  * @property {() => Map<string, any>} makeDefaultSwissnumTable
- * @property {Map<string, Session>} activeSessions
- * Used to store a session once it's been fully initiated and set up.
- * Anytime the user needs to open a connection to a new peer, the user will be able
- * to check this table to see if a connection already exists, permitting
- * reuse of already established sessions.
- * @property {Map<string, Connection>} outgoingConnections
- * Used to help the user mitigate the crossed hellos problem
- * Anytime the user needs to open a connection to a new peer, the user will be able
- * to check this table to see if a connection already exists, permitting
- * reuse of already established sessions.
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
- * @property {(location: OCapNLocation) => Connection} connect
+ * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
+ * @property {(location: OCapNLocation) => Promise<Session>} provideSession
  * @property {() => void} shutdown
  */
