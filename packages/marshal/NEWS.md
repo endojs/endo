@@ -1,5 +1,13 @@
 User-visible changes in `@endo/marshal`:
 
+# Nest release
+
+- `@endo/marshal` now also exports a `qp` function meaning "quote passable"
+  that renders its passable argument as a quasi-quoted Justin expression.
+  This can be used with `X`, `Fail` etc the same way you currently use `q`.
+  Since Justin is a subset of HardenedJS, there's no need for the quasi-quoted
+  form to explain what language it is in.
+
 # v1.6.0 (2024-10-22)
 
 - `compareRank` now short-circuits upon encountering remotables to compare,

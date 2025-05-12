@@ -8,8 +8,13 @@ import {
 } from '@endo/pass-style';
 import { q, X, Fail } from '@endo/errors';
 import { QCLASS } from './encodeToCapData.js';
+import { makeMarshal } from './marshal.js';
 
-/** @import {Encoding} from './types.js' */
+/**
+ * @import {StringablePayload} from 'ses';
+ * @import {Passable} from '@endo/pass-style';
+ * @import {Encoding} from './types.js';
+ */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -48,7 +53,7 @@ const makeYesIndenter = () => {
     },
     line,
     next: token => {
-      if (needSpace && token !== ',') {
+      if (needSpace && token !== ',' && token !== ')') {
         strings.push(' ');
       }
       needSpace = true;
@@ -336,7 +341,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'tagged': {
           const { tag, payload } = rawTree;
-          out.next(`makeTagged(${quote(tag)},`);
+          out.next(`makeTagged(${quote(tag)}`);
+          out.next(',');
           decode(payload);
           return out.next(')');
         }
@@ -445,3 +451,34 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
 };
 harden(decodeToJustin);
 export { decodeToJustin };
+
+/**
+ * @param {Passable} passable
+ * @param {boolean} [shouldIndent]
+ * @returns {string}
+ */
+export const passableAsJustin = (passable, shouldIndent = true) => {
+  let slotCount = 0;
+  // eslint-disable-next-line no-plusplus
+  const convertValToSlot = val => `s${slotCount++}`;
+  const { toCapData } = makeMarshal(convertValToSlot);
+  const { body, slots } = toCapData(passable);
+  const encoded = JSON.parse(body);
+  return decodeToJustin(encoded, shouldIndent, slots);
+};
+harden(passableAsJustin);
+
+/**
+ * qp for quote passable as a quasi-quoted Justin expression.
+ *
+ * Modelled on `quote` from `assert.js` in `'ses'`. But uses Justin
+ * instead of `bestEffortStringify`. The full name of this would have been
+ * `quotePassable`. But since the `quote` from `assert.js` is always used via
+ * its rename to `q`, we're skipping the rename and just
+ * naming this variable `qp`.
+ *
+ * @param {Passable} payload
+ * @returns {StringablePayload}
+ */
+export const qp = payload => `\`${passableAsJustin(harden(payload), true)}\``;
+harden(qp);
