@@ -1,12 +1,12 @@
 /// <reference types="ses"/>
 
+import { q, X, Fail } from '@endo/errors';
 import { Nat } from '@endo/nat';
 import {
   getErrorConstructor,
   isObject,
   passableSymbolForName,
 } from '@endo/pass-style';
-import { q, X, Fail } from '@endo/errors';
 import { QCLASS } from './encodeToCapData.js';
 import { makeMarshal } from './marshal.js';
 
@@ -468,14 +468,40 @@ export const passableAsJustin = (passable, shouldIndent = true) => {
 };
 harden(passableAsJustin);
 
+// The example below is the `patt1` test case from `qp-on-pattern.test.js`.
+// Please co-maintain the following doc-comment and that test module.
 /**
- * qp for quote passable as a quasi-quoted Justin expression.
+ * `qp` for quote passable as a quasi-quoted Justin expression.
  *
- * Modelled on `quote` from `assert.js` in `'ses'`. But uses Justin
- * instead of `bestEffortStringify`. The full name of this would have been
- * `quotePassable`. But since the `quote` from `assert.js` is always used via
- * its rename to `q`, we're skipping the rename and just
- * naming this variable `qp`.
+ * Both `q` from `@endo/errors` and this `qp` from `@endo/marshal` can
+ * be used together with `Fail`, `X`, etc from `@endo/errors` to mark
+ * a substitution value to be both
+ * - visually quoted in some useful manner
+ * - unredacted
+ *
+ * Differences:
+ * - given a pattern `M.and(M.gte(-100), M.lte(100))`,
+ *   ```js
+ *   `${q(patt)}`
+ *   ```
+ *   produces `"[match:and]"`, whereas
+ *   ```js
+ *   `${qp(patt)}`
+ *   ```
+ *   produces quasi-quotes Justin of what would be passed:
+ *   ```js
+ *   `makeTagged("match:and", [
+ *     makeTagged("match:gte", -100),
+ *     makeTagged("match:lte", 100),
+ *   ])`
+ *   ```
+ * - `q` is lazy, minimizing the cost for using it in an error that's never
+ *   logged. Unfortunately, due to layering constraints, `qp` is not
+ *   lazy, always rendering to quasi-quoted Justin immediately.
+ *
+ * Since Justin is a subset of HardenedJS, neither the name `qp` nor the
+ * rendered form need to make clear that the rendered form is in Justin rather
+ * than HardenedJS.
  *
  * @param {Passable} payload
  * @returns {StringablePayload}
