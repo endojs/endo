@@ -553,7 +553,8 @@ const throwAggregateError = ({ errors, errorPrefix }) => {
   // Throw an aggregate error if there were any errors.
   if (errors.length > 0) {
     const verbose =
-      getenv('COMPARTMENT_LOAD_ERRORS', '', ['verbose']) === 'verbose';
+      /** @type {'' | 'verbose'} */
+      (getenv('COMPARTMENT_LOAD_ERRORS', '', ['verbose'])) === 'verbose';
     throw TypeError(
       `${errorPrefix} (${errors.length} underlying failures: ${arrayJoin(
         arrayMap(errors, error => error.message + (verbose ? error.stack : '')),
