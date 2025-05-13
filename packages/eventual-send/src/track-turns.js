@@ -27,7 +27,8 @@ const VERBOSE = environmentOptionsListHas('DEBUG', 'track-turns');
 // Track-turns is disabled by default and can be enabled by an environment
 // option.
 const ENABLED =
-  getEnvironmentOption('TRACK_TURNS', 'disabled', ['enabled']) === 'enabled';
+  /** @type {'disabled' | 'enabled'} */
+  (getEnvironmentOption('TRACK_TURNS', 'disabled', ['enabled'])) === 'enabled';
 
 // We hoist the following functions out of trackTurns() to discourage the
 // closures from holding onto 'args' or 'func' longer than necessary,

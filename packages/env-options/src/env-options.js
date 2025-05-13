@@ -44,17 +44,19 @@ const Fail = (literals, ...args) => {
  * names used.
  */
 export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
+  /** @type {string[]} */
   const capturedEnvironmentOptionNames = [];
 
   /**
    * Gets an environment option by name and returns the option value or the
    * given default.
    *
+   * @template {string} [T=string]
    * @param {string} optionName
-   * @param {string} defaultSetting
-   * @param {string[]} [optOtherValues]
+   * @param {T} defaultSetting
+   * @param {T[]} [optOtherValues]
    * If provided, the option value must be included or match `defaultSetting`.
-   * @returns {string}
+   * @returns {T}
    */
   const getEnvironmentOption = (
     optionName,
@@ -95,13 +97,14 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
       Fail`Unrecognized ${q(optionName)} value ${q(
         setting,
       )}. Expected one of ${q([defaultSetting, ...optOtherValues])}`;
-    return setting;
+    return /** @type {T} */ (setting);
   };
   freeze(getEnvironmentOption);
 
   /**
+   * @template {string} [T=string]
    * @param {string} optionName
-   * @returns {string[]}
+   * @returns {T[]}
    */
   const getEnvironmentOptionsList = optionName => {
     const option = getEnvironmentOption(optionName, '');
@@ -109,6 +112,12 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
   };
   freeze(getEnvironmentOptionsList);
 
+  /**
+   * @template {string} [T=string]
+   * @param {string} optionName
+   * @param {T} element
+   * @returns {boolean}
+   */
   const environmentOptionsListHas = (optionName, element) =>
     arrayIncludes(getEnvironmentOptionsList(optionName), element);
 

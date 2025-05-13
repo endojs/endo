@@ -176,54 +176,70 @@ export const repairIntrinsics = (options = {}) => {
   // for an explanation.
 
   const {
-    errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
-    errorTrapping = /** @type {"platform" | "none" | "report" | "abort" | "exit"} */ (
-      getenv('LOCKDOWN_ERROR_TRAPPING', 'platform')
+    errorTaming = /** @type {'safe' | 'unsafe' | 'unsafe-debug'} */ (
+      getenv('LOCKDOWN_ERROR_TAMING', 'safe', ['unsafe', 'unsafe-debug'])
     ),
-    reporting = /** @type {"platform" | "console" | "none"} */ (
-      getenv('LOCKDOWN_REPORTING', 'platform')
+    errorTrapping = /** @type {'platform' | 'none' | 'report' | 'abort' | 'exit'} */ (
+      getenv('LOCKDOWN_ERROR_TRAPPING', 'platform', [
+        'none',
+        'report',
+        'abort',
+        'exit',
+      ])
     ),
-    unhandledRejectionTrapping = /** @type {"none" | "report"} */ (
-      getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report')
+    reporting = /** @type {'platform' | 'console' | 'none'} */ (
+      getenv('LOCKDOWN_REPORTING', 'platform', ['console', 'none'])
     ),
-    regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
-    localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
-
+    unhandledRejectionTrapping = /** @type {'none' | 'report'} */ (
+      getenv('LOCKDOWN_UNHANDLED_REJECTION_TRAPPING', 'report', ['none'])
+    ),
+    regExpTaming = /** @type {'safe' | 'unsafe'} */ (
+      getenv('LOCKDOWN_REGEXP_TAMING', 'safe', ['unsafe'])
+    ),
+    localeTaming = /** @type {'safe' | 'unsafe'} */ (
+      getenv('LOCKDOWN_LOCALE_TAMING', 'safe', ['unsafe'])
+    ),
     consoleTaming = /** @type {'unsafe' | 'safe'} */ (
-      getenv('LOCKDOWN_CONSOLE_TAMING', 'safe')
+      getenv('LOCKDOWN_CONSOLE_TAMING', 'safe', ['unsafe'])
     ),
     overrideTaming = /** @type {'moderate' | 'min' | 'severe'} */ (
-      getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate')
+      getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate', ['min', 'severe'])
     ),
-    stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
-    domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
-    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safe-eval'),
-    overrideDebug = arrayFilter(
-      stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
-      /** @param {string} debugName */
-      debugName => debugName !== '',
+    stackFiltering = /** @type {'safe' | 'unsafe'} */ (
+      getenv('LOCKDOWN_STACK_FILTERING', 'concise', ['verbose'])
     ),
-    legacyRegeneratorRuntimeTaming = getenv(
-      'LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING',
-      'safe',
+    domainTaming = /** @type {'safe' | 'unsafe'} */ (
+      getenv('LOCKDOWN_DOMAIN_TAMING', 'safe', ['unsafe'])
     ),
-    __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
+    evalTaming = /** @type {'safe-eval' | 'unsafe-eval' | 'no-eval'} */ (
+      getenv('LOCKDOWN_EVAL_TAMING', 'safe-eval', [
+        'unsafe-eval',
+        'no-eval',
+        // deprecated
+        'safeEval',
+        'unsafeEval',
+        'noEval',
+      ])
+    ),
+    overrideDebug = /** @type {string[]} */ (
+      arrayFilter(
+        stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
+        /** @param {string} debugName */
+        debugName => debugName !== '',
+      )
+    ),
+    legacyRegeneratorRuntimeTaming = /** @type {'safe' | 'unsafe-ignore'} */ (
+      getenv('LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING', 'safe', [
+        'unsafe-ignore',
+      ])
+    ),
+    __hardenTaming__ = /** @type {'safe' | 'unsafe'} */ (
+      getenv('LOCKDOWN_HARDEN_TAMING', 'safe', ['unsafe'])
+    ),
     dateTaming, // deprecated
     mathTaming, // deprecated
     ...extraOptions
   } = options;
-
-  legacyRegeneratorRuntimeTaming === 'safe' ||
-    legacyRegeneratorRuntimeTaming === 'unsafe-ignore' ||
-    Fail`lockdown(): non supported option legacyRegeneratorRuntimeTaming: ${q(legacyRegeneratorRuntimeTaming)}`;
-
-  evalTaming === 'unsafe-eval' ||
-    evalTaming === 'unsafeEval' || // deprecated
-    evalTaming === 'safe-eval' ||
-    evalTaming === 'safeEval' || // deprecated
-    evalTaming === 'no-eval' ||
-    evalTaming === 'noEval' || // deprecated
-    Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
@@ -324,7 +340,6 @@ export const repairIntrinsics = (options = {}) => {
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector(reporter);
 
-  // @ts-expect-error __hardenTaming__ could be any string
   const tamedHarden = tameHarden(safeHarden, __hardenTaming__);
   addIntrinsics({ harden: tamedHarden });
 
