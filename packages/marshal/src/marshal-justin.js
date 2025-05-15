@@ -1,15 +1,20 @@
 /// <reference types="ses"/>
 
+import { q, X, Fail } from '@endo/errors';
 import { Nat } from '@endo/nat';
 import {
   getErrorConstructor,
   isObject,
   passableSymbolForName,
 } from '@endo/pass-style';
-import { q, X, Fail } from '@endo/errors';
 import { QCLASS } from './encodeToCapData.js';
+import { makeMarshal } from './marshal.js';
 
-/** @import {Encoding} from './types.js' */
+/**
+ * @import {StringablePayload} from 'ses';
+ * @import {Passable} from '@endo/pass-style';
+ * @import {Encoding} from './types.js';
+ */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -48,7 +53,7 @@ const makeYesIndenter = () => {
     },
     line,
     next: token => {
-      if (needSpace && token !== ',') {
+      if (needSpace && token !== ',' && token !== ')') {
         strings.push(' ');
       }
       needSpace = true;
@@ -336,7 +341,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'tagged': {
           const { tag, payload } = rawTree;
-          out.next(`makeTagged(${quote(tag)},`);
+          out.next(`makeTagged(${quote(tag)}`);
+          out.next(',');
           decode(payload);
           return out.next(')');
         }
@@ -445,3 +451,60 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
 };
 harden(decodeToJustin);
 export { decodeToJustin };
+
+/**
+ * @param {Passable} passable
+ * @param {boolean} [shouldIndent]
+ * @returns {string}
+ */
+export const passableAsJustin = (passable, shouldIndent = true) => {
+  let slotCount = 0;
+  // eslint-disable-next-line no-plusplus
+  const convertValToSlot = val => `s${slotCount++}`;
+  const { toCapData } = makeMarshal(convertValToSlot);
+  const { body, slots } = toCapData(passable);
+  const encoded = JSON.parse(body);
+  return decodeToJustin(encoded, shouldIndent, slots);
+};
+harden(passableAsJustin);
+
+// The example below is the `patt1` test case from `qp-on-pattern.test.js`.
+// Please co-maintain the following doc-comment and that test module.
+/**
+ * `qp` for quote passable as a quasi-quoted Justin expression.
+ *
+ * Both `q` from `@endo/errors` and this `qp` from `@endo/marshal` can
+ * be used together with `Fail`, `X`, etc from `@endo/errors` to mark
+ * a substitution value to be both
+ * - visually quoted in some useful manner
+ * - unredacted
+ *
+ * Differences:
+ * - given a pattern `M.and(M.gte(-100), M.lte(100))`,
+ *   ```js
+ *   `${q(patt)}`
+ *   ```
+ *   produces `"[match:and]"`, whereas
+ *   ```js
+ *   `${qp(patt)}`
+ *   ```
+ *   produces quasi-quotes Justin of what would be passed:
+ *   ```js
+ *   `makeTagged("match:and", [
+ *     makeTagged("match:gte", -100),
+ *     makeTagged("match:lte", 100),
+ *   ])`
+ *   ```
+ * - `q` is lazy, minimizing the cost for using it in an error that's never
+ *   logged. Unfortunately, due to layering constraints, `qp` is not
+ *   lazy, always rendering to quasi-quoted Justin immediately.
+ *
+ * Since Justin is a subset of HardenedJS, neither the name `qp` nor the
+ * rendered form need to make clear that the rendered form is in Justin rather
+ * than HardenedJS.
+ *
+ * @param {Passable} payload
+ * @returns {StringablePayload}
+ */
+export const qp = payload => `\`${passableAsJustin(harden(payload), true)}\``;
+harden(qp);
