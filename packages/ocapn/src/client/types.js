@@ -79,6 +79,12 @@
  * @property {(location: LocationId, connection: Connection) => PendingSession} makePendingSession
  * @property {(location: LocationId, connection: Connection, session: Session) => void} resolveSession
  * @property {(connection: Connection) => void} deleteConnection
+ * When a connection is no longer relevant to establishing a session.
+ * Does not close the connection. Does not close or delete the session.
+ * @property {(session: Session) => void} endSession
+ * When a session has ended (eg connection closed).
+ * Does not close the connection. Does not delete the session.
+ * Does not communicate with the peer.
  */
 
 /**
