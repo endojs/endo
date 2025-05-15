@@ -31,6 +31,8 @@ const collectPatternIdentifiers = (path, pattern) => {
         // Non-elided pattern.
         return collectPatternIdentifiers(path, pat);
       });
+    case 'AssignmentPattern':
+      return collectPatternIdentifiers(path, pattern.left);
     default:
       throw path.buildCodeFrameError(
         `Pattern type ${pattern.type} is not recognized`,
