@@ -426,6 +426,16 @@ const makeSessionManager = () => {
         pendingSessions.delete(locationId);
       }
     },
+    endSession: session => {
+      const locationId = locationToLocationId(session.peer.location);
+      const pendingSession = pendingSessions.get(locationId);
+      if (pendingSession !== undefined) {
+        pendingSession.reject(Error('Session ended.'));
+        pendingSessions.delete(locationId);
+      }
+      activeSessions.delete(locationId);
+      connectionToSession.delete(session.connection);
+    },
     makePendingSession: (locationId, outgoingConnection) => {
       if (activeSessions.has(locationId)) {
         throw Error(
@@ -539,10 +549,10 @@ export const makeClient = ({
       client.logger.info(`handleConnectionClose called`, { reason });
       const session = sessionManager.getSessionForConnection(connection);
       if (session) {
-        const { ocapn } = session;
-        ocapn.abort(reason);
-        sessionManager.deleteConnection(connection);
+        session.ocapn.abort(reason);
+        sessionManager.endSession(session);
       }
+      sessionManager.deleteConnection(connection);
     },
     /**
      * @param {OCapNLocation} location
