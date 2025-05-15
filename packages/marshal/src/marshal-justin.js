@@ -459,6 +459,9 @@ export { decodeToJustin };
  */
 export const passableAsJustin = (passable, shouldIndent = true) => {
   let slotCount = 0;
+  // Using post-increment below only so that the indexes start at zero
+  // and the `slotCount` variable can be initialized to `0` rather than
+  // `-1`.
   // eslint-disable-next-line no-plusplus
   const convertValToSlot = val => `s${slotCount++}`;
   const { toCapData } = makeMarshal(convertValToSlot);
