@@ -789,8 +789,14 @@ test('should handle package "immer" source', t => {
   });
 });
 
-// https://github.com/endojs/endo/issues/2094
-test.failing('should support export of defaulted extraction', t => {
+test('should support basic assignment of defaulted extraction', t => {
+  const _ = new ModuleSource(`
+    const { x, y = x } = globalThis;
+  `);
+  t.pass();
+});
+
+test('should support export of defaulted extraction', t => {
   const _ = new ModuleSource(`
     const { x, y = x } = globalThis;
     export { x, y };
@@ -798,11 +804,26 @@ test.failing('should support export of defaulted extraction', t => {
   t.pass();
 });
 
-test.failing('should support export const object with default', t => {
+test('should support export const object with default', t => {
   const _ = new ModuleSource(`
     export const {
       x = undefined,
     } = globalThis;
+  `);
+  t.pass();
+});
+
+test('should support nested assignment of defaulted extraction', t => {
+  const _ = new ModuleSource(`
+    const { x, y: {z: u = v} = x } = globalThis;
+  `);
+  t.pass();
+});
+
+test('should support export of nested assignment of defaulted extraction', t => {
+  const _ = new ModuleSource(`
+    const { x, y: {z: u = v} = x } = globalThis;
+    export { x, u };
   `);
   t.pass();
 });
