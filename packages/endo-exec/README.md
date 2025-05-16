@@ -21,7 +21,7 @@ Object.prototype.monkeyPatch = 53;
 
 Or if you want to have your script be importable without side-effects (ocap
 discipline), then avoid top-level module side-effects and state and export an
-`onEndoExec` entrypoint that will only be called if the script was run directly.
+`main` entrypoint that will only be called if the script was run directly.
 
 ```js
 #! /usr/bin/env node
@@ -32,8 +32,8 @@ import { promises as fs } from 'fs';
 export const greetingFrom = self => console.log('Hello from', self);
 export const hereItIs = `Here's the file`;
 
-/** @type {import('endo-exec').OnEndoExec} */ 
-export const onEndoExec = async ({ process: { argv: [script, file] }}) => {
+/** @type {import('endo-exec').Main} */ 
+export const main = async ([script, file]) => {
   greetingFrom(script);
   await fs.readFile(file);
   console.log(hereItIs, file);

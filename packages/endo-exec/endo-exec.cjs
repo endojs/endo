@@ -10,9 +10,13 @@
   assert(script, `Usage: ${endoExec} SCRIPT [ARGS...]`);
 
   const { runFirst } = await import('endo-exec/run-first.js');
-  await runFirst({
-    process: harden({ argv: [script, ...args], env: { ...process.env } }),
-  });
+
+  const cleanEnv = Object.fromEntries(
+    /** @type {[string, string][]} */ (
+      Object.entries(process.env).filter(([_k, v]) => typeof v === 'string')
+    ),
+  );
+  await runFirst(harden([script, ...args]), harden(cleanEnv), harden({}));
 })().catch(error => {
   console.error(error);
   if (process.exitCode === 0) {
