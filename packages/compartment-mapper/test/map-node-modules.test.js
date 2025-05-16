@@ -10,6 +10,8 @@ import { makeReadPowers } from '../src/node-powers.js';
  * @import {CompartmentDescriptor, MaybeReadFn} from '../src/types.js'
  */
 
+const { keys, values } = Object;
+
 {
   /**
    * We will retry the subsequent test _n_ times to assert it is deterministic.
@@ -64,18 +66,34 @@ import { makeReadPowers } from '../src/node-powers.js';
   }
 }
 
-test('mapNodeModules() should not overwrite the path of the entry compartment descriptor when a cycle occurs', async t => {
+test('mapNodeModules() should consider peerDependenciesMeta without corresponding peerDependencies when the dependency is present', async t => {
+  t.plan(2);
   const readPowers = makeReadPowers({ fs, url });
 
   const moduleLocation = new URL(
-    'fixtures-shortest-path-cycle/node_modules/app/index.js',
+    'fixtures-optional-peer-dependencies/node_modules/app/index.js',
     import.meta.url,
   ).href;
 
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
 
-  t.deepEqual(
-    compartmentMap.compartments[compartmentMap.entry.compartment].path,
-    [],
+  t.is(keys(compartmentMap.compartments).length, 2);
+  t.assert(
+    values(compartmentMap.compartments).find(
+      compartment => compartment.name === 'paperina',
+    ),
   );
+});
+
+test('mapNodeModules() should not consider peerDependenciesMeta without corresponding peerDependencies when the dependency is missing', async t => {
+  const readPowers = makeReadPowers({ fs, url });
+
+  const moduleLocation = new URL(
+    'fixtures-missing-optional-peer-dependencies/node_modules/app/index.js',
+    import.meta.url,
+  ).href;
+
+  const compartmentMap = await mapNodeModules(readPowers, moduleLocation);
+
+  t.is(keys(compartmentMap.compartments).length, 1);
 });
