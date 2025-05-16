@@ -83,12 +83,20 @@ export const deeplyFulfilled = async val => {
   // and fix if possible.
   // https://github.com/endojs/endo/issues/1257 may be relevant.
 
+  // If `val` is not Passable, `isAtom` will return false rather than
+  // throwing.
   if (isAtom(val)) {
     return /** @type {DeeplyAwaited<T>} */ (val);
   }
+  // if `val` is a promise but not a passable promise, for example,
+  // because it is not hardened, `isPromise` will return true, which is
+  // ok here bacause we unwrap it to its settlement and dispense with the
+  // promise
   if (isPromise(val)) {
     return E.when(val, nonp => deeplyFulfilled(nonp));
   }
+  // If `val` is any other non-Passable, the `passStyleOf(val)` will throw.
+  // So this exemption for non-Passable promises is only for the top-level.
   const passStyle = passStyleOf(val);
   switch (passStyle) {
     case 'copyRecord': {
