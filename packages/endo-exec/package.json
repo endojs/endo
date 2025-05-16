@@ -17,7 +17,7 @@
   "exports": {
     ".": "./index.js",
     "./endo-exec.cjs": "./endo-exec.cjs",
-    "./run-first-main.js": "./run-first-main.js"
+    "./run-first.js": "./run-first.js"
   },
   "main": "./endo-exec.cjs",
   "bin": "./bin/endo-exec",

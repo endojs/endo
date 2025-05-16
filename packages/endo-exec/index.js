@@ -6,6 +6,6 @@ import './endo-exec.cjs';
 
 /**
  * @typedef {(
- *  powers: { process: { argv: string[], env: Record<string, string> } }
- * ) => Promise<any>} Main
+ *  powers: { process: { argv: string[], env: Record<string, string | undefined> } }
+ * ) => Promise<any>} OnEndoExec
  */

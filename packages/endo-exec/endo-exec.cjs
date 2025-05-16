@@ -6,12 +6,11 @@
   // Trim off the Node.js interpreter name.
   const [_nodeJS, endoExec, ...args] = process.argv;
 
-  const script =
-    endoExec && endoExec.endsWith('endo-exec.cjs') ? args.shift() : endoExec;
+  const script = require.main === module ? args.shift() : endoExec;
   assert(script, `Usage: ${endoExec} SCRIPT [ARGS...]`);
 
-  const { runFirstMain } = await import('endo-exec/run-first-main.js');
-  await runFirstMain({
+  const { runFirst } = await import('endo-exec/run-first.js');
+  await runFirst({
     process: harden({ argv: [script, ...args], env: { ...process.env } }),
   });
 })().catch(error => {
