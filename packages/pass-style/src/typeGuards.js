@@ -107,16 +107,20 @@ export const assertRemotable = (
 harden(assertRemotable);
 
 /**
- * @param {Passable} val
+ * @param {any} val Not necessarily passable
  * @param {Checker} check
- * @returns {boolean}
+ * @returns {val is Atom}
  */
 const checkAtom = (val, check) => {
-  // TODO There is not yet a checkPassable, but perhaps there should be.
-  // If that happens, we should call it here instead. As it is now,
-  // any non-passable will be rejected by `passStyleOf` with a thrown
-  // error.
-  const passStyle = passStyleOf(val);
+  let passStyle;
+  try {
+    passStyle = passStyleOf(val);
+  } catch (err) {
+    return (
+      check !== identChecker &&
+      check(false, X`Not even Passable: ${q(err)}: ${val}`)
+    );
+  }
   switch (passStyle) {
     case 'undefined':
     case 'null':
