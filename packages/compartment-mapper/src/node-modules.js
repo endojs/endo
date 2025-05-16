@@ -424,11 +424,6 @@ const graphPackage = async (
   }
   assign(allDependencies, dependencies);
   assign(allDependencies, peerDependencies);
-  for (const [name, meta] of Object.entries(peerDependenciesMeta)) {
-    if (Object(meta) === meta && meta.optional) {
-      optionals.add(name);
-    }
-  }
   assign(allDependencies, bundleDependencies);
   assign(allDependencies, optionalDependencies);
   for (const name of Object.keys(optionalDependencies)) {
@@ -436,6 +431,17 @@ const graphPackage = async (
   }
   if (dev) {
     assign(allDependencies, devDependencies);
+  }
+
+  for (const [name, meta] of Object.entries(peerDependenciesMeta)) {
+    if (Object(meta) === meta && meta.optional) {
+      optionals.add(name);
+      // for historical reasons, some packages omit peerDependencies and only
+      // use the peerDependenciesMeta field (because there was no way to define
+      // an "optional" peerDependency prior to npm v7). this is plainly wrong,
+      // but not exactly rare, either
+      allDependencies[name] = allDependencies[name] || '*';
+    }
   }
 
   for (const name of keys(allDependencies).sort()) {
