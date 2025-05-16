@@ -607,6 +607,65 @@ test('synchronous loading via importNowHook', async t => {
   compartment.importNow('./main.js');
 });
 
+const importNowHookWithCyclicDep = specifier => {
+  if (specifier === './a.cjs') {
+    return CjsModuleSource(
+      `
+      exports.a = 42;
+      exports.B = require('./b.cjs');
+    `,
+      'https://example.com/a.cjs',
+    );
+  }
+  if (specifier === './b.cjs') {
+    return CjsModuleSource(
+      `
+      exports.b = 44
+      exports.A = require('./a.cjs');
+    `,
+      'https://example.com/b.cjs',
+    );
+  }
+  throw Error(`Cannot load module for specifier ${specifier}`);
+};
+
+test('import handles a cycle in CommonJS modules', async t => {
+  t.plan(4);
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: async a => importNowHookWithCyclicDep(a),
+    importNowHook: importNowHookWithCyclicDep,
+    __options__: true,
+  });
+
+  let namespace;
+  await t.notThrowsAsync(async () => {
+    const result = await compartment.import('./a.cjs');
+    namespace = result.namespace;
+  });
+  t.is(namespace.a, 42);
+  t.is(namespace.B.b, 44);
+  t.is(namespace.B.A.a, 42);
+});
+
+test('importNow handles a cycle in CommonJS modules', t => {
+  t.plan(4);
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: async a => importNowHookWithCyclicDep(a),
+    importNowHook: importNowHookWithCyclicDep,
+    __options__: true,
+  });
+
+  let namespace;
+  t.notThrows(() => {
+    namespace = compartment.importNow('./a.cjs');
+  });
+  t.is(namespace.a, 42);
+  t.is(namespace.B.b, 44);
+  t.is(namespace.B.A.a, 42);
+});
+
 test('importNowHook only called if specifier was not imported before', async t => {
   t.plan(1);
 
