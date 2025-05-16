@@ -116,7 +116,10 @@ const checkAtom = (val, check) => {
   try {
     passStyle = passStyleOf(val);
   } catch (err) {
-    return check(false, X`Not even Passable: ${q(err)}: ${val}`);
+    return (
+      check !== identChecker &&
+      check(false, X`Not even Passable: ${q(err)}: ${val}`)
+    );
   }
   switch (passStyle) {
     case 'undefined':
