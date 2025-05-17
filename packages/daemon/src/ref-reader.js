@@ -11,7 +11,7 @@ import { E } from '@endo/far';
  * @param {import('@endo/far').ERef<AsyncIterator<TValue, TReturn, TNext>>} iteratorRef
  */
 export const makeRefIterator = iteratorRef => {
-  const iterator = {
+  const iterator = harden({
     /** @param {[] | [TNext]} args */
     next: async (...args) => E(iteratorRef).next(...args),
     /** @param {[] | [TReturn]} args */
@@ -19,9 +19,10 @@ export const makeRefIterator = iteratorRef => {
     /** @param {any} error */
     throw: async error => E(iteratorRef).throw(error),
     [Symbol.asyncIterator]: () => iterator,
-  };
+  });
   return iterator;
 };
+harden(makeRefIterator);
 
 /**
  * @param {import('@endo/far').ERef<AsyncIterator<string>>} readerRef
