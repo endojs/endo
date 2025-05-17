@@ -127,7 +127,10 @@ test('getCopyMapEntries', t => {
   ]);
   t.deepEqual([...getCopyMapEntries(m)], getCopyMapEntryArray(m));
   const entriesIterable = getCopyMapEntries(m);
-  t.is(passStyleOf(entriesIterable), 'remotable');
+  t.throws(() => passStyleOf(entriesIterable), {
+    message:
+      'Remotables can only have string-named methods: "Symbol(Symbol.iterator)"',
+  });
   const entriesIterator = entriesIterable[Symbol.iterator]();
   t.is(passStyleOf(entriesIterator), 'remotable');
   const iterResult = entriesIterator.next();

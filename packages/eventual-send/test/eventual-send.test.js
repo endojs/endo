@@ -181,7 +181,7 @@ test('new HandledPromise expected errors', async t => {
     /* eslint-disable no-await-in-loop */
     const { [method]: elide, ...handler2 } = handler;
     Object.setPrototypeOf(handler2, {
-      [Symbol.for('extraMethod')]() {
+      [Symbol('extraMethod')]() {
         return 'extra method';
       },
     });

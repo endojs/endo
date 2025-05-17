@@ -104,7 +104,7 @@ test('E call missing class methods', async t => {
       this.quarter = n => n / 4;
     }
 
-    [Symbol.for('half')](n) {
+    [Symbol('half')](n) {
       return n / 2;
     }
   }

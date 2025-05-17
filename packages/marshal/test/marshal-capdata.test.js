@@ -3,6 +3,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { passStyleOf, Far } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { roundTripPairs } from './_marshal-test-data.js';
+import { testFullOrderEQ } from '../tools/ava-full-order-eq.js';
 
 const {
   freeze,
@@ -49,7 +50,7 @@ test('serialize unserialize round trip pairs', t => {
     const encoding = JSON.stringify(encoded);
     t.is(body, encoding);
     const decoding = unserialize({ body, slots: [] });
-    t.deepEqual(decoding, plain);
+    testFullOrderEQ(t, decoding, plain);
     t.assert(isFrozen(decoding));
   }
 });
@@ -68,9 +69,8 @@ test('serialize static data', t => {
   t.deepEqual(ser(-0), { body: '0', slots: [] });
   t.deepEqual(ser(-0), ser(0));
   // unregistered symbols
-  t.throws(() => ser(Symbol('sym2')), {
-    // An anonymous symbol is not Passable
-    message: /Only registered symbols or well-known symbols are passable:/,
+  t.throws(() => ser(Symbol.for('sym2')), {
+    message: 'Only unregistered symbols are passable: "[Symbol(sym2)]"',
   });
 
   const cd = ser(harden([1, 2]));
