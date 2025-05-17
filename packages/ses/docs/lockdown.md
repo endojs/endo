@@ -651,9 +651,9 @@ usually irrelevant to the programmer trying to diagnose a bug. The SES-shim's
 `console`, under the default `consoleTaming` option of `'safe'`, is even more
 voluminous&mdash;displaying "deep stack" traces, tracing back through the
 [eventually sent messages](https://github.com/tc39/proposal-eventual-send)
-from other turns of the event loop. In Endo (TODO docs forthcoming) these deep
-stacks even cross vat/process and machine boundaries, to help debug distributed
-bugs.
+from other turns of the event loop. (Eventually we hope these deep
+stacks will even cross vat/process and machine boundaries, to help debug
+distributed bugs, as in [Causeway](https://github.com/cocoonfx/causeway).)
 
 ```js
 lockdown(); // stackFiltering defaults to 'concise'
@@ -677,10 +677,11 @@ LOCKDOWN_STACK_FILTERING=shorten-paths
 LOCKDOWN_STACK_FILTERING=verbose
 ```
 
-When looking at deep distributed stacks, in order to debug distributed
+When looking at deep stacks, in order to debug asynchronous
 computation, seeing the full stacks is overwhelmingly noisy. The error stack
 proposal leaves it to the host what stack trace info to show. SES virtualizes
-elements of the host. With this freedom in mind, when possible, the SES-shim
+elements of the host. With this freedom in mind, under the `concise` setting,
+the SES-shim
 filters and transforms the stack trace information it shows to be more useful,
 by removing information that is more an artifact of low level infrastructure.
 The SES-shim currently does so only on v8.

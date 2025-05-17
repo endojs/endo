@@ -325,6 +325,8 @@ lockdown({ stackFiltering: 'shorten-paths' }); // Shorten paths to text likely c
 lockdown({ stackFiltering: 'verbose' }); // Console shows full deep stacks
 ```
 
+See [`stackFiltering` Options](./lockdown.md#stackfiltering-options) for more.
+
 ### `overrideTaming` Options
 
 The `overrideTaming` option trades off better code

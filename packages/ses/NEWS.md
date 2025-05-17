@@ -2,6 +2,14 @@ User-visible changes in `ses`
 
 # Next release
 
+- Two new `stackFiltering:` options are added
+  - `'omit-frames'` -- Only omit likely uninteresting frames. Keep original paths.
+  - `'shorten-paths'` -- Only shorten paths to text likely clickable in an IDE
+
+  This fills out the matrix of what should have been orthogonal options.
+  The existing `'concise'` setting both omits likely uninteresting frames and
+  shortens their paths. The existing `'verbose'` setting does neither.
+
 - Uses the `@endo/immutable-arraybuffer` shim to add `ArrayBuffer.p.immutable`, `ArrayBuffer.p.transferToImmutable`, and `ArrayBuffer.p.sliceToImmutable` to ses, in order to emulate the [Immutable ArrayBuffer proposal](https://github.com/tc39/proposal-immutable-arraybuffer). These make an ArrayBuffer-like object whose contents cannot be mutated. However, due to limitations of the shim
   - Unlike `ArrayBuffer` and `SharedArrayBuffer` this shim's ArrayBuffer-like object cannot be transfered or cloned between JS threads.
   - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this shim's ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
@@ -26,16 +34,6 @@ User-visible changes in `ses`
   then Static Hermes when released.
 
   Also `ses/hermes` can now be hooked into bundlers such as Metro to run Hardened JS.
-
-# Next release
-
-- Two new `stackFiltering:` options are added
-  - `'omit-frames'` -- Only omit likely uninteresting frames. Keep original paths.
-  - `'shorten-paths'` -- Only shorten paths to text likely clickable in an IDE
-
-  This fills out the matrix of what should have been orthogonal options.
-  The existing `'concise'` setting both omits likely uninteresting frames and
-  shortens their paths. The existing `'verbose'` setting does neither.
 
 # v1.12.0 (2025-03-11)
 

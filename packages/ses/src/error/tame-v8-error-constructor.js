@@ -156,6 +156,10 @@ const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
 
 // simplifies to
 // `'Object.bar (test/deep-send.test.js:13:21)'`.
+// The reason is that `file:///` usually precedes an absolute path which is
+// clickable without removing the `file:///`, whereas `file://` usually precedes
+// a relative path which, for whatever vscode reason, is not clickable until the
+// `file://` is removed.
 const CALLSITE_FILE_2SLASH_PATTERN = /^((?:.*[( ])?)file:\/\/([^/].*)$/;
 
 // The use of these callSite patterns below assumes that any match will bind

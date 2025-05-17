@@ -20,6 +20,10 @@
 // version of harden.
 export type Harden = <T>(value: T) => T; // not Hardened<T>;
 
+// TODO Somehow remove the redundancy between these type deinitions and the
+// inline casts on each call to `getenv` in `lockdown.js`. Hopefully we can
+// keep the type info in those casts so it is easily comparable by eye to
+// the parameters of that call to `genev`.
 export interface RepairOptions {
   regExpTaming?: 'safe' | 'unsafe';
   localeTaming?: 'safe' | 'unsafe';
