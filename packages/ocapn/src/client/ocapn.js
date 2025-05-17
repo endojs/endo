@@ -609,14 +609,14 @@ export const makeOCapN = (
     logger.info(`exportHook`, val, slot);
   };
 
-  const exportCollectedHook = (slot, decRefs) => {
-    logger.info(`exportCollectedHook`, slot, decRefs);
+  const importCollectedHook = (slot, decRefs) => {
+    logger.info(`importCollectedHook`, slot, decRefs);
   };
 
   const engine = makeCapTPEngine(ourIdLabel, makeRemoteKit, {
     exportHook,
     importHook,
-    exportCollectedHook,
+    importCollectedHook,
     gcImports: true,
   });
 
