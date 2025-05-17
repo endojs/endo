@@ -181,7 +181,7 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * @typedef {object} CapTPEngineOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
- * @property {(slotID: CapTPSlot, decRefs: number) => void} [exportCollectedHook]
+ * @property {(slotID: CapTPSlot, decRefs: number) => void} [importCollectedHook]
  * @property {boolean} [gcImports] if true, aggressively garbage collect imports
  * @property {(MakeCapTPImportExportTablesOptions) => CapTPImportExportTables} [makeCapTPImportExportTables] provide external import/export tables
  * @property {WeakSet<any>} [exportedTrapHandlers]
@@ -235,7 +235,7 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
   const {
     exportHook,
     importHook,
-    exportCollectedHook,
+    importCollectedHook,
     gcImports = false,
     makeCapTPImportExportTables = makeDefaultCapTPImportExportTables,
     exportedTrapHandlers = new WeakSet(),
@@ -276,8 +276,8 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
     // don't need them anymore.
     const decRefs = slotToNumRefs.get(slotID) || 0;
     slotToNumRefs.delete(slotID);
-    if (exportCollectedHook) {
-      exportCollectedHook(slotID, decRefs);
+    if (importCollectedHook) {
+      importCollectedHook(slotID, decRefs);
     }
   };
 
@@ -345,8 +345,9 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
     // passes the Promise they received as argument or return value, we want
     // it to serialize as resultVPID. And if someone passes resultVPID to
     // them, we want the user-level code to get back that Promise, not 'p'.
-    valToSlot.set(promise, slotID);
-    importExportTables.markAsImported(slotID, promise);
+
+    // eslint-disable-next-line no-use-before-define
+    registerImport(promise, slotID);
 
     return [sendSlot.add(slotID), promise];
   };
@@ -469,11 +470,11 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
     if (importExportTables.hasExport(slot)) {
       throw new Error('Cannot register an already exported slot');
     }
+    valToSlot.set(val, slot);
+    importExportTables.markAsExported(slot, val);
     if (exportHook) {
       exportHook(val, slot);
     }
-    importExportTables.markAsExported(slot, val);
-    valToSlot.set(val, slot);
   };
 
   const registerImport = (val, slot) => {
@@ -487,8 +488,11 @@ export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
     if (valToSlot.has(val)) {
       throw new Error('Cannot register an already imported value');
     }
-    importExportTables.markAsImported(slot, val);
     valToSlot.set(val, slot);
+    importExportTables.markAsImported(slot, val);
+    if (importHook) {
+      importHook(val, slot);
+    }
   };
 
   const getExport = slot => {
