@@ -2,12 +2,14 @@
 
 import test from '@endo/ses-ava/prepare-endo.js';
 import { Buffer } from 'buffer';
-import { XorShift } from './_xorshift.js';
-import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
-import { makeSyrupWriter } from '../src/syrup/encode.js';
-import { makeSyrupReader } from '../src/syrup/decode.js';
+import { XorShift } from '../_xorshift.js';
+import { makeSyrupWriter } from '../../src/syrup/encode.js';
+import { makeSyrupReader } from '../../src/syrup/decode.js';
+import { makeTagged } from '../../src/pass-style-helpers.js';
+import { makeCodecTestKit } from './_codecs_util.js';
+import { notThrowsWithErrorUnwrapping } from '../_util.js';
 
-const textDecoder = new TextDecoder();
+const { PassableCodec } = makeCodecTestKit();
 
 /**
  * @param {number} budget
@@ -43,10 +45,10 @@ function fuzzyString(budget, random) {
 }
 
 /**
- * @param {Array<() => any>} array
  * @param {() => number} random
+ * @param {Array<() => any>} array
  */
-const runRandomFrom = (array, random) => {
+const runRandomFrom = (random, array) => {
   const fn = array[Math.floor(random() * array.length)];
   return fn();
 };
@@ -57,45 +59,44 @@ const runRandomFrom = (array, random) => {
  */
 function largeFuzzyPassable(budget, random) {
   const length = Math.floor(budget);
-  return runRandomFrom(
-    [
-      // Integer
-      () =>
-        BigInt(
-          Array(length)
-            .fill(undefined)
-            .map(() => `${Math.floor(random() * 10)}`)
-            .join(''),
-        ),
-      // String
-      () => fuzzyString(length, random),
-      // List
-      () =>
-        new Array(length)
+  return runRandomFrom(random, [
+    // Integer
+    () =>
+      BigInt(
+        Array(length)
           .fill(undefined)
-          // eslint-disable-next-line no-use-before-define
-          .map(() => fuzzyPassable(budget / length, random)),
-      // Struct
-      () =>
-        Object.fromEntries(
-          new Array(length).fill(undefined).map(() => [
-            fuzzyString(20, random),
-            // eslint-disable-next-line no-use-before-define
-            fuzzyPassable(budget / length, random),
-          ]),
-        ),
-      // Tagged
-      () => ({
-        [Symbol.for('passStyle')]: 'tagged',
-        [Symbol.toStringTag]: fuzzyString(10, random),
+          .map(() => `${Math.floor(random() * 10)}`)
+          .join(''),
+      ),
+    // String
+    () => fuzzyString(length, random),
+    // List
+    () =>
+      new Array(length)
+        .fill(undefined)
         // eslint-disable-next-line no-use-before-define
-        value: fuzzyPassable(budget / 2, random),
-      }),
-      // TODO: OCapNReference
-      // TODO: OCapNError
-    ],
-    random,
-  );
+        .map(() => fuzzyPassable(budget / length, random)),
+    // Struct
+    () =>
+      Object.fromEntries(
+        new Array(length).fill(undefined).map(() => [
+          fuzzyString(20, random),
+          // eslint-disable-next-line no-use-before-define
+          fuzzyPassable(budget / length, random),
+        ]),
+      ),
+    // Tagged
+    () =>
+      makeTagged(
+        fuzzyString(10, random),
+        // eslint-disable-next-line no-use-before-define
+        fuzzyPassable(budget / 2, random),
+      ),
+    // TODO: Selector not currently compatible with passStyleOf.
+    // See https://github.com/endojs/endo/pull/2777
+    // Selector
+    // () => makeSelector(fuzzyString(10, random)),
+  ]);
 }
 
 /**
@@ -115,7 +116,7 @@ function fuzzyPassable(budget, random) {
     return random() < 0.5 ? null : undefined;
   } else {
     // Passable
-    return largeFuzzyPassable(budget, random);
+    return harden(largeFuzzyPassable(budget, random));
   }
 }
 
@@ -132,7 +133,7 @@ const random = () => prng.random();
  */
 const encodePassable = passable => {
   const syrupWriter = makeSyrupWriter();
-  OCapNPassableUnionCodec.write(passable, syrupWriter);
+  PassableCodec.write(passable, syrupWriter);
   return syrupWriter.getBytes();
 };
 
@@ -142,26 +143,36 @@ const encodePassable = passable => {
  */
 const decodePassable = syrupBytes => {
   const syrupReader = makeSyrupReader(syrupBytes);
-  return OCapNPassableUnionCodec.read(syrupReader);
+  return harden(PassableCodec.read(syrupReader));
 };
 
 test('fuzz', t => {
+  // This TextDecoder is only used for the fuzz test descriptor so we can allow invalid utf-8
+  const descDecoder = new TextDecoder('utf-8', { fatal: false });
   for (let i = 0; i < 1000; i += 1) {
     (index => {
       const object1 = fuzzyPassable(random() * 100, random);
       const syrupBytes2 = encodePassable(object1);
-      const syrupString2 = textDecoder.decode(syrupBytes2);
+      const syrupString2 = descDecoder.decode(syrupBytes2);
       const desc = JSON.stringify(syrupString2);
       const hexString = Buffer.from(syrupBytes2).toString('hex');
       let object3;
       let syrup4;
-      t.notThrows(() => {
-        object3 = decodePassable(syrupBytes2);
-      }, `fuzz decode ${index} for ${desc} on ${object1}\n${hexString}`);
-      t.notThrows(() => {
-        syrup4 = encodePassable(object3);
-      }, `fuzz encode ${index} for ${desc} on ${object3}\n${hexString}`);
-      t.deepEqual(object1, object3, desc);
+      notThrowsWithErrorUnwrapping(
+        t,
+        () => {
+          object3 = decodePassable(syrupBytes2);
+        },
+        `fuzz decode ${index} for ${desc} on ${object1}\n${hexString}`,
+      );
+      notThrowsWithErrorUnwrapping(
+        t,
+        () => {
+          syrup4 = encodePassable(object3);
+        },
+        `fuzz encode ${index} for ${desc} on ${object3}\n${hexString}`,
+      );
+      t.deepEqual(object3, object1, desc);
       t.deepEqual(syrupBytes2, syrup4, desc);
     })(i);
   }
