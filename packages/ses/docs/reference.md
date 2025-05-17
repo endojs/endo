@@ -178,8 +178,10 @@ below.
   </tr>
   <tr>
     <td><code>stackFiltering</code></td>
-    <td><code>'concise'</code> (default) or <code>'verbose'</code></td>
-    <td><code>'concise'</code> preserves important deep stack info,<br>
+    <td><code>'concise'</code> (default) or <code>'omit-frames'</code>  or <code>'shorten-paths'</code> or <code>'verbose'</code></td>
+    <td><code>'concise'</code> preserves important deep stack info, omitting likely unimportant frames and shortening paths<br>
+        <code>'omit-frames'</code> omits likely unimportant frames<br>
+        <code>'shorten-paths'</code> shortens paths to text likely clickable in an IDE<br>
         <code>'verbose'</code> console shows full deep stacks</td>
   </tr>
   <tr>
@@ -314,10 +316,16 @@ option and the platform error behavior.
 ```js
 lockdown(); // stackFiltering defaults to 'concise'
 // or
-lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info
+lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info, omitting likely unimportant frames and shortening paths
+// vs
+lockdown({ stackFiltering: 'omit-frames' }); // Omit likely uninteresting frames
+// vs
+lockdown({ stackFiltering: 'shorten-paths' }); // Shorten paths to text likely clickable in an IDE
 // vs
 lockdown({ stackFiltering: 'verbose' }); // Console shows full deep stacks
 ```
+
+See [`stackFiltering` Options](./lockdown.md#stackfiltering-options) for more.
 
 ### `overrideTaming` Options
 
