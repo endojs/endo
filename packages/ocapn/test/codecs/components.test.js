@@ -11,9 +11,6 @@ import {
   makeSig,
   makeNode,
   makePubKey,
-  strToUint8Array,
-  record,
-  btsStr,
   exampleSigParamBytes,
   examplePubKeyQBytes,
 } from './_syrup_util.js';
@@ -21,12 +18,8 @@ import {
   OCapNNode,
   OCapNPublicKey,
   OCapNSignature,
-  OCapNSturdyRef,
 } from '../../src/codecs/components.js';
-import {
-  makeRecordUnionCodec,
-  makeTypeHintUnionCodec,
-} from '../../src/syrup/codec.js';
+import { makeTypeHintUnionCodec } from '../../src/syrup/codec.js';
 import { makeOCapNListComponentUnionCodec } from '../../src/codecs/util.js';
 import { testBidirectionally } from './_codecs_util.js';
 
@@ -50,23 +43,6 @@ const table = [
     },
   },
   {
-    syrup: record(
-      'ocapn-sturdyref',
-      makeNode('tcp', '127.0.0.1', false),
-      btsStr('1'),
-    ),
-    value: {
-      type: 'ocapn-sturdyref',
-      node: {
-        type: 'ocapn-node',
-        transport: 'tcp',
-        address: '127.0.0.1',
-        hints: false,
-      },
-      swissNum: strToUint8Array('1'),
-    },
-  },
-  {
     syrup: makePubKey(examplePubKeyQBytes),
     value: {
       type: 'public-key',
@@ -78,13 +54,6 @@ const table = [
   },
 ];
 
-const OCapNComponentRecordUnionCodec = makeRecordUnionCodec(
-  'OCapNComponentRecordUnionCodec',
-  {
-    OCapNNode,
-    OCapNSturdyRef,
-  },
-);
 const OCapNComponentListUnionCodec = makeOCapNListComponentUnionCodec(
   'OCapNComponentListUnionCodec',
   {
@@ -95,18 +64,20 @@ const OCapNComponentListUnionCodec = makeOCapNListComponentUnionCodec(
 const OCapNComponentUnionCodec = makeTypeHintUnionCodec(
   'OCapNComponentUnionCodec',
   {
-    record: OCapNComponentRecordUnionCodec,
+    record: OCapNNode,
     list: OCapNComponentListUnionCodec,
   },
   {
     object: value => {
-      if (value.type === undefined) {
+      const { type } = value;
+      if (type === undefined) {
         throw Error(`Component has no type: ${value}`);
       }
-      if (OCapNComponentRecordUnionCodec.supports(value.type)) {
-        return OCapNComponentRecordUnionCodec;
+      if (type === 'ocapn-node') {
+        return OCapNNode;
       }
-      if (OCapNComponentListUnionCodec.supports(value.type)) {
+
+      if (OCapNComponentListUnionCodec.supports(type)) {
         return OCapNComponentListUnionCodec;
       }
       throw Error(`Unknown component type: ${value}`);

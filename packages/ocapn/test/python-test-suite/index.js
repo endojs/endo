@@ -126,22 +126,23 @@ const makeTestObjectTable = client => {
     }),
   );
 
-  // /**
-  //  * Sturdyref enlivener
-  //  *
-  //  * This takes a single argument which OCapN sturdyref object. The actor should
-  //  * "enliven" (connect to the node and get a live reference to the object)
-  //  * the sturdyref and then return that to
-  //  *  the messager.
-  //  */
-  // testObjectTable.set(
-  //   'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
-  //   function sturdyrefEnlivener(sturdyref) {
-  //     console.log('sturdyrefEnlivener called with', { sturdyref });
-  //     client.enlivenSturdyref(sturdyref);
-  //     return undefined;
-  //   },
-  // );
+  /**
+   * Sturdyref enlivener
+   *
+   * This takes a single argument which OCapN sturdyref object. The actor should
+   * "enliven" (connect to the node and get a live reference to the object)
+   * the sturdyref and then return that to
+   *  the messager.
+   */
+  testObjectTable.set(
+    'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
+    OCapNFar('sturdyrefEnlivener', sturdyref => {
+      console.log('sturdyrefEnlivener called with', { sturdyref });
+      // Note, if we make SturdyRefs lazily connect, we may need to invoke
+      // something here to force the connection.
+      return sturdyref;
+    }),
+  );
 
   return testObjectTable;
 };
