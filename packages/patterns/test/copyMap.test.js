@@ -1,7 +1,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Fail } from '@endo/errors';
-import { makeTagged, getTag, passStyleOf } from '@endo/marshal';
+import { makeTagged, getTag, passStyleOf, PASS_STYLE } from '@endo/pass-style';
 import {
   isCopyMap,
   assertCopyMap,
@@ -72,7 +72,7 @@ test('backwards-compatible static shape', t => {
     Object.defineProperties(
       {},
       {
-        [Symbol.for('passStyle')]: { value: 'tagged' },
+        [PASS_STYLE]: { value: 'tagged' },
         [Symbol.toStringTag]: { value: 'copyMap' },
         payload: {
           enumerable: true,

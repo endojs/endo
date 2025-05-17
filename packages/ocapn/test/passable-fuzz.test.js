@@ -1,6 +1,7 @@
 // @ts-check
 
 import test from '@endo/ses-ava/prepare-endo.js';
+import { PASS_STYLE } from '@endo/pass-style';
 import { Buffer } from 'buffer';
 import { XorShift } from './_xorshift.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
@@ -86,7 +87,7 @@ function largeFuzzyPassable(budget, random) {
         ),
       // Tagged
       () => ({
-        [Symbol.for('passStyle')]: 'tagged',
+        [PASS_STYLE]: 'tagged',
         [Symbol.toStringTag]: fuzzyString(10, random),
         // eslint-disable-next-line no-use-before-define
         value: fuzzyPassable(budget / 2, random),

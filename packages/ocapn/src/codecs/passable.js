@@ -1,5 +1,6 @@
 // @ts-check
 
+import { PASS_STYLE } from '@endo/pass-style';
 import {
   BooleanCodec,
   IntegerCodec,
@@ -126,7 +127,7 @@ const OCapNTaggedCodec = makeOCapNRecordCodec(
     /* eslint-disable-next-line no-use-before-define */
     const value = OCapNPassableUnionCodec.read(syrupReader);
     return {
-      [Symbol.for('passStyle')]: 'tagged',
+      [PASS_STYLE]: 'tagged',
       [Symbol.toStringTag]: tagName,
       value,
     };
@@ -212,7 +213,7 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
         // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.list;
       }
-      if (value[Symbol.for('passStyle')] === 'tagged') {
+      if (value[PASS_STYLE] === 'tagged') {
         // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.tagged;
       }

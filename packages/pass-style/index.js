@@ -16,6 +16,7 @@ export {
   isPassableSymbol,
   nameForPassableSymbol,
   passableSymbolForName,
+  unpassableSymbolForName,
 } from './src/symbol.js';
 
 export {

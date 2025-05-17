@@ -1,5 +1,6 @@
 // @ts-check
 
+import { passableSymbolForName } from '@endo/pass-style';
 import {
   BooleanCodec,
   BytestringCodec,
@@ -36,7 +37,7 @@ export const SYRUP_SELECTOR_PREFIX = 'syrup:';
 // To be used as keys, syrup selectors must be javascript symbols.
 // To avoid an otherwise meaningful symbol name, we prefix it with 'syrup:'.
 export const SyrupSelectorFor = name =>
-  Symbol.for(`${SYRUP_SELECTOR_PREFIX}${name}`);
+  passableSymbolForName(`${SYRUP_SELECTOR_PREFIX}${name}`);
 
 /**
  * @param {symbol} selectorSymbol

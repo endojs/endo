@@ -2,6 +2,7 @@
 /* eslint-disable class-methods-use-this */
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import { passableSymbolForName } from '@endo/pass-style';
 import { E } from '../src/index.js';
 
 test('E reexports', async t => {
@@ -104,7 +105,7 @@ test('E call missing class methods', async t => {
       this.quarter = n => n / 4;
     }
 
-    [Symbol.for('half')](n) {
+    [passableSymbolForName('half')](n) {
       return n / 2;
     }
   }
