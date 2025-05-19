@@ -45,7 +45,7 @@ NEWPKGJSONHASH=$(
   } + . + {
     name: "@endo/\($name)",
     version: "0.1.0",
-    homepage: (.homepage // "https://github.com/endojs/endo/tree/master/packages/\($name)#readme"),
+    homepage: "https://github.com/endojs/endo/tree/master/packages/\($name)#readme",
     repository: (.repository + { directory: "packages/\($name)" }),
     scripts: ((.scripts // {}) | to_entries | sort_by(.key) | from_entries),
     dependencies: ((.dependencies // {}) | to_entries | sort_by(.key) | from_entries),
@@ -55,7 +55,8 @@ NEWPKGJSONHASH=$(
 
 git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
 
-# update license to reflect the current year
+# update other files in place
+cd "packages/$NAME"
 BSD_SED="$(sed --help 2>&1 | sed 2q | grep -qe '-i ' && echo 1 || true)"
 function sedi() {
   if [ -n "$BSD_SED" ]; then
@@ -64,4 +65,9 @@ function sedi() {
     sed -i "$@"
   fi
 }
-sedi -e "s/\[yyyy\]\ \[name\ of\ copyright\ owner\]/$(date '+%Y') Endo Contributors/g" "packages/$NAME/LICENSE"
+# CHANGELOG.md: remove `skel` content
+sedi -ne '/###/q; p' CHANGELOG.md
+# LICENSE: current year
+sedi -e "s/\[yyyy\]\ \[name\ of\ copyright\ owner\]/$(date '+%Y') Endo Contributors/g" LICENSE
+# NEWS.md and README.md: package name
+sedi -e "s#\[package\]#@endo/$NAME#g; s#\[name\]#$NAME#g" NEWS.md README.md
