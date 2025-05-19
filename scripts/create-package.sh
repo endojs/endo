@@ -56,4 +56,12 @@ NEWPKGJSONHASH=$(
 git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
 
 # update license to reflect the current year
-sed -i '' -e "s/\[yyyy\]\ \[name\ of\ copyright\ owner\]/$(date '+%Y') Endo Contributors/g" "packages/$NAME/LICENSE"
+BSD_SED="$(sed --help 2>&1 | sed 2q | grep -qe '-i ' && echo 1 || true)"
+function sedi() {
+  if [ -n "$BSD_SED" ]; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
+sedi -e "s/\[yyyy\]\ \[name\ of\ copyright\ owner\]/$(date '+%Y') Endo Contributors/g" "packages/$NAME/LICENSE"
