@@ -88,6 +88,7 @@ export const makeTcpNetLayer = async ({
     throw Error('Unnexpected Server Address Info');
   }
   const { address, port } = addressInfo;
+  logger.log('Server listening on', `${address}:${port}`);
 
   /** @type {OCapNLocation} */
   const localLocation = {

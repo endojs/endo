@@ -15,6 +15,7 @@
  * @typedef {import('./types.js').LocationId} LocationId
  * @typedef {import('./types.js').PendingSession} PendingSession
  * @typedef {import('./types.js').SessionManager} SessionManager
+ * @typedef {import('./ocapn.js').GrantTracker} GrantTracker
  * @typedef {import('./ocapn.js').OCapN} OCapN
  */
 import { makePromiseKit } from '@endo/promise-kit';
@@ -30,8 +31,9 @@ import {
   publicKeyToPublicKeyData,
 } from '../cryptography.js';
 import { OCapNMyLocation } from '../codecs/components.js';
+import { swissnumDecoder } from '../codecs/descriptors.js';
 import { compareByteArrays } from '../syrup/compare.js';
-import { OCapNFar, makeOCapN } from './ocapn.js';
+import { OCapNFar, makeGrantTracker, makeOCapN } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
 
@@ -74,7 +76,7 @@ export const makeSelfIdentity = myLocation => {
  * @param {OCapNLocation} options.peerLocation
  * @param {OCapNPublicKey} options.peerPublicKey
  * @param {OCapNSignature} options.peerLocationSig
- * @param {() =>Map<string, any>} [options.makeDefaultSwissnumTable]
+ * @param {() => Map<string, any>} [options.makeDefaultSwissnumTable]
  * @param {OCapN} options.ocapn
  * @param {Connection} options.connection
  * @returns {Session}
@@ -139,7 +141,6 @@ export const sendHello = (connection, mySessionData) => {
  */
 const makeBootstrapObject = (label, makeDefaultSwissnumTable) => {
   const swissnumTable = makeDefaultSwissnumTable();
-  const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
   return OCapNFar(`${label}:bootstrap`, {
     /**
      * @param {Uint8Array} swissnum
@@ -193,6 +194,8 @@ const compareSessionKeysForCrossedHellos = (
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
+ * @param {(location: OCapNLocation) => Promise<Session>} provideSession
+ * @param {GrantTracker} grantTracker
  * @param {any} message
  * @param {() => Map<string, any>} makeDefaultSwissnumTable
  */
@@ -200,6 +203,8 @@ const handleSessionHandshakeMessage = (
   logger,
   sessionManager,
   connection,
+  provideSession,
+  grantTracker,
   message,
   makeDefaultSwissnumTable,
 ) => {
@@ -294,7 +299,15 @@ const handleSessionHandshakeMessage = (
         'bootstrap',
         makeDefaultSwissnumTable,
       );
-      const ocapn = makeOCapN(logger, connection, bootstrapObj, 'ocapn');
+      const ocapn = makeOCapN(
+        logger,
+        connection,
+        peerLocation,
+        provideSession,
+        grantTracker,
+        bootstrapObj,
+        'ocapn',
+      );
       const session = makeSession({
         selfIdentity,
         peerLocation,
@@ -327,6 +340,8 @@ const handleSessionHandshakeMessage = (
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
+ * @param {(location: OCapNLocation) => Promise<Session>} provideSession
+ * @param {GrantTracker} grantTracker
  * @param {Uint8Array} data
  * @param {() => Map<string, any>} makeDefaultSwissnumTable
  */
@@ -334,6 +349,8 @@ const handleHandshakeMessageData = (
   logger,
   sessionManager,
   connection,
+  provideSession,
+  grantTracker,
   data,
   makeDefaultSwissnumTable,
 ) => {
@@ -361,6 +378,8 @@ const handleHandshakeMessageData = (
           logger,
           sessionManager,
           connection,
+          provideSession,
+          grantTracker,
           message,
           makeDefaultSwissnumTable,
         );
@@ -506,10 +525,14 @@ export const makeClient = ({
     return pendingSession.promise;
   };
 
+  const grantTracker = makeGrantTracker();
+
   /** @type {Client} */
   const client = {
     debugLabel,
     logger,
+    grantTracker,
+    sessionManager,
     makeDefaultSwissnumTable,
     /**
      * @param {NetLayer} netlayer
@@ -529,13 +552,14 @@ export const makeClient = ({
       client.logger.info(`handleMessageData called`);
       const session = sessionManager.getSessionForConnection(connection);
       if (session) {
-        const { ocapn } = session;
-        ocapn.dispatchMessageData(data);
+        session.ocapn.dispatchMessageData(data);
       } else {
         handleHandshakeMessageData(
           logger,
           sessionManager,
           connection,
+          client.provideSession,
+          grantTracker,
           data,
           makeDefaultSwissnumTable,
         );

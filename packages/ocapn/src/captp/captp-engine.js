@@ -1,6 +1,8 @@
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
 /** @import {CapTPSlot} from './types.js' */
 
+/** @typedef {import('../client/types.js').Logger} Logger */
+
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 
 // This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
@@ -219,11 +221,12 @@ const makeRefCounter = (specimenToRefCount, predicate) => {
  * Create a CapTP connection.
  *
  * @param {string} ourId our name for the current side
+ * @param {Logger} logger
  * @param {((target: string) => RemoteKit)} makeRemoteKit
  * @param {CapTPEngineOptions} opts options to the connection
  * @returns {CapTPEngine}
  */
-export const makeCapTPEngine = (ourId, makeRemoteKit, opts = {}) => {
+export const makeCapTPEngine = (ourId, logger, makeRemoteKit, opts = {}) => {
   const gcStats = {
     DROPPED: 0,
   };

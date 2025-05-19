@@ -1,5 +1,9 @@
 // @ts-check
 
+/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
+/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
+/** @typedef {import('./descriptors.js').DescCodecs} DescCodecs */
+
 import { passStyleOf as realPassStyleOf } from '@endo/pass-style';
 import {
   makeTagged,
@@ -21,10 +25,6 @@ import {
   makeOCapNRecordCodec,
   makeOCapNRecordCodecFromDefinition,
 } from './util.js';
-import { OCapNSturdyRef } from './components.js';
-
-/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 
 const quote = JSON.stringify;
 
@@ -78,6 +78,7 @@ const AtomCodecs = {
   byteArray: BytestringCodec,
 };
 
+/** @param {DescCodecs} descCodecs */
 export const makePassableCodecs = descCodecs => {
   const {
     DescImportObject,
@@ -87,6 +88,7 @@ export const makePassableCodecs = descCodecs => {
     DescHandoffGive,
     DescHandoffReceive,
     DescSigGiveEnvelope,
+    OCapNSturdyRef,
     ReferenceCodec,
   } = descCodecs;
 

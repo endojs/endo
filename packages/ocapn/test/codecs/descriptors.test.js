@@ -37,6 +37,27 @@ const table = [
     makeValue: testKit => testKit.makeAnswerAt(123n),
     skipWrite: true,
   },
+  //
+  // We are unable to test equality of sturdyrefs,
+  // because they are always new Promises.
+  // {
+  //   syrup: record(
+  //     'ocapn-sturdyref',
+  //     makeNode('tcp', '127.0.0.1', false),
+  //     btsStr('123'),
+  //   ),
+  //   makeValue: testKit =>
+  //     testKit.tableKit.provideSturdyRef(
+  //       {
+  //         type: 'ocapn-node',
+  //         transport: 'tcp',
+  //         address: '127.0.0.1',
+  //         hints: false,
+  //       },
+  //       strToUint8Array('123'),
+  //     ),
+  //   skipWrite: true,
+  // },
   // TODO: Support handoffs
   // {
   //   syrup: record(
