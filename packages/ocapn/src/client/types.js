@@ -6,7 +6,7 @@
  * @typedef {import('../cryptography.js').OCapNSignature} OCapNSignature
  * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
  * @typedef {import('./ocapn.js').OCapN} OCapN
- 
+ * @typedef {import('./ocapn.js').GrantTracker} GrantTracker
 /**
  * @typedef {string} LocationId
  */
@@ -91,6 +91,8 @@
  * @typedef {object} Client
  * @property {Logger} logger
  * @property {string} debugLabel
+ * @property {GrantTracker} grantTracker
+ * @property {SessionManager} sessionManager
  * @property {() => Map<string, any>} makeDefaultSwissnumTable
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
