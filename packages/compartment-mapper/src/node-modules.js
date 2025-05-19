@@ -55,7 +55,7 @@ import {
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 
-const { assign, create, keys, values } = Object;
+const { assign, create, keys, values, entries } = Object;
 
 const decoder = new TextDecoder();
 
@@ -521,7 +521,7 @@ const graphPackage = async (
 
   const sourceDirname = basename(packageLocation);
 
-  Object.assign(result, {
+  assign(result, {
     name,
     path: logicalPath,
     label: `${name}${version ? `-v${version}` : ''}`,
@@ -546,7 +546,7 @@ const graphPackage = async (
   await Promise.all(children);
 
   // handle commonDependencyDescriptors package aliases
-  for (const [name, { alias }] of Object.entries(commonDependencyDescriptors)) {
+  for (const [name, { alias }] of entries(commonDependencyDescriptors)) {
     // update the dependencyLocations to point to the common dependency
     const targetLocation = dependencyLocations[name];
     if (targetLocation === undefined) {
@@ -717,7 +717,7 @@ const graphPackages = async (
   /** @type {CommonDependencyDescriptors} */
   const commonDependencyDescriptors = {};
   const packageDescriptorDependencies = packageDescriptor.dependencies || {};
-  for (const [alias, dependencyName] of Object.entries(commonDependencies)) {
+  for (const [alias, dependencyName] of entries(commonDependencies)) {
     const spec = packageDescriptorDependencies[dependencyName];
     if (spec === undefined) {
       throw Error(
@@ -772,7 +772,7 @@ const translateGraph = (
   policy,
 ) => {
   /** @type {CompartmentMapDescriptor['compartments']} */
-  const compartments = Object.create(null);
+  const compartments = create(null);
 
   // For each package, build a map of all the external modules the package can
   // import from other packages.
@@ -795,9 +795,9 @@ const translateGraph = (
       types,
     } = graph[dependeeLocation];
     /** @type {CompartmentDescriptor['modules']} */
-    const moduleDescriptors = Object.create(null);
+    const moduleDescriptors = create(null);
     /** @type {CompartmentDescriptor['scopes']} */
-    const scopes = Object.create(null);
+    const scopes = create(null);
 
     /**
      * List of all the compartments (by name) that this compartment can import from.
@@ -957,10 +957,10 @@ const makeLanguageOptions = ({
   };
 
   const languages = new Set([
-    ...Object.values(moduleLanguageForExtension),
-    ...Object.values(commonjsLanguageForExtension),
-    ...Object.values(workspaceModuleLanguageForExtension),
-    ...Object.values(workspaceCommonjsLanguageForExtension),
+    ...values(moduleLanguageForExtension),
+    ...values(commonjsLanguageForExtension),
+    ...values(workspaceModuleLanguageForExtension),
+    ...values(workspaceCommonjsLanguageForExtension),
     ...additionalLanguages,
   ]);
 
