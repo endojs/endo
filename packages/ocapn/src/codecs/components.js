@@ -35,15 +35,6 @@ export const OCapNNode = makeOCapNRecordCodecFromDefinition(
   },
 );
 
-export const OCapNSturdyRef = makeOCapNRecordCodecFromDefinition(
-  'OCapNSturdyRefCodec',
-  'ocapn-sturdyref',
-  {
-    node: OCapNNode,
-    swissNum: 'bytestring',
-  },
-);
-
 // Used in the location signature in 'op:start-session'
 export const OCapNMyLocation = makeOCapNRecordCodecFromDefinition(
   'OCapNMyLocation',

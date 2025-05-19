@@ -4,11 +4,19 @@
 /** @typedef {import('../../src/client/ocapn.js').TableKit} TableKit */
 /** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
 /** @typedef {import('../../src/captp/captp-engine.js').CapTPEngine} CapTPEngine */
+/** @typedef {import('../../src/client/ocapn.js').MakeRemoteResolver} MakeRemoteResolver */
+/** @typedef {import('../../src/client/ocapn.js').MakeRemoteSturdyRef} MakeRemoteSturdyRef */
+/** @typedef {import('../../src/client/ocapn.js').OCapNLocation} OCapNLocation */
 
 import { Far, Remotable } from '@endo/marshal';
 import { HandledPromise } from '@endo/eventual-send';
 import { makeCapTPEngine } from '../../src/captp/captp-engine.js';
-import { makeTableKit, OCapNFar } from '../../src/client/ocapn.js';
+import {
+  makeGrantDetails,
+  makeGrantTracker,
+  makeTableKit,
+  OCapNFar,
+} from '../../src/client/ocapn.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
 import { makePassableCodecs } from '../../src/codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../../src/codecs/operations.js';
@@ -19,7 +27,17 @@ import { maybeDecode, notThrowsWithErrorUnwrapping } from '../_util.js';
 const textEncoder = new TextEncoder();
 const sloppyTextDecoder = new TextDecoder('utf-8', { fatal: false });
 
+/** @type {OCapNLocation} */
+const defaultPeerLocation = {
+  type: 'tcp-testing-only',
+  transport: 'tcp',
+  address: '127.0.0.1',
+  port: 54822,
+  hints: false,
+};
+
 /**
+ * @param {OCapNLocation} [peerLocation]
  * @returns {{
  *   engine: CapTPEngine,
  *   tableKit: TableKit,
@@ -36,12 +54,18 @@ const sloppyTextDecoder = new TextDecoder('utf-8', { fatal: false });
  *   DescSigReceiveEnvelope: SyrupCodec,
  *   ResolveMeDesc: SyrupCodec,
  *   ReferenceCodec: SyrupCodec,
- *   AnswerPosition: SyrupCodec,
  *   OCapNMessageUnionCodec: SyrupCodec,
  *   PassableCodec: SyrupCodec,
  * }}
  */
-export const makeCodecTestKit = () => {
+export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
+  const verbose = false;
+  const logger = harden({
+    log: (...args) => console.log(...args),
+    error: (...args) => console.error(...args),
+    info: (...args) => verbose && console.info(...args),
+  });
+
   const makeRemoteKit = (targetSlot, mode = 'deliver') => {
     const handler = {
       get(_o, prop) {
@@ -69,6 +93,9 @@ export const makeCodecTestKit = () => {
     return harden({ promise, settler });
   };
 
+  /**
+   * @type {MakeRemoteResolver}
+   */
   const makeRemoteResolver = slot => {
     const { settler } = makeRemoteKit(slot, 'deliver-only');
     const resolver = Remotable(
@@ -81,8 +108,31 @@ export const makeCodecTestKit = () => {
     return resolver;
   };
 
-  const engine = makeCapTPEngine('test', makeRemoteKit);
-  const tableKit = makeTableKit(engine, makeRemoteResolver);
+  /**
+   * @type {MakeRemoteSturdyRef}
+   */
+  const makeRemoteSturdyRef = (location, swissNum) => {
+    const promise = new Promise(() => {});
+    return promise;
+  };
+
+  const grantTracker = makeGrantTracker();
+
+  const importHook = (val, slot) => {
+    const grantDetails = makeGrantDetails(peerLocation, slot);
+    grantTracker.recordImport(val, grantDetails);
+  };
+
+  const engine = makeCapTPEngine('test', logger, makeRemoteKit, {
+    importHook,
+  });
+  const tableKit = makeTableKit(
+    peerLocation,
+    engine,
+    makeRemoteResolver,
+    makeRemoteSturdyRef,
+    grantTracker,
+  );
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
   const { OCapNMessageCodec: OCapNMessageUnionCodec } =
