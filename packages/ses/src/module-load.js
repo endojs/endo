@@ -507,6 +507,59 @@ const memoizedLoadWithErrorAnnotation = (
   return moduleLoading;
 };
 
+/**
+ * @template {readonly any[]} [Args=unknown[]]
+ * @callback SyncJob
+ * @param {...Args} args
+ * @returns {void}
+ */
+
+/**
+ * @template {readonly any[]} [Args=unknown[]]
+ * @callback AsyncJob
+ * @param {...Args} args
+ * @returns {Promise<void>}
+ */
+
+/**
+ * @template {readonly any[]} [Args=unknown[]]
+ * @callback EnqueueSyncJobFn
+ * @param {SyncJob<Args>} func
+ * @param {readonly [...Args]} args // the only way to make the types match
+ * @returns {void}
+ */
+
+/**
+ * @template {readonly any[]} [Args=unknown[]]
+ * @callback EnqueueAsyncJobFn
+ * @param {AsyncJob<Args>} func
+ * @param {readonly [...Args]} args // the only way to make the types match
+ * @returns {void}
+ */
+
+/**
+ * @typedef SyncJobQueueResult
+ * @property {EnqueueSyncJobFn} enqueueJob
+ * @property {() => void} drainQueue
+ * @property {Error[]} errors
+ */
+
+/**
+ * @typedef AsyncJobQueueResult
+ * @property {EnqueueAsyncJobFn} enqueueJob
+ * @property {() => Promise<void>} drainQueue
+ * @property {Error[]} errors
+ */
+
+/**
+ * @template {readonly any[]} [Args=unknown[]]
+ * @typedef { Array<[SyncJob, readonly [...Args]]>} SyncJobs
+ */
+
+/**
+ * @param {Error[]} errors
+ * @returns {AsyncJobQueueResult}
+ */
 const asyncJobQueue = (errors = []) => {
   /** @type {Set<Promise<undefined>>} */
   const pendingJobs = new Set();
@@ -514,11 +567,12 @@ const asyncJobQueue = (errors = []) => {
   /**
    * Enqueues a job that starts immediately but won't be awaited until drainQueue is called.
    *
-   * @template {any[]} T
-   * @param {(...args: T)=>Promise<*>} func
-   * @param {T} args
+   * @type {EnqueueAsyncJobFn}
    */
   const enqueueJob = (func, args) => {
+    if (!isArray(args)) {
+      throw new TypeError('Arguments must be provided as an array');
+    }
     setAdd(
       pendingJobs,
       promiseThen(func(...args), noop, error => {
@@ -540,8 +594,16 @@ const asyncJobQueue = (errors = []) => {
 };
 
 const syncJobQueue = (errors = []) => {
+  /** @type {SyncJobs} */
   let current = [];
+  /** @type {SyncJobs} */
   let next = [];
+
+  /**
+   * Enqueues a job
+   *
+   * @type {EnqueueSyncJobFn}
+   */
   const enqueueJob = (func, args) => {
     arrayPush(next, [func, args]);
   };
@@ -552,6 +614,9 @@ const syncJobQueue = (errors = []) => {
     // It's necessary for efficient memoization and to break cycles.
     for (const [func, args] of current) {
       try {
+        if (!isArray(args)) {
+          throw new TypeError('Arguments must be provided as an array');
+        }
         func(...args);
       } catch (error) {
         arrayPush(errors, error);
