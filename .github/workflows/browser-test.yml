@@ -26,8 +26,8 @@ jobs:
     steps:
       - name: Put unstable chrome where playwright would look for it
         run: mv /opt/google/chrome /opt/google/chrome-unstable
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 #v4 (updated from v3)
         with:
           node-version: 18
       - name: Provide yarn # yarn is missing in the Selenium image
@@ -45,7 +45,7 @@ jobs:
       - name: Run Playwright tests
         working-directory: browser-test
         run: npx playwright test
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #v4
         if: always()
         with:
           name: browser-test-report

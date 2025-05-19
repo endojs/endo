@@ -10,6 +10,7 @@
   "packageManager": "yarn@4.7.0",
   "devDependencies": {
     "@jessie.js/eslint-plugin": "^0.4.2",
+    "@lavamoat/git-safe-dependencies": "^0.2.2",
     "@octokit/core": "^3.4.0",
     "@types/node": "^20.17.24",
     "ava": "^6.1.3",
@@ -35,8 +36,9 @@
     "docs:markdown-for-agoric-documentation-repo": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.build.json",
     "update": "echo 'DEPRECATED: use \"yarn upgrade-interactive\" or \"yarn dedupe\"'",
     "format": "prettier --write .github packages",
-    "lint": "prettier --check .github packages && yarn workspaces foreach --all run lint",
+    "lint": "yarn scan-workflows && prettier --check .github packages && yarn workspaces foreach --all run lint",
     "lint-fix": "yarn workspaces foreach --all run lint-fix",
+    "scan-workflows": "yarn git-safe-actions",
     "test": "yarn workspaces foreach --all --exclude @endo/skel run test",
     "test:xs": "yarn workspaces foreach --all run test:xs",
     "test262": "yarn workspaces foreach --all run test262",
