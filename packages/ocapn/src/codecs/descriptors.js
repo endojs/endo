@@ -2,6 +2,8 @@
 
 /** @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader */
 /** @typedef {import('../syrup/encode.js').SyrupWriter} SyrupWriter */
+/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
+/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 /** @typedef {import('../client/ocapn.js').TableKit} TableKit */
 
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
@@ -12,8 +14,27 @@ import {
 import { PositiveIntegerCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 
+export const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
+
+/**
+ * @typedef {object} DescCodecs
+ * @property {SyrupRecordCodec} DescImportObject
+ * @property {SyrupRecordCodec} DescImportPromise
+ * @property {SyrupRecordCodec} DescExport
+ * @property {SyrupRecordCodec} DescAnswer
+ * @property {SyrupRecordCodec} DescHandoffGive
+ * @property {SyrupRecordCodec} DescSigGiveEnvelope
+ * @property {SyrupRecordCodec} DescHandoffReceive
+ * @property {SyrupRecordCodec} DescSigReceiveEnvelope
+ * @property {SyrupRecordCodec} OCapNSturdyRef
+ * @property {SyrupCodec} ResolveMeDesc
+ * @property {SyrupCodec} ReferenceCodec
+ * @property {SyrupCodec} DeliverTarget
+ */
+
 /**
  * @param {TableKit} tableKit
+ * @returns {DescCodecs}
  */
 export const makeDescCodecs = tableKit => {
   // when writing: import = local to us
@@ -123,6 +144,8 @@ export const makeDescCodecs = tableKit => {
     },
   );
 
+  // DeliverTarget is more limited in scope than ReferenceCodec,
+  // as it does not handle SturdyRefs or Handoffs.
   const DeliverTarget = makeCodec('DeliverTarget', {
     read(syrupReader) {
       const value = DeliverTargetReadCodec.read(syrupReader);
@@ -171,6 +194,22 @@ export const makeDescCodecs = tableKit => {
     },
   });
 
+  const OCapNSturdyRef = makeOCapNRecordCodec(
+    'OCapNSturdyRef',
+    'ocapn-sturdyref',
+    syrupReader => {
+      const node = OCapNNode.read(syrupReader);
+      const swissNum = syrupReader.readBytestring();
+      const value = tableKit.provideSturdyRef(node, swissNum);
+      return value;
+    },
+    (grantDetails, syrupWriter) => {
+      const { location, swissNum } = grantDetails;
+      OCapNNode.write(location, syrupWriter);
+      syrupWriter.writeBytestring(swissNum);
+    },
+  );
+
   const ReferenceCodecReadCodec = makeRecordUnionCodec(
     'ReferenceCodecReadCodec',
     {
@@ -178,9 +217,12 @@ export const makeDescCodecs = tableKit => {
       DescAnswer,
       DescImportObject,
       DescImportPromise,
+      OCapNSturdyRef,
     },
   );
 
+  // ReferenceCodec is handles any kind of Reference (Promise or Target),
+  // as well as SturdyRefs and Handoffs.
   // when reading: export = local to us
   // when writing: export = remote to us
   const ReferenceCodec = makeCodec('ReferenceCodec', {
@@ -188,33 +230,42 @@ export const makeDescCodecs = tableKit => {
       return ReferenceCodecReadCodec.read(syrupReader);
     },
     write(value, syrupWriter) {
-      const { type, isLocal } = tableKit.getInfoForVal(value);
-      if (type === 'object') {
-        if (isLocal) {
+      const { type, isLocal, isThirdParty, grantDetails } =
+        tableKit.getInfoForVal(value);
+      if (isLocal) {
+        if (type === 'object') {
           DescImportObject.write(value, syrupWriter);
-        } else {
-          DescExport.write(value, syrupWriter);
-        }
-      } else if (type === 'promise') {
-        if (isLocal) {
+        } else if (type === 'promise') {
           DescImportPromise.write(value, syrupWriter);
+        } else if (type === 'question') {
+          throw Error('Codec for "import-answer" not implemented');
         } else {
-          DescExport.write(value, syrupWriter);
+          throw Error(`Unknown type ${type}`);
         }
-      } else if (type === 'question') {
-        DescAnswer.write(value, syrupWriter);
+      } else if (isThirdParty) {
+        if (!grantDetails) {
+          throw Error('Third party references must have grant details');
+        }
+        const { type: grantType } = grantDetails;
+        // Remote, third party handoff
+        if (grantType === 'sturdy-ref') {
+          OCapNSturdyRef.write(grantDetails, syrupWriter);
+        } else if (grantType === 'handoff') {
+          throw Error('Handoff not implemented');
+        } else {
+          throw Error(`Unknown grant type ${grantType}`);
+        }
+      } else {
+        // Remote, this session is the grantee
+        // eslint-disable-next-line no-lonely-if
+        if (type === 'object' || type === 'promise') {
+          DescExport.write(value, syrupWriter);
+        } else if (type === 'question') {
+          DescAnswer.write(value, syrupWriter);
+        } else {
+          throw Error(`Unknown type ${type}`);
+        }
       }
-    },
-  });
-
-  const AnswerPosition = makeCodec('AnswerPosition', {
-    read(syrupReader) {
-      const position = PositiveIntegerCodec.read(syrupReader);
-      return tableKit.provideRemoteResolver(position);
-    },
-    write(value, syrupWriter) {
-      const position = tableKit.convertLocalValToPosition(value);
-      PositiveIntegerCodec.write(position, syrupWriter);
     },
   });
 
@@ -230,6 +281,6 @@ export const makeDescCodecs = tableKit => {
     DescSigReceiveEnvelope,
     ResolveMeDesc,
     ReferenceCodec,
-    AnswerPosition,
+    OCapNSturdyRef,
   };
 };
