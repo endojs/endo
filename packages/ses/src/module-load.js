@@ -514,9 +514,10 @@ const asyncJobQueue = (errors = []) => {
   /**
    * Enqueues a job that starts immediately but won't be awaited until drainQueue is called.
    *
-   * @template {any[]} T
-   * @param {(...args: T)=>Promise<*>} func
-   * @param {T} args
+   * @template {(...args: any[]) => Promise<void>} F
+   * @param {F} func - An async function to execute
+   * @param {Parameters<F>} args - Arguments to pass to the function
+   * @returns {void}
    */
   const enqueueJob = (func, args) => {
     setAdd(
@@ -542,6 +543,15 @@ const asyncJobQueue = (errors = []) => {
 const syncJobQueue = (errors = []) => {
   let current = [];
   let next = [];
+
+  /**
+   * Enqueues a job
+   *
+   * @template {(...args: any[]) => void} F
+   * @param {F} func - An async function to execute
+   * @param {Parameters<F>} args - Arguments to pass to the function
+   * @returns {void}
+   */
   const enqueueJob = (func, args) => {
     arrayPush(next, [func, args]);
   };
