@@ -41,15 +41,37 @@ export const panic = (err = RangeError('Panic')) => {
   }
 
   if (typeof globalThis[PanicEndowmentSymbol] === 'function') {
+    // Primarily for SwingSet liveslots
     /** @type {never} */ (globalThis[PanicEndowmentSymbol](err));
   } else if (
     globalThis.process &&
     typeof globalThis.process.abort === 'function'
   ) {
+    // Primarily for Node
     globalThis.process.abort();
-  } else {
-    // TODO Once Moddable provides a host `panic` function, use that here.
+  } else if (
+    typeof globalThis.panic === 'function' &&
+    panic !== globalThis.panic
+  ) {
+    // Primarily for Moddable XS.
+    //
+    // As of this writing,
+    // Moddable does not yet provide a host `panic` function. But it
+    // expects to provide one initially at `globalThis.panic`.
+    // See https://github.com/endojs/endo/pull/2815#issuecomment-2896059277
+    // However, we cannot simply detect this and use it if there, since a
+    // future upgrade to this package may add a shim that takes the
+    // ponyfill's `panic` and puts it at `globalThis.panic`.
+    // To avoid this inifinite regress, we also check that the one at
+    // `globalThis.panic` is not the one from this instance of the ponyfill.
+    // In a Eval Twins scenario, the first to import the shim will cause
+    // that shim to install its own `globalThis.panic` from its ponyfill,
+    // and then its ponyfill would skip this case. All other instances of this
+    // package would then defer to the whose shim ran first.
+    globalThis.panic(err);
   }
+  // When nothing else worked.
+  // See the README.md for why we chose to throw rather than inifite loop.
   throw lastResortError;
 };
 Object.freeze(panic);
