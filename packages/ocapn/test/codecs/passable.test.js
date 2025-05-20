@@ -1,9 +1,10 @@
 // @ts-check
 
+/** @typedef {import('@endo/eventual-send').Settler} Settler */
 /** @typedef {import('../../src/syrup/decode.js').SyrupReader} SyrupReader */
 /** @typedef {import('../../src/syrup/encode.js').SyrupWriter} SyrupWriter */
 /** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('@endo/eventual-send').Settler} Settler */
+/** @typedef {import('./_codecs_util.js').CodecTestEntry} CodecTestEntry */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 
@@ -17,6 +18,7 @@ const textEncoder = new TextEncoder();
 
 const { PassableCodec } = makeCodecTestKit();
 
+/** @type {CodecTestEntry[]} */
 const table = [
   { syrup: `<${sel('void')}>`, value: undefined },
   { syrup: `<${sel('null')}>`, value: null },
@@ -50,9 +52,13 @@ const table = [
 ];
 
 test('affirmative passable cases', t => {
-  const codec = PassableCodec;
-  for (const { syrup, value } of table) {
-    testBidirectionally(t, { codec, value, syrup });
+  for (const [index, entry] of table.entries()) {
+    const { name = `test-${index}` } = entry;
+    testBidirectionally(t, {
+      ...entry,
+      name,
+      getCodec: testKit => testKit.PassableCodec,
+    });
   }
 });
 
