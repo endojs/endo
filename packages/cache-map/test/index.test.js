@@ -1,76 +1,79 @@
 import test from 'ava';
 
-import { makeLRUCacheMap } from '../index.js';
+import { makeCacheMap } from '../index.js';
 
-test('makeLRUCacheMap', t => {
-  /** @type {WeakMap<{}, string>} */
-  const lruMap = makeLRUCacheMap(2);
+test('makeCacheMap', t => {
+  const cache = makeCacheMap(2);
+
+  // @ts-expect-error intentional violation
+  t.throws(() => cache.set('unweakable key', {}));
+
   const assertNoEntry = key => {
-    t.is(lruMap.has(key), false);
-    t.is(lruMap.get(key), undefined);
+    t.is(cache.has(key), false);
+    t.is(cache.get(key), undefined);
   };
   const assertEntry = (key, expectedValue) => {
-    t.is(lruMap.has(key), true);
-    t.is(lruMap.get(key), expectedValue);
+    t.is(cache.has(key), true);
+    t.is(cache.get(key), expectedValue);
   };
   const key1 = {};
-  const key2 = {};
+  const key2 = Symbol('unique symbol');
   const key3 = {};
   assertNoEntry(key1);
 
   // Populate up to capacity.
-  lruMap.set(key1, 'x');
-  lruMap.set(key2, 'y');
+  cache.set(key1, 'x');
+  cache.set(key2, 'y');
   assertEntry(key2, 'y');
   assertEntry(key1, 'x');
   assertNoEntry(key3);
 
   // Evict key2.
-  lruMap.set(key3, 'z');
+  cache.set(key3, 'z');
   assertEntry(key1, 'x');
   assertNoEntry(key2);
   assertEntry(key3, 'z');
 
   // Overwrite key3.
-  lruMap.set(key3, 'zz');
+  cache.set(key3, 'zz');
   assertEntry(key1, 'x');
   assertNoEntry(key2);
   assertEntry(key3, 'zz');
 
   // Evict key1.
-  lruMap.set(key2, 'y');
+  cache.set(key2, 'y');
   assertNoEntry(key1);
   assertEntry(key2, 'y');
   assertEntry(key3, 'zz');
 
   // Delete key3, preserving key2.
-  lruMap.delete(key3);
+  cache.delete(key3);
   assertNoEntry(key1);
   assertEntry(key2, 'y');
   assertNoEntry(key3);
 
   // Add key1, preserving key2.
-  lruMap.set(key1, 'x');
+  cache.set(key1, 'x');
   assertEntry(key2, 'y');
   assertEntry(key1, 'x');
   assertNoEntry(key3);
 
   // Delete key2, preserving key1.
-  lruMap.delete(key2);
+  cache.delete(key2);
   assertEntry(key1, 'x');
   assertNoEntry(key2);
   assertNoEntry(key3);
 
   // Delete key1.
-  lruMap.delete(key1);
+  cache.delete(key1);
   assertNoEntry(key1);
   assertNoEntry(key2);
   assertNoEntry(key3);
 
   // Repopulate with eviction.
-  lruMap.set(key1, 'xx');
-  lruMap.set(key2, 'yy');
-  lruMap.set(key3, 'zz');
+  cache.set(key1, 'xx');
+  cache.set(key2, 'yy');
+  cache.set(key3, 'zz');
   assertNoEntry(key1);
   assertEntry(key2, 'yy');
   assertEntry(key3, 'zz');
