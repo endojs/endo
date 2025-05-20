@@ -86,35 +86,35 @@ const spliceOut = cell => {
 };
 
 /**
- * The LRUCacheMap is used within the implementation of `assert` and so
- * at a layer below SES or harden. Thus, we give it a `WeakMap`-like interface
- * rather than a `WeakMapStore`-like interface. To work before `lockdown`,
- * the implementation must use `freeze` manually, but still exhaustively.
+ * Create a bounded-size cache having WeakMap-compatible
+ * `has`/`get`/`set`/`delete` methods, capable of supporting SES (specifically
+ * `assert` error notes). Key validity, comparison, and referential strength are
+ * all identical to WeakMap (e.g., user abandonment of a key used in the cache
+ * releases the associated value from the cache for garbage collection).
+ * Cache eviction policy is not currently configurable, but strives for a hit
+ * ratio at least as good as
+ * [LRU](https://en.wikipedia.org/wiki/Cache_replacement_policies#LRU) (e.g., it
+ * might be
+ * [CLOCK](https://en.wikipedia.org/wiki/Page_replacement_algorithm#Clock)
+ * or [SIEVE](https://sievecache.com/)).
  *
- * It implements the WeakMap interface, and holds its keys weakly.  Cached
- * values are only held while the key is held by the user and the key/value
- * bookkeeping cell has not been pushed off the end of the cache by `budget`
- * number of more recently referenced cells.  If the key is dropped by the user,
- * the value will no longer be held by the cache, but the bookkeeping cell
- * itself will stay in memory.
- *
- * @template {{}} K
+ * @template {WeakKey} K
  * @template {unknown} V
  * @param {number} keysBudget
  * @returns {WeakMap<K,V>}
  */
-export const makeLRUCacheMap = keysBudget => {
+export const makeCacheMap = keysBudget => {
   if (!isSafeInteger(keysBudget) || keysBudget < 0) {
     // eslint-disable-next-line no-restricted-globals
     throw TypeError('keysBudget must be a safe non-negative integer number');
   }
-  /** @typedef {DoublyLinkedCell<WeakMap<K, V> | undefined>} LRUCacheCell */
-  /** @type {WeakMap<K, LRUCacheCell>} */
+  /** @typedef {DoublyLinkedCell<WeakMap<K, V> | undefined>} CacheMapCell */
+  /** @type {WeakMap<K, CacheMapCell>} */
   // eslint-disable-next-line no-restricted-globals
   const keyToCell = new WeakMap();
   let size = 0; // `size` must remain <= `keysBudget`
   // As a sigil, `head` uniquely is not in the `keyToCell` map.
-  /** @type {LRUCacheCell} */
+  /** @type {CacheMapCell} */
   const head = makeSelfCell(undefined);
 
   const touchCell = key => {
@@ -153,7 +153,7 @@ export const makeLRUCacheMap = keysBudget => {
   const set = (key, value) => {
     if (keysBudget < 1) {
       // eslint-disable-next-line no-use-before-define
-      return lruCacheMap; // Implements WeakMap.set
+      return implementation;
     }
 
     let cell = touchCell(key);
@@ -181,7 +181,7 @@ export const makeLRUCacheMap = keysBudget => {
     cell.data.set(key, value);
 
     // eslint-disable-next-line no-use-before-define
-    return lruCacheMap; // Implements WeakMap.set
+    return implementation;
   };
   freeze(set);
 
@@ -207,15 +207,15 @@ export const makeLRUCacheMap = keysBudget => {
   };
   freeze(deleteIt);
 
-  const lruCacheMap = freeze({
+  const implementation = freeze({
     has,
     get,
     set,
     delete: deleteIt,
     // eslint-disable-next-line jsdoc/check-types
     [/** @type {typeof Symbol.toStringTag} */ (toStringTagSymbol)]:
-      'LRUCacheMap',
+      'WeakCacheMap',
   });
-  return lruCacheMap;
+  return implementation;
 };
-freeze(makeLRUCacheMap);
+freeze(makeCacheMap);
