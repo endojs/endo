@@ -1,13 +1,14 @@
 /* global globalThis */
 
-// Because this package `@endo/panic` is below both `ses` and `@endo/ses-ava` in
-// package layering, its diagnostic output cannot benefit from either
-// ses-ava nor the ses `console`.
-// To cope, `test/panic.test.js` in `@endo/ses-ava` is a copy of this test
-// without this layering cost. Please co-maintain these two files.
-import test from 'ava';
+// `@endo/panic` is below `ses` and `@endo/ses-ava` in package layering,
+// so its test file `test/index.test.js` had to use plain `ava` and the
+// platform's built-in `console`.
+// This is a copy of that test so it can use `ses-ava` and the ses `console`.
+// Please co-maintain these two files.
+import test from '../prepare-endo.js';
 
-import { PanicEndowmentSymbol, panic, lastResortError } from '../index.js';
+// eslint-disable-next-line import/order
+import { PanicEndowmentSymbol, panic, lastResortError } from '@endo/panic';
 
 // The case where it does correctly exit immediately is hard to test with
 // ava tests, so the following tests are indirect.
