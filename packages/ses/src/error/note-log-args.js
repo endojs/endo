@@ -2,7 +2,7 @@
 /* eslint-disable @endo/no-polymorphic-call */
 /* eslint-disable no-restricted-globals */
 
-import { makeLRUCacheMap } from '../make-lru-cachemap.js';
+import { makeLRUCacheMap } from '@endo/cache-map';
 
 /**
  * @import {LogArgs} from './internal-types.js';
