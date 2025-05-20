@@ -6,7 +6,7 @@
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/skel#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/test262-runner#readme",
   "repository": {
     "directory": "packages/test262-runner"
   },
