@@ -1,1 +1,1 @@
-export { makeLRUCacheMap } from './src/make-lru-cachemap.js';
+export { makeCacheMap } from './src/cachemap.js';

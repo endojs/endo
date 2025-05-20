@@ -2,7 +2,7 @@
 /* eslint-disable @endo/no-polymorphic-call */
 /* eslint-disable no-restricted-globals */
 
-import { makeLRUCacheMap } from '@endo/cache-map';
+import { makeCacheMap } from '@endo/cache-map';
 
 /**
  * @import {LogArgs} from './internal-types.js';
@@ -38,7 +38,7 @@ export const makeNoteLogArgsArrayKit = (
    * An augmented console, like the causal console of `console.js`, could
    * then retrieve the graph of such annotations.
    */
-  const noteLogArgsArrayMap = makeLRUCacheMap(errorsBudget);
+  const noteLogArgsArrayMap = makeCacheMap(errorsBudget);
 
   /**
    * @param {Error} error
