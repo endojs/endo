@@ -1,7 +1,6 @@
-// @ts-check
 import test from 'ava';
 
-import { makeLRUCacheMap } from '../src/make-lru-cachemap.js';
+import { makeLRUCacheMap } from '../index.js';
 
 test('makeLRUCacheMap', t => {
   /** @type {WeakMap<{}, string>} */

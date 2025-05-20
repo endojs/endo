@@ -310,6 +310,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/cache-map@workspace:^, @endo/cache-map@workspace:packages/cache-map":
+  version: 0.0.0-use.local
+  resolution: "@endo/cache-map@workspace:packages/cache-map"
+  dependencies:
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "npm:^6.1.3"
+    c8: "npm:^7.14.0"
+    eslint: "npm:^8.57.0"
+    tsd: "npm:^0.31.2"
+    typescript: "npm:~5.8.3"
+  languageName: unknown
+  linkType: soft
+
 "@endo/captp@workspace:^, @endo/captp@workspace:packages/captp":
   version: 0.0.0-use.local
   resolution: "@endo/captp@workspace:packages/captp"
@@ -10819,6 +10833,7 @@ __metadata:
     "@babel/parser": "npm:~7.26.2"
     "@babel/traverse": "npm:~7.25.9"
     "@babel/types": "npm:~7.26.0"
+    "@endo/cache-map": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/env-options": "workspace:^"
     "@endo/immutable-arraybuffer": "workspace:^"
