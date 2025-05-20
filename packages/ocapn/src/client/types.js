@@ -28,6 +28,7 @@
 
 /**
  * @typedef {object} Session
+ * @property {Uint8Array} id
  * @property {object} tables
  * @property {Map<string, any>} tables.swissnumTable
  * @property {Map<bigint, any>} tables.importTable

@@ -1,15 +1,20 @@
-import {
-  makeCodec,
-  makeRecordCodec,
-  makeRecordCodecFromDefinition,
-} from '../syrup/codec.js';
-
 /** @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader */
 /** @typedef {import('../syrup/encode.js').SyrupWriter} SyrupWriter */
-/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
 /** @typedef {import('../syrup/codec.js').SyrupType} SyrupType */
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {Record<string, SyrupType | SyrupCodec>} SyrupRecordDefinition */
+/** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
+/** @typedef {import('../syrup/codec.js').SyrupRecordDefinition} SyrupRecordDefinition */
+/** @typedef {import('../syrup/codec.js').SyrupRecordUnionCodec} SyrupRecordUnionCodec */
+/** @typedef {import('../client/ocapn.js').TableKit} TableKit */
+
+import {
+  makeCodec,
+  makeCodecReadWithErrorWrapping,
+  makeCodecWriteWithErrorWrapping,
+  makeRecordCodec,
+  makeRecordCodecFromDefinition,
+  makeRecordUnionCodec,
+} from '../syrup/codec.js';
 
 const { freeze } = Object;
 
@@ -141,5 +146,86 @@ export const makeOCapNListComponentUnionCodec = (
     read,
     write,
     supports,
+  });
+};
+
+/**
+ * @typedef {'local:object' | 'local:promise' | 'local:question' | 'remote:object' | 'remote:promise' | 'third-party:sturdy-ref' | 'third-party:handoff'} ValueInfoTableKey
+ */
+
+/**
+ * @param {string} codecName
+ * @param {TableKit} tableKit
+ * @param {Record<string, SyrupRecordCodec>} readRecordTypes
+ * @param {Record<ValueInfoTableKey, SyrupRecordCodec>} writeRecordTypes
+ * @returns {SyrupRecordUnionCodec}
+ */
+export const makeValueInfoRecordUnionCodec = (
+  codecName,
+  tableKit,
+  readRecordTypes,
+  writeRecordTypes,
+) => {
+  const readCodec = makeRecordUnionCodec(`${codecName}:Read`, readRecordTypes);
+
+  /**
+   * @param {string} label
+   * @returns {boolean}
+   */
+  const supports = label => {
+    return readCodec.supports(label);
+  };
+
+  /**
+   * @returns {Record<string, SyrupRecordCodec>}
+   */
+  const getChildCodecs = () => {
+    return readCodec.getChildCodecs();
+  };
+
+  /**
+   * @param {SyrupReader} syrupReader
+   * @returns {any}
+   */
+  const read = syrupReader => {
+    return readCodec.read(syrupReader);
+  };
+
+  /**
+   * @param {any} value
+   * @param {SyrupWriter} syrupWriter
+   */
+  const write = (value, syrupWriter) => {
+    const { type, isLocal, isThirdParty, grantDetails } =
+      tableKit.getInfoForVal(value);
+    if (isThirdParty) {
+      if (grantDetails === undefined) {
+        throw Error('Third party references must have grant details');
+      }
+      const { type: grantType } = grantDetails;
+      const tableKey = `third-party:${grantType}`;
+      const codec = writeRecordTypes[tableKey];
+      if (!codec) {
+        throw Error(`${codecName}: No write codec for table key ${tableKey}`);
+      }
+      // Pass only the grant details to the codec
+      codec.write(grantDetails, syrupWriter);
+    } else {
+      const keyLocality = isLocal ? 'local' : 'remote';
+      const tableKey = `${keyLocality}:${type}`;
+      const codec = writeRecordTypes[tableKey];
+      if (!codec) {
+        throw Error(`${codecName}: No write codec for table key ${tableKey}`);
+      }
+      // Pass the whole value to the codec
+      codec.write(value, syrupWriter);
+    }
+  };
+
+  return harden({
+    read: makeCodecReadWithErrorWrapping(codecName, read),
+    write: makeCodecWriteWithErrorWrapping(codecName, write),
+    supports,
+    getChildCodecs,
   });
 };

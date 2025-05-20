@@ -9,15 +9,21 @@
  * @typedef {import('./types.js').Connection} Connection
  * @typedef {import('./types.js').Logger} Logger
  * @typedef {import('./types.js').OCapNLocation} OCapNLocation
+ * @typedef {import('./types.js').OCapNPublicKey} OCapNPublicKey
  * @typedef {import('./types.js').Session} Session
  * @typedef {import('../captp/captp-engine.js').CapTPEngine} CapTPEngine
  * @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader
+ * @typedef {import('../codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope
+ * @typedef {import('../codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope
  */
 
 import { E, HandledPromise } from '@endo/eventual-send';
 import { Far, Remotable } from '@endo/marshal';
 import { makeCapTPEngine } from '../captp/captp-engine.js';
-import { makeDescCodecs } from '../codecs/descriptors.js';
+import {
+  makeDescCodecs,
+  makeWithdrawGiftDescriptor,
+} from '../codecs/descriptors.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makePassableCodecs } from '../codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../codecs/operations.js';
@@ -29,8 +35,10 @@ import { decodeSyrup } from '../syrup/js-representation.js';
  * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
  * @typedef {(slot: CapTPSlot) => RemotableObject<"Alleged: Resolver">} MakeRemoteResolver
  * @typedef {(node: OCapNLocation, swissNum: Uint8Array) => Promise<any>} MakeRemoteSturdyRef
+ * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
  * @typedef {(nodeLocation: OCapNLocation, swissNum: Uint8Array) => any} GetRemoteSturdyRef
  * @typedef {Record<string, any>} Handler
+ * @typedef {'object' | 'promise' | 'question'} SlotType
  */
 
 const sink = harden(() => {});
@@ -415,10 +423,6 @@ const makeCodecKit = tableKit => {
   };
 };
 
-/**
- * @typedef {'object' | 'promise' | 'question'} SlotType
- */
-
 /** @type {Record<string, SlotType>} */
 const slotTypes = harden({
   o: 'object',
@@ -447,7 +451,8 @@ const slotTypes = harden({
  * @property {(position: bigint) => any} convertPositionToLocalPromise
  * @property {(position: bigint) => any} provideRemoteResolver
  * @property {(position: bigint) => any} provideLocalAnswer
- * @property {(nodeLocation: OCapNLocation, swissNum: Uint8Array) => any} provideSturdyRef
+ * @property {(nodeLocation: OCapNLocation, swissNum: Uint8Array) => Promise<any>} provideSturdyRef
+ * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
  * @property {(value: any) => ValInfo} getInfoForVal
  */
 
@@ -456,6 +461,7 @@ const slotTypes = harden({
  * @param {CapTPEngine} engine
  * @param {MakeRemoteResolver} makeRemoteResolver
  * @param {MakeRemoteSturdyRef} makeRemoteSturdyRef
+ * @param {MakeHandoff} makeHandoff
  * @param {GrantTracker} grantTracker
  * @returns {TableKit}
  */
@@ -464,6 +470,7 @@ export const makeTableKit = (
   engine,
   makeRemoteResolver,
   makeRemoteSturdyRef,
+  makeHandoff,
   grantTracker,
 ) => {
   const convertValToPosition = val => {
@@ -527,6 +534,9 @@ export const makeTableKit = (
     },
     provideSturdyRef: (nodeLocation, swissNum) => {
       return makeRemoteSturdyRef(nodeLocation, swissNum);
+    },
+    provideHandoff: signedGive => {
+      return makeHandoff(signedGive);
     },
     getInfoForVal: val => {
       const grantDetails = grantTracker.getGrantDetails(val);
@@ -836,12 +846,46 @@ export const makeOCapN = (
     return promise;
   };
 
+  /** @type {MakeHandoff} */
+  const makeHandoff = signedGive => {
+    const {
+      object: { exporterLocation },
+    } = signedGive;
+    return HandledPromise.resolve(
+      (async () => {
+        const [receiverGifterSession, receiverExporterSession] =
+          await Promise.all([
+            provideSession(peerLocation),
+            provideSession(exporterLocation),
+          ]);
+        const {
+          ocapn,
+          id: sessionId,
+          self: { keyPair: receiverExporterKey },
+        } = receiverExporterSession;
+        const {
+          self: { keyPair: receiverGifterKey },
+        } = receiverGifterSession;
+        const bootstrap = ocapn.getBootstrap();
+        const handoffCount = 0n;
+        const handoffDescriptor = makeWithdrawGiftDescriptor(
+          signedGive,
+          handoffCount,
+          sessionId,
+          receiverExporterKey.publicKey,
+          receiverGifterKey,
+        );
+        return E(bootstrap)['withdraw-gift'](handoffDescriptor);
+      })(),
+    );
+  };
+
   const tableKit = makeTableKit(
     peerLocation,
     engine,
     makeRemoteResolver,
     makeRemoteSturdyRef,
-    // getRemoteSturdyRef,
+    makeHandoff,
     grantTracker,
   );
   const { readOCapNMessage, writeOCapNMessage } = makeCodecKit(tableKit);
