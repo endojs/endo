@@ -7,7 +7,11 @@
 /** @typedef {import('../../src/client/ocapn.js').MakeRemoteResolver} MakeRemoteResolver */
 /** @typedef {import('../../src/client/ocapn.js').MakeRemoteSturdyRef} MakeRemoteSturdyRef */
 /** @typedef {import('../../src/client/ocapn.js').OCapNLocation} OCapNLocation */
+/** @typedef {import('../../src/client/ocapn.js').MakeHandoff} MakeHandoff */
+/** @typedef {import('../../src/codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope */
+/** @typedef {import('../../src/codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope */
 
+import { Buffer } from 'buffer';
 import { Far, Remotable } from '@endo/marshal';
 import { HandledPromise } from '@endo/eventual-send';
 import { makeCapTPEngine } from '../../src/captp/captp-engine.js';
@@ -27,6 +31,10 @@ import { maybeDecode, notThrowsWithErrorUnwrapping } from '../_util.js';
 const textEncoder = new TextEncoder();
 const sloppyTextDecoder = new TextDecoder('utf-8', { fatal: false });
 
+const bufferToHex = uint8Array => {
+  return Buffer.from(uint8Array).toString('hex');
+};
+
 /** @type {OCapNLocation} */
 const defaultPeerLocation = {
   type: 'tcp-testing-only',
@@ -37,26 +45,22 @@ const defaultPeerLocation = {
 };
 
 /**
+ * @typedef {object} CodecTestKit
+ * @property {CapTPEngine} engine
+ * @property {TableKit} tableKit
+ * @property {(position: bigint) => any} makeExportAt
+ * @property {(position: bigint) => Promise<any>} makeAnswerAt
+ * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
+ * @property {(location: OCapNLocation, swissNum: Uint8Array) => Promise<any>} lookupSturdyRef
+ * @property {SyrupCodec} ReferenceCodec
+ * @property {SyrupCodec} DescImportObject
+ * @property {SyrupCodec} OCapNMessageUnionCodec
+ * @property {SyrupCodec} PassableCodec
+ */
+
+/**
  * @param {OCapNLocation} [peerLocation]
- * @returns {{
- *   engine: CapTPEngine,
- *   tableKit: TableKit,
- *   makeExportAt: (position: bigint) => any,
- *   makeAnswerAt: (position: bigint) => Promise<any>,
- *   DescImportObject: SyrupCodec,
- *   DescImportPromise: SyrupCodec,
- *   DescExport: SyrupCodec,
- *   DescAnswer: SyrupCodec,
- *   DeliverTarget: SyrupCodec,
- *   DescHandoffGive: SyrupCodec,
- *   DescSigGiveEnvelope: SyrupCodec,
- *   DescHandoffReceive: SyrupCodec,
- *   DescSigReceiveEnvelope: SyrupCodec,
- *   ResolveMeDesc: SyrupCodec,
- *   ReferenceCodec: SyrupCodec,
- *   OCapNMessageUnionCodec: SyrupCodec,
- *   PassableCodec: SyrupCodec,
- * }}
+ * @returns {CodecTestKit}
  */
 export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   const verbose = false;
@@ -108,11 +112,57 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     return resolver;
   };
 
+  const testSturdyRefMap = new Map();
+  const testHandoffMap = new Map();
+
+  /**
+   * @param {OCapNLocation} location
+   * @param {Uint8Array} swissNum
+   * @returns {Promise<any>}
+   */
+  const lookupSturdyRef = (location, swissNum) => {
+    const testKey = `${location.type}:${location.transport}:${location.address}:${location.port}:${bufferToHex(swissNum)}`;
+    return testSturdyRefMap.get(testKey);
+  };
+
+  /**
+   * @param {HandoffGiveSigEnvelope} signedGive
+   * @returns {Promise<any>}
+   */
+  const lookupHandoff = signedGive => {
+    const { object: handoffGive } = signedGive;
+    const {
+      giftId,
+      receiverKey: { q: receiverPubKeyBytes },
+      exporterSessionId,
+    } = handoffGive;
+    const testKey = `${giftId}:${bufferToHex(receiverPubKeyBytes)}:${bufferToHex(exporterSessionId)}`;
+    return testHandoffMap.get(testKey);
+  };
+
   /**
    * @type {MakeRemoteSturdyRef}
    */
   const makeRemoteSturdyRef = (location, swissNum) => {
     const promise = new Promise(() => {});
+    const testKey = `${location.type}:${location.transport}:${location.address}:${location.port}:${bufferToHex(swissNum)}`;
+    testSturdyRefMap.set(testKey, promise);
+    return promise;
+  };
+
+  /**
+   * @type {MakeHandoff}
+   */
+  const makeHandoff = signedGive => {
+    const promise = new Promise(() => {});
+    const { object: handoffGive } = signedGive;
+    const {
+      giftId,
+      receiverKey: { q: receiverPubKeyBytes },
+      exporterSessionId,
+    } = handoffGive;
+    const testKey = `${giftId}:${bufferToHex(receiverPubKeyBytes)}:${bufferToHex(exporterSessionId)}`;
+    testHandoffMap.set(testKey, promise);
     return promise;
   };
 
@@ -131,6 +181,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     engine,
     makeRemoteResolver,
     makeRemoteSturdyRef,
+    makeHandoff,
     grantTracker,
   );
   const descCodecs = makeDescCodecs(tableKit);
@@ -158,6 +209,8 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     tableKit,
     makeExportAt,
     makeAnswerAt,
+    lookupHandoff,
+    lookupSturdyRef,
     ...descCodecs,
     OCapNMessageUnionCodec,
     PassableCodec,
@@ -175,12 +228,16 @@ const getSyrupString = syrup => {
 
 /**
  * @typedef {object} CodecTestEntry
- * @property {SyrupCodec} codec
+ * @property {SyrupCodec} [codec]
+ * @property {(testKit: CodecTestKit) => SyrupCodec} [getCodec]
  * @property {string | Uint8Array} syrup
+ * @property {(testKit: CodecTestKit) => void} [beforeTest]
  * @property {any} [value]
- * @property {any} [makeValue]
+ * @property {(testKit: CodecTestKit) => any} [makeValue]
+ * @property {(testKit: CodecTestKit) => any} [makeValueAfter]
  * @property {string | Uint8Array} [returnSyrup]
  * @property {boolean} [skipWrite]
+ * @property {string} [name]
  */
 
 /**
@@ -190,19 +247,46 @@ const getSyrupString = syrup => {
 export const testBidirectionally = (
   t,
   {
-    codec,
+    codec: specifiedCodec,
+    getCodec,
+    beforeTest,
+    value,
     makeValue,
-    value: expectedValue = makeValue && makeValue(),
+    makeValueAfter,
     syrup,
     returnSyrup: expectedOutputSyrup = syrup,
     skipWrite = false,
+    name = '(unknown test entry)',
   },
 ) => {
-  // Test read.
   const inputSyrupString = getSyrupString(syrup);
+  const testDescriptor = `${name} ${inputSyrupString}`;
+  if (
+    [value, makeValue, makeValueAfter].filter(arg => arg !== undefined).length >
+    1
+  ) {
+    throw Error(
+      `Only one of value, makeValue, or makeValueAfter can be provided for ${name}`,
+    );
+  }
+  const testKit = makeCodecTestKit();
+  const codec = specifiedCodec || (getCodec && getCodec(testKit));
+  if (!codec) {
+    throw Error(`codec or getCodec must be provided for ${name}`);
+  }
+
+  if (beforeTest) {
+    beforeTest(testKit);
+  }
+
+  let expectedValue = value;
+  if (makeValue) {
+    expectedValue = makeValue(testKit);
+  }
+  // Test read.
   const inputSyrupBytes = getSyrupBytes(syrup);
   const syrupReader = makeSyrupReader(inputSyrupBytes, {
-    name: inputSyrupString,
+    name: `${name} ${inputSyrupString}`,
   });
   let actualValueResult;
   notThrowsWithErrorUnwrapping(
@@ -210,9 +294,16 @@ export const testBidirectionally = (
     () => {
       actualValueResult = codec.read(syrupReader);
     },
-    inputSyrupString,
+    `read syrup: ${testDescriptor}`,
   );
-  t.deepEqual(actualValueResult, expectedValue, inputSyrupString);
+  if (makeValueAfter) {
+    expectedValue = makeValueAfter(testKit);
+  }
+  t.deepEqual(
+    actualValueResult,
+    expectedValue,
+    `value check: ${testDescriptor}`,
+  );
 
   // If we're skipping the return, we're done.
   if (skipWrite) {
@@ -228,7 +319,7 @@ export const testBidirectionally = (
     () => {
       codec.write(expectedValue, syrupWriter);
     },
-    inputSyrupString,
+    `write syrup: ${testDescriptor}`,
   );
   const actualSyrupResultBytes = syrupWriter.getBytes();
   const { value: actualSyrupResultString, isValidUtf8 } = maybeDecode(
@@ -240,13 +331,13 @@ export const testBidirectionally = (
     t.deepEqual(
       actualSyrupResultString,
       expectedOutputSyrupString,
-      expectedOutputSyrupString,
+      `write syrup: ${testDescriptor}`,
     );
   }
   // Testing the bytes is what we actually care about.
   t.deepEqual(
     actualSyrupResultBytes,
     expectedOutputSyrupBytes,
-    expectedOutputSyrupString,
+    `write syrup: ${testDescriptor}`,
   );
 };

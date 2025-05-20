@@ -15,7 +15,7 @@ const quote = JSON.stringify;
 const textDecoder = new TextDecoder('utf-8', { fatal: true });
 const textEncoder = new TextEncoder();
 
-const makeCodecWriteWithErrorWrapping = (codecName, write) => {
+export const makeCodecWriteWithErrorWrapping = (codecName, write) => {
   /** @type {SyrupCodec['write']} */
   return (value, syrupWriter) => {
     try {
@@ -30,7 +30,7 @@ const makeCodecWriteWithErrorWrapping = (codecName, write) => {
   };
 };
 
-const makeCodecReadWithErrorWrapping = (codecName, read) => {
+export const makeCodecReadWithErrorWrapping = (codecName, read) => {
   /** @type {SyrupCodec['read']} */
   return syrupReader => {
     const start = syrupReader.index;
@@ -549,6 +549,7 @@ export const makeTypeHintUnionCodec = (codecName, readTable, writeTable) => {
 /**
  * @typedef {SyrupCodec & {
  *   supports: (label: string) => boolean;
+ *   getChildCodecs: () => Record<string, SyrupRecordCodec>;
  * }} SyrupRecordUnionCodec
  */
 
@@ -558,6 +559,7 @@ export const makeTypeHintUnionCodec = (codecName, readTable, writeTable) => {
  * @returns {SyrupRecordUnionCodec}
  */
 export const makeRecordUnionCodec = (codecName, recordTypes) => {
+  harden(recordTypes);
   const recordTable = Object.fromEntries(
     Object.values(recordTypes).map(recordCodec => {
       return [recordCodec.label, recordCodec];
@@ -569,6 +571,12 @@ export const makeRecordUnionCodec = (codecName, recordTypes) => {
    */
   const supports = label => {
     return recordTable[label] !== undefined;
+  };
+  /**
+   * @returns {Record<string, SyrupRecordCodec>}
+   */
+  const getChildCodecs = () => {
+    return recordTypes;
   };
   /**
    * @param {SyrupReader} syrupReader
@@ -609,5 +617,6 @@ export const makeRecordUnionCodec = (codecName, recordTypes) => {
     read: makeCodecReadWithErrorWrapping(codecName, read),
     write: makeCodecWriteWithErrorWrapping(codecName, write),
     supports,
+    getChildCodecs,
   });
 };

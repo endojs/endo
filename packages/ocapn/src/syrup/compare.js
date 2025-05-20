@@ -16,6 +16,12 @@ export function compareByteArrays(
   rightStart,
   rightEnd,
 ) {
+  if (!(left instanceof Uint8Array)) {
+    throw Error(`Left is not a Uint8Array: ${left}`);
+  }
+  if (!(right instanceof Uint8Array)) {
+    throw Error(`Right is not a Uint8Array: ${right}`);
+  }
   const leftLength = leftEnd - leftStart;
   const rightLength = rightEnd - rightStart;
   for (;;) {
