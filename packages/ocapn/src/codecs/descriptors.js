@@ -4,15 +4,21 @@
 /** @typedef {import('../syrup/encode.js').SyrupWriter} SyrupWriter */
 /** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
 /** @typedef {import('../syrup/codec.js').SyrupRecordCodec} SyrupRecordCodec */
+/** @typedef {import('../syrup/codec.js').SyrupRecordUnionCodec} SyrupRecordUnionCodec */
 /** @typedef {import('../client/ocapn.js').TableKit} TableKit */
+/** @typedef {import('../client/types.js').OCapNPublicKey} OCapNPublicKey */
+/** @typedef {import('../client/types.js').OCapNLocation} OCapNLocation */
+/** @typedef {import('../client/types.js').OCapNKeyPair} OCapNKeyPair */
 
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import {
   makeOCapNRecordCodec,
   makeOCapNRecordCodecFromDefinition,
+  makeValueInfoRecordUnionCodec,
 } from './util.js';
 import { PositiveIntegerCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
+import { makeSyrupWriter } from '../syrup/encode.js';
 
 export const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
 
@@ -22,15 +28,156 @@ export const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
  * @property {SyrupRecordCodec} DescImportPromise
  * @property {SyrupRecordCodec} DescExport
  * @property {SyrupRecordCodec} DescAnswer
- * @property {SyrupRecordCodec} DescHandoffGive
- * @property {SyrupRecordCodec} DescSigGiveEnvelope
- * @property {SyrupRecordCodec} DescHandoffReceive
- * @property {SyrupRecordCodec} DescSigReceiveEnvelope
- * @property {SyrupRecordCodec} OCapNSturdyRef
  * @property {SyrupCodec} ResolveMeDesc
- * @property {SyrupCodec} ReferenceCodec
+ * @property {SyrupRecordUnionCodec} ReferenceCodec
  * @property {SyrupCodec} DeliverTarget
  */
+
+/**
+ * @typedef {object} HandoffGive
+ * @property {'desc:handoff-give'} type
+ * @property {OCapNPublicKey} receiverKey
+ * @property {OCapNLocation} exporterLocation
+ * @property {Uint8Array} exporterSessionId
+ * @property {Uint8Array} gifterSideId
+ * @property {Uint8Array} giftId
+ */
+
+/**
+ * @typedef {object} HandoffGiveSigEnvelope
+ * @property {'desc:sig-envelope'} type
+ * @property {HandoffGive} object
+ * @property {OCapNSignature} signature
+ */
+
+/**
+ * @typedef {object} HandoffReceive
+ * @property {'desc:handoff-receive'} type
+ * @property {Uint8Array} receivingSession
+ * @property {Uint8Array} receivingSide
+ * @property {bigint} handoffCount
+ * @property {HandoffGiveSigEnvelope} signedGive
+ */
+
+/**
+ * @typedef {object} HandoffReceiveSigEnvelope
+ * @property {'desc:sig-envelope'} type
+ * @property {HandoffReceive} object
+ * @property {OCapNSignature} signature
+ */
+
+const DescHandoffGiveCodec = makeOCapNRecordCodecFromDefinition(
+  'DescHandoffGive',
+  'desc:handoff-give',
+  {
+    receiverKey: OCapNPublicKey,
+    exporterLocation: OCapNNode,
+    exporterSessionId: 'bytestring',
+    gifterSideId: 'bytestring',
+    giftId: 'bytestring',
+  },
+);
+
+const DescHandoffGiveSigEnvelopeCodec = makeOCapNRecordCodecFromDefinition(
+  'DescHandoffGiveSigEnvelope',
+  'desc:sig-envelope',
+  {
+    object: DescHandoffGiveCodec,
+    signature: OCapNSignature,
+  },
+);
+
+const DescHandoffReceiveCodec = makeOCapNRecordCodecFromDefinition(
+  'DescHandoffReceive',
+  'desc:handoff-receive',
+  {
+    receivingSession: 'bytestring',
+    receivingSide: 'bytestring',
+    handoffCount: PositiveIntegerCodec,
+    signedGive: DescHandoffGiveSigEnvelopeCodec,
+  },
+);
+
+const DescHandoffReceiveSigEnvelopeCodec = makeOCapNRecordCodecFromDefinition(
+  'DescHandoffReceiveSigEnvelope',
+  'desc:sig-envelope',
+  {
+    object: DescHandoffReceiveCodec,
+    signature: OCapNSignature,
+  },
+);
+
+const SignedEnvelopeContentUnionCodec = makeRecordUnionCodec(
+  'SignedEnvelopeContentUnionCodec',
+  {
+    DescHandoffGiveCodec,
+    DescHandoffReceiveCodec,
+  },
+);
+
+const DescSigEnvelopeReadCodec = makeOCapNRecordCodecFromDefinition(
+  'DescSigEnvelope',
+  'desc:sig-envelope',
+  {
+    object: SignedEnvelopeContentUnionCodec,
+    signature: OCapNSignature,
+  },
+);
+
+/**
+ * @param {HandoffGive} handoffGive
+ * @returns {Uint8Array}
+ */
+export const serializeHandoffGive = handoffGive => {
+  const syrupWriter = makeSyrupWriter();
+  DescHandoffGiveCodec.write(handoffGive, syrupWriter);
+  return syrupWriter.getBytes();
+};
+
+/**
+ * @param {HandoffReceive} handoffReceive
+ * @returns {Uint8Array}
+ */
+export const serializeHandoffReceive = handoffReceive => {
+  const syrupWriter = makeSyrupWriter();
+  DescHandoffReceiveCodec.write(handoffReceive, syrupWriter);
+  return syrupWriter.getBytes();
+};
+
+/**
+ * @param {HandoffGiveSigEnvelope} signedGive
+ * @param {bigint} handoffCount
+ * @param {Uint8Array} sessionId
+ * @param {OCapNPublicKey} pubKeyForExporter
+ * @param {OCapNKeyPair} privKeyForGifter
+ * @returns {HandoffReceiveSigEnvelope}
+ */
+export const makeWithdrawGiftDescriptor = (
+  signedGive,
+  handoffCount,
+  sessionId,
+  pubKeyForExporter,
+  privKeyForGifter,
+) => {
+  /** @type {HandoffReceive} */
+  const handoffReceive = {
+    type: 'desc:handoff-receive',
+    receivingSession: sessionId,
+    // This should be removed from the spec
+    receivingSide: pubKeyForExporter.bytes,
+    handoffCount,
+    signedGive,
+  };
+  const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
+  const signature = privKeyForGifter.sign(handoffReceiveBytes);
+  /** @type {HandoffReceiveSigEnvelope} */
+  const signedEnvelope = {
+    type: 'desc:sig-envelope',
+    object: handoffReceive,
+    signature,
+  };
+  return harden(signedEnvelope);
+};
 
 /**
  * @param {TableKit} tableKit
@@ -95,44 +242,28 @@ export const makeDescCodecs = tableKit => {
     },
   );
 
-  const DescHandoffGive = makeOCapNRecordCodecFromDefinition(
-    'DescHandoffGive',
-    'desc:handoff-give',
-    {
-      receiverKey: OCapNPublicKey,
-      exporterLocation: OCapNNode,
-      exporterSessionId: 'bytestring',
-      gifterSideId: 'bytestring',
-      giftId: 'bytestring',
-    },
-  );
-
-  const DescSigGiveEnvelope = makeOCapNRecordCodecFromDefinition(
-    'DescSigGiveEnvelope',
+  const HandOffUnionCodec = makeOCapNRecordCodec(
+    'HandOffUnionCodec',
     'desc:sig-envelope',
-    {
-      object: DescHandoffGive,
-      signature: OCapNSignature,
+    syrupReader => {
+      const signedEnvelope = DescSigEnvelopeReadCodec.readBody(syrupReader);
+      const content = signedEnvelope.object;
+      if (content.type === 'desc:handoff-give') {
+        return tableKit.provideHandoff(signedEnvelope);
+      } else if (content.type === 'desc:handoff-receive') {
+        return content;
+      }
+      throw Error(`Unknown type ${content.type}`);
     },
-  );
-
-  const DescHandoffReceive = makeOCapNRecordCodecFromDefinition(
-    'DescHandoffReceive',
-    'desc:handoff-receive',
-    {
-      receivingSession: 'bytestring',
-      receivingSide: 'bytestring',
-      handoffCount: PositiveIntegerCodec,
-      signedGive: DescSigGiveEnvelope,
-    },
-  );
-
-  const DescSigReceiveEnvelope = makeOCapNRecordCodecFromDefinition(
-    'DescSigReceiveEnvelope',
-    'desc:sig-envelope',
-    {
-      object: DescHandoffReceive,
-      signature: OCapNSignature,
+    (value, syrupWriter) => {
+      const content = value.object;
+      if (content.type === 'desc:handoff-give') {
+        throw Error('HandOffUnionCodec should not be used for handoff give');
+      } else if (content.type === 'desc:handoff-receive') {
+        DescHandoffReceiveSigEnvelopeCodec.writeBody(value, syrupWriter);
+      } else {
+        throw Error(`Unknown type ${content.type}`);
+      }
     },
   );
 
@@ -210,64 +341,31 @@ export const makeDescCodecs = tableKit => {
     },
   );
 
-  const ReferenceCodecReadCodec = makeRecordUnionCodec(
-    'ReferenceCodecReadCodec',
+  // ReferenceCodec is handles any kind of Reference (Promise or Target),
+  // as well as SturdyRefs and Handoffs.
+  // when reading: export = local to us
+  // when writing: export = remote to us
+  const ReferenceCodec = makeValueInfoRecordUnionCodec(
+    'ReferenceCodec',
+    tableKit,
     {
       DescExport,
       DescAnswer,
       DescImportObject,
       DescImportPromise,
       OCapNSturdyRef,
+      HandOffUnionCodec,
+    },
+    {
+      'local:object': DescImportObject,
+      'local:promise': DescImportPromise,
+      'local:question': DescAnswer,
+      'remote:object': DescExport,
+      'remote:promise': DescExport,
+      'third-party:sturdy-ref': OCapNSturdyRef,
+      'third-party:handoff': HandOffUnionCodec,
     },
   );
-
-  // ReferenceCodec is handles any kind of Reference (Promise or Target),
-  // as well as SturdyRefs and Handoffs.
-  // when reading: export = local to us
-  // when writing: export = remote to us
-  const ReferenceCodec = makeCodec('ReferenceCodec', {
-    read(syrupReader) {
-      return ReferenceCodecReadCodec.read(syrupReader);
-    },
-    write(value, syrupWriter) {
-      const { type, isLocal, isThirdParty, grantDetails } =
-        tableKit.getInfoForVal(value);
-      if (isLocal) {
-        if (type === 'object') {
-          DescImportObject.write(value, syrupWriter);
-        } else if (type === 'promise') {
-          DescImportPromise.write(value, syrupWriter);
-        } else if (type === 'question') {
-          throw Error('Codec for "import-answer" not implemented');
-        } else {
-          throw Error(`Unknown type ${type}`);
-        }
-      } else if (isThirdParty) {
-        if (!grantDetails) {
-          throw Error('Third party references must have grant details');
-        }
-        const { type: grantType } = grantDetails;
-        // Remote, third party handoff
-        if (grantType === 'sturdy-ref') {
-          OCapNSturdyRef.write(grantDetails, syrupWriter);
-        } else if (grantType === 'handoff') {
-          throw Error('Handoff not implemented');
-        } else {
-          throw Error(`Unknown grant type ${grantType}`);
-        }
-      } else {
-        // Remote, this session is the grantee
-        // eslint-disable-next-line no-lonely-if
-        if (type === 'object' || type === 'promise') {
-          DescExport.write(value, syrupWriter);
-        } else if (type === 'question') {
-          DescAnswer.write(value, syrupWriter);
-        } else {
-          throw Error(`Unknown type ${type}`);
-        }
-      }
-    },
-  });
 
   return {
     DescImportObject,
@@ -275,12 +373,7 @@ export const makeDescCodecs = tableKit => {
     DescExport,
     DescAnswer,
     DeliverTarget,
-    DescHandoffGive,
-    DescSigGiveEnvelope,
-    DescHandoffReceive,
-    DescSigReceiveEnvelope,
-    ResolveMeDesc,
     ReferenceCodec,
-    OCapNSturdyRef,
+    ResolveMeDesc,
   };
 };

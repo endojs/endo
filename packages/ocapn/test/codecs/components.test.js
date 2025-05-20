@@ -1,9 +1,10 @@
 // @ts-check
 
+/** @typedef {import('@endo/eventual-send').Settler} Settler */
 /** @typedef {import('../../src/syrup/decode.js').SyrupReader} SyrupReader */
 /** @typedef {import('../../src/syrup/encode.js').SyrupWriter} SyrupWriter */
 /** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
-/** @typedef {import('@endo/eventual-send').Settler} Settler */
+/** @typedef {import('./_codecs_util.js').CodecTestEntry} CodecTestEntry */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 
@@ -23,6 +24,7 @@ import { makeTypeHintUnionCodec } from '../../src/syrup/codec.js';
 import { makeOCapNListComponentUnionCodec } from '../../src/codecs/util.js';
 import { testBidirectionally } from './_codecs_util.js';
 
+/** @type {CodecTestEntry[]} */
 const table = [
   {
     syrup: makeSig(exampleSigParamBytes, exampleSigParamBytes),
@@ -87,7 +89,10 @@ const OCapNComponentUnionCodec = makeTypeHintUnionCodec(
 
 test('affirmative component cases', t => {
   const codec = OCapNComponentUnionCodec;
-  for (const { syrup, value } of table) {
-    testBidirectionally(t, { codec, value, syrup });
+  for (const entry of table) {
+    testBidirectionally(t, {
+      ...entry,
+      codec,
+    });
   }
 });

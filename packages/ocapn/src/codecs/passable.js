@@ -80,17 +80,7 @@ const AtomCodecs = {
 
 /** @param {DescCodecs} descCodecs */
 export const makePassableCodecs = descCodecs => {
-  const {
-    DescImportObject,
-    DescImportPromise,
-    DescExport,
-    DescAnswer,
-    DescHandoffGive,
-    DescHandoffReceive,
-    DescSigGiveEnvelope,
-    OCapNSturdyRef,
-    ReferenceCodec,
-  } = descCodecs;
+  const { ReferenceCodec } = descCodecs;
 
   // OCapN Passable Containers
 
@@ -177,16 +167,8 @@ export const makePassableCodecs = descCodecs => {
       UndefinedCodec,
       NullCodec,
       OCapNTaggedCodec,
-      OCapNSturdyRef,
-      DescExport,
-      DescImportObject,
-      DescImportPromise,
-      DescAnswer,
-      DescHandoffGive,
-      DescHandoffReceive,
-      DescSigGiveEnvelope,
-      // DescSigReceiveEnvelope,
       OCapNErrorCodec,
+      ...ReferenceCodec.getChildCodecs(),
     },
   );
 
@@ -262,9 +244,11 @@ export const makePassableCodecs = descCodecs => {
         if (passStyle === 'selector') {
           return AtomCodecs.selector;
         }
+        // Some OCapN Record Types have a type property.
+        const { type: recordType } = value;
         if (
-          value.type !== undefined &&
-          OCapNPassableRecordUnionCodec.supports(value.type)
+          recordType !== undefined &&
+          OCapNPassableRecordUnionCodec.supports(recordType)
         ) {
           return OCapNPassableRecordUnionCodec;
         }
