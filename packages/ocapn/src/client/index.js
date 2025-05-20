@@ -25,10 +25,11 @@ import {
   writeOcapnHandshakeMessage,
 } from '../codecs/operations.js';
 import {
-  makeCrossedHellosIdForPublicKeyData,
+  makePublicKeyId,
   makeOCapNKeyPair,
   makeOCapNPublicKey,
   publicKeyToPublicKeyData,
+  makeSessionId,
 } from '../cryptography.js';
 import { OCapNMyLocation } from '../codecs/components.js';
 import { swissnumDecoder } from '../codecs/descriptors.js';
@@ -94,7 +95,11 @@ const makeSession = ({
   const importTable = new Map();
   const exportTable = new Map();
   const answerTable = new Map();
+  const selfId = makePublicKeyId(keyPair.publicKey);
+  const peerId = makePublicKeyId(peerPublicKey);
+  const id = makeSessionId(selfId, peerId);
   return harden({
+    id,
     connection,
     ocapn,
     tables: {
@@ -162,7 +167,7 @@ const makeBootstrapObject = (label, makeDefaultSwissnumTable) => {
 /**
  * @param {Connection} outgoingConnection
  * @param {Connection} incommingConnection
- * @param {OCapNPublicKeyData} incommingPublicKey
+ * @param {OCapNPublicKey} incommingPublicKey
  * @returns {{ preferredConnection: Connection, connectionToClose: Connection }}
  */
 const compareSessionKeysForCrossedHellos = (
@@ -170,11 +175,9 @@ const compareSessionKeysForCrossedHellos = (
   incommingConnection,
   incommingPublicKey,
 ) => {
-  const outgoingPublicKey = publicKeyToPublicKeyData(
-    outgoingConnection.selfIdentity.keyPair.publicKey,
-  );
-  const outgoingId = makeCrossedHellosIdForPublicKeyData(outgoingPublicKey);
-  const incommingId = makeCrossedHellosIdForPublicKeyData(incommingPublicKey);
+  const outgoingPublicKey = outgoingConnection.selfIdentity.keyPair.publicKey;
+  const outgoingId = makePublicKeyId(outgoingPublicKey);
+  const incommingId = makePublicKeyId(incommingPublicKey);
   const result = compareByteArrays(
     outgoingId,
     incommingId,
@@ -265,7 +268,7 @@ const handleSessionHandshakeMessage = (
         const { connectionToClose } = compareSessionKeysForCrossedHellos(
           outgoingConnection,
           incommingConnection,
-          sessionPublicKey,
+          peerPublicKey,
         );
         // Close the non-preferred connection
         const opAbort = {

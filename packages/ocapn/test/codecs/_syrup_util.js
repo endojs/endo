@@ -3,6 +3,14 @@
 const textEncoder = new TextEncoder();
 
 /**
+ * @param {string} string
+ * @returns {Uint8Array}
+ */
+export const strToUint8Array = string => {
+  return new Uint8Array(string.split('').map(c => c.charCodeAt(0)));
+};
+
+/**
  * Converts a hex string to a Uint8Array
  * @param {string} hexString - The hex string to convert
  * @returns {Uint8Array} The Uint8Array representation of the hex string
@@ -174,6 +182,15 @@ export const makeImportPromise = position => {
 };
 
 /**
+ * @param {string} object
+ * @param {string} signature
+ * @returns {string}
+ */
+export const makeSigEnvelope = (object, signature) => {
+  return record('desc:sig-envelope', object, signature);
+};
+
+/**
  * @param {string} receiverKey
  * @param {string} exporterLocation
  * @param {Uint8Array} exporterSessionId
@@ -199,12 +216,19 @@ export const makeDescGive = (
 };
 
 /**
- * @param {string} object
  * @param {string} signature
  * @returns {string}
  */
-export const makeSigEnvelope = (object, signature) => {
-  return record('desc:sig-envelope', object, signature);
+export const makeSignedHandoffGive = signature => {
+  const descGive = makeDescGive(
+    makePubKey(examplePubKeyQBytes),
+    makeNode('tcp', '127.0.0.1', false),
+    strToUint8Array('exporter-session-id'),
+    strToUint8Array('gifter-side-id'),
+    strToUint8Array('gift-id'),
+  );
+  const signedGiveEnvelope = makeSigEnvelope(descGive, signature);
+  return signedGiveEnvelope;
 };
 
 /**
@@ -233,9 +257,23 @@ export const makeHandoffReceive = (
 };
 
 /**
- * @param {string} string
- * @returns {Uint8Array}
+ * @returns {string}
  */
-export const strToUint8Array = string => {
-  return new Uint8Array(string.split('').map(c => c.charCodeAt(0)));
+export const makeSignedHandoffReceive = () => {
+  const handoffReceive = makeHandoffReceive(
+    strToUint8Array('123'),
+    strToUint8Array('456'),
+    1,
+    makeDescGive(
+      makePubKey(examplePubKeyQBytes),
+      makeNode('tcp', '127.0.0.1', false),
+      strToUint8Array('exporter-session-id'),
+      strToUint8Array('gifter-side-id'),
+      strToUint8Array('gift-id'),
+    ),
+    makeSig(exampleSigParamBytes, exampleSigParamBytes),
+  );
+  const signature = makeSig(exampleSigParamBytes, exampleSigParamBytes);
+  const signedHandoffReceive = makeSigEnvelope(handoffReceive, signature);
+  return signedHandoffReceive;
 };
