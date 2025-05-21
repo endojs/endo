@@ -71,10 +71,9 @@ const FILENAME_NODE_DEPENDENTS_CENSOR = /\/node_modules\//;
 // stack traces.
 const FILENAME_NODE_INTERNALS_CENSOR = /^(?:node:)?internal\//;
 
-// Frames within the `assert.js` package should be dropped from
-// concise stack traces, as these are just steps towards creating the
-// error object in question.
-const FILENAME_ASSERT_CENSOR = /\/packages\/ses\/src\/error\/assert.js$/;
+// Frames within SES `assert.js` should be dropped from concise stack traces, as
+// these are just steps towards creating the error object in question.
+const FILENAME_ASSERT_CENSOR = /\/packages\/ses\/src\/error\/assert\.js$/;
 
 // Frames within the `eventual-send` shim should be dropped so that concise
 // deep stacks omit the internals of the eventual-sending mechanism causing
@@ -82,6 +81,10 @@ const FILENAME_ASSERT_CENSOR = /\/packages\/ses\/src\/error\/assert.js$/;
 // Note that the eventual-send package will move from agoric-sdk to
 // Endo, so this rule will be of general interest.
 const FILENAME_EVENTUAL_SEND_CENSOR = /\/packages\/eventual-send\/src\//;
+
+// Frames within the `ses-ava` package should be dropped from concise stack
+// traces, as they just support exposing error details to AVA.
+const FILENAME_SES_AVA_CENSOR = /\/packages\/ses-ava\/src\/ses-ava-test\.js$/;
 
 // Any stack frame whose `fileName` matches any of these censor patterns
 // will be omitted from concise stacks.
@@ -91,6 +94,7 @@ const FILENAME_CENSORS = [
   FILENAME_NODE_INTERNALS_CENSOR,
   FILENAME_ASSERT_CENSOR,
   FILENAME_EVENTUAL_SEND_CENSOR,
+  FILENAME_SES_AVA_CENSOR,
 ];
 
 // Should a stack frame with this as its fileName be included in a concise
