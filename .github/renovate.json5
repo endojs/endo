@@ -1,0 +1,62 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  description: 'Renovate config for endojs/endo',
+  extends: [
+    // only pin dev deps
+    // https://docs.renovatebot.com/presets-config/#configjs-lib
+    'config:js-lib',
+
+    // send PRs to resolve dependabot alerts
+    // https://docs.renovatebot.com/configuration-options/#vulnerabilityalerts
+    ':enableVulnerabilityAlerts',
+
+    // commit messages in conventional commits format
+    // https://docs.renovatebot.com/presets-default/#semanticcommits
+    ':semanticCommits',
+
+    // group all eslint-related & prettier updates
+    // https://docs.renovatebot.com/presets-group/#grouplinters
+    'group:linters',
+
+    // group all babel-related updates
+    // https://docs.renovatebot.com/presets-group/#groupmonorepos
+    'group:babelMonorepo',
+
+    // group all @types/* updates
+    // https://docs.renovatebot.com/presets-group/#groupdefinitelytyped
+    'group:definitelyTyped',
+
+    // only update after packages can no longer be unpublished
+    // https://docs.renovatebot.com/presets-npm/#npmunpublishsafe
+    'npm:unpublishSafe',
+
+    // do not update major versions of @types/node
+    // https://docs.renovatebot.com/presets-helpers/#helpersdisabletypesnodemajor
+    'helpers:disableTypesNodeMajor',
+
+    // pin github action digests
+    // https://docs.renovatebot.com/presets-helpers/#helperspingithubactiondigests
+    'helpers:pinGitHubActionDigests',
+  ],
+  labels: ['dependencies'],
+  ignorePaths: [
+    '**/node_modules/**',
+    '**/test/**',
+    '**/demo/**',
+    '**/example*/**',
+  ],
+  packageRules: [
+    // assign "tooling" label to all PRs updating devDependencies
+    {
+      matchDepTypes: ['devDependencies'],
+      addLabels: ['tooling'],
+    },
+    // assign "ses" label to all PRs updating ses' dependencies
+    {
+      matchFilenames: ['packages/ses/package.json'],
+      addLabels: ['ses'],
+    },
+  ],
+  // add 'tracking' label to dependency dashboard issue
+  dependencyDashboardLabels: ['tracking'],
+}
