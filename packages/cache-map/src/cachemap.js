@@ -191,15 +191,14 @@ export const makeCacheMapKit = (capacity, options = {}) => {
    * @template V
    * @type {<V,>() => WeakMapAPI<K, V>}
    */
-  const makeMap = (maybeCtor => {
+  const makeMap = (MaybeCtor => {
     try {
       // @ts-expect-error
-      maybeCtor();
-      return /** @type {any} */ (maybeCtor);
+      MaybeCtor();
+      return /** @type {any} */ (MaybeCtor);
     } catch (err) {
       // @ts-expect-error
-      // eslint-disable-next-line new-cap
-      const constructNewMap = () => new maybeCtor();
+      const constructNewMap = () => new MaybeCtor();
       return constructNewMap;
     }
   })(options.makeMap ?? WeakMap);
