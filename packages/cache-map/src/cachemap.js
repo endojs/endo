@@ -15,16 +15,25 @@ const { toStringTag: toStringTagSymbol } = Symbol;
 const UNKNOWN_KEY = Symbol('UNKNOWN_KEY');
 
 /**
- * @template {WeakKey} K
+ * A cache of bounded size, implementing the WeakMap interface but holding keys
+ * strongly if created with a non-weak `makeMap` option of {@link makeCacheMap}.
+ *
+ * @template K
  * @template V
- * @typedef {WeakMap<K, V>} SingleEntryMap
+ * @typedef {Pick<Map<K, V>, Exclude<keyof WeakMap<WeakKey, *>, 'set'>> & {set: (key: K, value: V) => WeakMapAPI<K, V>}} WeakMapAPI
+ */
+
+/**
+ * @template K
+ * @template V
+ * @typedef {WeakMapAPI<K, V> & {size?: (0 | 1)}} SingleEntryMap
  */
 
 /**
  * A cell of a doubly-linked ring (circular list) for a cache map.
  * Instances are not frozen, and so should be closely encapsulated.
  *
- * @template {WeakKey} K
+ * @template K
  * @template V
  * @typedef {object} CacheMapCell
  * @property {number} id for debugging
@@ -34,11 +43,11 @@ const UNKNOWN_KEY = Symbol('UNKNOWN_KEY');
  */
 
 /**
- * @template {WeakKey} K
+ * @template K
  * @template V
  * @param {CacheMapCell<K, V>} prev
  * @param {number} id
- * @param {WeakMap<K, V>} data
+ * @param {WeakMapAPI<K, V>} data
  * @returns {CacheMapCell<K, V>}
  */
 const appendNewCell = (prev, id, data) => {
@@ -50,7 +59,7 @@ const appendNewCell = (prev, id, data) => {
 };
 
 /**
- * @template {WeakKey} K
+ * @template K
  * @template V
  * @param {CacheMapCell<K, V>} cell
  * @param {CacheMapCell<K, V>} prev
@@ -75,27 +84,45 @@ const moveCellAfter = (cell, prev, next = prev.next) => {
  * Clear out a cell to prepare it for future use. Its map is preserved when
  * possible, but must instead be replaced if the associated key is not known.
  *
- * @template {WeakKey} K
+ * @template K
  * @template V
  * @param {CacheMapCell<K, V>} cell
  * @param {K | UNKNOWN_KEY} oldKey
- * @param {() => WeakMap<K, V>} [makeMap] required when the key is unknown
+ * @param {() => WeakMapAPI<K, V>} [makeMap] required when the key is unknown
  */
 const resetCell = (cell, oldKey, makeMap) => {
   if (oldKey === UNKNOWN_KEY) {
-    if (!makeMap) throw Error('internal: makeMap is required with UNKNOWN_KEY');
-    cell.data = makeMap();
-  } else {
-    cell.data.delete(oldKey);
+    const { size } = cell.data;
+    if (size === undefined) {
+      // WeakMap instances must be replaced when the key is unknown.
+      if (!makeMap) {
+        throw Error('internal: makeMap is required with UNKNOWN_KEY');
+      }
+      cell.data = makeMap();
+      return;
+    }
+    // Map instances can always be cleared for reuse.
+    if (size === 0) return;
+    if (size !== 1) {
+      throw Error('internal: Unexpected non-singular cell data entry count');
+    }
+    // Manually run the Iterator interface to ensure reading oldKey from an
+    // IteratorResult (rather than defaulting to undefined if the iteration is
+    // empty).
+    const cellData = /** @type {Map<K, V>} */ (cell.data);
+    oldKey = /** @type {K} */ (cellData.keys().next().value);
   }
+  cell.data.delete(oldKey);
 };
 
 /**
  * Create a bounded-size cache having WeakMap-compatible
  * `has`/`get`/`set`/`delete` methods, capable of supporting SES (specifically
- * `assert` error notes). Key validity, comparison, and referential strength are
- * all identical to WeakMap (e.g., user abandonment of a key used in the cache
- * releases the associated value from the cache for garbage collection).
+ * `assert` error notes).
+ * Key validity, comparison, and referential strength are controlled by the
+ * `makeMap` option, which defaults to `WeakMap` but can be set to any producer
+ * of objects with those methods (e.g., using `Map` allows for arbitrary keys
+ * which will be strongly held).
  * Cache eviction policy is not currently configurable, but strives for a hit
  * ratio at least as good as
  * [LRU](https://en.wikipedia.org/wiki/Cache_replacement_policies#LRU) (e.g., it
@@ -103,22 +130,42 @@ const resetCell = (cell, oldKey, makeMap) => {
  * [CLOCK](https://en.wikipedia.org/wiki/Page_replacement_algorithm#Clock)
  * or [SIEVE](https://sievecache.com/)).
  *
- * @template {WeakKey} K
- * @template {unknown} V
+ * @template {MapConstructor | WeakMapConstructor} [C=WeakMapConstructor]
+ * @template {Parameters<InstanceType<C>['set']>[0]} [K=Parameters<InstanceType<C>['set']>[0]]
+ * @template {unknown} [V=unknown]
  * @param {number} capacity
- * @returns {WeakMap<K, V>}
+ * @param {object} [options]
+ * @param {C | (() => WeakMapAPI<K, V>)} [options.makeMap]
+ * @returns {WeakMapAPI<K, V>}
  */
-export const makeCacheMap = capacity => {
+export const makeCacheMap = (capacity, options = {}) => {
   if (!isSafeInteger(capacity) || capacity < 0) {
     throw TypeError(
       'capacity must be a non-negative safe integer number <= 2**53 - 1',
     );
   }
 
-  /** @type {<V,>() => WeakMap<K, V>} */
-  const makeMap = () => new WeakMap();
+  /**
+   * @template V
+   * @type {<V,>() => WeakMapAPI<K, V>}
+   */
+  const makeMap = (MaybeCtor => {
+    try {
+      // @ts-expect-error
+      MaybeCtor();
+      return /** @type {any} */ (MaybeCtor);
+    } catch (err) {
+      // @ts-expect-error
+      const constructNewMap = () => new MaybeCtor();
+      return constructNewMap;
+    }
+  })(options.makeMap ?? WeakMap);
+  const tag =
+    /** @type {any} */ (makeMap()).size === undefined
+      ? 'WeakCacheMap'
+      : 'CacheMap';
 
-  /** @type {WeakMap<K, CacheMapCell<K, V>>} */
+  /** @type {WeakMapAPI<K, CacheMapCell<K, V>>} */
   const keyToCell = makeMap();
   // @ts-expect-error this sentinel head is special
   const head = /** @type {CacheMapCell<K, V>} */ ({
@@ -163,7 +210,7 @@ export const makeCacheMap = capacity => {
   };
   freeze(get);
 
-  /** @type {(key: K, value: V) => WeakMap<K, V>} */
+  /** @type {(key: K, value: V) => WeakMapAPI<K, V>} */
   const set = (key, value) => {
     let cell = touchKey(key);
     if (cell) {
@@ -210,14 +257,13 @@ export const makeCacheMap = capacity => {
   };
   freeze(deleteEntry);
 
-  const implementation = /** @type {WeakMap<K, V>} */ ({
+  const implementation = /** @type {WeakMapAPI<K, V>} */ ({
     has,
     get,
     set,
     delete: deleteEntry,
     // eslint-disable-next-line jsdoc/check-types
-    [/** @type {typeof Symbol.toStringTag} */ (toStringTagSymbol)]:
-      'WeakCacheMap',
+    [/** @type {typeof Symbol.toStringTag} */ (toStringTagSymbol)]: tag,
   });
   freeze(implementation);
   return implementation;
