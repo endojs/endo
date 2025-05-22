@@ -2,9 +2,10 @@
 
 This `@endo/cache-map` package creates bounded-size caches having
 WeakMap-compatible `has`/`get`/`set`/`delete` methods.
-Key validity, comparison, and referential strength are all identical to WeakMap
-(e.g., user abandonment of a key used in the cache releases the associated value
-from the cache for garbage collection).
+Key validity, comparison, and referential strength are controlled by a `makeMap`
+option, which defaults to `WeakMap` but can be set to any producer of objects
+with those methods (e.g., using `Map` allows for arbitrary keys which will be
+strongly held).
 Cache eviction policy is not currently configurable, but strives for a hit ratio
 at least as good as
 [LRU](https://en.wikipedia.org/wiki/Cache_replacement_policies#LRU) (e.g., it
@@ -13,29 +14,39 @@ or [SIEVE](https://sievecache.com/)).
 
 ## Usage
 
+### Weak Cache
 ```js
 import { makeCacheMap } from '@endo/cache-map';
 
-const cache = makeCacheMap(2);
+const weakCache = makeCacheMap(2);
 const entries = [
   { key: Symbol('key 1'), value: Symbol('value 1') },
   { key: Symbol('key 2'), value: Symbol('value 2') },
   { key: Symbol('key 3'), value: Symbol('value 3') },
 ];
-for (const { key, value } of entries) cache.set(key, value);
+for (const { key, value } of entries) weakCache.set(key, value);
 
-assert(!cache.has(entries[0].key));
-assert(cache.has(entries[1].key));
-assert(cache.get(entries[2].key) === entries[2].value);
+assert(!weakCache.has(entries[0].key));
+assert(weakCache.has(entries[1].key));
+assert(weakCache.get(entries[2].key) === entries[2].value);
 
-cache.delete(entries[2].key);
-cache.set(entries[1].key, entries[0]);
+weakCache.delete(entries[2].key);
+weakCache.set(entries[1].key, entries[0]);
 
-assert(!cache.has(entries[0].key));
-assert(!cache.has(entries[2].key));
-assert(cache.get(entries[1].key) === entries[0]);
+assert(!weakCache.has(entries[0].key));
+assert(!weakCache.has(entries[2].key));
+assert(weakCache.get(entries[1].key) === entries[0]);
 
-assert.throws(() => cache.set('unweakable key', {}));
+assert.throws(() => weakCache.set('unweakable key', {}));
+```
+
+### Strong Cache
+```js
+import { makeCacheMap } from '@endo/cache-map';
+
+const cache = makeCacheMap(100, { makeMap: Map });
+cache.set('unweakable key', 'ok');
+assert(cache.get('unweakable key') === 'ok');
 ```
 
 ## License
