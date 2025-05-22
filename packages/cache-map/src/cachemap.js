@@ -1,6 +1,9 @@
 // @ts-check
+/* global globalThis */
 /* eslint-disable @endo/no-polymorphic-call */
 
+// eslint-disable-next-line no-restricted-globals
+const { Error, TypeError, WeakMap } = globalThis;
 // eslint-disable-next-line no-restricted-globals
 const { isSafeInteger } = Number;
 // eslint-disable-next-line no-restricted-globals
@@ -8,81 +11,83 @@ const { freeze } = Object;
 // eslint-disable-next-line no-restricted-globals
 const { toStringTag: toStringTagSymbol } = Symbol;
 
+// eslint-disable-next-line no-restricted-globals
+const UNKNOWN_KEY = Symbol('UNKNOWN_KEY');
+
 /**
- * @template Data
- * @typedef {object} DoublyLinkedCell
- * A cell of a doubly-linked ring, i.e., a doubly-linked circular list.
- * DoublyLinkedCells are not frozen, and so should be closely encapsulated by
- * any abstraction that uses them.
- * @property {DoublyLinkedCell<Data>} next
- * @property {DoublyLinkedCell<Data>} prev
- * @property {Data} data
+ * @template {WeakKey} K
+ * @template V
+ * @typedef {WeakMap<K, V>} SingleEntryMap
  */
 
 /**
- * Makes a new self-linked cell. There are two reasons to do so:
- *    * To make the head sigil of a new initially-empty doubly-linked ring.
- *    * To make a non-sigil cell to be `spliceAfter`ed.
+ * A cell of a doubly-linked ring (circular list) for a cache map.
+ * Instances are not frozen, and so should be closely encapsulated.
  *
- * @template Data
- * @param {Data} data
- * @returns {DoublyLinkedCell<Data>}
+ * @template {WeakKey} K
+ * @template V
+ * @typedef {object} CacheMapCell
+ * @property {number} id for debugging
+ * @property {CacheMapCell<K, V>} next
+ * @property {CacheMapCell<K, V>} prev
+ * @property {SingleEntryMap<K, V>} data
  */
-const makeSelfCell = data => {
-  /** @type {Partial<DoublyLinkedCell<Data>>} */
-  const incompleteCell = {
-    next: undefined,
-    prev: undefined,
-    data,
-  };
-  const selfCell = /** @type {DoublyLinkedCell<Data>} */ (incompleteCell);
-  selfCell.next = selfCell;
-  selfCell.prev = selfCell;
-  // Not frozen!
-  return selfCell;
-};
 
 /**
- * Splices a self-linked non-sigil cell into a ring after `prev`.
- * `prev` could be the head sigil, or it could be some other non-sigil
- * cell within a ring.
- *
- * @template Data
- * @param {DoublyLinkedCell<Data>} prev
- * @param {DoublyLinkedCell<Data>} selfCell
+ * @template {WeakKey} K
+ * @template V
+ * @param {CacheMapCell<K, V>} prev
+ * @param {number} id
+ * @param {WeakMap<K, V>} data
+ * @returns {CacheMapCell<K, V>}
  */
-const spliceAfter = (prev, selfCell) => {
-  if (prev === selfCell) {
-    // eslint-disable-next-line no-restricted-globals
-    throw TypeError('Cannot splice a cell into itself');
-  }
-  if (selfCell.next !== selfCell || selfCell.prev !== selfCell) {
-    // eslint-disable-next-line no-restricted-globals
-    throw TypeError('Expected self-linked cell');
-  }
-  const cell = selfCell;
-  // rename variable cause it isn't self-linked after this point.
-
-  const next = prev.next;
-  cell.prev = prev;
-  cell.next = next;
+const appendNewCell = (prev, id, data) => {
+  const next = prev?.next;
+  const cell = { id, next, prev, data };
   prev.next = cell;
   next.prev = cell;
-  // Not frozen!
   return cell;
 };
 
 /**
- * @template Data
- * @param {DoublyLinkedCell<Data>} cell
- * No-op if the cell is self-linked.
+ * @template {WeakKey} K
+ * @template V
+ * @param {CacheMapCell<K, V>} cell
+ * @param {CacheMapCell<K, V>} prev
+ * @param {CacheMapCell<K, V>} [next]
  */
-const spliceOut = cell => {
-  const { prev, next } = cell;
-  prev.next = next;
-  next.prev = prev;
-  cell.prev = cell;
-  cell.next = cell;
+const moveCellAfter = (cell, prev, next = prev.next) => {
+  if (cell === prev || cell === next) return; // already in position
+
+  // Splice out cell.
+  const { prev: oldPrev, next: oldNext } = cell;
+  oldPrev.next = oldNext;
+  oldNext.prev = oldPrev;
+
+  // Splice in cell after prev.
+  cell.prev = prev;
+  cell.next = next;
+  prev.next = cell;
+  next.prev = cell;
+};
+
+/**
+ * Clear out a cell to prepare it for future use. Its map is preserved when
+ * possible, but must instead be replaced if the associated key is not known.
+ *
+ * @template {WeakKey} K
+ * @template V
+ * @param {CacheMapCell<K, V>} cell
+ * @param {K | UNKNOWN_KEY} oldKey
+ * @param {() => WeakMap<K, V>} [makeMap] required when the key is unknown
+ */
+const resetCell = (cell, oldKey, makeMap) => {
+  if (oldKey === UNKNOWN_KEY) {
+    if (!makeMap) throw Error('internal: makeMap is required with UNKNOWN_KEY');
+    cell.data = makeMap();
+  } else {
+    cell.data.delete(oldKey);
+  }
 };
 
 /**
@@ -100,85 +105,88 @@ const spliceOut = cell => {
  *
  * @template {WeakKey} K
  * @template {unknown} V
- * @param {number} keysBudget
- * @returns {WeakMap<K,V>}
+ * @param {number} capacity
+ * @returns {WeakMap<K, V>}
  */
-export const makeCacheMap = keysBudget => {
-  if (!isSafeInteger(keysBudget) || keysBudget < 0) {
-    // eslint-disable-next-line no-restricted-globals
-    throw TypeError('keysBudget must be a safe non-negative integer number');
+export const makeCacheMap = capacity => {
+  if (!isSafeInteger(capacity) || capacity < 0) {
+    throw TypeError(
+      'capacity must be a non-negative safe integer number <= 2**53 - 1',
+    );
   }
-  /** @typedef {DoublyLinkedCell<WeakMap<K, V> | undefined>} CacheMapCell */
-  /** @type {WeakMap<K, CacheMapCell>} */
-  // eslint-disable-next-line no-restricted-globals
-  const keyToCell = new WeakMap();
-  let size = 0; // `size` must remain <= `keysBudget`
-  // As a sigil, `head` uniquely is not in the `keyToCell` map.
-  /** @type {CacheMapCell} */
-  const head = makeSelfCell(undefined);
 
-  const touchCell = key => {
+  /** @type {<V,>() => WeakMap<K, V>} */
+  const makeMap = () => new WeakMap();
+
+  /** @type {WeakMap<K, CacheMapCell<K, V>>} */
+  const keyToCell = makeMap();
+  // @ts-expect-error this sentinel head is special
+  const head = /** @type {CacheMapCell<K, V>} */ ({
+    id: 0,
+    // next and prev are established below as self-referential.
+    next: undefined,
+    prev: undefined,
+    data: {
+      has: () => {
+        throw Error('internal: sentinel head cell has no data');
+      },
+    },
+  });
+  head.next = head;
+  head.prev = head;
+  let cellCount = 0;
+
+  /**
+   * Touching moves a cell to first position so LRU eviction can target the last
+   * cell (`head.prev`).
+   *
+   * @type {(key: K) => (CacheMapCell<K, V> | undefined)}
+   */
+  const touchKey = key => {
     const cell = keyToCell.get(key);
-    if (cell === undefined || cell.data === undefined) {
-      // Either the key was GCed, or the cell was condemned.
-      return undefined;
-    }
-    // Becomes most recently used
-    spliceOut(cell);
-    spliceAfter(head, cell);
+    if (!cell?.data.has(key)) return undefined;
+    moveCellAfter(cell, head);
     return cell;
   };
 
-  /**
-   * @param {K} key
-   */
-  const has = key => touchCell(key) !== undefined;
+  /** @type {(key: K) => boolean} */
+  const has = key => {
+    const cell = touchKey(key);
+    return cell !== undefined;
+  };
   freeze(has);
 
-  /**
-   * @param {K} key
-   */
-  // UNTIL https://github.com/endojs/endo/issues/1514
-  // Prefer: const get = key => touchCell(key)?.data?.get(key);
+  /** @type {(key: K) => (V | undefined)} */
   const get = key => {
-    const cell = touchCell(key);
-    return cell && cell.data && cell.data.get(key);
+    const cell = touchKey(key);
+    return cell?.data.get(key);
   };
   freeze(get);
 
-  /**
-   * @param {K} key
-   * @param {V} value
-   */
+  /** @type {(key: K, value: V) => WeakMap<K, V>} */
   const set = (key, value) => {
-    if (keysBudget < 1) {
+    let cell = touchKey(key);
+    if (cell) {
+      cell.data.set(key, value);
       // eslint-disable-next-line no-use-before-define
       return implementation;
     }
 
-    let cell = touchCell(key);
-    if (cell === undefined) {
-      cell = makeSelfCell(undefined);
-      spliceAfter(head, cell); // start most recently used
-    }
-    if (!cell.data) {
-      // Either a fresh cell or a reused condemned cell.
-      size += 1;
-      // Add its data.
-      // eslint-disable-next-line no-restricted-globals
-      cell.data = new WeakMap();
-      // Advertise the cell for this key.
-      keyToCell.set(key, cell);
-      while (size > keysBudget) {
-        const condemned = head.prev;
-        spliceOut(condemned); // Drop least recently used
-        condemned.data = undefined;
-        size -= 1;
-      }
+    if (cellCount < capacity) {
+      // Add and use a new cell at first position.
+      cell = appendNewCell(head, cellCount + 1, makeMap());
+      cellCount += 1; // intentionally follows cell creation
+      cell.data.set(key, value);
+    } else if (capacity > 0) {
+      // Reuse the current tail, moving it to first position.
+      cell = head.prev;
+      resetCell(cell, UNKNOWN_KEY, makeMap);
+      cell.data.set(key, value);
+      moveCellAfter(cell, head);
     }
 
-    // Update the data.
-    cell.data.set(key, value);
+    // Don't establish this entry until prior steps succeed.
+    if (cell) keyToCell.set(key, cell);
 
     // eslint-disable-next-line no-use-before-define
     return implementation;
@@ -186,36 +194,32 @@ export const makeCacheMap = keysBudget => {
   freeze(set);
 
   // "delete" is a keyword.
-  /**
-   * @param {K} key
-   */
-  const deleteIt = key => {
-    const cell = keyToCell.get(key);
-    if (cell === undefined) {
-      return false;
-    }
-    spliceOut(cell);
-    keyToCell.delete(key);
-    if (cell.data === undefined) {
-      // Already condemned.
-      return false;
-    }
-
-    cell.data = undefined;
-    size -= 1;
-    return true;
+  const { delete: deleteEntry } = {
+    /** @type {(key: K) => boolean} */
+    delete: key => {
+      const cell = keyToCell.get(key);
+      if (!cell?.data.has(key)) {
+        keyToCell.delete(key);
+        return false;
+      }
+      moveCellAfter(cell, head.prev);
+      resetCell(cell, key);
+      keyToCell.delete(key);
+      return true;
+    },
   };
-  freeze(deleteIt);
+  freeze(deleteEntry);
 
-  const implementation = freeze({
+  const implementation = /** @type {WeakMap<K, V>} */ ({
     has,
     get,
     set,
-    delete: deleteIt,
+    delete: deleteEntry,
     // eslint-disable-next-line jsdoc/check-types
     [/** @type {typeof Symbol.toStringTag} */ (toStringTagSymbol)]:
       'WeakCacheMap',
   });
+  freeze(implementation);
   return implementation;
 };
 freeze(makeCacheMap);
