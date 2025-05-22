@@ -78,3 +78,27 @@ test('makeCacheMap', t => {
   assertEntry(key2, 'yy');
   assertEntry(key3, 'zz');
 });
+
+test('makeCacheMap argument validation', t => {
+  const badCapacities = [
+    NaN,
+    -1,
+    0.5,
+    2 ** 53,
+    Infinity,
+    '1',
+    // eslint-disable-next-line
+    new Number(1),
+    {
+      [Symbol.toStringTag]: '{[Symbol.toPrimitive]}',
+      [Symbol.toPrimitive]: () => 1,
+    },
+  ];
+  for (const capacity of badCapacities) {
+    t.throws(
+      () => makeCacheMap(capacity),
+      undefined,
+      `capacity: ${typeof capacity} ${capacity}`,
+    );
+  }
+});
