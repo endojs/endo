@@ -5,6 +5,8 @@
 // eslint-disable-next-line no-restricted-globals
 const { Error, TypeError, WeakMap } = globalThis;
 // eslint-disable-next-line no-restricted-globals
+const { parse, stringify } = JSON;
+// eslint-disable-next-line no-restricted-globals
 const { isSafeInteger } = Number;
 // eslint-disable-next-line no-restricted-globals
 const { freeze } = Object;
@@ -15,8 +17,34 @@ const { toStringTag: toStringTagSymbol } = Symbol;
 const UNKNOWN_KEY = Symbol('UNKNOWN_KEY');
 
 /**
+ * @template T
+ * @typedef {T extends object ? { -readonly [K in keyof T]: T[K] } : never} WritableDeep
+ *   Intentionally limited to local needs; refer to
+ *   https://github.com/sindresorhus/type-fest if insufficient.
+ */
+
+/**
+ * @template T
+ * @param {T} value
+ * @param {<U,>(name: string, value: U) => U} [reviver]
+ * @returns {WritableDeep<T>}
+ */
+const deepCopyJsonable = (value, reviver) => {
+  const encoded = stringify(value);
+  const decoded = parse(encoded, reviver);
+  return decoded;
+};
+
+const freezingReviver = (_name, value) => freeze(value);
+
+/** @type {<T,>(value: T) => T} */
+const deepCopyAndFreezeJsonable = value =>
+  deepCopyJsonable(value, freezingReviver);
+
+/**
  * A cache of bounded size, implementing the WeakMap interface but holding keys
- * strongly if created with a non-weak `makeMap` option of {@link makeCacheMap}.
+ * strongly if created with a non-weak `makeMap` option of
+ * {@link makeCacheMapKit}.
  *
  * @template K
  * @template V
@@ -115,6 +143,25 @@ const resetCell = (cell, oldKey, makeMap) => {
   cell.data.delete(oldKey);
 };
 
+const zeroMetrics = freeze({
+  totalQueryCount: 0,
+  totalHitCount: 0,
+  // TODO?
+  // * method-specific counts
+  // * liveTouchStats/evictedTouchStats { count, sum, mean, min, max }
+  //   * p50/p90/p95/p99 via Ben-Haim/Tom-Tov streaming histograms
+});
+/** @typedef {typeof zeroMetrics} CacheMapMetrics */
+
+/**
+ * @template {MapConstructor | WeakMapConstructor} [C=WeakMapConstructor]
+ * @template {Parameters<InstanceType<C>['set']>[0]} [K=Parameters<InstanceType<C>['set']>[0]]
+ * @template {unknown} [V=unknown]
+ * @typedef {object} CacheMapKit
+ * @property {WeakMapAPI<K, V>} cache
+ * @property {() => CacheMapMetrics} getMetrics
+ */
+
 /**
  * Create a bounded-size cache having WeakMap-compatible
  * `has`/`get`/`set`/`delete` methods, capable of supporting SES (specifically
@@ -136,9 +183,9 @@ const resetCell = (cell, oldKey, makeMap) => {
  * @param {number} capacity
  * @param {object} [options]
  * @param {C | (() => WeakMapAPI<K, V>)} [options.makeMap]
- * @returns {WeakMapAPI<K, V>}
+ * @returns {CacheMapKit<C, K, V>}
  */
-export const makeCacheMap = (capacity, options = {}) => {
+export const makeCacheMapKit = (capacity, options = {}) => {
   if (!isSafeInteger(capacity) || capacity < 0) {
     throw TypeError(
       'capacity must be a non-negative safe integer number <= 2**53 - 1',
@@ -183,6 +230,9 @@ export const makeCacheMap = (capacity, options = {}) => {
   head.prev = head;
   let cellCount = 0;
 
+  const metrics = deepCopyJsonable(zeroMetrics);
+  const getMetrics = () => deepCopyAndFreezeJsonable(metrics);
+
   /**
    * Touching moves a cell to first position so LRU eviction can target the last
    * cell (`head.prev`).
@@ -190,8 +240,11 @@ export const makeCacheMap = (capacity, options = {}) => {
    * @type {(key: K) => (CacheMapCell<K, V> | undefined)}
    */
   const touchKey = key => {
+    metrics.totalQueryCount += 1;
     const cell = keyToCell.get(key);
     if (!cell?.data.has(key)) return undefined;
+
+    metrics.totalHitCount += 1;
     moveCellAfter(cell, head);
     return cell;
   };
@@ -227,7 +280,7 @@ export const makeCacheMap = (capacity, options = {}) => {
     } else if (capacity > 0) {
       // Reuse the current tail, moving it to first position.
       cell = head.prev;
-      resetCell(cell, UNKNOWN_KEY, makeMap);
+      resetCell(/** @type {any} */ (cell), UNKNOWN_KEY, makeMap);
       cell.data.set(key, value);
       moveCellAfter(cell, head);
     }
@@ -266,6 +319,8 @@ export const makeCacheMap = (capacity, options = {}) => {
     [/** @type {typeof Symbol.toStringTag} */ (toStringTagSymbol)]: tag,
   });
   freeze(implementation);
-  return implementation;
+
+  const kit = { cache: implementation, getMetrics };
+  return freeze(kit);
 };
-freeze(makeCacheMap);
+freeze(makeCacheMapKit);
