@@ -1,1 +1,1 @@
-export { makeCacheMap } from './src/cachemap.js';
+export { makeCacheMapKit } from './src/cachemap.js';

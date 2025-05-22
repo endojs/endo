@@ -16,9 +16,9 @@ or [SIEVE](https://sievecache.com/)).
 
 ### Weak Cache
 ```js
-import { makeCacheMap } from '@endo/cache-map';
+import { makeCacheMapKit } from '@endo/cache-map';
 
-const weakCache = makeCacheMap(2);
+const { cache: weakCache, getMetrics } = makeCacheMapKit(2);
 const entries = [
   { key: Symbol('key 1'), value: Symbol('value 1') },
   { key: Symbol('key 2'), value: Symbol('value 2') },
@@ -42,9 +42,9 @@ assert.throws(() => weakCache.set('unweakable key', {}));
 
 ### Strong Cache
 ```js
-import { makeCacheMap } from '@endo/cache-map';
+import { makeCacheMapKit } from '@endo/cache-map';
 
-const cache = makeCacheMap(100, { makeMap: Map });
+const { cache, getMetrics } = makeCacheMapKit(100, { makeMap: Map });
 cache.set('unweakable key', 'ok');
 assert(cache.get('unweakable key') === 'ok');
 ```

@@ -23,7 +23,10 @@
   "main": "./index.js",
   "module": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
