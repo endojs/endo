@@ -20,7 +20,7 @@ const toSwissnum = str => textEncoder.encode(str);
 const makeTestClient = async (debugLabel, makeDefaultSwissnumTable) => {
   const client = makeClient({
     debugLabel,
-    makeDefaultSwissnumTable,
+    swissnumTable: makeDefaultSwissnumTable && makeDefaultSwissnumTable(),
   });
   const tcpNetlayer = await makeTcpNetLayer({ client });
   client.registerNetlayer(tcpNetlayer);

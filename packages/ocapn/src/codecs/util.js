@@ -6,6 +6,7 @@
 /** @typedef {import('../syrup/codec.js').SyrupRecordDefinition} SyrupRecordDefinition */
 /** @typedef {import('../syrup/codec.js').SyrupRecordUnionCodec} SyrupRecordUnionCodec */
 /** @typedef {import('../client/ocapn.js').TableKit} TableKit */
+/** @typedef {import('../client/ocapn.js').HandoffGiveDetails} HandoffGiveDetails */
 
 import {
   makeCodec,
@@ -208,8 +209,13 @@ export const makeValueInfoRecordUnionCodec = (
       if (!codec) {
         throw Error(`${codecName}: No write codec for table key ${tableKey}`);
       }
-      // Pass only the grant details to the codec
-      codec.write(grantDetails, syrupWriter);
+      // Pass only the HandoffGive details to the codec
+      /** @type {HandoffGiveDetails} */
+      const handoffGiveDetails = {
+        value,
+        grantDetails,
+      };
+      codec.write(handoffGiveDetails, syrupWriter);
     } else {
       const keyLocality = isLocal ? 'local' : 'remote';
       const tableKey = `${keyLocality}:${type}`;

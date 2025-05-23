@@ -9,27 +9,39 @@
  * @typedef {import('./types.js').Connection} Connection
  * @typedef {import('./types.js').Logger} Logger
  * @typedef {import('./types.js').OCapNLocation} OCapNLocation
+ * @typedef {import('./types.js').LocationId} LocationId
  * @typedef {import('./types.js').OCapNPublicKey} OCapNPublicKey
  * @typedef {import('./types.js').Session} Session
  * @typedef {import('../captp/captp-engine.js').CapTPEngine} CapTPEngine
  * @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader
  * @typedef {import('../codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope
  * @typedef {import('../codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope
+ * @typedef {import('../codecs/descriptors.js').HandoffGive} HandoffGive
  */
 
 import { E, HandledPromise } from '@endo/eventual-send';
 import { Far, Remotable } from '@endo/marshal';
+import { makePromiseKit } from '@endo/promise-kit';
 import { makeCapTPEngine } from '../captp/captp-engine.js';
 import {
   makeDescCodecs,
   makeWithdrawGiftDescriptor,
+  serializeHandoffGive,
+  serializeHandoffReceive,
 } from '../codecs/descriptors.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { makePassableCodecs } from '../codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../codecs/operations.js';
 import { getSelectorName, makeSelector } from '../pass-style-helpers.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
-
+import { locationToLocationId, toHex } from './util.js';
+import {
+  makePublicKeyId,
+  publicKeyDataToPublicKey,
+  publicKeyToPublicKeyData,
+  randomGiftId,
+} from '../cryptography.js';
+import { compareByteArrays } from '../syrup/compare.js';
 /**
  * @typedef {OcapNFarObject<{resolve: (value: any) => void, break: (reason: any) => void}>} LocalResolver
  * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
@@ -40,6 +52,9 @@ import { decodeSyrup } from '../syrup/js-representation.js';
  * @typedef {Record<string, any>} Handler
  * @typedef {'object' | 'promise' | 'question'} SlotType
  */
+
+export const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
+export const swissnumEncoder = new TextEncoder();
 
 const sink = harden(() => {});
 
@@ -217,6 +232,10 @@ export const makeGrantDetails = (
  * @property {CapTPSlot} slot
  * @property {'handoff' | 'sturdy-ref'} type
  * @property {Uint8Array} [swissNum]
+ *
+ * @typedef {object} HandoffGiveDetails
+ * @property {any} value
+ * @property {GrantDetails} grantDetails
  *
  * @typedef {object} GrantTracker
  * @property {(remotable: Remotable, grantDetails: GrantDetails) => void} recordImport
@@ -454,6 +473,7 @@ const slotTypes = harden({
  * @property {(nodeLocation: OCapNLocation, swissNum: Uint8Array) => Promise<any>} provideSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
  * @property {(value: any) => ValInfo} getInfoForVal
+ * @property {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
  */
 
 /**
@@ -463,6 +483,8 @@ const slotTypes = harden({
  * @param {MakeRemoteSturdyRef} makeRemoteSturdyRef
  * @param {MakeHandoff} makeHandoff
  * @param {GrantTracker} grantTracker
+ * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
+ * @param {(session: Session, giftId: Uint8Array, value: any) => void} sendDepositGift
  * @returns {TableKit}
  */
 export const makeTableKit = (
@@ -472,6 +494,8 @@ export const makeTableKit = (
   makeRemoteSturdyRef,
   makeHandoff,
   grantTracker,
+  getActiveSession,
+  sendDepositGift,
 ) => {
   const convertValToPosition = val => {
     const slot = engine.convertValToSlot(val);
@@ -564,8 +588,214 @@ export const makeTableKit = (
         return { position, type, isLocal, slot, isThirdParty };
       }
     },
+    sendHandoff: handoffGiveDetails => {
+      // We are the gifter.
+      // This peer is the receiver.
+      // The receiver location is in the grant details.
+      const receiverLocation = peerLocation;
+      const { value, grantDetails } = handoffGiveDetails;
+      const { location: exporterLocation } = grantDetails;
+      const exporterLocationId = locationToLocationId(exporterLocation);
+      const gifterExporterSession = getActiveSession(exporterLocationId);
+      if (gifterExporterSession === undefined) {
+        throw Error(
+          `OCapN: No active session for exporter location: ${exporterLocation}`,
+        );
+      }
+      const receiverLocationId = locationToLocationId(receiverLocation);
+      const gifterReceiverSession = getActiveSession(receiverLocationId);
+      if (gifterReceiverSession === undefined) {
+        throw Error(
+          `OCapN: No active session for receiver location: ${receiverLocation}`,
+        );
+      }
+      const {
+        self: { keyPair: gifterKeyForExporter },
+        id: gifterExporterSessionId,
+      } = gifterExporterSession;
+      const {
+        peer: { publicKey: receiverPublicKeyForGifter },
+      } = gifterReceiverSession;
+      const gifterSideId = makePublicKeyId(
+        gifterExporterSession.self.keyPair.publicKey,
+      );
+      const giftId = randomGiftId();
+      /** @type {HandoffGive} */
+      const handoffGive = {
+        type: 'desc:handoff-give',
+        receiverKey: publicKeyToPublicKeyData(receiverPublicKeyForGifter),
+        exporterLocation,
+        exporterSessionId: gifterExporterSessionId,
+        gifterSideId,
+        giftId,
+      };
+      const giveBytes = serializeHandoffGive(handoffGive);
+      /** @type {HandoffGiveSigEnvelope} */
+      const signedHandoffGive = {
+        type: 'desc:sig-envelope',
+        object: handoffGive,
+        signature: gifterKeyForExporter.sign(giveBytes),
+      };
+      sendDepositGift(gifterExporterSession, giftId, value);
+      return signedHandoffGive;
+    },
   };
   return tableKit;
+};
+
+/**
+ * @param {string} label
+ * @param {Logger} logger
+ * @param {Uint8Array} sessionId
+ * @param {Map<string, any>} swissnumTable
+ * @param {Map<string, any>} giftTable
+ * @param {(sessionId: Uint8Array) => OCapNPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @returns {any}
+ */
+const makeBootstrapObject = (
+  label,
+  logger,
+  sessionId,
+  swissnumTable,
+  giftTable,
+  getPeerPublicKeyForSessionId,
+) => {
+  // The "usedGiftHandoffs" is one per session.
+  const usedGiftHandoffs = new Set();
+  return OCapNFar(`${label}:bootstrap`, {
+    /**
+     * @param {Uint8Array} swissnum
+     * @returns {Promise<any>}
+     */
+    fetch: swissnum => {
+      const swissnumString = swissnumDecoder.decode(swissnum);
+      const object = swissnumTable.get(swissnumString);
+      if (!object) {
+        throw Error(
+          `${label}: Bootstrap fetch: Unknown swissnum for sturdyref: ${swissnumString}`,
+        );
+      }
+      return object;
+    },
+    /**
+     * @param {Uint8Array} giftId
+     * @param {any} gift
+     */
+    'deposit-gift': (giftId, gift) => {
+      const giftKey = `${toHex(sessionId)}:${toHex(giftId)}`;
+      logger.info('deposit-gift', { giftKey, gift });
+      const pendingGiftKey = `pending:${giftKey}`;
+      const promiseKit = giftTable.get(pendingGiftKey);
+      if (promiseKit) {
+        promiseKit.resolve(gift);
+        return;
+      }
+      if (giftTable.has(giftKey)) {
+        throw Error(
+          `${label}: Bootstrap deposit-gift: Gift already exists: ${giftId}`,
+        );
+      }
+      // Ideally we should verify the gift is local.
+      giftTable.set(giftKey, gift);
+    },
+    /**
+     * @param {HandoffReceiveSigEnvelope} signedHandoffReceive
+     * @returns {any}
+     */
+    'withdraw-gift': signedHandoffReceive => {
+      // We are the exporter.
+      // This peer is the receiver.
+      // The gifter session is in the HandoffGive.
+      logger.info('withdraw-gift', signedHandoffReceive);
+      const { object: handoffReceive, signature: handoffReceiveSig } =
+        signedHandoffReceive;
+      const {
+        signedGive,
+        receivingSession,
+        receivingSide: receiverKeyForExporter,
+        handoffCount,
+      } = handoffReceive;
+      const { object: handoffGive, signature: handoffGiveSig } = signedGive;
+      const {
+        giftId,
+        receiverKey: receiverKeyDataForGifter,
+        exporterSessionId: gifterExporterSessionId,
+      } = handoffGive;
+
+      // Ensure our peer is the authorized receiver.
+      const peerPublicKey = getPeerPublicKeyForSessionId(sessionId);
+      if (!peerPublicKey) {
+        throw Error(
+          `${label}: Bootstrap withdraw-gift: No peer public key for session id: ${toHex(sessionId)}. This should never happen.`,
+        );
+      }
+      if (
+        compareByteArrays(peerPublicKey.bytes, receiverKeyForExporter) !== 0
+      ) {
+        throw Error(
+          `${label}: Bootstrap withdraw-gift: Receiver key mismatch.`,
+        );
+      }
+      if (compareByteArrays(sessionId, receivingSession) !== 0) {
+        throw Error(`${label}: Bootstrap withdraw-gift: Session id mismatch.`);
+      }
+
+      // Verify HandoffGive
+      const gifterKeyForExporter = getPeerPublicKeyForSessionId(
+        gifterExporterSessionId,
+      );
+      if (!gifterKeyForExporter) {
+        throw Error(
+          `${label}: Bootstrap withdraw-gift: No session with id: ${toHex(gifterExporterSessionId)}`,
+        );
+      }
+      const handoffGiveBytes = serializeHandoffGive(handoffGive);
+      const handoffGiveIsValid = gifterKeyForExporter.verify(
+        handoffGiveBytes,
+        handoffGiveSig,
+      );
+      if (!handoffGiveIsValid) {
+        throw Error(`${label}: Bootstrap withdraw-gift: Invalid HandoffGive.`);
+      }
+
+      // Verify HandoffReceive
+      const handoffReceiveBytes = serializeHandoffReceive(handoffReceive);
+      const receiverKeyForGifter = publicKeyDataToPublicKey(
+        receiverKeyDataForGifter,
+      );
+      const handoffReceiveIsValid = receiverKeyForGifter.verify(
+        handoffReceiveBytes,
+        handoffReceiveSig,
+      );
+      if (!handoffReceiveIsValid) {
+        throw Error(
+          `${label}: Bootstrap withdraw-gift: Invalid HandoffReceive.`,
+        );
+      }
+
+      // Check that the gift hasn't already been used.
+      if (usedGiftHandoffs.has(handoffCount)) {
+        throw Error(
+          `${label}: Bootstrap withdraw-gift: Gift handoff already used: ${handoffCount}`,
+        );
+      }
+
+      // Return the gift or a promise that resolves to the gift.
+      const giftKey = `${toHex(gifterExporterSessionId)}:${toHex(giftId)}`;
+      const gift = giftTable.get(giftKey);
+      logger.info('withdraw-gift', { giftKey, gift, handoffCount });
+      if (gift) {
+        usedGiftHandoffs.add(handoffCount);
+        giftTable.delete(giftKey);
+        return gift;
+      }
+      // If the gift is not in the table, we need to return a promise for its deposit.
+      const promiseKit = makePromiseKit();
+      const pendingGiftKey = `pending:${giftKey}`;
+      giftTable.set(pendingGiftKey, promiseKit);
+      return promiseKit.promise;
+    },
+  });
 };
 
 /**
@@ -579,20 +809,28 @@ export const makeTableKit = (
 /**
  * @param {Logger} logger
  * @param {Connection} connection
+ * @param {Uint8Array} sessionId
  * @param {OCapNLocation} peerLocation
  * @param {(location: OCapNLocation) => Promise<Session>} provideSession
+ * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
+ * @param {(sessionId: Uint8Array) => OCapNPublicKey | undefined} getPeerPublicKeyForSessionId
  * @param {GrantTracker} grantTracker
- * @param {unknown} [bootstrapObj]
+ * @param {Map<string, any>} swissnumTable
+ * @param {Map<string, any>} giftTable
  * @param {string} [ourIdLabel]
  * @returns {OCapN}
  */
 export const makeOCapN = (
   logger,
   connection,
+  sessionId,
   peerLocation,
   provideSession,
+  getActiveSession,
+  getPeerPublicKeyForSessionId,
   grantTracker,
-  bootstrapObj = undefined,
+  swissnumTable,
+  giftTable,
   ourIdLabel = 'OCapN',
 ) => {
   const commitSendSlots = () => {
@@ -860,7 +1098,7 @@ export const makeOCapN = (
           ]);
         const {
           ocapn,
-          id: sessionId,
+          id: receiverExporterSessionId,
           self: { keyPair: receiverExporterKey },
         } = receiverExporterSession;
         const {
@@ -868,16 +1106,35 @@ export const makeOCapN = (
         } = receiverGifterSession;
         const bootstrap = ocapn.getBootstrap();
         const handoffCount = 0n;
-        const handoffDescriptor = makeWithdrawGiftDescriptor(
+        const signedHandoffReceive = makeWithdrawGiftDescriptor(
           signedGive,
           handoffCount,
-          sessionId,
+          receiverExporterSessionId,
           receiverExporterKey.publicKey,
           receiverGifterKey,
         );
-        return E(bootstrap)['withdraw-gift'](handoffDescriptor);
+        return E(bootstrap)['withdraw-gift'](signedHandoffReceive);
       })(),
     );
+  };
+
+  let remoteBootstrap;
+  const getRemoteBootstrap = () => {
+    if (remoteBootstrap) {
+      return remoteBootstrap;
+    }
+    remoteBootstrap = makeRemoteBootstrap();
+    return remoteBootstrap;
+  };
+
+  const sendDepositGift = (session, giftId, gift) => {
+    const { ocapn } = session;
+    const bootstrap = ocapn.getBootstrap();
+    const promise = E(bootstrap)['deposit-gift'](giftId, gift);
+    // Log but don't handle the error.
+    promise.catch(error => {
+      logger.error(`sendDepositGift error`, error);
+    });
   };
 
   const tableKit = makeTableKit(
@@ -887,7 +1144,10 @@ export const makeOCapN = (
     makeRemoteSturdyRef,
     makeHandoff,
     grantTracker,
+    getActiveSession,
+    sendDepositGift,
   );
+
   const { readOCapNMessage, writeOCapNMessage } = makeCodecKit(tableKit);
 
   function serializeAndSendMessage(message) {
@@ -934,16 +1194,15 @@ export const makeOCapN = (
     }
   };
 
-  let remoteBootstrap;
-  const getRemoteBootstrap = () => {
-    if (remoteBootstrap) {
-      return remoteBootstrap;
-    }
-    remoteBootstrap = makeRemoteBootstrap();
-    return remoteBootstrap;
-  };
-
   const localBootstrapSlot = `o+0`;
+  const bootstrapObj = makeBootstrapObject(
+    ourIdLabel,
+    logger,
+    sessionId,
+    swissnumTable,
+    giftTable,
+    getPeerPublicKeyForSessionId,
+  );
   engine.registerExport(bootstrapObj, localBootstrapSlot);
 
   /** @type {OCapN} */
