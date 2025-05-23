@@ -115,3 +115,9 @@ test('makeWithdrawGiftDescriptor', t => {
     t.is(signedReceiveIsValid, true);
   }
 });
+
+test('makePublicKeyId', t => {
+  const key = makeOCapNKeyPair();
+  const publicKeyId = makePublicKeyId(key.publicKey);
+  t.is(publicKeyId.length, 32);
+});

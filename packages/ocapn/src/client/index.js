@@ -32,19 +32,11 @@ import {
   makeSessionId,
 } from '../cryptography.js';
 import { OCapNMyLocation } from '../codecs/components.js';
-import { swissnumDecoder } from '../codecs/descriptors.js';
 import { compareByteArrays } from '../syrup/compare.js';
-import { OCapNFar, makeGrantTracker, makeOCapN } from './ocapn.js';
+import { makeGrantTracker, makeOCapN } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
-
-/**
- * @param {OCapNLocation} location
- * @returns {LocationId}
- */
-export const locationToLocationId = location => {
-  return `${location.transport}:${location.address}`;
-};
+import { locationToLocationId, toHex } from './util.js';
 
 /**
  * @param {OCapNLocation} location
@@ -73,21 +65,21 @@ export const makeSelfIdentity = myLocation => {
 
 /**
  * @param {object} options
+ * @param {Uint8Array} options.id
  * @param {SelfIdentity} options.selfIdentity
  * @param {OCapNLocation} options.peerLocation
  * @param {OCapNPublicKey} options.peerPublicKey
  * @param {OCapNSignature} options.peerLocationSig
- * @param {() => Map<string, any>} [options.makeDefaultSwissnumTable]
  * @param {OCapN} options.ocapn
  * @param {Connection} options.connection
  * @returns {Session}
  */
 const makeSession = ({
+  id,
   selfIdentity,
   peerLocation,
   peerPublicKey,
   peerLocationSig,
-  makeDefaultSwissnumTable = () => new Map(),
   ocapn,
   connection,
 }) => {
@@ -95,15 +87,11 @@ const makeSession = ({
   const importTable = new Map();
   const exportTable = new Map();
   const answerTable = new Map();
-  const selfId = makePublicKeyId(keyPair.publicKey);
-  const peerId = makePublicKeyId(peerPublicKey);
-  const id = makeSessionId(selfId, peerId);
   return harden({
     id,
     connection,
     ocapn,
     tables: {
-      swissnumTable: makeDefaultSwissnumTable(),
       importTable,
       exportTable,
       exportCount: 1n,
@@ -137,31 +125,6 @@ export const sendHello = (connection, mySessionData) => {
   };
   const bytes = writeOcapnHandshakeMessage(opStartSession);
   connection.write(bytes);
-};
-
-/**
- * @param {string} label
- * @param {() => Map<string, any>} makeDefaultSwissnumTable
- * @returns {any}
- */
-const makeBootstrapObject = (label, makeDefaultSwissnumTable) => {
-  const swissnumTable = makeDefaultSwissnumTable();
-  return OCapNFar(`${label}:bootstrap`, {
-    /**
-     * @param {Uint8Array} swissnum
-     * @returns {Promise<any>}
-     */
-    fetch: swissnum => {
-      const swissnumString = swissnumDecoder.decode(swissnum);
-      const object = swissnumTable.get(swissnumString);
-      if (!object) {
-        throw Error(
-          `${label}: Bootstrap fetch: Unknown swissnum for sturdyref: ${swissnumString}`,
-        );
-      }
-      return object;
-    },
-  });
 };
 
 /**
@@ -199,8 +162,9 @@ const compareSessionKeysForCrossedHellos = (
  * @param {Connection} connection
  * @param {(location: OCapNLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
+ * @param {Map<string, any>} swissnumTable
+ * @param {Map<string, any>} giftTable
  * @param {any} message
- * @param {() => Map<string, any>} makeDefaultSwissnumTable
  */
 const handleSessionHandshakeMessage = (
   logger,
@@ -208,8 +172,9 @@ const handleSessionHandshakeMessage = (
   connection,
   provideSession,
   grantTracker,
+  swissnumTable,
+  giftTable,
   message,
-  makeDefaultSwissnumTable,
 ) => {
   logger.info(`handling handshake message of type ${message.type}`);
   switch (message.type) {
@@ -298,25 +263,28 @@ const handleSessionHandshakeMessage = (
 
       // Create session
       const { selfIdentity } = connection;
-      const bootstrapObj = makeBootstrapObject(
-        'bootstrap',
-        makeDefaultSwissnumTable,
-      );
+      const selfId = makePublicKeyId(selfIdentity.keyPair.publicKey);
+      const peerId = makePublicKeyId(peerPublicKey);
+      const sessionId = makeSessionId(selfId, peerId);
       const ocapn = makeOCapN(
         logger,
         connection,
+        sessionId,
         peerLocation,
         provideSession,
+        sessionManager.getActiveSession,
+        sessionManager.getPeerPublicKeyForSessionId,
         grantTracker,
-        bootstrapObj,
+        swissnumTable,
+        giftTable,
         'ocapn',
       );
       const session = makeSession({
+        id: sessionId,
         selfIdentity,
         peerLocation,
         peerPublicKey,
         peerLocationSig,
-        makeDefaultSwissnumTable,
         ocapn,
         connection,
       });
@@ -345,8 +313,9 @@ const handleSessionHandshakeMessage = (
  * @param {Connection} connection
  * @param {(location: OCapNLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
+ * @param {Map<string, any>} swissnumTable
+ * @param {Map<string, any>} giftTable
  * @param {Uint8Array} data
- * @param {() => Map<string, any>} makeDefaultSwissnumTable
  */
 const handleHandshakeMessageData = (
   logger,
@@ -354,8 +323,9 @@ const handleHandshakeMessageData = (
   connection,
   provideSession,
   grantTracker,
+  swissnumTable,
+  giftTable,
   data,
-  makeDefaultSwissnumTable,
 ) => {
   try {
     const syrupReader = makeSyrupReader(data);
@@ -383,8 +353,9 @@ const handleHandshakeMessageData = (
           connection,
           provideSession,
           grantTracker,
+          swissnumTable,
+          giftTable,
           message,
-          makeDefaultSwissnumTable,
         );
       } else {
         logger.info(
@@ -410,6 +381,8 @@ const makeSessionManager = () => {
   const pendingSessions = new Map();
   /** @type {Map<Connection, Session>} */
   const connectionToSession = new Map();
+  /** @type {Map<string, OCapNPublicKey>} */
+  const sessionIdToPeerPublicKey = new Map();
 
   /** @type {SessionManager} */
   return harden({
@@ -442,6 +415,7 @@ const makeSessionManager = () => {
       }
       activeSessions.set(locationId, session);
       connectionToSession.set(connection, session);
+      sessionIdToPeerPublicKey.set(toHex(session.id), session.peer.publicKey);
       const pendingSession = pendingSessions.get(locationId);
       if (pendingSession !== undefined) {
         pendingSession.resolve(session);
@@ -480,20 +454,25 @@ const makeSessionManager = () => {
       pendingSessions.set(locationId, pendingSession);
       return pendingSession;
     },
+    getPeerPublicKeyForSessionId: sessionId => {
+      return sessionIdToPeerPublicKey.get(toHex(sessionId));
+    },
   });
 };
 
 /**
  * @param {object} [options]
- * @param {() => Map<string, any>} [options.makeDefaultSwissnumTable]
  * @param {string} [options.debugLabel]
  * @param {boolean} [options.verbose]
+ * @param {Map<string, any>} [options.swissnumTable]
+ * @param {Map<string, any>} [options.giftTable]
  * @returns {Client}
  */
 export const makeClient = ({
-  makeDefaultSwissnumTable = () => new Map(),
   debugLabel = 'ocapn',
   verbose = false,
+  swissnumTable = new Map(),
+  giftTable = new Map(),
 } = {}) => {
   /** @type {Map<string, NetLayer>} */
   const netlayers = new Map();
@@ -536,7 +515,7 @@ export const makeClient = ({
     logger,
     grantTracker,
     sessionManager,
-    makeDefaultSwissnumTable,
+    swissnumTable,
     /**
      * @param {NetLayer} netlayer
      */
@@ -563,8 +542,9 @@ export const makeClient = ({
           connection,
           client.provideSession,
           grantTracker,
+          swissnumTable,
+          giftTable,
           data,
-          makeDefaultSwissnumTable,
         );
       }
     },

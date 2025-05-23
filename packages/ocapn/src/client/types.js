@@ -30,7 +30,6 @@
  * @typedef {object} Session
  * @property {Uint8Array} id
  * @property {object} tables
- * @property {Map<string, any>} tables.swissnumTable
  * @property {Map<bigint, any>} tables.importTable
  * @property {Map<bigint, any>} tables.exportTable
  * @property {bigint} tables.exportCount
@@ -86,6 +85,7 @@
  * When a session has ended (eg connection closed).
  * Does not close the connection. Does not delete the session.
  * Does not communicate with the peer.
+ * @property {(sessionId: Uint8Array) => OCapNPublicKey | undefined} getPeerPublicKeyForSessionId
  */
 
 /**
@@ -94,7 +94,7 @@
  * @property {string} debugLabel
  * @property {GrantTracker} grantTracker
  * @property {SessionManager} sessionManager
- * @property {() => Map<string, any>} makeDefaultSwissnumTable
+ * @property {Map<string, any>} swissnumTable
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose

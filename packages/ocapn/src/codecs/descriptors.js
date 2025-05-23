@@ -9,6 +9,9 @@
 /** @typedef {import('../client/types.js').OCapNPublicKey} OCapNPublicKey */
 /** @typedef {import('../client/types.js').OCapNLocation} OCapNLocation */
 /** @typedef {import('../client/types.js').OCapNKeyPair} OCapNKeyPair */
+/** @typedef {import('./components.js').OCapNPublicKeyData} OCapNPublicKeyData */
+/** @typedef {import('../client/ocapn.js').GrantDetails} GrantDetails */
+/** @typedef {import('../client/ocapn.js').HandoffGiveDetails} HandoffGiveDetails */
 
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import {
@@ -19,8 +22,6 @@ import {
 import { PositiveIntegerCodec } from './subtypes.js';
 import { OCapNNode, OCapNPublicKey, OCapNSignature } from './components.js';
 import { makeSyrupWriter } from '../syrup/encode.js';
-
-export const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
 
 /**
  * @typedef {object} DescCodecs
@@ -36,7 +37,7 @@ export const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
 /**
  * @typedef {object} HandoffGive
  * @property {'desc:handoff-give'} type
- * @property {OCapNPublicKey} receiverKey
+ * @property {OCapNPublicKeyData} receiverKey
  * @property {OCapNLocation} exporterLocation
  * @property {Uint8Array} exporterSessionId
  * @property {Uint8Array} gifterSideId
@@ -70,10 +71,14 @@ const DescHandoffGiveCodec = makeOCapNRecordCodecFromDefinition(
   'DescHandoffGive',
   'desc:handoff-give',
   {
+    // ReceiverKeyForGifter Public Key
     receiverKey: OCapNPublicKey,
     exporterLocation: OCapNNode,
+    // Gifter-Exporter Session ID
     exporterSessionId: 'bytestring',
+    // gifterKeyForExporter Public ID
     gifterSideId: 'bytestring',
+    // Gifter-specified gift ID
     giftId: 'bytestring',
   },
 );
@@ -242,6 +247,11 @@ export const makeDescCodecs = tableKit => {
     },
   );
 
+  // When reading: Handles both HandoffGive (returning the signed give) and
+  // HandoffReceive (returning a promise for the gift).
+  // When writing: Two possible types:
+  //  SignedHandoffReceive, sends this directly.
+  //  GrantDetails, deposits the gist and sends a SignedHandoffGive.
   const HandOffUnionCodec = makeOCapNRecordCodec(
     'HandOffUnionCodec',
     'desc:sig-envelope',
@@ -251,18 +261,39 @@ export const makeDescCodecs = tableKit => {
       if (content.type === 'desc:handoff-give') {
         return tableKit.provideHandoff(signedEnvelope);
       } else if (content.type === 'desc:handoff-receive') {
-        return content;
+        return signedEnvelope;
       }
       throw Error(`Unknown type ${content.type}`);
     },
+    /**
+     * @param {HandoffGiveDetails | HandoffReceiveSigEnvelope} value
+     * @param {SyrupWriter} syrupWriter
+     */
     (value, syrupWriter) => {
-      const content = value.object;
-      if (content.type === 'desc:handoff-give') {
-        throw Error('HandOffUnionCodec should not be used for handoff give');
-      } else if (content.type === 'desc:handoff-receive') {
-        DescHandoffReceiveSigEnvelopeCodec.writeBody(value, syrupWriter);
+      // @ts-expect-error we're doing type checking
+      if (value.type === 'desc:sig-envelope') {
+        const signedHandoffReceive = /** @type {HandoffReceiveSigEnvelope} */ (
+          value
+        );
+        DescHandoffReceiveSigEnvelopeCodec.writeBody(
+          signedHandoffReceive,
+          syrupWriter,
+        );
+        // @ts-expect-error we're doing type checking
+      } else if (value.grantDetails !== undefined) {
+        const handoffGiveDetails = /** @type {HandoffGiveDetails} */ (value);
+        const { grantDetails } = handoffGiveDetails;
+        if (grantDetails.type !== 'handoff') {
+          throw Error('HandOffUnionCodec should only be used for handoffs');
+        }
+        // Write SignedHandoffGive
+        const signedHandoffGive = tableKit.sendHandoff(handoffGiveDetails);
+        DescHandoffGiveSigEnvelopeCodec.writeBody(
+          signedHandoffGive,
+          syrupWriter,
+        );
       } else {
-        throw Error(`Unknown type ${content.type}`);
+        throw Error(`Unknown Handoff object ${value}`);
       }
     },
   );
@@ -334,8 +365,16 @@ export const makeDescCodecs = tableKit => {
       const value = tableKit.provideSturdyRef(node, swissNum);
       return value;
     },
-    (grantDetails, syrupWriter) => {
+    /**
+     * @param {HandoffGiveDetails} handoffGiveDetails
+     * @param {SyrupWriter} syrupWriter
+     */
+    (handoffGiveDetails, syrupWriter) => {
+      const { grantDetails } = handoffGiveDetails;
       const { location, swissNum } = grantDetails;
+      if (swissNum === undefined) {
+        throw Error('SwissNum is required for SturdyRefs');
+      }
       OCapNNode.write(location, syrupWriter);
       syrupWriter.writeBytestring(swissNum);
     },

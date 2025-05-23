@@ -161,37 +161,46 @@ export const table = [
       args: [
         makeSelector('withdraw-gift'),
         {
-          type: 'desc:handoff-receive',
-          receivingSession: strToUint8Array('123'),
-          receivingSide: strToUint8Array('456'),
-          handoffCount: 1n,
-          signedGive: {
-            type: 'desc:sig-envelope',
-            object: {
-              type: 'desc:handoff-give',
-              receiverKey: {
-                type: 'public-key',
-                scheme: 'ecc',
-                curve: 'Ed25519',
-                flags: 'eddsa',
-                q: examplePubKeyQBytes,
+          type: 'desc:sig-envelope',
+          object: {
+            type: 'desc:handoff-receive',
+            receivingSession: strToUint8Array('123'),
+            receivingSide: strToUint8Array('456'),
+            handoffCount: 1n,
+            signedGive: {
+              type: 'desc:sig-envelope',
+              object: {
+                type: 'desc:handoff-give',
+                receiverKey: {
+                  type: 'public-key',
+                  scheme: 'ecc',
+                  curve: 'Ed25519',
+                  flags: 'eddsa',
+                  q: examplePubKeyQBytes,
+                },
+                exporterLocation: {
+                  type: 'ocapn-node',
+                  transport: 'tcp',
+                  address: '127.0.0.1',
+                  hints: false,
+                },
+                exporterSessionId: strToUint8Array('exporter-session-id'),
+                gifterSideId: strToUint8Array('gifter-side-id'),
+                giftId: strToUint8Array('gift-id'),
               },
-              exporterLocation: {
-                type: 'ocapn-node',
-                transport: 'tcp',
-                address: '127.0.0.1',
-                hints: false,
+              signature: {
+                type: 'sig-val',
+                scheme: 'eddsa',
+                r: exampleSigParamBytes,
+                s: exampleSigParamBytes,
               },
-              exporterSessionId: strToUint8Array('exporter-session-id'),
-              gifterSideId: strToUint8Array('gifter-side-id'),
-              giftId: strToUint8Array('gift-id'),
             },
-            signature: {
-              type: 'sig-val',
-              scheme: 'eddsa',
-              r: exampleSigParamBytes,
-              s: exampleSigParamBytes,
-            },
+          },
+          signature: {
+            type: 'sig-val',
+            scheme: 'eddsa',
+            r: exampleSigParamBytes,
+            s: exampleSigParamBytes,
           },
         },
       ],
