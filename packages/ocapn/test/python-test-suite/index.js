@@ -9,10 +9,9 @@ import { makeClient } from '../../src/client/index.js';
 import { OCapNFar } from '../../src/client/ocapn.js';
 
 /**
- * @param {Client} client
  * @returns {Map<string, any>}
  */
-const makeTestObjectTable = client => {
+const makeTestObjectTable = () => {
   const testObjectTable = new Map();
 
   /**
@@ -136,8 +135,11 @@ const makeTestObjectTable = client => {
    */
   testObjectTable.set(
     'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
-    OCapNFar('sturdyrefEnlivener', sturdyref => {
-      console.log('sturdyrefEnlivener called with', { sturdyref });
+    OCapNFar('sturdyrefEnlivener', async sturdyrefPromise => {
+      console.log('sturdyrefEnlivener called with', { sturdyrefPromise });
+      // SturdyRefs are promises as they are instructions on where to fetch an object,
+      // but don't contain enough info to do grant matching.
+      const sturdyref = await sturdyrefPromise;
       // Note, if we make SturdyRefs lazily connect, we may need to invoke
       // something here to force the connection.
       return sturdyref;
@@ -149,7 +151,7 @@ const makeTestObjectTable = client => {
 
 const start = async () => {
   const client = makeClient({
-    makeDefaultSwissnumTable: () => makeTestObjectTable(client),
+    swissnumTable: makeTestObjectTable(),
   });
   const tcpNetlayer = await makeTcpNetLayer({ client, specifiedPort: 22046 });
   client.registerNetlayer(tcpNetlayer);
