@@ -84,19 +84,10 @@ const makeSession = ({
   connection,
 }) => {
   const { keyPair, location, locationSignature } = selfIdentity;
-  const importTable = new Map();
-  const exportTable = new Map();
-  const answerTable = new Map();
   return harden({
     id,
     connection,
     ocapn,
-    tables: {
-      importTable,
-      exportTable,
-      exportCount: 1n,
-      answerTable,
-    },
     peer: {
       publicKey: peerPublicKey,
       location: peerLocation,
