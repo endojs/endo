@@ -30,7 +30,6 @@
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint-check": "yarn lint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
