@@ -1,4 +1,5 @@
 // @ts-check
+import { randomBytes } from 'node:crypto';
 
 import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -90,6 +91,14 @@ export const publicKeyToPublicKeyData = publicKey => {
 
 /**
  * @param {OCapNPublicKeyData} publicKeyData
+ * @returns {OCapNPublicKey}
+ */
+export const publicKeyDataToPublicKey = publicKeyData => {
+  return makeOCapNPublicKey(publicKeyData.q);
+};
+
+/**
+ * @param {OCapNPublicKeyData} publicKeyData
  * @returns {Uint8Array}
  */
 const publicKeyDataToEncodedBytes = publicKeyData => {
@@ -135,4 +144,11 @@ export const makeSessionId = (peerIdOne, peerIdTwo) => {
   ]);
   // Double SHA256 hash the resulting string
   return sha256(sha256(inputBytes));
+};
+
+/**
+ * @returns {Uint8Array}
+ */
+export const randomGiftId = () => {
+  return randomBytes(16);
 };

@@ -11,10 +11,10 @@
 export function compareByteArrays(
   left,
   right,
-  leftStart,
-  leftEnd,
-  rightStart,
-  rightEnd,
+  leftStart = 0,
+  leftEnd = left.length,
+  rightStart = 0,
+  rightEnd = right.length,
 ) {
   if (!(left instanceof Uint8Array)) {
     throw Error(`Left is not a Uint8Array: ${left}`);
