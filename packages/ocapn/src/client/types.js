@@ -29,11 +29,6 @@
 /**
  * @typedef {object} Session
  * @property {Uint8Array} id
- * @property {object} tables
- * @property {Map<bigint, any>} tables.importTable
- * @property {Map<bigint, any>} tables.exportTable
- * @property {bigint} tables.exportCount
- * @property {Map<bigint, Promise<any>>} tables.answerTable
  * @property {object} peer
  * @property {OCapNPublicKey} peer.publicKey
  * @property {OCapNLocation} peer.location
