@@ -629,3 +629,13 @@ test('dynamic require of missing module falls through to importNowHook', async t
     },
   );
 });
+
+test('dynamic require of package missing an optional module', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/missing-app/index.js',
+    import.meta.url,
+  ).toString();
+
+  const { namespace } = await importLocation(readPowers, fixture);
+  t.like(namespace, { isOk: true, default: { isOk: true } });
+});
