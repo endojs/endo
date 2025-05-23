@@ -33,7 +33,10 @@
  *   ParseResult,
  *   ReadFn,
  *   ReadPowers,
- *   ReadNowPowers
+ *   ReadNowPowers,
+ *   StrictlyRequiredFn,
+ *   CompartmentSources,
+ *   DeferErrorFn
  * } from './types.js'
  */
 
@@ -426,6 +429,54 @@ function* chooseModuleDescriptor(
 }
 
 /**
+ * Creates a `deferError` function which decides whether to throw immediately or
+ * at execution time.
+ *
+ * @param {StrictlyRequiredFn} strictlyRequiredForCompartment
+ * @param {string} packageLocation
+ * @param {CompartmentSources} packageSources
+ * @returns {DeferErrorFn}
+ */
+const makeDeferError = (
+  strictlyRequiredForCompartment,
+  packageLocation,
+  packageSources,
+) => {
+  /**
+   * @param {string} specifier
+   * @param {Error} error - error to throw on execute
+   * @returns {StaticModuleType}
+   */
+  const deferError = (specifier, error) => {
+    // strictlyRequired is populated with imports declared by modules whose parser is not using heuristics to figure
+    // out imports. We're guaranteed they're reachable. If the same module is imported and required, it will not
+    // defer, because importing from esm makes it strictly required.
+    // Note that ultimately a situation may arise, with exit modules, where the module never reaches importHook but
+    // its imports do. In that case the notion of strictly required is no longer boolean, it's true,false,noidea.
+    if (strictlyRequiredForCompartment(packageLocation).has(specifier)) {
+      throw error;
+    }
+    // Return a place-holder that'd throw an error if executed
+    // This allows cjs parser to more eagerly find calls to require
+    // - if parser identified a require call that's a local function, execute will never be called
+    // - if actual required module is missing, the error will happen anyway - at execution time
+    const record = freeze({
+      imports: [],
+      exports: [],
+      execute: () => {
+        throw error;
+      },
+    });
+    packageSources[specifier] = {
+      deferredError: error.message,
+    };
+
+    return record;
+  };
+  return deferError;
+};
+
+/**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
  * @param {MakeImportHookMakerOptions} options
@@ -484,37 +535,11 @@ export const makeImportHookMaker = (
     const { modules: moduleDescriptors = create(null) } = compartmentDescriptor;
     compartmentDescriptor.modules = moduleDescriptors;
 
-    /**
-     * @param {string} specifier
-     * @param {Error} error - error to throw on execute
-     * @returns {StaticModuleType}
-     */
-    const deferError = (specifier, error) => {
-      // strictlyRequired is populated with imports declared by modules whose parser is not using heuristics to figure
-      // out imports. We're guaranteed they're reachable. If the same module is imported and required, it will not
-      // defer, because importing from esm makes it strictly required.
-      // Note that ultimately a situation may arise, with exit modules, where the module never reaches importHook but
-      // its imports do. In that case the notion of strictly required is no longer boolean, it's true,false,noidea.
-      if (strictlyRequiredForCompartment(packageLocation).has(specifier)) {
-        throw error;
-      }
-      // Return a place-holder that'd throw an error if executed
-      // This allows cjs parser to more eagerly find calls to require
-      // - if parser identified a require call that's a local function, execute will never be called
-      // - if actual required module is missing, the error will happen anyway - at execution time
-      const record = freeze({
-        imports: [],
-        exports: [],
-        execute: () => {
-          throw error;
-        },
-      });
-      packageSources[specifier] = {
-        deferredError: error.message,
-      };
-
-      return record;
-    };
+    const deferError = makeDeferError(
+      strictlyRequiredForCompartment,
+      packageLocation,
+      packageSources,
+    );
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
@@ -662,7 +687,14 @@ export function makeImportNowHookMaker(
     packageName: _packageName,
     parse,
     compartments,
+    shouldDeferError,
   }) => {
+    const deferError = makeDeferError(
+      strictlyRequiredForCompartment,
+      packageLocation,
+      sources,
+    );
+
     /**
      * Attempt to load the moduleSpecifier via an {@link ExitModuleImportNowHook}, if one exists.
      *
@@ -748,72 +780,79 @@ export function makeImportNowHookMaker(
 
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
-      // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
-      if (isAbsolute(moduleSpecifier)) {
-        const record = findRedirect({
-          compartmentDescriptor,
-          compartmentDescriptors,
-          compartments,
-          absoluteModuleSpecifier: moduleSpecifier,
-        });
+      try {
+        // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
+        if (isAbsolute(moduleSpecifier)) {
+          const record = findRedirect({
+            compartmentDescriptor,
+            compartmentDescriptors,
+            compartments,
+            absoluteModuleSpecifier: moduleSpecifier,
+          });
+          if (record) {
+            return record;
+          }
+
+          // if and only if the module specifier is within the compartment can we
+          // make it a relative specifier. the following conditional avoids a try/catch
+          // since `relativeSpecifier` will throw if this condition is not met
+          if (
+            isLocationWithinCompartment(
+              moduleSpecifier,
+              compartmentDescriptor.location,
+            )
+          ) {
+            moduleSpecifier = relativeSpecifier(
+              moduleSpecifier,
+              compartmentDescriptor.location,
+            );
+          }
+        } else if (
+          moduleSpecifier !== '.' &&
+          !moduleSpecifier.startsWith('./')
+        ) {
+          // could be a builtin, which means we should not bother bouncing on the trampoline to find it.
+          return importExitModuleOrFail(moduleSpecifier, compartmentDescriptor);
+        }
+
+        // we might have an absolute path here, but it might be within the compartment, so
+        // we will try to find it.
+        const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
+
+        const record = syncTrampoline(
+          chooseModuleDescriptor,
+          {
+            candidates,
+            compartmentDescriptor,
+            compartmentDescriptors,
+            compartments,
+            computeSha512,
+            moduleDescriptors,
+            moduleSpecifier,
+            packageLocation,
+            packageSources,
+            readPowers,
+            archiveOnly,
+            sourceMapHook,
+            strictlyRequiredForCompartment,
+          },
+          {
+            maybeRead: maybeReadNow,
+            parse,
+            shouldDeferError,
+          },
+        );
+
         if (record) {
           return record;
         }
 
-        // if and only if the module specifier is within the compartment can we
-        // make it a relative specifier. the following conditional avoids a try/catch
-        // since `relativeSpecifier` will throw if this condition is not met
-        if (
-          isLocationWithinCompartment(
-            moduleSpecifier,
-            compartmentDescriptor.location,
-          )
-        ) {
-          moduleSpecifier = relativeSpecifier(
-            moduleSpecifier,
-            compartmentDescriptor.location,
-          );
-        }
-      } else if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
-        // could be a builtin, which means we should not bother bouncing on the trampoline to find it.
+        // at this point, we haven't found the module by guessing, so we'll try the importer-of-last-resort
         return importExitModuleOrFail(moduleSpecifier, compartmentDescriptor);
+      } catch (err) {
+        return deferError(moduleSpecifier, err);
       }
-
-      // we might have an absolute path here, but it might be within the compartment, so
-      // we will try to find it.
-      const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
-
-      const record = syncTrampoline(
-        chooseModuleDescriptor,
-        {
-          candidates,
-          compartmentDescriptor,
-          compartmentDescriptors,
-          compartments,
-          computeSha512,
-          moduleDescriptors,
-          moduleSpecifier,
-          packageLocation,
-          packageSources,
-          readPowers,
-          archiveOnly,
-          sourceMapHook,
-          strictlyRequiredForCompartment,
-        },
-        {
-          maybeRead: maybeReadNow,
-          parse,
-        },
-      );
-
-      if (record) {
-        return record;
-      }
-
-      // at this point, we haven't found the module by guessing, so we'll try the importer-of-last-resort
-      return importExitModuleOrFail(moduleSpecifier, compartmentDescriptor);
     };
-
     return importNowHook;
   };
   return makeImportNowHook;

@@ -7,7 +7,7 @@
 
 /* eslint-disable no-use-before-define */
 
-import type { ImportHook, ImportNowHook } from 'ses';
+import type { ImportHook, ImportNowHook, StaticModuleType } from 'ses';
 import type {
   CompartmentDescriptor,
   Language,
@@ -101,11 +101,11 @@ export type ImportNowHookMaker = (params: {
   packageName: string;
   parse: ParseFn | AsyncParseFn;
   compartments: Record<string, Compartment>;
+  shouldDeferError: ShouldDeferError;
   // Unlike analogous prameters of ImportHookMaker, the Compartment Mapper
   // ignores these two parameters, so they are expressly disallowed to avoid
   // confusion about whether they would be respected.
   attenuators?: never;
-  shouldDeferError?: never;
 }) => ImportNowHook;
 
 /**
@@ -141,13 +141,14 @@ export type ChooseModuleDescriptorParams = {
    * Should be false for archives and bundles, but true for runtime.
    */
   sourceMapHook?: SourceMapHook;
-  /**
-   * Function returning a set of module names (scoped to the compartment) whose
-   * parser is not using heuristics to determine imports.
-   */
-  strictlyRequiredForCompartment: (compartmentName: string) => Set<string>;
+
+  strictlyRequiredForCompartment: StrictlyRequiredFn;
 } & ComputeSha512Option &
   ArchiveOnlyOption;
+
+type ShouldDeferErrorOption = {
+  shouldDeferError: ShouldDeferError;
+};
 
 type SyncChooseModuleDescriptorOperators = {
   /**
@@ -160,8 +161,6 @@ type SyncChooseModuleDescriptorOperators = {
    * a `ParseResult`
    */
   parse: ParseFn;
-  /** Should be omitted */
-  shouldDeferError?: never;
 };
 
 /**
@@ -178,19 +177,13 @@ export type AsyncChooseModuleDescriptorOperators = {
    * a `ParseResult`
    */
   parse: AsyncParseFn | ParseFn;
-  /**
-   * A function that returns `true` if the language returned by `parse` should
-   * defer errors.
-   */
-  shouldDeferError: (language: Language) => boolean;
 };
 
 /**
  * Either synchronous or asynchronous operators for `chooseModuleDescriptor`.
  */
-export type ChooseModuleDescriptorOperators =
-  | AsyncChooseModuleDescriptorOperators
-  | SyncChooseModuleDescriptorOperators;
+export type ChooseModuleDescriptorOperators = ShouldDeferErrorOption &
+  (AsyncChooseModuleDescriptorOperators | SyncChooseModuleDescriptorOperators);
 
 /**
  * The agglomeration of things that the `chooseModuleDescriptor` generator can
@@ -312,3 +305,26 @@ export interface PackageDescriptor {
 
   [k: string]: unknown;
 }
+
+/**
+ * Function returning a set of module names (scoped to the compartment) whose
+ * parser is not using heuristics to determine imports.
+ */
+export type StrictlyRequiredFn = (compartmentName: string) => Set<string>;
+
+/**
+ * Function which decides whether to throw an error immediately upon failing to
+ * load a module or defer to execution time.
+ *
+ * @returns A phony `StaticModuleType` which throws when executed
+ */
+export type DeferErrorFn = (
+  /**
+   * The module specifier that failed to load
+   */
+  specifier: string,
+  /**
+   * The error that was thrown
+   */
+  error: Error,
+) => StaticModuleType;
