@@ -1,7 +1,6 @@
 {
   "name": "@endo/panic",
   "version": "0.1.0",
-  "private": false,
   "description": "Ponyfill for proposed `panic` function",
   "keywords": [],
   "author": "Endo contributors",

@@ -57,7 +57,7 @@ git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
 
 # update other files in place
 cd "packages/$NAME"
-BSD_SED="$(sed --help 2>&1 | sed 2q | grep -qe '-i ' && echo 1 || true)"
+BSD_SED="$({ sed --help; true; } 2>&1 | sed -n 's/.*-i .*/BSD/p; 2q')"
 function sedi() {
   if [ -n "$BSD_SED" ]; then
     sed -i '' "$@"
@@ -66,7 +66,7 @@ function sedi() {
   fi
 }
 # CHANGELOG.md: remove `skel` content
-sedi -ne '/###/q; p' CHANGELOG.md
+sedi -ne '/###/ { x; q; }; p' CHANGELOG.md
 # LICENSE: current year
 sedi -e "s/\[yyyy\]\ \[name\ of\ copyright\ owner\]/$(date '+%Y') Endo Contributors/g" LICENSE
 # NEWS.md and README.md: package name

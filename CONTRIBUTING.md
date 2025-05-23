@@ -14,8 +14,9 @@ Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to wor
 ## Creating a new package
 
 Run <code>[scripts/create-package.sh](./scripts/create-package.sh) $name</code>,
-then update the resulting README.md, package.json (specifically `description`),
-index.js, and index.test.js files.
+then update the resulting README.md, package.json (specifically setting
+`description` and [if appropriate] removing `"private": false`), index.js, and
+index.test.js files.
 
 ## Rebuilding `ses`
 
