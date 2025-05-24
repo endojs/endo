@@ -55,7 +55,7 @@ import {
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 
-const { assign, create, keys, values } = Object;
+const { assign, create, keys, values, entries } = Object;
 
 const decoder = new TextDecoder();
 
@@ -403,7 +403,20 @@ const graphPackage = async (
   const dependencyLocations = {};
   /** @type {ReturnType<typeof gatherDependency>[]} */
   const children = [];
+
+  /**
+   * A set containing dependency names which are considered "optional"
+   */
   const optionals = new Set();
+
+  /**
+   * Contains the names of _all_ dependencies
+   *
+   * @type {Set<string>}
+   */
+  const allDependencies = new Set();
+
+  // these are fields from package.json containing dependencies
   const {
     dependencies = {},
     peerDependencies = {},
@@ -412,33 +425,40 @@ const graphPackage = async (
     optionalDependencies = {},
     devDependencies = {},
   } = packageDescriptor;
-  /** @type {Record<string, string>} */
-  const allDependencies = {};
-  for (const [name, descriptor] of Object.entries(
-    commonDependencyDescriptors,
-  )) {
+
+  for (const [name, descriptor] of entries(commonDependencyDescriptors)) {
     if (Object(descriptor) === descriptor) {
-      const { spec } = descriptor;
-      allDependencies[name] = spec;
+      allDependencies.add(name);
     }
-  }
-  assign(allDependencies, dependencies);
-  assign(allDependencies, peerDependencies);
-  for (const [name, meta] of Object.entries(peerDependenciesMeta)) {
-    if (Object(meta) === meta && meta.optional) {
-      optionals.add(name);
-    }
-  }
-  assign(allDependencies, bundleDependencies);
-  assign(allDependencies, optionalDependencies);
-  for (const name of Object.keys(optionalDependencies)) {
-    optionals.add(name);
-  }
-  if (dev) {
-    assign(allDependencies, devDependencies);
   }
 
-  for (const name of keys(allDependencies).sort()) {
+  // only consider devDependencies if dev flag is true
+  for (const name of keys({
+    ...dependencies,
+    ...peerDependencies,
+    ...bundleDependencies,
+    ...optionalDependencies,
+    ...(dev ? devDependencies : {}),
+  })) {
+    allDependencies.add(name);
+  }
+
+  // for historical reasons, some packages omit peerDependencies and only
+  // use the peerDependenciesMeta field (because there was no way to define
+  // an "optional" peerDependency prior to npm v7). this is plainly wrong,
+  // but not exactly rare, either
+  for (const [name, meta] of entries(peerDependenciesMeta)) {
+    if (Object(meta) === meta && meta.optional) {
+      optionals.add(name);
+      allDependencies.add(name);
+    }
+  }
+
+  for (const name of keys(optionalDependencies)) {
+    optionals.add(name);
+  }
+
+  for (const name of [...allDependencies].sort()) {
     const optional = optionals.has(name);
     const childLogicalPath = [...logicalPath, name];
     children.push(
@@ -501,7 +521,7 @@ const graphPackage = async (
 
   const sourceDirname = basename(packageLocation);
 
-  Object.assign(result, {
+  assign(result, {
     name,
     path: logicalPath,
     label: `${name}${version ? `-v${version}` : ''}`,
@@ -526,7 +546,7 @@ const graphPackage = async (
   await Promise.all(children);
 
   // handle commonDependencyDescriptors package aliases
-  for (const [name, { alias }] of Object.entries(commonDependencyDescriptors)) {
+  for (const [name, { alias }] of entries(commonDependencyDescriptors)) {
     // update the dependencyLocations to point to the common dependency
     const targetLocation = dependencyLocations[name];
     if (targetLocation === undefined) {
@@ -697,7 +717,7 @@ const graphPackages = async (
   /** @type {CommonDependencyDescriptors} */
   const commonDependencyDescriptors = {};
   const packageDescriptorDependencies = packageDescriptor.dependencies || {};
-  for (const [alias, dependencyName] of Object.entries(commonDependencies)) {
+  for (const [alias, dependencyName] of entries(commonDependencies)) {
     const spec = packageDescriptorDependencies[dependencyName];
     if (spec === undefined) {
       throw Error(
@@ -752,7 +772,7 @@ const translateGraph = (
   policy,
 ) => {
   /** @type {CompartmentMapDescriptor['compartments']} */
-  const compartments = Object.create(null);
+  const compartments = create(null);
 
   // For each package, build a map of all the external modules the package can
   // import from other packages.
@@ -775,9 +795,9 @@ const translateGraph = (
       types,
     } = graph[dependeeLocation];
     /** @type {CompartmentDescriptor['modules']} */
-    const moduleDescriptors = Object.create(null);
+    const moduleDescriptors = create(null);
     /** @type {CompartmentDescriptor['scopes']} */
-    const scopes = Object.create(null);
+    const scopes = create(null);
 
     /**
      * List of all the compartments (by name) that this compartment can import from.
@@ -937,10 +957,10 @@ const makeLanguageOptions = ({
   };
 
   const languages = new Set([
-    ...Object.values(moduleLanguageForExtension),
-    ...Object.values(commonjsLanguageForExtension),
-    ...Object.values(workspaceModuleLanguageForExtension),
-    ...Object.values(workspaceCommonjsLanguageForExtension),
+    ...values(moduleLanguageForExtension),
+    ...values(commonjsLanguageForExtension),
+    ...values(workspaceModuleLanguageForExtension),
+    ...values(workspaceCommonjsLanguageForExtension),
     ...additionalLanguages,
   ]);
 

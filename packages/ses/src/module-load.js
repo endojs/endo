@@ -507,18 +507,17 @@ const memoizedLoadWithErrorAnnotation = (
   return moduleLoading;
 };
 
-const asyncJobQueue = () => {
+const asyncJobQueue = (errors = []) => {
   /** @type {Set<Promise<undefined>>} */
   const pendingJobs = new Set();
-  /** @type {Array<Error>} */
-  const errors = [];
 
   /**
    * Enqueues a job that starts immediately but won't be awaited until drainQueue is called.
    *
-   * @template {any[]} T
-   * @param {(...args: T)=>Promise<*>} func
-   * @param {T} args
+   * @template {(...args: any[]) => Promise<void>} F
+   * @param {F} func - An async function to execute
+   * @param {Parameters<F>} args - Arguments to pass to the function
+   * @returns {void}
    */
   const enqueueJob = (func, args) => {
     setAdd(
@@ -530,8 +529,6 @@ const asyncJobQueue = () => {
   };
   /**
    * Sequentially awaits pending jobs and returns an array of errors
-   *
-   * @returns {Promise<Array<Error>>}
    */
   const drainQueue = async () => {
     await null;
@@ -539,9 +536,42 @@ const asyncJobQueue = () => {
       // eslint-disable-next-line no-await-in-loop
       await job;
     }
-    return errors;
   };
-  return { enqueueJob, drainQueue };
+  return { enqueueJob, drainQueue, errors };
+};
+
+const syncJobQueue = (errors = []) => {
+  let current = [];
+  let next = [];
+
+  /**
+   * Enqueues a job
+   *
+   * @template {(...args: any[]) => void} F
+   * @param {F} func - An async function to execute
+   * @param {Parameters<F>} args - Arguments to pass to the function
+   * @returns {void}
+   */
+  const enqueueJob = (func, args) => {
+    arrayPush(next, [func, args]);
+  };
+  const drainQueue = () => {
+    // Attention: load bearing flow order. Calling another enqueued function in the
+    // synchronous usecase must happen after the one that enqueued it has finished.
+    // Jobs enqueued in one pass do not interleave with jobs resulting from them.
+    // It's necessary for efficient memoization and to break cycles.
+    for (const [func, args] of current) {
+      try {
+        func(...args);
+      } catch (error) {
+        arrayPush(errors, error);
+      }
+    }
+    current = next;
+    next = [];
+    if (current.length > 0) drainQueue();
+  };
+  return { enqueueJob, drainQueue, errors };
 };
 
 /**
@@ -588,7 +618,7 @@ export const load = async (
   /** @type {Map<object, Map<string, Promise<Record<any, any>>>>} */
   const moduleLoads = new Map();
 
-  const { enqueueJob, drainQueue } = asyncJobQueue();
+  const { enqueueJob, drainQueue, errors } = asyncJobQueue();
 
   enqueueJob(memoizedLoadWithErrorAnnotation, [
     compartmentPrivateFields,
@@ -600,8 +630,7 @@ export const load = async (
     moduleLoads,
   ]);
 
-  // Drain pending jobs queue and throw an aggregate error
-  const errors = await drainQueue();
+  await drainQueue();
 
   throwAggregateError({
     errors,
@@ -632,16 +661,7 @@ export const loadNow = (
   /** @type {Map<object, Map<string, Promise<Record<any, any>>>>} */
   const moduleLoads = new Map();
 
-  /** @type {Array<Error>} */
-  const errors = [];
-
-  const enqueueJob = (func, args) => {
-    try {
-      func(...args);
-    } catch (error) {
-      arrayPush(errors, error);
-    }
-  };
+  const { enqueueJob, drainQueue, errors } = syncJobQueue();
 
   enqueueJob(memoizedLoadWithErrorAnnotation, [
     compartmentPrivateFields,
@@ -652,6 +672,8 @@ export const loadNow = (
     preferSync,
     moduleLoads,
   ]);
+
+  drainQueue();
 
   throwAggregateError({
     errors,

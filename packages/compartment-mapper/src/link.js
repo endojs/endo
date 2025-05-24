@@ -346,6 +346,7 @@ export const link = (
       packageName: name,
       parse,
       compartments,
+      shouldDeferError,
     });
 
     const moduleMapHook = makeModuleMapHook(

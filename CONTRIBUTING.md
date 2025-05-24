@@ -11,6 +11,13 @@ Endo is a yarn workspaces repository. Running yarn in the root will install and 
 Note: running yarn `--ignore-scripts` will not complete the setup of SES.
 Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
 
+## Creating a new package
+
+Run <code>[scripts/create-package.sh](./scripts/create-package.sh) $name</code>,
+then update the resulting README.md, package.json (specifically setting
+`description` and [if appropriate] removing `"private": false`), index.js, and
+index.test.js files.
+
 ## Rebuilding `ses`
 
 Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
