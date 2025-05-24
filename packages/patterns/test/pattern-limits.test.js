@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import { passableSymbolForName } from '@endo/pass-style';
 import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';
 import {
   mustMatch,
@@ -117,7 +118,7 @@ const runTests = (successCase, failCase) => {
   }
   // symbolNameLengthLimit
   {
-    const specimen = Symbol.for('moderate length string');
+    const specimen = passableSymbolForName('moderate length string');
     successCase(specimen, M.symbol());
     successCase(specimen, M.symbol(harden({ symbolNameLengthLimit: 40 })));
 
@@ -128,7 +129,7 @@ const runTests = (successCase, failCase) => {
     );
   }
   {
-    const specimen = Symbol.for(
+    const specimen = passableSymbolForName(
       'x'.repeat(defaultLimits.symbolNameLengthLimit + 1),
     );
     successCase(

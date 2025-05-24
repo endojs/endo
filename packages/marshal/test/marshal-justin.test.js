@@ -1,7 +1,12 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeError, X } from '@endo/errors';
-import { Far, Remotable, makeTagged } from '@endo/pass-style';
+import {
+  Far,
+  Remotable,
+  makeTagged,
+  passableSymbolForName,
+} from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin, qp } from '../src/marshal-justin.js';
 import { jsonJustinPairs } from './_marshal-test-data.js';
@@ -33,7 +38,12 @@ const fakeJustinCompartment = () => {
     }
     return populateSlot(slots.length, iface);
   };
-  return new Compartment({ slot, slotToVal, makeTagged });
+  return new Compartment({
+    slot,
+    slotToVal,
+    makeTagged,
+    passableSymbolForName,
+  });
 };
 
 test('serialize decodeToJustin eval round trip pairs', t => {

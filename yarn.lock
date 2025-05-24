@@ -780,6 +780,7 @@ __metadata:
   resolution: "@endo/ocapn@workspace:packages/ocapn"
   dependencies:
     "@endo/lockdown": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "npm:^6.1.3"
     babel-eslint: "npm:^10.1.0"

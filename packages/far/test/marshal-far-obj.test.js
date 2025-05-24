@@ -2,6 +2,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { q } from '@endo/errors';
+import { PASS_STYLE } from '@endo/pass-style';
 
 import { Far, passStyleOf, getInterfaceOf } from '../src/index.js';
 
@@ -50,7 +51,7 @@ test('Remotable/getInterfaceOf', t => {
   t.is(p2.birthYear(2020), 1956, `birthYear() works`);
 });
 
-const GOOD_PASS_STYLE = Symbol.for('passStyle');
+const GOOD_PASS_STYLE = PASS_STYLE;
 const BAD_PASS_STYLE = Symbol('passStyle');
 
 const testRecord = ({
