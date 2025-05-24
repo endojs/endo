@@ -46,23 +46,39 @@ module.exports = {
           /** @type {string[]} */
           let exportNames = [];
           if (exportNode.declaration) {
-            // @ts-expect-error xxx typedef
-            if (exportNode.declaration.declarations) {
-              // @ts-expect-error xxx typedef
+            if (exportNode.declaration.type === 'VariableDeclaration') {
               for (const declaration of exportNode.declaration.declarations) {
                 if (declaration.id.type === 'ObjectPattern') {
                   for (const prop of declaration.id.properties) {
-                    exportNames.push(prop.key.name);
+                    if (prop.type === 'RestElement') {
+                      console.warn('Rest elements are not supported');
+                      continue;
+                    }
+                    if (prop.value.type === 'Identifier') {
+                      exportNames.push(prop.value.name);
+                    } else if (
+                      prop.value.type === 'AssignmentPattern' &&
+                      prop.value.left.type === 'Identifier'
+                    ) {
+                      exportNames.push(prop.value.left.name);
+                    }
                   }
-                } else {
+                } else if (declaration.id.type === 'ArrayPattern') {
+                  for (const element of declaration.id.elements) {
+                    if (element && element.type === 'Identifier') {
+                      exportNames.push(element.name);
+                    }
+                  }
+                } else if (declaration.id.type === 'Identifier') {
                   exportNames.push(declaration.id.name);
                 }
               }
             } else if (exportNode.declaration.type === 'FunctionDeclaration') {
+              const nodeName = exportNode.declaration.id?.name ?? '<missing>';
               context.report({
                 node: exportNode,
                 // The 'function' keyword hoisting makes the valuable mutable before it can be hardened.
-                message: `Export '${exportNode.declaration.id.name}' should be a const declaration with an arrow function.`,
+                message: `Export '${nodeName}' should be a const declaration with an arrow function.`,
               });
             }
           } else if (exportNode.specifiers) {
@@ -73,17 +89,33 @@ module.exports = {
 
           const missingHardenCalls = [];
           for (const exportName of exportNames) {
-            const hasHardenCall = sourceCode.ast.body.some(statement => {
-              return (
+            const hasHardenCall = sourceCode.ast.body.some(
+              statement =>
                 statement.type === 'ExpressionStatement' &&
                 statement.expression.type === 'CallExpression' &&
-                // @ts-expect-error xxx typedef
+                statement.expression.callee.type === 'Identifier' &&
                 statement.expression.callee.name === 'harden' &&
                 statement.expression.arguments.length === 1 &&
-                // @ts-expect-error xxx typedef
-                statement.expression.arguments[0].name === exportName
-              );
-            });
+                ((statement.expression.arguments[0].type === 'Identifier' &&
+                  statement.expression.arguments[0].name === exportName) ||
+                  // @ts-expect-error XXX non-overlapping
+                  (statement.expression.arguments[0].type === 'ObjectPattern' &&
+                    // @ts-expect-error XXX non-overlapping
+                    statement.expression.arguments[0].properties.some(
+                      prop =>
+                        prop.value.type === 'Identifier' &&
+                        prop.value.name === exportName,
+                    )) ||
+                  // @ts-expect-error XXX non-overlapping
+                  (statement.expression.arguments[0].type === 'ArrayPattern' &&
+                    // @ts-expect-error XXX non-overlapping
+                    statement.expression.arguments[0].elements.some(
+                      element =>
+                        element &&
+                        element.type === 'Identifier' &&
+                        element.name === exportName,
+                    ))),
+            );
 
             if (!hasHardenCall) {
               missingHardenCalls.push(exportName);
