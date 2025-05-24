@@ -23,7 +23,6 @@
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'",
     "test": "ava",
     "test:xs": "exit 0",
-    "lint-check": "yarn lint",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "yarn lint:types && eslint '**/*.js'",
     "lint:types": "tsc"

@@ -24,11 +24,10 @@
   "scripts": {
     "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint-check": "yarn lint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
-    "postpack": "git clean -f '*.d.ts*'",
+    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'",
     "prepack": "tsc --build tsconfig.build.json",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",

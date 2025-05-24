@@ -25,7 +25,6 @@
     "build": "exit 0",
     "clean": "git clean -f '*.d.ts*'",
     "lint": "yarn lint:types && yarn lint:eslint",
-    "lint-check": "yarn lint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
