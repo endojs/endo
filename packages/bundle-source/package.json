@@ -30,7 +30,7 @@
     "@endo/init": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/where": "workspace:^",
-    "ts-blank-space": "^0.4.1"
+    "ts-blank-space": "^0.6.1"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
@@ -40,7 +40,7 @@
     "c8": "^7.14.0",
     "eslint": "^8.57.0",
     "ses": "workspace:^",
-    "typescript": "~5.6.3"
+    "typescript": "~5.8.3"
   },
   "keywords": [],
   "files": [
