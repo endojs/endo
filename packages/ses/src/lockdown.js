@@ -16,6 +16,7 @@
 
 import { getEnvironmentOption as getenv } from '@endo/env-options';
 import '@endo/immutable-arraybuffer/shim.js';
+import { makeHardener } from '@endo/harden/hardener.js';
 import {
   FERAL_FUNCTION,
   FERAL_EVAL,
@@ -29,7 +30,6 @@ import {
   getOwnPropertyNames,
   getPrototypeOf,
 } from './commons.js';
-import { makeHardener } from '@endo/harden/hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import removeUnpermittedIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
