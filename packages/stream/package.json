@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "ses": "workspace:^"
   },

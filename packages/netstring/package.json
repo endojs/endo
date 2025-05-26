@@ -35,6 +35,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/stream": "workspace:^",

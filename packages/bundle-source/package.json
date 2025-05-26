@@ -27,6 +27,7 @@
     "@endo/base64": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/evasive-transform": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/where": "workspace:^",

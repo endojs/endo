@@ -65,6 +65,7 @@
   "dependencies": {
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/nat": "workspace:^",
     "@endo/pass-style": "workspace:^",

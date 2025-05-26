@@ -71,5 +71,8 @@
     "extends": [
       "plugin:@endo/internal"
     ]
+  },
+  "dependencies": {
+    "@endo/harden": "workspace:^"
   }
 }
