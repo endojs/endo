@@ -21,6 +21,7 @@
     "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "files": [

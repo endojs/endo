@@ -46,6 +46,7 @@
     "@babel/parser": "~7.26.2",
     "@babel/traverse": "~7.25.9",
     "@babel/types": "~7.26.0",
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "devDependencies": {
