@@ -159,7 +159,7 @@ export const makeHardener = traversePrototypeChains => {
 
   const hardened = new WeakSet();
 
-  const { harden } = {
+  let { harden } = {
     /**
      * @template T
      * @param {T} root
@@ -303,6 +303,29 @@ export const makeHardener = traversePrototypeChains => {
       return root;
     },
   };
+
+  // The harden implementation exported by @endo/harden does not ascend
+  // prototype chains but may be imported into programs after lockdown.
+  // In this case, the weak hardener must give way to the strong hardener
+  // on the global object, lazily.
+  if (!ascendPrototypeChains) {
+    ({ harden } = (innerHarden => ({
+      /**
+       * @template T
+       * @param {T} root
+       * @returns {T}
+       */
+      harden(root) {
+        // Use a native hardener if possible.
+        if (typeof globalThis.harden === 'function') {
+          const globalHarden = globalThis.harden;
+          return globalHarden(root);
+        } else {
+          return innerHarden(root);
+        }
+      },
+    }))(harden));
+  }
 
   return harden;
 };
