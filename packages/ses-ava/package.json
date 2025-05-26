@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
     "ses": "workspace:^"
   },
