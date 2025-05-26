@@ -51,6 +51,21 @@ import {
 import { FERAL_STACK_GETTER, FERAL_STACK_SETTER } from './commons.js';
 
 /**
+ * There are two valid ways to use harden.
+ * Either, a program uses harden and never uses lockdown, or a program uses
+ * lockdown before ever using harden.
+ * We use this top-level module state to prevent invalid arrangements in some,
+ * but not all, possible configurations.
+ * For example, if there are "eval twins" of this module, they might fail to
+ * prevent misuse.
+ * It is our hope that this gentle pressure causes the ecosystem to tend to
+ * conform to either mode, in the same way ses strives to provide the best
+ * possible failure mode in the face of eval twins of lockdown.
+ * @type {undefined | boolean}
+ */
+let mode;
+
+/**
  * @param {any} guard
  * @returns {asserts guard}
  */
@@ -154,6 +169,14 @@ const makeHardener = ascendPrototypeChains => {
      * @returns {T}
      */
     harden(root) {
+      if (mode === undefined) {
+        mode = ascendPrototypeChains;
+      } else if (mode !== ascendPrototypeChains) {
+        throw new TypeError(
+          'harden must be used either with lockdown or without lockdown, but not both before and after lockdown',
+        );
+      }
+
       const toFreeze = new Set();
 
       // If val is something we should be freezing but aren't yet,
