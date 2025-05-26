@@ -16,6 +16,7 @@ if (er1StackDesc && er2StackDesc && er1StackDesc.get) {
   // Note that FF/SpiderMonkey, Moddable/XS, and the error stack proposal
   // all inherit a stack accessor property from Error.prototype, which is
   // great. That case needs no heroics to secure.
+  // https://github.com/tc39/proposal-error-stacks
   if (
     // In the v8 case as we understand it, all errors have an own stack
     // accessor property, but within the same realm, all these accessor
