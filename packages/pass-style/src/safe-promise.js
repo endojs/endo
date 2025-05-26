@@ -1,5 +1,6 @@
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
 import { isPromise } from '@endo/promise-kit';
 import { q } from '@endo/errors';
 import { assertChecker, hasOwnPropertyOf, CX } from './passStyle-helpers.js';

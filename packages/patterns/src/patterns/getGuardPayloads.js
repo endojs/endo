@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { objectMap } from '@endo/common/object-map.js';
 import {
   ArgGuardListShape,

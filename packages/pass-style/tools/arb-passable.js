@@ -1,5 +1,6 @@
 // @ts-check
 import '../src/types.js';
+import { harden } from '@endo/harden';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { passableSymbolForName } from '../src/symbol.js';

@@ -1,5 +1,6 @@
 // @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
+import { harden } from '@endo/harden';
 import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
 import { identChecker } from '@endo/common/ident-checker.js';
 import { applyLabelingError } from '@endo/common/apply-labeling-error.js';

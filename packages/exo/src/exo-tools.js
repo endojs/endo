@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { hasOwnPropertyOf, toThrowable } from '@endo/pass-style';
 import { E, Far } from '@endo/far';
