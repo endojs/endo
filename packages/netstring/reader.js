@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
+
 const COLON = ':'.charCodeAt(0);
 const COMMA = ','.charCodeAt(0);
 const ZERO = '0'.charCodeAt(0);

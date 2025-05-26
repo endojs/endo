@@ -6,6 +6,8 @@
 // encodes to CapData, a JSON-representable data structure, and leaves it to
 // the caller (`marshal.js`) to stringify it.
 
+import { harden } from '@endo/harden';
+import { X, Fail, q } from '@endo/errors';
 import {
   passStyleOf,
   isErrorLike,
@@ -16,7 +18,6 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
-import { X, Fail, q } from '@endo/errors';
 
 /** @import {Passable, RemotableObject} from '@endo/pass-style' */
 /** @import {Encoding, EncodingUnion} from './types.js' */

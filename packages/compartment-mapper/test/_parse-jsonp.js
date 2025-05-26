@@ -1,5 +1,7 @@
 /** @module Provides joke language support for importing JSONP modules. */
 
+import { harden } from '@endo/harden';
+
 /**
  * @import {ParseFn, ParserImplementation} from '../src/types.js'
  */

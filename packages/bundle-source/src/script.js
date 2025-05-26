@@ -7,6 +7,7 @@ import url from 'url';
 import fs from 'fs';
 import os from 'os';
 
+import { harden } from '@endo/harden';
 import { makeFunctor } from '@endo/compartment-mapper/functor.js';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 

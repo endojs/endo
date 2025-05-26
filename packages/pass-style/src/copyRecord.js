@@ -3,6 +3,7 @@
 import { Fail } from '@endo/errors';
 import { confirmOwnDataDescriptor } from './passStyle-helpers.js';
 import { canBeMethod } from './remotable.js';
+import { harden } from '@endo/harden';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';

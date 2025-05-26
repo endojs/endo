@@ -5,6 +5,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
 import { Fail } from '@endo/errors';
 
 const sink = harden(() => {});

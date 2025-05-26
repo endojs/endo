@@ -7,6 +7,7 @@ import url from 'url';
 import fs from 'fs';
 import os from 'os';
 
+import { harden } from '@endo/harden';
 import { mapNodeModules } from '@endo/compartment-mapper/node-modules.js';
 import { makeAndHashArchiveFromMap } from '@endo/compartment-mapper/archive-lite.js';
 import { encodeBase64 } from '@endo/base64';

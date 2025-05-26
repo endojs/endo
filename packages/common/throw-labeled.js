@@ -4,6 +4,7 @@ import {
   annotateError,
   hideAndHardenFunction,
 } from '@endo/errors';
+import { harden } from '@endo/harden';
 
 /**
  * Given an error `innerErr` and a `label`, throws a similar

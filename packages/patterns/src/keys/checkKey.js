@@ -2,6 +2,7 @@
 
 import { Fail, q, hideAndHardenFunction } from '@endo/errors';
 import { Far, getTag, makeTagged, passStyleOf, isAtom } from '@endo/pass-style';
+import { harden } from '@endo/harden';
 import {
   compareAntiRank,
   makeFullOrderComparatorKit,

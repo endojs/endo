@@ -1,9 +1,10 @@
 /* global globalThis */
 /// <reference types="ses"/>
 
-import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
-import { decodeBase64 } from '@endo/base64';
+import { harden } from '@endo/harden';
 import { Fail } from '@endo/errors';
+import { decodeBase64 } from '@endo/base64';
+import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import { wrapInescapableCompartment } from './compartment-wrapper.js';
 
 /**

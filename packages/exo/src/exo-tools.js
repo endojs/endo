@@ -1,5 +1,6 @@
 import { E } from '@endo/eventual-send';
 import { getRemotableMethodNames, toThrowable, Far } from '@endo/pass-style';
+import { harden } from '@endo/harden';
 import {
   mustMatch,
   M,

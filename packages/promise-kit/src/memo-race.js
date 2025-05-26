@@ -28,12 +28,14 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+import { harden } from '@endo/harden';
+
 /**
  * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`.
  * Layering constraints make this tricky, which is why we haven't yet figured
  * out how to do this.
  *
- * @type {(val: unknown) => val is (undefined
+ * @type {(value: unknown) => value is (undefined
  * | null
  * | boolean
  * | number
@@ -41,8 +43,8 @@ For more information, please refer to <http://unlicense.org/>
  * | string
  * | symbol)}
  */
-const isPrimitive = val =>
-  !val || (typeof val !== 'object' && typeof val !== 'function');
+const isPrimitive = value =>
+  !value || (typeof value !== 'object' && typeof value !== 'function');
 
 /**
  * @template [T=any]

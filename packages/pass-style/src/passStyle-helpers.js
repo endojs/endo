@@ -1,6 +1,7 @@
 /// <reference types="ses"/>
 
 import { q, hideAndHardenFunction } from '@endo/errors';
+import { harden } from '@endo/harden';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';

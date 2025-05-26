@@ -1,5 +1,7 @@
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
+import { q, Fail } from '@endo/errors';
 import {
   passStyleOf,
   getTag,
@@ -8,7 +10,6 @@ import {
   recordNames,
   recordValues,
 } from '@endo/marshal';
-import { q, Fail } from '@endo/errors';
 import {
   assertKey,
   getCopyBagEntries,

@@ -6,9 +6,9 @@
 // They however iterate Node.js Buffer values and are not hardened, so this
 // implementation compensates for both.
 
-import { mapReader } from '@endo/stream';
-
+import { harden } from '@endo/harden';
 import { Fail, q } from '@endo/errors';
+import { mapReader } from '@endo/stream';
 
 /**
  * @param {import('stream').Readable} input the source Node.js reader

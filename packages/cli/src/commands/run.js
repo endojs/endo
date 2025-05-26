@@ -1,6 +1,7 @@
 /* global globalThis, process */
 import url from 'url';
 import os from 'os';
+import { harden } from '@endo/harden';
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';

@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 

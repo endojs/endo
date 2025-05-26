@@ -1,5 +1,6 @@
 import { expectType } from 'tsd';
 
+import { harden } from '@endo/harden';
 import { Far, type AtomStyle, type RemotableObject } from '@endo/pass-style';
 import { makeMarshal } from './marshal.js';
 

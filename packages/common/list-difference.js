@@ -1,3 +1,5 @@
+import { harden } from '@endo/harden';
+
 /**
  * Return a list of all the elements present in the `leftList` and not
  * in the `rightList`. Return in the order of their appearance in `leftList`.

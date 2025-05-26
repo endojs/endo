@@ -20,6 +20,8 @@
  * @returns {boolean}
  */
 
+import { harden } from '@endo/harden';
+
 /**
  * In the `assertFoo`/`isFoo`/`checkFoo` pattern, `checkFoo` has a `check`
  * parameter of type `Checker`. `assertFoo` calls `checkFoo` passes

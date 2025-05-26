@@ -1,3 +1,5 @@
+import { harden } from '@endo/harden';
+
 /**
  * Given a one-argument function `fn` or a WeakMap-key compatible
  * argument `arg`, returns `memoFn`, a memoizing form of that function
