@@ -58,6 +58,7 @@ export const ByteArrayHelper = harden({
     (candidate instanceof ArrayBuffer &&
       // @ts-expect-error TODO How do I add it to the ArrayBuffer type?
       candidate.immutable) ||
+    // @ts-expect-error check of Type 'never' has no call signatures.
     (!!check && check(false, X`Immutable ArrayBuffer expected: ${candidate}`)),
 
   assertRestValid: (candidate, _passStyleOfRecur) => {

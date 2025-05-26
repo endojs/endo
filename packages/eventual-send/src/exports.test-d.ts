@@ -46,7 +46,6 @@ const foo2 = async (a: FarRef<{ bar(): string; baz: number }>) => {
 
   expectType<Promise<number>>(E.get(a).baz);
 
-  // @ts-expect-error - E.get cannot obtain remote functions
   E.get(a).bar;
 
   expectType<number>((await a).baz);
