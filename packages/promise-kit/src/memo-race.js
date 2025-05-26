@@ -28,6 +28,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+import { harden } from '@endo/harden';
+
 const isObject = value => Object(value) === value;
 
 /**

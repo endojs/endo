@@ -26,7 +26,7 @@ an object with `toCapData` and `fromCapData` properties. Each callback defaults
 to the identity function.
 
 ```js
-import '@endo/init';
+import '@endo/init'; // for hardenedjs, optional
 import { makeMarshal } from '@endo/marshal';
 
 const m = makeMarshal();

@@ -1,6 +1,7 @@
 /* eslint-disable no-use-before-define */
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { isObject, getInterfaceOf, Far, passStyleOf } from '@endo/pass-style';
 import { Fail } from '@endo/errors';

@@ -1,4 +1,6 @@
 /* eslint-disable no-bitwise */
+import { harden } from '@endo/harden';
+import { b, q, Fail } from '@endo/errors';
 import {
   getTag,
   makeTagged,
@@ -12,8 +14,6 @@ import {
 /**
  * @import {CopyRecord, PassStyle, Passable, RemotableObject as Remotable, ByteArray} from '@endo/pass-style'
  */
-
-import { b, q, Fail } from '@endo/errors';
 
 const { isArray } = Array;
 const { fromEntries, is } = Object;

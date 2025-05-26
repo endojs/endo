@@ -3,6 +3,7 @@
 /** @import {Checker} from './types.js' */
 /** @import {PassStyle} from './types.js' */
 
+import { harden } from '@endo/harden';
 import { X, q } from '@endo/errors';
 
 const { isArray } = Array;

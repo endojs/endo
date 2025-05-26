@@ -2,6 +2,7 @@
 
 /** @import {Checker} from './types.js' */
 
+import { harden } from '@endo/harden';
 import {
   assertChecker,
   canBeMethod,

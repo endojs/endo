@@ -1,5 +1,6 @@
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
 import { X } from '@endo/errors';
 import { assertChecker, getOwnDataDescriptor } from './passStyle-helpers.js';
 
