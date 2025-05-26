@@ -17,6 +17,7 @@ export const CopyArrayHelper = harden({
 
   canBeValid: (candidate, check = undefined) =>
     isArray(candidate) ||
+    // @ts-expect-error check of Type 'never' has no call signatures.
     (!!check && check(false, X`Array expected: ${candidate}`)),
 
   assertRestValid: (candidate, passStyleOfRecur) => {

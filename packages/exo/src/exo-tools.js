@@ -391,6 +391,7 @@ export const defendPrototype = (
       ...(symbolMethodGuards &&
         fromEntries(getCopyMapEntries(symbolMethodGuards))),
     });
+    assert(methodGuards);
     defaultGuards = dg;
     {
       const methodGuardNames = ownKeys(methodGuards);
