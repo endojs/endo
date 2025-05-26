@@ -29,7 +29,7 @@ import {
   getOwnPropertyNames,
   getPrototypeOf,
 } from './commons.js';
-import { makeHardener } from './make-hardener.js';
+import { makeHardener } from '@endo/harden/hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import removeUnpermittedIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
