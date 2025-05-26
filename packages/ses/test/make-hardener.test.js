@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import test from 'ava';
-import { makeHardener } from '../src/make-hardener.js';
+import { makeHardener } from '@endo/harden/hardener.js';
 import { assert } from '../src/error/assert.js';
 
 const { quote: q } = assert;
