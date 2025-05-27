@@ -153,14 +153,14 @@ const { bind } = functionPrototype;
 
 /**
  * uncurryThis()
- * Equivalent of: fn => (thisArg, ...args) => apply(fn, thisArg, args)
+ * Equivalent of: fn => (that, ...args) => apply(fn, that, args)
  *
  * See those reference for a complete explanation:
  * http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  * which only lives at
  * http://web.archive.org/web/20160805225710/http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  *
- * @type {<F extends (this: any, ...args: any[]) => any>(fn: F) => ((thisArg: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>)}
+ * @type {<F extends (this: any, ...args: any[]) => any>(fn: F) => ((that: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>)}
  */
 export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
 
@@ -175,13 +175,13 @@ export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);
 export const arrayJoin = uncurryThis(arrayPrototype.join);
-/** @type {<T, U>(thisArg: readonly T[], callbackfn: (value: T, index: number, array: T[]) => U, cbThisArg?: any) => U[]} */
+/** @type {<T, U>(that: readonly T[], callbackfn: (value: T, index: number, array: T[]) => U, cbThisArg?: any) => U[]} */
 export const arrayMap = /** @type {any} */ (uncurryThis(arrayPrototype.map));
 export const arrayFlatMap = /** @type {any} */ (
   uncurryThis(arrayPrototype.flatMap)
 );
 export const arrayPop = uncurryThis(arrayPrototype.pop);
-/** @type {<T>(thisArg: T[], ...items: T[]) => number} */
+/** @type {<T>(that: T[], ...items: T[]) => number} */
 export const arrayPush = uncurryThis(arrayPrototype.push);
 export const arraySlice = uncurryThis(arrayPrototype.slice);
 export const arraySome = uncurryThis(arrayPrototype.some);
@@ -223,8 +223,8 @@ export const generatorThrow = uncurryThis(generatorPrototype.throw);
 
 /**
  * @type { &
- *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) &
- *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string) => string)
+ *   ((that: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) &
+ *   ((that: string, searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string) => string)
  * }
  */
 export const stringReplace = /** @type {any} */ (
@@ -233,14 +233,14 @@ export const stringReplace = /** @type {any} */ (
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
 export const stringSplit =
-  /** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */ (
+  /** @type {(that: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */ (
     uncurryThis(stringPrototype.split)
   );
 export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
 //
 export const weakmapDelete = uncurryThis(weakmapPrototype.delete);
-/** @type {<K extends {}, V>(thisArg: WeakMap<K, V>, ...args: Parameters<WeakMap<K,V>['get']>) => ReturnType<WeakMap<K,V>['get']>} */
+/** @type {<K extends {}, V>(that: WeakMap<K, V>, ...args: Parameters<WeakMap<K,V>['get']>) => ReturnType<WeakMap<K,V>['get']>} */
 export const weakmapGet = uncurryThis(weakmapPrototype.get);
 export const weakmapHas = uncurryThis(weakmapPrototype.has);
 export const weakmapSet = uncurryThis(weakmapPrototype.set);
@@ -254,7 +254,7 @@ export const functionBind = uncurryThis(bind);
 const { all } = Promise;
 export const promiseAll = promises => apply(all, Promise, [promises]);
 export const promiseCatch = uncurryThis(promisePrototype.catch);
-/** @type {<T, TResult1 = T, TResult2 = never>(thisArg: T, onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null) => Promise<TResult1 | TResult2>} */
+/** @type {<T, TResult1 = T, TResult2 = never>(that: T, onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null) => Promise<TResult1 | TResult2>} */
 export const promiseThen = /** @type {any} */ (
   uncurryThis(promisePrototype.then)
 );
