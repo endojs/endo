@@ -1,4 +1,4 @@
-# import-bundle
+# `@endo/import-bundle`
 
 `importBundle` is an async function that evaluates the bundles created by
 `bundle-source`, turning them back into callable functions:
@@ -25,11 +25,11 @@ Each call to `importBundle` creates a new `Compartment`.
 The globals of the new Compartment are frozen before any bundle code is
 evaluated, to enforce ocap rules.
 
-## Module Formats
+# Module Formats
 
 The source can be bundled in a variety of "formats".
 
-### endoZipBase64
+## endoZipBase64
 
 By default, `bundleSource` uses a format named `endoZipBase64`, in which the
 source modules and a "compartment map" are captured in a Zip file and base-64
@@ -38,18 +38,18 @@ The compartment map describes how to construct a set of [Hardened
 JavaScript](https://hardenedjs.org) compartments and how to load and link the
 source modules between them.
 
-### endoScript
+## endoScript
 
 The `endoScript` format captures the sources as a single JavaScript program
 that completes with the entry module's namespace object.
 
-### getExport
+## getExport
 
 The `getExport` format captures the sources as a single CommonJS-style string,
 and wrapped in a callable function that provides the `exports` and
 `module.exports` context to which the exports can be attached.
 
-### nestedEvaluate
+## nestedEvaluate
 
 More sophisticated than `getExport` is named `nestedEvaluate`.
 In this mode, the source tree is converted into a table of evaluable strings,
@@ -67,7 +67,7 @@ Note that the `nestedEvaluate` format receives a global endowment named
 `require`, although it will only be called if the source tree imported one of
 the few modules on the `bundle-source` "external" list.
 
-### test
+## test
 
 The `test` format is useful for mocking a bundle locally for a test and is
 deliberately not serializable or passable.
@@ -85,7 +85,7 @@ test('who tests the tests', async t => {
 });
 ```
 
-## Options
+# Options
 
 `importBundle()` takes an options bag and optional additional powers.
 
@@ -138,7 +138,7 @@ method, not the Compartment constructor itself, and thus cannot be supplied to
 To use `sloppyGlobalsMode`, you will probably want to create a Compartment
 directly (and not freeze its globals).
 
-## Source maps
+# Source maps
 
 For an Endo (zip, base64) bundle, `bundleSource` will add source maps to a
 per-user cache so they can be debugged if imported on the same host.

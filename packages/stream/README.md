@@ -11,7 +11,7 @@ These streams depend on full Endo environment initialization, as with `@endo/ini
 to ensure that they are run in Hardened JavaScript with remote promise support
 (eventual send).
 
-## Writing
+# Writing
 
 To write to a stream, give a value to the next method.
 
@@ -22,7 +22,7 @@ await writer.next(value);
 
 Awaiting the returned promise slows the writer to match the pace of the reader.
 
-## Reading
+# Reading
 
 To read from a stream, await the value returned by the next method.
 
@@ -32,7 +32,7 @@ for await (const value of reader) {
 }
 ```
 
-## Map
+# Map
 
 To map a reader to a reader through a synchronous value transform, use `mapReader`.
 
@@ -53,7 +53,7 @@ const singleWriter = mapWriter(doubleWriter, n => n * 2);
 In this example, any value written to singleWriter will be writ double to
 doubleWriter.
 
-## Pipe
+# Pipe
 
 The `makePipe` function returns an entangled pair of streams.
 Use one as a reader and the other as a writer.
@@ -73,7 +73,7 @@ which promises settle.
 A stream is consequently a pair of queues that transport iteration results,
 one to send messages forward and another to receive acknowledgements.
 
-## Pump
+# Pump
 
 The `pump` function pumps iterations from a reader to a writer.
 The pump must be primed with the first acknowledgement to send to the reader,
@@ -93,7 +93,7 @@ const reader = makeNodeReader(process.stdin);
 await pump(writer, reader);
 ```
 
-## Prime
+# Prime
 
 Async generator functions are very useful for making reader adapters.
 

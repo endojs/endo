@@ -186,3 +186,8 @@ Any encoding into JSON of data that cannot be represented directly, such as
 `NaN`, relies on some kind of escape for the decoding side to detect and use.
 For `stringify` and `parse`, this is signaled by an object with a property named
 `@qclass` per the original encoding described [above](#beyond-json).
+
+# Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

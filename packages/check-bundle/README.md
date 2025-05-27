@@ -1,4 +1,4 @@
-# check-bundle
+# `@endo/check-bundle`
 
 `checkBundle` verifies the integrity of a bundle, inspects all of its internal hashes and its one external hash.
 `checkBundle` verifies the internal consistency, completeness, coherence, and conciseness (no extra files) of the bundle.
