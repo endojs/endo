@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { X, q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
@@ -103,7 +104,6 @@ export const deeplyFulfilled = async val => {
       const rec = /** @type {CopyRecord} */ (val);
       const names = /** @type {string[]} */ (ownKeys(rec));
       const valPs = names.map(name => deeplyFulfilled(rec[name]));
-      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
       return E.when(Promise.all(valPs), vals =>
         harden(fromEntries(vals.map((c, i) => [names[i], c]))),
       );
@@ -111,7 +111,6 @@ export const deeplyFulfilled = async val => {
     case 'copyArray': {
       const arr = /** @type {CopyArray} */ (val);
       const valPs = arr.map(p => deeplyFulfilled(p));
-      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
       return E.when(Promise.all(valPs), vals => harden(vals));
     }
     case 'byteArray': {
@@ -122,7 +121,6 @@ export const deeplyFulfilled = async val => {
     case 'tagged': {
       const tgd = /** @type {CopyTagged} */ (val);
       const tag = getTag(tgd);
-      // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
       return E.when(deeplyFulfilled(tgd.payload), payload =>
         makeTagged(tag, payload),
       );

@@ -1,4 +1,5 @@
 import { getEnvironmentOption } from '@endo/env-options';
+import { harden } from '@endo/harden';
 import { Fail } from '@endo/errors';
 
 // know about`isWellFormed`

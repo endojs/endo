@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { Fail, q, X } from '@endo/errors';
 import { identChecker } from '@endo/common/ident-checker.js';
 import { passStyleOf } from './passStyleOf.js';

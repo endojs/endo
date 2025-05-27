@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
@@ -75,7 +76,6 @@ const makeEProxyHandler = (recipient, HandledPromise) =>
             }
             return HandledPromise.applyMethod(recipient, propertyKey, args);
           },
-          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
         }[propertyKey],
       );
     },
@@ -131,7 +131,6 @@ const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
             HandledPromise.applyMethodSendOnly(recipient, propertyKey, args);
             return undefined;
           },
-          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
         }[propertyKey],
       );
     },

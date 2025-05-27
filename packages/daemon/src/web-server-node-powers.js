@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 

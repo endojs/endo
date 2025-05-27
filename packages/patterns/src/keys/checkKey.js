@@ -1,5 +1,6 @@
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
 import { X, q, Fail } from '@endo/errors';
 import { identChecker } from '@endo/common/ident-checker.js';
 import {

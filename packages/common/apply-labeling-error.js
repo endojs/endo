@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 import { throwLabeled } from './throw-labeled.js';

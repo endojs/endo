@@ -1,5 +1,6 @@
 // @ts-check
 
+import { harden } from '@endo/harden';
 import { makePromiseKit } from '@endo/promise-kit';
 
 /** @import { PromiseKit } from '@endo/promise-kit' */

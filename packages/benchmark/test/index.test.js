@@ -1,4 +1,5 @@
 import '@endo/init';
+import { harden } from '@endo/harden';
 import { passStyleOf } from '@endo/pass-style';
 import { test, benchmark } from '../src/benchmark.js';
 
