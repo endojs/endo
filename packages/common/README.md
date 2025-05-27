@@ -15,3 +15,8 @@ Currently there are no `src/something.js` files. The only source files that woul
 Generally each utility also has its own test file. (An exception is that `make-iterator.js` is indirectly but adequately tested by `test-make-array-iterator.js`).
 
 See the doc-comments within the source file of each utility for documentation of that utility. Sometimes the associated test files also serve as informative examples.
+
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

@@ -20,6 +20,11 @@ After that, you can use `HandledPromise` in any of your code.  If you need acces
 import { E } from '@endo/eventual-send';
 ```
 
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).
+
 [deps-svg]: https://david-dm.org/Agoric/eventual-send.svg
 [deps-url]: https://david-dm.org/Agoric/eventual-send
 [dev-deps-svg]: https://david-dm.org/Agoric/eventual-send/dev-status.svg

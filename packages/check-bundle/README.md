@@ -11,3 +11,8 @@ await checkBundle(bundle);
 ```
 
 This must be run in an Endo environment. To run on Node.js, import `@endo/init` before importing `@endo/import-bundle`.
+
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

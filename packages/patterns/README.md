@@ -33,3 +33,8 @@ Builds on {@link @endo/pass-style!} as described in [`kindOf` and `passStyleOf` 
 In support of the above, there is also {@link compareKeys} and {@link keyEQ} exposing pass-invariant Key comparison, and two concepts with corresponding TypeScript types:
    - {@link Key} -- a Passable arbitrarily deep acyclic data structure in which each non-leaf node is a CopyArray, CopyRecord, CopySet, CopyBag, or CopyMap that is the child of at most one other internal node (forming a possibly-empty tree of containers), and each leaf is either an empty such container or a Passable primitive value or a Remotable (but the same Remotable `r` may be a child of multiple parents, e.g. `{ foo: r, bar: [r] }`). A Key is stable and stably comparable with other Keys via {@link keyEQ}. Key is the most general data type covering valid contents for CopySets and CopyBags and keys for CopyMaps (the last of which explains the "Key" name).
    - {@link Pattern} -- a Passable value that can be used to *match* some subset of Passables. Each Pattern is either a Key that matches itself (and any copy of itself --- `keyEQ` considers identity only for Remotables, where it is shared across all local Presences of the same Remotable), or a Key-like structure in which one or more leaves is a Matcher rather than a primitive or Remotable.
+
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

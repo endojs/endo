@@ -15,3 +15,8 @@ You can import any of the following from `@endo/far`:
 ```js
 import { E, Far, getInterfaceOf, passStyleOf } from '@endo/far';
 ```
+
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

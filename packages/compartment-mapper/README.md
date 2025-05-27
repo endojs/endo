@@ -771,3 +771,8 @@ The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMa
   [import attributes]: https://nodejs.org/docs/latest/api/esm.html#import-attributes
   [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
   [`require.resolve()`]: https://nodejs.org/docs/latest/api/modules.html#requireresolverequest-options
+
+# Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

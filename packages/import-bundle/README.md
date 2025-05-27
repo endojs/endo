@@ -161,3 +161,8 @@ await importBundle(
 ```
 
 Use `node --inspect-brk` and `debugger` statements.
+
+# Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).
