@@ -63,3 +63,8 @@ the guest unblocks.
 The Loopback implementation provides partial support for TrapCaps, except it
 cannot unwrap promises.  Loopback TrapHandlers must return synchronously, or an
 exception will be thrown.
+
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

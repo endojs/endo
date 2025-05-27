@@ -92,3 +92,8 @@ to report security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
 page](https://github.com/endojs/endo/issues).
+
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

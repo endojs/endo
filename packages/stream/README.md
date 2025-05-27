@@ -127,14 +127,16 @@ const writer = prime(logGenerator());
 await writer.next('First message is not discarded');
 ```
 
-## Hardening
+# Hardening
 
-This library depends on Hardened JavaScript.
-The environment must be locked down before initializing this library.
 All of the exported functions and the streams they produce are hardened.
-
 This implementation of streams ensures that iteration results are shallowly
 frozen.
 The user is responsible for hardening the transported values if that is their
 intent.
 Some values like array buffers cannot be frozen.
+
+# Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

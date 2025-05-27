@@ -285,3 +285,7 @@ So, to extract the source-similar program for visual inspection:
 jq -r .__syncModuleProgram module.js > module.source.js
 ```
 
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

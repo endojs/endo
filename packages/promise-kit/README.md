@@ -65,6 +65,11 @@ Creates a new promise kit.
 - **`resolve`**: The resolve function for the promise.
 - **`reject`**: The reject function for the promise.
 
+# Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).
+
 # Links
 
 [Repository](https://github.com/endojs/endo/tree/master/packages/promise-kit)
