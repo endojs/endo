@@ -1,4 +1,4 @@
-# Compartment mapper
+# `@endo/compartment-mapper`
 
 The compartment mapper builds _compartment maps_ for Node.js style
 applications, finding their dependencies and describing how to create

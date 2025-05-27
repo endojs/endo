@@ -1,4 +1,4 @@
-# Bundle Source
+# `@endo/bundle-source`
 
 This package creates source bundles from ES Modules, compatible with Endo
 applications, Agoric contracts, and SwingSet vats.

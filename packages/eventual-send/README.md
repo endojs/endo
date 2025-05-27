@@ -1,4 +1,4 @@
-# HandledPromise
+# `@endo/eventual-send` and `HandledPromise` shim
 
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
@@ -11,13 +11,13 @@ Create a HandledPromise class to implement the eventual-send API.  This API is u
 To install the `HandledPromise` global property shim, do:
 
 ```js
-import '@agoric/eventual-send/shim';
+import '@endo/eventual-send/shim.js';
 ```
 
 After that, you can use `HandledPromise` in any of your code.  If you need access to the `E` proxy maker, do:
 
 ```js
-import { E } from '@agoric/eventual-send';
+import { E } from '@endo/eventual-send';
 ```
 
 [deps-svg]: https://david-dm.org/Agoric/eventual-send.svg

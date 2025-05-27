@@ -30,7 +30,7 @@ dependency, bundlers might bundle your code with all of Ava.
 
 SES-Ava rhymes with Nineveh.
 
-## Compat note
+# Compatibility
 
 If you were already using `@endo/ses-ava` by doing
 
