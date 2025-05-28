@@ -1,4 +1,3 @@
-/* eslint-disable @endo/no-optional-chaining */
 // @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
 import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';

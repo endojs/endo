@@ -1,4 +1,3 @@
-/* eslint-disable @endo/no-optional-chaining */
 // @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';
 
