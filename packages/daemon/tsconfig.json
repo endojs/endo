@@ -3,7 +3,6 @@
   "compilerOptions": {
     "checkJs": false,
     "allowSyntheticDefaultImports": true,
-    "maxNodeModuleJsDepth": 1
   },
   "include": [
     "*.js",
