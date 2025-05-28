@@ -271,7 +271,6 @@ const sortedModules = (
   return { modules, aliases };
 };
 
-/** @type {Record<string, BundlerSupport<unknown>>} */
 const bundlerSupportForLanguage = {
   'pre-mjs-json': mjsSupport,
   'pre-cjs-json': cjsSupport,

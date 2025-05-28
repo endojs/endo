@@ -1,3 +1,4 @@
+// @ts-nocheck
 // These tests exercise all forms of import and export between a pair of
 // modules using a single Compartment.
 

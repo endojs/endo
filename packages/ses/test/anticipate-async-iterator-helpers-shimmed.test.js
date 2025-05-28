@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global AsyncIterator */
 import './_enforce-cjs-strict.js';
 import './_core-js-configuration.js';

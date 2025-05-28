@@ -69,6 +69,7 @@ export type BundleSourceGeneral = <T extends ModuleFormat = 'endoZipBase64'>(
 
 export type BundleOptions<T extends ModuleFormat> = {
   format?: T | undefined;
+  cacheSourceMaps?: boolean | undefined;
   /**
    * - development mode, for test bundles that need
    * access to devDependencies of the entry package.

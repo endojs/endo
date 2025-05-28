@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import '../index.js';
 import permitsIntrinsics from '../src/permits-intrinsics.js';

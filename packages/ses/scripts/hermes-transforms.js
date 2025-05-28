@@ -73,6 +73,7 @@ const immutableArrayBufferPonyfier = {
 };
 
 export const hermesTransforms = {
+  /** @type {any} */
   mjs: (sourceBytes, specifier, location, _packageLocation, { sourceMap }) => {
     const transforms = {
       ...asyncArrowEliminator,

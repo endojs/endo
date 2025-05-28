@@ -6,7 +6,8 @@ import { E } from './_get-hp.js';
 /**
  * Mock a Remotable maker.
  *
- * @template L,R
+ * @template {Record<string, any>} L
+ * @template {Record<string, any>} R
  * @param {string} [_iface]
  * @param {L} [props]
  * @param {R} [remoteMethods]
@@ -20,6 +21,7 @@ const Remotable = (
   // Assign props to the object.
   for (const [key, value] of Object.entries(props)) {
     assert(!(key in obj));
+    // @ts-expect-error Type 'R' is generic and can only be indexed for reading.
     obj[key] = value;
   }
   const ret =
@@ -32,7 +34,7 @@ const Remotable = (
 /**
  * Mock a far object maker.
  *
- * @template T
+ * @template {Record<string, any>} T
  * @param {string} iface
  * @param {T} value
  */
@@ -43,7 +45,7 @@ const Far = (iface, value) => {
 /**
  * Check the performance of the legacy ERef type.
  *
- * @param {import('./prepare-test-env-ava').ExecutionContext<unknown>} t
+ * @param {import('ava').ExecutionContext<unknown>} t
  * @param {import('@endo/eventual-send').ERef<{ bar(): string, baz: number }>} a
  */
 const foo = async (t, a) => {
@@ -75,7 +77,7 @@ const foo = async (t, a) => {
 /**
  * Check the correctness of FarRef<T>.
  *
- * @param {import('./prepare-test-env-ava').ExecutionContext<unknown>} t
+ * @param {import('ava').ExecutionContext<unknown>} t
  * @param {import('@endo/eventual-send').FarRef<
  *  { bar(): string },
  *  { far: import('@endo/eventual-send').FarRef<() => 'hello'>,

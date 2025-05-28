@@ -14,7 +14,7 @@
   "scripts": {
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'",
+    "postpack": "git clean -f '*.d.*' '*.tsbuildinfo'",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
@@ -40,7 +40,7 @@
     "c8": "^7.14.0",
     "eslint": "^8.57.0",
     "ses": "workspace:^",
-    "typescript": "~5.6.3"
+    "typescript": "~5.8.3"
   },
   "keywords": [],
   "files": [

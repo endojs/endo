@@ -113,7 +113,7 @@ test('makeScript with useEvaluate preserves error stack trace line numbers', asy
   }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundle/main.js'));
-  t.not(error.stack.includes('file:/.*main.js'));
+  t.false(error.stack.includes('file:/.*main.js'));
 });
 
 test('makeScript with useEvaluate and sourceUrlPrefix preserves source URLs in stack traces', async t => {
@@ -188,7 +188,7 @@ test('makeFunctor with useEvaluate preserves error for compiled sourceUrlPrefix 
   }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.not(error.stack.includes('file:/.*bundle/main.js'));
+  t.false(error.stack.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate preserves error for sourceUrlPrefix runtime option', async t => {
@@ -221,7 +221,7 @@ test('makeFunctor with useEvaluate preserves error for sourceUrlPrefix runtime o
   }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundled-sources/.../bundle/main.js'));
-  t.not(error.stack.includes('file:/.*bundle/main.js'));
+  t.false(error.stack.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate works', async t => {
@@ -296,7 +296,7 @@ test('makeFunctor with useEvaluate preserves error stack trace line numbers', as
   }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundle/main.js'));
-  t.not(error.stack.includes('file:/.*bundle/main.js'));
+  t.false(error.stack.includes('file:/.*bundle/main.js'));
 });
 
 test('makeFunctor with useEvaluate and evaluate runtime option preserves stack trace line numbers', async t => {
@@ -326,7 +326,7 @@ test('makeFunctor with useEvaluate and evaluate runtime option preserves stack t
   }
   t.assert(error.stack.includes(':4:'));
   t.assert(error.stack.includes('bundle/main.js'));
-  t.not(error.stack.includes('file:/.*bundle/main.js'));
+  t.false(error.stack.includes('file:/.*bundle/main.js'));
 });
 
 // This is failing because it requires support for missing dependencies.

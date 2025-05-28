@@ -3,6 +3,7 @@ import { whereEndoEphemeralState } from '../index.js';
 
 test('windows', t => {
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoEphemeralState('win32', {
       LOCALAPPDATA: 'C:\\Users\\Alice\\AppData\\Local',
       APPDATA: 'IGNOREME',
@@ -14,6 +15,7 @@ test('windows', t => {
     'Use LOCALAPPDATA for Endo state if available',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoEphemeralState('win32', {
       APPDATA: 'C:\\Users\\Alice\\AppData',
       USERPROFILE: 'IGNOREME',
@@ -24,6 +26,7 @@ test('windows', t => {
     'Infer LOCALAPPDATA from APPDATA if necessary and possible',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoEphemeralState('win32', {
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'IGNOREME',
@@ -33,6 +36,7 @@ test('windows', t => {
     'Infer LOCALAPPDATA from USERPROFILE if necessary and possible',
   );
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoEphemeralState('win32', {
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
@@ -44,6 +48,7 @@ test('windows', t => {
     whereEndoEphemeralState(
       'win32',
       {},
+      // @ts-expect-error Missing properties
       {
         home: 'C:\\Users\\Alice',
       },
@@ -55,6 +60,7 @@ test('windows', t => {
 
 test('darwin', t => {
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoEphemeralState('darwin', {
       XDG_RUNTIME_DIR: '/Users/alice/.run',
       XDG_STATE_HOME: 'IGNOREME',
@@ -70,6 +76,7 @@ test('darwin', t => {
       {
         HOME: 'IGNOREME',
       },
+      // @ts-expect-error Missing properties
       {
         user: 'alice',
         temp: '/tmp/volumes/0',
@@ -82,6 +89,7 @@ test('darwin', t => {
 
 test('linux', t => {
   t.is(
+    // @ts-expect-error Expected more arguments
     whereEndoEphemeralState('linux', {
       XDG_RUNTIME_DIR: '/Users/alice/.run',
       XDG_CONFIG_HOME: 'IGNOREME',
@@ -98,6 +106,7 @@ test('linux', t => {
         USER: 'alice',
         HOME: 'IGNOREME',
       },
+      // @ts-expect-error Missing properties
       {
         temp: '/tmp/volume/0',
       },
@@ -109,6 +118,7 @@ test('linux', t => {
     whereEndoEphemeralState(
       'linux',
       {},
+      // @ts-expect-error Missing properties
       {
         user: 'homer',
         temp: '/tmp/volume/0',

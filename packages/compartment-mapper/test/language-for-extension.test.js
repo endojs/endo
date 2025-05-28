@@ -1,3 +1,4 @@
+// @ts-nocheck
 import 'ses';
 import test from 'ava';
 import { scaffold, sanitizePaths } from './scaffold.js';

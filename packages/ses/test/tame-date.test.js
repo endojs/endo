@@ -19,10 +19,12 @@ test('lockdown Date.prototype.constructor is powerless', t => {
   const SharedDate = Date.prototype.constructor;
   t.not(Date, SharedDate);
 
+  // @ts-expect-error intentional error
   t.throws(() => SharedDate.now(), {
     message: /^secure mode/,
   });
 
+  // @ts-expect-error intentional error
   t.throws(() => new SharedDate(), {
     message: /^secure mode/,
   });

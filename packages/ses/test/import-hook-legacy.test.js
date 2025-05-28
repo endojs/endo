@@ -1,3 +1,4 @@
+// @ts-nocheck
 // These tests exercise the Compartment importHook.
 
 /* eslint max-lines: 0 */

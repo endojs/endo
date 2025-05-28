@@ -30,7 +30,9 @@ const stdio = ['ignore', 'ignore', 'ignore'];
 for (const [name, { args, code }] of Object.entries(table)) {
   test(name, async t => {
     await new Promise((resolve, reject) => {
+      // @ts-expect-error
       const child = spawn('node', args, { cwd, stdio });
+      // @ts-expect-error
       child.on('close', actualCode => {
         try {
           t.is(actualCode, code);

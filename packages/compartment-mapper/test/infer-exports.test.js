@@ -5,6 +5,7 @@ function scaffold(cases) {
   const conditions = new Set(['node', 'import', 'default']);
   cases.forEach(pkg => {
     test(`infer-exports for ${pkg.name}`, t => {
+      /** @type {Record<string, any>} */
       const types = {};
       const exports = inferExports(pkg, conditions, types);
       t.snapshot({ types, exports });

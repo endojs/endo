@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import tameDateConstructor from '../src/tame-date-constructor.js';
 

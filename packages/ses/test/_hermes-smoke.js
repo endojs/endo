@@ -18,6 +18,7 @@ assert(
   eval.toString() === 'function eval() { [native code] }',
   'eval is not a native code function',
 );
+// @ts-expect-error expects string
 assert(eval(42) === 42, 'eval is not functional');
 assert(eval('42') === 42, 'eval called with string argument is not functional');
 assert(

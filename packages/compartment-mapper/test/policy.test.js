@@ -1,3 +1,4 @@
+// @ts-nocheck
 // import "./ses-lockdown.js";
 import 'ses';
 import test from 'ava';

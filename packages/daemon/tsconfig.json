@@ -3,12 +3,11 @@
   "compilerOptions": {
     "checkJs": false,
     "allowSyntheticDefaultImports": true,
-    "maxNodeModuleJsDepth": 1
   },
   "include": [
     "*.js",
     "*.ts",
-    "src/**/*.js",
-    "src/**/*.ts"
+    "src",
+    "test"
   ]
 }

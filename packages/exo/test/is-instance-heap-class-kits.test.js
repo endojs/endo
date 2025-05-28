@@ -1,3 +1,4 @@
+// @ts-nocheck
 // modeled on test-heap-classes.js
 
 import test from '@endo/ses-ava/prepare-endo.js';
@@ -14,6 +15,7 @@ const DownCounterI = M.interface('DownCounter', {
 });
 
 test('test isInstance defineExoClass', t => {
+  /** @type {(specimen: any, prop?: string) => boolean} */
   let isInstance;
   const makeUpCounter = defineExoClass(
     'UpCounter',
@@ -49,6 +51,7 @@ test('test isInstance defineExoClass', t => {
 });
 
 test('test isInstance defineExoClassKit', t => {
+  /** @type {(specimen: any, prop?: string) => boolean} */
   let isInstance;
   const makeCounterKit = defineExoClassKit(
     'Counter',

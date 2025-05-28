@@ -11,12 +11,14 @@ const testDeepStacksWhen = test.macro({
   title: (title, loggerDescription, _getLogger) =>
     `deep-stacks E.when with ${loggerDescription}${title ? ` (${title})` : ''}`,
   exec: (t, _loggerDescription, getLogger) => {
+    /** @type {any} */
     let r;
     const p = new Promise(res => (r = res));
     const q = E.when(p, v1 => E.when(v1 + 1, v2 => assert.equal(v2, 22)));
     r(33);
     return q.catch(reason => {
       t.assert(reason instanceof Error);
+      // @ts-expect-error unknown
       const log = getLogger(t);
       log('expected failure', reason);
     });

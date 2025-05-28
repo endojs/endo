@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global globalThis */
 
 // Because this package `@endo/panic` is below both `ses` and `@endo/ses-ava` in

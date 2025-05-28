@@ -11,7 +11,6 @@ import {
 } from './commons.js';
 
 export const shimArrayBufferTransfer = () => {
-  // @ts-expect-error TODO extend ArrayBuffer type to include transfer, etc.
   if (typeof arrayBufferPrototype.transfer === 'function') {
     // Assume already exists so does not need to be shimmed.
     // Such conditional shimming is ok in this case since ArrayBuffer.p.transfer

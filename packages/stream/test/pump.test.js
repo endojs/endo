@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { pump, prime } from '../index.js';

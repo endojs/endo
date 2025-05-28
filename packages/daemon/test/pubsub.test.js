@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck
 /* eslint-disable no-await-in-loop */
 
 import test from '@endo/ses-ava/prepare-endo.js';

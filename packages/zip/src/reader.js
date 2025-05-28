@@ -11,6 +11,7 @@ export class ZipReader {
    */
   constructor(data, options = {}) {
     const { name = '<unknown>' } = options;
+    // @ts-expect-error missing properties from ArrayBuffer
     const reader = new BufferReader(data);
     this.files = readZipFormat(reader);
     this.name = name;

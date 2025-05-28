@@ -1,3 +1,4 @@
+// @ts-nocheck
 import 'ses';
 import fs from 'fs';
 import test from 'ava';

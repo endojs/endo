@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'ava';
 import tameRegExpConstructor from '../src/tame-regexp-constructor.js';
 

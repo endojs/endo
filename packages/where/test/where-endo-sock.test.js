@@ -3,6 +3,7 @@ import { whereEndoSock } from '../index.js';
 
 test('windows', t => {
   t.is(
+    // @ts-expect-error Expected 3-4 arguments
     whereEndoSock('win32', {
       XDG_RUNTIME_DIR: 'IGNOREME', // Not necessarily suitable for named pipes
       USERNAME: 'alice',
@@ -14,6 +15,7 @@ test('windows', t => {
     whereEndoSock(
       'win32',
       {},
+      // @ts-expect-error Missing properties
       {
         user: 'Bill',
       },
@@ -25,6 +27,7 @@ test('windows', t => {
 
 test('darwin', t => {
   t.is(
+    // @ts-expect-error Expected 3-4 arguments
     whereEndoSock('darwin', {
       XDG_RUNTIME_DIR: '/var/run/user/alice',
       USER: 'IGNOREME',
@@ -33,6 +36,7 @@ test('darwin', t => {
     'Favor XDG over local conventions, even on a Mac',
   );
   t.is(
+    // @ts-expect-error Expected 3-4 arguments
     whereEndoSock('darwin', {
       HOME: '/Users/alice',
     }),
@@ -43,6 +47,7 @@ test('darwin', t => {
     whereEndoSock(
       'darwin',
       {},
+      // @ts-expect-error Missing properties
       {
         home: '/Users/alice',
       },
@@ -54,6 +59,7 @@ test('darwin', t => {
 
 test('linux', t => {
   t.is(
+    // @ts-expect-error Expected 3-4 arguments
     whereEndoSock('linux', {
       XDG_RUNTIME_DIR: '/var/run/user/alice',
       USER: 'IGNOREME',
@@ -67,6 +73,7 @@ test('linux', t => {
       {
         USER: 'alice',
       },
+      // @ts-expect-error Missing properties
       {
         temp: '/tmp/volume/0',
       },
