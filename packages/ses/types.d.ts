@@ -172,6 +172,11 @@ export interface CompartmentOptions {
   /** @deprecated */
   loadNowHook?: (specifier: string) => ModuleDescriptor;
   __native__?: boolean;
+
+  /**
+   * If `true`, the first error encountered during module loading will be thrown immediately
+   */
+  noAggregateLoadErrors?: boolean;
 }
 
 export interface EvaluateOptions {

@@ -507,7 +507,12 @@ const memoizedLoadWithErrorAnnotation = (
   return moduleLoading;
 };
 
-const asyncJobQueue = (errors = []) => {
+/**
+ * If `aggregateErrors` is `false`, the `errors` property of the fulfilled object
+ * will always be empty.
+ * @param {{errors?: Error[], noAggregateErrors?: boolean}} [options]
+ */
+const asyncJobQueue = ({ errors = [], noAggregateErrors = false } = {}) => {
   /** @type {Set<Promise<undefined>>} */
   const pendingJobs = new Set();
 
@@ -523,7 +528,11 @@ const asyncJobQueue = (errors = []) => {
     setAdd(
       pendingJobs,
       promiseThen(func(...args), noop, error => {
-        arrayPush(errors, error);
+        if (noAggregateErrors) {
+          throw error;
+        } else {
+          arrayPush(errors, error);
+        }
       }),
     );
   };
@@ -540,7 +549,12 @@ const asyncJobQueue = (errors = []) => {
   return { enqueueJob, drainQueue, errors };
 };
 
-const syncJobQueue = (errors = []) => {
+/**
+ * If `aggregateErrors` is `false`, the `errors` property of the returned object
+ * will always be empty.
+ * @param {{errors?: Error[], noAggregateErrors?: boolean}} [options]
+ */
+const syncJobQueue = ({ errors = [], noAggregateErrors = false } = {}) => {
   let current = [];
   let next = [];
 
@@ -564,7 +578,11 @@ const syncJobQueue = (errors = []) => {
       try {
         func(...args);
       } catch (error) {
-        arrayPush(errors, error);
+        if (noAggregateErrors) {
+          throw error;
+        } else {
+          arrayPush(errors, error);
+        }
       }
     }
     current = next;
@@ -597,18 +615,24 @@ const throwAggregateError = ({ errors, errorPrefix }) => {
 const preferSync = (_asyncImpl, syncImpl) => syncImpl;
 const preferAsync = (asyncImpl, _syncImpl) => asyncImpl;
 
-/*
+/**
  * `load` asynchronously gathers the module records for a module and its
  * transitive dependencies.
  * The module records refer to each other by a reference to the dependency's
  * compartment and the specifier of the module within its own compartment.
  * This graph is then ready to be synchronously linked and executed.
+ * @param {WeakMap<Compartment, any>} compartmentPrivateFields
+ * @param {WeakMap<object, object>} moduleAliases
+ * @param {Compartment} compartment
+ * @param {string} moduleSpecifier - The module specifier to load.
+ * @param {{ noAggregateErrors?: boolean}} options
  */
 export const load = async (
   compartmentPrivateFields,
   moduleAliases,
   compartment,
   moduleSpecifier,
+  { noAggregateErrors = false } = {},
 ) => {
   const { name: compartmentName } = weakmapGet(
     compartmentPrivateFields,
@@ -618,7 +642,9 @@ export const load = async (
   /** @type {Map<object, Map<string, Promise<Record<any, any>>>>} */
   const moduleLoads = new Map();
 
-  const { enqueueJob, drainQueue, errors } = asyncJobQueue();
+  const { enqueueJob, drainQueue, errors } = asyncJobQueue({
+    noAggregateErrors,
+  });
 
   enqueueJob(memoizedLoadWithErrorAnnotation, [
     compartmentPrivateFields,
@@ -640,18 +666,25 @@ export const load = async (
   });
 };
 
-/*
+/**
  * `loadNow` synchronously gathers the module records for a specified module
  * and its transitive dependencies.
  * The module records refer to each other by a reference to the dependency's
  * compartment and the specifier of the module within its own compartment.
  * This graph is then ready to be synchronously linked and executed.
+ * @param {WeakMap<Compartment, any>} compartmentPrivateFields
+ * @param {WeakMap<object, object>} moduleAliases
+ * @param {Compartment} compartment
+ * @param {string} moduleSpecifier - The module specifier to load.
+ * @param {{ noAggregateErrors?: boolean}} options
  */
+
 export const loadNow = (
   compartmentPrivateFields,
   moduleAliases,
   compartment,
   moduleSpecifier,
+  { noAggregateErrors = false } = {},
 ) => {
   const { name: compartmentName } = weakmapGet(
     compartmentPrivateFields,
@@ -661,7 +694,9 @@ export const loadNow = (
   /** @type {Map<object, Map<string, Promise<Record<any, any>>>>} */
   const moduleLoads = new Map();
 
-  const { enqueueJob, drainQueue, errors } = syncJobQueue();
+  const { enqueueJob, drainQueue, errors } = syncJobQueue({
+    noAggregateErrors,
+  });
 
   enqueueJob(memoizedLoadWithErrorAnnotation, [
     compartmentPrivateFields,
