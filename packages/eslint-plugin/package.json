@@ -20,7 +20,7 @@
     "requireindex": "~1.1.0",
     "tsutils": "~3.21.0",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.18.2"
+    "typescript-eslint": "^8.33.0"
   },
   "devDependencies": {
     "@types/mocha": "^10",
