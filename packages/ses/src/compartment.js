@@ -148,14 +148,19 @@ export const CompartmentPrototype = {
   },
 
   async import(specifier) {
-    const { noNamespaceBox } = weakmapGet(privateFields, this);
+    const { noNamespaceBox, aggregateLoadErrors } = weakmapGet(
+      privateFields,
+      this,
+    );
 
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of import() must be a string');
     }
 
     return promiseThen(
-      load(privateFields, moduleAliases, this, specifier),
+      load(privateFields, moduleAliases, this, specifier, {
+        aggregateErrors: aggregateLoadErrors,
+      }),
       () => {
         // The namespace box is a contentious design and likely to be a breaking
         // change in an appropriately numbered future version.
@@ -178,15 +183,22 @@ export const CompartmentPrototype = {
       throw TypeError('first argument of load() must be a string');
     }
 
-    return load(privateFields, moduleAliases, this, specifier);
+    const { aggregateLoadErrors } = weakmapGet(privateFields, this);
+
+    return load(privateFields, moduleAliases, this, specifier, {
+      aggregateErrors: aggregateLoadErrors,
+    });
   },
 
   importNow(specifier) {
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of importNow() must be a string');
     }
+    const { aggregateLoadErrors } = weakmapGet(privateFields, this);
 
-    loadNow(privateFields, moduleAliases, this, specifier);
+    loadNow(privateFields, moduleAliases, this, specifier, {
+      aggregateErrors: aggregateLoadErrors,
+    });
     return compartmentImportNow(/** @type {Compartment} */ (this), specifier);
   },
 };
@@ -294,6 +306,7 @@ export const makeCompartmentConstructor = (
       moduleMapHook,
       importMetaHook,
       __noNamespaceBox__: noNamespaceBox = false,
+      aggregateLoadErrors = true,
     } = compartmentOptions(...args);
     const globalTransforms = arrayFlatMap(
       [transforms, __shimTransforms__],
@@ -371,7 +384,9 @@ export const makeCompartmentConstructor = (
           `Compartment does not support dynamic import: no configured resolveHook for compartment ${q(name)}`,
         );
       }
-      await load(privateFields, moduleAliases, compartment, fullSpecifier);
+      await load(privateFields, moduleAliases, compartment, fullSpecifier, {
+        aggregateErrors: aggregateLoadErrors,
+      });
       const { execute, exportsProxy } = link(
         privateFields,
         moduleAliases,
@@ -400,6 +415,7 @@ export const makeCompartmentConstructor = (
       parentCompartment,
       noNamespaceBox,
       compartmentImport,
+      aggregateLoadErrors,
     });
   }
 
