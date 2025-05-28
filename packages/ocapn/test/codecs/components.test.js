@@ -16,9 +16,9 @@ import {
   examplePubKeyQBytes,
 } from './_syrup_util.js';
 import {
-  OCapNNode,
-  OCapNPublicKey,
-  OCapNSignature,
+  OcapnNodeCodec,
+  OcapnPublicKeyCodec,
+  OcapnSignatureCodec,
 } from '../../src/codecs/components.js';
 import { makeTypeHintUnionCodec } from '../../src/syrup/codec.js';
 import { makeOCapNListComponentUnionCodec } from '../../src/codecs/util.js';
@@ -59,14 +59,14 @@ const table = [
 const OCapNComponentListUnionCodec = makeOCapNListComponentUnionCodec(
   'OCapNComponentListUnionCodec',
   {
-    OCapNPublicKey,
-    OCapNSignature,
+    OcapnPublicKeyCodec,
+    OCapNSignature: OcapnSignatureCodec,
   },
 );
 const OCapNComponentUnionCodec = makeTypeHintUnionCodec(
   'OCapNComponentUnionCodec',
   {
-    record: OCapNNode,
+    record: OcapnNodeCodec,
     list: OCapNComponentListUnionCodec,
   },
   {
@@ -76,7 +76,7 @@ const OCapNComponentUnionCodec = makeTypeHintUnionCodec(
         throw Error(`Component has no type: ${value}`);
       }
       if (type === 'ocapn-node') {
-        return OCapNNode;
+        return OcapnNodeCodec;
       }
 
       if (OCapNComponentListUnionCodec.supports(type)) {

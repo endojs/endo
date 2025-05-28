@@ -10,7 +10,7 @@
  * @typedef {import('./types.js').Logger} Logger
  * @typedef {import('./types.js').OCapNLocation} OCapNLocation
  * @typedef {import('./types.js').LocationId} LocationId
- * @typedef {import('./types.js').OCapNPublicKey} OCapNPublicKey
+ * @typedef {import('./types.js').OcapnPublicKey} OcapnPublicKey
  * @typedef {import('./types.js').Session} Session
  * @typedef {import('../captp/captp-engine.js').CapTPEngine} CapTPEngine
  * @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader
@@ -649,7 +649,7 @@ export const makeTableKit = (
  * @param {Uint8Array} sessionId
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
- * @param {(sessionId: Uint8Array) => OCapNPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @returns {any}
  */
 const makeBootstrapObject = (
@@ -813,7 +813,7 @@ const makeBootstrapObject = (
  * @param {OCapNLocation} peerLocation
  * @param {(location: OCapNLocation) => Promise<Session>} provideSession
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
- * @param {(sessionId: Uint8Array) => OCapNPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @param {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
