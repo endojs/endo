@@ -6,6 +6,10 @@ import { start, makeEndoClient } from '@endo/daemon';
  * @param {string} sockPath
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} [bootstrap]
+ * @returns {Promise<{
+ *   getBootstrap: () => Promise<TBootstrap>;
+ *   closed: Promise<void>;
+ * }>}
  */
 export const provideEndoClient = async (
   name,
@@ -16,7 +20,10 @@ export const provideEndoClient = async (
   await null;
   try {
     // It is okay to fail to connect because the daemon is not running.
-    return await makeEndoClient(name, sockPath, cancelled, bootstrap);
+
+    return await /** @type {any} XXX EndoBootstrap not exported */ (
+      makeEndoClient(name, sockPath, cancelled, bootstrap)
+    );
   } catch {
     console.error('Starting Endo daemon...');
     // It is also okay to fail the race to start.
@@ -25,6 +32,9 @@ export const provideEndoClient = async (
     // We are not going to contemplate reliably in the face of a worker getting
     // stopped the moment after it was started.
     // That is a bridge too far.
-    return makeEndoClient(name, sockPath, cancelled, bootstrap);
+
+    return /** @type {any} XXX EndoBootstrap not exported */ (
+      makeEndoClient(name, sockPath, cancelled, bootstrap)
+    );
   }
 };
