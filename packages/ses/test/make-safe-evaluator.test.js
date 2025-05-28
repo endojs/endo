@@ -13,20 +13,16 @@ test('safeEvaluate - default (non-sloppy, no moduleLexicals)', t => {
 
   // Expected to be undefined in sloppy mode.
   t.is(
-    evaluate(
-      'def',
-      undefined,
-      'non-declared global is undefined in sloppy mode',
-    ),
+    evaluate('def'),
+    undefined,
+    'non-declared global is undefined in sloppy mode',
   );
   // Known deviation from fidelity to Hardened JavaScript:
   // In strict mode, an undeclared lexical name should produce a ReferenceError.
   t.is(
-    evaluate(
-      '(() => { "use strict"; return def; })()',
-      undefined,
-      'non-declared global is undefined in strict mode',
-    ),
+    evaluate('(() => { "use strict"; return def; })()'),
+    undefined,
+    'non-declared global is undefined in strict mode',
   );
 
   t.is(evaluate('abc'), 123, 'globals can be referenced');
