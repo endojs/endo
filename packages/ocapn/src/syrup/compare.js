@@ -7,6 +7,10 @@
  * @param {number} leftEnd
  * @param {number} rightStart
  * @param {number} rightEnd
+ * @returns {number}
+ * Returns 0 if the ByteArrays are equal,
+ * negative if the left byteArray is "less" than the right byteArray,
+ * positive if the left byteArray is "greater" than the right byteArray.
  */
 export function compareByteArrays(
   left,
@@ -24,9 +28,11 @@ export function compareByteArrays(
   }
   const leftLength = leftEnd - leftStart;
   const rightLength = rightEnd - rightStart;
+  let leftIndex = leftStart;
+  let rightIndex = rightStart;
   for (;;) {
     // The prefixes so far are equal.
-    if (leftStart >= leftEnd) {
+    if (leftIndex >= leftEnd) {
       // We have reached the end of the left string.
       // The right string must be at least as long as the left: If the right
       // string were shorter than the left string, we would have returned out
@@ -45,12 +51,7 @@ export function compareByteArrays(
       //   shorter - longer < 0
       return leftLength - rightLength;
     }
-    if (rightStart >= rightEnd) {
-      // TODO Investigate why this branch never gets visited in tests,
-      // including the extensive fuzz tests.
-      // There is a possiblity this could be replaced with an assertion,
-      // or omitted entirely.
-      //
+    if (rightIndex >= rightEnd) {
       // We have reached the end of the right string.
       // We have not reached the end of the left string, otherwise we would
       // have exited out of the prior condition.
@@ -63,21 +64,21 @@ export function compareByteArrays(
       //   compare(left, right) > 0
       return 1;
     }
-    if (left[leftStart] < right[rightStart]) {
+    if (left[leftIndex] < right[rightIndex]) {
       // Since the prefixes are equal and the left byte is less than the right
       // byte, the left string should be sorted before the right string.
       //   left < right
       //   compare(left, right) < 0
       return -1;
     }
-    if (left[leftStart] > right[rightStart]) {
+    if (left[leftIndex] > right[rightIndex]) {
       // Since the prefixes are equal and the left byte is greater than the
       // right byte, the left string should be sorted after the right string.
       //   left > right
       //   compare(left, right) > 0
       return 1;
     }
-    leftStart += 1;
-    rightStart += 1;
+    leftIndex += 1;
+    rightIndex += 1;
   }
 }
