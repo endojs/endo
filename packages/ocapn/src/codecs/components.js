@@ -10,8 +10,6 @@ import {
   makeOCapNRecordCodecFromDefinition,
 } from './util.js';
 
-/** @typedef {import('../syrup/codec.js').SyrupCodec} SyrupCodec */
-
 /*
  * OCapN Components are used in both OCapN Messages and Descriptors
  */
@@ -24,8 +22,8 @@ import {
  * @property {boolean} hints
  */
 
-export const OCapNNode = makeOCapNRecordCodecFromDefinition(
-  'OCapNNodeCodec',
+export const OcapnNodeCodec = makeOCapNRecordCodecFromDefinition(
+  'OcapnNode',
   'ocapn-node',
   {
     transport: 'selector',
@@ -36,23 +34,23 @@ export const OCapNNode = makeOCapNRecordCodecFromDefinition(
 );
 
 // Used in the location signature in 'op:start-session'
-export const OCapNMyLocation = makeOCapNRecordCodecFromDefinition(
-  'OCapNMyLocation',
+export const OcapnMyLocationCodec = makeOCapNRecordCodecFromDefinition(
+  'OcapnMyLocation',
   'my-location',
   {
-    location: OCapNNode,
+    location: OcapnNodeCodec,
   },
 );
 
-const OCapNSignatureEddsaCodec = exactList('OCapNSignatureEddsa', [
-  exactSelector('OCapNSignatureEddsaScheme', 'eddsa'),
-  exactList('OCapNSignatureEddsaR', [
-    exactSelector('OCapNSignatureEddsaRLabel', 'r'),
-    bytestringWithLength('OCapNSignatureEddsaRValue', 32),
+const OcapnSignatureEddsaCodec = exactList('OcapnSignatureEddsa', [
+  exactSelector('OcapnSignatureEddsaScheme', 'eddsa'),
+  exactList('OcapnSignatureEddsaR', [
+    exactSelector('OcapnSignatureEddsaRLabel', 'r'),
+    bytestringWithLength('OcapnSignatureEddsaRValue', 32),
   ]),
-  exactList('OCapNSignatureEddsaS', [
-    exactSelector('OCapNSignatureEddsaSLabel', 's'),
-    bytestringWithLength('OCapNSignatureEddsaSValue', 32),
+  exactList('OcapnSignatureEddsaS', [
+    exactSelector('OcapnSignatureEddsaSLabel', 's'),
+    bytestringWithLength('OcapnSignatureEddsaSValue', 32),
   ]),
 ]);
 
@@ -65,16 +63,16 @@ const OCapNSignatureEddsaCodec = exactList('OCapNSignatureEddsa', [
  */
 
 // ['sig-val ['eddsa ['r r_value] ['s s_value]]]
-export const OCapNSignature = makeOCapNListComponentCodec(
-  'OCapNSignature',
+export const OcapnSignatureCodec = makeOCapNListComponentCodec(
+  'OcapnSignature',
   'sig-val',
   syrupReader => {
     const [scheme, [_rLabel, r], [_sLabel, s]] =
-      OCapNSignatureEddsaCodec.read(syrupReader);
+      OcapnSignatureEddsaCodec.read(syrupReader);
     return { type: 'sig-val', scheme, r, s };
   },
   (value, syrupWriter) => {
-    return OCapNSignatureEddsaCodec.write(
+    return OcapnSignatureEddsaCodec.write(
       [value.scheme, ['r', value.r], ['s', value.s]],
       syrupWriter,
     );
@@ -82,7 +80,7 @@ export const OCapNSignature = makeOCapNListComponentCodec(
 );
 
 /**
- * @typedef {object} OCapNPublicKeyData
+ * @typedef {object} OcapnPublicKeyData
  * @property {'public-key'} type
  * @property {'ecc'} scheme
  * @property {'Ed25519'} curve
@@ -90,33 +88,33 @@ export const OCapNSignature = makeOCapNListComponentCodec(
  * @property {Uint8Array} q
  */
 
-const OCapNPublicKeyEccCodec = exactList('OCapNPublicKeyEcc', [
-  exactSelector('OCapNPublicKeyEccScheme', 'ecc'),
-  exactList('OCapNPublicKeyEccCurve', [
-    exactSelector('OCapNPublicKeyEccCurveLabel', 'curve'),
-    exactSelector('OCapNPublicKeyEccCurveValue', 'Ed25519'),
+const OcapnPublicKeyEccCodec = exactList('OcapnPublicKeyEcc', [
+  exactSelector('OcapnPublicKeyEccScheme', 'ecc'),
+  exactList('OcapnPublicKeyEccCurve', [
+    exactSelector('OcapnPublicKeyEccCurveLabel', 'curve'),
+    exactSelector('OcapnPublicKeyEccCurveValue', 'Ed25519'),
   ]),
-  exactList('OCapNPublicKeyEccFlags', [
-    exactSelector('OCapNPublicKeyEccFlagsLabel', 'flags'),
-    exactSelector('OCapNPublicKeyEccFlagsValue', 'eddsa'),
+  exactList('OcapnPublicKeyEccFlags', [
+    exactSelector('OcapnPublicKeyEccFlagsLabel', 'flags'),
+    exactSelector('OcapnPublicKeyEccFlagsValue', 'eddsa'),
   ]),
-  exactList('OCapNPublicKeyEccQ', [
-    exactSelector('OCapNPublicKeyEccQLabel', 'q'),
-    bytestringWithLength('OCapNPublicKeyEccQValue', 32),
+  exactList('OcapnPublicKeyEccQ', [
+    exactSelector('OcapnPublicKeyEccQLabel', 'q'),
+    bytestringWithLength('OcapnPublicKeyEccQValue', 32),
   ]),
 ]);
 
 // ['public-key ['ecc ['curve 'Ed25519] ['flags 'eddsa] ['q q_value]]]
-export const OCapNPublicKey = makeOCapNListComponentCodec(
-  'OCapNPublicKey',
+export const OcapnPublicKeyCodec = makeOCapNListComponentCodec(
+  'OcapnPublicKey',
   'public-key',
   syrupReader => {
     const [scheme, [_curveLabel, curve], [_flagsLabel, flags], [_qLabel, q]] =
-      OCapNPublicKeyEccCodec.read(syrupReader);
+      OcapnPublicKeyEccCodec.read(syrupReader);
     return { type: 'public-key', scheme, curve, flags, q };
   },
   (value, syrupWriter) => {
-    return OCapNPublicKeyEccCodec.write(
+    return OcapnPublicKeyEccCodec.write(
       [
         value.scheme,
         ['curve', value.curve],

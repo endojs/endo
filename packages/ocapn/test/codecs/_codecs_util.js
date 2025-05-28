@@ -53,7 +53,7 @@ const defaultPeerLocation = {
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
  * @property {(location: OCapNLocation, swissNum: Uint8Array) => Promise<any>} lookupSturdyRef
  * @property {SyrupCodec} ReferenceCodec
- * @property {SyrupCodec} DescImportObject
+ * @property {SyrupCodec} DescImportObjectCodec
  * @property {SyrupCodec} OCapNMessageUnionCodec
  * @property {SyrupCodec} PassableCodec
  */
@@ -186,8 +186,10 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   );
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
-  const { OCapNMessageCodec: OCapNMessageUnionCodec } =
-    makeOcapnOperationsCodecs(descCodecs, passableCodecs);
+  const { OCapNMessageUnionCodec } = makeOcapnOperationsCodecs(
+    descCodecs,
+    passableCodecs,
+  );
   const { PassableCodec } = passableCodecs;
 
   const makeExportAt = position => {

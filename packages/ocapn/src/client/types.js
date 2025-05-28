@@ -2,7 +2,7 @@
 
 /**
  * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
- * @typedef {import('../cryptography.js').OCapNPublicKey} OCapNPublicKey
+ * @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey
  * @typedef {import('../cryptography.js').OCapNSignature} OCapNSignature
  * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
  * @typedef {import('./ocapn.js').OCapN} OCapN
@@ -30,7 +30,7 @@
  * @typedef {object} Session
  * @property {Uint8Array} id
  * @property {object} peer
- * @property {OCapNPublicKey} peer.publicKey
+ * @property {OcapnPublicKey} peer.publicKey
  * @property {OCapNLocation} peer.location
  * @property {OCapNSignature} peer.locationSignature
  * @property {object} self
@@ -80,7 +80,7 @@
  * When a session has ended (eg connection closed).
  * Does not close the connection. Does not delete the session.
  * Does not communicate with the peer.
- * @property {(sessionId: Uint8Array) => OCapNPublicKey | undefined} getPeerPublicKeyForSessionId
+ * @property {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  */
 
 /**
