@@ -176,6 +176,15 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   const engine = makeCapTPEngine('test', logger, makeRemoteKit, {
     importHook,
   });
+
+  const getActiveSession = () => {
+    throw Error('getActiveSession is not implemented for test');
+  };
+
+  const sendDepositGift = () => {
+    throw Error('sendDepositGift is not implemented for test');
+  };
+
   const tableKit = makeTableKit(
     peerLocation,
     engine,
@@ -183,6 +192,8 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     makeRemoteSturdyRef,
     makeHandoff,
     grantTracker,
+    getActiveSession,
+    sendDepositGift,
   );
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
