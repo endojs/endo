@@ -1,6 +1,5 @@
 // @ts-check
 /* global globalThis */
-/* eslint-disable @endo/no-nullish-coalescing */
 
 /**
  * @typedef {|

@@ -1,5 +1,3 @@
-/* eslint-disable @endo/no-nullish-coalescing */
-
 /** @import {ModuleDescriptor} from '../types.js' */
 
 import {
