@@ -34,7 +34,7 @@ import { makePassableCodecs } from '../codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../codecs/operations.js';
 import { getSelectorName, makeSelector } from '../pass-style-helpers.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
-import { locationToLocationId, toHex } from './util.js';
+import { decodeSwissnum, locationToLocationId, toHex } from './util.js';
 import {
   makePublicKeyId,
   publicKeyDataToPublicKey,
@@ -52,9 +52,6 @@ import { compareByteArrays } from '../syrup/compare.js';
  * @typedef {Record<string, any>} Handler
  * @typedef {'object' | 'promise' | 'question'} SlotType
  */
-
-export const swissnumDecoder = new TextDecoder('ascii', { fatal: true });
-export const swissnumEncoder = new TextEncoder();
 
 const sink = harden(() => {});
 
@@ -668,7 +665,7 @@ const makeBootstrapObject = (
      * @returns {Promise<any>}
      */
     fetch: swissnum => {
-      const swissnumString = swissnumDecoder.decode(swissnum);
+      const swissnumString = decodeSwissnum(swissnum);
       const object = swissnumTable.get(swissnumString);
       if (!object) {
         throw Error(

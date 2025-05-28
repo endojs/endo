@@ -10,10 +10,7 @@ import { isPromise } from '@endo/promise-kit';
 import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../src/client/index.js';
 import { testWithErrorUnwrapping } from './_util.js';
-
-const textEncoder = new TextEncoder();
-
-const toSwissnum = str => textEncoder.encode(str);
+import { encodeSwissnum } from '../src/client/util.js';
 
 /**
  * @param {string} debugLabel
@@ -62,7 +59,7 @@ test('test slow send', async t => {
     () => testObjectTable,
   );
 
-  const helloer = await E(bootstrap).fetch(toSwissnum('Say Hello'));
+  const helloer = await E(bootstrap).fetch(encodeSwissnum('Say Hello'));
   const result = await E(helloer)('Wuurl');
   t.is(result, 'Hello Wuurl');
 
@@ -82,7 +79,7 @@ test('basic eventual send', async t => {
     () => testObjectTable,
   );
 
-  const helloer = E(bootstrap).fetch(toSwissnum('Say Hello'));
+  const helloer = E(bootstrap).fetch(encodeSwissnum('Say Hello'));
   const result = await E(helloer)('Wuurl');
 
   t.is(result, 'Hello Wuurl');
@@ -116,12 +113,12 @@ testWithErrorUnwrapping(
       () => testObjectTable,
     );
 
-    const getPromises = E(bootstrap).fetch(toSwissnum('Get Promises'));
+    const getPromises = E(bootstrap).fetch(encodeSwissnum('Get Promises'));
     const promises = await E(getPromises)();
 
     // Do some promise pipelining so that incorrectly implemented answerPositions
     // could conflict with exported promises
-    const getNumberGetter = E(bootstrap).fetch(toSwissnum('Deep Number'));
+    const getNumberGetter = E(bootstrap).fetch(encodeSwissnum('Deep Number'));
     const numberGetter = E(getNumberGetter)();
     const number = await E(numberGetter)();
     t.is(number, 42, 'Number is 42');
