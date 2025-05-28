@@ -1,9 +1,9 @@
 // @ts-check
 
 /**
- * @typedef {import('../cryptography.js').OCapNPublicKey} OCapNPublicKey
+ * @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey
  * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
- * @typedef {import('../codecs/components.js').OCapNPublicKeyData} OCapNPublicKeyData
+ * @typedef {import('../codecs/components.js').OcapnPublicKeyData} OcapnPublicKeyData
  * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
  * @typedef {import('../codecs/components.js').OCapNSignature} OCapNSignature
  * @typedef {import('./types.js').Session} Session
@@ -27,11 +27,11 @@ import {
 import {
   makePublicKeyId,
   makeOCapNKeyPair,
-  makeOCapNPublicKey,
+  makeOcapnPublicKey,
   publicKeyToPublicKeyData,
   makeSessionId,
 } from '../cryptography.js';
-import { OCapNMyLocation } from '../codecs/components.js';
+import { OcapnMyLocationCodec } from '../codecs/components.js';
 import { compareByteArrays } from '../syrup/compare.js';
 import { makeGrantTracker, makeOCapN } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
@@ -48,7 +48,7 @@ const getLocationBytesForSignature = location => {
     type: 'my-location',
     location,
   };
-  OCapNMyLocation.write(myLocation, syrupWriter);
+  OcapnMyLocationCodec.write(myLocation, syrupWriter);
   return syrupWriter.getBytes();
 };
 
@@ -68,7 +68,7 @@ export const makeSelfIdentity = myLocation => {
  * @param {Uint8Array} options.id
  * @param {SelfIdentity} options.selfIdentity
  * @param {OCapNLocation} options.peerLocation
- * @param {OCapNPublicKey} options.peerPublicKey
+ * @param {OcapnPublicKey} options.peerPublicKey
  * @param {OCapNSignature} options.peerLocationSig
  * @param {OCapN} options.ocapn
  * @param {Connection} options.connection
@@ -121,7 +121,7 @@ export const sendHello = (connection, mySessionData) => {
 /**
  * @param {Connection} outgoingConnection
  * @param {Connection} incommingConnection
- * @param {OCapNPublicKey} incommingPublicKey
+ * @param {OcapnPublicKey} incommingPublicKey
  * @returns {{ preferredConnection: Connection, connectionToClose: Connection }}
  */
 const compareSessionKeysForCrossedHellos = (
@@ -194,7 +194,7 @@ const handleSessionHandshakeMessage = (
       }
 
       // Check if the location signature is valid
-      const peerPublicKey = makeOCapNPublicKey(sessionPublicKey.q);
+      const peerPublicKey = makeOcapnPublicKey(sessionPublicKey.q);
       const peerLocationBytes = getLocationBytesForSignature(peerLocation);
       const peerLocationSigValid = peerPublicKey.verify(
         peerLocationBytes,
@@ -372,7 +372,7 @@ const makeSessionManager = () => {
   const pendingSessions = new Map();
   /** @type {Map<Connection, Session>} */
   const connectionToSession = new Map();
-  /** @type {Map<string, OCapNPublicKey>} */
+  /** @type {Map<string, OcapnPublicKey>} */
   const sessionIdToPeerPublicKey = new Map();
 
   /** @type {SessionManager} */

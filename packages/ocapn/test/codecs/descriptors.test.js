@@ -212,7 +212,7 @@ test('affirmative descriptor cases', t => {
 
 test('descriptor fails with negative integer', t => {
   const testKit = makeCodecTestKit();
-  const codec = testKit.DescImportObject;
+  const codec = testKit.DescImportObjectCodec;
   const syrup = `<${sel('desc:import-object')}1-}>`;
   const syrupBytes = textEncoder.encode(syrup);
   const syrupReader = makeSyrupReader(syrupBytes, {
@@ -222,7 +222,11 @@ test('descriptor fails with negative integer', t => {
     message:
       'DescImportObject: read failed at index 0 of import-object with negative integer',
     cause: {
-      message: 'PositiveIntegerCodec: value must be positive',
+      message:
+        'NonNegativeInteger: read failed at index 22 of import-object with negative integer',
+      cause: {
+        message: 'value must be non-negative',
+      },
     },
   });
 });

@@ -70,14 +70,13 @@ test('error on unknown record type in passable', t => {
     name: 'unknown record type',
   });
   throws(t, () => codec.read(syrupReader), {
-    message:
-      'OCapNPassableCodec: read failed at index 0 of unknown record type',
+    message: 'OcapnPassable: read failed at index 0 of unknown record type',
     cause: {
       message:
-        'OCapNPassableRecordUnionCodec: read failed at index 0 of unknown record type',
+        'OcapnPassableRecordUnion: read failed at index 0 of unknown record type',
       cause: {
         message:
-          'OCapNPassableRecordUnionCodec: Unexpected record type: "unknown-record-type"',
+          'OcapnPassableRecordUnion: Unexpected record type: "unknown-record-type"',
       },
     },
   });
@@ -92,13 +91,13 @@ test('passable fails with unordered keys', t => {
   });
   throws(t, () => codec.read(syrupReader), {
     message:
-      'OCapNPassableCodec: read failed at index 0 of passable with unordered keys',
+      'OcapnPassable: read failed at index 0 of passable with unordered keys',
     cause: {
       message:
-        'OCapNStructCodec: read failed at index 0 of passable with unordered keys',
+        'OcapnStruct: read failed at index 0 of passable with unordered keys',
       cause: {
         message:
-          'OCapN Structs keys must be in bytewise sorted order, got "cat" immediately after "dog" at index 9 of passable with unordered keys',
+          'OcapnStruct keys must be in bytewise sorted order, got "cat" immediately after "dog" at index 9 of passable with unordered keys',
       },
     },
   });
@@ -113,13 +112,13 @@ test('passable fails with repeated keys', t => {
   });
   throws(t, () => codec.read(syrupReader), {
     message:
-      'OCapNPassableCodec: read failed at index 0 of passable with repeated keys',
+      'OcapnPassable: read failed at index 0 of passable with repeated keys',
     cause: {
       message:
-        'OCapNStructCodec: read failed at index 0 of passable with repeated keys',
+        'OcapnStruct: read failed at index 0 of passable with repeated keys',
       cause: {
         message:
-          'OCapN Structs must have unique keys, got repeated "cat" at index 9 of passable with repeated keys',
+          'OcapnStruct must have unique keys, got repeated "cat" at index 9 of passable with repeated keys',
       },
     },
   });

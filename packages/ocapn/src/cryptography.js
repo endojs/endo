@@ -5,23 +5,23 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 
 import { makeSyrupWriter } from './syrup/encode.js';
-import { OCapNPublicKey } from './codecs/components.js';
+import { OcapnPublicKeyCodec } from './codecs/components.js';
 import { compareByteArrays } from './syrup/compare.js';
 
 /** @typedef {import('./codecs/components.js').OCapNSignature} OCapNSignature */
-/** @typedef {import('./codecs/components.js').OCapNPublicKeyData} OCapNPublicKeyData */
+/** @typedef {import('./codecs/components.js').OcapnPublicKeyData} OcapnPublicKeyData */
 
 const textEncoder = new TextEncoder();
 
 /**
- * @typedef {object} OCapNPublicKey
+ * @typedef {object} OcapnPublicKey
  * @property {Uint8Array} bytes
  * @property {(msg: Uint8Array, sig: OCapNSignature) => boolean} verify
  */
 
 /**
  * @typedef {object} OCapNKeyPair
- * @property {OCapNPublicKey} publicKey
+ * @property {OcapnPublicKey} publicKey
  * @property {(msg: Uint8Array) => OCapNSignature} sign
  */
 
@@ -38,9 +38,9 @@ export const oCapNSignatureToBytes = sig => {
 
 /**
  * @param {Uint8Array} publicKey
- * @returns {OCapNPublicKey}
+ * @returns {OcapnPublicKey}
  */
-export const makeOCapNPublicKey = publicKey => {
+export const makeOcapnPublicKey = publicKey => {
   return {
     bytes: publicKey,
     /**
@@ -62,7 +62,7 @@ export const makeOCapNKeyPair = () => {
   const privateKey = ed25519.utils.randomPrivateKey();
   const publicKey = ed25519.getPublicKey(privateKey);
   return {
-    publicKey: makeOCapNPublicKey(publicKey),
+    publicKey: makeOcapnPublicKey(publicKey),
     sign: msg => {
       const sigBytes = ed25519.sign(msg, privateKey);
       return {
@@ -76,8 +76,8 @@ export const makeOCapNKeyPair = () => {
 };
 
 /**
- * @param {OCapNPublicKey} publicKey
- * @returns {OCapNPublicKeyData}
+ * @param {OcapnPublicKey} publicKey
+ * @returns {OcapnPublicKeyData}
  */
 export const publicKeyToPublicKeyData = publicKey => {
   return {
@@ -90,25 +90,25 @@ export const publicKeyToPublicKeyData = publicKey => {
 };
 
 /**
- * @param {OCapNPublicKeyData} publicKeyData
- * @returns {OCapNPublicKey}
+ * @param {OcapnPublicKeyData} publicKeyData
+ * @returns {OcapnPublicKey}
  */
 export const publicKeyDataToPublicKey = publicKeyData => {
-  return makeOCapNPublicKey(publicKeyData.q);
+  return makeOcapnPublicKey(publicKeyData.q);
 };
 
 /**
- * @param {OCapNPublicKeyData} publicKeyData
+ * @param {OcapnPublicKeyData} publicKeyData
  * @returns {Uint8Array}
  */
 const publicKeyDataToEncodedBytes = publicKeyData => {
   const syrupWriter = makeSyrupWriter();
-  OCapNPublicKey.write(publicKeyData, syrupWriter);
+  OcapnPublicKeyCodec.write(publicKeyData, syrupWriter);
   return syrupWriter.getBytes();
 };
 
 /**
- * @param {OCapNPublicKey} publicKey
+ * @param {OcapnPublicKey} publicKey
  * @returns {Uint8Array}
  */
 export const makePublicKeyId = publicKey => {
