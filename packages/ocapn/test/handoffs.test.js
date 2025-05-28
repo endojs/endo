@@ -10,11 +10,7 @@ import { testWithErrorUnwrapping } from './_util.js';
 import { makeTcpNetLayer } from '../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../src/client/index.js';
 import { OCapNFar } from '../src/client/ocapn.js';
-import { locationToLocationId } from '../src/client/util.js';
-
-const textEncoder = new TextEncoder();
-
-const toSwissnum = str => textEncoder.encode(str);
+import { encodeSwissnum, locationToLocationId } from '../src/client/util.js';
 
 /**
  * @param {string} debugLabel
@@ -90,8 +86,8 @@ testWithErrorUnwrapping('sturdyref transported as sturdyref', async t => {
   const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
     await makeTestClientTrio(() => testObjectTable);
 
-  const catB = await E(bootstrapB).fetch(toSwissnum('Cat'));
-  const catSitterC = await E(bootstrapC).fetch(toSwissnum('CatSitter'));
+  const catB = await E(bootstrapB).fetch(encodeSwissnum('Cat'));
+  const catSitterC = await E(bootstrapC).fetch(encodeSwissnum('CatSitter'));
 
   let clientCSessionForB;
   const locationIdB = locationToLocationId(locationB);
@@ -131,8 +127,8 @@ testWithErrorUnwrapping('third party handoff', async t => {
   const { clientC, locationB, bootstrapB, bootstrapC, shutdownAll } =
     await makeTestClientTrio(() => testObjectTable);
 
-  const objMakerB = await E(bootstrapB).fetch(toSwissnum('ObjMaker'));
-  const objUserC = await E(bootstrapC).fetch(toSwissnum('ObjUser'));
+  const objMakerB = await E(bootstrapB).fetch(encodeSwissnum('ObjMaker'));
+  const objUserC = await E(bootstrapC).fetch(encodeSwissnum('ObjUser'));
 
   let clientCSessionForB;
   const locationIdB = locationToLocationId(locationB);
