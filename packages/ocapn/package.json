@@ -35,7 +35,10 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/marshal": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@noble/curves": "^1.9.0",
