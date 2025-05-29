@@ -35,7 +35,14 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "@endo/pass-style": "workspace:^"
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/marshal": "workspace:^",
+    "@endo/pass-style": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@noble/curves": "^1.9.0",
+    "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
@@ -76,15 +83,5 @@
       "test/**/*.test.*"
     ],
     "timeout": "2m"
-  },
-  "dependencies": {
-    "@endo/errors": "workspace:^",
-    "@endo/eventual-send": "workspace:^",
-    "@endo/init": "workspace:^",
-    "@endo/marshal": "workspace:^",
-    "@endo/pass-style": "workspace:^",
-    "@endo/promise-kit": "workspace:^",
-    "@noble/curves": "^1.9.0",
-    "@noble/hashes": "^1.8.0"
   }
 }
