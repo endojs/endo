@@ -1,5 +1,8 @@
 // @ts-check
 
+/** @typedef {import('../src/codecs/components.js').OCapNLocation} OCapNLocation */
+/** @typedef {import('../src/client/types.js').Client} Client */
+
 import '@endo/ses-ava/prepare-endo.js';
 
 import { E } from '@endo/eventual-send';

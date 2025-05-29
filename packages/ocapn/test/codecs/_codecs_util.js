@@ -1,13 +1,13 @@
 // @ts-check
 
 /** @typedef {import('@endo/eventual-send').Settler} Settler */
-/** @typedef {import('../../src/client/ocapn.js').TableKit} TableKit */
 /** @typedef {import('../../src/syrup/codec.js').SyrupCodec} SyrupCodec */
 /** @typedef {import('../../src/captp/captp-engine.js').CapTPEngine} CapTPEngine */
+/** @typedef {import('../../src/client/ocapn.js').TableKit} TableKit */
 /** @typedef {import('../../src/client/ocapn.js').MakeRemoteResolver} MakeRemoteResolver */
 /** @typedef {import('../../src/client/ocapn.js').MakeRemoteSturdyRef} MakeRemoteSturdyRef */
-/** @typedef {import('../../src/client/ocapn.js').OCapNLocation} OCapNLocation */
 /** @typedef {import('../../src/client/ocapn.js').MakeHandoff} MakeHandoff */
+/** @typedef {import('../../src/codecs/components.js').OCapNLocation} OCapNLocation */
 /** @typedef {import('../../src/codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope */
 /** @typedef {import('../../src/codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope */
 
@@ -37,10 +37,9 @@ const bufferToHex = uint8Array => {
 
 /** @type {OCapNLocation} */
 const defaultPeerLocation = {
-  type: 'tcp-testing-only',
-  transport: 'tcp',
-  address: '127.0.0.1',
-  port: 54822,
+  type: 'ocapn-node',
+  transport: 'tcp-test-only',
+  address: '127.0.0.1:54822',
   hints: false,
 };
 
@@ -118,10 +117,19 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   /**
    * @param {OCapNLocation} location
    * @param {Uint8Array} swissNum
+   * @returns {string}
+   */
+  const getSturdyRefKey = (location, swissNum) => {
+    return `${location.transport}:${location.address}:${bufferToHex(swissNum)}`;
+  };
+
+  /**
+   * @param {OCapNLocation} location
+   * @param {Uint8Array} swissNum
    * @returns {Promise<any>}
    */
   const lookupSturdyRef = (location, swissNum) => {
-    const testKey = `${location.type}:${location.transport}:${location.address}:${location.port}:${bufferToHex(swissNum)}`;
+    const testKey = getSturdyRefKey(location, swissNum);
     return testSturdyRefMap.get(testKey);
   };
 
@@ -145,7 +153,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
    */
   const makeRemoteSturdyRef = (location, swissNum) => {
     const promise = new Promise(() => {});
-    const testKey = `${location.type}:${location.transport}:${location.address}:${location.port}:${bufferToHex(swissNum)}`;
+    const testKey = getSturdyRefKey(location, swissNum);
     testSturdyRefMap.set(testKey, promise);
     return promise;
   };
