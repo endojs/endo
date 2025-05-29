@@ -15,6 +15,7 @@ import {
   makePubKey,
   makeSig,
   makeSignedHandoffGive,
+  makeSignedHandoffReceive,
   record,
   sel,
   strToUint8Array,
@@ -144,59 +145,54 @@ const table = [
       }),
     skipWrite: true,
   },
-  // {
-  //   name: 'handoff receive',
-  //   syrup: record(
-  //     'desc:handoff-receive',
-  //     btsStr('123'),
-  //     btsStr('456'),
-  //     int(1),
-  //     makeSigEnvelope(
-  //       makeDescGive(
-  //         makePubKey(examplePubKeyQBytes),
-  //         makeNode('tcp', '127.0.0.1', false),
-  //         strToUint8Array('exporter-session-id'),
-  //         strToUint8Array('gifter-side-id'),
-  //         strToUint8Array('gift-id'),
-  //       ),
-  //       makeSig(exampleSigParamBytes, exampleSigParamBytes),
-  //     ),
-  //   ),
-  //   value: {
-  //     type: 'desc:handoff-receive',
-  //     receivingSession: strToUint8Array('123'),
-  //     receivingSide: strToUint8Array('456'),
-  //     handoffCount: 1n,
-  //     signedGive: {
-  //       type: 'desc:sig-envelope',
-  //       object: {
-  //         type: 'desc:handoff-give',
-  //         receiverKey: {
-  //           type: 'public-key',
-  //           scheme: 'ecc',
-  //           curve: 'Ed25519',
-  //           flags: 'eddsa',
-  //           q: examplePubKeyQBytes,
-  //         },
-  //         exporterLocation: {
-  //           type: 'ocapn-node',
-  //           transport: 'tcp',
-  //           address: '127.0.0.1',
-  //           hints: false,
-  //         },
-  //         exporterSessionId: strToUint8Array('exporter-session-id'),
-  //         gifterSideId: strToUint8Array('gifter-side-id'),
-  //         giftId: strToUint8Array('gift-id'),
-  //       },
-  //       signature: {
-  //         type: 'sig-val',
-  //         scheme: 'eddsa',
-  //         r: exampleSigParamBytes,
-  //         s: exampleSigParamBytes,
-  //       },
-  //     },
-  //   },
-  // },
+  {
+    name: 'handoff receive',
+    syrup: makeSignedHandoffReceive(),
+    skipWrite: true,
+    makeValue: () => ({
+      type: 'desc:sig-envelope',
+      object: {
+        type: 'desc:handoff-receive',
+        receivingSession: strToUint8Array('123'),
+        receivingSide: strToUint8Array('456'),
+        handoffCount: 1n,
+        signedGive: {
+          type: 'desc:sig-envelope',
+          object: {
+            type: 'desc:handoff-give',
+            receiverKey: {
+              type: 'public-key',
+              scheme: 'ecc',
+              curve: 'Ed25519',
+              flags: 'eddsa',
+              q: examplePubKeyQBytes,
+            },
+            exporterLocation: {
+              type: 'ocapn-node',
+              transport: 'tcp',
+              address: '127.0.0.1',
+              hints: false,
+            },
+            exporterSessionId: strToUint8Array('exporter-session-id'),
+            gifterSideId: strToUint8Array('gifter-side-id'),
+            giftId: strToUint8Array('gift-id'),
+          },
+          signature: {
+            type: 'sig-val',
+            scheme: 'eddsa',
+            r: exampleSigParamBytes,
+            s: exampleSigParamBytes,
+          },
+        },
+      },
+      signature: {
+        type: 'sig-val',
+        scheme: 'eddsa',
+        r: exampleSigParamBytes,
+        s: exampleSigParamBytes,
+      },
+    }),
+  },
 ];
 
 test('affirmative descriptor cases', t => {
