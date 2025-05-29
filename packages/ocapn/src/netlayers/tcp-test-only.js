@@ -15,7 +15,7 @@ const bufferToBytes = buffer => {
 };
 
 /**
- * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
+ * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
  * @typedef {import('../client/types.js').NetLayer} NetLayer
  * @typedef {import('../client/index.js').Client} Client
  * @typedef {import('../client/types.js').Connection} Connection
@@ -90,7 +90,7 @@ export const makeTcpNetLayer = async ({
   const { address, port } = addressInfo;
   logger.log('Server listening on', `${address}:${port}`);
 
-  /** @type {OCapNLocation} */
+  /** @type {OcapnLocation} */
   const localLocation = {
     type: 'ocapn-node',
     transport: 'tcp-testing-only',
@@ -102,7 +102,7 @@ export const makeTcpNetLayer = async ({
   const connections = new Map();
 
   /**
-   * @param {OCapNLocation} location
+   * @param {OcapnLocation} location
    * @returns {Connection}
    */
   const connect = location => {
@@ -131,7 +131,7 @@ export const makeTcpNetLayer = async ({
   };
 
   /**
-   * @param {OCapNLocation} location
+   * @param {OcapnLocation} location
    * @returns {Connection}
    */
   const lookupOrConnect = location => {

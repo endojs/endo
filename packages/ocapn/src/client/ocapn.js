@@ -8,12 +8,12 @@
  * @typedef {import('./types.js').Client} Client
  * @typedef {import('./types.js').Connection} Connection
  * @typedef {import('./types.js').Logger} Logger
- * @typedef {import('./types.js').OCapNLocation} OCapNLocation
  * @typedef {import('./types.js').LocationId} LocationId
  * @typedef {import('./types.js').OcapnPublicKey} OcapnPublicKey
  * @typedef {import('./types.js').Session} Session
  * @typedef {import('../captp/captp-engine.js').CapTPEngine} CapTPEngine
  * @typedef {import('../syrup/decode.js').SyrupReader} SyrupReader
+ * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
  * @typedef {import('../codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope
  * @typedef {import('../codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope
  * @typedef {import('../codecs/descriptors.js').HandoffGive} HandoffGive
@@ -43,12 +43,12 @@ import {
 } from '../cryptography.js';
 import { compareByteArrays } from '../syrup/compare.js';
 /**
- * @typedef {OcapNFarObject<{resolve: (value: any) => void, break: (reason: any) => void}>} LocalResolver
+ * @typedef {OcapnFarObject<{resolve: (value: any) => void, break: (reason: any) => void}>} LocalResolver
  * @typedef {(questionSlot: CapTPSlot, ownerLabel?: string) => LocalResolver} MakeLocalResolver
  * @typedef {(slot: CapTPSlot) => RemotableObject<"Alleged: Resolver">} MakeRemoteResolver
- * @typedef {(node: OCapNLocation, swissNum: Uint8Array) => Promise<any>} MakeRemoteSturdyRef
+ * @typedef {(node: OcapnLocation, swissNum: Uint8Array) => Promise<any>} MakeRemoteSturdyRef
  * @typedef {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} MakeHandoff
- * @typedef {(nodeLocation: OCapNLocation, swissNum: Uint8Array) => any} GetRemoteSturdyRef
+ * @typedef {(nodeLocation: OcapnLocation, swissNum: Uint8Array) => any} GetRemoteSturdyRef
  * @typedef {Record<string, any>} Handler
  * @typedef {'object' | 'promise' | 'question'} SlotType
  */
@@ -71,7 +71,7 @@ const slotToPosition = slot => {
  * In OCapN, objects are represented by functions that are called with a
  * selector representing the method name as the first argument.
  */
-const OcapNFarObject = (label, object) => {
+const OcapnFarObject = (label, object) => {
   harden(object);
   return Far(`${label}:object`, (selector, ...args) => {
     const methodName = getSelectorName(selector);
@@ -88,15 +88,15 @@ const OcapNFarObject = (label, object) => {
  * @param {any} object
  * @returns {any}
  */
-export const OCapNFar = (label, object) => {
+export const OcapnFar = (label, object) => {
   if (typeof object === 'function') {
     return Far(label, object);
   }
-  return OcapNFarObject(label, object);
+  return OcapnFarObject(label, object);
 };
 
 /**
- * @typedef {object} MakeOCapNCommsKitOptions
+ * @typedef {object} MakeOcapnCommsKitOptions
  * @property {Logger} logger
  * @property {(sendStats: Record<string, number>, recvStats: Record<string, number>) => (message: any) => void} makeDispatch
  * @property {(reason?: any) => void} onReject
@@ -105,7 +105,7 @@ export const OCapNFar = (label, object) => {
  */
 
 /**
- * @typedef {object} OCapNCommsKit
+ * @typedef {object} OcapnCommsKit
  * @property {(message: any) => void} dispatch
  * @property {(message: any) => void} send
  * @property {(reason?: any) => void} abort
@@ -117,10 +117,10 @@ export const OCapNFar = (label, object) => {
  */
 
 /**
- * @param {MakeOCapNCommsKitOptions} opts
- * @returns {OCapNCommsKit}
+ * @param {MakeOcapnCommsKitOptions} opts
+ * @returns {OcapnCommsKit}
  */
-const makeOCapNCommsKit = ({
+const makeOcapnCommsKit = ({
   logger,
   makeDispatch,
   onReject,
@@ -199,7 +199,7 @@ const makeOCapNCommsKit = ({
 };
 
 /**
- * @param {OCapNLocation} location
+ * @param {OcapnLocation} location
  * @param {CapTPSlot} slot
  * @param {'handoff' | 'sturdy-ref'} type
  * @param {Uint8Array} [swissNum]
@@ -225,7 +225,7 @@ export const makeGrantDetails = (
 
 /**
  * @typedef {object} GrantDetails
- * @property {OCapNLocation} location
+ * @property {OcapnLocation} location
  * @property {CapTPSlot} slot
  * @property {'handoff' | 'sturdy-ref'} type
  * @property {Uint8Array} [swissNum]
@@ -420,8 +420,8 @@ const makeMakeRemoteKit = ({
 
 /**
  * @typedef {object} CodecKit
- * @property {(syrupReader: SyrupReader) => any} readOCapNMessage
- * @property {(message: any) => Uint8Array} writeOCapNMessage
+ * @property {(syrupReader: SyrupReader) => any} readOcapnMessage
+ * @property {(message: any) => Uint8Array} writeOcapnMessage
  *
  * @param {TableKit} tableKit
  * @returns {CodecKit}
@@ -429,13 +429,13 @@ const makeMakeRemoteKit = ({
 const makeCodecKit = tableKit => {
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
-  const { readOCapNMessage, writeOCapNMessage } = makeOcapnOperationsCodecs(
+  const { readOcapnMessage, writeOcapnMessage } = makeOcapnOperationsCodecs(
     descCodecs,
     passableCodecs,
   );
   return {
-    readOCapNMessage,
-    writeOCapNMessage,
+    readOcapnMessage,
+    writeOcapnMessage,
   };
 };
 
@@ -467,14 +467,14 @@ const slotTypes = harden({
  * @property {(position: bigint) => any} convertPositionToLocalPromise
  * @property {(position: bigint) => any} provideRemoteResolver
  * @property {(position: bigint) => any} provideLocalAnswer
- * @property {(nodeLocation: OCapNLocation, swissNum: Uint8Array) => Promise<any>} provideSturdyRef
+ * @property {(nodeLocation: OcapnLocation, swissNum: Uint8Array) => Promise<any>} provideSturdyRef
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} provideHandoff
  * @property {(value: any) => ValInfo} getInfoForVal
  * @property {(handoffGiveDetails: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
  */
 
 /**
- * @param {OCapNLocation} peerLocation
+ * @param {OcapnLocation} peerLocation
  * @param {CapTPEngine} engine
  * @param {MakeRemoteResolver} makeRemoteResolver
  * @param {MakeRemoteSturdyRef} makeRemoteSturdyRef
@@ -659,7 +659,7 @@ const makeBootstrapObject = (
 ) => {
   // The "usedGiftHandoffs" is one per session.
   const usedGiftHandoffs = new Set();
-  return OCapNFar(`${label}:bootstrap`, {
+  return OcapnFar(`${label}:bootstrap`, {
     /**
      * @param {Uint8Array} swissnum
      * @returns {Promise<any>}
@@ -796,7 +796,7 @@ const makeBootstrapObject = (
 };
 
 /**
- * @typedef {object} OCapN
+ * @typedef {object} Ocapn
  * @property {((reason?: any) => void)} abort
  * @property {((data: Uint8Array) => void)} dispatchMessageData
  * @property {() => Promise<any>} getBootstrap
@@ -807,17 +807,17 @@ const makeBootstrapObject = (
  * @param {Logger} logger
  * @param {Connection} connection
  * @param {Uint8Array} sessionId
- * @param {OCapNLocation} peerLocation
- * @param {(location: OCapNLocation) => Promise<Session>} provideSession
+ * @param {OcapnLocation} peerLocation
+ * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {((locationId: LocationId) => Session | undefined)} getActiveSession
  * @param {(sessionId: Uint8Array) => OcapnPublicKey | undefined} getPeerPublicKeyForSessionId
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
  * @param {string} [ourIdLabel]
- * @returns {OCapN}
+ * @returns {Ocapn}
  */
-export const makeOCapN = (
+export const makeOcapn = (
   logger,
   connection,
   sessionId,
@@ -931,7 +931,7 @@ export const makeOCapN = (
     };
   };
 
-  const { dispatch, send, quietReject, didUnplug } = makeOCapNCommsKit({
+  const { dispatch, send, quietReject, didUnplug } = makeOcapnCommsKit({
     logger,
     makeDispatch,
     onReject,
@@ -1021,7 +1021,7 @@ export const makeOCapN = (
   const makeLocalResolver = questionSlot => {
     // eslint-disable-next-line no-use-before-define
     const settler = engine.takeSettler(questionSlot);
-    const ocapnResolver = OcapNFarObject('ocapnResolver', {
+    const ocapnResolver = OcapnFarObject('ocapnResolver', {
       fulfill: value => {
         logger.info(`ocapnResolver fulfill ${questionSlot}`, value);
         settler.resolve(value);
@@ -1145,13 +1145,13 @@ export const makeOCapN = (
     sendDepositGift,
   );
 
-  const { readOCapNMessage, writeOCapNMessage } = makeCodecKit(tableKit);
+  const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(tableKit);
 
   function serializeAndSendMessage(message) {
     // If we dont catch the error here it gets swallowed.
     logger.info(`sending message`, message);
     try {
-      const bytes = writeOCapNMessage(message);
+      const bytes = writeOcapnMessage(message);
       const syrupObject = decodeSyrup(bytes);
       logger.info(`sending message syrup:`);
       logger.info(syrupObject);
@@ -1170,7 +1170,7 @@ export const makeOCapN = (
       let message;
       const start = syrupReader.index;
       try {
-        message = readOCapNMessage(syrupReader);
+        message = readOcapnMessage(syrupReader);
       } catch (err) {
         const problematicBytes = data.slice(start);
         const syrupMessage = decodeSyrup(problematicBytes);
@@ -1202,7 +1202,7 @@ export const makeOCapN = (
   );
   engine.registerExport(bootstrapObj, localBootstrapSlot);
 
-  /** @type {OCapN} */
+  /** @type {Ocapn} */
   return harden({
     abort,
     dispatchMessageData,

@@ -6,8 +6,8 @@ import {
   makeExpectedLengthBytestringCodec as bytestringWithLength,
 } from '../syrup/codec.js';
 import {
-  makeOCapNListComponentCodec,
-  makeOCapNRecordCodecFromDefinition,
+  makeOcapnListComponentCodec,
+  makeOcapnRecordCodecFromDefinition,
 } from './util.js';
 
 /*
@@ -15,14 +15,14 @@ import {
  */
 
 /**
- * @typedef {object} OCapNLocation
+ * @typedef {object} OcapnLocation
  * @property {'ocapn-node'} type
  * @property {string} transport
  * @property {string} address
  * @property {boolean} hints
  */
 
-export const OcapnNodeCodec = makeOCapNRecordCodecFromDefinition(
+export const OcapnNodeCodec = makeOcapnRecordCodecFromDefinition(
   'OcapnNode',
   'ocapn-node',
   {
@@ -34,7 +34,7 @@ export const OcapnNodeCodec = makeOCapNRecordCodecFromDefinition(
 );
 
 // Used in the location signature in 'op:start-session'
-export const OcapnMyLocationCodec = makeOCapNRecordCodecFromDefinition(
+export const OcapnMyLocationCodec = makeOcapnRecordCodecFromDefinition(
   'OcapnMyLocation',
   'my-location',
   {
@@ -55,7 +55,7 @@ const OcapnSignatureEddsaCodec = exactList('OcapnSignatureEddsa', [
 ]);
 
 /**
- * @typedef {object} OCapNSignature
+ * @typedef {object} OcapnSignature
  * @property {'sig-val'} type
  * @property {'eddsa'} scheme
  * @property {Uint8Array} r
@@ -63,7 +63,7 @@ const OcapnSignatureEddsaCodec = exactList('OcapnSignatureEddsa', [
  */
 
 // ['sig-val ['eddsa ['r r_value] ['s s_value]]]
-export const OcapnSignatureCodec = makeOCapNListComponentCodec(
+export const OcapnSignatureCodec = makeOcapnListComponentCodec(
   'OcapnSignature',
   'sig-val',
   syrupReader => {
@@ -105,7 +105,7 @@ const OcapnPublicKeyEccCodec = exactList('OcapnPublicKeyEcc', [
 ]);
 
 // ['public-key ['ecc ['curve 'Ed25519] ['flags 'eddsa] ['q q_value]]]
-export const OcapnPublicKeyCodec = makeOCapNListComponentCodec(
+export const OcapnPublicKeyCodec = makeOcapnListComponentCodec(
   'OcapnPublicKey',
   'public-key',
   syrupReader => {
