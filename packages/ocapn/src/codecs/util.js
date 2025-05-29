@@ -25,7 +25,7 @@ const { freeze } = Object;
  * @param {SyrupRecordDefinition} definition
  * @returns {SyrupRecordCodec}
  */
-export const makeOCapNRecordCodecFromDefinition = (
+export const makeOcapnRecordCodecFromDefinition = (
   codecName,
   label,
   definition,
@@ -46,7 +46,7 @@ export const makeOCapNRecordCodecFromDefinition = (
  * @param {function(any, SyrupWriter): void} writeBody
  * @returns {SyrupRecordCodec}
  */
-export const makeOCapNRecordCodec = (codecName, label, readBody, writeBody) => {
+export const makeOcapnRecordCodec = (codecName, label, readBody, writeBody) => {
   // Syrup Records as used in OCapN are always labeled with selectors
   return makeRecordCodec(codecName, label, 'selector', readBody, writeBody);
 };
@@ -56,7 +56,7 @@ export const makeOCapNRecordCodec = (codecName, label, readBody, writeBody) => {
  *   label: string;
  *   readBody: (SyrupReader) => any;
  *   writeBody: (any, SyrupWriter) => void;
- * }} OCapNListComponentCodec
+ * }} OcapnListComponentCodec
  */
 
 /**
@@ -64,9 +64,9 @@ export const makeOCapNRecordCodec = (codecName, label, readBody, writeBody) => {
  * @param {string} label
  * @param {function(SyrupReader): any} readBody
  * @param {function(any, SyrupWriter): void} writeBody
- * @returns {OCapNListComponentCodec}
+ * @returns {OcapnListComponentCodec}
  */
-export const makeOCapNListComponentCodec = (
+export const makeOcapnListComponentCodec = (
   codecName,
   label,
   readBody,
@@ -101,12 +101,12 @@ export const makeOCapNListComponentCodec = (
 
 /**
  * @param {string} codecName
- * @param {Record<string, OCapNListComponentCodec>} listComponentTypes
+ * @param {Record<string, OcapnListComponentCodec>} listComponentTypes
  * @returns {SyrupCodec & {
  *   supports: (label: string) => boolean;
  * }}
  */
-export const makeOCapNListComponentUnionCodec = (
+export const makeOcapnListComponentUnionCodec = (
   codecName,
   listComponentTypes,
 ) => {

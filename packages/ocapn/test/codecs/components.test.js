@@ -21,7 +21,7 @@ import {
   OcapnSignatureCodec,
 } from '../../src/codecs/components.js';
 import { makeTypeHintUnionCodec } from '../../src/syrup/codec.js';
-import { makeOCapNListComponentUnionCodec } from '../../src/codecs/util.js';
+import { makeOcapnListComponentUnionCodec } from '../../src/codecs/util.js';
 import { testBidirectionally } from './_codecs_util.js';
 
 /** @type {CodecTestEntry[]} */
@@ -56,18 +56,18 @@ const table = [
   },
 ];
 
-const OCapNComponentListUnionCodec = makeOCapNListComponentUnionCodec(
-  'OCapNComponentListUnionCodec',
+const OcapnComponentListUnionCodec = makeOcapnListComponentUnionCodec(
+  'OcapnComponentListUnionCodec',
   {
     OcapnPublicKeyCodec,
-    OCapNSignature: OcapnSignatureCodec,
+    OcapnSignatureCodec,
   },
 );
-const OCapNComponentUnionCodec = makeTypeHintUnionCodec(
-  'OCapNComponentUnionCodec',
+const OcapnComponentUnionCodec = makeTypeHintUnionCodec(
+  'OcapnComponentUnionCodec',
   {
     record: OcapnNodeCodec,
-    list: OCapNComponentListUnionCodec,
+    list: OcapnComponentListUnionCodec,
   },
   {
     object: value => {
@@ -79,8 +79,8 @@ const OCapNComponentUnionCodec = makeTypeHintUnionCodec(
         return OcapnNodeCodec;
       }
 
-      if (OCapNComponentListUnionCodec.supports(type)) {
-        return OCapNComponentListUnionCodec;
+      if (OcapnComponentListUnionCodec.supports(type)) {
+        return OcapnComponentListUnionCodec;
       }
       throw Error(`Unknown component type: ${value}`);
     },
@@ -88,7 +88,7 @@ const OCapNComponentUnionCodec = makeTypeHintUnionCodec(
 );
 
 test('affirmative component cases', t => {
-  const codec = OCapNComponentUnionCodec;
+  const codec = OcapnComponentUnionCodec;
   for (const entry of table) {
     testBidirectionally(t, {
       ...entry,

@@ -7,17 +7,17 @@
 /** @typedef {import('../syrup/codec.js').SyrupRecordUnionCodec} SyrupRecordUnionCodec */
 /** @typedef {import('../client/ocapn.js').TableKit} TableKit */
 /** @typedef {import('../client/types.js').OcapnPublicKey} OcapnPublicKey */
-/** @typedef {import('../client/types.js').OCapNLocation} OCapNLocation */
-/** @typedef {import('../client/types.js').OCapNKeyPair} OCapNKeyPair */
+/** @typedef {import('../client/types.js').OcapnKeyPair} OcapnKeyPair */
+/** @typedef {import('./components.js').OcapnLocation} OcapnLocation */
 /** @typedef {import('./components.js').OcapnPublicKeyData} OcapnPublicKeyData */
 /** @typedef {import('../client/ocapn.js').GrantDetails} GrantDetails */
 /** @typedef {import('../client/ocapn.js').HandoffGiveDetails} HandoffGiveDetails */
-/** @typedef {import('../cryptography.js').OCapNSignature} OCapNSignature */
+/** @typedef {import('../cryptography.js').OcapnSignature} OcapnSignature */
 
 import { makeCodec, makeRecordUnionCodec } from '../syrup/codec.js';
 import {
-  makeOCapNRecordCodec,
-  makeOCapNRecordCodecFromDefinition,
+  makeOcapnRecordCodec,
+  makeOcapnRecordCodecFromDefinition,
   makeValueInfoRecordUnionCodec,
 } from './util.js';
 import { NonNegativeIntegerCodec } from './subtypes.js';
@@ -43,7 +43,7 @@ import { makeSyrupWriter } from '../syrup/encode.js';
  * @typedef {object} HandoffGive
  * @property {'desc:handoff-give'} type
  * @property {OcapnPublicKeyData} receiverKey
- * @property {OCapNLocation} exporterLocation
+ * @property {OcapnLocation} exporterLocation
  * @property {Uint8Array} exporterSessionId
  * @property {Uint8Array} gifterSideId
  * @property {Uint8Array} giftId
@@ -53,7 +53,7 @@ import { makeSyrupWriter } from '../syrup/encode.js';
  * @typedef {object} HandoffGiveSigEnvelope
  * @property {'desc:sig-envelope'} type
  * @property {HandoffGive} object
- * @property {OCapNSignature} signature
+ * @property {OcapnSignature} signature
  */
 
 /**
@@ -69,10 +69,10 @@ import { makeSyrupWriter } from '../syrup/encode.js';
  * @typedef {object} HandoffReceiveSigEnvelope
  * @property {'desc:sig-envelope'} type
  * @property {HandoffReceive} object
- * @property {OCapNSignature} signature
+ * @property {OcapnSignature} signature
  */
 
-const DescHandoffGiveCodec = makeOCapNRecordCodecFromDefinition(
+const DescHandoffGiveCodec = makeOcapnRecordCodecFromDefinition(
   'DescHandoffGive',
   'desc:handoff-give',
   {
@@ -88,7 +88,7 @@ const DescHandoffGiveCodec = makeOCapNRecordCodecFromDefinition(
   },
 );
 
-const DescHandoffGiveSigEnvelopeCodec = makeOCapNRecordCodecFromDefinition(
+const DescHandoffGiveSigEnvelopeCodec = makeOcapnRecordCodecFromDefinition(
   'DescHandoffGiveSigEnvelope',
   'desc:sig-envelope',
   {
@@ -97,7 +97,7 @@ const DescHandoffGiveSigEnvelopeCodec = makeOCapNRecordCodecFromDefinition(
   },
 );
 
-const DescHandoffReceiveCodec = makeOCapNRecordCodecFromDefinition(
+const DescHandoffReceiveCodec = makeOcapnRecordCodecFromDefinition(
   'DescHandoffReceive',
   'desc:handoff-receive',
   {
@@ -108,7 +108,7 @@ const DescHandoffReceiveCodec = makeOCapNRecordCodecFromDefinition(
   },
 );
 
-const DescHandoffReceiveSigEnvelopeCodec = makeOCapNRecordCodecFromDefinition(
+const DescHandoffReceiveSigEnvelopeCodec = makeOcapnRecordCodecFromDefinition(
   'DescHandoffReceiveSigEnvelope',
   'desc:sig-envelope',
   {
@@ -125,7 +125,7 @@ const SignedEnvelopeContentUnionCodec = makeRecordUnionCodec(
   },
 );
 
-const DescSigEnvelopeReadCodec = makeOCapNRecordCodecFromDefinition(
+const DescSigEnvelopeReadCodec = makeOcapnRecordCodecFromDefinition(
   'DescSigEnvelope',
   'desc:sig-envelope',
   {
@@ -159,7 +159,7 @@ export const serializeHandoffReceive = handoffReceive => {
  * @param {bigint} handoffCount
  * @param {Uint8Array} sessionId
  * @param {OcapnPublicKey} pubKeyForExporter
- * @param {OCapNKeyPair} privKeyForGifter
+ * @param {OcapnKeyPair} privKeyForGifter
  * @returns {HandoffReceiveSigEnvelope}
  */
 export const makeWithdrawGiftDescriptor = (
@@ -196,7 +196,7 @@ export const makeWithdrawGiftDescriptor = (
 export const makeDescCodecs = tableKit => {
   // when writing: import = local to us
   // when reading: import = remote to us
-  const DescImportObjectCodec = makeOCapNRecordCodec(
+  const DescImportObjectCodec = makeOcapnRecordCodec(
     'DescImportObject',
     'desc:import-object',
     syrupReader => {
@@ -209,7 +209,7 @@ export const makeDescCodecs = tableKit => {
     },
   );
 
-  const DescImportPromiseCodec = makeOCapNRecordCodec(
+  const DescImportPromiseCodec = makeOcapnRecordCodec(
     'DescImportPromise',
     'desc:import-promise',
     syrupReader => {
@@ -224,7 +224,7 @@ export const makeDescCodecs = tableKit => {
 
   // when reading: export = local to us
   // when writing: export = remote to us
-  const DescExportCodec = makeOCapNRecordCodec(
+  const DescExportCodec = makeOcapnRecordCodec(
     'DescExport',
     'desc:export',
     syrupReader => {
@@ -239,7 +239,7 @@ export const makeDescCodecs = tableKit => {
 
   // when reading: answer = local to us
   // when writing: answer = remote to us
-  const DescAnswerCodec = makeOCapNRecordCodec(
+  const DescAnswerCodec = makeOcapnRecordCodec(
     'DescAnswer',
     'desc:answer',
     syrupReader => {
@@ -257,7 +257,7 @@ export const makeDescCodecs = tableKit => {
   // When writing: Two possible types:
   //  SignedHandoffReceive, sends this directly.
   //  GrantDetails, deposits the gist and sends a SignedHandoffGive.
-  const HandOffUnionCodec = makeOCapNRecordCodec(
+  const HandOffUnionCodec = makeOcapnRecordCodec(
     'HandOffUnion',
     'desc:sig-envelope',
     syrupReader => {
@@ -358,8 +358,8 @@ export const makeDescCodecs = tableKit => {
     },
   });
 
-  const OCapNSturdyRefCodec = makeOCapNRecordCodec(
-    'OCapNSturdyRef',
+  const OcapnSturdyRefCodec = makeOcapnRecordCodec(
+    'OcapnSturdyRef',
     'ocapn-sturdyref',
     syrupReader => {
       const node = OcapnNodeCodec.read(syrupReader);
@@ -394,7 +394,7 @@ export const makeDescCodecs = tableKit => {
       DescAnswerCodec,
       DescImportObjectCodec,
       DescImportPromiseCodec,
-      OCapNSturdyRefCodec,
+      OcapnSturdyRefCodec,
       HandOffUnionCodec,
     },
     {
@@ -403,7 +403,7 @@ export const makeDescCodecs = tableKit => {
       'local:question': DescAnswerCodec,
       'remote:object': DescExportCodec,
       'remote:promise': DescExportCodec,
-      'third-party:sturdy-ref': OCapNSturdyRefCodec,
+      'third-party:sturdy-ref': OcapnSturdyRefCodec,
       'third-party:handoff': HandOffUnionCodec,
     },
   );

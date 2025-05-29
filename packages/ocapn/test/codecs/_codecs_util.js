@@ -7,7 +7,7 @@
 /** @typedef {import('../../src/client/ocapn.js').MakeRemoteResolver} MakeRemoteResolver */
 /** @typedef {import('../../src/client/ocapn.js').MakeRemoteSturdyRef} MakeRemoteSturdyRef */
 /** @typedef {import('../../src/client/ocapn.js').MakeHandoff} MakeHandoff */
-/** @typedef {import('../../src/codecs/components.js').OCapNLocation} OCapNLocation */
+/** @typedef {import('../../src/codecs/components.js').OcapnLocation} OcapnLocation */
 /** @typedef {import('../../src/codecs/descriptors.js').HandoffGiveSigEnvelope} HandoffGiveSigEnvelope */
 /** @typedef {import('../../src/codecs/descriptors.js').HandoffReceiveSigEnvelope} HandoffReceiveSigEnvelope */
 
@@ -19,7 +19,7 @@ import {
   makeGrantDetails,
   makeGrantTracker,
   makeTableKit,
-  OCapNFar,
+  OcapnFar,
 } from '../../src/client/ocapn.js';
 import { makeDescCodecs } from '../../src/codecs/descriptors.js';
 import { makePassableCodecs } from '../../src/codecs/passable.js';
@@ -35,7 +35,7 @@ const bufferToHex = uint8Array => {
   return Buffer.from(uint8Array).toString('hex');
 };
 
-/** @type {OCapNLocation} */
+/** @type {OcapnLocation} */
 const defaultPeerLocation = {
   type: 'ocapn-node',
   transport: 'tcp-test-only',
@@ -50,15 +50,15 @@ const defaultPeerLocation = {
  * @property {(position: bigint) => any} makeExportAt
  * @property {(position: bigint) => Promise<any>} makeAnswerAt
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<any>} lookupHandoff
- * @property {(location: OCapNLocation, swissNum: Uint8Array) => Promise<any>} lookupSturdyRef
+ * @property {(location: OcapnLocation, swissNum: Uint8Array) => Promise<any>} lookupSturdyRef
  * @property {SyrupCodec} ReferenceCodec
  * @property {SyrupCodec} DescImportObjectCodec
- * @property {SyrupCodec} OCapNMessageUnionCodec
+ * @property {SyrupCodec} OcapnMessageUnionCodec
  * @property {SyrupCodec} PassableCodec
  */
 
 /**
- * @param {OCapNLocation} [peerLocation]
+ * @param {OcapnLocation} [peerLocation]
  * @returns {CodecTestKit}
  */
 export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
@@ -115,7 +115,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   const testHandoffMap = new Map();
 
   /**
-   * @param {OCapNLocation} location
+   * @param {OcapnLocation} location
    * @param {Uint8Array} swissNum
    * @returns {string}
    */
@@ -124,7 +124,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   };
 
   /**
-   * @param {OCapNLocation} location
+   * @param {OcapnLocation} location
    * @param {Uint8Array} swissNum
    * @returns {Promise<any>}
    */
@@ -205,7 +205,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
   );
   const descCodecs = makeDescCodecs(tableKit);
   const passableCodecs = makePassableCodecs(descCodecs);
-  const { OCapNMessageUnionCodec } = makeOcapnOperationsCodecs(
+  const { OcapnMessageUnionCodec } = makeOcapnOperationsCodecs(
     descCodecs,
     passableCodecs,
   );
@@ -213,7 +213,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
 
   const makeExportAt = position => {
     const slot = `o+${position}`;
-    const value = OCapNFar('Export', {});
+    const value = OcapnFar('Export', {});
     engine.registerExport(value, slot);
     return value;
   };
@@ -233,7 +233,7 @@ export const makeCodecTestKit = (peerLocation = defaultPeerLocation) => {
     lookupHandoff,
     lookupSturdyRef,
     ...descCodecs,
-    OCapNMessageUnionCodec,
+    OcapnMessageUnionCodec,
     PassableCodec,
   };
 };

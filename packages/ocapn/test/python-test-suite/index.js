@@ -6,7 +6,7 @@ import { E } from '@endo/eventual-send';
 import { getSelectorName } from '../../src/pass-style-helpers.js';
 import { makeTcpNetLayer } from '../../src/netlayers/tcp-test-only.js';
 import { makeClient } from '../../src/client/index.js';
-import { OCapNFar } from '../../src/client/ocapn.js';
+import { OcapnFar } from '../../src/client/ocapn.js';
 
 /**
  * @returns {Map<string, any>}
@@ -40,11 +40,11 @@ const makeTestObjectTable = () => {
    */
   testObjectTable.set(
     'JadQ0++RzsD4M+40uLxTWVaVqM10DcBJ',
-    OCapNFar('carFactoryBuilder', () => {
+    OcapnFar('carFactoryBuilder', () => {
       /**
        * @param {[model: any, color: any]} carSpec
        */
-      return OCapNFar('carFactory', carSpec => {
+      return OcapnFar('carFactory', carSpec => {
         console.log('carFactory called with', { carSpec });
 
         const [colorSelector, modelSelector] = carSpec;
@@ -52,7 +52,7 @@ const makeTestObjectTable = () => {
         const model = getSelectorName(modelSelector);
         const car = () => `Vroom! I am a ${color} ${model} car!`;
 
-        return OCapNFar('car', car);
+        return OcapnFar('car', car);
       });
     }),
   );
@@ -67,7 +67,7 @@ const makeTestObjectTable = () => {
    */
   testObjectTable.set(
     'IO58l1laTyhcrgDKbEzFOO32MDd6zE5w',
-    OCapNFar('echoGc', async function echoGc(...args) {
+    OcapnFar('echoGc', async function echoGc(...args) {
       return args;
     }),
   );
@@ -86,7 +86,7 @@ const makeTestObjectTable = () => {
    */
   testObjectTable.set(
     'VMDDd1voKWarCe2GvgLbxbVFysNzRPzx',
-    OCapNFar('greeter', remoteObject => {
+    OcapnFar('greeter', remoteObject => {
       console.log('greeter called with', { remoteObject });
       return E(remoteObject)('Hello');
     }),
@@ -102,7 +102,7 @@ const makeTestObjectTable = () => {
    */
   testObjectTable.set(
     'IokCxYmMj04nos2JN1TDoY1bT8dXh6Lr',
-    OCapNFar('promiseResolver', () => {
+    OcapnFar('promiseResolver', () => {
       let resolve;
       let reject;
       const promise = new Promise((res, rej) => {
@@ -110,7 +110,7 @@ const makeTestObjectTable = () => {
         reject = rej;
       });
 
-      const resolver = OCapNFar('Resolver', {
+      const resolver = OcapnFar('Resolver', {
         fulfill: value => {
           console.log('resolver.fulfill called with', { value });
           resolve(value);
@@ -135,7 +135,7 @@ const makeTestObjectTable = () => {
    */
   testObjectTable.set(
     'gi02I1qghIwPiKGKleCQAOhpy3ZtYRpB',
-    OCapNFar('sturdyrefEnlivener', async sturdyrefPromise => {
+    OcapnFar('sturdyrefEnlivener', async sturdyrefPromise => {
       console.log('sturdyrefEnlivener called with', { sturdyrefPromise });
       // SturdyRefs are promises as they are instructions on where to fetch an object,
       // but don't contain enough info to do grant matching.

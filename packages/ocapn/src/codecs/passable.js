@@ -22,15 +22,15 @@ import {
   makeCodec,
 } from '../syrup/codec.js';
 import {
-  makeOCapNRecordCodec,
-  makeOCapNRecordCodecFromDefinition,
+  makeOcapnRecordCodec,
+  makeOcapnRecordCodecFromDefinition,
 } from './util.js';
 
 const quote = JSON.stringify;
 
 // OCapN Passable Atoms
 
-const UndefinedCodec = makeOCapNRecordCodec(
+const UndefinedCodec = makeOcapnRecordCodec(
   'Undefined',
   'void',
   // readBody
@@ -43,7 +43,7 @@ const UndefinedCodec = makeOCapNRecordCodec(
   },
 );
 
-const NullCodec = makeOCapNRecordCodec(
+const NullCodec = makeOcapnRecordCodec(
   'Null',
   'null',
   // readBody
@@ -56,7 +56,7 @@ const NullCodec = makeOCapNRecordCodec(
   },
 );
 
-const OCapNSelectorCodec = makeCodec('OcapnSelector', {
+const OcapnSelectorCodec = makeCodec('OcapnSelector', {
   read(syrupReader) {
     const name = syrupReader.readSelectorAsString();
     return makeSelector(name);
@@ -74,7 +74,7 @@ const AtomCodecs = {
   integer: IntegerCodec,
   float64: Float64Codec,
   string: StringCodec,
-  selector: OCapNSelectorCodec,
+  selector: OcapnSelectorCodec,
   byteArray: BytestringCodec,
 };
 
@@ -140,7 +140,7 @@ export const makePassableCodecs = descCodecs => {
   });
 
   // <:desc:tagged :tagName value>
-  const OcapnTaggedCodec = makeOCapNRecordCodec(
+  const OcapnTaggedCodec = makeOcapnRecordCodec(
     'OcapnTagged',
     'desc:tagged',
     // readBody
@@ -160,7 +160,7 @@ export const makePassableCodecs = descCodecs => {
     },
   );
 
-  const OcapnErrorCodec = makeOCapNRecordCodecFromDefinition(
+  const OcapnErrorCodec = makeOcapnRecordCodecFromDefinition(
     'OcapnError',
     'desc:error',
     {
@@ -174,8 +174,8 @@ export const makePassableCodecs = descCodecs => {
     {
       UndefinedCodec,
       NullCodec,
-      OCapNTaggedCodec: OcapnTaggedCodec,
-      OCapNErrorCodec: OcapnErrorCodec,
+      OcapnTaggedCodec,
+      OcapnErrorCodec,
       ...ReferenceCodec.getChildCodecs(),
     },
   );

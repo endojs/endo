@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
+ * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
  * @typedef {import('./types.js').LocationId} LocationId
  */
 
@@ -16,7 +16,7 @@ export const toHex = value => {
 };
 
 /**
- * @param {OCapNLocation} location
+ * @param {OcapnLocation} location
  * @returns {LocationId}
  */
 export const locationToLocationId = location => {

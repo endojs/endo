@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @typedef {import('../src/codecs/components.js').OCapNLocation} OCapNLocation */
+/** @typedef {import('../src/codecs/components.js').OcapnLocation} OcapnLocation */
 /** @typedef {import('../src/client/types.js').Client} Client */
 
 import test from '@endo/ses-ava/prepare-endo.js';
@@ -15,7 +15,7 @@ import { encodeSwissnum } from '../src/client/util.js';
 /**
  * @param {string} debugLabel
  * @param {() => Map<string, any>} [makeDefaultSwissnumTable]
- * @returns {Promise<{ client: Client, location: OCapNLocation }>}
+ * @returns {Promise<{ client: Client, location: OcapnLocation }>}
  */
 const makeTestClient = async (debugLabel, makeDefaultSwissnumTable) => {
   const client = makeClient({

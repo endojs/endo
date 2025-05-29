@@ -598,7 +598,7 @@ test('affirmative operation cases', t => {
     testBidirectionally(t, {
       ...entry,
       name,
-      getCodec: testKit => testKit.OCapNMessageUnionCodec,
+      getCodec: testKit => testKit.OcapnMessageUnionCodec,
       skipWrite: true,
     });
   }
