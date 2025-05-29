@@ -141,6 +141,105 @@ test('makeCacheMapKit (strong)', testMakeCacheMapKit, {
   keys: [{}, Symbol('unique symbol'), 'string key'],
 });
 
+test('makeCacheMapKit(1)', t => {
+  const { cache, getMetrics } = makeCacheMapKit(1);
+
+  const expectMetrics = { totalQueryCount: 0, totalHitCount: 0 };
+
+  const [key1, key2] = [{}, Symbol('unique symbol')];
+
+  const assertNoEntry = key => {
+    t.is(cache.has(key), false);
+    t.is(cache.get(key), undefined);
+    expectMetrics.totalQueryCount += 2;
+    t.deepEqual(getMetrics(), expectMetrics);
+  };
+  const assertEntry = (key, expectedValue) => {
+    t.is(cache.has(key), true);
+    t.is(cache.get(key), expectedValue);
+    expectMetrics.totalQueryCount += 2;
+    expectMetrics.totalHitCount += 2;
+    t.deepEqual(getMetrics(), expectMetrics);
+  };
+
+  assertNoEntry(key1);
+  assertNoEntry(key2);
+
+  // Populate up to capacity.
+  cache.set(key1, 'x');
+  expectMetrics.totalQueryCount += 1;
+  assertEntry(key1, 'x');
+
+  // Evict key1.
+  cache.set(key2, 'y');
+  expectMetrics.totalQueryCount += 1;
+  assertNoEntry(key1);
+  assertEntry(key2, 'y');
+
+  // Evict key2.
+  cache.set(key1, 'xx');
+  expectMetrics.totalQueryCount += 1;
+  assertNoEntry(key2);
+  assertEntry(key1, 'xx');
+
+  // Overwrite key1.
+  cache.set(key1, 'xxx');
+  expectMetrics.totalQueryCount += 1;
+  expectMetrics.totalHitCount += 1;
+  assertNoEntry(key2);
+  assertEntry(key1, 'xxx');
+
+  // Delete key1.
+  cache.delete(key1);
+  assertNoEntry(key1);
+  assertNoEntry(key2);
+});
+
+test('makeCacheMapKit(0)', t => {
+  const { cache, getMetrics } = makeCacheMapKit(0);
+
+  const expectMetrics = { totalQueryCount: 0, totalHitCount: 0 };
+
+  const [key1, key2] = [{}, Symbol('unique symbol')];
+
+  const assertNoEntry = key => {
+    t.is(cache.has(key), false);
+    t.is(cache.get(key), undefined);
+    expectMetrics.totalQueryCount += 2;
+    t.deepEqual(getMetrics(), expectMetrics);
+  };
+  // eslint-disable-next-line no-unused-vars
+  const assertEntry = (key, expectedValue) => {
+    t.is(cache.has(key), true);
+    t.is(cache.get(key), expectedValue);
+    expectMetrics.totalQueryCount += 2;
+    expectMetrics.totalHitCount += 2;
+    t.deepEqual(getMetrics(), expectMetrics);
+  };
+
+  assertNoEntry(key1);
+  assertNoEntry(key2);
+
+  cache.set(key1, 'x');
+  expectMetrics.totalQueryCount += 1;
+  assertNoEntry(key1);
+  assertNoEntry(key2);
+
+  cache.set(key1, 'xx');
+  expectMetrics.totalQueryCount += 1;
+  assertNoEntry(key1);
+  assertNoEntry(key2);
+
+  cache.set(key2, 'y');
+  expectMetrics.totalQueryCount += 1;
+  assertNoEntry(key1);
+  assertNoEntry(key2);
+
+  cache.delete(key1);
+  assertNoEntry(key1);
+  assertNoEntry(key2);
+});
+
 test('makeCacheMapKit argument validation', t => {
   const badCapacities = [
     NaN,
