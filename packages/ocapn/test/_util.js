@@ -1,9 +1,13 @@
+// @ts-check
+
+/** @typedef {import('@endo/ses-ava/prepare-endo.js').default} Test */
+
 import test from '@endo/ses-ava/prepare-endo.js';
 
 const strictTextDecoder = new TextDecoder('utf-8', { fatal: true });
 
 /**
- * @param {import('ava').Test} t
+ * @param {Test} t
  * @param {() => void} fn
  * @param {object} errorShape
  * @returns {void}
@@ -52,7 +56,7 @@ const logErrorCauseChain = (t, error, testName) => {
 };
 
 /**
- * @param {import('ava').Test} t
+ * @param {Test} t
  * @param {() => void} fn
  * @param {string} testName
  * @returns {void}
@@ -67,10 +71,10 @@ export const notThrowsWithErrorUnwrapping = (t, fn, testName) => {
 };
 
 /**
- * @param {import('ava').Test} t
- * @param {() => Promise<void>} asyncFn
+ * @param {Test} t
+ * @param {(t: Test) => Promise<void>} asyncFn
  * @param {string} testName
- * @returns {void}
+ * @returns {Promise<void>}
  */
 export const notThrowsWithErrorUnwrappingAsync = async (
   t,
