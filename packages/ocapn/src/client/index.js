@@ -2,10 +2,10 @@
 
 /**
  * @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey
- * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
+ * @typedef {import('../cryptography.js').OcapnKeyPair} OcapnKeyPair
  * @typedef {import('../codecs/components.js').OcapnPublicKeyData} OcapnPublicKeyData
- * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
- * @typedef {import('../codecs/components.js').OCapNSignature} OCapNSignature
+ * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
+ * @typedef {import('../codecs/components.js').OcapnSignature} OcapnSignature
  * @typedef {import('./types.js').Session} Session
  * @typedef {import('./types.js').Connection} Connection
  * @typedef {import('./types.js').Client} Client
@@ -16,7 +16,7 @@
  * @typedef {import('./types.js').PendingSession} PendingSession
  * @typedef {import('./types.js').SessionManager} SessionManager
  * @typedef {import('./ocapn.js').GrantTracker} GrantTracker
- * @typedef {import('./ocapn.js').OCapN} OCapN
+ * @typedef {import('./ocapn.js').Ocapn} Ocapn
  */
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeSyrupWriter } from '../syrup/encode.js';
@@ -26,20 +26,20 @@ import {
 } from '../codecs/operations.js';
 import {
   makePublicKeyId,
-  makeOCapNKeyPair,
+  makeOcapnKeyPair,
   makeOcapnPublicKey,
   publicKeyToPublicKeyData,
   makeSessionId,
 } from '../cryptography.js';
 import { OcapnMyLocationCodec } from '../codecs/components.js';
 import { compareByteArrays } from '../syrup/compare.js';
-import { makeGrantTracker, makeOCapN } from './ocapn.js';
+import { makeGrantTracker, makeOcapn } from './ocapn.js';
 import { makeSyrupReader } from '../syrup/decode.js';
 import { decodeSyrup } from '../syrup/js-representation.js';
 import { locationToLocationId, toHex } from './util.js';
 
 /**
- * @param {OCapNLocation} location
+ * @param {OcapnLocation} location
  * @returns {Uint8Array}
  */
 const getLocationBytesForSignature = location => {
@@ -53,11 +53,11 @@ const getLocationBytesForSignature = location => {
 };
 
 /**
- * @param {OCapNLocation} myLocation
+ * @param {OcapnLocation} myLocation
  * @returns {SelfIdentity}
  */
 export const makeSelfIdentity = myLocation => {
-  const keyPair = makeOCapNKeyPair();
+  const keyPair = makeOcapnKeyPair();
   const myLocationBytes = getLocationBytesForSignature(myLocation);
   const myLocationSig = keyPair.sign(myLocationBytes);
   return { keyPair, location: myLocation, locationSignature: myLocationSig };
@@ -67,10 +67,10 @@ export const makeSelfIdentity = myLocation => {
  * @param {object} options
  * @param {Uint8Array} options.id
  * @param {SelfIdentity} options.selfIdentity
- * @param {OCapNLocation} options.peerLocation
+ * @param {OcapnLocation} options.peerLocation
  * @param {OcapnPublicKey} options.peerPublicKey
- * @param {OCapNSignature} options.peerLocationSig
- * @param {OCapN} options.ocapn
+ * @param {OcapnSignature} options.peerLocationSig
+ * @param {Ocapn} options.ocapn
  * @param {Connection} options.connection
  * @returns {Session}
  */
@@ -151,7 +151,7 @@ const compareSessionKeysForCrossedHellos = (
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
- * @param {(location: OCapNLocation) => Promise<Session>} provideSession
+ * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
@@ -257,7 +257,7 @@ const handleSessionHandshakeMessage = (
       const selfId = makePublicKeyId(selfIdentity.keyPair.publicKey);
       const peerId = makePublicKeyId(peerPublicKey);
       const sessionId = makeSessionId(selfId, peerId);
-      const ocapn = makeOCapN(
+      const ocapn = makeOcapn(
         logger,
         connection,
         sessionId,
@@ -302,7 +302,7 @@ const handleSessionHandshakeMessage = (
  * @param {Logger} logger
  * @param {SessionManager} sessionManager
  * @param {Connection} connection
- * @param {(location: OCapNLocation) => Promise<Session>} provideSession
+ * @param {(location: OcapnLocation) => Promise<Session>} provideSession
  * @param {GrantTracker} grantTracker
  * @param {Map<string, any>} swissnumTable
  * @param {Map<string, any>} giftTable
@@ -478,7 +478,7 @@ export const makeClient = ({
   const sessionManager = makeSessionManager();
 
   /**
-   * @param {OCapNLocation} location
+   * @param {OcapnLocation} location
    * @returns {Promise<Session>}
    * Establishes a new session but initiating a connection.
    */
@@ -553,7 +553,7 @@ export const makeClient = ({
       sessionManager.deleteConnection(connection);
     },
     /**
-     * @param {OCapNLocation} location
+     * @param {OcapnLocation} location
      * @returns {Promise<Session>}
      */
     provideSession(location) {

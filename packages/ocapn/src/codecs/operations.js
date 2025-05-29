@@ -11,7 +11,7 @@ import {
   makeRecordUnionCodec,
   makeTypeHintUnionCodec,
 } from '../syrup/codec.js';
-import { makeOCapNRecordCodecFromDefinition } from './util.js';
+import { makeOcapnRecordCodecFromDefinition } from './util.js';
 import { NonNegativeIntegerCodec, FalseCodec } from './subtypes.js';
 import {
   OcapnNodeCodec,
@@ -24,8 +24,8 @@ import { makeSyrupWriter } from '../syrup/encode.js';
  * These are OCapN Operations, they are messages that are sent between OCapN Nodes
  */
 
-const OpStartSessionCodec = makeOCapNRecordCodecFromDefinition(
-  'OCapNMessageStartSession',
+const OpStartSessionCodec = makeOcapnRecordCodecFromDefinition(
+  'OpStartSession',
   'op:start-session',
   {
     captpVersion: 'string',
@@ -35,16 +35,12 @@ const OpStartSessionCodec = makeOCapNRecordCodecFromDefinition(
   },
 );
 
-const OpAbortCodec = makeOCapNRecordCodecFromDefinition(
-  'OCapNMessageAbort',
-  'op:abort',
-  {
-    reason: 'string',
-  },
-);
+const OpAbortCodec = makeOcapnRecordCodecFromDefinition('OpAbort', 'op:abort', {
+  reason: 'string',
+});
 
-const OpGcExportCodec = makeOCapNRecordCodecFromDefinition(
-  'OCapNMessageGcExport',
+const OpGcExportCodec = makeOcapnRecordCodecFromDefinition(
+  'OpGcExport',
   'op:gc-export',
   {
     exportPosition: 'integer',
@@ -52,8 +48,8 @@ const OpGcExportCodec = makeOCapNRecordCodecFromDefinition(
   },
 );
 
-const OpGcAnswerCodec = makeOCapNRecordCodecFromDefinition(
-  'OCapNMessageGcAnswer',
+const OpGcAnswerCodec = makeOcapnRecordCodecFromDefinition(
+  'OpGcAnswer',
   'op:gc-answer',
   {
     answerPosition: 'integer',
@@ -88,9 +84,9 @@ export const writeOcapnHandshakeMessage = message => {
 
 /**
  * @typedef {object} OcapnOperationsCodecs
- * @property {SyrupCodec} OCapNMessageUnionCodec
- * @property {(message: any) => Uint8Array} writeOCapNMessage
- * @property {(syrupReader: SyrupReader) => any} readOCapNMessage
+ * @property {SyrupCodec} OcapnMessageUnionCodec
+ * @property {(message: any) => Uint8Array} writeOcapnMessage
+ * @property {(syrupReader: SyrupReader) => any} readOcapnMessage
  */
 
 /**
@@ -107,7 +103,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
   } = descCodecs;
   const { PassableCodec } = passableCodecs;
 
-  const OpListenCodec = makeOCapNRecordCodecFromDefinition(
+  const OpListenCodec = makeOcapnRecordCodecFromDefinition(
     'OpListen',
     'op:listen',
     {
@@ -149,7 +145,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   });
 
-  const OpDeliverOnlyCodec = makeOCapNRecordCodecFromDefinition(
+  const OpDeliverOnlyCodec = makeOcapnRecordCodecFromDefinition(
     'OpDeliverOnly',
     'op:deliver-only',
     {
@@ -171,7 +167,7 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
-  const OpDeliverCodec = makeOCapNRecordCodecFromDefinition(
+  const OpDeliverCodec = makeOcapnRecordCodecFromDefinition(
     'OpDeliver',
     'op:deliver',
     {
@@ -182,18 +178,18 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
     },
   );
 
-  const OCapNPromiseRefUnionCodec = makeRecordUnionCodec('OCapNPromiseRef', {
+  const OcapnPromiseRefUnionCodec = makeRecordUnionCodec('OcapnPromiseRef', {
     DescAnswerCodec,
     DescImportPromiseCodec,
   });
 
-  const OpPickCodec = makeOCapNRecordCodecFromDefinition('OpPick', 'op:pick', {
-    promisePosition: OCapNPromiseRefUnionCodec,
+  const OpPickCodec = makeOcapnRecordCodecFromDefinition('OpPick', 'op:pick', {
+    promisePosition: OcapnPromiseRefUnionCodec,
     selectedValuePosition: 'integer',
     newAnswerPosition: 'integer',
   });
 
-  const OCapNMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
+  const OcapnMessageUnionCodec = makeRecordUnionCodec('OcapnMessageUnion', {
     OpStartSessionCodec,
     OpDeliverOnlyCodec,
     OpDeliverCodec,
@@ -208,23 +204,23 @@ export const makeOcapnOperationsCodecs = (descCodecs, passableCodecs) => {
    * @param {SyrupReader} syrupReader
    * @returns {any}
    */
-  const readOCapNMessage = syrupReader => {
-    return OCapNMessageUnionCodec.read(syrupReader);
+  const readOcapnMessage = syrupReader => {
+    return OcapnMessageUnionCodec.read(syrupReader);
   };
 
   /**
    * @param {any} message
    * @returns {Uint8Array}
    */
-  const writeOCapNMessage = message => {
+  const writeOcapnMessage = message => {
     const syrupWriter = makeSyrupWriter();
-    OCapNMessageUnionCodec.write(message, syrupWriter);
+    OcapnMessageUnionCodec.write(message, syrupWriter);
     return syrupWriter.getBytes();
   };
 
   return {
-    OCapNMessageUnionCodec,
-    readOCapNMessage,
-    writeOCapNMessage,
+    OcapnMessageUnionCodec,
+    readOcapnMessage,
+    writeOcapnMessage,
   };
 };

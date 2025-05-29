@@ -7,7 +7,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { Buffer } from 'buffer';
 import {
-  makeOCapNKeyPair,
+  makeOcapnKeyPair,
   makePublicKeyId,
   makeSessionId,
   publicKeyToPublicKeyData,
@@ -19,9 +19,9 @@ import {
 } from '../src/codecs/descriptors.js';
 
 const makeSessionKeys = () => {
-  const key1 = makeOCapNKeyPair();
+  const key1 = makeOcapnKeyPair();
   const key1Id = makePublicKeyId(key1.publicKey);
-  const key2 = makeOCapNKeyPair();
+  const key2 = makeOcapnKeyPair();
   const key2Id = makePublicKeyId(key2.publicKey);
   const sessionId = makeSessionId(key1Id, key2Id);
   return {
@@ -117,7 +117,7 @@ test('makeWithdrawGiftDescriptor', t => {
 });
 
 test('makePublicKeyId', t => {
-  const key = makeOCapNKeyPair();
+  const key = makeOcapnKeyPair();
   const publicKeyId = makePublicKeyId(key.publicKey);
   t.is(publicKeyId.length, 32);
 });

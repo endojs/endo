@@ -1,11 +1,11 @@
 // @ts-check
 
 /**
- * @typedef {import('../codecs/components.js').OCapNLocation} OCapNLocation
+ * @typedef {import('../codecs/components.js').OcapnLocation} OcapnLocation
  * @typedef {import('../cryptography.js').OcapnPublicKey} OcapnPublicKey
- * @typedef {import('../cryptography.js').OCapNSignature} OCapNSignature
- * @typedef {import('../cryptography.js').OCapNKeyPair} OCapNKeyPair
- * @typedef {import('./ocapn.js').OCapN} OCapN
+ * @typedef {import('../cryptography.js').OcapnSignature} OcapnSignature
+ * @typedef {import('../cryptography.js').OcapnKeyPair} OcapnKeyPair
+ * @typedef {import('./ocapn.js').Ocapn} Ocapn
  * @typedef {import('./ocapn.js').GrantTracker} GrantTracker
 /**
  * @typedef {string} LocationId
@@ -13,8 +13,8 @@
 
 /**
  * @typedef {object} NetLayer
- * @property {OCapNLocation} location
- * @property {(location: OCapNLocation) => Connection} connect
+ * @property {OcapnLocation} location
+ * @property {(location: OcapnLocation) => Connection} connect
  * @property {() => void} shutdown
  */
 
@@ -31,21 +31,21 @@
  * @property {Uint8Array} id
  * @property {object} peer
  * @property {OcapnPublicKey} peer.publicKey
- * @property {OCapNLocation} peer.location
- * @property {OCapNSignature} peer.locationSignature
+ * @property {OcapnLocation} peer.location
+ * @property {OcapnSignature} peer.locationSignature
  * @property {object} self
- * @property {OCapNKeyPair} self.keyPair
- * @property {OCapNLocation} self.location
- * @property {OCapNSignature} self.locationSignature
- * @property {OCapN} ocapn
+ * @property {OcapnKeyPair} self.keyPair
+ * @property {OcapnLocation} self.location
+ * @property {OcapnSignature} self.locationSignature
+ * @property {Ocapn} ocapn
  * @property {Connection} connection
  */
 
 /**
  * @typedef {object} SelfIdentity
- * @property {OCapNLocation} location
- * @property {OCapNKeyPair} keyPair
- * @property {OCapNSignature} locationSignature
+ * @property {OcapnLocation} location
+ * @property {OcapnKeyPair} keyPair
+ * @property {OcapnSignature} locationSignature
  */
 
 /**
@@ -93,6 +93,6 @@
  * @property {(netlayer: NetLayer) => void} registerNetlayer
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
- * @property {(location: OCapNLocation) => Promise<Session>} provideSession
+ * @property {(location: OcapnLocation) => Promise<Session>} provideSession
  * @property {() => void} shutdown
  */

@@ -8,7 +8,7 @@ import { makeSyrupWriter } from './syrup/encode.js';
 import { OcapnPublicKeyCodec } from './codecs/components.js';
 import { compareByteArrays } from './syrup/compare.js';
 
-/** @typedef {import('./codecs/components.js').OCapNSignature} OCapNSignature */
+/** @typedef {import('./codecs/components.js').OcapnSignature} OcapnSignature */
 /** @typedef {import('./codecs/components.js').OcapnPublicKeyData} OcapnPublicKeyData */
 
 const textEncoder = new TextEncoder();
@@ -16,20 +16,20 @@ const textEncoder = new TextEncoder();
 /**
  * @typedef {object} OcapnPublicKey
  * @property {Uint8Array} bytes
- * @property {(msg: Uint8Array, sig: OCapNSignature) => boolean} verify
+ * @property {(msg: Uint8Array, sig: OcapnSignature) => boolean} verify
  */
 
 /**
- * @typedef {object} OCapNKeyPair
+ * @typedef {object} OcapnKeyPair
  * @property {OcapnPublicKey} publicKey
- * @property {(msg: Uint8Array) => OCapNSignature} sign
+ * @property {(msg: Uint8Array) => OcapnSignature} sign
  */
 
 /**
- * @param {OCapNSignature} sig
+ * @param {OcapnSignature} sig
  * @returns {Uint8Array}
  */
-export const oCapNSignatureToBytes = sig => {
+export const ocapNSignatureToBytes = sig => {
   const result = new Uint8Array(sig.r.length + sig.s.length);
   result.set(sig.r, 0);
   result.set(sig.s, sig.r.length);
@@ -45,20 +45,20 @@ export const makeOcapnPublicKey = publicKey => {
     bytes: publicKey,
     /**
      * @param {Uint8Array} msgBytes
-     * @param {OCapNSignature} ocapnSig
+     * @param {OcapnSignature} ocapnSig
      * @returns {boolean}
      */
     verify: (msgBytes, ocapnSig) => {
-      const sigBytes = oCapNSignatureToBytes(ocapnSig);
+      const sigBytes = ocapNSignatureToBytes(ocapnSig);
       return ed25519.verify(sigBytes, msgBytes, publicKey);
     },
   };
 };
 
 /**
- * @returns {OCapNKeyPair}
+ * @returns {OcapnKeyPair}
  */
-export const makeOCapNKeyPair = () => {
+export const makeOcapnKeyPair = () => {
   const privateKey = ed25519.utils.randomPrivateKey();
   const publicKey = ed25519.getPublicKey(privateKey);
   return {
