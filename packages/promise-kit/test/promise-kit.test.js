@@ -43,6 +43,8 @@ function testRacePromise(t, candidate) {
   t.plan(2);
   const collected = makePromiseKit();
   let bothResults;
+  let sentinelCollected;
+  let sentinel;
 
   let targetWasCollected = false;
 
@@ -56,20 +58,22 @@ function testRacePromise(t, candidate) {
 
     bothResults = Promise.allSettled([raced, result]);
     fr.register(raced, () => collected.resolve(undefined));
+    sentinelCollected = new Promise(resolve => {
+      sentinel = {};
+      fr.register(sentinel, () => resolve(undefined));
+    });
   })();
 
   return bothResults
     .then(([val1, val2]) => {
       t.deepEqual(val1, val2);
     })
-    .then(() => {
-      const sentinelCollected = new Promise(resolve => {
-        fr.register({}, () => resolve(undefined));
-      });
+    .then(async () => {
+      sentinel = null;
 
-      new Promise(resolve => {
-        setImmediate(resolve);
-      }).then(engineGC);
+      await new Promise(setImmediate);
+      engineGC();
+      await new Promise(setImmediate);
 
       return sentinelCollected;
     })
