@@ -182,6 +182,26 @@ export const wrap = ({
     });
   }
 
+  // stub implementation of require.extensions
+  const requireExtensions = create(null);
+  const fail = freeze(
+    /**
+     * @param {NodeJS.Module} _module
+     * @param {string} _filename
+     * @returns {any}
+     */
+    (_module, _filename) => {
+      throw Error('Not implemented');
+    },
+  );
+  requireExtensions['.js'] = fail;
+  requireExtensions['.json'] = fail;
+  requireExtensions['.node'] = fail;
+  freeze(requireExtensions);
+  require.extensions = /** @type {NodeJS.Require['extensions']} */ (
+    requireExtensions
+  );
+
   freeze(require);
 
   const afterExecute = () => {
