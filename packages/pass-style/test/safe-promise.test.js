@@ -19,7 +19,8 @@ test('safe promise loophole', t => {
     // @ts-expect-error intentional
     p2.silly = 'silly own property';
     t.throws(() => passStyleOf(harden(p2)), {
-      message: '"[Promise]" - Must not have any own properties: ["silly"]',
+      message:
+        '"[Promise]" - Must not have any string-named own properties: ["silly"]',
     });
     t.is(p2[toStringTag], 'Promise');
     t.is(`${p2}`, '[object Promise]');
@@ -40,9 +41,7 @@ test('safe promise loophole', t => {
     defineProperty(p3, toStringTag, {
       value: 3,
     });
-    t.throws(() => passStyleOf(harden(p3)), {
-      message: 'Own @@toStringTag value must be a string: 3',
-    });
+    t.is(passStyleOf(harden(p3)), 'promise');
   }
 
   {
@@ -51,10 +50,7 @@ test('safe promise loophole', t => {
       value: 'Promise p4',
       enumerable: true,
     });
-    t.throws(() => passStyleOf(harden(p4)), {
-      message:
-        'Own @@toStringTag must not be enumerable: {"configurable":false,"enumerable":true,"value":"Promise p4","writable":false}',
-    });
+    t.is(passStyleOf(harden(p4)), 'promise');
 
     const p5 = Promise.resolve('p5');
     defineProperty(p5, toStringTag, {
