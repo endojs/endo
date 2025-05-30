@@ -102,7 +102,7 @@ const runTests = (t, successCase, failCase) => {
     failCase(specimen, M.gte(3n), '3 - Must be >= "[3n]"');
     failCase(specimen, M.and(3, 4), '3 - Must be: 4');
     failCase(specimen, M.or(4, 4), '3 - Must match one of [4,4]');
-    failCase(specimen, M.or(), '3 - no pattern disjuncts to match: []');
+    failCase(specimen, M.or(), '3 - Must fail negated pattern: "[match:any]"');
     failCase(specimen, M.tagged(), 'Expected tagged object, not "number": 3');
   }
   {
@@ -146,7 +146,11 @@ const runTests = (t, successCase, failCase) => {
       M.or(4n, 4n),
       '"[0n]" - Must match one of ["[4n]","[4n]"]',
     );
-    failCase(specimen, M.or(), '"[0n]" - no pattern disjuncts to match: []');
+    failCase(
+      specimen,
+      M.or(),
+      '"[0n]" - Must fail negated pattern: "[match:any]"',
+    );
   }
   {
     const specimen = -1n;
