@@ -16,6 +16,7 @@ export {
 
 export {
   compareNumerics,
+  compareByCodePoints,
   assertRankSorted,
   compareRank,
   isRankSorted,
