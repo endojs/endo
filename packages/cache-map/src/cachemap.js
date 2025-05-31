@@ -52,7 +52,7 @@ const deepCopyAndFreezeJsonable = value =>
 /**
  * @template K
  * @template V
- * @typedef {WeakMapAPI<K, V> & {size?: (0 | 1)}} SingleEntryMap
+ * @typedef {WeakMapAPI<K, V> & ({size?: undefined} | ({size: 0 | 1} & Pick<Map<K, V>, 'keys'>))} SingleEntryMap
  */
 
 /**
@@ -73,7 +73,7 @@ const deepCopyAndFreezeJsonable = value =>
  * @template V
  * @param {CacheMapCell<K, V>} prev
  * @param {number} id
- * @param {WeakMapAPI<K, V>} data
+ * @param {SingleEntryMap<K, V>} data
  * @returns {CacheMapCell<K, V>}
  */
 const appendNewCell = (prev, id, data) => {
@@ -114,7 +114,7 @@ const moveCellAfter = (cell, prev, next = prev.next) => {
  * @template V
  * @param {CacheMapCell<K, V>} cell
  * @param {K | UNKNOWN_KEY} oldKey
- * @param {() => WeakMapAPI<K, V>} [makeMap] required when the key is unknown
+ * @param {() => SingleEntryMap<K, V>} [makeMap] required when the key is unknown
  */
 const resetCell = (cell, oldKey, makeMap) => {
   if (oldKey === UNKNOWN_KEY) {
@@ -135,8 +135,7 @@ const resetCell = (cell, oldKey, makeMap) => {
     // Manually run the Iterator interface to ensure reading oldKey from an
     // IteratorResult (rather than defaulting to undefined if the iteration is
     // empty).
-    const cellData = /** @type {Map<K, V>} */ (cell.data);
-    oldKey = /** @type {K} */ (cellData.keys().next().value);
+    oldKey = /** @type {K} */ (cell.data.keys().next().value);
   }
   cell.data.delete(oldKey);
 };
@@ -180,7 +179,7 @@ const zeroMetrics = freeze({
  * @template {unknown} [V=unknown]
  * @param {number} capacity
  * @param {object} [options]
- * @param {C | (() => WeakMapAPI<K, V>)} [options.makeMap]
+ * @param {C | (() => SingleEntryMap<K, V>)} [options.makeMap]
  * @returns {CacheMapKit<C, K, V>}
  */
 export const makeCacheMapKit = (capacity, options = {}) => {
@@ -192,7 +191,7 @@ export const makeCacheMapKit = (capacity, options = {}) => {
 
   /**
    * @template V
-   * @type {<V,>() => WeakMapAPI<K, V>}
+   * @type {<V,>() => SingleEntryMap<K, V>}
    */
   const makeMap = (MaybeCtor => {
     try {
