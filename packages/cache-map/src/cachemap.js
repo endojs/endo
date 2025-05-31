@@ -132,6 +132,9 @@ const resetCell = (cell, oldKey, makeMap) => {
     if (size !== 1) {
       throw Error('internal: Unexpected non-singular cell data entry count');
     }
+    // Manually run the Iterator interface to ensure reading oldKey from an
+    // IteratorResult (rather than defaulting to undefined if the iteration is
+    // empty).
     const cellData = /** @type {Map<K, V>} */ (cell.data);
     oldKey = /** @type {K} */ (cellData.keys().next().value);
   }
