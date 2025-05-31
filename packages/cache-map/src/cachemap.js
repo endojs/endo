@@ -54,7 +54,7 @@ const deepCopyAndFreezeJsonable = value =>
 /**
  * @template K
  * @template V
- * @typedef {WeakMapAPI<K, V> & ({size?: undefined} | ({size: 0 | 1} & Pick<Map<K, V>, 'keys'>))} SingleEntryMap
+ * @typedef {WeakMapAPI<K, V> & ({clear?: undefined} | Pick<Map<K, V>, 'clear'>)} SingleEntryMap
  */
 
 /**
@@ -119,27 +119,19 @@ const moveCellAfter = (cell, prev, next = prev.next) => {
  * @param {() => SingleEntryMap<K, V>} [makeMap] required when the key is unknown
  */
 const resetCell = (cell, oldKey, makeMap) => {
-  if (oldKey === UNKNOWN_KEY) {
-    const { size } = cell.data;
-    if (size === undefined) {
-      // WeakMap instances must be replaced when the key is unknown.
-      if (!makeMap) {
-        throw Error('internal: makeMap is required with UNKNOWN_KEY');
-      }
-      cell.data = makeMap();
-      return;
-    }
-    // Map instances can always be cleared for reuse.
-    if (size === 0) return;
-    if (size !== 1) {
-      throw Error('internal: Unexpected non-singular cell data entry count');
-    }
-    // Manually run the Iterator interface to ensure reading oldKey from an
-    // IteratorResult (rather than defaulting to undefined if the iteration is
-    // empty).
-    oldKey = /** @type {K} */ (cell.data.keys().next().value);
+  if (oldKey !== UNKNOWN_KEY) {
+    cell.data.delete(oldKey);
+    return;
   }
-  cell.data.delete(oldKey);
+  if (cell.data.clear) {
+    cell.data.clear();
+    return;
+  }
+  // WeakMap instances must be replaced when the key is unknown.
+  if (!makeMap) {
+    throw Error('internal: makeMap is required with UNKNOWN_KEY');
+  }
+  cell.data = makeMap();
 };
 
 const zeroMetrics = freeze({
@@ -207,7 +199,7 @@ export const makeCacheMapKit = (capacity, options = {}) => {
     }
   })(options.makeMap ?? WeakMap);
   const tag =
-    /** @type {any} */ (makeMap()).size === undefined
+    /** @type {any} */ (makeMap()).clear === undefined
       ? 'WeakCacheMap'
       : 'CacheMap';
 
