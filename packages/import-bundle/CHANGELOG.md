@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.0](https://github.com/endojs/endo/compare/@endo/import-bundle@1.4.0...@endo/import-bundle@1.5.0) (2025-06-02)
+
+
+### Features
+
+* **import-bundle:** Thread importHook option to endoZipBase64 format ([4d0616b](https://github.com/endojs/endo/commit/4d0616b7b5d787139a201290009e0b1623c39529))
+
+
+
 ## [1.4.0](https://github.com/endojs/endo/compare/@endo/import-bundle@1.3.3...@endo/import-bundle@1.4.0) (2025-03-24)
 
 

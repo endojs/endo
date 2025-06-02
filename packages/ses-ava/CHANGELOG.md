@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/endojs/endo/compare/@endo/ses-ava@1.2.10...@endo/ses-ava@1.3.0) (2025-06-02)
+
+
+### Features
+
+* **panic:** ponyfill `panic` from "Don't Remember Panicking" proposal ([#2815](https://github.com/endojs/endo/issues/2815)) ([42bf127](https://github.com/endojs/endo/commit/42bf1274db89ac5df400e8f30167377622882d22))
+
+
+### Bug Fixes
+
+* **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
+
+
+
 ### [1.2.10](https://github.com/endojs/endo/compare/@endo/ses-ava@1.2.9...@endo/ses-ava@1.2.10) (2025-03-24)
 
 **Note:** Version bump only for package @endo/ses-ava

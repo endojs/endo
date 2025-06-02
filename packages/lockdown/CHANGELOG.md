@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.16](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.15...@endo/lockdown@1.0.16) (2025-06-02)
+
+
+### Bug Fixes
+
+* **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
+
+
+
 ### [1.0.15](https://github.com/endojs/endo/compare/@endo/lockdown@1.0.14...@endo/lockdown@1.0.15) (2025-03-24)
 
 **Note:** Version bump only for package @endo/lockdown

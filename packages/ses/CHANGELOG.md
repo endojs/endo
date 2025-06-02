@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.13.0](https://github.com/endojs/endo/compare/ses@1.12.0...ses@1.13.0) (2025-06-02)
+
+
+### Features
+
+* **ses:** ArrayBuffer.prototype.sliceToImmutable on Hermes ([e432b14](https://github.com/endojs/endo/commit/e432b1467b52f7e5a97c66f1ea5a488c3cfaf9b5))
+* **ses:** ArrayBuffer.prototype.transferToImmutable ([#2400](https://github.com/endojs/endo/issues/2400)) ([d714d1d](https://github.com/endojs/endo/commit/d714d1dc6b0d021f956eff80c8644b0aa6844da4))
+* **ses:** Include ses-ava in stack frame filtering ([bdbdb01](https://github.com/endojs/endo/commit/bdbdb01b7e1e451ca411f27edb4fa7c0dfb2d070))
+* **ses:** init SES with evalTaming unsafe-eval or no-eval ([0dfaa8d](https://github.com/endojs/endo/commit/0dfaa8d5c8bb10458997e6af9ad41c8c430d9047))
+
+
+### Bug Fixes
+
+* **ses,lockdown:** make filenames in stacktraces clickable ([#2747](https://github.com/endojs/endo/issues/2747)) ([178e253](https://github.com/endojs/endo/commit/178e25324651608fdd0888066ef2075b7efff531)), closes [#2359](https://github.com/endojs/endo/issues/2359) [#2359](https://github.com/endojs/endo/issues/2359)
+* **ses:** avoid depth-first loading sequence in loadNow to prevent getting stuck in cycles ([#2804](https://github.com/endojs/endo/issues/2804)) ([37bfad6](https://github.com/endojs/endo/commit/37bfad6321cb5de630c1bc4f97f422261d6c88a6))
+
+
+
 ## [1.12.0](https://github.com/endojs/endo/compare/ses@1.11.0...ses@1.12.0) (2025-03-24)
 
 

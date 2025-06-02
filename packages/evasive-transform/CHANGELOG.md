@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.4.0...@endo/evasive-transform@2.0.0) (2025-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **evasive-transform:** This restricts the possible values of the `sourceType` option to `script` and `module` only. Types have been changed to reflect this.
+
+*BREAKING*: Do not provide a `sourceType` of `unambiguous`; use `module`, `script`, or omit.
+
+### Features
+
+* **evasive-transform:** allow returns outside functions in CommonJS sources ([1d47e08](https://github.com/endojs/endo/commit/1d47e0881cd88fe678a94dc1cd7a5ea8748fcc7c))
+
+
+
 ## [1.4.0](https://github.com/endojs/endo/compare/@endo/evasive-transform@1.3.4...@endo/evasive-transform@1.4.0) (2025-03-24)
 
 

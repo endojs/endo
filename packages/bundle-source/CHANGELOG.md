@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.0](https://github.com/endojs/endo/compare/@endo/bundle-source@4.0.0...@endo/bundle-source@4.1.0) (2025-06-02)
+
+
+### Features
+
+* **bundle-source:** Thread importHook option to endoZipBase64 format ([e30441f](https://github.com/endojs/endo/commit/e30441f07630949518d6df35535a56347a84b797))
+
+
+### Bug Fixes
+
+* **types:** include cacheSourceMaps in BundleOptions ([1a63ace](https://github.com/endojs/endo/commit/1a63ace9cffd8348e3f1a15058a7dc8a9338261a))
+
+
+
 ## [4.0.0](https://github.com/endojs/endo/compare/@endo/bundle-source@3.5.1...@endo/bundle-source@4.0.0) (2025-03-24)
 
 
