@@ -1,6 +1,6 @@
 User-visible changes in `ses`
 
-# Next release
+# v1.13.0 (2025-06-02)
 
 - Two new `stackFiltering:` options are added
   - `'omit-frames'` -- Only omit likely uninteresting frames. Keep original paths.

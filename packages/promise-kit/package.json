@@ -1,6 +1,6 @@
 {
   "name": "@endo/promise-kit",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "Helper for making promises",
   "keywords": [
     "promise"

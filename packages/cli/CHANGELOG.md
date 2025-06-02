@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.3.9](https://github.com/endojs/endo/compare/@endo/cli@2.3.8...@endo/cli@2.3.9) (2025-06-02)
+
+
+### Bug Fixes
+
+* **types:** provideEndoClient return ([a789620](https://github.com/endojs/endo/commit/a789620d7e486e9942022498adb0fa60473e8891))
+
+
+
 ### [2.3.8](https://github.com/endojs/endo/compare/@endo/cli@2.3.7...@endo/cli@2.3.8) (2025-03-24)
 
 

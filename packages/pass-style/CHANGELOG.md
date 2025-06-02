@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.5.0...@endo/pass-style@1.6.0) (2025-06-02)
+
+
+### Features
+
+* **pass-style,marshal:** ByteArray, a new binary Passable type ([#1538](https://github.com/endojs/endo/issues/1538)) ([1f568e2](https://github.com/endojs/endo/commit/1f568e2daf5c616ee51d7f231e9a004720f2a0f0)), closes [#1331](https://github.com/endojs/endo/issues/1331) [/github.com/ocapn/ocapn/issues/5#issuecomment-1492778252](https://github.com/endojs//github.com/ocapn/ocapn/issues/5/issues/issuecomment-1492778252) [#2414](https://github.com/endojs/endo/issues/2414)
+
+
+### Bug Fixes
+
+* **pass-style:** `isAtom` must accept non-passables ([#2803](https://github.com/endojs/endo/issues/2803)) ([ab46b67](https://github.com/endojs/endo/commit/ab46b675b56cccfd4b24c54f25c59f3e3dbdf836)), closes [#2791](https://github.com/endojs/endo/issues/2791) [#2791](https://github.com/endojs/endo/issues/2791) [#2791](https://github.com/endojs/endo/issues/2791) [#2791](https://github.com/endojs/endo/issues/2791) [#2791](https://github.com/endojs/endo/issues/2791)
+* **pass-style:** rename passable "Primitive" to ocapn "Atom" ([#2791](https://github.com/endojs/endo/issues/2791)) ([4c2d33c](https://github.com/endojs/endo/commit/4c2d33c799f24b261068ce4dff81205a27acec44))
+
+
+
 ## [1.5.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.4.8...@endo/pass-style@1.5.0) (2025-03-24)
 
 

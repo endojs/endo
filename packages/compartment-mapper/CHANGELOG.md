@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.6.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.0...@endo/compartment-mapper@1.6.1) (2025-06-02)
+
+
+### Bug Fixes
+
+* **compartment-mapper:** add missing arg to recursive call ([1b3c2f4](https://github.com/endojs/endo/commit/1b3c2f45023cb51f687f70a150e7ebbb86e16aa5))
+* **compartment-mapper:** add some missing fields to PackageDescriptor ([8826b71](https://github.com/endojs/endo/commit/8826b71088f4b635b25e0198d6a39b7367ea51de))
+* **compartment-mapper:** fix crawling ([#2769](https://github.com/endojs/endo/issues/2769)) ([a10afac](https://github.com/endojs/endo/commit/a10afaca25c39e55a7a901bb8d28bc48c90236ec))
+* **compartment-mapper:** handle dynamically-required builtins properly; closes [#2754](https://github.com/endojs/endo/issues/2754) ([384e904](https://github.com/endojs/endo/commit/384e90414fd89cc46b15f9a65adfae2595ce308e))
+* **compartment-mapper:** handle invalid peer dependencies ([2ee95c7](https://github.com/endojs/endo/commit/2ee95c7931a6d4379c607b2c669e768e07a90a33))
+* **compartment-mapper:** handle missing optional packages in dynamically-required modules ([64eeea9](https://github.com/endojs/endo/commit/64eeea9e1fe2c9abd16ba6ef6280816c5c703b3b)), closes [#2819](https://github.com/endojs/endo/issues/2819)
+* **compartment-mapper:** ignore export alias './' ([a267042](https://github.com/endojs/endo/commit/a26704277034e318541871371bb04939b526451f))
+* **compartment-mapper:** specifier of module descriptor returned from findRedirect fixed ([#2765](https://github.com/endojs/endo/issues/2765)) ([475c9eb](https://github.com/endojs/endo/commit/475c9eb5a73c0874dccd42dc23c3d22e7f626c5b))
+* **compartment-mapper:** un-deprecate the dev flag ([db9e48f](https://github.com/endojs/endo/commit/db9e48f24fd3b532c8478e5cfc0cf9720fc13fcb))
+
+
+
 ## [1.6.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.5.0...@endo/compartment-mapper@1.6.0) (2025-03-24)
 
 

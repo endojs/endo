@@ -1,6 +1,6 @@
 {
   "name": "@endo/trampoline",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Multicolor trampolining for recursive operations",
   "keywords": [
     "trampoline",

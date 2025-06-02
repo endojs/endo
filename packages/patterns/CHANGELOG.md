@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/endojs/endo/compare/@endo/patterns@1.5.0...@endo/patterns@1.6.0) (2025-06-02)
+
+
+### Features
+
+* **marshal:** passable to quasi-quoted Justin expr ([#2799](https://github.com/endojs/endo/issues/2799)) ([f6c8b74](https://github.com/endojs/endo/commit/f6c8b74da04a7695f627e0592a779dc3c3dce1c9)), closes [#2793](https://github.com/endojs/endo/issues/2793)
+* **pass-style,marshal:** ByteArray, a new binary Passable type ([#1538](https://github.com/endojs/endo/issues/1538)) ([1f568e2](https://github.com/endojs/endo/commit/1f568e2daf5c616ee51d7f231e9a004720f2a0f0)), closes [#1331](https://github.com/endojs/endo/issues/1331) [/github.com/ocapn/ocapn/issues/5#issuecomment-1492778252](https://github.com/endojs//github.com/ocapn/ocapn/issues/5/issues/issuecomment-1492778252) [#2414](https://github.com/endojs/endo/issues/2414)
+* **patterns:** Expand special-casing of "optionality" patterns ([#2758](https://github.com/endojs/endo/issues/2758)) ([1c9cd7f](https://github.com/endojs/endo/commit/1c9cd7fd29a3bd38e4526f8d7e8e31691a4aa5fe))
+
+
+### Bug Fixes
+
+* **pass-style:** rename passable "Primitive" to ocapn "Atom" ([#2791](https://github.com/endojs/endo/issues/2791)) ([4c2d33c](https://github.com/endojs/endo/commit/4c2d33c799f24b261068ce4dff81205a27acec44))
+
+
+
 ## [1.5.0](https://github.com/endojs/endo/compare/@endo/patterns@1.4.8...@endo/patterns@1.5.0) (2025-03-24)
 
 
