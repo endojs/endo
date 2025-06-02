@@ -1,8 +1,17 @@
 User-visible changes to `@endo/compartment-mapper`:
 
-# Next release
+# v1.6.1 (2025-06-02)
 
-- The `dev` flag for `mapNodeModules()` is no longer deprecated. The concept of a "condition" ([conditional exports](https://nodejs.org/api/packages.html#conditional-exports)) is disinct from the flag's original meaning (instructs `mapNodeModules()` to consider `devDependencies` when graphing packages). Users who have switched to using a `development` condition for `dev`'s purpose are encouraged to _switch back_ to using the `dev` flag instead. **In a future release, the presence of a `development` condition will no longer mimic an enabled `dev` flag** and will only be considered when evaluating conditional exports.
+- The `dev` flag for `mapNodeModules()` is no longer deprecated.  The concept
+  of a "condition" ([conditional
+  exports](https://nodejs.org/api/packages.html#conditional-exports)) is
+  disinct from the flag's original meaning (instructs `mapNodeModules()` to
+  consider `devDependencies` when graphing packages).
+  Users who have switched to using a `development` condition for `dev`'s
+  purpose are encouraged to _switch back_ to using the `dev` flag instead.
+  **In a future release, the presence of a `development` condition will no
+  longer mimic an enabled `dev` flag** and will only be considered when
+  evaluating conditional exports.
 
 # v1.6.0 (2025-03-11)
 

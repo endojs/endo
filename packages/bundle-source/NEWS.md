@@ -1,6 +1,6 @@
 User-visible changes to `@endo/bundle-source`:
 
-# Next release
+# v4.1.0 (2025-06-02)
 
 - The `'endoZipBase64'` moduleFormat now utilizes the `importHook` option to
   exit dependencies whose specifiers return a truthy value.

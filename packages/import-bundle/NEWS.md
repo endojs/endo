@@ -1,6 +1,6 @@
 User-visible changes to `@endo/import-bundle`:
 
-# Next release
+# v1.5.0 (2025-06-02)
 
 - The `'endoZipBase64'` moduleFormat now utilizes the `importHook` option.
 
