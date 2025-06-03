@@ -4,10 +4,10 @@
 
 import {
   assertChecker,
-  canBeMethod,
   getOwnDataDescriptor,
   CX,
 } from './passStyle-helpers.js';
+import { canBeMethod } from './remotable.js';
 
 const { ownKeys } = Reflect;
 const { getPrototypeOf, prototype: objectPrototype } = Object;

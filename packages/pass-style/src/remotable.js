@@ -1,9 +1,9 @@
 /// <reference types="ses"/>
 
 import { Fail, q } from '@endo/errors';
+import { getMethodNames } from '@endo/eventual-send/utils.js';
 import {
   assertChecker,
-  canBeMethod,
   PASS_STYLE,
   checkTagRecord,
   checkFunctionTagRecord,
@@ -13,11 +13,55 @@ import {
 } from './passStyle-helpers.js';
 
 /**
- * @import {Checker} from './types.js'
+ * @import {Checker, RemotableMethodName} from './types.js'
  * @import {InterfaceSpec, PassStyled} from './types.js'
  * @import {PassStyleHelper} from './internal-types.js'
  * @import {RemotableObject as Remotable} from './types.js'
  */
+
+/**
+ * For a function to be a valid method, it must not be passable.
+ * Otherwise, we risk confusing pass-by-copy data carrying
+ * far functions with attempts at far objects with methods.
+ *
+ * TODO HAZARD Because we check this on the way to hardening a remotable,
+ * we cannot yet check that `func` is hardened. However, without
+ * doing so, it's inheritance might change after the `PASS_STYLE`
+ * check below.
+ *
+ * @param {any} func
+ * @returns {func is CallableFunction}
+ */
+export const canBeMethod = func =>
+  typeof func === 'function' && !(PASS_STYLE in func);
+harden(canBeMethod);
+
+/**
+ * Abstract out this test so
+ * (TODO) a later PR can restrict possible method names
+ *
+ * @param {any} key
+ * @returns {key is RemotableMethodName}
+ */
+const canBeMethodName = key =>
+  // typeof key === 'string' || typeof key === 'symbol';
+  typeof key === 'string' || typeof key === 'symbol' || typeof key === 'number';
+harden(canBeMethodName);
+
+/**
+ * Uses the `getMethodNames` from the eventual-send level of abstraction that
+ * does not know anything about remotables.
+ *
+ * Currently, just alias `getMethodNames` but this abstraction exists so
+ * a future PR can enforce restrictions on method names of remotables.
+ *
+ * @template {Record<string, CallableFunction>} T
+ * @param {T} behaviorMethods
+ * @returns {RemotableMethodName[]}
+ */
+export const getRemotableMethodNames = behaviorMethods =>
+  getMethodNames(behaviorMethods);
+harden(getRemotableMethodNames);
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
