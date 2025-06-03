@@ -2,12 +2,21 @@
 /// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';
-import { isObject, getInterfaceOf, Far, passStyleOf } from '@endo/pass-style';
+import {
+  isObject,
+  getInterfaceOf,
+  Far,
+  passStyleOf,
+  getRemotableMethodNames,
+} from '@endo/pass-style';
 import { Fail } from '@endo/errors';
 import { makeMarshal } from './marshal.js';
 
+/**
+ * @import {RemotableMethodName} from '@endo/pass-style';
+ */
+
 const { fromEntries } = Object;
-const { ownKeys } = Reflect;
 
 // TODO(erights): Add Converter type
 /** @param {any} [mirrorConverter] */
@@ -58,7 +67,7 @@ const makeConverter = (mirrorConverter = undefined) => {
         break;
       }
       case 'remotable': {
-        /** @param {PropertyKey} [optVerb] */
+        /** @param {RemotableMethodName} [optVerb] */
         const myMethodToYours =
           (optVerb = undefined) =>
           (...yourArgs) => {
@@ -91,7 +100,7 @@ const makeConverter = (mirrorConverter = undefined) => {
           // minds.
           yours = Far(iface, myMethodToYours());
         } else {
-          const myMethodNames = ownKeys(mine);
+          const myMethodNames = getRemotableMethodNames(mine);
           const yourMethods = myMethodNames.map(name => [
             name,
             myMethodToYours(name),
