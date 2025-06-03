@@ -467,33 +467,39 @@ test('module map hook precedes import now hook', t => {
   t.is(meaning, 42);
 });
 
-test('throws immediately when error aggregation is disabled', async t => {
-  t.plan(1);
-
-  const importNowHook = specifier => {
-    if (specifier === './meaning.mjs') {
-      return new ModuleSource(`
+/**
+ * "Import now" hook for testing behavior when error aggregation is enabled or
+ * disabled.
+ * @param {string} specifier
+ * @returns {ModuleSource}
+ */
+const importNowHookForErrorAggregationTests = specifier => {
+  if (specifier === './meaning.mjs') {
+    return new ModuleSource(`
         export { meaning as default } from './missing.mjs';
       `);
-    }
-    if (specifier === './main.js') {
-      return new ModuleSource(
-        `
+  }
+  if (specifier === './main.js') {
+    return new ModuleSource(
+      `
         import meaning from './meaning.mjs';
         t.is(meaning, 42);
       `,
-        'https://example.com/main.js',
-      );
-    }
-    throw Error(`Cannot load module for specifier ${specifier}`);
-  };
+      'https://example.com/main.js',
+    );
+  }
+  throw Error(`Cannot load module for specifier ${specifier}`);
+};
+
+test('throws immediately when error aggregation is disabled', async t => {
+  t.plan(1);
 
   const compartment = new Compartment({
     globals: { t },
     resolveHook: resolveNode,
     importHook: async () => {},
-    importNowHook,
-    aggregateLoadErrors: false,
+    importNowHook: importNowHookForErrorAggregationTests,
+    aggregateLoadErrors: false, // <-- error aggregation disabled
     __options__: true,
   });
 
@@ -506,30 +512,12 @@ test('throws immediately when error aggregation is disabled', async t => {
 test('throws aggregate error when error aggregation is enabled', async t => {
   t.plan(1);
 
-  const importNowHook = specifier => {
-    if (specifier === './meaning.mjs') {
-      return new ModuleSource(`
-        export { meaning as default } from './missing.mjs';
-      `);
-    }
-    if (specifier === './main.js') {
-      return new ModuleSource(
-        `
-        import meaning from './meaning.mjs';
-        t.is(meaning, 42);
-      `,
-        'https://example.com/main.js',
-      );
-    }
-    throw Error(`Cannot load module for specifier ${specifier}`);
-  };
-
   const compartment = new Compartment({
     globals: { t },
     resolveHook: resolveNode,
     importHook: async () => {},
-    importNowHook,
-    aggregateLoadErrors: true,
+    importNowHook: importNowHookForErrorAggregationTests,
+    aggregateLoadErrors: true, // <-- error aggregation enabled
     __options__: true,
   });
 
