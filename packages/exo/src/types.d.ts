@@ -1,5 +1,5 @@
 import type { RemotableBrand } from '@endo/eventual-send';
-import type { RemotableObject } from '@endo/pass-style';
+import type { RemotableObject, RemotableMethodName } from '@endo/pass-style';
 import type { InterfaceGuard, MethodGuard, Pattern } from '@endo/patterns';
 import type { GetInterfaceGuard } from './get-interface.js';
 
@@ -11,7 +11,7 @@ export type MatchConfig = {
   redactedIndices: number[];
 };
 export type FacetName = string;
-export type Methods = Record<PropertyKey, CallableFunction>;
+export type Methods = Record<RemotableMethodName, CallableFunction>;
 export type ClassContext<S = any, M extends Methods = any> = {
   state: S;
   self: M;
