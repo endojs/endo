@@ -115,9 +115,9 @@ export const deeplyFulfilled = async val => {
       return E.when(Promise.all(valPs), vals => harden(vals));
     }
     case 'byteArray': {
-      const bytes = /** @type {ByteArray} */ (/** @type {unknown} */ (val));
+      const byteArray = /** @type {ByteArray} */ (/** @type {unknown} */ (val));
       // @ts-expect-error not assignable to type 'DeeplyAwaited<T>'
-      return bytes;
+      return byteArray;
     }
     case 'tagged': {
       const tgd = /** @type {CopyTagged} */ (val);

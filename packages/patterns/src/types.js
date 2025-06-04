@@ -298,7 +298,7 @@ export {};
  * @property {(limits?: Limits) => Matcher} array
  * Matches any CopyArray, subject to limits.
  *
- * @property {(limits?: Limits) => Matcher} bytes
+ * @property {(limits?: Limits) => Matcher} byteArray
  * Matches any ByteArray, subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} set
