@@ -469,7 +469,7 @@ const decodeLegacyArray = (encoded, decodePassable, skip = 0) => {
  */
 const encodeByteArray = (byteArray, _encodePassable) => {
   // TODO implement
-  Fail`encodePassable(copyData) not yet implemented: ${byteArray}`;
+  Fail`encodePassable(byteArray) not yet implemented: ${byteArray}`;
   return ''; // Just for the type
 };
 
