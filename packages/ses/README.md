@@ -32,12 +32,12 @@ systems.
 [![Agoric Logo](docs/agoric-x100.png)](https://agoric.com/)
 [![MetaMask Logo](docs/metamask-x100.png)](https://metamask.io/)
 
-See https://github.com/Agoric/Jessie to see how SES fits into the various
+See <https://github.com/Agoric/Jessie> to see how SES fits into the various
 flavors of confined JavaScript execution. And visit
-https://ses-demo.agoric.app/demos/ for a demo.
+<https://ses-demo.agoric.app/demos/> for a demo.
 
 SES starts where the Caja project left off
-https://github.com/google/caja/wiki/SES, and goes on to introduce compartments
+<https://github.com/google/caja/wiki/SES>, and goes on to introduce compartments
 and modernize the permitted JavaScript features.
 
 Please join the conversation on our [Mailing List][SES Strategy Group] and
@@ -45,11 +45,11 @@ Please join the conversation on our [Mailing List][SES Strategy Group] and
 We record a [weekly conference call][SES Strategy Recordings] with the Hardened
 JavaScript engineering community.
 
-_Hardened JavaScript_, Kris Kowal:
+*Hardened JavaScript*, Kris Kowal:
 
 [![Primer on Hardened JavaScript](https://img.youtube.com/vi/RZ7bBIU8DRc/0.jpg)](https://www.youtube.com/watch?v=RZ7bBIU8DRc)
 
-_Don't add Security, Remove Insecurity_, Mark Miller:
+*Don't add Security, Remove Insecurity*, Mark Miller:
 
 [![Don't add Security, Remove Insecurity](https://img.youtube.com/vi/u-XETUbxNUU/0.jpg)](https://www.youtube.com/watch?v=u-XETUbxNUU)
 
@@ -151,7 +151,6 @@ Note that although the **surface** of the capability is frozen, the capability
 still closes over the mutable counter.
 Hardening an object graph makes the surface immutable, but does not guarantee
 that methods are free of side effects.
-
 
 ### Compartment
 
@@ -278,10 +277,10 @@ module descriptors.
 A compartment can be configured with module descriptors, from highest to lowest
 precedence:
 
-- the `modules` map provided to the `Compartment` constructor,
-- returned by a `moduleMapHook(specifier)` passed as an option to the
+* the `modules` map provided to the `Compartment` constructor,
+* returned by a `moduleMapHook(specifier)` passed as an option to the
   `Compartment` constructor.
-- returned by either the `importHook(specifier)` or `importNowHook(specifier)`
+* returned by either the `importHook(specifier)` or `importNowHook(specifier)`
   option passed to the `Compartment` constructor. Calling
   `compartment.import(specifier)` falls through to the `importHook` which may
   return a promises, whereas `compartment.importNow(specifier)` falls through
@@ -341,13 +340,13 @@ forms.
 
 ##### Descriptors with `source` property
 
-- If fhe value of the `source` property is a string, the parent compartment
+* If fhe value of the `source` property is a string, the parent compartment
   loads the module but the compartment itself initializes the module.
 
-- Otherwise, if the value of the `source` property is the module source, the
+* Otherwise, if the value of the `source` property is the module source, the
   module is initialized from the module source.
 
-- Otherwise, the value of the `source` property must be an object. The module
+* Otherwise, the value of the `source` property must be an object. The module
   is loaded and initialized from the object according to the [virtual module
   source](#VirtualModuleSource) pattern.
 
@@ -363,20 +362,20 @@ are resolved using the `resolveHook`.
 
 ##### Descriptors with `namespace` property
 
-- If fhe value of the `namespace` property is a string, the descriptor shares a
+* If fhe value of the `namespace` property is a string, the descriptor shares a
   module to be loaded and initialized by the compartment referred by the
   `compartment` property.
 
-    - If the `compartment` property is present, its value must be a
+  * If the `compartment` property is present, its value must be a
       compartment.
-    - If absent, the `compartment` property defaults to the compartment being
+  * If absent, the `compartment` property defaults to the compartment being
       constructed in the `modules` option, or being hooked in the `loadHook`
       and `loadNowHook` options.
 
-- Otherwise, if the value of the `namespace` property is a module namepace, the
+* Otherwise, if the value of the `namespace` property is a module namepace, the
   descriptor shares a module that is already available.
 
-- Otherwise, the value of `namespace` property must be an object. The module is
+* Otherwise, the value of `namespace` property must be an object. The module is
   loaded and initialized from the object according to the [virtual module
   namespace](#VirtualModuleNamespace) pattern.
 
@@ -390,11 +389,11 @@ and return a module that has a different "response specifier" than the original
 The `importHook` may return an "alias" object with `source`, `compartment`,
 and `specifier` properties.
 
-- `source` must be a module source, either a virtual module source
+* `source` must be a module source, either a virtual module source
   or a compiled module source.
-- `compartment` is optional, to be specified if the alias transits to a
+* `compartment` is optional, to be specified if the alias transits to a
   the specified different compartment, and
-- `specifier` is the full module specifier of the module in its compartment.
+* `specifier` is the full module specifier of the module in its compartment.
   This defaults to the request specifier, which is only useful if the
   compartment is different.
 
@@ -556,45 +555,45 @@ using a particular calling convention to initialize a module instance.
 
 A compiled module source record has the following shape:
 
-- `imports` is a record that maps partial module specifiers to a list of
+* `imports` is a record that maps partial module specifiers to a list of
   names imported from the corresponding module.
-- `exports` is an array of all the names that the module will export.
-- `reexports` is an array of partial module specifier for which this
+* `exports` is an array of all the names that the module will export.
+* `reexports` is an array of partial module specifier for which this
   module exports all imported names.
   This field is optional.
-- `__syncModuleProgram__` is a string that evaluates to a function that accepts
+* `__syncModuleProgram__` is a string that evaluates to a function that accepts
   an initialization record and initializes the module.
   This property distinguishes this type of module record.
   The name implies a future record type that supports top-level await.
-  - An initialization record has the properties `imports`, `liveVar`, `importMeta` and
+  * An initialization record has the properties `imports`, `liveVar`, `importMeta` and
     `onceVar`.
-    - `imports` is a function that accepts a map from partial import
+    * `imports` is a function that accepts a map from partial import
       module specifiers to maps from names that the corresponding module
       exports to notifier functions.
       A notifier function accepts an update function and registers
       to receive updates for the value exported by the other module.
-    - `importMeta` is a null-prototype object with keys transferred from `importMeta`
+    * `importMeta` is a null-prototype object with keys transferred from `importMeta`
       property in the envelope returned by importHook and/or mutated by
       calling `importMetaHook(moduleSpecifier, importMeta)`
-    - `liveVar` is a record that maps names exported by this module
+    * `liveVar` is a record that maps names exported by this module
       to a function that may be called to initialize or update
       the corresponding value in another module.
-    - `onceVar` is a record that maps constants exported by this
+    * `onceVar` is a record that maps constants exported by this
       module to a function that may be called to initialize the
       corresponding value in another module.
-- `__syncModuleFunctor__` is an optional function that if present is used
+* `__syncModuleFunctor__` is an optional function that if present is used
   instead of the evaluation of the `__syncModuleProgram__` string. It will be
   called with the initialization record described above. It is intended to be
   used in environments where eval is not available. Sandboxing of the functor is
   the responsibility of the author of the ModuleSource.
-- `__liveExportsMap__` is a record that maps import names or names in the lexical
+* `__liveExportsMap__` is a record that maps import names or names in the lexical
   scope of the module to export names, for variables that may change after
   initialization. Any reexported name is assumed to possibly change.
   The exported name is wrapped in a duple array like `["exportedName", true]`.
   The second value, a boolean, indicates that the variable has a temporal
   dead-zone (a time between creation and initialization) when access to that
   name should throw a `ReferenceError`.
-- `__fixedExportsMap__` is a record that maps import names to export names
+* `__fixedExportsMap__` is a record that maps import names to export names
   for constants exported by this module.
   The fixed exports map is an aesthetic subtype of the live exports map,
   so the value is wrapped in a simple array like `["exportedName"]`
@@ -673,6 +672,24 @@ system generates other diagnostic information hidden in side tables. The tamed
 console uses these side tables to output more informative diagnostics.
 [Logging Errors](./src/error/README.md) explains the design.
 
+### Controlling Module-Loading Errors
+
+The `Compartment` constructor now accepts a `boolean` option, `noAggregateLoadErrors`, to control how module-loading errors are reported.
+
+By default, its value is `false`, which causes all relevant errors to be collected and rejected or thrown in a single exception from `compartment.import()` or `compartment.importNow()`, respectively.
+
+If set to `true`, this will cause the *first* module-loading error encountered to be thrown (or rejected) immediately; no further module-loading will be attempted, and no further errors will be collected.
+
+This is mostly useful for supporting optional dependencies in CommonJS modules, for example:
+
+```js
+try {
+  require('something-optional')
+} catch (err) {
+  // continue
+}
+```
+
 ## Security claims and caveats
 
 The `ses` shim concerns boundaries between programs in the same process and
@@ -696,20 +713,20 @@ Provided that the `ses` implementation and its
 program can evaluate a guest program (`program`) in a compartment after
 `lockdown` and that the guest program:
 
-- will initially only have access to one mutable object, the compartment's
+* will initially only have access to one mutable object, the compartment's
   `globalThis`,
-- specifically cannot modify any shared primordial objects, which are part of
+* specifically cannot modify any shared primordial objects, which are part of
   the default execution environment,
-- cannot initially perform any I/O (except I/O necessarily performed by the
+* cannot initially perform any I/O (except I/O necessarily performed by the
   trusted compute base like paging virtual memory),
-- and specifically cannot measure the passage of time at any resolution.
+* and specifically cannot measure the passage of time at any resolution.
 
 However, such a program can:
 
-- execute for an indefinite amount of time,
-- allocate arbitrary amounts of memory,
-- detect the platform endianness,
-- in some JavaScript engines, observe the contents of the stack.
+* execute for an indefinite amount of time,
+* allocate arbitrary amounts of memory,
+* detect the platform endianness,
+* in some JavaScript engines, observe the contents of the stack.
   This may include sensitive information about the layout of files on the host
   disk.
   In cases where the stack is data-dependent, a guest can infer the data.
@@ -729,10 +746,10 @@ be frozen, we additionally claim that the host can evaluate any two guest
 programs (`program1` and `program2`) in that compartment such that neither
 guest program will:
 
-- initially share *any* mutable objects.
-- be able to observe the relative passage of time of the other program,
+* initially share *any* mutable objects.
+* be able to observe the relative passage of time of the other program,
   as they would had they been given a reference to a working `Date.now()`.
-- be able to communicate, as they would if they had shared access to mutable
+* be able to communicate, as they would if they had shared access to mutable
   state like an unfrozen object, a hardened collection like a `Map`, or even
   `Math.random()`.
 
@@ -826,18 +843,18 @@ capabilities at runtime.
 
 The trusted compute base (TCB) for `ses` includes:
 
-- the host hardware,
-- the host operating system,
-- any intermediate virtual operating systems or hypervisors,
-- the process memory manager,
-- an implementation of JavaScript conforming to ECMAScript 262 as of
+* the host hardware,
+* the host operating system,
+* any intermediate virtual operating systems or hypervisors,
+* the process memory manager,
+* an implementation of JavaScript conforming to ECMAScript 262 as of
   2021, providing no unspecified embedding host behavior like the introduction of syntax
   that when evaluated reveals a mutable object.
   `ses` accounts for one such host behavior provided by Node.js, namely the `domain`
   property on promises, by preventing the use of `ses` in concert with the
   `domain` module.
-- Also, any attached debugger, and
-- any JavaScript that has executed in the same realm before the host program calls
+* Also, any attached debugger, and
+* any JavaScript that has executed in the same realm before the host program calls
   `lockdown`, including JavaScript that executes after `ses` initializes.
 
 ## Audits
@@ -894,6 +911,7 @@ the code is often incompatible with *all* environments in which intrinsic
 objects are frozen (such as in Node.js with the
 [`--frozen-intrinsics`][Node frozen intrinsics] option) and can be fixed by
 replacing `<lhs>.<propertyKey> = <rhs>;` or `<lhs>[<propertyKey>] = <rhs>;` with
+
 ```js
 Object.defineProperties(<lhs>, {
   [<propertyKey>]: {

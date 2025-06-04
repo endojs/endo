@@ -14,8 +14,8 @@ User-visible changes in `ses`
   - Unlike `ArrayBuffer` and `SharedArrayBuffer` this shim's ArrayBuffer-like object cannot be transfered or cloned between JS threads.
   - Unlike `ArrayBuffer` and `SharedArrayBuffer`, this shim's ArrayBuffer-like object cannot be used as the backing store of TypeArrays or DataViews.
   - The shim depends on the platform providing either `structuredClone` or `Array.prototype.transfer`. Node <= 16 and provides neither, causing the shim to fail to initialize, and therefore SES to fail to initialize on such platforms.
-  - Current Hermes has even stronger constraints, lacking `structuredClone`, `transfer`, private fields, and even `class` syntax. This requires other coping strategies. See https://github.com/endojs/endo/pull/2785
-  - Even after the upcoming `transferToImmutable` proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See https://github.com/endojs/endo/pull/2311#discussion_r1632607527 . It will require a later manual step to delete the shim or have it avoid overriting a platform implementation, after manual analysis of the compat implications.
+  - Current Hermes has even stronger constraints, lacking `structuredClone`, `transfer`, private fields, and even `class` syntax. This requires other coping strategies. See <https://github.com/endojs/endo/pull/2785>
+  - Even after the upcoming `transferToImmutable` proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See <https://github.com/endojs/endo/pull/2311#discussion_r1632607527> . It will require a later manual step to delete the shim or have it avoid overriting a platform implementation, after manual analysis of the compat implications.
 
 - The [evalTaming](https://github.com/endojs/endo/blob/master/packages/ses/docs/lockdown.md#evaltaming-options)
   option `'safe-eval'` now can only throw error `SES_DIRECT_EVAL`.
@@ -34,6 +34,14 @@ User-visible changes in `ses`
   then Static Hermes when released.
 
   Also `ses/hermes` can now be hooked into bundlers such as Metro to run Hardened JS.
+
+- The `Compartment` constructor now accepts a `boolean` option, `noAggregateLoadErrors`, to control how module-loading errors are reported.
+
+  By default, its value is `false`, which retains the previous behavior (it causes all relevant errors to be collected and rejected or thrown in a single exception from `compartment.import()` or `compartment.importNow()`, respectively).
+
+  If set to `true`, this will cause the *first* module-loading error encountered to be thrown (or rejected) immediately; no further module-loading will be attempted, and no further errors will be collected.
+
+  This is mostly useful for supporting optional dependencies in CommonJS modules.
 
 # v1.12.0 (2025-03-11)
 
@@ -116,7 +124,7 @@ and subject to breaking changes that will not be signaled by semver.
   old `regenerator-runtime` (from 0.10.5 to 0.13.7).
 - If lockdown's `errorTrapping: 'report'` mode is selected (possibly via the
   `'platform'`, or `'exit'` or `'abort'` modes), uncaught exceptions will be
-  written to standard error with the new `SES_UNCAUGHT_EXCEPTION: ` prefix.
+  written to standard error with the new `SES_UNCAUGHT_EXCEPTION:` prefix.
   This is intended to give valuable context to users of the system, especially
   when an uncaught exception is not an `Error` object, and therefore its origin
   may be hard to find in source code.
@@ -124,7 +132,7 @@ and subject to breaking changes that will not be signaled by semver.
   This is not likely to affect most systems built with SES, as stderr is
   generally reserved for user-only messages.  If your SES system sends its
   stderr to a program which parses it, you may need to adapt that program to be
-  tolerant of the `SES_UNCAUGHT_EXCEPTION: ` prefix.  Even for such programs, it
+  tolerant of the `SES_UNCAUGHT_EXCEPTION:` prefix.  Even for such programs, it
   is unlikely they are that sensitive to stderr formatting.
 
 # v1.6.0 (2024-07-30)
@@ -171,13 +179,17 @@ and subject to breaking changes that will not be signaled by semver.
   gives line-numbers into the generated JavaScript, which often don't match the
   the original lines. This happens even with the normal development-time
   lockdown options setting,
+
   ```js
   errorTaming: 'unsafe'
   ```
+
   or setting the environment variable
+
   ```sh
-  $ export LOCKDOWN_ERROR_TAMING=unsafe
+  export LOCKDOWN_ERROR_TAMING=unsafe
   ```
+
   To get the original line numbers, this release
   adds `'unsafe-debug'`. This `errorTaming: 'unsafe-debug'` setting
   should be used ***during development only*** when you can
@@ -259,7 +271,7 @@ and subject to breaking changes that will not be signaled by semver.
   It used to do that by omitting the `random` property from the safe `Math`
   namespace object.
   Now, the safe shared `Math` namespace object has a `Math.random()` function
-  that throws a `TypeError whose message begins with `'secure mode'`.
+  that throws a `TypeError whose message begins with`'secure mode'`.
   This again aligns with the XS implementation of HardenedJS.
 
 # v0.18.6 (2023-08-07)
@@ -351,7 +363,7 @@ and subject to breaking changes that will not be signaled by semver.
 - Removes the `__allowUnsafeMonkeyPatching__` option to lockdown. As the name
   should indicate, this was always an unsafe temporary kludge. Its only known
   use was in agoric-sdk, now gone at
-  https://github.com/Agoric/agoric-sdk/pull/5922 . Without this option, a
+  <https://github.com/Agoric/agoric-sdk/pull/5922> . Without this option, a
   successful `lockdown` will now always harden the primordials.
 
 # v0.15.8 (2022-02-18)
@@ -391,7 +403,7 @@ and subject to breaking changes that will not be signaled by semver.
 
 # 0.15.0 (2021-11-02)
 
-- _BREAKING CHANGE_: The lockdown option `domainTaming` is now `safe` by
+- *BREAKING CHANGE*: The lockdown option `domainTaming` is now `safe` by
   default, which will break any application that depends transtively on the
   Node.js `domain` module.
   Notably, [standard-things/esm](https://github.com/standard-things/esm)
@@ -399,11 +411,11 @@ and subject to breaking changes that will not be signaled by semver.
 
   This protects against the unhardened `domain` property appearing on shared
   objects like callbacks and promises.
-  This overcomes the last _known_ obstacle toward object capability containment.
+  This overcomes the last *known* obstacle toward object capability containment.
 
 - Lockdown will now read options from the environment as defined by the Node.js
   `process.env` parameter space.
-- _BREAKING CHANGE_: Lockdown may no longer be called more than once.
+- *BREAKING CHANGE*: Lockdown may no longer be called more than once.
   Lockdown no longer returns a boolean to indicate whether it was effective
   (true) or redundant (false). Instead, Lockdown will return undefined for
   its first invocation or throw an error otherwise.
@@ -449,7 +461,7 @@ and subject to breaking changes that will not be signaled by semver.
 
 # 0.14.0 (2021-07-22)
 
-- _BREAKING_: Any precompiled static module records from prior versions
+- *BREAKING*: Any precompiled static module records from prior versions
   will not load in this version of SES or beyond. The format of the preamble
   has been changed to admit the possibility of a variable named `Map` declared
   in the scope of a module.
@@ -478,25 +490,25 @@ and subject to breaking changes that will not be signaled by semver.
 
 # 0.13.0 (2021-06-01)
 
-- _BREAKING CHANGE_ The `ses/lockdown` module is again just `ses`.
+- *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
   Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
   is just a 52KB `ses` that has everything except `StaticModuleRecord`.
   For this release, there remains a `ses/lockdown` alias to `ses`.
-- _BREAKING CHANGE_ Third-party static module interface implementations _must_
+- *BREAKING CHANGE* Third-party static module interface implementations *must*
   now explicitly list their exported names.
   For CommonJS, this implies using a heuristic static analysis of `exports`
   changes.
   Consequently, third-party modules can now participate in linkage with ESM
   including support for `export * from './spec.cjs'` and also named imports
   like `import * from './spec.cjs'`.
-- _BREAKING CHANGE_ The `StaticModuleRecord` constructor has been removed in
+- *BREAKING CHANGE* The `StaticModuleRecord` constructor has been removed in
   favor of a duck-type for compiled static module records that is intrinsic to
   the shim and may be emulated by a third-party `StaticModuleRecord`
   constructor.
   The constructor must perform the module analysis and transform the source,
   and present this duck-type to the Compartment `importHook`.
   This relieves SES of a dependency on Babel and simplifies its API.
-- _BREAKING CHANGE_ The UMD distribution of SES must have the UTF-8 charset.
+- *BREAKING CHANGE* The UMD distribution of SES must have the UTF-8 charset.
   The prior versions were accidentally ASCII, so SES would have worked
   in any web page, regardless of the charset.
   To remedy this, be sure to include `<head><meta charset="utf-8"></head>` in
@@ -547,8 +559,8 @@ and subject to breaking changes that will not be signaled by semver.
 
 # 0.12.5 (2021-03-25)
 
-- The 0.12.4 release was broken by https://github.com/endojs/endo/pull/552
-  since fixed by https://github.com/endojs/endo/pull/638
+- The 0.12.4 release was broken by <https://github.com/endojs/endo/pull/552>
+  since fixed by <https://github.com/endojs/endo/pull/638>
 - These merely remove a repair needed by an old v8 / Node version that
   no one any longer supports.
 
@@ -678,7 +690,7 @@ inspector.
 
 The new `'moderate'` setting only tames those properties we know or expect to
 be problematic. If you run into an override mistake problem not addressed at
-the `'moderate'` setting **_please file an issue._**
+the `'moderate'` setting ***please file an issue.***
 
 <details>
   <summary>Expand for { overrideTaming: 'moderate' } vscode inspector display</summary>
@@ -707,9 +719,9 @@ all the code you're running under SES.
 - Added an `overrideTaming` option to `lockdown` with two settings,
   `'min'` and `'moderate'`. See
   [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
-  for an explanation of when to use which. **_(This documentation has moved
+  for an explanation of when to use which. ***(This documentation has moved
   to [`overrideTaming`
-  options](./lockdown-options.md#overridetaming-options))_**
+  options](./lockdown-options.md#overridetaming-options))***
 - Modules and evaluated code that contains the censored substrings
   for dynamic eval, dynamic import, and HTML comments will now
   throw errors that contain the `sourceURL` from any `//#sourceURL=` comment
@@ -753,7 +765,7 @@ all the code you're running under SES.
   Errors that propagate through the module loader will be rethrown anew with
   the name of the module and compartment so they can be traced.
   At this time, the intermediate stacks of the causal chain are lost.
-  https://github.com/Agoric/SES-shim/issues/440
+  <https://github.com/Agoric/SES-shim/issues/440>
 
 # 0.10.2 (2020-08-20)
 
@@ -768,7 +780,7 @@ all the code you're running under SES.
 
 - Updates the whitelist to allow a `HandledPromise` global, which is provided
   by `@agoric/eventual-send`, an early implementation of
-  https://github.com/tc39/proposal-eventual-send.
+  <https://github.com/tc39/proposal-eventual-send>.
 - Corrects our fix for the override mistake, so that it correctly emulates
   how assignment would work in the absence of the override mistake.
   A property created by assignment will now be a writable, enumerable,
@@ -849,7 +861,7 @@ all the code you're running under SES.
 
 - This version decouples lockdown and the Compartment constructor.
   The Compartment constructor is now exported by `ses` (was previously only
-  available as a property of `globalThis` _after_ lockdown).
+  available as a property of `globalThis` *after* lockdown).
   The Compartment constructor will also create "privileged" compartments when
   constructed before lockdown.
 
@@ -918,23 +930,23 @@ dependencies.
 - SECURITY UPDATE: This release fixes a sandbox escape discovered in the
   realms-shim by GitHub user "XmiliaH", which works by causing an infinite
   loop and extracting the real function constructor from the RangeError
-  exception object. See https://github.com/Agoric/realms-shim/issues/48 for
+  exception object. See <https://github.com/Agoric/realms-shim/issues/48> for
   more details.
 
 # 0.6.0 (2019-09-03)
 
 - Breaking change: `options.transforms` may no longer specify `endow()`
   transforms. Instead, use `rewrite()`, which can now modify endowments.
-  See https://github.com/Agoric/realms-shim/pull/38 for details.
+  See <https://github.com/Agoric/realms-shim/pull/38> for details.
 - Repair the "override mistake", with optional repair plan in
   `options.dataPropertiesToRepair`. See src/bundle/dataPropertiesToRepair.js
-  and https://github.com/Agoric/SES/pull/146 for details.
+  and <https://github.com/Agoric/SES/pull/146> for details.
 - `options.sloppyGlobals` is rejected by `makeSESRootRealm()`, since all SES
   root realms are frozen. `sloppyGlobals` can only be used in a new
   "Compartment", made by calling `Realm.makeCompartment(options)`. See
-  https://github.com/Agoric/SES/issues/142
-  https://github.com/Agoric/realms-shim/pull/33
-  https://github.com/Agoric/realms-shim/pull/30 for details.
+  <https://github.com/Agoric/SES/issues/142>
+  <https://github.com/Agoric/realms-shim/pull/33>
+  <https://github.com/Agoric/realms-shim/pull/30> for details.
 - Add `options.whitelist` to override the set of properties that are retained
   in the new realm. The default gives you SES, but it could be overridden to
   e.g. enforce a Jessie-only environment.
@@ -951,10 +963,10 @@ Dependency updates only, no user-visible changes.
 
 - The 'realms-shim' module, upon which SES depends, has been split out of the
   TC39 'proposal-realms' repository, and now lives in
-  https://github.com/Agoric/realms-shim. It has not been released to NPM,
+  <https://github.com/Agoric/realms-shim>. It has not been released to NPM,
   rather SES incorporates it as a git submodule. (#110)
 - The documentation is now hosted on ReadTheDocs at
-  https://ses-secure-ecmascript.readthedocs.io/en/latest/ (#111, #117)
+  <https://ses-secure-ecmascript.readthedocs.io/en/latest/> (#111, #117)
 - SES.makeRootRealm() now accepts a 'transforms' option. This is a list of `{ endow, rewrite }` functions which can add/modify endowments and/or rewrite
   source code each time an `evaluate()` is performed. (#125)
 
