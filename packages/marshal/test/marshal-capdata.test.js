@@ -168,18 +168,18 @@ test('unserialize extended errors', t => {
     '{"@qclass":"error","message":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
-  t.false('extraProp' in refErr);
-  t.false('cause' in refErr);
-  t.false('errors' in refErr);
+  t.true('extraProp' in refErr);
+  t.true('cause' in refErr);
+  t.true('errors' in refErr);
 
   const aggErr = uns(
     '{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
-  t.false('extraProp' in aggErr);
-  t.false('cause' in aggErr);
+  t.true('extraProp' in aggErr);
+  t.true('cause' in aggErr);
   if (supportsAggregateError) {
-    t.is(aggErr.errors.length, 0);
+    t.is(aggErr.errors.length, 2);
   } else {
     t.false('errors' in aggErr);
   }
@@ -188,9 +188,9 @@ test('unserialize extended errors', t => {
     '{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
-  t.false('extraProp' in unkErr);
-  t.false('cause' in unkErr);
-  t.false('errors' in unkErr);
+  t.true('extraProp' in unkErr);
+  t.true('cause' in unkErr);
+  t.true('errors' in unkErr);
 });
 
 testIfAggregateError('unserialize recognized error extensions', t => {
@@ -203,7 +203,7 @@ testIfAggregateError('unserialize recognized error extensions', t => {
     `{"@qclass":"error","message":"msg","name":"ReferenceError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
-  t.false('extraProp' in refErr);
+  t.true('extraProp' in refErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
   t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
 
@@ -211,7 +211,7 @@ testIfAggregateError('unserialize recognized error extensions', t => {
     `{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
-  t.false('extraProp' in aggErr);
+  t.true('extraProp' in aggErr);
   t.is(getPrototypeOf(aggErr.cause), URIError.prototype);
   t.is(getPrototypeOf(aggErr.errors[0]), URIError.prototype);
 
@@ -219,10 +219,12 @@ testIfAggregateError('unserialize recognized error extensions', t => {
     `{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
-  t.false('extraProp' in unkErr);
+  t.true('extraProp' in unkErr);
   t.is(getPrototypeOf(unkErr.cause), URIError.prototype);
   t.is(getPrototypeOf(unkErr.errors[0]), URIError.prototype);
 });
+
+// TODO SuppressedError
 
 test('passStyleOf null is "null"', t => {
   t.assert(passStyleOf(null), 'null');
