@@ -167,6 +167,11 @@ export interface CompartmentOptions {
   modules?: Map<string, ModuleDescriptor>;
   __shimTransforms__?: Array<Transform>;
   __noNamespaceBox__?: boolean;
+  /** @deprecated */
+  loadHook?: (specifier: string) => Promise<ModuleDescriptor>;
+  /** @deprecated */
+  loadNowHook?: (specifier: string) => ModuleDescriptor;
+  __native__?: boolean;
 }
 
 export interface EvaluateOptions {
