@@ -167,6 +167,11 @@ export interface CompartmentOptions {
   modules?: Map<string, ModuleDescriptor>;
   __shimTransforms__?: Array<Transform>;
   __noNamespaceBox__?: boolean;
+
+  /**
+   * If `false`, the first error encountered during module loading will be thrown immediately
+   */
+  aggregateLoadErrors?: boolean;
 }
 
 export interface EvaluateOptions {

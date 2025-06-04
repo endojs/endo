@@ -673,6 +673,24 @@ system generates other diagnostic information hidden in side tables. The tamed
 console uses these side tables to output more informative diagnostics.
 [Logging Errors](./src/error/README.md) explains the design.
 
+### Controlling Module-Loading Errors
+
+The `Compartment` constructor now accepts a `boolean` option, `aggregateLoadErrors`, to control how module-loading errors are reported.
+
+By default, its value is `true`, which causes all relevant errors to be collected and rejected or thrown in a single exception from `compartment.import()` or `compartment.importNow()`, respectively.
+
+If set to `false`, this will cause the *first* module-loading error encountered to be thrown (or rejected) immediately; no further module-loading will be attempted, and no further errors will be collected.
+
+This is mostly useful for supporting optional dependencies in CommonJS modules, for example:
+
+```js
+try {
+  require('something-optional')
+} catch (err) {
+  // continue
+}
+```
+
 ## Security claims and caveats
 
 The `ses` shim concerns boundaries between programs in the same process and
