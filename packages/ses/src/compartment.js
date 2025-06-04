@@ -39,7 +39,6 @@
 
 // @ts-check
 /* eslint-disable no-underscore-dangle */
-/// <reference types="ses">
 
 import {
   Map,
@@ -68,17 +67,49 @@ import { getDeferredExports } from './module-proxy.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
-/** @import {ModuleDescriptor, ModuleExportsNamespace} from '../types.js' */
+/**
+ * @import {ImportHook, ImportMetaHook, ImportNowHook, ModuleDescriptor, ModuleExportsNamespace, ModuleMap, ModuleMapHook, ResolveHook, ModuleSource, CompartmentOptions} from '../types.js'
+ * @import {Transform} from './lockdown.js'
+ * @import {DeferredExports} from './module-proxy.js'
+ */
 
-// moduleAliases associates every public module exports namespace with its
-// corresponding compartment and specifier so they can be used to link modules
-// across compartments.
-// The mechanism to thread an alias is to use the compartment.module function
-// to obtain the exports namespace of a foreign module and pass it into another
-// compartment's moduleMap constructor option.
+/**
+ * Associates every public module exports namespace with its corresponding
+ * compartment and specifier so they can be used to link modules across
+ * compartments. The mechanism to thread an alias is to use the
+ * {@link Compartment.module} function to obtain the exports namespace of a foreign
+ * module and pass it into another compartment's `moduleMap` constructor option
+ * @type {WeakMap<ModuleExportsNamespace, Compartment>}
+ *
+ */
 const moduleAliases = new WeakMap();
 
-// privateFields captures the private state for each compartment.
+/**
+ * Private fields for `Compartment` instances
+ * @typedef {object} CompartmentFields
+ * @property {string} name
+ * @property {object} globalObject
+ * @property {Array<Transform>} globalTransforms
+ * @property {(source: string, options?: {localTransforms?: Array<Transform>}) => void} safeEvaluate
+ * @property {ResolveHook} resolveHook
+ * @property {ImportHook} importHook
+ * @property {ImportNowHook} importNowHook
+ * @property {ModuleMap} moduleMap
+ * @property {ModuleMapHook} moduleMapHook
+ * @property {ImportMetaHook} importMetaHook
+ * @property {Map<string, ModuleSource>} moduleRecords
+ * @property {Array<Transform>} __shimTransforms__
+ * @property {DeferredExports} deferredExports
+ * @property {Map<string, ModuleDescriptor>} instances
+ * @property {Compartment} [parentCompartment]
+ * @property {boolean} noNamespaceBox
+ * @property {(fullSpecifier: string) => Promise<ModuleExportsNamespace>} compartmentImport
+ */
+
+/**
+ * Captures the private state for each {@link Compartment}
+ * @type {WeakMap<Compartment, CompartmentFields>}
+ */
 const privateFields = new WeakMap();
 
 export const InertCompartment = function Compartment(
@@ -94,6 +125,7 @@ export const InertCompartment = function Compartment(
 /**
  * @param {Compartment} compartment
  * @param {string} specifier
+ * @returns {{namespace: ModuleExportsNamespace}}
  */
 const compartmentImportNow = (compartment, specifier) => {
   const { execute, exportsProxy } = link(
@@ -106,27 +138,20 @@ const compartmentImportNow = (compartment, specifier) => {
   return exportsProxy;
 };
 
+/** @type {Compartment & {constructor: typeof InertCompartment}} */
 export const CompartmentPrototype = {
   constructor: InertCompartment,
 
   get globalThis() {
-    return weakmapGet(privateFields, this).globalObject;
+    return /** @type {CompartmentFields} */ (weakmapGet(privateFields, this))
+      .globalObject;
   },
 
   get name() {
-    return weakmapGet(privateFields, this).name;
+    return /** @type {CompartmentFields} */ (weakmapGet(privateFields, this))
+      .name;
   },
 
-  /**
-   * @param {string} source is a JavaScript program grammar construction.
-   * @param {object} [options]
-   * @param {Array<import('./lockdown-shim').Transform>} [options.transforms]
-   * @param {boolean} [options.sloppyGlobalsMode]
-   * @param {object} [options.__moduleShimLexicals__]
-   * @param {boolean} [options.__evadeHtmlCommentTest__]
-   * @param {boolean} [options.__evadeImportExpressionTest__]
-   * @param {boolean} [options.__rejectSomeDirectEvalExpressions__]
-   */
   evaluate(source, options = {}) {
     const compartmentFields = weakmapGet(privateFields, this);
     return compartmentEvaluate(compartmentFields, source, options);
@@ -148,7 +173,9 @@ export const CompartmentPrototype = {
   },
 
   async import(specifier) {
-    const { noNamespaceBox } = weakmapGet(privateFields, this);
+    const { noNamespaceBox } = /** @type {CompartmentFields} */ (
+      weakmapGet(privateFields, this)
+    );
 
     if (typeof specifier !== 'string') {
       throw TypeError('first argument of import() must be a string');
@@ -187,7 +214,7 @@ export const CompartmentPrototype = {
     }
 
     loadNow(privateFields, moduleAliases, this, specifier);
-    return compartmentImportNow(/** @type {Compartment} */ (this), specifier);
+    return compartmentImportNow(this, specifier);
   },
 };
 
@@ -218,15 +245,35 @@ defineProperties(InertCompartment, {
  * @returns {Compartment['constructor']}
  */
 
-// In order to facilitate migration from the deprecated signature
-// of the compartment constructor,
-//   new Compartent(globals?, modules?, options?)
-// to the new signature:
-//   new Compartment(options?)
-// where globals and modules are expressed in the options bag instead of
-// positional arguments, this function detects the temporary sigil __options__
-// on the first argument and coerces compartments arguments into a single
-// compartments object.
+/**
+ * "Options bag"-style `Compartment` constructor arguments.
+ * @typedef {[options?: CompartmentOptions & { __options__: true }]} CompartmentOptionsArgs
+ */
+
+/**
+ * Legacy `Compartment` constructor arguments.
+ *
+ * @deprecated
+ * @typedef {[globals?: Map<string, any>, modules?: Map<string, ModuleDescriptor>, options?: CompartmentOptions]} LegacyCompartmentOptionsArgs
+ */
+
+/**
+ * In order to facilitate migration from the deprecated signature of the
+ * compartment constructor,
+ *
+ * `new Compartent(globals?, modules?, options?)`
+ *
+ * to the new signature:
+ *
+ * `new Compartment(options?)`
+ *
+ * ...where globals and modules are expressed in the options bag instead of
+ * positional arguments, this function detects the temporary sigil __options__
+ * on the first argument and coerces compartments arguments into a single
+ * compartments object.
+ * @param {CompartmentOptionsArgs|LegacyCompartmentOptionsArgs} args
+ * @returns {CompartmentOptions}
+ */
 export const compartmentOptions = (...args) => {
   if (args.length === 0) {
     return {};
@@ -248,7 +295,7 @@ export const compartmentOptions = (...args) => {
       globals = /** @type {Map<string, any>} */ ({}),
       modules = /** @type {Map<string, ModuleDescriptor>} */ ({}),
       options = {},
-    ] = args;
+    ] = /** @type {LegacyCompartmentOptionsArgs} */ (args);
     assertEqual(
       options.modules,
       undefined,
@@ -274,6 +321,10 @@ export const makeCompartmentConstructor = (
   markVirtualizedNativeFunction,
   { parentCompartment = undefined, enforceNew = false } = {},
 ) => {
+  /**
+   *
+   * @param {CompartmentOptionsArgs|LegacyCompartmentOptionsArgs} args
+   */
   function Compartment(...args) {
     if (enforceNew && new.target === undefined) {
       throw TypeError(
