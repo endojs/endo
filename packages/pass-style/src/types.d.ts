@@ -164,10 +164,9 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 
 /**
  * Abstract remotable method names to its own type in preparation of
- * (TODO) restricting it in a later PR.
+ * (TODO) further restricting it in a later PR.
  */
-// export type RemotableMethodName = string | symbol;
-export type RemotableMethodName = PropertyKey;
+export type RemotableMethodName = string | symbol;
 
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.

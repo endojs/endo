@@ -33,10 +33,10 @@ import {
   checkCopyMap,
   copyMapKeySet,
   checkCopyBag,
-  getCopyMapEntryArray,
   makeCopyMap,
   makeCopySet,
   makeCopyBag,
+  getCopyMapEntries,
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
@@ -559,7 +559,7 @@ const makePatternKit = () => {
         const entryPairs = generateCollectionPairEntries(
           patt,
           specimen,
-          getCopyMapEntryArray,
+          getCopyMapEntries,
           undefined,
         );
         for (const [_key, pattValue, specimenValue] of entryPairs) {
