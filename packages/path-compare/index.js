@@ -1,1 +1,1 @@
-export * from './src/index.js';
+export { pathCompare } from './src/index.js';
