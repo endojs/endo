@@ -27,6 +27,7 @@ const assertFixture = (t, { namespace, testCategoryHint }) => {
   assertions.moduleWithCycle();
   assertions.defaultChangesAfterExec();
   assertions.packageNestedFile();
+  assertions.requireExtensions();
 
   if (testCategoryHint === 'Location') {
     t.deepEqual(results.requireResolvePaths, [
