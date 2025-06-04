@@ -1285,6 +1285,35 @@ const makePatternKit = () => {
   });
 
   /** @type {MatchHelper} */
+  const matchByteArrayHelper = harden({
+    tag: 'match:byteArray',
+
+    checkMatches: (specimen, [limits = undefined], check) => {
+      const { byteLengthLimit } = limit(limits);
+      // prettier-ignore
+      return (
+        checkKind(specimen, 'byteArray', check) &&
+        (/** @type {ArrayBuffer} */ (specimen).byteLength <= byteLengthLimit ||
+          check(
+            false,
+            X`byteArray ${specimen} must not be bigger than ${byteLengthLimit}`,
+          ))
+      );
+    },
+
+    checkIsWellFormed: (payload, check) =>
+      checkIsWellFormedWithLimit(
+        payload,
+        harden([]),
+        check,
+        'match:byteArray payload',
+      ),
+
+    getRankCover: (_matchPayload, _encodePassable) =>
+      getPassStyleCover('byteArray'),
+  });
+
+  /** @type {MatchHelper} */
   const matchSetOfHelper = harden({
     tag: `match:setOf`,
 
@@ -1874,6 +1903,7 @@ const makePatternKit = () => {
       matchGTHelper,
 
       matchArrayOfHelper,
+      matchByteArrayHelper,
       matchRecordOfHelper,
       matchSetOfHelper,
       matchBagOfHelper,
@@ -1928,13 +1958,13 @@ const makePatternKit = () => {
   const SymbolShape = makeMatcher(matchSymbolHelper, []);
   const RecordShape = makeMatcher(matchRecordOfHelper, [AnyShape, AnyShape]);
   const ArrayShape = makeMatcher(matchArrayOfHelper, [AnyShape]);
+  const ByteArrayShape = makeMatcher(matchByteArrayHelper, []);
   const SetShape = makeMatcher(matchSetOfHelper, [AnyShape]);
   const BagShape = makeMatcher(matchBagOfHelper, [AnyShape, AnyShape]);
   const MapShape = makeMatcher(matchMapOfHelper, [AnyShape, AnyShape]);
   const RemotableShape = makeKindMatcher('remotable');
   const ErrorShape = makeKindMatcher('error');
   const PromiseShape = makeKindMatcher('promise');
-  const BytesShape = makeKindMatcher('bytes');
   const UndefinedShape = makeKindMatcher('undefined');
   const NullShape = makeKindMatcher('null');
 
@@ -2035,8 +2065,10 @@ const makePatternKit = () => {
     // For example, a pattern that matches CopyArrays of length 2 that have a
     // string at index 0 and a number at index 1 is:
     // harden([ M.string(), M.number() ]).
-    bytes: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:bytes', [limits]) : BytesShape,
+    byteArray: (limits = undefined) =>
+      limits
+        ? makeLimitsMatcher(matchByteArrayHelper, [limits])
+        : ByteArrayShape,
     set: (limits = undefined) => (limits ? M.setOf(M.any(), limits) : SetShape),
     bag: (limits = undefined) =>
       limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
