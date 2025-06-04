@@ -112,7 +112,7 @@ export const makeMarshal = (
       assert.typeof(message, 'string');
       const name = encodeRecur(`${err.name}`);
       assert.typeof(name, 'string');
-      // TODO Must encode `cause`, `errors`, but
+      // TODO Must encode `cause`,`errors`,`error`,`suppressed` but
       // only once all possible counterparty decoders are tolerant of
       // receiving them.
       if (errorTagging === 'on') {
@@ -262,8 +262,10 @@ export const makeMarshal = (
      *   errorId?: string,
      *   message: string,
      *   name: string,
-     *   cause: unknown,
-     *   errors: unknown,
+     *   cause?: unknown,
+     *   errors?: unknown,
+     *   error?: unknown,
+     *   suppressed?: unknown,
      * }} errData
      * @param {(e: unknown) => Passable} decodeRecur
      * @returns {Error}
@@ -275,6 +277,8 @@ export const makeMarshal = (
         name,
         cause = undefined,
         errors = undefined,
+        error = undefined,
+        suppressed = undefined,
         ...rest
       } = errData;
       // See https://github.com/endojs/endo/pull/2052
@@ -305,6 +309,12 @@ export const makeMarshal = (
       }
       if (errors) {
         options.errors = decodeRecur(errors);
+      }
+      if (error) {
+        options.error = decodeRecur(error);
+      }
+      if (suppressed) {
+        options.suppressed = decodeRecur(suppressed);
       }
       const rawError = makeError(dMessage, errConstructor, options);
       // Note that this does not decodeRecur rest's property names.

@@ -236,6 +236,8 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
   t.is(getPrototypeOf(refErr.errors[0]), URIError.prototype);
 });
 
+// TODO SuppressedError
+
 test('smallcaps mal-formed @qclass', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
