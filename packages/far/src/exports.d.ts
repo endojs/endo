@@ -1,1 +1,9 @@
-export { FarRef, ERef, EOnly, EReturn } from '@endo/eventual-send';
+export {
+  FarRef,
+  ERef,
+  EOnly,
+  EReturn,
+  EResult,
+  ERemote,
+  Remote,
+} from '@endo/eventual-send';
