@@ -1,32 +1,40 @@
-import test from 'ava';
-import { atob as origAtob, btoa as origBtoa } from './_capture-atob-btoa.js';
-import { encodeBase64, decodeBase64, atob, btoa } from '../index.js';
+import test from '@endo/ses-ava/prepare-endo.js';
+import {
+  byteArrayToUint8Array,
+  decodeBase64ToByteArray,
+  encodeByteArrayToBase64,
+  uint8ArrayToByteArray,
+} from '../src/byteArray.js';
+
+// modeled on `@endo/base64`'s main.test.js
 
 /**
  * @param {string} string Only uses the low byte of each UTF16 code unit, which
  * is ok as long as it is used only for this purpose for a local test, and not
  * exported.
- * @returns {Uint8Array}
+ * @returns {ArrayBuffer} A ByteArray, i.e., a hardened Immutable ArrayBuffer
  */
-const stringToUint8Array = string => {
+const stringToByteArray = string => {
   const data = new Uint8Array(string.length);
   for (let i = 0; i < string.length; i += 1) {
     data[i] = string.charCodeAt(i);
   }
-  return data;
+  return uint8ArrayToByteArray(data);
 };
 
 /**
- * @param {Uint8Array} data
+ * @param {ArrayBuffer} byteArray
  * @returns {string} Interpreting each 8-bit value as an 8-bit UTF-16 code
  * unit. Since this cannot include any UTF-16 surrogates, this is equivalent
  * to interpreting each 8-bit value as an 8-bit ascii code point. This
  * may be unexpected, and so is ok as long as it is used only for this purpose
  * for a local test, and not exported.
  */
-const unit8ArrayToString = data => String.fromCharCode(...data);
+const byteArrayToString = byteArray => {
+  return String.fromCharCode(...byteArrayToUint8Array(byteArray));
+};
 
-test('bytes conversions', t => {
+test('byteArray / base64 conversion', t => {
   const insouts = [
     ['', ''],
     ['f', 'Zg=='],
@@ -37,12 +45,16 @@ test('bytes conversions', t => {
     ['foobar', 'Zm9vYmFy'],
   ];
   for (const [inp, outp] of insouts) {
-    t.is(encodeBase64(stringToUint8Array(inp)), outp, `${inp} encodes`);
-    t.is(unit8ArrayToString(decodeBase64(outp)), inp, `${outp} decodes`);
-    t.is(btoa(inp), outp, `${inp} encodes with btoa`);
-    t.is(atob(outp), inp, `${outp} decodes with atob`);
-    origBtoa && t.is(origBtoa(inp), outp, `${inp} encodes with origBtoa`);
-    origAtob && t.is(origAtob(outp), inp, `${outp} decodes with origAtob`);
+    t.is(
+      encodeByteArrayToBase64(stringToByteArray(inp)),
+      outp,
+      `${inp} encodes`,
+    );
+    t.is(
+      byteArrayToString(decodeBase64ToByteArray(outp)),
+      inp,
+      `${outp} decodes`,
+    );
   }
   const inputs = [
     'a',
@@ -54,15 +66,14 @@ test('bytes conversions', t => {
   ];
   for (const str of inputs) {
     t.is(
-      unit8ArrayToString(decodeBase64(encodeBase64(stringToUint8Array(str)))),
+      byteArrayToString(
+        decodeBase64ToByteArray(
+          encodeByteArrayToBase64(stringToByteArray(str)),
+        ),
+      ),
       str,
       `${str} round trips`,
     );
-    origBtoa &&
-      t.is(atob(origBtoa(str)), str, `${str} round trips with atob(origBtoa)`);
-    origAtob &&
-      t.is(origAtob(btoa(str)), str, `${str} round trips with origAtob(btoa)`);
-    t.is(atob(btoa(str)), str, `${str} round trips with atob(btoa)`);
   }
 });
 
@@ -97,7 +108,7 @@ test('invalid encodings', t => {
   for (const [badInput, message] of badInputs) {
     t.throws(
       // @ts-expect-error intentional error
-      () => decodeBase64(badInput),
+      () => decodeBase64ToByteArray(badInput),
       message ? { message } : undefined,
       `${badInput} is rejected`,
     );
