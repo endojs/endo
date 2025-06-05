@@ -5,7 +5,7 @@ const { details: X, quote: q, Fail, error: makeError } = assert;
 const { assign, freeze } = Object;
 
 /**
- * @import { HandledPromiseConstructor } from './types.js';
+ * @import { HandledPromiseConstructor, RemotableBrand, Callable, Settler } from './types.js';
  */
 
 const onSend = makeMessageBreakpointTester('ENDO_SEND_BREAKPOINTS');
@@ -282,7 +282,7 @@ export default makeE;
  *
  * @template Primary The type of the primary reference.
  * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {ERef<Local & import('./types.js').RemotableBrand<Local, Primary>>} FarRef
+ * @typedef {ERef<Local & RemotableBrand<Local, Primary>>} FarRef
  */
 
 /**
@@ -290,7 +290,7 @@ export default makeE;
  * properties that are *not* functions.
  *
  * @template T The type to be filtered.
- * @typedef {Omit<T, FilteredKeys<T, import('./types.js').Callable>>} DataOnly
+ * @typedef {Omit<T, FilteredKeys<T, Callable>>} DataOnly
  */
 
 /**
@@ -303,25 +303,86 @@ export default makeE;
  */
 
 /**
+ * A type that doesn't assume its parameter is local, but is satisfied with both
+ * local and remote references. It accepts both near and marshalled references
+ * that were returned from `Remotable` or `Far`.
+ *
+ * @template Primary The type of the primary reference.
+ * @template [Local=DataOnly<Primary>] The local properties of the object.
+ * @typedef {Primary | RemotableBrand<Local, Primary>} Remote
+ */
+
+/**
+ * A type that accepts either resolved or promised references that may be either
+ * near or marshalled. @see {ERef} and @see {Remote}.
+ *
+ * @template Primary The type of the primary reference.
+ * @template [Local=DataOnly<Primary>] The local properties of the object.
+ * @typedef {ERef<Remote<Primary, Local>>} ERemote
+ */
+
+/**
  * The awaited return type of a function.
+ * For the eventual result of an E call, @see {EResult} or @see {ECallableReturn}
  *
  * @template {(...args: any[]) => any} T
  * @typedef {T extends (...args: any[]) => infer R ? Awaited<R> : never} EReturn
  */
 
 /**
- * @template {import('./types.js').Callable} T
+ * An eventual value where remotable objects are recursively mapped to Remote types
+ *
+ * @template T
+ * @typedef {EAwaitedResult<Awaited<T>>} EResult
+ */
+
+/**
+ * @template T
  * @typedef {(
- *   ReturnType<T> extends PromiseLike<infer U>                       // if function returns a promise
- *     ? T                                                            // return the function
- *     : (...args: Parameters<T>) => Promise<EReturn<T>>  // make it return a promise
+ *   0 extends (1 & T)
+ *     ? T
+ *     : T extends RemotableBrand<infer L, infer P>
+ *       ? (P | RemotableBrand<L, P>)
+ *       : T extends PromiseLike<infer U>
+ *         ? Promise<EAwaitedResult<Awaited<T>>>
+ *         : T extends (null | undefined | string | number | boolean | symbol | bigint | Callable) // Intersections of these types with objects are not mapped
+ *           ? T
+ *           : T extends object
+ *             ? { [P in keyof T]: EAwaitedResult<T[P]>; }
+ *             : T
+ * )} EAwaitedResult
+ */
+
+/**
+ * The @see {EResult} mapped return type of a remote function.
+ *
+ * @template {(...args: any[]) => any} T
+ * @typedef {(
+ *   0 extends (1 & T)                          // If T is any
+ *     ? any                                    // Propagate the any type through the result
+ *     : T extends (...args: any[]) => infer R  // Else infer the return type
+ *       ? EResult<R>                           // And map its resolution
+ *       : never
+ * )} ECallableReturn
+ */
+
+/**
+ * Maps a callable to its remotely called type
+ *
+ * @template {Callable} T
+ * @typedef {(
+ *    ((...args: Parameters<T>) => ReturnType<T>) extends T         // Check if T is a generic callable
+ *      ? (...args: Parameters<T>) => Promise<ECallableReturn<T>>   // It's not so safe to map it
+ *      : ReturnType<T> extends PromiseLike<infer U>                // Check if original generic callable returns a promise
+ *        ? T                                                       // Bypass mapping to maintain generic
+ *        : (...args: Parameters<T>) => Promise<ECallableReturn<T>> // Map it anyway to ensure promise return type
  * )} ECallable
  */
 
 /**
  * @template T
  * @typedef {{
- *   readonly [P in keyof T]: T[P] extends import('./types.js').Callable
+ *   readonly [P in keyof T]: T[P] extends Callable
  *     ? ECallable<T[P]>
  *     : never;
  * }} EMethods
@@ -337,14 +398,14 @@ export default makeE;
  */
 
 /**
- * @template {import('./types.js').Callable} T
+ * @template {Callable} T
  * @typedef {(...args: Parameters<T>) => Promise<void>} ESendOnlyCallable
  */
 
 /**
  * @template T
  * @typedef {{
- *   readonly [P in keyof T]: T[P] extends import('./types.js').Callable
+ *   readonly [P in keyof T]: T[P] extends Callable
  *     ? ESendOnlyCallable<T[P]>
  *     : never;
  * }} ESendOnlyMethods
@@ -353,18 +414,22 @@ export default makeE;
 /**
  * @template T
  * @typedef {(
- *   T extends import('./types.js').Callable
+ *   T extends Callable
  *     ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
- *     : ESendOnlyMethods<Required<T>>
+ *     : 0 extends (1 & T)
+ *       ? never
+ *       : ESendOnlyMethods<Required<T>>
  * )} ESendOnlyCallableOrMethods
  */
 
 /**
  * @template T
  * @typedef {(
- *   T extends import('./types.js').Callable
+ *   T extends Callable
  *     ? ECallable<T> & EMethods<Required<T>>
- *     : EMethods<Required<T>>
+ *     : 0 extends (1 & T)
+ *       ? never
+ *       : EMethods<Required<T>>
  * )} ECallableOrMethods
  */
 
@@ -389,9 +454,9 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends import('./types.js').Callable
+ *   T extends Callable
  *     ? (...args: Parameters<T>) => ReturnType<T>                     // a root callable, no methods
- *     : Pick<T, FilteredKeys<T, import('./types.js').Callable>>          // any callable methods
+ *     : Pick<T, FilteredKeys<T, Callable>>          // any callable methods
  * )} PickCallable
  */
 
@@ -400,25 +465,21 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends import('./types.js').RemotableBrand<infer L, infer R>     // if a given T is some remote interface R
- *     ? PickCallable<R>                                              // then return the callable properties of R
- *     : Awaited<T> extends import('./types.js').RemotableBrand<infer L, infer R> // otherwise, if the final resolution of T is some remote interface R
- *     ? PickCallable<R>                                              // then return the callable properties of R
- *     : T extends PromiseLike<infer U>                               // otherwise, if T is a promise
- *     ? Awaited<T>                                                   // then return resolved value T
- *     : T                                                            // otherwise, return T
+ *   T extends RemotableBrand<infer L, infer R>   // if a given T is some remote interface R
+ *     ? PickCallable<R>                          // then return the callable properties of R
+ *     : T extends PromiseLike<infer U>           // otherwise, if T is a promise
+ *       ? RemoteFunctions<U>                     // recurse on the resolved value of T
+ *       : T                                      // otherwise, return T
  * )} RemoteFunctions
  */
 
 /**
  * @template T
  * @typedef {(
- *   T extends import('./types.js').RemotableBrand<infer L, infer R>
- *     ? L
- *     : Awaited<T> extends import('./types.js').RemotableBrand<infer L, infer R>
+ *   T extends RemotableBrand<infer L, infer R>
  *     ? L
  *     : T extends PromiseLike<infer U>
- *     ? Awaited<T>
+ *     ? LocalRecord<U>
  *     : T
  * )} LocalRecord
  */
@@ -427,7 +488,7 @@ export default makeE;
  * @template [R = unknown]
  * @typedef {{
  *   promise: Promise<R>;
- *   settler: import('./types.js').Settler<R>;
+ *   settler: Settler<R>;
  * }} EPromiseKit
  */
 
@@ -438,11 +499,11 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends import('./types.js').Callable
+ *   T extends Callable
  *     ? (...args: Parameters<T>) => ERef<Awaited<EOnly<ReturnType<T>>>>
- *     : T extends Record<PropertyKey, import('./types.js').Callable>
+ *     : T extends Record<PropertyKey, Callable>
  *     ? {
- *         [K in keyof T]: T[K] extends import('./types.js').Callable
+ *         [K in keyof T]: T[K] extends Callable
  *           ? (...args: Parameters<T[K]>) => ERef<Awaited<EOnly<ReturnType<T[K]>>>>
  *           : T[K];
  *       }
