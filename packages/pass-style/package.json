@@ -34,6 +34,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/base64": "workspace:^",
     "@endo/common": "workspace:^",
     "@endo/env-options": "workspace:^",
     "@endo/errors": "workspace:^",

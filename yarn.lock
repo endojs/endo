@@ -819,6 +819,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/pass-style@workspace:packages/pass-style"
   dependencies:
+    "@endo/base64": "workspace:^"
     "@endo/common": "workspace:^"
     "@endo/env-options": "workspace:^"
     "@endo/errors": "workspace:^"

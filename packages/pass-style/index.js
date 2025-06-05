@@ -27,6 +27,13 @@ export {
 } from './src/string.js';
 
 export {
+  byteArrayToUint8Array,
+  uint8ArrayToByteArray,
+  encodeByteArrayToBase64,
+  decodeBase64ToByteArray,
+} from './src/byteArray.js';
+
+export {
   passStyleOf,
   isPassable,
   assertPassable,

@@ -3,6 +3,7 @@
 import { q, X, Fail } from '@endo/errors';
 import { Nat } from '@endo/nat';
 import {
+  decodeBase64ToByteArray,
   getErrorConstructor,
   isPrimitive,
   nameForPassableSymbol,
@@ -178,6 +179,12 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
           assert.typeof(sym, 'symbol');
           return;
         }
+        case 'byteArray': {
+          const { data } = rawTree;
+          assert.typeof(data, 'string');
+          decodeBase64ToByteArray(data);
+          return;
+        }
         case 'tagged': {
           const { tag, payload } = rawTree;
           assert.typeof(tag, 'string');
@@ -339,6 +346,11 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             return out.next(`Symbol.${suffix}`);
           }
           return out.next(`passableSymbolForName(${quote(registeredName)})`);
+        }
+        case 'byteArray': {
+          const { data } = rawTree;
+          assert.typeof(data, 'string');
+          return out.next(`decodeBase64ToByteArray(${quote(data)})`);
         }
         case 'tagged': {
           const { tag, payload } = rawTree;
