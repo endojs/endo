@@ -48,6 +48,7 @@ import {
   enforceModulePolicy,
 } from './policy.js';
 import { unpackReadPowers } from './powers.js';
+import { fileURLToPath } from 'url';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -194,11 +195,13 @@ const findRedirect = ({
       // go up a directory
       const parentLocation = new URL('../', someLocation).href;
 
-      // afaict this behavior is consistent across both windows and posix
+      // afaict this behavior is consistent across both windows and posix:
+      // if this is true, we hit the filesystem root
       if (parentLocation === someLocation) {
-        throw new Error(
-          `Could not import unknown module: ${q(absoluteModuleSpecifier)}`,
-        );
+        return;
+        // throw new Error(
+        //   `Could not import unknown module: ${q(absoluteModuleSpecifier)}`,
+        // );
       }
 
       someLocation = parentLocation;
@@ -337,6 +340,15 @@ function* chooseModuleDescriptor(
     // But, for Node.js, when the specifier is relative and not a directory
     // name, they are usable as URL's.
     const moduleLocation = resolveLocation(candidateSpecifier, packageLocation);
+
+    // check if moduleLocation is within the compartment
+    // if it is not, then create a redirect record using absolute path. return it
+    if (!isLocationWithinCompartment(moduleLocation, packageLocation)) {
+      return {
+        specifier: fileURLToPath(moduleLocation),
+        compartment: compartments[packageLocation],
+      };
+    }
 
     // "next" values must have type assertions for narrowing because we have
     // multiple yielded types
@@ -809,7 +821,8 @@ export function makeImportNowHookMaker(
           }
         } else if (
           moduleSpecifier !== '.' &&
-          !moduleSpecifier.startsWith('./')
+          !moduleSpecifier.startsWith('./') &&
+          !moduleSpecifier.startsWith('../')
         ) {
           // could be a builtin, which means we should not bother bouncing on the trampoline to find it.
           return importExitModuleOrFail(moduleSpecifier, compartmentDescriptor);
