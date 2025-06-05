@@ -1,6 +1,6 @@
 /* global globalThis */
 
-const { setPrototypeOf, getOwnPropertyDescriptors } = Object;
+const { setPrototypeOf, getOwnPropertyDescriptors, defineProperties } = Object;
 const { apply } = Reflect;
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
 // Capture structuredClone before it could be scuttled.
@@ -145,6 +145,16 @@ const {
 } = getOwnPropertyDescriptors(immutableArrayBufferPrototype);
 
 setPrototypeOf(immutableArrayBufferPrototype, arrayBufferPrototype);
+
+// See https://github.com/endojs/endo/tree/master/packages/immutable-arraybuffer#purposeful-violation
+defineProperties(immutableArrayBufferPrototype, {
+  [Symbol.toStringTag]: {
+    value: 'ImmutableArrayBuffer',
+    writable: false,
+    enumerable: false,
+    configurable: true,
+  },
+});
 
 /**
  * Transfer the contents to a new Immutable ArrayBuffer

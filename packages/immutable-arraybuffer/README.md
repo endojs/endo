@@ -65,3 +65,11 @@ The *Immutable ArrayBuffer* shim falls short of the proposal in the following wa
 - Unlike genuine `ArrayBuffer` or `SharedArrayBuffer` exotic objects, the shim's emulated immutable buffers cannot be cloned or transfered between JS threads.
 - Even after the *Immutable ArrayBuffer* proposal is implemented by the platform, the current code will still replace it with the shim implementation, in accord with shim best practices. See https://github.com/endojs/endo/pull/2311#discussion_r1632607527 . It will require a later manual step to delete the shim, after manual analysis of the compat implications.
 - This is a plain *JavaScript* ponyfill/shim, not by itself a *Hardened JavaScript* polyfill/shim. Thus, the objects and function it creates are not hardened by this ponyfill/shim itself. Rather, the ses-shim is expected to import these, and then treat the resulting objects as if they were additional primordials, to be hardened during `lockdown`'s harden phase.
+
+## Purposeful Violation
+
+Since the `ImmutableArrayBufferInternal` class is only an artifact of the ponyfill and shim (i.e., is absent both from the real proposal and from native implementations), `ImmutableArrayBufferInternal` should not need its own `Symbol.toStringTag` property. Especially not one that differs from `ArrayBuffer.prototype`. Adding one reduces the fidelity of the ponyfill and shim. Nevertheless, we set `ImmutableArrayBufferInternal.prototype[Symbol.toStringTag]` to `'ImmutableArrayBuffer'`. Why?
+
+At https://github.com/concordancejs/concordance/blob/791d2a89b40eb13f2c889ac270dd8be190cf8073/lib/describe.js#L36 Node's concordance, in order to render diagnostic output for an object, sniffs the result of `toString()`. If the result seems to indicate that the object is an ArrayBuffer, then concordance assumes it can do things with the object (`Buffer.from`) that can only be done on genuine ArrayBuffers. To avoid this, the ponyfill and shim ensures that the sniff will not match `'ArrayBuffer'`.
+
+Ava also uses Node's concordance for its diagnostic output, which is how we discovered the problem.
