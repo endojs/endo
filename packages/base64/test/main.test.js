@@ -24,8 +24,7 @@ const stringToUint8Array = string => {
  * may be unexpected, and so is ok as long as it is used only for this purpose
  * for a local test, and not exported.
  */
-const unit8ArrayToString = data =>
-  String.fromCharCode(...data);
+const unit8ArrayToString = data => String.fromCharCode(...data);
 
 test('bytes conversions', t => {
   const insouts = [
