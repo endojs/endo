@@ -566,6 +566,8 @@ declare global {
   var hardenIntrinsics: HardenIntrinsics;
   var lockdown: Lockdown;
 
+  var repairOptions: RepairOptions;
+
   var assert: Assert;
 
   /**
