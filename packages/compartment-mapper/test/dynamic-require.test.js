@@ -47,7 +47,7 @@ test('intra-package dynamic require works without invoking the exitModuleImportN
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
   let importNowHookCallCount = 0;
   /** @type {ExitModuleImportNowHook} */
   const importNowHook = (specifier, packageLocation) => {
@@ -114,7 +114,7 @@ test('intra-package dynamic require with inter-package absolute path works witho
   const fixture = new URL(
     'fixtures-dynamic/node_modules/absolute-app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
   let importNowHookCallCount = 0;
   /** @type {ExitModuleImportNowHook} */
   const importNowHook = (specifier, packageLocation) => {
@@ -171,7 +171,7 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
   const fixture = new URL(
     'fixtures-dynamic/node_modules/broken-app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
   /** @type {ExitModuleImportNowHook} */
   const importNowHook = (specifier, packageLocation) => {
     const require = Module.createRequire(
@@ -223,7 +223,7 @@ test('dynamic require fails without maybeReadNow in read powers', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   const { maybeReadNow: _, ...lessPower } = readPowers;
   await t.throwsAsync(
@@ -256,7 +256,7 @@ test('dynamic require fails without isAbsolute & fileURLToPath in read powers', 
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
   const { isAbsolute: _, fileURLToPath: ___, ...lessPower } = readPowers;
   await t.throwsAsync(
     // @ts-expect-error bad types
@@ -290,7 +290,7 @@ test('inter-package and exit module dynamic require works', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/hooked-app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   // number of times the `importNowHook` got called
   let importNowHookCallCount = 0;
@@ -363,7 +363,7 @@ test('inter-package and exit module dynamic require policy is enforced', async t
   const fixture = new URL(
     'fixtures-dynamic/node_modules/hooked-app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   // number of times the `importNowHook` got called
   /** @type {string[]} */
@@ -430,7 +430,7 @@ test('inter-package and exit module dynamic require works ("node:"-namespaced)',
   const fixture = new URL(
     'fixtures-dynamic/node_modules/hooked-app-namespaced/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   // number of times the `importNowHook` got called
   let importNowHookCallCount = 0;
@@ -504,7 +504,7 @@ test('sync module transforms work with dynamic require support', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   t.plan(2);
 
@@ -565,7 +565,7 @@ test('sync module transforms work without dynamic require support', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/static-app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   let transformCount = 0;
   const expectedCount = 3;
@@ -598,7 +598,7 @@ test('dynamic require of missing module falls through to importNowHook', async t
   const fixture = new URL(
     'fixtures-dynamic/node_modules/invalid-app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   await t.throwsAsync(
     importLocation(readPowers, fixture, {
@@ -634,8 +634,36 @@ test('dynamic require of package missing an optional module', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/missing-app/index.js',
     import.meta.url,
-  ).toString();
+  ).href;
 
   const { namespace } = await importLocation(readPowers, fixture);
   t.like(namespace, { isOk: true, default: { isOk: true } });
+});
+
+test('dynamic require of ancestor relative path within known compartment should succeed', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/grabby-app/index.js',
+    import.meta.url,
+  ).href;
+
+  /** @type {ExitModuleImportNowHook} */
+  const importNowHook = (_specifier, _packageLocation) => {
+    throw new Error('exit module import now hook should not be called');
+  };
+
+  const { namespace } = await importLocation(readPowers, fixture, {
+    importNowHook,
+  });
+  t.like(namespace, { value: 'buried treasure' });
+});
+
+test('dynamic require of ancestor relative path within unknown compartment', async t => {
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/grabby-app-broken/index.js',
+    import.meta.url,
+  ).href;
+
+  await t.throwsAsync(importLocation(readPowers, fixture), {
+    message: /Could not import unknown module.+grabby-app\/macguffin/,
+  });
 });
