@@ -2,6 +2,7 @@
 /* eslint-disable no-use-before-define */
 
 import type { Rejector } from '@endo/errors/rejector.js';
+import type { RemotableBrand } from '@endo/eventual-send';
 import type {
   CopyArray,
   CopyRecord,
@@ -72,11 +73,11 @@ export type { FullCompare } from '@endo/marshal';
  *    contain more than one key.
  */
 export type Key = Exclude<
-  Passable<RemotableObject, never>,
+  Passable<RemotableObject | RemotableBrand<any, any>, never>,
   Error | Promise<any>
 >;
 
-export type ScalarKey = Atom | RemotableObject;
+export type ScalarKey = Atom | RemotableObject | RemotableBrand<any, any>;
 
 export type KeyToDBKey = (key: Key) => string;
 export type GetRankCover = (
