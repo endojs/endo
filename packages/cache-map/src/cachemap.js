@@ -240,21 +240,21 @@ export const makeCacheMapKit = (capacity, options = {}) => {
     return cell;
   };
 
-  /** @type {(key: K) => boolean} */
+  /** @type {WeakMapAPI<K, V>['has']} */
   const has = key => {
     const cell = touchKey(key);
     return cell !== undefined;
   };
   freeze(has);
 
-  /** @type {(key: K) => (V | undefined)} */
+  /** @type {WeakMapAPI<K, V>['get']} */
   const get = key => {
     const cell = touchKey(key);
     return cell?.data.get(key);
   };
   freeze(get);
 
-  /** @type {(key: K, value: V) => WeakMapAPI<K, V>} */
+  /** @type {WeakMapAPI<K, V>['set']} */
   const set = (key, value) => {
     let cell = touchKey(key);
     if (cell) {
@@ -286,7 +286,7 @@ export const makeCacheMapKit = (capacity, options = {}) => {
 
   // "delete" is a keyword.
   const { delete: deleteEntry } = {
-    /** @type {(key: K) => boolean} */
+    /** @type {WeakMapAPI<K, V>['delete']} */
     delete: key => {
       const cell = keyToCell.get(key);
       if (!cell?.data.has(key)) {
