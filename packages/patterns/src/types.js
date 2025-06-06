@@ -4,6 +4,7 @@ export {};
 
 // NB: as of TS 5.5 nightly, TS thinks RankCover and Checker "is declared but never read" but they are
 /**
+ * @import {RemotableBrand} from '@endo/eventual-send';
  * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Atom, RemotableObject} from '@endo/pass-style';
  * @import {PartialCompare, PartialComparison, RankCompare, RankCover} from '@endo/marshal';
  */
@@ -14,7 +15,7 @@ export {};
  */
 
 /**
- * @typedef {Exclude<Passable<RemotableObject, never>, Error | Promise>} Key
+ * @typedef {Exclude<Passable<RemotableObject | RemotableBrand<any, any>, never>, Error | Promise>} Key
  *
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
@@ -69,7 +70,7 @@ export {};
  */
 
 /**
- * @typedef {Atom | RemotableObject} ScalarKey
+ * @typedef {Atom | RemotableObject | RemotableBrand<any, any>} ScalarKey
  */
 
 /**

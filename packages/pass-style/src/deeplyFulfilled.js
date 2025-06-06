@@ -7,6 +7,7 @@ import { makeTagged } from './makeTagged.js';
 import { isAtom } from './typeGuards.js';
 
 /**
+ * @import {RemotableBrand} from '@endo/eventual-send';
  * @import {Passable, ByteArray, CopyRecord, CopyArray, CopyTagged, RemotableObject} from '@endo/pass-style'
  */
 
@@ -47,9 +48,11 @@ const { fromEntries } = Object;
  * @template T
  * @typedef {T extends PromiseLike<any>
  *     ? Awaited<T>
- *     : T extends {}
- *       ? Simplify<DeeplyAwaitedObject<T>>
- *       : Awaited<T>} DeeplyAwaited
+ *     : T extends (RemotableBrand<any, any> | RemotableObject)
+ *       ? T
+ *       : T extends {}
+ *         ? Simplify<DeeplyAwaitedObject<T>>
+ *         : Awaited<T>} DeeplyAwaited
  */
 
 /**
