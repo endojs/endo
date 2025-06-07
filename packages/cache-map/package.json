@@ -2,7 +2,7 @@
   "name": "@endo/cache-map",
   "version": "1.0.0",
   "description": "bounded-size caches having WeakMap-compatible methods",
-  "keywords": [],
+  "keywords": ["cache", "cache-map", "cachemap", "weakmap"],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/cache-map#readme",
