@@ -333,10 +333,12 @@ export default makeE;
  * An eventual value where remotable objects are recursively mapped to Remote types
  *
  * @template T
- * @typedef {EAwaitedResult<Awaited<T>>} EResult
+ * @typedef {Awaited<T>} EResult
  */
 
 /**
+ * Experimental type mapping remotable objects to Remote types
+ *
  * @template T
  * @typedef {(
  *   0 extends (1 & T)
@@ -354,14 +356,14 @@ export default makeE;
  */
 
 /**
- * The @see {EResult} mapped return type of a remote function.
+ * The @see {EResult} return type of a remote function.
  *
  * @template {(...args: any[]) => any} T
  * @typedef {(
  *   0 extends (1 & T)                          // If T is any
  *     ? any                                    // Propagate the any type through the result
  *     : T extends (...args: any[]) => infer R  // Else infer the return type
- *       ? EResult<R>                           // And map its resolution
+ *       ? EResult<R>                           // In the future, map the eventual result
  *       : never
  * )} ECallableReturn
  */
