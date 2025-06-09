@@ -14,10 +14,10 @@ import {
 } from './passStyle-helpers.js';
 
 /**
- * @import {Checker} from './types.js'
- * @import {InterfaceSpec, PassStyled} from './types.js'
- * @import {PassStyleHelper} from './internal-types.js'
- * @import {RemotableObject as Remotable} from './types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {InterfaceSpec, PassStyled} from './types.js';
+ * @import {PassStyleHelper} from './internal-types.js';
+ * @import {RemotableObject as Remotable} from './types.js';
  */
 
 const { ownKeys } = Reflect;
