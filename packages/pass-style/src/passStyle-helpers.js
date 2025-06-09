@@ -1,7 +1,9 @@
 /// <reference types="ses"/>
 
-/** @import {Checker} from './types.js' */
-/** @import {PassStyle} from './types.js' */
+/**
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {PassStyle} from './types.js';
+ */
 
 import { X, q } from '@endo/errors';
 
