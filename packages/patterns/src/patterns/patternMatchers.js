@@ -41,9 +41,10 @@ import {
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
 /**
- * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style'
- * @import {CopySet, CopyBag, ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js'
- * @import {MatchHelper, PatternKit} from './types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style';
+ * @import {CopySet, CopyBag, ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js';
+ * @import {MatchHelper, PatternKit} from './types.js';
  */
 
 const { entries, values, hasOwn } = Object;

@@ -1,6 +1,8 @@
 /// <reference types="ses"/>
 
-/** @import {Checker} from './types.js' */
+/**
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ */
 
 import {
   assertChecker,

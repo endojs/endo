@@ -3,7 +3,8 @@
 import { X, q } from '@endo/errors';
 
 /**
- * @import {Checker, PassStyle, JSPrimitive} from './types.js';
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {JSPrimitive, PassStyle} from './types.js';
  */
 
 const { isArray } = Array;

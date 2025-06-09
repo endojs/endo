@@ -13,10 +13,9 @@ import {
 } from './passStyle-helpers.js';
 
 /**
- * @import {Checker, RemotableMethodName} from './types.js'
- * @import {InterfaceSpec, PassStyled} from './types.js'
- * @import {PassStyleHelper} from './internal-types.js'
- * @import {RemotableObject as Remotable} from './types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {PassStyleHelper} from './internal-types.js';
+ * @import {InterfaceSpec, PassStyled, RemotableObject as Remotable, RemotableMethodName} from './types.js';
  */
 
 /**

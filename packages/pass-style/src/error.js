@@ -3,8 +3,11 @@
 import { q } from '@endo/errors';
 import { assertChecker, CX } from './passStyle-helpers.js';
 
-/** @import {PassStyleHelper} from './internal-types.js' */
-/** @import {Checker, PassStyle, PassStyleOf} from './types.js' */
+/**
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {PassStyleHelper} from './internal-types.js';
+ * @import {PassStyle, PassStyleOf} from './types.js';
+ */
 
 const { getPrototypeOf, getOwnPropertyDescriptors, hasOwn, entries } = Object;
 

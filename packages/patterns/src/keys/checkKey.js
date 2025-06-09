@@ -22,8 +22,9 @@ import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 const { ownKeys } = Reflect;
 
 /**
- * @import {Passable, Atom, Checker} from '@endo/pass-style'
- * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {Passable, Atom} from '@endo/pass-style';
+ * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js';
  */
 
 // ////////////////// Atom and Scalar keys ////////////////////////////////
