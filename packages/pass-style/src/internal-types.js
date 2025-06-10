@@ -1,8 +1,10 @@
 export {};
 
-/** @import {Checker} from './types.js' */
-/** @import {PassStyle} from './types.js' */
-/** @import {PassStyleOf} from './types.js' */
+/**
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {PassStyle} from './types.js';
+ * @import {PassStyleOf} from './types.js';
+ */
 
 /**
  * The PassStyleHelper are only used to make a `passStyleOf` function.
