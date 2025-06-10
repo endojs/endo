@@ -45,7 +45,9 @@ if (transfer) {
     // Hopefully, a zero-length slice is cheap, but still enforces that
     // `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
     arrayBufferSlice(arrayBuffer, 0, 0);
-    return originalStructuredCloneMaybe(arrayBuffer, { transfer: [arrayBuffer] });
+    return originalStructuredCloneMaybe(arrayBuffer, {
+      transfer: [arrayBuffer],
+    });
   };
 } else {
   // Indeed, Node <= 16 has neither.
