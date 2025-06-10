@@ -5,7 +5,7 @@ import { makeFinalizingMap } from './finalize.js';
 
 export { E };
 
-/** @import {ERef, EResult, RemotableBrand} from '@endo/eventual-send' */
+/** @import {ERef} from '@endo/eventual-send' */
 
 /**
  * Create an async-isolated channel to an object.
@@ -14,8 +14,8 @@ export { E };
  * @param {import('./captp.js').CapTPOptions} [nearOptions]
  * @param {import('./captp.js').CapTPOptions} [farOptions]
  * @returns {{
- *   makeFar<T>(x: T): Promise<EResult<T>>,
- *   makeNear<T>(x: T): Promise<EResult<T>>,
+ *   makeFar<T>(x: T): Promise<ERef<T>>,
+ *   makeNear<T>(x: T): Promise<ERef<T>>,
  *   makeTrapHandler<T>(name: string, x: T): T,
  *   isOnlyNear(x: any): boolean,
  *   isOnlyFar(x: any): boolean,
@@ -92,13 +92,14 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
     refGetter =>
     /**
      * @param {T} x
-     * @returns {Promise<EResult<T>>}
+     * @returns {Promise<T>}
      */
     async x => {
       lastNonce += 1;
       const myNonce = lastNonce;
       const val = await x;
       nonceToRef.set(myNonce, harden(val));
+
       return E(refGetter).getRef(myNonce);
     };
 
