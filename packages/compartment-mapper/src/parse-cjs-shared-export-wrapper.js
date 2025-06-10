@@ -12,6 +12,7 @@ import { findInvalidReadNowPowersProps, isReadNowPowers } from './powers.js';
 
 const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
+const { Proxy, Set, URL } = globalThis;
 
 /**
  * @param {object} object
