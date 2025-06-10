@@ -2,7 +2,7 @@ import test from 'ava';
 import { assertLogs, throwsAndLogs } from './_throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';
 
-const { details: X, quote: q, bare: b, error: makeError } = assert;
+const { details: X, quote: q, bare: b, error: makeError, Fail } = assert;
 
 // Self-test of the example from the throwsAndLogs comment.
 test('throwsAndLogs with data', t => {
@@ -86,11 +86,11 @@ test('causal tree', t => {
       const fooErr = SyntaxError('foo');
       let err1;
       try {
-        assert.fail(X`synful ${fooErr}`);
+        Fail`synful ${fooErr}`;
       } catch (e1) {
         err1 = e1;
       }
-      assert.fail(X`because ${err1}`);
+      Fail`because ${err1}`;
     },
     /because/,
     [['log', 'Caught', Error]],
@@ -101,11 +101,11 @@ test('causal tree', t => {
       const fooErr = SyntaxError('foo');
       let err1;
       try {
-        assert.fail(X`synful ${fooErr}`);
+        Fail`synful ${fooErr}`;
       } catch (e1) {
         err1 = e1;
       }
-      assert.fail(X`because ${err1}`);
+      Fail`because ${err1}`;
     },
     /because/,
     [
@@ -149,12 +149,12 @@ test('a causal tree falls silently', t => {
     const fooErr = SyntaxError('foo');
     let err1;
     try {
-      assert.fail(X`synful ${fooErr}`);
+      Fail`synful ${fooErr}`;
     } catch (e1) {
       err1 = e1;
     }
     try {
-      assert.fail(X`because ${err1}`);
+      Fail`because ${err1}`;
     } catch (e2) {
       t.assert(e2 instanceof Error);
     }
@@ -165,12 +165,12 @@ test('a causal tree falls silently', t => {
       const fooErr = SyntaxError('foo');
       let err1;
       try {
-        assert.fail(X`synful ${fooErr}`);
+        Fail`synful ${fooErr}`;
       } catch (e1) {
         err1 = e1;
       }
       try {
-        assert.fail(X`because ${err1}`);
+        Fail`because ${err1}`;
       } catch (e2) {
         t.assert(e2 instanceof Error);
       }
@@ -336,15 +336,12 @@ test('makeError named', t => {
 });
 
 test('assert.quote', t => {
+  throwsAndLogs(t, () => Fail`<${'bar'},${q('baz')}>`, /<\(a string\),"baz">/, [
+    ['log', 'Caught', Error],
+  ]);
   throwsAndLogs(
     t,
-    () => assert.fail(X`<${'bar'},${q('baz')}>`),
-    /<\(a string\),"baz">/,
-    [['log', 'Caught', Error]],
-  );
-  throwsAndLogs(
-    t,
-    () => assert.fail(X`<${'bar'},${q('baz')}>`),
+    () => Fail`<${'bar'},${q('baz')}>`,
     /<\(a string\),"baz">/,
     [
       ['log', 'Caught', '(Error#1)'],
@@ -355,47 +352,45 @@ test('assert.quote', t => {
   );
   /** @type {any[]} */
   const list = ['a', 'b', 'c'];
-  throwsAndLogs(t, () => assert.fail(X`${q(list)}`), /\["a","b","c"\]/, [
+  throwsAndLogs(t, () => Fail`${q(list)}`, /\["a","b","c"\]/, [
     ['log', 'Caught', Error],
   ]);
   const repeat = { x: list, y: list };
   throwsAndLogs(
     t,
-    () => assert.fail(X`${q(repeat)}`),
+    () => Fail`${q(repeat)}`,
     /{"x":\["a","b","c"\],"y":"\[Seen\]"}/,
     [['log', 'Caught', Error]],
   );
   // Make it into a cycle
   list[1] = list;
-  throwsAndLogs(t, () => assert.fail(X`${q(list)}`), /\["a","\[Seen\]","c"\]/, [
+  throwsAndLogs(t, () => Fail`${q(list)}`, /\["a","\[Seen\]","c"\]/, [
     ['log', 'Caught', Error],
   ]);
   throwsAndLogs(
     t,
-    () => assert.fail(X`${q(repeat)}`),
+    () => Fail`${q(repeat)}`,
     /{"x":\["a","\[Seen\]","c"\],"y":"\[Seen\]"}/,
     [['log', 'Caught', Error]],
   );
 });
 
 test('assert.bare', t => {
-  throwsAndLogs(t, () => assert.fail(X`${b('foo')}`), 'foo', [
-    ['log', 'Caught', Error],
-  ]);
+  throwsAndLogs(t, () => Fail`${b('foo')}`, 'foo', [['log', 'Caught', Error]]);
   // Spaces are allowed in bare values.
-  throwsAndLogs(t, () => assert.fail(X`${b('foo bar')}`), 'foo bar', [
+  throwsAndLogs(t, () => Fail`${b('foo bar')}`, 'foo bar', [
     ['log', 'Caught', Error],
   ]);
   // Multiple consecutive spaces are disallowed and fall back to quote.
-  throwsAndLogs(t, () => assert.fail(X`${b('foo  bar')}`), '"foo  bar"', [
+  throwsAndLogs(t, () => Fail`${b('foo  bar')}`, '"foo  bar"', [
     ['log', 'Caught', Error],
   ]);
   // Strings with non-word punctuation also fall back.
-  throwsAndLogs(t, () => assert.fail(X`${b('foo%bar')}`), '"foo%bar"', [
+  throwsAndLogs(t, () => Fail`${b('foo%bar')}`, '"foo%bar"', [
     ['log', 'Caught', Error],
   ]);
   // Non-strings also fall back.
-  throwsAndLogs(t, () => assert.fail(X`${b(undefined)}`), '"[undefined]"', [
+  throwsAndLogs(t, () => Fail`${b(undefined)}`, '"[undefined]"', [
     ['log', 'Caught', Error],
   ]);
 });
