@@ -5,7 +5,7 @@ import { makeFinalizingMap } from './finalize.js';
 
 export { E };
 
-/** @import {ERef, EResult, RemotableBrand} from '@endo/eventual-send' */
+/** @import {ERef, EResult} from '@endo/eventual-send' */
 
 /**
  * Create an async-isolated channel to an object.
@@ -99,6 +99,7 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
       const myNonce = lastNonce;
       const val = await x;
       nonceToRef.set(myNonce, harden(val));
+      // @ts-expect-error Type 'T | Awaited<T>' is not assignable to type 'EResult<T>'
       return E(refGetter).getRef(myNonce);
     };
 
