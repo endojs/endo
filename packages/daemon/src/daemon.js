@@ -538,6 +538,7 @@ const makeDaemonCore = async (
         worker: workerId,
         endo: endoId,
         networks: networksId,
+        pins: pinsId,
       },
       context,
       id,
@@ -552,6 +553,7 @@ const makeDaemonCore = async (
         workerId,
         endoId,
         networksId,
+        pinsId,
         leastAuthorityId,
         platformNames,
         context,
@@ -592,7 +594,12 @@ const makeDaemonCore = async (
       agentIdForHandle.set(handle, agentId);
       return handle;
     },
-    endo: async ({ host: hostId, networks: networksId, peers: peersId }) => {
+    endo: async ({
+      host: hostId,
+      networks: networksId,
+      pins: pinsId,
+      peers: peersId,
+    }) => {
       /** @type {FarRef<EndoBootstrap>} */
       const endoBootstrap = makeExo('Endo', EndoInterface, {
         ping: async () => 'pong',
@@ -608,6 +615,11 @@ const makeDaemonCore = async (
           const networksDirectory = await provide(networksId, 'directory');
           const networkIds = await networksDirectory.listIdentifiers();
           await Promise.allSettled(networkIds.map(id => provide(id)));
+        },
+        revivePins: async () => {
+          const pinsDirectory = await provide(pinsId, 'directory');
+          const pinIds = await pinsDirectory.listIdentifiers();
+          await Promise.allSettled(pinIds.map(id => provide(id)));
         },
         addPeerInfo: async peerInfo => {
           const knownPeers = await provide(peersId, 'pet-store');
@@ -1052,6 +1064,7 @@ const makeDaemonCore = async (
       worker: identifiers.workerId,
       endo: identifiers.endoId,
       networks: identifiers.networksDirectoryId,
+      pins: identifiers.pinsDirectoryId,
     };
 
     return /** @type {FormulateResult<EndoHost>} */ (
@@ -1063,6 +1076,7 @@ const makeDaemonCore = async (
   const formulateHost = async (
     endoId,
     networksDirectoryId,
+    pinsDirectoryId,
     deferredTasks,
     specifiedWorkerId,
   ) => {
@@ -1072,6 +1086,7 @@ const makeDaemonCore = async (
         const identifiers = await formulateHostDependencies({
           endoId,
           networksDirectoryId,
+          pinsDirectoryId,
           specifiedWorkerId,
         });
 
@@ -1456,12 +1471,14 @@ const makeDaemonCore = async (
         await randomHex512(),
       );
       const { id: networksDirectoryId } = await formulateNetworksDirectory();
+      const { id: pinsDirectoryId } = await formulateDirectory();
 
       // Ensure the default host is formulated and persisted.
       const { id: defaultHostId } = await formulateNumberedHost(
         await formulateHostDependencies({
           endoId,
           networksDirectoryId,
+          pinsDirectoryId,
           specifiedWorkerId: defaultHostWorkerId,
         }),
       );
@@ -1470,6 +1487,7 @@ const makeDaemonCore = async (
         formulaNumber,
         defaultHostId,
         networksDirectoryId,
+        pinsDirectoryId,
       };
     });
 
@@ -1477,6 +1495,7 @@ const makeDaemonCore = async (
     const formula = {
       type: 'endo',
       networks: identifiers.networksDirectoryId,
+      pins: identifiers.pinsDirectoryId,
       peers: knownPeersId,
       host: identifiers.defaultHostId,
       leastAuthority: leastAuthorityId,
@@ -1846,7 +1865,10 @@ export const makeDaemon = async (
     specials,
   });
 
-  await E(endoBootstrap).reviveNetworks();
+  await Promise.allSettled([
+    E(endoBootstrap).reviveNetworks(),
+    E(endoBootstrap).revivePins(),
+  ]);
 
   return { endoBootstrap, cancelGracePeriod };
 };

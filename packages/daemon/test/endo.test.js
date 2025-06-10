@@ -1087,6 +1087,62 @@ test('followLocatorNameChanges does not notify of redundant pet store writes', a
   t.deepEqual(value, { add: tenLocator, names: ['zehn'] });
 });
 
+test('pins restored on restart', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    await E(host).evaluate(
+      'MAIN',
+      `
+      let value = 0;
+      makeExo(
+        'Counter',
+        M.interface('Counter', {}, { defaultGuards: 'passable' }),
+        {
+          incr: () => value += 1,
+          get: () => value,
+        }
+      )
+    `,
+      [],
+      [],
+      ['counter'],
+    );
+
+    await E(host).evaluate(
+      'MAIN',
+      `E(counter).incr()`,
+      ['counter'],
+      ['counter'],
+      ['incr'],
+    );
+
+    const counter = E(host).lookup('counter');
+    t.is(await E(counter).get(), 1);
+
+    await restart(config);
+  }
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const counter = E(host).lookup('counter');
+    t.is(await E(counter).get(), 0);
+
+    await E(host).move(['incr'], ['PINS', 'incr']);
+    t.deepEqual(await E(host).list('PINS'), ['incr']);
+
+    await restart(config);
+  }
+
+  {
+    const { host } = await makeHost(config, cancelled);
+    const counter = E(host).lookup('counter');
+    // indicates that PINS.incr side-effect applied on restart
+    t.is(await E(counter).get(), 1);
+  }
+});
+
 test('direct cancellation', async t => {
   const { host } = await prepareHost(t);
 
