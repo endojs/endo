@@ -368,16 +368,17 @@ export default makeE;
  * )} ECallableReturn
  */
 
+// TODO: Figure out a way to map generic callable return types, or at least better detect them.
+// See https://github.com/microsoft/TypeScript/issues/61838. Without that, `E(startGovernedUpgradable)`
+// in agoric-sdk doesn't propagate the start function type.
 /**
  * Maps a callable to its remotely called type
  *
  * @template {Callable} T
  * @typedef {(
- *    ((...args: Parameters<T>) => ReturnType<T>) extends T         // Check if T is a generic callable
- *      ? (...args: Parameters<T>) => Promise<ECallableReturn<T>>   // It's not so safe to map it
- *      : ReturnType<T> extends PromiseLike<infer U>                // Check if original generic callable returns a promise
- *        ? T                                                       // Bypass mapping to maintain generic
- *        : (...args: Parameters<T>) => Promise<ECallableReturn<T>> // Map it anyway to ensure promise return type
+ *    ReturnType<T> extends PromiseLike<infer U>                  // Check if callable returns a promise
+ *      ? T                                                       // Bypass mapping to maintain any generic
+ *      : (...args: Parameters<T>) => Promise<ECallableReturn<T>> // Map it anyway to ensure promise return type
  * )} ECallable
  */
 
