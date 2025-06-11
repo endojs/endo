@@ -115,7 +115,7 @@ export const makeWorkerFacet = ({ cancel }) => {
  * @param {Promise<never>} cancelled
  */
 export const main = async (powers, pid, cancel, cancelled) => {
-  console.error(`Endo worker started on pid ${pid}`);
+  console.error(`Endo worker started on pid ${pid} with sources at ${import.meta.url}`);
   cancelled.catch(() => {
     console.error(`Endo worker exiting on pid ${pid}`);
   });

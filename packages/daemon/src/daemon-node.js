@@ -88,7 +88,7 @@ const updateRecordedPid = async () => {
 
 const main = async () => {
   const daemonLabel = `daemon on PID ${pid}`;
-  console.log(`Endo daemon starting on PID ${pid}`);
+  console.log(`Endo daemon starting on PID ${pid} with sources at ${import.meta.url}`);
   cancelled.catch(() => {
     console.log(`Endo daemon stopping on PID ${pid}`);
   });
