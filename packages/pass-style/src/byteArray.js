@@ -1,4 +1,4 @@
-import { X } from '@endo/errors';
+import { X, Fail } from '@endo/errors';
 
 /**
  * @import {PassStyleHelper} from './internal-types.js';
@@ -39,7 +39,7 @@ export const ByteArrayHelper = harden({
     getPrototypeOf(candidate) === ImmutableArrayBufferPrototype ||
       assert.fail(X`Malformed ByteArray ${candidate}`, TypeError);
     apply(immutableGetter, candidate, []) ||
-      assert.fail(X`Must be an immutable ArrayBuffer: ${candidate}`);
+      Fail`Must be an immutable ArrayBuffer: ${candidate}`;
     ownKeys(candidate).length === 0 ||
       assert.fail(
         X`ByteArrays must not have own properties: ${candidate}`,
