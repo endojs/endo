@@ -42,7 +42,7 @@
  * } from './types/node-modules.js'
  */
 
-import { pathCompare } from './compartment-map.js';
+import { pathCompare } from '@endo/path-compare';
 import { inferExportsAndAliases } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { join } from './node-module-specifier.js';
