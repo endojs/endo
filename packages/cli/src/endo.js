@@ -85,9 +85,6 @@ export const main = async rawArgs => {
         as: agentNames,
         open: doOpen,
       } = cmd.opts();
-      if (requestedPort === undefined) {
-        throw 'The -l, --listen, or --port <number> flag is required';
-      }
       const { install } = await import('./commands/install.js');
       return install({
         doOpen,
