@@ -3,6 +3,8 @@
 const { setPrototypeOf, getOwnPropertyDescriptors } = Object;
 const { apply } = Reflect;
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
+// Capture structuredClone before it could be scuttled.
+const { structuredClone: originalStructuredCloneMaybe } = globalThis;
 
 const {
   slice,
@@ -38,12 +40,14 @@ let arrayBufferTransfer;
 
 if (transfer) {
   arrayBufferTransfer = arrayBuffer => apply(transfer, arrayBuffer, []);
-} else if (globalThis.structuredClone) {
+} else if (originalStructuredCloneMaybe) {
   arrayBufferTransfer = arrayBuffer => {
     // Hopefully, a zero-length slice is cheap, but still enforces that
     // `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
     arrayBufferSlice(arrayBuffer, 0, 0);
-    return globalThis.structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
+    return originalStructuredCloneMaybe(arrayBuffer, {
+      transfer: [arrayBuffer],
+    });
   };
 } else {
   // Indeed, Node <= 16 has neither.
