@@ -17,7 +17,7 @@ graph TD
   bar --> baz
 ```
 
-The computed _path_ from `entry` to `baz` as `['foo', 'bar', 'baz']`.
+The computed _path_ from `entry` to `baz` is `['foo', 'bar', 'baz']`.
 
 If we have another dependency tree like this:
 
