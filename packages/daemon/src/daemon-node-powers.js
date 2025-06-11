@@ -68,8 +68,14 @@ export const makeSocketPowers = ({ net }) => {
   const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
     serveListener(
       server =>
-        new Promise(resolve =>
-          server.listen(port, host, () => resolve(server.address().port)),
+        new Promise((resolve, reject) =>
+          server.listen(port, host, error => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(server.address().port);
+            }
+          }),
         ),
       cancelled,
     );
