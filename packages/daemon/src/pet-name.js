@@ -23,7 +23,7 @@ export const assertPetName = petName => {
  */
 export const assertPetNamePath = petNamePath => {
   if (!Array.isArray(petNamePath) || petNamePath.length < 1) {
-    throw new Error(`Invalid pet name path`);
+    throw new Error(`Invalid pet name path ${q(petNamePath)}`);
   }
   for (const petName of petNamePath) {
     assertPetName(petName);

@@ -106,22 +106,41 @@ const bootstrap = makeExo('EndoWebPageForServer', WebPageControllerInterface, {
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-const ws = new WebSocket(url.href);
-ws.binaryType = 'arraybuffer';
-ws.addEventListener('open', () => {
+if (globalThis.localhost !== undefined && globalThis.localhost.canConnectCaptp0) {
+  const {port1, port2} = new MessageChannel();
+  window.postMessage('captp0-connect', new URL(window.location).origin, [port2]);
   const send = message => {
-    // console.log('send', message);
-    ws.send(textEncoder.encode(JSON.stringify(message)));
+   //console.log('send', message);
+   port1.postMessage(textEncoder.encode(JSON.stringify(message)));
   };
+  port1.addEventListener('message', event => {
+     const message = JSON.parse(textDecoder.decode(event.data));
+     //console.log('received', message);
+     dispatch(message);
+  });
+  port1.addEventListener('messageerror', event => {
+    console.error('messageerror', event);
+  });
   const { dispatch, abort } = makeCapTP('WebClient', send, bootstrap);
-  ws.addEventListener('message', event => {
-    const message = JSON.parse(textDecoder.decode(event.data));
-    // console.log('received', message);
-    dispatch(message);
+  port1.start();
+} else {
+  const ws = new WebSocket(url.href);
+  ws.binaryType = 'arraybuffer';
+  ws.addEventListener('open', () => {
+    const send = message => {
+      // console.log('send', message);
+      ws.send(textEncoder.encode(JSON.stringify(message)));
+    };
+    const { dispatch, abort } = makeCapTP('WebClient', send, bootstrap);
+    ws.addEventListener('message', event => {
+      const message = JSON.parse(textDecoder.decode(event.data));
+      // console.log('received', message);
+      dispatch(message);
+    });
+    ws.addEventListener('close', () => {
+      abort();
+    });
   });
-  ws.addEventListener('close', () => {
-    abort();
-  });
-});
+}
 
 document.body.innerHTML = '<h1>⌛️</h1>';

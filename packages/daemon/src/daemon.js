@@ -165,11 +165,14 @@ const makeDaemonCore = async (
     type: 'least-authority',
   });
   const { id: mainWorkerId } = await preformulate('main', { type: 'worker' });
+  //const { id: scratchPetStoreId } = await preformulate('scratch', { type: 'pet-store' });
+  //const { id: scratchDirectoryId } = await preformulate('scratch', { type: 'directory', petStore: scratchPetStoreId });
 
   /** @type {Builtins} */
   const builtins = {
     NONE: leastAuthorityId,
     MAIN: mainWorkerId,
+    //SCRATCH: scratchDirectoryId,
   };
 
   // Prepare platform formulas
@@ -1866,6 +1869,9 @@ export const makeDaemon = async (
   });
 
   await Promise.allSettled([
+    ...Object.keys(specials).map(name =>
+      E(E(endoBootstrap).host()).provide(name),
+    ),
     E(endoBootstrap).reviveNetworks(),
     E(endoBootstrap).revivePins(),
   ]);

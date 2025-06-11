@@ -20,6 +20,7 @@ const endowments = harden({
   M,
   TextEncoder,
   TextDecoder,
+  // TODO harden URL
   URL,
 });
 

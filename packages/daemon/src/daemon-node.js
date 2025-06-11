@@ -102,10 +102,10 @@ const main = async () => {
     cancelled,
     {
       /** @param {Builtins} builtins */
-      APPS: ({ MAIN, NONE }) => ({
+      APPS: ({ MAIN, SCRATCH }) => ({
         type: /** @type {const} */ ('make-unconfined'),
         worker: MAIN,
-        powers: NONE,
+        powers: SCRATCH,
         specifier: new URL('web-server-node.js', import.meta.url).href,
       }),
     },

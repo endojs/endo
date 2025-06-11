@@ -48,7 +48,7 @@ export const make = async (powers, context) => {
     // TODO more validation
     const hostPort = await E(powers).request(
       'SELF',
-      'Please select a host:port like 127.0.0.1:8920',
+      'Please select a host:port like 127.0.0.1:8922',
       'tcp-netstring-json-captp0-host-port',
     );
     const { hostname: host, port: portname } = new URL(

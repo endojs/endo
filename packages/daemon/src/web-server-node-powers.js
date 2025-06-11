@@ -33,10 +33,6 @@ export const makeHttpPowers = ({ http, ws }) => {
   }) => {
     const server = createServer();
 
-    server.on('error', error => {
-      console.error(error);
-    });
-
     if (respond) {
       const sendResponse = async (req, res) => {
         const response = await respond(
@@ -164,6 +160,10 @@ export const makeHttpPowers = ({ http, ws }) => {
     }
 
     return new Promise((resolve, reject) => {
+      server.once('error', error => {
+        reject(error);
+      });
+
       server.listen(port, host, error => {
         if (error) {
           reject(error);

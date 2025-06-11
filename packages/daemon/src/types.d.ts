@@ -247,6 +247,7 @@ export type Formula =
 export type Builtins = {
   NONE: string;
   MAIN: string;
+  SCRATCH: string;
 };
 
 export type Specials = {

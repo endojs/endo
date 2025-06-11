@@ -163,7 +163,7 @@ export interface CompartmentOptions {
   importNowHook?: ImportNowHook;
   importMetaHook?: ImportMetaHook;
   resolveHook?: ResolveHook;
-  globals?: Object,
+  globals?: Object;
   modules?: ModuleMap;
   __shimTransforms__?: Array<Transform>;
   __noNamespaceBox__?: boolean;

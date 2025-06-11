@@ -296,7 +296,6 @@ export const compartmentOptions = (...args) => {
       modules = /** @type {Map<string, ModuleDescriptor>} */ ({}),
       options = {},
     ] = /** @type {LegacyCompartmentOptionsArgs} */ (args);
-    const [globals, modules, options = {}] = args;
     if (
       args.length >= 1 &&
       Object(globals) !== globals &&
