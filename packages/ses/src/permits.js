@@ -1372,6 +1372,8 @@ export const permitted = {
     '[[Proto]]': '%ArrayBufferPrototype%',
     byteLength: getter,
     slice: fn,
+    // See https://github.com/endojs/endo/tree/master/packages/immutable-arraybuffer#purposeful-violation
+    '@@toStringTag': 'string',
     // See https://github.com/tc39/proposal-resizablearraybuffer
     transfer: fn,
     resize: fn,
