@@ -14,6 +14,7 @@
  * @import {
  *   ImportHook,
  *   ImportNowHook,
+ *   RecordModuleDescriptor,
  *   RedirectStaticModuleInterface,
  *   StaticModuleType,
  *   VirtualModuleSource
@@ -279,7 +280,7 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
  * @param {ChooseModuleDescriptorParams} options Options/context
  * @param {Operators} operators Operators
  * @returns {Generator<ChooseModuleDescriptorYieldables,
- * StaticModuleType|undefined, Awaited<ChooseModuleDescriptorYieldables>>}
+ * RecordModuleDescriptor|undefined, Awaited<ChooseModuleDescriptorYieldables>>}
  * Generator
  */
 function* chooseModuleDescriptor(
@@ -381,7 +382,7 @@ function* chooseModuleDescriptor(
           compartment: packageLocation,
         };
       }
-      /** @type {StaticModuleType} */
+      /** @type {RecordModuleDescriptor} */
       const record = {
         record: concreteRecord,
         specifier: candidateSpecifier,
@@ -495,6 +496,7 @@ export const makeImportHookMaker = (
     entryCompartmentName,
     entryModuleSpecifier,
     importHook: exitModuleImportHook = undefined,
+    additionalPackageDetails = {},
   },
 ) => {
   // Set of specifiers for modules (scoped to compartment) whose parser is not
@@ -547,7 +549,6 @@ export const makeImportHookMaker = (
 
       // for lint rule
       await null;
-
       // All importHook errors must be deferred if coming from loading dependencies
       // identified by a parser that discovers imports heuristically.
       try {
@@ -621,6 +622,23 @@ export const makeImportHookMaker = (
         );
 
         if (record) {
+          if (additionalPackageDetails[compartmentDescriptor.location]) {
+            for (const {
+              moduleSpecifier: additionalPackageModuleSpecifier,
+              packageLocation: additionalPackageLocation,
+            } of additionalPackageDetails[compartmentDescriptor.location]) {
+              if (compartmentDescriptors[additionalPackageLocation]) {
+                // XXX: this "works" but that's probably a conincidence!
+                record.record?.imports?.push(
+                  `${compartmentDescriptors[additionalPackageLocation].name}${additionalPackageModuleSpecifier.substring(1)}`,
+                );
+              } else {
+                throw new Error(
+                  `Cannot find compartment descriptor for additional package location ${q(additionalPackageLocation)}`,
+                );
+              }
+            }
+          }
           return record;
         }
 

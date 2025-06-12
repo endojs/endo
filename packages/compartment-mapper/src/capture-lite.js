@@ -95,6 +95,7 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     Compartment = defaultCompartment,
+    additionalPackageDetails = {},
   } = options;
 
   const parserForLanguage = freeze(
@@ -127,6 +128,7 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     entryModuleSpecifier,
     importHook: consolidatedExitModuleImportHook,
     sourceMapHook,
+    additionalPackageDetails,
   });
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const { compartment, attenuatorsCompartment } = link(compartmentMap, {

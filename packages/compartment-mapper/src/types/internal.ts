@@ -23,6 +23,7 @@ import type {
 } from './powers.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
 import type {
+  AdditionalPackageDetailsOptions,
   ArchiveOnlyOption,
   AsyncParseFn,
   CompartmentSources,
@@ -83,7 +84,8 @@ export type MakeImportHookMakersOptions = {
   SourceMapHookOption;
 
 export type MakeImportHookMakerOptions = MakeImportHookMakersOptions &
-  ExitModuleImportHookOption;
+  ExitModuleImportHookOption &
+  AdditionalPackageDetailsOptions;
 export type MakeImportNowHookMakerOptions = MakeImportHookMakersOptions &
   ExitModuleImportNowHookOption;
 

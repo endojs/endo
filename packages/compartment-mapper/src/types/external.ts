@@ -19,6 +19,7 @@ import type {
   LanguageForExtension,
 } from './compartment-map-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
+import type { PackageDescriptor } from './internal.js';
 
 /**
  * Set of options available in the context of code execution.
@@ -65,7 +66,8 @@ export interface LogOptions {
  */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   PolicyOption &
-  LogOptions;
+  LogOptions &
+  AdditionalPackageDetailsOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
   /** @deprecated renamed `conditions` to be consistent with Node.js */
@@ -124,20 +126,47 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * from the `parserForLanguage` option.
    */
   languages: Array<Language>;
+
+  /**
+   * An array of `moduleLocations` _in addition_ to the entry `moduleLocation`.
+   *
+   * These will be treated as entry modules for the purposes of generating the
+   * graph, but will not be treated as the entry module for the purposes of the
+   * compartment map.
+   *
+   * The key is the location of the package whose
+   * {@link CompartmentDescriptor.modules} should contain a references to
+   * explicit package locations. The value is the list of those package
+   * locations.
+   */
+  additionalModuleLocations: Record<string, string[]>;
 }>;
 
-/**
- * @deprecated Use `mapNodeModules()`.
- */
 export type CompartmentMapForNodeModulesOptions = Omit<
   MapNodeModulesOptions,
-  'conditions' | 'tags'
+  'conditions' | 'tags' | 'additionalModuleLocations'
+>;
+
+/**
+ * To be composed in options bags including an `additionalPackageDetails` property.
+ */
+export interface AdditionalPackageDetailsOptions {
+  additionalPackageDetails?: AdditionalPackageDetailsMap;
+}
+
+/**
+ * Mapping of referrer package locations to additional package details
+ */
+export type AdditionalPackageDetailsMap = Record<
+  string,
+  AdditionalPackageDetails[]
 >;
 
 export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
   PolicyOption &
-  LogOptions;
+  LogOptions &
+  AdditionalPackageDetailsOptions;
 
 export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
@@ -551,3 +580,12 @@ export type ParserForLanguage = Record<Language | string, ParserImplementation>;
  * Generic logging function accepted by various functions.
  */
 export type LogFn = (message: string, ...args: any[]) => void;
+
+/**
+ * Object describing additional packages to be injected into the `CompartmentMapDescriptor`.
+ */
+export interface AdditionalPackageDetails {
+  packageLocation: string;
+  packageDescriptor: PackageDescriptor;
+  moduleSpecifier: string;
+}
