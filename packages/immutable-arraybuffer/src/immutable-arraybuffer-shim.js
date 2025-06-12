@@ -1,0 +1,103 @@
+import {
+  isBufferImmutable,
+  sliceBufferToImmutable,
+  transferBufferToImmutableMaybe,
+} from './immutable-arraybuffer-pony.js';
+
+// Even though the exported one is not a live binding, TS doesn't know that,
+// so it cannot do it's normal flow-based inference. By making a using a local
+// copy, no problem.
+const tbtiMaybe = transferBufferToImmutableMaybe;
+
+const { getOwnPropertyDescriptors, defineProperties, defineProperty } = Object;
+const { ownKeys } = Reflect;
+const { prototype: arrayBufferPrototype } = ArrayBuffer;
+
+const arrayBufferMethods = {
+  /**
+   * Creates an immutable slice of the given buffer.
+   *
+   * @this {ArrayBuffer} buffer The original buffer.
+   * @param {number} [start] The start index.
+   * @param {number} [end] The end index.
+   * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+   */
+  sliceToImmutable(start = undefined, end = undefined) {
+    return sliceBufferToImmutable(this, start, end);
+  },
+
+  get immutable() {
+    return isBufferImmutable(this);
+  },
+};
+
+// Better fidelity emulation of a class prototype
+for (const key of ownKeys(arrayBufferMethods)) {
+  defineProperty(arrayBufferMethods, key, {
+    enumerable: false,
+  });
+}
+
+if ('sliceToImmutable' in arrayBufferPrototype) {
+  // Modern shim practice frowns on conditional installation, at least for
+  // proposals prior to stage 3. This is so changes to the proposal since
+  // an old shim was distributed don't need to worry about the proposal
+  // breaking old code depending on the old shim. Thus, if we detect that
+  // we're about to overwrite a prior installation, we simply issue this
+  // warning and continue.
+  //
+  // TODO, if the primordials are frozen after the prior implementation, such as
+  // by `lockdown`, then this precludes overwriting as expected. However, for
+  // this case, the following warning text will be confusing.
+  console.warn(
+    'About to overwrite a prior implementation of "sliceToImmutable"',
+  );
+}
+
+defineProperties(
+  arrayBufferPrototype,
+  getOwnPropertyDescriptors(arrayBufferMethods),
+);
+
+if (tbtiMaybe) {
+  const moreMethods = {
+    /**
+     * Transfer the contents to a new Immutable ArrayBuffer
+     *
+     * @this {ArrayBuffer} buffer The original buffer.
+     * @param {number} [newLength] The start index.
+     * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+     */
+    transferToImmutable(newLength = undefined) {
+      return tbtiMaybe(this, newLength);
+    },
+  };
+
+  // Better fidelity emulation of a class prototype
+  for (const key of ownKeys(moreMethods)) {
+    defineProperty(moreMethods, key, {
+      enumerable: false,
+    });
+  }
+
+  if ('transferToImmutable' in arrayBufferPrototype) {
+    // Modern shim practice frowns on conditional installation, at least for
+    // proposals prior to stage 3. This is so changes to the proposal since
+    // an old shim was distributed don't need to worry about the proposal
+    // breaking old code depending on the old shim. Thus, if we detect that
+    // we're about to overwrite a prior installation, we simply issue this
+    // warning and continue.
+    //
+    // TODO, if the primordials are frozen after the prior implementation, such as
+    // by `lockdown`, then this precludes overwriting as expected. However, for
+    // this case, the following warning text will be confusing.
+    console.warn(
+      'About to overwrite a prior implementation of "transferToImmutable"',
+    );
+  }
+
+  defineProperties(
+    arrayBufferPrototype,
+    getOwnPropertyDescriptors(moreMethods),
+  );
+}
