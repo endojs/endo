@@ -2,21 +2,17 @@ import type {
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
-import type { LogOptions } from './external.js';
+import type {
+  AdditionalPackageDetailsOptions,
+  LogOptions,
+} from './external.js';
 import type { PackageDescriptor } from './internal.js';
+import type { SomePolicy } from './policy-schema.js';
 
 export type CommonDependencyDescriptors = Record<
   string,
   { spec: string; alias: string }
 >;
-
-export type GraphPackageOptions = {
-  preferredPackageLogicalPathMap?: Map<string, string[]>;
-  logicalPath?: string[];
-  commonDependencyDescriptors?: CommonDependencyDescriptors;
-} & LogOptions;
-
-export type GraphPackagesOptions = LogOptions;
 
 export type GatherDependencyOptions = {
   childLogicalPath?: string[];
@@ -87,3 +83,20 @@ export interface PackageDetails {
   packageLocation: string;
   packageDescriptor: PackageDescriptor;
 }
+
+/**
+ * Options for `translateGraph()`
+ */
+export type TranslateGraphOptions = {
+  policy?: SomePolicy;
+} & AdditionalPackageDetailsOptions;
+
+export type GraphPackageOptions = {
+  preferredPackageLogicalPathMap?: Map<string, string[]>;
+  logicalPath?: string[];
+  commonDependencyDescriptors?: CommonDependencyDescriptors;
+} & LogOptions;
+
+export type GraphPackagesOptions = LogOptions & {
+  graph?: Graph;
+};
