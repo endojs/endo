@@ -171,6 +171,10 @@ const makeImmutableArrayBufferInternal = realBuffer => {
 // this `freeze` is just belt-and-suspenders.
 Object.freeze(makeImmutableArrayBufferInternal);
 
+/**
+ * @param {ArrayBuffer} buffer
+ * @returns {boolean}
+ */
 export const isBufferImmutable = buffer => buffers.has(buffer);
 
 /**
