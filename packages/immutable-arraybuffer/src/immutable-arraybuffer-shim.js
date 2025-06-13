@@ -26,6 +26,9 @@ const arrayBufferMethods = {
     return sliceBufferToImmutable(this, start, end);
   },
 
+  /**
+   * @this {ArrayBuffer}
+   */
   get immutable() {
     return isBufferImmutable(this);
   },
