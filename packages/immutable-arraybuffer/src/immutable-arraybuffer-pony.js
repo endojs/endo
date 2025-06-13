@@ -29,18 +29,17 @@ const arrayBufferSlice = (realBuffer, start = undefined, end = undefined) =>
   apply(slice, realBuffer, [start, end]);
 
 /**
- * Enforces that `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
- * Return a new fresh `ArrayBuffer` exotic object, where the contents of the
- * original `arrayBuffer` has been moved into the new one, and the original
- * `arrayBuffer` has been detached. We can only do this emulation on platforms
- * that support `structureClose` or `ArrayBuffer.prototype.transfer`.
- * On other platforms, we can still emulate `sliceToImmutable` but not
- * `arrayBufferTransferMaybe`, and therefore not
- * `ArrayBuffer.prototype.transferToImmutable`. Currently, these other platforms
- * are
+ * Move the contents of a genuine ArrayBuffer exotic object into a new fresh
+ * ArrayBuffer and detach the original source.
+ * We can only do this on platforms that support `structuredClone` or
+ * `ArrayBuffer.prototype.transfer`.
+ * On other platforms, we can still emulate
+ * `ArrayBuffer.prototoype.sliceToImmutable`, but not
+ * `ArrayBuffer.prototype.transferToImmutable`.
+ * Currently, these known-deficient platforms are
  * - Hermes
- * - Node <= 16
- * - Apparently some versions of JSC that are still of concern.
+ * - Node.js <= 16
+ * - Apparently some versions of JavaScriptCore that are still of concern.
  *
  * @param {ArrayBuffer} arrayBuffer
  * @returns {ArrayBuffer}
