@@ -14,15 +14,7 @@ const { defineProperty, getPrototypeOf } = Object;
 const { apply, ownKeys } = Reflect;
 
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
-const {
-  slice,
-  // TODO used to be a-ts-expect-error, but my local IDE's TS server
-  // seems to use a more recent definition of the `ArrayBuffer` type.
-  // @ts-ignore At the time of this writing, the `ArrayBuffer` type built
-  // into TypeScript does not know about the recent standard `transfer` method.
-  // Indeed, the `transfer` method is absent from Node <= 20.
-  transfer: optTransfer,
-} = arrayBufferPrototype;
+const { slice, transfer: optTransfer } = arrayBufferPrototype;
 // @ts-expect-error TS doesn't know it'll be there
 const { get: arrayBufferByteLength } = Object.getOwnPropertyDescriptor(
   arrayBufferPrototype,
