@@ -620,3 +620,78 @@ test('dynamic import from source', async t => {
   const namespace2 = await namespace.dynamic;
   t.is(namespace, namespace2);
 });
+
+test('rejects immediately when error aggregation is disabled', async t => {
+  t.plan(1);
+
+  const importHook = specifier => {
+    if (specifier === './meaning.mjs') {
+      return new ModuleSource(
+        `
+        export { meaning as default } from './missing.mjs';
+      `,
+        'https://example.com/meaning.mjs',
+      );
+    }
+    if (specifier === './main.js') {
+      return new ModuleSource(
+        `
+        import meaning from './meaning.mjs';
+        t.is(meaning, 42);
+      `,
+        'https://example.com/main.js',
+      );
+    }
+    throw Error(`Cannot load module for specifier ${specifier}`);
+  };
+
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook,
+    aggregateLoadErrors: false,
+    __options__: true,
+  });
+
+  await t.throwsAsync(() => compartment.import('./main.js'), {
+    message: `Cannot load module for specifier ./missing.mjs`,
+    name: 'Error',
+  });
+});
+
+test('rejects w/ aggregate error when error aggregation is enabled', async t => {
+  t.plan(1);
+
+  const importHook = specifier => {
+    if (specifier === './meaning.mjs') {
+      return new ModuleSource(
+        `
+        export { meaning as default } from './missing.mjs';
+      `,
+        'https://example.com/meaning.mjs',
+      );
+    }
+    if (specifier === './main.js') {
+      return new ModuleSource(
+        `
+        import meaning from './meaning.mjs';
+        t.is(meaning, 42);
+      `,
+        'https://example.com/main.js',
+      );
+    }
+    throw Error(`Cannot load module for specifier ${specifier}`);
+  };
+
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook,
+    aggregateLoadErrors: true,
+    __options__: true,
+  });
+
+  await t.throwsAsync(() => compartment.import('./main.js'), {
+    message: /1 underlying failures/,
+  });
+});

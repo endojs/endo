@@ -35,6 +35,14 @@ User-visible changes in `ses`
 
   Also `ses/hermes` can now be hooked into bundlers such as Metro to run Hardened JS.
 
+- The `Compartment` constructor now accepts a `boolean` option, `aggregateLoadErrors`, to control how module-loading errors are reported.
+
+  By default, its value is `true`, which retains the previous behavior (it causes all relevant errors to be collected and rejected or thrown in a single exception from `compartment.import()` or `compartment.importNow()`, respectively).
+
+  If set to `false`, this will cause the *first* module-loading error encountered to be thrown (or rejected) immediately; no further module-loading will be attempted, and no further errors will be collected.
+
+  This is mostly useful for supporting optional dependencies in CommonJS modules.
+
 # v1.12.0 (2025-03-11)
 
 - The `evalTaming:` option values are renamed
