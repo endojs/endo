@@ -71,9 +71,9 @@ export type MaybeReadNowFn = (location: string) => Uint8Array | undefined;
 
 export type HashFn = (bytes: Uint8Array) => string;
 
-export type FileURLToPathFn = typeof import('node:url').fileURLToPath;
+export type FileURLToPathFn = (url: URL | string) => string;
 
-export type PathToFileURLFn = typeof import('node:url').pathToFileURL;
+export type PathToFileURLFn = (path: string) => URL;
 
 export type RequireResolveFn = (
   fromLocation: string,
