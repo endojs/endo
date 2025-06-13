@@ -89,7 +89,7 @@ const getBuffer = immuAB => {
 const ImmutableArrayBufferInternalPrototype = {
   __proto__: arrayBufferPrototype,
   get byteLength() {
-    return getBuffer(this).byteLength;
+    return apply(arrayBufferByteLength, getBuffer(this), []);
   },
   get detached() {
     getBuffer(this); // shim brand check
@@ -97,7 +97,7 @@ const ImmutableArrayBufferInternalPrototype = {
   },
   get maxByteLength() {
     // Not underlying maxByteLength, which is irrelevant
-    return getBuffer(this).byteLength;
+    return apply(arrayBufferByteLength, getBuffer(this), []);
   },
   get resizable() {
     getBuffer(this); // shim brand check
