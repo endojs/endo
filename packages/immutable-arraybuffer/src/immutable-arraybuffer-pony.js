@@ -217,8 +217,8 @@ if (arrayBufferTransferMaybe) {
       } else {
         const oldTA = new Uint8Array(buffer);
         const newTA = new Uint8Array(newLength);
-        newTA.set(oldTA);
-        buffer = newTA.buffer;
+        apply(uint8ArraySet, newTA, [oldTA]);
+        buffer = apply(uint8ArrayBuffer, newTA, []);
       }
     }
     const result = makeImmutableArrayBufferInternal(buffer);
