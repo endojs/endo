@@ -26,9 +26,27 @@ const arrayBufferMethods = {
     return sliceBufferToImmutable(this, start, end);
   },
 
+  /**
+   * @this {ArrayBuffer}
+   */
   get immutable() {
     return isBufferImmutable(this);
   },
+
+  ...(tbtiMaybe
+    ? {
+        /**
+         * Transfer the contents to a new Immutable ArrayBuffer
+         *
+         * @this {ArrayBuffer} buffer The original buffer.
+         * @param {number} [newLength] The start index.
+         * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+         */
+        transferToImmutable(newLength = undefined) {
+          return tbtiMaybe(this, newLength);
+        },
+      }
+    : {}),
 };
 
 // Better fidelity emulation of a class prototype
@@ -38,19 +56,22 @@ for (const key of ownKeys(arrayBufferMethods)) {
   });
 }
 
-if ('sliceToImmutable' in arrayBufferPrototype) {
-  // Modern shim practice frowns on conditional installation, at least for
-  // proposals prior to stage 3. This is so changes to the proposal since
-  // an old shim was distributed don't need to worry about the proposal
-  // breaking old code depending on the old shim. Thus, if we detect that
-  // we're about to overwrite a prior installation, we simply issue this
-  // warning and continue.
-  //
-  // TODO, if the primordials are frozen after the prior implementation, such as
-  // by `lockdown`, then this precludes overwriting as expected. However, for
-  // this case, the following warning text will be confusing.
+// Modern shim practice frowns on conditional installation, at least for
+// proposals prior to stage 3. This is so changes to the proposal since
+// an old shim was distributed don't need to worry about the proposal
+// breaking old code depending on the old shim. Thus, if we detect that
+// we're about to overwrite a prior installation, we simply issue this
+// warning and continue.
+//
+// TODO, if the primordials are frozen after the prior implementation, such as
+// by `lockdown`, then this precludes overwriting as expected. However, for
+// this case, the following warning text will be confusing.
+const overwrites = ownKeys(arrayBufferMethods).filter(
+  key => key in arrayBufferPrototype,
+);
+if (overwrites.length > 0) {
   console.warn(
-    'About to overwrite a prior implementation of "sliceToImmutable"',
+    `About to overwrite ArrayBuffer.prototype properties ${JSON.stringify(overwrites)}`,
   );
 }
 

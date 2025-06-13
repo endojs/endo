@@ -1,9 +1,14 @@
 /* global globalThis */
 
+const { ArrayBuffer, Object, Reflect, TypeError, Uint8Array } = globalThis;
+
+// Capture structuredClone before it can be scuttled.
+const { structuredClone: structuredCloneMaybe } = globalThis;
+
 const { defineProperty } = Object;
 const { apply, ownKeys } = Reflect;
-const { prototype: arrayBufferPrototype } = ArrayBuffer;
 
+const { prototype: arrayBufferPrototype } = ArrayBuffer;
 const {
   slice,
   // TODO used to be a-ts-expect-error, but my local IDE's TS server
@@ -13,11 +18,17 @@ const {
   // Indeed, the `transfer` method is absent from Node <= 20.
   transfer: transferMaybe,
 } = arrayBufferPrototype;
-// Capture structuredClone before it could be scuttled.
-const { structuredClone: structuredCloneMaybe } = globalThis;
+const { get: arrayBufferByteLength } =
+  Object.getOwnPropertyDescriptor(arrayBufferPrototype, 'byteLength');
+  
+const { prototype: uint8ArrayPrototype } = Uint8Array;
+const { set: uint8ArraySet } = uint8ArrayPrototype;
+const { get: uint8ArrayBuffer } =
+  Object.getOwnPropertyDescriptor(uint8ArrayPrototype, 'buffer');
 
 /**
- * Enforces that `realBuffer` is a genuine `ArrayBuffer` exotic object.
+ * Copy a range of values from a genuine ArrayBuffer exotic object into a new
+ * ArrayBuffer.
  *
  * @param {ArrayBuffer} realBuffer
  * @param {number} [start]
@@ -28,18 +39,17 @@ const arrayBufferSlice = (realBuffer, start = undefined, end = undefined) =>
   apply(slice, realBuffer, [start, end]);
 
 /**
- * Enforces that `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
- * Return a new fresh `ArrayBuffer` exotic object, where the contents of the
- * original `arrayBuffer` has been moved into the new one, and the original
- * `arrayBuffer` has been detached. We can only do this emulation on platforms
- * that support `structureClose` or `ArrayBuffer.prototype.transfer`.
- * On other platforms, we can still emulate `sliceToImmutable` but not
- * `arrayBufferTransferMaybe`, and therefore not
- * `ArrayBuffer.prototype.transferToImmutable`. Currently, these other platforms
- * are
+ * Move the contents of a genuine ArrayBuffer exotic object into a new fresh
+ * ArrayBuffer and detach the original source.
+ * We can only do this on platforms that support `structuredClone` or
+ * `ArrayBuffer.prototype.transfer`.
+ * On other platforms, we can still emulate
+ * `ArrayBuffer.prototoype.sliceToImmutable`, but not
+ * `ArrayBuffer.prototype.transferToImmutable`.
+ * Currently, these known-deficient platforms are
  * - Hermes
- * - Node <= 16
- * - Apparently some versions of JSC that are still of concern.
+ * - Node.js <= 16
+ * - Apparently some versions of JavaScriptCore that are still of concern.
  *
  * @param {ArrayBuffer} arrayBuffer
  * @returns {ArrayBuffer}
@@ -69,8 +79,14 @@ if (transferMaybe) {
  * class. But we cannot do so on Hermes. So, instead, we
  * emulate the `this.#buffer` private field, including its use as a brand check.
  * Maps from all and only emulated Immutable ArrayBuffers to real ArrayBuffers.
+ *
+ * @type {Pick<WeakMap<ArrayBuffer, ArrayBuffer>, 'get' | 'has' | 'set'>}
  */
 const buffers = new WeakMap();
+// Avoid post-hoc prototype lookups.
+for (methodName of ['get', 'has', 'set']) {
+  defineProperty(buffers, methodName, { value: buffers[methodName] });
+}
 const getBuffer = immuAB => {
   const result = buffers.get(immuAB);
   if (result) {
@@ -83,7 +99,7 @@ const getBuffer = immuAB => {
 const ImmutableArrayBufferInternalPrototype = {
   __proto__: arrayBufferPrototype,
   get byteLength() {
-    return getBuffer(this).byteLength;
+    return apply(arrayBufferByteLength, getBuffer(this), []);
   },
   get detached() {
     getBuffer(this); // shim brand check
@@ -91,7 +107,7 @@ const ImmutableArrayBufferInternalPrototype = {
   },
   get maxByteLength() {
     // Not underlying maxByteLength, which is irrelevant
-    return getBuffer(this).byteLength;
+    return apply(arrayBufferByteLength, getBuffer(this), []);
   },
   get resizable() {
     getBuffer(this); // shim brand check
@@ -155,6 +171,10 @@ const makeImmutableArrayBufferInternal = realBuffer => {
 // this `freeze` is just belt-and-suspenders.
 Object.freeze(makeImmutableArrayBufferInternal);
 
+/**
+ * @param {ArrayBuffer} buffer
+ * @returns {boolean}
+ */
 export const isBufferImmutable = buffer => buffers.has(buffer);
 
 /**
@@ -201,8 +221,8 @@ if (arrayBufferTransferMaybe) {
       } else {
         const oldTA = new Uint8Array(buffer);
         const newTA = new Uint8Array(newLength);
-        newTA.set(oldTA);
-        buffer = newTA.buffer;
+        apply(uint8ArraySet, newTA, [oldTA]);
+        buffer = apply(uint8ArrayBuffer, newTA, []);
       }
     }
     const result = makeImmutableArrayBufferInternal(buffer);
