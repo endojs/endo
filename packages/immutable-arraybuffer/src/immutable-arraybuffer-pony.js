@@ -17,7 +17,8 @@ const {
 const { structuredClone: structuredCloneMaybe } = globalThis;
 
 /**
- * Enforces that `realBuffer` is a genuine `ArrayBuffer` exotic object.
+ * Copy a range of values from a genuine ArrayBuffer exotic object into a new
+ * ArrayBuffer.
  *
  * @param {ArrayBuffer} realBuffer
  * @param {number} [start]
