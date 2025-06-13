@@ -29,6 +29,21 @@ const arrayBufferMethods = {
   get immutable() {
     return isBufferImmutable(this);
   },
+
+  ...(tbtiMaybe
+    ? {
+        /**
+         * Transfer the contents to a new Immutable ArrayBuffer
+         *
+         * @this {ArrayBuffer} buffer The original buffer.
+         * @param {number} [newLength] The start index.
+         * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
+         */
+        transferToImmutable(newLength = undefined) {
+          return tbtiMaybe(this, newLength);
+        },
+      }
+    : {}),
 };
 
 // Better fidelity emulation of a class prototype
