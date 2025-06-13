@@ -17,6 +17,7 @@ import {
 import { getCopyMapKeys, makeCopyMap } from '../keys/checkKey.js';
 
 /**
+ * @import {RemotableMethodName} from '@endo/pass-style';
  * @import {AwaitArgGuard, AwaitArgGuardPayload, InterfaceGuard, InterfaceGuardPayload, MethodGuard, MethodGuardPayload} from '../types.js'
  */
 
@@ -238,7 +239,7 @@ const adaptMethodGuard = methodGuard => {
  * currently any context where either an interfaceGuard or a copyRecord would
  * both be meaningful.
  *
- * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
+ * @template {Record<RemotableMethodName, MethodGuard>} [T=Record<RemotableMethodName, MethodGuard>]
  * @param {InterfaceGuard<T>} interfaceGuard
  * @returns {InterfaceGuardPayload<T>}
  */
