@@ -17,7 +17,7 @@ graph TD
   bar --> baz
 ```
 
-The computed _path_ from `entry` to `baz` as `['foo', 'bar', 'baz']`.
+The computed _path_ from `entry` to `baz` is `['foo', 'bar', 'baz']`.
 
 If we have another dependency tree like this:
 
@@ -39,12 +39,12 @@ If we have yet another dependency tree like this:
 graph TD
   entry --> foo
   foo --> bar
-  foo --> quux
+  foo --> alternative
   bar --> baz
-  quux --> baz
+  alternative --> baz
 ```
 
-The computed _path_ from `entry` to `baz` is again `['foo', 'bar', 'baz']`. This is because while `['foo', 'quux', 'baz']` is another path with the same array length, the algorithm _must_ choose one, and so chooses the one with the fewest cumulative characters.
+The computed _path_ from `entry` to `baz` is again `['foo', 'bar', 'baz']`. This is because while `['foo', 'alternative', 'baz']` is another path with the same array length, the algorithm _must_ choose one, and so chooses the one with the fewest cumulative characters.
 
 And if we have a tree like this:
 

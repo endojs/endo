@@ -22,16 +22,6 @@ const { stringify: q } = JSON;
 export const stringCompare = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
 
 /**
- * Reducer to calculate the cumulative length of a string array
- * @param {number} length Current length
- * @param {string} value Some string
- * @returns {number} New length
- */
-const cumulativeLength = (length, value) => {
-  return length + value.length;
-};
-
-/**
  * Compares two string arrays and returns a comparison result.
  *
  * The algorithm is as follows:
@@ -50,15 +40,10 @@ const cumulativeLength = (length, value) => {
  * @type {CompareFn<string[]|undefined>}
  */
 export const pathCompare = (a, b) => {
-  // Undefined is not preferred
-  if (a === undefined && b === undefined) {
-    return 0;
-  }
-  if (a === undefined) {
-    return 1;
-  }
-  if (b === undefined) {
-    return -1;
+  // Undefined compares greater than anything else.
+  if (a === undefined || b === undefined) {
+    // eslint-disable-next-line no-nested-ternary
+    return a === b ? 0 : a === undefined ? 1 : -1;
   }
 
   // Prefer the shortest dependency path.
@@ -67,10 +52,10 @@ export const pathCompare = (a, b) => {
   }
 
   // Otherwise, favor the shortest cumulative length.
-  const aSum = a.reduce(cumulativeLength, 0);
-  const bSum = b.reduce(cumulativeLength, 0);
-  if (aSum !== bSum) {
-    return aSum - bSum;
+  const aStringLength = a.join('').length;
+  const bStringLength = b.join('').length;
+  if (aStringLength !== bStringLength) {
+    return aStringLength - bStringLength;
   }
 
   // sanity check
