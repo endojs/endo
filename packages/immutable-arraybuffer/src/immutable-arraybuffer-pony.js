@@ -69,8 +69,14 @@ if (transferMaybe) {
  * class. But we cannot do so on Hermes. So, instead, we
  * emulate the `this.#buffer` private field, including its use as a brand check.
  * Maps from all and only emulated Immutable ArrayBuffers to real ArrayBuffers.
+ *
+ * @type {Pick<WeakMap<ArrayBuffer, ArrayBuffer>, 'get' | 'has' | 'set'>}
  */
 const buffers = new WeakMap();
+// Avoid post-hoc prototype lookups.
+for (methodName of ['get', 'has', 'set']) {
+  defineProperty(buffers, methodName, { value: buffers[methodName] });
+}
 const getBuffer = immuAB => {
   const result = buffers.get(immuAB);
   if (result) {
