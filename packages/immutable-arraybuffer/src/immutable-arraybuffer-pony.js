@@ -1,11 +1,16 @@
 /* global globalThis */
 
-const { ArrayBuffer, Object, Reflect, TypeError, Uint8Array } = globalThis;
+const {
+  ArrayBuffer,
+  Object,
+  Reflect,
+  TypeError,
+  Uint8Array,
+  // Capture structuredClone before it can be scuttled.
+  structuredClone: optStructuredClone,
+} = globalThis;
 
-// Capture structuredClone before it can be scuttled.
-const { structuredClone: structuredCloneMaybe } = globalThis;
-
-const { defineProperty } = Object;
+const { defineProperty, getPrototypeOf } = Object;
 const { apply, ownKeys } = Reflect;
 
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
@@ -16,15 +21,21 @@ const {
   // @ts-ignore At the time of this writing, the `ArrayBuffer` type built
   // into TypeScript does not know about the recent standard `transfer` method.
   // Indeed, the `transfer` method is absent from Node <= 20.
-  transfer: transferMaybe,
+  transfer: optTransfer,
 } = arrayBufferPrototype;
-const { get: arrayBufferByteLength } =
-  Object.getOwnPropertyDescriptor(arrayBufferPrototype, 'byteLength');
-  
-const { prototype: uint8ArrayPrototype } = Uint8Array;
-const { set: uint8ArraySet } = uint8ArrayPrototype;
-const { get: uint8ArrayBuffer } =
-  Object.getOwnPropertyDescriptor(uint8ArrayPrototype, 'buffer');
+// @ts-expect-error TS doesn't know it'll be there
+const { get: arrayBufferByteLength } = Object.getOwnPropertyDescriptor(
+  arrayBufferPrototype,
+  'byteLength',
+);
+
+const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
+const { set: uint8ArraySet } = typedArrayPrototype;
+// @ts-expect-error TS doesn't know it'll be there
+const { get: uint8ArrayBuffer } = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  'buffer',
+);
 
 /**
  * Copy a range of values from a genuine ArrayBuffer exotic object into a new
@@ -54,23 +65,22 @@ const arrayBufferSlice = (realBuffer, start = undefined, end = undefined) =>
  * @param {ArrayBuffer} arrayBuffer
  * @returns {ArrayBuffer}
  */
-let arrayBufferTransferMaybe;
+let optArrayBufferTransfer;
 
-if (transferMaybe) {
-  arrayBufferTransferMaybe = arrayBuffer =>
-    apply(transferMaybe, arrayBuffer, []);
-} else if (structuredCloneMaybe) {
-  arrayBufferTransferMaybe = arrayBuffer => {
+if (optTransfer) {
+  optArrayBufferTransfer = arrayBuffer => apply(optTransfer, arrayBuffer, []);
+} else if (optStructuredClone) {
+  optArrayBufferTransfer = arrayBuffer => {
     // Hopefully, a zero-length slice is cheap, but still enforces that
     // `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
     arrayBufferSlice(arrayBuffer, 0, 0);
-    return structuredCloneMaybe(arrayBuffer, {
+    return optStructuredClone(arrayBuffer, {
       transfer: [arrayBuffer],
     });
   };
 } else {
   // Assignment is redundant, but remains for clarity.
-  arrayBufferTransferMaybe = undefined;
+  optArrayBufferTransfer = undefined;
 }
 
 /**
@@ -84,7 +94,7 @@ if (transferMaybe) {
  */
 const buffers = new WeakMap();
 // Avoid post-hoc prototype lookups.
-for (methodName of ['get', 'has', 'set']) {
+for (const methodName of ['get', 'has', 'set']) {
   defineProperty(buffers, methodName, { value: buffers[methodName] });
 }
 const getBuffer = immuAB => {
@@ -163,9 +173,13 @@ for (const key of ownKeys(ImmutableArrayBufferInternalPrototype)) {
  * @returns {ArrayBuffer}
  */
 const makeImmutableArrayBufferInternal = realBuffer => {
-  const result = { __proto__: ImmutableArrayBufferInternalPrototype };
+  const result = /** @type {ArrayBuffer} */ (
+    /** @type {unknown} */ ({
+      __proto__: ImmutableArrayBufferInternalPrototype,
+    })
+  );
   buffers.set(result, realBuffer);
-  return /** @type {ArrayBuffer} */ (/** @type {unknown} */ (result));
+  return result;
 };
 // Since `makeImmutableArrayBufferInternal` MUST not escape,
 // this `freeze` is just belt-and-suspenders.
@@ -199,7 +213,7 @@ export const sliceBufferToImmutable = (
 };
 
 let transferBufferToImmutable;
-if (arrayBufferTransferMaybe) {
+if (optArrayBufferTransfer) {
   /**
    * Transfer the contents to a new Immutable ArrayBuffer
    *
@@ -209,11 +223,11 @@ if (arrayBufferTransferMaybe) {
    */
   transferBufferToImmutable = (buffer, newLength = undefined) => {
     if (newLength === undefined) {
-      buffer = arrayBufferTransferMaybe(buffer);
-    } else if (transferMaybe) {
-      buffer = apply(transferMaybe, buffer, [newLength]);
+      buffer = optArrayBufferTransfer(buffer);
+    } else if (optTransfer) {
+      buffer = apply(optTransfer, buffer, [newLength]);
     } else {
-      buffer = arrayBufferTransferMaybe(buffer);
+      buffer = optArrayBufferTransfer(buffer);
       const oldLength = buffer.byteLength;
       // eslint-disable-next-line @endo/restrict-comparison-operands
       if (newLength <= oldLength) {
@@ -232,4 +246,4 @@ if (arrayBufferTransferMaybe) {
   transferBufferToImmutable = undefined;
 }
 
-export const transferBufferToImmutableMaybe = transferBufferToImmutable;
+export const optTransferBufferToImmutable = transferBufferToImmutable;

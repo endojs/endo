@@ -1,13 +1,13 @@
 import {
   isBufferImmutable,
   sliceBufferToImmutable,
-  transferBufferToImmutableMaybe,
+  optTransferBufferToImmutable,
 } from './immutable-arraybuffer-pony.js';
 
 // Even though the exported one is not a live binding, TS doesn't know that,
 // so it cannot do it's normal flow-based inference. By making a using a local
 // copy, no problem.
-const tbtiMaybe = transferBufferToImmutableMaybe;
+const optTBTI = optTransferBufferToImmutable;
 
 const { getOwnPropertyDescriptors, defineProperties, defineProperty } = Object;
 const { ownKeys } = Reflect;
@@ -33,7 +33,7 @@ const arrayBufferMethods = {
     return isBufferImmutable(this);
   },
 
-  ...(tbtiMaybe
+  ...(optTBTI
     ? {
         /**
          * Transfer the contents to a new Immutable ArrayBuffer
@@ -43,7 +43,7 @@ const arrayBufferMethods = {
          * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
          */
         transferToImmutable(newLength = undefined) {
-          return tbtiMaybe(this, newLength);
+          return optTBTI(this, newLength);
         },
       }
     : {}),
@@ -79,46 +79,3 @@ defineProperties(
   arrayBufferPrototype,
   getOwnPropertyDescriptors(arrayBufferMethods),
 );
-
-if (tbtiMaybe) {
-  const moreMethods = {
-    /**
-     * Transfer the contents to a new Immutable ArrayBuffer
-     *
-     * @this {ArrayBuffer} buffer The original buffer.
-     * @param {number} [newLength] The start index.
-     * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
-     */
-    transferToImmutable(newLength = undefined) {
-      return tbtiMaybe(this, newLength);
-    },
-  };
-
-  // Better fidelity emulation of a class prototype
-  for (const key of ownKeys(moreMethods)) {
-    defineProperty(moreMethods, key, {
-      enumerable: false,
-    });
-  }
-
-  if ('transferToImmutable' in arrayBufferPrototype) {
-    // Modern shim practice frowns on conditional installation, at least for
-    // proposals prior to stage 3. This is so changes to the proposal since
-    // an old shim was distributed don't need to worry about the proposal
-    // breaking old code depending on the old shim. Thus, if we detect that
-    // we're about to overwrite a prior installation, we simply issue this
-    // warning and continue.
-    //
-    // TODO, if the primordials are frozen after the prior implementation, such as
-    // by `lockdown`, then this precludes overwriting as expected. However, for
-    // this case, the following warning text will be confusing.
-    console.warn(
-      'About to overwrite a prior implementation of "transferToImmutable"',
-    );
-  }
-
-  defineProperties(
-    arrayBufferPrototype,
-    getOwnPropertyDescriptors(moreMethods),
-  );
-}
