@@ -1,9 +1,14 @@
 /* global globalThis */
 
+const { ArrayBuffer, Object, Reflect, TypeError, Uint8Array } = globalThis;
+
+// Capture structuredClone before it can be scuttled.
+const { structuredClone: structuredCloneMaybe } = globalThis;
+
 const { defineProperty } = Object;
 const { apply, ownKeys } = Reflect;
-const { prototype: arrayBufferPrototype } = ArrayBuffer;
 
+const { prototype: arrayBufferPrototype } = ArrayBuffer;
 const {
   slice,
   // TODO used to be a-ts-expect-error, but my local IDE's TS server
@@ -13,8 +18,13 @@ const {
   // Indeed, the `transfer` method is absent from Node <= 20.
   transfer: transferMaybe,
 } = arrayBufferPrototype;
-// Capture structuredClone before it could be scuttled.
-const { structuredClone: structuredCloneMaybe } = globalThis;
+const { get: arrayBufferByteLength } =
+  Object.getOwnPropertyDescriptor(arrayBufferPrototype, 'byteLength');
+  
+const { prototype: uint8ArrayPrototype } = Uint8Array;
+const { set: uint8ArraySet } = uint8ArrayPrototype;
+const { get: uint8ArrayBuffer } =
+  Object.getOwnPropertyDescriptor(uint8ArrayPrototype, 'buffer');
 
 /**
  * Copy a range of values from a genuine ArrayBuffer exotic object into a new
