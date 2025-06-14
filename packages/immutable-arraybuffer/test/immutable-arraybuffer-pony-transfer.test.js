@@ -1,16 +1,16 @@
 // @ts-nocheck
 import test from 'ava';
 import {
-  transferBufferToImmutable,
+  optTransferBufferToImmutable,
   isBufferImmutable,
   sliceBufferToImmutable,
-} from '../index.js';
+} from '../src/immutable-arraybuffer-pony.js';
 
 const { isFrozen, getPrototypeOf } = Object;
 
 test('Immutable ArrayBuffer ponyfill installed and not hardened', t => {
   const ab1 = new ArrayBuffer(0);
-  const iab = transferBufferToImmutable(ab1);
+  const iab = optTransferBufferToImmutable(ab1);
   const iabProto = getPrototypeOf(iab);
   t.false(isFrozen(iabProto));
   t.false(isFrozen(iabProto.slice));
@@ -24,7 +24,7 @@ test('Immutable ArrayBuffer ponyfill ops', t => {
   const ta1 = new Uint8Array(ab1);
   ta1[0] = 3;
   ta1[1] = 4;
-  const iab = transferBufferToImmutable(ab1);
+  const iab = optTransferBufferToImmutable(ab1);
   t.true(iab instanceof ArrayBuffer);
   ta1[1] = 5;
   const ab2 = iab.slice(0);
@@ -81,7 +81,7 @@ test('DataView on Immutable ArrayBuffer ponyfill limitations', t => {
   ta1[0] = 3;
   ta1[1] = 4;
 
-  const iab = transferBufferToImmutable(ab1);
+  const iab = optTransferBufferToImmutable(ab1);
   t.throws(() => new DataView(iab), {
     instanceOf: TypeError,
   });
@@ -117,7 +117,7 @@ test('TypedArray on Immutable ArrayBuffer ponyfill limitations', t => {
   ta1[1] = 4;
   t.is(ta1.byteLength, 2);
 
-  const iab = transferBufferToImmutable(ab1);
+  const iab = optTransferBufferToImmutable(ab1);
   // Unfortunately, unlike the immutable ArrayBuffer to be proposed,
   // calling a TypedArray constructor with the shim implementation of
   // an immutable ArrayBuffer as argument treats it as an unrecognized object,
@@ -163,7 +163,7 @@ test('Analogous transferBufferToImmutable(buf, newLength) ponyfill', t => {
   t.is(ab12.byteLength, 3);
   t.deepEqual([...ta12], [3, 4, 5]);
 
-  const ab2 = transferBufferToImmutable(ab12, 5);
+  const ab2 = optTransferBufferToImmutable(ab12, 5);
   t.true(isBufferImmutable(ab2));
   t.is(ab2.byteLength, 5);
   t.is(ab12.byteLength, 0);
@@ -174,7 +174,7 @@ test('Analogous transferBufferToImmutable(buf, newLength) ponyfill', t => {
   const ta13 = new Uint8Array([3, 4, 5]);
   const ab13 = ta13.buffer;
 
-  const ab3 = transferBufferToImmutable(ab13, 2);
+  const ab3 = optTransferBufferToImmutable(ab13, 2);
   t.true(isBufferImmutable(ab3));
   t.is(ab3.byteLength, 2);
   t.is(ab13.byteLength, 0);
