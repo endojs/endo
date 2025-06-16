@@ -31,7 +31,8 @@ export const hasOwnPropertyOf = (obj, prop) =>
 harden(hasOwnPropertyOf);
 
 // TODO try typing this; `=> val is {} too narrow, implies no properties
-export const isObject = val => Object(val) === val;
+export const isObject = val =>
+  val && (typeof val === 'object' || typeof val === 'function');
 harden(isObject);
 
 /**
