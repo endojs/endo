@@ -4,7 +4,8 @@ import {
   optTransferBufferToImmutable as optXferBuf2Immu,
 } from './immutable-arraybuffer-pony.js';
 
-// Even though the exported one is not a live binding, TS doesn't know that,
+// Even though the imported one is not exported by the pony as a live binding,
+// TS doesn't know that,
 // so it cannot do its normal flow-based inference. By making and using a local
 // copy, no problem.
 const optTransferBufferToImmutable = optXferBuf2Immu;
