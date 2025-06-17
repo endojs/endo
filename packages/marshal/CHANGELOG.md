@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.7.1](https://github.com/endojs/endo/compare/@endo/marshal@1.7.0...@endo/marshal@1.7.1) (2025-06-17)
+
+
+### Bug Fixes
+
+* **marshal:** fix consequence of typo ([#2841](https://github.com/endojs/endo/issues/2841)) ([fbee7d9](https://github.com/endojs/endo/commit/fbee7d9b86b535c5d3f3cb23caa68b5ca0facb89))
+* **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
+
+
+
 ## [1.7.0](https://github.com/endojs/endo/compare/@endo/marshal@1.6.4...@endo/marshal@1.7.0) (2025-06-02)
 
 

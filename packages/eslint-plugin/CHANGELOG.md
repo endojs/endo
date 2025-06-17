@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.3.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.3.1...@endo/eslint-plugin@2.3.2) (2025-06-17)
+
+**Note:** Version bump only for package @endo/eslint-plugin
+
+
+
+
+
 ### [2.3.1](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.3.0...@endo/eslint-plugin@2.3.1) (2025-06-02)
 
 **Note:** Version bump only for package @endo/eslint-plugin

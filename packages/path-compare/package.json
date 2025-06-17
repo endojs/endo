@@ -1,6 +1,6 @@
 {
   "name": "@endo/path-compare",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Compare string arrays",
   "keywords": [
     "string",

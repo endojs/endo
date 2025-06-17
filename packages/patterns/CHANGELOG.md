@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.6.1](https://github.com/endojs/endo/compare/@endo/patterns@1.6.0...@endo/patterns@1.6.1) (2025-06-17)
+
+
+### Bug Fixes
+
+* **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
+
+
+
 ## [1.6.0](https://github.com/endojs/endo/compare/@endo/patterns@1.5.0...@endo/patterns@1.6.0) (2025-06-02)
 
 

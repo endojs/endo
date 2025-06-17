@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.5.0](https://github.com/endojs/endo/compare/@endo/daemon@2.4.9...@endo/daemon@2.5.0) (2025-06-17)
+
+
+### Features
+
+* **daemon:** PINS restored on startup ([3a348ce](https://github.com/endojs/endo/commit/3a348cee67f74c9ce85623ad79060e426e1965db))
+
+
+
 ### [2.4.9](https://github.com/endojs/endo/compare/@endo/daemon@2.4.8...@endo/daemon@2.4.9) (2025-06-02)
 
 **Note:** Version bump only for package @endo/daemon

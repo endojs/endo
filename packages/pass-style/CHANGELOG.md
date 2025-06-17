@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.6.2](https://github.com/endojs/endo/compare/@endo/pass-style@1.6.1...@endo/pass-style@1.6.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* **pass-style:** Shift feature detection from transfer- to slice-ToImmutable ([6afd10c](https://github.com/endojs/endo/commit/6afd10c35be4e20fca73b8583b30523b839689b9))
+
+
+
 ## [1.6.0](https://github.com/endojs/endo/compare/@endo/pass-style@1.5.0...@endo/pass-style@1.6.0) (2025-06-02)
 
 
