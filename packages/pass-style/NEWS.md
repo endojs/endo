@@ -1,13 +1,28 @@
 User-visible changes in `@endo/pass-style`:
 
+# v1.6.2 (2024-06-17)
+
+- Fixes, without qualification, so that the package initializes on platforms
+  that lack `ArrayBuffer.prototype.transferToImmutable` and recognizes
+  immutable ArrayBuffers as having a pass-style of `byteArray` on platforms
+  have a `sliceToImmutable`, even if that is emulated with a shim using
+  `slice`, even if they lack `transferToImmutable`.
+
 # v1.6.1 (2024-06-17)
 
+**BROKEN BUT PATCHED** in 1.6.2, contains a fix but published with broken
+dependency versions.
+Inadvertently published without amending workspace protocol dependencies.
+
 - Fixes so that the package initializes on platforms that lack
-  `ArrayBuffer.prototype.transferToImmutable`.
+  `ArrayBuffer.prototype.transferToImmutable` and recognizes immutable
+  ArrayBuffers as having a pass-style of `byteArray` on platforms have a
+  `sliceToImmutable`, even if that is emulated with a shim using `slice`, even
+  if they lack `transferToImmutable`.
 
 # v1.6.0 (2024-06-02)
 
-**BROKEN BUT PATCHED** in 1.6.1, this version introduced a dependence on the
+**BROKEN BUT PATCHED** in 1.6.2, this version introduced a dependence on the
 underlying platform supporting `ArrayBuffer.prototype.transferToImmutable`.
 The patch restores the ability to use `pass-style` on older platforms without
 the immutable `ArrayBuffer` shim (as entrained by `ses`).
