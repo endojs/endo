@@ -1,13 +1,13 @@
 import {
   isBufferImmutable,
   sliceBufferToImmutable,
-  optTransferBufferToImmutable,
+  optTransferBufferToImmutable as optXferBuf2Immu,
 } from './immutable-arraybuffer-pony.js';
 
 // Even though the exported one is not a live binding, TS doesn't know that,
-// so it cannot do it's normal flow-based inference. By making a using a local
+// so it cannot do its normal flow-based inference. By making and using a local
 // copy, no problem.
-const optTBTI = optTransferBufferToImmutable;
+const optTransferBufferToImmutable = optXferBuf2Immu;
 
 const { getOwnPropertyDescriptors, defineProperties, defineProperty } = Object;
 const { ownKeys } = Reflect;
@@ -33,7 +33,7 @@ const arrayBufferMethods = {
     return isBufferImmutable(this);
   },
 
-  ...(optTBTI
+  ...(optTransferBufferToImmutable
     ? {
         /**
          * Transfer the contents to a new Immutable ArrayBuffer
@@ -43,7 +43,7 @@ const arrayBufferMethods = {
          * @returns {ArrayBuffer} The sliced immutable ArrayBuffer.
          */
         transferToImmutable(newLength = undefined) {
-          return optTBTI(this, newLength);
+          return optTransferBufferToImmutable(this, newLength);
         },
       }
     : {}),
