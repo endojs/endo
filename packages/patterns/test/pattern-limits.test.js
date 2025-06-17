@@ -213,6 +213,19 @@ const runTests = (successCase, failCase) => {
     successCase(specimen, M.array(harden({ arrayLengthLimit: Infinity })));
     failCase(specimen, M.array(), 'Array length 10001 must be <= limit 10000');
   }
+  // byteLengthLimit
+  {
+    // @ts-expect-error How can shim enhance ArrayBuffer ts type?
+    const specimen = new ArrayBuffer(1000).transferToImmutable();
+    successCase(specimen, M.byteArray());
+    successCase(specimen, M.byteArray(harden({ byteLengthLimit: 1001 })));
+    successCase(specimen, M.byteArray(harden({ byteLengthLimit: 1000 })));
+    failCase(
+      specimen,
+      M.byteArray(harden({ byteLengthLimit: 999 })),
+      /byteArray "\[.*ArrayBuffer\]" must not be bigger than 999/,
+    );
+  }
   // numSetElementsLimit
   {
     const specimen = makeCopySet([0, 1, 2, 3, 4, 5]);
@@ -268,14 +281,10 @@ test('test pattern limits', t => {
     t.notThrows(() => mustMatch(specimen, yesPattern), `${yesPattern}`);
     t.assert(matches(specimen, yesPattern), `${yesPattern}`);
   };
-  const failCase = (specimen, noPattern, msg) => {
+  const failCase = (specimen, noPattern, message) => {
     harden(specimen);
     harden(noPattern);
-    t.throws(
-      () => mustMatch(specimen, noPattern),
-      { message: msg },
-      `${noPattern}`,
-    );
+    t.throws(() => mustMatch(specimen, noPattern), { message }, `${noPattern}`);
     t.false(matches(specimen, noPattern), `${noPattern}`);
   };
   runTests(successCase, failCase);

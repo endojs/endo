@@ -91,7 +91,7 @@
     "test": "tsd && ava",
     "test:hermes": "./scripts/hermes-test.sh",
     "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
-    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'"
+    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
   "dependencies": {
     "@endo/env-options": "workspace:^",

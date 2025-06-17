@@ -30,6 +30,10 @@ import { tameFunctionToString } from '../src/tame-function-tostring.js';
 import { chooseReporter } from '../src/reporting.js';
 import { makeError } from '../src/error/assert.js';
 
+/**
+ * @import {CompartmentOptionsArgs, LegacyCompartmentOptionsArgs} from '../src/compartment.js'
+ */
+
 const muteReporter = chooseReporter('none');
 
 export const ShimStartCompartment = makeCompartmentConstructor(
@@ -178,6 +182,7 @@ export const adaptCompartmentConstructors = (
   ShimCompartment,
   maybeHarden,
 ) => {
+  /** @param {CompartmentOptionsArgs|LegacyCompartmentOptionsArgs} args */
   function Compartment(...args) {
     const options = compartmentOptions(...args);
 

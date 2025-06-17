@@ -30,7 +30,7 @@
     "test:xs": "exit 0",
     "build": "exit 0",
     "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*' '*.tsbuildinfo'",
+    "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\"",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc",

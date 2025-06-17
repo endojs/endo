@@ -60,6 +60,7 @@ type IdRecord = {
 type EndoFormula = {
   type: 'endo';
   networks: string;
+  pins: string;
   peers: string;
   host: string;
   leastAuthority: string;
@@ -93,6 +94,7 @@ type HostFormula = {
   petStore: string;
   endo: string;
   networks: string;
+  pins: string;
 };
 
 type GuestFormula = {
@@ -639,6 +641,7 @@ export type EndoBootstrap = {
   greeter: () => Promise<EndoGreeter>;
   gateway: () => Promise<EndoGateway>;
   reviveNetworks: () => Promise<void>;
+  revivePins: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
 };
 
@@ -785,6 +788,7 @@ type FormulateNumberedGuestParams = {
 type FormulateHostDependenciesParams = {
   endoId: string;
   networksDirectoryId: string;
+  pinsDirectoryId: string;
   specifiedWorkerId?: string;
 };
 
@@ -797,6 +801,7 @@ type FormulateNumberedHostParams = {
   inspectorId: string;
   endoId: string;
   networksDirectoryId: string;
+  pinsDirectoryId: string;
 };
 
 export type FormulaValueTypes = {
@@ -882,6 +887,7 @@ export interface DaemonCore {
   formulateHost: (
     endoId: string,
     networksDirectoryId: string,
+    pinsDirectoryId: string,
     deferredTasks: DeferredTasks<AgentDeferredTaskParams>,
     specifiedWorkerId?: string | undefined,
   ) => FormulateResult<EndoHost>;

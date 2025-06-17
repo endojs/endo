@@ -69,6 +69,7 @@ export const makeHostMaker = ({
    * @param {string} mainWorkerId
    * @param {string} endoId
    * @param {string} networksDirectoryId
+   * @param {string} pinsDirectoryId
    * @param {string} leastAuthorityId
    * @param {{[name: string]: string}} platformNames
    * @param {Context} context
@@ -81,6 +82,7 @@ export const makeHostMaker = ({
     mainWorkerId,
     endoId,
     networksDirectoryId,
+    pinsDirectoryId,
     leastAuthorityId,
     platformNames,
     context,
@@ -96,6 +98,7 @@ export const makeHostMaker = ({
       MAIN: mainWorkerId,
       ENDO: endoId,
       NETS: networksDirectoryId,
+      PINS: pinsDirectoryId,
       INFO: inspectorId,
       NONE: leastAuthorityId,
     });
@@ -408,6 +411,7 @@ export const makeHostMaker = ({
           await formulateHost(
             endoId,
             networksDirectoryId,
+            pinsDirectoryId,
             getDeferredTasksForAgent(petName, agentName),
           );
         host = { value: Promise.resolve(value), id };

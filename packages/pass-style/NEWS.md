@@ -1,5 +1,19 @@
 User-visible changes in `@endo/pass-style`:
 
+# v1.6.1 (2024-06-17)
+
+- Fixes so that the package initializes on platforms that lack
+  `ArrayBuffer.prototype.transferToImmutable`.
+
+# v1.6.0 (2024-06-02)
+
+**BROKEN BUT PATCHED** in 1.6.1, this version introduced a dependence on the
+underlying platform supporting `ArrayBuffer.prototype.transferToImmutable`.
+The patch restores the ability to use `pass-style` on older platforms without
+the immutable `ArrayBuffer` shim (as entrained by `ses`).
+
+- Introduces support for `byteArray`.
+
 # v1.4.1 (2024-07-30)
 
 - `deeplyFulfilled` moved from @endo/marshal to @endo/pass-style. @endo/marshal still reexports it, to avoid breaking old importers. But importers should be upgraded to import `deeplyFulfilled` directly from @endo/pass-style.

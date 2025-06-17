@@ -7,10 +7,10 @@ const originalConsole = console;
 lockdown({ errorTaming: 'unsafe' });
 
 // Grab `details` only after lockdown
-const { details: X, quote: q, note: annotateError } = assert;
+const { details: X, quote: q, note: annotateError, Fail } = assert;
 
 test('ava message disclosure blabs', t => {
-  t.throws(() => assert.fail(X`a secret ${666} and a public ${q(777)}`), {
+  t.throws(() => Fail`a secret ${666} and a public ${q(777)}`, {
     message: /a secret 666 and a public 777/,
   });
 });
@@ -51,7 +51,7 @@ test('assert - safe', t => {
   try {
     const obj = {};
     const fooErr = SyntaxError('foo');
-    assert.fail(X`caused by ${fooErr},${obj}`);
+    Fail`caused by ${fooErr},${obj}`;
   } catch (barErr) {
     console.error('bar happens', barErr);
   }
@@ -62,7 +62,7 @@ test('assert - unlogged safe', t => {
   t.throws(() => {
     const obj = {};
     const fooErr = SyntaxError('foo');
-    assert.fail(X`caused by ${fooErr},${obj}`);
+    Fail`caused by ${fooErr},${obj}`;
   });
 });
 

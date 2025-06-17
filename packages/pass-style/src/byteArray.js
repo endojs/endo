@@ -1,4 +1,4 @@
-import { X } from '@endo/errors';
+import { X, Fail } from '@endo/errors';
 
 /**
  * @import {PassStyleHelper} from './internal-types.js';
@@ -7,21 +7,45 @@ import { X } from '@endo/errors';
 const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 const { ownKeys, apply } = Reflect;
 
-// @ts-expect-error TODO How do I add it to the ArrayBuffer type?
-const AnImmutableArrayBuffer = new ArrayBuffer(0).transferToImmutable();
+// Detects the presence of a immutable ArrayBuffer support in the underlying
+// platform and provides either suitable values from that implementation or
+// values that will consistently deny that immutable ArrayBuffers exist.
+const adaptImmutableArrayBuffer = () => {
+  const anArrayBuffer = new ArrayBuffer(0);
 
-/**
- * As proposed, this will be the same as `ArrayBuffer.prototype`. As shimmed,
- * this will be a hidden intrinsic that inherits from `ArrayBuffer.prototype`.
- * Either way, get this in a way that we can trust it after lockdown, and
- * require that all immutable ArrayBuffers directly inherit from it.
- */
-const ImmutableArrayBufferPrototype = getPrototypeOf(AnImmutableArrayBuffer);
+  // On platforms that do not support transferToImmutable, pass-style byteArray
+  // cannot be constructed.
+  // @ts-expect-error TODO This error will be addressed when updating
+  // TypeScript's native types to a version recognizing the upcoming standard.
+  if (anArrayBuffer.transferToImmutable === undefined) {
+    return {
+      immutableArrayBufferPrototype: null,
+      immutableGetter: () => false,
+    };
+  }
 
-const immutableGetter = /** @type {(this: ArrayBuffer) => boolean} */ (
-  // @ts-expect-error We know the desciptor is there.
-  getOwnPropertyDescriptor(ImmutableArrayBufferPrototype, 'immutable').get
-);
+  // @ts-expect-error TODO This error will be addressed when updating
+  // TypeScript's native types to a version recognizing the upcoming standard.
+  const anImmutableArrayBuffer = anArrayBuffer.transferToImmutable();
+
+  /**
+   * As proposed, this will be the same as `ArrayBuffer.prototype`. As shimmed,
+   * this will be a hidden intrinsic that inherits from `ArrayBuffer.prototype`.
+   * Either way, get this in a way that we can trust it after lockdown, and
+   * require that all immutable ArrayBuffers directly inherit from it.
+   */
+  const immutableArrayBufferPrototype = getPrototypeOf(anImmutableArrayBuffer);
+
+  const immutableGetter = /** @type {(this: ArrayBuffer) => boolean} */ (
+    // @ts-expect-error We know the desciptor is there.
+    getOwnPropertyDescriptor(immutableArrayBufferPrototype, 'immutable').get
+  );
+
+  return { immutableArrayBufferPrototype, immutableGetter };
+};
+
+const { immutableArrayBufferPrototype, immutableGetter } =
+  adaptImmutableArrayBuffer();
 
 /**
  * @type {PassStyleHelper}
@@ -36,10 +60,10 @@ export const ByteArrayHelper = harden({
     (!!check && check(false, X`Immutable ArrayBuffer expected: ${candidate}`)),
 
   assertRestValid: (candidate, _passStyleOfRecur) => {
-    getPrototypeOf(candidate) === ImmutableArrayBufferPrototype ||
+    getPrototypeOf(candidate) === immutableArrayBufferPrototype ||
       assert.fail(X`Malformed ByteArray ${candidate}`, TypeError);
     apply(immutableGetter, candidate, []) ||
-      assert.fail(X`Must be an immutable ArrayBuffer: ${candidate}`);
+      Fail`Must be an immutable ArrayBuffer: ${candidate}`;
     ownKeys(candidate).length === 0 ||
       assert.fail(
         X`ByteArrays must not have own properties: ${candidate}`,
