@@ -953,88 +953,13 @@ const makeLanguageOptions = ({
 
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
- * @param {string} packageLocation
- * @param {Set<string>} conditionsOption
- * @param {PackageDescriptor} packageDescriptor
- * @param {string} moduleSpecifier
- * @param {CompartmentMapForNodeModulesOptions} [options]
- * @returns {Promise<CompartmentMapDescriptor>}
- * @deprecated Use {@link mapNodeModules} instead.
- */
-export const compartmentMapForNodeModules = async (
-  readPowers,
-  packageLocation,
-  conditionsOption,
-  packageDescriptor,
-  moduleSpecifier,
-  options = {},
-) => {
-  const {
-    dev = false,
-    commonDependencies = {},
-    policy,
-    strict = false,
-    log = noop,
-  } = options;
-  const { maybeRead, canonical } = unpackReadPowers(readPowers);
-  const languageOptions = makeLanguageOptions(options);
-
-  const conditions = new Set(conditionsOption || []);
-
-  // dev is only set for the entry package, and implied by the development
-  // condition.
-  // The dev option is deprecated in favor of using conditions, since that
-  // covers more intentional behaviors of the development mode.
-
-  const graph = await graphPackages(
-    maybeRead,
-    canonical,
-    packageLocation,
-    conditions,
-    packageDescriptor,
-    dev || (conditions && conditions.has('development')),
-    commonDependencies,
-    languageOptions,
-    strict,
-    { log },
-  );
-
-  if (policy) {
-    assertPolicy(policy);
-
-    assert(
-      graph[ATTENUATORS_COMPARTMENT] === undefined,
-      `${q(ATTENUATORS_COMPARTMENT)} is a reserved compartment name`,
-    );
-
-    graph[ATTENUATORS_COMPARTMENT] = {
-      ...graph[packageLocation],
-      externalAliases: {},
-      label: ATTENUATORS_COMPARTMENT,
-      name: ATTENUATORS_COMPARTMENT,
-    };
-  }
-
-  const compartmentMap = translateGraph(
-    packageLocation,
-    moduleSpecifier,
-    graph,
-    conditions,
-    policy,
-  );
-
-  return compartmentMap;
-};
-
-/**
- * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {Array<{packageLocation:string, packageDescriptor:PackageDescriptor, moduleSpecifier:string}>} entriesToProcess
  * @param {Set<string>} conditionsOption
  * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
  * @deprecated Use {@link mapNodeModules} instead.
  */
-export const compartmentMapForNodeModules2 = async (
+export const compartmentMapForNodeModules = async (
   readPowers,
   entriesToProcess,
   conditionsOption,
@@ -1173,7 +1098,7 @@ export const mapNodeModules = async (
     });
   }
 
-  return compartmentMapForNodeModules2(
+  return compartmentMapForNodeModules(
     readPowers,
     entriesToProcess,
     conditions,

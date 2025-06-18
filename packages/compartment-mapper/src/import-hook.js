@@ -155,8 +155,7 @@ const findRedirect = ({
       const someCompartmentDescriptor = compartmentDescriptors[location];
       console.log(
         5,
-        location,
-        someLocation,
+        { location, someLocation, compartmentDescriptor },
         compartmentDescriptors[location],
         compartmentDescriptor === someCompartmentDescriptor,
         compartmentDescriptor.compartments.has(location),
@@ -185,18 +184,33 @@ const findRedirect = ({
 
       // FIXME: two issues
       // 1. I don't like how a dependency going in reverse is an indicator here. I know this is here because it happens to be how node native modules do stuff, but there's no logic to it.
-      // 2. this would not be reached by absolute paths being used in an unlinked compartment in dynamic require if we added the ability to explicitly define links in input, but that seems undesireable.
-      //    Instead, let's let compartments that represent entries accept dynamic requires from other unrelated compartments and leave blocking it to the policy.
-      // if (
-      //   someCompartmentDescriptor.compartments.has(
-      //     compartmentDescriptor.location,
-      //   )
-      // ) {
+      // 2. I tried this logic out and it seems incorrect - the policy check is testing the thing being loaded for a permission to load the referrer
+      // If we expand the implementation below to accept more or all cases, we might just be fine with policy enabled and offering a more convenient behavior without policy (all compartments found can be accessed dynamically)
+      if (
+        someCompartmentDescriptor.compartments.has(
+          compartmentDescriptor.location,
+        )
+      ) {
+        enforceModulePolicy(
+          compartmentDescriptor.name, // |_ should these be swapped actually? What am I missing?
+          someCompartmentDescriptor, //  |
+          {
+            errorHint: `Blocked in import hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
+          },
+        );
+        return {
+          specifier: relativeSpecifier(moduleSpecifierLocation, location),
+          compartment: compartments[location],
+        };
+      }
+      // verify policy and if allowed, load the entry even without a link between compartments
       const isAdditionalEntry = c => true; // good enough approximation for PoC
       if (isAdditionalEntry(someCompartmentDescriptor)) {
         enforceModulePolicy(
-          compartmentDescriptor.name,
-          someCompartmentDescriptor,
+          someCompartmentDescriptor.path[
+            someCompartmentDescriptor.path.length - 1
+          ],
+          compartmentDescriptor,
           {
             errorHint: `Blocked in import hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
           },

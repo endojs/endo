@@ -411,7 +411,12 @@ export const enforceModulePolicy = (
   }
 
   if (!exit) {
+    // FIXME: policy enforcement doesn't work on specifiers unknown at the time of creaating compartmentMap
+    // We could either preserve the policy and dynamically look it up,
+    // or expand the otherEntries to also indicate links 
+    // I'll attempt the former here next to see if it's possible without much compromise.
     if (!modules[specifier]) {
+      console.log(0, specifier, modules)
       throw Error(
         `Importing ${q(specifier)} in ${q(
           label,
