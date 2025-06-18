@@ -46,6 +46,7 @@ import {
   attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
   enforceModulePolicy,
+  enforcePackagePolicyDynamic,
 } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 
@@ -205,11 +206,14 @@ const findRedirect = ({
       }
       // verify policy and if allowed, load the entry even without a link between compartments
       const isAdditionalEntry = c => true; // good enough approximation for PoC
-      if (isAdditionalEntry(someCompartmentDescriptor)) {
-        enforceModulePolicy(
-          someCompartmentDescriptor.path[
-            someCompartmentDescriptor.path.length - 1
-          ],
+      if (
+        has(someCompartmentDescriptor, 'path') &&
+        someCompartmentDescriptor.path &&
+        isAdditionalEntry(someCompartmentDescriptor)
+      ) {
+        enforcePackagePolicyDynamic(
+          absoluteModuleSpecifier,
+          someCompartmentDescriptor.path,
           compartmentDescriptor,
           {
             errorHint: `Blocked in import hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,

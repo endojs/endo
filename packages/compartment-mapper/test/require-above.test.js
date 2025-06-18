@@ -41,7 +41,6 @@ test('dynamic require of an item above entrypoint', async t => {
 });
 
 test('dynamic require of an item above entrypoint with policy', async t => {
-  t.plan(2);
   const fixture = new URL(
     'fixtures-additional-modules/node_modules/goofy/index.js',
     import.meta.url,
@@ -60,7 +59,12 @@ test('dynamic require of an item above entrypoint with policy', async t => {
     },
     resources: {
       // goofy: { packages: { '$external:app': true } },
-      '$external:app': { packages: { pippo: true } },
+      '$external:app': { packages: { '$external:app>pippo': true } },
+      '$external:app>pippo': {
+        packages: { '$external:app>pippo>gambadilegno': true },
+      },
+      // I forget, is this how we allow importing from root?
+      '$external:app>pippo>gambadilegno': { packages: { 'goofy': true } },
     },
   };
 

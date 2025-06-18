@@ -55,7 +55,7 @@ import {
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 
-const { assign, create, keys, values, entries } = Object;
+const { assign, create, keys, values, entries, freeze } = Object;
 
 const decoder = new TextDecoder();
 
@@ -516,7 +516,7 @@ const graphPackage = async (
 
   assign(result, {
     name,
-    path: logicalPath,
+    path: freeze(logicalPath),
     label: `${name}${version ? `-v${version}` : ''}`,
     sourceDirname,
     explicitExports: exportsDescriptor !== undefined,
@@ -1074,28 +1074,31 @@ export const mapNodeModules = async (
     { packageLocation, packageDescriptor, moduleSpecifier },
   ];
 
-  for (const entrypoint of otherEntrypoints) {
-    const {
-      packageLocation: entryPackageLocation,
-      packageDescriptorText: entryPackageDescriptorText,
-      packageDescriptorLocation,
-      moduleSpecifier: entryModuleSpecifier,
-    } = await search(readPowers, entrypoint, { log });
+  if (otherEntrypoints) {
+    for (const entrypoint of otherEntrypoints) {
+      const {
+        packageLocation: entryPackageLocation,
+        packageDescriptorText: entryPackageDescriptorText,
+        packageDescriptorLocation,
+        moduleSpecifier: entryModuleSpecifier,
+      // eslint-disable-next-line no-await-in-loop
+      } = await search(readPowers, entrypoint, { log });
 
-    if (entryPackageLocation === undefined) {
-      throw Error(
-        `Cannot find package.json for ${entrypoint} of otherEntrypoints`,
+      if (entryPackageLocation === undefined) {
+        throw Error(
+          `Cannot find package.json for ${entrypoint} of otherEntrypoints`,
+        );
+      }
+      const entryPackageDescriptor = parseLocatedJson(
+        entryPackageDescriptorText,
+        packageDescriptorLocation,
       );
+      entriesToProcess.push({
+        packageLocation: entryPackageLocation,
+        packageDescriptor: entryPackageDescriptor,
+        moduleSpecifier: entryModuleSpecifier,
+      });
     }
-    const entryPackageDescriptor = parseLocatedJson(
-      entryPackageDescriptorText,
-      packageDescriptorLocation,
-    );
-    entriesToProcess.push({
-      packageLocation: entryPackageLocation,
-      packageDescriptor: entryPackageDescriptor,
-      moduleSpecifier: entryModuleSpecifier,
-    });
   }
 
   return compartmentMapForNodeModules(

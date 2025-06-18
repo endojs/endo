@@ -397,15 +397,15 @@ const diagnoseModulePolicy = errorHint => {
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier
- * @param {CompartmentDescriptor} compartmentDescriptor
+ * @param {CompartmentDescriptor} referrerCompartmentDescriptor
  * @param {EnforceModulePolicyOptions} [options]
  */
 export const enforceModulePolicy = (
   specifier,
-  compartmentDescriptor,
+  referrerCompartmentDescriptor,
   { exit, errorHint } = {},
 ) => {
-  const { policy, modules, label } = compartmentDescriptor;
+  const { policy, modules, label } = referrerCompartmentDescriptor;
   if (!policy) {
     return;
   }
@@ -413,10 +413,10 @@ export const enforceModulePolicy = (
   if (!exit) {
     // FIXME: policy enforcement doesn't work on specifiers unknown at the time of creaating compartmentMap
     // We could either preserve the policy and dynamically look it up,
-    // or expand the otherEntries to also indicate links 
+    // or expand the otherEntries to also indicate links
     // I'll attempt the former here next to see if it's possible without much compromise.
     if (!modules[specifier]) {
-      console.log(0, specifier, modules)
+      console.log(0, specifier, referrerCompartmentDescriptor);
       throw Error(
         `Importing ${q(specifier)} in ${q(
           label,
@@ -432,6 +432,36 @@ export const enforceModulePolicy = (
     throw Error(
       `Importing ${q(specifier)} was not allowed by policy builtins:${q(
         policy.builtins,
+      )}${diagnoseModulePolicy(errorHint)}`,
+    );
+  }
+};
+/**
+ * Throws if importing from the package is not allowed by the policy
+ *
+ * @param {string} specifier
+ * @param {string[]} compartmentDescriptorPath
+ * @param {CompartmentDescriptor} referrerCompartmentDescriptor
+ * @param {EnforceModulePolicyOptions} [options]
+ */
+export const enforcePackagePolicyDynamic = (
+  specifier,
+  compartmentDescriptorPath,
+  referrerCompartmentDescriptor,
+  { errorHint } = {},
+) => {
+  const { policy, label } = referrerCompartmentDescriptor;
+  if (!policy) {
+    return;
+  }
+  const resourceNameFromPath = compartmentDescriptorPath.join('>');
+  if (!policy.packages || !policy.packages[resourceNameFromPath]) {
+    console.log(-0, compartmentDescriptorPath, referrerCompartmentDescriptor);
+    throw Error(
+      `Importing ${q(specifier)} from within resource ${q(resourceNameFromPath)} in ${q(
+        label,
+      )} was not allowed by packages policy ${q(
+        policy.packages,
       )}${diagnoseModulePolicy(errorHint)}`,
     );
   }
