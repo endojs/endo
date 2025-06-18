@@ -1,5 +1,9 @@
 User visible changes in `@endo/immutable-arraybuffer`:
 
+# Next release
+
+- Removes `@endo/immutable-arraybufer/shim-hermes.js` and absorbs the necessary features into `@endo/immutable-arraybuffer/shim.js`. We are not qualifying this as a breaking change since the feature did not exist long enough to become relied upon.
+
 # 1.1.1 (2025-06-17)
 
 - Captures `structuredClone` early so that scuttling all properties of `globalThis`
