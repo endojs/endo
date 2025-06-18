@@ -111,6 +111,7 @@ export const loadLocation = async (
     languages,
   });
   return loadFromMap(readPowers, compartmentMap, {
+    otherEntrypoints,
     parserForLanguage,
     ...otherOptions,
   });

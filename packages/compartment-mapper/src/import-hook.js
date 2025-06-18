@@ -153,6 +153,17 @@ const findRedirect = ({
     ) {
       const location = someLocation;
       const someCompartmentDescriptor = compartmentDescriptors[location];
+      console.log(
+        5,
+        location,
+        someLocation,
+        compartmentDescriptors[location],
+        compartmentDescriptor === someCompartmentDescriptor,
+        compartmentDescriptor.compartments.has(location),
+        someCompartmentDescriptor.compartments.has(
+          compartmentDescriptor.location,
+        ),
+      );
       if (compartmentDescriptor === someCompartmentDescriptor) {
         // this compartmentDescriptor wants to dynamically load its own module
         // using an absolute path
@@ -171,11 +182,18 @@ const findRedirect = ({
       // this tests if the compartment descriptor is a dependency of the
       // compartment referred to by the absolute path.
       // it may be in scope, but disallowed by policy.
-      if (
-        someCompartmentDescriptor.compartments.has(
-          compartmentDescriptor.location,
-        )
-      ) {
+
+      // FIXME: two issues
+      // 1. I don't like how a dependency going in reverse is an indicator here. I know this is here because it happens to be how node native modules do stuff, but there's no logic to it.
+      // 2. this would not be reached by absolute paths being used in an unlinked compartment in dynamic require if we added the ability to explicitly define links in input, but that seems undesireable.
+      //    Instead, let's let compartments that represent entries accept dynamic requires from other unrelated compartments and leave blocking it to the policy.
+      // if (
+      //   someCompartmentDescriptor.compartments.has(
+      //     compartmentDescriptor.location,
+      //   )
+      // ) {
+      const isAdditionalEntry = c => true; // good enough approximation for PoC
+      if (isAdditionalEntry(someCompartmentDescriptor)) {
         enforceModulePolicy(
           compartmentDescriptor.name,
           someCompartmentDescriptor,
@@ -467,9 +485,7 @@ const makeDeferError = (
         throw error;
       },
     });
-    packageSources[specifier] = {
-      deferredError: error.message,
-    };
+    packageSources[specifier] = { deferredError: error.message };
 
     return record;
   };
@@ -783,12 +799,14 @@ export function makeImportNowHookMaker(
       try {
         // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
         if (isAbsolute(moduleSpecifier)) {
+          console.log(3, moduleSpecifier);
           const record = findRedirect({
             compartmentDescriptor,
             compartmentDescriptors,
             compartments,
             absoluteModuleSpecifier: moduleSpecifier,
           });
+          console.log(4, moduleSpecifier, record);
           if (record) {
             return record;
           }
@@ -836,11 +854,7 @@ export function makeImportNowHookMaker(
             sourceMapHook,
             strictlyRequiredForCompartment,
           },
-          {
-            maybeRead: maybeReadNow,
-            parse,
-            shouldDeferError,
-          },
+          { maybeRead: maybeReadNow, parse, shouldDeferError },
         );
 
         if (record) {
