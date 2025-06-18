@@ -8,6 +8,10 @@ import { mapNodeModules } from '../src/node-modules.js';
 import { makeReadPowers } from '../src/node-powers.js';
 import { defaultParserForLanguage } from '../src/import-parsers.js';
 
+/**
+ * @import {AdditionalPackageDetailsMap, PackageDetails} from '../src/types.js'
+ */
+
 const { keys } = Object;
 
 test('captureFromMap() should resolve with a CaptureResult', async t => {
@@ -86,4 +90,54 @@ test('captureFromMap() should round-trip sources based on parsers', async t => {
     'utf-8',
   );
   t.is(actual, expected, 'Source code should not be pre-compiled');
+});
+
+test('captureFromMap() should retain additional module locations', async t => {
+  const readPowers = makeReadPowers({ fs, url });
+
+  const entryModuleLocation = new URL(
+    'fixtures-additional-modules/node_modules/goofy/index.js',
+    import.meta.url,
+  ).href;
+
+  const additionalModuleLocations = {
+    [entryModuleLocation]: [
+      new URL('fixtures-additional-modules/config.js', import.meta.url).href,
+    ],
+  };
+
+  /**
+   * @type {AdditionalPackageDetailsMap}
+   */
+  const additionalPackageDetails = {};
+
+  const nodeCompartmentMap = await mapNodeModules(
+    readPowers,
+    entryModuleLocation,
+    {
+      additionalModuleLocations,
+      additionalPackageDetails,
+    },
+  );
+
+  const { captureCompartmentMap } = await captureFromMap(
+    readPowers,
+    nodeCompartmentMap,
+    {
+      // we are NOT pre-compiling sources
+      parserForLanguage: defaultParserForLanguage,
+      additionalPackageDetails,
+    },
+  );
+
+  t.deepEqual(
+    keys(captureCompartmentMap.compartments).sort(),
+    [
+      'app-v1.0.0',
+      'gambadilegno-v1.0.0',
+      'goofy-v1.0.0',
+      'paperino-v1.0.0',
+      'pippo-v1.0.0',
+    ].sort(),
+  );
 });
