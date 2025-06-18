@@ -1,24 +1,17 @@
-import { test } from './prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 // eslint-disable-next-line import/order
 import { Far, makeTagged, passStyleOf } from '@endo/pass-style';
-import { makeMarshal } from '../src/marshal.js';
+import { makeMarshal } from '../../src/marshal.js';
 
-import { roundTripPairs } from './test-marshal-capdata.js';
+import {
+  makeSmallcapsTestMarshal,
+  roundTripPairs,
+} from '../_marshal-test-data.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
 // this only includes the tests that do not use liveSlots
-
-/**
- * @param {import('../src/types.js').MakeMarshalOptions} [opts]
- */
-export const makeSmallcapsTestMarshal = (opts = { errorTagging: 'off' }) =>
-  makeMarshal(undefined, undefined, {
-    serializeBodyFormat: 'smallcaps',
-    marshalSaveError: _err => {},
-    ...opts,
-  });
 
 test('smallcaps serialize unserialize round trip half pairs', t => {
   const { toCapData, fromCapData } = makeSmallcapsTestMarshal();
@@ -351,7 +344,7 @@ test('smallcaps encoding examples', t => {
   harden(nonPassableErr);
   t.throws(() => passStyleOf(nonPassableErr), {
     message:
-      'Passed Error has extra unpassed properties {"extraProperty":{"configurable":false,"enumerable":true,"value":"something bad","writable":false}}',
+      /Passable Error "extraProperty" own property must not be enumerable: \{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*\}/,
   });
   assertSer(
     nonPassableErr,

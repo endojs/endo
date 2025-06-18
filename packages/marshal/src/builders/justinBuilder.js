@@ -1,15 +1,15 @@
-/// <reference types="ses"/>
-
 import { Far, getInterfaceOf, nameForPassableSymbol } from '@endo/pass-style';
 import {
   identPattern,
-  AtAtPrefixPattern,
   makeNoIndenter,
   makeYesIndenter,
 } from '../marshal-justin.js';
 
+/**
+ * @import {Builder} from './builder-types.js';
+ */
+
 const { stringify } = JSON;
-const { Fail, quote: q } = assert;
 const { is } = Object;
 
 export const makeJustinBuilder = (shouldIndent = false, _slots = []) => {
@@ -46,19 +46,7 @@ export const makeJustinBuilder = (shouldIndent = false, _slots = []) => {
     buildSymbol: sym => {
       assert.typeof(sym, 'symbol');
       const name = nameForPassableSymbol(sym);
-      if (name === undefined) {
-        throw Fail`Symbol must be either registered or well known: ${q(sym)}`;
-      }
-      const registeredName = Symbol.keyFor(sym);
-      if (registeredName === undefined) {
-        const match = AtAtPrefixPattern.exec(name);
-        assert(match !== null);
-        const suffix = match[1];
-        assert(Symbol[suffix] === sym);
-        assert(identPattern.test(suffix));
-        return out.next(`Symbol.${suffix}`);
-      }
-      return out.next(`Symbol.for(${stringify(registeredName)})`);
+      return out.next(`passableSymbolForName(${stringify(name)})`);
     },
 
     buildRecord: (names, buildValuesIter) => {

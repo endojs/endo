@@ -1,9 +1,11 @@
-import { test } from '../prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
 import * as sc from '../../src/builders/smallcapsBuilder.js';
 import * as js from '../../src/builders/subgraphBuilder.js';
-import { roundTripPairs } from '../test-marshal-capdata.js';
-import { makeSmallcapsTestMarshal } from '../test-marshal-smallcaps-builder.js';
+import {
+  makeSmallcapsTestMarshal,
+  roundTripPairs,
+} from '../_marshal-test-data.js';
 
 const { isFrozen } = Object;
 

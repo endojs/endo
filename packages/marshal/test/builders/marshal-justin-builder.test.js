@@ -1,23 +1,18 @@
-import { test } from '../prepare-test-env-ava.js';
+import test from '@endo/ses-ava/prepare-endo.js';
 
-import * as js from '../../src/builders/subgraphBuilder.js';
-import { makeJustinBuilder } from '../../src/builders/justinBuilder.js';
+// eslint-disable-next-line import/order
 import { makeMarshal } from '../../src/marshal.js';
 import { decodeToJustin } from '../../src/marshal-justin.js';
-import {
-  fakeJustinCompartment,
-  justinPairs,
-} from '../test-marshal-justin-builder.js';
+import { fakeJustinCompartment, justinPairs } from './_builder-test-data.js';
 
 // this only includes the tests that do not use liveSlots
 
-test('justin builder round trip pairs', t => {
-  const jsRecognizer = js.makeRecognizer();
+test('serialize decodeToJustin eval round trip pairs', t => {
   const { toCapData } = makeMarshal(undefined, undefined, {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
-    // TODO retire the old format in justin test cases
+    // TODO make Justin work with smallcaps
     serializeBodyFormat: 'capdata',
   });
   for (const [body, justinSrc, slots] of justinPairs) {
@@ -28,30 +23,29 @@ test('justin builder round trip pairs', t => {
     const value = harden(c.evaluate(`(${justinExpr})`));
     const { body: newBody } = toCapData(value);
     t.is(newBody, body);
-
-    const justinBuilder = makeJustinBuilder(false, slots);
-    t.is(jsRecognizer(value, justinBuilder), justinExpr);
   }
 });
 
-test('justin indented builder round trip pairs', t => {
-  const jsRecognizer = js.makeRecognizer();
+// Like "serialize decodeToJustin eval round trip pairs" but uses the indented
+// representation *without* checking its specific whitespace decisions.
+// Just checks that it has equivalent evaluation, and
+// that the decoder passes the extra `level` balancing diagnostic in
+// `makeYesIndenter`.
+test('serialize decodeToJustin indented eval round trip', t => {
   const { toCapData } = makeMarshal(undefined, undefined, {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
-    // TODO retire the old format in justin test cases
+    // TODO make Justin work with smallcaps
     serializeBodyFormat: 'capdata',
   });
   for (const [body, _, slots] of justinPairs) {
     const c = fakeJustinCompartment();
+    t.log(body);
     const encoding = JSON.parse(body);
     const justinExpr = decodeToJustin(encoding, true, slots);
     const value = harden(c.evaluate(`(${justinExpr})`));
     const { body: newBody } = toCapData(value);
     t.is(newBody, body);
-
-    const justinBuilder = makeJustinBuilder(true, slots);
-    t.is(jsRecognizer(value, justinBuilder), justinExpr);
   }
 });

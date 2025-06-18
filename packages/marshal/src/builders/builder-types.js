@@ -1,4 +1,6 @@
-/** @typedef {import('@endo/pass-style').Remotable} Remotable */
+/**
+ * @import {Remotable} from '@endo/pass-style';
+ */
 
 /**
  * @template N

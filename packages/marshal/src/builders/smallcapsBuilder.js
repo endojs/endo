@@ -1,4 +1,7 @@
-/// <reference types="ses"/>
+/**
+ * @import {SmallcapsEncoding} from '../encodeToSmallcaps.js';
+ * @import {Builder} from './builder-types.js';
+ */
 
 import {
   assertPassableSymbol,
@@ -13,8 +16,6 @@ import {
   startsSpecial,
   encodeStringToSmallcaps as buildString,
 } from '../encodeToSmallcaps.js';
-
-/** @typedef {import('../encodeToSmallcaps.js').SmallcapsEncoding} SmallcapsEncoding */
 
 const { is, fromEntries } = Object;
 const { isArray } = Array;

@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 import {
   Far,
   getTag,
@@ -8,7 +6,10 @@ import {
   passStyleOf,
 } from '@endo/pass-style';
 
-/** @typedef {import('@endo/pass-style').Passable} Passable */
+/**
+ * @import {Passable} from '@endo/pass-style';
+ * @import {Builder} from './builder-types.js';
+ */
 
 const { fromEntries } = Object;
 const { ownKeys } = Reflect;

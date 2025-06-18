@@ -9,7 +9,10 @@ import {
 } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
-import { roundTripPairs } from './_marshal-test-data.js';
+import {
+  makeSmallcapsTestMarshal,
+  roundTripPairs,
+} from './_marshal-test-data.js';
 
 const {
   freeze,
@@ -34,18 +37,8 @@ const testIfAggregateError = supportsAggregateError ? test : test.skip;
 
 // this only includes the tests that do not use liveSlots
 
-/**
- * @param {import('../src/types.js').MakeMarshalOptions} [opts]
- */
-const makeTestMarshal = (opts = { errorTagging: 'off' }) =>
-  makeMarshal(undefined, undefined, {
-    serializeBodyFormat: 'smallcaps',
-    marshalSaveError: _err => {},
-    ...opts,
-  });
-
 test('smallcaps serialize unserialize round trip half pairs', t => {
-  const { serialize, unserialize } = makeTestMarshal();
+  const { serialize, unserialize } = makeSmallcapsTestMarshal();
   for (const [plain, _] of roundTripPairs) {
     const { body } = serialize(plain);
     const decoding = unserialize({ body, slots: [] });
@@ -55,7 +48,7 @@ test('smallcaps serialize unserialize round trip half pairs', t => {
 });
 
 test('smallcaps serialize static data', t => {
-  const { serialize } = makeTestMarshal();
+  const { serialize } = makeSmallcapsTestMarshal();
   const ser = val => serialize(val);
 
   if (!harden.isFake) {
@@ -79,7 +72,7 @@ test('smallcaps serialize static data', t => {
 });
 
 test('smallcaps unserialize static data', t => {
-  const { unserialize } = makeTestMarshal();
+  const { unserialize } = makeSmallcapsTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
   // should be frozen
@@ -93,7 +86,7 @@ test('smallcaps unserialize static data', t => {
 });
 
 test('smallcaps serialize errors', t => {
-  const { serialize } = makeTestMarshal();
+  const { serialize } = makeSmallcapsTestMarshal();
   const ser = val => serialize(val);
 
   t.deepEqual(ser(harden(Error())), {
@@ -155,7 +148,7 @@ test('smallcaps serialize errors', t => {
 });
 
 test('smallcaps unserialize errors', t => {
-  const { unserialize } = makeTestMarshal();
+  const { unserialize } = makeSmallcapsTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
   const em1 = uns('#{"#error":"msg","name":"ReferenceError"}');
@@ -173,7 +166,7 @@ test('smallcaps unserialize errors', t => {
 });
 
 test('smallcaps unserialize extended errors', t => {
-  const { unserialize } = makeTestMarshal();
+  const { unserialize } = makeSmallcapsTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
   const refErr = uns(
@@ -206,7 +199,7 @@ test('smallcaps unserialize extended errors', t => {
 });
 
 testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
-  const { unserialize } = makeTestMarshal();
+  const { unserialize } = makeSmallcapsTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
   const errEnc = '{"#error":"msg","name":"URIError"}';
@@ -237,7 +230,7 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
 });
 
 test('smallcaps mal-formed @qclass', t => {
-  const { unserialize } = makeTestMarshal();
+  const { unserialize } = makeSmallcapsTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
   t.throws(() => uns('#{"#foo": 0}'), {
     message: 'Unrecognized record type "#foo": {"#foo":0}',
@@ -438,8 +431,7 @@ test('smallcaps encoding examples', t => {
   harden(nonPassableErr);
   t.throws(() => passStyleOf(nonPassableErr), {
     message:
-      // /Passable Error "extraProperty" own property must not be enumerable: \{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*\}/,
-      'Passed Error has extra unpassed properties {"extraProperty":{"configurable":false,"enumerable":true,"value":"something bad","writable":false}}',
+      /Passable Error "extraProperty" own property must not be enumerable: \{"configurable":.*,"enumerable":true,"value":"something bad","writable":.*\}/,
   });
   assertSer(
     nonPassableErr,

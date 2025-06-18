@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
 
 // This module is based on the `encodePassable.js` in `@agoric/store`,
 // which may migrate here. The main external difference is that
@@ -19,7 +18,10 @@ import {
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
-/** @import {Passable, Remotable} from '@endo/pass-style' */
+/**
+ * @import {Passable, Remotable} from '@endo/pass-style'
+ */
+
 // FIXME define actual types
 /** @typedef {any} SmallcapsEncoding */
 /** @typedef {any} SmallcapsEncodingUnion */
