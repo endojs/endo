@@ -76,6 +76,7 @@ export const loadLocation = async (
   options = {},
 ) => {
   const {
+    otherEntrypoints,
     dev,
     tags,
     strict,
@@ -95,6 +96,7 @@ export const loadLocation = async (
   const conditions =
     'conditions' in options ? options.conditions || tags : tags;
   const compartmentMap = await mapNodeModules(readPowers, moduleLocation, {
+    otherEntrypoints,
     dev,
     strict,
     conditions,
