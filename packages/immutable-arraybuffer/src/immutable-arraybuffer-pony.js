@@ -10,13 +10,15 @@ const {
   structuredClone: optStructuredClone,
 } = globalThis;
 
-const { defineProperty, getPrototypeOf } = Object;
+const { freeze, defineProperty, getPrototypeOf, getOwnPropertyDescriptor } =
+  Object;
 const { apply, ownKeys } = Reflect;
+const { toStringTag } = Symbol;
 
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
 const { slice, transfer: optTransfer } = arrayBufferPrototype;
 // @ts-expect-error TS doesn't know it'll be there
-const { get: arrayBufferByteLength } = Object.getOwnPropertyDescriptor(
+const { get: arrayBufferByteLength } = getOwnPropertyDescriptor(
   arrayBufferPrototype,
   'byteLength',
 );
@@ -24,7 +26,7 @@ const { get: arrayBufferByteLength } = Object.getOwnPropertyDescriptor(
 const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
 const { set: uint8ArraySet } = typedArrayPrototype;
 // @ts-expect-error TS doesn't know it'll be there
-const { get: uint8ArrayBuffer } = Object.getOwnPropertyDescriptor(
+const { get: uint8ArrayBuffer } = getOwnPropertyDescriptor(
   typedArrayPrototype,
   'buffer',
 );
@@ -145,7 +147,7 @@ const ImmutableArrayBufferInternalPrototype = {
   /**
    * See https://github.com/endojs/endo/tree/master/packages/immutable-arraybuffer#purposeful-violation
    */
-  [Symbol.toStringTag]: 'ImmutableArrayBuffer',
+  [toStringTag]: 'ImmutableArrayBuffer',
 };
 
 // Better fidelity emulation of a class prototype
@@ -175,7 +177,7 @@ const makeImmutableArrayBufferInternal = realBuffer => {
 };
 // Since `makeImmutableArrayBufferInternal` MUST not escape,
 // this `freeze` is just belt-and-suspenders.
-Object.freeze(makeImmutableArrayBufferInternal);
+freeze(makeImmutableArrayBufferInternal);
 
 /**
  * @param {ArrayBuffer} buffer

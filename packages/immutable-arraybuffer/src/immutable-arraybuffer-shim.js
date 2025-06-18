@@ -13,6 +13,7 @@ const optTransferBufferToImmutable = optXferBuf2Immu;
 const { getOwnPropertyDescriptors, defineProperties, defineProperty } = Object;
 const { ownKeys } = Reflect;
 const { prototype: arrayBufferPrototype } = ArrayBuffer;
+const { stringify } = JSON;
 
 const arrayBufferMethods = {
   /**
@@ -72,7 +73,7 @@ const overwrites = ownKeys(arrayBufferMethods).filter(
 );
 if (overwrites.length > 0) {
   console.warn(
-    `About to overwrite ArrayBuffer.prototype properties ${JSON.stringify(overwrites)}`,
+    `About to overwrite ArrayBuffer.prototype properties ${stringify(overwrites)}`,
   );
 }
 
