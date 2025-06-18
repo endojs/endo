@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.1.1](https://github.com/endojs/endo/compare/@endo/immutable-arraybuffer@1.1.0...@endo/immutable-arraybuffer@1.1.1) (2025-06-17)
+
+
+### Bug Fixes
+
+* **immutable-arraybuffer:** capture structuredClone early ([#2853](https://github.com/endojs/endo/issues/2853)) ([a12c5c5](https://github.com/endojs/endo/commit/a12c5c5d7d2b476a9ff3d383bc9275b6cc5ae052))
+* **pass-style:** better byteArray support ([#2843](https://github.com/endojs/endo/issues/2843)) ([492551a](https://github.com/endojs/endo/commit/492551a936cf74fbeff0935b95fbd02ce02f796a)), closes [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248) [#2248](https://github.com/endojs/endo/issues/2248)
+
+
+
 ## [1.1.0](https://github.com/endojs/endo/compare/@endo/immutable-arraybuffer@1.0.0...@endo/immutable-arraybuffer@1.1.0) (2025-06-02)
 
 

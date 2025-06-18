@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.0.16](https://github.com/endojs/endo/compare/@endo/check-bundle@1.0.15...@endo/check-bundle@1.0.16) (2025-06-17)
+
+**Note:** Version bump only for package @endo/check-bundle
+
+
+
+
+
 ### [1.0.15](https://github.com/endojs/endo/compare/@endo/check-bundle@1.0.14...@endo/check-bundle@1.0.15) (2025-06-02)
 
 **Note:** Version bump only for package @endo/check-bundle

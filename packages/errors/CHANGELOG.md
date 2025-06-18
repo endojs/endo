@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.2.12](https://github.com/endojs/endo/compare/@endo/errors@1.2.11...@endo/errors@1.2.12) (2025-06-17)
+
+**Note:** Version bump only for package @endo/errors
+
+
+
+
+
 ### [1.2.11](https://github.com/endojs/endo/compare/@endo/errors@1.2.10...@endo/errors@1.2.11) (2025-06-02)
 
 **Note:** Version bump only for package @endo/errors

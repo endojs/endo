@@ -1,5 +1,10 @@
 User-visible changes to `@endo/compartment-mapper`:
 
+# v1.6.2 (2025-06-17)
+
+- Produces a stub for `require.extensions` in CommonJS modules to increase
+  ecosystem compatibility.
+
 # v1.6.1 (2025-06-02)
 
 - The `dev` flag for `mapNodeModules()` is no longer deprecated.  The concept

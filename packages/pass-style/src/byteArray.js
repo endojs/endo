@@ -13,11 +13,11 @@ const { ownKeys, apply } = Reflect;
 const adaptImmutableArrayBuffer = () => {
   const anArrayBuffer = new ArrayBuffer(0);
 
-  // On platforms that do not support transferToImmutable, pass-style byteArray
+  // On platforms that do not support sliceToImmutable, pass-style byteArray
   // cannot be constructed.
   // @ts-expect-error TODO This error will be addressed when updating
   // TypeScript's native types to a version recognizing the upcoming standard.
-  if (anArrayBuffer.transferToImmutable === undefined) {
+  if (anArrayBuffer.sliceToImmutable === undefined) {
     return {
       immutableArrayBufferPrototype: null,
       immutableGetter: () => false,
@@ -26,7 +26,7 @@ const adaptImmutableArrayBuffer = () => {
 
   // @ts-expect-error TODO This error will be addressed when updating
   // TypeScript's native types to a version recognizing the upcoming standard.
-  const anImmutableArrayBuffer = anArrayBuffer.transferToImmutable();
+  const anImmutableArrayBuffer = anArrayBuffer.sliceToImmutable();
 
   /**
    * As proposed, this will be the same as `ArrayBuffer.prototype`. As shimmed,
