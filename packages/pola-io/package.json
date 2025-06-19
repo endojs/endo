@@ -2,7 +2,7 @@
   "name": "@endo/pola-io",
   "version": "0.1.0",
   "private": true,
-  "description": null,
+  "description": "Least Authority I/O utilities",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -16,12 +16,9 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./index.js",
-  "module": "./index.js",
-  "exports": {
-    ".": "./index.js",
-    "./package.json": "./package.json"
-  },
+  "main": "./src/index.js",
+  "types": "./src/types.ts",
+  "$exports": "TODO",
   "scripts": {
     "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:eslint",
@@ -68,5 +65,8 @@
       "test/**/*.test.*"
     ],
     "timeout": "2m"
+  },
+  "typeCoverage": {
+    "atLeast": 80
   }
 }
