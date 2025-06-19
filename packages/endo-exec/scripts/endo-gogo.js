@@ -1,4 +1,5 @@
 #! /usr/bin/env node
+// @ts-check
 import 'endo-exec';
 
 import { importLocation } from '@endo/compartment-mapper';
@@ -10,16 +11,24 @@ import { createRequire } from 'node:module';
 
 const readPowers = makeReadPowers({ fs, url, path });
 
+/**
+ * @typedef {<T>(specifier: string, _tyHint: () => Promise<T>) => Promise<T>} ImportConfined
+ */
+
 /** @type {import('endo-exec').Main} */
 export const main = async ([_self, script, ...args], env, powers) => {
   console.log(import.meta.url);
   const scriptResolved = path.resolve(process.cwd(), script);
   const scriptRequire = createRequire(url.pathToFileURL(scriptResolved));
-  const importConfined = specifier => {
+
+  // TODO: return type must match specified module
+  /** @type {ImportConfined} */
+  const importConfined = async (specifier, _tyHint) => {
     const moduleResolved = scriptRequire.resolve(specifier);
     const moduleUrlString = url.pathToFileURL(moduleResolved).href;
     console.log({ moduleResolved, moduleUrlString });
-    return importLocation(readPowers, moduleUrlString).then(x => x.namespace);
+    const x = await importLocation(readPowers, moduleUrlString);
+    return x.namespace;
   };
   console.log({ scriptResolved });
   const stuff = await import(scriptResolved);
