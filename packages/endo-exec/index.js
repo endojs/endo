@@ -5,9 +5,10 @@ import '@endo/init/legacy.js';
 import './endo-exec.cjs';
 
 /**
+ * @template {Record<string, any>} [P=Record<string, any>]
  * @typedef {(
  *  argv: string[],
  *  envp: Record<string, string>,
- *  powers: Record<string, any>,
+ *  powers: P,
  * ) => Promise<any>} Main
  */
