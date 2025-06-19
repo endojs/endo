@@ -32,5 +32,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@agoric/client-utils": "0.2.0-u20.0"
   }
 }
