@@ -868,6 +868,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/pola-io@workspace:packages/pola-io":
+  version: 0.0.0-use.local
+  resolution: "@endo/pola-io@workspace:packages/pola-io"
+  dependencies:
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "npm:^6.1.3"
+    c8: "npm:^7.14.0"
+    eslint: "npm:^8.57.0"
+    tsd: "npm:^0.31.2"
+    typescript: "npm:~5.8.3"
+  languageName: unknown
+  linkType: soft
+
 "@endo/promise-kit@workspace:^, @endo/promise-kit@workspace:packages/promise-kit":
   version: 0.0.0-use.local
   resolution: "@endo/promise-kit@workspace:packages/promise-kit"
