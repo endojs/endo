@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 import { Fail } from '@endo/errors';
 import { makeMarshal } from './marshal.js';
 

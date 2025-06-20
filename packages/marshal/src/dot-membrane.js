@@ -1,5 +1,4 @@
 /* eslint-disable no-use-before-define */
-/// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';
 import { isObject, getInterfaceOf, Far, passStyleOf } from '@endo/pass-style';
