@@ -68,6 +68,7 @@ export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   LogOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
+  otherEntrypoints: string[],
   /** @deprecated renamed `conditions` to be consistent with Node.js */
   tags: Set<string>;
   /**
