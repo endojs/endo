@@ -3,7 +3,7 @@ import { expectAssignable, expectType, expectNotType } from 'tsd';
 import { Far } from './make-far.js';
 import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
-import type { CopyTagged, Passable, PassStyle } from './types.js';
+import type { Checker, CopyTagged, Passable, PassStyle } from './types.js';
 import { PASS_STYLE } from './passStyle-helpers.js';
 import { passableSymbolForName } from './symbol.js';
 
@@ -57,3 +57,5 @@ expectPassable(copyTagged);
 expectPassable(Promise.resolve(remotable));
 expectPassable({ a: Promise.resolve(remotable) });
 expectPassable({ a: Promise.resolve(fn) });
+
+expectAssignable<Checker>((cond: boolean, details: string) => cond);
