@@ -27,10 +27,15 @@ const makeSmallcapsBuilder = () => {
   const smallcapsBuilder = Far('SmallcapsBuilder', {
     buildRoot: buildTopFn => buildTopFn(),
 
+    // Atoms
     buildUndefined: () => '#undefined',
     buildNull: () => null,
     buildBoolean: flag => flag,
-    buildNumber: num => {
+    buildInteger: bigint => {
+      const str = String(bigint);
+      return bigint < 0n ? str : `+${str}`;
+    },
+    buildFloat64: num => {
       // Special-case numbers with no digit-based representation.
       if (Number.isNaN(num)) {
         return '#NaN';
@@ -42,38 +47,44 @@ const makeSmallcapsBuilder = () => {
       // Pass through everything else, replacing -0 with 0.
       return is(num, -0) ? 0 : num;
     },
-    buildBigint: bigint => {
-      const str = String(bigint);
-      return bigint < 0n ? str : `+${str}`;
-    },
     buildString,
+    buildByteArray: byteArray => {
+      Fail`ByteArray as Justin not yet implemented`;
+      // Actually dead code, but TS does not seem to know that.
+      return 'str';
+    },
     buildSymbol: sym => {
       assertPassableSymbol(sym);
       const name = /** @type {string} */ (nameForPassableSymbol(sym));
       return `%${name}`;
     },
-    buildRecord: (names, buildValuesIter) => {
+
+    // Containers
+    buildStruct: (names, buildValuesIter) => {
       const builtValues = [...buildValuesIter];
       assert(names.length === builtValues.length);
       // TODO Should be fromUniqueEntries, but utils needs to be
       // relocated first.
       return fromEntries(names.map((name, i) => [name, builtValues[i]]));
     },
-    buildArray: (_count, buildElementsIter) => harden([...buildElementsIter]),
+    buildList: (_count, buildElementsIter) => harden([...buildElementsIter]),
     buildTagged: (tagName, buildPayloadFn) => ({
       '#tag': buildString(tagName),
       payload: buildPayloadFn(),
     }),
 
+    // References
     // TODO slots and options and all that. Also errorId
+    buildTarget: _remotable => '$',
+    // TODO slots and options and all that.
+    buildPromise: _promise => '&',
+
+    // Errors
     buildError: error => ({
       '#error': buildString(error.message),
       name: buildString(error.name),
     }),
     // TODO slots and options and all that.
-    buildRemotable: _remotable => '$',
-    // TODO slots and options and all that.
-    buildPromise: _promise => '&',
   });
   return smallcapsBuilder;
 };
@@ -107,7 +118,7 @@ const makeSmallcapsRecognizer = () => {
         return builder.buildBoolean(encoding);
       }
       case 'number': {
-        return builder.buildNumber(encoding);
+        return builder.buildFloat64(encoding);
       }
       case 'string': {
         if (!startsSpecial(encoding)) {
@@ -130,13 +141,13 @@ const makeSmallcapsRecognizer = () => {
                 return builder.buildUndefined();
               }
               case '#NaN': {
-                return builder.buildNumber(NaN);
+                return builder.buildFloat64(NaN);
               }
               case '#Infinity': {
-                return builder.buildNumber(Infinity);
+                return builder.buildFloat64(Infinity);
               }
               case '#-Infinity': {
-                return builder.buildNumber(-Infinity);
+                return builder.buildFloat64(-Infinity);
               }
               default: {
                 throw assert.fail(
@@ -148,11 +159,11 @@ const makeSmallcapsRecognizer = () => {
           }
           case '+':
           case '-': {
-            return builder.buildBigint(BigInt(encoding));
+            return builder.buildInteger(BigInt(encoding));
           }
           case '$': {
             // TODO slots and options and all that.
-            return builder.buildRemotable(Far('dummy'));
+            return builder.buildTarget(Far('dummy'));
           }
           case '&': {
             // TODO slots and options and all that.
@@ -174,7 +185,7 @@ const makeSmallcapsRecognizer = () => {
           const buildElementsIter = mapIterable(encoding, val =>
             recognizeNode(val, builder),
           );
-          return builder.buildArray(encoding.length, buildElementsIter);
+          return builder.buildList(encoding.length, buildElementsIter);
         }
 
         if (hasOwnPropertyOf(encoding, '#tag')) {
@@ -208,7 +219,7 @@ const makeSmallcapsRecognizer = () => {
         const buildValuesIter = mapIterable(encodedNames, encodedName =>
           recognizeNode(encoding[encodedName], builder),
         );
-        return builder.buildRecord(
+        return builder.buildStruct(
           encodedNames.map(recognizeString),
           buildValuesIter,
         );

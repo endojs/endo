@@ -1,3 +1,4 @@
+import { Fail } from '@endo/errors';
 import { Far, getInterfaceOf, nameForPassableSymbol } from '@endo/pass-style';
 import {
   identPattern,
@@ -27,10 +28,12 @@ export const makeJustinBuilder = (shouldIndent = false, _slots = []) => {
       return out.done();
     },
 
+    // Atoms
     buildUndefined: () => out.next('undefined'),
     buildNull: () => out.next('null'),
     buildBoolean: outNextJSON,
-    buildNumber: num => {
+    buildInteger: bigint => out.next(`${bigint}n`),
+    buildFloat64: num => {
       if (num === Infinity) {
         return out.next('Infinity');
       } else if (num === -Infinity) {
@@ -41,15 +44,20 @@ export const makeJustinBuilder = (shouldIndent = false, _slots = []) => {
         return out.next(stringify(num));
       }
     },
-    buildBigint: bigint => out.next(`${bigint}n`),
     buildString: outNextJSON,
+    buildByteArray: byteArray => {
+      Fail`ByteArray as Justin not yet implemented`;
+      // Actually dead code, but TS does not seem to know that.
+      return 33;
+    },
     buildSymbol: sym => {
       assert.typeof(sym, 'symbol');
       const name = nameForPassableSymbol(sym);
       return out.next(`passableSymbolForName(${stringify(name)})`);
     },
 
-    buildRecord: (names, buildValuesIter) => {
+    // Containers
+    buildStruct: (names, buildValuesIter) => {
       if (names.length === 0) {
         return out.next('{}');
       }
@@ -76,7 +84,7 @@ export const makeJustinBuilder = (shouldIndent = false, _slots = []) => {
       }
       return out.close('}');
     },
-    buildArray: (count, buildElementsIter) => {
+    buildList: (count, buildElementsIter) => {
       if (count === 0) {
         return out.next('[]');
       }
@@ -100,8 +108,8 @@ export const makeJustinBuilder = (shouldIndent = false, _slots = []) => {
       return out.next(')');
     },
 
-    buildError: error => out.next(`${error.name}(${stringify(error.message)})`),
-    buildRemotable: remotable => {
+    // References
+    buildTarget: remotable => {
       slotIndex += 1;
       return out.next(
         `slot(${slotIndex},${stringify(getInterfaceOf(remotable))})`,
@@ -111,6 +119,9 @@ export const makeJustinBuilder = (shouldIndent = false, _slots = []) => {
       slotIndex += 1;
       return out.next(`slot(${slotIndex})`);
     },
+
+    // Errors
+    buildError: error => out.next(`${error.name}(${stringify(error.message)})`),
   });
   return justinBuilder;
 };

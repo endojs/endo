@@ -22,26 +22,33 @@ const makeSubgraphBuilder = () => {
   const subgraphBuilder = Far('SubgraphBuilder', {
     buildRoot: buildTopFn => buildTopFn(),
 
+    // Atoms
     buildUndefined: () => undefined,
     buildNull: () => null,
     buildBoolean: ident,
-    buildNumber: ident,
-    buildBigint: ident,
+    buildInteger: ident,
+    buildFloat64: ident,
     buildString: ident,
+    buildByteArray: ident,
     buildSymbol: ident,
-    buildRecord: (names, buildValuesIter) => {
+
+    // Containers
+    buildStruct: (names, buildValuesIter) => {
       const builtValues = [...buildValuesIter];
       assert(names.length === builtValues.length);
       const builtEntries = names.map((name, i) => [name, builtValues[i]]);
       return harden(fromEntries(builtEntries));
     },
-    buildArray: (_count, buildElementsIter) => harden([...buildElementsIter]),
+    buildList: (_count, buildElementsIter) => harden([...buildElementsIter]),
     buildTagged: (tagName, buildPayloadFn) =>
       makeTagged(tagName, buildPayloadFn()),
 
-    buildError: ident,
-    buildRemotable: ident,
+    // References
+    buildTarget: ident,
     buildPromise: ident,
+
+    // Errors
+    buildError: ident,
   });
   return subgraphBuilder;
 };
@@ -71,10 +78,10 @@ const makeSubgraphRecognizer = () => {
         return builder.buildUndefined();
       }
       case 'number': {
-        return builder.buildNumber(passable);
+        return builder.buildFloat64(passable);
       }
       case 'bigint': {
-        return builder.buildBigint(passable);
+        return builder.buildInteger(passable);
       }
       case 'symbol': {
         return builder.buildSymbol(passable);
@@ -84,20 +91,20 @@ const makeSubgraphRecognizer = () => {
         const buildValuesIter = mapIterable(names, name =>
           recognizeNode(passable[name], builder),
         );
-        return builder.buildRecord(names, buildValuesIter);
+        return builder.buildStruct(names, buildValuesIter);
       }
       case 'copyArray': {
         const buildElementsIter = mapIterable(passable, el =>
           recognizeNode(el, builder),
         );
-        return builder.buildArray(passable.length, buildElementsIter);
+        return builder.buildList(passable.length, buildElementsIter);
       }
       case 'tagged': {
         const buildPayloadFn = () => recognizeNode(passable.payload, builder);
         return builder.buildTagged(getTag(passable), buildPayloadFn);
       }
       case 'remotable': {
-        return builder.buildRemotable(passable);
+        return builder.buildTarget(passable);
       }
       case 'promise': {
         return builder.buildPromise(passable);
