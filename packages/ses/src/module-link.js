@@ -11,7 +11,7 @@ import {
   TypeError,
   entries,
   isArray,
-  isObject,
+  isPrimitive,
   mapGet,
   mapHas,
   mapSet,
@@ -59,11 +59,11 @@ function mayBePrecompiledModuleSource(moduleSource) {
 
 function validatePrecompiledModuleSource(moduleSource, moduleSpecifier) {
   const { __fixedExportMap__, __liveExportMap__ } = moduleSource;
-  isObject(__fixedExportMap__) ||
+  !isPrimitive(__fixedExportMap__) ||
     Fail`Property '__fixedExportMap__' of a precompiled module source must be an object, got ${q(
       __fixedExportMap__,
     )}, for module ${q(moduleSpecifier)}`;
-  isObject(__liveExportMap__) ||
+  !isPrimitive(__liveExportMap__) ||
     Fail`Property '__liveExportMap__' of a precompiled module source must be an object, got ${q(
       __liveExportMap__,
     )}, for module ${q(moduleSpecifier)}`;
@@ -82,7 +82,7 @@ function validateVirtualModuleSource(moduleSource, moduleSpecifier) {
 }
 
 function validateModuleSource(moduleSource, moduleSpecifier) {
-  isObject(moduleSource) ||
+  !isPrimitive(moduleSource) ||
     Fail`Invalid module source: must be of type object, got ${q(
       moduleSource,
     )}, for module ${q(moduleSpecifier)}`;

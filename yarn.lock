@@ -319,6 +319,7 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
     "@endo/nat": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "npm:^6.1.3"

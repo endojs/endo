@@ -10,7 +10,7 @@ import {
   passStyleOf,
   isErrorLike,
   makeTagged,
-  isObject,
+  isPrimitive,
   getTag,
   hasOwnPropertyOf,
   assertPassableSymbol,
@@ -52,7 +52,7 @@ const hasQClass = encoded => hasOwnPropertyOf(encoded, QCLASS);
  * @returns {boolean}
  */
 const qclassMatches = (encoded, qclass) =>
-  isObject(encoded) &&
+  !isPrimitive(encoded) &&
   !isArray(encoded) &&
   hasQClass(encoded) &&
   encoded[QCLASS] === qclass;
@@ -323,7 +323,7 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
    * @param {Encoding} jsonEncoded must be hardened
    */
   const decodeFromCapData = jsonEncoded => {
-    if (!isObject(jsonEncoded)) {
+    if (isPrimitive(jsonEncoded)) {
       // primitives pass through
       return jsonEncoded;
     }

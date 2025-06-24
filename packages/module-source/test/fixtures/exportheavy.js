@@ -5,6 +5,7 @@ export { mapIterable, filterIterable } from './src/helpers/iter-helpers.js';
 export {
   PASS_STYLE,
   isObject,
+  isPrimitive,
   assertChecker,
   getTag,
   hasOwnPropertyOf,
@@ -43,7 +44,7 @@ export {
 export * from './src/types.js';
 
 
-const { details: X, Fail } = assert;
+export { X, Fail } from '@endo/errors';
 
 // This is a pathological minimum, but exercised by the unit test.
 export const MIN_DATA_BUFFER_LENGTH = 1;

@@ -2,7 +2,12 @@
 /// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';
-import { isObject, getInterfaceOf, Far, passStyleOf } from '@endo/pass-style';
+import {
+  isPrimitive,
+  getInterfaceOf,
+  Far,
+  passStyleOf,
+} from '@endo/pass-style';
 import { Fail } from '@endo/errors';
 import { makeMarshal } from './marshal.js';
 
@@ -70,7 +75,7 @@ const makeConverter = (mirrorConverter = undefined) => {
             // gc works more often.
             const mineIf = passBack(yours);
 
-            assert(!isObject(optVerb));
+            assert(isPrimitive(optVerb));
             const myArgs = passBack(harden(yourArgs));
             let myResult;
 

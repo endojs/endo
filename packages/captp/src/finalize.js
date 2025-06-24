@@ -1,5 +1,5 @@
 /* global globalThis */
-import { Far, isObject } from '@endo/marshal';
+import { Far, isPrimitive } from '@endo/pass-style';
 
 // @ts-check
 const { WeakRef, FinalizationRegistry } = globalThis;
@@ -112,7 +112,7 @@ export const makeFinalizingMap = (finalizer, opts) => {
     // Does deref, and thus does guarantee stability of both old and new values
     // until the end of the turn.
     set: (key, ref) => {
-      assert(isObject(ref));
+      assert(!isPrimitive(ref));
       finalizingMap.delete(key);
       const newWR = new WeakRef(ref);
       keyToRef.set(key, newWR);

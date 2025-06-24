@@ -272,23 +272,20 @@ export const getConstructorOf = fn =>
   reflectGet(getPrototypeOf(fn), 'constructor');
 
 /**
- * isObject tests whether a value is an object.
- * Today, this is equivalent to:
+ * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`.
+ * Layering constraints make this tricky, which is why we haven't yet figured
+ * out how to do this.
  *
- *   const isObject = value => {
- *     if (value === null) return false;
- *     const type = typeof value;
- *     return type === 'object' || type === 'function';
- *   };
- *
- * But this is not safe in the face of possible evolution of the language, for
- * example new types or semantics of records and tuples.
- * We use this implementation despite the unnecessary allocation implied by
- * attempting to box a primitive.
- *
- * @param {any} value
+ * @type {(val: unknown) => val is (undefined
+ * | null
+ * | boolean
+ * | number
+ * | bigint
+ * | string
+ * | symbol)}
  */
-export const isObject = value => Object(value) === value;
+export const isPrimitive = val =>
+  !val || (typeof val !== 'object' && typeof val !== 'function');
 
 /**
  * isError tests whether an object inherits from the intrinsic

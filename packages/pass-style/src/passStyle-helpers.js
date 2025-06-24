@@ -1,9 +1,10 @@
 /// <reference types="ses"/>
 
-/** @import {Checker} from './types.js' */
-/** @import {PassStyle} from './types.js' */
-
 import { X, q } from '@endo/errors';
+
+/**
+ * @import {Checker, PassStyle, JSPrimitive} from './types.js';
+ */
 
 const { isArray } = Array;
 const { prototype: functionPrototype } = Function;
@@ -30,9 +31,25 @@ export const hasOwnPropertyOf = (obj, prop) =>
   apply(objectHasOwnProperty, obj, [prop]);
 harden(hasOwnPropertyOf);
 
-// TODO try typing this; `=> val is {} too narrow, implies no properties
+/**
+ * @type {(val: unknown) => val is JSPrimitive}
+ */
+export const isPrimitive = val =>
+  // Safer would be `Object(val) !== val` but is too expensive on XS.
+  // So instead we use this adhoc set of type tests. But this is not safe in
+  // the face of possible evolution of the language. Beware!
+  !val || (typeof val !== 'object' && typeof val !== 'function');
+harden(isPrimitive);
+
+/**
+ * @deprecated use `!isPrimitive` instead
+ * @type {(val: unknown) => val is (Function | Record<string | symbol, unknown>)}
+ */
 export const isObject = val =>
-  val && (typeof val === 'object' || typeof val === 'function');
+  // Safer would be `Object(val) -== val` but is too expensive on XS.
+  // So instead we use this adhoc set of type tests. But this is not safe in
+  // the face of possible evolution of the language. Beware!
+  !!val && (typeof val === 'object' || typeof val === 'function');
 harden(isObject);
 
 /**
@@ -163,7 +180,7 @@ const makeCheckTagRecord = checkProto => {
    */
   const checkTagRecord = (tagRecord, expectedPassStyle, check) => {
     return (
-      (isObject(tagRecord) ||
+      (!isPrimitive(tagRecord) ||
         (!!check &&
           CX(check)`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
       (isFrozen(tagRecord) ||
