@@ -2,6 +2,7 @@ export { mapIterable, filterIterable } from './src/iter-helpers.js';
 export {
   PASS_STYLE,
   isObject,
+  isPrimitive,
   assertChecker,
   getTag,
   hasOwnPropertyOf,

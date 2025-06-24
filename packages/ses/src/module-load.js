@@ -13,7 +13,7 @@ import {
   generatorThrow,
   getOwnPropertyNames,
   isArray,
-  isObject,
+  isPrimitive,
   mapGet,
   mapHas,
   mapSet,
@@ -186,7 +186,7 @@ function* loadWithoutErrorAnnotation(
       )} in parent compartment, use {source} module descriptor`,
       TypeError,
     );
-  } else if (isObject(moduleDescriptor)) {
+  } else if (!isPrimitive(moduleDescriptor)) {
     // In this shim (and not in XS, and not in the standard we imagine), we
     // allow a module namespace object to stand in for a module descriptor that
     // describes its original {compartment, specifier} so that it can be used
@@ -209,7 +209,7 @@ function* loadWithoutErrorAnnotation(
           namespace: aliasSpecifier,
         } = moduleDescriptor;
         if (
-          !isObject(aliasCompartment) ||
+          isPrimitive(aliasCompartment) ||
           !weakmapHas(compartmentPrivateFields, aliasCompartment)
         ) {
           throw makeError(
@@ -233,7 +233,7 @@ function* loadWithoutErrorAnnotation(
 
       // All remaining objects must either be a module namespace, or be
       // promoted into a module namespace with a virtual module source.
-      if (isObject(moduleDescriptor.namespace)) {
+      if (!isPrimitive(moduleDescriptor.namespace)) {
         const { namespace } = moduleDescriptor;
         // Brand-check SES shim module exports namespaces:
         aliasDescriptor = weakmapGet(moduleAliases, namespace);
@@ -406,7 +406,7 @@ function* loadWithoutErrorAnnotation(
       moduleDescriptor.specifier !== undefined
     ) {
       if (
-        !isObject(moduleDescriptor.compartment) ||
+        isPrimitive(moduleDescriptor.compartment) ||
         !weakmapHas(compartmentPrivateFields, moduleDescriptor.compartment) ||
         typeof moduleDescriptor.specifier !== 'string'
       ) {

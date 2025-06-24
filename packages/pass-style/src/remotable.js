@@ -8,7 +8,7 @@ import {
   PASS_STYLE,
   checkTagRecord,
   checkFunctionTagRecord,
-  isObject,
+  isPrimitive,
   getTag,
   CX,
 } from './passStyle-helpers.js';
@@ -70,7 +70,7 @@ harden(assertIface);
  * @returns {boolean}
  */
 const checkRemotableProtoOf = (original, check) => {
-  isObject(original) ||
+  !isPrimitive(original) ||
     Fail`Remotables must be objects or functions: ${original}`;
 
   // A valid remotable object must inherit from a "tag record" -- a
@@ -181,7 +181,7 @@ const checkRemotable = (val, check) => {
  */
 export const getInterfaceOf = val => {
   if (
-    !isObject(val) ||
+    isPrimitive(val) ||
     val[PASS_STYLE] !== 'remotable' ||
     !checkRemotable(val)
   ) {
@@ -202,7 +202,7 @@ export const RemotableHelper = harden({
 
   canBeValid: (candidate, check = undefined) => {
     const validType =
-      (isObject(candidate) ||
+      (!isPrimitive(candidate) ||
         (!!check &&
           CX(check)`cannot serialize non-objects as Remotable ${candidate}`)) &&
       (!isArray(candidate) ||

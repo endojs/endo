@@ -4,7 +4,7 @@ import { q, X, Fail } from '@endo/errors';
 import { Nat } from '@endo/nat';
 import {
   getErrorConstructor,
-  isObject,
+  isPrimitive,
   nameForPassableSymbol,
   passableSymbolForName,
 } from '@endo/pass-style';
@@ -144,7 +144,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
    * @returns {void}
    */
   const prepare = rawTree => {
-    if (!isObject(rawTree)) {
+    if (isPrimitive(rawTree)) {
       return;
     }
     // Assertions of the above to narrow the type.
@@ -292,7 +292,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
    * @returns {number}
    */
   const recur = rawTree => {
-    if (!isObject(rawTree)) {
+    if (isPrimitive(rawTree)) {
       // primitives get quoted
       return out.next(quote(rawTree));
     }

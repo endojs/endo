@@ -11,7 +11,7 @@ import {
   defineProperty,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-  isObject,
+  isPrimitive,
   objectHasOwnProperty,
   ownKeys,
   setHas,
@@ -179,7 +179,7 @@ export default function enablePropertyOverrides(
         enableProperty(subPath, obj, prop);
       } else if (subPlan === '*') {
         enableAllProperties(subPath, desc.value);
-      } else if (isObject(subPlan)) {
+      } else if (!isPrimitive(subPlan)) {
         enableProperties(subPath, desc.value, subPlan);
       } else {
         throw TypeError(`Unexpected override enablement plan ${subPath}`);

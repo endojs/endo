@@ -5,7 +5,7 @@
 import { isPromise } from '@endo/promise-kit';
 import { X, Fail, q, annotateError, makeError } from '@endo/errors';
 import {
-  isObject,
+  isPrimitive,
   isTypedArray,
   PASS_STYLE,
   assertChecker,
@@ -123,7 +123,7 @@ const makePassStyleOf = passStyleHelpers => {
     const inProgress = new Set();
 
     const passStyleOfRecur = inner => {
-      const innerIsObject = isObject(inner);
+      const innerIsObject = !isPrimitive(inner);
       if (innerIsObject) {
         const innerStyle = passStyleMemo.get(inner);
         if (innerStyle) {
@@ -359,11 +359,11 @@ export const toThrowable = specimen => {
   if (isErrorLike(specimen)) {
     return toPassableError(/** @type {Error} */ (specimen));
   }
-  // Note that this step will fail if `specimen` would be a passable container
-  // except that it contains non-passable errors that could be converted.
-  // This will need to be fixed to do the TODO above.
-  const passStyle = passStyleOf(specimen);
-  if (isObject(specimen)) {
+  if (!isPrimitive(specimen)) {
+    // Note that this step will fail if `specimen` would be a passable container
+    // except that it contains non-passable errors that could be converted.
+    // This will need to be fixed to do the TODO above.
+    const passStyle = /** @type {PassStyle} */ (passStyleOf(specimen));
     switch (passStyle) {
       case 'copyArray': {
         const elements = /** @type {CopyArray} */ (specimen);

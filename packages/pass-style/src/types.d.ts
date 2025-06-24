@@ -26,10 +26,23 @@ export type AtomStyle =
   | 'symbol';
 
 /**
+ * The actual JS primitive types.
+ */
+export type JSPrimitive =
+  | undefined
+  | null
+  | boolean
+  | number
+  | bigint
+  | string
+  | symbol;
+
+/**
  * @deprecated Use `Atom` instead, which is also the ocapn name. Now that
  * ByteArray has been added, this category no longer corresponds to
  * JS primitives, We also expect to move  to a passable-symbol representation
- * as a JS object, not a JS primitive
+ * as a JS object, not a JS primitive. But if you really do mean a JS primitive
+ * only, use `JSPrimitive` instead.
  */
 export type Primitive = Atom;
 

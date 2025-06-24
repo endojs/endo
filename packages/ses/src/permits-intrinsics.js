@@ -55,7 +55,7 @@ import {
   entries,
   getOwnPropertyDescriptor,
   getPrototypeOf,
-  isObject,
+  isPrimitive,
   mapGet,
   objectHasOwnProperty,
   ownKeys,
@@ -131,8 +131,8 @@ export default function removeUnpermittedIntrinsics(
    * Validate the object's [[prototype]] against a permit.
    */
   function visitPrototype(path, obj, protoName) {
-    if (!isObject(obj)) {
-      throw TypeError(`Object expected: ${path}, ${obj}, ${protoName}`);
+    if (isPrimitive(obj)) {
+      throw TypeError(`Object expected: ${path}, ${String(obj)}, ${protoName}`);
     }
     const proto = getPrototypeOf(obj);
 

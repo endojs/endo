@@ -10,12 +10,20 @@ const ntypeof = specimen => (specimen === null ? 'null' : typeof specimen);
 const onDelivery = makeMessageBreakpointTester('ENDO_DELIVERY_BREAKPOINTS');
 
 /**
- * TODO Consolidate with `isObject` that's currently in `@endo/marshal`
+ * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`.
+ * Layering constraints make this tricky, which is why we haven't yet figured
+ * out how to do this.
  *
- * @param {any} val
- * @returns {boolean}
+ * @type {(val: unknown) => val is (undefined
+ * | null
+ * | boolean
+ * | number
+ * | bigint
+ * | string
+ * | symbol)}
  */
-const isObject = val => Object(val) === val;
+const isPrimitive = val =>
+  !val || (typeof val !== 'object' && typeof val !== 'function');
 
 /**
  * Prioritize symbols as earlier than strings.
@@ -57,7 +65,7 @@ export const getMethodNames = val => {
         names.add(name);
       }
     }
-    if (!isObject(val)) {
+    if (isPrimitive(val)) {
       break;
     }
     layer = getPrototypeOf(layer);

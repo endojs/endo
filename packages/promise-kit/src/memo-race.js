@@ -28,7 +28,21 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
-const isObject = value => Object(value) === value;
+/**
+ * TODO Consolidate with `isPrimitive` that's currently in `@endo/pass-style`.
+ * Layering constraints make this tricky, which is why we haven't yet figured
+ * out how to do this.
+ *
+ * @type {(val: unknown) => val is (undefined
+ * | null
+ * | boolean
+ * | number
+ * | bigint
+ * | string
+ * | symbol)}
+ */
+const isPrimitive = val =>
+  !val || (typeof val !== 'object' && typeof val !== 'function');
 
 /**
  * @template [T=any]
@@ -73,7 +87,7 @@ const markSettled = record => {
  * @returns {PromiseMemoRecord}
  */
 const getMemoRecord = value => {
-  if (!isObject(value)) {
+  if (isPrimitive(value)) {
     // If the contender is a primitive, attempting to use it as a key in the
     // weakmap would throw an error. Luckily, it is safe to call
     // `Promise.resolve(contender).then` on a primitive value multiple times
