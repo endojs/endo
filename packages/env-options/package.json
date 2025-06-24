@@ -60,22 +60,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "plugin:@endo/internal"
-    ],
-    "rules": {
-      "@endo/no-polymorphic-call": "error"
-    },
-    "overrides": [
-      {
-        "files": [
-          "test/**/*.js",
-          "demos/**/*.js",
-          "scripts/**/*.js"
-        ],
-        "rules": {
-          "@endo/no-polymorphic-call": "off"
-        }
-      }
+      "plugin:@endo/ses"
     ]
   },
   "ava": {

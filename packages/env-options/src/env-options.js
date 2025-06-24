@@ -8,6 +8,10 @@
 // Prelude of cheap good - enough imitations of things we'd use or
 // do differently if we could depend on ses
 
+// eslint-disable-next-line no-restricted-globals
+const localThis = globalThis;
+
+const { Object, Reflect, Array, String, JSON, Error } = localThis;
 const { freeze } = Object;
 const { apply } = Reflect;
 
@@ -142,4 +146,4 @@ export const {
   getEnvironmentOption,
   getEnvironmentOptionsList,
   environmentOptionsListHas,
-} = makeEnvironmentCaptor(globalThis, true);
+} = makeEnvironmentCaptor(localThis, true);

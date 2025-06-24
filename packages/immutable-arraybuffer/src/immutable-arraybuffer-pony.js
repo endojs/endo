@@ -4,10 +4,13 @@ const {
   ArrayBuffer,
   Object,
   Reflect,
+  Symbol,
   TypeError,
   Uint8Array,
+  WeakMap,
   // Capture structuredClone before it can be scuttled.
   structuredClone: optStructuredClone,
+  // eslint-disable-next-line no-restricted-globals
 } = globalThis;
 
 const { freeze, defineProperty, getPrototypeOf, getOwnPropertyDescriptor } =
@@ -92,6 +95,8 @@ for (const methodName of ['get', 'has', 'set']) {
   defineProperty(buffers, methodName, { value: buffers[methodName] });
 }
 const getBuffer = immuAB => {
+  // Safe because this WeakMap owns its get method.
+  // eslint-disable-next-line @endo/no-polymorphic-call
   const result = buffers.get(immuAB);
   if (result) {
     return result;
@@ -172,6 +177,8 @@ const makeImmutableArrayBufferInternal = realBuffer => {
       __proto__: ImmutableArrayBufferInternalPrototype,
     })
   );
+  // Safe because this WeakMap owns its set method.
+  // eslint-disable-next-line @endo/no-polymorphic-call
   buffers.set(result, realBuffer);
   return result;
 };
@@ -183,6 +190,7 @@ freeze(makeImmutableArrayBufferInternal);
  * @param {ArrayBuffer} buffer
  * @returns {boolean}
  */
+// eslint-disable-next-line @endo/no-polymorphic-call
 export const isBufferImmutable = buffer => buffers.has(buffer);
 
 /**
@@ -197,6 +205,8 @@ export const sliceBufferToImmutable = (
   start = undefined,
   end = undefined,
 ) => {
+  // Safe because this WeakMap owns its get method.
+  // eslint-disable-next-line @endo/no-polymorphic-call
   let realBuffer = buffers.get(buffer);
   if (realBuffer === undefined) {
     realBuffer = buffer;
