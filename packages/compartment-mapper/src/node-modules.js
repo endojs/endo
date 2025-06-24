@@ -28,7 +28,7 @@
  *   ReadFn,
  *   ReadPowers,
  *   SomePackagePolicy,
- *   SomePolicy,
+ *   AdditionalPackageDetails,
  * } from './types.js'
  * @import {
  *   Graph,
@@ -39,6 +39,7 @@
  *   GraphPackageOptions,
  *   GraphPackagesOptions,
  *   PackageDetails,
+ *   TranslateGraphOptions,
  * } from './types/node-modules.js'
  */
 
@@ -686,7 +687,7 @@ const graphPackages = async (
   commonDependencies,
   languageOptions,
   strict,
-  { log = noop } = {},
+  { log = noop, graph = create(null) } = {},
 ) => {
   const memo = create(null);
   /**
@@ -730,7 +731,6 @@ const graphPackages = async (
     };
   }
 
-  const graph = create(null);
   await graphPackage(
     packageDescriptor.name,
     readDescriptor,
@@ -761,7 +761,7 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {SomePolicy} [policy]
+ * @param {TranslateGraphOptions} [options]
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -769,10 +769,27 @@ const translateGraph = (
   entryModuleSpecifier,
   graph,
   conditions,
-  policy,
+  { policy, additionalPackageDetails = {} } = {},
 ) => {
   /** @type {CompartmentMapDescriptor['compartments']} */
   const compartments = create(null);
+
+  for (const [additionalPackageLocation, moduleDetails] of entries(
+    additionalPackageDetails,
+  )) {
+    const node = graph[additionalPackageLocation];
+    if (node === undefined) {
+      throw new Error(
+        `Cannot find package at ${additionalPackageLocation} in graph`,
+      );
+    }
+    for (const {
+      packageLocation,
+      packageDescriptor: { name },
+    } of moduleDetails) {
+      node.dependencyLocations[name] ??= packageLocation;
+    }
+  }
 
   // For each package, build a map of all the external modules the package can
   // import from other packages.
@@ -981,9 +998,9 @@ const makeLanguageOptions = ({
  * @param {string} moduleSpecifier
  * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
- * @deprecated Use {@link mapNodeModules} instead.
  */
-export const compartmentMapForNodeModules = async (
+// eslint-disable-next-line no-underscore-dangle
+const compartmentMapForNodeModules_ = async (
   readPowers,
   packageLocation,
   conditionsOption,
@@ -997,6 +1014,7 @@ export const compartmentMapForNodeModules = async (
     policy,
     strict = false,
     log = noop,
+    additionalPackageDetails = {},
   } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
@@ -1021,6 +1039,26 @@ export const compartmentMapForNodeModules = async (
     { log },
   );
 
+  // This should be done sequentially to create a deterministic `Graph` (and
+  // thus deterministic `CompartmentMapDescriptor`).
+  for (const packageDetails of values(additionalPackageDetails)) {
+    for (const { packageLocation, packageDescriptor } of packageDetails) {
+      // eslint-disable-next-line no-await-in-loop
+      await graphPackages(
+        maybeRead,
+        canonical,
+        packageLocation,
+        conditions,
+        packageDescriptor,
+        dev || (conditions && conditions.has('development')),
+        commonDependencies,
+        languageOptions,
+        strict,
+        { log, graph },
+      );
+    }
+  }
+
   if (policy) {
     assertPolicy(policy);
 
@@ -1042,11 +1080,33 @@ export const compartmentMapForNodeModules = async (
     moduleSpecifier,
     graph,
     conditions,
-    policy,
+    { policy, additionalPackageDetails },
   );
+
+  for (const [additionalPackageLocation, moduleDetails] of entries(
+    additionalPackageDetails,
+  )) {
+    for (const { packageLocation } of moduleDetails) {
+      const moduleDescriptor = values(
+        compartmentMap.compartments[additionalPackageLocation].modules,
+      ).find(({ compartment }) => compartment === packageLocation);
+      if (!moduleDescriptor) {
+        throw new Error(
+          `Cannot find module descriptor for ${packageLocation} in compartment descriptor ${additionalPackageLocation}`,
+        );
+      }
+      moduleDescriptor.retained = true;
+      compartmentMap.compartments[packageLocation].retained = true;
+    }
+  }
 
   return compartmentMap;
 };
+
+/**
+ * @deprecated Use {@link mapNodeModules} instead.
+ */
+export const compartmentMapForNodeModules = compartmentMapForNodeModules_;
 
 /**
  * Creates a {@link CompartmentMapDescriptor} from the module at
@@ -1062,7 +1122,14 @@ export const compartmentMapForNodeModules = async (
 export const mapNodeModules = async (
   readPowers,
   moduleLocation,
-  { tags = new Set(), conditions = tags, log = noop, ...otherOptions } = {},
+  {
+    tags = new Set(),
+    conditions = tags,
+    log = noop,
+    additionalModuleLocations = {},
+    additionalPackageDetails = {},
+    ...otherOptions
+  } = {},
 ) => {
   const {
     packageLocation,
@@ -1075,12 +1142,54 @@ export const mapNodeModules = async (
     parseLocatedJson(packageDescriptorText, packageDescriptorLocation)
   );
 
-  return compartmentMapForNodeModules(
+  await Promise.all(
+    entries(additionalModuleLocations).map(
+      async ([referrerLocation, moduleLocations]) => {
+        // this "normalizes" the referrer to its package location. we are
+        // expecting it to eventually have a corresponding
+        // `CompartmentDescriptor`
+        const { packageLocation: additionalPackageLocation } = await search(
+          readPowers,
+          referrerLocation,
+          { log },
+        );
+
+        // add every additional module for the referrer to the data structure
+        additionalPackageDetails[additionalPackageLocation] = await Promise.all(
+          moduleLocations.map(async moduleLocation => {
+            const {
+              packageLocation,
+              packageDescriptorText,
+              packageDescriptorLocation,
+              moduleSpecifier,
+            } = await search(readPowers, moduleLocation, { log });
+
+            const packageDescriptor = /** @type {PackageDescriptor} */ (
+              parseLocatedJson(packageDescriptorText, packageDescriptorLocation)
+            );
+
+            /** @type {AdditionalPackageDetails} */
+            return {
+              packageDescriptor,
+              packageLocation,
+              moduleSpecifier,
+            };
+          }),
+        );
+      },
+    ),
+  );
+
+  return compartmentMapForNodeModules_(
     readPowers,
     packageLocation,
     conditions,
     packageDescriptor,
     moduleSpecifier,
-    { log, ...otherOptions },
+    {
+      log,
+      additionalPackageDetails,
+      ...otherOptions,
+    },
   );
 };
