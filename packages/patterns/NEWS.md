@@ -1,5 +1,9 @@
 User-visible changes in `@endo/patterns`:
 
+# Next release
+
+- In errors explaining why a specimen does not match a pattern, sometimes the error message contains a quoted form of a nested pattern. This quoting was done with `q`, producing an uninformative rendering of these nested patterns. Not this quoting is done with `qp`, which renders these nested patterns into readable Justin source code.
+
 # v1.5.0 (2025-03-11)
 
 - New pattern: `M.containerHas(elementPatt, bound = 1n)` motivated to support want patterns in Zoe, to pull out only `bound` number of elements that match `elementPatt`. `bound` must be a positive bigint.
