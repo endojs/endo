@@ -1,8 +1,18 @@
+/* global globalThis */
+
 import {
   isBufferImmutable,
   sliceBufferToImmutable,
   optTransferBufferToImmutable as optXferBuf2Immu,
 } from './immutable-arraybuffer-pony.js';
+
+const {
+  ArrayBuffer,
+  JSON,
+  Object,
+  Reflect,
+  // eslint-disable-next-line no-restricted-globals
+} = globalThis;
 
 // Even though the imported one is not exported by the pony as a live binding,
 // TS doesn't know that,
@@ -68,10 +78,14 @@ for (const key of ownKeys(arrayBufferMethods)) {
 // TODO, if the primordials are frozen after the prior implementation, such as
 // by `lockdown`, then this precludes overwriting as expected. However, for
 // this case, the following warning text will be confusing.
+//
+// Allowing polymorphic calls because these occur during initialization.
+// eslint-disable-next-line @endo/no-polymorphic-call
 const overwrites = ownKeys(arrayBufferMethods).filter(
   key => key in arrayBufferPrototype,
 );
 if (overwrites.length > 0) {
+  // eslint-disable-next-line @endo/no-polymorphic-call
   console.warn(
     `About to overwrite ArrayBuffer.prototype properties ${stringify(overwrites)}`,
   );
