@@ -95,6 +95,7 @@ const isSyncOptions = value => {
 
 export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
   const {
+    otherEntrypoints,
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
     Compartment: LoadCompartmentOption = Compartment,
@@ -226,6 +227,11 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     }
 
     await pendingJobsPromise;
+
+    if(otherEntrypoints) {
+      await Promise.all(otherEntrypoints.map(entry => compartment.load(entry)))
+      console.log(2, 'loaded all')
+    }
 
     return compartment.import(entryModuleSpecifier);
   };
