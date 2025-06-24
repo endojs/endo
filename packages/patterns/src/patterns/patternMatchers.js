@@ -21,6 +21,7 @@ import {
   unionRankCovers,
   recordNames,
   recordValues,
+  qp,
 } from '@endo/marshal';
 
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
@@ -472,7 +473,7 @@ const makePatternKit = () => {
         if (specimenKind !== 'copyArray') {
           return check(
             false,
-            X`${specimen} - Must be a copyArray to match a copyArray pattern: ${q(
+            X`${specimen} - Must be a copyArray to match a copyArray pattern: ${qp(
               patt,
             )}`,
           );
@@ -481,7 +482,7 @@ const makePatternKit = () => {
         if (specimen.length !== length) {
           return check(
             false,
-            X`Array ${specimen} - Must be as long as copyArray pattern: ${q(
+            X`Array ${specimen} - Must be as long as copyArray pattern: ${qp(
               patt,
             )}`,
           );
@@ -497,7 +498,7 @@ const makePatternKit = () => {
         if (specimenKind !== 'copyRecord') {
           return check(
             false,
-            X`${specimen} - Must be a copyRecord to match a copyRecord pattern: ${q(
+            X`${specimen} - Must be a copyRecord to match a copyRecord pattern: ${qp(
               patt,
             )}`,
           );
@@ -540,7 +541,7 @@ const makePatternKit = () => {
         if (specimenKind !== 'copyMap') {
           return check(
             false,
-            X`${specimen} - Must be a copyMap to match a copyMap pattern: ${q(
+            X`${specimen} - Must be a copyMap to match a copyMap pattern: ${qp(
               patt,
             )}`,
           );
@@ -606,7 +607,7 @@ const makePatternKit = () => {
     // should only throw
     checkMatches(specimen, patt, assertChecker, label);
     const outerError = makeError(
-      X`internal: ${label}: inconsistent pattern match: ${q(patt)}`,
+      X`internal: ${label}: inconsistent pattern match: ${qp(patt)}`,
     );
     if (innerError !== undefined) {
       annotateError(outerError, X`caused by ${innerError}`);
@@ -766,7 +767,7 @@ const makePatternKit = () => {
       const checkIt = patt => checkPattern(patt, check);
       return (
         (passStyleOf(allegedPatts) === 'copyArray' ||
-          check(false, X`Needs array of sub-patterns: ${q(allegedPatts)}`)) &&
+          check(false, X`Needs array of sub-patterns: ${qp(allegedPatts)}`)) &&
         allegedPatts.every(checkIt)
       );
     },
@@ -785,7 +786,7 @@ const makePatternKit = () => {
       if (length === 0) {
         return check(
           false,
-          X`${specimen} - no pattern disjuncts to match: ${q(patts)}`,
+          X`${specimen} - no pattern disjuncts to match: ${qp(patts)}`,
         );
       }
       // Special case disjunctions representing a single optional pattern for
@@ -803,7 +804,7 @@ const makePatternKit = () => {
       if (patts.some(patt => matches(specimen, patt))) {
         return true;
       }
-      return check(false, X`${specimen} - Must match one of ${q(patts)}`);
+      return check(false, X`${specimen} - Must match one of ${qp(patts)}`);
     },
 
     checkIsWellFormed: matchAndHelper.checkIsWellFormed,
@@ -821,7 +822,7 @@ const makePatternKit = () => {
       if (matches(specimen, patt)) {
         return check(
           false,
-          X`${specimen} - Must fail negated pattern: ${q(patt)}`,
+          X`${specimen} - Must fail negated pattern: ${qp(patt)}`,
         );
       } else {
         return true;
