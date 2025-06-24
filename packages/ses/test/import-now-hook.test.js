@@ -5,6 +5,7 @@
 import test from 'ava';
 import { ModuleSource } from '@endo/module-source';
 import '../index.js';
+import { resolveNode } from './_node.js';
 
 test('import now hook returns module source descriptor with precompiled module source', t => {
   const compartment = new Compartment({
@@ -464,4 +465,64 @@ test('module map hook precedes import now hook', t => {
 
   const { default: meaning } = compartment.importNow('./index.js');
   t.is(meaning, 42);
+});
+
+/**
+ * "Import now" hook for testing behavior when error aggregation is enabled or
+ * disabled.
+ * @param {string} specifier
+ * @returns {ModuleSource}
+ */
+const importNowHookForErrorAggregationTests = specifier => {
+  if (specifier === './meaning.mjs') {
+    return new ModuleSource(`
+        export { meaning as default } from './missing.mjs';
+      `);
+  }
+  if (specifier === './main.js') {
+    return new ModuleSource(
+      `
+        import meaning from './meaning.mjs';
+        t.is(meaning, 42);
+      `,
+      'https://example.com/main.js',
+    );
+  }
+  throw Error(`Cannot load module for specifier ${specifier}`);
+};
+
+test('throws immediately when error aggregation is disabled', async t => {
+  t.plan(1);
+
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: async () => {},
+    importNowHook: importNowHookForErrorAggregationTests,
+    noAggregateLoadErrors: true, // <-- error aggregation disabled
+    __options__: true,
+  });
+
+  t.throws(() => compartment.importNow('./main.js'), {
+    message: `Cannot load module for specifier ./missing.mjs`,
+    name: 'Error',
+  });
+});
+
+test('throws aggregate error when error aggregation is enabled', async t => {
+  t.plan(1);
+
+  const compartment = new Compartment({
+    globals: { t },
+    resolveHook: resolveNode,
+    importHook: async () => {},
+    importNowHook: importNowHookForErrorAggregationTests,
+    noAggregateLoadErrors: false, // <-- error aggregation enabled
+    __options__: true,
+  });
+
+  // TODO: I had expected this to be an actual AggregateError, but it is not
+  t.throws(() => compartment.importNow('./main.js'), {
+    message: /1 underlying failures/,
+  });
 });
