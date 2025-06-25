@@ -2,7 +2,7 @@ User-visible changes in `@endo/patterns`:
 
 # Next release
 
-- In errors explaining why a specimen does not match a pattern, sometimes the error message contains a quoted form of a nested pattern. This quoting was done with `q`, producing an uninformative rendering of these nested patterns. Now this quoting is done with `qp`, which renders these nested patterns into readable [Justin](https://github.com/agoric-labs/jessica/blob/master/lib/quasi-justin.js.ts) source code.
+- In errors explaining why a specimen does not match a pattern, sometimes the error message contains a quoted form of a nested pattern. This quoting was done with `q`, producing an uninformative rendering of these nested patterns. Now this quoting is done with `qp`, which renders these nested patterns into readable [Justin](https://github.com/endojs/Jessie/blob/main/packages/parse/src/quasi-justin.js) source code.
 
 # v1.5.0 (2025-03-11)
 
