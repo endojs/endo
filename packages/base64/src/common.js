@@ -1,5 +1,7 @@
 // @ts-check
 
+const { freeze } = Object;
+
 export const padding = '=';
 
 export const alphabet64 =
@@ -17,3 +19,4 @@ for (let i = 0; i < alphabet64.length; i += 1) {
   const c = alphabet64[i];
   monodu64[c] = i;
 }
+freeze(monodu64);
