@@ -2,7 +2,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { Fail } from '@endo/errors';
-import { makeTagged, Far } from '@endo/marshal';
+import { makeTagged, Far, qp } from '@endo/marshal';
 import {
   makeCopyBag,
   makeCopyMap,
@@ -11,6 +11,8 @@ import {
 } from '../src/keys/checkKey.js';
 import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 import '../src/types.js';
+
+const { stringify: q } = JSON;
 
 /** @import * as ava from 'ava' */
 
@@ -85,11 +87,11 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.or(3, 4));
 
     failCase(specimen, 4, '3 - Must be: 4');
-    failCase(specimen, M.not(3), '3 - Must fail negated pattern: 3');
+    failCase(specimen, M.not(3), '3 - Must fail negated pattern: "`3`"');
     failCase(
       specimen,
       M.not(M.any()),
-      '3 - Must fail negated pattern: "[match:any]"',
+      '3 - Must fail negated pattern: "`makeTagged(\\"match:any\\", undefined)`"',
     );
     failCase(specimen, M.nat(), 'number 3 - Must be a bigint');
     failCase(specimen, [3, 4], '3 - Must be: [3,4]');
@@ -101,8 +103,8 @@ const runTests = (t, successCase, failCase) => {
     failCase(specimen, M.lte(3n), '3 - Must be <= "[3n]"');
     failCase(specimen, M.gte(3n), '3 - Must be >= "[3n]"');
     failCase(specimen, M.and(3, 4), '3 - Must be: 4');
-    failCase(specimen, M.or(4, 4), '3 - Must match one of [4,4]');
-    failCase(specimen, M.or(), '3 - no pattern disjuncts to match: []');
+    failCase(specimen, M.or(4, 4), `3 - Must match one of ${q(qp([4, 4]))}`);
+    failCase(specimen, M.or(), '3 - no pattern disjuncts to match: "`[]`"');
     failCase(specimen, M.tagged(), 'Expected tagged object, not "number": 3');
   }
   {
@@ -126,11 +128,11 @@ const runTests = (t, successCase, failCase) => {
     successCase(specimen, M.or(0n, 4n));
 
     failCase(specimen, 4n, '"[0n]" - Must be: "[4n]"');
-    failCase(specimen, M.not(0n), '"[0n]" - Must fail negated pattern: "[0n]"');
+    failCase(specimen, M.not(0n), '"[0n]" - Must fail negated pattern: "`0n`"');
     failCase(
       specimen,
       M.not(M.any()),
-      '"[0n]" - Must fail negated pattern: "[match:any]"',
+      '"[0n]" - Must fail negated pattern: "`makeTagged(\\"match:any\\", undefined)`"',
     );
     failCase(specimen, [0n, 4n], '"[0n]" - Must be: ["[0n]","[4n]"]');
     failCase(specimen, M.gte(7n), '"[0n]" - Must be >= "[7n]"');
@@ -144,9 +146,13 @@ const runTests = (t, successCase, failCase) => {
     failCase(
       specimen,
       M.or(4n, 4n),
-      '"[0n]" - Must match one of ["[4n]","[4n]"]',
+      `"[0n]" - Must match one of ${q(qp([4n, 4n]))}`,
     );
-    failCase(specimen, M.or(), '"[0n]" - no pattern disjuncts to match: []');
+    failCase(
+      specimen,
+      M.or(),
+      '"[0n]" - no pattern disjuncts to match: "`[]`"',
+    );
   }
   {
     const specimen = -1n;
@@ -653,7 +659,11 @@ const runTests = (t, successCase, failCase) => {
         failCase(
           specimen,
           M[method](),
-          'match:remotable payload: 88 - Must be a copyRecord to match a copyRecord pattern: {"label":"[match:string]"}',
+          `match:remotable payload: 88 - Must be a copyRecord to match a copyRecord pattern: ${q(
+            qp({
+              label: M.string(),
+            }),
+          )}`,
         );
       }
     }
