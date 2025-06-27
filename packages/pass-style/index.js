@@ -26,6 +26,15 @@ export {
   assertPassableString,
 } from './src/string.js';
 
+export { uint8ArrayToHex, hexToUint8Array } from './src/hex.js';
+
+export {
+  byteArrayToUint8Array,
+  uint8ArrayToByteArray,
+  byteArrayToHex,
+  hexToByteArray,
+} from './src/byteArray.js';
+
 export {
   passStyleOf,
   isPassable,
