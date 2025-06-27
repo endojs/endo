@@ -1,5 +1,3 @@
-/// <reference types="ses"/>
-
 import { Nat } from '@endo/nat';
 import {
   assertPassable,
