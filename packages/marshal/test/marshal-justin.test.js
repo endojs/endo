@@ -6,6 +6,7 @@ import {
   Remotable,
   makeTagged,
   passableSymbolForName,
+  hexToByteArray,
 } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin, qp } from '../src/marshal-justin.js';
@@ -43,6 +44,7 @@ const fakeJustinCompartment = () => {
     slotToVal,
     makeTagged,
     passableSymbolForName,
+    hexToByteArray,
   });
 };
 
