@@ -20,14 +20,9 @@ const readPowers = makeReadPowers({ fs });
 const fixture = {
   a: ['aa', 'aaaaa5'],
   aaaaa5: ['eee'],
-  aa: ['ffff', 'xbb', 'cc'],
-  xbb: ['dd'],
-  cc: ['xbb', 'eee'],
-  dd: ['z'],
+  aa: ['cc'],
+  cc: ['eee'],
   eee: ['z'],
-  ffff: ['ggg'],
-  ggg: ['j'],
-  j: ['z']
 }
 
 const tree = (start, depth = 0) => {
