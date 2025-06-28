@@ -24,7 +24,7 @@ const stringToUint8Array = string => {
  * may be unexpected, and so is ok as long as it is used only for this purpose
  * for a local test, and not exported.
  */
-const unit8ArrayToString = data => String.fromCharCode(...data);
+const unt8ArrayToString = data => String.fromCharCode(...data);
 
 test('bytes conversions', t => {
   const insouts = [
@@ -38,7 +38,7 @@ test('bytes conversions', t => {
   ];
   for (const [inp, outp] of insouts) {
     t.is(encodeBase64(stringToUint8Array(inp)), outp, `${inp} encodes`);
-    t.is(unit8ArrayToString(decodeBase64(outp)), inp, `${outp} decodes`);
+    t.is(unt8ArrayToString(decodeBase64(outp)), inp, `${outp} decodes`);
     t.is(btoa(inp), outp, `${inp} encodes with btoa`);
     t.is(atob(outp), inp, `${outp} decodes with atob`);
     origBtoa && t.is(origBtoa(inp), outp, `${inp} encodes with origBtoa`);
@@ -54,7 +54,7 @@ test('bytes conversions', t => {
   ];
   for (const str of inputs) {
     t.is(
-      unit8ArrayToString(decodeBase64(encodeBase64(stringToUint8Array(str)))),
+      unt8ArrayToString(decodeBase64(encodeBase64(stringToUint8Array(str)))),
       str,
       `${str} round trips`,
     );
