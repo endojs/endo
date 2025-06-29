@@ -3,17 +3,22 @@ import { atob as origAtob, btoa as origBtoa } from './_capture-atob-btoa.js';
 import { encodeBase64, decodeBase64, atob, btoa } from '../index.js';
 
 /**
- * @param {string} string Only uses the low byte of each UTF16 code unit, which
- * is ok as long as it is used only for this purpose for a local test, and not
- * exported.
+ * `asciiString` must consist only of characters with code points between
+ * 0 and 255 (or `oxff`), i.e., characters whose code points fit into one byte.
+ * `asciiStringToUint8Array` converts that to a Uint8Array of the same size,
+ * consisting of those code points in order.
+ *
+ * @param {string} asciiString
  * @returns {Uint8Array}
  */
-const encode8BitString = string => {
-  const data = new Uint8Array(string.length);
-  for (let i = 0; i < string.length; i += 1) {
-    const byte = string.charCodeAt(i);
+const asciiStringToUint8Array = asciiString => {
+  const data = new Uint8Array(asciiString.length);
+  for (let i = 0; i < asciiString.length; i += 1) {
+    const byte = asciiString.charCodeAt(i);
     if (byte > 0xff) {
-      throw Error(`invalid character at index ${i}: U+${byte.toString(16).padStart(4, '0')}`);
+      throw Error(
+        `invalid character at index ${i}: U+${byte.toString(16).padStart(4, '0')}`,
+      );
     }
     data[i] = byte;
   }
@@ -21,14 +26,14 @@ const encode8BitString = string => {
 };
 
 /**
- * @param {Uint8Array} data
- * @returns {string} Interpreting each 8-bit value as an 8-bit UTF-16 code
+ * Interpret each 8-bit value as an 8-bit UTF-16 code
  * unit. Since this cannot include any UTF-16 surrogates, this is equivalent
- * to interpreting each 8-bit value as an 8-bit ascii code point. This
- * may be unexpected, and so is ok as long as it is used only for this purpose
- * for a local test, and not exported.
+ * to interpreting each 8-bit value as an 8-bit ascii code point.
+ *
+ * @param {Uint8Array} data
+ * @returns {string}
  */
-const unt8ArrayToString = data => String.fromCharCode(...data);
+const unt8ArrayToAsciiString = data => String.fromCharCode(...data);
 
 test('bytes conversions', t => {
   const insouts = [
@@ -41,8 +46,8 @@ test('bytes conversions', t => {
     ['foobar', 'Zm9vYmFy'],
   ];
   for (const [inp, outp] of insouts) {
-    t.is(encodeBase64(stringToUint8Array(inp)), outp, `${inp} encodes`);
-    t.is(unt8ArrayToString(decodeBase64(outp)), inp, `${outp} decodes`);
+    t.is(encodeBase64(asciiStringToUint8Array(inp)), outp, `${inp} encodes`);
+    t.is(unt8ArrayToAsciiString(decodeBase64(outp)), inp, `${outp} decodes`);
     t.is(btoa(inp), outp, `${inp} encodes with btoa`);
     t.is(atob(outp), inp, `${outp} decodes with atob`);
     origBtoa && t.is(origBtoa(inp), outp, `${inp} encodes with origBtoa`);
@@ -58,7 +63,9 @@ test('bytes conversions', t => {
   ];
   for (const str of inputs) {
     t.is(
-      unt8ArrayToString(decodeBase64(encodeBase64(stringToUint8Array(str)))),
+      unt8ArrayToAsciiString(
+        decodeBase64(encodeBase64(asciiStringToUint8Array(str))),
+      ),
       str,
       `${str} round trips`,
     );
