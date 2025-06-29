@@ -1,5 +1,9 @@
 User-visible changes in `@endo/marshal`:
 
+# Next release
+
+- `@endo/pass-style` had already grown a new `Passable` data type, [`ByteArray`](https://github.com/endojs/endo/pull/2843), which is essentially a frozen [Immutable ArrayBuffer](https://github.com/tc39/proposal-immutable-arraybuffer/). `@endo/marshal` can now serialize and deserialize these to the capData, smallcaps, and Justin formats using a textual hex encoding. The `encodePassable` format does not yet support ByteArrays.
+
 # v1.7.0 (2025-06-02)
 
 - `@endo/marshal` now also exports a `qp` function meaning "quote passable"
