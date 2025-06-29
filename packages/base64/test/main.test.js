@@ -8,10 +8,14 @@ import { encodeBase64, decodeBase64, atob, btoa } from '../index.js';
  * exported.
  * @returns {Uint8Array}
  */
-const stringToUint8Array = string => {
+const encode8BitString = string => {
   const data = new Uint8Array(string.length);
   for (let i = 0; i < string.length; i += 1) {
-    data[i] = string.charCodeAt(i);
+    const byte = string.charCodeAt(i);
+    if (byte > 0xff) {
+      throw Error(`invalid character at index ${i}: U+${byte.toString(16).padStart(4, '0')}`);
+    }
+    data[i] = byte;
   }
   return data;
 };
