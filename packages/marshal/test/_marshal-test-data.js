@@ -1,9 +1,15 @@
-import { makeTagged, passableSymbolForName } from '@endo/pass-style';
+import {
+  makeTagged,
+  passableSymbolForName,
+  hexToByteArray,
+} from '@endo/pass-style';
 import {
   exampleAlice,
   exampleBob,
   exampleCarol,
 } from '@endo/pass-style/tools.js';
+
+// modeled on byteArray.test.js
 
 /**
  * A list of `[plain, encoding]` pairs, where plain serializes to the
@@ -39,7 +45,7 @@ export const roundTripPairs = harden([
   // Fails before https://github.com/endojs/endo/issues/1303 fix
   [{ isPrototypeOf: {} }, { isPrototypeOf: {} }],
 
-  // Scalars not represented in JSON
+  // Atoms not representable in JSON
   [undefined, { '@qclass': 'undefined' }],
   [NaN, { '@qclass': 'NaN' }],
   [Infinity, { '@qclass': 'Infinity' }],
@@ -59,6 +65,16 @@ export const roundTripPairs = harden([
   // Normal json reviver cannot make properties with undefined values
   [[undefined], [{ '@qclass': 'undefined' }]],
   [{ foo: undefined }, { foo: { '@qclass': 'undefined' } }],
+
+  // byteArray
+  // modeled on byteArray.test.js
+  [
+    hexToByteArray('0f'),
+    {
+      '@qclass': 'byteArray',
+      data: '0f',
+    },
+  ],
 
   // tagged
   [
@@ -155,7 +171,7 @@ export const roundTripPairs = harden([
 ]);
 
 /**
- * Based on roundTripPairs from round-trip-pairs.js
+ * Based on roundTripPairs
  *
  * A list of `[body, justinSrc]` pairs, where the body parses into
  * an encoding that decodes to a Justin expression that evaluates to something
@@ -174,7 +190,7 @@ export const jsonJustinPairs = harden([
   ['"abc"', '"abc"'],
   ['null', 'null'],
 
-  // Primitives not representable in JSON
+  // Atoms not representable in JSON
   ['{"@qclass":"undefined"}', 'undefined'],
   ['{"@qclass":"NaN"}', 'NaN'],
   ['{"@qclass":"Infinity"}', 'Infinity'],
@@ -188,6 +204,9 @@ export const jsonJustinPairs = harden([
   ['{"@qclass":"symbol","name":"@@match"}', 'passableSymbolForName("@@match")'],
   ['{"@qclass":"symbol","name":"foo"}', 'passableSymbolForName("foo")'],
   ['{"@qclass":"symbol","name":"@@@@foo"}', 'passableSymbolForName("@@@@foo")'],
+
+  // byteArray
+  ['{"@qclass":"byteArray","data":"0aff"}', 'hexToByteArray("0aff")'],
 
   // Arrays and objects
   ['[{"@qclass":"undefined"}]', '[undefined]'],
@@ -265,6 +284,7 @@ export const unsortedSample = harden([
   undefined,
   -Infinity,
   [5],
+  hexToByteArray('0f'),
   exampleAlice,
   [],
   passableSymbolForName('foo'),
@@ -278,6 +298,7 @@ export const unsortedSample = harden([
   [exampleAlice, 'a'],
   [exampleBob, 'z'],
   -0,
+  hexToByteArray('aa'),
   {},
   [5, undefined],
   -3,
@@ -287,6 +308,7 @@ export const unsortedSample = harden([
   ]),
   true,
   'bar',
+  hexToByteArray('0a'),
   [5, null],
   new Promise(() => {}), // forever unresolved
   makeTagged('nonsense', [
@@ -359,6 +381,10 @@ export const sortedSample = harden([
   [exampleAlice, 'a'],
   [exampleCarol, 'm'],
   [exampleBob, 'z'],
+
+  hexToByteArray('0a'),
+  hexToByteArray('0f'),
+  hexToByteArray('aa'),
 
   false,
   true,
