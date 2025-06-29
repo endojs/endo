@@ -1,7 +1,6 @@
 // @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import { passableSymbolForName } from '@endo/pass-style';
 import { getInterfaceMethodKeys, M } from '@endo/patterns';
 import {
   GET_INTERFACE_GUARD,
@@ -81,25 +80,21 @@ test('test defineExoClass', t => {
   t.deepEqual(upCounter[GET_INTERFACE_GUARD]?.(), UpCounterI);
   t.deepEqual(getInterfaceMethodKeys(UpCounterI), ['incr']);
 
-  const symbolic = passableSymbolForName('symbolic');
   const FooI = M.interface('Foo', {
     m: M.call().returns(),
-    [symbolic]: M.call(M.boolean()).returns(),
+    m2: M.call(M.boolean()).returns(),
   });
-  t.deepEqual(getInterfaceMethodKeys(FooI), [
-    'm',
-    passableSymbolForName('symbolic'),
-  ]);
+  t.deepEqual(getInterfaceMethodKeys(FooI), ['m', 'm2']);
   const makeFoo = defineExoClass('Foo', FooI, () => ({}), {
     m() {},
-    [symbolic]() {},
+    m2() {},
   });
   const foo = makeFoo();
   t.deepEqual(foo[GET_INTERFACE_GUARD]?.(), FooI);
   // @ts-expect-error intentional for test
-  t.throws(() => foo[symbolic]('invalid arg'), {
+  t.throws(() => foo.m2('invalid arg'), {
     message:
-      'In "[Symbol(symbolic)]" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
+      'In "m2" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
   });
 });
 

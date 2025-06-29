@@ -53,7 +53,7 @@ harden(stringify);
 
 /**
  * @param {string} str
- * @returns {unknown}
+ * @returns {Passable}
  */
 const parse = str =>
   unserialize(
