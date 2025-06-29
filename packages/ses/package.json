@@ -94,6 +94,7 @@
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
   "dependencies": {
+    "@endo/cache-map": "workspace:^",
     "@endo/env-options": "workspace:^",
     "@endo/immutable-arraybuffer": "workspace:^"
   },
