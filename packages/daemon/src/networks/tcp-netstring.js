@@ -16,7 +16,7 @@ const protocol = 'tcp+netstring+json+captp0';
 export const make = async (powers, context) => {
   const { servePort, connectPort } = makeSocketPowers({ net });
 
-  const cancelled = E(context).whenCancelled();
+  const cancelled = /** @type {Promise<never>} */ (E(context).whenCancelled());
   const cancelServer = error => E(context).cancel(error);
 
   /** @type {Array<string>} */
@@ -122,7 +122,9 @@ export const make = async (powers, context) => {
     const { port: portname, hostname: host } = new URL(address);
     const port = Number(portname);
 
-    const connectionCancelled = E(connectionContext).whenCancelled();
+    const connectionCancelled = /** @type {Promise<never>} */ (
+      E(connectionContext).whenCancelled()
+    );
     const cancelConnection = () => E(connectionContext).cancel();
 
     const {
