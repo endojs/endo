@@ -262,6 +262,7 @@ export type SearchDescriptorOptions = LogOptions;
 /**
  * A power to read a package descriptor
  * @template T Format of package descriptor
+ * @deprecated Use {@link MaybeReadDescriptorFn} instead.
  */
 export type ReadDescriptorFn<T = PackageDescriptor> = (
   location: string,
