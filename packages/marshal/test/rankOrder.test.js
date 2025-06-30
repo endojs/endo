@@ -16,7 +16,7 @@ import {
   getIndexCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
-import { unsortedSample, sortedSample } from './_marshal-test-data.js';
+import { unsortedSample, sortedSample } from '../tools/marshal-test-data.js';
 
 const { arbPassable } = makeArbitraries(fc);
 

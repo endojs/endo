@@ -13,7 +13,7 @@ import {
   makeDecodePassable,
 } from '../src/encodePassable.js';
 import { compareRank, makeFullOrderComparatorKit } from '../src/rankOrder.js';
-import { unsortedSample } from './_marshal-test-data.js';
+import { unsortedSample } from '../tools/marshal-test-data.js';
 
 const { arbPassable } = makeArbitraries(fc, ['byteArray']);
 
