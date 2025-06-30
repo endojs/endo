@@ -1,4 +1,4 @@
-This fixture contains a configuration that has two different paths from the root app (`app`) to the same module (`goofy`). The paths are of the same length, but one if them is shorter in terms of character count. Thus, `app>pippo>topolino>goofy` should be considered the shortest path to `goofy`, and the `path` of `goofy`'s `CompartmentDescriptor` will reflect that.
+This fixture contains a configuration that has two different paths from the root app (`app`) to the same module (`goofy`). The paths are of the same length, but one if them is shorter in terms of character count. Thus, `app>paperino>topolino>goofy` should be considered the shortest path to `goofy`, and the `path` of `goofy`'s `CompartmentDescriptor` will reflect that (omittingt t).
 
 Diagram of the module graph:
 
@@ -7,7 +7,7 @@ graph TD
     app --> paperino
     app --> pippo
     paperino --> topolino
-    topolino --> goofy
     pippo --> gambadilegno
-    gambadilegno --> goofy
+    topolino --> goofy
+    gambadilegno --> topolino
 ```

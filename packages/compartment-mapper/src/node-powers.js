@@ -16,6 +16,7 @@
  *   PathInterface,
  *   UrlInterface,
  * } from './types/node-powers.js'
+ * @import {FileUrlString} from './types/external.js'
  * @import {
  *   CanonicalFn,
  *   FileURLToPathFn,
@@ -68,7 +69,7 @@ const fakeIsAbsolute = () => false;
  * @param {UrlInterface} [args.url]
  * @param {CryptoInterface} [args.crypto]
  * @param {PathInterface} [args.path]
- * @returns {MaybeReadPowers}
+ * @returns {MaybeReadPowers<FileUrlString>}
  */
 const makeReadPowersSloppy = ({
   fs,
@@ -125,9 +126,9 @@ const makeReadPowersSloppy = ({
 
   /**
    * There are two special things about the canonical function the compartment
-   * mapper needs. It needs to use URL’s instead of posix paths to avoid
+   * mapper needs. It needs to use URL's instead of posix paths to avoid
    * bundling up a bunch of cruft when we port this around. It needs to use
-   * promises. URL’s can and must logically distinguish a directory from a
+   * promises. URL's can and must logically distinguish a directory from a
    * file, by the final slash, whereas paths must never have a final slash
    * because that implies a blank file name within the enclosing directory. The
    * canonical function must also return the logical path instead of the real
@@ -136,7 +137,7 @@ const makeReadPowersSloppy = ({
    * non-existent directory on the next step after canonicalizing the package
    * location.
    *
-   * @type {CanonicalFn}
+   * @type {CanonicalFn<FileUrlString>}
    */
   const canonical = async location => {
     await null;
@@ -145,10 +146,12 @@ const makeReadPowersSloppy = ({
         const realPath = await fs.promises.realpath(
           fileURLToPath(location).replace(/\/$/, ''),
         );
-        return `${pathToFileURL(realPath).href}/`;
+        return /** @type {FileUrlString} */ (
+          `${pathToFileURL(realPath).href}/`
+        );
       } else {
         const realPath = await fs.promises.realpath(fileURLToPath(location));
-        return pathToFileURL(realPath).href;
+        return /** @type {FileUrlString} */ (pathToFileURL(realPath).href);
       }
     } catch {
       return location;
@@ -184,7 +187,7 @@ const makeReadPowersSloppy = ({
  * @param {UrlInterface} [args.url]
  * @param {CryptoInterface} [args.crypto]
  * @param {PathInterface} [args.path]
- * @returns {MaybeReadPowers & ReadNowPowers}
+ * @returns {ReadNowPowers<FileUrlString>}
  */
 export const makeReadNowPowers = ({
   fs,
@@ -273,7 +276,7 @@ export const makeWritePowers = makeWritePowersSloppy;
  *
  * @param {FsInterface} fs
  * @param {CryptoInterface} [crypto]
- * @returns {ReadPowers}
+ * @returns {ReadPowers<FileUrlString>}
  * @deprecated
  */
 export const makeNodeReadPowers = (fs, crypto = undefined) => {
