@@ -9,7 +9,7 @@ import {
 } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin, qp } from '../src/marshal-justin.js';
-import { jsonJustinPairs } from './_marshal-test-data.js';
+import { jsonJustinPairs } from '../tools/marshal-test-data.js';
 
 // this only includes the tests that do not use liveSlots
 

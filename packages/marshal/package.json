@@ -6,6 +6,13 @@
   "main": "index.js",
   "exports": {
     ".": "./index.js",
+    "./tools/marshal-test-data.js": "./tools/marshal-test-data.js",
+    "./tools/prepare-unicode-code-point-order.js":
+      "./tools/prepare-unicode-code-point-order.js",
+    "./tools/prepare-utf16-code-unit-order.js":
+      "./tools/prepare-utf16-code-unit-order.js",
+    "./tools/prepare-error-if-order-choice-matters.js":
+      "./tools/prepare-error-if-order-choice-matters.js",
     "./package.json": "./package.json"
   },
   "directories": {
@@ -41,6 +48,7 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
     "@endo/common": "workspace:^",
+    "@endo/env-options": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/nat": "workspace:^",
