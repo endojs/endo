@@ -2,10 +2,17 @@ User-visible changes in `@endo/marshal`:
 
 # 1.8.0 (2025-07-11)
 
-- Introduces an environment variable config option `ENDO_RANK_STRINGS` to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN-conformant) ordering by Unicode code point. It currently defaults to "utf16-code-unit-order", matching the previously-unconditional behavior.
+# Next release
+
+- JavaScript's relational comparison operators like `<` compare strings by lexicographic UTF16 code unit order, which exposes an internal representational detail not relevant to the string's meaning as a Unicode string. Previously, `compareRank` and associated functions compared strings using this JavaScript-native comparison. Now `compareRank` and associated functions compare strings by lexicographic Unicode Code Point order. ***This change only affects strings containing so-called supplementary characters, i.e., those whose Unicode character code does not fit in 16 bits***.
+  - This release does not change the `encodePassable` encoding. But now, when we say it is order preserving, we need to be careful about which order we mean. `encodePassable` is rank-order preserving when the encoded strings are compared using `compareRank`.
+  - The key order of strings defined by the @endo/patterns module is still defined to be the same as the rank ordering of those strings. So this release changes key order among strings to also be lexicographic comparison of Unicode Code Points. To accommodate this change, you may need to adapt applications that relied on key-order being the same as JS native order. This could include the use of any patterns expressing key inequality tests, like `M.gte(string)`.
+  - These string ordering changes brings Endo into conformance with any string ordering components of the OCapN standard.
+  - To accommodate these change, you may need to adapt applications that relied on rank-order or key-order being the same as JS native order. You may need to resort any data that had previously been rank sorted using the prior `compareRank` function. You may need to revisit any use of patterns like `M.gte(string)` expressing inequalities over strings.
 
 # v1.7.0 (2025-06-02)
 
+- Introduces an environment variable config option `ENDO_RANK_STRINGS`, defaulting off for now, to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN conformant) ordering by Unicode code point. Thus, for now, when this default is not overridden, there is no observable change.
 - `@endo/marshal` now also exports a `qp` function meaning "quote passable"
   that renders its passable argument as a quasi-quoted Justin expression.
   This can be used with `X`, `Fail` etc the same way you currently use `q`.
