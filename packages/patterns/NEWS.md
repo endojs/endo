@@ -2,6 +2,14 @@ User-visible changes in `@endo/patterns`:
 
 # Next release
 
+<!-- Assuming that this comes after a release including #2873, which is where
+the next "Next release" section comes from" -->
+
+- JavaScript's relational comparison operators like `<` compare strings by lexicographic UTF16 code unit order, which exposes an internal representational detail not relevant to the string's meaning as a Unicode string.  Previously, `compareKeys` and associated functions compared strings using this JavaScript-native comparison. Now `compareKeys` and associated functions compare strings by lexicographic Unicode Code Point order. ***This change only affects strings containing so-called supplementary characters, i.e., those whose Unicode character code does not fit in 16 bits***.
+  - See the NEWS.md of @endo/marshal for more on this change.
+
+# Next release
+
 - `@endo/marshal` introduces an environment variable config option `ENDO_RANK_STRINGS`, defaulting off for now, to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN conformant) ordering by Unicode code point. Thus, for now, when this default is not overridden, there is no observable change.
   - `@endo/patterns` provides a `compareKeys` partial order that delegates some ordering, including strings, to the rank ordering provided by `@endo/marshal`. So when the `ENDO_RANK_STRINGS` default is not overridden, then `compareKeys` also following the (incorrect) UTF-16 code unit order. But when it is overridden, then `compareKeys` also follows the (correct) Unicode code-point order.
 - In errors explaining why a specimen does not match a pattern, sometimes the error message contains a quoted form of a nested pattern. This quoting was done with `q`, producing an uninformative rendering of these nested patterns. Now this quoting is done with `qp`, which renders these nested patterns into readable [Justin](https://github.com/endojs/Jessie/blob/main/packages/parse/src/quasi-justin.js) source code.
