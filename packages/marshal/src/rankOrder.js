@@ -15,10 +15,11 @@ import {
 const { isNaN: NumberIsNaN } = Number;
 const { entries, fromEntries, setPrototypeOf, is } = Object;
 
-const ENDO_RANK_STRINGS = getenv('ENDO_RANK_STRINGS', 'utf16-code-unit-order', [
+const ENDO_RANK_STRINGS = getenv(
+  'ENDO_RANK_STRINGS',
   'unicode-code-point-order',
-  'error-if-order-choice-matters',
-]);
+  ['utf16-code-unit-order', 'error-if-order-choice-matters'],
+);
 
 /**
  * @typedef {object} RankComparatorKit
