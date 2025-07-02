@@ -1,34 +1,52 @@
+import type { GenericGraph } from '../generic-graph.js';
 import type {
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
-import type { LogOptions } from './external.js';
+import type { LogOptions, FileUrlString } from './external.js';
 import type { PackageDescriptor } from './internal.js';
+import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
   string,
   { spec: string; alias: string }
 >;
 
-export type GraphPackageOptions = {
-  preferredPackageLogicalPathMap?: Map<string, string[]>;
-  logicalPath?: string[];
+/**
+ * Options bag containing {@link CommonDependencyDescriptors} that will be added to
+ * _all_ packages in the graph.
+ */
+export type CommonDependencyDescriptorsOptions = {
+  /**
+   * Dependencies added to _all_ packages
+   */
   commonDependencyDescriptors?: CommonDependencyDescriptors;
-} & LogOptions;
+};
 
+/**
+ * Options for `graphPackage()`
+ */
+export type GraphPackageOptions = {
+  logicalPath?: string[];
+} & LogOptions &
+  CommonDependencyDescriptorsOptions;
+
+/**
+ * Options for `graphPackages()`
+ */
 export type GraphPackagesOptions = LogOptions;
 
+/**
+ * Options for `gatherDependency()`
+ */
 export type GatherDependencyOptions = {
   childLogicalPath?: string[];
   /**
    * If `true` the dependency is optional
    */
   optional?: boolean;
-  /**
-   * Dependencies added to _all_ packages
-   */
-  commonDependencyDescriptors?: CommonDependencyDescriptors;
-} & LogOptions;
+} & LogOptions &
+  CommonDependencyDescriptorsOptions;
 
 export interface Node {
   /**
@@ -67,10 +85,13 @@ export interface Node {
 /**
  * The graph is an intermediate object model that the functions of this module
  * build by exploring the `node_modules` tree dropped by tools like npm and
- * consumed by tools like Node.js.
- * This gets translated finally into a compartment map.
+ * consumed by tools like Node.js. This gets translated finally into a
+ * compartment map.
+ *
+ * Keys may either be a file URL string to a package or the special
+ * `<ATTENUATORS>` string.
  */
-export type Graph = Record<string, Node>;
+export type Graph = Record<LiteralUnion<'<ATTENUATORS>', FileUrlString>, Node>;
 
 export interface LanguageOptions {
   commonjsLanguageForExtension: LanguageForExtension;
@@ -84,6 +105,12 @@ export interface LanguageOptions {
  * Object result of `findPackage()`
  */
 export interface PackageDetails {
-  packageLocation: string;
+  packageLocation: FileUrlString;
   packageDescriptor: PackageDescriptor;
 }
+
+/**
+ * Specific type of {@link GenericGraph} that uses file URL strings for nodes;
+ * used by `mapNodeModules()` and its ilk.
+ */
+export type LogicalPathGraph = GenericGraph<FileUrlString>;

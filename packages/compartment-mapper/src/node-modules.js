@@ -13,18 +13,32 @@
 
 /* eslint no-shadow: 0 */
 
+import { inferExportsAndAliases } from './infer-exports.js';
+import { parseLocatedJson } from './json.js';
+import { join } from './node-module-specifier.js';
+import { assertPolicy } from './policy-format.js';
+import {
+  ATTENUATORS_COMPARTMENT,
+  dependencyAllowedByPolicy,
+  getPolicyForPackage,
+} from './policy.js';
+import { unpackReadPowers } from './powers.js';
+import { search, searchDescriptor } from './search.js';
+import { GenericGraph, makeShortestPath } from './generic-graph.js';
+
 /**
  * @import {
  *   CanonicalFn,
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
  *   CompartmentMapForNodeModulesOptions,
+ *   FileUrlString,
  *   LanguageForExtension,
  *   MapNodeModulesOptions,
+ *   MaybeReadDescriptorFn,
  *   MaybeReadFn,
  *   MaybeReadPowers,
  *   PackageDescriptor,
- *   ReadDescriptorFn,
  *   ReadFn,
  *   ReadPowers,
  *   SomePackagePolicy,
@@ -38,22 +52,10 @@
  *   GatherDependencyOptions,
  *   GraphPackageOptions,
  *   GraphPackagesOptions,
+ *   LogicalPathGraph,
  *   PackageDetails,
  * } from './types/node-modules.js'
  */
-
-import { pathCompare } from '@endo/path-compare';
-import { inferExportsAndAliases } from './infer-exports.js';
-import { parseLocatedJson } from './json.js';
-import { join } from './node-module-specifier.js';
-import { assertPolicy } from './policy-format.js';
-import {
-  ATTENUATORS_COMPARTMENT,
-  dependencyAllowedByPolicy,
-  getPolicyForPackage,
-} from './policy.js';
-import { unpackReadPowers } from './powers.js';
-import { search, searchDescriptor } from './search.js';
 
 const { assign, create, keys, values, entries } = Object;
 
@@ -68,12 +70,48 @@ const q = JSON.stringify;
 const noop = () => {};
 
 /**
+ * Given a relative path andd URL, return a fully qualified URL string.
+ *
+ * @overload
  * @param {string} rel - a relative URL
- * @param {string} abs - a fully qualified URL
- * @returns {string}
+ * @param {URL} abs - a fully qualified URL
+ * @returns {string} Fully qualified URL string
+ */
+
+/**
+ * Given a relative path and fully qualified stringlike URL, return a fully
+ * qualified stringlike URL.
+ *
+ * @template {string} [T=string] Type of fully qualified URL string
+ * @overload
+ * @param {string} rel - a relative URL
+ * @param {T} abs - a fully qualified URL
+ * @returns {T} Fully qualified stringlike URL
+ */
+
+/**
+ * @param {string} rel - a relative URL
+ * @param {string|URL} abs - a fully qualified URL
  */
 const resolveLocation = (rel, abs) => {
   return new URL(rel, abs).toString();
+};
+
+/**
+ * Ensures a string is a file URL (a {@link FileUrlString})
+ *
+ * @param {unknown} allegedPackageLocation - a package location to assert
+ * @returns {asserts allegedPackageLocation is FileUrlString}
+ */
+const assertFileUrlString = allegedPackageLocation => {
+  assert(
+    typeof allegedPackageLocation === 'string',
+    `Package location must be a string, got ${q(allegedPackageLocation)}`,
+  );
+  assert(
+    allegedPackageLocation.startsWith('file://'),
+    `Package location must be a file URL, got ${q(allegedPackageLocation)}`,
+  );
 };
 
 // Exported for testing:
@@ -94,9 +132,27 @@ export const basename = location => {
 };
 
 /**
+ * Asserts that the given value is a `PackageDescriptor`.
+ *
+ * TODO: This only validates that the value is a plain object. As mentioned in
+ * {@link PackageDescriptor}, `name` is currently a required field, but in the
+ * real world this is not so. We _do_ make assumptions about the shape of a
+ * `PackageDescriptor`, but it may not be worth eagerly validating further.
+ * @param {unknown} allegedPackageDescriptor
+ * @returns {asserts allegedPackageDescriptor is PackageDescriptor}
+ */
+const assertPackageDescriptor = allegedPackageDescriptor => {
+  assert(
+    typeof allegedPackageDescriptor !== 'function' &&
+      Object(allegedPackageDescriptor) === allegedPackageDescriptor,
+    `Package descriptor must be a plain object, got ${q(allegedPackageDescriptor)}`,
+  );
+};
+
+/**
  * @param {MaybeReadFn} maybeRead
  * @param {string} packageLocation
- * @returns {Promise<object>}
+ * @returns {Promise<PackageDescriptor|undefined>}
  */
 const readDescriptor = async (maybeRead, packageLocation) => {
   const descriptorLocation = resolveLocation('package.json', packageLocation);
@@ -106,16 +162,20 @@ const readDescriptor = async (maybeRead, packageLocation) => {
   }
   const descriptorText = decoder.decode(descriptorBytes);
   const descriptor = parseLocatedJson(descriptorText, descriptorLocation);
+  assertPackageDescriptor(descriptor);
   return descriptor;
 };
 
 /**
- * @param {Record<string, object>} memo
+ * Memoized {@link readDescriptor}
+ *
+ * @param {Record<string, Promise<PackageDescriptor|undefined>>} memo
  * @param {MaybeReadFn} maybeRead
  * @param {string} packageLocation
- * @returns {Promise<object>}
+ * @returns {Promise<PackageDescriptor|undefined>}
  */
 const readDescriptorWithMemo = async (memo, maybeRead, packageLocation) => {
+  /** @type {Promise<PackageDescriptor|undefined>} */
   let promise = memo[packageLocation];
   if (promise !== undefined) {
     return promise;
@@ -126,90 +186,6 @@ const readDescriptorWithMemo = async (memo, maybeRead, packageLocation) => {
 };
 
 /**
- * Compares `logicalPath` to the current best logical path in `preferredPackageLogicalPathMap` for `packageLocation`.
- *
- * If no current best path exists, it returns `logicalPath`.
- *
- * @template {string[]} T
- * @template {string[]} U
- * @param {T} logicalPath
- * @param {string} packageLocation
- * @param {Map<string, U>} preferredPackageLogicalPathMap
- * @returns {T|U}
- */
-const currentBestLogicalPath = (
-  logicalPath,
-  packageLocation,
-  preferredPackageLogicalPathMap,
-) => {
-  const theCurrentBest = preferredPackageLogicalPathMap.get(packageLocation);
-  if (theCurrentBest === undefined) {
-    return logicalPath;
-  }
-  return pathCompare(logicalPath, theCurrentBest) < 0
-    ? logicalPath
-    : theCurrentBest;
-};
-
-/**
- * Updates the shortest paths in a subgraph of `graph` starting with `packageLocation`.
- *
- * This should be called upon the second (and each subsequent) visit to a graph node.
- *
- * @param {Graph} graph Graph
- * @param {string} packageLocation Location of the package to start with
- * @param {string[]} logicalPath Current path parts of the same package
- * @param {Map<string, string[]>} [preferredPackageLogicalPathMap] Mapping of shortest known paths for each package location
- * @returns {void}
- */
-const updateShortestPaths = (
-  graph,
-  packageLocation,
-  logicalPath,
-  preferredPackageLogicalPathMap = new Map(),
-) => {
-  const node = graph[packageLocation];
-  if (!node) {
-    throw new ReferenceError(
-      `Cannot find package at ${packageLocation} in graph`,
-    );
-  }
-
-  const bestLogicalPath = currentBestLogicalPath(
-    logicalPath,
-    packageLocation,
-    preferredPackageLogicalPathMap,
-  );
-
-  if (bestLogicalPath === logicalPath) {
-    preferredPackageLogicalPathMap.set(packageLocation, bestLogicalPath);
-
-    for (const name of keys(node.dependencyLocations).sort()) {
-      const packageLocation = node.dependencyLocations[name];
-      if (!packageLocation) {
-        // "should never happen"
-        throw new ReferenceError(
-          `Expected graph node ${q(node.name)} to contain a dependency location for ${q(name)}`,
-        );
-      }
-      updateShortestPaths(
-        graph,
-        packageLocation,
-        [...logicalPath, name],
-        preferredPackageLogicalPathMap,
-      );
-    }
-  }
-
-  // a path length of 0 means the node represents the eventual entry compartment.
-  // we do not want to mess with that path.
-  if (node.path.length && node.path !== bestLogicalPath) {
-    node.path = bestLogicalPath;
-  }
-
-  return undefined;
-};
-/**
  * `findPackage` behaves as Node.js to find third-party modules by searching
  * parent to ancestor directories for a `node_modules` directory that contains
  * the name.
@@ -218,9 +194,9 @@ const updateShortestPaths = (
  * these are the locations that package managers drop a package so Node.js can
  * find it efficiently.
  *
- * @param {ReadDescriptorFn} readDescriptor
+ * @param {MaybeReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
- * @param {string} directory
+ * @param {FileUrlString} directory
  * @param {string} name
  * @returns {Promise<PackageDetails|undefined>}
  */
@@ -231,6 +207,10 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
     const packageLocation = await canonical(
       resolveLocation(`node_modules/${name}/`, directory),
     );
+
+    // We have no guarantee that `canonical` will return a file URL; it spits
+    // back whatever we give it if `fs.promises.realpath()` rejects.
+    assertFileUrlString(packageLocation);
 
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptor = await readDescriptor(packageLocation);
@@ -340,6 +320,37 @@ const inferParsers = (descriptor, location, languageOptions) => {
 };
 
 /**
+ * This returns the "weight" of a package name, which is used when determining
+ * the shortest path.
+ *
+ * It is an analogue of the `pathCompare` function.
+ *
+ * The weight is calculated as follows:
+ *
+ * 1. The {@link String.length length} of the package name contributes a fixed
+ *    value of `0x10000` per character. This is because the `pathCompare`
+ *    algorithm first compares strings by length and only evaluates code unit
+ *    values if the lengths of two strings are equal. `0x10000` is one (1)
+ *    greater than the maximum value that {@link String.charCodeAt charCodeAt}
+ *    can return (`0xFFFF`), which guarantees longer strings will have higher
+ *    weights.
+ * 2. Each character in the package name contributes its UTF-16 code unit value
+ *    (`0x0` thru `0xFFFF`) to the total. This is the same operation used when
+ *    comparing two strings using comparison operators.
+ * 3. The total weight is the sum of 1. and 2.
+ *
+ * @param {string} packageName - Name of package to calculate weight for.
+ * @returns {number} Numeric weight
+ */
+const calculatePackageWeight = packageName => {
+  let totalCodeValue = packageName.length * 65536; // each character contributes 65536
+  for (let i = 0; i < packageName.length; i += 1) {
+    totalCodeValue += packageName.charCodeAt(i);
+  }
+  return totalCodeValue;
+};
+
+/**
  * `graphPackage` and {@link gatherDependency} are mutually recursive functions that
  * gather the metadata for a package and its transitive dependencies.
  * The keys of the graph are the locations of the package descriptors.
@@ -348,7 +359,7 @@ const inferParsers = (descriptor, location, languageOptions) => {
  * that the package exports.
  *
  * @param {string} name
- * @param {ReadDescriptorFn} readDescriptor
+ * @param {MaybeReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {Graph} graph
  * @param {PackageDetails} packageDetails
@@ -356,7 +367,8 @@ const inferParsers = (descriptor, location, languageOptions) => {
  * @param {boolean | undefined} dev
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict
- * @param {GraphPackageOptions} options
+ * @param {LogicalPathGraph} logicalPathGraph
+ * @param {GraphPackageOptions} [options]
  * @returns {Promise<undefined>}
  */
 const graphPackage = async (
@@ -369,21 +381,10 @@ const graphPackage = async (
   dev,
   languageOptions,
   strict,
-  {
-    commonDependencyDescriptors = {},
-    preferredPackageLogicalPathMap = new Map(),
-    logicalPath = [],
-    log = noop,
-  } = {},
+  logicalPathGraph,
+  { commonDependencyDescriptors = {}, logicalPath = [], log = noop } = {},
 ) => {
   if (graph[packageLocation] !== undefined) {
-    updateShortestPaths(
-      graph,
-      packageLocation,
-      logicalPath,
-      preferredPackageLogicalPathMap,
-    );
-
     // Returning the promise here would create a causal cycle and stall recursion.
     return undefined;
   }
@@ -447,20 +448,20 @@ const graphPackage = async (
   // use the peerDependenciesMeta field (because there was no way to define
   // an "optional" peerDependency prior to npm v7). this is plainly wrong,
   // but not exactly rare, either
-  for (const [name, meta] of entries(peerDependenciesMeta)) {
+  for (const [dependencyName, meta] of entries(peerDependenciesMeta)) {
     if (Object(meta) === meta && meta.optional) {
-      optionals.add(name);
-      allDependencies.add(name);
+      optionals.add(dependencyName);
+      allDependencies.add(dependencyName);
     }
   }
 
-  for (const name of keys(optionalDependencies)) {
-    optionals.add(name);
+  for (const dependencyName of keys(optionalDependencies)) {
+    optionals.add(dependencyName);
   }
 
-  for (const name of [...allDependencies].sort()) {
-    const optional = optionals.has(name);
-    const childLogicalPath = [...logicalPath, name];
+  for (const dependencyName of [...allDependencies].sort()) {
+    const optional = optionals.has(dependencyName);
+    const childLogicalPath = [...logicalPath, dependencyName];
     children.push(
       // Mutual recursion ahead:
       // eslint-disable-next-line no-use-before-define
@@ -470,11 +471,11 @@ const graphPackage = async (
         graph,
         dependencyLocations,
         packageLocation,
-        name,
+        dependencyName,
         conditions,
-        preferredPackageLogicalPathMap,
         languageOptions,
         strict,
+        logicalPathGraph,
         {
           childLogicalPath,
           optional,
@@ -579,17 +580,17 @@ const graphPackage = async (
 /**
  * Adds information for the dependency of the package at `packageLocation` to the `graph` object.
  *
- * @param {ReadDescriptorFn} readDescriptor
+ * @param {MaybeReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {Graph} graph - the partially build graph.
  * @param {Record<string, string>} dependencyLocations
- * @param {string} packageLocation - location of the package of interest.
+ * @param {FileUrlString} packageLocation - location of the package of interest.
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} conditions
- * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict - If `true`, a missing dependency will throw an exception
- * @param {GatherDependencyOptions} options
+ * @param {LogicalPathGraph} logicalPathGraph
+ * @param {GatherDependencyOptions} [options]
  * @returns {Promise<void>}
  */
 const gatherDependency = async (
@@ -600,9 +601,9 @@ const gatherDependency = async (
   packageLocation,
   name,
   conditions,
-  preferredPackageLogicalPathMap,
   languageOptions,
   strict,
+  logicalPathGraph,
   {
     childLogicalPath = [],
     optional = false,
@@ -625,18 +626,11 @@ const gatherDependency = async (
   }
   dependencyLocations[name] = dependency.packageLocation;
 
-  const bestLogicalPath = currentBestLogicalPath(
-    childLogicalPath,
+  logicalPathGraph.addEdge(
+    packageLocation,
     dependency.packageLocation,
-    preferredPackageLogicalPathMap,
+    calculatePackageWeight(name),
   );
-
-  if (bestLogicalPath === childLogicalPath) {
-    preferredPackageLogicalPathMap.set(
-      dependency.packageLocation,
-      bestLogicalPath,
-    );
-  }
 
   await graphPackage(
     name,
@@ -648,9 +642,9 @@ const gatherDependency = async (
     false,
     languageOptions,
     strict,
+    logicalPathGraph,
     {
       commonDependencyDescriptors,
-      preferredPackageLogicalPathMap,
       logicalPath: childLogicalPath,
       log,
     },
@@ -663,7 +657,7 @@ const gatherDependency = async (
  *
  * @param {MaybeReadFn} maybeRead
  * @param {CanonicalFn} canonical
- * @param {string} packageLocation - location of the main package.
+ * @param {FileUrlString} packageLocation - location of the main package.
  * @param {Set<string>} conditions
  * @param {PackageDescriptor} mainPackageDescriptor - the parsed contents of the
  * main `package.json`, which was already read when searching for the
@@ -674,7 +668,9 @@ const gatherDependency = async (
  * to all packages
  * @param {LanguageOptions} languageOptions
  * @param {boolean} strict
- * @param {GraphPackagesOptions} options
+ * @param {LogicalPathGraph} logicalPathGraph
+ * @param {GraphPackagesOptions} [options]
+ * @returns {Promise<Graph>}
  */
 const graphPackages = async (
   maybeRead,
@@ -686,12 +682,12 @@ const graphPackages = async (
   commonDependencies,
   languageOptions,
   strict,
+  logicalPathGraph,
   { log = noop } = {},
 ) => {
   const memo = create(null);
   /**
-   * @param {string} packageLocation
-   * @returns {Promise<PackageDescriptor>}
+   * @type {MaybeReadDescriptorFn}
    */
   const readDescriptor = packageLocation =>
     readDescriptorWithMemo(memo, maybeRead, packageLocation);
@@ -700,18 +696,21 @@ const graphPackages = async (
     memo[packageLocation] = Promise.resolve(mainPackageDescriptor);
   }
 
-  const packageDescriptor = await readDescriptor(packageLocation);
+  const allegedPackageDescriptor = await readDescriptor(packageLocation);
+
+  if (allegedPackageDescriptor === undefined) {
+    throw TypeError(
+      `Cannot find package.json for application at ${packageLocation}`,
+    );
+  }
+
+  assertPackageDescriptor(allegedPackageDescriptor);
+  const packageDescriptor = allegedPackageDescriptor;
 
   conditions = new Set(conditions || []);
   conditions.add('import');
   conditions.add('default');
   conditions.add('endo');
-
-  if (packageDescriptor === undefined) {
-    throw Error(
-      `Cannot find package.json for application at ${packageLocation}`,
-    );
-  }
 
   // Resolve common dependencies.
   /** @type {CommonDependencyDescriptors} */
@@ -730,6 +729,8 @@ const graphPackages = async (
     };
   }
 
+  logicalPathGraph.addNode(packageLocation);
+
   const graph = create(null);
   await graphPackage(
     packageDescriptor.name,
@@ -744,6 +745,7 @@ const graphPackages = async (
     dev,
     languageOptions,
     strict,
+    logicalPathGraph,
     {
       commonDependencyDescriptors,
       log,
@@ -974,8 +976,8 @@ const makeLanguageOptions = ({
 };
 
 /**
- * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
- * @param {string} packageLocation
+ * @param {ReadFn | ReadPowers<FileUrlString> | MaybeReadPowers<FileUrlString>} readPowers
+ * @param {FileUrlString} packageLocation
  * @param {Set<string>} conditionsOption
  * @param {PackageDescriptor} packageDescriptor
  * @param {string} moduleSpecifier
@@ -1003,10 +1005,18 @@ export const compartmentMapForNodeModules = async (
 
   const conditions = new Set(conditionsOption || []);
 
+  /**
+   * This graph will contain nodes for each package location (a
+   * {@link FileUrlString}) and edges representing dependencies between packages.
+   *
+   * The edges are weighted by {@link calculatePackageWeight}.
+   *
+   * @type {LogicalPathGraph}
+   */
+  const logicalPathGraph = new GenericGraph();
+
   // dev is only set for the entry package, and implied by the development
   // condition.
-  // The dev option is deprecated in favor of using conditions, since that
-  // covers more intentional behaviors of the development mode.
 
   const graph = await graphPackages(
     maybeRead,
@@ -1018,6 +1028,7 @@ export const compartmentMapForNodeModules = async (
     commonDependencies,
     languageOptions,
     strict,
+    logicalPathGraph,
     { log },
   );
 
@@ -1037,6 +1048,27 @@ export const compartmentMapForNodeModules = async (
     };
   }
 
+  const shortestPath = makeShortestPath(logicalPathGraph);
+  // neither the entry package nor the attenuators compartment have a path; omit
+  const {
+    [ATTENUATORS_COMPARTMENT]: _,
+    [packageLocation]: __,
+    ...subgraph
+  } = graph;
+
+  for (const [location, node] of entries(subgraph)) {
+    const shortestLogicalPath = shortestPath(
+      packageLocation,
+      // entries() loses some type information
+      /** @type {FileUrlString} */ (location),
+    );
+
+    // the first element will always be the root package location; this is omitted from the path.
+    shortestLogicalPath.shift();
+    node.path = shortestLogicalPath.map(location => graph[location].name);
+    log(`Canonical name for package at ${location}: ${node.path.join('>')}`);
+  }
+
   const compartmentMap = translateGraph(
     packageLocation,
     moduleSpecifier,
@@ -1054,7 +1086,7 @@ export const compartmentMapForNodeModules = async (
  *
  * Locates the {@link PackageDescriptor} for the module at `moduleLocation`
  *
- * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
+ * @param {ReadFn | ReadPowers<FileUrlString> | MaybeReadPowers<FileUrlString>} readPowers
  * @param {string} moduleLocation
  * @param {MapNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
@@ -1071,9 +1103,12 @@ export const mapNodeModules = async (
     moduleSpecifier,
   } = await search(readPowers, moduleLocation, { log });
 
-  const packageDescriptor = /** @type {PackageDescriptor} */ (
-    parseLocatedJson(packageDescriptorText, packageDescriptorLocation)
-  );
+  const packageDescriptor = /** @type {typeof parseLocatedJson<unknown>} */ (
+    parseLocatedJson
+  )(packageDescriptorText, packageDescriptorLocation);
+
+  assertPackageDescriptor(packageDescriptor);
+  assertFileUrlString(packageLocation);
 
   return compartmentMapForNodeModules(
     readPowers,

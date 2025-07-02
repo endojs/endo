@@ -550,4 +550,9 @@ export type ParserForLanguage = Record<Language | string, ParserImplementation>;
 /**
  * Generic logging function accepted by various functions.
  */
-export type LogFn = (message: string, ...args: any[]) => void;
+export type LogFn = (...args: any[]) => void;
+
+/**
+ * A string that represents a file URL.
+ */
+export type FileUrlString = `file://${string}`;
