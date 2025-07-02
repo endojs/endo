@@ -46,6 +46,7 @@ import {
   attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
   enforceModulePolicy,
+  enforcePackagePolicyDynamic,
 } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 
@@ -153,6 +154,16 @@ const findRedirect = ({
     ) {
       const location = someLocation;
       const someCompartmentDescriptor = compartmentDescriptors[location];
+      console.log(
+        5,
+        { location, someLocation, compartmentDescriptor },
+        compartmentDescriptors[location],
+        compartmentDescriptor === someCompartmentDescriptor,
+        compartmentDescriptor.compartments.has(location),
+        someCompartmentDescriptor.compartments.has(
+          compartmentDescriptor.location,
+        ),
+      );
       if (compartmentDescriptor === someCompartmentDescriptor) {
         // this compartmentDescriptor wants to dynamically load its own module
         // using an absolute path
@@ -171,14 +182,39 @@ const findRedirect = ({
       // this tests if the compartment descriptor is a dependency of the
       // compartment referred to by the absolute path.
       // it may be in scope, but disallowed by policy.
+
+      // FIXME: two issues
+      // 1. I don't like how a dependency going in reverse is an indicator here. I know this is here because it happens to be how node native modules do stuff, but there's no logic to it.
+      // 2. I tried this logic out and it seems incorrect - the policy check is testing the thing being loaded for a permission to load the referrer
+      // If we expand the implementation below to accept more or all cases, we might just be fine with policy enabled and offering a more convenient behavior without policy (all compartments found can be accessed dynamically)
       if (
         someCompartmentDescriptor.compartments.has(
           compartmentDescriptor.location,
         )
       ) {
         enforceModulePolicy(
-          compartmentDescriptor.name,
-          someCompartmentDescriptor,
+          compartmentDescriptor.name, // |_ should these be swapped actually? What am I missing?
+          someCompartmentDescriptor, //  |
+          {
+            errorHint: `Blocked in import hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
+          },
+        );
+        return {
+          specifier: relativeSpecifier(moduleSpecifierLocation, location),
+          compartment: compartments[location],
+        };
+      }
+      // verify policy and if allowed, load the entry even without a link between compartments
+      const isAdditionalEntry = c => true; // good enough approximation for PoC
+      if (
+        has(someCompartmentDescriptor, 'path') &&
+        someCompartmentDescriptor.path &&
+        isAdditionalEntry(someCompartmentDescriptor)
+      ) {
+        enforcePackagePolicyDynamic(
+          absoluteModuleSpecifier,
+          someCompartmentDescriptor.path,
+          compartmentDescriptor,
           {
             errorHint: `Blocked in import hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
           },
@@ -482,9 +518,7 @@ const makeDeferError = (
         throw error;
       },
     });
-    packageSources[specifier] = {
-      deferredError: error.message,
-    };
+    packageSources[specifier] = { deferredError: error.message };
 
     return record;
   };
@@ -798,12 +832,14 @@ export function makeImportNowHookMaker(
       try {
         // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
         if (isAbsolute(moduleSpecifier)) {
+          console.log(3, moduleSpecifier);
           const record = findRedirect({
             compartmentDescriptor,
             compartmentDescriptors,
             compartments,
             absoluteModuleSpecifier: moduleSpecifier,
           });
+          console.log(4, moduleSpecifier, record);
           if (record) {
             return record;
           }
@@ -852,11 +888,7 @@ export function makeImportNowHookMaker(
             sourceMapHook,
             strictlyRequiredForCompartment,
           },
-          {
-            maybeRead: maybeReadNow,
-            parse,
-            shouldDeferError,
-          },
+          { maybeRead: maybeReadNow, parse, shouldDeferError },
         );
 
         if (record) {
