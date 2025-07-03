@@ -391,6 +391,7 @@ const diagnoseModulePolicy = errorHint => {
  * @typedef EnforceModulePolicyOptions
  * @property {boolean} [exit] - Whether it is an exit module
  * @property {string} [errorHint] - Error hint message
+ * @property {boolean} [usePackagePolicy] - Whether to use package policy to lookup the specifier
  */
 
 /**
@@ -403,7 +404,7 @@ const diagnoseModulePolicy = errorHint => {
 export const enforceModulePolicy = (
   specifier,
   compartmentDescriptor,
-  { exit, errorHint } = {},
+  { exit, errorHint, usePackagePolicy = false } = {},
 ) => {
   const { policy, modules, label } = compartmentDescriptor;
   if (!policy) {
@@ -412,6 +413,13 @@ export const enforceModulePolicy = (
 
   if (!exit) {
     if (!modules[specifier]) {
+      if (
+        usePackagePolicy &&
+        policyLookupHelper(policy, 'packages', specifier)
+      ) {
+        return;
+      }
+
       throw Error(
         `Importing ${q(specifier)} in ${q(
           label,
@@ -420,6 +428,7 @@ export const enforceModulePolicy = (
         )}${diagnoseModulePolicy(errorHint)}`,
       );
     }
+
     return;
   }
 
