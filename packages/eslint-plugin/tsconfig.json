@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.eslint-base.json",
+  "compilerOptions": {
+    "checkJs": false
+  },
+  "include": [
+    "lib/**/*.js",
+    "test",
+  ]
+}

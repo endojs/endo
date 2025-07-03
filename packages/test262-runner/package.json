@@ -48,6 +48,9 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "prelude/"
     ]
   },
   "files": [

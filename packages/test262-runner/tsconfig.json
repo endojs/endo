@@ -9,5 +9,6 @@
     "scripts",
     "src",
     "test"
-  ]
+  ],
+  "exclude": ["prelude"]
 }
