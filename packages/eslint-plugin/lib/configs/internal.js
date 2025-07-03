@@ -1,6 +1,5 @@
 /* eslint-env node */
 const path = require('path');
-const process = require('process');
 
 const dynamicConfig = {
   overrides: /** @type {*[]} */ ([]),
