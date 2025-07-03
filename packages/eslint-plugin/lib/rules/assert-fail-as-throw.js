@@ -1,3 +1,6 @@
+/* eslint-disable global-require */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable no-use-before-define */
 /**
  * @author Toru Nagashima
  * See LICENSE file in root directory for full license.
@@ -5,6 +8,7 @@
  * Modified by Michael FIG <mfig@agoric.com> for Agoric's assert.fail.
  * (This file used to be github.com/mysticatea/eslint-plugin-node/.../process-exit-as-throw.js.)
  */
+
 'use strict';
 
 const CodePathAnalyzer = safeRequire(
@@ -58,7 +62,7 @@ function forwardCurrentToHead(analyzer, node) {
   let headSegment = null;
 
   // Fires leaving events.
-  for (i = 0; i < end; ++i) {
+  for (i = 0; i < end; i += 1) {
     currentSegment = currentSegments[i];
     headSegment = headSegments[i];
 
@@ -73,7 +77,7 @@ function forwardCurrentToHead(analyzer, node) {
   state.currentSegments = headSegments;
 
   // Fires entering events.
-  for (i = 0; i < end; ++i) {
+  for (i = 0; i < end; i += 1) {
     currentSegment = currentSegments[i];
     headSegment = headSegments[i];
 

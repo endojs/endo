@@ -15,7 +15,8 @@ test('bundled-ses lockdown runs to completion', async ({
 
   await page.goto(`http://127.0.0.1:3000/`);
   const result = await page.evaluate(() => {
-    "use strict";
+    'use strict';
+
     lockdown();
     return 'Pass';
   });

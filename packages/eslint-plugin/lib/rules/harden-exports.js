@@ -1,3 +1,4 @@
+/* eslint-disable func-names */
 /**
  * @module Ensure each named export is followed by a call to `harden` function
  */
@@ -28,23 +29,23 @@ module.exports = {
   /**
    * Create function for the rule.
    * @param {Rule.RuleContext} context - The rule context.
-   * @returns {Object} The visitor object.
+   * @returns {object} The visitor object.
    */
   create(context) {
     /** @type {Array<ESTree.ExportNamedDeclaration & Rule.NodeParentExtension>} */
-    let exportNodes = [];
+    const exportNodes = [];
 
     return {
       /** @param {ESTree.ExportNamedDeclaration & Rule.NodeParentExtension} node */
       ExportNamedDeclaration(node) {
         exportNodes.push(node);
       },
-      'Program:exit'() {
+      'Program:exit': function () {
         const sourceCode = context.getSourceCode();
 
         for (const exportNode of exportNodes) {
           /** @type {string[]} */
-          let exportNames = [];
+          const exportNames = [];
           if (exportNode.declaration) {
             // @ts-expect-error xxx typedef
             if (exportNode.declaration.declarations) {
@@ -95,7 +96,7 @@ module.exports = {
             context.report({
               node: exportNode,
               message: `Named ${noun} '${missingHardenCalls.join(', ')}' should be followed by a call to 'harden'.`,
-              fix: function (fixer) {
+              fix(fixer) {
                 const hardenCalls = missingHardenCalls
                   .map(name => `harden(${name});`)
                   .join('\n');

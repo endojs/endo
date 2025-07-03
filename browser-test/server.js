@@ -25,6 +25,8 @@ const server = http.createServer((req, res) => {
   console.warn('404', req.url);
   res.writeHead(404);
   res.end();
+
+  return undefined;
 });
 
 server.listen({ host: '127.0.0.1', port: 3000 });

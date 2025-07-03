@@ -4,19 +4,11 @@
 'use strict';
 
 const ts = require('typescript');
-const tsutils = require('tsutils');
 const { ESLintUtils } = require('@typescript-eslint/utils');
 
 const COMPARABLE_TYPES = ['number', 'bigint', 'string', 'any'];
 const NONCOMPARABLE = Symbol('non-comparable type');
-
-const getTypeFlags = type => {
-  let flags = 0;
-  for (const subType of tsutils.unionTypeParts(type)) {
-    flags |= subType.flags;
-  }
-  return flags;
-};
+const NO_NODE_MAP = Symbol('unknown');
 
 const createRule = ESLintUtils.RuleCreator(
   name =>
@@ -29,12 +21,8 @@ module.exports = createRule({
     docs: {
       description:
         'require both operands of a comparison operator (`<`, `>`, `<=`, `>=`) to be compatible types, either both primitive strings or both primitive numerics (number or bigint)',
-      category: 'Possible Errors',
-      recommended: true,
-      requiresTypeChecking: true,
     },
     type: 'problem',
-    fixable: null,
     messages: {
       mismatch: 'Comparison of mismatched types',
       invalidType: 'Comparison of invalid type(s)',
@@ -60,8 +48,13 @@ module.exports = createRule({
     // Loosely follows
     // https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/src/rules/restrict-plus-operands.ts
 
-    const { parserServices } = context;
-    const typeChecker = parserServices?.program.getTypeChecker();
+    const { parserServices } = context.sourceCode;
+    const typeChecker = parserServices?.program?.getTypeChecker();
+
+    if (!typeChecker) {
+      // broken parserservices
+      return {};
+    }
 
     const comparableTypeOf = type => {
       if (type.flags & ts.TypeFlags.EnumLike) {
@@ -104,7 +97,10 @@ module.exports = createRule({
       return baseConstraint ?? type;
     };
     const comparableTypeOfASTNode = node => {
-      let typedNode = parserServices.esTreeNodeToTSNodeMap.get(node);
+      let typedNode = parserServices?.esTreeNodeToTSNodeMap?.get(node);
+      if (!typedNode) {
+        return NO_NODE_MAP;
+      }
       for (
         let wrapper = typedNode.parent;
         wrapper && ts.isParenthesizedExpression(wrapper);
@@ -123,6 +119,11 @@ module.exports = createRule({
     const checkComparisonOperands = node => {
       const leftType = comparableTypeOfASTNode(node.left);
       const rightType = comparableTypeOfASTNode(node.right);
+
+      if (leftType === NO_NODE_MAP || rightType === NO_NODE_MAP) {
+        // broken parserServices
+        return;
+      }
 
       if (leftType === NONCOMPARABLE || rightType === NONCOMPARABLE) {
         context.report({ node, messageId: 'invalidType' });
