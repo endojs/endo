@@ -13,7 +13,10 @@
     "test": "mocha",
     "test:xs": "exit 0",
     "build": "exit 0",
-    "lint-fix": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "eslint --fix .",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
   "dependencies": {
@@ -47,5 +50,19 @@
     "lib",
     "src",
     "tools"
-  ]
+  ],
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "parserOptions": {
+      "sourceType": "script"
+    },
+    "rules": {
+      "import/extensions": "off"
+    },
+    "env": {
+      "node": true
+    }
+  }
 }

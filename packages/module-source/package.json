@@ -78,6 +78,9 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "test/fixtures/"
     ]
   },
   "ava": {

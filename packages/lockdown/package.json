@@ -55,9 +55,6 @@
       "plugin:@endo/internal"
     ]
   },
-  "eslintIgnore": [
-    "bundle-*.js"
-  ],
   "publishConfig": {
     "access": "public"
   }

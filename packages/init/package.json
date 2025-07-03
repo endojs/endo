@@ -68,11 +68,11 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "bundle-*.js"
     ]
   },
-  "eslintIgnore": [
-    "bundle-*.js"
-  ],
   "publishConfig": {
     "access": "public"
   },
