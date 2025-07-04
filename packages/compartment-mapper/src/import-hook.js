@@ -189,6 +189,21 @@ const findRedirect = ({
         };
       }
 
+      const canonicalName = someCompartmentDescriptor.path?.join('>');
+      if (
+        canonicalName &&
+        compartmentDescriptor.policy?.packages?.[canonicalName]
+      ) {
+        enforceModulePolicy(canonicalName, compartmentDescriptor, {
+          errorHint: `Blocked in import hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
+          usePackagePolicy: true,
+        });
+        return {
+          specifier: relativeSpecifier(moduleSpecifierLocation, location),
+          compartment: compartments[location],
+        };
+      }
+
       throw new Error(`Could not import module: ${q(absoluteModuleSpecifier)}`);
     } else {
       // go up a directory
