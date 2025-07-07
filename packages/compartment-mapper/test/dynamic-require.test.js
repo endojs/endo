@@ -3,7 +3,8 @@
 
 /**
  * @import {
- *   ExitModuleImportNowHook, Policy,
+ *   ExitModuleImportNowHook,
+ *   Policy,
  *   SyncModuleTransforms,
  * } from '../src/types.js'
  * @import {ThirdPartyStaticModuleInterface} from 'ses'
@@ -25,7 +26,7 @@ const { freeze, keys, assign } = Object;
 /**
  * @type {ExitModuleImportNowHook}
  */
-const defaultImportNowHook = (specifier, packageLocation) => {
+function defaultImportNowHook(specifier, packageLocation) {
   const require = Module.createRequire(
     readPowers.fileURLToPath(packageLocation),
   );
@@ -40,7 +41,7 @@ const defaultImportNowHook = (specifier, packageLocation) => {
       },
     }),
   );
-};
+}
 
 test('intra-package dynamic require works without invoking the exitModuleImportNowHook', async t => {
   t.plan(2);
@@ -666,4 +667,49 @@ test('dynamic require of ancestor relative path within unknown compartment', asy
   await t.throwsAsync(importLocation(readPowers, fixture), {
     message: /Could not import unknown module.+grabby-app\/macguffin/,
   });
+});
+
+test('dynamic require of ancestor', async t => {
+  // TODO: see if we can somehow use the pantspack.js entry
+  const fixture = new URL(
+    'fixtures-dynamic-ancestor/node_modules/webpackish-app/build.js',
+    import.meta.url,
+  ).href;
+
+  const { namespace } = await importLocation(readPowers, fixture, {
+    dev: true,
+    importNowHook: defaultImportNowHook,
+    policy: {
+      entry: {
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
+      },
+      resources: {
+        pantspack: {
+          builtins: {
+            'node:console': true,
+            'node:path': true,
+            'node:util': true,
+          },
+          packages: {
+            'pantspack>pantspack-folder-runner': true,
+            'webpackish-app': true,
+          },
+        },
+        'pantspack>pantspack-folder-runner': {
+          packages: {
+            'jorts-folder': true,
+          },
+        },
+      },
+    },
+  });
+
+  t.like(namespace, [
+    {
+      packageDescriptor: { name: 'webpackish-app' },
+      foldedSources: ['webpackish-app-v1.2.3'],
+    },
+  ]);
 });
