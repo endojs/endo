@@ -55,7 +55,7 @@ import {
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 
-const { assign, create, keys, values, entries } = Object;
+const { assign, create, keys, values, entries, freeze } = Object;
 
 const decoder = new TextDecoder();
 
@@ -270,9 +270,7 @@ const defaultCommonjsLanguageForExtension = /** @type {const} */ ({
 });
 
 /** @satisfies {LanguageForExtension} */
-const defaultModuleLanguageForExtension = /** @type {const} */ ({
-  js: 'mjs',
-});
+const defaultModuleLanguageForExtension = /** @type {const} */ ({ js: 'mjs' });
 
 /**
  * @param {PackageDescriptor} descriptor
@@ -475,12 +473,7 @@ const graphPackage = async (
         preferredPackageLogicalPathMap,
         languageOptions,
         strict,
-        {
-          childLogicalPath,
-          optional,
-          commonDependencyDescriptors,
-          log,
-        },
+        { childLogicalPath, optional, commonDependencyDescriptors, log },
       ),
     );
   }
@@ -523,7 +516,7 @@ const graphPackage = async (
 
   assign(result, {
     name,
-    path: logicalPath,
+    path: freeze(logicalPath),
     label: `${name}${version ? `-v${version}` : ''}`,
     sourceDirname,
     explicitExports: exportsDescriptor !== undefined,
@@ -686,9 +679,14 @@ const graphPackages = async (
   commonDependencies,
   languageOptions,
   strict,
-  { log = noop } = {},
+  {
+    log = noop,
+    memo,
+    graph,
+    logicalPath = [],
+    preferredPackageLogicalPathMap,
+  } = {},
 ) => {
-  const memo = create(null);
   /**
    * @param {string} packageLocation
    * @returns {Promise<PackageDescriptor>}
@@ -724,28 +722,23 @@ const graphPackages = async (
         `Cannot find dependency ${dependencyName} for ${packageLocation} from common dependencies`,
       );
     }
-    commonDependencyDescriptors[dependencyName] = {
-      spec,
-      alias,
-    };
+    commonDependencyDescriptors[dependencyName] = { spec, alias };
   }
 
-  const graph = create(null);
   await graphPackage(
     packageDescriptor.name,
     readDescriptor,
     canonical,
     graph,
-    {
-      packageLocation,
-      packageDescriptor,
-    },
+    { packageLocation, packageDescriptor },
     conditions,
     dev,
     languageOptions,
     strict,
     {
+      logicalPath,
       commonDependencyDescriptors,
+      preferredPackageLogicalPathMap,
       log,
     },
   );
@@ -806,11 +799,7 @@ const translateGraph = (
      */
     const compartmentNames = new Set();
     const packagePolicy = getPolicyForPackage(
-      {
-        isEntry: dependeeLocation === entryPackageLocation,
-        name,
-        path,
-      },
+      { isEntry: dependeeLocation === entryPackageLocation, name, path },
       policy,
     );
 
@@ -835,13 +824,7 @@ const translateGraph = (
         if (
           !policy ||
           (packagePolicy &&
-            dependencyAllowedByPolicy(
-              {
-                name,
-                path,
-              },
-              packagePolicy,
-            ))
+            dependencyAllowedByPolicy({ name, path }, packagePolicy))
         ) {
           moduleDescriptors[localPath] = {
             compartment: packageLocation,
@@ -851,9 +834,7 @@ const translateGraph = (
       }
       // if the exports field is not present, then all modules must be accessible
       if (!explicitExports) {
-        scopes[dependencyName] = {
-          compartment: packageLocation,
-        };
+        scopes[dependencyName] = { compartment: packageLocation };
       }
     };
     // Support reflexive package aliases
@@ -897,10 +878,7 @@ const translateGraph = (
     // TODO graceful migration from tags to conditions
     // https://github.com/endojs/endo/issues/2388
     tags: [...conditions],
-    entry: {
-      compartment: entryPackageLocation,
-      module: entryModuleSpecifier,
-    },
+    entry: { compartment: entryPackageLocation, module: entryModuleSpecifier },
     compartments,
   };
 };
@@ -975,22 +953,19 @@ const makeLanguageOptions = ({
 
 /**
  * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
- * @param {string} packageLocation
+ * @param {Array<{packageLocation:string, packageDescriptor:PackageDescriptor, moduleSpecifier:string}>} entriesToProcess
  * @param {Set<string>} conditionsOption
- * @param {PackageDescriptor} packageDescriptor
- * @param {string} moduleSpecifier
  * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
  * @deprecated Use {@link mapNodeModules} instead.
  */
 export const compartmentMapForNodeModules = async (
   readPowers,
-  packageLocation,
+  entriesToProcess,
   conditionsOption,
-  packageDescriptor,
-  moduleSpecifier,
   options = {},
 ) => {
+  await null;
   const {
     dev = false,
     commonDependencies = {},
@@ -1008,19 +983,34 @@ export const compartmentMapForNodeModules = async (
   // The dev option is deprecated in favor of using conditions, since that
   // covers more intentional behaviors of the development mode.
 
-  const graph = await graphPackages(
-    maybeRead,
-    canonical,
-    packageLocation,
-    conditions,
-    packageDescriptor,
-    dev || (conditions && conditions.has('development')),
-    commonDependencies,
-    languageOptions,
-    strict,
-    { log },
-  );
+  const memo = create(null);
+  const graph = create(null);
+  const preferredPackageLogicalPathMap = new Map();
 
+  const firstEntry = entriesToProcess[0];
+
+  for (const entrypoint of entriesToProcess) {
+    const { packageLocation, packageDescriptor, moduleSpecifier } = entrypoint;
+    const logicalPath =
+      entrypoint === firstEntry
+        ? []
+        : [`$external:${packageDescriptor.name || packageLocation}`];
+    // eslint-disable-next-line no-await-in-loop
+    await graphPackages(
+      maybeRead,
+      canonical,
+      packageLocation,
+      conditions,
+      packageDescriptor,
+      dev || (conditions && conditions.has('development')),
+      commonDependencies,
+      languageOptions,
+      strict,
+      { log, memo, graph, logicalPath, preferredPackageLogicalPathMap },
+    );
+  }
+
+  console.log(1, graph);
   if (policy) {
     assertPolicy(policy);
 
@@ -1030,7 +1020,7 @@ export const compartmentMapForNodeModules = async (
     );
 
     graph[ATTENUATORS_COMPARTMENT] = {
-      ...graph[packageLocation],
+      ...graph[firstEntry.packageLocation],
       externalAliases: {},
       label: ATTENUATORS_COMPARTMENT,
       name: ATTENUATORS_COMPARTMENT,
@@ -1038,8 +1028,8 @@ export const compartmentMapForNodeModules = async (
   }
 
   const compartmentMap = translateGraph(
-    packageLocation,
-    moduleSpecifier,
+    firstEntry.packageLocation,
+    firstEntry.moduleSpecifier,
     graph,
     conditions,
     policy,
@@ -1062,7 +1052,13 @@ export const compartmentMapForNodeModules = async (
 export const mapNodeModules = async (
   readPowers,
   moduleLocation,
-  { tags = new Set(), conditions = tags, log = noop, ...otherOptions } = {},
+  {
+    tags = new Set(),
+    conditions = tags,
+    log = noop,
+    otherEntrypoints,
+    ...otherOptions
+  } = {},
 ) => {
   const {
     packageLocation,
@@ -1074,13 +1070,41 @@ export const mapNodeModules = async (
   const packageDescriptor = /** @type {PackageDescriptor} */ (
     parseLocatedJson(packageDescriptorText, packageDescriptorLocation)
   );
+  const entriesToProcess = [
+    { packageLocation, packageDescriptor, moduleSpecifier },
+  ];
+
+  if (otherEntrypoints) {
+    for (const entrypoint of otherEntrypoints) {
+      const {
+        packageLocation: entryPackageLocation,
+        packageDescriptorText: entryPackageDescriptorText,
+        packageDescriptorLocation,
+        moduleSpecifier: entryModuleSpecifier,
+      // eslint-disable-next-line no-await-in-loop
+      } = await search(readPowers, entrypoint, { log });
+
+      if (entryPackageLocation === undefined) {
+        throw Error(
+          `Cannot find package.json for ${entrypoint} of otherEntrypoints`,
+        );
+      }
+      const entryPackageDescriptor = parseLocatedJson(
+        entryPackageDescriptorText,
+        packageDescriptorLocation,
+      );
+      entriesToProcess.push({
+        packageLocation: entryPackageLocation,
+        packageDescriptor: entryPackageDescriptor,
+        moduleSpecifier: entryModuleSpecifier,
+      });
+    }
+  }
 
   return compartmentMapForNodeModules(
     readPowers,
-    packageLocation,
+    entriesToProcess,
     conditions,
-    packageDescriptor,
-    moduleSpecifier,
     { log, ...otherOptions },
   );
 };
