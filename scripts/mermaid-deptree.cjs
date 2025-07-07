@@ -42,7 +42,11 @@ async function buildDependencyGraph(entry, nodeModulesPath) {
         await fs.readFile(packageJsonPath, 'utf8'),
       );
       const packageName = packageJson.name || path.basename(directory);
-      const dependencies = Object.keys(packageJson.dependencies || {});
+      const dependencies = Object.keys({
+        ...packageJson.peerDependencies,
+        ...packageJson.devDependencies,
+        ...packageJson.dependencies,
+      });
       graph[packageName] = dependencies;
 
       // Traverse dependencies
