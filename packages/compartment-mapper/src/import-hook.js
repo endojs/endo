@@ -42,11 +42,8 @@
 
 import { asyncTrampoline, syncTrampoline } from '@endo/trampoline';
 import { resolve } from './node-module-specifier.js';
-import {
-  attenuateModuleHook,
-  ATTENUATORS_COMPARTMENT,
-  enforceModulePolicy,
-} from './policy.js';
+import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
+import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
@@ -180,7 +177,7 @@ const findRedirect = ({
           compartmentDescriptor.name,
           someCompartmentDescriptor,
           {
-            errorHint: `Blocked in import hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
+            errorHint: `Blocked in importNow hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
           },
         );
         return {
