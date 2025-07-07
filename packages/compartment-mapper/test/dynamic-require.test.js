@@ -215,7 +215,7 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
       importNowHook,
     }),
     {
-      message: /Blocked in import hook/,
+      message: /Blocked in importNow hook/,
     },
   );
 });
@@ -420,7 +420,7 @@ test('inter-package and exit module dynamic require policy is enforced', async t
       },
     }),
     {
-      message: /not allowed by policy/,
+      message: /not allowed by empty "builtins" policy/,
     },
   );
 });

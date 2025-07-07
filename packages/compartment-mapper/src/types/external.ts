@@ -19,6 +19,7 @@ import type {
   LanguageForExtension,
 } from './compartment-map-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
+import type { SomePolicy } from './policy-schema.js';
 
 /**
  * Set of options available in the context of code execution.
@@ -295,7 +296,7 @@ export type ArchiveOnlyOption = {
 };
 
 export type PolicyOption = {
-  policy?: any;
+  policy?: SomePolicy;
 };
 
 export type LanguageForExtensionOption = {
