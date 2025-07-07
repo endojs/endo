@@ -40,4 +40,36 @@ export type LiteralUnion<LiteralType, PrimitiveType extends Primitive> =
   | LiteralType
   | (PrimitiveType & Record<never, never>);
 
+/**
+ * Generic type guard function that checks if a value of type `T` is also of type `U`.
+ * @template T The type of the value to check.
+ * @template U The type that the value should be checked against.
+ */
+
+export type TypeGuard<T, U extends T> = (value: T) => value is U;
+
+/**
+ * Helper type for a generic type guard used in an "extends" clause
+ */
+export type SomeTypeGuard = TypeGuard<any, any>;
+
+/**
+ * Infers the type that a type guard function checks for.
+ *
+ * @template T The type guard function type itself
+ * @returns The type that the guard checks for
+ */
+export type GuardedType<T> = T extends (value: any) => value is infer U
+  ? U
+  : never;
+
+/**
+ * Converts a union type to an intersection type
+ */
+export type UnionToIntersection<U> = (
+  U extends any ? (k: U) => void : never
+) extends (k: infer I) => void
+  ? I
+  : never;
+
 // LiteralUnion is from https://www.npmjs.com/package/type-fest
