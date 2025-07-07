@@ -6,12 +6,12 @@
 
 /* eslint-disable no-use-before-define */
 
-import type { SomeObject } from './typescript.js';
+import type { LiteralUnion, SomeObject } from './typescript.js';
 
 export type PackageNamingKit = {
   /** true if location is the entry compartment */
   isEntry?: boolean | undefined;
-  name: string;
+  name?: LiteralUnion<'<ATTENUATORS>', string>;
   path: Array<string>;
 };
 
@@ -42,3 +42,8 @@ export type ModuleAttenuatorFn<
 export type DeferredAttenuatorsProvider = {
   import: (attenuatorSpecifier: string | null) => Promise<Attenuator>;
 };
+
+/**
+ * A fieldname of `PackagePolicy`; used with `policyLookupHelper()`
+ */
+export type PolicyEnforcementField = 'builtins' | 'globals' | 'packages';

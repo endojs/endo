@@ -4,8 +4,6 @@
  * @module
  */
 
-// @ts-check
-
 /**
  * @import {
  *   Policy,
@@ -16,26 +14,31 @@
  *   CompartmentDescriptor,
  *   Attenuator,
  *   SomePolicy,
- *   SomePackagePolicy,
+ *   PolicyEnforcementField,
  * } from './types.js'
+ * @import {ThirdPartyStaticModuleInterface} from 'ses'
  */
 
 import {
+  ATTENUATORS_COMPARTMENT,
+  generateCanonicalName,
   getAttenuatorFromDefinition,
   isAllowingEverything,
   isAttenuationDefinition,
   policyLookupHelper,
 } from './policy-format.js';
 
-const { create, entries, values, assign, freeze, getOwnPropertyDescriptors } =
-  Object;
+const {
+  keys,
+  create,
+  entries,
+  values,
+  assign,
+  freeze,
+  getOwnPropertyDescriptors,
+} = Object;
 const { ownKeys } = Reflect;
 const q = JSON.stringify;
-
-/**
- * Const string to identify the internal attenuators compartment
- */
-export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
 
 /**
  * Copies properties (optionally limited to a specific list) from one object to another.
@@ -105,22 +108,6 @@ export const detectAttenuators = policy => {
     attenuatorsCache.set(policy, attenuators);
   }
   return attenuatorsCache.get(policy);
-};
-
-/**
- * Generates a string identifying a package for policy lookup purposes.
- *
- * @param {PackageNamingKit} namingKit
- * @returns {string}
- */
-const generateCanonicalName = ({ isEntry = false, name, path }) => {
-  if (isEntry) {
-    throw Error('Entry module cannot be identified with a canonicalName');
-  }
-  if (name === ATTENUATORS_COMPARTMENT) {
-    return ATTENUATORS_COMPARTMENT;
-  }
-  return path.join('>');
 };
 
 /**
@@ -376,14 +363,42 @@ export const attenuateGlobals = (
 };
 
 /**
- * @param {string} [errorHint]
+ * Generates a helpful error message for a policy enforcement failure
+ *
+ * @param {string} specifier
+ * @param {CompartmentDescriptor} referrerCompartmentDescriptor
+ * @param {object} options
+ * @param {string[]} [options.compartmentDescriptorPath]
+ * @param {string} [options.errorHint]
+ * @param {string} [options.resourceNameFromPath]
+ * @param {PolicyEnforcementField} [options.policyField]
  * @returns {string}
  */
-const diagnoseModulePolicy = errorHint => {
-  if (!errorHint) {
-    return '';
+const policyEnforcementFailureMessage = (
+  specifier,
+  { label, policy },
+  {
+    compartmentDescriptorPath,
+    resourceNameFromPath,
+    errorHint,
+    policyField = 'packages',
+  } = {},
+) => {
+  let message = `Importing ${q(specifier)}`;
+  if (compartmentDescriptorPath) {
+    resourceNameFromPath ??= compartmentDescriptorPath.join('>');
+    message += ` in resource ${q(resourceNameFromPath)}`;
   }
-  return ` (info: ${errorHint})`;
+  message += ` in ${q(label)} was not allowed by`;
+  if (keys(policy[policyField] ?? {}).length > 0) {
+    message += ` ${q(policyField)} policy: ${q(policy[policyField])}`;
+  } else {
+    message += ` empty ${q(policyField)} policy`;
+  }
+  if (errorHint) {
+    message += ` (info: ${errorHint})`;
+  }
+  return message;
 };
 
 /**
@@ -405,7 +420,7 @@ export const enforceModulePolicy = (
   compartmentDescriptor,
   { exit, errorHint } = {},
 ) => {
-  const { policy, modules, label } = compartmentDescriptor;
+  const { policy, modules } = compartmentDescriptor;
   if (!policy) {
     return;
   }
@@ -413,21 +428,21 @@ export const enforceModulePolicy = (
   if (!exit) {
     if (!modules[specifier]) {
       throw Error(
-        `Importing ${q(specifier)} in ${q(
-          label,
-        )} was not allowed by packages policy ${q(
-          policy.packages,
-        )}${diagnoseModulePolicy(errorHint)}`,
+        policyEnforcementFailureMessage(specifier, compartmentDescriptor, {
+          errorHint,
+        }),
       );
     }
+
     return;
   }
 
   if (!policyLookupHelper(policy, 'builtins', specifier)) {
     throw Error(
-      `Importing ${q(specifier)} was not allowed by policy builtins:${q(
-        policy.builtins,
-      )}${diagnoseModulePolicy(errorHint)}`,
+      policyEnforcementFailureMessage(specifier, compartmentDescriptor, {
+        errorHint,
+        policyField: 'builtins',
+      }),
     );
   }
 };
@@ -437,8 +452,8 @@ export const enforceModulePolicy = (
  * @param {object} options
  * @param {DeferredAttenuatorsProvider} options.attenuators
  * @param {AttenuationDefinition} options.attenuationDefinition
- * @param {import('ses').ThirdPartyStaticModuleInterface} options.originalModuleRecord
- * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>}
+ * @param {ThirdPartyStaticModuleInterface} options.originalModuleRecord
+ * @returns {Promise<ThirdPartyStaticModuleInterface>}
  */
 async function attenuateModule({
   attenuators,
@@ -473,10 +488,10 @@ async function attenuateModule({
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier - exit module name
- * @param {import('ses').ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
+ * @param {ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
  * @param {PackagePolicy} policy - local compartment policy
  * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
- * @returns {Promise<import('ses').ThirdPartyStaticModuleInterface>} - the attenuated module
+ * @returns {Promise<ThirdPartyStaticModuleInterface>} - the attenuated module
  */
 export const attenuateModuleHook = async (
   specifier,
