@@ -448,6 +448,52 @@ export const enforceModulePolicy = (
 };
 
 /**
+ * Throws if importing `compartmentDescriptor` from `referrerCompartmentDescriptor` is not allowed per package policy
+ *
+ * @param {CompartmentDescriptor} compartmentDescriptor
+ * @param {CompartmentDescriptor} referrerCompartmentDescriptor
+ * @param {EnforceModulePolicyOptions} [options]
+ */
+export const enforcePackagePolicyByPath = (
+  compartmentDescriptor,
+  referrerCompartmentDescriptor,
+  { errorHint } = {},
+) => {
+  const { policy: referrerPolicy } = referrerCompartmentDescriptor;
+  if (!referrerPolicy) {
+    throw Error(
+      `Cannot enforce policy via ${q(referrerCompartmentDescriptor.label)}: no package policy defined`,
+    );
+  }
+  const { path, name } = compartmentDescriptor;
+
+  assert(
+    path,
+    `Compartment descriptor ${q(compartmentDescriptor.label)} does not have a path; cannot enforce policy via ${q(referrerCompartmentDescriptor.label)}`,
+  );
+
+  const resourceNameFromPath = generateCanonicalName({
+    path,
+    name,
+    isEntry: path.length === 0,
+  });
+
+  if (!policyLookupHelper(referrerPolicy, 'packages', resourceNameFromPath)) {
+    throw Error(
+      policyEnforcementFailureMessage(
+        resourceNameFromPath,
+        referrerCompartmentDescriptor,
+        {
+          errorHint,
+          compartmentDescriptorPath: path,
+          resourceNameFromPath,
+        },
+      ),
+    );
+  }
+};
+
+/**
  * Attenuates a module
  * @param {object} options
  * @param {DeferredAttenuatorsProvider} options.attenuators
