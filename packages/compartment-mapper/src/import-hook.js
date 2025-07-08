@@ -42,7 +42,11 @@
 
 import { asyncTrampoline, syncTrampoline } from '@endo/trampoline';
 import { resolve } from './node-module-specifier.js';
-import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
+import {
+  attenuateModuleHook,
+  enforceModulePolicy,
+  enforcePackagePolicyByPath,
+} from './policy.js';
 import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 import { unpackReadPowers } from './powers.js';
 
@@ -177,9 +181,24 @@ const findRedirect = ({
           compartmentDescriptor.name,
           someCompartmentDescriptor,
           {
-            errorHint: `Blocked in importNow hook. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
+            errorHint: `Blocked in importNow hook by reference. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
           },
         );
+        return {
+          specifier: relativeSpecifier(moduleSpecifierLocation, location),
+          compartment: compartments[location],
+        };
+      }
+
+      if (someCompartmentDescriptor.path && compartmentDescriptor.policy) {
+        enforcePackagePolicyByPath(
+          someCompartmentDescriptor,
+          compartmentDescriptor,
+          {
+            errorHint: `Blocked in importNow hook by package policy. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
+          },
+        );
+
         return {
           specifier: relativeSpecifier(moduleSpecifierLocation, location),
           compartment: compartments[location],
