@@ -1,5 +1,10 @@
 User-visible changes in `@endo/errors`:
 
+# Next release
+
+- TODO explain `SuppressedError` support
+
+
 # v1.1.0 (2024-02-22)
 
 - `AggegateError` support

@@ -49,3 +49,5 @@ testIfAggregateError('Promise.any aggregate error', async t => {
     });
   }
 });
+
+// TODO SuppressedError
