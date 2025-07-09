@@ -11,10 +11,15 @@
 
 import type { SomeObject } from './typescript.js';
 
-// Read
+// #region read
 
-export type ReadPowers = {
-  canonical: CanonicalFn;
+/**
+ * All available read powers
+ *
+ * @template T The expected input/output type of the {@link CanonicalFn}.
+ */
+export type ReadPowers<T extends string = any> = {
+  canonical: CanonicalFn<T>;
   read: ReadFn;
   maybeRead?: MaybeReadFn;
   readNow?: ReadNowFn;
@@ -26,7 +31,10 @@ export type ReadPowers = {
   isAbsolute?: IsAbsoluteFn;
 };
 
-export type MaybeReadPowers = ReadPowers & {
+/**
+ * @template T The expected input/output type of the {@link CanonicalFn}.
+ */
+export type MaybeReadPowers<T extends string = any> = ReadPowers<T> & {
   maybeRead: MaybeReadFn;
 };
 
@@ -39,9 +47,14 @@ export type MaybeReadPowers = ReadPowers & {
  * 2. Prop `maybeReadNow` is a function
  * 3. Prop `fileURLToPath` is a function
  * 4. Prop `isAbsolute` is a function
+ *
+ * @template T The expected input/output type of the {@link CanonicalFn}.
  */
-export type ReadNowPowers = Omit<ReadPowers, ReadNowPowersProp> &
-  Required<Pick<ReadPowers, ReadNowPowersProp>>;
+export type ReadNowPowers<T extends string = any> = Omit<
+  ReadPowers<T>,
+  ReadNowPowersProp
+> &
+  Required<Pick<ReadPowers<T>, ReadNowPowersProp>>;
 
 /**
  * These properties are necessary for dynamic require support
@@ -50,11 +63,19 @@ export type ReadNowPowersProp = 'fileURLToPath' | 'isAbsolute' | 'maybeReadNow';
 
 /**
  * Returns a canonical URL for a given URL, following redirects or symbolic
- * links if any exist along the path.
- * Must return the given logical location if the real location does not exist.
+ * links if any exist along the path. Must return the given logical location if
+ * the real location does not exist.
+ *
+ * @template T The expected input/output type of the {@link CanonicalFn}. This
+ * may be a particular type of URL, such as a `FileUrlString`.
  */
-export type CanonicalFn = (location: string) => Promise<string>;
+export type CanonicalFn<T extends string = string> = (
+  location: T,
+) => Promise<T>;
 
+/**
+ * A function which reads some location and resolves with bytes.
+ */
 export type ReadFn = (location: string) => Promise<Uint8Array>;
 
 /**
@@ -62,6 +83,9 @@ export type ReadFn = (location: string) => Promise<Uint8Array>;
  */
 export type MaybeReadFn = (location: string) => Promise<Uint8Array | undefined>;
 
+/**
+ * A function which reads some location and returns bytes.
+ */
 export type ReadNowFn = (location: string) => Uint8Array;
 
 /**
@@ -69,6 +93,9 @@ export type ReadNowFn = (location: string) => Uint8Array;
  */
 export type MaybeReadNowFn = (location: string) => Uint8Array | undefined;
 
+/**
+ * Returns a string hash of a byte array
+ */
 export type HashFn = (bytes: Uint8Array) => string;
 
 export type FileURLToPathFn = (url: URL | string) => string;
@@ -91,14 +118,19 @@ export type ArchiveReader = {
   read: ReadFn;
 };
 
-export type HashPowers = {
+/**
+ * Read powers with a {@link HashFn}.
+ *
+ * @template T The expected input/output type of the {@link CanonicalFn}.
+ */
+export type HashPowers<T extends string = any> = {
   read: ReadFn;
-  canonical: CanonicalFn;
+  canonical: CanonicalFn<T>;
   computeSha512: HashFn;
 };
+// #endregion
 
-// Write
-
+// #region write
 export type WritePowers = {
   write: WriteFn;
 };
@@ -111,12 +143,13 @@ export type ArchiveWriter = {
 };
 
 export type SnapshotFn = () => Promise<Uint8Array>;
+// #endregion
 
-// Execute
-
+// #region execute
 export type Application = {
   import: ExecuteFn;
   sha512?: string | undefined;
 };
 
 export type ExecuteFn = (options?: any) => Promise<SomeObject>;
+// #endregion
