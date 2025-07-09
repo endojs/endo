@@ -77,6 +77,7 @@ export const {
   setPrototypeOf,
   values,
   fromEntries,
+  hasOwn,
 } = Object;
 
 export const {
@@ -166,7 +167,10 @@ const { bind } = functionPrototype;
  */
 export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
 
-export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty);
+/**
+ * @deprecated Use `hasOwn` instead
+ */
+export const objectHasOwnProperty = hasOwn;
 //
 export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);

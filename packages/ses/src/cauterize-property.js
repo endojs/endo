@@ -1,4 +1,4 @@
-import { objectHasOwnProperty } from './commons.js';
+import { hasOwn } from './commons.js';
 
 /**
  * @import {Reporter} from './reporting-types.js'
@@ -52,7 +52,7 @@ export const cauterizeProperty = (
   try {
     delete obj[prop];
   } catch (err) {
-    if (objectHasOwnProperty(obj, prop)) {
+    if (hasOwn(obj, prop)) {
       if (typeof obj === 'function' && prop === 'prototype') {
         obj.prototype = undefined;
         if (obj.prototype === undefined) {

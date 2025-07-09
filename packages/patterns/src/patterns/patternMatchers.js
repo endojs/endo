@@ -11,7 +11,6 @@ import {
   getTag,
   makeTagged,
   passStyleOf,
-  hasOwnPropertyOf,
   nameForPassableSymbol,
 } from '@endo/pass-style';
 import {
@@ -47,7 +46,7 @@ import { generateCollectionPairEntries } from '../keys/keycollection-operators.j
  * @import {MatchHelper, PatternKit} from './types.js'
  */
 
-const { entries, values } = Object;
+const { entries, values, hasOwn } = Object;
 const { ownKeys } = Reflect;
 
 /** @type {WeakSet<Pattern>} */
@@ -1698,9 +1697,9 @@ const makePatternKit = () => {
     /** @type {[string, Passable][]} */
     const restEntries = [];
     for (const [name, value] of entries(specimen)) {
-      if (hasOwnPropertyOf(requiredPatt, name)) {
+      if (hasOwn(requiredPatt, name)) {
         requiredEntries.push([name, value]);
-      } else if (hasOwnPropertyOf(optionalPatt, name)) {
+      } else if (hasOwn(optionalPatt, name)) {
         optionalEntries.push([name, value]);
       } else {
         restEntries.push([name, value]);

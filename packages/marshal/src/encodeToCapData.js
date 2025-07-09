@@ -12,7 +12,6 @@ import {
   makeTagged,
   isPrimitive,
   getTag,
-  hasOwnPropertyOf,
   assertPassableSymbol,
   nameForPassableSymbol,
   passableSymbolForName,
@@ -31,6 +30,7 @@ const {
   entries,
   fromEntries,
   freeze,
+  hasOwn,
 } = Object;
 
 /**
@@ -41,10 +41,10 @@ const QCLASS = '@qclass';
 export { QCLASS };
 
 /**
- * @param {Encoding} encoded
+ * @param {Encoding & object} encoded
  * @returns {encoded is EncodingUnion}
  */
-const hasQClass = encoded => hasOwnPropertyOf(encoded, QCLASS);
+const hasQClass = encoded => hasOwn(encoded, QCLASS);
 
 /**
  * @param {Encoding} encoded
@@ -164,7 +164,7 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
         };
       }
       case 'copyRecord': {
-        if (hasOwnPropertyOf(passable, QCLASS)) {
+        if (hasOwn(passable, QCLASS)) {
           // Hilbert hotel
           const { [QCLASS]: qclassValue, ...rest } = passable;
           /** @type {Encoding} */
@@ -394,11 +394,11 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
         }
         case 'hilbert': {
           const { original, rest } = jsonEncoded;
-          hasOwnPropertyOf(jsonEncoded, 'original') ||
+          hasOwn(jsonEncoded, 'original') ||
             Fail`Invalid Hilbert Hotel encoding ${jsonEncoded}`;
           // Don't harden since we're not done mutating it
           const result = { [QCLASS]: decodeFromCapData(original) };
-          if (hasOwnPropertyOf(jsonEncoded, 'rest')) {
+          if (hasOwn(jsonEncoded, 'rest')) {
             const isNonEmptyObject =
               typeof rest === 'object' &&
               rest !== null &&
@@ -410,7 +410,7 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
             // TODO really should assert that `passStyleOf(rest)` is
             // `'copyRecord'` but we'd have to harden it and it is too
             // early to do that.
-            !hasOwnPropertyOf(restObj, QCLASS) ||
+            !hasOwn(restObj, QCLASS) ||
               Fail`Rest must not contain its own definition of ${q(QCLASS)}`;
             defineProperties(result, getOwnPropertyDescriptors(restObj));
           }
