@@ -39,14 +39,13 @@ harden(canBeMethod);
 
 /**
  * Abstract out this test so
- * (TODO) a later PR can restrict possible method names
+ * (TODO) a later PR can further restrict possible method names
  *
  * @param {any} key
  * @returns {key is RemotableMethodName}
  */
 const canBeMethodName = key =>
-  // typeof key === 'string' || typeof key === 'symbol';
-  typeof key === 'string' || typeof key === 'symbol' || typeof key === 'number';
+  typeof key === 'string' || typeof key === 'symbol';
 harden(canBeMethodName);
 
 /**
