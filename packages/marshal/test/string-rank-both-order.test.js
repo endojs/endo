@@ -17,7 +17,7 @@ import { encodePassable } from './encodePassable-for-testing.js';
  */
 const sorted = (strings, comp) => [...strings].sort(comp);
 
-test('unicode code point order', t => {
+test('string ranking by code point/UTF-16 code unit agreement', t => {
   // Test case from
   // https://icu-project.org/docs/papers/utf16_code_point_order.html
   const str0 = '\u{ff61}';
