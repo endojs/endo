@@ -683,6 +683,7 @@ __metadata:
   resolution: "@endo/marshal@workspace:packages/marshal"
   dependencies:
     "@endo/common": "workspace:^"
+    "@endo/env-options": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/init": "workspace:^"

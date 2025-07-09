@@ -1,5 +1,9 @@
 User-visible changes in `@endo/marshal`:
 
+# Next release
+
+- Introduces an environment variable config option `ENDO_RANK_STRINGS`, defaulting off for now, to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN conformant) ordering by Unicode code point. Thus, for now, when this default is not overridden, there is no observable change.
+
 # v1.7.0 (2025-06-02)
 
 - `@endo/marshal` now also exports a `qp` function meaning "quote passable"

@@ -9,7 +9,7 @@ import {
 } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
-import { roundTripPairs } from './_marshal-test-data.js';
+import { roundTripPairs } from '../tools/marshal-test-data.js';
 
 const {
   freeze,
