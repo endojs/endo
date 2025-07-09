@@ -26,7 +26,7 @@ const calculatePackageWeight = packageName => {
 };
 
 /**
- * Creates a graph with the following structure:
+ * Creates a graph from a tree with the following structure:
  *
  * ```
  * app
