@@ -8,6 +8,69 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 
 /**
+ * Essentially a ponyfill for Array.prototype.toSorted, for use before
+ * we can always rely on the platform to provide it.
+ *
+ * @template [T=unknown]
+ * @param {T[]} elements
+ * @param {(left: T, right: T) => import('../src/types.js').RankComparison} comp
+ * @returns {T[]}
+ */
+export const sorted = (elements, comp) => [...elements].sort(comp);
+harden(sorted);
+
+/**
+ * @param {string} left
+ * @param {string} right
+ * @returns {import('../src/types.js').RankComparison}
+ */
+export const compareByUtf16CodeUnit = (left, right) =>
+  // eslint-disable-next-line no-nested-ternary
+  left < right ? -1 : left > right ? 1 : 0;
+harden(compareByUtf16CodeUnit);
+
+export const multiplanarStrings = harden({
+  bmpLow: 'X',
+
+  // Test case from
+  // https://icu-project.org/docs/papers/utf16_code_point_order.html
+  bmpHigh: '\u{ff61}', // U+FF61 HALFWIDTH IDEOGRAPHIC FULL STOP
+  surrogatePair: '\u{d800}\u{dc02}', // U+010002 LINEAR B SYLLABLE B028 I
+
+  // These examples become invalid once we prohibit ill-formed strings.
+  // See https://github.com/endojs/endo/pull/2002
+  loneSurrogate: '\u{d800}',
+  loneSurrogate$bmpLow: '\u{d800}X',
+  loneSurrogate$bmpHigh: '\u{d800}\u{ff61}',
+});
+
+export const {
+  bmpLow,
+  loneSurrogate,
+  loneSurrogate$bmpLow,
+  loneSurrogate$bmpHigh,
+  bmpHigh,
+  surrogatePair,
+} = multiplanarStrings;
+
+export const stringsByUtf16CodeUnit = harden(
+  sorted(Object.values(multiplanarStrings), compareByUtf16CodeUnit),
+);
+const expectNativeSorted = [
+  bmpLow,
+  loneSurrogate,
+  loneSurrogate$bmpLow,
+  surrogatePair,
+  loneSurrogate$bmpHigh,
+  bmpHigh,
+];
+if (stringsByUtf16CodeUnit.join(' ') !== expectNativeSorted.join(' ')) {
+  throw Error(
+    `internal: unexpected native string sorting ${JSON.stringify(stringsByUtf16CodeUnit)}`,
+  );
+}
+
+/**
  * A list of `[passable, capdataBodyEncoding]` pairs, where marshalling
  * `passable` with the legacy "capdata" body format produces an encoding whose
  * body is the JSON serialization of `encoding`, and unmarshalling an encoding
