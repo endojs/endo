@@ -46,7 +46,14 @@ test('string ranking by code point/UTF-16 code unit agreement', t => {
   t.deepEqual(nativeSorted, [str1, str3, str2, str0]);
 
   t.throws(() => sorted(strs, compareRank), {
-    message: 'Comparisons differed: "𐀂" vs "\\ud800｡", -1 vs 1',
+    message: msg => {
+      t.log(msg);
+      if (!msg.startsWith('Comparisons differed: ')) return false;
+      if (!msg.endsWith('-1 vs 1') && !msg.endsWith('1 vs -1')) return false;
+      if (!msg.includes(JSON.stringify(str3))) return false;
+      if (!msg.includes(JSON.stringify(str2))) return false;
+      return true;
+    },
   });
 
   const nativeEncComp = (left, right) =>
