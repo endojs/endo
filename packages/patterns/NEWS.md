@@ -2,7 +2,7 @@ User-visible changes in `@endo/patterns`:
 
 # Next release
 
-- `@endo/marshal` introduces an environment variable config option `ENDO_RANK_STRINGS`, defaulting off for now, to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN conformant) ordering by Unicode code point. Thus, for now, when this default is not overridden, there is no observable change.
+- `@endo/marshal` introduces an environment variable config option `ENDO_RANK_STRINGS` to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN-conformant) ordering by Unicode code point. It currently defaults to "utf16-code-unit-order", matching the previously-unconditional behavior.
   - `@endo/patterns` provides a `compareKeys` partial order that delegates some ordering, including strings, to the rank ordering provided by `@endo/marshal`. So when the `ENDO_RANK_STRINGS` default is not overridden, then `compareKeys` also follows the (incorrect) UTF-16 code unit order. But when it is overridden, then `compareKeys` also follows the (correct) Unicode code-point order.
 - In errors explaining why a specimen does not match a pattern, sometimes the error message contains a quoted form of a nested pattern. This quoting was done with `q`, producing an uninformative rendering of these nested patterns. Now this quoting is done with `qp`, which renders these nested patterns into readable [Justin](https://github.com/endojs/Jessie/blob/main/packages/parse/src/quasi-justin.js) source code.
 
