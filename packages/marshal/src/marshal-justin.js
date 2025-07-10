@@ -349,7 +349,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
 
         case 'slot': {
-          let { iface } = rawTree;
+          const { iface } = rawTree;
           const index = Number(Nat(rawTree.index));
           const nestedRender = arg => {
             const oldOut = out;
@@ -362,17 +362,14 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             }
           };
           if (index < slots.length) {
-            const slot = nestedRender(slots[index]);
-            if (iface === undefined) {
-              return out.next(`slotToVal(${slot})`);
-            }
-            iface = nestedRender(iface);
-            return out.next(`slotToVal(${slot},${iface})`);
-          } else if (iface === undefined) {
-            return out.next(`slot(${index})`);
+            const renderedSlot = nestedRender(slots[index]);
+            return iface === undefined
+              ? out.next(`slotToVal(${renderedSlot})`)
+              : out.next(`slotToVal(${renderedSlot},${nestedRender(iface)})`);
           }
-          iface = nestedRender(iface);
-          return out.next(`slot(${index},${iface})`);
+          return iface === undefined
+            ? out.next(`slot(${index})`)
+            : out.next(`slot(${index},${nestedRender(iface)})`);
         }
 
         case 'hilbert': {

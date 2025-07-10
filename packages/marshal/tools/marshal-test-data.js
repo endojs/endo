@@ -5,10 +5,15 @@ import {
   exampleCarol,
 } from '@endo/pass-style/tools.js';
 
+/** @import { Passable } from '@endo/pass-style' */
+
 /**
- * A list of `[plain, encoding]` pairs, where plain serializes to the
- * stringification of `encoding`, which unserializes to something deepEqual
- * to `plain`.
+ * A list of `[passable, capdataBodyEncoding]` pairs, where marshalling
+ * `passable` with the legacy "capdata" body format produces an encoding whose
+ * body is the JSON serialization of `encoding`, and unmarshalling an encoding
+ * whose body is that JSON text produces a value deepEqual to `passable`.
+ *
+ * @type {Array<[passable: Passable, capdataBodyEncoding: unknown]>}
  */
 export const roundTripPairs = harden([
   // Simple JSON data encodes as itself
@@ -155,13 +160,13 @@ export const roundTripPairs = harden([
 ]);
 
 /**
- * Based on roundTripPairs from round-trip-pairs.js
+ * A list of `[capdataBody, justin, slots?]` tuples, where `capdataBody` is the
+ * JSON serialization of a value that can be paired with `slots` to produce
+ * Justin expression `justin`, and Justin evaluation of that expression produces
+ * a Passable which marshals with the legacy "capdata" body format into an
+ * encoding whose body is `capdataBody`.
  *
- * A list of `[body, justinSrc]` pairs, where the body parses into
- * an encoding that decodes to a Justin expression that evaluates to something
- * that has the same encoding.
- *
- * @type {([string, string] | [string, string, unknown[]])[]}
+ * @type {Array<[capdataBody: string, justin: string, slots?: unknown[]]>}
  */
 export const jsonJustinPairs = harden([
   // Justin is the same as the JSON encoding but without unnecessary quoting
