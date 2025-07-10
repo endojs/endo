@@ -1,5 +1,48 @@
 User-visible changes in `@endo/ses-ava`:
 
+# Next release
+
+- With an appropriate pair of Ava configurations, packages can now run the same
+  tests with or without an initialized Endo environment.
+  This is useful for packages that can be used with or without Endo
+  and need to cover both configurations in their tests.
+  To achieve this, `ses-ava` introduces two new exported modules:
+  `@endo/ses-ava/test.js` and `@endo/ses-ava/prepare-endo-config.js`.
+  The package can use separate scripts in `package.json` for SES and no-SES
+  tests:
+  ```json
+  {
+    "scripts": {
+      "test": "yarn test:ses && yarn test:noses",
+      "test:ses": "ava --config test/_ava-ses.config.js",
+      "test:noses": "ava --config test/_ava-noses.config.js"
+    }
+  }
+  ```
+  The contents of `test/_ava-ses.config.js` pull in the new prepare endo config
+  module.
+  The only difference between this module and `@endo/ses-ava/prepare-endo.js`
+  is that it does not export a `default`.
+  Ava expects the `default` function exported by these modules to have a
+  different behavior, so we must mask our `test` function.
+  ```js
+  export default {
+    require: ['@endo/ses-ava/prepare-endo-config.js'],
+  };
+  ```
+  The contents of `test/_ava-noses.config.js`:
+  ```js
+  export default {
+    // Shims for a non-lockdown environment
+    require: [
+      // We initialize SES here without lockdown in order to receive the
+      // effects of the immutable-arraybuffer and assert shims.
+      'ses',
+      // For HandledPromise
+      '@endo/eventual-send/shim.js',
+    ],
+  };
+
 # v1.2.0 (204-03-19)
 
 - Rather that writing your own `./prepare-test-env-ava.js` or similar
