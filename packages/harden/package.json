@@ -39,7 +39,7 @@
     "postpack": "git clean -f '*.d.ts*'",
     "prepack": "tsc --build tsconfig.build.json",
     "test": "ava",
-    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava",
     "test:xs": "exit 0"
   },
   "dependencies": {
