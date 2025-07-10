@@ -20,6 +20,7 @@
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "requireindex": "~1.1.0",
     "tsutils": "~3.21.0",
     "typescript": "~5.8.3",

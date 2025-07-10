@@ -1,3 +1,4 @@
+import { harden } from '@endo/harden';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { hasOwnPropertyOf, toThrowable } from '@endo/pass-style';
 import { E, Far } from '@endo/far';
@@ -390,6 +391,7 @@ export const defendPrototype = (
       ...(symbolMethodGuards &&
         fromEntries(getCopyMapEntries(symbolMethodGuards))),
     });
+    assert(methodGuards);
     defaultGuards = dg;
     {
       const methodGuardNames = ownKeys(methodGuards);

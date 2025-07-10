@@ -21,6 +21,7 @@
     "postpack": "git clean -fX \"*.d.ts*\" \"*.d.cts*\" \"*.d.mts*\" \"*.tsbuildinfo\""
   },
   "dependencies": {
+    "@endo/harden": "workspace:^",
     "ses": "workspace:^"
   },
   "files": [

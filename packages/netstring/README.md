@@ -17,3 +17,8 @@ D. J. Bernstein, <djb@pobox.com> <br>
 1997-02-01
 
 [Netstrings]: https://cr.yp.to/proto/netstrings.txt
+
+# Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

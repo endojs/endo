@@ -1,5 +1,7 @@
 // Lifted mostly from `@endo/eventual-send/src/E.js`.
 
+import { harden } from '@endo/harden';
+
 const { freeze } = Object;
 
 /**

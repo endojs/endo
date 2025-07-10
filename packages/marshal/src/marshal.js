@@ -1,5 +1,7 @@
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
+import { X, Fail, q, makeError, annotateError } from '@endo/errors';
 import { Nat } from '@endo/nat';
 import {
   assertPassable,
@@ -9,7 +11,6 @@ import {
   toPassableError,
 } from '@endo/pass-style';
 
-import { X, Fail, q, makeError, annotateError } from '@endo/errors';
 import { objectMap } from '@endo/common/object-map.js';
 import {
   QCLASS,

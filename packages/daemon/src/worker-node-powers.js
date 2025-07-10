@@ -1,5 +1,6 @@
 // @ts-check
 
+import { harden } from '@endo/harden';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 
 /** @import {MignonicPowers} from './types.js'; */

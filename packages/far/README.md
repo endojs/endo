@@ -1,8 +1,8 @@
-# Endo Far Object helpers
+# `@endo/far`: Endo Far Object helpers
 
 The `@endo/far` package provides a convenient way to use the Endo
-[distributed objects system](https://docs.agoric.com/guides/js-programming/) without  relying on the underlying messaging
-implementation.
+[distributed objects system](https://docs.agoric.com/guides/js-programming/)
+without relying on the underlying messaging implementation.
 
 It exists to reduce the boilerplate in Hardened JavaScript vats that are running
 in Agoric's SwingSet kernel,
@@ -15,3 +15,8 @@ You can import any of the following from `@endo/far`:
 ```js
 import { E, Far, getInterfaceOf, passStyleOf } from '@endo/far';
 ```
+
+## Compatibility
+
+This package works with without [HardenedJS](https://hardenedjs.org) by using
+[`@endo/harden`](https://github.com/endojs/endo/tree/master/packages/harden).

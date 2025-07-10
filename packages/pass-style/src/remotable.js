@@ -1,5 +1,6 @@
 /// <reference types="ses"/>
 
+import { harden } from '@endo/harden';
 import { Fail, q } from '@endo/errors';
 import {
   assertChecker,

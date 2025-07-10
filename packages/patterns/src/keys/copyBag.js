@@ -1,3 +1,5 @@
+import { harden } from '@endo/harden';
+import { X } from '@endo/errors';
 import {
   assertChecker,
   makeTagged,
@@ -9,8 +11,6 @@ import {
 } from '@endo/marshal';
 
 /// <reference types="ses"/>
-
-import { X } from '@endo/errors';
 
 /**
  * @import {Passable} from '@endo/pass-style'
