@@ -13,6 +13,11 @@ freezes the transitive closure over both properties and prototypes.
 Using this package's `harden` instead of the global `harden` renders that
 library portable between HardenedJS and non-HardenedJS environments.
 
+If used with the package condition `harden`, as when running `node -C harden`
+or `bundle-source -C harden`, the `@endo/harden` package will omit its
+redundant implementation of `harden` and simply assert the presence of and
+reexport the existing `globalThis.harden`.
+
 Usage:
 
 ```
