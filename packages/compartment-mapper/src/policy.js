@@ -481,7 +481,7 @@ export const enforcePackagePolicyByPath = (
   if (!policyLookupHelper(referrerPolicy, 'packages', resourceNameFromPath)) {
     throw Error(
       policyEnforcementFailureMessage(
-        resourceNameFromPath,
+        compartmentDescriptor.location,
         referrerCompartmentDescriptor,
         {
           errorHint,

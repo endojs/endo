@@ -3,9 +3,15 @@ import type {
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
-import type { LogOptions, FileUrlString } from './external.js';
+import type {
+  AdditionalPackageDetailsOptions,
+  LogOptions,
+  FileUrlString,
+  PolicyOption,
+} from './external.js';
 import type { PackageDescriptor } from './internal.js';
 import type { LiteralUnion } from './typescript.js';
+import type { SomePolicy } from './policy-schema.js';
 
 export type CommonDependencyDescriptors = Record<
   string,
@@ -22,31 +28,6 @@ export type CommonDependencyDescriptorsOptions = {
    */
   commonDependencyDescriptors?: CommonDependencyDescriptors;
 };
-
-/**
- * Options for `graphPackage()`
- */
-export type GraphPackageOptions = {
-  logicalPath?: string[];
-} & LogOptions &
-  CommonDependencyDescriptorsOptions;
-
-/**
- * Options for `graphPackages()`
- */
-export type GraphPackagesOptions = LogOptions;
-
-/**
- * Options for `gatherDependency()`
- */
-export type GatherDependencyOptions = {
-  childLogicalPath?: string[];
-  /**
-   * If `true` the dependency is optional
-   */
-  optional?: boolean;
-} & LogOptions &
-  CommonDependencyDescriptorsOptions;
 
 export interface Node {
   /**
@@ -114,3 +95,46 @@ export interface PackageDetails {
  * used by `mapNodeModules()` and its ilk.
  */
 export type LogicalPathGraph = GenericGraph<FileUrlString>;
+
+/**
+ * Options for `translateGraph()`
+ */
+export interface TranslateGraphOptions extends PolicyOption, LogOptions {}
+
+/**
+ * Options containing a `Set` of package locations to ignore
+ */
+export interface IgnorePackageLocationsOptions {
+  /**
+   * A set of package locations that will be used to determine the
+   * which are reachable from the entry point.
+   */
+  ignorePackageLocations?: Set<FileUrlString>;
+}
+
+/**
+ * Options for `graphPackage()`
+ */
+export interface GraphPackageOptions
+  extends LogOptions,
+    CommonDependencyDescriptorsOptions,
+    IgnorePackageLocationsOptions {}
+
+/**
+ * Options for `graphPackages()`
+ */
+export interface GraphPackagesOptions
+  extends LogOptions,
+    IgnorePackageLocationsOptions {
+  graph?: Graph;
+}
+
+/**
+ * Options for `gatherDependency()`
+ */
+export interface GatherDependencyOptions extends GraphPackageOptions {
+  /**
+   * If `true` the dependency is optional
+   */
+  optional?: boolean;
+}
