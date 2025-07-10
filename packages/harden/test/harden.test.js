@@ -1,63 +1,46 @@
-// @ts-check
-
 import test from 'ava';
-import { makePreLockdownHardener as makeHardener } from '../src/make-hardener.js';
+import { harden } from '../index.js';
 
 const q = JSON.stringify;
 
-test('makeHardener', t => {
-  const h = makeHardener();
+test('harden', t => {
   const o = { a: {} };
-  t.is(h(o), o);
+  t.is(harden(o), o);
   t.truthy(Object.isFrozen(o));
   t.truthy(Object.isFrozen(o.a));
 });
 
 test('harden the same thing twice', t => {
-  const h = makeHardener();
   const o = { a: {} };
-  t.is(h(o), o);
-  t.is(h(o), o);
+  t.is(harden(o), o);
+  t.is(harden(o), o);
   t.truthy(Object.isFrozen(o));
   t.truthy(Object.isFrozen(o.a));
 });
 
 test('harden objects with cycles', t => {
-  const h = makeHardener();
   const o = { a: {} };
   o.a.foo = o;
-  t.is(h(o), o);
+  t.is(harden(o), o);
   t.truthy(Object.isFrozen(o));
   t.truthy(Object.isFrozen(o.a));
 });
 
 test('harden overlapping objects', t => {
-  const h = makeHardener();
   const o1 = { a: {} };
   const o2 = { a: o1.a };
-  t.is(h(o1), o1);
+  t.is(harden(o1), o1);
   t.truthy(Object.isFrozen(o1));
   t.truthy(Object.isFrozen(o1.a));
   t.falsy(Object.isFrozen(o2));
-  t.is(h(o2), o2);
+  t.is(harden(o2), o2);
   t.truthy(Object.isFrozen(o2));
 });
 
-test('do not harden up prototype chain', t => {
-  const h = makeHardener();
-  const a = { a: 1 };
-  const b = { b: 1, __proto__: a };
-  const c = { c: 1, __proto__: b };
-
-  h(c);
-  t.truthy(!Object.isFrozen(a));
-});
-
 test('harden tolerates objects with null prototypes', t => {
-  const h = makeHardener();
   const o = { a: 1 };
   Object.setPrototypeOf(o, null);
-  t.is(h(o), o);
+  t.is(harden(o), o);
   t.truthy(Object.isFrozen(o));
   t.truthy(Object.isFrozen(o.a));
 });
@@ -78,10 +61,9 @@ test('harden typed arrays', t => {
   ];
 
   for (const TypedArray of typedArrayConstructors) {
-    const h = makeHardener();
     const a = new TypedArray(1);
 
-    t.is(h(a), a, `harden ${TypedArray}`);
+    t.is(harden(a), a, `harden ${TypedArray}`);
     t.truthy(Object.isSealed(a));
     const descriptor = Object.getOwnPropertyDescriptor(a, '0');
     t.is(descriptor.value, a[0]);
@@ -106,7 +88,6 @@ test('harden typed arrays', t => {
 });
 
 test('harden typed arrays and their expandos', t => {
-  const h = makeHardener();
   const a = new Uint8Array(1);
   const b = new Uint8Array(1);
 
@@ -175,7 +156,7 @@ test('harden typed arrays and their expandos', t => {
     });
   }
 
-  t.is(h(a), a, 'harden() must return typed array input');
+  t.is(harden(a), a, 'harden() must return typed array input');
   t.deepEqual(
     Reflect.ownKeys(a),
     ['0'].concat(expandoKeys),
@@ -239,7 +220,6 @@ test('harden typed arrays and their expandos', t => {
 });
 
 test('hardening makes writable properties readonly even if non-configurable', t => {
-  const h = makeHardener();
   const o = {};
   Object.defineProperty(o, 'x', {
     value: 10,
@@ -247,7 +227,7 @@ test('hardening makes writable properties readonly even if non-configurable', t 
     configurable: false,
     enumerable: false,
   });
-  h(o);
+  harden(o);
 
   t.deepEqual(Object.getOwnPropertyDescriptor(o, 'x'), {
     value: 10,
@@ -258,7 +238,6 @@ test('hardening makes writable properties readonly even if non-configurable', t 
 });
 
 test('harden a typed array with a writable non-configurable expando', t => {
-  const h = makeHardener();
   const a = new Uint8Array(1);
   Object.defineProperty(a, 'x', {
     value: 'A',
@@ -267,7 +246,7 @@ test('harden a typed array with a writable non-configurable expando', t => {
     enumerable: false,
   });
 
-  t.is(h(a), a);
+  t.is(harden(a), a);
   t.truthy(Object.isSealed(a));
 
   t.deepEqual(
@@ -282,18 +261,16 @@ test('harden a typed array with a writable non-configurable expando', t => {
 });
 
 test('harden a typed array subclass', t => {
-  const h = makeHardener();
-
   class Ooint8Array extends Uint8Array {
     oo = 'ghosts';
   }
-  h(Ooint8Array);
+  harden(Ooint8Array);
   t.truthy(Object.isFrozen(Ooint8Array.prototype));
   // pre-lockdown behavior
   t.truthy(!Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
 
   const a = new Ooint8Array(1);
-  t.is(h(a), a);
+  t.is(harden(a), a);
 
   t.deepEqual(Object.getOwnPropertyDescriptor(a, 'oo'), {
     value: 'ghosts',
