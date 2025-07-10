@@ -24,6 +24,7 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
 
 /**
  * @import {
+ *   AdditionalPackageDetails,
  *   CanonicalFn,
  *   CompartmentDescriptor,
  *   CompartmentMapDescriptor,
@@ -38,7 +39,6 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   ReadFn,
  *   ReadPowers,
  *   SomePackagePolicy,
- *   SomePolicy,
  * } from './types.js'
  * @import {
  *   Graph,
@@ -50,6 +50,7 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   GraphPackagesOptions,
  *   LogicalPathGraph,
  *   PackageDetails,
+ *   TranslateGraphOptions,
  * } from './types/node-modules.js'
  */
 
@@ -378,9 +379,16 @@ const graphPackage = async (
   languageOptions,
   strict,
   logicalPathGraph,
-  { commonDependencyDescriptors = {}, logicalPath = [], log = noop } = {},
+  {
+    commonDependencyDescriptors = {},
+    log = noop,
+    ignorePackageLocations = new Set(),
+  } = {},
 ) => {
-  if (graph[packageLocation] !== undefined) {
+  if (
+    graph[packageLocation] !== undefined ||
+    ignorePackageLocations.has(packageLocation)
+  ) {
     // Returning the promise here would create a causal cycle and stall recursion.
     return undefined;
   }
@@ -457,7 +465,6 @@ const graphPackage = async (
 
   for (const dependencyName of [...allDependencies].sort()) {
     const optional = optionals.has(dependencyName);
-    const childLogicalPath = [...logicalPath, dependencyName];
     children.push(
       // Mutual recursion ahead:
       // eslint-disable-next-line no-use-before-define
@@ -473,9 +480,9 @@ const graphPackage = async (
         strict,
         logicalPathGraph,
         {
-          childLogicalPath,
           optional,
           commonDependencyDescriptors,
+          ignorePackageLocations,
           log,
         },
       ),
@@ -520,7 +527,6 @@ const graphPackage = async (
 
   assign(result, {
     name,
-    path: logicalPath,
     label: `${name}${version ? `-v${version}` : ''}`,
     sourceDirname,
     explicitExports: exportsDescriptor !== undefined,
@@ -541,6 +547,11 @@ const graphPackage = async (
   );
 
   await Promise.all(children);
+
+  // since graphing can happen in parallel, we want to update this list as soon
+  // as possible to avoid unrelated graphing operations re-processing the same
+  // package
+  ignorePackageLocations.add(packageLocation);
 
   // handle commonDependencyDescriptors package aliases
   for (const [name, { alias }] of entries(commonDependencyDescriptors)) {
@@ -601,10 +612,10 @@ const gatherDependency = async (
   strict,
   logicalPathGraph,
   {
-    childLogicalPath = [],
     optional = false,
     commonDependencyDescriptors = {},
     log = noop,
+    ignorePackageLocations = new Set(),
   } = {},
 ) => {
   const dependency = await findPackage(
@@ -613,6 +624,7 @@ const gatherDependency = async (
     packageLocation,
     name,
   );
+
   if (dependency === undefined) {
     // allow the dependency to be missing if optional
     if (optional || !strict) {
@@ -620,6 +632,7 @@ const gatherDependency = async (
     }
     throw Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
+
   dependencyLocations[name] = dependency.packageLocation;
 
   logicalPathGraph.addEdge(
@@ -627,6 +640,11 @@ const gatherDependency = async (
     dependency.packageLocation,
     calculatePackageWeight(name),
   );
+
+  // bail if any of the dependency are on the ignorelist
+  if (ignorePackageLocations.has(dependency.packageLocation)) {
+    return;
+  }
 
   await graphPackage(
     name,
@@ -641,8 +659,8 @@ const gatherDependency = async (
     logicalPathGraph,
     {
       commonDependencyDescriptors,
-      logicalPath: childLogicalPath,
       log,
+      ignorePackageLocations,
     },
   );
 };
@@ -679,9 +697,15 @@ const graphPackages = async (
   languageOptions,
   strict,
   logicalPathGraph,
-  { log = noop } = {},
+  { log = noop, graph = create(null), ignorePackageLocations = new Set() } = {},
 ) => {
+  if (graph[packageLocation] !== undefined) {
+    // unlikely to happen, but it could!
+    return graph;
+  }
+
   const memo = create(null);
+
   /**
    * @type {MaybeReadDescriptorFn}
    */
@@ -727,7 +751,6 @@ const graphPackages = async (
 
   logicalPathGraph.addNode(packageLocation);
 
-  const graph = create(null);
   await graphPackage(
     packageDescriptor.name,
     readDescriptor,
@@ -745,8 +768,10 @@ const graphPackages = async (
     {
       commonDependencyDescriptors,
       log,
+      ignorePackageLocations,
     },
   );
+
   return graph;
 };
 
@@ -759,7 +784,7 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {SomePolicy} [policy]
+ * @param {TranslateGraphOptions} [options]
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -767,7 +792,7 @@ const translateGraph = (
   entryModuleSpecifier,
   graph,
   conditions,
-  policy,
+  { policy, log: _log = noop } = {},
 ) => {
   /** @type {CompartmentMapDescriptor['compartments']} */
   const compartments = create(null);
@@ -972,16 +997,64 @@ const makeLanguageOptions = ({
 };
 
 /**
- * @param {ReadFn | ReadPowers<FileUrlString> | MaybeReadPowers<FileUrlString>} readPowers
+ * Recursively retains all compartments and modules flagged as additional (and
+ * the dependencies thereof).
+ *
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {Iterable<string>} [additionalPackageLocations]
+ * @param {Set<string>} [knownPackageLocations]
+ */
+const retainAdditionalModules = (
+  compartmentMap,
+  additionalPackageLocations = [],
+  knownPackageLocations = new Set(),
+) => {
+  for (const packageLocation of additionalPackageLocations) {
+    if (!knownPackageLocations.has(packageLocation)) {
+      knownPackageLocations.add(packageLocation);
+
+      const additionalCompartment =
+        compartmentMap.compartments[packageLocation];
+
+      if (additionalCompartment === undefined) {
+        throw ReferenceError(
+          `Cannot find compartment for additional package at ${packageLocation}`,
+        );
+      }
+      additionalCompartment.retained = true;
+
+      const nextLocations = [];
+      for (const moduleDescriptor of values(additionalCompartment.modules)) {
+        // mark all modules in the additional compartment as retained
+        moduleDescriptor.retained = true;
+        if (moduleDescriptor.compartment) {
+          nextLocations.push(moduleDescriptor.compartment);
+        }
+      }
+
+      // saves a couple steps
+      if (nextLocations.length) {
+        retainAdditionalModules(
+          compartmentMap,
+          nextLocations,
+          knownPackageLocations,
+        );
+      }
+    }
+  }
+};
+
+/**
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {FileUrlString} packageLocation
  * @param {Set<string>} conditionsOption
  * @param {PackageDescriptor} packageDescriptor
  * @param {string} moduleSpecifier
  * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<CompartmentMapDescriptor>}
- * @deprecated Use {@link mapNodeModules} instead.
  */
-export const compartmentMapForNodeModules = async (
+// eslint-disable-next-line no-underscore-dangle
+const compartmentMapForNodeModules_ = async (
   readPowers,
   packageLocation,
   conditionsOption,
@@ -995,6 +1068,7 @@ export const compartmentMapForNodeModules = async (
     policy,
     strict = false,
     log = noop,
+    additionalPackageDetails = [],
   } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
@@ -1014,7 +1088,9 @@ export const compartmentMapForNodeModules = async (
   // dev is only set for the entry package, and implied by the development
   // condition.
 
-  const graph = await graphPackages(
+  /** @type {Graph} */
+  // let graph = create(null);
+  let graph = await graphPackages(
     maybeRead,
     canonical,
     packageLocation,
@@ -1027,6 +1103,131 @@ export const compartmentMapForNodeModules = async (
     logicalPathGraph,
     { log },
   );
+
+  /**
+   * This is the set of all package locations that were found _before_ we
+   * started processing additional modules. This will be passed as
+   * {@link GraphPackagesOptions.ignorePackageLocations} for crawling additional
+   * packages
+   */
+  const basePackageLocations = /** @type {Set<FileUrlString>} */ (
+    new Set(keys(graph))
+  );
+
+  /**
+   * A map of additional package locations to new graphs.
+   *
+   * We do not reuse the same graph as before, because while we can determine
+   * which nodes are reachable from the entry point (see
+   * {@link basePackageLocations} above), there is otherwise nothing to tell us
+   * that any given node is _only_ reachable from an additional location.
+   *
+   * We use {@link GraphPackagesOptions.ignorePackageLocations} to prevent locations from being re-graphed
+   *
+   * @type {Map<FileUrlString, Graph>}
+   */
+  const graphsByAdditionalLocation = new Map(
+    [...additionalPackageDetails].map(({ packageLocation }) => [
+      packageLocation,
+      /** @type {Graph} */ (create(null)),
+    ]),
+  );
+
+  // just to avoid potentially befouling `basePackageLocations`
+  const ignorePackageLocations = new Set(basePackageLocations);
+
+  // this graphs all additional packages, ignoring any already graphed above.
+  await Promise.all(
+    additionalPackageDetails.map(
+      async ({
+        packageLocation: additionalPackageLocation,
+        packageDescriptor: additionalPackageDescriptor,
+        dev: additionalDev = dev,
+        conditions: additionalConditions = conditions,
+      }) => {
+        assert(graphsByAdditionalLocation.has(additionalPackageLocation));
+        const graph = graphsByAdditionalLocation.get(additionalPackageLocation);
+        assert(graph);
+
+        await graphPackages(
+          maybeRead,
+          canonical,
+          additionalPackageLocation,
+          additionalConditions,
+          additionalPackageDescriptor,
+          additionalDev ||
+            (additionalConditions && additionalConditions.has('development')),
+          commonDependencies,
+          languageOptions,
+          strict,
+          logicalPathGraph,
+          {
+            log,
+            graph,
+            ignorePackageLocations,
+          },
+        );
+      },
+    ),
+  );
+
+  const shortestPath = makeShortestPath(logicalPathGraph);
+
+  // compute logical paths for all nodes accessible from entry node
+  for (const [location, node] of entries(graph)) {
+    if (location === packageLocation) {
+      node.path = []; // entry node!
+    } else {
+      const shortestLogicalPath = shortestPath(
+        packageLocation,
+        // entries() loses some type information
+        /** @type {FileUrlString} */ (location),
+      );
+
+      // the first element will always be the root package location; this is omitted from the path.
+      shortestLogicalPath.shift();
+
+      const node = graph[location];
+      node.path = shortestLogicalPath.map(location => graph[location].name);
+      log(`Canonical name for package at ${location}: ${node.path.join('>')}`);
+    }
+  }
+
+  // smoosh all graphs together, favoring the base graph.
+  graph = assign(create(null), ...graphsByAdditionalLocation.values(), graph);
+
+  // set paths for additional packages if they have not already been set; it's
+  // possible for the additional package location to be reachable via the entry!
+  for (const [
+    additionalPackageLocation,
+    additionalLocationGraph,
+  ] of graphsByAdditionalLocation) {
+    for (const location of keys(additionalLocationGraph)) {
+      const node = graph[location];
+      // if the node was reachable from the entry, then it will already have a
+      // path, and we will leave it as-is
+      if (node.path === undefined) {
+        if (location === additionalPackageLocation) {
+          // this sets the path for the additional package location as if it was
+          // a child of the entry (for lack of anything better to do).
+          node.path = [node.name];
+        } else {
+          const shortestLogicalPath = shortestPath(
+            additionalPackageLocation,
+            /** @type {FileUrlString} */ (location),
+          );
+
+          // the first element will always be the name of the `additionalPackageLocation` node
+          node.path = shortestLogicalPath.map(
+            pathLocation => graph[pathLocation].name,
+          );
+        }
+        log(
+          `Canonical name for additional package at ${location}: ${node.path.join('>')}`,
+        );
+      }
+    }
+  }
 
   if (policy) {
     assertPolicy(policy);
@@ -1044,37 +1245,31 @@ export const compartmentMapForNodeModules = async (
     };
   }
 
-  const shortestPath = makeShortestPath(logicalPathGraph);
-  // neither the entry package nor the attenuators compartment have a path; omit
-  const {
-    [ATTENUATORS_COMPARTMENT]: _,
-    [packageLocation]: __,
-    ...subgraph
-  } = graph;
-
-  for (const [location, node] of entries(subgraph)) {
-    const shortestLogicalPath = shortestPath(
-      packageLocation,
-      // entries() loses some type information
-      /** @type {FileUrlString} */ (location),
-    );
-
-    // the first element will always be the root package location; this is omitted from the path.
-    shortestLogicalPath.shift();
-    node.path = shortestLogicalPath.map(location => graph[location].name);
-    log(`Canonical name for package at ${location}: ${node.path.join('>')}`);
-  }
-
   const compartmentMap = translateGraph(
     packageLocation,
     moduleSpecifier,
     graph,
     conditions,
-    policy,
+    { policy, log },
+  );
+
+  // to avoid discarding any additional modules (or those that they depend on)
+  // during a possible future digest (see `digest.js`), we will need to flag
+  // compartments and module descriptors as `retained` since they will otherwise
+  // not be loaded.
+  retainAdditionalModules(
+    compartmentMap,
+    graphsByAdditionalLocation.keys(),
+    basePackageLocations,
   );
 
   return compartmentMap;
 };
+
+/**
+ * @deprecated Use {@link mapNodeModules} instead.
+ */
+export const compartmentMapForNodeModules = compartmentMapForNodeModules_;
 
 /**
  * Creates a {@link CompartmentMapDescriptor} from the module at
@@ -1090,7 +1285,14 @@ export const compartmentMapForNodeModules = async (
 export const mapNodeModules = async (
   readPowers,
   moduleLocation,
-  { tags = new Set(), conditions = tags, log = noop, ...otherOptions } = {},
+  {
+    tags = new Set(),
+    conditions = tags,
+    log = noop,
+    additionalModuleLocations = [],
+    additionalPackageDetails = [],
+    ...otherOptions
+  } = {},
 ) => {
   const {
     packageLocation,
@@ -1106,12 +1308,48 @@ export const mapNodeModules = async (
   assertPackageDescriptor(packageDescriptor);
   assertFileUrlString(packageLocation);
 
-  return compartmentMapForNodeModules(
+  await Promise.all(
+    additionalModuleLocations.map(async moduleLocation => {
+      const { location, dev, conditions } =
+        typeof moduleLocation === 'string'
+          ? { location: moduleLocation }
+          : moduleLocation;
+
+      // add every additional module for the referrer to the data structure
+      const {
+        packageLocation,
+        packageDescriptorText,
+        packageDescriptorLocation,
+      } = await search(readPowers, location, { log });
+
+      const packageDescriptor =
+        /** @type {typeof parseLocatedJson<unknown>} */ (
+          parseLocatedJson(packageDescriptorText, packageDescriptorLocation)
+        );
+
+      assertPackageDescriptor(packageDescriptor);
+      assertFileUrlString(packageLocation);
+
+      additionalPackageDetails.push({
+        packageDescriptor,
+        packageLocation,
+        location,
+        dev,
+        conditions,
+      });
+    }),
+  );
+
+  return compartmentMapForNodeModules_(
     readPowers,
     packageLocation,
     conditions,
     packageDescriptor,
     moduleSpecifier,
-    { log, ...otherOptions },
+    {
+      log,
+      additionalPackageDetails,
+      ...otherOptions,
+    },
   );
 };

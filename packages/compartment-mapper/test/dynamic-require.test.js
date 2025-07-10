@@ -756,7 +756,7 @@ test('dynamic require of ancestor disallowed by policy fails at require time', a
     t.regex(
       err.cause.message,
       new RegExp(
-        `Importing "jorts-folder" in resource "jorts-folder" in "pantspack-folder-runner-v1\\.0\\.0" was not allowed by "packages" policy: ${JSON.stringify(policy.resources['pantspack>pantspack-folder-runner'].packages)}`,
+        `Importing ".+?" in resource "jorts-folder" in "pantspack-folder-runner-v1\\.0\\.0" was not allowed by "packages" policy: ${JSON.stringify(policy.resources['pantspack>pantspack-folder-runner'].packages)}`,
       ),
     );
   }

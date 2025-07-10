@@ -15,6 +15,8 @@
  *   Attenuator,
  *   SomePolicy,
  *   PolicyEnforcementField,
+ *   EnforceModulePolicyOptions,
+ *   EnforceModulePolicyByPathOptions,
  * } from './types.js'
  * @import {ThirdPartyStaticModuleInterface} from 'ses'
  */
@@ -38,6 +40,7 @@ const {
   getOwnPropertyDescriptors,
 } = Object;
 const { ownKeys } = Reflect;
+const { isArray } = Array;
 const q = JSON.stringify;
 
 /**
@@ -368,28 +371,30 @@ export const attenuateGlobals = (
  * @param {string} specifier
  * @param {CompartmentDescriptor} referrerCompartmentDescriptor
  * @param {object} options
- * @param {string[]} [options.compartmentDescriptorPath]
  * @param {string} [options.errorHint]
- * @param {string} [options.resourceNameFromPath]
+ * @param {string|string[]} [options.resourceNameOrPath]
  * @param {PolicyEnforcementField} [options.policyField]
  * @returns {string}
  */
 const policyEnforcementFailureMessage = (
   specifier,
-  { label, policy },
-  {
-    compartmentDescriptorPath,
-    resourceNameFromPath,
-    errorHint,
-    policyField = 'packages',
-  } = {},
+  { label, policy, path },
+  { resourceNameOrPath, errorHint, policyField = 'packages' } = {},
 ) => {
   let message = `Importing ${q(specifier)}`;
-  if (compartmentDescriptorPath) {
-    resourceNameFromPath ??= compartmentDescriptorPath.join('>');
-    message += ` in resource ${q(resourceNameFromPath)}`;
+  if (resourceNameOrPath) {
+    message += ` (${q(isArray(resourceNameOrPath) ? resourceNameOrPath.join('>') : resourceNameOrPath)})`;
   }
-  message += ` in ${q(label)} was not allowed by`;
+  message += ` in `;
+  if (path?.length) {
+    message += q(path.join('>'));
+  } else {
+    if (path) {
+      message += `entry`;
+    }
+    message += `compartment ${q(label)}`;
+  }
+  message += ` was not allowed by`;
   if (keys(policy[policyField] ?? {}).length > 0) {
     message += ` ${q(policyField)} policy: ${q(policy[policyField])}`;
   } else {
@@ -402,13 +407,6 @@ const policyEnforcementFailureMessage = (
 };
 
 /**
- * Options for {@link enforceModulePolicy}
- * @typedef EnforceModulePolicyOptions
- * @property {boolean} [exit] - Whether it is an exit module
- * @property {string} [errorHint] - Error hint message
- */
-
-/**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier
@@ -418,7 +416,7 @@ const policyEnforcementFailureMessage = (
 export const enforceModulePolicy = (
   specifier,
   compartmentDescriptor,
-  { exit, errorHint } = {},
+  { exit, errorHint, resourceNameOrPath } = {},
 ) => {
   const { policy, modules } = compartmentDescriptor;
   if (!policy) {
@@ -430,6 +428,7 @@ export const enforceModulePolicy = (
       throw Error(
         policyEnforcementFailureMessage(specifier, compartmentDescriptor, {
           errorHint,
+          resourceNameOrPath,
         }),
       );
     }
@@ -442,6 +441,7 @@ export const enforceModulePolicy = (
       policyEnforcementFailureMessage(specifier, compartmentDescriptor, {
         errorHint,
         policyField: 'builtins',
+        resourceNameOrPath,
       }),
     );
   }
@@ -452,7 +452,7 @@ export const enforceModulePolicy = (
  *
  * @param {CompartmentDescriptor} compartmentDescriptor
  * @param {CompartmentDescriptor} referrerCompartmentDescriptor
- * @param {EnforceModulePolicyOptions} [options]
+ * @param {EnforceModulePolicyByPathOptions} [options]
  */
 export const enforcePackagePolicyByPath = (
   compartmentDescriptor,
@@ -472,21 +472,28 @@ export const enforcePackagePolicyByPath = (
     `Compartment descriptor ${q(compartmentDescriptor.label)} does not have a path; cannot enforce policy via ${q(referrerCompartmentDescriptor.label)}`,
   );
 
-  const resourceNameFromPath = generateCanonicalName({
-    path,
-    name,
-    isEntry: path.length === 0,
-  });
+  /** @type {string} */
+  let resourceName;
+  try {
+    resourceName = generateCanonicalName({
+      path,
+      name,
+      isEntry: path.length === 0,
+    });
+  } catch {
+    throw Error(
+      `Cannot generate canonical name for entry compartment while enforcing policy via ${q(referrerCompartmentDescriptor.label)}`,
+    );
+  }
 
-  if (!policyLookupHelper(referrerPolicy, 'packages', resourceNameFromPath)) {
+  if (!policyLookupHelper(referrerPolicy, 'packages', resourceName)) {
     throw Error(
       policyEnforcementFailureMessage(
-        resourceNameFromPath,
+        compartmentDescriptor.location,
         referrerCompartmentDescriptor,
         {
           errorHint,
-          compartmentDescriptorPath: path,
-          resourceNameFromPath,
+          resourceNameOrPath: resourceName,
         },
       ),
     );
