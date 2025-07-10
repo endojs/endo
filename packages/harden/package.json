@@ -22,7 +22,10 @@
   "main": "./index.js",
   "module": "./index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "harden": "./locked-down.js",
+      "default": "./index.js"
+    },
     "./hardener.js": "./hardener.js",
     "./package.json": "./package.json"
   },
