@@ -39,8 +39,8 @@ const ENDO_RANK_STRINGS = getenv('ENDO_RANK_STRINGS', 'utf16-code-unit-order', [
 /**
  * This is the equality comparison used by JavaScript's Map and Set
  * abstractions, where NaN is the same as NaN and -0 is the same as
- * 0. Marshal serializes -0 as zero, so the semantics of our distributed
- * object system does not distinguish 0 from -0.
+ * 0. Marshal still serializes -0 as zero, so the semantics of our distributed
+ * object system does not yet distinguish 0 from -0.
  *
  * `sameValueZero` is the EcmaScript spec name for this equality comparison,
  * but TODO we need a better name for the API.
@@ -112,6 +112,7 @@ export const compareNumerics = (left, right) => {
   assert(NumberIsNaN(left));
   return 1;
 };
+harden(compareNumerics);
 
 /**
  * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
@@ -344,19 +345,41 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
 
   return harden({ comparator: outerComparator, antiComparator });
 };
+harden(makeComparatorKit);
+
 /**
  * @param {RankCompare} comparator
  * @returns {RankCompare=}
  */
 export const comparatorMirrorImage = comparator =>
   comparatorMirrorImages.get(comparator);
+harden(comparatorMirrorImage);
+
+export const { comparator: compareRank, antiComparator: compareAntiRank } =
+  makeComparatorKit();
+
+/**
+ * Like `compareRank` and `compareAntiRank` and unlike `fullCompare`,
+ * `compareRankRemotablesTied` and `compareAntiRankRemotablesTied`
+ * considers all remotables tied for the same rank.
+ * Unlike `compareRank` and `compareAntiRank`,
+ * `compareRankRemotablesTied` and `compareAntiRankRemotablesTied`
+ * do not short circuit on encounting remotables.
+ */
+export const {
+  comparator: compareRankRemotablesTied,
+  antiComparator: compareAntiRankRemotablesTied,
+} = makeComparatorKit((_x, _y) => 0);
 
 /**
  * @param {Passable[]} passables
- * @param {RankCompare} compare
+ * @param {RankCompare} [compare]
  * @returns {boolean}
  */
-export const isRankSorted = (passables, compare) => {
+export const isRankSorted = (
+  passables,
+  compare = compareRankRemotablesTied,
+) => {
   const subMemoOfSorted = memoOfSorted.get(compare);
   assert(subMemoOfSorted !== undefined);
   if (subMemoOfSorted.has(passables)) {
@@ -375,9 +398,9 @@ harden(isRankSorted);
 
 /**
  * @param {Passable[]} sorted
- * @param {RankCompare} compare
+ * @param {RankCompare} [compare]
  */
-export const assertRankSorted = (sorted, compare) =>
+export const assertRankSorted = (sorted, compare = compareRankRemotablesTied) =>
   isRankSorted(sorted, compare) ||
   // TODO assert on bug could lead to infinite recursion. Fix.
   // eslint-disable-next-line no-use-before-define
@@ -387,10 +410,10 @@ harden(assertRankSorted);
 /**
  * @template {Passable} T
  * @param {Iterable<T>} passables
- * @param {RankCompare} compare
+ * @param {RankCompare} [compare]
  * @returns {T[]}
  */
-export const sortByRank = (passables, compare) => {
+export const sortByRank = (passables, compare = compareRankRemotablesTied) => {
   /** @type {T[]} mutable for in-place sorting, but with hardened elements */
   let unsorted;
   if (Array.isArray(passables)) {
@@ -431,12 +454,17 @@ harden(sortByRank);
  * https://en.wikipedia.org/wiki/Binary_search_algorithm#Procedure_for_finding_the_leftmost_element
  *
  * @param {Passable[]} sorted
- * @param {RankCompare} compare
  * @param {Passable} key
- * @param {("leftMost" | "rightMost")=} bias
+ * @param {RankCompare} [compare]
+ * @param {"leftMost" | "rightMost"} [bias]
  * @returns {number}
  */
-const rankSearch = (sorted, compare, key, bias = 'leftMost') => {
+const rankSearch = (
+  sorted,
+  key,
+  compare = compareRankRemotablesTied,
+  bias = 'leftMost',
+) => {
   assertRankSorted(sorted, compare);
   let left = 0;
   let right = sorted.length;
@@ -453,16 +481,26 @@ const rankSearch = (sorted, compare, key, bias = 'leftMost') => {
   return bias === 'leftMost' ? left : right - 1;
 };
 
+// TODO https://github.com/endojs/endo/issues/2883#issuecomment-3063809592
+// Some (all?) rank cover operations take a compare parameter.
+// These should all now be optional, moved to the end, and default to
+// `compareRankRemotablesTied`.
+
 /**
  * @param {Passable[]} sorted
- * @param {RankCompare} compare
  * @param {RankCover} rankCover
+ * @param {RankCompare} [compare] which rank comparison function to use.
+ * Default to `compareRankRemotablesTied`.
  * @returns {IndexCover}
  */
-export const getIndexCover = (sorted, compare, [leftKey, rightKey]) => {
+export const getIndexCover = (
+  sorted,
+  [leftKey, rightKey],
+  compare = compareRankRemotablesTied,
+) => {
   assertRankSorted(sorted, compare);
-  const leftIndex = rankSearch(sorted, compare, leftKey, 'leftMost');
-  const rightIndex = rankSearch(sorted, compare, rightKey, 'rightMost');
+  const leftIndex = rankSearch(sorted, leftKey, compare, 'leftMost');
+  const rightIndex = rankSearch(sorted, rightKey, compare, 'rightMost');
   return [leftIndex, rightIndex];
 };
 harden(getIndexCover);
@@ -551,9 +589,7 @@ export const intersectRankCovers = (compare, covers) => {
   ];
   return covers.reduce(intersectRankCoverPair, ['', '{']);
 };
-
-export const { comparator: compareRank, antiComparator: compareAntiRank } =
-  makeComparatorKit();
+harden(intersectRankCovers);
 
 /**
  * Create a comparator kit in which remotables are fully ordered
