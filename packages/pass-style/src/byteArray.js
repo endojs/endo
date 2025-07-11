@@ -109,16 +109,21 @@ harden(byteArrayToUint8Array);
  * @param {Uint8Array} uint8Array
  * @returns {ArrayBuffer} A ByteArray, i.e., a hardened Immutable ArrayBuffer
  */
-export const uint8ArrayToByteArray = uint8Array =>
+export const uint8ArrayToByteArray = uint8Array => {
+  const { byteOffset, length } = uint8Array;
   // If we're using a native implementation of the full Immutable ArrayBuffer
   // proposal, and if `uint8Array`'s backing store is such a genuine
   // Immutable ArrayBuffer, and if the native implementation does the obvious
-  // optimization of `immutableArrayBuffer.sliceToImmutable(0, length)`,
-  // then this conversion is zero-copy.
-  // Otherwise, it pays the copy cost implicit in `sliceToImmutable`.
+  // optimization of a non-expanding `sliceToImmutable`, then this conversion is
+  // zero-copy. Otherwise, it pays the copy cost implicit in `sliceToImmutable`.
   //
-  // @ts-expect-error How can shim add to `ArrayBuffer` ts type?
-  harden(uint8Array.buffer.sliceToImmutable(0, uint8Array.length));
+  // @ts-expect-error How can the shim update the `ArrayBuffer` TS type?
+  const byteArray = uint8Array.buffer.sliceToImmutable(
+    byteOffset,
+    byteOffset + length,
+  );
+  return harden(byteArray);
+};
 harden(uint8ArrayToByteArray);
 
 /**
