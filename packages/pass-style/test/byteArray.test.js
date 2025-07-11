@@ -67,11 +67,11 @@ test('byteArray / base64 conversion', t => {
 
 test('invalid encodings', t => {
   const badInputs = [
-    ['%', '"%" should be an even number of characters'],
-    ['0%', '"0%" is not a hex digit'], // this input is bad in multiple ways
+    ['%', '"%" must be an even number of characters'],
+    ['0%', 'Invalid hex string: "0%"'], // this input is bad in multiple ways
 
-    ['a', '"a" should be an even number of characters'],
-    ['a00', '"a00" should be an even number of characters'],
+    ['a', '"a" must be an even number of characters'],
+    ['a00', '"a00" must be an even number of characters'],
 
     // non-zero padding bits (MAY reject): ['Qf==', ...],
   ];
