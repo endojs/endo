@@ -41,6 +41,8 @@ const ENDO_RANK_STRINGS = getenv('ENDO_RANK_STRINGS', 'utf16-code-unit-order', [
  * abstractions, where NaN is the same as NaN and -0 is the same as
  * 0. Marshal serializes -0 as zero, so the semantics of our distributed
  * object system does not distinguish 0 from -0.
+ * TODO https://github.com/endojs/endo/issues/1602
+ * and revise above comment.
  *
  * `sameValueZero` is the EcmaScript spec name for this equality comparison,
  * but TODO we need a better name for the API.
