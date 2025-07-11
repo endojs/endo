@@ -304,11 +304,11 @@ export const makeHardener = traversePrototypeChains => {
     },
   };
 
-  // The harden implementation exported by @endo/harden does not ascend
+  // The harden implementation exported by @endo/harden does not traverse
   // prototype chains but may be imported into programs after lockdown.
   // In this case, the weak hardener must give way to the strong hardener
   // on the global object, lazily.
-  if (!ascendPrototypeChains) {
+  if (!traversePrototypeChains) {
     ({ harden } = (innerHarden => ({
       /**
        * @template T
