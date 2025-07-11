@@ -160,11 +160,7 @@ export const makeHardener = traversePrototypeChains => {
   const hardened = new WeakSet();
 
   let { harden } = {
-    /**
-     * @template T
-     * @param {T} root
-     * @returns {T}
-     */
+    /** @type {<T>(root: T) => T} */
     harden(root) {
       if (mode === undefined) {
         mode = traversePrototypeChains;
@@ -309,22 +305,23 @@ export const makeHardener = traversePrototypeChains => {
   // In this case, the weak hardener must give way to the strong hardener
   // on the global object, lazily.
   if (!traversePrototypeChains) {
-    ({ harden } = (innerHarden => ({
-      /**
-       * @template T
-       * @param {T} root
-       * @returns {T}
-       */
-      harden(root) {
-        // Use a native hardener if possible.
-        if (typeof globalThis.harden === 'function') {
-          const globalHarden = globalThis.harden;
-          return globalHarden(root);
-        } else {
-          return innerHarden(root);
+    let innerHarden = harden;
+    let globalHarden;
+    harden = root => {
+      // Capture the global hardener (or lack thereof) on first invocation,
+      // require it to remain constant, and use it if present.
+      if (mode === undefined) {
+        mode = traversePrototypeChains;
+        globalHarden = globalThis.harden;
+        if (typeof globalHarden === 'function' && globalHarden !== harden) {
+          innerHarden = globalHarden;
         }
-      },
-    }))(harden));
+      }
+      if (globalThis.harden !== globalHarden) {
+        throw new TypeError('Change detected to globalThis.harden. A program must only use one version of harden for the lifetime of a global');
+      }
+      return innerHarden(root);
+    };
   }
 
   return harden;
