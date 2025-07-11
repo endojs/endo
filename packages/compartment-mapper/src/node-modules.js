@@ -209,6 +209,7 @@ const updateShortestPaths = (
 
   return undefined;
 };
+
 /**
  * `findPackage` behaves as Node.js to find third-party modules by searching
  * parent to ancestor directories for a `node_modules` directory that contains
