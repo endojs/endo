@@ -101,7 +101,7 @@ export const makePortableHexCodec = () => {
   const hexToUint8Array = hex => {
     const inputLen = hex.length;
     if (inputLen % 2 !== 0) {
-      throw Fail`Invalid hex string: ${hex}`;
+      throw Fail`${hex} must be an even number of characters`;
     }
     const u8 = new Uint8Array(inputLen / 2);
     for (let i = 0; i < inputLen; i += 2) {
@@ -140,67 +140,71 @@ harden(makePortableHexCodec);
  *   is the portion of the Node.js Buffer API we need for hex conversion.
  */
 
-/**
- * Create a hex codec using parts of the Node.js Buffer API.
- *
- * @deprecated Just use the exported `uint8ArrayToHex` and `hexToUint8Array`
- * which are already best efforts based on feature detecting `Buffer`.
- * @param {BufferishConstructor} Bufferish the object that implements the
- *   necessary pieces of Buffer
- * @returns {HexCodec}
- */
-export const makeBufferishHexCodec = Bufferish => {
-  /**
-   * @param {Uint8Array} u8
-   * @returns {string}
-   */
-  const uint8ArrayToHex = u8 =>
-    (Bufferish.isBuffer?.(u8) ? u8 : Bufferish.from(u8)).toString('hex');
+// Not actually plug compat with `makePortableHexCodec`. More lenient about
+// what is an error.
+// /**
+//  * Create a hex codec using parts of the Node.js Buffer API.
+//  *
+//  * @deprecated Just use the exported `uint8ArrayToHex` and `hexToUint8Array`
+//  * which are already best efforts based on feature detecting `Buffer`.
+//  * @param {BufferishConstructor} Bufferish the object that implements the
+//  *   necessary pieces of Buffer
+//  * @returns {HexCodec}
+//  */
+// export const makeBufferishHexCodec = Bufferish => {
+//   /**
+//    * @param {Uint8Array} u8
+//    * @returns {string}
+//    */
+//   const uint8ArrayToHex = u8 =>
+//     (Bufferish.isBuffer?.(u8) ? u8 : Bufferish.from(u8)).toString('hex');
 
-  /**
-   * @deprecated Use `uint8ArrayToHex` instead
-   * @param {Uint8Array} u8
-   * @returns {string}
-   */
-  const encodeHex = u8 => uint8ArrayToHex(u8);
+//   /**
+//    * @deprecated Use `uint8ArrayToHex` instead
+//    * @param {Uint8Array} u8
+//    * @returns {string}
+//    */
+//   const encodeHex = u8 => uint8ArrayToHex(u8);
 
-  /**
-   * @param {string} hex
-   * @returns {Uint8Array}
-   */
-  const hexToUint8Array = hex => {
-    const buf = Bufferish.from(hex, 'hex');
+//   /**
+//    * @param {string} hex
+//    * @returns {Uint8Array}
+//    */
+//   const hexToUint8Array = hex => {
+//     const buf = Bufferish.from(hex, 'hex');
 
-    // Coerce to Uint8Array to avoid leaking the abstraction.
-    const u8a = new Uint8Array(
-      buf.buffer,
-      buf.byteOffset,
-      buf.byteLength / Uint8Array.BYTES_PER_ELEMENT,
-    );
-    return u8a;
-  };
+//     // Coerce to Uint8Array to avoid leaking the abstraction.
+//     const u8a = new Uint8Array(
+//       buf.buffer,
+//       buf.byteOffset,
+//       buf.byteLength / Uint8Array.BYTES_PER_ELEMENT,
+//     );
+//     return u8a;
+//   };
 
-  /**
-   * @deprecated Use `hexToUint8Array` instead
-   * @param {string} hex
-   * @returns {Uint8Array}
-   */
-  const decodeHex = hex => hexToUint8Array(hex);
+//   /**
+//    * @deprecated Use `hexToUint8Array` instead
+//    * @param {string} hex
+//    * @returns {Uint8Array}
+//    */
+//   const decodeHex = hex => hexToUint8Array(hex);
 
-  return harden({
-    uint8ArrayToHex,
-    encodeHex,
-    hexToUint8Array,
-    decodeHex,
-  });
-};
-harden(makeBufferishHexCodec);
+//   return harden({
+//     uint8ArrayToHex,
+//     encodeHex,
+//     hexToUint8Array,
+//     decodeHex,
+//   });
+// };
+// harden(makeBufferishHexCodec);
 
 /**
  * Export a hex codec that can work with standard JS engines, but takes
  * advantage of optimizations on some platforms (like Node.js's Buffer API).
  */
 export const { uint8ArrayToHex, encodeHex, hexToUint8Array, decodeHex } =
-  typeof Buffer === 'undefined'
-    ? makePortableHexCodec()
-    : makeBufferishHexCodec(Buffer);
+  makePortableHexCodec();
+// Enable once `makeBufferishHexCodec` is plug compat
+// typeof Buffer === 'undefined'
+//   ? makePortableHexCodec()
+//   : makeBufferishHexCodec(Buffer);
