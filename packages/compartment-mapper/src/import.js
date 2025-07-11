@@ -34,6 +34,8 @@ import { loadFromMap } from './import-lite.js';
 
 const { assign, create, freeze } = Object;
 
+const noop = () => {};
+
 /**
  * Add the default parserForLanguage option.
  * @param {ArchiveOptions} [options]
@@ -89,6 +91,9 @@ export const loadLocation = async (
     workspaceLanguageForExtension,
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
+    additionalPackageDetails = [],
+    additionalModuleLocations = [],
+    log = noop,
     ...otherOptions
   } = assignParserForLanguage(options);
   // conditions are not present in SyncArchiveOptions
@@ -107,9 +112,14 @@ export const loadLocation = async (
     workspaceCommonjsLanguageForExtension,
     workspaceModuleLanguageForExtension,
     languages,
+    additionalPackageDetails,
+    additionalModuleLocations,
+    log,
   });
   return loadFromMap(readPowers, compartmentMap, {
     parserForLanguage,
+    additionalPackageDetails,
+    log,
     ...otherOptions,
   });
 };
