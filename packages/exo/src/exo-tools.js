@@ -1,6 +1,5 @@
-import { getMethodNames } from '@endo/eventual-send/utils.js';
-import { toThrowable } from '@endo/pass-style';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { getRemotableMethodNames, toThrowable, Far } from '@endo/pass-style';
 import {
   mustMatch,
   M,
@@ -17,8 +16,10 @@ import { q, Fail } from '@endo/errors';
 import { GET_INTERFACE_GUARD } from './get-interface.js';
 
 /**
- * @import {InterfaceGuard, Method, MethodGuard, MethodGuardPayload} from '@endo/patterns'
+ * @import {RemotableMethodName} from '@endo/pass-style';
+ * @import {InterfaceGuard, Method, MethodGuard, MethodGuardPayload, DefaultGuardType} from '@endo/patterns'
  * @import {ClassContext, ContextProvider, FacetName, KitContext, KitContextProvider, MatchConfig, Methods} from './types.js'
+ * @import {GetInterfaceGuard} from './get-interface.js';
  */
 
 const { apply, ownKeys } = Reflect;
@@ -344,7 +345,7 @@ const bindMethod = (
 };
 
 /**
- * @template {Record<PropertyKey, CallableFunction>} T
+ * @template {Record<RemotableMethodName, CallableFunction>} T
  * @param {string} tag
  * @param {ContextProvider} contextProvider
  * @param {T} behaviorMethods
@@ -359,7 +360,7 @@ export const defendPrototype = (
   interfaceGuard = undefined,
 ) => {
   const prototype = {};
-  const methodNames = getMethodNames(behaviorMethods).filter(
+  const methodNames = getRemotableMethodNames(behaviorMethods).filter(
     // By ignoring any method that seems to be a constructor, we can use a
     // class.prototype as a behaviorMethods.
     key => {
@@ -373,9 +374,9 @@ export const defendPrototype = (
       );
     },
   );
-  /** @type {Record<PropertyKey, MethodGuard> | undefined} */
+  /** @type {Record<RemotableMethodName, MethodGuard> | undefined} */
   let methodGuards;
-  /** @type {import('@endo/patterns').DefaultGuardType} */
+  /** @type {DefaultGuardType} */
   let defaultGuards;
   if (interfaceGuard) {
     const {
@@ -461,12 +462,7 @@ export const defendPrototype = (
     );
   }
 
-  return Far(
-    tag,
-    /** @type {T & import('./get-interface.js').GetInterfaceGuard<T>} */ (
-      prototype
-    ),
-  );
+  return Far(tag, /** @type {T & GetInterfaceGuard<T>} */ (prototype));
 };
 harden(defendPrototype);
 
