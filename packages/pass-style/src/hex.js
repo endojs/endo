@@ -26,7 +26,6 @@
 // https://github.com/Agoric/agoric-sdk/blob/master/packages/internal/src/hex.js
 // with this module.
 
-
 import { Fail } from '@endo/errors';
 
 /**
