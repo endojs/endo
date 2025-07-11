@@ -11,7 +11,7 @@ const { prototype: functionPrototype } = Function;
 const {
   getOwnPropertyDescriptor,
   getPrototypeOf,
-  hasOwnProperty: objectHasOwnProperty,
+  hasOwn,
   isFrozen,
   prototype: objectPrototype,
 } = Object;
@@ -27,9 +27,10 @@ assert(typedArrayToStringTagDesc);
 const getTypedArrayToStringTag = typedArrayToStringTagDesc.get;
 assert(typeof getTypedArrayToStringTag === 'function');
 
-export const hasOwnPropertyOf = (obj, prop) =>
-  apply(objectHasOwnProperty, obj, [prop]);
-harden(hasOwnPropertyOf);
+/**
+ * @deprecated Use `Object.hasOwn` instead
+ */
+export const hasOwnPropertyOf = hasOwn;
 
 /**
  * @type {(val: unknown) => val is JSPrimitive}
@@ -133,7 +134,7 @@ export const getOwnDataDescriptor = (
   );
   return (desc !== undefined ||
     (!!check && CX(check)`${q(propName)} property expected: ${candidate}`)) &&
-    (hasOwnPropertyOf(desc, 'value') ||
+    (hasOwn(desc, 'value') ||
       (!!check &&
         CX(
           check,

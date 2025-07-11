@@ -2,11 +2,11 @@
 
 import { isPromise } from '@endo/promise-kit';
 import { q } from '@endo/errors';
-import { assertChecker, hasOwnPropertyOf, CX } from './passStyle-helpers.js';
+import { assertChecker, CX } from './passStyle-helpers.js';
 
 /** @import {Checker} from './types.js' */
 
-const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor } = Object;
+const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor, hasOwn } = Object;
 const { ownKeys } = Reflect;
 const { toStringTag } = Symbol;
 
@@ -32,7 +32,7 @@ const checkPromiseOwnKeys = (pr, check) => {
    *   * Those own properties that might be added by Node's async_hooks.
    */
   const unknownKeys = keys.filter(
-    key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
+    key => typeof key !== 'symbol' || !hasOwn(Promise.prototype, key),
   );
 
   if (unknownKeys.length !== 0) {
@@ -69,7 +69,7 @@ const checkPromiseOwnKeys = (pr, check) => {
       const tagDesc = getOwnPropertyDescriptor(pr, toStringTag);
       assert(tagDesc !== undefined);
       return (
-        (hasOwnPropertyOf(tagDesc, 'value') ||
+        (hasOwn(tagDesc, 'value') ||
           CX(
             check,
           )`Own @@toStringTag must be a data property, not an accessor: ${q(tagDesc)}`) &&

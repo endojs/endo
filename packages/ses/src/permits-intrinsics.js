@@ -57,7 +57,7 @@ import {
   getPrototypeOf,
   isPrimitive,
   mapGet,
-  objectHasOwnProperty,
+  hasOwn,
   ownKeys,
   symbolKeyFor,
 } from './commons.js';
@@ -185,7 +185,7 @@ export default function removeUnpermittedIntrinsics(
         // Assert: the permit is the name of an intrinsic.
         // Assert: the property value is equal to that intrinsic.
 
-        if (objectHasOwnProperty(intrinsics, permit)) {
+        if (hasOwn(intrinsics, permit)) {
           if (value !== intrinsics[permit]) {
             throw TypeError(`Does not match permit for ${path}`);
           }
@@ -225,7 +225,7 @@ export default function removeUnpermittedIntrinsics(
     }
 
     // Is this a value property?
-    if (objectHasOwnProperty(desc, 'value')) {
+    if (hasOwn(desc, 'value')) {
       if (isAccessorPermit(permit)) {
         throw TypeError(`Accessor expected at ${path}`);
       }
@@ -245,12 +245,12 @@ export default function removeUnpermittedIntrinsics(
    */
   function getSubPermit(obj, permit, prop) {
     const permitProp = prop === '__proto__' ? '--proto--' : prop;
-    if (objectHasOwnProperty(permit, permitProp)) {
+    if (hasOwn(permit, permitProp)) {
       return permit[permitProp];
     }
 
     if (typeof obj === 'function') {
-      if (objectHasOwnProperty(FunctionInstance, permitProp)) {
+      if (hasOwn(FunctionInstance, permitProp)) {
         return FunctionInstance[permitProp];
       }
     }

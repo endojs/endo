@@ -2,7 +2,7 @@ import {
   defineProperty,
   iteratorPrototype,
   iteratorSymbol,
-  objectHasOwnProperty,
+  hasOwn,
 } from './commons.js';
 
 export const tameRegeneratorRuntime = () => {
@@ -15,7 +15,7 @@ export const tameRegeneratorRuntime = () => {
     set(value) {
       // ignore the assignment on IteratorPrototype
       if (this === iteratorPrototype) return;
-      if (objectHasOwnProperty(this, iteratorSymbol)) {
+      if (hasOwn(this, iteratorSymbol)) {
         this[iteratorSymbol] = value;
       }
       defineProperty(this, iteratorSymbol, {

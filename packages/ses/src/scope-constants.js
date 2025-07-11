@@ -3,7 +3,7 @@ import {
   arrayIncludes,
   getOwnPropertyDescriptor,
   getOwnPropertyNames,
-  objectHasOwnProperty,
+  hasOwn,
   regexpTest,
 } from './commons.js';
 
@@ -131,7 +131,7 @@ function isImmutableDataProperty(obj, name) {
     // can't have accessors and value properties at the same time, therefore
     // this check is sufficient. Using explicit own property deal with the
     // case where Object.prototype has been poisoned.
-    objectHasOwnProperty(desc, 'value')
+    hasOwn(desc, 'value')
   );
 }
 

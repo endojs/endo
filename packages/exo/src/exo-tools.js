@@ -1,5 +1,5 @@
 import { getMethodNames } from '@endo/eventual-send/utils.js';
-import { hasOwnPropertyOf, toThrowable } from '@endo/pass-style';
+import { toThrowable } from '@endo/pass-style';
 import { E, Far } from '@endo/far';
 import {
   mustMatch,
@@ -22,7 +22,7 @@ import { GET_INTERFACE_GUARD } from './get-interface.js';
  */
 
 const { apply, ownKeys } = Reflect;
-const { defineProperties, fromEntries } = Object;
+const { defineProperties, fromEntries, hasOwn } = Object;
 
 /**
  * A method guard, for inclusion in an interface guard, that does not
@@ -446,7 +446,7 @@ export const defendPrototype = (
     );
   }
 
-  if (!hasOwnPropertyOf(prototype, GET_INTERFACE_GUARD)) {
+  if (!hasOwn(prototype, GET_INTERFACE_GUARD)) {
     const getInterfaceGuardMethod = {
       [GET_INTERFACE_GUARD]() {
         // Note: May be `undefined`
