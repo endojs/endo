@@ -177,8 +177,11 @@ export type RemotableObject<I extends InterfaceSpec = string> = PassStyled<
 
 /**
  * Abstract remotable method names to its own type in preparation of
- * (TODO) restricting it in a later PR.
+ * restricting it in a later PR.
  */
+// TODO https://github.com/endojs/endo/issues/2884#issuecomment-3063896482
+// Restrict this type, and to use this restricted type rather than `PropertyKey`
+// to type method names of Remotables.
 // export type RemotableMethodName = string | symbol;
 export type RemotableMethodName = PropertyKey;
 

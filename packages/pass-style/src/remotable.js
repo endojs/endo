@@ -36,10 +36,10 @@ export const canBeMethod = func =>
   typeof func === 'function' && !(PASS_STYLE in func);
 harden(canBeMethod);
 
+// TODO https://github.com/endojs/endo/issues/2884
+// Abstract out canBeMethodName so later PRs agree on method name restrictions.
+
 /**
- * Abstract out this test so
- * (TODO) a later PR can restrict possible method names
- *
  * @param {any} key
  * @returns {key is RemotableMethodName}
  */
