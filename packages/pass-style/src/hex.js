@@ -1,4 +1,4 @@
-/* global Buffer */
+// /* global Buffer */
 
 // This module should eventually replace
 // https://github.com/Agoric/agoric-sdk/blob/master/packages/internal/src/hex.js
