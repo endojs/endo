@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.4](https://github.com/endojs/endo/compare/@endo/benchmark@0.1.3...@endo/benchmark@0.1.4) (2025-07-12)
+
+**Note:** Version bump only for package @endo/benchmark
+
+
+
+
+
 ### [0.1.3](https://github.com/endojs/endo/compare/@endo/benchmark@0.1.2...@endo/benchmark@0.1.3) (2025-06-17)
 
 **Note:** Version bump only for package @endo/benchmark

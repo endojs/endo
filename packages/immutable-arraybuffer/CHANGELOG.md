@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.1.2](https://github.com/endojs/endo/compare/@endo/immutable-arraybuffer@1.1.1...@endo/immutable-arraybuffer@1.1.2) (2025-07-12)
+
+
+### Bug Fixes
+
+* **immutable-arraybuffer:** unify shim to work on more platforms ([#2855](https://github.com/endojs/endo/issues/2855)) ([25039f5](https://github.com/endojs/endo/commit/25039f561d5e0c1bac48260adcf7e1a26d661659)), closes [#2785](https://github.com/endojs/endo/issues/2785) [#2399](https://github.com/endojs/endo/issues/2399) [#2785](https://github.com/endojs/endo/issues/2785) [#2785](https://github.com/endojs/endo/issues/2785)
+
+
+
 ### [1.1.1](https://github.com/endojs/endo/compare/@endo/immutable-arraybuffer@1.1.0...@endo/immutable-arraybuffer@1.1.1) (2025-06-17)
 
 

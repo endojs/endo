@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.6.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.2...@endo/compartment-mapper@1.6.3) (2025-07-12)
+
+
+### Bug Fixes
+
+* **compartment-mapper:** convert dynamically-required relative paths to absolute ([208f2a8](https://github.com/endojs/endo/commit/208f2a8d8936421c485846909d7cbcb225a80552))
+* **compartment-mapper:** guarantee stable paths ([#2872](https://github.com/endojs/endo/issues/2872)) ([5ff31f9](https://github.com/endojs/endo/commit/5ff31f950beef17bbdfd8e3f1dbc33eb1d60d782))
+
+
+
 ### [1.6.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@1.6.1...@endo/compartment-mapper@1.6.2) (2025-06-17)
 
 

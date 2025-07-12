@@ -1,6 +1,6 @@
 User-visible changes in `@endo/marshal`:
 
-# Next release
+# 1.8.0 (2025-07-11)
 
 - Introduces an environment variable config option `ENDO_RANK_STRINGS` to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN-conformant) ordering by Unicode code point. It currently defaults to "utf16-code-unit-order", matching the previously-unconditional behavior.
 

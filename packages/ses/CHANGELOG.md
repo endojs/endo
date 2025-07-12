@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.14.0](https://github.com/endojs/endo/compare/ses@1.13.1...ses@1.14.0) (2025-07-12)
+
+
+### Features
+
+* **cache-map:** Promote makeLRUCacheMap into a new package ([a39db9e](https://github.com/endojs/endo/commit/a39db9e03dd9bdcc20e25bb857351ca5bfe314ef))
+* **cache-map:** Return a kit for exposing metrics ([f513ebd](https://github.com/endojs/endo/commit/f513ebd36c01ce45eb2684d5f9db4db57a4ac526))
+* **ses:** add noAggregateLoadErrors flag ([#2832](https://github.com/endojs/endo/issues/2832)) ([b222f9f](https://github.com/endojs/endo/commit/b222f9f5c68ef373c31a68b091452b7789a6621b))
+
+
+### Bug Fixes
+
+* **immutable-arraybuffer:** unify shim to work on more platforms ([#2855](https://github.com/endojs/endo/issues/2855)) ([25039f5](https://github.com/endojs/endo/commit/25039f561d5e0c1bac48260adcf7e1a26d661659)), closes [#2785](https://github.com/endojs/endo/issues/2785) [#2399](https://github.com/endojs/endo/issues/2399) [#2785](https://github.com/endojs/endo/issues/2785) [#2785](https://github.com/endojs/endo/issues/2785)
+
+
+
 ### [1.13.1](https://github.com/endojs/endo/compare/ses@1.13.0...ses@1.13.1) (2025-06-17)
 
 

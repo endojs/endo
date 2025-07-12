@@ -1,6 +1,6 @@
 User visible changes in `@endo/immutable-arraybuffer`:
 
-# Next release
+# 1.1.2 (2025-07-11)
 
 - Removes `@endo/immutable-arraybufer/shim-hermes.js` and absorbs the necessary features into `@endo/immutable-arraybuffer/shim.js`. We are not qualifying this as a breaking change since the feature did not exist long enough to become relied upon.
 
