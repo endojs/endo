@@ -228,23 +228,4 @@ export type CopyTagged<
  */
 export type InterfaceSpec = string;
 
-/**
- * Internal to a useful pattern for writing checking logic
- * (a "checkFoo" function) that can be used to implement a predicate
- * (an "isFoo" function) or a validator (an "assertFoo" function).
- *
- *  * A predicate ideally only returns `true` or `false` and rarely throws.
- *  * A validator throws an informative diagnostic when the predicate
- *    would have returned `false`, and simply returns `undefined` normally
- *    when the predicate would have returned `true`.
- *  * The internal checking function that they share is parameterized by a
- *    `Checker` that determines how to proceed with a failure condition.
- *    Predicates pass in an identity function as checker. Validators
- *    pass in `assertChecker` which is a trivial wrapper around `assert`.
- *
- * See the various uses for good examples.
- */
-export type Checker = (
-  cond: boolean,
-  details?: import('ses').Details | undefined,
-) => boolean;
+export type { Checker } from '@endo/common/ident-checker.js';

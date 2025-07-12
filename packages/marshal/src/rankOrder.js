@@ -39,8 +39,8 @@ const ENDO_RANK_STRINGS = getenv('ENDO_RANK_STRINGS', 'utf16-code-unit-order', [
 /**
  * This is the equality comparison used by JavaScript's Map and Set
  * abstractions, where NaN is the same as NaN and -0 is the same as
- * 0. Marshal serializes -0 as zero, so the semantics of our distributed
- * object system does not distinguish 0 from -0.
+ * 0. Marshal still serializes -0 as zero, so the semantics of our distributed
+ * object system does not yet distinguish 0 from -0.
  *
  * `sameValueZero` is the EcmaScript spec name for this equality comparison,
  * but TODO we need a better name for the API.
@@ -112,6 +112,7 @@ export const compareNumerics = (left, right) => {
   assert(NumberIsNaN(left));
   return 1;
 };
+harden(compareNumerics);
 
 /**
  * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
@@ -344,12 +345,18 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
 
   return harden({ comparator: outerComparator, antiComparator });
 };
+harden(makeComparatorKit);
+
 /**
  * @param {RankCompare} comparator
  * @returns {RankCompare=}
  */
 export const comparatorMirrorImage = comparator =>
   comparatorMirrorImages.get(comparator);
+harden(comparatorMirrorImage);
+
+export const { comparator: compareRank, antiComparator: compareAntiRank } =
+  makeComparatorKit();
 
 /**
  * @param {Passable[]} passables
@@ -551,9 +558,7 @@ export const intersectRankCovers = (compare, covers) => {
   ];
   return covers.reduce(intersectRankCoverPair, ['', '{']);
 };
-
-export const { comparator: compareRank, antiComparator: compareAntiRank } =
-  makeComparatorKit();
+harden(intersectRankCovers);
 
 /**
  * Create a comparator kit in which remotables are fully ordered
