@@ -11,7 +11,7 @@ const { prototype: functionPrototype } = Function;
 const {
   getOwnPropertyDescriptor,
   getPrototypeOf,
-  hasOwnProperty: objectHasOwnProperty,
+  hasOwn,
   isFrozen,
   prototype: objectPrototype,
 } = Object;
@@ -27,9 +27,10 @@ assert(typedArrayToStringTagDesc);
 const getTypedArrayToStringTag = typedArrayToStringTagDesc.get;
 assert(typeof getTypedArrayToStringTag === 'function');
 
-export const hasOwnPropertyOf = (obj, prop) =>
-  apply(objectHasOwnProperty, obj, [prop]);
-harden(hasOwnPropertyOf);
+/**
+ * @deprecated Use `Object.hasOwn` instead
+ */
+export const hasOwnPropertyOf = hasOwn;
 
 /**
  * @type {(val: unknown) => val is JSPrimitive}
@@ -65,23 +66,6 @@ export const isTypedArray = object => {
 harden(isTypedArray);
 
 export const PASS_STYLE = Symbol.for('passStyle');
-
-/**
- * For a function to be a valid method, it must not be passable.
- * Otherwise, we risk confusing pass-by-copy data carrying
- * far functions with attempts at far objects with methods.
- *
- * TODO HAZARD Because we check this on the way to hardening a remotable,
- * we cannot yet check that `func` is hardened. However, without
- * doing so, it's inheritance might change after the `PASS_STYLE`
- * check below.
- *
- * @param {any} func
- * @returns {boolean}
- */
-export const canBeMethod = func =>
-  typeof func === 'function' && !(PASS_STYLE in func);
-harden(canBeMethod);
 
 /**
  * Below we have a series of predicate functions and their (curried) assertion
@@ -133,7 +117,7 @@ export const getOwnDataDescriptor = (
   );
   return (desc !== undefined ||
     (!!check && CX(check)`${q(propName)} property expected: ${candidate}`)) &&
-    (hasOwnPropertyOf(desc, 'value') ||
+    (hasOwn(desc, 'value') ||
       (!!check &&
         CX(
           check,

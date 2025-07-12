@@ -5,7 +5,7 @@ import {
   defineProperty,
   entries,
   freeze,
-  objectHasOwnProperty,
+  hasOwn,
   unscopablesSymbol,
 } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
@@ -87,7 +87,7 @@ export const setGlobalObjectMutableProperties = (
   },
 ) => {
   for (const [name, intrinsicName] of entries(universalPropertyNames)) {
-    if (objectHasOwnProperty(intrinsics, intrinsicName)) {
+    if (hasOwn(intrinsics, intrinsicName)) {
       defineProperty(globalObject, name, {
         value: intrinsics[intrinsicName],
         writable: true,
@@ -98,7 +98,7 @@ export const setGlobalObjectMutableProperties = (
   }
 
   for (const [name, intrinsicName] of entries(newGlobalPropertyNames)) {
-    if (objectHasOwnProperty(intrinsics, intrinsicName)) {
+    if (hasOwn(intrinsics, intrinsicName)) {
       defineProperty(globalObject, name, {
         value: intrinsics[intrinsicName],
         writable: true,

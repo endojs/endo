@@ -78,11 +78,18 @@ test('serialize decodeToJustin indented eval round trip', t => {
     // TODO make Justin work with smallcaps
     serializeBodyFormat: 'capdata',
   });
-  for (const [body, _, slots] of jsonJustinPairs) {
+  for (const [body, justinSrc, slots] of jsonJustinPairs) {
     const c = fakeJustinCompartment();
     const encoding = JSON.parse(body);
     const justinExpr = decodeToJustin(encoding, true, slots);
     t.log(justinExpr);
+    const condensed = justinExpr.replaceAll(
+      // Remove whitespace except in quoted strings, and commas after terminal
+      // array elements and object members.
+      /("(?:[^\\"]|\\.)*")|\s+|,\n\s*([\]}])/gs,
+      (_m, quotedStr, closePunc) => quotedStr || closePunc || '',
+    );
+    t.is(condensed, justinSrc);
     const value = harden(c.evaluate(`(${justinExpr})`));
     const { body: newBody } = serialize(value);
     t.is(newBody, body);

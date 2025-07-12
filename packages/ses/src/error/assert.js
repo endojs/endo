@@ -39,7 +39,7 @@ import {
   ownKeys,
   create,
   objectPrototype,
-  objectHasOwnProperty,
+  hasOwn,
 } from '../commons.js';
 import { an, bestEffortStringify } from './stringify-utils.js';
 import './types.js';
@@ -307,7 +307,7 @@ export const sanitizeError = error => {
   for (const name of ownKeys(error)) {
     // @ts-expect-error TS still confused by symbols as property names
     const desc = descs[name];
-    if (desc && objectHasOwnProperty(desc, 'get')) {
+    if (desc && hasOwn(desc, 'get')) {
       defineProperty(error, name, {
         value: error[name], // invoke the getter to convert to data property
       });

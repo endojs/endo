@@ -2,9 +2,10 @@
 /* eslint-disable @endo/no-polymorphic-call */
 /* eslint-disable no-restricted-globals */
 
-import { makeLRUCacheMap } from '../make-lru-cachemap.js';
+import { makeCacheMapKit } from '@endo/cache-map';
 
 /**
+ * @import {CacheMapKit} from '@endo/cache-map';
  * @import {LogArgs} from './internal-types.js';
  */
 
@@ -29,16 +30,16 @@ export const makeNoteLogArgsArrayKit = (
   }
 
   /**
-   * @type {WeakMap<Error, LogArgs[]>}
-   *
    * Maps from an error to an array of log args, where each log args is
    * remembered as an annotation on that error. This can be used, for example,
    * to keep track of additional causes of the error. The elements of any
    * log args may include errors which are associated with further annotations.
    * An augmented console, like the causal console of `console.js`, could
    * then retrieve the graph of such annotations.
+   *
+   * @type {CacheMapKit<WeakMapConstructor, Error, LogArgs[]>}
    */
-  const noteLogArgsArrayMap = makeLRUCacheMap(errorsBudget);
+  const { cache: noteLogArgsArrayMap } = makeCacheMapKit(errorsBudget);
 
   /**
    * @param {Error} error
