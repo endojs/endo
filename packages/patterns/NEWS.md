@@ -1,6 +1,6 @@
 User-visible changes in `@endo/patterns`:
 
-# Next release
+# 1.7.0 (2025-07-11)
 
 - `@endo/marshal` introduces an environment variable config option `ENDO_RANK_STRINGS` to change the rank ordering of strings from the current (incorrect) ordering by UTF-16 code unit used by JavaScript's `<` and `.sort()` operations to (correct and OCapN-conformant) ordering by Unicode code point. It currently defaults to "utf16-code-unit-order", matching the previously-unconditional behavior.
   - `@endo/patterns` provides a `compareKeys` partial order that delegates some ordering, including strings, to the rank ordering provided by `@endo/marshal`. So when the `ENDO_RANK_STRINGS` default is not overridden, then `compareKeys` also follows the (incorrect) UTF-16 code unit order. But when it is overridden, then `compareKeys` also follows the (correct) Unicode code-point order.

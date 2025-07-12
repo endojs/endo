@@ -1,8 +1,12 @@
 User-visible changes in `@endo/pass-style`:
 
-# Next release
+# 1.6.3 (2025-07-11)
 
-The exported function name `isObject` is ambiguous. It is unclear whether it includes functions or not. (It does.) To avoid this confusion, we're deprecating `isObject` and suggesting to use the new export `isPrimitive` instead, that has the opposite answer. IOW, for all `x`, `isObject(x) === !isPrimitive(x)`
+- The exported function name `isObject` is ambiguous. It is unclear whether it
+  includes functions or not. (It does.) To avoid this confusion, we're
+  deprecating `isObject` and suggesting to use the new export `isPrimitive`
+  instead, that has the opposite answer. IOW, for all `x`, `isObject(x) ===
+  !isPrimitive(x)`
 
 # v1.6.2 (2024-06-17)
 
