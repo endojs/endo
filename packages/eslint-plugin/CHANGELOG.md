@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.3.2...@endo/eslint-plugin@2.4.0) (2025-07-12)
+
+
+### Features
+
+* **eslint-plugin:** Add ses configuration ([eeed479](https://github.com/endojs/endo/commit/eeed479d407fcb15334eb85929a5148421cadb8c))
+
+
+
 ### [2.3.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.3.1...@endo/eslint-plugin@2.3.2) (2025-06-17)
 
 **Note:** Version bump only for package @endo/eslint-plugin

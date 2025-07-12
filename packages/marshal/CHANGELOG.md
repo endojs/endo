@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.0](https://github.com/endojs/endo/compare/@endo/marshal@1.7.1...@endo/marshal@1.8.0) (2025-07-12)
+
+
+### Features
+
+* **marshal,patterns:** env-option to config string order ([#2873](https://github.com/endojs/endo/issues/2873)) ([94d844f](https://github.com/endojs/endo/commit/94d844fb63a7c9499972a45f3fc5d31fe4ead1da)), closes [#2113](https://github.com/endojs/endo/issues/2113) [#2002](https://github.com/endojs/endo/issues/2002) [/github.com/Agoric/agoric-sdk/pull/10165/files#diff-b51392c299617fe43392dd0bcf11b9ed89b619cd4e5051fcffc9bfedef1c4d15](https://github.com/endojs//github.com/Agoric/agoric-sdk/pull/10165/files/issues/diff-b51392c299617fe43392dd0bcf11b9ed89b619cd4e5051fcffc9bfedef1c4d15) [#2875](https://github.com/endojs/endo/issues/2875) [#2008](https://github.com/endojs/endo/issues/2008) [#2008](https://github.com/endojs/endo/issues/2008) [#2875](https://github.com/endojs/endo/issues/2875) [#2875](https://github.com/endojs/endo/issues/2875) [#2875](https://github.com/endojs/endo/issues/2875) [#2875](https://github.com/endojs/endo/issues/2875) [#2875](https://github.com/endojs/endo/issues/2875) [#2875](https://github.com/endojs/endo/issues/2875) [#2875](https://github.com/endojs/endo/issues/2875)
+
+
+
 ### [1.7.1](https://github.com/endojs/endo/compare/@endo/marshal@1.7.0...@endo/marshal@1.7.1) (2025-06-17)
 
 
