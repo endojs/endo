@@ -12,6 +12,7 @@
  *   CompartmentMapDescriptor,
  *   DigestResult,
  *   ModuleDescriptor,
+ *   RetainAllOptions,
  *   Sources,
  * } from './types.js'
  */
@@ -62,7 +63,7 @@ const renameCompartments = compartments => {
   // stability, which became standard as recently as 2019.
   // If that date seems quaint, please accept my regards from the distant past.
   // We are very proud of you.
-  const compartmentsByPath = Object.entries(compartments)
+  const compartmentsByPath = entries(compartments)
     .map(([name, compartment]) => ({
       name,
       path: compartment.path,
@@ -93,13 +94,19 @@ const renameCompartments = compartments => {
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {Sources} sources
  * @param {Record<string, string>} compartmentRenames
+ * @param {RetainAllOptions} [options]
  */
-const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
+const translateCompartmentMap = (
+  compartments,
+  sources,
+  compartmentRenames,
+  { retainAll = false } = {},
+) => {
   const result = create(null);
   for (const compartmentName of keys(compartmentRenames)) {
     const compartment = compartments[compartmentName];
     const { name, label, retained: compartmentRetained, policy } = compartment;
-    if (compartmentRetained) {
+    if (retainAll || compartmentRetained) {
       // rename module compartments
       /** @type {Record<string, ModuleDescriptor>} */
       const modules = create(null);
@@ -108,7 +115,7 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
         for (const name of keys(compartmentModules).sort()) {
           const { retained: moduleRetained, ...retainedModule } =
             compartmentModules[name];
-          if (moduleRetained) {
+          if (retainAll || moduleRetained) {
             if (retainedModule.compartment !== undefined) {
               modules[name] = {
                 ...retainedModule,
@@ -177,9 +184,14 @@ const renameSources = (sources, compartmentRenames) => {
 /**
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
+ * @param {RetainAllOptions} [options]
  * @returns {DigestResult}
  */
-export const digestCompartmentMap = (compartmentMap, sources) => {
+export const digestCompartmentMap = (
+  compartmentMap,
+  sources,
+  { retainAll = false } = {},
+) => {
   const {
     compartments,
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
@@ -190,6 +202,7 @@ export const digestCompartmentMap = (compartmentMap, sources) => {
     compartments,
     sources,
     oldToNewCompartmentNames,
+    { retainAll },
   );
   const digestEntryCompartmentName =
     oldToNewCompartmentNames[entryCompartmentName];

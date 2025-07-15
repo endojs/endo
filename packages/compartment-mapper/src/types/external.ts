@@ -134,10 +134,24 @@ export type CompartmentMapForNodeModulesOptions = Omit<
   'conditions' | 'tags'
 >;
 
+/**
+ * Options containing a `retainAll` property
+ */
+export interface RetainAllOptions {
+  /**
+   * If `true`, all compartments will be retained during the digest phase
+   */
+  retainAll?: boolean;
+}
+
+/**
+ * Options for `captureFromMap()`
+ */
 export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
   PolicyOption &
-  LogOptions;
+  LogOptions &
+  RetainAllOptions;
 
 export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
