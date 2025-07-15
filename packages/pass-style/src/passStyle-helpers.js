@@ -42,9 +42,12 @@ export const isPrimitive = val =>
   !val || (typeof val !== 'object' && typeof val !== 'function');
 harden(isPrimitive);
 
+// NOTE: Do not make this type more precise because it breaks only clients
+// that rely on it being less precise.
 /**
  * @deprecated use `!isPrimitive` instead
- * @type {(val: unknown) => val is (Function | Record<string | symbol, unknown>)}
+ * @param {any} val
+ * @returns {boolean}
  */
 export const isObject = val =>
   // Safer would be `Object(val) -== val` but is too expensive on XS.
