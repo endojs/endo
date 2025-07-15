@@ -12,6 +12,10 @@
  * correponding JS types for the argument types.
  * (Except `buildRoot` which is at a Builder metalevel.)
  *
+ * Based on "The Event-Based DEBuilder API" at
+ * http://www.erights.org/data/serial/jhu-paper/data-e-manual.html
+ * See also "./call-grammar.md".
+ *
  * @property {(buildTopFn: () => N) => R} buildRoot
  *
  * // Atoms
