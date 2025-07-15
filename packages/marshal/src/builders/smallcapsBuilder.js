@@ -7,7 +7,6 @@ import {
   assertPassableSymbol,
   Far,
   getErrorConstructor,
-  hasOwnPropertyOf,
   mapIterable,
   nameForPassableSymbol,
   passableSymbolForName,
@@ -17,7 +16,7 @@ import {
   encodeStringToSmallcaps as buildString,
 } from '../encodeToSmallcaps.js';
 
-const { is, fromEntries } = Object;
+const { is, fromEntries, hasOwn } = Object;
 const { isArray } = Array;
 const { ownKeys } = Reflect;
 const { quote: q, details: X, Fail } = assert;
@@ -188,7 +187,7 @@ const makeSmallcapsRecognizer = () => {
           return builder.buildList(encoding.length, buildElementsIter);
         }
 
-        if (hasOwnPropertyOf(encoding, '#tag')) {
+        if (hasOwn(encoding, '#tag')) {
           const { '#tag': tag, payload, ...rest } = encoding;
           ownKeys(rest).length === 0 ||
             Fail`#tag record unexpected properties: ${q(ownKeys(rest))}`;
@@ -196,7 +195,7 @@ const makeSmallcapsRecognizer = () => {
           return builder.buildTagged(recognizeString(tag), buildPayloadFn);
         }
 
-        if (hasOwnPropertyOf(encoding, '#error')) {
+        if (hasOwn(encoding, '#error')) {
           // TODO slots and options and all that. Also errorId
           const { '#error': message, name } = encoding;
           const dMessage = recognizeString(message);
