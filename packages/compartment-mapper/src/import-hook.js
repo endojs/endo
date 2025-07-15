@@ -14,6 +14,7 @@
  * @import {
  *   ImportHook,
  *   ImportNowHook,
+ *   RecordModuleDescriptor,
  *   RedirectStaticModuleInterface,
  *   StaticModuleType,
  *   VirtualModuleSource
@@ -195,7 +196,7 @@ const findRedirect = ({
           someCompartmentDescriptor,
           compartmentDescriptor,
           {
-            errorHint: `Blocked in importNow hook by package policy. ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
+            errorHint: `Blocked in importNow hook by package policy (${q(compartmentDescriptor.policy)}). ${q(absoluteModuleSpecifier)} is part of the compartment map and resolves to ${location}`,
           },
         );
 
@@ -296,7 +297,7 @@ const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
  * @param {ChooseModuleDescriptorParams} options Options/context
  * @param {Operators} operators Operators
  * @returns {Generator<ChooseModuleDescriptorYieldables,
- * StaticModuleType|undefined, Awaited<ChooseModuleDescriptorYieldables>>}
+ * RecordModuleDescriptor|undefined, Awaited<ChooseModuleDescriptorYieldables>>}
  * Generator
  */
 function* chooseModuleDescriptor(
@@ -412,7 +413,7 @@ function* chooseModuleDescriptor(
           compartment: packageLocation,
         };
       }
-      /** @type {StaticModuleType} */
+      /** @type {RecordModuleDescriptor} */
       const record = {
         record: concreteRecord,
         specifier: candidateSpecifier,

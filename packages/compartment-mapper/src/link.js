@@ -83,18 +83,19 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * `makeModuleMapHook` generates a `moduleMapHook` for the `Compartment`
  * constructor, suitable for Node.js style packages where any module in the
  * package might be imported.
- * Since searching for all of these modules up front is either needlessly
- * costly (on a file system) or impossible (from a web service), we
- * let the import graph guide our search.
- * Any module specifier with an absolute prefix should be captured by
- * the `moduleMap` or `moduleMapHook`.
+ *
+ * Since searching for all of these modules up front is either needlessly costly
+ * (on a file system) or impossible (from a web service), we let the import
+ * graph guide our search. Any module specifier with an absolute prefix should
+ * be captured by the `moduleMap` or `moduleMapHook`.
  *
  * @param {CompartmentDescriptor} compartmentDescriptor
  * @param {Record<string, Compartment>} compartments
  * @param {string} compartmentName
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
- * @returns {ModuleMapHook | undefined}
+ * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors For error reporting only
+ * @returns {ModuleMapHook}
  */
 const makeModuleMapHook = (
   compartmentDescriptor,
@@ -102,10 +103,10 @@ const makeModuleMapHook = (
   compartmentName,
   moduleDescriptors,
   scopeDescriptors,
+  compartmentDescriptors,
 ) => {
   /**
-   * @param {string} moduleSpecifier
-   * @returns {string | object | undefined}
+   * @type {ModuleMapHook}
    */
   const moduleMapHook = moduleSpecifier => {
     compartmentDescriptor.retained = true;
@@ -185,6 +186,8 @@ const makeModuleMapHook = (
           )} is part of the compartment map and resolves to ${q(
             foreignCompartmentName,
           )}.`,
+          resourceNameOrPath:
+            compartmentDescriptors[foreignCompartmentName]?.path,
         });
         // The following line is weird.
         // Information is flowing backward.
@@ -240,17 +243,9 @@ const impossibleImportNowHookMaker = () => {
  * @param {LinkOptions} options
  * @returns {LinkResult} the root compartment of the compartment DAG
  */
-
-/**
- * @param {CompartmentMapDescriptor} compartmentMap
- * @param {LinkOptions} options
- * @returns {LinkResult}
- */
 export const link = (
   { entry, compartments: compartmentDescriptors },
-  options,
-) => {
-  const {
+  {
     resolve = resolveFallback,
     makeImportHook,
     makeImportNowHook = impossibleImportNowHookMaker,
@@ -263,8 +258,8 @@ export const link = (
     __native__ = false,
     archiveOnly = false,
     Compartment = defaultCompartment,
-  } = options;
-
+  },
+) => {
   const { compartment: entryCompartmentName } = entry;
 
   /** @type {Record<string, Compartment>} */
@@ -355,6 +350,7 @@ export const link = (
       compartmentName,
       modules,
       scopes,
+      compartmentDescriptors,
     );
 
     const compartment = new Compartment({

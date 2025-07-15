@@ -95,6 +95,7 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     Compartment = defaultCompartment,
+    additionalPackageDetails = [],
   } = options;
 
   const parserForLanguage = freeze(
@@ -139,6 +140,15 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     Compartment,
   });
   await compartment.load(entryModuleSpecifier);
+
+  // this bit loads all additional packages which would not be loaded
+  // otherwise since they may be only dynamically reachable
+  await Promise.all(
+    additionalPackageDetails.map(async ({ packageLocation }) =>
+      compartment.load(packageLocation),
+    ),
+  );
+
   if (policy) {
     // retain all attenuators.
     await Promise.all(

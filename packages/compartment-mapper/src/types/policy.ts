@@ -6,6 +6,7 @@
 
 /* eslint-disable no-use-before-define */
 
+import type { CompartmentDescriptor } from './compartment-map-schema.js';
 import type { LiteralUnion, SomeObject } from './typescript.js';
 
 export type PackageNamingKit = {
@@ -47,3 +48,30 @@ export type DeferredAttenuatorsProvider = {
  * A fieldname of `PackagePolicy`; used with `policyLookupHelper()`
  */
 export type PolicyEnforcementField = 'builtins' | 'globals' | 'packages';
+
+/**
+ * Options for `enforceModulePolicy()`
+ */
+export interface EnforceModulePolicyOptions {
+  /**
+   * `tru` if the specifier is an exit module
+   */
+  exit?: boolean;
+  /**
+   * Additional information about source of error
+   */
+  errorHint?: string;
+
+  /**
+   * Canonical name or path of resource trying to import
+   */
+  resourceNameOrPath?: string | string[];
+}
+
+/**
+ * Options for `enforcePackagePolicyByPath()`
+ */
+export type EnforceModulePolicyByPathOptions = Pick<
+  EnforceModulePolicyOptions,
+  'errorHint'
+>;

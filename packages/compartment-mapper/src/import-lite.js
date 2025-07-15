@@ -31,6 +31,8 @@
  *   ReadFn,
  *   ReadPowers,
  *   SomeObject,
+ *   LoadFromMapOptions,
+ *   SyncLoadFromMapOptions,
  * } from './types.js'
  */
 
@@ -74,7 +76,7 @@ const isSyncOptions = value => {
  * @overload
  * @param {ReadNowPowers} readPowers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {SyncImportLocationOptions} [opts]
+ * @param {SyncLoadFromMapOptions} [options]
  * @returns {Promise<Application>}
  */
 
@@ -82,14 +84,14 @@ const isSyncOptions = value => {
  * @overload
  * @param {ReadFn | ReadPowers} readPowers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ImportLocationOptions} [opts]
+ * @param {LoadFromMapOptions} [options]
  * @returns {Promise<Application>}
  */
 
 /**
  * @param {ReadFn|ReadPowers|ReadNowPowers} readPowers
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {ImportLocationOptions} [options]
+ * @param {LoadFromMapOptions} [options]
  * @returns {Promise<Application>}
  */
 
@@ -98,6 +100,7 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     searchSuffixes = undefined,
     parserForLanguage: parserForLanguageOption = {},
     Compartment: LoadCompartmentOption = Compartment,
+    additionalPackageDetails = [],
   } = options;
 
   const parserForLanguage = freeze(
@@ -226,6 +229,14 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
     }
 
     await pendingJobsPromise;
+
+    // this bit loads all additional packages which would not be loaded
+    // otherwise since they may be only dynamically reachable
+    await Promise.all(
+      additionalPackageDetails.map(async ({ packageLocation }) =>
+        compartment.load(packageLocation),
+      ),
+    );
 
     return compartment.import(entryModuleSpecifier);
   };
