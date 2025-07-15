@@ -73,6 +73,18 @@ https://github.com/endojs/endo/labels/next-release
   +# 0.5.1 (2021-08-12)
   ```
 
+  Also, capture these into a release notes document, where each heading
+  is the name of the package and the version number instead of the
+  version number and release date, like so:
+
+  ```
+  # `ses` 1.0.0
+  ```
+
+  In the release notes document, we do not manually wrap long lines.
+  All paragraphs should be joined into long lines, since Github uses a
+  different flavor of Markdown for descriptions and release notes.
+
 * Commit the results.
 
   ```sh
@@ -92,7 +104,8 @@ https://github.com/endojs/endo/labels/next-release
   git push -u origin release-$now
   ```
 
-* Create a pull request and request a review.
+* Create a pull request and request a review, using the release notes
+  from above as the description.
   This is an opportunity to:
 
   - verify that the changes pass tests under continuous integration,
@@ -105,13 +118,6 @@ https://github.com/endojs/endo/labels/next-release
 * When your reviewer has approved your release, use `git rebase -i
   origin/master` to remove the automatically generated `chore: lerna version`
   commit.
-
-* Ensure your dependency solution is fresh and rebuild all generated assets.
-
-  ```sh
-  yarn install
-  yarn build
-  ```
 
 * Recreate the changelogs with the current date *and* generate tags for the new
   versions. This is the effect of removing the `--no-git-tag-version` flag.
@@ -176,6 +182,10 @@ https://github.com/endojs/endo/labels/next-release
   ```sh
   git tag -l | egrep -e '@[0-9]+\.[0-9]+\.[0-9]+$' | xargs git push origin
   ```
+
+* Go to https://github.com/endojs/endo/releases and create a new release
+  using the latest tag for `ses` as the reference tag, and the release
+  notes you prepared for the pull request description.
 
 ## More information
 
