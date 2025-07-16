@@ -14,7 +14,7 @@ export type FullAttenuationDefinition = {
   /** The type of attenuation. */
   attenuate: string;
   /** The parameters for the attenuation. */
-  params: ImplicitAttenuationDefinition;
+  params?: ImplicitAttenuationDefinition;
 };
 
 /**

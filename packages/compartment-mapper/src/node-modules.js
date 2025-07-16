@@ -16,12 +16,8 @@
 import { inferExportsAndAliases } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { join } from './node-module-specifier.js';
-import { assertPolicy } from './policy-format.js';
-import {
-  ATTENUATORS_COMPARTMENT,
-  dependencyAllowedByPolicy,
-  getPolicyForPackage,
-} from './policy.js';
+import { assertPolicy, ATTENUATORS_COMPARTMENT } from './policy-format.js';
+import { dependencyAllowedByPolicy, getPolicyForPackage } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
 import { GenericGraph, makeShortestPath } from './generic-graph.js';

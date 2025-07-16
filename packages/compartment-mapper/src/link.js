@@ -30,11 +30,11 @@
 import { makeMapParsers } from './map-parser.js';
 import { resolve as resolveFallback } from './node-module-specifier.js';
 import {
-  ATTENUATORS_COMPARTMENT,
   attenuateGlobals,
   enforceModulePolicy,
   makeDeferredAttenuatorsProvider,
 } from './policy.js';
+import { ATTENUATORS_COMPARTMENT } from './policy-format.js';
 
 const { assign, create, entries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;

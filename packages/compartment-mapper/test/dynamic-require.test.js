@@ -3,7 +3,9 @@
 
 /**
  * @import {
- *   ExitModuleImportNowHook, Policy,
+ *   ExitModuleImportNowHook,
+ *   ExitModuleImportHook,
+ *   Policy,
  *   SyncModuleTransforms,
  * } from '../src/types.js'
  * @import {ThirdPartyStaticModuleInterface} from 'ses'
@@ -40,6 +42,14 @@ const defaultImportNowHook = (specifier, packageLocation) => {
       },
     }),
   );
+};
+
+/**
+ * @type {ExitModuleImportHook}
+ */
+const defaultImportHook = async (specifier, packageLocation) => {
+  await Promise.resolve();
+  return defaultImportNowHook(specifier, packageLocation);
 };
 
 test('intra-package dynamic require works without invoking the exitModuleImportNowHook', async t => {
@@ -214,7 +224,7 @@ test('intra-package dynamic require using known-but-restricted absolute path fai
       importNowHook,
     }),
     {
-      message: /Blocked in import hook/,
+      message: /Blocked in importNow hook by reference/,
     },
   );
 });
@@ -419,7 +429,7 @@ test('inter-package and exit module dynamic require policy is enforced', async t
       },
     }),
     {
-      message: /not allowed by policy/,
+      message: /not allowed by empty "builtins" policy/,
     },
   );
 });
@@ -607,22 +617,7 @@ test('dynamic require of missing module falls through to importNowHook', async t
         throw new Error(`Blocked exit module: ${specifier}`);
       },
       // this will load the `path` builtin
-      importHook: async (specifier, packageLocation) => {
-        const require = Module.createRequire(
-          readPowers.fileURLToPath(packageLocation),
-        );
-        const ns = require(specifier);
-        return freeze(
-          /** @type {ThirdPartyStaticModuleInterface} */ ({
-            imports: [],
-            exports: keys(ns),
-            execute: moduleExports => {
-              moduleExports.default = ns;
-              assign(moduleExports, ns);
-            },
-          }),
-        );
-      },
+      importHook: defaultImportHook,
     }),
     {
       message: /Blocked exit module: .+missing\.js/,
@@ -666,4 +661,124 @@ test('dynamic require of ancestor relative path within unknown compartment', asy
   await t.throwsAsync(importLocation(readPowers, fixture), {
     message: /Could not import unknown module.+grabby-app\/macguffin/,
   });
+});
+
+test('dynamic require of ancestor', async t => {
+  // TODO: see if we can somehow use the pantspack.js entry
+  const fixture = new URL(
+    'fixtures-dynamic-ancestor/node_modules/webpackish-app/build.js',
+    import.meta.url,
+  ).href;
+
+  const { namespace } = await importLocation(readPowers, fixture, {
+    dev: true,
+    importNowHook: defaultImportNowHook,
+    importHook: defaultImportHook,
+    policy: {
+      entry: {
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
+      },
+      resources: {
+        pantspack: {
+          builtins: {
+            'node:console': true,
+            'node:path': true,
+            'node:util': true,
+          },
+          packages: {
+            'pantspack>pantspack-folder-runner': true,
+            'webpackish-app': true,
+          },
+        },
+        'pantspack>pantspack-folder-runner': {
+          packages: {
+            'jorts-folder': true,
+          },
+        },
+      },
+    },
+  });
+
+  t.like(namespace, [
+    {
+      packageDescriptor: { name: 'webpackish-app' },
+      foldedSources: ['webpackish-app-v1.2.3'],
+    },
+  ]);
+});
+
+test('dynamic require of ancestor disallowed by policy fails at require time', async t => {
+  // TODO: see if we can somehow use the pantspack.js entry
+  const fixture = new URL(
+    'fixtures-dynamic-ancestor/node_modules/webpackish-app/build.js',
+    import.meta.url,
+  ).href;
+
+  const policy = {
+    entry: {
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
+    },
+    resources: {
+      pantspack: {
+        builtins: {
+          'node:console': true,
+          'node:path': true,
+          'node:util': true,
+        },
+        packages: {
+          'pantspack>pantspack-folder-runner': true,
+          'webpackish-app': true,
+        },
+      },
+      'pantspack>pantspack-folder-runner': {
+        packages: {
+          'jorts-folder': false, // <--- this is the only change
+        },
+      },
+    },
+  };
+  // this is in a try/catch because AVA's `throwsAsync` is inflexible
+  try {
+    // eslint-disable-next-line @jessie.js/safe-await-separator
+    await importLocation(readPowers, fixture, {
+      dev: true,
+      importNowHook: defaultImportNowHook,
+      importHook: defaultImportHook,
+      policy,
+    });
+    t.fail('importLocation should have rejected');
+  } catch (err) {
+    t.regex(err.message, /Could not require pantsFolder "jorts-folder"/);
+    t.regex(
+      err.cause.message,
+      new RegExp(
+        `Importing "jorts-folder" in resource "jorts-folder" in "pantspack-folder-runner-v1\\.0\\.0" was not allowed by "packages" policy: ${JSON.stringify(policy.resources['pantspack>pantspack-folder-runner'].packages)}`,
+      ),
+    );
+  }
+});
+
+test('dynamic require of ancestor disallowed if policy omitted', async t => {
+  // TODO: see if we can somehow use the pantspack.js entry
+  const fixture = new URL(
+    'fixtures-dynamic-ancestor/node_modules/webpackish-app/build.js',
+    import.meta.url,
+  ).href;
+
+  try {
+    // eslint-disable-next-line @jessie.js/safe-await-separator
+    await importLocation(readPowers, fixture, {
+      dev: true,
+      importNowHook: defaultImportNowHook,
+      importHook: defaultImportHook,
+    });
+    t.fail('importLocation should have rejected');
+  } catch (err) {
+    t.regex(err.message, /Could not require pantsFolder "jorts-folder"/);
+    t.regex(err.cause.message, /Could not import module/);
+  }
 });
