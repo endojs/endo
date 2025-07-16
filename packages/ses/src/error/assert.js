@@ -47,7 +47,7 @@ import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
- * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, Stringable, DetailsToken, MakeAssert} from '../../types.js';
+ * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, DeprecatedAssertionUtilities, Stringable, DetailsToken, MakeAssert} from '../../types.js';
  * @import {LogArgs, NoteCallback, LoggedErrorHandler} from './internal-types.js';
  */
 
@@ -491,9 +491,9 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   /** @type {AssertionUtilities['Fail']} */
   const Fail = (template, ...args) => fail(details(template, ...args));
 
-  // Don't freeze or export `baseAssert` until we add methods.
+  // Don't freeze or export `assert` until we add methods.
   /** @type {BaseAssert} */
-  const baseAssert = (
+  const assert = (
     flag,
     optDetails = undefined,
     errConstructor = undefined,
@@ -542,22 +542,34 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   const assertString = (specimen, optDetails = undefined) =>
     assertTypeof(specimen, 'string', optDetails);
 
-  // Note that "assert === baseAssert"
-  /** @type {Assert} */
-  const assert = assign(baseAssert, {
-    error: makeError,
-    fail,
+  /** @type {Pick<AssertionFunctions, keyof AssertionFunctions>} */
+  const assertionFunctions = {
     equal,
     typeof: assertTypeof,
     string: assertString,
+    fail,
+  };
+
+  /** @type {AssertionUtilities} */
+  const assertionUtilities = {
+    error: makeError,
     note,
     details,
     Fail,
     quote,
     bare,
-    makeAssert,
+  };
+
+  /** @type {DeprecatedAssertionUtilities} */
+  const deprecated = { makeAssert };
+
+  /** @type {Assert} */
+  const finishedAssert = assign(assert, {
+    ...assertionFunctions,
+    ...assertionUtilities,
+    ...deprecated,
   });
-  return freeze(assert);
+  return freeze(finishedAssert);
 };
 freeze(makeAssert);
 export { makeAssert };
