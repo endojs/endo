@@ -382,7 +382,7 @@ export interface AssertionUtilities {
    * values may have been redacted into `typeof` types but are still available
    * for logging to an associated console.
    */
-  error(
+  makeError(
     /** The details of what was asserted */
     details?: Details,
     /** An optional alternate error constructor to use */
@@ -484,6 +484,7 @@ export interface AssertionUtilities {
 
 export interface DeprecatedAssertionUtilities {
   makeAssert: MakeAssert;
+  error: AssertionUtilities['makeError'];
 }
 
 /**
