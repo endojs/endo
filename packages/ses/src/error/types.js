@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @import {GenericErrorConstructor, AssertMakeErrorOptions, DetailsToken, StringablePayload} from '../../types.js' */
+/** @import {GenericErrorConstructor, AssertMakeErrorOptions, DetailsToken, Stringable} from '../../types.js' */
 
 /**
  * @typedef {object} VirtualConsole
