@@ -47,8 +47,8 @@ import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
- * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, StringablePayload, DetailsToken, MakeAssert} from '../../types.js'
- * @import {LogArgs, NoteCallback, LoggedErrorHandler} from "./internal-types.js";
+ * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, Stringable, DetailsToken, MakeAssert} from '../../types.js';
+ * @import {LogArgs, NoteCallback, LoggedErrorHandler} from './internal-types.js';
  */
 
 // For our internal debugging purposes, uncomment
@@ -56,7 +56,7 @@ import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 // /////////////////////////////////////////////////////////////////////////////
 
-/** @type {WeakMap<StringablePayload, any>} */
+/** @type {WeakMap<Stringable, any>} */
 const declassifiers = new WeakMap();
 
 /** @type {AssertionUtilities['quote']} */
