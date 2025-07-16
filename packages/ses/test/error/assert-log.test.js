@@ -390,6 +390,7 @@ test('assert.bare', t => {
     ['log', 'Caught', Error],
   ]);
   // Non-strings also fall back.
+  // @ts-expect-error intentional bad input
   throwsAndLogs(t, () => Fail`${b(undefined)}`, '"[undefined]"', [
     ['log', 'Caught', Error],
   ]);
