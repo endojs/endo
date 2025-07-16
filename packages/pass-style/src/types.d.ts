@@ -1,3 +1,4 @@
+import type { RemotableBrand } from '@endo/eventual-send';
 /* eslint-disable no-use-before-define */
 import { PASS_STYLE } from './passStyle-helpers.js';
 
@@ -78,7 +79,9 @@ export type PassByCopy = Atom | Error | CopyArray | CopyRecord | CopyTagged;
 
 export type PassByRef =
   | RemotableObject
+  | RemotableBrand<any, any>
   | Promise<RemotableObject>
+  | Promise<RemotableBrand<any, any>>
   | Promise<PassByCopy>;
 
 /**
@@ -188,7 +191,10 @@ export type RemotableMethodName = PropertyKey;
 /**
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
-export type PassableCap = Promise<any> | RemotableObject;
+export type PassableCap =
+  | Promise<any>
+  | RemotableObject
+  | RemotableBrand<any, any>;
 
 /**
  * A Passable sequence of Passable values.
