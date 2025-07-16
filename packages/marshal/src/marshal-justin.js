@@ -12,7 +12,7 @@ import { QCLASS } from './encodeToCapData.js';
 import { makeMarshal } from './marshal.js';
 
 /**
- * @import {StringablePayload} from 'ses';
+ * @import {Stringable} from 'ses';
  * @import {Passable} from '@endo/pass-style';
  * @import {Encoding} from './types.js';
  */
@@ -505,7 +505,7 @@ harden(passableAsJustin);
  * than HardenedJS.
  *
  * @param {Passable} payload
- * @returns {StringablePayload}
+ * @returns {Stringable}
  */
 export const qp = payload => `\`${passableAsJustin(harden(payload), true)}\``;
 harden(qp);

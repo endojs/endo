@@ -189,6 +189,13 @@ export interface EvaluateOptions {
   __rejectSomeDirectEvalExpressions__?: boolean;
 }
 
+interface Stringable {
+  toString(): string;
+}
+
+/** @deprecated */
+type StringPayload = Stringable;
+
 /**
  * A call to the `details` template literal makes and returns a fresh details
  * token, which is a frozen empty object associated with the arguments of that
@@ -281,10 +288,6 @@ export type AssertTypeof = AssertTypeofBigint &
   AssertTypeofString &
   AssertTypeofSymbol &
   AssertTypeofUndefined;
-
-interface StringablePayload {
-  toString(): string;
-}
 
 /**
  * TypeScript does not treat `AggregateErrorConstructor` as a subtype of
@@ -509,7 +512,7 @@ export interface AssertionUtilities {
     /** What to declassify */
     payload: any,
     spaces?: string | number,
-  ): /** The declassified and quoted payload */ StringablePayload;
+  ): Stringable;
 
   /**
    * Embed a string directly into error details without wrapping punctuation.
@@ -528,8 +531,7 @@ export interface AssertionUtilities {
     /** What to declassify */
     payload: any,
     spaces?: string | number,
-  ): /** The declassified payload without quotes (beware confusion hazard) */
-  StringablePayload;
+  ): Stringable;
 }
 
 export interface DeprecatedAssertionUtilities {
