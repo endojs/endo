@@ -323,7 +323,7 @@ export const sanitizeError = error => {
 };
 
 /**
- * @type {AssertionUtilities['error']}
+ * @type {AssertionUtilities['makeError']}
  */
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
@@ -556,7 +556,7 @@ export const makeAssert = (optRaise = undefined, unredacted = false) => {
 
   /** @type {AssertionUtilities} */
   const assertionUtilities = {
-    error: makeError,
+    makeError,
     note,
     details,
     Fail,
@@ -565,7 +565,7 @@ export const makeAssert = (optRaise = undefined, unredacted = false) => {
   };
 
   /** @type {DeprecatedAssertionUtilities} */
-  const deprecated = { makeAssert };
+  const deprecated = { error: makeError, makeAssert };
 
   /** @type {Assert} */
   const finishedAssert = assign(assert, {

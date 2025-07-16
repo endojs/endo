@@ -2,7 +2,7 @@ import test from 'ava';
 import { assertLogs, throwsAndLogs } from './_throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';
 
-const { details: X, quote: q, bare: b, error: makeError, Fail } = assert;
+const { details: X, quote: q, bare: b, makeError, Fail } = assert;
 
 // Self-test of the example from the throwsAndLogs comment.
 test('throwsAndLogs with data', t => {
@@ -250,6 +250,10 @@ test('assert.typeof', t => {
   throwsAndLogs(t, () => assert.typeof(2, 'string', 'foo'), /foo/, [
     ['log', 'Caught', TypeError],
   ]);
+});
+
+test('assert.error', t => {
+  t.is(assert.error, makeError);
 });
 
 test('makeError default type', t => {
