@@ -18,11 +18,11 @@ import { M } from '../src/patterns/patternMatchers.js';
 // promises will be rendered only in terms of slot numbers.
 test('qp on a pattern', t => {
   const patt1 = M.and(M.gte(-100), M.lte(100));
-  t.is(`${q(patt1)}`, '"[match:and]"');
+  t.is(`${q(patt1)}`, '"[match:and:1]"');
   t.is(
     `${qp(patt1)}`,
     `\
-\`makeTagged("match:and", [
+\`makeTagged("match:and:1", [
   makeTagged("match:gte", -100),
   makeTagged("match:lte", 100),
 ])\``,
@@ -34,18 +34,18 @@ test('qp on a pattern', t => {
       decimalPlaces: M.and(M.gte(-100), M.lte(100)),
     }),
   );
-  t.is(`${q(patt2)}`, '"[match:splitRecord]"');
+  t.is(`${q(patt2)}`, '"[match:splitRecord:1]"');
   t.is(
     `${qp(patt2)}`,
-    `\`makeTagged("match:splitRecord", [
+    `\`makeTagged("match:splitRecord:1", [
   {
-    assetKind: makeTagged("match:or", [
+    assetKind: makeTagged("match:or:1", [
       "nat",
       "set",
       "copySet",
       "copyBag",
     ]),
-    decimalPlaces: makeTagged("match:and", [
+    decimalPlaces: makeTagged("match:and:1", [
       makeTagged("match:gte", -100),
       makeTagged("match:lte", 100),
     ]),
