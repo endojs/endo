@@ -713,7 +713,9 @@ test('export name as default from', t => {
     __fixedExportMap__,
     __liveExportMap__,
     __reexportMap__,
+    exports,
   } = new ModuleSource(`
+    export { less, more } from './meaningless.js';
     export { meaning as default } from './meaning.js';
   `);
   // t.log(__syncModuleProgram__);
@@ -721,7 +723,12 @@ test('export name as default from', t => {
   t.deepEqual(__liveExportMap__, {});
   t.deepEqual(__reexportMap__, {
     './meaning.js': [['meaning', 'default']],
+    './meaningless.js': [
+      ['less', 'less'],
+      ['more', 'more'],
+    ],
   });
+  t.deepEqual(exports, ['default', 'less', 'more'].sort());
 });
 
 test('source map generation', t => {
