@@ -90,7 +90,9 @@ export function ModuleSource(source, opts = {}) {
     [
       ...keys(liveExportMap),
       ...keys(fixedExportMap),
-      ...values(reexportMap).flatMap(([_, exportName]) => exportName),
+      ...values(reexportMap)
+        .flat()
+        .map(([_, exportName]) => exportName),
     ].sort(),
   );
   this.reexports = freeze([...exportAlls].sort());
