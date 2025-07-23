@@ -1,0 +1,9 @@
+{
+  "name": "fixtures-implicit-reexport",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
+  }
+}
+
