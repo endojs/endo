@@ -1,6 +1,6 @@
-// @ts-nocheck
 import 'ses';
 import fs from 'fs';
+
 import crypto from 'crypto';
 import url from 'url';
 import { ZipReader, ZipWriter } from '@endo/zip';
@@ -14,14 +14,18 @@ import {
   importArchive,
   hashLocation,
 } from '../index.js';
-
 import { mapNodeModules } from '../src/node-modules.js';
 import { loadFromMap, importFromMap } from '../src/import-lite.js';
 import { makeArchiveFromMap } from '../src/archive-lite.js';
 import { defaultParserForLanguage } from '../src/import-parsers.js';
 import { defaultParserForLanguage as defaultArchiveParserForLanguage } from '../src/archive-parsers.js';
-
 import { makeReadPowers } from '../src/node-powers.js';
+
+/**
+ * @import {TestFn, FailingFn} from 'ava';
+ * @import {ScaffoldOptions, FixtureAssertionFn, TestCategoryHint, WrappedTestFn} from './test.types.js';
+ * @import {HashPowers} from '../src/types.js';
+ */
 
 export const readPowers = makeReadPowers({ fs, crypto, url });
 
@@ -31,15 +35,23 @@ export const sanitizePaths = (text = '', tolerateLineChange = false) => {
   }
   return text.replace(/file:\/\/[^'"\n]+\/packages\//g, 'file://.../');
 };
+
+/**
+ * @returns {{getCompartments: () => Array<Compartment>, Compartment: typeof Compartment}}
+ */
 const compartmentInstrumentationFactory = () => {
   const compartments = [];
 
-  const InstrumentedCompartment = function InstrumentedCompartment() {
-    // eslint-disable-next-line prefer-rest-params
-    const compartment = Reflect.construct(Compartment, arguments);
-    compartments.push(compartment);
-    return compartment;
-  };
+  const InstrumentedCompartment = /** @type {typeof Compartment} */ (
+    /** @type {unknown} */ (
+      function InstrumentedCompartment(...args) {
+        // eslint-disable-next-line prefer-rest-params
+        const compartment = Reflect.construct(Compartment, args);
+        compartments.push(compartment);
+        return compartment;
+      }
+    )
+  );
 
   return {
     getCompartments: () => compartments,
@@ -76,6 +88,15 @@ export async function setup() {
   return { modules, globals };
 }
 
+/**
+ * @template [T=unknown]
+ * @param {string} name
+ * @param {TestFn} test
+ * @param {string} fixture
+ * @param {FixtureAssertionFn<T>} assertFixture
+ * @param {number} fixtureAssertionCount
+ * @param {ScaffoldOptions} [options]
+ */
 export function scaffold(
   name,
   test,
@@ -83,9 +104,7 @@ export function scaffold(
   assertFixture,
   fixtureAssertionCount,
   {
-    onError = /** @type {undefined | (t, {error, title}) => void} */ (
-      undefined
-    ),
+    onError = undefined,
     shouldFailBeforeArchiveOperations = false,
     addGlobals = {},
     policy,
@@ -106,18 +125,27 @@ export function scaffold(
     additionalOptions = {},
   } = {},
 ) {
-  // wrapping each time allows for convenient use of test.only
+  /**
+   * Wrapping each time allows for convenient use of test.only
+   * @template {TestCategoryHint} T
+   * @param {TestFn} testFunc
+   * @param {T} [testCategoryHint]
+   * @returns {WrappedTestFn}
+   */
   const wrap = (testFunc, testCategoryHint) => (title, implementation) => {
     // mark as known failure if available (but fallback to support test.only)
+    /** @type {TestFn|FailingFn} */
+    let wrappedTest = testFunc;
     if (
       knownFailure ||
       (knownArchiveFailure && testCategoryHint === 'Archive')
     ) {
-      testFunc = testFunc.failing || testFunc;
+      wrappedTest = testFunc.failing || testFunc;
     }
-    return testFunc(title, async t => {
+    return wrappedTest(title, async t => {
       await null;
       const compartmentInstrumentation = compartmentInstrumentationFactory();
+      /** @type {object} */
       let namespace;
       try {
         namespace = await implementation(
@@ -182,8 +210,6 @@ export function scaffold(
       const map = await mapNodeModules(readPowers, fixture, {
         languages,
         policy,
-        modules,
-        Compartment,
         conditions: new Set(['development', ...(conditions || [])]),
         strict,
         commonDependencies,
@@ -227,8 +253,6 @@ export function scaffold(
       const map = await mapNodeModules(readPowers, fixture, {
         languages,
         policy,
-        modules,
-        Compartment,
         conditions: new Set(['development', ...(conditions || [])]),
         strict,
         commonDependencies,
@@ -474,14 +498,16 @@ export function scaffold(
         ...additionalOptions,
       });
 
-      const { namespace } = await importArchive(fakeRead, 'app.agar', {
-        globals: { ...globals, ...addGlobals },
-        modules,
-        Compartment,
-        computeSourceMapLocation,
-        parserForLanguage,
-        ...additionalOptions,
-      });
+      const { namespace } = /** @type {{namespace: object}} */ (
+        await importArchive(fakeRead, 'app.agar', {
+          globals: { ...globals, ...addGlobals },
+          modules,
+          Compartment,
+          computeSourceMapLocation,
+          parserForLanguage,
+          ...additionalOptions,
+        })
+      );
 
       // An assertion here would disrupt the planned assertion count
       // in a way that is difficult to generalize since not all test paths
@@ -560,22 +586,25 @@ export function scaffold(
       t.plan(1);
       await setup();
 
-      const expectedSha512 = await hashLocation(readPowers, fixture, {
-        modules,
-        Compartment,
-        conditions: new Set(['development', ...(conditions || [])]),
-        strict,
-        searchSuffixes,
-        commonDependencies,
-        parserForLanguage,
-        languageForExtension,
-        commonjsLanguageForExtension,
-        moduleLanguageForExtension,
-        workspaceLanguageForExtension,
-        workspaceCommonjsLanguageForExtension,
-        workspaceModuleLanguageForExtension,
-        ...additionalOptions,
-      });
+      const expectedSha512 = await hashLocation(
+        /** @type {HashPowers} */ (readPowers),
+        fixture,
+        {
+          modules,
+          conditions: new Set(['development', ...(conditions || [])]),
+          strict,
+          searchSuffixes,
+          commonDependencies,
+          parserForLanguage,
+          languageForExtension,
+          commonjsLanguageForExtension,
+          moduleLanguageForExtension,
+          workspaceLanguageForExtension,
+          workspaceCommonjsLanguageForExtension,
+          workspaceModuleLanguageForExtension,
+          ...additionalOptions,
+        },
+      );
 
       const archiveBytes = await makeArchive(readPowers, fixture, {
         modules,
@@ -599,7 +628,6 @@ export function scaffold(
         'memory:app.agar',
         {
           modules,
-          conditions: new Set(['development', ...(conditions || [])]),
           computeSha512,
           expectedSha512,
           parserForLanguage,
@@ -614,22 +642,25 @@ export function scaffold(
       t.plan(1);
       await setup();
 
-      const expectedSha512 = await hashLocation(readPowers, fixture, {
-        modules,
-        Compartment,
-        conditions: new Set(['development', ...(conditions || [])]),
-        strict,
-        searchSuffixes,
-        commonDependencies,
-        parserForLanguage,
-        languageForExtension,
-        commonjsLanguageForExtension,
-        moduleLanguageForExtension,
-        workspaceLanguageForExtension,
-        workspaceCommonjsLanguageForExtension,
-        workspaceModuleLanguageForExtension,
-        ...additionalOptions,
-      });
+      const expectedSha512 = await hashLocation(
+        /** @type {HashPowers} */ (readPowers),
+        fixture,
+        {
+          modules,
+          conditions: new Set(['development', ...(conditions || [])]),
+          strict,
+          searchSuffixes,
+          commonDependencies,
+          parserForLanguage,
+          languageForExtension,
+          commonjsLanguageForExtension,
+          moduleLanguageForExtension,
+          workspaceLanguageForExtension,
+          workspaceCommonjsLanguageForExtension,
+          workspaceModuleLanguageForExtension,
+          ...additionalOptions,
+        },
+      );
 
       const archive = await makeArchive(readPowers, fixture, {
         modules,

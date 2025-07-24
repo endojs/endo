@@ -1,10 +1,15 @@
+/* eslint-disable jsdoc/check-param-names */
 /* eslint-disable no-underscore-dangle */
 // import "./ses-lockdown.js";
 import 'ses';
+
 import test from 'ava';
 import path from 'path';
-
 import { scaffold } from './scaffold.js';
+
+/**
+ * @import {FixtureAssertionFn} from './test.types.js';
+ */
 
 const fixture = new URL(
   'fixtures-cjs-compat/node_modules/app/index.js',
@@ -17,6 +22,9 @@ const fixtureDirname = new URL(
 
 const q = JSON.stringify;
 
+/**
+ * @type {FixtureAssertionFn<{requireResolvePaths: string[]}>}
+ */
 const assertFixture = (t, { namespace, testCategoryHint }) => {
   const { assertions, results } = namespace;
 
@@ -28,6 +36,7 @@ const assertFixture = (t, { namespace, testCategoryHint }) => {
   assertions.defaultChangesAfterExec();
   assertions.packageNestedFile();
   assertions.requireExtensions();
+  assertions.defaultExports();
 
   if (testCategoryHint === 'Location') {
     t.deepEqual(results.requireResolvePaths, [
@@ -90,8 +99,8 @@ scaffold(
   test,
   fixtureDirname,
   (t, { namespace, testCategoryHint }) => {
-    const { __dirname, __filename } = namespace;
     if (testCategoryHint === 'Location') {
+      const { __filename, __dirname } = namespace;
       t.is(__filename, path.join(__dirname, '/dirname.js'));
       t.assert(!__dirname.startsWith('file://'));
       t.notRegex(
@@ -100,6 +109,7 @@ scaffold(
         'Expected __dirname to NOT have a trailing slash',
       );
     } else {
+      const { __filename, __dirname } = namespace;
       t.is(__dirname, null);
       t.is(__filename, null);
       t.pass();

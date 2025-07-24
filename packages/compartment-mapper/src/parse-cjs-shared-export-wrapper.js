@@ -219,7 +219,9 @@ export const wrap = ({
       }
     } else {
       for (const prop of redefined) {
-        moduleEnvironmentRecord[prop] = moduleEnvironmentRecord.default[prop];
+        if (prop !== 'default') {
+          moduleEnvironmentRecord[prop] = moduleEnvironmentRecord.default[prop];
+        }
       }
     }
   };

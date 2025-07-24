@@ -4,8 +4,32 @@
  * @module
  */
 
+import type { ExecutionContext } from 'ava';
 import type { makeReadPowers } from '../src/node-powers.js';
+import type { LoadLocationOptions, SomePolicy } from '../archive-lite.js';
 
+// #region utility
+/**
+ * Makes a nicer tooltip for `T` in IDEs (most of the time).
+ */
+export type Simplify<T> = { [K in keyof T]: T[K] } & {};
+
+/**
+ * Set all props of `T` to be optional
+ */
+export type SetOptional<T extends object> = {
+  [K in keyof T]?: T[K];
+};
+
+/**
+ * Drops the first parameter of function `T` and returns a tuple of the remaining parameters.
+ */
+export type RestParameters<T> = T extends (arg0: any, ...rest: infer R) => any
+  ? R
+  : never;
+// #endregion
+
+// #region project-fixture.js
 /**
  * Map of package names to dependency package names.
  *
@@ -22,12 +46,6 @@ export interface ProjectFixture<Root extends string = string> {
   graph: ProjectFixtureGraph;
 }
 
-/**
- * Drops the first parameter of function `T` and returns a tuple of the remaining parameters.
- */
-export type RestParameters<T> = T extends (arg0: any, ...rest: infer R) => any
-  ? R
-  : never;
 /**
  * Options for `makeMaybeReadProjectFixture()` with a random delay.
  */
@@ -57,21 +75,87 @@ export type MakeMaybeReadProjectFixtureOptions = {
 };
 
 /**
- * Makes a nicer tooltip for `T` in IDEs (most of the time).
- */
-export type Simplify<T> = { [K in keyof T]: T[K] } & {};
-
-/**
- * Set all props of `T` to be optional
- */
-export type SetOptional<T extends object> = {
-  [K in keyof T]?: T[K];
-};
-
-/**
  * Options for `makeProjectFixtureReadPowers()`
  */
 export type MakeProjectFixtureReadPowersOptions = Simplify<
   MakeMaybeReadProjectFixtureOptions &
     SetOptional<Parameters<typeof makeReadPowers>[0]>
 >;
+// #endregion
+
+// #region scaffold.js
+export type TestCategoryHint = 'Location' | 'Archive';
+
+interface BaseAssertionFixtureNamespace<T = unknown> {
+  assertions: Record<string, () => void>;
+  results: Record<string, T>;
+}
+
+export interface AssertionLocationFixtureNamespace<T = unknown>
+  extends BaseAssertionFixtureNamespace<T> {
+  __dirname: string;
+  __filename: string;
+}
+
+export interface AssertionFixtureNamespace<T = unknown>
+  extends BaseAssertionFixtureNamespace<T> {
+  __dirname?: null;
+  __filename?: null;
+}
+
+interface BaseFixtureAssertionFnParameters {
+  compartments: Array<Compartment>;
+  globals: object;
+  policy?: SomePolicy;
+}
+
+interface FixtureAssertionFnLocationParameters<T = unknown>
+  extends BaseFixtureAssertionFnParameters {
+  namespace: AssertionLocationFixtureNamespace<T>;
+  testCategoryHint: 'Location';
+}
+
+interface FixtureAssertionFnOtherParameters<
+  T = unknown,
+  U extends TestCategoryHint = TestCategoryHint,
+> extends BaseFixtureAssertionFnParameters {
+  namespace: AssertionFixtureNamespace<T>;
+  testCategoryHint?: U;
+}
+
+export type FixtureAssertionFnParameters<
+  T = unknown,
+  U extends TestCategoryHint = TestCategoryHint,
+> = U extends 'Location'
+  ? FixtureAssertionFnLocationParameters<T>
+  : FixtureAssertionFnOtherParameters<T, U>;
+
+export type FixtureAssertionFn<T = unknown> = <
+  Params extends FixtureAssertionFnParameters<T>,
+>(
+  t: ExecutionContext,
+  params: Params,
+) => Promise<void> | void;
+
+export type ScaffoldOnErrorFn = (
+  t: ExecutionContext,
+  options: { error: Error; title: string },
+) => void;
+
+export interface ScaffoldOptions extends LoadLocationOptions {
+  shouldFailBeforeArchiveOperations?: boolean;
+  knownFailure?: boolean;
+  knownArchiveFailure?: boolean;
+  onError?: ScaffoldOnErrorFn;
+  addGlobals?: object;
+  additionalOptions?: object;
+}
+
+export type WrappedTestFn = (
+  title: string,
+  implementation: (
+    t: ExecutionContext,
+    compartment: typeof Compartment,
+  ) => Promise<void>,
+) => void | Promise<void>;
+// #endregion
