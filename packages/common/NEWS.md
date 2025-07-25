@@ -1,5 +1,9 @@
 User-visible changes in `@endo/common`:
 
+# Next release
+
+- TODO explain further generalization of `throwLabeled`
+
 # v1.1.0 (2024-02-22)
 
 - `throwLabeled` parameterized error construction

@@ -7,6 +7,10 @@ module.exports = {
     node: false,
     commonjs: false,
   },
+  // Allow what the SES-shim makes powerless. Co-maintain with
+  // `universalPropertyNames` from `ses/src/permits.js`.
+  // TODO align better with `universalPropertyNames` to make
+  // co-maintenance easier.
   globals: {
     assert: 'readonly',
     console: 'readonly',
@@ -17,7 +21,6 @@ module.exports = {
     URL: 'readonly',
     URLSearchParams: 'readonly',
 
-    // Allow what SES makes powerless, copied from its whitelist
     // *** Constructor Properties of the Global Object
     Array: 'readonly',
     ArrayBuffer: 'readonly',
@@ -63,6 +66,10 @@ module.exports = {
     HandledPromise: 'readonly',
     // https://github.com/endojs/endo/issues/550
     AggregateError: 'readonly',
+    // https://github.com/tc39/proposal-explicit-resource-management
+    AsyncDisposableStack: 'readonly',
+    DisposableStack: 'readonly',
+    SuppressedError: 'readonly',
   },
   rules: {
     '@endo/assert-fail-as-throw': 'error',
