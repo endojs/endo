@@ -38,6 +38,7 @@
  *   CompartmentMapDescriptor,
  *   ReadFn,
  *   ReadPowers,
+ *   RetainAllOptions,
  *   Sources,
  * } from './types.js'
  */
@@ -59,16 +60,21 @@ const defaultCompartment = Compartment;
 /**
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
+ * @param {RetainAllOptions} [options]
  * @returns {CaptureResult}
  */
-const captureCompartmentMap = (compartmentMap, sources) => {
+const captureCompartmentMap = (
+  compartmentMap,
+  sources,
+  { retainAll = false } = {},
+) => {
   const {
     compartmentMap: captureCompartmentMap,
     sources: captureSources,
     newToOldCompartmentNames,
     compartmentRenames,
     oldToNewCompartmentNames,
-  } = digestCompartmentMap(compartmentMap, sources);
+  } = digestCompartmentMap(compartmentMap, sources, { retainAll });
   return {
     captureCompartmentMap,
     captureSources,
@@ -84,8 +90,10 @@ const captureCompartmentMap = (compartmentMap, sources) => {
  * @param {CaptureLiteOptions} [options]
  * @returns {Promise<CaptureResult>}
  */
-export const captureFromMap = async (powers, compartmentMap, options = {}) => {
-  const {
+export const captureFromMap = async (
+  powers,
+  compartmentMap,
+  {
     moduleTransforms,
     syncModuleTransforms,
     modules: exitModules = {},
@@ -95,8 +103,9 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     sourceMapHook = undefined,
     parserForLanguage: parserForLanguageOption = {},
     Compartment = defaultCompartment,
-  } = options;
-
+    retainAll = false,
+  } = {},
+) => {
   const parserForLanguage = freeze(
     assign(create(null), parserForLanguageOption),
   );
@@ -148,5 +157,5 @@ export const captureFromMap = async (powers, compartmentMap, options = {}) => {
     );
   }
 
-  return captureCompartmentMap(compartmentMap, sources);
+  return captureCompartmentMap(compartmentMap, sources, { retainAll });
 };
