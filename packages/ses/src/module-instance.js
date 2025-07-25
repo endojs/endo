@@ -412,24 +412,24 @@ export const makeModuleInstance = (
           candidateAll[exportedName] = importNotifiers[localName];
         }
       }
-    }
 
-    for (const [exportName, notify] of entries(candidateAll)) {
-      if (!notifiers[exportName] && notify !== false) {
-        notifiers[exportName] = notify;
+      for (const [exportName, notify] of entries(candidateAll)) {
+        if (!notifiers[exportName] && notify !== false) {
+          notifiers[exportName] = notify;
 
-        // exported live binding state
-        let value;
-        const update = newValue => (value = newValue);
-        notify(update);
-        exportsProps[exportName] = {
-          get() {
-            return value;
-          },
-          set: undefined,
-          enumerable: true,
-          configurable: false,
-        };
+          // exported live binding state
+          let value;
+          const update = newValue => (value = newValue);
+          notify(update);
+          exportsProps[exportName] = {
+            get() {
+              return value;
+            },
+            set: undefined,
+            enumerable: true,
+            configurable: false,
+          };
+        }
       }
     }
 
