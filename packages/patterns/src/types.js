@@ -4,7 +4,8 @@ export {};
 
 // NB: as of TS 5.5 nightly, TS thinks RankCover and Checker "is declared but never read" but they are
 /**
- * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Atom, RemotableObject} from '@endo/pass-style';
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {CopyArray, CopyRecord, CopyTagged, Passable, PassStyle, Atom, RemotableObject} from '@endo/pass-style';
  * @import {PartialCompare, PartialComparison, RankCompare, RankCover} from '@endo/marshal';
  */
 
