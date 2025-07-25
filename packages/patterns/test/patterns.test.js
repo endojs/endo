@@ -153,6 +153,11 @@ const runTests = (t, successCase, failCase) => {
       M.or(),
       '"[0n]" - no pattern disjuncts to match: "`[]`"',
     );
+    failCase(
+      specimen,
+      M.or(),
+      '"[0n]" - no pattern disjuncts to match: "`[]`"',
+    );
   }
   {
     const specimen = -1n;
