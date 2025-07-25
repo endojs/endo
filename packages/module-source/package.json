@@ -43,9 +43,9 @@
   },
   "dependencies": {
     "@babel/generator": "^7.26.3",
-    "@babel/parser": "~7.26.2",
-    "@babel/traverse": "~7.25.9",
-    "@babel/types": "~7.26.0",
+    "@babel/parser": "~7.28.0",
+    "@babel/traverse": "~7.28.0",
+    "@babel/types": "~7.28.1",
     "ses": "workspace:^"
   },
   "devDependencies": {
