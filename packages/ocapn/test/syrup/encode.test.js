@@ -3,6 +3,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { encodeSyrup } from '../../src/syrup/js-representation.js';
 import { table } from './_table.js';
+import { throws } from '../_util.js';
 
 test('affirmative encode cases', t => {
   for (const { syrup, value } of table) {
@@ -23,8 +24,14 @@ test('negative zero', t => {
 
 test('invalid string characters', t => {
   const invalidString = String.fromCharCode(0xd800);
-  t.throws(() => encodeSyrup(invalidString), {
-    message:
-      'Invalid string characters "\\ud800" in string "\\ud800" at index 0',
+  throws(t, () => encodeSyrup(invalidString), {
+    message: 'SyrupAnyCodec: write failed at index 0 of <unknown>',
+    cause: {
+      message: 'String: write failed at index 0 of <unknown>',
+      cause: {
+        message:
+          'Invalid string characters "\\ud800" in string "\\ud800" at index 0',
+      },
+    },
   });
 });

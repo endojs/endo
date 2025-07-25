@@ -107,7 +107,7 @@ export class BufferReader {
     const state = this.#state;
     if (!this.canSeek(index)) {
       const err = Error(
-        `End of data reached (data length = ${state.length}, asked index ${index}`,
+        `End of data reached (data length = ${state.length}, asked index ${index})`,
       );
       // @ts-expect-error
       err.code = 'EOD';
