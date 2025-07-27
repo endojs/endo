@@ -1,0 +1,119 @@
+import test from '@endo/ses-ava/prepare-endo.js';
+import { nestReject } from '../rejector.js';
+import { Fail, q } from '../index.js';
+
+/**
+ * @import {Rejector} from '../rejector.js';
+ */
+
+/**
+ * @param {unknown} candidate
+ * @param {Rejector} reject
+ * @returns {candidate is string}
+ */
+const confirmString = (candidate, reject) =>
+  typeof candidate === 'string' ||
+  (reject && reject`${q(candidate)} should be a string`);
+
+/**
+ * @param {unknown} candidate
+ * @param {Rejector} reject
+ * @returns {candidate is 'foo'}
+ */
+const confirmFoo = (candidate, reject) =>
+  (confirmString(candidate, nestReject('str', reject)) &&
+    candidate === 'foo') ||
+  (reject && reject`${q(candidate)} should be "foo"`);
+
+/**
+ * @param {unknown} candidate
+ * @returns {candidate is 'foo'}
+ */
+const isFoo = candidate => confirmFoo(candidate, false);
+
+/**
+ * @param {unknown} candidate
+ * @returns {asserts candidate is 'foo'}
+ */
+const assertFoo = candidate => {
+  confirmFoo(candidate, Fail);
+};
+
+test('test rejector conjunction patterns', t => {
+  t.true(isFoo('foo'));
+  t.false(isFoo('zip'));
+  t.false(isFoo(88));
+  t.notThrows(() => assertFoo('foo'));
+  t.throws(() => assertFoo('zip'), {
+    message: '"zip" should be "foo"',
+  });
+  t.throws(() => assertFoo(88), {
+    message: 'str: 88 should be a string',
+  });
+});
+
+/**
+ * @param {unknown} candidate
+ * @param {Rejector} reject
+ * @returns {candidate is ('foo'|'bar')}
+ */
+const confirmFooOrBar = (candidate, reject) =>
+  isFoo(candidate) ||
+  candidate === 'bar' ||
+  (reject && reject`${q(candidate)} should be "foo" or "bar"`);
+
+/**
+ * @param {unknown} candidate
+ * @returns {candidate is ('foo'|'bar')}
+ */
+const isFooOrBar = candidate => confirmFooOrBar(candidate, false);
+
+/**
+ * @param {unknown} candidate
+ * @returns {asserts candidate is ('foo'|'bar')}
+ */
+const assertFooOrBar = candidate => {
+  confirmFooOrBar(candidate, Fail);
+};
+
+test('test rejector disjunction patterns', t => {
+  t.true(isFooOrBar('foo'));
+  t.false(isFooOrBar('zip'));
+  t.false(isFooOrBar(88));
+  t.notThrows(() => assertFooOrBar('foo'));
+  t.throws(() => assertFooOrBar('zip'), {
+    message: '"zip" should be "foo" or "bar"',
+  });
+  t.throws(() => assertFooOrBar(88), {
+    // This case just demonstrates an odd consequence of the least resistance
+    // disjunction pattern, where turning the early disjuncts into predicates
+    // leaves all the failure reporting only to the last disjunct. As long as
+    // that error is correct, as here, that should usually be good enough.
+    message: '88 should be "foo" or "bar"',
+  });
+});
+
+test('test nestReject', t => {
+  t.false(nestReject('foo', false));
+  t.is(nestReject(undefined, Fail), Fail);
+
+  const r1 = nestReject('pre1', Fail);
+  t.true(r1 !== undefined);
+  t.not(r1, Fail);
+  // @ts-expect-error TS should know r1 is not undefined, but does not
+  t.throws(() => r1`msg`, {
+    message: 'pre1: msg',
+  });
+
+  const r2 = nestReject(8, r1);
+  // @ts-expect-error TS does not know r2 is not undefined
+  t.throws(() => r2`msg`, {
+    message: 'pre1: [8]: msg',
+  });
+
+  const r3 = nestReject('pre3', r2);
+  // @ts-expect-error TS does not know r3 is not undefined
+  t.throws(() => r3`msg`, {
+    message: 'pre1: [8]: pre3: msg',
+  });
+});

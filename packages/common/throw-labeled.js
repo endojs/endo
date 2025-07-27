@@ -5,6 +5,7 @@ import { X, makeError, annotateError } from '@endo/errors';
  * error whose message string is `${label}: ${innerErr.message}`.
  * See `applyLabelingError` for the motivating use.
  *
+ * @deprecated Use `nestReject` in the confirm/reject pattern instead
  * @param {Error} innerErr
  * @param {string|number} label
  * @param {import('ses').GenericErrorConstructor} [errConstructor]
