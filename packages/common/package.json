@@ -24,6 +24,7 @@
     "./object-map.js": "./object-map.js",
     "./object-meta-assign.js": "./object-meta-assign.js",
     "./object-meta-map.js": "./object-meta-map.js",
+    "./rejector.js": "./rejector.js",
     "./throw-labeled.js": "./throw-labeled.js",
     "./package.json": "./package.json"
   },
