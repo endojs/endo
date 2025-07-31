@@ -15,6 +15,7 @@
  *   Attenuator,
  *   SomePolicy,
  *   PolicyEnforcementField,
+ *   SomePackagePolicy,
  * } from './types.js'
  * @import {ThirdPartyStaticModuleInterface} from 'ses'
  */
