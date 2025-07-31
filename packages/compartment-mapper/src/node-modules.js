@@ -888,6 +888,7 @@ const translateGraph = (
       types,
       policy: /** @type {SomePackagePolicy} */ (packagePolicy),
       compartments: compartmentNames,
+      packageDescriptor,
     };
   }
 

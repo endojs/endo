@@ -1,10 +1,13 @@
+import type {
+  PackageDescriptor,
+  FileUrlString,
+  LogOptions,
+} from './external.js';
 import type { GenericGraph } from '../generic-graph.js';
 import type {
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
-import type { LogOptions, FileUrlString } from './external.js';
-import type { PackageDescriptor } from './internal.js';
 import type { LiteralUnion } from './typescript.js';
 
 export type CommonDependencyDescriptors = Record<
@@ -80,6 +83,7 @@ export interface Node {
   dependencyLocations: Record<string, string>;
   parsers: LanguageForExtension;
   types: Record<string, Language>;
+  packageDescriptor: PackageDescriptor;
 }
 
 /**
