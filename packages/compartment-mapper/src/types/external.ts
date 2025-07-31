@@ -18,8 +18,8 @@ import type {
   Language,
   LanguageForExtension,
 } from './compartment-map-schema.js';
+import type { SomePackagePolicy, SomePolicy } from './policy-schema.js';
 import type { HashFn, ReadFn, ReadPowers } from './powers.js';
-import type { SomePolicy } from './policy-schema.js';
 
 /**
  * Set of options available in the context of code execution.
@@ -66,7 +66,9 @@ export interface LogOptions {
  */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   PolicyOption &
-  LogOptions;
+  PolicyOverrideOption &
+  LogOptions &
+  CompartmentMapOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
   /** @deprecated renamed `conditions` to be consistent with Node.js */
@@ -125,6 +127,20 @@ type MapNodeModulesOptionsOmitPolicy = Partial<{
    * from the `parserForLanguage` option.
    */
   languages: Array<Language>;
+
+  /**
+   * Non-empty list of {@link CompartmentMapTransformFn Compartment Map Transforms} to apply to the {@link CompartmentMapDescriptor} before returning it.
+   *
+   * If empty or not provided, the default transforms are applied.
+   */
+  compartmentMapTransforms: Array<CompartmentMapTransformFn>;
+
+  /**
+   * Mapping of _compartment descriptor name_ to _canonical name_.
+   *
+   * `mapNodeModules()` will populate this `Map`, if provided.
+   */
+  canonicalNameMap?: Map<string, string>;
 }>;
 
 /**
@@ -306,6 +322,10 @@ export type ArchiveOnlyOption = {
 export type PolicyOption = {
   policy?: SomePolicy;
 };
+
+export interface PolicyOverrideOption {
+  policyOverride?: SomePolicy;
+}
 
 export type LanguageForExtensionOption = {
   languageForExtension?: LanguageForExtension;
@@ -565,6 +585,98 @@ export type LogFn = (...args: any[]) => void;
  * A string that represents a file URL.
  */
 export type FileUrlString = `file://${string}`;
+
+export type CompartmentMapTransformOptions = Required<LogOptions> &
+  PolicyOption &
+  PolicyOverrideOption;
+
+export interface CompartmentMapOptions {
+  canonicalNameMap?: Map<string, string>;
+}
+
+export interface CompartmentMapTransformDefinition<
+  Options extends
+    CompartmentMapTransformOptions = CompartmentMapTransformOptions,
+> {
+  name: string;
+  transform: CompartmentMapTransformFn<Options>;
+}
+
+export interface CompartmentMapTransformContext<T extends object = object> {
+  /**
+   * This map allows the consumer to associate arbitrary metadata with a {@link CompartmentDescriptor}.
+   */
+  metadataMap: WeakMap<CompartmentDescriptor, CompartmentDescriptorMetadata<T>>;
+
+  /**
+   * Returns the package policy from `policy` (if not provided, inherits policy from scope).  If no policy in scope, then {@link CompartmentDescriptor.policy} is used.
+   * @param compartmentDescriptor Compartment descriptor
+   * @param policy Optional policy
+   * @returns A package policy, if found
+   */
+  getPackagePolicy: (
+    compartmentDescriptor: CompartmentDescriptor,
+    policy?: SomePolicy,
+  ) => SomePackagePolicy | undefined;
+
+  /**
+   * Returns a compartment descriptor by name.
+   *
+   * @param name The name of the compartment descriptor. This is the index of {@link CompartmentMapDescriptor.compartments}.
+   * @returns A compartment descriptor, if found
+   */
+  getCompartmentDescriptor: (name: string) => CompartmentDescriptor | undefined;
+
+  /**
+   * Returns the canonical name for some {@link CompartmentDescriptor} (or its
+   * name).
+   *
+   * Returns `undefined` if it cannot be computed.
+   *
+   * @param compartmentDescriptor Compartment descriptor or name
+   * @throws If the parameter refers to the entry compartment
+   */
+  getCanonicalName: (
+    compartmentDescriptorOrName: string | CompartmentDescriptor | undefined,
+  ) => string | undefined;
+
+  /**
+   * Returns the compartment name for a given canonical name.
+   *
+   * @param canonicalName Canonical name of the compartment. For entry
+   * compartment, provide an empty string
+   * @returns Compartment name or `undefined` if not found.
+   */
+  getCompartmentName: (canonicalName: string) => string | undefined;
+}
+
+export type CompartmentMapTransformFnArguments<
+  Options extends
+    CompartmentMapTransformOptions = CompartmentMapTransformOptions,
+> = {
+  compartmentMap: CompartmentMapDescriptor;
+  context: Readonly<CompartmentMapTransformContext>;
+  options: Options;
+};
+
+export type CompartmentMapTransformFn<
+  Options extends
+    CompartmentMapTransformOptions = CompartmentMapTransformOptions,
+> = (
+  args: CompartmentMapTransformFnArguments<Options>,
+) => Promise<CompartmentMapDescriptor> | CompartmentMapDescriptor;
+
+/**
+ * Data associated with a discrete {@link CompartmentDescriptor} used during
+ * application of transforms.
+ *
+ * @template T User-defined data
+ */
+export type CompartmentDescriptorMetadata<T extends object = object> = {
+  canonicalName?: string;
+} & T; /**
+ * The type of a `package.json` file containing relevant fields; used by `graphPackages` and its ilk
+ */
 
 export interface PackageDescriptor {
   /**

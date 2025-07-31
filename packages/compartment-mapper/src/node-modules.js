@@ -13,21 +13,31 @@
 
 /* eslint no-shadow: 0 */
 
+import {
+  applyCompartmentMapTransforms,
+  defaultCompartmentMapTransforms,
+} from './compartment-map-transforms.js';
+import { GenericGraph, makeShortestPath } from './generic-graph.js';
 import { inferExportsAndAliases } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { join } from './node-module-specifier.js';
-import { assertPolicy, ATTENUATORS_COMPARTMENT } from './policy-format.js';
-import { dependencyAllowedByPolicy, getPolicyForPackage } from './policy.js';
+import {
+  assertPolicy,
+  ATTENUATORS_COMPARTMENT,
+  generateCanonicalName,
+} from './policy-format.js';
+import { getPolicyForPackage } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 import { search, searchDescriptor } from './search.js';
-import { GenericGraph, makeShortestPath } from './generic-graph.js';
 
 /**
  * @import {
  *   CanonicalFn,
  *   CompartmentDescriptor,
+ CompartmentDescriptorMetadata,
  *   CompartmentMapDescriptor,
  *   CompartmentMapForNodeModulesOptions,
+ *   CompartmentMapTransformFn,
  *   FileUrlString,
  *   LanguageForExtension,
  *   MapNodeModulesOptions,
@@ -35,6 +45,7 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   MaybeReadFn,
  *   MaybeReadPowers,
  *   PackageDescriptor,
+ PackagePolicy,
  *   ReadFn,
  *   ReadPowers,
  *   SomePackagePolicy,
@@ -50,6 +61,7 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   GraphPackagesOptions,
  *   LogicalPathGraph,
  *   PackageDetails,
+ GraphKey,
  * } from './types/node-modules.js'
  */
 
@@ -102,11 +114,15 @@ const resolveLocation = (rel, abs) => {
 const assertFileUrlString = allegedPackageLocation => {
   assert(
     typeof allegedPackageLocation === 'string',
-    `Package location must be a string, got ${q(allegedPackageLocation)}`,
+    `Package location must be a string; got ${q(allegedPackageLocation)}`,
   );
   assert(
     allegedPackageLocation.startsWith('file://'),
-    `Package location must be a file URL, got ${q(allegedPackageLocation)}`,
+    `Package location must be a file URL; got ${q(allegedPackageLocation)}`,
+  );
+  assert(
+    allegedPackageLocation.length > 7,
+    `Path part of file URL string must not be empty in ${q(allegedPackageLocation)}`,
   );
 };
 
@@ -378,7 +394,7 @@ const graphPackage = async (
   languageOptions,
   strict,
   logicalPathGraph,
-  { commonDependencyDescriptors = {}, logicalPath = [], log = noop } = {},
+  { commonDependencyDescriptors = {}, log = noop } = {},
 ) => {
   if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
@@ -457,7 +473,6 @@ const graphPackage = async (
 
   for (const dependencyName of [...allDependencies].sort()) {
     const optional = optionals.has(dependencyName);
-    const childLogicalPath = [...logicalPath, dependencyName];
     children.push(
       // Mutual recursion ahead:
       // eslint-disable-next-line no-use-before-define
@@ -473,7 +488,6 @@ const graphPackage = async (
         strict,
         logicalPathGraph,
         {
-          childLogicalPath,
           optional,
           commonDependencyDescriptors,
           log,
@@ -520,7 +534,6 @@ const graphPackage = async (
 
   assign(result, {
     name,
-    path: logicalPath,
     label: `${name}${version ? `-v${version}` : ''}`,
     sourceDirname,
     explicitExports: exportsDescriptor !== undefined,
@@ -529,6 +542,7 @@ const graphPackage = async (
     dependencyLocations,
     types,
     parsers,
+    packageDescriptor,
   });
 
   await Promise.all(
@@ -600,12 +614,7 @@ const gatherDependency = async (
   languageOptions,
   strict,
   logicalPathGraph,
-  {
-    childLogicalPath = [],
-    optional = false,
-    commonDependencyDescriptors = {},
-    log = noop,
-  } = {},
+  { optional = false, commonDependencyDescriptors = {}, log = noop } = {},
 ) => {
   const dependency = await findPackage(
     readDescriptor,
@@ -641,7 +650,6 @@ const gatherDependency = async (
     logicalPathGraph,
     {
       commonDependencyDescriptors,
-      logicalPath: childLogicalPath,
       log,
     },
   );
@@ -759,7 +767,10 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} conditions - build conditions about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {SomePolicy} [policy]
+ * @param {Map<string, string>} canonicalNameMap - map of graph keys to canonical names.
+ * @param {WeakMap<CompartmentDescriptor, CompartmentDescriptorMetadata>} metadataMap
+ * @param {object} [options]
+ * @param {SomePolicy} [options.policy]
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -767,7 +778,9 @@ const translateGraph = (
   entryModuleSpecifier,
   graph,
   conditions,
-  policy,
+  canonicalNameMap,
+  metadataMap,
+  { policy } = {},
 ) => {
   /** @type {CompartmentMapDescriptor['compartments']} */
   const compartments = create(null);
@@ -781,7 +794,9 @@ const translateGraph = (
   // The full map includes every exported module from every dependencey
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
-  for (const dependeeLocation of keys(graph).sort()) {
+  for (const dependeeLocation of /** @type {GraphKey[]} */ (
+    keys(graph).sort()
+  )) {
     const {
       name,
       path,
@@ -791,6 +806,7 @@ const translateGraph = (
       internalAliases,
       parsers,
       types,
+      packageDescriptor,
     } = graph[dependeeLocation];
     /** @type {CompartmentDescriptor['modules']} */
     const moduleDescriptors = create(null);
@@ -803,13 +819,29 @@ const translateGraph = (
      * @type {Set<string>}
      */
     const compartmentNames = new Set();
-    const packagePolicy = getPolicyForPackage(
-      {
-        isEntry: dependeeLocation === entryPackageLocation,
-        name,
-        path,
-      },
-      policy,
+
+    /**
+     * Used to find package policy; _not_ used to generate a canonical name!
+     */
+    const isEntry = dependeeLocation === entryPackageLocation;
+
+    const canonicalName = canonicalNameMap.get(dependeeLocation);
+
+    assert(
+      isEntry || (!isEntry && canonicalName),
+      `Expected canonical name for location ${dependeeLocation}`,
+    );
+
+    // FIXME: may be undefined, but types disagree
+    const packagePolicy = /** @type {PackagePolicy} */ (
+      getPolicyForPackage(
+        {
+          isEntry,
+          name,
+          path,
+        },
+        policy,
+      )
     );
 
     /* c8 ignore next */
@@ -823,29 +855,16 @@ const translateGraph = (
      * @param {string} packageLocation
      */
     const digestExternalAliases = (dependencyName, packageLocation) => {
-      const { externalAliases, explicitExports, name, path } =
-        graph[packageLocation];
+      const { externalAliases, explicitExports } = graph[packageLocation];
       for (const exportPath of keys(externalAliases).sort()) {
         const targetPath = externalAliases[exportPath];
         // dependency name may be different from package's name,
         // as in the case of browser field dependency replacements
         const localPath = join(dependencyName, exportPath);
-        if (
-          !policy ||
-          (packagePolicy &&
-            dependencyAllowedByPolicy(
-              {
-                name,
-                path,
-              },
-              packagePolicy,
-            ))
-        ) {
-          moduleDescriptors[localPath] = {
-            compartment: packageLocation,
-            module: targetPath,
-          };
-        }
+        moduleDescriptors[localPath] = {
+          compartment: packageLocation,
+          module: targetPath,
+        };
       }
       // if the exports field is not present, then all modules must be accessible
       if (!explicitExports) {
@@ -876,7 +895,7 @@ const translateGraph = (
       }
     }
 
-    compartments[dependeeLocation] = {
+    const compartmentDescriptor = {
       label,
       name,
       path,
@@ -886,10 +905,16 @@ const translateGraph = (
       scopes,
       parsers,
       types,
-      policy: /** @type {SomePackagePolicy} */ (packagePolicy),
+      policy: packagePolicy,
       compartments: compartmentNames,
       packageDescriptor,
     };
+
+    compartments[dependeeLocation] = compartmentDescriptor;
+
+    metadataMap.set(compartmentDescriptor, {
+      canonicalName,
+    });
   }
 
   return {
@@ -994,8 +1019,11 @@ export const compartmentMapForNodeModules = async (
     dev = false,
     commonDependencies = {},
     policy,
+    policyOverride,
     strict = false,
     log = noop,
+    compartmentMapTransforms,
+    canonicalNameMap = new Map(),
   } = options;
   const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const languageOptions = makeLanguageOptions(options);
@@ -1053,6 +1081,13 @@ export const compartmentMapForNodeModules = async (
     ...subgraph
   } = graph;
 
+  /**
+   * This mapping is provided to {@link applyCompartmentMapTransforms} to enable reverse-lookups of `CompartmentDescriptor`s from policy.
+   *
+   * @type {Map<string, string>}
+   */
+  const canonicalNameToCompartmentNameMap = new Map();
+
   for (const [location, node] of entries(subgraph)) {
     const shortestLogicalPath = shortestPath(
       packageLocation,
@@ -1063,15 +1098,52 @@ export const compartmentMapForNodeModules = async (
     // the first element will always be the root package location; this is omitted from the path.
     shortestLogicalPath.shift();
     node.path = shortestLogicalPath.map(location => graph[location].name);
-    log(`Canonical name for package at ${location}: ${node.path.join('>')}`);
+
+    const canonicalName = generateCanonicalName({
+      isEntry: false, // always false since entry compartment already omitted
+      name: location,
+      path: node.path,
+    });
+    // this is exposed to the caller!
+    canonicalNameMap.set(location, canonicalName);
+
+    canonicalNameToCompartmentNameMap.set(canonicalName, location);
   }
+
+  /**
+   * Mapping of {@link CompartmentDescriptor} to metadata.
+   *
+   * {@link translateGraph} populates it, since it is repsonsible for creating
+   * the `CompartmentDescriptor` objects.
+   *
+   * Exposed to the caller thru {@link applyCompartmentMapTransforms}.
+   *
+   * @type {WeakMap<CompartmentDescriptor, CompartmentDescriptorMetadata>}
+   */
+  const metadataMap = new WeakMap();
 
   const compartmentMap = translateGraph(
     packageLocation,
     moduleSpecifier,
     graph,
     conditions,
-    policy,
+    canonicalNameMap,
+    metadataMap,
+    { policy },
+  );
+
+  // it is the caller's responsibility to provide all compartment map transforms
+  // if any are provided
+  const transforms = compartmentMapTransforms?.length
+    ? compartmentMapTransforms
+    : defaultCompartmentMapTransforms;
+
+  await applyCompartmentMapTransforms(
+    compartmentMap,
+    metadataMap,
+    canonicalNameToCompartmentNameMap,
+    transforms,
+    { log, policy, policyOverride },
   );
 
   return compartmentMap;
