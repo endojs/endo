@@ -135,10 +135,28 @@ export type CompartmentMapForNodeModulesOptions = Omit<
   'conditions' | 'tags'
 >;
 
+/**
+ * Options for `captureFromMap()`
+ */
 export type CaptureLiteOptions = ImportingOptions &
   LinkingOptions &
   PolicyOption &
-  LogOptions;
+  LogOptions &
+  PreloadOption;
+
+/**
+ * Options bag containing a `preload` array.
+ */
+export interface PreloadOption {
+  /**
+   * List of compartment names (the keys of
+   * {@link CompartmentMapDescriptor.compartments}) and entries (`ModuleDescriptorConfiguration` names) to force-load _after_ the
+   * entry compartment and any attenuators.
+   *
+   * If an array of strings is provided, the entry is assumed to be `.`.
+   */
+  _preload?: Array<string> | Array<{ compartment: string; entry: string }>;
+}
 
 export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ModuleTransformsOption &
