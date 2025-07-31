@@ -26,6 +26,7 @@ import { throwLabeled } from './throw-labeled.js';
  * If the promise rejects with an error, then the returned promise is
  * rejected with a similar promise, prefixed with the label in that same way.
  *
+ * @deprecated Use `nestReject` instead
  * @template A,R
  * @param {(...args: A[]) => R} func
  * @param {A[]} args

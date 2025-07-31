@@ -3,7 +3,6 @@ export {
   PASS_STYLE,
   isObject,
   isPrimitive,
-  assertChecker,
   getTag,
   hasOwnPropertyOf,
 } from './src/passStyle-helpers.js';

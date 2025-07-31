@@ -1,15 +1,7 @@
 /// <reference types="ses"/>
 
 import { X, q, Fail } from '@endo/errors';
-import { identChecker } from '@endo/common/ident-checker.js';
-import {
-  assertChecker,
-  Far,
-  getTag,
-  makeTagged,
-  passStyleOf,
-  isAtom,
-} from '@endo/pass-style';
+import { Far, getTag, makeTagged, passStyleOf, isAtom } from '@endo/pass-style';
 import {
   compareAntiRank,
   makeFullOrderComparatorKit,
@@ -22,15 +14,16 @@ import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 const { ownKeys } = Reflect;
 
 /**
- * @import {Passable, Atom, Checker} from '@endo/pass-style'
- * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {Passable, Atom} from '@endo/pass-style';
+ * @import {CopyBag, CopyMap, CopySet, Key, ScalarKey} from '../types.js';
  */
 
 // ////////////////// Atom and Scalar keys ////////////////////////////////
 
 /**
  * @param {any} val
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 export const checkScalarKey = (val, check) => {
@@ -69,7 +62,7 @@ const keyMemo = new WeakSet();
 
 /**
  * @param {unknown} val
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 export const checkKey = (val, check) => {
@@ -122,7 +115,7 @@ const copySetMemo = new WeakSet();
 
 /**
  * @param {any} s
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 export const checkCopySet = (s, check) => {
@@ -203,7 +196,7 @@ const copyBagMemo = new WeakSet();
 
 /**
  * @param {any} b
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 export const checkCopyBag = (b, check) => {
@@ -309,7 +302,7 @@ const copyMapMemo = new WeakSet();
 
 /**
  * @param {any} m
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 export const checkCopyMap = (m, check) => {
@@ -500,7 +493,7 @@ harden(makeCopyMap);
  * `checkKeyInternal` is only called if `val` is Passable but is not an Atom.
  *
  * @param {any} val
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 const checkKeyInternal = (val, check) => {

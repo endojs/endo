@@ -3,8 +3,9 @@
 export {};
 
 /**
- * @import {Passable, Checker} from '@endo/pass-style'
- * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {Passable} from '@endo/pass-style';
+ * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types.js';
  */
 
 /**

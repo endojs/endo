@@ -1,12 +1,12 @@
 /// <reference types="ses"/>
 
-/** @import {Checker} from './types.js' */
+/**
+ * @import {Rejector} from '@endo/common/rejector.js';
+ * @import {PassStyleHelper} from './internal-types.js';
+ */
 
-import {
-  assertChecker,
-  getOwnDataDescriptor,
-  CX,
-} from './passStyle-helpers.js';
+import { Reject } from '@endo/common/rejector.js';
+import { confirmOwnDataDescriptor } from './passStyle-helpers.js';
 import { canBeMethod } from './remotable.js';
 
 const { ownKeys } = Reflect;
@@ -14,13 +14,12 @@ const { getPrototypeOf, prototype: objectPrototype } = Object;
 
 /**
  * @param {unknown} candidate
- * @param {Checker} [check]
+ * @param {Rejector} reject
  */
-const checkObjectPrototype = (candidate, check = undefined) => {
+const confirmObjectPrototype = (candidate, reject) => {
   return (
     getPrototypeOf(candidate) === objectPrototype ||
-    (!!check &&
-      CX(check)`Records must inherit from Object.prototype: ${candidate}`)
+    (reject && reject`Records must inherit from Object.prototype: ${candidate}`)
   );
 };
 
@@ -28,53 +27,44 @@ const checkObjectPrototype = (candidate, check = undefined) => {
  * @param {unknown} candidate
  * @param {PropertyKey} key
  * @param {unknown} value
- * @param {Checker} [check]
+ * @param {Rejector} reject
  */
-const checkPropertyCanBeValid = (candidate, key, value, check = undefined) => {
+const confirmPropertyCanBeValid = (candidate, key, value, reject) => {
   return (
     (typeof key === 'string' ||
-      (!!check &&
-        CX(
-          check,
-        )`Records can only have string-named properties: ${candidate}`)) &&
+      (reject &&
+        reject`Records can only have string-named properties: ${candidate}`)) &&
     (!canBeMethod(value) ||
-      (!!check &&
+      (reject &&
         // TODO: Update message now that there is no such thing as "implicit Remotable".
-        CX(
-          check,
-        )`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`))
+        reject`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`))
   );
 };
 
 /**
  *
- * @type {import('./internal-types.js').PassStyleHelper}
+ * @type {PassStyleHelper}
  */
 export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
-  canBeValid: (candidate, check = undefined) => {
+  confirmCanBeValid: (candidate, reject) => {
     return (
-      checkObjectPrototype(candidate, check) &&
+      confirmObjectPrototype(candidate, reject) &&
       // Reject any candidate with a symbol-keyed property or method-like property
       // (such input is potentially a Remotable).
       ownKeys(candidate).every(key =>
-        checkPropertyCanBeValid(candidate, key, candidate[key], check),
+        confirmPropertyCanBeValid(candidate, key, candidate[key], reject),
       )
     );
   },
 
   assertRestValid: (candidate, passStyleOfRecur) => {
     // Validate that each own property has a recursively passable associated
-    // value (we already know from canBeValid that the other constraints are
+    // value (we already know from confirmCanBeValid that the other constraints are
     // satisfied).
     for (const name of ownKeys(candidate)) {
-      const { value } = getOwnDataDescriptor(
-        candidate,
-        name,
-        true,
-        assertChecker,
-      );
+      const { value } = confirmOwnDataDescriptor(candidate, name, true, Reject);
       passStyleOfRecur(value);
     }
   },

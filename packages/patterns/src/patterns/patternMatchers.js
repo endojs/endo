@@ -1,12 +1,10 @@
 // @ts-nocheck So many errors that the suppressions hamper readability.
 // TODO parameterize MatchHelper which will solve most of them
 import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
-import { identChecker } from '@endo/common/ident-checker.js';
 import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
 import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
 import { listDifference } from '@endo/common/list-difference.js';
 import {
-  assertChecker,
   Far,
   getTag,
   makeTagged,
@@ -41,9 +39,10 @@ import {
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
 /**
- * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style'
- * @import {CopySet, CopyBag, ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js'
- * @import {MatchHelper, PatternKit} from './types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style';
+ * @import {CopySet, CopyBag, ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js';
+ * @import {MatchHelper, PatternKit} from './types.js';
  */
 
 const { entries, values, hasOwn } = Object;
@@ -138,7 +137,7 @@ const checkIsWellFormedWithLimit = (
 /**
  * @param {unknown} specimen
  * @param {number} decimalDigitsLimit
- * @param {Checker} check
+ * @param {Rejector} reject
  */
 const checkDecimalDigitsLimit = (specimen, decimalDigitsLimit, check) => {
   if (
@@ -199,7 +198,7 @@ const makePatternKit = () => {
    *
    * @param {Passable} tagged
    * @param {Kind} tag
-   * @param {Checker} check
+   * @param {Rejector} reject
    * @returns {boolean}
    */
   const checkTagged = (tagged, tag, check) => {
@@ -240,7 +239,7 @@ const makePatternKit = () => {
    * Otherwise, `check(false, ...)` and returns undefined
    *
    * @param {any} specimen
-   * @param {Checker} [check]
+   * @param {Rejector} reject
    * @returns {Kind | undefined}
    */
   const kindOf = (specimen, check = identChecker) => {
@@ -272,7 +271,7 @@ const makePatternKit = () => {
    *
    * @param {any} specimen
    * @param {Kind} kind
-   * @param {Checker} check
+   * @param {Rejector} reject
    * @returns {boolean}
    */
   const checkKind = (specimen, kind, check) => {
@@ -317,7 +316,7 @@ const makePatternKit = () => {
   /**
    * @param {any} specimen
    * @param {Key} keyAsPattern
-   * @param {Checker} check
+   * @param {Rejector} reject
    * @returns {boolean}
    */
   const checkAsKeyPatt = (specimen, keyAsPattern, check) => {
@@ -357,7 +356,7 @@ const makePatternKit = () => {
   /**
    * @param {Passable} patt - known not to be a key, and therefore known
    * not to be primitive.
-   * @param {Checker} check
+   * @param {Rejector} reject
    * @returns {boolean}
    */
   const checkPatternInternal = (patt, check) => {
@@ -421,7 +420,7 @@ const makePatternKit = () => {
   /**
    * @param {any} specimen
    * @param {Pattern} pattern
-   * @param {Checker} check
+   * @param {Rejector} reject
    * @param {string|number} [label]
    * @returns {boolean}
    */
@@ -432,7 +431,7 @@ const makePatternKit = () => {
   /**
    * @param {any} specimen
    * @param {Pattern} patt
-   * @param {Checker} check
+   * @param {Rejector} reject
    * @returns {boolean}
    */
   const checkMatchesInternal = (specimen, patt, check) => {
@@ -729,7 +728,7 @@ const makePatternKit = () => {
   /**
    * @param {Passable[]} array
    * @param {Pattern} patt
-   * @param {Checker} check
+   * @param {Rejector} reject
    * @param {string} [labelPrefix]
    * @returns {boolean}
    */
@@ -1309,7 +1308,7 @@ const makePatternKit = () => {
    * @param {bigint} bound Must be >= 1n
    * @param {CopyArray} [inResults]
    * @param {CopyArray} [outResults]
-   * @param {Checker} [check]
+   * @param {Rejector} reject
    * @returns {boolean}
    */
   const elementsHasSplit = (
@@ -1355,7 +1354,7 @@ const makePatternKit = () => {
    * @param {bigint} bound Must be >= 1n
    * @param {CopyArray<[Key, bigint]>} [inResults]
    * @param {CopyArray<[Key, bigint]>} [outResults]
-   * @param {Checker} [check]
+   * @param {Rejector} reject
    * @returns {boolean}
    */
   const pairsHasSplit = (
@@ -1410,7 +1409,7 @@ const makePatternKit = () => {
    * @param {bigint} bound Must be >= 1n
    * @param {boolean} [needInResults]
    * @param {boolean} [needOutResults]
-   * @param {Checker} [check]
+   * @param {Rejector} reject
    * @returns {[Container | undefined, Container | undefined] | false}
    */
   const containerHasSplit = (
@@ -1488,7 +1487,7 @@ const makePatternKit = () => {
     /**
      * @param {CopyArray | CopySet | CopyBag} specimen
      * @param {[Pattern, bigint, Limits?]} payload
-     * @param {Checker} check
+     * @param {Rejector} reject
      */
     checkMatches: (
       specimen,
@@ -1643,7 +1642,7 @@ const makePatternKit = () => {
 
     /**
      * @param {Array} splitArray
-     * @param {Checker} check
+     * @param {Rejector} reject
      */
     checkIsWellFormed: (splitArray, check) => {
       if (
@@ -1755,7 +1754,7 @@ const makePatternKit = () => {
 
     /**
      * @param {Array} splitArray
-     * @param {Checker} check
+     * @param {Rejector} reject
      */
     checkIsWellFormed: (splitArray, check) => {
       if (

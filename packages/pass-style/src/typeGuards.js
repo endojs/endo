@@ -1,9 +1,9 @@
-import { Fail, q, X } from '@endo/errors';
-import { identChecker } from '@endo/common/ident-checker.js';
+import { Fail, q } from '@endo/errors';
+import { Reject } from '@endo/common/rejector.js';
 import { passStyleOf } from './passStyleOf.js';
-import { assertChecker } from './passStyle-helpers.js';
 
 /**
+ * @import {Rejector} from '@endo/common/rejector.js';
  * @import {CopyArray, CopyRecord, Passable, RemotableObject, ByteArray, Checker, Atom} from './types.js'
  */
 
@@ -108,18 +108,15 @@ harden(assertRemotable);
 
 /**
  * @param {any} val Not necessarily passable
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {val is Atom}
  */
-const checkAtom = (val, check) => {
+const confirmAtom = (val, reject) => {
   let passStyle;
   try {
     passStyle = passStyleOf(val);
   } catch (err) {
-    return (
-      check !== identChecker &&
-      check(false, X`Not even Passable: ${q(err)}: ${val}`)
-    );
+    return reject && reject`Not even Passable: ${q(err)}: ${val}`;
   }
   switch (passStyle) {
     case 'undefined':
@@ -135,10 +132,7 @@ const checkAtom = (val, check) => {
     }
     default: {
       // The other PassStyle cases
-      return (
-        check !== identChecker &&
-        check(false, X`A ${q(passStyle)} cannot be an atom: ${val}`)
-      );
+      return reject && reject`A ${q(passStyle)} cannot be an atom: ${val}`;
     }
   }
 };
@@ -147,7 +141,7 @@ const checkAtom = (val, check) => {
  * @param {any} val
  * @returns {val is Atom}
  */
-export const isAtom = val => checkAtom(val, identChecker);
+export const isAtom = val => confirmAtom(val, false);
 harden(isAtom);
 
 /**
@@ -155,6 +149,6 @@ harden(isAtom);
  * @returns {asserts val is Atom}
  */
 export const assertAtom = val => {
-  checkAtom(val, assertChecker);
+  confirmAtom(val, Reject);
 };
 harden(assertAtom);

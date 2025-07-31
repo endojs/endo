@@ -1,8 +1,9 @@
 export {};
 
-/** @import {Checker} from './types.js' */
-/** @import {PassStyle} from './types.js' */
-/** @import {PassStyleOf} from './types.js' */
+/**
+ * @import {Rejector} from '@endo/common/rejector.js';
+ * @import {PassStyle} from './types.js';
+ */
 
 /**
  * The PassStyleHelper are only used to make a `passStyleOf` function.
@@ -17,11 +18,12 @@ export {};
  *
  * @typedef {object} PassStyleHelper
  * @property {PassStyle} styleName
- * @property {(candidate: any, check?: Checker) => boolean} canBeValid
- * If `canBeValid` returns true, then the candidate would
+ * @property {(candidate: any, reject: Rejector) => boolean} confirmCanBeValid
+ * If `confirmCanBeValid` returns true, then the candidate would
  * definitely not be valid for any of the other helpers.
  * `assertRestValid` still needs to be called to determine if it
- * actually is valid, but only after the `canBeValid` check has passed.
+ * actually is valid, but only after the `confirmCanBeValid` check has passed.
+ *
  * @property {(candidate: any,
  *             passStyleOfRecur: (val: any) => PassStyle
  *            ) => void} assertRestValid

@@ -1,5 +1,4 @@
 import {
-  assertChecker,
   makeTagged,
   passStyleOf,
   compareAntiRank,
@@ -13,9 +12,10 @@ import {
 import { X } from '@endo/errors';
 
 /**
- * @import {Passable} from '@endo/pass-style'
- * @import {Checker, FullCompare} from '@endo/marshal'
- * @import {CopyBag, Key} from '../types.js'
+ * @import {Checker} from '@endo/common/ident-checker.js';
+ * @import {Passable} from '@endo/pass-style';
+ * @import {FullCompare} from '@endo/marshal';
+ * @import {CopyBag, Key} from '../types.js';
  */
 
 /**
@@ -29,7 +29,7 @@ import { X } from '@endo/errors';
  * TODO: If doing this reduntantly turns out to be expensive, we
  * could memoize this no-duplicate-keys finding as well, independent
  * of the `fullOrder` use to reach this finding.
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 const checkNoDuplicateKeys = (bagEntries, fullCompare, check) => {
@@ -66,7 +66,7 @@ export const assertNoDuplicateKeys = (bagEntries, fullCompare = undefined) => {
 
 /**
  * @param {[Passable,bigint][]} bagEntries
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {boolean}
  */
 export const checkBagEntries = (bagEntries, check) => {

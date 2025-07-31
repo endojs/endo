@@ -2,9 +2,11 @@
 
 import { isPromise } from '@endo/promise-kit';
 import { q } from '@endo/errors';
-import { assertChecker, CX } from './passStyle-helpers.js';
+import { Reject } from '@endo/common/rejector.js';
 
-/** @import {Checker} from './types.js' */
+/**
+ * @import {Rejector} from '@endo/common/rejector.js';
+ */
 
 const { isFrozen, getPrototypeOf, getOwnPropertyDescriptor, hasOwn } = Object;
 const { ownKeys } = Reflect;
@@ -12,10 +14,10 @@ const { toStringTag } = Symbol;
 
 /**
  * @param {Promise} pr The value to examine
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {pr is Promise} Whether it is a safe promise
  */
-const checkPromiseOwnKeys = (pr, check) => {
+const confirmPromiseOwnKeys = (pr, reject) => {
   const keys = ownKeys(pr);
 
   if (keys.length === 0) {
@@ -36,9 +38,10 @@ const checkPromiseOwnKeys = (pr, check) => {
   );
 
   if (unknownKeys.length !== 0) {
-    return CX(
-      check,
-    )`${pr} - Must not have any own properties: ${q(unknownKeys)}`;
+    return (
+      reject &&
+      reject`${pr} - Must not have any own properties: ${q(unknownKeys)}`
+    );
   }
 
   /**
@@ -70,15 +73,14 @@ const checkPromiseOwnKeys = (pr, check) => {
       assert(tagDesc !== undefined);
       return (
         (hasOwn(tagDesc, 'value') ||
-          CX(
-            check,
-          )`Own @@toStringTag must be a data property, not an accessor: ${q(tagDesc)}`) &&
+          (reject &&
+            reject`Own @@toStringTag must be a data property, not an accessor: ${q(tagDesc)}`)) &&
         (typeof tagDesc.value === 'string' ||
-          CX(
-            check,
-          )`Own @@toStringTag value must be a string: ${q(tagDesc.value)}`) &&
+          (reject &&
+            reject`Own @@toStringTag value must be a string: ${q(tagDesc.value)}`)) &&
         (!tagDesc.enumerable ||
-          CX(check)`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`)
+          (reject &&
+            reject`Own @@toStringTag must not be enumerable: ${q(tagDesc)}`))
       );
     }
     const val = pr[key];
@@ -104,11 +106,12 @@ const checkPromiseOwnKeys = (pr, check) => {
         return true;
       }
     }
-    return CX(
-      check,
-    )`Unexpected Node async_hooks additions to promise: ${pr}.${q(
-      String(key),
-    )} is ${val}`;
+    return (
+      reject &&
+      reject`Unexpected Node async_hooks additions to promise: ${pr}.${q(
+        String(key),
+      )} is ${val}`
+    );
   };
 
   return keys.every(checkSafeOwnKey);
@@ -127,21 +130,22 @@ const checkPromiseOwnKeys = (pr, check) => {
  * use it here as well.
  *
  * @param {unknown} pr The value to examine
- * @param {Checker} check
+ * @param {Rejector} reject
  * @returns {pr is Promise} Whether it is a safe promise
  */
-const checkSafePromise = (pr, check) => {
+const confirmSafePromise = (pr, reject) => {
   return (
-    (isFrozen(pr) || CX(check)`${pr} - Must be frozen`) &&
-    (isPromise(pr) || CX(check)`${pr} - Must be a promise`) &&
+    (isFrozen(pr) || (reject && reject`${pr} - Must be frozen`)) &&
+    (isPromise(pr) || (reject && reject`${pr} - Must be a promise`)) &&
     (getPrototypeOf(pr) === Promise.prototype ||
-      CX(check)`${pr} - Must inherit from Promise.prototype: ${q(
-        getPrototypeOf(pr),
-      )}`) &&
-    checkPromiseOwnKeys(/** @type {Promise} */ (pr), check)
+      (reject &&
+        reject`${pr} - Must inherit from Promise.prototype: ${q(
+          getPrototypeOf(pr),
+        )}`)) &&
+    confirmPromiseOwnKeys(/** @type {Promise} */ (pr), reject)
   );
 };
-harden(checkSafePromise);
+harden(confirmSafePromise);
 
 /**
  * Determine if the argument is a Promise.
@@ -149,7 +153,7 @@ harden(checkSafePromise);
  * @param {unknown} pr The value to examine
  * @returns {pr is Promise} Whether it is a promise
  */
-export const isSafePromise = pr => checkSafePromise(pr, x => x);
+export const isSafePromise = pr => confirmSafePromise(pr, false);
 harden(isSafePromise);
 
-export const assertSafePromise = pr => checkSafePromise(pr, assertChecker);
+export const assertSafePromise = pr => confirmSafePromise(pr, Reject);

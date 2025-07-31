@@ -2,7 +2,8 @@
 
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import { q, Fail } from '@endo/errors';
-import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
+import { Reject } from '@endo/common/rejector.js';
+import { PASS_STYLE } from './passStyle-helpers.js';
 import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
 /** @import {RemotableBrand} from '@endo/eventual-send' */
@@ -52,7 +53,7 @@ const makeRemotableProto = (remotable, iface) => {
 };
 
 const assertCanBeRemotable = candidate =>
-  RemotableHelper.canBeValid(candidate, assertChecker);
+  RemotableHelper.confirmCanBeValid(candidate, Reject);
 
 /**
  * Create and register a Remotable.  After this, getInterfaceOf(remotable)
