@@ -1,6 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
-import { q } from '@endo/errors';
-import { nestReject, Reject } from '../rejector.js';
+import { q, Fail } from '@endo/errors';
+import { nestReject } from '../rejector.js';
 
 /**
  * @import {Rejector} from '../rejector.js';
@@ -36,7 +36,7 @@ const isFoo = candidate => confirmFoo(candidate, false);
  * @returns {asserts candidate is 'foo'}
  */
 const assertFoo = candidate => {
-  confirmFoo(candidate, Reject);
+  confirmFoo(candidate, Fail);
 };
 
 test('test rejector conjunction patterns', t => {
@@ -73,7 +73,7 @@ const isFooOrBar = candidate => confirmFooOrBar(candidate, false);
  * @returns {asserts candidate is ('foo'|'bar')}
  */
 const assertFooOrBar = candidate => {
-  confirmFooOrBar(candidate, Reject);
+  confirmFooOrBar(candidate, Fail);
 };
 
 test('test rejector disjunction patterns', t => {

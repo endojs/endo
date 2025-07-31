@@ -39,9 +39,9 @@ const makeReject = (prePre, postPre) => {
   return harden(reject);
 };
 
-export const Reject = makeReject(undefined, '');
-
-export const nestReject = (prefix, reject) => reject && reject.pre(prefix);
+export const nestReject = (prefix, reject) =>
+  reject &&
+  (reject === Fail ? makeReject(undefined, prefix) : reject.pre(prefix));
 
 /**
  * Either
@@ -68,5 +68,5 @@ export const nestReject = (prefix, reject) => reject && reject.pre(prefix);
  * ```
  * See rejector.test.js for illustrative examples.
  *
- * @typedef {false | typeof Reject} Rejector
+ * @typedef {false | typeof Fail} Rejector
  */
