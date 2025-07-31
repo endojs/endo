@@ -1,5 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
-import { Fail, q } from '@endo/errors';
+import { q } from '@endo/errors';
+import { nestReject, Reject } from '../rejector.js';
 
 /**
  * @import {Rejector} from '../rejector.js';
@@ -20,7 +21,8 @@ const confirmString = (candidate, reject) =>
  * @returns {candidate is 'foo'}
  */
 const confirmFoo = (candidate, reject) =>
-  (confirmString(candidate, reject) && candidate === 'foo') ||
+  (confirmString(candidate, nestReject('str: ', reject)) &&
+    candidate === 'foo') ||
   (reject && reject`${q(candidate)} should be "foo"`);
 
 /**
@@ -34,7 +36,7 @@ const isFoo = candidate => confirmFoo(candidate, false);
  * @returns {asserts candidate is 'foo'}
  */
 const assertFoo = candidate => {
-  confirmFoo(candidate, Fail);
+  confirmFoo(candidate, Reject);
 };
 
 test('test rejector conjunction patterns', t => {
@@ -46,7 +48,7 @@ test('test rejector conjunction patterns', t => {
     message: '"zip" should be "foo"',
   });
   t.throws(() => assertFoo(88), {
-    message: '88 should be a string',
+    message: 'str: 88 should be a string',
   });
 });
 
@@ -71,7 +73,7 @@ const isFooOrBar = candidate => confirmFooOrBar(candidate, false);
  * @returns {asserts candidate is ('foo'|'bar')}
  */
 const assertFooOrBar = candidate => {
-  confirmFooOrBar(candidate, Fail);
+  confirmFooOrBar(candidate, Reject);
 };
 
 test('test rejector disjunction patterns', t => {
