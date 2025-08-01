@@ -1,4 +1,4 @@
-import { Fail } from '@endo/errors';
+import { Fail } from './index.js';
 
 const makeReject = (prePre, postPre) => {
   /**

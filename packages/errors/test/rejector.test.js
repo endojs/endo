@@ -1,6 +1,6 @@
 import test from '@endo/ses-ava/prepare-endo.js';
-import { q, Fail } from '@endo/errors';
 import { nestReject } from '../rejector.js';
+import { Fail, q } from '../index.js';
 
 /**
  * @import {Rejector} from '../rejector.js';
