@@ -1,5 +1,5 @@
 /**
- * @deprecated Use `Rejector` instead
+ * @deprecated Use `Rejector` in the confirm/reject pattern instead
  * @callback Checker
  * Internal to a useful pattern for writing checking logic
  * (a "checkFoo" function) that can be used to implement a predicate
@@ -28,7 +28,7 @@
  * identity function, but is typed as a `Checker` to indicate its
  * intended use.
  *
- * @deprecated use `Reject` instead
+ * @deprecated use `false` in the confirm/reject pattern instead
  * @type {Checker}
  */
 export const identChecker = (cond, _details) => cond;
