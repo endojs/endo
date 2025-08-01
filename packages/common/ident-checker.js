@@ -1,7 +1,5 @@
-// TODO Complete migration of Checker type from @endo/pass-style to @endo/common
-// by having @endo/pass-style, and everyone else who needs it, import it from
-// `@endo/common/ident-checker.js`.
 /**
+ * @deprecated Use `Rejector` instead
  * @callback Checker
  * Internal to a useful pattern for writing checking logic
  * (a "checkFoo" function) that can be used to implement a predicate
@@ -30,6 +28,7 @@
  * identity function, but is typed as a `Checker` to indicate its
  * intended use.
  *
+ * @deprecated use `Reject` instead
  * @type {Checker}
  */
 export const identChecker = (cond, _details) => cond;
