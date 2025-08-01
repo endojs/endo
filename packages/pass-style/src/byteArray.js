@@ -53,11 +53,11 @@ const { immutableArrayBufferPrototype, immutableGetter } =
 export const ByteArrayHelper = harden({
   styleName: 'byteArray',
 
-  canBeValid: (candidate, check = undefined) =>
+  confirmCanBeValid: (candidate, reject) =>
     (candidate instanceof ArrayBuffer &&
       // @ts-expect-error TODO How do I add it to the ArrayBuffer type?
       candidate.immutable) ||
-    (!!check && check(false, X`Immutable ArrayBuffer expected: ${candidate}`)),
+    (reject && reject`Immutable ArrayBuffer expected: ${candidate}`),
 
   assertRestValid: (candidate, _passStyleOfRecur) => {
     getPrototypeOf(candidate) === immutableArrayBufferPrototype ||
