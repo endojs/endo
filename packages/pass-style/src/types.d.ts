@@ -228,4 +228,8 @@ export type CopyTagged<
  */
 export type InterfaceSpec = string;
 
+/**
+ * Consider this export deprecated.
+ * Import `Checker` directly from `'@endo/common/ident-checker.js'` instead.
+ */
 export type { Checker } from '@endo/common/ident-checker.js';

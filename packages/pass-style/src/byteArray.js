@@ -49,9 +49,10 @@ const { immutableArrayBufferPrototype, immutableGetter } =
 export const ByteArrayHelper = harden({
   styleName: 'byteArray',
 
-  canBeValid: (candidate, check = undefined) =>
-    (candidate instanceof ArrayBuffer && candidate.immutable) ||
-    (!!check && check(false, X`Immutable ArrayBuffer expected: ${candidate}`)),
+  confirmCanBeValid: (candidate, reject) =>
+    (candidate instanceof ArrayBuffer &&
+      candidate.immutable) ||
+    (reject && reject`Immutable ArrayBuffer expected: ${candidate}`),
 
   assertRestValid: (candidate, _passStyleOfRecur) => {
     getPrototypeOf(candidate) === immutableArrayBufferPrototype ||
