@@ -2,10 +2,9 @@
 
 import { Fail } from '@endo/errors';
 import {
-  assertChecker,
   checkTagRecord,
   PASS_STYLE,
-  getOwnDataDescriptor,
+  confirmOwnDataDescriptor,
   checkPassStyle,
 } from './passStyle-helpers.js';
 
@@ -23,11 +22,11 @@ const { getOwnPropertyDescriptors } = Object;
 export const TaggedHelper = harden({
   styleName: 'tagged',
 
-  canBeValid: (candidate, check = undefined) =>
-    checkPassStyle(candidate, candidate[PASS_STYLE], 'tagged', check),
+  confirmCanBeValid: (candidate, reject) =>
+    checkPassStyle(candidate, candidate[PASS_STYLE], 'tagged', reject),
 
   assertRestValid: (candidate, passStyleOfRecur) => {
-    checkTagRecord(candidate, 'tagged', assertChecker);
+    checkTagRecord(candidate, 'tagged', Fail);
 
     // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
     const passStyleKey = /** @type {unknown} */ (PASS_STYLE);
@@ -45,7 +44,7 @@ export const TaggedHelper = harden({
     // Validate that the 'payload' property is own/data/enumerable
     // and its associated value is recursively passable.
     passStyleOfRecur(
-      getOwnDataDescriptor(candidate, 'payload', true, assertChecker).value,
+      confirmOwnDataDescriptor(candidate, 'payload', true, Fail).value,
     );
   },
 });
