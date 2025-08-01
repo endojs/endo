@@ -132,11 +132,10 @@ export const enforcePolicyTransform = ({
     if (!packagePolicy) {
       return false;
     }
-    if (moduleDescriptor.compartment === undefined) {
-      throw new TypeError(
-        `ModuleDescriptor ${q(moduleDescriptor.module)} has no compartment property`,
-      );
-    }
+    assert(
+      moduleDescriptor.compartment,
+      `compartment expected in ModuleDescriptor: ${q(moduleDescriptor)}`,
+    );
 
     const compartmentDescriptor = getCompartmentDescriptor(
       moduleDescriptor.compartment,
@@ -150,11 +149,8 @@ export const enforcePolicyTransform = ({
     }
 
     const canonicalName = getCanonicalName(compartmentDescriptor);
-    if (!canonicalName) {
-      throw new TypeError(
-        `Cannot compute canonical name for CompartmentDescriptor ${q(compartmentDescriptor)}`,
-      );
-    }
+
+    assert(canonicalName, 'canonicalName expected');
 
     return !policyLookupHelper(packagePolicy, 'packages', canonicalName);
   };
@@ -194,7 +190,7 @@ export const enforcePolicyTransform = ({
       compartmentDescriptor.modules,
     )) {
       const { compartment: moduleDescriptorCompartmentName } = moduleDescriptor;
-      // ignore malformed ModuleDescriptors and self-referencing modules
+      // ignore unknown ModuleDescriptors and self-referencing modules
       if (
         !moduleDescriptorCompartmentName ||
         moduleDescriptorCompartmentName === compartmentName
@@ -204,7 +200,9 @@ export const enforcePolicyTransform = ({
 
       if (shouldRemoveModule(packagePolicy, moduleDescriptor)) {
         compartmentCanonicalName ??=
-          getCanonicalName(compartmentDescriptor) ?? compartmentName;
+          compartmentName === compartmentMap.entry.compartment
+            ? compartmentName
+            : (getCanonicalName(compartmentDescriptor) ?? compartmentName);
 
         const moduleCompartmentDescriptor = getCompartmentDescriptor(
           moduleDescriptorCompartmentName,
@@ -252,12 +250,6 @@ export const createReferencesByPolicyTransform = ({
       : getPackagePolicy(compartmentDescriptor, policyOverride);
 
     if (!packagePolicy) {
-      const canonicalName = getCanonicalName(compartmentDescriptor);
-      if (canonicalName && policy?.resources[canonicalName]?.packages) {
-        throw Error(
-          `Expected package policy for compartment ${q(canonicalName)}`,
-        );
-      }
       continue;
     }
 
@@ -379,13 +371,19 @@ export const applyCompartmentMapTransforms = async (
   );
 
   for (const transform of transforms ?? defaultCompartmentMapTransforms) {
-    // TODO: try/catch here
-    // eslint-disable-next-line no-await-in-loop
-    compartmentMap = await transform({
-      compartmentMap,
-      options: optionsForTransforms,
-      context,
-    });
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      compartmentMap = await transform({
+        compartmentMap,
+        options: optionsForTransforms,
+        context,
+      });
+    } catch (err) {
+      throw new Error(
+        `Compartment Map Transform ${q(transform.name)} errored during execution: ${err.message}`,
+        { cause: err },
+      );
+    }
   }
   return compartmentMap;
 };

@@ -293,7 +293,12 @@ export const link = (
 
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
-  )) {
+  ).sort(([, { path: pathA }], [, { path: pathB }]) => {
+    if (!pathA || !pathB) {
+      return 0;
+    }
+    return pathA.length - pathB.length;
+  })) {
     const {
       location,
       name,
