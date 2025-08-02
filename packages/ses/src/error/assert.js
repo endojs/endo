@@ -97,6 +97,9 @@ freeze(bare);
  *
  * The contents of a `details` template literal tag: literal strings (always at
  * least one) and arbitrary substitution values from in between them.
+ *
+ * Unquoted substitution values are sensitive (and are redacted in error
+ * `message` strings), so a DetailsPart must not leak outside of this file.
  */
 
 /**
