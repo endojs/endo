@@ -2,10 +2,10 @@
 
 import { Fail } from '@endo/errors';
 import {
-  checkTagRecord,
+  confirmTagRecord,
   PASS_STYLE,
   confirmOwnDataDescriptor,
-  checkPassStyle,
+  confirmPassStyle,
 } from './passStyle-helpers.js';
 
 /**
@@ -23,16 +23,16 @@ export const TaggedHelper = harden({
   styleName: 'tagged',
 
   confirmCanBeValid: (candidate, reject) =>
-    checkPassStyle(candidate, candidate[PASS_STYLE], 'tagged', reject),
+    confirmPassStyle(candidate, candidate[PASS_STYLE], 'tagged', reject),
 
   assertRestValid: (candidate, passStyleOfRecur) => {
-    checkTagRecord(candidate, 'tagged', Fail);
+    confirmTagRecord(candidate, 'tagged', Fail);
 
     // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
     const passStyleKey = /** @type {unknown} */ (PASS_STYLE);
     const tagKey = /** @type {unknown} */ (Symbol.toStringTag);
     const {
-      // checkTagRecord already verified PASS_STYLE and Symbol.toStringTag own data properties.
+      // confirmTagRecord already verified PASS_STYLE and Symbol.toStringTag own data properties.
       [/** @type {string} */ (passStyleKey)]: _passStyleDesc,
       [/** @type {string} */ (tagKey)]: _labelDesc,
       payload: _payloadDesc, // value checked by recursive walk at the end

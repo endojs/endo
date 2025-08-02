@@ -4,8 +4,8 @@ import { Fail, q } from '@endo/errors';
 import { getMethodNames } from '@endo/eventual-send/utils.js';
 import {
   PASS_STYLE,
-  checkTagRecord,
-  checkFunctionTagRecord,
+  confirmTagRecord,
+  confirmFunctionTagRecord,
   isPrimitive,
   getTag,
 } from './passStyle-helpers.js';
@@ -143,11 +143,11 @@ const confirmRemotableProtoOf = (original, reject) => {
       // eslint-disable-next-line no-use-before-define
       return confirmRemotable(proto, reject);
     }
-    if (!checkTagRecord(proto, 'remotable', reject)) {
+    if (!confirmTagRecord(proto, 'remotable', reject)) {
       return false;
     }
   } else if (typeof original === 'function') {
-    if (!checkFunctionTagRecord(proto, 'remotable', reject)) {
+    if (!confirmFunctionTagRecord(proto, 'remotable', reject)) {
       return false;
     }
   }
@@ -156,7 +156,7 @@ const confirmRemotableProtoOf = (original, reject) => {
   const passStyleKey = /** @type {unknown} */ (PASS_STYLE);
   const tagKey = /** @type {unknown} */ (Symbol.toStringTag);
   const {
-    // checkTagRecord already verified PASS_STYLE and Symbol.toStringTag own data properties.
+    // confirmTagRecord already verified PASS_STYLE and Symbol.toStringTag own data properties.
     [/** @type {string} */ (passStyleKey)]: _passStyleDesc,
     [/** @type {string} */ (tagKey)]: { value: iface },
     ...restDescs

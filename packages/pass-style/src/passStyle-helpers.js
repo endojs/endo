@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { X, q } from '@endo/errors';
+import { q } from '@endo/errors';
 
 /**
  * @import {Rejector} from '@endo/errors/rejector.js';
@@ -130,23 +130,29 @@ harden(confirmOwnDataDescriptor);
 export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
-export const checkPassStyle = (obj, passStyle, expectedPassStyle, reject) => {
+/**
+ * @param {any} obj
+ * @param {PassStyle} passStyle
+ * @param {PassStyle} expectedPassStyle
+ * @param {Rejector} reject
+ */
+export const confirmPassStyle = (obj, passStyle, expectedPassStyle, reject) => {
   return (
     passStyle === expectedPassStyle ||
     (reject &&
       reject`Expected ${q(expectedPassStyle)}, not ${q(passStyle)}: ${obj}`)
   );
 };
-harden(checkPassStyle);
+harden(confirmPassStyle);
 
-const makeCheckTagRecord = checkProto => {
+const makeConfirmTagRecord = confirmProto => {
   /**
    * @param {import('./types.js').PassStyled<any, any>} tagRecord
    * @param {PassStyle} expectedPassStyle
    * @param {Rejector} reject
    * @returns {boolean}
    */
-  const checkTagRecord = (tagRecord, expectedPassStyle, reject) => {
+  const confirmTagRecord = (tagRecord, expectedPassStyle, reject) => {
     return (
       (!isPrimitive(tagRecord) ||
         (reject && reject`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
@@ -154,7 +160,7 @@ const makeCheckTagRecord = checkProto => {
         (reject && reject`A tagRecord must be frozen: ${tagRecord}`)) &&
       (!isArray(tagRecord) ||
         (reject && reject`An array cannot be a tagRecord: ${tagRecord}`)) &&
-      checkPassStyle(
+      confirmPassStyle(
         tagRecord,
         confirmOwnDataDescriptor(tagRecord, PASS_STYLE, false, reject).value,
         expectedPassStyle,
@@ -168,27 +174,24 @@ const makeCheckTagRecord = checkProto => {
       ).value === 'string' ||
         (reject &&
           reject`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`)) &&
-      checkProto(tagRecord, getPrototypeOf(tagRecord), reject)
+      confirmProto(tagRecord, getPrototypeOf(tagRecord), reject)
     );
   };
-  return harden(checkTagRecord);
+  return harden(confirmTagRecord);
 };
 
-export const checkTagRecord = makeCheckTagRecord(
-  (val, proto, check) =>
+export const confirmTagRecord = makeConfirmTagRecord(
+  (val, proto, reject) =>
     proto === objectPrototype ||
-    (!!check && check`A tagRecord must inherit from Object.prototype: ${val}`),
+    (reject && reject`A tagRecord must inherit from Object.prototype: ${val}`),
 );
-harden(checkTagRecord);
+harden(confirmTagRecord);
 
-export const checkFunctionTagRecord = makeCheckTagRecord(
-  (val, proto, check) =>
+export const confirmFunctionTagRecord = makeConfirmTagRecord(
+  (val, proto, reject) =>
     proto === functionPrototype ||
     (proto !== null && getPrototypeOf(proto) === functionPrototype) ||
-    (!!check &&
-      check(
-        false,
-        X`For functions, a tagRecord must inherit from Function.prototype: ${val}`,
-      )),
+    (reject &&
+      reject`For functions, a tagRecord must inherit from Function.prototype: ${val}`),
 );
-harden(checkFunctionTagRecord);
+harden(confirmFunctionTagRecord);
